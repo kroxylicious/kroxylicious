@@ -24,6 +24,8 @@ import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelOption;
+import io.strimzi.kproxy.codec.KafkaMessageDecoder;
+import io.strimzi.kproxy.codec.KafkaMessageEncoder;
 
 public class HexDumpProxyFrontendHandler extends ChannelInboundHandlerAdapter {
 
@@ -44,9 +46,13 @@ public class HexDumpProxyFrontendHandler extends ChannelInboundHandlerAdapter {
         // Start the connection attempt.
         Bootstrap b = new Bootstrap();
         b.group(inboundChannel.eventLoop())
-         .channel(ctx.channel().getClass())
-         .handler(new HexDumpProxyBackendHandler(inboundChannel))
-         .option(ChannelOption.AUTO_READ, false);
+            .channel(ctx.channel().getClass())
+                .handler(new KafkaMessageDecoder())
+                .handler(new KafkaMessageEncoder())
+                // add a listener for policy
+                // add a listener for encryption
+                .handler(new HexDumpProxyBackendHandler(inboundChannel))
+            .option(ChannelOption.AUTO_READ, false);
         ChannelFuture f = b.connect(remoteHost, remotePort);
         outboundChannel = f.channel();
         f.addListener(new ChannelFutureListener() {

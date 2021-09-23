@@ -20,6 +20,8 @@ import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
+import io.strimzi.kproxy.codec.KafkaMessageDecoder;
+import io.strimzi.kproxy.codec.KafkaMessageEncoder;
 
 public class HexDumpProxyInitializer extends ChannelInitializer<SocketChannel> {
 
@@ -33,8 +35,11 @@ public class HexDumpProxyInitializer extends ChannelInitializer<SocketChannel> {
 
     @Override
     public void initChannel(SocketChannel ch) {
+        // TODO TLS
         ch.pipeline().addLast(
-                new LoggingHandler(LogLevel.INFO),
-                new HexDumpProxyFrontendHandler(remoteHost, remotePort));
+                new LoggingHandler(LogLevel.INFO));
+        ch.pipeline().addLast(new KafkaMessageDecoder());
+        ch.pipeline().addLast(new KafkaMessageEncoder());
+        ch.pipeline().addLast(new HexDumpProxyFrontendHandler(remoteHost, remotePort));
     }
 }
