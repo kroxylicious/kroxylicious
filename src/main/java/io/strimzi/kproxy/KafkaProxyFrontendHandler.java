@@ -16,6 +16,9 @@
  */
 package io.strimzi.kproxy;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
@@ -24,45 +27,57 @@ import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelOption;
-import io.strimzi.kproxy.codec.KafkaMessageDecoder;
-import io.strimzi.kproxy.codec.KafkaMessageEncoder;
+import io.netty.channel.ChannelPipeline;
+import io.netty.handler.logging.LoggingHandler;
+import io.strimzi.kproxy.codec.KafkaRequestEncoder;
+import io.strimzi.kproxy.codec.KafkaResponseDecoder;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
-public class HexDumpProxyFrontendHandler extends ChannelInboundHandlerAdapter {
+public class KafkaProxyFrontendHandler extends ChannelInboundHandlerAdapter {
+
+    private static final Logger LOGGER = LogManager.getLogger(KafkaProxyFrontendHandler.class);
 
     private final String remoteHost;
     private final int remotePort;
 
     private volatile Channel outboundChannel;
 
-    public HexDumpProxyFrontendHandler(String remoteHost, int remotePort) {
+    public KafkaProxyFrontendHandler(String remoteHost, int remotePort) {
         this.remoteHost = remoteHost;
         this.remotePort = remotePort;
     }
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) {
+        LOGGER.trace("Channel active {}", ctx);
         final Channel inboundChannel = ctx.channel();
 
         // Start the connection attempt.
         Bootstrap b = new Bootstrap();
         b.group(inboundChannel.eventLoop())
             .channel(ctx.channel().getClass())
-                .handler(new KafkaMessageDecoder())
-                .handler(new KafkaMessageEncoder())
-                // add a listener for policy
-                // add a listener for encryption
-                .handler(new HexDumpProxyBackendHandler(inboundChannel))
+                .handler(new KafkaProxyBackendHandler(inboundChannel))
             .option(ChannelOption.AUTO_READ, false);
-        ChannelFuture f = b.connect(remoteHost, remotePort);
-        outboundChannel = f.channel();
-        f.addListener(new ChannelFutureListener() {
+        LOGGER.trace("Connecting to outbound {}:{}", remoteHost, remotePort);
+        ChannelFuture connectFuture = b.connect(remoteHost, remotePort);
+        outboundChannel = connectFuture.channel();
+        ChannelPipeline pipeline = outboundChannel.pipeline();
+        Map<Integer, KafkaRequestEncoder.VersionedApi> correlation = new HashMap<>();
+        pipeline.addFirst(new LoggingHandler("backend-network"),
+                        new KafkaRequestEncoder(correlation),
+                        new KafkaResponseDecoder(correlation),
+                        new LoggingHandler("backend-application"));
+        connectFuture.addListener(new ChannelFutureListener() {
             @Override
             public void operationComplete(ChannelFuture future) {
                 if (future.isSuccess()) {
+                    LOGGER.trace("Outbound connect complete ({}), register interest to read on inbound channel {}", outboundChannel.localAddress(), inboundChannel);
                     // connection complete start to read first data
                     inboundChannel.read();
                 } else {
                     // Close the connection if the connection attempt has failed.
+                    LOGGER.trace("Outbound connect error");
                     inboundChannel.close();
                 }
             }
@@ -71,18 +86,27 @@ public class HexDumpProxyFrontendHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void channelRead(final ChannelHandlerContext ctx, Object msg) {
+        LOGGER.trace("Completed read on inbound channel: {}", msg);
         if (outboundChannel.isActive()) {
+            LOGGER.trace("Outbound writable: {}", outboundChannel.isWritable());
+            LOGGER.trace("Outbound bytesBeforeUnwritable: {}", outboundChannel.bytesBeforeUnwritable());
+            LOGGER.trace("Outbound config: {}", outboundChannel.config());
+            LOGGER.trace("Outbound is active, writing and flushing {}", msg);
             outboundChannel.writeAndFlush(msg).addListener(new ChannelFutureListener() {
                 @Override
                 public void operationComplete(ChannelFuture future) {
                     if (future.isSuccess()) {
+                        LOGGER.trace("Outbound wrote and flushed");
                         // was able to flush out data, start to read the next chunk
                         ctx.channel().read();
                     } else {
+                        LOGGER.trace("Outbound wrote and flushed error, closing channel");
                         future.channel().close();
                     }
                 }
             });
+        } else {
+            LOGGER.trace("Outbound is not active");
         }
     }
 

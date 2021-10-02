@@ -14,30 +14,48 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.strimzi.kproxy.message;
+package io.strimzi.kproxy.codec;
 
-import io.netty.buffer.ByteBuf;
+import org.apache.kafka.common.protocol.ApiKeys;
+import org.apache.kafka.common.protocol.ApiMessage;
 
-public class GenericPayload {
-    private final short apiKey;
+public class KafkaFrame {
+    private final ApiMessage header;
+    private final ApiMessage body;
     private final short apiVersion;
-    private final ByteBuf payload;
 
-    public GenericPayload(short apiKey, short apiVersion, ByteBuf payload) {
-        this.apiKey = apiKey;
+    public KafkaFrame(short apiVersion, ApiMessage header, ApiMessage body) {
+        this.header = header;
         this.apiVersion = apiVersion;
-        this.payload = payload;
+        this.body = body;
     }
 
-    public short apiKey() {
-        return apiKey;
+    public ApiMessage header() {
+        return header;
+    }
+
+    public ApiMessage body() {
+        return body;
+    }
+
+    public short headerVersion() {
+        return apiKey().messageType.requestHeaderVersion(apiVersion);
+    }
+
+    private ApiKeys apiKey() {
+        return ApiKeys.forId(body.apiKey());
     }
 
     public short apiVersion() {
         return apiVersion;
     }
 
-    public ByteBuf payload() {
-        return payload;
+    @Override
+    public String toString() {
+        return "KafkaFrame(" +
+                "apiVersion=" + apiVersion +
+                ", header=" + header +
+                ", body=" + body +
+                ')';
     }
 }

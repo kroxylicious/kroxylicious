@@ -14,7 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.strimzi.kproxy.message;
+package io.strimzi.kproxy.codec;
 
-public class RequestHeader {
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+public class KafkaResponseEncoder extends KafkaMessageEncoder {
+    private static final Logger LOGGER = LogManager.getLogger(KafkaResponseEncoder.class);
+    @Override
+    protected Logger log() {
+        return LOGGER;
+    }
 }

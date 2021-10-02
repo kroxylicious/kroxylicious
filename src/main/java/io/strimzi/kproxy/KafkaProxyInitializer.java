@@ -16,19 +16,26 @@
  */
 package io.strimzi.kproxy;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
-import io.strimzi.kproxy.codec.KafkaMessageDecoder;
-import io.strimzi.kproxy.codec.KafkaMessageEncoder;
+import io.strimzi.kproxy.codec.KafkaRequestDecoder;
+import io.strimzi.kproxy.codec.KafkaResponseEncoder;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
-public class HexDumpProxyInitializer extends ChannelInitializer<SocketChannel> {
+public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
+
+    private static final Logger LOGGER = LogManager.getLogger(KafkaProxyInitializer.class);
 
     private final String remoteHost;
     private final int remotePort;
 
-    public HexDumpProxyInitializer(String remoteHost, int remotePort) {
+    public KafkaProxyInitializer(String remoteHost, int remotePort) {
         this.remoteHost = remoteHost;
         this.remotePort = remotePort;
     }
@@ -36,10 +43,14 @@ public class HexDumpProxyInitializer extends ChannelInitializer<SocketChannel> {
     @Override
     public void initChannel(SocketChannel ch) {
         // TODO TLS
+
+        LOGGER.trace("Connection from {} to my address {}", ch.remoteAddress(), ch.localAddress());
+
         ch.pipeline().addLast(
-                new LoggingHandler(LogLevel.INFO));
-        ch.pipeline().addLast(new KafkaMessageDecoder());
-        ch.pipeline().addLast(new KafkaMessageEncoder());
-        ch.pipeline().addLast(new HexDumpProxyFrontendHandler(remoteHost, remotePort));
+                new LoggingHandler("frontend-network", LogLevel.INFO),
+                new KafkaRequestDecoder(),
+                new KafkaResponseEncoder(),
+                new LoggingHandler("frontend-application", LogLevel.INFO),
+                new KafkaProxyFrontendHandler(remoteHost, remotePort));
     }
 }

@@ -17,46 +17,50 @@
 package io.strimzi.kproxy.codec;
 
 import java.util.List;
-import java.util.Map;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
-import io.strimzi.kproxy.message.GenericPayload;
+import org.apache.kafka.common.protocol.ApiKeys;
+import org.apache.kafka.common.protocol.ApiMessage;
+import org.apache.logging.log4j.Logger;
 
-public class KafkaMessageDecoder extends ByteToMessageDecoder {
+/**
+ * Decodes {@link KafkaFrame}s.
+ */
+public abstract class KafkaMessageDecoder extends ByteToMessageDecoder {
 
-    Map<Integer, List<Object>> deepInspectionHandlers;
+    protected abstract Logger log();
 
     @Override
-    protected void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) throws Exception {
-        in.markReaderIndex();
+    protected synchronized void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) throws Exception {
         while (in.readableBytes() > 4) {
-            int size = in.readInt();
-            System.err.println("Frame has size " + size);
-            // TODO handle too-large frames
-            if (in.readableBytes() > size + 4) {
-                // TODO for new requests this will be zigzag encoded
-                short apiKey = in.readShort();
-                System.err.println("apiKey " + apiKey);
-                // TODO for new requests this will be zigzag encoded
-                short apiVersion = in.readShort();
-                System.err.println("apiVersion " + apiVersion);
-                // TODO Determine the header version from the key and api version (i.e. apiVersion >= firstFlexVersion ? 2 : 1)
-                // TODO decode the RequestHeaderData
-                // Decide if we should deep deserialize this API: Decode a generic payload or API-specific payload
-                int deepInspectionKey = apiKey << 16 | apiVersion;
-                List<Object> handlers = deepInspectionHandlers.getOrDefault(deepInspectionKey, List.of());
-                Object message;
-                if (handlers.isEmpty()) {
-                    message = new GenericPayload(apiKey, apiVersion, in);
-                } else {
-                    // TODO deserialize according to the API key and version
-                    // but for now just return buf
-                    message = in.slice(in.readerIndex(), in.readerIndex() + size);
+            try {
+                int size = in.readInt();
+                int readable = in.readableBytes();
+                if (log().isTraceEnabled()) { // avoid boxing
+                    log().trace("Frame of {} bytes ({} readable)", size, readable);
                 }
-                out.add(message);
+                // TODO handle too-large frames
+                if (readable >= size) { // We can read the whole frame
+                    var idx = in.readerIndex();
+                    out.add(decodeHeaderAndBody(in));
+                    log().trace("readable: {}, having read {}", in.readableBytes(), in.readerIndex() - idx);
+                    if (in.readerIndex() - idx != size) {
+                        throw new RuntimeException();
+                    }
+                } else {
+                    break;
+                }
+            } catch (Exception e) {
+                log().error("Error in decoder", e);
+                throw e;
             }
         }
     }
+
+    protected abstract KafkaFrame decodeHeaderAndBody(ByteBuf in);
+
+
+
 }

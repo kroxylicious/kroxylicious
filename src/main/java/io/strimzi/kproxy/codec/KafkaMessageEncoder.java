@@ -19,14 +19,25 @@ package io.strimzi.kproxy.codec;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.MessageToByteEncoder;
+import org.apache.kafka.common.protocol.ObjectSerializationCache;
+import org.apache.logging.log4j.Logger;
 
-public class KafkaMessageEncoder extends MessageToByteEncoder<Object> {
+/**
+ * Encodes {@link KafkaFrame}s.
+ */
+public abstract class KafkaMessageEncoder extends MessageToByteEncoder<KafkaFrame> {
+
+    protected abstract Logger log();
+
     @Override
-    protected void encode(ChannelHandlerContext ctx, Object msg, ByteBuf out) throws Exception {
-//        short size = 0;
-//        out.writeShort(size);
-//        //msg.header
-//        out.writeShort(apiKey);
-//        out.writeShort(apiVersion);
+    protected void encode(ChannelHandlerContext ctx, KafkaFrame frame, ByteBuf out) throws Exception {
+        log().trace("Encoding {}", frame);
+        ObjectSerializationCache cache = new ObjectSerializationCache();
+        int headerSize = frame.header().size(cache, frame.apiVersion());
+        int bodySize = frame.body().size(cache, frame.apiVersion());
+        ByteBufAccessor writable = new ByteBufAccessor(out);
+        writable.writeInt(headerSize + bodySize);
+        frame.header().write(writable, cache, frame.headerVersion());
+        frame.body().write(writable, cache, frame.apiVersion());
     }
 }

@@ -15,33 +15,47 @@
  * limitations under the License.
  */
 package io.strimzi.kproxy;
+import java.util.Objects;
+
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.strimzi.kproxy.codec.KafkaRequestEncoder;
+import io.strimzi.kproxy.codec.KafkaResponseDecoder;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
-public class HexDumpProxyBackendHandler extends ChannelInboundHandlerAdapter {
+public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
+
+    private static final Logger LOGGER = LogManager.getLogger(KafkaProxyBackendHandler.class);
 
     private final Channel inboundChannel;
 
-    public HexDumpProxyBackendHandler(Channel inboundChannel) {
+    public KafkaProxyBackendHandler(Channel inboundChannel) {
         this.inboundChannel = inboundChannel;
     }
 
+    // Called when the outbound channel is active
     @Override
     public void channelActive(ChannelHandlerContext ctx) {
+        LOGGER.trace("Channel active {}, registing interest to read", ctx);
         ctx.read();
+        ctx.fireChannelActive();
     }
 
     @Override
     public void channelRead(final ChannelHandlerContext ctx, Object msg) {
+        LOGGER.trace(msg);
         inboundChannel.writeAndFlush(msg).addListener(new ChannelFutureListener() {
             @Override
             public void operationComplete(ChannelFuture future) {
                 if (future.isSuccess()) {
+                    LOGGER.trace("Inbound write and flush");
                     ctx.channel().read();
                 } else {
+                    LOGGER.trace("Inbound write and flush error");
                     future.channel().close();
                 }
             }
@@ -50,12 +64,12 @@ public class HexDumpProxyBackendHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) {
-        HexDumpProxyFrontendHandler.closeOnFlush(inboundChannel);
+        KafkaProxyFrontendHandler.closeOnFlush(inboundChannel);
     }
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
         cause.printStackTrace();
-        HexDumpProxyFrontendHandler.closeOnFlush(ctx.channel());
+        KafkaProxyFrontendHandler.closeOnFlush(ctx.channel());
     }
 }
