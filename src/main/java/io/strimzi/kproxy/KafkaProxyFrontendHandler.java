@@ -65,9 +65,10 @@ public class KafkaProxyFrontendHandler extends ChannelInboundHandlerAdapter {
         ChannelPipeline pipeline = outboundChannel.pipeline();
         Map<Integer, KafkaRequestEncoder.VersionedApi> correlation = new HashMap<>();
         pipeline.addFirst(new LoggingHandler("backend-network"),
-                        new KafkaRequestEncoder(correlation),
-                        new KafkaResponseDecoder(correlation),
-                        new LoggingHandler("backend-application"));
+                new KafkaRequestEncoder(correlation),
+                new KafkaResponseDecoder(correlation),
+                new ApiVersionsResponseHandler(),
+                new LoggingHandler("backend-application"));
         connectFuture.addListener(new ChannelFutureListener() {
             @Override
             public void operationComplete(ChannelFuture future) {
@@ -131,4 +132,5 @@ public class KafkaProxyFrontendHandler extends ChannelInboundHandlerAdapter {
            ch.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
        }
    }
- }
+
+}

@@ -46,7 +46,7 @@ public class KafkaFrame {
         return apiKey().messageType.responseHeaderVersion(apiVersion);
     }
 
-    private ApiKeys apiKey() {
+    public ApiKeys apiKey() {
         return ApiKeys.forId(body.apiKey());
     }
 
