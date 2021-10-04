@@ -16,6 +16,5 @@
  */
 package io.strimzi.kproxy.codec;
 
-public abstract class RequestBody {
-
+public interface ResponseFrame extends Frame {
 }

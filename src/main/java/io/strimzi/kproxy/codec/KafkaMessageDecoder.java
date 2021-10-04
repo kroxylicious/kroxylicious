@@ -21,46 +21,49 @@ import java.util.List;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.logging.log4j.Logger;
 
 /**
- * Decodes {@link KafkaFrame}s.
+ * Abstraction for request and response decoders.
  */
 public abstract class KafkaMessageDecoder extends ByteToMessageDecoder {
 
     protected abstract Logger log();
 
+    public KafkaMessageDecoder() {
+    }
+
     @Override
-    protected synchronized void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) throws Exception {
+    protected synchronized void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) {
         while (in.readableBytes() > 4) {
             try {
-                int size = in.readInt();
+                int frameSize = in.readInt();
                 int readable = in.readableBytes();
                 if (log().isTraceEnabled()) { // avoid boxing
-                    log().trace("Frame of {} bytes ({} readable)", size, readable);
+                    log().trace("{}: Frame of {} bytes ({} readable)", ctx, frameSize, readable);
                 }
                 // TODO handle too-large frames
-                if (readable >= size) { // We can read the whole frame
+                if (readable >= frameSize) { // We can read the whole frame
                     var idx = in.readerIndex();
-                    out.add(decodeHeaderAndBody(in));
-                    log().trace("readable: {}, having read {}", in.readableBytes(), in.readerIndex() - idx);
-                    if (in.readerIndex() - idx != size) {
-                        throw new RuntimeException();
+                    out.add(decodeHeaderAndBody(ctx,
+                            in.readSlice(frameSize), // Prevent decodeHeaderAndBody() from reading beyond the frame
+                            frameSize));
+                    log().trace("{}: readable: {}, having read {}", ctx, in.readableBytes(), in.readerIndex() - idx);
+                    if (in.readerIndex() - idx != frameSize) {
+                        throw new RuntimeException("decodeHeaderAndBody did not read all of the buffer " + in);
                     }
                 } else {
                     break;
                 }
             } catch (Exception e) {
-                log().error("Error in decoder", e);
+                log().error("{}: Error in decoder", ctx, e);
                 throw e;
             }
         }
     }
 
-    protected abstract KafkaFrame decodeHeaderAndBody(ByteBuf in);
+    protected abstract Frame decodeHeaderAndBody(ChannelHandlerContext ctx, ByteBuf in, int length);
 
-
+    protected abstract OpaqueFrame opaqueFrame(ByteBuf in, int length);
 
 }

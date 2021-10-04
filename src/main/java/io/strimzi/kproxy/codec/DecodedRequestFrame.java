@@ -16,14 +16,21 @@
  */
 package io.strimzi.kproxy.codec;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.apache.kafka.common.message.RequestHeaderData;
+import org.apache.kafka.common.protocol.ApiMessage;
 
-public class KafkaResponseEncoder extends KafkaMessageEncoder<ResponseFrame> {
-    private static final Logger LOGGER = LogManager.getLogger(KafkaResponseEncoder.class);
+/**
+ * A decoded request frame.
+ */
+public class DecodedRequestFrame extends DecodedFrame<RequestHeaderData> implements RequestFrame {
+
+    public DecodedRequestFrame(short apiVersion, RequestHeaderData header, ApiMessage body) {
+        super(apiVersion, header, body);
+    }
 
     @Override
-    protected Logger log() {
-        return LOGGER;
+    public short headerVersion() {
+        return apiKey().messageType.requestHeaderVersion(apiVersion);
     }
+
 }

@@ -15,15 +15,12 @@
  * limitations under the License.
  */
 package io.strimzi.kproxy;
-import java.util.Objects;
 
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
-import io.strimzi.kproxy.codec.KafkaRequestEncoder;
-import io.strimzi.kproxy.codec.KafkaResponseDecoder;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 

@@ -16,7 +16,6 @@
  */
 package io.strimzi.kproxy;
 
-import java.util.HashMap;
 import java.util.Map;
 
 import io.netty.bootstrap.Bootstrap;
@@ -29,6 +28,7 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.logging.LoggingHandler;
+import io.strimzi.kproxy.codec.Correlation;
 import io.strimzi.kproxy.codec.KafkaRequestEncoder;
 import io.strimzi.kproxy.codec.KafkaResponseDecoder;
 import org.apache.logging.log4j.LogManager;
@@ -40,12 +40,15 @@ public class KafkaProxyFrontendHandler extends ChannelInboundHandlerAdapter {
 
     private final String remoteHost;
     private final int remotePort;
+    private final Map<Integer, Correlation> correlation;
 
     private volatile Channel outboundChannel;
 
-    public KafkaProxyFrontendHandler(String remoteHost, int remotePort) {
+    public KafkaProxyFrontendHandler(String remoteHost, int remotePort,
+                                     Map<Integer, Correlation> correlation) {
         this.remoteHost = remoteHost;
         this.remotePort = remotePort;
+        this.correlation = correlation;
     }
 
     @Override
@@ -63,9 +66,8 @@ public class KafkaProxyFrontendHandler extends ChannelInboundHandlerAdapter {
         ChannelFuture connectFuture = b.connect(remoteHost, remotePort);
         outboundChannel = connectFuture.channel();
         ChannelPipeline pipeline = outboundChannel.pipeline();
-        Map<Integer, KafkaRequestEncoder.VersionedApi> correlation = new HashMap<>();
         pipeline.addFirst(new LoggingHandler("backend-network"),
-                new KafkaRequestEncoder(correlation),
+                new KafkaRequestEncoder(),
                 new KafkaResponseDecoder(correlation),
                 new ApiVersionsResponseHandler(),
                 new LoggingHandler("backend-application"));
@@ -78,7 +80,7 @@ public class KafkaProxyFrontendHandler extends ChannelInboundHandlerAdapter {
                     inboundChannel.read();
                 } else {
                     // Close the connection if the connection attempt has failed.
-                    LOGGER.trace("Outbound connect error");
+                    LOGGER.trace("Outbound connect error, closing inbound channel", future.cause());
                     inboundChannel.close();
                 }
             }
@@ -101,7 +103,7 @@ public class KafkaProxyFrontendHandler extends ChannelInboundHandlerAdapter {
                         // was able to flush out data, start to read the next chunk
                         ctx.channel().read();
                     } else {
-                        LOGGER.trace("Outbound wrote and flushed error, closing channel");
+                        LOGGER.trace("Outbound wrote and flushed error, closing channel", future.cause());
                         future.channel().close();
                     }
                 }

@@ -18,19 +18,34 @@ package io.strimzi.kproxy;
 
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
-import io.strimzi.kproxy.codec.KafkaFrame;
+import io.strimzi.kproxy.codec.DecodePredicate;
+import io.strimzi.kproxy.codec.DecodedResponseFrame;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-class ApiVersionsResponseHandler extends ChannelInboundHandlerAdapter {
+/**
+ * Changes an API_VERSIONS response so that a client sees the intersection of supported version ranges for each
+ * API key. This is an intrinsic part of correctly acting as a proxy.
+ */
+class ApiVersionsResponseHandler extends ChannelInboundHandlerAdapter implements DecodePredicate {
     private static final Logger LOGGER = LogManager.getLogger(ApiVersionsResponseHandler.class);
+
+    @Override
+    public boolean shouldDecodeRequest(ApiKeys apiKey, int apiVersion) {
+        return false;
+    }
+
+    @Override
+    public boolean shouldDecodeResponse(ApiKeys apiKey, int apiVersion) {
+        return apiKey == ApiKeys.API_VERSIONS;
+    }
+
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-        KafkaFrame frame = (KafkaFrame) msg;
-        if (frame.apiKey() == ApiKeys.API_VERSIONS) {
-            var resp = (ApiVersionsResponseData) frame.body();
+        if (msg instanceof DecodedResponseFrame && ((DecodedResponseFrame) msg).apiKey() == ApiKeys.API_VERSIONS) {
+            var resp = (ApiVersionsResponseData) ((DecodedResponseFrame) msg).body();
             intersectApiVersions(ctx, resp);
         }
         super.channelRead(ctx, msg);
@@ -70,4 +85,6 @@ class ApiVersionsResponseHandler extends ChannelInboundHandlerAdapter {
             key.setMaxVersion(mutualMax);
         }
     }
+
+
 }

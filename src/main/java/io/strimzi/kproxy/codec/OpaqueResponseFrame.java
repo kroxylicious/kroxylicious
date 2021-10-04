@@ -16,6 +16,10 @@
  */
 package io.strimzi.kproxy.codec;
 
-public class ResponseHeader {
+import io.netty.buffer.ByteBuf;
 
+public class OpaqueResponseFrame extends OpaqueFrame implements ResponseFrame {
+    public OpaqueResponseFrame(ByteBuf buf, int length) {
+        super(buf, length);
+    }
 }

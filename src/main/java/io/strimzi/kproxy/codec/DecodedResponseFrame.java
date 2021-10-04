@@ -16,7 +16,20 @@
  */
 package io.strimzi.kproxy.codec;
 
-public class Response<B extends ResponseBody> {
-    private ResponseHeader header;
-    private B body;
+import org.apache.kafka.common.message.ResponseHeaderData;
+import org.apache.kafka.common.protocol.ApiMessage;
+
+/**
+ * A decoded response frame.
+ */
+public class DecodedResponseFrame extends DecodedFrame<ResponseHeaderData> implements ResponseFrame {
+
+    public DecodedResponseFrame(short apiVersion, ResponseHeaderData header, ApiMessage body) {
+        super(apiVersion, header, body);
+    }
+
+    public short headerVersion() {
+        return apiKey().messageType.responseHeaderVersion(apiVersion);
+    }
+
 }

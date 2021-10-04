@@ -16,8 +16,10 @@
  */
 package io.strimzi.kproxy.codec;
 
-public class Request<B extends RequestBody> {
-    private RequestHeader header;
-    private B body;
-}
+import io.netty.buffer.ByteBuf;
 
+public class OpaqueRequestFrame extends OpaqueFrame implements RequestFrame {
+    public OpaqueRequestFrame(ByteBuf buf, int length) {
+        super(buf, length);
+    }
+}

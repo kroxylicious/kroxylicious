@@ -23,6 +23,8 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
+import io.strimzi.kproxy.codec.DecodePredicate;
+import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -37,6 +39,18 @@ public final class KafkaProxy {
     public static void main(String[] args) throws Exception {
         LOGGER.info("Proxying *:" + LOCAL_PORT + " to " + REMOTE_HOST + ':' + REMOTE_PORT + " ...");
 
+        DecodePredicate decodePredicate = new DecodePredicate() {
+            @Override
+            public boolean shouldDecodeRequest(ApiKeys apiKey, int apiVersion) {
+                return false; //apiKey == ApiKeys.API_VERSIONS || apiKey == ApiKeys.METADATA;
+            }
+
+            @Override
+            public boolean shouldDecodeResponse(ApiKeys apiKey, int apiVersion) {
+                return false; //apiKey == ApiKeys.API_VERSIONS || apiKey == ApiKeys.METADATA;
+            }
+        };
+
         // Configure the bootstrap.
         EventLoopGroup bossGroup = new NioEventLoopGroup(1);
         EventLoopGroup workerGroup = new NioEventLoopGroup();
@@ -45,7 +59,7 @@ public final class KafkaProxy {
             b.group(bossGroup, workerGroup)
              .channel(NioServerSocketChannel.class)
              .handler(new LoggingHandler(LogLevel.INFO))
-             .childHandler(new KafkaProxyInitializer(REMOTE_HOST, REMOTE_PORT))
+             .childHandler(new KafkaProxyInitializer(REMOTE_HOST, REMOTE_PORT, decodePredicate))
              .childOption(ChannelOption.AUTO_READ, false)
              .bind(LOCAL_PORT).sync().channel().closeFuture().sync();
         } finally {

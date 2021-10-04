@@ -23,6 +23,15 @@ import io.netty.buffer.ByteBufUtil;
 import org.apache.kafka.common.protocol.Readable;
 import org.apache.kafka.common.protocol.Writable;
 
+/**
+ * An implementation of Kafka's Readable and Writable abstraction in terms of
+ * a Netty ByteBuf.
+ * This allows us to re-use Kafka's generated {@code *RequestData} and
+ * {@code *ResponseData} classes as-is.
+ * This isn't completely ideal because the Kafka APIs for decoding of Records
+ * depends on NIO ByteBuffer, so copying between ByteBuffer and ByteBuf cannot
+ * always be avoided.
+ */
 public class ByteBufAccessor implements Readable, Writable {
     private final ByteBuf buf;
 
@@ -142,6 +151,7 @@ public class ByteBufAccessor implements Readable, Writable {
 
     @Override
     public ByteBuffer readByteBuffer(int length) {
+        // TODO use buf.nioBufferCount() and buf.nioBuffers() to avoid the copy if possible
         ByteBuffer wrap = ByteBuffer.wrap(ByteBufUtil.getBytes(buf, buf.readerIndex(), length, false));
         buf.readerIndex(buf.readerIndex() + length);
         return wrap;

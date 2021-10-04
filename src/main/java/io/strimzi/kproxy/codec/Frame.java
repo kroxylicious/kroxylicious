@@ -16,14 +16,15 @@
  */
 package io.strimzi.kproxy.codec;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import io.netty.buffer.ByteBuf;
 
-public class KafkaResponseEncoder extends KafkaMessageEncoder<ResponseFrame> {
-    private static final Logger LOGGER = LogManager.getLogger(KafkaResponseEncoder.class);
-
-    @Override
-    protected Logger log() {
-        return LOGGER;
-    }
+/**
+ * A frame in the Kafka protocol, which may or may not be fully decoded.
+ */
+public interface Frame {
+    /**
+     * Write the frame, including the size prefix, to the given buffer
+     * @param out The output buffer
+     */
+    void encode(ByteBuf out);
 }

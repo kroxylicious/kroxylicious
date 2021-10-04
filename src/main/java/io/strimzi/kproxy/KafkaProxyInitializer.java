@@ -23,6 +23,8 @@ import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
+import io.strimzi.kproxy.codec.Correlation;
+import io.strimzi.kproxy.codec.DecodePredicate;
 import io.strimzi.kproxy.codec.KafkaRequestDecoder;
 import io.strimzi.kproxy.codec.KafkaResponseEncoder;
 import org.apache.logging.log4j.LogManager;
@@ -34,10 +36,13 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
 
     private final String remoteHost;
     private final int remotePort;
+    private final DecodePredicate decodePredicate;
 
-    public KafkaProxyInitializer(String remoteHost, int remotePort) {
+    public KafkaProxyInitializer(String remoteHost, int remotePort,
+                                 DecodePredicate decodePredicate) {
         this.remoteHost = remoteHost;
         this.remotePort = remotePort;
+        this.decodePredicate = decodePredicate;
     }
 
     @Override
@@ -46,11 +51,12 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
 
         LOGGER.trace("Connection from {} to my address {}", ch.remoteAddress(), ch.localAddress());
 
+        var correlation = new HashMap<Integer, Correlation>();
         ch.pipeline().addLast(
                 new LoggingHandler("frontend-network", LogLevel.INFO),
-                new KafkaRequestDecoder(),
+                new KafkaRequestDecoder(decodePredicate, correlation),
                 new KafkaResponseEncoder(),
                 new LoggingHandler("frontend-application", LogLevel.INFO),
-                new KafkaProxyFrontendHandler(remoteHost, remotePort));
+                new KafkaProxyFrontendHandler(remoteHost, remotePort, correlation));
     }
 }

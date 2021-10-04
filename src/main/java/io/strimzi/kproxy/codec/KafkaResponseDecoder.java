@@ -19,6 +19,7 @@ package io.strimzi.kproxy.codec;
 import java.util.Map;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.ChannelHandlerContext;
 import org.apache.kafka.common.message.AddOffsetsToTxnResponseData;
 import org.apache.kafka.common.message.AddPartitionsToTxnResponseData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
@@ -57,10 +58,11 @@ import org.apache.logging.log4j.Logger;
 public class KafkaResponseDecoder extends KafkaMessageDecoder {
 
     private static final Logger LOGGER = LogManager.getLogger(KafkaResponseDecoder.class);
-    private final Map<Integer, KafkaRequestEncoder.VersionedApi> correlation;
+    private final Map<Integer, Correlation> correlations;
 
-    public KafkaResponseDecoder(Map<Integer, KafkaRequestEncoder.VersionedApi> correlation) {
-        this.correlation = correlation;
+    public KafkaResponseDecoder(Map<Integer, Correlation> correlations) {
+        super();
+        this.correlations = correlations;
     }
 
     @Override
@@ -69,36 +71,44 @@ public class KafkaResponseDecoder extends KafkaMessageDecoder {
     }
 
     @Override
-    protected KafkaFrame decodeHeaderAndBody(ByteBuf in) {
-        var correlationId = in.markReaderIndex().readInt();
+    protected Frame decodeHeaderAndBody(ChannelHandlerContext ctx, ByteBuf in, int length) {
+        in.markReaderIndex();
+        var correlationId = in.readInt();
         in.resetReaderIndex();
-        KafkaRequestEncoder.VersionedApi versionedApi = correlation.remove(correlationId);
-        if (versionedApi != null) {
-            short apiKey = versionedApi.apiKey;
-            short apiVersion = versionedApi.apiVersion;
-            log().trace("Correlation for {} has apiKey={}, apiVersion={}",
-                    correlationId, apiKey, apiVersion);
-            var accessor = new ByteBufAccessor(in);
-            short headerVersion = ApiKeys.forId(apiKey).responseHeaderVersion(apiVersion);
-            log().trace("Header version: {}", headerVersion);
-            ResponseHeaderData header = readHeader(headerVersion, accessor);
-            log().trace("Header: {}", header);
-            ApiMessage body = readBody(apiKey, apiVersion, accessor);
-            log().trace("Body: {}", body);
-            KafkaFrame kafkaFrame = new KafkaFrame(apiVersion, header, body);
-            log().trace("Frame: {}", kafkaFrame);
-            return kafkaFrame;
-        } else {
-            throw new RuntimeException("Unknown correlationId " + correlationId);
+        Frame frame;
+        Correlation correlation = this.correlations.remove(correlationId);
+        if (correlation != null && log().isTraceEnabled()) {
+            log().trace("{}: Correlation id {}: {}", ctx, correlationId, correlation);
         }
+        if (correlation != null && correlation.decodeResponse()) {
+            ApiKeys apiKey = correlation.apiKey();
+            short apiVersion = correlation.apiVersion();
+            var accessor = new ByteBufAccessor(in);
+            short headerVersion = apiKey.responseHeaderVersion(apiVersion);
+            log().trace("{}: Header version: {}", ctx, headerVersion);
+            ResponseHeaderData header = readHeader(headerVersion, accessor);
+            log().trace("{}: Header: {}", ctx, header);
+            ApiMessage body = readBody(apiKey, apiVersion, accessor);
+            log().trace("{}: Body: {}", ctx, body);
+            frame = new DecodedResponseFrame(apiVersion, header, body);
+        } else {
+            frame = opaqueFrame(in, length);
+        }
+        log().trace("{}: Frame: {}", ctx, frame);
+        return frame;
+    }
+
+    @Override
+    protected OpaqueFrame opaqueFrame(ByteBuf in, int length) {
+        return new OpaqueResponseFrame(in.readSlice(length).retain(), length);
     }
 
     private ResponseHeaderData readHeader(short headerVersion, ByteBufAccessor accessor) {
         return new ResponseHeaderData(accessor, headerVersion);
     }
 
-    private ApiMessage readBody(short apiKey, short apiVersion, ByteBufAccessor accessor)  {
-        switch (ApiKeys.forId(apiKey)) {
+    private ApiMessage readBody(ApiKeys apiKey, short apiVersion, ByteBufAccessor accessor)  {
+        switch (apiKey) {
             case PRODUCE:
                 return new ProduceResponseData(accessor, apiVersion);
             case FETCH:

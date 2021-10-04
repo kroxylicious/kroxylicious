@@ -19,6 +19,7 @@ package io.strimzi.kproxy.codec;
 import java.util.Map;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.ChannelHandlerContext;
 import org.apache.kafka.common.message.AddOffsetsToTxnRequestData;
 import org.apache.kafka.common.message.AddPartitionsToTxnRequestData;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
@@ -58,6 +59,14 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
 
     private static final Logger LOGGER = LogManager.getLogger(KafkaRequestDecoder.class);
 
+    private final DecodePredicate decode;
+    private final Map<Integer, Correlation> correlation;
+
+    public KafkaRequestDecoder(DecodePredicate decode, Map<Integer, Correlation> correlation) {
+        super();
+        this.decode = decode;
+        this.correlation = correlation;
+    }
 
     @Override
     protected Logger log() {
@@ -65,40 +74,75 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
     }
 
     @Override
-    protected KafkaFrame decodeHeaderAndBody(ByteBuf in) {
+    protected Frame decodeHeaderAndBody(ChannelHandlerContext ctx, ByteBuf in, final int length) {
         // Read the api key and version to determine the header api version
-        in.markReaderIndex();
-        var apiKey = in.readShort();
+        int sof = in.readerIndex();
+        var apiId = in.readShort();
+        // TODO handle unknown id
+        ApiKeys apiKey = ApiKeys.forId(apiId);
         if (log().isTraceEnabled()) { // avoid boxing
-            log().trace("apiKey: {} {}", apiKey, ApiKeys.forId(apiKey));
+            log().trace("{}: apiKey: {} {}", ctx, apiId, apiKey);
         }
         short apiVersion = in.readShort();
         if (log().isTraceEnabled()) { // avoid boxing
-            log().trace("apiVersion: {}", apiVersion);
-        }
-        short headerVersion = ApiKeys.forId(apiKey).requestHeaderVersion(apiVersion);
-        if (log().isTraceEnabled()) { // avoid boxing
-            log().trace("headerVersion {}", headerVersion);
-        }
-        in.resetReaderIndex();
-
-        // TODO Decide whether to decode this API at all
-
-        ByteBufAccessor accessor = new ByteBufAccessor(in);
-        var header = readHeader(headerVersion, accessor);
-        if (log().isTraceEnabled()) { // avoid boxing
-            log().trace("header: {}", header);
+            log().trace("{}: apiVersion: {}", ctx, apiVersion);
         }
 
-        ApiMessage body = readBody(apiKey, apiVersion, accessor);
-        if (log().isTraceEnabled()) { // avoid boxing
-            log().trace("body {}", body);
+        RequestHeaderData header = null;
+        final ByteBufAccessor accessor;
+        boolean decodeRequest = decode.shouldDecodeRequest(apiKey, apiVersion);
+        boolean decodeResponse = decode.shouldDecodeResponse(apiKey, apiVersion);
+        log().trace("{}: decodeRequest {}, decodeResponse {}", ctx, decodeRequest, decodeResponse);
+        if (decodeRequest || decodeResponse) {
+            short headerVersion = apiKey.requestHeaderVersion(apiVersion);
+            if (log().isTraceEnabled()) { // avoid boxing
+                log().trace("{}: headerVersion {}", ctx, headerVersion);
+            }
+            in.readerIndex(sof);
+
+            // TODO Decide whether to decode this API at all
+            // TODO Can we implement ApiMessage using an opaque wrapper around a bytebuf?
+
+            accessor = new ByteBufAccessor(in);
+            header = readHeader(headerVersion, accessor);
+            if (log().isTraceEnabled()) {
+                log().trace("{}: header: {}", ctx, header);
+            }
+        } else {
+            accessor = null;
         }
-        KafkaFrame kafkaFrame = new KafkaFrame(apiVersion, header, body);
-        if (log().isTraceEnabled()) { // avoid boxing
-            log().trace("frame {}", kafkaFrame);
+        final Frame frame;
+        if (decodeRequest) {
+            ApiMessage body = readBody(apiId, apiVersion, accessor);
+            if (log().isTraceEnabled()) {
+                log().trace("{}: body {}", ctx, body);
+            }
+            frame = new DecodedRequestFrame(apiVersion, header, body);
+            if (log().isTraceEnabled()) {
+                log().trace("{}: frame {}", ctx, frame);
+            }
+        } else {
+            in.readerIndex(sof);
+            frame = opaqueFrame(in, length);
+            in.readerIndex(sof + length);
         }
-        return kafkaFrame;
+        if (decodeResponse) {
+            if (decodeRequest &&
+                    apiKey == ApiKeys.PRODUCE &&
+                    ((ProduceRequestData) ((DecodedRequestFrame) frame).body).acks() == 0) {
+                // If we know it's an acks=0 PRODUCE then we know there will be no response
+                // so don't correlate. Shame we can only issue this warning if we decoded the request
+                log().warn("{}: Not honouring decode of acks=0 PRODUCE response, because there will be none", ctx);
+            } else {
+                correlation.put(header.correlationId(), new Correlation(apiKey, apiVersion, true));
+            }
+        }
+        return frame;
+    }
+
+    @Override
+    protected OpaqueFrame opaqueFrame(ByteBuf in, int length) {
+        return new OpaqueRequestFrame(in.readSlice(length).retain(), length);
     }
 
     private RequestHeaderData readHeader(short headerVersion, ByteBufAccessor accessor) {

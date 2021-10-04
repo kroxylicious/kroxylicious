@@ -16,11 +16,21 @@
  */
 package io.strimzi.kproxy.codec;
 
-public class RequestHeader {
-    private short apiKey;
-    private short apiVersion;
-    private int correlationId;
-    private String clientId;
+import org.apache.kafka.common.protocol.ApiKeys;
 
+/**
+ * Determines whether a frame should be fully decoded into a {@link DecodedRequestFrame}
+ * or {@link DecodedResponseFrame}, or whether it should be passed through un-encoded
+ * as an {@link OpaqueFrame}.
+ *
+ * The determination of whether to decode either request or response is done when decoding a request.
+ * The reason the decodability of a response is done when decoding a request is to avoid having to
+ * record the request in the correlation map. i.e. The correlation map only contains entries for
+ * decodable responses.
+ */
+public interface DecodePredicate {
 
+    boolean shouldDecodeRequest(ApiKeys apiKey, int apiVersion);
+
+    boolean shouldDecodeResponse(ApiKeys apiKey, int apiVersion);
 }
