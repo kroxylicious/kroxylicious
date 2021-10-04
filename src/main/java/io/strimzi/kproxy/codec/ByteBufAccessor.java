@@ -19,6 +19,7 @@ package io.strimzi.kproxy.codec;
 import java.nio.ByteBuffer;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 import org.apache.kafka.common.protocol.Readable;
 import org.apache.kafka.common.protocol.Writable;
 
@@ -141,7 +142,10 @@ public class ByteBufAccessor implements Readable, Writable {
 
     @Override
     public ByteBuffer readByteBuffer(int length) {
-        throw new UnsupportedOperationException();
+        ByteBuffer wrap = ByteBuffer.wrap(ByteBufUtil.getBytes(buf, buf.readerIndex(), length, false));
+        buf.readerIndex(buf.readerIndex() + length);
+        return wrap;
+
     }
 
     @Override
@@ -195,8 +199,10 @@ public class ByteBufAccessor implements Readable, Writable {
     }
 
     @Override
-    public void writeByteBuffer(ByteBuffer buf) {
-        throw new UnsupportedOperationException();
+    public void writeByteBuffer(ByteBuffer byteBuffer) {
+        while (byteBuffer.hasRemaining()) {
+            buf.writeByte(byteBuffer.get());
+        }
     }
 
     @Override

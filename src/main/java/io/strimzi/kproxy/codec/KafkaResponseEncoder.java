@@ -25,4 +25,9 @@ public class KafkaResponseEncoder extends KafkaMessageEncoder {
     protected Logger log() {
         return LOGGER;
     }
+
+    @Override
+    protected short headerVersion(KafkaFrame frame) {
+        return frame.responseHeaderVersion();
+    }
 }

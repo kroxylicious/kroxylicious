@@ -38,8 +38,12 @@ public class KafkaFrame {
         return body;
     }
 
-    public short headerVersion() {
+    public short requestHeaderVersion() {
         return apiKey().messageType.requestHeaderVersion(apiVersion);
+    }
+
+    public short responseHeaderVersion() {
+        return apiKey().messageType.responseHeaderVersion(apiVersion);
     }
 
     private ApiKeys apiKey() {
@@ -53,7 +57,7 @@ public class KafkaFrame {
     @Override
     public String toString() {
         return "KafkaFrame(" +
-                "apiVersion=" + apiVersion +
+                ApiKeys.forId(apiVersion) + "(" + apiVersion + ")v" + apiVersion +
                 ", header=" + header +
                 ", body=" + body +
                 ')';

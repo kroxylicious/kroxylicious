@@ -82,4 +82,9 @@ public class KafkaRequestEncoderTest extends CodecTest {
         ApiVersionsResponseData encodedBody = exampleApiVersionsResponse();
         testEncode(apiVersion, encodedHeader, encodedBody, new KafkaResponseEncoder());
     }
+
+    // TODO test API_VERSIONS header is v0
+
+    // TODO test PRODUCE with acks=0 doesn't end up in correlation
+    // TODO test PRODUCE with acks!=0 doe end up in correlation
 }

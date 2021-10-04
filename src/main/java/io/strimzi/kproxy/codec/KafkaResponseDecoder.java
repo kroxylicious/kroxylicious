@@ -76,10 +76,10 @@ public class KafkaResponseDecoder extends KafkaMessageDecoder {
         if (versionedApi != null) {
             short apiKey = versionedApi.apiKey;
             short apiVersion = versionedApi.apiVersion;
-            log().trace("Found correlation for id {}: apiKey={}, apiVersion={}",
+            log().trace("Correlation for {} has apiKey={}, apiVersion={}",
                     correlationId, apiKey, apiVersion);
             var accessor = new ByteBufAccessor(in);
-            short headerVersion = ApiKeys.forId(apiKey).requestHeaderVersion(apiVersion);
+            short headerVersion = ApiKeys.forId(apiKey).responseHeaderVersion(apiVersion);
             log().trace("Header version: {}", headerVersion);
             ResponseHeaderData header = readHeader(headerVersion, accessor);
             log().trace("Header: {}", header);

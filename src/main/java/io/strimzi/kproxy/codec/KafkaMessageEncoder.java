@@ -41,11 +41,14 @@ public abstract class KafkaMessageEncoder extends MessageToByteEncoder<KafkaFram
         log().trace("Encoding {}", frame);
         MessageSizeAccumulator sizer = new MessageSizeAccumulator();
         ObjectSerializationCache cache = new ObjectSerializationCache();
-        frame.header().addSize(sizer, cache, frame.headerVersion());
+        short headerVersion = headerVersion(frame);
+        frame.header().addSize(sizer, cache, headerVersion);
         frame.body().addSize(sizer, cache, frame.apiVersion());
         ByteBufAccessor writable = new ByteBufAccessor(out);
         writable.writeInt(sizer.totalSize());
-        frame.header().write(writable, cache, frame.headerVersion());
+        frame.header().write(writable, cache, headerVersion);
         frame.body().write(writable, cache, frame.apiVersion());
     }
+
+    protected abstract short headerVersion(KafkaFrame frame);
 }

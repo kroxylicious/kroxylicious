@@ -82,6 +82,11 @@ public class KafkaRequestEncoder extends KafkaMessageEncoder {
         }
     }
 
+    @Override
+    protected short headerVersion(KafkaFrame frame) {
+        return frame.requestHeaderVersion();
+    }
+
     private boolean hasResponse(KafkaFrame frame) {
         return frame.header().apiKey() != ApiKeys.PRODUCE.id ||
                 ((ProduceRequestData) frame.body()).acks() != 0;
