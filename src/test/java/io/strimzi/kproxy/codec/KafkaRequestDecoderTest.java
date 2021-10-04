@@ -6,20 +6,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
-import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
-import org.apache.kafka.common.protocol.ByteBufferAccessor;
-import org.apache.kafka.common.protocol.Errors;
-import org.apache.kafka.common.protocol.ObjectSerializationCache;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
@@ -41,102 +34,29 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-class KafkaRequestDecoderTest {
-    public static Stream<Short> requestApiVersions() {
-        return IntStream.range(0, ApiVersionsRequestData.SCHEMAS.length)
-                .mapToObj(index -> (short) (ApiVersionsRequestData.LOWEST_SUPPORTED_VERSION + index));
-    }
+class KafkaRequestDecoderTest extends CodecTest {
 
     private static List<? extends Class<?>> messageClasses(ArrayList<Object> messages) {
         return messages.stream().map(Object::getClass).collect(Collectors.toList());
     }
 
-    private static ApiVersionsRequestData apiVersionsRequest() {
-        return new ApiVersionsRequestData()
-                .setClientSoftwareName("foo/bar")
-                .setClientSoftwareVersion("1.2.0");
-    }
-
-    private static ApiVersionsResponseData apiVersionsResponse() {
-        ApiVersionsResponseData.ApiVersionCollection ak = new ApiVersionsResponseData.ApiVersionCollection();
-        ak.add(new ApiVersionsResponseData.ApiVersion()
-                .setApiKey(ApiKeys.PRODUCE.id)
-                .setMinVersion(ApiKeys.PRODUCE.messageType.lowestSupportedVersion())
-                .setMaxVersion(ApiKeys.PRODUCE.messageType.highestSupportedVersion()));
-        return new ApiVersionsResponseData()
-                .setErrorCode(Errors.NONE.code())
-                .setThrottleTimeMs(12)
-                .setFinalizedFeaturesEpoch(1)
-                .setApiKeys(ak)
-                .setSupportedFeatures(new ApiVersionsResponseData.SupportedFeatureKeyCollection())
-                .setFinalizedFeatures(new ApiVersionsResponseData.FinalizedFeatureKeyCollection());
-    }
-
-    private static RequestHeaderData requestHeader(short apiVersion) {
-        return new RequestHeaderData()
-                .setClientId("fooooo")
-                .setCorrelationId(12)
-                .setRequestApiKey(ApiKeys.API_VERSIONS.id)
-                .setRequestApiVersion(apiVersion);
-    }
-
-    private static ResponseHeaderData responseHeader() {
-        return new ResponseHeaderData()
-                .setCorrelationId(12);
-    }
-
-    private static RequestHeaderData deserializeRequestHeader(short headerVersion, ByteBuffer buffer) {
-        return new RequestHeaderData(new ByteBufferAccessor(buffer), headerVersion);
-    }
-
-    private static ResponseHeaderData deserializeResponseHeader(short headerVersion, ByteBuffer buffer) {
-        return new ResponseHeaderData(new ByteBufferAccessor(buffer), headerVersion);
-    }
-
-    private static ApiVersionsRequestData deserializeApiVersionsRequest(short apiVersion, ByteBuffer buffer) {
-        return new ApiVersionsRequestData(new ByteBufferAccessor(buffer), apiVersion);
-    }
-
-    private static ApiVersionsResponseData deserializeApiVersionsResponse(short apiVersion, ByteBuffer buffer) {
-        return new ApiVersionsResponseData(new ByteBufferAccessor(buffer), apiVersion);
-    }
-
-    private static ByteBuffer serialize(short headerVersion, ApiMessage header, short apiVersion, ApiMessage body) {
-        return serialize(1, headerVersion, header, apiVersion, body);
-    }
-
-    private static ByteBuffer serialize(int numCopies, short headerVersion, ApiMessage header, short apiVersion, ApiMessage body) {
-        var cache = new ObjectSerializationCache();
-        int headerSize = header.size(cache, headerVersion);
-        int bodySize = body.size(cache, apiVersion);
-        ByteBuffer bbuffer = ByteBuffer.allocate(numCopies * (4 + headerSize + bodySize));
-        for (int i = 0; i < numCopies; i++) {
-            bbuffer.putInt(headerSize + bodySize);
-            var kafkaAccessor = new ByteBufferAccessor(bbuffer);
-            header.write(kafkaAccessor, cache, headerVersion);
-            body.write(kafkaAccessor, cache, apiVersion);
-        }
-        bbuffer.flip();
-        return bbuffer;
-    }
-
     @ParameterizedTest
     @MethodSource("requestApiVersions")
     public void testApiVersionsRequestFrameExact(short apiVersion) throws Exception {
-        RequestHeaderData encodedHeader = requestHeader(apiVersion);
+        RequestHeaderData encodedHeader = exampleRequestHeader(apiVersion);
 
-        ApiVersionsRequestData encodedBody = apiVersionsRequest();
+        ApiVersionsRequestData encodedBody = exampleApiVersionsRequest();
 
         short headerVersion = ApiKeys.forId(ApiKeys.API_VERSIONS.id).requestHeaderVersion(apiVersion);
-        ByteBuffer bbuffer = serialize(headerVersion, encodedHeader, apiVersion, encodedBody);
+        ByteBuffer bbuffer = serializeUsingKafkaApis(headerVersion, encodedHeader, apiVersion, encodedBody);
 
         // This is a bit of a hack... the Data classes know about which fields appear in which versions
         // So use Kafka to deserialize the messages we just serialised using Kafka, so that we
         // have objects we can use assertEquals on later
         bbuffer.mark();
         bbuffer.getInt(); // frame size
-        var header = deserializeRequestHeader(headerVersion, bbuffer);
-        var body = deserializeApiVersionsRequest(apiVersion, bbuffer);
+        var header = deserializeRequestHeaderUsingKafkaApis(headerVersion, bbuffer);
+        var body = deserializeApiVersionsRequestUsingKafkaApis(apiVersion, bbuffer);
         bbuffer.reset();
 
         ByteBuf byteBuf = Unpooled.wrappedBuffer(bbuffer);
@@ -155,20 +75,20 @@ class KafkaRequestDecoderTest {
     @ParameterizedTest
     @MethodSource("requestApiVersions")
     public void testApiVersionsResponseFrameExact(short apiVersion) throws Exception {
-        ResponseHeaderData encodedHeader = responseHeader();
+        ResponseHeaderData encodedHeader = exampleResponseHeader();
 
-        var encodedBody = apiVersionsResponse();
+        var encodedBody = exampleApiVersionsResponse();
 
         short headerVersion = ApiKeys.forId(ApiKeys.API_VERSIONS.id).requestHeaderVersion(apiVersion);
-        ByteBuffer bbuffer = serialize(headerVersion, encodedHeader, apiVersion, encodedBody);
+        ByteBuffer bbuffer = serializeUsingKafkaApis(headerVersion, encodedHeader, apiVersion, encodedBody);
 
         // This is a bit of a hack... the Data classes know about which fields appear in which versions
         // So use Kafka to deserialize the messages we just serialised using Kafka, so that we
         // have objects we can use assertEquals on later
         bbuffer.mark();
         bbuffer.getInt(); // frame size
-        var header = deserializeResponseHeader(headerVersion, bbuffer);
-        var body = deserializeApiVersionsResponse(apiVersion, bbuffer);
+        var header = deserializeResponseHeaderUsingKafkaApis(headerVersion, bbuffer);
+        var body = deserializeApiVersionsResponseUsingKafkaApis(apiVersion, bbuffer);
         bbuffer.reset();
 
         ByteBuf byteBuf = Unpooled.wrappedBuffer(bbuffer);
@@ -187,11 +107,11 @@ class KafkaRequestDecoderTest {
     @ParameterizedTest
     @MethodSource("requestApiVersions")
     public void testApiVersionsRequestFrameLessOneByte(short apiVersion) throws Exception {
-        RequestHeaderData encodedHeader = requestHeader(apiVersion);
-        ApiVersionsRequestData encodedBody = apiVersionsRequest();
+        RequestHeaderData encodedHeader = exampleRequestHeader(apiVersion);
+        ApiVersionsRequestData encodedBody = exampleApiVersionsRequest();
 
         short headerVersion = ApiKeys.forId(ApiKeys.API_VERSIONS.id).requestHeaderVersion(apiVersion);
-        ByteBuffer bbuffer = serialize(headerVersion, encodedHeader, apiVersion, encodedBody);
+        ByteBuffer bbuffer = serializeUsingKafkaApis(headerVersion, encodedHeader, apiVersion, encodedBody);
 
         ByteBuf byteBuf = Unpooled.wrappedBuffer(bbuffer.limit(bbuffer.limit() - 1));
 
@@ -203,11 +123,11 @@ class KafkaRequestDecoderTest {
     }
 
     private void testApiVersionsRequestFrameFirstNBytes(short apiVersion, int n, int expectRead) throws Exception {
-        RequestHeaderData encodedHeader = requestHeader(apiVersion);
-        ApiVersionsRequestData encodedBody = apiVersionsRequest();
+        RequestHeaderData encodedHeader = exampleRequestHeader(apiVersion);
+        ApiVersionsRequestData encodedBody = exampleApiVersionsRequest();
 
         short headerVersion = ApiKeys.forId(ApiKeys.API_VERSIONS.id).requestHeaderVersion(apiVersion);
-        ByteBuffer bbuffer = serialize(headerVersion, encodedHeader, apiVersion, encodedBody);
+        ByteBuffer bbuffer = serializeUsingKafkaApis(headerVersion, encodedHeader, apiVersion, encodedBody);
 
         ByteBuf byteBuf = Unpooled.wrappedBuffer(bbuffer.limit(n));
 
@@ -233,20 +153,20 @@ class KafkaRequestDecoderTest {
     @ParameterizedTest
     @MethodSource("requestApiVersions")
     public void testTwoApiVersionsRequestFrameExact(short apiVersion) throws Exception {
-        RequestHeaderData encodedHeader = requestHeader(apiVersion);
+        RequestHeaderData encodedHeader = exampleRequestHeader(apiVersion);
 
-        ApiVersionsRequestData encodedBody = apiVersionsRequest();
+        ApiVersionsRequestData encodedBody = exampleApiVersionsRequest();
 
         short headerVersion = ApiKeys.forId(ApiKeys.API_VERSIONS.id).requestHeaderVersion(apiVersion);
-        ByteBuffer bbuffer = serialize(2, headerVersion, encodedHeader, apiVersion, encodedBody);
+        ByteBuffer bbuffer = serializeUsingKafkaApis(2, headerVersion, encodedHeader, apiVersion, encodedBody);
 
         // This is a bit of a hack... the Data classes know about which fields appear in which versions
         // So use Kafka to deserialize the messages we just serialised using Kafka, so that we
         // have objects we can use assertEquals on later
         bbuffer.mark();
         bbuffer.getInt(); // frame size
-        var header = deserializeRequestHeader(headerVersion, bbuffer);
-        var body = deserializeApiVersionsRequest(apiVersion, bbuffer);
+        var header = deserializeRequestHeaderUsingKafkaApis(headerVersion, bbuffer);
+        var body = deserializeApiVersionsRequestUsingKafkaApis(apiVersion, bbuffer);
         bbuffer.reset();
 
         ByteBuf byteBuf = Unpooled.wrappedBuffer(bbuffer);

@@ -19,6 +19,7 @@ package io.strimzi.kproxy.codec;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.MessageToByteEncoder;
+import org.apache.kafka.common.protocol.MessageSizeAccumulator;
 import org.apache.kafka.common.protocol.ObjectSerializationCache;
 import org.apache.logging.log4j.Logger;
 
@@ -27,16 +28,23 @@ import org.apache.logging.log4j.Logger;
  */
 public abstract class KafkaMessageEncoder extends MessageToByteEncoder<KafkaFrame> {
 
+    /* TODO In org.apache.kafka.common.protocol.SendBuilder.buildSend Kafka gets to optimize how it writes to the
+     * output buffer because it can sometimes use zero copy and so avoid needing to allocate a buffer for the whole message
+     * To do similar we'd need to override io.netty.handler.codec.MessageToByteEncoder.write()
+     * so we had control over buffer allocation
+     */
+
     protected abstract Logger log();
 
     @Override
     protected void encode(ChannelHandlerContext ctx, KafkaFrame frame, ByteBuf out) throws Exception {
         log().trace("Encoding {}", frame);
+        MessageSizeAccumulator sizer = new MessageSizeAccumulator();
         ObjectSerializationCache cache = new ObjectSerializationCache();
-        int headerSize = frame.header().size(cache, frame.apiVersion());
-        int bodySize = frame.body().size(cache, frame.apiVersion());
+        frame.header().addSize(sizer, cache, frame.headerVersion());
+        frame.body().addSize(sizer, cache, frame.apiVersion());
         ByteBufAccessor writable = new ByteBufAccessor(out);
-        writable.writeInt(headerSize + bodySize);
+        writable.writeInt(sizer.totalSize());
         frame.header().write(writable, cache, frame.headerVersion());
         frame.body().write(writable, cache, frame.apiVersion());
     }

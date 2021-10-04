@@ -17,18 +17,18 @@
 package io.strimzi.kproxy.codec;
 
 import java.util.Map;
+import java.util.Objects;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
+import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
+import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 public class KafkaRequestEncoder extends KafkaMessageEncoder {
     private static final Logger LOGGER = LogManager.getLogger(KafkaRequestEncoder.class);
-
-    // TODO merge with the ResponseDecoder as KafkaBackendCodec
-    // and merge the RequestDecoder and with ResponseEncoder as KafkaFrontendCodec
 
     public static class VersionedApi {
         public final short apiKey;
@@ -37,6 +37,27 @@ public class KafkaRequestEncoder extends KafkaMessageEncoder {
         public VersionedApi(short apiKey, short apiVersion) {
             this.apiKey = apiKey;
             this.apiVersion = apiVersion;
+        }
+
+        @Override
+        public String toString() {
+            return "VersionedApi(" +
+                    "apiKey=" + apiKey +
+                    ", apiVersion=" + apiVersion +
+                    ')';
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            VersionedApi that = (VersionedApi) o;
+            return apiKey == that.apiKey && apiVersion == that.apiVersion;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(apiKey, apiVersion);
         }
     }
 
@@ -54,8 +75,15 @@ public class KafkaRequestEncoder extends KafkaMessageEncoder {
     @Override
     protected void encode(ChannelHandlerContext ctx, KafkaFrame frame, ByteBuf out) throws Exception {
         super.encode(ctx, frame, out);
-        RequestHeaderData header = (RequestHeaderData) frame.header();
-        correlation.put(header.correlationId(),
-                new VersionedApi(header.apiKey(), header.requestApiVersion()));
+        if (hasResponse(frame)) {
+            RequestHeaderData header = (RequestHeaderData) frame.header();
+            correlation.put(header.correlationId(),
+                    new VersionedApi(frame.body().apiKey(), header.requestApiVersion()));
+        }
+    }
+
+    private boolean hasResponse(KafkaFrame frame) {
+        return frame.header().apiKey() != ApiKeys.PRODUCE.id ||
+                ((ProduceRequestData) frame.body()).acks() != 0;
     }
 }
