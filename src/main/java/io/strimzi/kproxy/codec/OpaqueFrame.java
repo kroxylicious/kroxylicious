@@ -42,6 +42,7 @@ public abstract class OpaqueFrame implements Frame {
         }
         out.writeInt(length);
         out.writeBytes(buf, length);
+        buf.release();
     }
 
     /* test */ ByteBuf buf() {

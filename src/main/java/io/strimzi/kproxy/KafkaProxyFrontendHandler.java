@@ -16,6 +16,9 @@
  */
 package io.strimzi.kproxy;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 import io.netty.bootstrap.Bootstrap;
@@ -23,6 +26,7 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelOption;
@@ -31,6 +35,7 @@ import io.netty.handler.logging.LoggingHandler;
 import io.strimzi.kproxy.codec.Correlation;
 import io.strimzi.kproxy.codec.KafkaRequestEncoder;
 import io.strimzi.kproxy.codec.KafkaResponseDecoder;
+import io.strimzi.kproxy.interceptor.InterceptorProvider;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -41,14 +46,20 @@ public class KafkaProxyFrontendHandler extends ChannelInboundHandlerAdapter {
     private final String remoteHost;
     private final int remotePort;
     private final Map<Integer, Correlation> correlation;
-
+    private final InterceptorProvider interceptorProvider;
+    private final boolean logNetwork;
+    private final boolean logFrames;
     private volatile Channel outboundChannel;
 
     public KafkaProxyFrontendHandler(String remoteHost, int remotePort,
-                                     Map<Integer, Correlation> correlation) {
+                                     Map<Integer, Correlation> correlation,
+                                     InterceptorProvider interceptorProvider, boolean logNetwork, boolean logFrames) {
         this.remoteHost = remoteHost;
         this.remotePort = remotePort;
         this.correlation = correlation;
+        this.interceptorProvider = interceptorProvider;
+        this.logNetwork = logNetwork;
+        this.logFrames = logFrames;
     }
 
     @Override
@@ -66,11 +77,24 @@ public class KafkaProxyFrontendHandler extends ChannelInboundHandlerAdapter {
         ChannelFuture connectFuture = b.connect(remoteHost, remotePort);
         outboundChannel = connectFuture.channel();
         ChannelPipeline pipeline = outboundChannel.pipeline();
-        pipeline.addFirst(new LoggingHandler("backend-network"),
-                new KafkaRequestEncoder(),
-                new KafkaResponseDecoder(correlation),
-                new ApiVersionsResponseHandler(),
-                new LoggingHandler("backend-application"));
+        List<ChannelHandler> handlers = new ArrayList<>();
+        if (logNetwork) {
+            handlers.add(new LoggingHandler("backend-network"));
+        }
+        handlers.add(new KafkaRequestEncoder());
+        handlers.add(new KafkaResponseDecoder(correlation));
+        //handlers.add(new ApiVersionsResponseHandler());
+        var e = interceptorProvider.backendHandler();
+        if (e != null) {
+            handlers.addAll(e);
+        }
+        if (logFrames) {
+            handlers.add(new LoggingHandler("backend-application"));
+        }
+        Collections.reverse(handlers);
+        for (var handler : handlers) {
+            pipeline.addFirst(handler);
+        }
         connectFuture.addListener(new ChannelFutureListener() {
             @Override
             public void operationComplete(ChannelFuture future) {

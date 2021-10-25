@@ -37,6 +37,7 @@ public abstract class KafkaMessageDecoder extends ByteToMessageDecoder {
     protected synchronized void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) {
         while (in.readableBytes() > 4) {
             try {
+                int sof = in.readerIndex();
                 int frameSize = in.readInt();
                 int readable = in.readableBytes();
                 if (log().isTraceEnabled()) { // avoid boxing
@@ -53,6 +54,7 @@ public abstract class KafkaMessageDecoder extends ByteToMessageDecoder {
                         throw new RuntimeException("decodeHeaderAndBody did not read all of the buffer " + in);
                     }
                 } else {
+                    in.readerIndex(sof);
                     break;
                 }
             } catch (Exception e) {

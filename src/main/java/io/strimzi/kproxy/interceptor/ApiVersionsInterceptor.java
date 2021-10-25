@@ -14,11 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.strimzi.kproxy;
+package io.strimzi.kproxy.interceptor;
 
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInboundHandler;
 import io.netty.channel.ChannelInboundHandlerAdapter;
-import io.strimzi.kproxy.codec.DecodePredicate;
 import io.strimzi.kproxy.codec.DecodedResponseFrame;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.protocol.ApiKeys;
@@ -29,8 +29,11 @@ import org.apache.logging.log4j.Logger;
  * Changes an API_VERSIONS response so that a client sees the intersection of supported version ranges for each
  * API key. This is an intrinsic part of correctly acting as a proxy.
  */
-class ApiVersionsResponseHandler extends ChannelInboundHandlerAdapter implements DecodePredicate {
-    private static final Logger LOGGER = LogManager.getLogger(ApiVersionsResponseHandler.class);
+public class ApiVersionsInterceptor implements Interceptor {
+    private static final Logger LOGGER = LogManager.getLogger(ApiVersionsInterceptor.class);
+
+    public ApiVersionsInterceptor() {
+    }
 
     @Override
     public boolean shouldDecodeRequest(ApiKeys apiKey, int apiVersion) {
@@ -40,15 +43,6 @@ class ApiVersionsResponseHandler extends ChannelInboundHandlerAdapter implements
     @Override
     public boolean shouldDecodeResponse(ApiKeys apiKey, int apiVersion) {
         return apiKey == ApiKeys.API_VERSIONS;
-    }
-
-    @Override
-    public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-        if (msg instanceof DecodedResponseFrame && ((DecodedResponseFrame) msg).apiKey() == ApiKeys.API_VERSIONS) {
-            var resp = (ApiVersionsResponseData) ((DecodedResponseFrame) msg).body();
-            intersectApiVersions(ctx, resp);
-        }
-        super.channelRead(ctx, msg);
     }
 
     private static void intersectApiVersions(ChannelHandlerContext ctx, ApiVersionsResponseData resp) {
@@ -73,18 +67,40 @@ class ApiVersionsResponseHandler extends ChannelInboundHandlerAdapter implements
                 key.minVersion(),
                 apiKey.messageType.lowestSupportedVersion());
         if (mutualMin != key.minVersion()) {
-            LOGGER.trace("[{}] Use {} min version {} (was: {})", ctx.channel(), apiKey, mutualMin, key.maxVersion());
+            LOGGER.trace("{}: {} min version changed to {} (was: {})", ctx.channel(), apiKey, mutualMin, key.maxVersion());
             key.setMinVersion(mutualMin);
+        } else {
+            LOGGER.trace("{}: {} min version unchanged (is: {})", ctx.channel(), apiKey, mutualMin);
         }
 
         short mutualMax = (short) Math.min(
                 key.maxVersion(),
                 apiKey.messageType.highestSupportedVersion());
         if (mutualMax != key.maxVersion()) {
-            LOGGER.trace("[{}] Use {} max version {} (was: {})", ctx.channel(), apiKey, mutualMax, key.maxVersion());
+            LOGGER.trace("{}: {} max version changed to {} (was: {})", ctx.channel(), apiKey, mutualMin, key.maxVersion());
             key.setMaxVersion(mutualMax);
+        } else {
+            LOGGER.trace("{}: {} max version unchanged (is: {})", ctx.channel(), apiKey, mutualMin);
         }
     }
 
 
+    @Override
+    public ChannelInboundHandler frontendHandler() {
+        return null;
+    }
+
+    @Override
+    public ChannelInboundHandler backendHandler() {
+        return new ChannelInboundHandlerAdapter() {
+            @Override
+            public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+                if (msg instanceof DecodedResponseFrame && ((DecodedResponseFrame) msg).apiKey() == ApiKeys.API_VERSIONS) {
+                    var resp = (ApiVersionsResponseData) ((DecodedResponseFrame) msg).body();
+                    intersectApiVersions(ctx, resp);
+                }
+                super.channelRead(ctx, msg);
+            }
+        };
+    }
 }
