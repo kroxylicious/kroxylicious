@@ -63,9 +63,8 @@ public class ProxyST {
                     }
         }));
 
-        startProxy(proxyHost, proxyPort, brokerList, interceptors);
+        var proxy = startProxy(proxyHost, proxyPort, brokerList, interceptors);
 
-        // TODO Use the proxy addresss!
         var producer = new KafkaProducer<String, String>(Map.of(
                 ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
                 ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
@@ -86,21 +85,16 @@ public class ProxyST {
         assertEquals(1, records.count());
         assertEquals("Hello, world!", records.iterator().next().value());
 
-        // TODO shutdown the proxy
+        // shutdown the proxy
+        proxy.shutdown();
     }
 
-    private void startProxy(String proxyHost, int proxyPort, String brokerList, List<Interceptor> interceptors) {
-
+    private KafkaProxy startProxy(String proxyHost, int proxyPort, String brokerList, List<Interceptor> interceptors) throws InterruptedException {
         String[] hostPort = brokerList.split(",")[0].split(":");
 
-        var th = new Thread(() -> {
-            try {
-                KafkaProxy.run(proxyHost, proxyPort, hostPort[0], parseInt(hostPort[1]), false, false, interceptors);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        });
-        th.start();
+        KafkaProxy kafkaProxy = new KafkaProxy(proxyHost, proxyPort, hostPort[0], parseInt(hostPort[1]), false, false, interceptors);
+        kafkaProxy.startup();
+        return kafkaProxy;
     }
 
     private String startKafkaCluster() throws IOException {

@@ -20,8 +20,9 @@ import java.util.List;
 import java.util.function.Function;
 
 import io.netty.bootstrap.ServerBootstrap;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelOption;
-import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
@@ -37,9 +38,19 @@ import org.apache.logging.log4j.Logger;
 public final class KafkaProxy {
 
     private static final Logger LOGGER = LogManager.getLogger(KafkaProxy.class);
+    private final String proxyHost;
+    private final int proxyPort;
+    private final String brokerHost;
+    private final int brokerPort;
+    private final boolean logNetwork;
+    private final boolean logFrames;
+    private final List<Interceptor> interceptors;
+    private NioEventLoopGroup bossGroup;
+    private NioEventLoopGroup workerGroup;
+    private Channel acceptorChannel;
 
     public static void main(String[] args) throws Exception {
-        run(null,
+        new KafkaProxy(null,
                 Integer.parseInt(System.getProperty("localPort", "9192")),
                 System.getProperty("remoteHost", "localhost"),
                 Integer.parseInt(System.getProperty("remotePort", "9092")),
@@ -57,59 +68,113 @@ public final class KafkaProxy {
                             public int port(String host, int port) {
                                 return port + 100;
                             }
-                        })//,
-//                        new Interceptor() {
-//                            @Override
-//                            public ChannelInboundHandler frontendHandler() {
-//                                return null;
-//                            }
-//
-//                            @Override
-//                            public ChannelInboundHandler backendHandler() {
-//                                return null;
-//                            }
-//
-//                            @Override
-//                            public boolean shouldDecodeRequest(ApiKeys apiKey, int apiVersion) {
-//                                return true;
-//                            }
-//
-//                            @Override
-//                            public boolean shouldDecodeResponse(ApiKeys apiKey, int apiVersion) {
-//                                return true;
-//                            }
-//                        }
+                        })
                 )
-        );
+            )
+            .startup()
+            .block();
     }
 
-    public static void run(
-                           String localHost,
-                           int localPort,
-                           String remoteHost,
-                           int remotePort,
-                           boolean logNetwork,
-                           boolean logFrames,
-                           List<Interceptor> interceptors) throws Exception {
-        LOGGER.info("Proxying *:" + localPort + " to " + remoteHost + ':' + remotePort + " ...");
+    public KafkaProxy(
+            String proxyHost,
+            int proxyPort,
+            String brokerHost,
+            int brokerPort,
+            boolean logNetwork,
+            boolean logFrames,
+            List<Interceptor> interceptors) {
+        this.proxyHost = proxyHost;
+        this.proxyPort = proxyPort;
+        this.brokerHost = brokerHost;
+        this.brokerPort = brokerPort;
+        this.logNetwork = logNetwork;
+        this.logFrames = logFrames;
+        this.interceptors = interceptors;
+    }
+
+    public String proxyHost() {
+        return proxyHost;
+    }
+
+    public int proxyPort() {
+        return proxyPort;
+    }
+
+    public String proxyAddress() {
+        return proxyHost() + ":" + proxyPort();
+    }
+
+    public String brokerHost() {
+        return brokerHost;
+    }
+
+    public int brokerPort() {
+        return brokerPort;
+    }
+
+    public String brokerAddress() {
+        return brokerHost() + ":" + brokerPort();
+    }
+
+    /**
+     * Starts this proxy.
+     * @return This proxy.
+     */
+    public KafkaProxy startup() throws InterruptedException {
+        if (acceptorChannel != null) {
+            throw new IllegalStateException("This proxy is already running");
+        }
+        LOGGER.info("Proxying local {} to remote {}",
+                proxyAddress(), brokerAddress());
 
         Function<SocketChannel, InterceptorProvider> hpp = ch -> new InterceptorProvider(interceptors);
 
+        KafkaProxyInitializer initializer = new KafkaProxyInitializer(brokerHost, brokerPort, hpp, logNetwork, logFrames);
+
         // Configure the bootstrap.
-        EventLoopGroup bossGroup = new NioEventLoopGroup(1);
-        EventLoopGroup workerGroup = new NioEventLoopGroup();
-        try {
-            ServerBootstrap b = new ServerBootstrap();
-            b.group(bossGroup, workerGroup)
-                    .channel(NioServerSocketChannel.class)
-                    .handler(new LoggingHandler(LogLevel.INFO))
-                    .childHandler(new KafkaProxyInitializer(remoteHost, remotePort, hpp, logNetwork, logFrames))
-                    .childOption(ChannelOption.AUTO_READ, false)
-                    .bind(localHost, localPort).sync().channel().closeFuture().sync();
-        } finally {
-            bossGroup.shutdownGracefully();
-            workerGroup.shutdownGracefully();
+        bossGroup = new NioEventLoopGroup(1);
+        workerGroup = new NioEventLoopGroup();
+        ServerBootstrap serverBootstrap = new ServerBootstrap().group(bossGroup, workerGroup)
+                .channel(NioServerSocketChannel.class)
+                .handler(new LoggingHandler(LogLevel.INFO))
+                .childHandler(initializer)
+                .childOption(ChannelOption.AUTO_READ, false);
+        ChannelFuture bindFuture;
+        if (proxyHost != null) {
+            bindFuture = serverBootstrap.bind(proxyHost, proxyPort);
+        } else {
+            bindFuture = serverBootstrap.bind(proxyPort);
         }
+        acceptorChannel = bindFuture.sync().channel();
+        //
+        return this;
+    }
+
+    /**
+     * Blocks while this proxy is running.
+     * This should only be called after a successful call to {@link #startup()}.
+     * @throws InterruptedException
+     */
+    public void block() throws InterruptedException {
+        if (acceptorChannel == null) {
+            throw new IllegalStateException("This proxy is not running");
+        }
+        acceptorChannel.closeFuture().sync();
+    }
+
+    /**
+     * Shuts down a running proxy.
+     * @throws InterruptedException
+     */
+    public void shutdown() throws InterruptedException {
+        if (acceptorChannel == null) {
+            throw new IllegalStateException("This proxy is not running");
+        }
+        bossGroup.shutdownGracefully().sync();
+        workerGroup.shutdownGracefully().sync();
+        bossGroup = null;
+        workerGroup = null;
+        acceptorChannel = null;
     }
 
 }

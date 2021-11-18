@@ -67,7 +67,7 @@ public class KafkaProxyFrontendHandler extends ChannelInboundHandlerAdapter {
         LOGGER.trace("Channel active {}", ctx);
         final Channel inboundChannel = ctx.channel();
 
-        // Start the connection attempt.
+        // Start the upstream connection attempt.
         Bootstrap b = new Bootstrap();
         b.group(inboundChannel.eventLoop())
             .channel(ctx.channel().getClass())
