@@ -20,7 +20,6 @@ import java.util.List;
 import java.util.function.Function;
 
 import io.netty.bootstrap.ServerBootstrap;
-import io.netty.channel.ChannelInboundHandler;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -32,7 +31,6 @@ import io.strimzi.kproxy.interceptor.AdvertisedListenersInterceptor;
 import io.strimzi.kproxy.interceptor.ApiVersionsInterceptor;
 import io.strimzi.kproxy.interceptor.Interceptor;
 import io.strimzi.kproxy.interceptor.InterceptorProvider;
-import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -41,7 +39,8 @@ public final class KafkaProxy {
     private static final Logger LOGGER = LogManager.getLogger(KafkaProxy.class);
 
     public static void main(String[] args) throws Exception {
-        run(Integer.parseInt(System.getProperty("localPort", "9192")),
+        run(null,
+                Integer.parseInt(System.getProperty("localPort", "9192")),
                 System.getProperty("remoteHost", "localhost"),
                 Integer.parseInt(System.getProperty("remotePort", "9092")),
                 false,
@@ -84,7 +83,9 @@ public final class KafkaProxy {
         );
     }
 
-    public static void run(int localPort,
+    public static void run(
+                           String localHost,
+                           int localPort,
                            String remoteHost,
                            int remotePort,
                            boolean logNetwork,
@@ -104,7 +105,7 @@ public final class KafkaProxy {
                     .handler(new LoggingHandler(LogLevel.INFO))
                     .childHandler(new KafkaProxyInitializer(remoteHost, remotePort, hpp, logNetwork, logFrames))
                     .childOption(ChannelOption.AUTO_READ, false)
-                    .bind(localPort).sync().channel().closeFuture().sync();
+                    .bind(localHost, localPort).sync().channel().closeFuture().sync();
         } finally {
             bossGroup.shutdownGracefully();
             workerGroup.shutdownGracefully();
