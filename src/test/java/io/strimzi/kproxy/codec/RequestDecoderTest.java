@@ -73,7 +73,7 @@ class RequestDecoderTest extends AbstractCodecTest {
         new KafkaRequestDecoder(AbstractCodecTest.ALWAYS_DECODE, new HashMap<>()).decode(null, byteBuf, messages);
 
         assertEquals(List.of(), messageClasses(messages));
-        assertEquals(4, byteBuf.readerIndex());
+        assertEquals(0, byteBuf.readerIndex());
     }
 
     private void doTestApiVersionsFrameFirstNBytes(short apiVersion, int n, int expectRead) throws Exception {
@@ -101,7 +101,7 @@ class RequestDecoderTest extends AbstractCodecTest {
     @ParameterizedTest
     @MethodSource("requestApiVersions")
     public void testApiVersionsFrameFirst5Bytes(short apiVersion) throws Exception {
-        doTestApiVersionsFrameFirstNBytes(apiVersion, 5, 4);
+        doTestApiVersionsFrameFirstNBytes(apiVersion, 5, 0);
     }
 
     @ParameterizedTest
