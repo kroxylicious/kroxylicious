@@ -84,7 +84,7 @@ public class KafkaProxyFrontendHandler extends ChannelInboundHandlerAdapter {
         handlers.add(new KafkaRequestEncoder());
         handlers.add(new KafkaResponseDecoder(correlation));
         //handlers.add(new ApiVersionsResponseHandler());
-        var e = interceptorProvider.backendHandler();
+        var e = interceptorProvider.backendHandlers();
         if (e != null) {
             handlers.addAll(e);
         }

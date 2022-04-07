@@ -104,8 +104,7 @@ public class ProxyST {
                 //.withKafkaConfiguration()
                 .startup();
 
-        var brokerList = kafkaCluster.brokerList();
-        return brokerList;
+        return kafkaCluster.brokerList();
     }
 
 }

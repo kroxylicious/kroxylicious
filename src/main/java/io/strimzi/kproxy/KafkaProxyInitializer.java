@@ -67,7 +67,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
         ch.pipeline().addLast(
                 new KafkaRequestDecoder(hp, correlation)
         );
-        var frontendInterceptor = hp.frontendHandler();
+        var frontendInterceptor = hp.frontendHandlers();
         if (frontendInterceptor != null){
             frontendInterceptor.forEach(handler -> ch.pipeline().addLast(handler));
         }

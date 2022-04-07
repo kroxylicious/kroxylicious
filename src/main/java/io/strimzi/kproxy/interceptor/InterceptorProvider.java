@@ -33,11 +33,11 @@ public class InterceptorProvider implements DecodePredicate {
         this.interceptors = interceptors;
     }
 
-    public List<ChannelInboundHandler> frontendHandler() {
+    public List<ChannelInboundHandler> frontendHandlers() {
         return interceptors.stream().map(Interceptor::frontendHandler).collect(Collectors.toList());
     }
 
-    public List<ChannelInboundHandler> backendHandler() {
+    public List<ChannelInboundHandler> backendHandlers() {
         return interceptors.stream().map(Interceptor::backendHandler).collect(Collectors.toList());
     }
 
