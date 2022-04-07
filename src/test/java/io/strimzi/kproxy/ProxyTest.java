@@ -27,6 +27,8 @@ import io.debezium.kafka.KafkaCluster;
 import io.strimzi.kproxy.interceptor.AdvertisedListenersInterceptor;
 import io.strimzi.kproxy.interceptor.ApiVersionsInterceptor;
 import io.strimzi.kproxy.interceptor.Interceptor;
+import io.strimzi.kproxy.util.SystemTest;
+
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.KafkaProducer;
@@ -39,7 +41,8 @@ import org.junit.jupiter.api.Test;
 import static java.lang.Integer.parseInt;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class ProxyST {
+@SystemTest
+public class ProxyTest {
 
     @Test
     public void test1() throws Exception {
@@ -100,11 +103,10 @@ public class ProxyST {
     private String startKafkaCluster() throws IOException {
         var kafkaCluster = new KafkaCluster()
                 .addBrokers(1)
-                .usingDirectory(Files.createTempDirectory(ProxyST.class.getName()).toFile())
+                .usingDirectory(Files.createTempDirectory(ProxyTest.class.getName()).toFile())
                 //.withKafkaConfiguration()
                 .startup();
 
         return kafkaCluster.brokerList();
     }
-
 }

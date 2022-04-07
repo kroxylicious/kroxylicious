@@ -18,7 +18,7 @@
         <kafka-clients.version>3.1.0</kafka-clients.version>
 
         <junit.version>5.8.1</junit.version>
-        <debezium.version>1.9.0.CR1</debezium.version>
+        <debezium.version>1.9.0.Final</debezium.version>
     </properties>
 
     <dependencyManagement>
