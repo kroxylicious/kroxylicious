@@ -17,51 +17,74 @@
 package io.strimzi.kproxy;
 
 import io.netty.channel.Channel;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.util.Objects;
+
+import static java.util.Objects.requireNonNull;
+
 public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
 
     private static final Logger LOGGER = LogManager.getLogger(KafkaProxyBackendHandler.class);
 
-    private final Channel inboundChannel;
+    private final ChannelHandlerContext inboundCtx;
+    private ChannelHandlerContext blockedOutboundCtx;
+    private boolean unflushedWrites;
 
-    public KafkaProxyBackendHandler(Channel inboundChannel) {
-        this.inboundChannel = inboundChannel;
+    public KafkaProxyBackendHandler(ChannelHandlerContext inboundCtx) {
+        this.inboundCtx = requireNonNull(inboundCtx);
+    }
+
+    public void inboundChannelWritabilityChanged(ChannelHandlerContext inboundCtx) {
+        assert inboundCtx == this.inboundCtx;
+        final ChannelHandlerContext outboundCtx = blockedOutboundCtx;
+        if (outboundCtx != null && inboundCtx.channel().isWritable()) {
+            blockedOutboundCtx = null;
+            outboundCtx.channel().config().setAutoRead(true);
+        }
     }
 
     // Called when the outbound channel is active
     @Override
-    public void channelActive(ChannelHandlerContext ctx) {
-        LOGGER.trace("Channel active {}, registing interest to read", ctx);
-        ctx.read();
-        ctx.fireChannelActive();
+    public void channelActive(ChannelHandlerContext ctx) throws Exception {
+        LOGGER.trace("Channel active {}", ctx);
+        super.channelActive(ctx);
     }
 
     @Override
     public void channelRead(final ChannelHandlerContext ctx, Object msg) {
+        assert blockedOutboundCtx == null;
         LOGGER.trace(msg);
-        inboundChannel.writeAndFlush(msg).addListener(new ChannelFutureListener() {
-            @Override
-            public void operationComplete(ChannelFuture future) {
-                if (future.isSuccess()) {
-                    LOGGER.trace("Inbound write and flush");
-                    ctx.channel().read();
-                } else {
-                    LOGGER.trace("Inbound write and flush error");
-                    future.channel().close();
-                }
-            }
-        });
+        final Channel inboundChannel = inboundCtx.channel();
+        if (inboundChannel.isWritable()) {
+            inboundChannel.write(msg, inboundCtx.voidPromise());
+            unflushedWrites = true;
+        } else {
+            inboundChannel.writeAndFlush(msg, inboundCtx.voidPromise());
+            unflushedWrites = false;
+        }
+    }
+
+    @Override
+    public void channelReadComplete(final ChannelHandlerContext ctx) throws Exception {
+        super.channelReadComplete(ctx);
+        final Channel inboundChannel = inboundCtx.channel();
+        if (unflushedWrites) {
+            unflushedWrites = false;
+            inboundChannel.flush();
+        }
+        if (!inboundChannel.isWritable()) {
+            ctx.channel().config().setAutoRead(false);
+            this.blockedOutboundCtx = ctx;
+        }
     }
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) {
-        KafkaProxyFrontendHandler.closeOnFlush(inboundChannel);
+        KafkaProxyFrontendHandler.closeOnFlush(inboundCtx.channel());
     }
 
     @Override
