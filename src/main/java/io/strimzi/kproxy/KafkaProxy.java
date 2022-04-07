@@ -32,6 +32,8 @@ import io.strimzi.kproxy.interceptor.AdvertisedListenersInterceptor;
 import io.strimzi.kproxy.interceptor.ApiVersionsInterceptor;
 import io.strimzi.kproxy.interceptor.Interceptor;
 import io.strimzi.kproxy.interceptor.InterceptorProvider;
+import io.strimzi.kproxy.interceptor.InterceptorProviderFactory;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -127,9 +129,8 @@ public final class KafkaProxy {
         LOGGER.info("Proxying local {} to remote {}",
                 proxyAddress(), brokerAddress());
 
-        Function<SocketChannel, InterceptorProvider> hpp = ch -> new InterceptorProvider(interceptors);
-
-        KafkaProxyInitializer initializer = new KafkaProxyInitializer(brokerHost, brokerPort, hpp, logNetwork, logFrames);
+        InterceptorProviderFactory interceptorProviderFactory = new InterceptorProviderFactory(interceptors);
+        KafkaProxyInitializer initializer = new KafkaProxyInitializer(brokerHost, brokerPort, interceptorProviderFactory, logNetwork, logFrames);
 
         // Configure the bootstrap.
         bossGroup = new NioEventLoopGroup(1);

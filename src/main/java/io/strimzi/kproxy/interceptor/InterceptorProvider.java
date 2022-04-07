@@ -27,6 +27,7 @@ import org.apache.kafka.common.protocol.ApiKeys;
  * Combines a number of interceptors
  */
 public class InterceptorProvider implements DecodePredicate {
+
     private final List<Interceptor> interceptors;
 
     public InterceptorProvider(List<Interceptor> interceptors) {

@@ -17,7 +17,6 @@
 package io.strimzi.kproxy;
 
 import java.util.HashMap;
-import java.util.function.Function;
 
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
@@ -27,6 +26,8 @@ import io.strimzi.kproxy.codec.Correlation;
 import io.strimzi.kproxy.codec.KafkaRequestDecoder;
 import io.strimzi.kproxy.codec.KafkaResponseEncoder;
 import io.strimzi.kproxy.interceptor.InterceptorProvider;
+import io.strimzi.kproxy.interceptor.InterceptorProviderFactory;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -36,18 +37,18 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
 
     private final String remoteHost;
     private final int remotePort;
-    private final Function<SocketChannel, InterceptorProvider> hpp;
+    private final InterceptorProviderFactory interceptorProviderFactory;
     private final boolean logNetwork;
     private final boolean logFrames;
 
     public KafkaProxyInitializer(String remoteHost,
                                  int remotePort,
-                                 Function<SocketChannel, InterceptorProvider> hpp,
+                                 InterceptorProviderFactory interceptorProviderFactory,
                                  boolean logNetwork,
                                  boolean logFrames) {
         this.remoteHost = remoteHost;
         this.remotePort = remotePort;
-        this.hpp = hpp;
+        this.interceptorProviderFactory = interceptorProviderFactory;
         this.logNetwork = logNetwork;
         this.logFrames = logFrames;
     }
@@ -60,7 +61,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
 
         var correlation = new HashMap<Integer, Correlation>();
 
-        InterceptorProvider hp = hpp.apply(ch);
+        InterceptorProvider hp = interceptorProviderFactory.createInterceptorProvider(ch);
         if (logNetwork) {
             ch.pipeline().addLast(new LoggingHandler("frontend-network", LogLevel.INFO));
         }
