@@ -22,20 +22,26 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.util.Objects;
-
 import static java.util.Objects.requireNonNull;
 
 public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
 
     private static final Logger LOGGER = LogManager.getLogger(KafkaProxyBackendHandler.class);
 
+    private final KafkaProxyFrontendHandler frontendHandler;
     private final ChannelHandlerContext inboundCtx;
     private ChannelHandlerContext blockedOutboundCtx;
     private boolean unflushedWrites;
 
-    public KafkaProxyBackendHandler(ChannelHandlerContext inboundCtx) {
+    public KafkaProxyBackendHandler(KafkaProxyFrontendHandler frontendHandler, ChannelHandlerContext inboundCtx) {
+        this.frontendHandler = frontendHandler;
         this.inboundCtx = requireNonNull(inboundCtx);
+    }
+
+    @Override
+    public void channelWritabilityChanged(final ChannelHandlerContext ctx) throws Exception {
+        super.channelWritabilityChanged(ctx);
+        frontendHandler.outboundWritabilityChanged(ctx);
     }
 
     public void inboundChannelWritabilityChanged(ChannelHandlerContext inboundCtx) {
@@ -52,6 +58,7 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         LOGGER.trace("Channel active {}", ctx);
         super.channelActive(ctx);
+        this.frontendHandler.outboundChannelActive(ctx);
     }
 
     @Override
