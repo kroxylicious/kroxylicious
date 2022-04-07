@@ -50,6 +50,7 @@ public class KafkaProxyFrontendHandler extends ChannelInboundHandlerAdapter {
     private final boolean logNetwork;
     private final boolean logFrames;
     private volatile Channel outboundChannel;
+    private KafkaProxyBackendHandler backendHandler;
 
     public KafkaProxyFrontendHandler(String remoteHost, int remotePort,
                                      Map<Integer, Correlation> correlation,
@@ -62,6 +63,17 @@ public class KafkaProxyFrontendHandler extends ChannelInboundHandlerAdapter {
         this.logFrames = logFrames;
     }
 
+
+
+    @Override
+    public void channelWritabilityChanged(final ChannelHandlerContext ctx) throws Exception {
+        super.channelWritabilityChanged(ctx);
+        // this is key to propagate back-pressure changes
+        if (backendHandler != null) {
+            backendHandler.inboundChannelWritabilityChanged(ctx);
+        }
+    }
+
     @Override
     public void channelActive(ChannelHandlerContext ctx) {
         LOGGER.trace("Channel active {}", ctx);
@@ -69,10 +81,11 @@ public class KafkaProxyFrontendHandler extends ChannelInboundHandlerAdapter {
 
         // Start the upstream connection attempt.
         Bootstrap b = new Bootstrap();
+        backendHandler = new KafkaProxyBackendHandler(ctx);
         b.group(inboundChannel.eventLoop())
             .channel(ctx.channel().getClass())
-                .handler(new KafkaProxyBackendHandler(inboundChannel))
-            .option(ChannelOption.AUTO_READ, false);
+                .handler(backendHandler)
+            .option(ChannelOption.AUTO_READ, true);
         LOGGER.trace("Connecting to outbound {}:{}", remoteHost, remotePort);
         ChannelFuture connectFuture = b.connect(remoteHost, remotePort);
         outboundChannel = connectFuture.channel();
