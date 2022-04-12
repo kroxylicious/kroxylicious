@@ -16,9 +16,10 @@
  */
 package io.strimzi.kproxy.interceptor;
 
+import org.apache.kafka.common.protocol.ApiKeys;
+
 import io.netty.channel.ChannelInboundHandler;
 import io.strimzi.kproxy.codec.DecodePredicate;
-import org.apache.kafka.common.protocol.ApiKeys;
 
 /**
  * An interceptor of Kafka messages.
@@ -31,5 +32,6 @@ import org.apache.kafka.common.protocol.ApiKeys;
  */
 public interface Interceptor extends DecodePredicate {
     ChannelInboundHandler frontendHandler();
+
     ChannelInboundHandler backendHandler();
 }

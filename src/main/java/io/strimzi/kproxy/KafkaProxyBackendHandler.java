@@ -16,11 +16,12 @@
  */
 package io.strimzi.kproxy;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import static java.util.Objects.requireNonNull;
 
@@ -69,7 +70,8 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
         if (inboundChannel.isWritable()) {
             inboundChannel.write(msg, inboundCtx.voidPromise());
             unflushedWrites = true;
-        } else {
+        }
+        else {
             inboundChannel.writeAndFlush(msg, inboundCtx.voidPromise());
             unflushedWrites = false;
         }

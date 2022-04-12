@@ -18,10 +18,11 @@ package io.strimzi.kproxy.codec;
 
 import java.util.List;
 
+import org.apache.logging.log4j.Logger;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
-import org.apache.logging.log4j.Logger;
 
 /**
  * Abstraction for request and response decoders.
@@ -53,11 +54,13 @@ public abstract class KafkaMessageDecoder extends ByteToMessageDecoder {
                     if (in.readerIndex() - idx != frameSize) {
                         throw new RuntimeException("decodeHeaderAndBody did not read all of the buffer " + in);
                     }
-                } else {
+                }
+                else {
                     in.readerIndex(sof);
                     break;
                 }
-            } catch (Exception e) {
+            }
+            catch (Exception e) {
                 log().error("{}: Error in decoder", ctx, e);
                 throw e;
             }

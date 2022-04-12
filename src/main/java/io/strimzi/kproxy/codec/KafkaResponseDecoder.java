@@ -18,8 +18,6 @@ package io.strimzi.kproxy.codec;
 
 import java.util.Map;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.channel.ChannelHandlerContext;
 import org.apache.kafka.common.message.AddOffsetsToTxnResponseData;
 import org.apache.kafka.common.message.AddPartitionsToTxnResponseData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
@@ -54,6 +52,9 @@ import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.ChannelHandlerContext;
 
 public class KafkaResponseDecoder extends KafkaMessageDecoder {
 
@@ -91,7 +92,8 @@ public class KafkaResponseDecoder extends KafkaMessageDecoder {
             ApiMessage body = readBody(apiKey, apiVersion, accessor);
             log().trace("{}: Body: {}", ctx, body);
             frame = new DecodedResponseFrame(apiVersion, header, body);
-        } else {
+        }
+        else {
             frame = opaqueFrame(in, length);
         }
         log().trace("{}: Frame: {}", ctx, frame);
@@ -107,7 +109,7 @@ public class KafkaResponseDecoder extends KafkaMessageDecoder {
         return new ResponseHeaderData(accessor, headerVersion);
     }
 
-    private ApiMessage readBody(ApiKeys apiKey, short apiVersion, ByteBufAccessor accessor)  {
+    private ApiMessage readBody(ApiKeys apiKey, short apiVersion, ByteBufAccessor accessor) {
         switch (apiKey) {
             case PRODUCE:
                 return new ProduceResponseData(accessor, apiVersion);

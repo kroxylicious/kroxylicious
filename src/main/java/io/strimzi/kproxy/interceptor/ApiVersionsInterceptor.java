@@ -16,14 +16,15 @@
  */
 package io.strimzi.kproxy.interceptor;
 
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInboundHandler;
-import io.netty.channel.ChannelInboundHandlerAdapter;
-import io.strimzi.kproxy.codec.DecodedResponseFrame;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInboundHandler;
+import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.strimzi.kproxy.codec.DecodedResponseFrame;
 
 /**
  * Changes an API_VERSIONS response so that a client sees the intersection of supported version ranges for each
@@ -69,7 +70,8 @@ public class ApiVersionsInterceptor implements Interceptor {
         if (mutualMin != key.minVersion()) {
             LOGGER.trace("{}: {} min version changed to {} (was: {})", ctx.channel(), apiKey, mutualMin, key.maxVersion());
             key.setMinVersion(mutualMin);
-        } else {
+        }
+        else {
             LOGGER.trace("{}: {} min version unchanged (is: {})", ctx.channel(), apiKey, mutualMin);
         }
 
@@ -79,11 +81,11 @@ public class ApiVersionsInterceptor implements Interceptor {
         if (mutualMax != key.maxVersion()) {
             LOGGER.trace("{}: {} max version changed to {} (was: {})", ctx.channel(), apiKey, mutualMin, key.maxVersion());
             key.setMaxVersion(mutualMax);
-        } else {
+        }
+        else {
             LOGGER.trace("{}: {} max version unchanged (is: {})", ctx.channel(), apiKey, mutualMin);
         }
     }
-
 
     @Override
     public ChannelInboundHandler frontendHandler() {

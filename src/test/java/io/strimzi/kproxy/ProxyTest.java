@@ -16,9 +16,6 @@
  */
 package io.strimzi.kproxy;
 
-import static java.lang.Integer.parseInt;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -39,11 +36,14 @@ import org.junit.jupiter.api.Test;
 
 import io.debezium.kafka.KafkaCluster;
 import io.strimzi.kproxy.interceptor.AdvertisedListenersInterceptor;
+import io.strimzi.kproxy.interceptor.AdvertisedListenersInterceptor.AddressMapping;
 import io.strimzi.kproxy.interceptor.ApiVersionsInterceptor;
 import io.strimzi.kproxy.interceptor.Interceptor;
 import io.strimzi.kproxy.interceptor.ProduceRecordTransformationInterceptor;
-import io.strimzi.kproxy.interceptor.AdvertisedListenersInterceptor.AddressMapping;
 import io.strimzi.kproxy.util.SystemTest;
+
+import static java.lang.Integer.parseInt;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @SystemTest
 public class ProxyTest {
@@ -58,8 +58,7 @@ public class ProxyTest {
 
         var interceptors = List.of(
                 new ApiVersionsInterceptor(),
-                new AdvertisedListenersInterceptor(new FixedAddressMapping(proxyHost, proxyPort))
-        );
+                new AdvertisedListenersInterceptor(new FixedAddressMapping(proxyHost, proxyPort)));
 
         var proxy = startProxy(proxyHost, proxyPort, brokerList, interceptors);
 
@@ -75,8 +74,7 @@ public class ProxyTest {
                 ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
                 ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
                 ConsumerConfig.GROUP_ID_CONFIG, "my-group-id",
-                ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"
-        ));
+                ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"));
         consumer.subscribe(Set.of("my-test-topic"));
         var records = consumer.poll(Duration.ofSeconds(10));
         consumer.close();
@@ -98,8 +96,8 @@ public class ProxyTest {
         var interceptors = List.of(
                 new ApiVersionsInterceptor(),
                 new AdvertisedListenersInterceptor(new FixedAddressMapping(proxyHost, proxyPort)),
-                new ProduceRecordTransformationInterceptor(buffer -> ByteBuffer.wrap(new String(StandardCharsets.UTF_8.decode(buffer).array()).toUpperCase().getBytes(StandardCharsets.UTF_8)))
-        );
+                new ProduceRecordTransformationInterceptor(
+                        buffer -> ByteBuffer.wrap(new String(StandardCharsets.UTF_8.decode(buffer).array()).toUpperCase().getBytes(StandardCharsets.UTF_8))));
 
         var proxy = startProxy(proxyHost, proxyPort, brokerList, interceptors);
 
@@ -116,8 +114,7 @@ public class ProxyTest {
                 ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
                 ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
                 ConsumerConfig.GROUP_ID_CONFIG, "my-group-id",
-                ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"
-        ));
+                ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"));
         consumer.subscribe(Set.of("my-test-topic"));
         var records = consumer.poll(Duration.ofSeconds(10));
         consumer.close();
@@ -140,7 +137,7 @@ public class ProxyTest {
         var kafkaCluster = new KafkaCluster()
                 .addBrokers(1)
                 .usingDirectory(Files.createTempDirectory(ProxyTest.class.getName()).toFile())
-                //.withKafkaConfiguration()
+                // .withKafkaConfiguration()
                 .startup();
 
         return kafkaCluster.brokerList();

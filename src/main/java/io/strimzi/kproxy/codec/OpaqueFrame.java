@@ -16,9 +16,10 @@
  */
 package io.strimzi.kproxy.codec;
 
-import io.netty.buffer.ByteBuf;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import io.netty.buffer.ByteBuf;
 
 /**
  * A frame in the Kafka protocol which has not been decoded.

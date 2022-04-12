@@ -27,9 +27,6 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufUtil;
-import io.netty.buffer.Unpooled;
 import org.apache.kafka.common.message.ApiMessageType;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
@@ -40,6 +37,10 @@ import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.ByteBufferAccessor;
 import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.protocol.ObjectSerializationCache;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
+import io.netty.buffer.Unpooled;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -185,19 +186,20 @@ public abstract class AbstractCodecTest {
     }
 
     public static <H extends ApiMessage, B extends ApiMessage> void exactlyOneFrame_decoded(
-            short apiVersion,
-            Function<Short, Short> headerVersionSupplier,
-            Function<Short, H> headerSupplier,
-            Supplier<B> bodySupplier,
-            BiFunction<Short, ByteBuffer, H> headerDeser,
-            BiFunction<Short, ByteBuffer, B> bodyDeser,
-            KafkaMessageDecoder decoder,
-            Class<? extends DecodedFrame> frameClass) throws Exception {
+                                                                                            short apiVersion,
+                                                                                            Function<Short, Short> headerVersionSupplier,
+                                                                                            Function<Short, H> headerSupplier,
+                                                                                            Supplier<B> bodySupplier,
+                                                                                            BiFunction<Short, ByteBuffer, H> headerDeser,
+                                                                                            BiFunction<Short, ByteBuffer, B> bodyDeser,
+                                                                                            KafkaMessageDecoder decoder,
+                                                                                            Class<? extends DecodedFrame> frameClass)
+            throws Exception {
         ApiMessage encodedHeader = headerSupplier.apply(apiVersion);
 
         ApiMessage encodedBody = bodySupplier.get();
 
-        short headerVersion = headerVersionSupplier.apply(apiVersion); //;
+        short headerVersion = headerVersionSupplier.apply(apiVersion); // ;
         ByteBuffer akBuffer = serializeUsingKafkaApis(headerVersion, encodedHeader, apiVersion, encodedBody);
 
         // This is a bit of a hack... the Data classes know about which fields appear in which versions
@@ -223,12 +225,13 @@ public abstract class AbstractCodecTest {
     }
 
     public static <H extends ApiMessage, B extends ApiMessage> void exactlyOneFrame_encoded(
-            short apiVersion,
-            Function<Short, Short> headerVersionSupplier,
-            Function<Short, H> headerSupplier,
-            Supplier<B> bodySupplier,
-            KafkaMessageDecoder decoder,
-            Class<? extends Frame> frameClass) throws Exception {
+                                                                                            short apiVersion,
+                                                                                            Function<Short, Short> headerVersionSupplier,
+                                                                                            Function<Short, H> headerSupplier,
+                                                                                            Supplier<B> bodySupplier,
+                                                                                            KafkaMessageDecoder decoder,
+                                                                                            Class<? extends Frame> frameClass)
+            throws Exception {
 
         var encodedHeader = headerSupplier.apply(apiVersion);
 

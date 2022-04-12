@@ -21,7 +21,6 @@ import java.util.Random;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import io.netty.buffer.Unpooled;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.protocol.ApiKeys;
@@ -32,6 +31,8 @@ import org.apache.kafka.common.protocol.types.Schema;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
+
+import io.netty.buffer.Unpooled;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -49,7 +50,7 @@ public class ByteBufAccessorTest {
             ByteBufferAccessor nio = new ByteBufferAccessor(bbuffer);
             byte writtenByte = (byte) rng.nextInt();
             nio.writeByte(writtenByte);
-            byte[] writtenArray = {1, 2, 3};
+            byte[] writtenArray = { 1, 2, 3 };
             nio.writeByteArray(writtenArray);
             double writtenDouble = rng.nextDouble();
             nio.writeDouble(writtenDouble);
@@ -95,7 +96,7 @@ public class ByteBufAccessorTest {
             var accessor = new ByteBufAccessor(bbuf);
             byte writtenByte = (byte) rng.nextInt();
             accessor.writeByte(writtenByte);
-            byte[] writtenArray = {1, 2, 3};
+            byte[] writtenArray = { 1, 2, 3 };
             accessor.writeByteArray(writtenArray);
             double writtenDouble = rng.nextDouble();
             accessor.writeDouble(writtenDouble);
@@ -133,12 +134,12 @@ public class ByteBufAccessorTest {
 
     public static Stream<Object[]> requestApiVersions() {
         return IntStream.range(0, ApiVersionsRequestData.SCHEMAS.length)
-                .mapToObj(index -> new Object[]{(short) (ApiVersionsRequestData.LOWEST_SUPPORTED_VERSION + index), ApiVersionsRequestData.SCHEMAS[index]});
+                .mapToObj(index -> new Object[]{ (short) (ApiVersionsRequestData.LOWEST_SUPPORTED_VERSION + index), ApiVersionsRequestData.SCHEMAS[index] });
     }
 
     public static Stream<Object[]> responseApiVersions() {
         return IntStream.range(0, ApiVersionsResponseData.SCHEMAS.length)
-                .mapToObj(index -> new Object[]{(short) (ApiVersionsResponseData.LOWEST_SUPPORTED_VERSION + index), ApiVersionsResponseData.SCHEMAS[index]});
+                .mapToObj(index -> new Object[]{ (short) (ApiVersionsResponseData.LOWEST_SUPPORTED_VERSION + index), ApiVersionsResponseData.SCHEMAS[index] });
     }
 
     private void assertSameRequest(Schema schema, ApiVersionsRequestData message, ApiVersionsRequestData readReq) {

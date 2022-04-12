@@ -46,8 +46,10 @@ public class Correlation {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+        if (this == o)
+            return true;
+        if (o == null || getClass() != o.getClass())
+            return false;
         Correlation that = (Correlation) o;
         return apiVersion() == that.apiVersion() && decodeResponse() == that.decodeResponse() && apiKey() == that.apiKey();
     }

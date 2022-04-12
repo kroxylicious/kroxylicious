@@ -25,12 +25,11 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 public class ResponseDecoderTest extends AbstractCodecTest {
 
-
     @ParameterizedTest
     @MethodSource("requestApiVersions")
     public void testApiVersionsExactlyOneFrame_decoded(short apiVersion) throws Exception {
         exactlyOneFrame_decoded(apiVersion,
-                  ApiKeys.API_VERSIONS::responseHeaderVersion,
+                ApiKeys.API_VERSIONS::responseHeaderVersion,
                 v -> AbstractCodecTest.exampleResponseHeader(),
                 AbstractCodecTest::exampleApiVersionsResponse,
                 AbstractCodecTest::deserializeResponseHeaderUsingKafkaApis,

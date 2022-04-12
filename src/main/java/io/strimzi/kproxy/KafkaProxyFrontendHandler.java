@@ -21,6 +21,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
@@ -36,8 +39,6 @@ import io.strimzi.kproxy.codec.Correlation;
 import io.strimzi.kproxy.codec.KafkaRequestEncoder;
 import io.strimzi.kproxy.codec.KafkaResponseDecoder;
 import io.strimzi.kproxy.interceptor.InterceptorProvider;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 public class KafkaProxyFrontendHandler extends ChannelInboundHandlerAdapter {
 
@@ -87,9 +88,9 @@ public class KafkaProxyFrontendHandler extends ChannelInboundHandlerAdapter {
         Bootstrap b = new Bootstrap();
         backendHandler = new KafkaProxyBackendHandler(this, ctx);
         b.group(inboundChannel.eventLoop())
-            .channel(ctx.channel().getClass())
+                .channel(ctx.channel().getClass())
                 .handler(backendHandler)
-            .option(ChannelOption.AUTO_READ, true);
+                .option(ChannelOption.AUTO_READ, true);
         LOGGER.trace("Connecting to outbound {}:{}", remoteHost, remotePort);
         ChannelFuture connectFuture = b.connect(remoteHost, remotePort);
         Channel outboundChannel = connectFuture.channel();
@@ -100,7 +101,7 @@ public class KafkaProxyFrontendHandler extends ChannelInboundHandlerAdapter {
         }
         handlers.add(new KafkaRequestEncoder());
         handlers.add(new KafkaResponseDecoder(correlation));
-        //handlers.add(new ApiVersionsResponseHandler());
+        // handlers.add(new ApiVersionsResponseHandler());
         var e = interceptorProvider.backendHandlers();
         if (e != null) {
             handlers.addAll(e);
@@ -117,7 +118,8 @@ public class KafkaProxyFrontendHandler extends ChannelInboundHandlerAdapter {
                 LOGGER.trace("Outbound connect complete ({}), register interest to read on inbound channel {}", outboundChannel.localAddress(), inboundChannel);
                 // connection complete start to read first data
                 inboundChannel.config().setAutoRead(true);
-            } else {
+            }
+            else {
                 // Close the connection if the connection attempt has failed.
                 LOGGER.trace("Outbound connect error, closing inbound channel", future.cause());
                 inboundChannel.close();
@@ -142,7 +144,8 @@ public class KafkaProxyFrontendHandler extends ChannelInboundHandlerAdapter {
         if (outboundChannel.isWritable()) {
             outboundChannel.write(msg, outboundCtx.voidPromise());
             pendingFlushes = true;
-        } else {
+        }
+        else {
             outboundChannel.writeAndFlush(msg, outboundCtx.voidPromise());
             pendingFlushes = false;
         }
@@ -197,7 +200,7 @@ public class KafkaProxyFrontendHandler extends ChannelInboundHandlerAdapter {
      */
     static void closeOnFlush(Channel ch) {
         if (ch.isActive()) {
-           ch.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
-       }
-   }
+            ch.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
+        }
+    }
 }

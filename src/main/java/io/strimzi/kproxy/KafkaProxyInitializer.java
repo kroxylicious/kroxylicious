@@ -18,6 +18,9 @@ package io.strimzi.kproxy;
 
 import java.util.HashMap;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.logging.LogLevel;
@@ -27,9 +30,6 @@ import io.strimzi.kproxy.codec.KafkaRequestDecoder;
 import io.strimzi.kproxy.codec.KafkaResponseEncoder;
 import io.strimzi.kproxy.interceptor.InterceptorProvider;
 import io.strimzi.kproxy.interceptor.InterceptorProviderFactory;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
 
@@ -66,10 +66,9 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
             ch.pipeline().addLast(new LoggingHandler("frontend-network", LogLevel.INFO));
         }
         ch.pipeline().addLast(
-                new KafkaRequestDecoder(hp, correlation)
-        );
+                new KafkaRequestDecoder(hp, correlation));
         var frontendInterceptor = hp.frontendHandlers();
-        if (frontendInterceptor != null){
+        if (frontendInterceptor != null) {
             frontendInterceptor.forEach(handler -> ch.pipeline().addLast(handler));
         }
         ch.pipeline().addLast(new KafkaResponseEncoder());

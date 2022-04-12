@@ -19,9 +19,10 @@ package io.strimzi.kproxy.interceptor;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.apache.kafka.common.protocol.ApiKeys;
+
 import io.netty.channel.ChannelInboundHandler;
 import io.strimzi.kproxy.codec.DecodePredicate;
-import org.apache.kafka.common.protocol.ApiKeys;
 
 /**
  * Combines a number of interceptors

@@ -16,17 +16,19 @@
  */
 package io.strimzi.kproxy.codec;
 
+import org.apache.logging.log4j.Logger;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.MessageToByteEncoder;
-import org.apache.logging.log4j.Logger;
 
 /**
  * Abstraction for request and response encoders.
  */
 public abstract class KafkaMessageEncoder<F extends Frame> extends MessageToByteEncoder<F> {
 
-    /* TODO In org.apache.kafka.common.protocol.SendBuilder.buildSend Kafka gets to optimize how it writes to the
+    /*
+     * TODO In org.apache.kafka.common.protocol.SendBuilder.buildSend Kafka gets to optimize how it writes to the
      * output buffer because it can sometimes use zero copy and so avoid needing to allocate a buffer for the whole message
      * To do similar we'd need to override io.netty.handler.codec.MessageToByteEncoder.write()
      * so we had control over buffer allocation

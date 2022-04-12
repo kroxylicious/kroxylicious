@@ -16,13 +16,14 @@
  */
 package io.strimzi.kproxy.codec;
 
-import io.netty.buffer.ByteBuf;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.MessageSizeAccumulator;
 import org.apache.kafka.common.protocol.ObjectSerializationCache;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import io.netty.buffer.ByteBuf;
 
 /**
  * A frame that has been decoded (as opposed to an {@link OpaqueFrame}).
@@ -76,7 +77,6 @@ public abstract class DecodedFrame<H extends ApiMessage> implements Frame {
         header.write(writable, cache, headerVersion);
         body.write(writable, cache, apiVersion());
     }
-
 
     @Override
     public String toString() {

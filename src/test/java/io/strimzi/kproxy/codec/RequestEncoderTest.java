@@ -17,16 +17,12 @@
 package io.strimzi.kproxy.codec;
 
 import java.nio.ByteBuffer;
-import java.util.HashMap;
-import java.util.Map;
 
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class RequestEncoderTest extends AbstractCodecTest {
 
@@ -41,8 +37,6 @@ public class RequestEncoderTest extends AbstractCodecTest {
         var encoder = new KafkaRequestEncoder();
         testEncode(expected, new DecodedRequestFrame(apiVersion, exampleHeader, exampleBody), encoder);
     }
-
-
 
     // TODO test API_VERSIONS header is v0
 

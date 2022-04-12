@@ -18,8 +18,6 @@ package io.strimzi.kproxy.codec;
 
 import java.util.Map;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.channel.ChannelHandlerContext;
 import org.apache.kafka.common.message.AddOffsetsToTxnRequestData;
 import org.apache.kafka.common.message.AddPartitionsToTxnRequestData;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
@@ -54,6 +52,9 @@ import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.ChannelHandlerContext;
 
 public class KafkaRequestDecoder extends KafkaMessageDecoder {
 
@@ -108,7 +109,8 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
             if (log().isTraceEnabled()) {
                 log().trace("{}: header: {}", ctx, header);
             }
-        } else {
+        }
+        else {
             accessor = null;
         }
         final Frame frame;
@@ -121,7 +123,8 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
             if (log().isTraceEnabled()) {
                 log().trace("{}: frame {}", ctx, frame);
             }
-        } else {
+        }
+        else {
             in.readerIndex(sof);
             frame = opaqueFrame(in, length);
             in.readerIndex(sof + length);
@@ -133,7 +136,8 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
                 // If we know it's an acks=0 PRODUCE then we know there will be no response
                 // so don't correlate. Shame we can only issue this warning if we decoded the request
                 log().warn("{}: Not honouring decode of acks=0 PRODUCE response, because there will be none", ctx);
-            } else {
+            }
+            else {
                 correlation.put(header.correlationId(), new Correlation(apiKey, apiVersion, true));
             }
         }
@@ -149,7 +153,7 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
         return new RequestHeaderData(accessor, headerVersion);
     }
 
-    private ApiMessage readBody(short apiKey, short apiVersion, ByteBufAccessor accessor)  {
+    private ApiMessage readBody(short apiKey, short apiVersion, ByteBufAccessor accessor) {
         switch (ApiKeys.forId(apiKey)) {
             case PRODUCE:
                 return new ProduceRequestData(accessor, apiVersion);

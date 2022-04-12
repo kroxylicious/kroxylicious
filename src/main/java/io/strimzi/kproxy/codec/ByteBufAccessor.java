@@ -18,10 +18,11 @@ package io.strimzi.kproxy.codec;
 
 import java.nio.ByteBuffer;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufUtil;
 import org.apache.kafka.common.protocol.Readable;
 import org.apache.kafka.common.protocol.Writable;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 
 /**
  * An implementation of Kafka's Readable and Writable abstraction in terms of
@@ -58,7 +59,7 @@ public class ByteBufAccessor implements Readable, Writable {
      *
      * @throws IllegalArgumentException if variable-length value does not terminate after 10 bytes have been read
      */
-    public static long readVarlong(ByteBuf buffer)  {
+    public static long readVarlong(ByteBuf buffer) {
         long value = 0L;
         int i = 0;
         long b;

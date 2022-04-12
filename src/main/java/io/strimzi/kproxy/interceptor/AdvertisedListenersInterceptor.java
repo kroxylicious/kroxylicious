@@ -16,14 +16,15 @@
  */
 package io.strimzi.kproxy.interceptor;
 
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInboundHandler;
-import io.netty.channel.ChannelInboundHandlerAdapter;
-import io.strimzi.kproxy.codec.DecodedResponseFrame;
 import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInboundHandler;
+import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.strimzi.kproxy.codec.DecodedResponseFrame;
 
 public class AdvertisedListenersInterceptor implements Interceptor {
 
@@ -31,6 +32,7 @@ public class AdvertisedListenersInterceptor implements Interceptor {
 
     public interface AddressMapping {
         String host(String host, int port);
+
         int port(String host, int port);
     }
 

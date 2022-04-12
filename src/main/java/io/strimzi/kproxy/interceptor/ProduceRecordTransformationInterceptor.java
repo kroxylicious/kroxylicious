@@ -74,10 +74,11 @@ public class ProduceRecordTransformationInterceptor implements Interceptor {
                     req.topicData().forEach(tpd -> {
                         for (PartitionProduceData partitionData : tpd.partitionData()) {
                             MemoryRecords records = (MemoryRecords) partitionData.records();
-                            MemoryRecordsBuilder newRecords = MemoryRecords.builder(ByteBuffer.allocate(records.sizeInBytes()), CompressionType.NONE, TimestampType.CREATE_TIME, 0);
+                            MemoryRecordsBuilder newRecords = MemoryRecords.builder(ByteBuffer.allocate(records.sizeInBytes()), CompressionType.NONE,
+                                    TimestampType.CREATE_TIME, 0);
 
-                            for(MutableRecordBatch batch : records.batches()) {
-                                for (Iterator<Record> batchRecords = batch.iterator(); batchRecords.hasNext(); ) {
+                            for (MutableRecordBatch batch : records.batches()) {
+                                for (Iterator<Record> batchRecords = batch.iterator(); batchRecords.hasNext();) {
                                     Record batchRecord = batchRecords.next();
                                     newRecords.append(batchRecord.timestamp(), batchRecord.key(), valueTransformation.transformation(batchRecord.value()));
                                 }

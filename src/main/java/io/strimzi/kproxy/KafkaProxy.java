@@ -17,25 +17,22 @@
 package io.strimzi.kproxy;
 
 import java.util.List;
-import java.util.function.Function;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.strimzi.kproxy.interceptor.AdvertisedListenersInterceptor;
 import io.strimzi.kproxy.interceptor.ApiVersionsInterceptor;
 import io.strimzi.kproxy.interceptor.Interceptor;
-import io.strimzi.kproxy.interceptor.InterceptorProvider;
 import io.strimzi.kproxy.interceptor.InterceptorProviderFactory;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 public final class KafkaProxy {
 
@@ -70,21 +67,19 @@ public final class KafkaProxy {
                             public int port(String host, int port) {
                                 return port + 100;
                             }
-                        })
-                )
-            )
-            .startup()
-            .block();
+                        })))
+                                .startup()
+                                .block();
     }
 
     public KafkaProxy(
-            String proxyHost,
-            int proxyPort,
-            String brokerHost,
-            int brokerPort,
-            boolean logNetwork,
-            boolean logFrames,
-            List<Interceptor> interceptors) {
+                      String proxyHost,
+                      int proxyPort,
+                      String brokerHost,
+                      int brokerPort,
+                      boolean logNetwork,
+                      boolean logFrames,
+                      List<Interceptor> interceptors) {
         this.proxyHost = proxyHost;
         this.proxyPort = proxyPort;
         this.brokerHost = brokerHost;
@@ -143,7 +138,8 @@ public final class KafkaProxy {
         ChannelFuture bindFuture;
         if (proxyHost != null) {
             bindFuture = serverBootstrap.bind(proxyHost, proxyPort);
-        } else {
+        }
+        else {
             bindFuture = serverBootstrap.bind(proxyPort);
         }
         acceptorChannel = bindFuture.sync().channel();
