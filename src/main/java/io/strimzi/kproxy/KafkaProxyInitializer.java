@@ -21,6 +21,7 @@ import java.util.HashMap;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import io.netty.channel.ChannelInboundHandler;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.logging.LogLevel;
@@ -61,20 +62,20 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
 
         var correlation = new HashMap<Integer, Correlation>();
 
-        InterceptorProvider hp = interceptorProviderFactory.createInterceptorProvider(ch);
+        InterceptorProvider interceptorProvider = interceptorProviderFactory.createInterceptorProvider(ch);
         if (logNetwork) {
             ch.pipeline().addLast(new LoggingHandler("frontend-network", LogLevel.INFO));
         }
-        ch.pipeline().addLast(
-                new KafkaRequestDecoder(hp, correlation));
-        var frontendInterceptor = hp.frontendHandlers();
-        if (frontendInterceptor != null) {
-            frontendInterceptor.forEach(handler -> ch.pipeline().addLast(handler));
+        ch.pipeline().addLast(new KafkaRequestDecoder(interceptorProvider, correlation));
+
+        for (ChannelInboundHandler requestInterceptor : interceptorProvider.frontendHandlers()) {
+            ch.pipeline().addLast(requestInterceptor);
         }
+
         ch.pipeline().addLast(new KafkaResponseEncoder());
         if (logFrames) {
             ch.pipeline().addLast(new LoggingHandler("frontend-application", LogLevel.INFO));
         }
-        ch.pipeline().addLast(new KafkaProxyFrontendHandler(remoteHost, remotePort, correlation, hp, logNetwork, logFrames));
+        ch.pipeline().addLast(new KafkaProxyFrontendHandler(remoteHost, remotePort, correlation, interceptorProvider, logNetwork, logFrames));
     }
 }
