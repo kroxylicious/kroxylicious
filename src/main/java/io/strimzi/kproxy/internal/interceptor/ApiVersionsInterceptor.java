@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.strimzi.kproxy.interceptor;
+package io.strimzi.kproxy.internal.interceptor;
 
 import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.protocol.ApiKeys;
@@ -22,6 +22,10 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import io.strimzi.kproxy.codec.DecodedResponseFrame;
+import io.strimzi.kproxy.interceptor.HandlerContext;
+import io.strimzi.kproxy.interceptor.Interceptor;
+import io.strimzi.kproxy.interceptor.RequestHandler;
+import io.strimzi.kproxy.interceptor.ResponseHandler;
 
 /**
  * Changes an API_VERSIONS response so that a client sees the intersection of supported version ranges for each

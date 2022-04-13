@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.strimzi.kproxy.interceptor;
+package io.strimzi.kproxy.internal;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -22,6 +22,7 @@ import java.util.stream.Collectors;
 import org.apache.kafka.common.protocol.ApiKeys;
 
 import io.strimzi.kproxy.codec.DecodePredicate;
+import io.strimzi.kproxy.interceptor.Interceptor;
 
 /**
  * Combines a number of interceptors

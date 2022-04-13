@@ -35,11 +35,11 @@ import org.apache.kafka.common.serialization.StringSerializer;
 import org.junit.jupiter.api.Test;
 
 import io.debezium.kafka.KafkaCluster;
-import io.strimzi.kproxy.interceptor.AdvertisedListenersInterceptor;
-import io.strimzi.kproxy.interceptor.AdvertisedListenersInterceptor.AddressMapping;
-import io.strimzi.kproxy.interceptor.ApiVersionsInterceptor;
 import io.strimzi.kproxy.interceptor.Interceptor;
-import io.strimzi.kproxy.interceptor.ProduceRecordTransformationInterceptor;
+import io.strimzi.kproxy.internal.interceptor.AdvertisedListenersInterceptor;
+import io.strimzi.kproxy.internal.interceptor.AdvertisedListenersInterceptor.AddressMapping;
+import io.strimzi.kproxy.internal.interceptor.ApiVersionsInterceptor;
+import io.strimzi.kproxy.internal.interceptor.ProduceRecordTransformationInterceptor;
 import io.strimzi.kproxy.util.SystemTest;
 
 import static java.lang.Integer.parseInt;

@@ -14,12 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.strimzi.kproxy.interceptor;
+package io.strimzi.kproxy.internal.interceptor;
 
 import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import io.strimzi.kproxy.interceptor.Interceptor;
+import io.strimzi.kproxy.interceptor.RequestHandler;
+import io.strimzi.kproxy.interceptor.ResponseHandler;
 
 public class AdvertisedListenersInterceptor implements Interceptor {
 
