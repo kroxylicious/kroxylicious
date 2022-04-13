@@ -33,10 +33,11 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
-import io.strimzi.kproxy.interceptor.AdvertisedListenersInterceptor;
-import io.strimzi.kproxy.interceptor.ApiVersionsInterceptor;
 import io.strimzi.kproxy.interceptor.Interceptor;
-import io.strimzi.kproxy.interceptor.InterceptorProviderFactory;
+import io.strimzi.kproxy.internal.InterceptorProviderFactory;
+import io.strimzi.kproxy.internal.KafkaProxyInitializer;
+import io.strimzi.kproxy.internal.interceptor.AdvertisedListenersInterceptor;
+import io.strimzi.kproxy.internal.interceptor.ApiVersionsInterceptor;
 
 public final class KafkaProxy {
 

@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.strimzi.kproxy.interceptor;
+package io.strimzi.kproxy.internal.interceptor;
 
 import java.nio.ByteBuffer;
 import java.util.Iterator;
@@ -30,6 +30,9 @@ import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.record.TimestampType;
 
 import io.strimzi.kproxy.codec.DecodedRequestFrame;
+import io.strimzi.kproxy.interceptor.Interceptor;
+import io.strimzi.kproxy.interceptor.RequestHandler;
+import io.strimzi.kproxy.interceptor.ResponseHandler;
 
 /**
  * An interceptor for modifying the key/value/header/topic of {@link ApiKeys#PRODUCE} requests.

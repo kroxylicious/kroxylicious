@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.strimzi.kproxy;
+package io.strimzi.kproxy.internal;
 
 import java.util.HashMap;
 
@@ -32,8 +32,6 @@ import io.strimzi.kproxy.codec.DecodedRequestFrame;
 import io.strimzi.kproxy.codec.KafkaRequestDecoder;
 import io.strimzi.kproxy.codec.KafkaResponseEncoder;
 import io.strimzi.kproxy.interceptor.Interceptor;
-import io.strimzi.kproxy.interceptor.InterceptorProvider;
-import io.strimzi.kproxy.interceptor.InterceptorProviderFactory;
 
 public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
 
