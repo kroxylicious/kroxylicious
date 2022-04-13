@@ -21,14 +21,17 @@ import java.util.HashMap;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import io.netty.channel.ChannelInboundHandler;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.strimzi.kproxy.codec.Correlation;
+import io.strimzi.kproxy.codec.DecodedRequestFrame;
 import io.strimzi.kproxy.codec.KafkaRequestDecoder;
 import io.strimzi.kproxy.codec.KafkaResponseEncoder;
+import io.strimzi.kproxy.interceptor.Interceptor;
 import io.strimzi.kproxy.interceptor.InterceptorProvider;
 import io.strimzi.kproxy.interceptor.InterceptorProviderFactory;
 
@@ -68,8 +71,8 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
         }
         ch.pipeline().addLast(new KafkaRequestDecoder(interceptorProvider, correlation));
 
-        for (ChannelInboundHandler requestInterceptor : interceptorProvider.frontendHandlers()) {
-            ch.pipeline().addLast(requestInterceptor);
+        for (Interceptor requestInterceptor : interceptorProvider.requestInterceptors()) {
+            ch.pipeline().addLast(new RequestHandlerAdapter(requestInterceptor));
         }
 
         ch.pipeline().addLast(new KafkaResponseEncoder());
@@ -77,5 +80,27 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
             ch.pipeline().addLast(new LoggingHandler("frontend-application", LogLevel.INFO));
         }
         ch.pipeline().addLast(new KafkaProxyFrontendHandler(remoteHost, remotePort, correlation, interceptorProvider, logNetwork, logFrames));
+    }
+
+    private static class RequestHandlerAdapter extends ChannelInboundHandlerAdapter {
+
+        private final Interceptor interceptor;
+
+        public RequestHandlerAdapter(Interceptor requestInterceptor) {
+            this.interceptor = requestInterceptor;
+        }
+
+        @Override
+        public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+            if (msg instanceof DecodedRequestFrame) {
+                DecodedRequestFrame decodedFrame = (DecodedRequestFrame) msg;
+
+                if (interceptor.shouldDecodeRequest(decodedFrame.apiKey(), decodedFrame.apiVersion())) {
+                    interceptor.requestHandler().handleRequest(decodedFrame);
+                }
+            }
+
+            super.channelRead(ctx, msg);
+        }
     }
 }

@@ -29,9 +29,6 @@ import org.apache.kafka.common.record.MutableRecordBatch;
 import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.record.TimestampType;
 
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInboundHandler;
-import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.strimzi.kproxy.codec.DecodedRequestFrame;
 
 /**
@@ -47,7 +44,7 @@ public class ProduceRecordTransformationInterceptor implements Interceptor {
     /**
      * Transformation to be applied to record value.
      */
-    private ByteBufferTransformation valueTransformation;
+    private final ByteBufferTransformation valueTransformation;
 
     public ProduceRecordTransformationInterceptor(ByteBufferTransformation valueTransformation) {
         this.valueTransformation = valueTransformation;
@@ -64,38 +61,37 @@ public class ProduceRecordTransformationInterceptor implements Interceptor {
     }
 
     @Override
-    public ChannelInboundHandler frontendHandler() {
-        return new ChannelInboundHandlerAdapter() {
+    public RequestHandler requestHandler() {
+        return new RequestHandler() {
+
             @Override
-            public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-                if (msg instanceof DecodedRequestFrame && ((DecodedRequestFrame) msg).apiKey() == ApiKeys.PRODUCE) {
-                    var req = (ProduceRequestData) ((DecodedRequestFrame) msg).body();
+            public DecodedRequestFrame handleRequest(DecodedRequestFrame requestFrame) {
+                var req = (ProduceRequestData) requestFrame.body();
 
-                    req.topicData().forEach(tpd -> {
-                        for (PartitionProduceData partitionData : tpd.partitionData()) {
-                            MemoryRecords records = (MemoryRecords) partitionData.records();
-                            MemoryRecordsBuilder newRecords = MemoryRecords.builder(ByteBuffer.allocate(records.sizeInBytes()), CompressionType.NONE,
-                                    TimestampType.CREATE_TIME, 0);
+                req.topicData().forEach(tpd -> {
+                    for (PartitionProduceData partitionData : tpd.partitionData()) {
+                        MemoryRecords records = (MemoryRecords) partitionData.records();
+                        MemoryRecordsBuilder newRecords = MemoryRecords.builder(ByteBuffer.allocate(records.sizeInBytes()), CompressionType.NONE,
+                                TimestampType.CREATE_TIME, 0);
 
-                            for (MutableRecordBatch batch : records.batches()) {
-                                for (Iterator<Record> batchRecords = batch.iterator(); batchRecords.hasNext();) {
-                                    Record batchRecord = batchRecords.next();
-                                    newRecords.append(batchRecord.timestamp(), batchRecord.key(), valueTransformation.transformation(batchRecord.value()));
-                                }
+                        for (MutableRecordBatch batch : records.batches()) {
+                            for (Iterator<Record> batchRecords = batch.iterator(); batchRecords.hasNext();) {
+                                Record batchRecord = batchRecords.next();
+                                newRecords.append(batchRecord.timestamp(), batchRecord.key(), valueTransformation.transformation(batchRecord.value()));
                             }
-
-                            partitionData.setRecords(newRecords.build());
                         }
-                    });
-                }
 
-                super.channelRead(ctx, msg);
+                        partitionData.setRecords(newRecords.build());
+                    }
+                });
+
+                return requestFrame;
             }
         };
     }
 
     @Override
-    public ChannelInboundHandler backendHandler() {
+    public ResponseHandler responseHandler() {
         return null;
     }
 }

@@ -21,7 +21,6 @@ import java.util.stream.Collectors;
 
 import org.apache.kafka.common.protocol.ApiKeys;
 
-import io.netty.channel.ChannelInboundHandler;
 import io.strimzi.kproxy.codec.DecodePredicate;
 
 /**
@@ -35,12 +34,16 @@ public class InterceptorProvider implements DecodePredicate {
         this.interceptors = interceptors;
     }
 
-    public List<ChannelInboundHandler> frontendHandlers() {
-        return interceptors.stream().map(Interceptor::frontendHandler).collect(Collectors.toList());
+    public List<Interceptor> requestInterceptors() {
+        return interceptors.stream()
+                .filter(i -> i.requestHandler() != null)
+                .collect(Collectors.toList());
     }
 
-    public List<ChannelInboundHandler> backendHandlers() {
-        return interceptors.stream().map(Interceptor::backendHandler).collect(Collectors.toList());
+    public List<Interceptor> responseInterceptors() {
+        return interceptors.stream()
+                .filter(i -> i.responseHandler() != null)
+                .collect(Collectors.toList());
     }
 
     @Override
