@@ -36,8 +36,11 @@ import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.logging.LoggingHandler;
 import io.strimzi.kproxy.codec.Correlation;
+import io.strimzi.kproxy.codec.DecodedResponseFrame;
 import io.strimzi.kproxy.codec.KafkaRequestEncoder;
 import io.strimzi.kproxy.codec.KafkaResponseDecoder;
+import io.strimzi.kproxy.interceptor.HandlerContext;
+import io.strimzi.kproxy.interceptor.Interceptor;
 import io.strimzi.kproxy.interceptor.InterceptorProvider;
 
 public class KafkaProxyFrontendHandler extends ChannelInboundHandlerAdapter {
@@ -101,11 +104,11 @@ public class KafkaProxyFrontendHandler extends ChannelInboundHandlerAdapter {
         }
         handlers.add(new KafkaRequestEncoder());
         handlers.add(new KafkaResponseDecoder(correlation));
-        // handlers.add(new ApiVersionsResponseHandler());
-        var e = interceptorProvider.backendHandlers();
-        if (e != null) {
-            handlers.addAll(e);
+
+        for (Interceptor responseInterceptor : interceptorProvider.responseInterceptors()) {
+            handlers.add(new ResponseHandlerAdapter(responseInterceptor));
         }
+
         if (logFrames) {
             handlers.add(new LoggingHandler("backend-application"));
         }
@@ -201,6 +204,42 @@ public class KafkaProxyFrontendHandler extends ChannelInboundHandlerAdapter {
     static void closeOnFlush(Channel ch) {
         if (ch.isActive()) {
             ch.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
+        }
+    }
+
+    private static class ResponseHandlerAdapter extends ChannelInboundHandlerAdapter {
+
+        private final Interceptor interceptor;
+
+        public ResponseHandlerAdapter(Interceptor requestInterceptor) {
+            this.interceptor = requestInterceptor;
+        }
+
+        @Override
+        public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+            if (msg instanceof DecodedResponseFrame) {
+                DecodedResponseFrame decodedFrame = (DecodedResponseFrame) msg;
+
+                if (interceptor.shouldDecodeResponse(decodedFrame.apiKey(), decodedFrame.apiVersion())) {
+                    interceptor.responseHandler().handleResponse(decodedFrame, new DefaultHandlerContext(ctx));
+                }
+            }
+
+            super.channelRead(ctx, msg);
+        }
+    }
+
+    private static class DefaultHandlerContext implements HandlerContext {
+
+        private final ChannelHandlerContext ctx;
+
+        public DefaultHandlerContext(ChannelHandlerContext ctx) {
+            this.ctx = ctx;
+        }
+
+        @Override
+        public String channelDescriptor() {
+            return ctx.channel().toString();
         }
     }
 }

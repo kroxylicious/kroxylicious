@@ -16,23 +16,9 @@
  */
 package io.strimzi.kproxy.interceptor;
 
-import org.apache.kafka.common.protocol.ApiKeys;
-
-import io.strimzi.kproxy.codec.DecodePredicate;
-
 /**
- * An interceptor of Kafka messages.
- * <p>
- * The interceptor must declare which requests and responses it wants to decode using
- * {@link DecodePredicate#shouldDecodeRequest(ApiKeys, int)} and {@link DecodePredicate#shouldDecodeResponse(ApiKeys, int)}.
- * It should also provide a non-null {@link #requestHandler()} for those requests where
- * {@link DecodePredicate#shouldDecodeRequest(ApiKeys, int)} returns true,
- * and a non-null {@link #responseHandler()} for those responses where
- * {@link DecodePredicate#shouldDecodeResponse(ApiKeys, int) returns true.
+ * Provides contextual information to request and response handlers.
  */
-public interface Interceptor extends DecodePredicate {
-
-    RequestHandler requestHandler();
-
-    ResponseHandler responseHandler();
+public interface HandlerContext {
+    String channelDescriptor();
 }

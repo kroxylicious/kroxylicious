@@ -21,9 +21,6 @@ import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInboundHandler;
-import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.strimzi.kproxy.codec.DecodedResponseFrame;
 
 /**
@@ -46,12 +43,12 @@ public class ApiVersionsInterceptor implements Interceptor {
         return apiKey == ApiKeys.API_VERSIONS;
     }
 
-    private static void intersectApiVersions(ChannelHandlerContext ctx, ApiVersionsResponseData resp) {
+    private static void intersectApiVersions(String channel, ApiVersionsResponseData resp) {
         for (var key : resp.apiKeys()) {
             short apiId = key.apiKey();
             if (ApiKeys.hasId(apiId)) {
                 ApiKeys apiKey = ApiKeys.forId(apiId);
-                intersectApiVersion(ctx, key, apiKey);
+                intersectApiVersion(channel, key, apiKey);
             }
         }
     }
@@ -59,49 +56,48 @@ public class ApiVersionsInterceptor implements Interceptor {
     /**
      * Update the given {@code key}'s max and min versions so that the client uses APIs versions mutually
      * understood by both the proxy and the broker.
-     * @param ctx The context.
+     * @param channel The channel.
      * @param key The key data from an upstream API_VERSIONS response.
      * @param apiKey The proxy's API key for this API.
      */
-    private static void intersectApiVersion(ChannelHandlerContext ctx, ApiVersionsResponseData.ApiVersion key, ApiKeys apiKey) {
+    private static void intersectApiVersion(String channel, ApiVersionsResponseData.ApiVersion key, ApiKeys apiKey) {
         short mutualMin = (short) Math.max(
                 key.minVersion(),
                 apiKey.messageType.lowestSupportedVersion());
         if (mutualMin != key.minVersion()) {
-            LOGGER.trace("{}: {} min version changed to {} (was: {})", ctx.channel(), apiKey, mutualMin, key.maxVersion());
+            LOGGER.trace("{}: {} min version changed to {} (was: {})", channel, apiKey, mutualMin, key.maxVersion());
             key.setMinVersion(mutualMin);
         }
         else {
-            LOGGER.trace("{}: {} min version unchanged (is: {})", ctx.channel(), apiKey, mutualMin);
+            LOGGER.trace("{}: {} min version unchanged (is: {})", channel, apiKey, mutualMin);
         }
 
         short mutualMax = (short) Math.min(
                 key.maxVersion(),
                 apiKey.messageType.highestSupportedVersion());
         if (mutualMax != key.maxVersion()) {
-            LOGGER.trace("{}: {} max version changed to {} (was: {})", ctx.channel(), apiKey, mutualMin, key.maxVersion());
+            LOGGER.trace("{}: {} max version changed to {} (was: {})", channel, apiKey, mutualMin, key.maxVersion());
             key.setMaxVersion(mutualMax);
         }
         else {
-            LOGGER.trace("{}: {} max version unchanged (is: {})", ctx.channel(), apiKey, mutualMin);
+            LOGGER.trace("{}: {} max version unchanged (is: {})", channel, apiKey, mutualMin);
         }
     }
 
     @Override
-    public ChannelInboundHandler frontendHandler() {
+    public RequestHandler requestHandler() {
         return null;
     }
 
     @Override
-    public ChannelInboundHandler backendHandler() {
-        return new ChannelInboundHandlerAdapter() {
+    public ResponseHandler responseHandler() {
+        return new ResponseHandler() {
+
             @Override
-            public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-                if (msg instanceof DecodedResponseFrame && ((DecodedResponseFrame) msg).apiKey() == ApiKeys.API_VERSIONS) {
-                    var resp = (ApiVersionsResponseData) ((DecodedResponseFrame) msg).body();
-                    intersectApiVersions(ctx, resp);
-                }
-                super.channelRead(ctx, msg);
+            public DecodedResponseFrame handleResponse(DecodedResponseFrame responseFrame, HandlerContext ctx) {
+                var resp = (ApiVersionsResponseData) responseFrame.body();
+                intersectApiVersions(ctx.channelDescriptor(), resp);
+                return responseFrame;
             }
         };
     }
