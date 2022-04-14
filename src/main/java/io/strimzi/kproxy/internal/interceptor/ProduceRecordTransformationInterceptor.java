@@ -30,6 +30,7 @@ import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.record.TimestampType;
 
 import io.strimzi.kproxy.codec.DecodedRequestFrame;
+import io.strimzi.kproxy.interceptor.HandlerContext;
 import io.strimzi.kproxy.interceptor.Interceptor;
 import io.strimzi.kproxy.interceptor.RequestHandler;
 import io.strimzi.kproxy.interceptor.ResponseHandler;
@@ -68,13 +69,13 @@ public class ProduceRecordTransformationInterceptor implements Interceptor {
         return new RequestHandler() {
 
             @Override
-            public DecodedRequestFrame handleRequest(DecodedRequestFrame requestFrame) {
+            public DecodedRequestFrame handleRequest(DecodedRequestFrame requestFrame, HandlerContext ctx) {
                 var req = (ProduceRequestData) requestFrame.body();
 
                 req.topicData().forEach(tpd -> {
                     for (PartitionProduceData partitionData : tpd.partitionData()) {
                         MemoryRecords records = (MemoryRecords) partitionData.records();
-                        MemoryRecordsBuilder newRecords = MemoryRecords.builder(ByteBuffer.allocate(records.sizeInBytes()), CompressionType.NONE,
+                        MemoryRecordsBuilder newRecords = MemoryRecords.builder(ctx.allocate(records.sizeInBytes()), CompressionType.NONE,
                                 TimestampType.CREATE_TIME, 0);
 
                         for (MutableRecordBatch batch : records.batches()) {
