@@ -32,5 +32,4 @@ public class DecodedRequestFrame extends DecodedFrame<RequestHeaderData> impleme
     public short headerVersion() {
         return apiKey().messageType.requestHeaderVersion(apiVersion);
     }
-
 }

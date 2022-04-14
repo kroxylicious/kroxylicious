@@ -39,8 +39,8 @@ import io.strimzi.kproxy.codec.Correlation;
 import io.strimzi.kproxy.codec.DecodedResponseFrame;
 import io.strimzi.kproxy.codec.KafkaRequestEncoder;
 import io.strimzi.kproxy.codec.KafkaResponseDecoder;
-import io.strimzi.kproxy.interceptor.HandlerContext;
 import io.strimzi.kproxy.interceptor.Interceptor;
+import io.strimzi.kproxy.internal.interceptor.DefaultHandlerContext;
 
 public class KafkaProxyFrontendHandler extends ChannelInboundHandlerAdapter {
 
@@ -93,6 +93,7 @@ public class KafkaProxyFrontendHandler extends ChannelInboundHandlerAdapter {
                 .channel(ctx.channel().getClass())
                 .handler(backendHandler)
                 .option(ChannelOption.AUTO_READ, true);
+
         LOGGER.trace("Connecting to outbound {}:{}", remoteHost, remotePort);
         ChannelFuture connectFuture = b.connect(remoteHost, remotePort);
         Channel outboundChannel = connectFuture.channel();
@@ -115,6 +116,7 @@ public class KafkaProxyFrontendHandler extends ChannelInboundHandlerAdapter {
         for (var handler : handlers) {
             pipeline.addFirst(handler);
         }
+
         connectFuture.addListener(future -> {
             if (future.isSuccess()) {
                 LOGGER.trace("Outbound connect complete ({}), register interest to read on inbound channel {}", outboundChannel.localAddress(), inboundChannel);
@@ -220,25 +222,11 @@ public class KafkaProxyFrontendHandler extends ChannelInboundHandlerAdapter {
                 DecodedResponseFrame decodedFrame = (DecodedResponseFrame) msg;
 
                 if (interceptor.shouldDecodeResponse(decodedFrame.apiKey(), decodedFrame.apiVersion())) {
-                    interceptor.responseHandler().handleResponse(decodedFrame, new DefaultHandlerContext(ctx));
+                    interceptor.responseHandler().handleResponse(decodedFrame, new DefaultHandlerContext(ctx, decodedFrame));
                 }
             }
 
             super.channelRead(ctx, msg);
-        }
-    }
-
-    private static class DefaultHandlerContext implements HandlerContext {
-
-        private final ChannelHandlerContext ctx;
-
-        public DefaultHandlerContext(ChannelHandlerContext ctx) {
-            this.ctx = ctx;
-        }
-
-        @Override
-        public String channelDescriptor() {
-            return ctx.channel().toString();
         }
     }
 }

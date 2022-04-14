@@ -16,6 +16,9 @@
  */
 package io.strimzi.kproxy.codec;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.MessageSizeAccumulator;
@@ -24,12 +27,14 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.util.AbstractReferenceCounted;
+import io.netty.util.ReferenceCounted;
 
 /**
  * A frame that has been decoded (as opposed to an {@link OpaqueFrame}).
  * @param <H>
  */
-public abstract class DecodedFrame<H extends ApiMessage> implements Frame {
+public abstract class DecodedFrame<H extends ApiMessage> extends AbstractReferenceCounted implements Frame {
 
     private static final Logger LOGGER = LogManager.getLogger(DecodedFrame.class);
 
@@ -41,6 +46,7 @@ public abstract class DecodedFrame<H extends ApiMessage> implements Frame {
     protected final H header;
     protected final ApiMessage body;
     protected final short apiVersion;
+    private final List<ByteBuf> buffers;
     private int headerAndBodyEncodedLength;
     private ObjectSerializationCache serializationCache;
 
@@ -48,6 +54,7 @@ public abstract class DecodedFrame<H extends ApiMessage> implements Frame {
         this.header = header;
         this.apiVersion = apiVersion;
         this.body = body;
+        this.buffers = new ArrayList<>();
         this.headerAndBodyEncodedLength = -1;
     }
 
@@ -112,5 +119,21 @@ public abstract class DecodedFrame<H extends ApiMessage> implements Frame {
                 ", header=" + header +
                 ", body=" + body +
                 ')';
+    }
+
+    public void add(ByteBuf buffer) {
+        buffers.add(buffer);
+    }
+
+    @Override
+    public ReferenceCounted touch(Object hint) {
+        return this;
+    }
+
+    @Override
+    protected void deallocate() {
+        for (ByteBuf buffer : buffers) {
+            buffer.release();
+        }
     }
 }
