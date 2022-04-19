@@ -137,8 +137,6 @@ public abstract class DecodedFrame<H extends ApiMessage, B extends ApiMessage>
 
     @Override
     protected void deallocate() {
-        for (ByteBuf buffer : buffers) {
-            buffer.release();
-        }
+        buffers.forEach(ByteBuf::release);
     }
 }
