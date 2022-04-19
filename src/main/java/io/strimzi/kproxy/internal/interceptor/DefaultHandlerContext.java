@@ -16,8 +16,6 @@
  */
 package io.strimzi.kproxy.internal.interceptor;
 
-import java.nio.ByteBuffer;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.strimzi.kproxy.codec.DecodedFrame;
@@ -39,12 +37,9 @@ public class DefaultHandlerContext implements HandlerContext {
     }
 
     @Override
-    public ByteBuffer allocate(int initialCapacity) {
-        ByteBuf buffer = ctx.alloc().buffer(initialCapacity);
-        ByteBuffer nioBuffer = buffer.nioBuffer();
-
+    public ByteBuf allocate(int initialCapacity) {
+        final ByteBuf buffer = ctx.alloc().directBuffer(initialCapacity);
         decodedFrame.add(buffer);
-
-        return nioBuffer;
+        return buffer;
     }
 }
