@@ -19,6 +19,7 @@ package io.strimzi.kproxy.internal.interceptor;
 import java.nio.ByteBuffer;
 import java.util.Iterator;
 
+import io.strimzi.kproxy.util.NettyMemoryRecords;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.ProduceRequestData.PartitionProduceData;
 import org.apache.kafka.common.protocol.ApiKeys;
@@ -71,11 +72,10 @@ public class ProduceRecordTransformationInterceptor implements Interceptor {
             @Override
             public DecodedRequestFrame<?> handleRequest(DecodedRequestFrame<?> requestFrame, HandlerContext ctx) {
                 var req = (ProduceRequestData) requestFrame.body();
-
                 req.topicData().forEach(tpd -> {
                     for (PartitionProduceData partitionData : tpd.partitionData()) {
                         MemoryRecords records = (MemoryRecords) partitionData.records();
-                        MemoryRecordsBuilder newRecords = MemoryRecords.builder(ctx.allocate(records.sizeInBytes()), CompressionType.NONE,
+                        MemoryRecordsBuilder newRecords = NettyMemoryRecords.builder(ctx.allocate(records.sizeInBytes()), CompressionType.NONE,
                                 TimestampType.CREATE_TIME, 0);
 
                         for (MutableRecordBatch batch : records.batches()) {

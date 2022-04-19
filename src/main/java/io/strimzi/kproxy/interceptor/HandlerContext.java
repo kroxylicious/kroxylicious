@@ -16,7 +16,7 @@
  */
 package io.strimzi.kproxy.interceptor;
 
-import java.nio.ByteBuffer;
+import io.netty.buffer.ByteBuf;
 
 /**
  * Provides contextual information to request and response handlers.
@@ -25,5 +25,5 @@ public interface HandlerContext {
 
     String channelDescriptor();
 
-    ByteBuffer allocate(int initialCapacity);
+    ByteBuf allocate(int initialCapacity);
 }
