@@ -22,9 +22,13 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import io.netty.bootstrap.ServerBootstrap;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelOption;
+import io.netty.channel.*;
+import io.netty.channel.epoll.Epoll;
+import io.netty.channel.epoll.EpollEventLoopGroup;
+import io.netty.channel.epoll.EpollServerSocketChannel;
+import io.netty.channel.kqueue.KQueue;
+import io.netty.channel.kqueue.KQueueEventLoopGroup;
+import io.netty.channel.kqueue.KQueueServerSocketChannel;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.logging.LogLevel;
@@ -44,8 +48,8 @@ public final class KafkaProxy {
     private final boolean logNetwork;
     private final boolean logFrames;
     private final List<Interceptor> interceptors;
-    private NioEventLoopGroup bossGroup;
-    private NioEventLoopGroup workerGroup;
+    private EventLoopGroup bossGroup;
+    private EventLoopGroup workerGroup;
     private Channel acceptorChannel;
 
     public static void main(String[] args) throws Exception {
@@ -128,10 +132,24 @@ public final class KafkaProxy {
         KafkaProxyInitializer initializer = new KafkaProxyInitializer(brokerHost, brokerPort, interceptorProviderFactory, logNetwork, logFrames);
 
         // Configure the bootstrap.
-        bossGroup = new NioEventLoopGroup(1);
-        workerGroup = new NioEventLoopGroup();
+        final Class<? extends ServerChannel> channelClass;
+        if (Epoll.isAvailable()) {
+            bossGroup = new EpollEventLoopGroup(1);
+            workerGroup = new EpollEventLoopGroup();
+            channelClass = EpollServerSocketChannel.class;
+        }
+        else if (KQueue.isAvailable()) {
+            bossGroup = new KQueueEventLoopGroup(1);
+            workerGroup = new KQueueEventLoopGroup();
+            channelClass = KQueueServerSocketChannel.class;
+        }
+        else {
+            bossGroup = new NioEventLoopGroup(1);
+            workerGroup = new NioEventLoopGroup();
+            channelClass = NioServerSocketChannel.class;
+        }
         ServerBootstrap serverBootstrap = new ServerBootstrap().group(bossGroup, workerGroup)
-                .channel(NioServerSocketChannel.class)
+                .channel(channelClass)
                 .handler(new LoggingHandler(LogLevel.INFO))
                 .childHandler(initializer)
                 .childOption(ChannelOption.AUTO_READ, false);
