@@ -36,6 +36,19 @@ public abstract class KafkaMessageEncoder<F extends Frame> extends MessageToByte
 
     protected abstract Logger log();
 
+    /**
+     * This has been overridden in order to use {@link Frame#estimateEncodedSize()} to pre-size correctly the holding buffer
+     * and save expensive enlarging to happen under the hood, during the encoding process.
+     */
+    @Override
+    protected ByteBuf allocateBuffer(final ChannelHandlerContext ctx, final F msg, final boolean preferDirect) throws Exception {
+        final int bytes = msg.estimateEncodedSize();
+        if (preferDirect) {
+            return ctx.alloc().ioBuffer(bytes);
+        }
+        return ctx.alloc().heapBuffer(bytes);
+    }
+
     @Override
     protected void encode(ChannelHandlerContext ctx, F frame, ByteBuf out) throws Exception {
         log().trace("{}: Encoding {} to buffer {}", ctx, frame, out);
