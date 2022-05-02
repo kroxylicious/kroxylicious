@@ -22,6 +22,13 @@ import io.netty.buffer.ByteBuf;
  * A frame in the Kafka protocol, which may or may not be fully decoded.
  */
 public interface Frame {
+
+    /**
+     * Estimate the expected encoded size in bytes of this {@code Frame}.<br>
+     * In particular, written data by {@link #encode(ByteBuf)} should be the same as reported by this method.
+     */
+    int estimateEncodedSize();
+
     /**
      * Write the frame, including the size prefix, to the given buffer
      * @param out The output buffer
