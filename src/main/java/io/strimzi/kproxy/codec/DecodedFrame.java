@@ -30,14 +30,19 @@ import io.netty.buffer.ByteBuf;
  * @param <H>
  */
 public abstract class DecodedFrame<H extends ApiMessage> implements Frame {
+
     private static final Logger LOGGER = LogManager.getLogger(DecodedFrame.class);
+
+    /**
+     * Number of bytes required for storing the frame length.
+     */
+    private static final int FRAME_SIZE_LENGTH = Integer.BYTES;
 
     protected final H header;
     protected final ApiMessage body;
     protected final short apiVersion;
     private int headerAndBodyEncodedLength;
     private ObjectSerializationCache serializationCache;
-
 
     public DecodedFrame(short apiVersion, H header, ApiMessage body) {
         this.header = header;
@@ -68,7 +73,7 @@ public abstract class DecodedFrame<H extends ApiMessage> implements Frame {
     public final int estimateEncodedSize() {
         if (headerAndBodyEncodedLength != -1) {
             assert serializationCache != null;
-            return headerAndBodyEncodedLength + Integer.BYTES;
+            return FRAME_SIZE_LENGTH + headerAndBodyEncodedLength;
         }
         var headerVersion = headerVersion();
         MessageSizeAccumulator sizer = new MessageSizeAccumulator();
@@ -77,9 +82,10 @@ public abstract class DecodedFrame<H extends ApiMessage> implements Frame {
         body().addSize(sizer, cache, apiVersion());
         headerAndBodyEncodedLength = sizer.totalSize();
         serializationCache = cache;
-        return headerAndBodyEncodedLength + Integer.BYTES;
+        return FRAME_SIZE_LENGTH + headerAndBodyEncodedLength;
     }
 
+    @Override
     public final void encode(ByteBuf out) {
         if (headerAndBodyEncodedLength < 0) {
             LOGGER.warn("Encoding estimation should happen before encoding, if possible");
