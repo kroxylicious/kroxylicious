@@ -26,7 +26,14 @@ import io.netty.buffer.ByteBuf;
  * The wrapped buffer <strong>does not</strong> include the frame size prefix.
  */
 public abstract class OpaqueFrame implements Frame {
+
     private static final Logger LOGGER = LogManager.getLogger(OpaqueFrame.class);
+
+    /**
+     * Number of bytes required for storing the frame length.
+     */
+    private static final int FRAME_SIZE_LENGTH = Integer.BYTES;
+
     private final int length;
     private final ByteBuf buf;
 
@@ -38,7 +45,7 @@ public abstract class OpaqueFrame implements Frame {
 
     @Override
     public int estimateEncodedSize() {
-        return length + Integer.BYTES;
+        return FRAME_SIZE_LENGTH + length;
     }
 
     @Override
