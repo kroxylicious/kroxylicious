@@ -93,7 +93,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
         @Override
         public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
             if (msg instanceof DecodedRequestFrame) {
-                DecodedRequestFrame decodedFrame = (DecodedRequestFrame) msg;
+                DecodedRequestFrame<?> decodedFrame = (DecodedRequestFrame<?>) msg;
                 if (interceptor.shouldDecodeRequest(decodedFrame.apiKey(), decodedFrame.apiVersion())) {
                     interceptor.requestHandler().handleRequest(decodedFrame, new DefaultHandlerContext(ctx, decodedFrame));
                 }

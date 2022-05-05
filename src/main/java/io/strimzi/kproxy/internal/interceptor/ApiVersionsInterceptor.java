@@ -98,7 +98,7 @@ public class ApiVersionsInterceptor implements Interceptor {
         return new ResponseHandler() {
 
             @Override
-            public DecodedResponseFrame handleResponse(DecodedResponseFrame responseFrame, HandlerContext ctx) {
+            public DecodedResponseFrame<?> handleResponse(DecodedResponseFrame<?> responseFrame, HandlerContext ctx) {
                 var resp = (ApiVersionsResponseData) responseFrame.body();
                 intersectApiVersions(ctx.channelDescriptor(), resp);
                 return responseFrame;

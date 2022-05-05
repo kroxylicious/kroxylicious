@@ -119,7 +119,7 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
             if (log().isTraceEnabled()) {
                 log().trace("{}: body {}", ctx, body);
             }
-            frame = new DecodedRequestFrame(apiVersion, header, body);
+            frame = new DecodedRequestFrame<>(apiVersion, header, body);
             if (log().isTraceEnabled()) {
                 log().trace("{}: frame {}", ctx, frame);
             }
@@ -132,7 +132,7 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
         if (decodeResponse) {
             if (decodeRequest &&
                     apiKey == ApiKeys.PRODUCE &&
-                    ((ProduceRequestData) ((DecodedRequestFrame) frame).body).acks() == 0) {
+                    ((ProduceRequestData) ((DecodedRequestFrame<?>) frame).body).acks() == 0) {
                 // If we know it's an acks=0 PRODUCE then we know there will be no response
                 // so don't correlate. Shame we can only issue this warning if we decoded the request
                 log().warn("{}: Not honouring decode of acks=0 PRODUCE response, because there will be none", ctx);

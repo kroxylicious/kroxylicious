@@ -22,9 +22,11 @@ import org.apache.kafka.common.protocol.ApiMessage;
 /**
  * A decoded response frame.
  */
-public class DecodedResponseFrame extends DecodedFrame<ResponseHeaderData> implements ResponseFrame {
+public class DecodedResponseFrame<B extends ApiMessage>
+        extends DecodedFrame<ResponseHeaderData, B>
+        implements ResponseFrame {
 
-    public DecodedResponseFrame(short apiVersion, ResponseHeaderData header, ApiMessage body) {
+    public DecodedResponseFrame(short apiVersion, ResponseHeaderData header, B body) {
         super(apiVersion, header, body);
     }
 

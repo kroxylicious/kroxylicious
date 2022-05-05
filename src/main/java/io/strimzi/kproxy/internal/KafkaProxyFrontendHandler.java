@@ -219,7 +219,7 @@ public class KafkaProxyFrontendHandler extends ChannelInboundHandlerAdapter {
         @Override
         public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
             if (msg instanceof DecodedResponseFrame) {
-                DecodedResponseFrame decodedFrame = (DecodedResponseFrame) msg;
+                DecodedResponseFrame<?> decodedFrame = (DecodedResponseFrame<?>) msg;
 
                 if (interceptor.shouldDecodeResponse(decodedFrame.apiKey(), decodedFrame.apiVersion())) {
                     interceptor.responseHandler().handleResponse(decodedFrame, new DefaultHandlerContext(ctx, decodedFrame));

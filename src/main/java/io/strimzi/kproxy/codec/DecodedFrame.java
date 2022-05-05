@@ -34,7 +34,9 @@ import io.netty.util.ReferenceCounted;
  * A frame that has been decoded (as opposed to an {@link OpaqueFrame}).
  * @param <H>
  */
-public abstract class DecodedFrame<H extends ApiMessage> extends AbstractReferenceCounted implements Frame {
+public abstract class DecodedFrame<H extends ApiMessage, B extends ApiMessage>
+        extends AbstractReferenceCounted
+        implements Frame {
 
     private static final Logger LOGGER = LogManager.getLogger(DecodedFrame.class);
 
@@ -44,13 +46,13 @@ public abstract class DecodedFrame<H extends ApiMessage> extends AbstractReferen
     private static final int FRAME_SIZE_LENGTH = Integer.BYTES;
 
     protected final H header;
-    protected final ApiMessage body;
+    protected final B body;
     protected final short apiVersion;
     private final List<ByteBuf> buffers;
     private int headerAndBodyEncodedLength;
     private ObjectSerializationCache serializationCache;
 
-    public DecodedFrame(short apiVersion, H header, ApiMessage body) {
+    public DecodedFrame(short apiVersion, H header, B body) {
         this.header = header;
         this.apiVersion = apiVersion;
         this.body = body;
@@ -64,7 +66,7 @@ public abstract class DecodedFrame<H extends ApiMessage> extends AbstractReferen
         return header;
     }
 
-    public ApiMessage body() {
+    public B body() {
         return body;
     }
 
