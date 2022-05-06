@@ -19,6 +19,8 @@ package io.strimzi.kproxy.internal.interceptor;
 import java.nio.ByteBuffer;
 import java.util.Iterator;
 
+import io.strimzi.kproxy.api.filter.FilterContext;
+import io.strimzi.kproxy.api.filter.ProduceRequestFilter;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.ProduceRequestData.PartitionProduceData;
 import org.apache.kafka.common.protocol.ApiKeys;
@@ -38,7 +40,13 @@ import io.strimzi.kproxy.interceptor.ResponseHandler;
 /**
  * An interceptor for modifying the key/value/header/topic of {@link ApiKeys#PRODUCE} requests.
  */
-public class ProduceRecordTransformationInterceptor implements Interceptor {
+public class ProduceRecordTransformationInterceptor implements Interceptor, ProduceRequestFilter {
+
+    @Override
+    public ProduceRequestData onProduceRequest(ProduceRequestData data, FilterContext context) {
+        applyTransformation(context, data);
+        return null;
+    }
 
     @FunctionalInterface
     public interface ByteBufferTransformation {
@@ -72,26 +80,30 @@ public class ProduceRecordTransformationInterceptor implements Interceptor {
             public DecodedRequestFrame<?> handleRequest(DecodedRequestFrame<?> requestFrame, HandlerContext ctx) {
                 var req = (ProduceRequestData) requestFrame.body();
 
-                req.topicData().forEach(tpd -> {
-                    for (PartitionProduceData partitionData : tpd.partitionData()) {
-                        MemoryRecords records = (MemoryRecords) partitionData.records();
-                        MemoryRecordsBuilder newRecords = MemoryRecords.builder(ctx.allocate(records.sizeInBytes()), CompressionType.NONE,
-                                TimestampType.CREATE_TIME, 0);
-
-                        for (MutableRecordBatch batch : records.batches()) {
-                            for (Iterator<Record> batchRecords = batch.iterator(); batchRecords.hasNext();) {
-                                Record batchRecord = batchRecords.next();
-                                newRecords.append(batchRecord.timestamp(), batchRecord.key(), valueTransformation.transformation(batchRecord.value()));
-                            }
-                        }
-
-                        partitionData.setRecords(newRecords.build());
-                    }
-                });
+                applyTransformation(ctx, req);
 
                 return requestFrame;
             }
         };
+    }
+
+    private void applyTransformation(FilterContext ctx, ProduceRequestData req) {
+        req.topicData().forEach(tpd -> {
+            for (PartitionProduceData partitionData : tpd.partitionData()) {
+                MemoryRecords records = (MemoryRecords) partitionData.records();
+                MemoryRecordsBuilder newRecords = MemoryRecords.builder(ctx.allocate(records.sizeInBytes()), CompressionType.NONE,
+                        TimestampType.CREATE_TIME, 0);
+
+                for (MutableRecordBatch batch : records.batches()) {
+                    for (Iterator<Record> batchRecords = batch.iterator(); batchRecords.hasNext();) {
+                        Record batchRecord = batchRecords.next();
+                        newRecords.append(batchRecord.timestamp(), batchRecord.key(), valueTransformation.transformation(batchRecord.value()));
+                    }
+                }
+
+                partitionData.setRecords(newRecords.build());
+            }
+        });
     }
 
     @Override

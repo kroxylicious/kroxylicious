@@ -14,17 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.strimzi.kproxy.interceptor;
+package io.strimzi.kproxy.api.filter;
 
 import java.nio.ByteBuffer;
 
-import io.strimzi.kproxy.api.filter.FilterContext;
-
-/**
- * Provides contextual information to request and response handlers.
- */
-public interface HandlerContext extends FilterContext {
-
+public interface FilterContext {
     String channelDescriptor();
 
     ByteBuffer allocate(int initialCapacity);

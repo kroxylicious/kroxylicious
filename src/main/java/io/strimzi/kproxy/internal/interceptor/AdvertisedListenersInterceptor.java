@@ -16,16 +16,17 @@
  */
 package io.strimzi.kproxy.internal.interceptor;
 
+import io.strimzi.kproxy.api.filter.FilterContext;
+import io.strimzi.kproxy.api.filter.MetadataResponseFilter;
+import io.strimzi.kproxy.interceptor.Interceptor;
+import io.strimzi.kproxy.interceptor.RequestHandler;
+import io.strimzi.kproxy.interceptor.ResponseHandler;
 import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import io.strimzi.kproxy.interceptor.Interceptor;
-import io.strimzi.kproxy.interceptor.RequestHandler;
-import io.strimzi.kproxy.interceptor.ResponseHandler;
-
-public class AdvertisedListenersInterceptor implements Interceptor {
+public class AdvertisedListenersInterceptor implements Interceptor, MetadataResponseFilter {
 
     private static final Logger LOGGER = LogManager.getLogger(AdvertisedListenersInterceptor.class);
 
@@ -60,15 +61,25 @@ public class AdvertisedListenersInterceptor implements Interceptor {
     public ResponseHandler responseHandler() {
         return (responseFrame, channel) -> {
             var resp = (MetadataResponseData) responseFrame.body();
-            for (var broker : resp.brokers()) {
-                String host = mapping.host(broker.host(), broker.port());
-                int port = mapping.port(broker.host(), broker.port());
-                LOGGER.trace("{}: Rewriting metadata response {}:{} -> {}:{}", channel, broker.host(), broker.port(), host, port);
-                broker.setHost(host);
-                broker.setPort(port);
-            }
+            mapBrokers(channel, resp);
 
             return responseFrame;
         };
+    }
+
+    private void mapBrokers(FilterContext context, MetadataResponseData resp) {
+        for (var broker : resp.brokers()) {
+            String host = mapping.host(broker.host(), broker.port());
+            int port = mapping.port(broker.host(), broker.port());
+            LOGGER.trace("{}: Rewriting metadata response {}:{} -> {}:{}", context, broker.host(), broker.port(), host, port);
+            broker.setHost(host);
+            broker.setPort(port);
+        }
+    }
+
+    @Override
+    public MetadataResponseData onMetadataResponse(MetadataResponseData data, FilterContext context) {
+        mapBrokers(context, data);
+        return null;
     }
 }
