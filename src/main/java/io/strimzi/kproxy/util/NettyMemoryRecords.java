@@ -23,8 +23,6 @@ import org.apache.kafka.common.record.TimestampType;
 
 import io.netty.buffer.ByteBuf;
 
-import java.nio.ByteBuffer;
-
 /**
  * This is introduces additional factory builder methods then {@link org.apache.kafka.common.record.MemoryRecords#builder} ones,
  * in order to use {@link ByteBufOutputStream}<br>
