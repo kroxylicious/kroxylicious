@@ -30,6 +30,7 @@ import io.strimzi.kproxy.codec.DecodePredicate;
  * and a non-null {@link #responseHandler()} for those responses where
  * {@link DecodePredicate#shouldDecodeResponse(ApiKeys, int) returns true.
  */
+@Deprecated
 public interface Interceptor extends DecodePredicate {
 
     RequestHandler requestHandler();

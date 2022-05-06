@@ -17,11 +17,12 @@
 package io.strimzi.kproxy.interceptor;
 
 import io.netty.buffer.ByteBuf;
+import io.strimzi.kproxy.api.filter.FilterContext;
 
 /**
  * Provides contextual information to request and response handlers.
  */
-public interface HandlerContext {
+public interface HandlerContext extends FilterContext {
 
     String channelDescriptor();
 
