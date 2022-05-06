@@ -32,7 +32,10 @@ import io.netty.util.ReferenceCounted;
 
 /**
  * A frame that has been decoded (as opposed to an {@link OpaqueFrame}).
- * @param <H>
+ *
+ * @param <H> The header type
+ * @param <B> The body type
+ *
  */
 public abstract class DecodedFrame<H extends ApiMessage, B extends ApiMessage>
         extends AbstractReferenceCounted
