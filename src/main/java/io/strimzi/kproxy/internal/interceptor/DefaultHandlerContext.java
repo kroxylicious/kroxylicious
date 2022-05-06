@@ -26,9 +26,9 @@ import io.strimzi.kproxy.interceptor.HandlerContext;
 public class DefaultHandlerContext implements HandlerContext {
 
     private final ChannelHandlerContext ctx;
-    private final DecodedFrame<?> decodedFrame;
+    private final DecodedFrame<?, ?> decodedFrame;
 
-    public DefaultHandlerContext(ChannelHandlerContext ctx, DecodedFrame<?> decodedFrame) {
+    public DefaultHandlerContext(ChannelHandlerContext ctx, DecodedFrame<?, ?> decodedFrame) {
         this.ctx = ctx;
         this.decodedFrame = decodedFrame;
     }

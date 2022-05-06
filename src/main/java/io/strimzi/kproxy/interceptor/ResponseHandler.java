@@ -23,5 +23,5 @@ import io.strimzi.kproxy.codec.DecodedResponseFrame;
  */
 public interface ResponseHandler {
 
-    DecodedResponseFrame handleResponse(DecodedResponseFrame responseFrame, HandlerContext ctx);
+    DecodedResponseFrame<?> handleResponse(DecodedResponseFrame<?> responseFrame, HandlerContext ctx);
 }

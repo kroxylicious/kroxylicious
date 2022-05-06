@@ -69,7 +69,7 @@ public class ProduceRecordTransformationInterceptor implements Interceptor {
         return new RequestHandler() {
 
             @Override
-            public DecodedRequestFrame handleRequest(DecodedRequestFrame requestFrame, HandlerContext ctx) {
+            public DecodedRequestFrame<?> handleRequest(DecodedRequestFrame<?> requestFrame, HandlerContext ctx) {
                 var req = (ProduceRequestData) requestFrame.body();
 
                 req.topicData().forEach(tpd -> {

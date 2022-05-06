@@ -219,7 +219,7 @@ public abstract class AbstractCodecTest {
         assertEquals(akBuf.writerIndex(), akBuf.readerIndex(), "Expect to have read whole buf");
 
         assertEquals(List.of(frameClass), messageClasses(messages), "Expected a single decoded frame");
-        DecodedFrame frame = (DecodedFrame) messages.get(0);
+        DecodedFrame<?, ?> frame = (DecodedFrame<?, ?>) messages.get(0);
         assertEquals(akHeader, frame.header());
         assertEquals(akBody, frame.body());
     }

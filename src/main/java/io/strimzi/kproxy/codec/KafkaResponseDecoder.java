@@ -91,7 +91,7 @@ public class KafkaResponseDecoder extends KafkaMessageDecoder {
             log().trace("{}: Header: {}", ctx, header);
             ApiMessage body = readBody(apiKey, apiVersion, accessor);
             log().trace("{}: Body: {}", ctx, body);
-            frame = new DecodedResponseFrame(apiVersion, header, body);
+            frame = new DecodedResponseFrame<>(apiVersion, header, body);
         }
         else {
             frame = opaqueFrame(in, length);
