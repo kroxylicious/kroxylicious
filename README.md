@@ -7,7 +7,7 @@ At compile time a [code generator][kafka_generator] generates Java source for cl
 
 This project provides a similar code generation facility:
 
-* The schema model is the same ().
+* The schema model is mostly the same.
 * The generated code is defined in [Apache FreeMarker™][fm] templates, allowing you to generate _any_ kind of code (your choice of language) from the messages schemas.
 * The code generation is packaged as a maven plugin for integration into your build process.
 
