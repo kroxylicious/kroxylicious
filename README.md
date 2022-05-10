@@ -21,13 +21,27 @@ $ mvn clean verify -DexcludedGroups="system-test"
 Pass the `-Dquick` option to skip all non-essential plug-ins and create the output artifact as quickly as possible:
 
 ```
-mvn clean verify -Dquick
+$ mvn clean verify -Dquick
 ```
 
 Run the following command to format the source code and organize the imports as per the project's conventions:
 
 ```
-mvn process-sources
+$ mvn process-sources
+```
+
+Build with the `dist` profile for creating an executable JAR:
+
+```
+$ mvn clean verify -Pdist -Dquick
+```
+
+## Run
+
+Build with the `dist` profile as shown above, then execute this:
+
+```
+$ java -jar target/kproxy-1.0-SNAPSHOT.jar
 ```
 
 ## License
