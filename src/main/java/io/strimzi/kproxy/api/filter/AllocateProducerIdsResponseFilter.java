@@ -14,26 +14,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- package io.strimzi.kproxy.api.filter;
+package io.strimzi.kproxy.api.filter;
 
- import org.apache.kafka.common.message.AllocateProducerIdsResponseData;
+import org.apache.kafka.common.message.AllocateProducerIdsResponseData;
 
 /**
  * A stateless filter for AllocateProducerIdsResponses.
  * The same instance may be invoked on multiple channels.
  */
-public interface AllocateProducerIdsResponseFilter {
-
+public interface AllocateProducerIdsResponseFilter extends KrpcResponseFilter {
     /**
-     * Handle the given {@code data},
+     * Handle the given {@code response},
      * returning the {@code AllocateProducerIdsResponseData} instance to be passed to the next filter.
      * The implementation may modify the given {@code data} in-place and return it,
      * or instantiate a new one.
      *
-     * @param data The KRPC message to handle.
+     * @param response The KRPC message to handle.
      * @param context The context.
-     * @return the {@code AllocateProducerIdsResponseData} instance to be passed to the next filter.
-     * If null is returned then the given {code data} will be used.
+     * @return the {@code response} to be passed to the next filter.
+     * If null is returned then the given {@code response} will be used.
      */
-    public AllocateProducerIdsResponseData onAllocateProducerIdsResponse(AllocateProducerIdsResponseData data, FilterContext context);
+    public KrpcFilterState onAllocateProducerIdsResponse(AllocateProducerIdsResponseData response, KrpcFilterContext context);
+
 }

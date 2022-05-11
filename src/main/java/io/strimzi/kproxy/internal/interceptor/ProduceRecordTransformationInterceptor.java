@@ -29,24 +29,15 @@ import org.apache.kafka.common.record.MutableRecordBatch;
 import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.record.TimestampType;
 
-import io.strimzi.kproxy.api.filter.FilterContext;
+import io.strimzi.kproxy.api.filter.KrpcFilterContext;
+import io.strimzi.kproxy.api.filter.KrpcFilterState;
 import io.strimzi.kproxy.api.filter.ProduceRequestFilter;
-import io.strimzi.kproxy.codec.DecodedRequestFrame;
-import io.strimzi.kproxy.interceptor.HandlerContext;
-import io.strimzi.kproxy.interceptor.Interceptor;
-import io.strimzi.kproxy.interceptor.RequestHandler;
-import io.strimzi.kproxy.interceptor.ResponseHandler;
+import io.strimzi.kproxy.util.NettyMemoryRecords;
 
 /**
  * An interceptor for modifying the key/value/header/topic of {@link ApiKeys#PRODUCE} requests.
  */
-public class ProduceRecordTransformationInterceptor implements Interceptor, ProduceRequestFilter {
-
-    @Override
-    public ProduceRequestData onProduceRequest(ProduceRequestData data, FilterContext context) {
-        applyTransformation(context, data);
-        return null;
-    }
+public class ProduceRecordTransformationInterceptor implements ProduceRequestFilter {
 
     @FunctionalInterface
     public interface ByteBufferTransformation {
@@ -63,35 +54,21 @@ public class ProduceRecordTransformationInterceptor implements Interceptor, Prod
     }
 
     @Override
-    public boolean shouldDecodeRequest(ApiKeys apiKey, int apiVersion) {
+    public boolean shouldDeserializeRequest(ApiKeys apiKey, short apiVersion) {
         return apiKey == ApiKeys.PRODUCE;
     }
 
     @Override
-    public boolean shouldDecodeResponse(ApiKeys apiKey, int apiVersion) {
-        return false;
+    public KrpcFilterState onProduceRequest(ProduceRequestData data, KrpcFilterContext context) {
+        applyTransformation(context, data);
+        return KrpcFilterState.FORWARD;
     }
 
-    @Override
-    public RequestHandler requestHandler() {
-        return new RequestHandler() {
-
-            @Override
-            public DecodedRequestFrame<?> handleRequest(DecodedRequestFrame<?> requestFrame, HandlerContext ctx) {
-                var req = (ProduceRequestData) requestFrame.body();
-
-                applyTransformation(ctx, req);
-
-                return requestFrame;
-            }
-        };
-    }
-
-    private void applyTransformation(FilterContext ctx, ProduceRequestData req) {
+    private void applyTransformation(KrpcFilterContext ctx, ProduceRequestData req) {
         req.topicData().forEach(tpd -> {
             for (PartitionProduceData partitionData : tpd.partitionData()) {
                 MemoryRecords records = (MemoryRecords) partitionData.records();
-                MemoryRecordsBuilder newRecords = MemoryRecords.builder(ctx.allocate(records.sizeInBytes()), CompressionType.NONE,
+                MemoryRecordsBuilder newRecords = NettyMemoryRecords.builder(ctx.allocate(records.sizeInBytes()), CompressionType.NONE,
                         TimestampType.CREATE_TIME, 0);
 
                 for (MutableRecordBatch batch : records.batches()) {
@@ -104,10 +81,5 @@ public class ProduceRecordTransformationInterceptor implements Interceptor, Prod
                 partitionData.setRecords(newRecords.build());
             }
         });
-    }
-
-    @Override
-    public ResponseHandler responseHandler() {
-        return null;
     }
 }

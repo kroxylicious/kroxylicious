@@ -14,26 +14,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- package io.strimzi.kproxy.api.filter;
+package io.strimzi.kproxy.api.filter;
 
- import org.apache.kafka.common.message.CreateDelegationTokenRequestData;
+import org.apache.kafka.common.message.CreateDelegationTokenRequestData;
 
 /**
  * A stateless filter for CreateDelegationTokenRequests.
  * The same instance may be invoked on multiple channels.
  */
-public interface CreateDelegationTokenRequestFilter {
-
+public interface CreateDelegationTokenRequestFilter extends KrpcRequestFilter {
     /**
-     * Handle the given {@code data},
+     * Handle the given {@code request},
      * returning the {@code CreateDelegationTokenRequestData} instance to be passed to the next filter.
      * The implementation may modify the given {@code data} in-place and return it,
      * or instantiate a new one.
      *
-     * @param data The KRPC message to handle.
+     * @param request The KRPC message to handle.
      * @param context The context.
-     * @return the {@code CreateDelegationTokenRequestData} instance to be passed to the next filter.
-     * If null is returned then the given {code data} will be used.
+     * @return the {@code request} to be passed to the next filter.
+     * If null is returned then the given {@code request} will be used.
      */
-    public CreateDelegationTokenRequestData onCreateDelegationTokenRequest(CreateDelegationTokenRequestData data, FilterContext context);
+    public KrpcFilterState onCreateDelegationTokenRequest(CreateDelegationTokenRequestData request, KrpcFilterContext context);
+
 }

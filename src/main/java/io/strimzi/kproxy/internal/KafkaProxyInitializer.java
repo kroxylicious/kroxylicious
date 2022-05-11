@@ -16,23 +16,25 @@
  */
 package io.strimzi.kproxy.internal;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelInitializer;
+import io.netty.channel.ChannelPipeline;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
+import io.strimzi.kproxy.api.filter.KrpcFilter;
+import io.strimzi.kproxy.api.filter.KrpcRequestFilter;
+import io.strimzi.kproxy.api.filter.KrpcResponseFilter;
 import io.strimzi.kproxy.codec.Correlation;
-import io.strimzi.kproxy.codec.DecodedRequestFrame;
 import io.strimzi.kproxy.codec.KafkaRequestDecoder;
 import io.strimzi.kproxy.codec.KafkaResponseEncoder;
-import io.strimzi.kproxy.interceptor.Interceptor;
-import io.strimzi.kproxy.internal.interceptor.DefaultHandlerContext;
 
 public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
 
@@ -40,20 +42,62 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
 
     private final String remoteHost;
     private final int remotePort;
-    private final InterceptorProviderFactory interceptorProviderFactory;
+    private final FilterFactory filterFactory;
     private final boolean logNetwork;
     private final boolean logFrames;
 
     public KafkaProxyInitializer(String remoteHost,
                                  int remotePort,
-                                 InterceptorProviderFactory interceptorProviderFactory,
+                                 FilterFactory filterFactory,
                                  boolean logNetwork,
                                  boolean logFrames) {
         this.remoteHost = remoteHost;
         this.remotePort = remotePort;
-        this.interceptorProviderFactory = interceptorProviderFactory;
+        this.filterFactory = filterFactory;
         this.logNetwork = logNetwork;
         this.logFrames = logFrames;
+    }
+
+    List<KrpcRequestFilter> createRequestFilters(List<KrpcFilter> filters) {
+        List<KrpcRequestFilter> requestFilters = new ArrayList<>(filters.size());
+        for (var filter : filters) {
+            if (filter instanceof KrpcRequestFilter) {
+                requestFilters.add((KrpcRequestFilter) filter);
+            }
+            else if (!(filter instanceof KrpcResponseFilter)) {
+                throw new RuntimeException();
+            }
+        }
+        return requestFilters;
+    }
+
+    List<KrpcResponseFilter> createResponseFilters(List<KrpcFilter> filters) {
+        List<KrpcResponseFilter> requestFilters = new ArrayList<>(filters.size());
+        for (var filter : filters) {
+            if (filter instanceof KrpcResponseFilter) {
+                requestFilters.add((KrpcResponseFilter) filter);
+            }
+            else if (!(filter instanceof KrpcRequestFilter)) {
+                throw new RuntimeException();
+            }
+        }
+        return requestFilters;
+    }
+
+    List<ChannelHandler> buildRequestPipeline(List<KrpcRequestFilter> filters) {
+        List<ChannelHandler> requestFilterHandlers = new ArrayList<>(filters.size());
+        for (var requestFilter : filters) {
+            requestFilterHandlers.add(new SingleRequestFilterHandler(requestFilter));
+        }
+        return requestFilterHandlers;
+    }
+
+    List<ChannelHandler> buildResponsePipeline(List<KrpcResponseFilter> filters) {
+        List<ChannelHandler> responseFilterHandlers = new ArrayList<>(filters.size());
+        for (var responseFilter : filters) {
+            responseFilterHandlers.add(new SingleResponseFilterHandler(responseFilter));
+        }
+        return responseFilterHandlers;
     }
 
     @Override
@@ -64,42 +108,40 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
 
         var correlation = new HashMap<Integer, Correlation>();
 
-        InterceptorProvider interceptorProvider = interceptorProviderFactory.createInterceptorProvider(ch);
+        ChannelPipeline pipeline = ch.pipeline();
         if (logNetwork) {
-            ch.pipeline().addLast(new LoggingHandler("frontend-network", LogLevel.INFO));
+            pipeline.addLast("networkLogger", new LoggingHandler("frontend-network", LogLevel.INFO));
         }
-        ch.pipeline().addLast(new KafkaRequestDecoder(interceptorProvider, correlation));
+        var filters = filterFactory.createFilters();
+        var requestFilters = createRequestFilters(filters);
+        var responseFilters = createResponseFilters(filters);
+        // The decoder, this only cares about the filters
+        // because it needs to know whether to decode requests
+        KafkaRequestDecoder decoder = new KafkaRequestDecoder(
+                requestFilters,
+                responseFilters,
+                correlation);
+        pipeline.addLast("requestDecoder", decoder);
 
-        for (Interceptor requestInterceptor : interceptorProvider.requestInterceptors()) {
-            ch.pipeline().addLast(new RequestHandlerAdapter(requestInterceptor));
+        var requestFilterHandlers = buildRequestPipeline(requestFilters);
+
+        for (var handler : requestFilterHandlers) {
+            ch.pipeline().addLast(handler);
         }
 
-        ch.pipeline().addLast(new KafkaResponseEncoder());
+        pipeline.addLast("responseEncoder", new KafkaResponseEncoder());
         if (logFrames) {
-            ch.pipeline().addLast(new LoggingHandler("frontend-application", LogLevel.INFO));
+            pipeline.addLast("frameLogger", new LoggingHandler("frontend-application", LogLevel.INFO));
         }
 
-        ch.pipeline().addLast(new KafkaProxyFrontendHandler(remoteHost, remotePort, correlation, interceptorProvider, logNetwork, logFrames));
+        var responseFilterHandlers = buildResponsePipeline(responseFilters);
+
+        pipeline.addLast("frontendHandler", new KafkaProxyFrontendHandler(remoteHost,
+                remotePort,
+                correlation,
+                responseFilterHandlers,
+                logNetwork,
+                logFrames));
     }
 
-    private static class RequestHandlerAdapter extends ChannelInboundHandlerAdapter {
-
-        private final Interceptor interceptor;
-
-        public RequestHandlerAdapter(Interceptor requestInterceptor) {
-            this.interceptor = requestInterceptor;
-        }
-
-        @Override
-        public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-            if (msg instanceof DecodedRequestFrame) {
-                DecodedRequestFrame<?> decodedFrame = (DecodedRequestFrame<?>) msg;
-                if (interceptor.shouldDecodeRequest(decodedFrame.apiKey(), decodedFrame.apiVersion())) {
-                    interceptor.requestHandler().handleRequest(decodedFrame, new DefaultHandlerContext(ctx, decodedFrame));
-                }
-            }
-
-            super.channelRead(ctx, msg);
-        }
-    }
 }

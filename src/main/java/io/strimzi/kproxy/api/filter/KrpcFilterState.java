@@ -14,23 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.strimzi.kproxy.codec;
+package io.strimzi.kproxy.api.filter;
 
-import org.apache.kafka.common.protocol.ApiKeys;
-
-/**
- * Determines whether a frame should be fully decoded into a {@link DecodedRequestFrame}
- * or {@link DecodedResponseFrame}, or whether it should be passed through un-encoded
- * as an {@link OpaqueFrame}.
- *
- * The determination of whether to decode either request or response is done when decoding a request.
- * The reason the decodability of a response is done when decoding a request is to avoid having to
- * record the request in the correlation map. i.e. The correlation map only contains entries for
- * decodable responses.
- */
-public interface DecodePredicate {
-
-    boolean shouldDecodeRequest(ApiKeys apiKey, int apiVersion);
-
-    boolean shouldDecodeResponse(ApiKeys apiKey, int apiVersion);
+public enum KrpcFilterState {
+    /** forward the request/response to the next filter in the chain, or to the upstream server */
+    FORWARD,
+    /** drop the request/response, without invoking further filters */
+    DROP,
+    /** disconnect from the peer, without invoke further filters */
+    DISCONNECT
 }

@@ -17,17 +17,14 @@
 package io.strimzi.kproxy.internal.interceptor;
 
 import org.apache.kafka.common.message.MetadataResponseData;
-import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import io.strimzi.kproxy.api.filter.FilterContext;
+import io.strimzi.kproxy.api.filter.KrpcFilterContext;
+import io.strimzi.kproxy.api.filter.KrpcFilterState;
 import io.strimzi.kproxy.api.filter.MetadataResponseFilter;
-import io.strimzi.kproxy.interceptor.Interceptor;
-import io.strimzi.kproxy.interceptor.RequestHandler;
-import io.strimzi.kproxy.interceptor.ResponseHandler;
 
-public class AdvertisedListenersInterceptor implements Interceptor, MetadataResponseFilter {
+public class AdvertisedListenersInterceptor implements MetadataResponseFilter {
 
     private static final Logger LOGGER = LogManager.getLogger(AdvertisedListenersInterceptor.class);
 
@@ -43,32 +40,7 @@ public class AdvertisedListenersInterceptor implements Interceptor, MetadataResp
         this.mapping = mapping;
     }
 
-    @Override
-    public boolean shouldDecodeRequest(ApiKeys apiKey, int apiVersion) {
-        return false;
-    }
-
-    @Override
-    public boolean shouldDecodeResponse(ApiKeys apiKey, int apiVersion) {
-        return apiKey == ApiKeys.METADATA;
-    }
-
-    @Override
-    public RequestHandler requestHandler() {
-        return null;
-    }
-
-    @Override
-    public ResponseHandler responseHandler() {
-        return (responseFrame, channel) -> {
-            var resp = (MetadataResponseData) responseFrame.body();
-            mapBrokers(channel, resp);
-
-            return responseFrame;
-        };
-    }
-
-    private void mapBrokers(FilterContext context, MetadataResponseData resp) {
+    private void mapBrokers(KrpcFilterContext context, MetadataResponseData resp) {
         for (var broker : resp.brokers()) {
             String host = mapping.host(broker.host(), broker.port());
             int port = mapping.port(broker.host(), broker.port());
@@ -79,8 +51,8 @@ public class AdvertisedListenersInterceptor implements Interceptor, MetadataResp
     }
 
     @Override
-    public MetadataResponseData onMetadataResponse(MetadataResponseData data, FilterContext context) {
+    public KrpcFilterState onMetadataResponse(MetadataResponseData data, KrpcFilterContext context) {
         mapBrokers(context, data);
-        return null;
+        return KrpcFilterState.FORWARD;
     }
 }
