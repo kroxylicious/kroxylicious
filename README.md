@@ -44,6 +44,10 @@ Build with the `dist` profile as shown above, then execute this:
 $ java -jar target/kproxy-1.0-SNAPSHOT.jar
 ```
 
+## Performance Testing
+
+See [benchmarking.md](benchmarking.md) for information on running basic performance tests for this proxy.
+
 ## License
 
 This code base is available under the Apache License, version 2.
