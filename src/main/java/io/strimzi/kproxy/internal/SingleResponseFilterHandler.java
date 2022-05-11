@@ -16,11 +16,6 @@
  */
 package io.strimzi.kproxy.internal;
 
-import java.nio.ByteBuffer;
-
-import org.apache.kafka.common.protocol.ApiMessage;
-
-import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.strimzi.kproxy.api.filter.KrpcFilterContext;
@@ -54,30 +49,7 @@ public class SingleResponseFilterHandler extends ChannelInboundHandlerAdapter {
         if (msg instanceof DecodedResponseFrame) {
             DecodedResponseFrame<?> decodedFrame = (DecodedResponseFrame<?>) msg;
 
-            KrpcFilterContext filterContext = new KrpcFilterContext() {
-                @Override
-                public String channelDescriptor() {
-                    return channelContext.channel().toString();
-                }
-
-                @Override
-                public ByteBuffer allocate(int initialCapacity) {
-                    ByteBuf buffer = channelContext.alloc().buffer(initialCapacity);
-                    ByteBuffer nioBuffer = buffer.nioBuffer();
-                    decodedFrame.add(buffer);
-                    return nioBuffer;
-                }
-
-                @Override
-                public void forwardRequest(ApiMessage header, ApiMessage message) {
-
-                }
-
-                @Override
-                public void forwardResponse(ApiMessage header, ApiMessage message) {
-
-                }
-            };
+            KrpcFilterContext filterContext = new DefaultFilterContext(channelContext, decodedFrame);
 
             if (filter.shouldDeserializeResponse(decodedFrame.apiKey(), decodedFrame.apiVersion())) {
                 switch (filter.apply(decodedFrame, filterContext)) {

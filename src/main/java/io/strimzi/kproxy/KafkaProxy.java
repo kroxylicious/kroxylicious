@@ -38,7 +38,7 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.incubator.channel.uring.IOUring;
 import io.netty.incubator.channel.uring.IOUringEventLoopGroup;
 import io.netty.incubator.channel.uring.IOUringServerSocketChannel;
-import io.strimzi.kproxy.internal.FilterFactory;
+import io.strimzi.kproxy.internal.FilterChainFactory;
 import io.strimzi.kproxy.internal.KafkaProxyInitializer;
 import io.strimzi.kproxy.internal.interceptor.AdvertisedListenersInterceptor;
 import io.strimzi.kproxy.internal.interceptor.ApiVersionsInterceptor;
@@ -53,7 +53,7 @@ public final class KafkaProxy {
     private final boolean logNetwork;
     private final boolean logFrames;
     private final boolean useIoUring;
-    private final FilterFactory filterFactory;
+    private final FilterChainFactory filterChainFactory;
     private EventLoopGroup bossGroup;
     private EventLoopGroup workerGroup;
     private Channel acceptorChannel;
@@ -91,7 +91,7 @@ public final class KafkaProxy {
                       boolean logNetwork,
                       boolean logFrames,
                       boolean useIoUring,
-                      FilterFactory filterFactory) {
+                      FilterChainFactory filterChainFactory) {
         this.proxyHost = proxyHost;
         this.proxyPort = proxyPort;
         this.brokerHost = brokerHost;
@@ -99,7 +99,7 @@ public final class KafkaProxy {
         this.logNetwork = logNetwork;
         this.logFrames = logFrames;
         this.useIoUring = useIoUring;
-        this.filterFactory = filterFactory;
+        this.filterChainFactory = filterChainFactory;
     }
 
     public String proxyHost() {
@@ -143,7 +143,7 @@ public final class KafkaProxy {
 
         KafkaProxyInitializer initializer = new KafkaProxyInitializer(brokerHost,
                 brokerPort,
-                filterFactory,
+                filterChainFactory,
                 logNetwork,
                 logFrames);
 
