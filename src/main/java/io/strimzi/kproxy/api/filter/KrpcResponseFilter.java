@@ -27,29 +27,29 @@ import io.strimzi.kproxy.codec.DecodedResponseFrame;
 
 /**
  * Base interface for {@code *ResponseFilter}s.
+ * See the Javadoc for {@link KrpcRequestFilter}, since the same patterns and guarantees apply.
  */
-public interface KrpcResponseFilter extends KrpcFilter {
+public /* sealed */ interface KrpcResponseFilter extends KrpcFilter /* TODO permits ... */ {
 
-    public static KrpcFilterState applyResponseFilter(
-                                                      KrpcResponseFilter filter,
-                                                      DecodedResponseFrame<?> decodedFrame,
-                                                      KrpcFilterContext filterContext) {
+    public default KrpcFilterState apply(
+                                         DecodedResponseFrame<?> decodedFrame,
+                                         KrpcFilterContext filterContext) {
         KrpcFilterState state;
         switch (decodedFrame.apiKey()) {
             case METADATA:
-                state = ((MetadataResponseFilter) filter).onMetadataResponse((MetadataResponseData) decodedFrame.body(), filterContext);
+                state = ((MetadataResponseFilter) this).onMetadataResponse((MetadataResponseData) decodedFrame.body(), filterContext);
                 break;
             case PRODUCE:
-                state = ((ProduceResponseFilter) filter).onProduceResponse((ProduceResponseData) decodedFrame.body(), filterContext);
+                state = ((ProduceResponseFilter) this).onProduceResponse((ProduceResponseData) decodedFrame.body(), filterContext);
                 break;
             case API_VERSIONS:
-                state = ((ApiVersionsResponseFilter) filter).onApiVersionsResponse((ApiVersionsResponseData) decodedFrame.body(), filterContext);
+                state = ((ApiVersionsResponseFilter) this).onApiVersionsResponse((ApiVersionsResponseData) decodedFrame.body(), filterContext);
                 break;
             case FIND_COORDINATOR:
-                state = ((FindCoordinatorResponseFilter) filter).onFindCoordinatorResponse((FindCoordinatorResponseData) decodedFrame.body(), filterContext);
+                state = ((FindCoordinatorResponseFilter) this).onFindCoordinatorResponse((FindCoordinatorResponseData) decodedFrame.body(), filterContext);
                 break;
             case LIST_OFFSETS:
-                state = ((ListOffsetsResponseFilter) filter).onListOffsetsResponse((ListOffsetsResponseData) decodedFrame.body(), filterContext);
+                state = ((ListOffsetsResponseFilter) this).onListOffsetsResponse((ListOffsetsResponseData) decodedFrame.body(), filterContext);
                 break;
             default:
                 throw new IllegalStateException("Unsupported RPC " + decodedFrame.apiKey());
