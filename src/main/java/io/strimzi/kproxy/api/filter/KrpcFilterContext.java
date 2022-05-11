@@ -14,17 +14,38 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.strimzi.kproxy.interceptor;
+package io.strimzi.kproxy.api.filter;
+
+import org.apache.kafka.common.protocol.ApiMessage;
 
 import io.netty.buffer.ByteBuf;
-import io.strimzi.kproxy.api.filter.FilterContext;
 
 /**
- * Provides contextual information to request and response handlers.
+ * A context to allow filters to interact with other filters and the pipeline.
  */
-public interface HandlerContext extends FilterContext {
-
+public interface KrpcFilterContext {
+    /**
+     * @return A description of this channel (typically used for logging).
+     */
     String channelDescriptor();
 
+    /**
+     * Allocate a ByteBuffer of the given capacity.
+     * The buffer will be deallocated when the request processing is completed
+     * @param initialCapacity The initial capacity of the buffer.
+     * @return The allocated buffer
+     */
     ByteBuf allocate(int initialCapacity);
+
+    /**
+     * Send a request upstream, invoking further filters.
+     */
+    void forwardRequest(ApiMessage header, ApiMessage message);
+
+    /**
+     * Send a response downstream, invoking further filters.
+     */
+    void forwardResponse(ApiMessage header, ApiMessage message);
+
+    // TODO an API to allow a filter to add/remove another filter from the pipeline
 }

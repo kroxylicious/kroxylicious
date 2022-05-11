@@ -14,12 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.strimzi.kproxy.api.filter;
+package io.strimzi.kproxy.internal;
 
-import java.nio.ByteBuffer;
+import java.util.List;
 
-public interface FilterContext {
-    String channelDescriptor();
+import io.strimzi.kproxy.api.filter.KrpcFilter;
 
-    ByteBuffer allocate(int initialCapacity);
+public interface FilterFactory {
+
+    List<KrpcFilter> createFilters();
 }

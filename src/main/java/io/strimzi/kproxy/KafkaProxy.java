@@ -22,7 +22,11 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import io.netty.bootstrap.ServerBootstrap;
-import io.netty.channel.*;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelOption;
+import io.netty.channel.EventLoopGroup;
+import io.netty.channel.ServerChannel;
 import io.netty.channel.epoll.Epoll;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.epoll.EpollServerSocketChannel;
@@ -34,8 +38,7 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.incubator.channel.uring.IOUring;
 import io.netty.incubator.channel.uring.IOUringEventLoopGroup;
 import io.netty.incubator.channel.uring.IOUringServerSocketChannel;
-import io.strimzi.kproxy.interceptor.Interceptor;
-import io.strimzi.kproxy.internal.InterceptorProviderFactory;
+import io.strimzi.kproxy.internal.FilterFactory;
 import io.strimzi.kproxy.internal.KafkaProxyInitializer;
 import io.strimzi.kproxy.internal.interceptor.AdvertisedListenersInterceptor;
 import io.strimzi.kproxy.internal.interceptor.ApiVersionsInterceptor;
@@ -50,7 +53,7 @@ public final class KafkaProxy {
     private final boolean logNetwork;
     private final boolean logFrames;
     private final boolean useIoUring;
-    private final List<Interceptor> interceptors;
+    private final FilterFactory filterFactory;
     private EventLoopGroup bossGroup;
     private EventLoopGroup workerGroup;
     private Channel acceptorChannel;
@@ -63,7 +66,7 @@ public final class KafkaProxy {
                 Boolean.getBoolean("useIoUring"),
                 false,
                 false,
-                List.of(
+                () -> List.of(
                         new ApiVersionsInterceptor(),
                         new AdvertisedListenersInterceptor(new AdvertisedListenersInterceptor.AddressMapping() {
                             @Override
@@ -76,8 +79,8 @@ public final class KafkaProxy {
                                 return port + 100;
                             }
                         })))
-                                .startup()
-                                .block();
+        .startup()
+        .block();
     }
 
     public KafkaProxy(
@@ -88,7 +91,7 @@ public final class KafkaProxy {
                       boolean logNetwork,
                       boolean logFrames,
                       boolean useIoUring,
-                      List<Interceptor> interceptors) {
+                      FilterFactory filterFactory) {
         this.proxyHost = proxyHost;
         this.proxyPort = proxyPort;
         this.brokerHost = brokerHost;
@@ -96,7 +99,7 @@ public final class KafkaProxy {
         this.logNetwork = logNetwork;
         this.logFrames = logFrames;
         this.useIoUring = useIoUring;
-        this.interceptors = interceptors;
+        this.filterFactory = filterFactory;
     }
 
     public String proxyHost() {
@@ -138,9 +141,14 @@ public final class KafkaProxy {
         LOGGER.info("Proxying local {} to remote {}",
                 proxyAddress(), brokerAddress());
 
-        InterceptorProviderFactory interceptorProviderFactory = new InterceptorProviderFactory(interceptors);
-        KafkaProxyInitializer initializer = new KafkaProxyInitializer(brokerHost, brokerPort, interceptorProviderFactory, logNetwork, logFrames);
+        KafkaProxyInitializer initializer = new KafkaProxyInitializer(brokerHost,
+                brokerPort,
+                filterFactory,
+                logNetwork,
+                logFrames);
+
         final int availableCores = Runtime.getRuntime().availableProcessors();
+
         // Configure the bootstrap.
         final Class<? extends ServerChannel> channelClass;
         if (useIoUring) {

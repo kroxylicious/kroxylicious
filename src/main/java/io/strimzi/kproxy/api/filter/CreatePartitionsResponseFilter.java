@@ -14,26 +14,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- package io.strimzi.kproxy.api.filter;
+package io.strimzi.kproxy.api.filter;
 
- import org.apache.kafka.common.message.CreatePartitionsResponseData;
+import org.apache.kafka.common.message.CreatePartitionsResponseData;
 
 /**
  * A stateless filter for CreatePartitionsResponses.
  * The same instance may be invoked on multiple channels.
  */
-public interface CreatePartitionsResponseFilter {
-
+public interface CreatePartitionsResponseFilter extends KrpcResponseFilter {
     /**
-     * Handle the given {@code data},
+     * Handle the given {@code response},
      * returning the {@code CreatePartitionsResponseData} instance to be passed to the next filter.
      * The implementation may modify the given {@code data} in-place and return it,
      * or instantiate a new one.
      *
-     * @param data The KRPC message to handle.
+     * @param response The KRPC message to handle.
      * @param context The context.
-     * @return the {@code CreatePartitionsResponseData} instance to be passed to the next filter.
-     * If null is returned then the given {code data} will be used.
+     * @return the {@code response} to be passed to the next filter.
+     * If null is returned then the given {@code response} will be used.
      */
-    public CreatePartitionsResponseData onCreatePartitionsResponse(CreatePartitionsResponseData data, FilterContext context);
+    public KrpcFilterState onCreatePartitionsResponse(CreatePartitionsResponseData response, KrpcFilterContext context);
+
 }

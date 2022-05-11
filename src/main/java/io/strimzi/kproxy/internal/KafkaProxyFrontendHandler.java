@@ -36,11 +36,8 @@ import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.logging.LoggingHandler;
 import io.strimzi.kproxy.codec.Correlation;
-import io.strimzi.kproxy.codec.DecodedResponseFrame;
 import io.strimzi.kproxy.codec.KafkaRequestEncoder;
 import io.strimzi.kproxy.codec.KafkaResponseDecoder;
-import io.strimzi.kproxy.interceptor.Interceptor;
-import io.strimzi.kproxy.internal.interceptor.DefaultHandlerContext;
 
 public class KafkaProxyFrontendHandler extends ChannelInboundHandlerAdapter {
 
@@ -49,21 +46,24 @@ public class KafkaProxyFrontendHandler extends ChannelInboundHandlerAdapter {
     private final String remoteHost;
     private final int remotePort;
     private final Map<Integer, Correlation> correlation;
-    private final InterceptorProvider interceptorProvider;
     private final boolean logNetwork;
     private final boolean logFrames;
+    private final List<ChannelHandler> responseFilterHandlers;
     private ChannelHandlerContext outboundCtx;
     private KafkaProxyBackendHandler backendHandler;
     private boolean pendingFlushes;
     private ChannelHandlerContext blockedInboundCtx;
 
-    public KafkaProxyFrontendHandler(String remoteHost, int remotePort,
+    public KafkaProxyFrontendHandler(String remoteHost,
+                                     int remotePort,
                                      Map<Integer, Correlation> correlation,
-                                     InterceptorProvider interceptorProvider, boolean logNetwork, boolean logFrames) {
+                                     List<ChannelHandler> responseFilterHandlers,
+                                     boolean logNetwork,
+                                     boolean logFrames) {
         this.remoteHost = remoteHost;
         this.remotePort = remotePort;
         this.correlation = correlation;
-        this.interceptorProvider = interceptorProvider;
+        this.responseFilterHandlers = responseFilterHandlers;
         this.logNetwork = logNetwork;
         this.logFrames = logFrames;
     }
@@ -105,10 +105,7 @@ public class KafkaProxyFrontendHandler extends ChannelInboundHandlerAdapter {
         }
         handlers.add(new KafkaRequestEncoder());
         handlers.add(new KafkaResponseDecoder(correlation));
-
-        for (Interceptor responseInterceptor : interceptorProvider.responseInterceptors()) {
-            handlers.add(new ResponseHandlerAdapter(responseInterceptor));
-        }
+        handlers.addAll(responseFilterHandlers);
 
         if (logFrames) {
             handlers.add(new LoggingHandler("backend-application"));
@@ -209,25 +206,4 @@ public class KafkaProxyFrontendHandler extends ChannelInboundHandlerAdapter {
         }
     }
 
-    private static class ResponseHandlerAdapter extends ChannelInboundHandlerAdapter {
-
-        private final Interceptor interceptor;
-
-        public ResponseHandlerAdapter(Interceptor requestInterceptor) {
-            this.interceptor = requestInterceptor;
-        }
-
-        @Override
-        public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-            if (msg instanceof DecodedResponseFrame) {
-                DecodedResponseFrame<?> decodedFrame = (DecodedResponseFrame<?>) msg;
-
-                if (interceptor.shouldDecodeResponse(decodedFrame.apiKey(), decodedFrame.apiVersion())) {
-                    interceptor.responseHandler().handleResponse(decodedFrame, new DefaultHandlerContext(ctx, decodedFrame));
-                }
-            }
-
-            super.channelRead(ctx, msg);
-        }
-    }
 }
