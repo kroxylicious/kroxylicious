@@ -2,8 +2,9 @@ package com.github.tombentley.krpccodegen.main;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
+import java.net.URISyntaxException;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -26,15 +27,18 @@ import org.junit.jupiter.api.Test;
  */
 class KrpcGeneratorTest {
 
+    private static final String MESSAGE_SCHEMAS_PATH = "message-schemas/common/message";
+    private static final String OUTPUT_DIR = "generated-test-sources/krpc";
+
     @Test
     public void testHelloWorld() throws IOException {
         KrpcGenerator gen = new KrpcGenerator();
 
-        File outputDir = new File("/tmp/krpc/");
+        File outputDir = getOutputDir();
         outputDir.mkdirs();
         gen.setOutputDir(outputDir);
 
-        gen.setSchemaDir(new File("kafka/clients/src/main/resources/common/message"));
+        gen.setSchemaDir(getSchemaDir());
 
         gen.setTemplateDir(new File("src/test/resources/hello-world"));
 
@@ -49,11 +53,11 @@ class KrpcGeneratorTest {
     public void testKrpcData() throws IOException {
         KrpcGenerator gen = new KrpcGenerator();
 
-        File outputDir = new File("/tmp/krpc/");
+        File outputDir = getOutputDir();
         outputDir.mkdirs();
         gen.setOutputDir(outputDir);
 
-        gen.setSchemaDir(new File("kafka/clients/src/main/resources/common/message"));
+        gen.setSchemaDir(getSchemaDir());
 
         gen.setTemplateDir(new File("src/test/resources/Data"));
 
@@ -68,11 +72,11 @@ class KrpcGeneratorTest {
     public void testKproxyFilter() throws IOException {
         KrpcGenerator gen = new KrpcGenerator();
 
-        File outputDir = new File("/tmp/krpc/");
+        File outputDir = getOutputDir();
         outputDir.mkdirs();
         gen.setOutputDir(outputDir);
 
-        gen.setSchemaDir(new File("kafka/clients/src/main/resources/common/message"));
+        gen.setSchemaDir(getSchemaDir());
 
         gen.setTemplateDir(new File("src/test/resources/Kproxy"));
 
@@ -83,4 +87,20 @@ class KrpcGeneratorTest {
         gen.generate();
     }
 
+    private static File getSchemaDir() {
+        return getBuildDir().resolve(MESSAGE_SCHEMAS_PATH).toFile();
+    }
+
+    private static File getOutputDir() {
+        return getBuildDir().resolve(OUTPUT_DIR).toFile();
+    }
+
+    private static Path getBuildDir() {
+        try {
+            return Paths.get(KrpcGeneratorTest.class.getProtectionDomain().getCodeSource().getLocation().toURI()).getParent();
+        }
+        catch (URISyntaxException e) {
+            throw new RuntimeException("Couldn't resolve build directory", e);
+        }
+    }
 }
