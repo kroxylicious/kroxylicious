@@ -37,7 +37,7 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
-import io.strimzi.kproxy.internal.FilterFactory;
+import io.strimzi.kproxy.internal.FilterChainFactory;
 import io.strimzi.kproxy.internal.KafkaProxyInitializer;
 import io.strimzi.kproxy.internal.interceptor.AdvertisedListenersInterceptor;
 import io.strimzi.kproxy.internal.interceptor.ApiVersionsInterceptor;
@@ -51,7 +51,7 @@ public final class KafkaProxy {
     private final int brokerPort;
     private final boolean logNetwork;
     private final boolean logFrames;
-    private final FilterFactory filterFactory;
+    private final FilterChainFactory filterChainFactory;
     private EventLoopGroup bossGroup;
     private EventLoopGroup workerGroup;
     private Channel acceptorChannel;
@@ -87,14 +87,14 @@ public final class KafkaProxy {
                       int brokerPort,
                       boolean logNetwork,
                       boolean logFrames,
-                      FilterFactory filterFactory) {
+                      FilterChainFactory filterChainFactory) {
         this.proxyHost = proxyHost;
         this.proxyPort = proxyPort;
         this.brokerHost = brokerHost;
         this.brokerPort = brokerPort;
         this.logNetwork = logNetwork;
         this.logFrames = logFrames;
-        this.filterFactory = filterFactory;
+        this.filterChainFactory = filterChainFactory;
     }
 
     public String proxyHost() {
@@ -134,7 +134,7 @@ public final class KafkaProxy {
 
         KafkaProxyInitializer initializer = new KafkaProxyInitializer(brokerHost,
                 brokerPort,
-                filterFactory,
+                filterChainFactory,
                 logNetwork,
                 logFrames);
 
