@@ -14,26 +14,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- package io.strimzi.kproxy.api.filter;
+package io.strimzi.kproxy.api.filter;
 
- import org.apache.kafka.common.message.AddPartitionsToTxnRequestData;
+import org.apache.kafka.common.message.AddPartitionsToTxnRequestData;
 
 /**
  * A stateless filter for AddPartitionsToTxnRequests.
  * The same instance may be invoked on multiple channels.
  */
-public interface AddPartitionsToTxnRequestFilter {
-
+public interface AddPartitionsToTxnRequestFilter extends KrpcRequestFilter {
     /**
-     * Handle the given {@code data},
+     * Handle the given {@code request},
      * returning the {@code AddPartitionsToTxnRequestData} instance to be passed to the next filter.
      * The implementation may modify the given {@code data} in-place and return it,
      * or instantiate a new one.
      *
-     * @param data The KRPC message to handle.
+     * @param request The KRPC message to handle.
      * @param context The context.
-     * @return the {@code AddPartitionsToTxnRequestData} instance to be passed to the next filter.
-     * If null is returned then the given {code data} will be used.
+     * @return the {@code request} to be passed to the next filter.
+     * If null is returned then the given {@code request} will be used.
      */
-    public AddPartitionsToTxnRequestData onAddPartitionsToTxnRequest(AddPartitionsToTxnRequestData data, FilterContext context);
+    public KrpcFilterState onAddPartitionsToTxnRequest(AddPartitionsToTxnRequestData request, KrpcFilterContext context);
+
 }

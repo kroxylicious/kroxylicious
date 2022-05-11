@@ -18,8 +18,34 @@ package io.strimzi.kproxy.api.filter;
 
 import java.nio.ByteBuffer;
 
-public interface FilterContext {
+import org.apache.kafka.common.protocol.ApiMessage;
+
+/**
+ * A context to allow filters to interact with other filters and the pipeline.
+ */
+public interface KrpcFilterContext {
+    /**
+     * @return A description of this channel (typically used for logging).
+     */
     String channelDescriptor();
 
+    /**
+     * Allocate a ByteBuffer of the given capacity.
+     * The buffer will be deallocated when the request processing is completed
+     * @param initialCapacity The initial capacity of the buffer.
+     * @return The allocated buffer
+     */
     ByteBuffer allocate(int initialCapacity);
+
+    /**
+     * Send a request upstream, invoking further filters.
+     */
+    void forwardRequest(ApiMessage header, ApiMessage message);
+
+    /**
+     * Send a response downstream, invoking further filters.
+     */
+    void forwardResponse(ApiMessage header, ApiMessage message);
+
+    // TODO an API to allow a filter to add/remove another filter from the pipeline
 }

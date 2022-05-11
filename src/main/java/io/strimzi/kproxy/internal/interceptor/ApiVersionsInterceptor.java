@@ -16,36 +16,23 @@
  */
 package io.strimzi.kproxy.internal.interceptor;
 
-import io.strimzi.kproxy.api.filter.ApiVersionsResponseFilter;
-import io.strimzi.kproxy.api.filter.FilterContext;
-import io.strimzi.kproxy.codec.DecodedResponseFrame;
-import io.strimzi.kproxy.interceptor.HandlerContext;
-import io.strimzi.kproxy.interceptor.Interceptor;
-import io.strimzi.kproxy.interceptor.RequestHandler;
-import io.strimzi.kproxy.interceptor.ResponseHandler;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import io.strimzi.kproxy.api.filter.ApiVersionsResponseFilter;
+import io.strimzi.kproxy.api.filter.KrpcFilterContext;
+import io.strimzi.kproxy.api.filter.KrpcFilterState;
+
 /**
  * Changes an API_VERSIONS response so that a client sees the intersection of supported version ranges for each
  * API key. This is an intrinsic part of correctly acting as a proxy.
  */
-public class ApiVersionsInterceptor implements Interceptor, ApiVersionsResponseFilter {
+public class ApiVersionsInterceptor implements ApiVersionsResponseFilter {
     private static final Logger LOGGER = LogManager.getLogger(ApiVersionsInterceptor.class);
 
     public ApiVersionsInterceptor() {
-    }
-
-    @Override
-    public boolean shouldDecodeRequest(ApiKeys apiKey, int apiVersion) {
-        return false;
-    }
-
-    @Override
-    public boolean shouldDecodeResponse(ApiKeys apiKey, int apiVersion) {
-        return apiKey == ApiKeys.API_VERSIONS;
     }
 
     private static void intersectApiVersions(String channel, ApiVersionsResponseData resp) {
@@ -90,27 +77,8 @@ public class ApiVersionsInterceptor implements Interceptor, ApiVersionsResponseF
     }
 
     @Override
-    public RequestHandler requestHandler() {
-        return null;
-    }
-
-    @Override
-    public ResponseHandler responseHandler() {
-        return new ResponseHandler() {
-
-            @Override
-            public DecodedResponseFrame<?> handleResponse(DecodedResponseFrame<?> responseFrame, HandlerContext ctx) {
-                var resp = (ApiVersionsResponseData) responseFrame.body();
-                intersectApiVersions(ctx.channelDescriptor(), resp);
-                return responseFrame;
-            }
-        };
-    }
-
-
-    @Override
-    public ApiVersionsResponseData onApiVersionsResponse(ApiVersionsResponseData data, FilterContext context) {
+    public KrpcFilterState onApiVersionsResponse(ApiVersionsResponseData data, KrpcFilterContext context) {
         intersectApiVersions(context.channelDescriptor(), data);
-        return data;
+        return KrpcFilterState.FORWARD;
     }
 }

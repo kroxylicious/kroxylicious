@@ -27,7 +27,7 @@ import org.apache.kafka.common.protocol.ApiKeys;
 public class Correlation {
     private final ApiKeys apiKey;
     private final short apiVersion;
-    private boolean decodeResponse;
+    private final boolean decodeResponse;
 
     public Correlation(ApiKeys apiKey, short apiVersion, boolean decodeResponse) {
         this.apiKey = apiKey;

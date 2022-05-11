@@ -50,30 +50,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  */
 public abstract class AbstractCodecTest {
 
-    public static final DecodePredicate ALWAYS_DECODE = new DecodePredicate() {
-
-        @Override
-        public boolean shouldDecodeRequest(ApiKeys apiKey, int apiVersion) {
-            return true;
-        }
-
-        @Override
-        public boolean shouldDecodeResponse(ApiKeys apiKey, int apiVersion) {
-            return true;
-        }
-    };
-    public static final DecodePredicate NEVER_DECODE = new DecodePredicate() {
-        @Override
-        public boolean shouldDecodeRequest(ApiKeys apiKey, int apiVersion) {
-            return false;
-        }
-
-        @Override
-        public boolean shouldDecodeResponse(ApiKeys apiKey, int apiVersion) {
-            return false;
-        }
-    };
-
     public static List<? extends Class<?>> messageClasses(List<Object> messages) {
         return messages.stream().map(Object::getClass).collect(Collectors.toList());
     }

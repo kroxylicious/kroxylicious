@@ -14,14 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.strimzi.kproxy.interceptor;
+package io.strimzi.kproxy.internal;
 
-import io.strimzi.kproxy.codec.DecodedResponseFrame;
+import java.util.List;
 
-/**
- * Handler for one or more Kafka protocol response types.
- */
-public interface ResponseHandler {
+import io.strimzi.kproxy.api.filter.KrpcFilter;
 
-    DecodedResponseFrame<?> handleResponse(DecodedResponseFrame<?> responseFrame, HandlerContext ctx);
+public interface FilterFactory {
+
+    List<KrpcFilter> createFilters();
 }

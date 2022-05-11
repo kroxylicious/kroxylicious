@@ -35,7 +35,7 @@ import org.apache.kafka.common.serialization.StringSerializer;
 import org.junit.jupiter.api.Test;
 
 import io.debezium.kafka.KafkaCluster;
-import io.strimzi.kproxy.interceptor.Interceptor;
+import io.strimzi.kproxy.internal.FilterFactory;
 import io.strimzi.kproxy.internal.interceptor.AdvertisedListenersInterceptor;
 import io.strimzi.kproxy.internal.interceptor.AdvertisedListenersInterceptor.AddressMapping;
 import io.strimzi.kproxy.internal.interceptor.ApiVersionsInterceptor;
@@ -56,11 +56,11 @@ public class ProxyTest {
 
         String brokerList = startKafkaCluster();
 
-        var interceptors = List.of(
+        FilterFactory filterFactory = () -> List.of(
                 new ApiVersionsInterceptor(),
                 new AdvertisedListenersInterceptor(new FixedAddressMapping(proxyHost, proxyPort)));
 
-        var proxy = startProxy(proxyHost, proxyPort, brokerList, interceptors);
+        var proxy = startProxy(proxyHost, proxyPort, brokerList, filterFactory);
 
         var producer = new KafkaProducer<String, String>(Map.of(
                 ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
@@ -93,13 +93,14 @@ public class ProxyTest {
 
         String brokerList = startKafkaCluster();
 
-        var interceptors = List.of(
+        FilterFactory filterFactory = () -> List.of(
                 new ApiVersionsInterceptor(),
                 new AdvertisedListenersInterceptor(new FixedAddressMapping(proxyHost, proxyPort)),
                 new ProduceRecordTransformationInterceptor(
                         buffer -> ByteBuffer.wrap(new String(StandardCharsets.UTF_8.decode(buffer).array()).toUpperCase().getBytes(StandardCharsets.UTF_8))));
 
-        var proxy = startProxy(proxyHost, proxyPort, brokerList, interceptors);
+        var proxy = startProxy(proxyHost, proxyPort, brokerList,
+                filterFactory);
 
         var producer = new KafkaProducer<String, String>(Map.of(
                 ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
@@ -125,10 +126,20 @@ public class ProxyTest {
         proxy.shutdown();
     }
 
-    private KafkaProxy startProxy(String proxyHost, int proxyPort, String brokerList, List<Interceptor> interceptors) throws InterruptedException {
+    private KafkaProxy startProxy(String proxyHost,
+                                  int proxyPort,
+                                  String brokerList,
+                                  FilterFactory filterFactory)
+            throws InterruptedException {
         String[] hostPort = brokerList.split(",")[0].split(":");
 
-        KafkaProxy kafkaProxy = new KafkaProxy(proxyHost, proxyPort, hostPort[0], parseInt(hostPort[1]), true, true, interceptors);
+        KafkaProxy kafkaProxy = new KafkaProxy(proxyHost,
+                proxyPort,
+                hostPort[0],
+                parseInt(hostPort[1]),
+                true,
+                true,
+                filterFactory);
         kafkaProxy.startup();
         return kafkaProxy;
     }

@@ -16,6 +16,7 @@
  */
 package io.strimzi.kproxy.codec;
 
+import java.util.List;
 import java.util.Map;
 
 import org.apache.kafka.common.message.AddOffsetsToTxnRequestData;
@@ -55,17 +56,23 @@ import org.apache.logging.log4j.Logger;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
+import io.strimzi.kproxy.api.filter.KrpcRequestFilter;
+import io.strimzi.kproxy.api.filter.KrpcResponseFilter;
 
 public class KafkaRequestDecoder extends KafkaMessageDecoder {
 
     private static final Logger LOGGER = LogManager.getLogger(KafkaRequestDecoder.class);
 
-    private final DecodePredicate decode;
+    private final List<KrpcRequestFilter> requestFilterHandlers;
+    private final List<KrpcResponseFilter> responseFilterHandlers;
     private final Map<Integer, Correlation> correlation;
 
-    public KafkaRequestDecoder(DecodePredicate decode, Map<Integer, Correlation> correlation) {
+    public KafkaRequestDecoder(List<KrpcRequestFilter> requestFilterHandlers,
+                               List<KrpcResponseFilter> responseFilterHandlers,
+                               Map<Integer, Correlation> correlation) {
         super();
-        this.decode = decode;
+        this.requestFilterHandlers = requestFilterHandlers;
+        this.responseFilterHandlers = responseFilterHandlers;
         this.correlation = correlation;
     }
 
@@ -77,9 +84,9 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
     @Override
     protected Frame decodeHeaderAndBody(ChannelHandlerContext ctx, ByteBuf in, final int length) {
         // Read the api key and version to determine the header api version
-        int sof = in.readerIndex();
+        final int sof = in.readerIndex();
         var apiId = in.readShort();
-        // TODO handle unknown id
+        // TODO handle unknown api key
         ApiKeys apiKey = ApiKeys.forId(apiId);
         if (log().isTraceEnabled()) { // avoid boxing
             log().trace("{}: apiKey: {} {}", ctx, apiId, apiKey);
@@ -91,8 +98,9 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
 
         RequestHeaderData header = null;
         final ByteBufAccessor accessor;
-        boolean decodeRequest = decode.shouldDecodeRequest(apiKey, apiVersion);
-        boolean decodeResponse = decode.shouldDecodeResponse(apiKey, apiVersion);
+        // build the list of filters and use the emptiness rather than booleans
+        var decodeRequest = shouldDecodeRequest(apiKey, apiVersion);
+        boolean decodeResponse = shouldDecodeResponse(apiKey, apiVersion);
         log().trace("{}: decodeRequest {}, decodeResponse {}", ctx, decodeRequest, decodeResponse);
         if (decodeRequest || decodeResponse) {
             short headerVersion = apiKey.requestHeaderVersion(apiVersion);
@@ -142,6 +150,24 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
             }
         }
         return frame;
+    }
+
+    private boolean shouldDecodeResponse(ApiKeys apiKey, short apiVersion) {
+        for (var f : responseFilterHandlers) {
+            if (f.shouldDeserializeResponse(apiKey, apiVersion)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean shouldDecodeRequest(ApiKeys apiKey, short apiVersion) {
+        for (var f : requestFilterHandlers) {
+            if (f.shouldDeserializeRequest(apiKey, apiVersion)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override

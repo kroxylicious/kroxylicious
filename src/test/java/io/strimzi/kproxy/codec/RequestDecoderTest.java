@@ -29,6 +29,9 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.strimzi.kproxy.api.filter.ApiVersionsRequestFilter;
+import io.strimzi.kproxy.api.filter.KrpcFilterContext;
+import io.strimzi.kproxy.api.filter.KrpcFilterState;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -43,7 +46,10 @@ class RequestDecoderTest extends AbstractCodecTest {
                 AbstractCodecTest::exampleApiVersionsRequest,
                 AbstractCodecTest::deserializeRequestHeaderUsingKafkaApis,
                 AbstractCodecTest::deserializeApiVersionsRequestUsingKafkaApis,
-                new KafkaRequestDecoder(AbstractCodecTest.ALWAYS_DECODE, new HashMap<>()),
+                new KafkaRequestDecoder(
+                        List.of((ApiVersionsRequestFilter) (request, context) -> KrpcFilterState.FORWARD),
+                        List.of(),
+                        new HashMap<>()),
                 DecodedRequestFrame.class);
     }
 
@@ -54,7 +60,20 @@ class RequestDecoderTest extends AbstractCodecTest {
                 ApiKeys.API_VERSIONS::requestHeaderVersion,
                 AbstractCodecTest::exampleRequestHeader,
                 AbstractCodecTest::exampleApiVersionsRequest,
-                new KafkaRequestDecoder(AbstractCodecTest.NEVER_DECODE, new HashMap<>()),
+                new KafkaRequestDecoder(
+                        List.of(new ApiVersionsRequestFilter() {
+                            @Override
+                            public boolean shouldDeserializeRequest(ApiKeys apiKey, short apiVersion) {
+                                return false;
+                            }
+
+                            @Override
+                            public KrpcFilterState onApiVersionsRequest(ApiVersionsRequestData request, KrpcFilterContext context) {
+                                return KrpcFilterState.FORWARD;
+                            }
+                        }),
+                        List.of(),
+                        new HashMap<>()),
                 OpaqueRequestFrame.class);
     }
 
@@ -70,7 +89,10 @@ class RequestDecoderTest extends AbstractCodecTest {
         ByteBuf byteBuf = Unpooled.wrappedBuffer(bbuffer.limit(bbuffer.limit() - 1));
 
         var messages = new ArrayList<>();
-        new KafkaRequestDecoder(AbstractCodecTest.ALWAYS_DECODE, new HashMap<>()).decode(null, byteBuf, messages);
+        new KafkaRequestDecoder(
+                List.of((ApiVersionsRequestFilter) (request, context) -> KrpcFilterState.FORWARD),
+                List.of(),
+                new HashMap<>()).decode(null, byteBuf, messages);
 
         assertEquals(List.of(), messageClasses(messages));
         assertEquals(0, byteBuf.readerIndex());
@@ -86,7 +108,10 @@ class RequestDecoderTest extends AbstractCodecTest {
         ByteBuf byteBuf = Unpooled.wrappedBuffer(bbuffer.limit(n));
 
         var messages = new ArrayList<>();
-        new KafkaRequestDecoder(AbstractCodecTest.ALWAYS_DECODE, new HashMap<>()).decode(null, byteBuf, messages);
+        new KafkaRequestDecoder(
+                List.of((ApiVersionsRequestFilter) (request, context) -> KrpcFilterState.FORWARD),
+                List.of(),
+                new HashMap<>()).decode(null, byteBuf, messages);
 
         assertEquals(List.of(), messageClasses(messages));
         assertEquals(expectRead, byteBuf.readerIndex());
@@ -126,7 +151,10 @@ class RequestDecoderTest extends AbstractCodecTest {
         ByteBuf byteBuf = Unpooled.wrappedBuffer(bbuffer);
 
         var messages = new ArrayList<>();
-        new KafkaRequestDecoder(AbstractCodecTest.ALWAYS_DECODE, new HashMap<>()).decode(null, byteBuf, messages);
+        new KafkaRequestDecoder(
+                List.of((ApiVersionsRequestFilter) (request, context) -> KrpcFilterState.FORWARD),
+                List.of(),
+                new HashMap<>()).decode(null, byteBuf, messages);
 
         assertEquals(List.of(DecodedRequestFrame.class, DecodedRequestFrame.class), messageClasses(messages));
         DecodedRequestFrame frame = (DecodedRequestFrame) messages.get(0);

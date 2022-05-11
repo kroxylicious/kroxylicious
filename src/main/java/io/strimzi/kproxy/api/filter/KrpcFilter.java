@@ -14,23 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.strimzi.kproxy.internal;
+package io.strimzi.kproxy.api.filter;
 
-import java.util.Collections;
-import java.util.List;
+/**
+ * Marker interface for filters.
+ * Filter classes may multiply-inherit the subinterfaces of this interface.
+ */
+public /* sealed */ interface KrpcFilter /* TODO permits KrpcRequestFilter, KrpcResponseFilter */ {
 
-import io.netty.channel.socket.SocketChannel;
-import io.strimzi.kproxy.interceptor.Interceptor;
-
-public class InterceptorProviderFactory {
-
-    private final List<Interceptor> interceptors;
-
-    public InterceptorProviderFactory(List<Interceptor> interceptors) {
-        this.interceptors = Collections.unmodifiableList(interceptors);
-    }
-
-    public InterceptorProvider createInterceptorProvider(SocketChannel ch) {
-        return new InterceptorProvider(interceptors);
-    }
 }
