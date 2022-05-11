@@ -42,18 +42,18 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
 
     private final String remoteHost;
     private final int remotePort;
-    private final FilterFactory filterFactory;
+    private final FilterChainFactory filterChainFactory;
     private final boolean logNetwork;
     private final boolean logFrames;
 
     public KafkaProxyInitializer(String remoteHost,
                                  int remotePort,
-                                 FilterFactory filterFactory,
+                                 FilterChainFactory filterChainFactory,
                                  boolean logNetwork,
                                  boolean logFrames) {
         this.remoteHost = remoteHost;
         this.remotePort = remotePort;
-        this.filterFactory = filterFactory;
+        this.filterChainFactory = filterChainFactory;
         this.logNetwork = logNetwork;
         this.logFrames = logFrames;
     }
@@ -84,7 +84,15 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
         return requestFilters;
     }
 
+    /**
+     * Builds a request pipeline for incoming requests from the downstream client.
+     * @param filters The filters in the pipeline (response filters won't be added to the result).
+     * @return A list of channel handlers
+     */
     List<ChannelHandler> buildRequestPipeline(List<KrpcRequestFilter> filters) {
+        // Note: we could equally use a single ChannelInboundHandler which itself dispatched to each filter.
+        // Using a ChannelInboundHandler-per-filter model means that we're not occupying the CPU for the
+        // whole filterchain execution => higher latency, but higher throughput.
         List<ChannelHandler> requestFilterHandlers = new ArrayList<>(filters.size());
         for (var requestFilter : filters) {
             requestFilterHandlers.add(new SingleRequestFilterHandler(requestFilter));
@@ -92,7 +100,15 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
         return requestFilterHandlers;
     }
 
+    /**
+     * Builds a response pipeline for incomping responses from the upstream server.
+     * @param filters The filters in the pipeline (request filters won't be added to the result).
+     * @return A list of channel handlers
+     */
     List<ChannelHandler> buildResponsePipeline(List<KrpcResponseFilter> filters) {
+        // Note: we could equally use a single ChannelInboundHandler which itself dispatched to each filter.
+        // Using a ChannelInboundHandler-per-filter model means that we're not occupying the CPU for the
+        // whole filterchain execution => higher latency, but higher throughput.
         List<ChannelHandler> responseFilterHandlers = new ArrayList<>(filters.size());
         for (var responseFilter : filters) {
             responseFilterHandlers.add(new SingleResponseFilterHandler(responseFilter));
@@ -112,7 +128,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
         if (logNetwork) {
             pipeline.addLast("networkLogger", new LoggingHandler("frontend-network", LogLevel.INFO));
         }
-        var filters = filterFactory.createFilters();
+        var filters = filterChainFactory.createFilters();
         var requestFilters = createRequestFilters(filters);
         var responseFilters = createResponseFilters(filters);
         // The decoder, this only cares about the filters

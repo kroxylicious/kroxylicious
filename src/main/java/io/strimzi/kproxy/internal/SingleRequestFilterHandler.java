@@ -16,14 +16,8 @@
  */
 package io.strimzi.kproxy.internal;
 
-import java.nio.ByteBuffer;
-
-import org.apache.kafka.common.protocol.ApiMessage;
-
-import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
-import io.strimzi.kproxy.api.filter.KrpcFilterContext;
 import io.strimzi.kproxy.api.filter.KrpcRequestFilter;
 import io.strimzi.kproxy.codec.DecodedRequestFrame;
 
@@ -56,35 +50,7 @@ public class SingleRequestFilterHandler extends ChannelInboundHandlerAdapter {
             DecodedRequestFrame<?> decodedFrame = (DecodedRequestFrame<?>) msg;
             // Guarding against invoking the filter unexpectely
             if (filter.shouldDeserializeRequest(decodedFrame.apiKey(), decodedFrame.apiVersion())) {
-                var filterContext = new KrpcFilterContext() {
-
-                    @Override
-                    public String channelDescriptor() {
-                        return channelContext.channel().toString();
-                    }
-
-                    @Override
-                    public ByteBuffer allocate(int initialCapacity) {
-                        ByteBuf buffer = channelContext.alloc().buffer(initialCapacity);
-                        ByteBuffer nioBuffer = buffer.nioBuffer();
-                        decodedFrame.add(buffer);
-                        return nioBuffer;
-                    }
-
-                    @Override
-                    public void forwardRequest(ApiMessage header, ApiMessage message) {
-                        // TODO something like ctx.fireChannelRead();
-                        // but how do we know where to send it?
-                        // and what about previous filters in the chain?
-                        throw new UnsupportedOperationException();
-                    }
-
-                    @Override
-                    public void forwardResponse(ApiMessage header, ApiMessage message) {
-                        // TODO
-                        throw new UnsupportedOperationException();
-                    }
-                };
+                var filterContext = new DefaultFilterContext(channelContext, decodedFrame);
                 switch (filter.apply(decodedFrame, filterContext)) {
                     case FORWARD:
                         super.channelRead(ctx, msg);
