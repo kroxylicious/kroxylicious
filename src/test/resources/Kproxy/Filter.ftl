@@ -1,3 +1,8 @@
+<#assign
+  dataClass="${messageSpec.name}Data"
+  filterClass="${messageSpec.name}Filter"
+  msgType=messageSpec.type?lower_case
+/>
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements. See the NOTICE file distributed with
@@ -22,31 +27,36 @@ import org.apache.kafka.common.message.${messageSpec.name}Data;
  * A stateless filter for ${messageSpec.name}s.
  * The same instance may be invoked on multiple channels.
  */
-public interface ${messageSpec.name}Filter {
+public interface ${filterClass} extends Krpc${msgType?cap_first}Filter {
+<#--
+    @Override
+    public default void accept(Krpc${msgType?cap_first}Visitor visitor) {
+        visitor.visit${filterClass}(this);
+    }
 
     /**
-     * Decide whether {@link #on${messageSpec.name}(${messageSpec.name}Data, FilterContext)} should be called on a given ${messageSpec.type?lower_case}.
-     * The ${messageSpec.type?lower_case} will only be deserialized if any of the filters in the filter chain request it,
+     * Decide whether {@link #on${messageSpec.name}(${messageSpec.name}Data, FilterContext)} should be called on a given ${msgType}.
+     * The ${msgType} will only be deserialized if any of the filters in the filter chain request it,
      * otherwise it will be pass up/down stream without being deserialized.
      * @param context The context.
-     * @return true if {@link #on${messageSpec.name}(${messageSpec.name}Data, FilterContext)} should be called on a given ${messageSpec.type}
+     * @return true if {@link #on${messageSpec.name}(${dataClass}, KrpcFilterContext)} should be called on a given ${messageSpec.type}
      */
     public default boolean shouldIntercept${messageSpec.name}(FilterContext context) {
         return true;
     }
-
+-->
     /**
-     * Handle the given {@code ${messageSpec.type?lower_case}},
+     * Handle the given {@code ${msgType}},
      * returning the {@code ${messageSpec.name}Data} instance to be passed to the next filter.
      * The implementation may modify the given {@code data} in-place and return it,
      * or instantiate a new one.
      *
-     * @param ${messageSpec.type?lower_case} The KRPC message to handle.
+     * @param ${msgType} The KRPC message to handle.
      * @param context The context.
-     * @return the {@code ${messageSpec.type?lower_case}} to be passed to the next filter.
-     * If null is returned then the given {@code ${messageSpec.type?lower_case}} will be used.
+     * @return the {@code ${msgType}} to be passed to the next filter.
+     * If null is returned then the given {@code ${msgType}} will be used.
      */
-    public ${messageSpec.name}Data on${messageSpec.name}(${messageSpec.name}Data ${messageSpec.type?lower_case}, FilterContext context);
+    public KrpcFilterState on${messageSpec.name}(${dataClass} ${msgType}, KrpcFilterContext context);
 
     <#-- TODO this is completely wrong, since it assumes a 1-to-1 relationship between down- and upstream requests
     // (or up- and downstream responses).
