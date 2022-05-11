@@ -80,7 +80,7 @@ public class SingleResponseFilterHandler extends ChannelInboundHandlerAdapter {
             };
 
             if (filter.shouldDeserializeResponse(decodedFrame.apiKey(), decodedFrame.apiVersion())) {
-                switch (KrpcResponseFilter.applyResponseFilter(filter, decodedFrame, filterContext)) {
+                switch (filter.apply(decodedFrame, filterContext)) {
                     case FORWARD:
                         super.channelRead(ctx, msg);
                         break;

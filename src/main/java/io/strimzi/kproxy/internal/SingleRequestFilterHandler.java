@@ -85,7 +85,7 @@ public class SingleRequestFilterHandler extends ChannelInboundHandlerAdapter {
                         throw new UnsupportedOperationException();
                     }
                 };
-                switch (KrpcRequestFilter.applyRequestFilter(filter, decodedFrame, filterContext)) {
+                switch (filter.apply(decodedFrame, filterContext)) {
                     case FORWARD:
                         super.channelRead(ctx, msg);
                         break;
