@@ -21,13 +21,14 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.UncheckedIOException;
+import java.lang.System.Logger;
+import java.lang.System.Logger.Level;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -44,21 +45,14 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.github.tombentley.krpccodegen.model.KrpcSchemaObjectWrapper;
 import com.github.tombentley.krpccodegen.model.SnakeCase;
 import com.github.tombentley.krpccodegen.schema.MessageSpec;
-import com.github.tombentley.krpccodegen.schema.MessageSpecType;
 import com.github.tombentley.krpccodegen.schema.StructRegistry;
+
 import freemarker.template.Configuration;
 import freemarker.template.TemplateException;
 import freemarker.template.TemplateExceptionHandler;
 import freemarker.template.Version;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class KrpcGenerator {
-    private static final Logger LOGGER = LoggerFactory.getLogger(KrpcGenerator.class);
-
-    static final String JSON_SUFFIX = ".json";
-
-    static final String JSON_GLOB = "*" + JSON_SUFFIX;
 
     static final ObjectMapper JSON_SERDE = new ObjectMapper();
     static {
@@ -69,18 +63,24 @@ public class KrpcGenerator {
         JSON_SERDE.setSerializationInclusion(JsonInclude.Include.NON_EMPTY);
     }
 
+    private final Logger logger;
+
     private File schemaDir = new File(".");
+    private String schemaFilter;
     private File outputDir = new File(".");
     private File templateDir = new File(".");
-    private Charset templateEncoding = StandardCharsets.UTF_8;
+    private final Charset templateEncoding = StandardCharsets.UTF_8;
     private List<String> templateNames;
     private String outputFilePattern;
-    private Charset outputEncoding = StandardCharsets.UTF_8;
-    private EnumSet<MessageSpecType> acceptedTypes = EnumSet.allOf(MessageSpecType.class);
+    private final Charset outputEncoding = StandardCharsets.UTF_8;
 
-    /** @return The source directory containing the schema (json) files. */
-    public File getSchemaDir() {
-        return schemaDir;
+
+    public KrpcGenerator() {
+        this.logger = System.getLogger(KrpcGenerator.class.getName());
+    }
+
+    public KrpcGenerator(Logger logger) {
+        this.logger = logger;
     }
 
     /** @param schemaDir The source directory containing the schema (json) files. */
@@ -88,9 +88,8 @@ public class KrpcGenerator {
         this.schemaDir = schemaDir;
     }
 
-    /** @return The output directory */
-    public File getOutputDir() {
-        return outputDir;
+    public void setSchemaFilter(String schemaFilter) {
+        this.schemaFilter = schemaFilter;
     }
 
     /** @param outputDir The output directory */
@@ -98,29 +97,14 @@ public class KrpcGenerator {
         this.outputDir = outputDir;
     }
 
-    /** @return Directory containing the templates to apply */
-    public File getTemplateDir() {
-        return templateDir;
-    }
-
     /** @param templateDir Directory containing the templates to apply */
     public void setTemplateDir(File templateDir) {
         this.templateDir = templateDir;
     }
 
-    /** @return The names of the templates to be applied */
-    public List<String> getTemplateNames() {
-        return templateNames;
-    }
-
     /** @param templateNames The names of the templates to be applied */
     public void setTemplateNames(List<String> templateNames) {
         this.templateNames = templateNames;
-    }
-
-    /** @return The output file pattern */
-    public String getOutputFilePattern() {
-        return outputFilePattern;
     }
 
     /** @param outputFilePattern The output file pattern */
@@ -143,11 +127,7 @@ public class KrpcGenerator {
     }
 
     private void render(Configuration cfg, MessageSpec messageSpec) {
-        if (!acceptedTypes.contains(messageSpec.type())) {
-            LOGGER.info("Ignoring schema {} with type {}", messageSpec.name(), messageSpec.type());
-            return;
-        }
-        LOGGER.info("Processing schema {}", messageSpec.name());
+        logger.log(Level.INFO, "Processing schema {0}", messageSpec.name());
         var structRegistry = new StructRegistry();
         try {
             structRegistry.register(messageSpec);
@@ -156,13 +136,13 @@ public class KrpcGenerator {
         }
         templateNames.forEach(templateName -> {
             try {
-                LOGGER.info("Parsing template {}", templateName);
+                logger.log(Level.INFO, "Parsing template {0}", templateName);
                 var template = cfg.getTemplate(templateName);
                 // TODO support output to stdout via `-`
                 var outputFile = new File(outputDir, outputFile(outputFilePattern, messageSpec.name(), templateName));
-                LOGGER.info("Opening output file {}", outputFile);
+                logger.log(Level.INFO, "Opening output file {0}", outputFile);
                 try (var writer = new OutputStreamWriter(new FileOutputStream(outputFile), outputEncoding)) {
-                    LOGGER.info("Processing schema {} with template {} to {}", messageSpec.name(), templateName, outputFile);
+                    logger.log(Level.INFO, "Processing schema {0} with template {1} to {2}", messageSpec.name(), templateName, outputFile);
                     Map<String, Object> dataModel = Map.of(
                             "structRegistry", structRegistry,
                             "messageSpec", messageSpec,
@@ -178,11 +158,11 @@ public class KrpcGenerator {
     }
 
     private Stream<MessageSpec> messageSpecs() {
-        LOGGER.info("Finding schemas in {}", schemaDir);
-        LOGGER.info("{}", Arrays.toString(schemaDir.listFiles()));
+        logger.log(Level.INFO, "Finding schemas in {0}", schemaDir);
+        logger.log(Level.INFO, "{0}", Arrays.toString(schemaDir.listFiles()));
         Set<Path> paths;
         try (DirectoryStream<Path> directoryStream = Files
-                .newDirectoryStream(schemaDir.toPath(), JSON_GLOB)) {
+                .newDirectoryStream(schemaDir.toPath(), schemaFilter)) {
             Spliterator<Path> spliterator = directoryStream.spliterator();
             paths = StreamSupport.stream(spliterator, false).collect(Collectors.toSet());
         } catch (IOException e) {
@@ -191,9 +171,9 @@ public class KrpcGenerator {
 
         return paths.stream().map(inputPath -> {
             try {
-                LOGGER.info("Parsing schema {}", inputPath);
+                logger.log(Level.INFO, "Parsing schema {0}", inputPath);
                 MessageSpec messageSpec = JSON_SERDE.readValue(inputPath.toFile(), MessageSpec.class);
-                LOGGER.info("Loaded {} from {}", messageSpec.name(), inputPath);
+                logger.log(Level.INFO, "Loaded {0} from {1}", messageSpec.name(), inputPath);
                 return messageSpec;
             } catch (Exception e) {
                 throw new RuntimeException("Exception while processing " + inputPath.toString(), e);
@@ -208,8 +188,6 @@ public class KrpcGenerator {
         Version version = Configuration.VERSION_2_3_31;
         Configuration cfg = new Configuration(version);
 
-        // Specify the source where the template files come from. Here I set a
-        // plain directory for it, but non-file-system sources are possible too:
         cfg.setDirectoryForTemplateLoading(templateDir);
 
         // From here we will set the settings recommended for new projects. These
@@ -234,7 +212,7 @@ public class KrpcGenerator {
 
         cfg.setObjectWrapper(new KrpcSchemaObjectWrapper(version));
 
-        LOGGER.info("Created FreeMarker config");
+        logger.log(Level.INFO, "Created FreeMarker config");
         return cfg;
     }
 

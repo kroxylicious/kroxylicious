@@ -29,6 +29,7 @@ class KrpcGeneratorTest {
 
     private static final String MESSAGE_SCHEMAS_PATH = "message-schemas/common/message";
     private static final String OUTPUT_DIR = "generated-test-sources/krpc";
+    private static final String TEST_CLASSES_DIR = "test-classes";
 
     @Test
     public void testHelloWorld() throws IOException {
@@ -37,14 +38,13 @@ class KrpcGeneratorTest {
         File outputDir = getOutputDir();
         outputDir.mkdirs();
         gen.setOutputDir(outputDir);
+        gen.setOutputFilePattern("${schemaName}.txt");
 
         gen.setSchemaDir(getSchemaDir());
+        gen.setSchemaFilter("*.json");
 
-        gen.setTemplateDir(new File("src/test/resources/hello-world"));
-
-        gen.setTemplateNames(List.of("example.ftl"));
-
-        gen.setOutputFilePattern("${schemaName}.txt");
+        gen.setTemplateDir(getTemplateDir());
+        gen.setTemplateNames(List.of("hello-world/example.ftl"));
 
         gen.generate();
     }
@@ -56,14 +56,13 @@ class KrpcGeneratorTest {
         File outputDir = getOutputDir();
         outputDir.mkdirs();
         gen.setOutputDir(outputDir);
+        gen.setOutputFilePattern("${schemaName}.java");
 
         gen.setSchemaDir(getSchemaDir());
+        gen.setSchemaFilter("*.json");
 
-        gen.setTemplateDir(new File("src/test/resources/Data"));
-
-        gen.setTemplateNames(List.of("example.ftl"));
-
-        gen.setOutputFilePattern("${schemaName}.java");
+        gen.setTemplateDir(getTemplateDir());
+        gen.setTemplateNames(List.of("Data/example.ftl"));
 
         gen.generate();
     }
@@ -75,14 +74,13 @@ class KrpcGeneratorTest {
         File outputDir = getOutputDir();
         outputDir.mkdirs();
         gen.setOutputDir(outputDir);
+        gen.setOutputFilePattern("${schemaName}Filter.java");
 
         gen.setSchemaDir(getSchemaDir());
+        gen.setSchemaFilter("*.json");
 
-        gen.setTemplateDir(new File("src/test/resources/Kproxy"));
-
-        gen.setTemplateNames(List.of("Filter.ftl"));
-
-        gen.setOutputFilePattern("${schemaName}Filter.java");
+        gen.setTemplateDir(getTemplateDir());
+        gen.setTemplateNames(List.of("Kproxy/Filter.ftl"));
 
         gen.generate();
     }
@@ -93,6 +91,10 @@ class KrpcGeneratorTest {
 
     private static File getOutputDir() {
         return getBuildDir().resolve(OUTPUT_DIR).toFile();
+    }
+
+    private static File getTemplateDir() {
+        return getBuildDir().resolve(TEST_CLASSES_DIR).toFile();
     }
 
     private static Path getBuildDir() {
