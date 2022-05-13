@@ -38,7 +38,7 @@ public class DefaultHandlerContext implements HandlerContext {
 
     @Override
     public ByteBuf allocate(int initialCapacity) {
-        final ByteBuf buffer = ctx.alloc().directBuffer(initialCapacity);
+        final ByteBuf buffer = ctx.alloc().heapBuffer(initialCapacity);
         decodedFrame.add(buffer);
         return buffer;
     }
