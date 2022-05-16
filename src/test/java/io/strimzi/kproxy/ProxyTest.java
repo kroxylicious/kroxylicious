@@ -128,7 +128,7 @@ public class ProxyTest {
     private KafkaProxy startProxy(String proxyHost, int proxyPort, String brokerList, List<Interceptor> interceptors) throws InterruptedException {
         String[] hostPort = brokerList.split(",")[0].split(":");
 
-        KafkaProxy kafkaProxy = new KafkaProxy(proxyHost, proxyPort, hostPort[0], parseInt(hostPort[1]), true, true, interceptors);
+        KafkaProxy kafkaProxy = new KafkaProxy(proxyHost, proxyPort, hostPort[0], parseInt(hostPort[1]), true, true, false, interceptors);
         kafkaProxy.startup();
         return kafkaProxy;
     }
