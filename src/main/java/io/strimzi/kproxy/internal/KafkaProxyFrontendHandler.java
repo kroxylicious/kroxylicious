@@ -92,7 +92,8 @@ public class KafkaProxyFrontendHandler extends ChannelInboundHandlerAdapter {
         b.group(inboundChannel.eventLoop())
                 .channel(ctx.channel().getClass())
                 .handler(backendHandler)
-                .option(ChannelOption.AUTO_READ, true);
+                .option(ChannelOption.AUTO_READ, true)
+                .option(ChannelOption.TCP_NODELAY, true);
 
         LOGGER.trace("Connecting to outbound {}:{}", remoteHost, remotePort);
         ChannelFuture connectFuture = b.connect(remoteHost, remotePort);

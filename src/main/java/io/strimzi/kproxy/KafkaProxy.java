@@ -18,6 +18,10 @@ package io.strimzi.kproxy;
 
 import java.util.List;
 
+import io.netty.channel.epoll.EpollChannelOption;
+import io.netty.incubator.channel.uring.IOUring;
+import io.netty.incubator.channel.uring.IOUringEventLoopGroup;
+import io.netty.incubator.channel.uring.IOUringServerSocketChannel;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -48,6 +52,7 @@ public final class KafkaProxy {
     private final int brokerPort;
     private final boolean logNetwork;
     private final boolean logFrames;
+    private final boolean useIoUring;
     private final List<Interceptor> interceptors;
     private EventLoopGroup bossGroup;
     private EventLoopGroup workerGroup;
@@ -58,6 +63,7 @@ public final class KafkaProxy {
                 Integer.parseInt(System.getProperty("localPort", "9192")),
                 System.getProperty("remoteHost", "localhost"),
                 Integer.parseInt(System.getProperty("remotePort", "9092")),
+                Boolean.getBoolean("useIoUring"),
                 false,
                 false,
                 List.of(
@@ -84,6 +90,7 @@ public final class KafkaProxy {
                       int brokerPort,
                       boolean logNetwork,
                       boolean logFrames,
+                      boolean useIoUring,
                       List<Interceptor> interceptors) {
         this.proxyHost = proxyHost;
         this.proxyPort = proxyPort;
@@ -91,6 +98,7 @@ public final class KafkaProxy {
         this.brokerPort = brokerPort;
         this.logNetwork = logNetwork;
         this.logFrames = logFrames;
+        this.useIoUring = useIoUring;
         this.interceptors = interceptors;
     }
 
@@ -118,6 +126,10 @@ public final class KafkaProxy {
         return brokerHost() + ":" + brokerPort();
     }
 
+    public boolean useIoUring() {
+        return useIoUring;
+    }
+
     /**
      * Starts this proxy.
      * @return This proxy.
@@ -131,29 +143,38 @@ public final class KafkaProxy {
 
         InterceptorProviderFactory interceptorProviderFactory = new InterceptorProviderFactory(interceptors);
         KafkaProxyInitializer initializer = new KafkaProxyInitializer(brokerHost, brokerPort, interceptorProviderFactory, logNetwork, logFrames);
-
+        final int availableCores = Runtime.getRuntime().availableProcessors();
         // Configure the bootstrap.
         final Class<? extends ServerChannel> channelClass;
-        if (Epoll.isAvailable()) {
+        if (useIoUring) {
+            if (!IOUring.isAvailable()) {
+                throw new IllegalStateException("io_uring not available due to: " + IOUring.unavailabilityCause());
+            }
+            bossGroup = new IOUringEventLoopGroup(1);
+            workerGroup = new IOUringEventLoopGroup(availableCores);
+            channelClass = IOUringServerSocketChannel.class;
+        }
+        else if (Epoll.isAvailable()) {
             bossGroup = new EpollEventLoopGroup(1);
-            workerGroup = new EpollEventLoopGroup();
+            workerGroup = new EpollEventLoopGroup(availableCores);
             channelClass = EpollServerSocketChannel.class;
         }
         else if (KQueue.isAvailable()) {
             bossGroup = new KQueueEventLoopGroup(1);
-            workerGroup = new KQueueEventLoopGroup();
+            workerGroup = new KQueueEventLoopGroup(availableCores);
             channelClass = KQueueServerSocketChannel.class;
         }
         else {
             bossGroup = new NioEventLoopGroup(1);
-            workerGroup = new NioEventLoopGroup();
+            workerGroup = new NioEventLoopGroup(availableCores);
             channelClass = NioServerSocketChannel.class;
         }
         ServerBootstrap serverBootstrap = new ServerBootstrap().group(bossGroup, workerGroup)
                 .channel(channelClass)
-                .handler(new LoggingHandler(LogLevel.INFO))
                 .childHandler(initializer)
-                .childOption(ChannelOption.AUTO_READ, false);
+                .childOption(ChannelOption.AUTO_READ, false)
+                .childOption(ChannelOption.TCP_NODELAY, true);
+
         ChannelFuture bindFuture;
         if (proxyHost != null) {
             bindFuture = serverBootstrap.bind(proxyHost, proxyPort);
