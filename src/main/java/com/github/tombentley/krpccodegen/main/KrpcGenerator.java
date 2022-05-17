@@ -136,13 +136,13 @@ public class KrpcGenerator {
         }
         templateNames.forEach(templateName -> {
             try {
-                logger.log(Level.INFO, "Parsing template {0}", templateName);
+                logger.log(Level.DEBUG, "Parsing template {0}", templateName);
                 var template = cfg.getTemplate(templateName);
                 // TODO support output to stdout via `-`
                 var outputFile = new File(outputDir, outputFile(outputFilePattern, messageSpec.name(), templateName));
-                logger.log(Level.INFO, "Opening output file {0}", outputFile);
+                logger.log(Level.DEBUG, "Opening output file {0}", outputFile);
                 try (var writer = new OutputStreamWriter(new FileOutputStream(outputFile), outputEncoding)) {
-                    logger.log(Level.INFO, "Processing schema {0} with template {1} to {2}", messageSpec.name(), templateName, outputFile);
+                    logger.log(Level.DEBUG, "Processing schema {0} with template {1} to {2}", messageSpec.name(), templateName, outputFile);
                     Map<String, Object> dataModel = Map.of(
                             "structRegistry", structRegistry,
                             "messageSpec", messageSpec,
@@ -159,7 +159,7 @@ public class KrpcGenerator {
 
     private Stream<MessageSpec> messageSpecs() {
         logger.log(Level.INFO, "Finding schemas in {0}", schemaDir);
-        logger.log(Level.INFO, "{0}", Arrays.toString(schemaDir.listFiles()));
+        logger.log(Level.DEBUG, "{0}", Arrays.toString(schemaDir.listFiles()));
         Set<Path> paths;
         try (DirectoryStream<Path> directoryStream = Files
                 .newDirectoryStream(schemaDir.toPath(), schemaFilter)) {
@@ -171,9 +171,9 @@ public class KrpcGenerator {
 
         return paths.stream().map(inputPath -> {
             try {
-                logger.log(Level.INFO, "Parsing schema {0}", inputPath);
+                logger.log(Level.DEBUG, "Parsing schema {0}", inputPath);
                 MessageSpec messageSpec = JSON_SERDE.readValue(inputPath.toFile(), MessageSpec.class);
-                logger.log(Level.INFO, "Loaded {0} from {1}", messageSpec.name(), inputPath);
+                logger.log(Level.DEBUG, "Loaded {0} from {1}", messageSpec.name(), inputPath);
                 return messageSpec;
             } catch (Exception e) {
                 throw new RuntimeException("Exception while processing " + inputPath.toString(), e);
@@ -212,7 +212,7 @@ public class KrpcGenerator {
 
         cfg.setObjectWrapper(new KrpcSchemaObjectWrapper(version));
 
-        logger.log(Level.INFO, "Created FreeMarker config");
+        logger.log(Level.DEBUG, "Created FreeMarker config");
         return cfg;
     }
 
