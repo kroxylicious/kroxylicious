@@ -33,54 +33,42 @@ class KrpcGeneratorTest {
 
     @Test
     public void testHelloWorld() throws IOException {
-        KrpcGenerator gen = new KrpcGenerator();
-
-        File outputDir = getOutputDir();
-        outputDir.mkdirs();
-        gen.setOutputDir(outputDir);
-        gen.setOutputFilePattern("${schemaName}.txt");
-
-        gen.setSchemaDir(getSchemaDir());
-        gen.setSchemaFilter("*.json");
-
-        gen.setTemplateDir(getTemplateDir());
-        gen.setTemplateNames(List.of("hello-world/example.ftl"));
+        KrpcGenerator gen = new KrpcGenerator.Builder()
+                .withSchemaDir(getSchemaDir())
+                .withSchemaFilter("*.json")
+                .withTemplateDir(getTemplateDir())
+                .withTemplateNames(List.of("hello-world/example.ftl"))
+                .withOutputDir(getOutputDir())
+                .withOutputFilePattern("${schemaName}.txt")
+                .build();
 
         gen.generate();
     }
 
     @Test
     public void testKrpcData() throws IOException {
-        KrpcGenerator gen = new KrpcGenerator();
-
-        File outputDir = getOutputDir();
-        outputDir.mkdirs();
-        gen.setOutputDir(outputDir);
-        gen.setOutputFilePattern("${schemaName}.java");
-
-        gen.setSchemaDir(getSchemaDir());
-        gen.setSchemaFilter("*.json");
-
-        gen.setTemplateDir(getTemplateDir());
-        gen.setTemplateNames(List.of("Data/example.ftl"));
+        KrpcGenerator gen = new KrpcGenerator.Builder()
+                .withSchemaDir(getSchemaDir())
+                .withSchemaFilter("*.json")
+                .withTemplateDir(getTemplateDir())
+                .withTemplateNames(List.of("Data/example.ftl"))
+                .withOutputDir(getOutputDir())
+                .withOutputFilePattern("${schemaName}.java")
+                .build();
 
         gen.generate();
     }
 
     @Test
     public void testKproxyFilter() throws IOException {
-        KrpcGenerator gen = new KrpcGenerator();
-
-        File outputDir = getOutputDir();
-        outputDir.mkdirs();
-        gen.setOutputDir(outputDir);
-        gen.setOutputFilePattern("${schemaName}Filter.java");
-
-        gen.setSchemaDir(getSchemaDir());
-        gen.setSchemaFilter("*.json");
-
-        gen.setTemplateDir(getTemplateDir());
-        gen.setTemplateNames(List.of("Kproxy/Filter.ftl"));
+        KrpcGenerator gen = new KrpcGenerator.Builder()
+                .withSchemaDir(getSchemaDir())
+                .withSchemaFilter("*.json")
+                .withTemplateDir(getTemplateDir())
+                .withTemplateNames(List.of("Kproxy/Filter.ftl"))
+                .withOutputDir(getOutputDir())
+                .withOutputFilePattern("${schemaName}Filter.java")
+                .build();
 
         gen.generate();
     }

@@ -45,21 +45,19 @@ public class KrpcGeneratorMojo extends AbstractMojo {
 
     @Override
     public void execute() throws MojoExecutionException, MojoFailureException {
-        KrpcGenerator gen = new KrpcGenerator(new MavenLogger(KrpcGenerator.class.getName(), getLog()));
-
-        gen.setSchemaDir(schemaDirectory);
-        gen.setSchemaFilter(schemaFilter);
-        gen.setTemplateDir(templateDirectory);
-
         List<String> templates = Stream.of(templateNames.split(","))
                 .map(String::trim)
                 .collect(Collectors.toList());
 
-        gen.setTemplateNames(templates);
-
-        outputDirectory.mkdirs();
-        gen.setOutputDir(outputDirectory);
-        gen.setOutputFilePattern(outputFilePattern);
+        KrpcGenerator gen = new KrpcGenerator.Builder()
+                .withLogger(new MavenLogger(KrpcGenerator.class.getName(), getLog()))
+                .withSchemaDir(schemaDirectory)
+                .withSchemaFilter(schemaFilter)
+                .withTemplateDir(templateDirectory)
+                .withTemplateNames(templates)
+                .withOutputDir(outputDirectory)
+                .withOutputFilePattern(outputFilePattern)
+                .build();
 
         try {
             gen.generate();

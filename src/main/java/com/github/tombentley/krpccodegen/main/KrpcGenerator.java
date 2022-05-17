@@ -54,6 +54,60 @@ import freemarker.template.Version;
 
 public class KrpcGenerator {
 
+    public static class Builder {
+
+        private Logger logger;
+
+        private File schemaDir;
+        private String schemaFilter;
+
+        private File templateDir;
+        private List<String> templateNames;
+
+        private File outputDir;
+        private String outputFilePattern;
+
+
+        public Builder withLogger(Logger logger) {
+            this.logger = logger;
+            return this;
+        }
+
+        public Builder withSchemaDir(File schemaDir) {
+            this.schemaDir = schemaDir;
+            return this;
+        }
+
+        public Builder withSchemaFilter(String schemaFilter) {
+            this.schemaFilter = schemaFilter;
+            return this;
+        }
+
+        public Builder withTemplateDir(File templateDir) {
+            this.templateDir = templateDir;
+            return this;
+        }
+
+        public Builder withTemplateNames(List<String> templateNames) {
+            this.templateNames = templateNames;
+            return this;
+        }
+
+        public Builder withOutputDir(File outputDir) {
+            this.outputDir = outputDir;
+            return this;
+        }
+
+        public Builder withOutputFilePattern(String outputFilePattern) {
+            this.outputFilePattern = outputFilePattern;
+            return this;
+        }
+
+        public KrpcGenerator build() {
+            return new KrpcGenerator(logger, schemaDir, schemaFilter, templateDir, templateNames, outputDir, outputFilePattern);
+        }
+    }
+
     static final ObjectMapper JSON_SERDE = new ObjectMapper();
     static {
         JSON_SERDE.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
@@ -65,51 +119,29 @@ public class KrpcGenerator {
 
     private final Logger logger;
 
-    private File schemaDir = new File(".");
-    private String schemaFilter;
-    private File outputDir = new File(".");
-    private File templateDir = new File(".");
+    private final File schemaDir;
+    private final String schemaFilter;
+
+    private final File templateDir;
     private final Charset templateEncoding = StandardCharsets.UTF_8;
-    private List<String> templateNames;
-    private String outputFilePattern;
+    private final List<String> templateNames;
+
+    private final File outputDir;
+    private final String outputFilePattern;
     private final Charset outputEncoding = StandardCharsets.UTF_8;
 
-
-    public KrpcGenerator() {
-        this.logger = System.getLogger(KrpcGenerator.class.getName());
-    }
-
-    public KrpcGenerator(Logger logger) {
-        this.logger = logger;
-    }
-
-    /** @param schemaDir The source directory containing the schema (json) files. */
-    public void setSchemaDir(File schemaDir) {
-        this.schemaDir = schemaDir;
-    }
-
-    public void setSchemaFilter(String schemaFilter) {
+    public KrpcGenerator(Logger logger, File schemaDir, String schemaFilter, File templateDir, List<String> templateNames, File outputDir, String outputFilePattern) {
+        this.logger = logger != null ? logger : System.getLogger(KrpcGenerator.class.getName());
+        this.schemaDir = schemaDir != null ? schemaDir : new File(".");
         this.schemaFilter = schemaFilter;
-    }
-
-    /** @param outputDir The output directory */
-    public void setOutputDir(File outputDir) {
-        this.outputDir = outputDir;
-    }
-
-    /** @param templateDir Directory containing the templates to apply */
-    public void setTemplateDir(File templateDir) {
         this.templateDir = templateDir;
-    }
-
-    /** @param templateNames The names of the templates to be applied */
-    public void setTemplateNames(List<String> templateNames) {
         this.templateNames = templateNames;
-    }
-
-    /** @param outputFilePattern The output file pattern */
-    public void setOutputFilePattern(String outputFilePattern) {
+        this.outputDir = outputDir;
         this.outputFilePattern = outputFilePattern;
+
+        if (!outputDir.exists()) {
+            outputDir.mkdirs();
+        }
     }
 
     String outputFile(String pattern, String schemaName, String templateName) {
@@ -214,11 +246,5 @@ public class KrpcGenerator {
 
         logger.log(Level.DEBUG, "Created FreeMarker config");
         return cfg;
-    }
-
-    public void main(String[] args) throws IOException {
-        var gen = new KrpcGenerator();
-        // TODO configure generator from args
-        gen.generate();
     }
 }
