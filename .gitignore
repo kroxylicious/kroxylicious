@@ -6,6 +6,7 @@ target/
 .classpath
 .apt_generated/
 .apt_generated_tests/
+bin/
 
 # IntelliJ IDEA specific
 .idea/
