@@ -79,8 +79,8 @@ public final class KafkaProxy {
                                 return port + 100;
                             }
                         })))
-        .startup()
-        .block();
+                                .startup()
+                                .block();
     }
 
     public KafkaProxy(

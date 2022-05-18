@@ -22,13 +22,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import io.strimzi.kproxy.api.filter.ApiVersionsResponseFilter;
-import io.strimzi.kproxy.api.filter.FilterContext;
 import io.strimzi.kproxy.api.filter.KrpcFilterContext;
 import io.strimzi.kproxy.api.filter.KrpcFilterState;
-import io.strimzi.kproxy.codec.DecodedResponseFrame;
-import io.strimzi.kproxy.interceptor.HandlerContext;
-import io.strimzi.kproxy.interceptor.RequestHandler;
-import io.strimzi.kproxy.interceptor.ResponseHandler;
 
 /**
  * Changes an API_VERSIONS response so that a client sees the intersection of supported version ranges for each
@@ -36,9 +31,6 @@ import io.strimzi.kproxy.interceptor.ResponseHandler;
  */
 public class ApiVersionsInterceptor implements ApiVersionsResponseFilter {
     private static final Logger LOGGER = LogManager.getLogger(ApiVersionsInterceptor.class);
-
-    public ApiVersionsInterceptor() {
-    }
 
     private static void intersectApiVersions(String channel, ApiVersionsResponseData resp) {
         for (var key : resp.apiKeys()) {
@@ -82,31 +74,8 @@ public class ApiVersionsInterceptor implements ApiVersionsResponseFilter {
     }
 
     @Override
-    <<<<<<< HEAD
-    public RequestHandler requestHandler() {
-        return null;
+    public KrpcFilterState onApiVersionsResponse(ApiVersionsResponseData data, KrpcFilterContext context) {
+        intersectApiVersions(context.channelDescriptor(), data);
+        return KrpcFilterState.FORWARD;
     }
-
-    @Override
-    public ResponseHandler responseHandler() {
-        return new ResponseHandler() {
-
-            @Override
-            public DecodedResponseFrame<?> handleResponse(DecodedResponseFrame<?> responseFrame, HandlerContext ctx) {
-                var resp = (ApiVersionsResponseData) responseFrame.body();
-                intersectApiVersions(ctx.channelDescriptor(), resp);
-                return responseFrame;
-            }
-        };
-    }
-
-    @Override
-    public ApiVersionsResponseData onApiVersionsResponse(ApiVersionsResponseData data, FilterContext context) {
-        =======
-                @Override
-                public KrpcFilterState onApiVersionsResponse(ApiVersionsResponseData data, KrpcFilterContext context) {
-            >>>>>>> 3a0963c (Get rid of Interceptor and use generated interfaces instead)
-    intersectApiVersions(context.channelDescriptor(), data);
-    return KrpcFilterState.FORWARD;
-        }
-    }
+}
