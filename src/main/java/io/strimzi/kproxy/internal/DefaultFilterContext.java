@@ -16,8 +16,6 @@
  */
 package io.strimzi.kproxy.internal;
 
-import java.nio.ByteBuffer;
-
 import org.apache.kafka.common.protocol.ApiMessage;
 
 import io.netty.buffer.ByteBuf;
@@ -55,11 +53,10 @@ class DefaultFilterContext implements KrpcFilterContext {
      * @return The allocated buffer.
      */
     @Override
-    public ByteBuffer allocate(int initialCapacity) {
-        ByteBuf buffer = channelContext.alloc().buffer(initialCapacity);
-        ByteBuffer nioBuffer = buffer.nioBuffer();
+    public ByteBuf allocate(int initialCapacity) {
+        final ByteBuf buffer = channelContext.alloc().heapBuffer(initialCapacity);
         decodedFrame.add(buffer);
-        return nioBuffer;
+        return buffer;
     }
 
     /**

@@ -16,9 +16,6 @@
  */
 package io.strimzi.kproxy;
 
-import static java.lang.Integer.parseInt;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -44,6 +41,9 @@ import io.strimzi.kproxy.internal.interceptor.AdvertisedListenersInterceptor.Add
 import io.strimzi.kproxy.internal.interceptor.ApiVersionsInterceptor;
 import io.strimzi.kproxy.internal.interceptor.ProduceRecordTransformationInterceptor;
 import io.strimzi.kproxy.util.SystemTest;
+
+import static java.lang.Integer.parseInt;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @SystemTest
 public class ProxyTest {
@@ -130,7 +130,7 @@ public class ProxyTest {
                                   int proxyPort,
                                   String brokerList,
                                   FilterChainFactory filterChainFactory)
-                                          throws InterruptedException {
+            throws InterruptedException {
         String[] hostPort = brokerList.split(",")[0].split(":");
 
         KafkaProxy kafkaProxy = new KafkaProxy(proxyHost,
