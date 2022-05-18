@@ -18,8 +18,8 @@ package io.strimzi.kproxy.internal;
 
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
-import io.strimzi.kproxy.api.filter.KrpcRequestFilter;
 import io.strimzi.kproxy.codec.DecodedRequestFrame;
+import io.strimzi.kproxy.filter.KrpcRequestFilter;
 
 /**
  * A {@code ChannelInboundHandler} (for handling requests from downstream)

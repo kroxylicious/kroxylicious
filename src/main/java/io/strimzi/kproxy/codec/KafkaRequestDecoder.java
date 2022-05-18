@@ -56,8 +56,8 @@ import org.apache.logging.log4j.Logger;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
-import io.strimzi.kproxy.api.filter.KrpcRequestFilter;
-import io.strimzi.kproxy.api.filter.KrpcResponseFilter;
+import io.strimzi.kproxy.filter.KrpcRequestFilter;
+import io.strimzi.kproxy.filter.KrpcResponseFilter;
 
 public class KafkaRequestDecoder extends KafkaMessageDecoder {
 

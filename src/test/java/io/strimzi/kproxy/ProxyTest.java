@@ -36,10 +36,10 @@ import org.junit.jupiter.api.Test;
 
 import io.debezium.kafka.KafkaCluster;
 import io.strimzi.kproxy.internal.FilterChainFactory;
-import io.strimzi.kproxy.internal.interceptor.AdvertisedListenersInterceptor;
-import io.strimzi.kproxy.internal.interceptor.AdvertisedListenersInterceptor.AddressMapping;
-import io.strimzi.kproxy.internal.interceptor.ApiVersionsInterceptor;
-import io.strimzi.kproxy.internal.interceptor.ProduceRecordTransformationInterceptor;
+import io.strimzi.kproxy.internal.filter.AdvertisedListenersFilter;
+import io.strimzi.kproxy.internal.filter.AdvertisedListenersFilter.AddressMapping;
+import io.strimzi.kproxy.internal.filter.ApiVersionsFilter;
+import io.strimzi.kproxy.internal.filter.ProduceRecordTransformationFilter;
 import io.strimzi.kproxy.util.SystemTest;
 
 import static java.lang.Integer.parseInt;
@@ -57,8 +57,8 @@ public class ProxyTest {
         String brokerList = startKafkaCluster();
 
         FilterChainFactory filterChainFactory = () -> List.of(
-                new ApiVersionsInterceptor(),
-                new AdvertisedListenersInterceptor(new FixedAddressMapping(proxyHost, proxyPort)));
+                new ApiVersionsFilter(),
+                new AdvertisedListenersFilter(new FixedAddressMapping(proxyHost, proxyPort)));
 
         var proxy = startProxy(proxyHost, proxyPort, brokerList, filterChainFactory);
 
@@ -94,9 +94,9 @@ public class ProxyTest {
         String brokerList = startKafkaCluster();
 
         FilterChainFactory filterChainFactory = () -> List.of(
-                new ApiVersionsInterceptor(),
-                new AdvertisedListenersInterceptor(new FixedAddressMapping(proxyHost, proxyPort)),
-                new ProduceRecordTransformationInterceptor(
+                new ApiVersionsFilter(),
+                new AdvertisedListenersFilter(new FixedAddressMapping(proxyHost, proxyPort)),
+                new ProduceRecordTransformationFilter(
                         buffer -> ByteBuffer.wrap(new String(StandardCharsets.UTF_8.decode(buffer).array()).toUpperCase().getBytes(StandardCharsets.UTF_8))));
 
         var proxy = startProxy(proxyHost, proxyPort, brokerList,

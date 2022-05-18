@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.strimzi.kproxy.filter.authn;
+package io.strimzi.kproxy.internal.filter.authn;
 
 import org.apache.kafka.common.message.SaslAuthenticateRequestData;
 import org.apache.kafka.common.message.SaslAuthenticateResponseData;
@@ -22,12 +22,12 @@ import org.apache.kafka.common.message.SaslHandshakeRequestData;
 import org.apache.kafka.common.message.SaslHandshakeResponseData;
 import org.apache.kafka.common.protocol.Errors;
 
-import io.strimzi.kproxy.api.filter.KrpcFilterContext;
-import io.strimzi.kproxy.api.filter.KrpcFilterState;
-import io.strimzi.kproxy.api.filter.SaslAuthenticateRequestFilter;
-import io.strimzi.kproxy.api.filter.SaslAuthenticateResponseFilter;
-import io.strimzi.kproxy.api.filter.SaslHandshakeRequestFilter;
-import io.strimzi.kproxy.api.filter.SaslHandshakeResponseFilter;
+import io.strimzi.kproxy.filter.KrpcFilterContext;
+import io.strimzi.kproxy.filter.KrpcFilterState;
+import io.strimzi.kproxy.filter.SaslAuthenticateRequestFilter;
+import io.strimzi.kproxy.filter.SaslAuthenticateResponseFilter;
+import io.strimzi.kproxy.filter.SaslHandshakeRequestFilter;
+import io.strimzi.kproxy.filter.SaslHandshakeResponseFilter;
 
 public class SaslAuthnObserver
         implements SaslHandshakeRequestFilter,

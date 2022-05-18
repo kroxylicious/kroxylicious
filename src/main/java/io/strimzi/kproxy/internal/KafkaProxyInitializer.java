@@ -29,12 +29,12 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
-import io.strimzi.kproxy.api.filter.KrpcFilter;
-import io.strimzi.kproxy.api.filter.KrpcRequestFilter;
-import io.strimzi.kproxy.api.filter.KrpcResponseFilter;
 import io.strimzi.kproxy.codec.Correlation;
 import io.strimzi.kproxy.codec.KafkaRequestDecoder;
 import io.strimzi.kproxy.codec.KafkaResponseEncoder;
+import io.strimzi.kproxy.filter.KrpcFilter;
+import io.strimzi.kproxy.filter.KrpcRequestFilter;
+import io.strimzi.kproxy.filter.KrpcResponseFilter;
 
 public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
 

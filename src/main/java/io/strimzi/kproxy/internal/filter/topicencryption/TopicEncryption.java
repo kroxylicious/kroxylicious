@@ -14,16 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.strimzi.kproxy.filter.topicencryption;
+package io.strimzi.kproxy.internal.filter.topicencryption;
 
 import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.FetchResponseData;
 import org.apache.kafka.common.message.ProduceRequestData;
 
-import io.strimzi.kproxy.api.filter.FetchResponseFilter;
-import io.strimzi.kproxy.api.filter.KrpcFilterContext;
-import io.strimzi.kproxy.api.filter.KrpcFilterState;
-import io.strimzi.kproxy.api.filter.ProduceRequestFilter;
+import io.strimzi.kproxy.filter.FetchResponseFilter;
+import io.strimzi.kproxy.filter.KrpcFilterContext;
+import io.strimzi.kproxy.filter.KrpcFilterState;
+import io.strimzi.kproxy.filter.ProduceRequestFilter;
 
 public class TopicEncryption implements ProduceRequestFilter, FetchResponseFilter {
 
