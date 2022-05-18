@@ -27,19 +27,19 @@ import org.junit.jupiter.api.Test;
  */
 class KrpcGeneratorTest {
 
-    private static final String MESSAGE_SCHEMAS_PATH = "message-schemas/common/message";
+    private static final String MESSAGE_SPECS_PATH = "message-specs/common/message";
     private static final String OUTPUT_DIR = "generated-test-sources/krpc";
     private static final String TEST_CLASSES_DIR = "test-classes";
 
     @Test
     public void testHelloWorld() throws IOException {
         KrpcGenerator gen = new KrpcGenerator.Builder()
-                .withSchemaDir(getSchemaDir())
-                .withSchemaFilter("*.json")
+                .withMessageSpecDir(getMessageSpecDir())
+                .withMessageSpecFilter("*.json")
                 .withTemplateDir(getTemplateDir())
                 .withTemplateNames(List.of("hello-world/example.ftl"))
                 .withOutputDir(getOutputDir())
-                .withOutputFilePattern("${schemaName}.txt")
+                .withOutputFilePattern("${messageSpecName}.txt")
                 .build();
 
         gen.generate();
@@ -48,12 +48,12 @@ class KrpcGeneratorTest {
     @Test
     public void testKrpcData() throws IOException {
         KrpcGenerator gen = new KrpcGenerator.Builder()
-                .withSchemaDir(getSchemaDir())
-                .withSchemaFilter("*.json")
+                .withMessageSpecDir(getMessageSpecDir())
+                .withMessageSpecFilter("*.json")
                 .withTemplateDir(getTemplateDir())
                 .withTemplateNames(List.of("Data/example.ftl"))
                 .withOutputDir(getOutputDir())
-                .withOutputFilePattern("${schemaName}.java")
+                .withOutputFilePattern("${messageSpecName}.java")
                 .build();
 
         gen.generate();
@@ -62,19 +62,19 @@ class KrpcGeneratorTest {
     @Test
     public void testKproxyFilter() throws IOException {
         KrpcGenerator gen = new KrpcGenerator.Builder()
-                .withSchemaDir(getSchemaDir())
-                .withSchemaFilter("*.json")
+                .withMessageSpecDir(getMessageSpecDir())
+                .withMessageSpecFilter("*.json")
                 .withTemplateDir(getTemplateDir())
                 .withTemplateNames(List.of("Kproxy/Filter.ftl"))
                 .withOutputDir(getOutputDir())
-                .withOutputFilePattern("${schemaName}Filter.java")
+                .withOutputFilePattern("${messageSpecName}Filter.java")
                 .build();
 
         gen.generate();
     }
 
-    private static File getSchemaDir() {
-        return getBuildDir().resolve(MESSAGE_SCHEMAS_PATH).toFile();
+    private static File getMessageSpecDir() {
+        return getBuildDir().resolve(MESSAGE_SPECS_PATH).toFile();
     }
 
     private static File getOutputDir() {

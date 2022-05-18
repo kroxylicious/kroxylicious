@@ -26,10 +26,10 @@ public class KrpcGeneratorMojo extends AbstractMojo {
     private MavenProject project;
 
     @Parameter(required = true)
-    private File schemaDirectory;
+    private File messageSpecDirectory;
 
     @Parameter(defaultValue = "*.json")
-    private String schemaFilter;
+    private String messageSpecFilter;
 
     @Parameter(required = true)
     private File templateDirectory;
@@ -37,7 +37,7 @@ public class KrpcGeneratorMojo extends AbstractMojo {
     @Parameter(required = true)
     private String templateNames;
 
-    @Parameter(defaultValue = "${schemaName}.java")
+    @Parameter(defaultValue = "${messageSpecName}.java")
     private String outputFilePattern;
 
     @Parameter(defaultValue = "${project.build.directory}${file.separator}generated-sources${file.separator}/krpc")
@@ -51,8 +51,8 @@ public class KrpcGeneratorMojo extends AbstractMojo {
 
         KrpcGenerator gen = new KrpcGenerator.Builder()
                 .withLogger(new MavenLogger(KrpcGenerator.class.getName(), getLog()))
-                .withSchemaDir(schemaDirectory)
-                .withSchemaFilter(schemaFilter)
+                .withMessageSpecDir(messageSpecDirectory)
+                .withMessageSpecFilter(messageSpecFilter)
                 .withTemplateDir(templateDirectory)
                 .withTemplateNames(templates)
                 .withOutputDir(outputDirectory)

@@ -58,8 +58,8 @@ public class KrpcGenerator {
 
         private Logger logger;
 
-        private File schemaDir;
-        private String schemaFilter;
+        private File messageSpecDir;
+        private String messageSpecFilter;
 
         private File templateDir;
         private List<String> templateNames;
@@ -73,13 +73,13 @@ public class KrpcGenerator {
             return this;
         }
 
-        public Builder withSchemaDir(File schemaDir) {
-            this.schemaDir = schemaDir;
+        public Builder withMessageSpecDir(File messageSpecDir) {
+            this.messageSpecDir = messageSpecDir;
             return this;
         }
 
-        public Builder withSchemaFilter(String schemaFilter) {
-            this.schemaFilter = schemaFilter;
+        public Builder withMessageSpecFilter(String messageSpecFilter) {
+            this.messageSpecFilter = messageSpecFilter;
             return this;
         }
 
@@ -104,7 +104,7 @@ public class KrpcGenerator {
         }
 
         public KrpcGenerator build() {
-            return new KrpcGenerator(logger, schemaDir, schemaFilter, templateDir, templateNames, outputDir, outputFilePattern);
+            return new KrpcGenerator(logger, messageSpecDir, messageSpecFilter, templateDir, templateNames, outputDir, outputFilePattern);
         }
     }
 
@@ -119,8 +119,8 @@ public class KrpcGenerator {
 
     private final Logger logger;
 
-    private final File schemaDir;
-    private final String schemaFilter;
+    private final File messageSpecDir;
+    private final String messageSpecFilter;
 
     private final File templateDir;
     private final Charset templateEncoding = StandardCharsets.UTF_8;
@@ -130,10 +130,10 @@ public class KrpcGenerator {
     private final String outputFilePattern;
     private final Charset outputEncoding = StandardCharsets.UTF_8;
 
-    public KrpcGenerator(Logger logger, File schemaDir, String schemaFilter, File templateDir, List<String> templateNames, File outputDir, String outputFilePattern) {
+    public KrpcGenerator(Logger logger, File messageSpecDir, String messageSpecFilter, File templateDir, List<String> templateNames, File outputDir, String outputFilePattern) {
         this.logger = logger != null ? logger : System.getLogger(KrpcGenerator.class.getName());
-        this.schemaDir = schemaDir != null ? schemaDir : new File(".");
-        this.schemaFilter = schemaFilter;
+        this.messageSpecDir = messageSpecDir != null ? messageSpecDir : new File(".");
+        this.messageSpecFilter = messageSpecFilter;
         this.templateDir = templateDir;
         this.templateNames = templateNames;
         this.outputDir = outputDir;
@@ -144,8 +144,8 @@ public class KrpcGenerator {
         }
     }
 
-    String outputFile(String pattern, String schemaName, String templateName) {
-        return pattern.replaceAll("\\$\\{schemaName\\}", schemaName)
+    private String outputFile(String pattern, String messageSpecName, String templateName) {
+        return pattern.replaceAll("\\$\\{messageSpecName\\}", messageSpecName)
                 .replaceAll("\\$\\{templateName\\}", templateName);
     }
 
@@ -159,7 +159,7 @@ public class KrpcGenerator {
     }
 
     private void render(Configuration cfg, MessageSpec messageSpec) {
-        logger.log(Level.INFO, "Processing schema {0}", messageSpec.name());
+        logger.log(Level.INFO, "Processing message spec {0}", messageSpec.name());
         var structRegistry = new StructRegistry();
         try {
             structRegistry.register(messageSpec);
@@ -174,7 +174,7 @@ public class KrpcGenerator {
                 var outputFile = new File(outputDir, outputFile(outputFilePattern, messageSpec.name(), templateName));
                 logger.log(Level.DEBUG, "Opening output file {0}", outputFile);
                 try (var writer = new OutputStreamWriter(new FileOutputStream(outputFile), outputEncoding)) {
-                    logger.log(Level.DEBUG, "Processing schema {0} with template {1} to {2}", messageSpec.name(), templateName, outputFile);
+                    logger.log(Level.DEBUG, "Processing message spec {0} with template {1} to {2}", messageSpec.name(), templateName, outputFile);
                     Map<String, Object> dataModel = Map.of(
                             "structRegistry", structRegistry,
                             "messageSpec", messageSpec,
@@ -190,11 +190,11 @@ public class KrpcGenerator {
     }
 
     private Stream<MessageSpec> messageSpecs() {
-        logger.log(Level.INFO, "Finding schemas in {0}", schemaDir);
-        logger.log(Level.DEBUG, "{0}", Arrays.toString(schemaDir.listFiles()));
+        logger.log(Level.INFO, "Finding message specs in {0}", messageSpecDir);
+        logger.log(Level.DEBUG, "{0}", Arrays.toString(messageSpecDir.listFiles()));
         Set<Path> paths;
         try (DirectoryStream<Path> directoryStream = Files
-                .newDirectoryStream(schemaDir.toPath(), schemaFilter)) {
+                .newDirectoryStream(messageSpecDir.toPath(), messageSpecFilter)) {
             Spliterator<Path> spliterator = directoryStream.spliterator();
             paths = StreamSupport.stream(spliterator, false).collect(Collectors.toSet());
         } catch (IOException e) {
@@ -203,7 +203,7 @@ public class KrpcGenerator {
 
         return paths.stream().map(inputPath -> {
             try {
-                logger.log(Level.DEBUG, "Parsing schema {0}", inputPath);
+                logger.log(Level.DEBUG, "Parsing message spec {0}", inputPath);
                 MessageSpec messageSpec = JSON_SERDE.readValue(inputPath.toFile(), MessageSpec.class);
                 logger.log(Level.DEBUG, "Loaded {0} from {1}", messageSpec.name(), inputPath);
                 return messageSpec;
