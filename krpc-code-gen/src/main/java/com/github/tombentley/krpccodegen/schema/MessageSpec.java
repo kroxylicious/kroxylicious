@@ -51,8 +51,7 @@ public final class MessageSpec {
         this.struct = new StructSpec(name, validVersions, fields);
         this.apiKey = apiKey == null ? Optional.empty() : Optional.of(apiKey);
         this.type = Objects.requireNonNull(type);
-        this.commonStructs = commonStructs == null ? Collections.emptyList() :
-                Collections.unmodifiableList(new ArrayList<>(commonStructs));
+        this.commonStructs = commonStructs == null ? Collections.emptyList() : Collections.unmodifiableList(new ArrayList<>(commonStructs));
         if (flexibleVersions == null) {
             throw new RuntimeException("You must specify a value for flexibleVersions. " +
                     "Please use 0+ for all new messages.");
@@ -61,13 +60,13 @@ public final class MessageSpec {
         if ((!this.flexibleVersions().empty()) &&
                 (this.flexibleVersions.highest() < Short.MAX_VALUE)) {
             throw new RuntimeException("Field " + name + " specifies flexibleVersions " +
-                this.flexibleVersions + ", which is not open-ended.  flexibleVersions must " +
-                "be either none, or an open-ended range (that ends with a plus sign).");
+                    this.flexibleVersions + ", which is not open-ended.  flexibleVersions must " +
+                    "be either none, or an open-ended range (that ends with a plus sign).");
         }
 
         if (listeners != null && !listeners.isEmpty() && type != MessageSpecType.REQUEST) {
             throw new RuntimeException("The `requestScope` property is only valid for " +
-                "messages with type `request`");
+                    "messages with type `request`");
         }
         this.listeners = listeners;
     }

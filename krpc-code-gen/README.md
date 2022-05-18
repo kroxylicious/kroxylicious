@@ -11,7 +11,6 @@ This project provides a similar code generation facility:
 * The generated code is defined in [Apache FreeMarker™][fm] templates, allowing you to generate _any_ kind of code (your choice of language) from the messages schemas.
 * The code generation is packaged as a maven plugin for integration into your build process.
 
-
 [ak]: https://kafka.apache.org
 [fm]: https://freemarker.apache.org/
 [schemas]: https://github.com/apache/kafka/tree/trunk/clients/src/main/resources/common/message

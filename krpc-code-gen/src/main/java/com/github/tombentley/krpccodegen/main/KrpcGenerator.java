@@ -67,7 +67,6 @@ public class KrpcGenerator {
         private File outputDir;
         private String outputFilePattern;
 
-
         public Builder withLogger(Logger logger) {
             this.logger = logger;
             return this;
@@ -130,7 +129,8 @@ public class KrpcGenerator {
     private final String outputFilePattern;
     private final Charset outputEncoding = StandardCharsets.UTF_8;
 
-    public KrpcGenerator(Logger logger, File messageSpecDir, String messageSpecFilter, File templateDir, List<String> templateNames, File outputDir, String outputFilePattern) {
+    public KrpcGenerator(Logger logger, File messageSpecDir, String messageSpecFilter, File templateDir, List<String> templateNames, File outputDir,
+                         String outputFilePattern) {
         this.logger = logger != null ? logger : System.getLogger(KrpcGenerator.class.getName());
         this.messageSpecDir = messageSpecDir != null ? messageSpecDir : new File(".");
         this.messageSpecFilter = messageSpecFilter;
@@ -163,7 +163,8 @@ public class KrpcGenerator {
         var structRegistry = new StructRegistry();
         try {
             structRegistry.register(messageSpec);
-        } catch (Exception e) {
+        }
+        catch (Exception e) {
             throw new RuntimeException(e);
         }
         templateNames.forEach(templateName -> {
@@ -181,9 +182,11 @@ public class KrpcGenerator {
                             "toSnakeCase", new SnakeCase());
                     template.process(dataModel, writer);
                 }
-            } catch (IOException e) {
+            }
+            catch (IOException e) {
                 throw new UncheckedIOException(e);
-            } catch (TemplateException e) {
+            }
+            catch (TemplateException e) {
                 throw new RuntimeException(e);
             }
         });
@@ -197,7 +200,8 @@ public class KrpcGenerator {
                 .newDirectoryStream(messageSpecDir.toPath(), messageSpecFilter)) {
             Spliterator<Path> spliterator = directoryStream.spliterator();
             paths = StreamSupport.stream(spliterator, false).collect(Collectors.toSet());
-        } catch (IOException e) {
+        }
+        catch (IOException e) {
             throw new UncheckedIOException(e);
         }
 
@@ -207,7 +211,8 @@ public class KrpcGenerator {
                 MessageSpec messageSpec = JSON_SERDE.readValue(inputPath.toFile(), MessageSpec.class);
                 logger.log(Level.DEBUG, "Loaded {0} from {1}", messageSpec.name(), inputPath);
                 return messageSpec;
-            } catch (Exception e) {
+            }
+            catch (Exception e) {
                 throw new RuntimeException("Exception while processing " + inputPath.toString(), e);
             }
         });

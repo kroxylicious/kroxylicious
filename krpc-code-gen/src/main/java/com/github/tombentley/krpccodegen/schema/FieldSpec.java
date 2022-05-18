@@ -79,14 +79,12 @@ public final class FieldSpec {
         }
         this.taggedVersions = Versions.parse(taggedVersions, Versions.NONE);
         // If versions is not set, but taggedVersions is, default to taggedVersions.
-        this.versions = Versions.parse(versions, this.taggedVersions.empty() ?
-            null : this.taggedVersions);
+        this.versions = Versions.parse(versions, this.taggedVersions.empty() ? null : this.taggedVersions);
         if (this.versions == null) {
             throw new RuntimeException("You must specify the version of the " +
-                name + " structure.");
+                    name + " structure.");
         }
-        this.fields = Collections.unmodifiableList(fields == null ?
-            Collections.emptyList() : new ArrayList<>(fields));
+        this.fields = Collections.unmodifiableList(fields == null ? Collections.emptyList() : new ArrayList<>(fields));
         this.type = FieldType.parse(Objects.requireNonNull(type));
         this.mapKey = mapKey;
         this.nullableVersions = Versions.parse(nullableVersions, Versions.NONE);
@@ -109,15 +107,16 @@ public final class FieldSpec {
 
         if (flexibleVersions == null || flexibleVersions.isEmpty()) {
             this.flexibleVersions = Optional.empty();
-        } else {
+        }
+        else {
             this.flexibleVersions = Optional.of(Versions.parse(flexibleVersions, null));
             if (!(this.type.isString() || this.type.isBytes())) {
                 // For now, only allow flexibleVersions overrides for the string and bytes
-                // types.  Overrides are only needed to keep compatibility with some old formats,
+                // types. Overrides are only needed to keep compatibility with some old formats,
                 // so there isn't any need to support them for all types.
                 throw new RuntimeException("Invalid flexibleVersions override for " + name +
-                    ".  Only fields of type string or bytes can specify a flexibleVersions " +
-                    "override.");
+                        ".  Only fields of type string or bytes can specify a flexibleVersions " +
+                        "override.");
             }
         }
         this.tag = Optional.ofNullable(tag);
@@ -129,7 +128,7 @@ public final class FieldSpec {
         this.zeroCopy = zeroCopy;
         if (this.zeroCopy && !this.type.isBytes()) {
             throw new RuntimeException("Invalid zeroCopy value for " + name +
-                ". Only fields of type bytes can use zeroCopy flag.");
+                    ". Only fields of type bytes can use zeroCopy flag.");
         }
     }
 
@@ -137,33 +136,34 @@ public final class FieldSpec {
         if (this.tag.isPresent()) {
             if (this.tag.get() < 0) {
                 throw new RuntimeException("Field " + name + " specifies a tag of " + this.tag.get() +
-                    ".  Tags cannot be negative.");
+                        ".  Tags cannot be negative.");
             }
             if (this.taggedVersions.empty()) {
                 throw new RuntimeException("Field " + name + " specifies a tag of " + this.tag.get() +
-                    ", but has no tagged versions.  If a tag is specified, taggedVersions must " +
-                    "be specified as well.");
+                        ", but has no tagged versions.  If a tag is specified, taggedVersions must " +
+                        "be specified as well.");
             }
             Versions nullableTaggedVersions = this.nullableVersions.intersect(this.taggedVersions);
             if (!(nullableTaggedVersions.empty() || nullableTaggedVersions.equals(this.taggedVersions))) {
                 throw new RuntimeException("Field " + name + " specifies nullableVersions " +
-                    this.nullableVersions + " and taggedVersions " + this.taggedVersions + ".  " +
-                    "Either all tagged versions must be nullable, or none must be.");
+                        this.nullableVersions + " and taggedVersions " + this.taggedVersions + ".  " +
+                        "Either all tagged versions must be nullable, or none must be.");
             }
             if (this.taggedVersions.highest() < Short.MAX_VALUE) {
                 throw new RuntimeException("Field " + name + " specifies taggedVersions " +
-                    this.taggedVersions + ", which is not open-ended.  taggedVersions must " +
-                    "be either none, or an open-ended range (that ends with a plus sign).");
+                        this.taggedVersions + ", which is not open-ended.  taggedVersions must " +
+                        "be either none, or an open-ended range (that ends with a plus sign).");
             }
             if (!this.taggedVersions.intersect(this.versions).equals(this.taggedVersions)) {
                 throw new RuntimeException("Field " + name + " specifies taggedVersions " +
-                    this.taggedVersions + ", and versions " + this.versions + ".  " +
-                    "taggedVersions must be a subset of versions.");
+                        this.taggedVersions + ", and versions " + this.versions + ".  " +
+                        "taggedVersions must be a subset of versions.");
             }
-        } else if (!this.taggedVersions.empty()) {
+        }
+        else if (!this.taggedVersions.empty()) {
             throw new RuntimeException("Field " + name + " does not specify a tag, " +
-                "but specifies tagged versions of " + this.taggedVersions + ".  " +
-                "Please specify a tag, or remove the taggedVersions.");
+                    "but specifies tagged versions of " + this.taggedVersions + ".  " +
+                    "Please specify a tag, or remove the taggedVersions.");
         }
     }
 
@@ -264,8 +264,8 @@ public final class FieldSpec {
     private void validateNullDefault() {
         if (!(nullableVersions().contains(versions))) {
             throw new RuntimeException("null cannot be the default for field " +
-                name + ", because not all versions of this field are " +
-                "nullable.");
+                    name + ", because not all versions of this field are " +
+                    "nullable.");
         }
     }
 

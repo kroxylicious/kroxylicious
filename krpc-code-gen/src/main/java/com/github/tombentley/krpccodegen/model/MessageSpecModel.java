@@ -17,7 +17,7 @@
 package com.github.tombentley.krpccodegen.model;
 
 import com.github.tombentley.krpccodegen.schema.MessageSpec;
-import com.github.tombentley.krpccodegen.schema.RequestListenerType;
+
 import freemarker.template.AdapterTemplateModel;
 import freemarker.template.TemplateHashModel;
 import freemarker.template.TemplateModel;

@@ -36,6 +36,12 @@ Build with the `dist` profile for creating an executable JAR:
 $ mvn clean verify -Pdist -Dquick
 ```
 
+Run the following to add missing license headers e.g. when adding new source files:
+
+```
+$ mvn license:format -Dlicense.header=etc/license.txt
+```
+
 ## Run
 
 Build with the `dist` profile as shown above, then execute this:

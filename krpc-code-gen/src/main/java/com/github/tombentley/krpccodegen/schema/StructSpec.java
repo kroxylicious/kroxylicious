@@ -53,20 +53,20 @@ public final class StructSpec {
                 if (field.tag().isPresent()) {
                     if (tags.contains(field.tag().get())) {
                         throw new RuntimeException("In " + name + ", field " + field.name() +
-                            " has a duplicate tag ID " + field.tag().get() + ".  All tags IDs " +
-                            "must be unique.");
+                                " has a duplicate tag ID " + field.tag().get() + ".  All tags IDs " +
+                                "must be unique.");
                     }
                     tags.add(field.tag().get());
                 }
                 newFields.add(field);
             }
-            // Tag IDs should be contiguous and start at 0.  This optimizes space on the wire,
+            // Tag IDs should be contiguous and start at 0. This optimizes space on the wire,
             // since larger numbers take more space.
             for (int i = 0; i < tags.size(); i++) {
                 if (!tags.contains(i)) {
                     throw new RuntimeException("In " + name + ", the tag IDs are not " +
-                        "contiguous.  Make use of tag " + i + " before using any " +
-                        "higher tag IDs.");
+                            "contiguous.  Make use of tag " + i + " before using any " +
+                            "higher tag IDs.");
                 }
             }
         }

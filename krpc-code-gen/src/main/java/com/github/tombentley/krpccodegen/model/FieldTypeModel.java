@@ -17,6 +17,7 @@
 package com.github.tombentley.krpccodegen.model;
 
 import com.github.tombentley.krpccodegen.schema.FieldType;
+
 import freemarker.template.AdapterTemplateModel;
 import freemarker.template.TemplateHashModel;
 import freemarker.template.TemplateModel;

@@ -320,17 +320,19 @@ public interface FieldType {
                     String elementTypeString = string.substring(ARRAY_PREFIX.length());
                     if (elementTypeString.length() == 0) {
                         throw new RuntimeException("Can't parse array type " + string +
-                            ".  No element type found.");
+                                ".  No element type found.");
                     }
                     FieldType elementType = parse(elementTypeString);
                     if (elementType.isArray()) {
                         throw new RuntimeException("Can't have an array of arrays.  " +
-                            "Use an array of structs containing an array instead.");
+                                "Use an array of structs containing an array instead.");
                     }
                     return new ArrayType(elementType);
-                } else if (StructRegistry.firstIsCapitalized(string)) {
+                }
+                else if (StructRegistry.firstIsCapitalized(string)) {
                     return new StructType(string);
-                } else {
+                }
+                else {
                     throw new RuntimeException("Can't parse type " + string);
                 }
         }

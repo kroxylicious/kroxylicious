@@ -18,7 +18,6 @@
 package com.github.tombentley.krpccodegen.schema;
 
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -99,7 +98,8 @@ public final class StructRegistry {
             if (field.type().isStructArray()) {
                 FieldType.ArrayType arrayType = (FieldType.ArrayType) field.type();
                 typeName = arrayType.elementName();
-            } else if (field.type().isStruct()) {
+            }
+            else if (field.type().isStruct()) {
                 FieldType.StructType structType = (FieldType.StructType) field.type();
                 typeName = structType.typeName();
             }
@@ -111,15 +111,17 @@ public final class StructRegistry {
                         throw new RuntimeException("Can't re-specify the common struct " +
                                 typeName + " as an inline struct.");
                     }
-                } else if (structs.containsKey(typeName)) {
+                }
+                else if (structs.containsKey(typeName)) {
                     // Inline structures should only appear once.
                     throw new RuntimeException("Struct " + typeName +
-                        " was specified twice.");
-                } else {
+                            " was specified twice.");
+                }
+                else {
                     // Synthesize a StructSpec object out of the fields.
                     StructSpec spec = new StructSpec(typeName,
-                        field.versions().toString(),
-                        field.fields());
+                            field.versions().toString(),
+                            field.fields());
                     structs.put(typeName, new StructInfo(spec, parentVersions));
                 }
 
@@ -137,10 +139,12 @@ public final class StructRegistry {
         if (field.type().isArray()) {
             FieldType.ArrayType arrayType = (FieldType.ArrayType) field.type();
             structFieldName = arrayType.elementName();
-        } else if (field.type().isStruct()) {
+        }
+        else if (field.type().isStruct()) {
             FieldType.StructType structType = (FieldType.StructType) field.type();
             structFieldName = structType.typeName();
-        } else {
+        }
+        else {
             throw new RuntimeException("Field " + field.name() +
                     " cannot be treated as a structure.");
         }

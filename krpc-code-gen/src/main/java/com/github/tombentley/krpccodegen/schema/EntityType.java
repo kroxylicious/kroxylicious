@@ -51,11 +51,12 @@ public enum EntityType {
         if (type instanceof FieldType.ArrayType) {
             FieldType.ArrayType arrayType = (FieldType.ArrayType) type;
             verifyTypeMatches(fieldName, arrayType.elementType());
-        } else {
+        }
+        else {
             if (!type.toString().equals(baseType.toString())) {
                 throw new RuntimeException("Field " + fieldName + " has entity type " +
-                    name() + ", but field type " + type.toString() + ", which does " +
-                    "not match.");
+                        name() + ", but field type " + type.toString() + ", which does " +
+                        "not match.");
             }
         }
     }

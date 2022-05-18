@@ -21,15 +21,13 @@ import com.github.tombentley.krpccodegen.schema.FieldType;
 import com.github.tombentley.krpccodegen.schema.MessageSpec;
 import com.github.tombentley.krpccodegen.schema.StructSpec;
 import com.github.tombentley.krpccodegen.schema.Versions;
+
 import freemarker.template.DefaultObjectWrapper;
-import freemarker.template.ObjectWrapper;
-import freemarker.template.ObjectWrapperAndUnwrapper;
 import freemarker.template.TemplateModel;
 import freemarker.template.TemplateModelException;
 import freemarker.template.Version;
 
 public class KrpcSchemaObjectWrapper extends DefaultObjectWrapper {
-
 
     public KrpcSchemaObjectWrapper(Version version) {
         super(version);
@@ -39,15 +37,20 @@ public class KrpcSchemaObjectWrapper extends DefaultObjectWrapper {
     public TemplateModel wrap(Object obj) throws TemplateModelException {
         if (obj instanceof TemplateModel) {
             return (TemplateModel) obj;
-        } else if (obj instanceof MessageSpec) {
+        }
+        else if (obj instanceof MessageSpec) {
             return new MessageSpecModel(this, (MessageSpec) obj);
-        } else if (obj instanceof FieldSpec) {
+        }
+        else if (obj instanceof FieldSpec) {
             return new FieldSpecModel(this, (FieldSpec) obj);
-        } else if (obj instanceof FieldType) {
+        }
+        else if (obj instanceof FieldType) {
             return new FieldTypeModel(this, (FieldType) obj);
-        } else if (obj instanceof StructSpec) {
+        }
+        else if (obj instanceof StructSpec) {
             return new StructSpecModel(this, (StructSpec) obj);
-        } else if (obj instanceof Versions) {
+        }
+        else if (obj instanceof Versions) {
             return new VersionsModel(this, (Versions) obj);
         }
         return super.wrap(obj);
@@ -57,15 +60,20 @@ public class KrpcSchemaObjectWrapper extends DefaultObjectWrapper {
     public Object unwrap(TemplateModel tm) throws TemplateModelException {
         if (tm instanceof MessageSpecModel) {
             return ((MessageSpecModel) tm).spec;
-        } else if (tm instanceof FieldSpecModel) {
+        }
+        else if (tm instanceof FieldSpecModel) {
             return ((FieldSpecModel) tm).spec;
-        } else if (tm instanceof StructSpecModel) {
+        }
+        else if (tm instanceof StructSpecModel) {
             return ((StructSpecModel) tm).spec;
-        } else if (tm instanceof FieldTypeModel) {
+        }
+        else if (tm instanceof FieldTypeModel) {
             return ((FieldTypeModel) tm).fieldType;
-        } else if (tm instanceof VersionsModel) {
+        }
+        else if (tm instanceof VersionsModel) {
             return ((VersionsModel) tm).versions;
-        } else {
+        }
+        else {
             return super.unwrap(tm);
         }
     }
@@ -75,19 +83,24 @@ public class KrpcSchemaObjectWrapper extends DefaultObjectWrapper {
         if (tm instanceof MessageSpecModel
                 && targetClass.isInstance(((MessageSpecModel) tm).spec)) {
             return ((MessageSpecModel) tm).spec;
-        } else if (tm instanceof FieldSpecModel
+        }
+        else if (tm instanceof FieldSpecModel
                 && targetClass.isInstance(((FieldSpecModel) tm).spec)) {
             return ((FieldSpecModel) tm).spec;
-        } else if (tm instanceof StructSpecModel
+        }
+        else if (tm instanceof StructSpecModel
                 && targetClass.isInstance(((StructSpecModel) tm).spec)) {
             return ((StructSpecModel) tm).spec;
-        } else if (tm instanceof FieldTypeModel
+        }
+        else if (tm instanceof FieldTypeModel
                 && targetClass.isInstance(((FieldTypeModel) tm).fieldType)) {
             return ((FieldTypeModel) tm).fieldType;
-        } else if (tm instanceof VersionsModel
+        }
+        else if (tm instanceof VersionsModel
                 && targetClass.isInstance(((VersionsModel) tm).versions)) {
             return ((VersionsModel) tm).versions;
-        } else {
+        }
+        else {
             return super.tryUnwrapTo(tm, targetClass);
         }
     }

@@ -34,13 +34,15 @@ public class SnakeCase implements TemplateMethodModelEx {
                 }
                 bld.append(Character.toLowerCase(c));
                 prevWasCapitalized = true;
-            } else {
+            }
+            else {
                 bld.append(c);
                 prevWasCapitalized = false;
             }
         }
         return bld.toString();
     }
+
     @Override
     public Object exec(List arguments) throws TemplateModelException {
         return toSnakeCase(((SimpleScalar) arguments.get(0)).toString());
