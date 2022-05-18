@@ -1,4 +1,4 @@
-target/**
+target/
 # Eclipse specific
 .project
 .settings/
@@ -14,6 +14,3 @@ target/**
 # VS Code
 .factorypath
 .vscode
-
-
-/target/
