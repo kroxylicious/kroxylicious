@@ -14,23 +14,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.strimzi.kproxy.internal.interceptor;
+package io.strimzi.kproxy.internal.filter;
 
 import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import io.strimzi.kproxy.api.filter.ApiVersionsResponseFilter;
-import io.strimzi.kproxy.api.filter.KrpcFilterContext;
-import io.strimzi.kproxy.api.filter.KrpcFilterState;
+import io.strimzi.kproxy.filter.ApiVersionsResponseFilter;
+import io.strimzi.kproxy.filter.KrpcFilterContext;
+import io.strimzi.kproxy.filter.KrpcFilterState;
 
 /**
  * Changes an API_VERSIONS response so that a client sees the intersection of supported version ranges for each
  * API key. This is an intrinsic part of correctly acting as a proxy.
  */
-public class ApiVersionsInterceptor implements ApiVersionsResponseFilter {
-    private static final Logger LOGGER = LogManager.getLogger(ApiVersionsInterceptor.class);
+public class ApiVersionsFilter implements ApiVersionsResponseFilter {
+    private static final Logger LOGGER = LogManager.getLogger(ApiVersionsFilter.class);
 
     private static void intersectApiVersions(String channel, ApiVersionsResponseData resp) {
         for (var key : resp.apiKeys()) {

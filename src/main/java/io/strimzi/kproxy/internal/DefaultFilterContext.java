@@ -20,8 +20,8 @@ import org.apache.kafka.common.protocol.ApiMessage;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
-import io.strimzi.kproxy.api.filter.KrpcFilterContext;
 import io.strimzi.kproxy.codec.DecodedFrame;
+import io.strimzi.kproxy.filter.KrpcFilterContext;
 
 /**
  * Implementation of {@link KrpcFilterContext}.

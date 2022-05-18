@@ -314,7 +314,7 @@
                             <templateDirectory>${project.basedir}/src/main/templates</templateDirectory>
                             <templateNames>Kproxy/Filter.ftl</templateNames>
                             <outputFilePattern>${messageSpecName}Filter.java</outputFilePattern>
-                            <outputDirectory>${project.build.directory}/generated-sources/krpc/io/strimzi/kproxy/api/filter</outputDirectory>
+                            <outputDirectory>${project.build.directory}/generated-sources/krpc/io/strimzi/kproxy/filter</outputDirectory>
                         </configuration>
                     </execution>
                 </executions>

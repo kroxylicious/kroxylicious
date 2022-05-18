@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.strimzi.kproxy.util;
+package io.strimzi.kproxy.internal.util;
 
 import org.apache.kafka.common.record.CompressionType;
 import org.apache.kafka.common.record.MemoryRecordsBuilder;

@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.strimzi.kproxy.internal.interceptor;
+package io.strimzi.kproxy.internal.filter;
 
 import java.nio.ByteBuffer;
 import java.util.Iterator;
@@ -29,15 +29,15 @@ import org.apache.kafka.common.record.MutableRecordBatch;
 import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.record.TimestampType;
 
-import io.strimzi.kproxy.api.filter.KrpcFilterContext;
-import io.strimzi.kproxy.api.filter.KrpcFilterState;
-import io.strimzi.kproxy.api.filter.ProduceRequestFilter;
-import io.strimzi.kproxy.util.NettyMemoryRecords;
+import io.strimzi.kproxy.filter.KrpcFilterContext;
+import io.strimzi.kproxy.filter.KrpcFilterState;
+import io.strimzi.kproxy.filter.ProduceRequestFilter;
+import io.strimzi.kproxy.internal.util.NettyMemoryRecords;
 
 /**
  * An interceptor for modifying the key/value/header/topic of {@link ApiKeys#PRODUCE} requests.
  */
-public class ProduceRecordTransformationInterceptor implements ProduceRequestFilter {
+public class ProduceRecordTransformationFilter implements ProduceRequestFilter {
 
     @FunctionalInterface
     public interface ByteBufferTransformation {
@@ -49,7 +49,7 @@ public class ProduceRecordTransformationInterceptor implements ProduceRequestFil
      */
     private final ByteBufferTransformation valueTransformation;
 
-    public ProduceRecordTransformationInterceptor(ByteBufferTransformation valueTransformation) {
+    public ProduceRecordTransformationFilter(ByteBufferTransformation valueTransformation) {
         this.valueTransformation = valueTransformation;
     }
 

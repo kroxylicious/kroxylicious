@@ -14,19 +14,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.strimzi.kproxy.internal.interceptor;
+package io.strimzi.kproxy.internal.filter;
 
 import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import io.strimzi.kproxy.api.filter.KrpcFilterContext;
-import io.strimzi.kproxy.api.filter.KrpcFilterState;
-import io.strimzi.kproxy.api.filter.MetadataResponseFilter;
+import io.strimzi.kproxy.filter.KrpcFilterContext;
+import io.strimzi.kproxy.filter.KrpcFilterState;
+import io.strimzi.kproxy.filter.MetadataResponseFilter;
 
-public class AdvertisedListenersInterceptor implements MetadataResponseFilter {
+public class AdvertisedListenersFilter implements MetadataResponseFilter {
 
-    private static final Logger LOGGER = LogManager.getLogger(AdvertisedListenersInterceptor.class);
+    private static final Logger LOGGER = LogManager.getLogger(AdvertisedListenersFilter.class);
 
     public interface AddressMapping {
         String host(String host, int port);
@@ -36,7 +36,7 @@ public class AdvertisedListenersInterceptor implements MetadataResponseFilter {
 
     private final AddressMapping mapping;
 
-    public AdvertisedListenersInterceptor(AddressMapping mapping) {
+    public AdvertisedListenersFilter(AddressMapping mapping) {
         this.mapping = mapping;
     }
 

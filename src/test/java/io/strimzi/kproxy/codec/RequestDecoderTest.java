@@ -29,9 +29,9 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.strimzi.kproxy.api.filter.ApiVersionsRequestFilter;
-import io.strimzi.kproxy.api.filter.KrpcFilterContext;
-import io.strimzi.kproxy.api.filter.KrpcFilterState;
+import io.strimzi.kproxy.filter.ApiVersionsRequestFilter;
+import io.strimzi.kproxy.filter.KrpcFilterContext;
+import io.strimzi.kproxy.filter.KrpcFilterState;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 

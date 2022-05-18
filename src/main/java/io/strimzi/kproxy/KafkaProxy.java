@@ -40,8 +40,8 @@ import io.netty.incubator.channel.uring.IOUringEventLoopGroup;
 import io.netty.incubator.channel.uring.IOUringServerSocketChannel;
 import io.strimzi.kproxy.internal.FilterChainFactory;
 import io.strimzi.kproxy.internal.KafkaProxyInitializer;
-import io.strimzi.kproxy.internal.interceptor.AdvertisedListenersInterceptor;
-import io.strimzi.kproxy.internal.interceptor.ApiVersionsInterceptor;
+import io.strimzi.kproxy.internal.filter.AdvertisedListenersFilter;
+import io.strimzi.kproxy.internal.filter.ApiVersionsFilter;
 
 public final class KafkaProxy {
 
@@ -67,8 +67,8 @@ public final class KafkaProxy {
                 false,
                 false,
                 () -> List.of(
-                        new ApiVersionsInterceptor(),
-                        new AdvertisedListenersInterceptor(new AdvertisedListenersInterceptor.AddressMapping() {
+                        new ApiVersionsFilter(),
+                        new AdvertisedListenersFilter(new AdvertisedListenersFilter.AddressMapping() {
                             @Override
                             public String host(String host, int port) {
                                 return host;
@@ -78,9 +78,13 @@ public final class KafkaProxy {
                             public int port(String host, int port) {
                                 return port + 100;
                             }
-                        })))
-                                .startup()
-                                .block();
+                        })// ,
+                          // new ProduceRecordTransformationInterceptor(
+                          // buffer -> ByteBuffer.wrap(new String(StandardCharsets.UTF_8.decode(buffer).array()).toLowerCase().getBytes(StandardCharsets.UTF_8))
+                          // )
+                ))
+                        .startup()
+                        .block();
     }
 
     public KafkaProxy(

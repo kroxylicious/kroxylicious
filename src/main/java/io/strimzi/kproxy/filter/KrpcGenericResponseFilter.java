@@ -14,13 +14,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.strimzi.kproxy.api.filter;
+package io.strimzi.kproxy.filter;
 
-public enum KrpcFilterState {
-    /** forward the request/response to the next filter in the chain, or to the upstream server */
-    FORWARD,
-    /** drop the request/response, without invoking further filters */
-    DROP,
-    /** disconnect from the peer, without invoke further filters */
-    DISCONNECT
+import org.apache.kafka.common.protocol.ApiKeys;
+
+import io.strimzi.kproxy.codec.DecodedResponseFrame;
+
+public abstract class KrpcGenericResponseFilter implements KrpcResponseFilter {
+    @Override
+    public boolean shouldDeserializeResponse(ApiKeys apiKey, short apiVersion) {
+        return true;
+    }
+
+    @Override
+    public abstract KrpcFilterState apply(DecodedResponseFrame<?> decodedFrame,
+                                          KrpcFilterContext filterContext);
 }

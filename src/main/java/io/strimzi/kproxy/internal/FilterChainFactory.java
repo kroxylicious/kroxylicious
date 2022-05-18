@@ -18,7 +18,7 @@ package io.strimzi.kproxy.internal;
 
 import java.util.List;
 
-import io.strimzi.kproxy.api.filter.KrpcFilter;
+import io.strimzi.kproxy.filter.KrpcFilter;
 
 /**
  * Abstracts the creation of a chain of filter instances, hiding the configuration

@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.strimzi.kproxy.filter.topicname;
+package io.strimzi.kproxy.internal.filter.topicname;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -24,11 +24,11 @@ import org.apache.kafka.common.message.CreateTopicsResponseData;
 import org.apache.kafka.common.message.DeleteTopicsResponseData;
 import org.apache.kafka.common.message.MetadataResponseData;
 
-import io.strimzi.kproxy.api.filter.CreateTopicsResponseFilter;
-import io.strimzi.kproxy.api.filter.DeleteTopicsResponseFilter;
-import io.strimzi.kproxy.api.filter.KrpcFilterContext;
-import io.strimzi.kproxy.api.filter.KrpcFilterState;
-import io.strimzi.kproxy.api.filter.MetadataResponseFilter;
+import io.strimzi.kproxy.filter.CreateTopicsResponseFilter;
+import io.strimzi.kproxy.filter.DeleteTopicsResponseFilter;
+import io.strimzi.kproxy.filter.KrpcFilterContext;
+import io.strimzi.kproxy.filter.KrpcFilterState;
+import io.strimzi.kproxy.filter.MetadataResponseFilter;
 
 /**
  * Maintains a local mapping of topic id to topic name
