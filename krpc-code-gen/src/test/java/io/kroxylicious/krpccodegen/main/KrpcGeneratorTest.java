@@ -17,7 +17,6 @@
 package io.kroxylicious.krpccodegen.main;
 
 import java.io.File;
-import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -48,12 +47,13 @@ class KrpcGeneratorTest {
     private static final String TEST_CLASSES_DIR = "test-classes";
 
     @Test
-    public void testHelloWorld() throws IOException {
+    public void testHelloWorld() throws Exception {
         KrpcGenerator gen = new KrpcGenerator.Builder()
                 .withMessageSpecDir(getMessageSpecDir())
                 .withMessageSpecFilter("*.json")
                 .withTemplateDir(getTemplateDir())
                 .withTemplateNames(List.of("hello-world/example.ftl"))
+                .withOutputPackage("com.foo")
                 .withOutputDir(getOutputDir())
                 .withOutputFilePattern("${messageSpecName}.txt")
                 .build();
@@ -62,12 +62,13 @@ class KrpcGeneratorTest {
     }
 
     @Test
-    public void testKrpcData() throws IOException {
+    public void testKrpcData() throws Exception {
         KrpcGenerator gen = new KrpcGenerator.Builder()
                 .withMessageSpecDir(getMessageSpecDir())
                 .withMessageSpecFilter("*.json")
                 .withTemplateDir(getTemplateDir())
                 .withTemplateNames(List.of("Data/example.ftl"))
+                .withOutputPackage("com.foo")
                 .withOutputDir(getOutputDir())
                 .withOutputFilePattern("${messageSpecName}.java")
                 .build();
@@ -76,12 +77,13 @@ class KrpcGeneratorTest {
     }
 
     @Test
-    public void testKproxyFilter() throws IOException {
+    public void testKproxyFilter() throws Exception {
         KrpcGenerator gen = new KrpcGenerator.Builder()
                 .withMessageSpecDir(getMessageSpecDir())
                 .withMessageSpecFilter("*.json")
                 .withTemplateDir(getTemplateDir())
                 .withTemplateNames(List.of("Kproxy/Filter.ftl"))
+                .withOutputPackage("com.foo")
                 .withOutputDir(getOutputDir())
                 .withOutputFilePattern("${messageSpecName}Filter.java")
                 .build();
