@@ -71,6 +71,11 @@
             <version>3.6.3</version>
             <scope>provided</scope>
         </dependency>
+        <dependency>
+            <groupId>org.sonatype.plexus</groupId>
+            <artifactId>plexus-build-api</artifactId>
+            <version>0.0.7</version>
+        </dependency>
 
         <dependency>
             <groupId>org.junit.jupiter</groupId>

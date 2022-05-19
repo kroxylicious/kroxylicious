@@ -64,6 +64,7 @@ public class KrpcGenerator {
         private File templateDir;
         private List<String> templateNames;
 
+        private String outputPackage;
         private File outputDir;
         private String outputFilePattern;
 
@@ -92,6 +93,11 @@ public class KrpcGenerator {
             return this;
         }
 
+        public Builder withOutputPackage(String outputPackage) {
+            this.outputPackage = outputPackage;
+            return this;
+        }
+
         public Builder withOutputDir(File outputDir) {
             this.outputDir = outputDir;
             return this;
@@ -103,7 +109,7 @@ public class KrpcGenerator {
         }
 
         public KrpcGenerator build() {
-            return new KrpcGenerator(logger, messageSpecDir, messageSpecFilter, templateDir, templateNames, outputDir, outputFilePattern);
+            return new KrpcGenerator(logger, messageSpecDir, messageSpecFilter, templateDir, templateNames, outputPackage, outputDir, outputFilePattern);
         }
     }
 
@@ -125,22 +131,24 @@ public class KrpcGenerator {
     private final Charset templateEncoding = StandardCharsets.UTF_8;
     private final List<String> templateNames;
 
+    private final String outputPackage;
     private final File outputDir;
     private final String outputFilePattern;
     private final Charset outputEncoding = StandardCharsets.UTF_8;
 
-    public KrpcGenerator(Logger logger, File messageSpecDir, String messageSpecFilter, File templateDir, List<String> templateNames, File outputDir,
+    public KrpcGenerator(Logger logger, File messageSpecDir, String messageSpecFilter, File templateDir, List<String> templateNames, String outputPackage, File outputDir,
                          String outputFilePattern) {
         this.logger = logger != null ? logger : System.getLogger(KrpcGenerator.class.getName());
         this.messageSpecDir = messageSpecDir != null ? messageSpecDir : new File(".");
         this.messageSpecFilter = messageSpecFilter;
         this.templateDir = templateDir;
         this.templateNames = templateNames;
-        this.outputDir = outputDir;
+        this.outputPackage = outputPackage;
+        this.outputDir = outputDir.toPath().resolve(outputPackage.replace(".", File.separator)).toFile();
         this.outputFilePattern = outputFilePattern;
 
-        if (!outputDir.exists()) {
-            outputDir.mkdirs();
+        if (!this.outputDir.exists()) {
+            this.outputDir.mkdirs();
         }
     }
 
@@ -149,7 +157,7 @@ public class KrpcGenerator {
                 .replaceAll("\\$\\{templateName\\}", templateName);
     }
 
-    public void generate() throws IOException {
+    public void generate() throws Exception {
         var cfg = buildFmConfiguration();
 
         messageSpecs().forEach(messageSpec -> {
@@ -218,7 +226,7 @@ public class KrpcGenerator {
         });
     }
 
-    private Configuration buildFmConfiguration() throws IOException {
+    private Configuration buildFmConfiguration() throws Exception {
         // Create your Configuration instance, and specify if up to what FreeMarker
         // version (here 2.3.29) do you want to apply the fixes that are not 100%
         // backward-compatible. See the Configuration JavaDoc for details.
@@ -248,6 +256,8 @@ public class KrpcGenerator {
         cfg.setFallbackOnNullLoopVariable(false);
 
         cfg.setObjectWrapper(new KrpcSchemaObjectWrapper(version));
+
+        cfg.setSharedVariable("outputPackage", outputPackage);
 
         logger.log(Level.DEBUG, "Created FreeMarker config");
         return cfg;
