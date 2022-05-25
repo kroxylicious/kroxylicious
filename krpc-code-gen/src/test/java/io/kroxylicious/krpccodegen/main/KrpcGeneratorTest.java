@@ -48,7 +48,7 @@ class KrpcGeneratorTest {
 
     @Test
     public void testHelloWorld() throws Exception {
-        KrpcGenerator gen = new KrpcGenerator.Builder()
+        KrpcGenerator gen = KrpcGenerator.single()
                 .withMessageSpecDir(getMessageSpecDir())
                 .withMessageSpecFilter("*.json")
                 .withTemplateDir(getTemplateDir())
@@ -63,7 +63,7 @@ class KrpcGeneratorTest {
 
     @Test
     public void testKrpcData() throws Exception {
-        KrpcGenerator gen = new KrpcGenerator.Builder()
+        KrpcGenerator gen = KrpcGenerator.single()
                 .withMessageSpecDir(getMessageSpecDir())
                 .withMessageSpecFilter("*.json")
                 .withTemplateDir(getTemplateDir())
@@ -78,7 +78,7 @@ class KrpcGeneratorTest {
 
     @Test
     public void testKproxyFilter() throws Exception {
-        KrpcGenerator gen = new KrpcGenerator.Builder()
+        KrpcGenerator gen = KrpcGenerator.single()
                 .withMessageSpecDir(getMessageSpecDir())
                 .withMessageSpecFilter("*.json")
                 .withTemplateDir(getTemplateDir())
@@ -86,6 +86,21 @@ class KrpcGeneratorTest {
                 .withOutputPackage("com.foo")
                 .withOutputDir(getOutputDir())
                 .withOutputFilePattern("${messageSpecName}Filter.java")
+                .build();
+
+        gen.generate();
+    }
+
+    @Test
+    public void testKproxyRequestFilter() throws Exception {
+        KrpcGenerator gen = KrpcGenerator.multi()
+                .withMessageSpecDir(getMessageSpecDir())
+                .withMessageSpecFilter("*{Request}.json")
+                .withTemplateDir(getTemplateDir())
+                .withTemplateNames(List.of("Kproxy/KrpcRequestFilter.ftl"))
+                .withOutputPackage("com.foo")
+                .withOutputDir(getOutputDir())
+                .withOutputFilePattern("${templateName}.java")
                 .build();
 
         gen.generate();

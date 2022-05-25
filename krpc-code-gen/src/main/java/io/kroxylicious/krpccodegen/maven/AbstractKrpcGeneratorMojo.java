@@ -25,16 +25,13 @@ import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.Component;
-import org.apache.maven.plugins.annotations.LifecyclePhase;
-import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
 import org.sonatype.plexus.build.incremental.BuildContext;
 
 import io.kroxylicious.krpccodegen.main.KrpcGenerator;
 
-@Mojo(name = "generate-messages", defaultPhase = LifecyclePhase.GENERATE_SOURCES)
-public class KrpcGeneratorMojo extends AbstractMojo {
+public abstract class AbstractKrpcGeneratorMojo extends AbstractMojo {
 
     /**
      * Gives access to the Maven project information.
@@ -73,7 +70,7 @@ public class KrpcGeneratorMojo extends AbstractMojo {
                     .map(String::trim)
                     .collect(Collectors.toList());
 
-            KrpcGenerator gen = new KrpcGenerator.Builder()
+            KrpcGenerator gen = builder()
                     .withLogger(new MavenLogger(KrpcGenerator.class.getName(), getLog()))
                     .withMessageSpecDir(messageSpecDirectory)
                     .withMessageSpecFilter(messageSpecFilter)
@@ -94,4 +91,6 @@ public class KrpcGeneratorMojo extends AbstractMojo {
             project.addCompileSourceRoot(outputDirectory.getAbsolutePath());
         }
     }
+
+    protected abstract KrpcGenerator.Builder builder();
 }
