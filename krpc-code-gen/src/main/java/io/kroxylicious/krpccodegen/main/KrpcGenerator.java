@@ -29,12 +29,12 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.Spliterator;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -48,6 +48,7 @@ import freemarker.template.TemplateException;
 import freemarker.template.TemplateExceptionHandler;
 import freemarker.template.Version;
 import io.kroxylicious.krpccodegen.model.KrpcSchemaObjectWrapper;
+import io.kroxylicious.krpccodegen.model.RetrieveApiKey;
 import io.kroxylicious.krpccodegen.model.SnakeCase;
 import io.kroxylicious.krpccodegen.schema.MessageSpec;
 import io.kroxylicious.krpccodegen.schema.StructRegistry;
@@ -56,6 +57,7 @@ public class KrpcGenerator {
 
     public static class Builder {
 
+        private final GeneratorMode mode;
         private Logger logger;
 
         private File messageSpecDir;
@@ -67,6 +69,10 @@ public class KrpcGenerator {
         private String outputPackage;
         private File outputDir;
         private String outputFilePattern;
+
+        private Builder(GeneratorMode mode) {
+            this.mode = mode;
+        }
 
         public Builder withLogger(Logger logger) {
             this.logger = logger;
@@ -109,8 +115,13 @@ public class KrpcGenerator {
         }
 
         public KrpcGenerator build() {
-            return new KrpcGenerator(logger, messageSpecDir, messageSpecFilter, templateDir, templateNames, outputPackage, outputDir, outputFilePattern);
+            return new KrpcGenerator(logger, mode, messageSpecDir, messageSpecFilter, templateDir, templateNames, outputPackage, outputDir, outputFilePattern);
         }
+    }
+
+    public enum GeneratorMode {
+        SINGLE,
+        MULTI;
     }
 
     static final ObjectMapper JSON_SERDE = new ObjectMapper();
@@ -123,6 +134,7 @@ public class KrpcGenerator {
     }
 
     private final Logger logger;
+    private final GeneratorMode mode;
 
     private final File messageSpecDir;
     private final String messageSpecFilter;
@@ -136,9 +148,11 @@ public class KrpcGenerator {
     private final String outputFilePattern;
     private final Charset outputEncoding = StandardCharsets.UTF_8;
 
-    public KrpcGenerator(Logger logger, File messageSpecDir, String messageSpecFilter, File templateDir, List<String> templateNames, String outputPackage, File outputDir,
+    public KrpcGenerator(Logger logger, GeneratorMode mode, File messageSpecDir, String messageSpecFilter, File templateDir, List<String> templateNames,
+                         String outputPackage, File outputDir,
                          String outputFilePattern) {
         this.logger = logger != null ? logger : System.getLogger(KrpcGenerator.class.getName());
+        this.mode = mode;
         this.messageSpecDir = messageSpecDir != null ? messageSpecDir : new File(".");
         this.messageSpecFilter = messageSpecFilter;
         this.templateDir = templateDir;
@@ -152,21 +166,30 @@ public class KrpcGenerator {
         }
     }
 
-    private String outputFile(String pattern, String messageSpecName, String templateName) {
-        return pattern.replaceAll("\\$\\{messageSpecName\\}", messageSpecName)
-                .replaceAll("\\$\\{templateName\\}", templateName);
+    public static Builder single() {
+        return new Builder(GeneratorMode.SINGLE);
+    }
+
+    public static Builder multi() {
+        return new Builder(GeneratorMode.MULTI);
     }
 
     public void generate() throws Exception {
         var cfg = buildFmConfiguration();
+        Set<MessageSpec> messageSpecs = messageSpecs();
 
-        messageSpecs().forEach(messageSpec -> {
-            render(cfg, messageSpec);
-        });
+        if (mode == GeneratorMode.SINGLE) {
+            for (MessageSpec messageSpec : messageSpecs) {
+                renderSingle(cfg, messageSpec);
+            }
+        }
+        else {
+            renderMulti(cfg, messageSpecs);
+        }
 
     }
 
-    private void render(Configuration cfg, MessageSpec messageSpec) {
+    private void renderSingle(Configuration cfg, MessageSpec messageSpec) {
         logger.log(Level.INFO, "Processing message spec {0}", messageSpec.name());
         var structRegistry = new StructRegistry();
         try {
@@ -200,7 +223,46 @@ public class KrpcGenerator {
         });
     }
 
-    private Stream<MessageSpec> messageSpecs() {
+    private void renderMulti(Configuration cfg, Set<MessageSpec> messageSpecs) {
+        logger.log(Level.INFO, "Processing message specs");
+
+        // TODO not actually used right now
+        // var structRegistry = new StructRegistry();
+        // try {
+        // for (MessageSpec messageSpec : messageSpecs) {
+        // structRegistry.register(messageSpec);
+        // }
+        // }
+        // catch (Exception e) {
+        // throw new RuntimeException(e);
+        // }
+        templateNames.forEach(templateName -> {
+            try {
+                logger.log(Level.DEBUG, "Parsing template {0}", templateName);
+                var template = cfg.getTemplate(templateName);
+                // TODO support output to stdout via `-`
+                var outputFile = new File(outputDir, outputFile(outputFilePattern, null, templateName));
+                logger.log(Level.DEBUG, "Opening output file {0}", outputFile);
+                try (var writer = new OutputStreamWriter(new FileOutputStream(outputFile), outputEncoding)) {
+                    Map<String, Object> dataModel = Map.of(
+                            // "structRegistry", structRegistry,
+                            "outputPackage", outputPackage,
+                            "messageSpecs", messageSpecs,
+                            "toSnakeCase", new SnakeCase(),
+                            "retrieveApiKey", new RetrieveApiKey());
+                    template.process(dataModel, writer);
+                }
+            }
+            catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+            catch (TemplateException e) {
+                throw new RuntimeException(e);
+            }
+        });
+    }
+
+    private Set<MessageSpec> messageSpecs() {
         logger.log(Level.INFO, "Finding message specs in {0}", messageSpecDir);
         logger.log(Level.DEBUG, "{0}", Arrays.toString(messageSpecDir.listFiles()));
         Set<Path> paths;
@@ -213,17 +275,20 @@ public class KrpcGenerator {
             throw new UncheckedIOException(e);
         }
 
-        return paths.stream().map(inputPath -> {
-            try {
-                logger.log(Level.DEBUG, "Parsing message spec {0}", inputPath);
-                MessageSpec messageSpec = JSON_SERDE.readValue(inputPath.toFile(), MessageSpec.class);
-                logger.log(Level.DEBUG, "Loaded {0} from {1}", messageSpec.name(), inputPath);
-                return messageSpec;
-            }
-            catch (Exception e) {
-                throw new RuntimeException("Exception while processing " + inputPath.toString(), e);
-            }
-        });
+        return paths.stream()
+                .map(inputPath -> {
+                    try {
+                        logger.log(Level.DEBUG, "Parsing message spec {0}", inputPath);
+                        MessageSpec messageSpec = JSON_SERDE.readValue(inputPath.toFile(), MessageSpec.class);
+                        logger.log(Level.DEBUG, "Loaded {0} from {1}", messageSpec.name(), inputPath);
+                        return messageSpec;
+                    }
+                    catch (Exception e) {
+                        throw new RuntimeException("Exception while processing " + inputPath.toString(), e);
+                    }
+                })
+                .sorted((m1, m2) -> m1.name().compareTo(m2.name()))
+                .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
     private Configuration buildFmConfiguration() throws Exception {
@@ -261,5 +326,18 @@ public class KrpcGenerator {
 
         logger.log(Level.DEBUG, "Created FreeMarker config");
         return cfg;
+    }
+
+    private String outputFile(String pattern, String messageSpecName, String templateName) {
+        if (messageSpecName != null) {
+            pattern = pattern.replaceAll("\\$\\{messageSpecName\\}", messageSpecName);
+        }
+
+        if (templateName != null) {
+            templateName = templateName.substring(Math.max(0, templateName.lastIndexOf(File.separator) + 1), templateName.indexOf(".ftl"));
+            pattern = pattern.replaceAll("\\$\\{templateName\\}", templateName);
+        }
+
+        return pattern;
     }
 }
