@@ -73,7 +73,7 @@ ${field.defaultString}
 <#if !field.versions.contains(version) || field.taggedVersions.contains(version)>
 <#continue/>
 </#if>
-            new Field("${toSnakeCase(field.name)}", <@schemaType type=field.type version=version fieldFlexibleVersions=field.flexibleVersions.orElse(messageFlexibleVersions)/>, "${field.about}")<#sep>,</#sep><#if !field?has_next && messageFlexibleVersions.contains(version)>,
+            new Field("${field.name}", <@schemaType type=field.type version=version fieldFlexibleVersions=field.flexibleVersions.orElse(messageFlexibleVersions)/>, "${field.about}")<#sep>,</#sep><#if !field?has_next && messageFlexibleVersions.contains(version)>,
             TaggedFieldsSection.of(
             )</#if>
 </#list>

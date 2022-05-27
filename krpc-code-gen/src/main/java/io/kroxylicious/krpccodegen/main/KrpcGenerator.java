@@ -49,7 +49,6 @@ import freemarker.template.TemplateExceptionHandler;
 import freemarker.template.Version;
 import io.kroxylicious.krpccodegen.model.KrpcSchemaObjectWrapper;
 import io.kroxylicious.krpccodegen.model.RetrieveApiKey;
-import io.kroxylicious.krpccodegen.model.SnakeCase;
 import io.kroxylicious.krpccodegen.schema.MessageSpec;
 import io.kroxylicious.krpccodegen.schema.StructRegistry;
 
@@ -209,8 +208,7 @@ public class KrpcGenerator {
                     logger.log(Level.DEBUG, "Processing message spec {0} with template {1} to {2}", messageSpec.name(), templateName, outputFile);
                     Map<String, Object> dataModel = Map.of(
                             "structRegistry", structRegistry,
-                            "messageSpec", messageSpec,
-                            "toSnakeCase", new SnakeCase());
+                            "messageSpec", messageSpec);
                     template.process(dataModel, writer);
                 }
             }
@@ -248,7 +246,6 @@ public class KrpcGenerator {
                             // "structRegistry", structRegistry,
                             "outputPackage", outputPackage,
                             "messageSpecs", messageSpecs,
-                            "toSnakeCase", new SnakeCase(),
                             "retrieveApiKey", new RetrieveApiKey());
                     template.process(dataModel, writer);
                 }
