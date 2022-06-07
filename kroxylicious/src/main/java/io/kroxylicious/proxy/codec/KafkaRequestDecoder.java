@@ -54,6 +54,7 @@ import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.filter.KrpcRequestFilter;
 import io.kroxylicious.proxy.filter.KrpcResponseFilter;
 import io.netty.buffer.ByteBuf;
@@ -63,16 +64,14 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
 
     private static final Logger LOGGER = LogManager.getLogger(KafkaRequestDecoder.class);
 
-    private final List<KrpcRequestFilter> requestFilterHandlers;
-    private final List<KrpcResponseFilter> responseFilterHandlers;
+    private final List<KrpcFilter> filters;
+
     private final Map<Integer, Correlation> correlation;
 
-    public KafkaRequestDecoder(List<KrpcRequestFilter> requestFilterHandlers,
-                               List<KrpcResponseFilter> responseFilterHandlers,
+    public KafkaRequestDecoder(List<KrpcFilter> filters,
                                Map<Integer, Correlation> correlation) {
         super();
-        this.requestFilterHandlers = requestFilterHandlers;
-        this.responseFilterHandlers = responseFilterHandlers;
+        this.filters = filters;
         this.correlation = correlation;
     }
 
@@ -153,8 +152,9 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
     }
 
     private boolean shouldDecodeResponse(ApiKeys apiKey, short apiVersion) {
-        for (var f : responseFilterHandlers) {
-            if (f.shouldDeserializeResponse(apiKey, apiVersion)) {
+        for (var filter : filters) {
+            if (filter instanceof KrpcResponseFilter
+                    && ((KrpcResponseFilter) filter).shouldDeserializeResponse(apiKey, apiVersion)) {
                 return true;
             }
         }
@@ -162,8 +162,9 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
     }
 
     private boolean shouldDecodeRequest(ApiKeys apiKey, short apiVersion) {
-        for (var f : requestFilterHandlers) {
-            if (f.shouldDeserializeRequest(apiKey, apiVersion)) {
+        for (var filter : filters) {
+            if (filter instanceof KrpcRequestFilter
+                    && ((KrpcRequestFilter) filter).shouldDeserializeRequest(apiKey, apiVersion)) {
                 return true;
             }
         }

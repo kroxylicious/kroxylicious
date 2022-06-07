@@ -16,9 +16,7 @@
  */
 package io.kroxylicious.proxy.internal;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -26,9 +24,6 @@ import org.apache.logging.log4j.Logger;
 import io.kroxylicious.proxy.codec.Correlation;
 import io.kroxylicious.proxy.codec.KafkaRequestDecoder;
 import io.kroxylicious.proxy.codec.KafkaResponseEncoder;
-import io.kroxylicious.proxy.filter.KrpcFilter;
-import io.kroxylicious.proxy.filter.KrpcRequestFilter;
-import io.kroxylicious.proxy.filter.KrpcResponseFilter;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.socket.SocketChannel;
@@ -57,32 +52,6 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
         this.logFrames = logFrames;
     }
 
-    List<KrpcRequestFilter> createRequestFilters(List<KrpcFilter> filters) {
-        List<KrpcRequestFilter> requestFilters = new ArrayList<>(filters.size());
-        for (var filter : filters) {
-            if (filter instanceof KrpcRequestFilter) {
-                requestFilters.add((KrpcRequestFilter) filter);
-            }
-            else if (!(filter instanceof KrpcResponseFilter)) {
-                throw new RuntimeException();
-            }
-        }
-        return requestFilters;
-    }
-
-    List<KrpcResponseFilter> createResponseFilters(List<KrpcFilter> filters) {
-        List<KrpcResponseFilter> requestFilters = new ArrayList<>(filters.size());
-        for (var filter : filters) {
-            if (filter instanceof KrpcResponseFilter) {
-                requestFilters.add((KrpcResponseFilter) filter);
-            }
-            else if (!(filter instanceof KrpcRequestFilter)) {
-                throw new RuntimeException();
-            }
-        }
-        return requestFilters;
-    }
-
     @Override
     public void initChannel(SocketChannel ch) {
         // TODO TLS
@@ -96,13 +65,10 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
             pipeline.addLast("networkLogger", new LoggingHandler("frontend-network", LogLevel.INFO));
         }
         var filters = filterChainFactory.createFilters();
-        var requestFilters = createRequestFilters(filters);
-        var responseFilters = createResponseFilters(filters);
         // The decoder, this only cares about the filters
         // because it needs to know whether to decode requests
         KafkaRequestDecoder decoder = new KafkaRequestDecoder(
-                requestFilters,
-                responseFilters,
+                filters,
                 correlation);
         pipeline.addLast("requestDecoder", decoder);
 
@@ -114,8 +80,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
         pipeline.addLast("frontendHandler", new KafkaProxyFrontendHandler(remoteHost,
                 remotePort,
                 correlation,
-                requestFilters,
-                responseFilters,
+                filters,
                 logNetwork,
                 logFrames));
     }

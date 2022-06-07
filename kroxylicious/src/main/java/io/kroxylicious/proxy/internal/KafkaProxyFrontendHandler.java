@@ -17,7 +17,6 @@
 package io.kroxylicious.proxy.internal;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -27,6 +26,7 @@ import org.apache.logging.log4j.Logger;
 import io.kroxylicious.proxy.codec.Correlation;
 import io.kroxylicious.proxy.codec.KafkaRequestEncoder;
 import io.kroxylicious.proxy.codec.KafkaResponseDecoder;
+import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.filter.KrpcRequestFilter;
 import io.kroxylicious.proxy.filter.KrpcResponseFilter;
 import io.netty.bootstrap.Bootstrap;
@@ -50,15 +50,16 @@ public class KafkaProxyFrontendHandler extends ChannelInboundHandlerAdapter {
      * @param filters The filters in the pipeline (response filters won't be added to the result).
      * @return A list of channel handlers
      */
-    static List<ChannelHandler> buildRequestPipeline(List<KrpcRequestFilter> filters) {
+    static List<ChannelHandler> buildRequestPipeline(List<KrpcFilter> filters) {
         // Note: we could equally use a single ChannelInboundHandler which itself dispatched to each filter.
         // Using a ChannelInboundHandler-per-filter model means that we're not occupying the CPU for the
         // whole filterchain execution => higher latency, but higher throughput.
         List<ChannelHandler> requestFilterHandlers = new ArrayList<>(filters.size());
-        for (var requestFilter : filters) {
-            requestFilterHandlers.add(new SingleRequestFilterHandler(requestFilter));
+        for (var filter : filters) {
+            if (filter instanceof KrpcRequestFilter) {
+                requestFilterHandlers.add(new SingleRequestFilterHandler((KrpcRequestFilter) filter));
+            }
         }
-        Collections.reverse(requestFilterHandlers);
         return requestFilterHandlers;
     }
 
@@ -67,13 +68,15 @@ public class KafkaProxyFrontendHandler extends ChannelInboundHandlerAdapter {
      * @param filters The filters in the pipeline (request filters won't be added to the result).
      * @return A list of channel handlers
      */
-    static List<ChannelHandler> buildResponsePipeline(List<KrpcResponseFilter> filters) {
+    static List<ChannelHandler> buildResponsePipeline(List<KrpcFilter> filters) {
         // Note: we could equally use a single ChannelInboundHandler which itself dispatched to each filter.
         // Using a ChannelInboundHandler-per-filter model means that we're not occupying the CPU for the
         // whole filterchain execution => higher latency, but higher throughput.
         List<ChannelHandler> responseFilterHandlers = new ArrayList<>(filters.size());
-        for (var responseFilter : filters) {
-            responseFilterHandlers.add(new SingleResponseFilterHandler(responseFilter));
+        for (var filter : filters) {
+            if (filter instanceof KrpcResponseFilter) {
+                responseFilterHandlers.add(new SingleResponseFilterHandler((KrpcResponseFilter) filter));
+            }
         }
         return responseFilterHandlers;
     }
@@ -83,8 +86,7 @@ public class KafkaProxyFrontendHandler extends ChannelInboundHandlerAdapter {
     private final Map<Integer, Correlation> correlation;
     private final boolean logNetwork;
     private final boolean logFrames;
-    private final List<ChannelHandler> responseFilterHandlers;
-    private final List<ChannelHandler> requestFilterHandlers;
+    private final List<KrpcFilter> filters;
 
     private ChannelHandlerContext outboundCtx;
     private KafkaProxyBackendHandler backendHandler;
@@ -94,8 +96,7 @@ public class KafkaProxyFrontendHandler extends ChannelInboundHandlerAdapter {
     public KafkaProxyFrontendHandler(String remoteHost,
                                      int remotePort,
                                      Map<Integer, Correlation> correlation,
-                                     List<KrpcRequestFilter> requestFilters,
-                                     List<KrpcResponseFilter> responseFilters,
+                                     List<KrpcFilter> filters,
                                      boolean logNetwork,
                                      boolean logFrames) {
         this.remoteHost = remoteHost;
@@ -103,8 +104,7 @@ public class KafkaProxyFrontendHandler extends ChannelInboundHandlerAdapter {
         this.correlation = correlation;
         this.logNetwork = logNetwork;
         this.logFrames = logFrames;
-        this.responseFilterHandlers = buildResponsePipeline(responseFilters);
-        this.requestFilterHandlers = buildRequestPipeline(requestFilters);
+        this.filters = filters;
     }
 
     public void outboundChannelActive(ChannelHandlerContext ctx) {
@@ -136,23 +136,25 @@ public class KafkaProxyFrontendHandler extends ChannelInboundHandlerAdapter {
 
         LOGGER.trace("Connecting to outbound {}:{}", remoteHost, remotePort);
         ChannelFuture connectFuture = b.connect(remoteHost, remotePort);
+        Channel outboundChannel = connectFuture.channel();
+        ChannelPipeline pipeline = outboundChannel.pipeline();
 
         List<ChannelHandler> handlers = new ArrayList<>();
-        if (logNetwork) {
-            handlers.add(new LoggingHandler("backend-network"));
-        }
-        handlers.add(new KafkaRequestEncoder());
-        handlers.addAll(requestFilterHandlers);
-
-        handlers.add(new KafkaResponseDecoder(correlation));
-        handlers.addAll(responseFilterHandlers);
-
         if (logFrames) {
             handlers.add(new LoggingHandler("backend-application"));
         }
-        Collections.reverse(handlers);
-        Channel outboundChannel = connectFuture.channel();
-        ChannelPipeline pipeline = outboundChannel.pipeline();
+
+        var responseFilterHandlers = buildResponsePipeline(filters);
+        var requestFilterHandlers = buildRequestPipeline(filters);
+        handlers.addAll(responseFilterHandlers);
+        handlers.addAll(requestFilterHandlers);
+        handlers.add(new KafkaResponseDecoder(correlation));
+        handlers.add(new KafkaRequestEncoder());
+
+        if (logNetwork) {
+            handlers.add(new LoggingHandler("backend-network"));
+        }
+
         for (var handler : handlers) {
             pipeline.addFirst(handler);
         }
