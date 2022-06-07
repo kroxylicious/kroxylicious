@@ -16,11 +16,10 @@
  */
 package io.kroxylicious.proxy;
 
-import java.util.List;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.internal.FilterChainFactory;
 import io.kroxylicious.proxy.internal.KafkaProxyInitializer;
 import io.kroxylicious.proxy.internal.filter.AdvertisedListenersFilter;
@@ -66,7 +65,7 @@ public final class KafkaProxy {
                 Boolean.getBoolean("useIoUring"),
                 false,
                 false,
-                () -> List.of(
+                () -> new KrpcFilter[]{
                         new ApiVersionsFilter(),
                         new AdvertisedListenersFilter(new AdvertisedListenersFilter.AddressMapping() {
                             @Override
@@ -82,7 +81,7 @@ public final class KafkaProxy {
                           // new ProduceRecordTransformationInterceptor(
                           // buffer -> ByteBuffer.wrap(new String(StandardCharsets.UTF_8.decode(buffer).array()).toLowerCase().getBytes(StandardCharsets.UTF_8))
                           // )
-                ))
+                })
                         .startup()
                         .block();
     }

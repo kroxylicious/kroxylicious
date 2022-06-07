@@ -16,7 +16,6 @@
  */
 package io.kroxylicious.proxy.internal;
 
-import java.util.List;
 import java.util.Map;
 
 import org.apache.logging.log4j.LogManager;
@@ -48,7 +47,7 @@ public class KafkaProxyFrontendHandler extends ChannelInboundHandlerAdapter {
     private final Map<Integer, Correlation> correlation;
     private final boolean logNetwork;
     private final boolean logFrames;
-    private final List<KrpcFilter> filters;
+    private final KrpcFilter[] filters;
 
     private ChannelHandlerContext outboundCtx;
     private KafkaProxyBackendHandler backendHandler;
@@ -58,7 +57,7 @@ public class KafkaProxyFrontendHandler extends ChannelInboundHandlerAdapter {
     public KafkaProxyFrontendHandler(String remoteHost,
                                      int remotePort,
                                      Map<Integer, Correlation> correlation,
-                                     List<KrpcFilter> filters,
+                                     KrpcFilter[] filters,
                                      boolean logNetwork,
                                      boolean logFrames) {
         this.remoteHost = remoteHost;

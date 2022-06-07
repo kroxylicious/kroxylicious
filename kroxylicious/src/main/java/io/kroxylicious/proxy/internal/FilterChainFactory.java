@@ -16,8 +16,6 @@
  */
 package io.kroxylicious.proxy.internal;
 
-import java.util.List;
-
 import io.kroxylicious.proxy.filter.KrpcFilter;
 
 /**
@@ -31,5 +29,5 @@ public interface FilterChainFactory {
      * Create a new chain of filter instances
      * @return the new chain.
      */
-    List<KrpcFilter> createFilters();
+    KrpcFilter[] createFilters();
 }

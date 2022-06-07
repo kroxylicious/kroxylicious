@@ -16,7 +16,6 @@
  */
 package io.kroxylicious.proxy.codec;
 
-import java.util.List;
 import java.util.Map;
 
 import org.apache.kafka.common.message.AddOffsetsToTxnRequestData;
@@ -64,12 +63,11 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
 
     private static final Logger LOGGER = LogManager.getLogger(KafkaRequestDecoder.class);
 
-    private final List<KrpcFilter> filters;
+    private final KrpcFilter[] filters;
 
     private final Map<Integer, Correlation> correlation;
 
-    public KafkaRequestDecoder(List<KrpcFilter> filters,
-                               Map<Integer, Correlation> correlation) {
+    public KafkaRequestDecoder(Map<Integer, Correlation> correlation, KrpcFilter... filters) {
         super();
         this.filters = filters;
         this.correlation = correlation;
