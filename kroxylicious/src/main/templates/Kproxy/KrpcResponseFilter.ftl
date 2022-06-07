@@ -39,7 +39,7 @@ import org.apache.kafka.common.message.${messageSpec.name}Data;
 </#list>
 import org.apache.kafka.common.protocol.ApiKeys;
 
-import io.strimzi.kproxy.codec.DecodedResponseFrame;
+import io.kroxylicious.proxy.codec.DecodedResponseFrame;
 
 /**
  * <p>Interface for {@code *ResponseFilter}s.

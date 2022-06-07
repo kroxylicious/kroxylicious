@@ -204,7 +204,7 @@
                             <templateDirectory>${project.basedir}/src/main/templates</templateDirectory>
                             <templateNames>Kproxy/Filter.ftl</templateNames>
                             <outputFilePattern>${messageSpecName}Filter.java</outputFilePattern>
-                            <outputPackage>io.strimzi.kproxy.filter</outputPackage>
+                            <outputPackage>io.kroxylicious.proxy.filter</outputPackage>
                             <outputDirectory>${project.build.directory}/generated-sources/krpc</outputDirectory>
                         </configuration>
                     </execution>
@@ -220,7 +220,7 @@
                             <templateDirectory>${project.basedir}/src/main/templates</templateDirectory>
                             <templateNames>Kproxy/KrpcRequestFilter.ftl</templateNames>
                             <outputFilePattern>${templateName}.java</outputFilePattern>
-                            <outputPackage>io.strimzi.kproxy.filter</outputPackage>
+                            <outputPackage>io.kroxylicious.proxy.filter</outputPackage>
                             <outputDirectory>${project.build.directory}/generated-sources/krpc</outputDirectory>
                         </configuration>
                     </execution>
@@ -236,7 +236,7 @@
                             <templateDirectory>${project.basedir}/src/main/templates</templateDirectory>
                             <templateNames>Kproxy/KrpcResponseFilter.ftl</templateNames>
                             <outputFilePattern>${templateName}.java</outputFilePattern>
-                            <outputPackage>io.strimzi.kproxy.filter</outputPackage>
+                            <outputPackage>io.kroxylicious.proxy.filter</outputPackage>
                             <outputDirectory>${project.build.directory}/generated-sources/krpc</outputDirectory>
                         </configuration>
                     </execution>
@@ -276,7 +276,7 @@
                                 <manifest>
                                     <addClasspath>true</addClasspath>
                                     <classpathPrefix>${libs.dir}/</classpathPrefix>
-                                    <mainClass>io.strimzi.kproxy.KafkaProxy</mainClass>
+                                    <mainClass>io.kroxylicious.proxy.KafkaProxy</mainClass>
                                 </manifest>
                             </archive>
                         </configuration>
