@@ -149,7 +149,7 @@ public abstract class AbstractCodecTest {
         var allocator = mock(ByteBufAllocator.class);
         when(allocator.heapBuffer(anyInt())).thenAnswer(i -> {
             assertEquals(expectedSize, (Integer) i.getArgument(0),
-                    "Expected the estimated size to the exact message size");
+                    "Expected the estimated size to be the exact message size");
             return Unpooled.wrappedBuffer(ourBuffer).resetWriterIndex();
         });
         var chc = mock(ChannelHandlerContext.class);
