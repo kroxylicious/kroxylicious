@@ -29,7 +29,6 @@ import io.kroxylicious.proxy.codec.KafkaResponseEncoder;
 import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.filter.KrpcRequestFilter;
 import io.kroxylicious.proxy.filter.KrpcResponseFilter;
-import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.socket.SocketChannel;
@@ -84,38 +83,6 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
         return requestFilters;
     }
 
-    /**
-     * Builds a request pipeline for incoming requests from the downstream client.
-     * @param filters The filters in the pipeline (response filters won't be added to the result).
-     * @return A list of channel handlers
-     */
-    List<ChannelHandler> buildRequestPipeline(List<KrpcRequestFilter> filters) {
-        // Note: we could equally use a single ChannelInboundHandler which itself dispatched to each filter.
-        // Using a ChannelInboundHandler-per-filter model means that we're not occupying the CPU for the
-        // whole filterchain execution => higher latency, but higher throughput.
-        List<ChannelHandler> requestFilterHandlers = new ArrayList<>(filters.size());
-        for (var requestFilter : filters) {
-            requestFilterHandlers.add(new SingleRequestFilterHandler(requestFilter));
-        }
-        return requestFilterHandlers;
-    }
-
-    /**
-     * Builds a response pipeline for incomping responses from the upstream server.
-     * @param filters The filters in the pipeline (request filters won't be added to the result).
-     * @return A list of channel handlers
-     */
-    List<ChannelHandler> buildResponsePipeline(List<KrpcResponseFilter> filters) {
-        // Note: we could equally use a single ChannelInboundHandler which itself dispatched to each filter.
-        // Using a ChannelInboundHandler-per-filter model means that we're not occupying the CPU for the
-        // whole filterchain execution => higher latency, but higher throughput.
-        List<ChannelHandler> responseFilterHandlers = new ArrayList<>(filters.size());
-        for (var responseFilter : filters) {
-            responseFilterHandlers.add(new SingleResponseFilterHandler(responseFilter));
-        }
-        return responseFilterHandlers;
-    }
-
     @Override
     public void initChannel(SocketChannel ch) {
         // TODO TLS
@@ -139,23 +106,16 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
                 correlation);
         pipeline.addLast("requestDecoder", decoder);
 
-        var requestFilterHandlers = buildRequestPipeline(requestFilters);
-
-        for (var handler : requestFilterHandlers) {
-            ch.pipeline().addLast(handler);
-        }
-
         pipeline.addLast("responseEncoder", new KafkaResponseEncoder());
         if (logFrames) {
             pipeline.addLast("frameLogger", new LoggingHandler("frontend-application", LogLevel.INFO));
         }
 
-        var responseFilterHandlers = buildResponsePipeline(responseFilters);
-
         pipeline.addLast("frontendHandler", new KafkaProxyFrontendHandler(remoteHost,
                 remotePort,
                 correlation,
-                responseFilterHandlers,
+                requestFilters,
+                responseFilters,
                 logNetwork,
                 logFrames));
     }

@@ -27,6 +27,8 @@ import org.apache.logging.log4j.Logger;
 import io.kroxylicious.proxy.codec.Correlation;
 import io.kroxylicious.proxy.codec.KafkaRequestEncoder;
 import io.kroxylicious.proxy.codec.KafkaResponseDecoder;
+import io.kroxylicious.proxy.filter.KrpcRequestFilter;
+import io.kroxylicious.proxy.filter.KrpcResponseFilter;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
@@ -43,12 +45,47 @@ public class KafkaProxyFrontendHandler extends ChannelInboundHandlerAdapter {
 
     private static final Logger LOGGER = LogManager.getLogger(KafkaProxyFrontendHandler.class);
 
+    /**
+     * Builds a request pipeline for incoming requests from the downstream client.
+     * @param filters The filters in the pipeline (response filters won't be added to the result).
+     * @return A list of channel handlers
+     */
+    static List<ChannelHandler> buildRequestPipeline(List<KrpcRequestFilter> filters) {
+        // Note: we could equally use a single ChannelInboundHandler which itself dispatched to each filter.
+        // Using a ChannelInboundHandler-per-filter model means that we're not occupying the CPU for the
+        // whole filterchain execution => higher latency, but higher throughput.
+        List<ChannelHandler> requestFilterHandlers = new ArrayList<>(filters.size());
+        for (var requestFilter : filters) {
+            requestFilterHandlers.add(new SingleRequestFilterHandler(requestFilter));
+        }
+        Collections.reverse(requestFilterHandlers);
+        return requestFilterHandlers;
+    }
+
+    /**
+     * Builds a response pipeline for incomping responses from the upstream server.
+     * @param filters The filters in the pipeline (request filters won't be added to the result).
+     * @return A list of channel handlers
+     */
+    static List<ChannelHandler> buildResponsePipeline(List<KrpcResponseFilter> filters) {
+        // Note: we could equally use a single ChannelInboundHandler which itself dispatched to each filter.
+        // Using a ChannelInboundHandler-per-filter model means that we're not occupying the CPU for the
+        // whole filterchain execution => higher latency, but higher throughput.
+        List<ChannelHandler> responseFilterHandlers = new ArrayList<>(filters.size());
+        for (var responseFilter : filters) {
+            responseFilterHandlers.add(new SingleResponseFilterHandler(responseFilter));
+        }
+        return responseFilterHandlers;
+    }
+
     private final String remoteHost;
     private final int remotePort;
     private final Map<Integer, Correlation> correlation;
     private final boolean logNetwork;
     private final boolean logFrames;
     private final List<ChannelHandler> responseFilterHandlers;
+    private final List<ChannelHandler> requestFilterHandlers;
+
     private ChannelHandlerContext outboundCtx;
     private KafkaProxyBackendHandler backendHandler;
     private boolean pendingFlushes;
@@ -57,15 +94,17 @@ public class KafkaProxyFrontendHandler extends ChannelInboundHandlerAdapter {
     public KafkaProxyFrontendHandler(String remoteHost,
                                      int remotePort,
                                      Map<Integer, Correlation> correlation,
-                                     List<ChannelHandler> responseFilterHandlers,
+                                     List<KrpcRequestFilter> requestFilters,
+                                     List<KrpcResponseFilter> responseFilters,
                                      boolean logNetwork,
                                      boolean logFrames) {
         this.remoteHost = remoteHost;
         this.remotePort = remotePort;
         this.correlation = correlation;
-        this.responseFilterHandlers = responseFilterHandlers;
         this.logNetwork = logNetwork;
         this.logFrames = logFrames;
+        this.responseFilterHandlers = buildResponsePipeline(responseFilters);
+        this.requestFilterHandlers = buildRequestPipeline(requestFilters);
     }
 
     public void outboundChannelActive(ChannelHandlerContext ctx) {
@@ -97,13 +136,14 @@ public class KafkaProxyFrontendHandler extends ChannelInboundHandlerAdapter {
 
         LOGGER.trace("Connecting to outbound {}:{}", remoteHost, remotePort);
         ChannelFuture connectFuture = b.connect(remoteHost, remotePort);
-        Channel outboundChannel = connectFuture.channel();
-        ChannelPipeline pipeline = outboundChannel.pipeline();
+
         List<ChannelHandler> handlers = new ArrayList<>();
         if (logNetwork) {
             handlers.add(new LoggingHandler("backend-network"));
         }
         handlers.add(new KafkaRequestEncoder());
+        handlers.addAll(requestFilterHandlers);
+
         handlers.add(new KafkaResponseDecoder(correlation));
         handlers.addAll(responseFilterHandlers);
 
@@ -111,6 +151,8 @@ public class KafkaProxyFrontendHandler extends ChannelInboundHandlerAdapter {
             handlers.add(new LoggingHandler("backend-application"));
         }
         Collections.reverse(handlers);
+        Channel outboundChannel = connectFuture.channel();
+        ChannelPipeline pipeline = outboundChannel.pipeline();
         for (var handler : handlers) {
             pipeline.addFirst(handler);
         }
