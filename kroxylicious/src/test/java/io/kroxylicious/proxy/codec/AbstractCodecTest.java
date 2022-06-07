@@ -39,11 +39,16 @@ import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.protocol.ObjectSerializationCache;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
+import io.netty.channel.ChannelHandlerContext;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Baseclass for codec tests
@@ -136,13 +141,22 @@ public abstract class AbstractCodecTest {
     }
 
     protected <F extends Frame> void testEncode(ByteBuffer expected, F toBeEncoded, KafkaMessageEncoder<F> encoder) throws Exception {
-        assertEquals(expected.limit(), expected.capacity());
+        int expectedSize = expected.capacity();
+        assertEquals(expected.limit(), expectedSize);
 
         // Encode using our APIS
-        ByteBuffer ourBuffer = ByteBuffer.allocate(expected.capacity()).clear();
+        ByteBuffer ourBuffer = ByteBuffer.allocate(expectedSize).clear();
+        var allocator = mock(ByteBufAllocator.class);
+        when(allocator.heapBuffer(anyInt())).thenAnswer(i -> {
+            assertEquals(expectedSize, (Integer) i.getArgument(0),
+                    "Expected the estimated size to the exact message size");
+            return Unpooled.wrappedBuffer(ourBuffer).resetWriterIndex();
+        });
+        var chc = mock(ChannelHandlerContext.class);
+        when(chc.alloc()).thenReturn(allocator);
+        ByteBuf out = encoder.allocateBuffer(chc, toBeEncoded, false);
 
-        ByteBuf out = Unpooled.wrappedBuffer(ourBuffer).resetWriterIndex();
-        encoder.encode(null, toBeEncoded, out);
+        encoder.encode(chc, toBeEncoded, out);
 
         // Assert that we filled the buffer (since it was supposed to be the exact size)
         assertEquals(ourBuffer.limit(), ourBuffer.capacity());
