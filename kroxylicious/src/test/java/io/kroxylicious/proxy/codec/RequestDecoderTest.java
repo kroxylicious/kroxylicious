@@ -47,9 +47,8 @@ class RequestDecoderTest extends AbstractCodecTest {
                 AbstractCodecTest::deserializeRequestHeaderUsingKafkaApis,
                 AbstractCodecTest::deserializeApiVersionsRequestUsingKafkaApis,
                 new KafkaRequestDecoder(
-                        List.of((ApiVersionsRequestFilter) (request, context) -> KrpcFilterState.FORWARD),
-                        List.of(),
-                        new HashMap<>()),
+                        new HashMap<>(),
+                        (ApiVersionsRequestFilter) (request, context) -> KrpcFilterState.FORWARD),
                 DecodedRequestFrame.class);
     }
 
@@ -61,7 +60,8 @@ class RequestDecoderTest extends AbstractCodecTest {
                 AbstractCodecTest::exampleRequestHeader,
                 AbstractCodecTest::exampleApiVersionsRequest,
                 new KafkaRequestDecoder(
-                        List.of(new ApiVersionsRequestFilter() {
+                        new HashMap<>(),
+                        new ApiVersionsRequestFilter() {
                             @Override
                             public boolean shouldDeserializeRequest(ApiKeys apiKey, short apiVersion) {
                                 return false;
@@ -72,8 +72,6 @@ class RequestDecoderTest extends AbstractCodecTest {
                                 return KrpcFilterState.FORWARD;
                             }
                         }),
-                        List.of(),
-                        new HashMap<>()),
                 OpaqueRequestFrame.class);
     }
 
@@ -90,9 +88,8 @@ class RequestDecoderTest extends AbstractCodecTest {
 
         var messages = new ArrayList<>();
         new KafkaRequestDecoder(
-                List.of((ApiVersionsRequestFilter) (request, context) -> KrpcFilterState.FORWARD),
-                List.of(),
-                new HashMap<>()).decode(null, byteBuf, messages);
+                new HashMap<>(),
+                (ApiVersionsRequestFilter) (request, context) -> KrpcFilterState.FORWARD).decode(null, byteBuf, messages);
 
         assertEquals(List.of(), messageClasses(messages));
         assertEquals(0, byteBuf.readerIndex());
@@ -109,9 +106,8 @@ class RequestDecoderTest extends AbstractCodecTest {
 
         var messages = new ArrayList<>();
         new KafkaRequestDecoder(
-                List.of((ApiVersionsRequestFilter) (request, context) -> KrpcFilterState.FORWARD),
-                List.of(),
-                new HashMap<>()).decode(null, byteBuf, messages);
+                new HashMap<>(),
+                (ApiVersionsRequestFilter) (request, context) -> KrpcFilterState.FORWARD).decode(null, byteBuf, messages);
 
         assertEquals(List.of(), messageClasses(messages));
         assertEquals(expectRead, byteBuf.readerIndex());
@@ -152,9 +148,8 @@ class RequestDecoderTest extends AbstractCodecTest {
 
         var messages = new ArrayList<>();
         new KafkaRequestDecoder(
-                List.of((ApiVersionsRequestFilter) (request, context) -> KrpcFilterState.FORWARD),
-                List.of(),
-                new HashMap<>()).decode(null, byteBuf, messages);
+                new HashMap<>(),
+                (ApiVersionsRequestFilter) (request, context) -> KrpcFilterState.FORWARD).decode(null, byteBuf, messages);
 
         assertEquals(List.of(DecodedRequestFrame.class, DecodedRequestFrame.class), messageClasses(messages));
         DecodedRequestFrame frame = (DecodedRequestFrame) messages.get(0);

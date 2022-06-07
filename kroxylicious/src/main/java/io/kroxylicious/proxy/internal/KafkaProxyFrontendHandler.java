@@ -16,9 +16,6 @@
  */
 package io.kroxylicious.proxy.internal;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 
 import org.apache.logging.log4j.LogManager;
@@ -27,12 +24,14 @@ import org.apache.logging.log4j.Logger;
 import io.kroxylicious.proxy.codec.Correlation;
 import io.kroxylicious.proxy.codec.KafkaRequestEncoder;
 import io.kroxylicious.proxy.codec.KafkaResponseDecoder;
+import io.kroxylicious.proxy.filter.KrpcFilter;
+import io.kroxylicious.proxy.filter.KrpcRequestFilter;
+import io.kroxylicious.proxy.filter.KrpcResponseFilter;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
-import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelOption;
@@ -48,7 +47,8 @@ public class KafkaProxyFrontendHandler extends ChannelInboundHandlerAdapter {
     private final Map<Integer, Correlation> correlation;
     private final boolean logNetwork;
     private final boolean logFrames;
-    private final List<ChannelHandler> responseFilterHandlers;
+    private final KrpcFilter[] filters;
+
     private ChannelHandlerContext outboundCtx;
     private KafkaProxyBackendHandler backendHandler;
     private boolean pendingFlushes;
@@ -57,15 +57,15 @@ public class KafkaProxyFrontendHandler extends ChannelInboundHandlerAdapter {
     public KafkaProxyFrontendHandler(String remoteHost,
                                      int remotePort,
                                      Map<Integer, Correlation> correlation,
-                                     List<ChannelHandler> responseFilterHandlers,
+                                     KrpcFilter[] filters,
                                      boolean logNetwork,
                                      boolean logFrames) {
         this.remoteHost = remoteHost;
         this.remotePort = remotePort;
         this.correlation = correlation;
-        this.responseFilterHandlers = responseFilterHandlers;
         this.logNetwork = logNetwork;
         this.logFrames = logFrames;
+        this.filters = filters;
     }
 
     public void outboundChannelActive(ChannelHandlerContext ctx) {
@@ -99,20 +99,15 @@ public class KafkaProxyFrontendHandler extends ChannelInboundHandlerAdapter {
         ChannelFuture connectFuture = b.connect(remoteHost, remotePort);
         Channel outboundChannel = connectFuture.channel();
         ChannelPipeline pipeline = outboundChannel.pipeline();
-        List<ChannelHandler> handlers = new ArrayList<>();
-        if (logNetwork) {
-            handlers.add(new LoggingHandler("backend-network"));
-        }
-        handlers.add(new KafkaRequestEncoder());
-        handlers.add(new KafkaResponseDecoder(correlation));
-        handlers.addAll(responseFilterHandlers);
 
         if (logFrames) {
-            handlers.add(new LoggingHandler("backend-application"));
+            pipeline.addFirst(new LoggingHandler("backend-application"));
         }
-        Collections.reverse(handlers);
-        for (var handler : handlers) {
-            pipeline.addFirst(handler);
+        addFiltersToPipeline(pipeline);
+        pipeline.addFirst(new KafkaResponseDecoder(correlation));
+        pipeline.addFirst(new KafkaRequestEncoder());
+        if (logNetwork) {
+            pipeline.addFirst(new LoggingHandler("backend-network"));
         }
 
         connectFuture.addListener(future -> {
@@ -127,6 +122,20 @@ public class KafkaProxyFrontendHandler extends ChannelInboundHandlerAdapter {
                 inboundChannel.close();
             }
         });
+    }
+
+    private void addFiltersToPipeline(ChannelPipeline pipeline) {
+        // Note: we could equally use a single ChannelInboundHandler which itself dispatched to each filter.
+        // Using a ChannelInboundHandler-per-filter model means that we're not occupying the CPU for the
+        // whole filterchain execution => higher latency, but higher throughput.
+        for (var filter : filters) {
+            if (filter instanceof KrpcRequestFilter) {
+                pipeline.addFirst(new SingleRequestFilterHandler((KrpcRequestFilter) filter));
+            }
+            if (filter instanceof KrpcResponseFilter) {
+                pipeline.addFirst(new SingleResponseFilterHandler((KrpcResponseFilter) filter));
+            }
+        }
     }
 
     @Override

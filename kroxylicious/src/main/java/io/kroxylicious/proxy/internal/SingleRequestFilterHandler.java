@@ -19,13 +19,14 @@ package io.kroxylicious.proxy.internal;
 import io.kroxylicious.proxy.codec.DecodedRequestFrame;
 import io.kroxylicious.proxy.filter.KrpcRequestFilter;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.channel.ChannelOutboundHandlerAdapter;
+import io.netty.channel.ChannelPromise;
 
 /**
  * A {@code ChannelInboundHandler} (for handling requests from downstream)
  * that applies a single {@link KrpcRequestFilter}.
  */
-public class SingleRequestFilterHandler extends ChannelInboundHandlerAdapter {
+public class SingleRequestFilterHandler extends ChannelOutboundHandlerAdapter {
 
     private final KrpcRequestFilter filter;
 
@@ -45,7 +46,7 @@ public class SingleRequestFilterHandler extends ChannelInboundHandlerAdapter {
     }
 
     @Override
-    public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+    public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
         if (msg instanceof DecodedRequestFrame) {
             DecodedRequestFrame<?> decodedFrame = (DecodedRequestFrame<?>) msg;
             // Guarding against invoking the filter unexpectely
@@ -53,7 +54,7 @@ public class SingleRequestFilterHandler extends ChannelInboundHandlerAdapter {
                 var filterContext = new DefaultFilterContext(channelContext, decodedFrame);
                 switch (filter.apply(decodedFrame, filterContext)) {
                     case FORWARD:
-                        super.channelRead(ctx, msg);
+                        super.write(ctx, msg, promise);
                         break;
                     case DROP:
                         break;
@@ -63,11 +64,11 @@ public class SingleRequestFilterHandler extends ChannelInboundHandlerAdapter {
 
             }
             else {
-                super.channelRead(ctx, msg);
+                super.write(ctx, msg, promise);
             }
         }
         else {
-            super.channelRead(ctx, msg);
+            super.write(ctx, msg, promise);
         }
     }
 

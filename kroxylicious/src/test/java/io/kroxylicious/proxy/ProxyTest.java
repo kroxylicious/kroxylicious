@@ -21,7 +21,6 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.time.Duration;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -35,6 +34,7 @@ import org.apache.kafka.common.serialization.StringSerializer;
 import org.junit.jupiter.api.Test;
 
 import io.debezium.kafka.KafkaCluster;
+import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.internal.FilterChainFactory;
 import io.kroxylicious.proxy.internal.filter.AdvertisedListenersFilter;
 import io.kroxylicious.proxy.internal.filter.AdvertisedListenersFilter.AddressMapping;
@@ -56,9 +56,10 @@ public class ProxyTest {
 
         String brokerList = startKafkaCluster();
 
-        FilterChainFactory filterChainFactory = () -> List.of(
+        FilterChainFactory filterChainFactory = () -> new KrpcFilter[]{
                 new ApiVersionsFilter(),
-                new AdvertisedListenersFilter(new FixedAddressMapping(proxyHost, proxyPort)));
+                new AdvertisedListenersFilter(new FixedAddressMapping(proxyHost, proxyPort))
+        };
 
         var proxy = startProxy(proxyHost, proxyPort, brokerList, filterChainFactory);
 
@@ -93,11 +94,12 @@ public class ProxyTest {
 
         String brokerList = startKafkaCluster();
 
-        FilterChainFactory filterChainFactory = () -> List.of(
+        FilterChainFactory filterChainFactory = () -> new KrpcFilter[]{
                 new ApiVersionsFilter(),
                 new AdvertisedListenersFilter(new FixedAddressMapping(proxyHost, proxyPort)),
                 new ProduceRecordTransformationFilter(
-                        buffer -> ByteBuffer.wrap(new String(StandardCharsets.UTF_8.decode(buffer).array()).toUpperCase().getBytes(StandardCharsets.UTF_8))));
+                        buffer -> ByteBuffer.wrap(new String(StandardCharsets.UTF_8.decode(buffer).array()).toUpperCase().getBytes(StandardCharsets.UTF_8)))
+        };
 
         var proxy = startProxy(proxyHost, proxyPort, brokerList,
                 filterChainFactory);
