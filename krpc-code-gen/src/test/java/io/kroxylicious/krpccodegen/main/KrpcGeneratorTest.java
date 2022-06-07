@@ -43,7 +43,7 @@ import org.junit.jupiter.api.Test;
 class KrpcGeneratorTest {
 
     private static final String MESSAGE_SPECS_PATH = "message-specs/common/message";
-    private static final String OUTPUT_DIR = "generated-test-sources/krpc";
+    private static final String OUTPUT_DIR = "krpc-test-sources/krpc";
     private static final String TEST_CLASSES_DIR = "test-classes";
 
     @Test
