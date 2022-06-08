@@ -45,24 +45,8 @@ import org.apache.kafka.common.message.${messageSpec.name}Data;
  * A stateless filter for ${messageSpec.name}s.
  * The same instance may be invoked on multiple channels.
  */
-public interface ${filterClass} extends Krpc${msgType?cap_first}Filter {
-<#--
-    @Override
-    public default void accept(Krpc${msgType?cap_first}Visitor visitor) {
-        visitor.visit${filterClass}(this);
-    }
+public interface ${filterClass} extends KrpcFilter {
 
-    /**
-     * Decide whether {@link #on${messageSpec.name}(${messageSpec.name}Data, FilterContext)} should be called on a given ${msgType}.
-     * The ${msgType} will only be deserialized if any of the filters in the filter chain request it,
-     * otherwise it will be pass up/down stream without being deserialized.
-     * @param context The context.
-     * @return true if {@link #on${messageSpec.name}(${dataClass}, KrpcFilterContext)} should be called on a given ${messageSpec.type}
-     */
-    public default boolean shouldIntercept${messageSpec.name}(FilterContext context) {
-        return true;
-    }
--->
     /**
      * Handle the given {@code ${msgType}},
      * returning the {@code ${messageSpec.name}Data} instance to be passed to the next filter.
@@ -76,18 +60,4 @@ public interface ${filterClass} extends Krpc${msgType?cap_first}Filter {
      */
     public KrpcFilterState on${messageSpec.name}(${dataClass} ${msgType}, KrpcFilterContext context);
 
-    <#-- TODO this is completely wrong, since it assumes a 1-to-1 relationship between down- and upstream requests
-    // (or up- and downstream responses).
-    // A plugin actually might need to make multiple upstream requests for a single downstream
-    // (e.g. topic encryption with inflation)
-    // And combine multiple upstream responses into a single downstream response
-    // (e.g. the ack for topic encryption with inflation)
-    // So maybe it's the filter context which we use to initiate requests
-
-    // Each plugin effectively has its own state machine, and could return it's expectation
-    // of the next event (for flow control and debugging).
-    // We'd then need to validate the filterchain
-    // (e.g. we can't have a later plugin waiting for input when an earlier plugin
-    //  is waiting for a response, because that would be a deadlock)
-    -->
 }

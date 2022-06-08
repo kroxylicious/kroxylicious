@@ -25,8 +25,6 @@ import io.kroxylicious.proxy.codec.Correlation;
 import io.kroxylicious.proxy.codec.KafkaRequestEncoder;
 import io.kroxylicious.proxy.codec.KafkaResponseDecoder;
 import io.kroxylicious.proxy.filter.KrpcFilter;
-import io.kroxylicious.proxy.filter.KrpcRequestFilter;
-import io.kroxylicious.proxy.filter.KrpcResponseFilter;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
@@ -101,13 +99,13 @@ public class KafkaProxyFrontendHandler extends ChannelInboundHandlerAdapter {
         ChannelPipeline pipeline = outboundChannel.pipeline();
 
         if (logFrames) {
-            pipeline.addFirst(new LoggingHandler("backend-application"));
+            pipeline.addFirst("frameLogger", new LoggingHandler("backend-application"));
         }
         addFiltersToPipeline(pipeline);
-        pipeline.addFirst(new KafkaResponseDecoder(correlation));
-        pipeline.addFirst(new KafkaRequestEncoder());
+        pipeline.addFirst("reponseDecoder", new KafkaResponseDecoder(correlation));
+        pipeline.addFirst("requestEncoder", new KafkaRequestEncoder());
         if (logNetwork) {
-            pipeline.addFirst(new LoggingHandler("backend-network"));
+            pipeline.addFirst("networkLogger", new LoggingHandler("backend-network"));
         }
 
         connectFuture.addListener(future -> {
@@ -125,16 +123,8 @@ public class KafkaProxyFrontendHandler extends ChannelInboundHandlerAdapter {
     }
 
     private void addFiltersToPipeline(ChannelPipeline pipeline) {
-        // Note: we could equally use a single ChannelInboundHandler which itself dispatched to each filter.
-        // Using a ChannelInboundHandler-per-filter model means that we're not occupying the CPU for the
-        // whole filterchain execution => higher latency, but higher throughput.
         for (var filter : filters) {
-            if (filter instanceof KrpcRequestFilter) {
-                pipeline.addFirst(new SingleRequestFilterHandler((KrpcRequestFilter) filter));
-            }
-            if (filter instanceof KrpcResponseFilter) {
-                pipeline.addFirst(new SingleResponseFilterHandler((KrpcResponseFilter) filter));
-            }
+            pipeline.addFirst(filter.toString(), new FilterHandler(filter));
         }
     }
 
