@@ -137,7 +137,7 @@
         <dependency>
             <groupId>org.apache.kafka</groupId>
             <artifactId>kafka_2.13</artifactId>
-            <version>3.1.0</version>
+            <version>${kafka.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -167,7 +167,7 @@
                         </goals>
                         <phase>generate-sources</phase>
                         <configuration>
-                            <artifact>org.apache.kafka:kafka-clients:3.1.0</artifact>
+                            <artifact>org.apache.kafka:kafka-clients:${kafka.version}</artifact>
                             <includes>common/message/*.json</includes>
                             <outputDirectory>${project.build.directory}/message-specs</outputDirectory>
                         </configuration>

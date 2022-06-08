@@ -99,7 +99,7 @@
                             <goal>unpack</goal>
                         </goals>
                         <configuration>
-                            <artifact>org.apache.kafka:kafka-clients:${kafka-clients.version}</artifact>
+                            <artifact>org.apache.kafka:kafka-clients:${kafka.version}</artifact>
                             <includes>common/message/*.json</includes>
                             <outputDirectory>${project.build.directory}/message-specs</outputDirectory>
                         </configuration>
