@@ -34,8 +34,8 @@ public abstract class OpaqueFrame implements Frame {
      */
     private static final int FRAME_SIZE_LENGTH = Integer.BYTES;
 
-    private final int length;
-    private final ByteBuf buf;
+    protected final int length;
+    protected final ByteBuf buf;
 
     public OpaqueFrame(ByteBuf buf, int length) {
         this.length = length;
