@@ -120,7 +120,7 @@ public abstract class DecodedFrame<H extends ApiMessage, B extends ApiMessage>
     @Override
     public String toString() {
         return getClass().getSimpleName() + "(" +
-                ApiKeys.forId(apiVersion) + "(" + apiVersion + ")v" + apiVersion +
+                apiKey() + "(" + apiVersion + ")v" + apiVersion +
                 ", header=" + header +
                 ", body=" + body +
                 ')';
