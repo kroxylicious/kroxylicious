@@ -22,4 +22,20 @@ public class OpaqueResponseFrame extends OpaqueFrame implements ResponseFrame {
     public OpaqueResponseFrame(ByteBuf buf, int length) {
         super(buf, length);
     }
+
+    @Override
+    public String toString() {
+        int index = buf.readerIndex();
+        try {
+            var correlationId = buf.readInt();
+            return getClass().getSimpleName() + "(" +
+                    "length=" + length +
+                    ", correlationId=" + correlationId +
+                    ", buf=" + buf +
+                    ')';
+        }
+        finally {
+            buf.readerIndex(index);
+        }
+    }
 }

@@ -16,10 +16,32 @@
  */
 package io.kroxylicious.proxy.codec;
 
+import org.apache.kafka.common.protocol.ApiKeys;
+
 import io.netty.buffer.ByteBuf;
 
 public class OpaqueRequestFrame extends OpaqueFrame implements RequestFrame {
     public OpaqueRequestFrame(ByteBuf buf, int length) {
         super(buf, length);
+    }
+
+    @Override
+    public String toString() {
+        int index = buf.readerIndex();
+        try {
+            var apiId = buf.readShort();
+            // TODO handle unknown api key
+            ApiKeys apiKey = ApiKeys.forId(apiId);
+            short apiVersion = buf.readShort();
+            return getClass().getSimpleName() + "(" +
+                    "length=" + length +
+                    ", apiKey=" + apiKey +
+                    ", apiVersion=" + apiVersion +
+                    ", buf=" + buf +
+                    ')';
+        }
+        finally {
+            buf.readerIndex(index);
+        }
     }
 }
