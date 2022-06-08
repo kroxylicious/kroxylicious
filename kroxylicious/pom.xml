@@ -222,25 +222,9 @@
                         <phase>generate-sources</phase>
                         <configuration>
                             <messageSpecDirectory>${project.build.directory}/message-specs/common/message</messageSpecDirectory>
-                            <messageSpecFilter>*Request.json</messageSpecFilter>
+                            <messageSpecFilter>*{Request,Response}.json</messageSpecFilter>
                             <templateDirectory>${project.basedir}/src/main/templates</templateDirectory>
-                            <templateNames>Kproxy/KrpcRequestFilter.ftl</templateNames>
-                            <outputFilePattern>${templateName}.java</outputFilePattern>
-                            <outputPackage>io.kroxylicious.proxy.filter</outputPackage>
-                            <outputDirectory>${project.build.directory}/generated-sources/krpc</outputDirectory>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>generate-response-filters</id>
-                        <goals>
-                            <goal>generate-multi</goal>
-                        </goals>
-                        <phase>generate-sources</phase>
-                        <configuration>
-                            <messageSpecDirectory>${project.build.directory}/message-specs/common/message</messageSpecDirectory>
-                            <messageSpecFilter>*Response.json</messageSpecFilter>
-                            <templateDirectory>${project.basedir}/src/main/templates</templateDirectory>
-                            <templateNames>Kproxy/KrpcResponseFilter.ftl</templateNames>
+                            <templateNames>Kproxy/KrpcFilter.ftl</templateNames>
                             <outputFilePattern>${templateName}.java</outputFilePattern>
                             <outputPackage>io.kroxylicious.proxy.filter</outputPackage>
                             <outputDirectory>${project.build.directory}/generated-sources/krpc</outputDirectory>

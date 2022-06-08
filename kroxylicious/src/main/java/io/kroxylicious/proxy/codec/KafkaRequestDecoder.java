@@ -54,8 +54,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import io.kroxylicious.proxy.filter.KrpcFilter;
-import io.kroxylicious.proxy.filter.KrpcRequestFilter;
-import io.kroxylicious.proxy.filter.KrpcResponseFilter;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 
@@ -151,8 +149,7 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
 
     private boolean shouldDecodeResponse(ApiKeys apiKey, short apiVersion) {
         for (var filter : filters) {
-            if (filter instanceof KrpcResponseFilter
-                    && ((KrpcResponseFilter) filter).shouldDeserializeResponse(apiKey, apiVersion)) {
+            if (filter.shouldDeserializeResponse(apiKey, apiVersion)) {
                 return true;
             }
         }
@@ -161,8 +158,7 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
 
     private boolean shouldDecodeRequest(ApiKeys apiKey, short apiVersion) {
         for (var filter : filters) {
-            if (filter instanceof KrpcRequestFilter
-                    && ((KrpcRequestFilter) filter).shouldDeserializeRequest(apiKey, apiVersion)) {
+            if (filter.shouldDeserializeRequest(apiKey, apiVersion)) {
                 return true;
             }
         }

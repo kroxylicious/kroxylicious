@@ -18,15 +18,26 @@ package io.kroxylicious.proxy.filter;
 
 import org.apache.kafka.common.protocol.ApiKeys;
 
+import io.kroxylicious.proxy.codec.DecodedRequestFrame;
 import io.kroxylicious.proxy.codec.DecodedResponseFrame;
 
-public abstract class KrpcGenericResponseFilter implements KrpcResponseFilter {
+public abstract class KrpcGenericResponseFilter implements KrpcFilter {
+    @Override
+    public boolean shouldDeserializeRequest(ApiKeys apiKey, short apiVersion) {
+        return false;
+    }
+
     @Override
     public boolean shouldDeserializeResponse(ApiKeys apiKey, short apiVersion) {
         return true;
     }
 
     @Override
-    public abstract KrpcFilterState apply(DecodedResponseFrame<?> decodedFrame,
-                                          KrpcFilterContext filterContext);
+    public KrpcFilterState onRequest(DecodedRequestFrame<?> decodedFrame,
+                                     KrpcFilterContext filterContext) {
+        return KrpcFilterState.FORWARD;
+    }
+
+    public abstract KrpcFilterState onResponse(DecodedResponseFrame<?> decodedFrame,
+                                               KrpcFilterContext filterContext);
 }
