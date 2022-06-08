@@ -54,11 +54,6 @@ public class ProduceRecordTransformationFilter implements ProduceRequestFilter {
     }
 
     @Override
-    public boolean shouldDeserializeRequest(ApiKeys apiKey, short apiVersion) {
-        return apiKey == ApiKeys.PRODUCE;
-    }
-
-    @Override
     public KrpcFilterState onProduceRequest(ProduceRequestData data, KrpcFilterContext context) {
         applyTransformation(context, data);
         return KrpcFilterState.FORWARD;
