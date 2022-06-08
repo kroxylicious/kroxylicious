@@ -69,6 +69,4 @@ public abstract class KafkaMessageDecoder extends ByteToMessageDecoder {
 
     protected abstract Frame decodeHeaderAndBody(ChannelHandlerContext ctx, ByteBuf in, int length);
 
-    protected abstract OpaqueFrame opaqueFrame(ByteBuf in, int length);
-
 }

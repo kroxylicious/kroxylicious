@@ -35,12 +35,27 @@ public abstract class OpaqueFrame implements Frame {
     private static final int FRAME_SIZE_LENGTH = Integer.BYTES;
 
     protected final int length;
+    protected final int correlationId;
+    /** The message buffer excluding the frame size, including the header and body. */
     protected final ByteBuf buf;
 
-    public OpaqueFrame(ByteBuf buf, int length) {
+    /**
+     * @param buf The message buffer (excluding the frame size)
+     * @param correlationId The correlation id
+     * @param length The length of the frame within {@code buf}.
+     */
+    OpaqueFrame(ByteBuf buf, int correlationId, int length) {
         this.length = length;
+        this.correlationId = correlationId;
         this.buf = buf.asReadOnly();
-        assert buf.readableBytes() == length;
+        if (buf.readableBytes() != length) {
+            throw new AssertionError("readable: " + buf.readableBytes() + " length: " + length);
+        }
+    }
+
+    @Override
+    public int correlationId() {
+        return correlationId;
     }
 
     @Override

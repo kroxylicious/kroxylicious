@@ -16,37 +16,43 @@
  */
 package io.kroxylicious.proxy.codec;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class ResponseDecoderTest extends AbstractCodecTest {
 
     @ParameterizedTest
     @MethodSource("requestApiVersions")
     public void testApiVersionsExactlyOneFrame_decoded(short apiVersion) throws Exception {
-        exactlyOneFrame_decoded(apiVersion,
+        var mgr = new CorrelationManager(12);
+        mgr.putBrokerRequest(ApiKeys.API_VERSIONS.id, apiVersion, 52, true, true);
+        assertEquals(52, exactlyOneFrame_decoded(apiVersion,
                 ApiKeys.API_VERSIONS::responseHeaderVersion,
                 v -> AbstractCodecTest.exampleResponseHeader(),
                 AbstractCodecTest::exampleApiVersionsResponse,
                 AbstractCodecTest::deserializeResponseHeaderUsingKafkaApis,
                 AbstractCodecTest::deserializeApiVersionsResponseUsingKafkaApis,
-                new KafkaResponseDecoder(new HashMap<>(Map.of(12, new Correlation(ApiKeys.API_VERSIONS, apiVersion, true)))),
-                DecodedResponseFrame.class);
+                new KafkaResponseDecoder(mgr),
+                DecodedResponseFrame.class,
+                header -> header.setCorrelationId(12)),
+                "Unexpected correlation id");
     }
 
     @ParameterizedTest
     @MethodSource("requestApiVersions")
-    public void testApiVersionsExactlyOneFrame_opqaue(short apiVersion) throws Exception {
-        exactlyOneFrame_encoded(apiVersion,
+    public void testApiVersionsExactlyOneFrame_opaque(short apiVersion) throws Exception {
+        var mgr = new CorrelationManager(12);
+        mgr.putBrokerRequest(ApiKeys.API_VERSIONS.id, apiVersion, 52, true, false);
+        assertEquals(52, exactlyOneFrame_encoded(apiVersion,
                 ApiKeys.API_VERSIONS::responseHeaderVersion,
                 v -> AbstractCodecTest.exampleResponseHeader(),
                 AbstractCodecTest::exampleApiVersionsResponse,
-                new KafkaResponseDecoder(new HashMap<>(Map.of(12, new Correlation(ApiKeys.API_VERSIONS, apiVersion, false)))),
-                OpaqueResponseFrame.class);
+                new KafkaResponseDecoder(mgr),
+                OpaqueResponseFrame.class),
+                "Unexpected correlation id");
     }
 
 }

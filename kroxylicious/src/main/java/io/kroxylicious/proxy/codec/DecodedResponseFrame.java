@@ -26,8 +26,8 @@ public class DecodedResponseFrame<B extends ApiMessage>
         extends DecodedFrame<ResponseHeaderData, B>
         implements ResponseFrame {
 
-    public DecodedResponseFrame(short apiVersion, ResponseHeaderData header, B body) {
-        super(apiVersion, header, body);
+    DecodedResponseFrame(short apiVersion, int correlationId, ResponseHeaderData header, B body) {
+        super(apiVersion, correlationId, header, body);
     }
 
     public short headerVersion() {

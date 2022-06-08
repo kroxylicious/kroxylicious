@@ -16,8 +16,6 @@
  */
 package io.kroxylicious.proxy.codec;
 
-import java.util.Map;
-
 import org.apache.kafka.common.message.AddOffsetsToTxnRequestData;
 import org.apache.kafka.common.message.AddPartitionsToTxnRequestData;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
@@ -63,12 +61,9 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
 
     private final KrpcFilter[] filters;
 
-    private final Map<Integer, Correlation> correlation;
-
-    public KafkaRequestDecoder(Map<Integer, Correlation> correlation, KrpcFilter... filters) {
+    public KafkaRequestDecoder(KrpcFilter... filters) {
         super();
         this.filters = filters;
-        this.correlation = correlation;
     }
 
     @Override
@@ -90,15 +85,15 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
         if (log().isTraceEnabled()) { // avoid boxing
             log().trace("{}: apiVersion: {}", ctx, apiVersion);
         }
+        int correlationId = in.readInt();
 
         RequestHeaderData header = null;
         final ByteBufAccessor accessor;
-        // build the list of filters and use the emptiness rather than booleans
         var decodeRequest = shouldDecodeRequest(apiKey, apiVersion);
         boolean decodeResponse = shouldDecodeResponse(apiKey, apiVersion);
+        short headerVersion = apiKey.requestHeaderVersion(apiVersion);
         log().trace("{}: decodeRequest {}, decodeResponse {}", ctx, decodeRequest, decodeResponse);
-        if (decodeRequest || decodeResponse) {
-            short headerVersion = apiKey.requestHeaderVersion(apiVersion);
+        if (decodeRequest) {
             if (log().isTraceEnabled()) { // avoid boxing
                 log().trace("{}: headerVersion {}", ctx, headerVersion);
             }
@@ -116,34 +111,24 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
         else {
             accessor = null;
         }
-        final Frame frame;
+        final RequestFrame frame;
         if (decodeRequest) {
             ApiMessage body = readBody(apiId, apiVersion, accessor);
             if (log().isTraceEnabled()) {
                 log().trace("{}: body {}", ctx, body);
             }
-            frame = new DecodedRequestFrame<>(apiVersion, header, body);
+
+            frame = new DecodedRequestFrame<>(apiVersion, correlationId, decodeResponse, header, body);
             if (log().isTraceEnabled()) {
                 log().trace("{}: frame {}", ctx, frame);
             }
         }
         else {
             in.readerIndex(sof);
-            frame = opaqueFrame(in, length);
+            frame = opaqueFrame(in, correlationId, decodeResponse, length);
             in.readerIndex(sof + length);
         }
-        if (decodeResponse) {
-            if (decodeRequest &&
-                    apiKey == ApiKeys.PRODUCE &&
-                    ((ProduceRequestData) ((DecodedRequestFrame<?>) frame).body).acks() == 0) {
-                // If we know it's an acks=0 PRODUCE then we know there will be no response
-                // so don't correlate. Shame we can only issue this warning if we decoded the request
-                log().warn("{}: Not honouring decode of acks=0 PRODUCE response, because there will be none", ctx);
-            }
-            else {
-                correlation.put(header.correlationId(), new Correlation(apiKey, apiVersion, true));
-            }
-        }
+
         return frame;
     }
 
@@ -165,9 +150,15 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
         return false;
     }
 
-    @Override
-    protected OpaqueFrame opaqueFrame(ByteBuf in, int length) {
-        return new OpaqueRequestFrame(in.readSlice(length).retain(), length);
+    private OpaqueRequestFrame opaqueFrame(ByteBuf in,
+                                           int correlationId,
+                                           boolean decodeResponse,
+                                           int length) {
+        return new OpaqueRequestFrame(
+                in.readSlice(length).retain(),
+                correlationId,
+                decodeResponse,
+                length);
     }
 
     private RequestHeaderData readHeader(short headerVersion, ByteBufAccessor accessor) {

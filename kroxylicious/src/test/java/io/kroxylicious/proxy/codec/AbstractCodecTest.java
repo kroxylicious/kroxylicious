@@ -140,7 +140,10 @@ public abstract class AbstractCodecTest {
         return bbuffer;
     }
 
-    protected <F extends Frame> void testEncode(ByteBuffer expected, F toBeEncoded, KafkaMessageEncoder<F> encoder) throws Exception {
+    protected <F extends Frame> void testEncode(ByteBuffer expected,
+                                                F toBeEncoded,
+                                                KafkaMessageEncoder<F> encoder)
+            throws Exception {
         int expectedSize = expected.capacity();
         assertEquals(expected.limit(), expectedSize);
 
@@ -175,16 +178,17 @@ public abstract class AbstractCodecTest {
                         Arrays.toString(expectedBytes) + "\ncf\n" + Arrays.toString(actualBytes));
     }
 
-    public static <H extends ApiMessage, B extends ApiMessage> void exactlyOneFrame_decoded(
-                                                                                            short apiVersion,
-                                                                                            Function<Short, Short> headerVersionSupplier,
-                                                                                            Function<Short, H> headerSupplier,
-                                                                                            Supplier<B> bodySupplier,
-                                                                                            BiFunction<Short, ByteBuffer, H> headerDeser,
-                                                                                            BiFunction<Short, ByteBuffer, B> bodyDeser,
-                                                                                            KafkaMessageDecoder decoder,
-                                                                                            Class<? extends DecodedFrame> frameClass)
-            throws Exception {
+    public static <H extends ApiMessage, B extends ApiMessage> int exactlyOneFrame_decoded(
+                                                                                           short apiVersion,
+                                                                                           Function<Short, Short> headerVersionSupplier,
+                                                                                           Function<Short, H> headerSupplier,
+                                                                                           Supplier<B> bodySupplier,
+                                                                                           BiFunction<Short, ByteBuffer, H> headerDeser,
+                                                                                           BiFunction<Short, ByteBuffer, B> bodyDeser,
+                                                                                           KafkaMessageDecoder decoder,
+                                                                                           Class<? extends DecodedFrame> frameClass,
+                                                                                           Function<H, H> headerAdjuster) {
+
         ApiMessage encodedHeader = headerSupplier.apply(apiVersion);
 
         ApiMessage encodedBody = bodySupplier.get();
@@ -201,7 +205,7 @@ public abstract class AbstractCodecTest {
         var akBody = bodyDeser.apply(apiVersion, akBuffer);
         akBuffer.reset();
 
-        ByteBuf akBuf = Unpooled.wrappedBuffer(akBuffer.duplicate()).asReadOnly();
+        ByteBuf akBuf = Unpooled.wrappedBuffer(akBuffer.duplicate());
 
         var messages = new ArrayList<>();
 
@@ -209,18 +213,19 @@ public abstract class AbstractCodecTest {
         assertEquals(akBuf.writerIndex(), akBuf.readerIndex(), "Expect to have read whole buf");
 
         assertEquals(List.of(frameClass), messageClasses(messages), "Expected a single decoded frame");
-        DecodedFrame<?, ?> frame = (DecodedFrame<?, ?>) messages.get(0);
-        assertEquals(akHeader, frame.header());
+        DecodedFrame<H, B> frame = (DecodedFrame<H, B>) messages.get(0);
+        assertEquals(akHeader, headerAdjuster.apply(frame.header()));
         assertEquals(akBody, frame.body());
+        return frame.correlationId();
     }
 
-    public static <H extends ApiMessage, B extends ApiMessage> void exactlyOneFrame_encoded(
-                                                                                            short apiVersion,
-                                                                                            Function<Short, Short> headerVersionSupplier,
-                                                                                            Function<Short, H> headerSupplier,
-                                                                                            Supplier<B> bodySupplier,
-                                                                                            KafkaMessageDecoder decoder,
-                                                                                            Class<? extends Frame> frameClass)
+    public static <H extends ApiMessage, B extends ApiMessage> int exactlyOneFrame_encoded(
+                                                                                           short apiVersion,
+                                                                                           Function<Short, Short> headerVersionSupplier,
+                                                                                           Function<Short, H> headerSupplier,
+                                                                                           Supplier<B> bodySupplier,
+                                                                                           KafkaMessageDecoder decoder,
+                                                                                           Class<? extends Frame> frameClass)
             throws Exception {
 
         var encodedHeader = headerSupplier.apply(apiVersion);
@@ -239,6 +244,7 @@ public abstract class AbstractCodecTest {
         OpaqueFrame frame = (OpaqueFrame) messages.get(0);
         akBuf.readerIndex(4); // An OpaqueFrame excludes the length of the frame
         assertSameBytes(akBuf, frame.buf());
+        return frame.correlationId();
     }
 
 }

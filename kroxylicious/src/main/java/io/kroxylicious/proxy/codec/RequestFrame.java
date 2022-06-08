@@ -17,4 +17,11 @@
 package io.kroxylicious.proxy.codec;
 
 public interface RequestFrame extends Frame {
+
+    /**
+     * Whether the response to this request should be decoded.
+     * @return Whether the response to this request should be decoded.
+     */
+    boolean decodeResponse();
+
 }

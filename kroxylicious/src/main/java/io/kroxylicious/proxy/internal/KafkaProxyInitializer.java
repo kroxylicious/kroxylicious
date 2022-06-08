@@ -16,12 +16,10 @@
  */
 package io.kroxylicious.proxy.internal;
 
-import java.util.HashMap;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import io.kroxylicious.proxy.codec.Correlation;
+import io.kroxylicious.proxy.codec.CorrelationManager;
 import io.kroxylicious.proxy.codec.KafkaRequestDecoder;
 import io.kroxylicious.proxy.codec.KafkaResponseEncoder;
 import io.netty.channel.ChannelInitializer;
@@ -58,7 +56,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
 
         LOGGER.trace("Connection from {} to my address {}", ch.remoteAddress(), ch.localAddress());
 
-        var correlation = new HashMap<Integer, Correlation>();
+        var correlation = new CorrelationManager();
 
         ChannelPipeline pipeline = ch.pipeline();
         if (logNetwork) {
@@ -67,8 +65,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
         var filters = filterChainFactory.createFilters();
         // The decoder, this only cares about the filters
         // because it needs to know whether to decode requests
-        KafkaRequestDecoder decoder = new KafkaRequestDecoder(
-                correlation, filters);
+        KafkaRequestDecoder decoder = new KafkaRequestDecoder(filters);
         pipeline.addLast("requestDecoder", decoder);
 
         pipeline.addLast("responseEncoder", new KafkaResponseEncoder());
