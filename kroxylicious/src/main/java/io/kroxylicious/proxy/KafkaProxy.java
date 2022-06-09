@@ -69,12 +69,12 @@ public final class KafkaProxy {
                         new ApiVersionsFilter(),
                         new BrokerAddressFilter(new BrokerAddressFilter.AddressMapping() {
                             @Override
-                            public String host(String host, int port) {
+                            public String downstreamHost(String host, int port) {
                                 return host;
                             }
 
                             @Override
-                            public int port(String host, int port) {
+                            public int downstreamPort(String host, int port) {
                                 return port + 100;
                             }
                         })// ,

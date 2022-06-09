@@ -212,12 +212,12 @@ public class ProxyTest {
         }
 
         @Override
-        public String host(String host, int port) {
+        public String downstreamHost(String host, int port) {
             return targetHost;
         }
 
         @Override
-        public int port(String host, int port) {
+        public int downstreamPort(String host, int port) {
             return targetPort;
         }
     }

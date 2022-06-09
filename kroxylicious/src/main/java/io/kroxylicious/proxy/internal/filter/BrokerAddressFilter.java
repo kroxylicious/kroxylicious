@@ -44,9 +44,9 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
     private static final Logger LOGGER = LogManager.getLogger(BrokerAddressFilter.class);
 
     public interface AddressMapping {
-        String host(String host, int port);
+        String downstreamHost(String upstreamHost, int upstreamPort);
 
-        int port(String host, int port);
+        int downstreamPort(String upstreamHost, int upstreamPort);
     }
 
     private final AddressMapping mapping;
@@ -79,12 +79,13 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
         return KrpcFilterState.FORWARD;
     }
 
-    private <T> void apply(KrpcFilterContext context, T broker, Function<T, String> hostGetter, ToIntFunction<T> portGetter, BiConsumer<T, String> hostSetter, ObjIntConsumer<T> portSetter) {
+    private <T> void apply(KrpcFilterContext context, T broker, Function<T, String> hostGetter, ToIntFunction<T> portGetter, BiConsumer<T, String> hostSetter,
+                           ObjIntConsumer<T> portSetter) {
         String incomingHost = hostGetter.apply(broker);
         int incomingPort = portGetter.applyAsInt(broker);
 
-        String host = mapping.host(incomingHost, incomingPort);
-        int port = mapping.port(incomingHost, incomingPort);
+        String host = mapping.downstreamHost(incomingHost, incomingPort);
+        int port = mapping.downstreamPort(incomingHost, incomingPort);
 
         LOGGER.trace("{}: Rewriting broker address in response {}:{} -> {}:{}", context, incomingHost, incomingPort, host, port);
         hostSetter.accept(broker, host);
