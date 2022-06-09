@@ -22,8 +22,8 @@ import org.apache.logging.log4j.Logger;
 import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.internal.FilterChainFactory;
 import io.kroxylicious.proxy.internal.KafkaProxyInitializer;
-import io.kroxylicious.proxy.internal.filter.AdvertisedListenersFilter;
 import io.kroxylicious.proxy.internal.filter.ApiVersionsFilter;
+import io.kroxylicious.proxy.internal.filter.BrokerAddressFilter;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
@@ -67,14 +67,14 @@ public final class KafkaProxy {
                 false,
                 () -> new KrpcFilter[]{
                         new ApiVersionsFilter(),
-                        new AdvertisedListenersFilter(new AdvertisedListenersFilter.AddressMapping() {
+                        new BrokerAddressFilter(new BrokerAddressFilter.AddressMapping() {
                             @Override
-                            public String host(String host, int port) {
+                            public String downstreamHost(String host, int port) {
                                 return host;
                             }
 
                             @Override
-                            public int port(String host, int port) {
+                            public int downstreamPort(String host, int port) {
                                 return port + 100;
                             }
                         })// ,
