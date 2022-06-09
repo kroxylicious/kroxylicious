@@ -16,9 +16,6 @@
  */
 package io.kroxylicious.proxy;
 
-import static java.lang.Integer.parseInt;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -45,6 +42,9 @@ import io.kroxylicious.proxy.internal.filter.BrokerAddressFilter.AddressMapping;
 import io.kroxylicious.proxy.internal.filter.FetchResponseTransformationFilter;
 import io.kroxylicious.proxy.internal.filter.ProduceRequestTransformationFilter;
 import io.kroxylicious.proxy.util.SystemTest;
+
+import static java.lang.Integer.parseInt;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @SystemTest
 public class ProxyTest {
@@ -176,7 +176,7 @@ public class ProxyTest {
                                   int proxyPort,
                                   String brokerList,
                                   FilterChainFactory filterChainFactory)
-                                          throws InterruptedException {
+            throws InterruptedException {
         String[] hostPort = brokerList.split(",")[0].split(":");
 
         KafkaProxy kafkaProxy = new KafkaProxy(proxyHost,

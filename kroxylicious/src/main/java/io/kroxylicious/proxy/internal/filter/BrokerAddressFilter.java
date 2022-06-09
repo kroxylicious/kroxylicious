@@ -16,10 +16,17 @@
  */
 package io.kroxylicious.proxy.internal.filter;
 
+import java.util.function.BiConsumer;
+import java.util.function.Function;
+import java.util.function.ObjIntConsumer;
+import java.util.function.ToIntFunction;
+
 import org.apache.kafka.common.message.DescribeClusterResponseData;
+import org.apache.kafka.common.message.DescribeClusterResponseData.DescribeClusterBroker;
 import org.apache.kafka.common.message.FindCoordinatorResponseData;
 import org.apache.kafka.common.message.FindCoordinatorResponseData.Coordinator;
 import org.apache.kafka.common.message.MetadataResponseData;
+import org.apache.kafka.common.message.MetadataResponseData.MetadataResponseBroker;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -50,49 +57,37 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
 
     @Override
     public KrpcFilterState onMetadataResponse(MetadataResponseData data, KrpcFilterContext context) {
-        mapBrokers(context, data);
+        for (MetadataResponseBroker broker : data.brokers()) {
+            apply(context, broker, MetadataResponseBroker::host, MetadataResponseBroker::port, MetadataResponseBroker::setHost, MetadataResponseBroker::setPort);
+        }
         return KrpcFilterState.FORWARD;
     }
 
     @Override
     public KrpcFilterState onDescribeClusterResponse(DescribeClusterResponseData data, KrpcFilterContext context) {
-        mapBrokers(context, data);
+        for (DescribeClusterBroker broker : data.brokers()) {
+            apply(context, broker, DescribeClusterBroker::host, DescribeClusterBroker::port, DescribeClusterBroker::setHost, DescribeClusterBroker::setPort);
+        }
         return KrpcFilterState.FORWARD;
     }
 
     @Override
     public KrpcFilterState onFindCoordinatorResponse(FindCoordinatorResponseData data, KrpcFilterContext context) {
-        mapCoordinators(context, data);
+        for (Coordinator coordinator : data.coordinators()) {
+            apply(context, coordinator, Coordinator::host, Coordinator::port, Coordinator::setHost, Coordinator::setPort);
+        }
         return KrpcFilterState.FORWARD;
     }
 
-    private void mapBrokers(KrpcFilterContext context, MetadataResponseData data) {
-        for (var broker : data.brokers()) {
-            String host = mapping.host(broker.host(), broker.port());
-            int port = mapping.port(broker.host(), broker.port());
-            LOGGER.trace("{}: Rewriting metadata response {}:{} -> {}:{}", context, broker.host(), broker.port(), host, port);
-            broker.setHost(host);
-            broker.setPort(port);
-        }
-    }
+    private <T> void apply(KrpcFilterContext context, T broker, Function<T, String> hostGetter, ToIntFunction<T> portGetter, BiConsumer<T, String> hostSetter, ObjIntConsumer<T> portSetter) {
+        String incomingHost = hostGetter.apply(broker);
+        int incomingPort = portGetter.applyAsInt(broker);
 
-    private void mapBrokers(KrpcFilterContext context, DescribeClusterResponseData data) {
-        for (var broker : data.brokers()) {
-            String host = mapping.host(broker.host(), broker.port());
-            int port = mapping.port(broker.host(), broker.port());
-            LOGGER.trace("{}: Rewriting describe cluster response {}:{} -> {}:{}", context, broker.host(), broker.port(), host, port);
-            broker.setHost(host);
-            broker.setPort(port);
-        }
-    }
+        String host = mapping.host(incomingHost, incomingPort);
+        int port = mapping.port(incomingHost, incomingPort);
 
-    private void mapCoordinators(KrpcFilterContext context, FindCoordinatorResponseData data) {
-        for (Coordinator coordinator : data.coordinators()) {
-            String host = mapping.host(coordinator.host(), coordinator.port());
-            int port = mapping.port(coordinator.host(), coordinator.port());
-            LOGGER.trace("{}: Rewriting find coordinator response {}:{} -> {}:{}", context, coordinator.host(), coordinator.port(), host, port);
-            coordinator.setHost(host);
-            coordinator.setPort(port);
-        }
+        LOGGER.trace("{}: Rewriting broker address in response {}:{} -> {}:{}", context, incomingHost, incomingPort, host, port);
+        hostSetter.accept(broker, host);
+        portSetter.accept(broker, port);
     }
 }

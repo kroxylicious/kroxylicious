@@ -63,7 +63,7 @@ public class FetchResponseTransformationFilter implements FetchResponseFilter {
     }
 
     private void applyTransformation(KrpcFilterContext context, FetchResponseData responseData) {
-        for(FetchableTopicResponse response : responseData.responses()) {
+        for (FetchableTopicResponse response : responseData.responses()) {
             for (PartitionData partitionData : response.partitions()) {
                 MemoryRecords records = (MemoryRecords) partitionData.records();
                 MemoryRecordsBuilder newRecords = NettyMemoryRecords.builder(context.allocate(records.sizeInBytes()), CompressionType.NONE,
