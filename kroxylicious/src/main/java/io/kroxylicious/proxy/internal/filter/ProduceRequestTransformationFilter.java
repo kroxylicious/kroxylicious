@@ -35,9 +35,9 @@ import io.kroxylicious.proxy.filter.ProduceRequestFilter;
 import io.kroxylicious.proxy.internal.util.NettyMemoryRecords;
 
 /**
- * An interceptor for modifying the key/value/header/topic of {@link ApiKeys#PRODUCE} requests.
+ * An filter for modifying the key/value/header/topic of {@link ApiKeys#PRODUCE} requests.
  */
-public class ProduceRecordTransformationFilter implements ProduceRequestFilter {
+public class ProduceRequestTransformationFilter implements ProduceRequestFilter {
 
     @FunctionalInterface
     public interface ByteBufferTransformation {
@@ -49,7 +49,9 @@ public class ProduceRecordTransformationFilter implements ProduceRequestFilter {
      */
     private final ByteBufferTransformation valueTransformation;
 
-    public ProduceRecordTransformationFilter(ByteBufferTransformation valueTransformation) {
+    // TODO: add transformation support for key/header/topic
+
+    public ProduceRequestTransformationFilter(ByteBufferTransformation valueTransformation) {
         this.valueTransformation = valueTransformation;
     }
 
