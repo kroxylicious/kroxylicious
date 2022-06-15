@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.kroxylicious.proxy.codec;
+package io.kroxylicious.proxy.internal.codec;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -38,6 +38,9 @@ import org.apache.kafka.common.protocol.ByteBufferAccessor;
 import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.protocol.ObjectSerializationCache;
 
+import io.kroxylicious.proxy.frame.DecodedFrame;
+import io.kroxylicious.proxy.frame.Frame;
+import io.kroxylicious.proxy.frame.OpaqueFrame;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.ByteBufUtil;

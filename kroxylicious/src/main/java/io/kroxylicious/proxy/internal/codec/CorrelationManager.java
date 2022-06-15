@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.kroxylicious.proxy.codec;
+package io.kroxylicious.proxy.internal.codec;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -29,7 +29,8 @@ import io.kroxylicious.proxy.tag.VisibleForTesting;
 public class CorrelationManager {
 
     // TODO use a specialized map
-    @VisibleForTesting final Map<Integer, Correlation> brokerRequests = new HashMap<>();
+    @VisibleForTesting
+    final Map<Integer, Correlation> brokerRequests = new HashMap<>();
 
     /** The correlation id with the upstream broker */
     private int upstreamId;

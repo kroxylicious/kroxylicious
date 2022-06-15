@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.kroxylicious.proxy.codec;
+package io.kroxylicious.proxy.internal.codec;
 
 import java.nio.ByteBuffer;
 
@@ -23,6 +23,8 @@ import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
+
+import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 
 public class ResponseEncoderTest extends AbstractCodecTest {
     @ParameterizedTest

@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.kroxylicious.proxy.codec;
+package io.kroxylicious.proxy.internal.codec;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -29,6 +29,8 @@ import org.junit.jupiter.params.provider.MethodSource;
 import io.kroxylicious.proxy.filter.ApiVersionsRequestFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.proxy.filter.KrpcFilterState;
+import io.kroxylicious.proxy.frame.DecodedRequestFrame;
+import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 

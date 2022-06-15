@@ -14,28 +14,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.kroxylicious.proxy.codec;
+package io.kroxylicious.proxy.frame;
 
-import io.netty.buffer.ByteBuf;
+import org.apache.kafka.common.message.ResponseHeaderData;
+import org.apache.kafka.common.protocol.ApiMessage;
 
-public class OpaqueResponseFrame extends OpaqueFrame implements ResponseFrame {
-    OpaqueResponseFrame(ByteBuf buf, int correlationId, int length) {
-        super(buf, correlationId, length);
+/**
+ * A decoded response frame.
+ */
+public class DecodedResponseFrame<B extends ApiMessage>
+        extends DecodedFrame<ResponseHeaderData, B>
+        implements ResponseFrame {
+
+    public DecodedResponseFrame(short apiVersion, int correlationId, ResponseHeaderData header, B body) {
+        super(apiVersion, correlationId, header, body);
     }
 
-    @Override
-    public String toString() {
-        int index = buf.readerIndex();
-        try {
-            var correlationId = buf.readInt();
-            return getClass().getSimpleName() + "(" +
-                    "length=" + length +
-                    ", correlationId=" + correlationId +
-                    ", buf=" + buf +
-                    ')';
-        }
-        finally {
-            buf.readerIndex(index);
-        }
+    public short headerVersion() {
+        return apiKey().messageType.responseHeaderVersion(apiVersion);
     }
+
 }

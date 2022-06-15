@@ -18,8 +18,8 @@ package io.kroxylicious.proxy.filter;
 
 import org.apache.kafka.common.protocol.ApiKeys;
 
-import io.kroxylicious.proxy.codec.DecodedRequestFrame;
-import io.kroxylicious.proxy.codec.DecodedResponseFrame;
+import io.kroxylicious.proxy.frame.DecodedRequestFrame;
+import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 
 public abstract class KrpcGenericRequestFilter implements KrpcFilter {
     @Override

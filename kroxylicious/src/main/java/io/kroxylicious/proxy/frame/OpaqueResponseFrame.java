@@ -14,14 +14,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.kroxylicious.proxy.codec;
+package io.kroxylicious.proxy.frame;
 
-public interface RequestFrame extends Frame {
+import io.netty.buffer.ByteBuf;
 
-    /**
-     * Whether the response to this request should be decoded.
-     * @return Whether the response to this request should be decoded.
-     */
-    boolean decodeResponse();
+public class OpaqueResponseFrame extends OpaqueFrame implements ResponseFrame {
+    public OpaqueResponseFrame(ByteBuf buf, int correlationId, int length) {
+        super(buf, correlationId, length);
+    }
 
+    @Override
+    public String toString() {
+        int index = buf.readerIndex();
+        try {
+            var correlationId = buf.readInt();
+            return getClass().getSimpleName() + "(" +
+                    "length=" + length +
+                    ", correlationId=" + correlationId +
+                    ", buf=" + buf +
+                    ')';
+        }
+        finally {
+            buf.readerIndex(index);
+        }
+    }
 }

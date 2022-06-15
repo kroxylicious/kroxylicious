@@ -14,11 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.kroxylicious.proxy.codec;
+package io.kroxylicious.proxy.frame;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
 
 /**
@@ -75,7 +76,8 @@ public abstract class OpaqueFrame implements Frame {
         buf.release();
     }
 
-    /* test */ ByteBuf buf() {
+    @VisibleForTesting
+    public ByteBuf buf() {
         return buf;
     }
 

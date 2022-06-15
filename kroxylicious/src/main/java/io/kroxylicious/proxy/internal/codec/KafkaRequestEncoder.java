@@ -14,13 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.kroxylicious.proxy.codec;
+package io.kroxylicious.proxy.internal.codec;
 
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import io.kroxylicious.proxy.frame.DecodedRequestFrame;
+import io.kroxylicious.proxy.frame.RequestFrame;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 
@@ -71,7 +73,7 @@ public class KafkaRequestEncoder extends KafkaMessageEncoder<RequestFrame> {
     private boolean hasResponse(RequestFrame frame, ByteBuf out, int ri, short apiKey, short apiVersion) {
         if (frame instanceof DecodedRequestFrame) {
             return apiKey != ApiKeys.PRODUCE.id
-                    || ((ProduceRequestData) ((DecodedRequestFrame) frame).body).acks() != 0;
+                    || ((ProduceRequestData) ((DecodedRequestFrame) frame).body()).acks() != 0;
         }
         else {
             return apiKey != ApiKeys.PRODUCE.id

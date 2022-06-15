@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.kroxylicious.proxy.codec;
+package io.kroxylicious.proxy.frame;
 
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
@@ -28,11 +28,11 @@ public class DecodedRequestFrame<B extends ApiMessage>
 
     private final boolean decodeResponse;
 
-    DecodedRequestFrame(short apiVersion,
-                        int correlationId,
-                        boolean decodeResponse,
-                        RequestHeaderData header,
-                        B body) {
+    public DecodedRequestFrame(short apiVersion,
+                               int correlationId,
+                               boolean decodeResponse,
+                               RequestHeaderData header,
+                               B body) {
         super(apiVersion, correlationId, header, body);
         this.decodeResponse = decodeResponse;
     }
