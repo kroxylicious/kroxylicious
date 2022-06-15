@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.kroxylicious.proxy.internal.filter.topicencryption;
+package io.kroxylicious.proxy.example.topicencryption;
 
 import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.FetchResponseData;
