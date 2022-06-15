@@ -34,8 +34,8 @@ import org.apache.kafka.common.serialization.StringSerializer;
 import org.junit.jupiter.api.Test;
 
 import io.debezium.kafka.KafkaCluster;
-import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.filter.FilterChainFactory;
+import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.internal.filter.ApiVersionsFilter;
 import io.kroxylicious.proxy.internal.filter.BrokerAddressFilter;
 import io.kroxylicious.proxy.internal.filter.BrokerAddressFilter.AddressMapping;
