@@ -14,11 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.kroxylicious.proxy.codec;
+package io.kroxylicious.proxy.internal.codec;
 
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
+
+import io.kroxylicious.proxy.frame.DecodedResponseFrame;
+import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 

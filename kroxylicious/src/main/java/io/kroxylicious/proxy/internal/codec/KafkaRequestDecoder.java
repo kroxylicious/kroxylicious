@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.kroxylicious.proxy.codec;
+package io.kroxylicious.proxy.internal.codec;
 
 import org.apache.kafka.common.message.AddOffsetsToTxnRequestData;
 import org.apache.kafka.common.message.AddPartitionsToTxnRequestData;
@@ -52,6 +52,10 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import io.kroxylicious.proxy.filter.KrpcFilter;
+import io.kroxylicious.proxy.frame.DecodedRequestFrame;
+import io.kroxylicious.proxy.frame.Frame;
+import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
+import io.kroxylicious.proxy.frame.RequestFrame;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 

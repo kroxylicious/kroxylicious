@@ -18,11 +18,11 @@ package io.kroxylicious.proxy.internal;
 
 import java.net.SocketAddress;
 
-import io.kroxylicious.proxy.codec.DecodedRequestFrame;
-import io.kroxylicious.proxy.codec.DecodedResponseFrame;
 import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.proxy.filter.KrpcFilterState;
+import io.kroxylicious.proxy.frame.DecodedRequestFrame;
+import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerAdapter;
 import io.netty.channel.ChannelHandlerContext;

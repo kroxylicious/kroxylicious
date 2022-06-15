@@ -14,24 +14,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.kroxylicious.proxy.codec;
+package io.kroxylicious.proxy.internal.codec;
 
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.protocol.ApiMessage;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
-/**
- * A decoded response frame.
- */
-public class DecodedResponseFrame<B extends ApiMessage>
-        extends DecodedFrame<ResponseHeaderData, B>
-        implements ResponseFrame {
+import io.kroxylicious.proxy.frame.ResponseFrame;
 
-    DecodedResponseFrame(short apiVersion, int correlationId, ResponseHeaderData header, B body) {
-        super(apiVersion, correlationId, header, body);
+public class KafkaResponseEncoder extends KafkaMessageEncoder<ResponseFrame> {
+    private static final Logger LOGGER = LogManager.getLogger(KafkaResponseEncoder.class);
+
+    @Override
+    protected Logger log() {
+        return LOGGER;
     }
-
-    public short headerVersion() {
-        return apiKey().messageType.responseHeaderVersion(apiVersion);
-    }
-
 }

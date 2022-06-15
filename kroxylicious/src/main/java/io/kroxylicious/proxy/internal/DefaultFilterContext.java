@@ -18,8 +18,8 @@ package io.kroxylicious.proxy.internal;
 
 import org.apache.kafka.common.protocol.ApiMessage;
 
-import io.kroxylicious.proxy.codec.DecodedFrame;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
+import io.kroxylicious.proxy.frame.DecodedFrame;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 

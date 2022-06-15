@@ -19,10 +19,10 @@ package io.kroxylicious.proxy.internal;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import io.kroxylicious.proxy.codec.CorrelationManager;
-import io.kroxylicious.proxy.codec.KafkaRequestEncoder;
-import io.kroxylicious.proxy.codec.KafkaResponseDecoder;
 import io.kroxylicious.proxy.filter.KrpcFilter;
+import io.kroxylicious.proxy.internal.codec.CorrelationManager;
+import io.kroxylicious.proxy.internal.codec.KafkaRequestEncoder;
+import io.kroxylicious.proxy.internal.codec.KafkaResponseDecoder;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;

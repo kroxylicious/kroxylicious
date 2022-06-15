@@ -14,7 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.kroxylicious.proxy.codec;
+package io.kroxylicious.proxy.frame;
 
-public interface ResponseFrame extends Frame {
+public interface RequestFrame extends Frame {
+
+    /**
+     * Whether the response to this request should be decoded.
+     * @return Whether the response to this request should be decoded.
+     */
+    boolean decodeResponse();
+
 }

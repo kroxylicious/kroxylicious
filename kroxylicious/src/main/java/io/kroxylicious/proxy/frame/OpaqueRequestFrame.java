@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.kroxylicious.proxy.codec;
+package io.kroxylicious.proxy.frame;
 
 import org.apache.kafka.common.protocol.ApiKeys;
 
@@ -30,10 +30,10 @@ public class OpaqueRequestFrame extends OpaqueFrame implements RequestFrame {
      * @param decodeResponse
      * @param length
      */
-    OpaqueRequestFrame(ByteBuf buf,
-                       int correlationId,
-                       boolean decodeResponse,
-                       int length) {
+    public OpaqueRequestFrame(ByteBuf buf,
+                              int correlationId,
+                              boolean decodeResponse,
+                              int length) {
         super(buf, correlationId, length);
         this.decodeResponse = decodeResponse;
     }
