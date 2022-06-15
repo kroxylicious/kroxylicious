@@ -20,7 +20,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import io.kroxylicious.proxy.filter.KrpcFilter;
-import io.kroxylicious.proxy.internal.FilterChainFactory;
+import io.kroxylicious.proxy.filter.FilterChainFactory;
 import io.kroxylicious.proxy.internal.KafkaProxyInitializer;
 import io.kroxylicious.proxy.internal.filter.ApiVersionsFilter;
 import io.kroxylicious.proxy.internal.filter.BrokerAddressFilter;
