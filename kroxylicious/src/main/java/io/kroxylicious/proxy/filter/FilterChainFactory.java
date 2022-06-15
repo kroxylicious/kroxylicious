@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.kroxylicious.proxy.internal;
+package io.kroxylicious.proxy.filter;
 
 import io.kroxylicious.proxy.filter.KrpcFilter;
 

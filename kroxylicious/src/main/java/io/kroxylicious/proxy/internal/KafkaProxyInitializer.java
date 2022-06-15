@@ -16,6 +16,7 @@
  */
 package io.kroxylicious.proxy.internal;
 
+import io.kroxylicious.proxy.filter.FilterChainFactory;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
