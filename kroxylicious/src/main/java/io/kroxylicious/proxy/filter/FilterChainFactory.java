@@ -16,8 +16,6 @@
  */
 package io.kroxylicious.proxy.filter;
 
-import io.kroxylicious.proxy.filter.KrpcFilter;
-
 /**
  * Abstracts the creation of a chain of filter instances, hiding the configuration
  * required for instantiation at the point at which instances are created.

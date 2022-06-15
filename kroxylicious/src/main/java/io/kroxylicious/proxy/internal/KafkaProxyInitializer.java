@@ -16,10 +16,10 @@
  */
 package io.kroxylicious.proxy.internal;
 
-import io.kroxylicious.proxy.filter.FilterChainFactory;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import io.kroxylicious.proxy.filter.FilterChainFactory;
 import io.kroxylicious.proxy.internal.codec.CorrelationManager;
 import io.kroxylicious.proxy.internal.codec.KafkaRequestDecoder;
 import io.kroxylicious.proxy.internal.codec.KafkaResponseEncoder;
