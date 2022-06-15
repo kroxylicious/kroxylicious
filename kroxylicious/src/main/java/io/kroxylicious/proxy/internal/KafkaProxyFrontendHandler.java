@@ -16,12 +16,10 @@
  */
 package io.kroxylicious.proxy.internal;
 
-import java.util.Map;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import io.kroxylicious.proxy.codec.Correlation;
+import io.kroxylicious.proxy.codec.CorrelationManager;
 import io.kroxylicious.proxy.codec.KafkaRequestEncoder;
 import io.kroxylicious.proxy.codec.KafkaResponseDecoder;
 import io.kroxylicious.proxy.filter.KrpcFilter;
@@ -42,7 +40,7 @@ public class KafkaProxyFrontendHandler extends ChannelInboundHandlerAdapter {
 
     private final String remoteHost;
     private final int remotePort;
-    private final Map<Integer, Correlation> correlation;
+    private final CorrelationManager correlationManager;
     private final boolean logNetwork;
     private final boolean logFrames;
     private final KrpcFilter[] filters;
@@ -54,13 +52,13 @@ public class KafkaProxyFrontendHandler extends ChannelInboundHandlerAdapter {
 
     public KafkaProxyFrontendHandler(String remoteHost,
                                      int remotePort,
-                                     Map<Integer, Correlation> correlation,
+                                     CorrelationManager correlationManager,
                                      KrpcFilter[] filters,
                                      boolean logNetwork,
                                      boolean logFrames) {
         this.remoteHost = remoteHost;
         this.remotePort = remotePort;
-        this.correlation = correlation;
+        this.correlationManager = correlationManager;
         this.logNetwork = logNetwork;
         this.logFrames = logFrames;
         this.filters = filters;
@@ -102,8 +100,8 @@ public class KafkaProxyFrontendHandler extends ChannelInboundHandlerAdapter {
             pipeline.addFirst("frameLogger", new LoggingHandler("backend-application"));
         }
         addFiltersToPipeline(pipeline);
-        pipeline.addFirst("reponseDecoder", new KafkaResponseDecoder(correlation));
-        pipeline.addFirst("requestEncoder", new KafkaRequestEncoder());
+        pipeline.addFirst("responseDecoder", new KafkaResponseDecoder(correlationManager));
+        pipeline.addFirst("requestEncoder", new KafkaRequestEncoder(correlationManager));
         if (logNetwork) {
             pipeline.addFirst("networkLogger", new LoggingHandler("backend-network"));
         }

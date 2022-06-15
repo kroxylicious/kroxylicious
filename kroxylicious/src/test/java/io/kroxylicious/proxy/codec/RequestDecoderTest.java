@@ -18,7 +18,6 @@ package io.kroxylicious.proxy.codec;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 
 import org.apache.kafka.common.message.ApiVersionsRequestData;
@@ -40,39 +39,42 @@ class RequestDecoderTest extends AbstractCodecTest {
     @ParameterizedTest
     @MethodSource("requestApiVersions")
     public void testApiVersionsExactlyOneFrame_decoded(short apiVersion) throws Exception {
-        exactlyOneFrame_decoded(apiVersion,
-                ApiKeys.API_VERSIONS::requestHeaderVersion,
-                AbstractCodecTest::exampleRequestHeader,
-                AbstractCodecTest::exampleApiVersionsRequest,
-                AbstractCodecTest::deserializeRequestHeaderUsingKafkaApis,
-                AbstractCodecTest::deserializeApiVersionsRequestUsingKafkaApis,
-                new KafkaRequestDecoder(
-                        new HashMap<>(),
-                        (ApiVersionsRequestFilter) (request, context) -> KrpcFilterState.FORWARD),
-                DecodedRequestFrame.class);
+        assertEquals(12,
+                exactlyOneFrame_decoded(apiVersion,
+                        ApiKeys.API_VERSIONS::requestHeaderVersion,
+                        AbstractCodecTest::exampleRequestHeader,
+                        AbstractCodecTest::exampleApiVersionsRequest,
+                        AbstractCodecTest::deserializeRequestHeaderUsingKafkaApis,
+                        AbstractCodecTest::deserializeApiVersionsRequestUsingKafkaApis,
+                        new KafkaRequestDecoder(
+                                (ApiVersionsRequestFilter) (request, context) -> KrpcFilterState.FORWARD),
+                        DecodedRequestFrame.class,
+                        (RequestHeaderData header) -> header),
+                "Unexpected correlation id");
     }
 
     @ParameterizedTest
     @MethodSource("requestApiVersions")
     public void testApiVersionsExactlyOneFrame_opaque(short apiVersion) throws Exception {
-        exactlyOneFrame_encoded(apiVersion,
-                ApiKeys.API_VERSIONS::requestHeaderVersion,
-                AbstractCodecTest::exampleRequestHeader,
-                AbstractCodecTest::exampleApiVersionsRequest,
-                new KafkaRequestDecoder(
-                        new HashMap<>(),
-                        new ApiVersionsRequestFilter() {
-                            @Override
-                            public boolean shouldDeserializeRequest(ApiKeys apiKey, short apiVersion) {
-                                return false;
-                            }
+        assertEquals(12,
+                exactlyOneFrame_encoded(apiVersion,
+                        ApiKeys.API_VERSIONS::requestHeaderVersion,
+                        AbstractCodecTest::exampleRequestHeader,
+                        AbstractCodecTest::exampleApiVersionsRequest,
+                        new KafkaRequestDecoder(
+                                new ApiVersionsRequestFilter() {
+                                    @Override
+                                    public boolean shouldDeserializeRequest(ApiKeys apiKey, short apiVersion) {
+                                        return false;
+                                    }
 
-                            @Override
-                            public KrpcFilterState onApiVersionsRequest(ApiVersionsRequestData request, KrpcFilterContext context) {
-                                return KrpcFilterState.FORWARD;
-                            }
-                        }),
-                OpaqueRequestFrame.class);
+                                    @Override
+                                    public KrpcFilterState onApiVersionsRequest(ApiVersionsRequestData request, KrpcFilterContext context) {
+                                        return KrpcFilterState.FORWARD;
+                                    }
+                                }),
+                        OpaqueRequestFrame.class),
+                "Unexpected correlation id");
     }
 
     @ParameterizedTest
@@ -88,7 +90,6 @@ class RequestDecoderTest extends AbstractCodecTest {
 
         var messages = new ArrayList<>();
         new KafkaRequestDecoder(
-                new HashMap<>(),
                 (ApiVersionsRequestFilter) (request, context) -> KrpcFilterState.FORWARD).decode(null, byteBuf, messages);
 
         assertEquals(List.of(), messageClasses(messages));
@@ -106,7 +107,6 @@ class RequestDecoderTest extends AbstractCodecTest {
 
         var messages = new ArrayList<>();
         new KafkaRequestDecoder(
-                new HashMap<>(),
                 (ApiVersionsRequestFilter) (request, context) -> KrpcFilterState.FORWARD).decode(null, byteBuf, messages);
 
         assertEquals(List.of(), messageClasses(messages));
@@ -148,7 +148,6 @@ class RequestDecoderTest extends AbstractCodecTest {
 
         var messages = new ArrayList<>();
         new KafkaRequestDecoder(
-                new HashMap<>(),
                 (ApiVersionsRequestFilter) (request, context) -> KrpcFilterState.FORWARD).decode(null, byteBuf, messages);
 
         assertEquals(List.of(DecodedRequestFrame.class, DecodedRequestFrame.class), messageClasses(messages));

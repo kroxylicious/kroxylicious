@@ -19,8 +19,8 @@ package io.kroxylicious.proxy.codec;
 import io.netty.buffer.ByteBuf;
 
 public class OpaqueResponseFrame extends OpaqueFrame implements ResponseFrame {
-    public OpaqueResponseFrame(ByteBuf buf, int length) {
-        super(buf, length);
+    OpaqueResponseFrame(ByteBuf buf, int correlationId, int length) {
+        super(buf, correlationId, length);
     }
 
     @Override

@@ -34,4 +34,11 @@ public interface Frame {
      * @param out The output buffer
      */
     void encode(ByteBuf out);
+
+    /**
+     * The correlation id.
+     * @return The correlation id.
+     */
+    int correlationId();
+
 }

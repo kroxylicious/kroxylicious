@@ -16,8 +16,6 @@
  */
 package io.kroxylicious.proxy.codec;
 
-import java.util.Map;
-
 import org.apache.kafka.common.message.AddOffsetsToTxnResponseData;
 import org.apache.kafka.common.message.AddPartitionsToTxnResponseData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
@@ -59,11 +57,11 @@ import io.netty.channel.ChannelHandlerContext;
 public class KafkaResponseDecoder extends KafkaMessageDecoder {
 
     private static final Logger LOGGER = LogManager.getLogger(KafkaResponseDecoder.class);
-    private final Map<Integer, Correlation> correlations;
+    private final CorrelationManager correlationManager;
 
-    public KafkaResponseDecoder(Map<Integer, Correlation> correlations) {
+    public KafkaResponseDecoder(CorrelationManager correlationManager) {
         super();
-        this.correlations = correlations;
+        this.correlationManager = correlationManager;
     }
 
     @Override
@@ -73,16 +71,23 @@ public class KafkaResponseDecoder extends KafkaMessageDecoder {
 
     @Override
     protected Frame decodeHeaderAndBody(ChannelHandlerContext ctx, ByteBuf in, int length) {
-        in.markReaderIndex();
-        var correlationId = in.readInt();
-        in.resetReaderIndex();
-        Frame frame;
-        Correlation correlation = this.correlations.remove(correlationId);
-        if (correlation != null && log().isTraceEnabled()) {
-            log().trace("{}: Correlation id {}: {}", ctx, correlationId, correlation);
+        var wi = in.writerIndex();
+        var ri = in.readerIndex();
+        var upstreamCorrelationId = in.readInt();
+        in.readerIndex(ri);
+
+        CorrelationManager.Correlation correlation = this.correlationManager.getBrokerCorrelation(upstreamCorrelationId);
+        if (correlation == null) {
+            throw new AssertionError("Missing correlation id " + upstreamCorrelationId);
         }
-        if (correlation != null && correlation.decodeResponse()) {
-            ApiKeys apiKey = correlation.apiKey();
+        int correlationId = correlation.downstreamCorrelationId();
+        in.writerIndex(ri);
+        in.writeInt(correlationId);
+        in.writerIndex(wi);
+
+        Frame frame;
+        if (correlation.decodeResponse()) {
+            ApiKeys apiKey = ApiKeys.forId(correlation.apiKey());
             short apiVersion = correlation.apiVersion();
             var accessor = new ByteBufAccessor(in);
             short headerVersion = apiKey.responseHeaderVersion(apiVersion);
@@ -91,18 +96,17 @@ public class KafkaResponseDecoder extends KafkaMessageDecoder {
             log().trace("{}: Header: {}", ctx, header);
             ApiMessage body = readBody(apiKey, apiVersion, accessor);
             log().trace("{}: Body: {}", ctx, body);
-            frame = new DecodedResponseFrame<>(apiVersion, header, body);
+            frame = new DecodedResponseFrame<>(apiVersion, correlationId, header, body);
         }
         else {
-            frame = opaqueFrame(in, length);
+            frame = opaqueFrame(in, correlationId, length);
         }
         log().trace("{}: Frame: {}", ctx, frame);
         return frame;
     }
 
-    @Override
-    protected OpaqueFrame opaqueFrame(ByteBuf in, int length) {
-        return new OpaqueResponseFrame(in.readSlice(length).retain(), length);
+    private OpaqueFrame opaqueFrame(ByteBuf in, int correlationId, int length) {
+        return new OpaqueResponseFrame(in.readSlice(length).retain(), correlationId, length);
     }
 
     private ResponseHeaderData readHeader(short headerVersion, ByteBufAccessor accessor) {

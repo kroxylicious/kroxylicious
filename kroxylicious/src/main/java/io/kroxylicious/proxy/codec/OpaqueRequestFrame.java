@@ -21,8 +21,26 @@ import org.apache.kafka.common.protocol.ApiKeys;
 import io.netty.buffer.ByteBuf;
 
 public class OpaqueRequestFrame extends OpaqueFrame implements RequestFrame {
-    public OpaqueRequestFrame(ByteBuf buf, int length) {
-        super(buf, length);
+
+    private final boolean decodeResponse;
+
+    /**
+     * @param buf The message buffer (excluding the frame size)
+     * @param correlationId
+     * @param decodeResponse
+     * @param length
+     */
+    OpaqueRequestFrame(ByteBuf buf,
+                       int correlationId,
+                       boolean decodeResponse,
+                       int length) {
+        super(buf, correlationId, length);
+        this.decodeResponse = decodeResponse;
+    }
+
+    @Override
+    public boolean decodeResponse() {
+        return decodeResponse;
     }
 
     @Override
