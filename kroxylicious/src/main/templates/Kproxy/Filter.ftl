@@ -58,6 +58,6 @@ public interface ${filterClass} extends KrpcFilter {
      * @return the {@code ${msgType}} to be passed to the next filter.
      * If null is returned then the given {@code ${msgType}} will be used.
      */
-    public KrpcFilterState on${messageSpec.name}(${dataClass} ${msgType}, KrpcFilterContext context);
+    public void on${messageSpec.name}(${dataClass} ${msgType}, KrpcFilterContext context);
 
 }

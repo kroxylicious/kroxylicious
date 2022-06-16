@@ -30,7 +30,6 @@ import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.record.TimestampType;
 
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
-import io.kroxylicious.proxy.filter.KrpcFilterState;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
 import io.kroxylicious.proxy.internal.util.NettyMemoryRecords;
 
@@ -56,9 +55,9 @@ public class ProduceRequestTransformationFilter implements ProduceRequestFilter 
     }
 
     @Override
-    public KrpcFilterState onProduceRequest(ProduceRequestData data, KrpcFilterContext context) {
+    public void onProduceRequest(ProduceRequestData data, KrpcFilterContext context) {
         applyTransformation(context, data);
-        return KrpcFilterState.FORWARD;
+        context.forwardRequest(data);
     }
 
     private void applyTransformation(KrpcFilterContext ctx, ProduceRequestData req) {

@@ -27,7 +27,6 @@ import org.apache.kafka.common.message.MetadataResponseData;
 import io.kroxylicious.proxy.filter.CreateTopicsResponseFilter;
 import io.kroxylicious.proxy.filter.DeleteTopicsResponseFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
-import io.kroxylicious.proxy.filter.KrpcFilterState;
 import io.kroxylicious.proxy.filter.MetadataResponseFilter;
 
 /**
@@ -39,7 +38,7 @@ public class TopicNameFilter
     private final Map<Uuid, String> topicNames = new HashMap<>();
 
     @Override
-    public KrpcFilterState onMetadataResponse(MetadataResponseData response, KrpcFilterContext context) {
+    public void onMetadataResponse(MetadataResponseData response, KrpcFilterContext context) {
         if (response.topics() != null) {
             for (var topic : response.topics()) {
                 topicNames.put(topic.topicId(), topic.name());
@@ -47,24 +46,24 @@ public class TopicNameFilter
         }
         // TODO how can we expose this state to other filters?
         // TODO filterContext.put("topicNames", topicNames);
-        return KrpcFilterState.FORWARD;
+        context.forwardResponse(response);
     }
 
     // We don't implement DeleteTopicsRequestFilter because we don't know whether
     // a delete topics request will succeed.
     @Override
-    public KrpcFilterState onDeleteTopicsResponse(DeleteTopicsResponseData response, KrpcFilterContext context) {
+    public void onDeleteTopicsResponse(DeleteTopicsResponseData response, KrpcFilterContext context) {
         for (var resp : response.responses()) {
             topicNames.remove(resp.topicId());
         }
-        return KrpcFilterState.FORWARD;
+        context.forwardResponse(response);
     }
 
     @Override
-    public KrpcFilterState onCreateTopicsResponse(CreateTopicsResponseData response, KrpcFilterContext context) {
+    public void onCreateTopicsResponse(CreateTopicsResponseData response, KrpcFilterContext context) {
         for (var topic : response.topics()) {
             topicNames.put(topic.topicId(), topic.name());
         }
-        return KrpcFilterState.FORWARD;
+        context.forwardResponse(response);
     }
 }

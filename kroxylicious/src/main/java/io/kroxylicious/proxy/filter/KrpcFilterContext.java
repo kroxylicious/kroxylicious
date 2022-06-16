@@ -40,12 +40,12 @@ public interface KrpcFilterContext {
     /**
      * Send a request upstream, invoking further filters.
      */
-    void forwardRequest(ApiMessage header, ApiMessage message);
+    void forwardRequest(ApiMessage message);
 
     /**
      * Send a response downstream, invoking further filters.
      */
-    void forwardResponse(ApiMessage header, ApiMessage message);
+    void forwardResponse(ApiMessage message);
 
     // TODO an API to allow a filter to add/remove another filter from the pipeline
 }

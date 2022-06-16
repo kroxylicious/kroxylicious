@@ -22,18 +22,25 @@ import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.proxy.frame.DecodedFrame;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelPromise;
 
 /**
  * Implementation of {@link KrpcFilterContext}.
  */
-class DefaultFilterContext implements KrpcFilterContext {
+class DefaultFilterContext implements KrpcFilterContext, AutoCloseable {
 
     private final DecodedFrame<?, ?> decodedFrame;
     private final ChannelHandlerContext channelContext;
+    private final ChannelPromise promise;
+    private boolean closed;
 
-    DefaultFilterContext(ChannelHandlerContext channelContext, DecodedFrame<?, ?> decodedFrame) {
+    DefaultFilterContext(ChannelHandlerContext channelContext,
+                         DecodedFrame<?, ?> decodedFrame,
+                         ChannelPromise promise) {
         this.channelContext = channelContext;
         this.decodedFrame = decodedFrame;
+        this.promise = promise;
+        this.closed = false;
     }
 
     /**
@@ -42,6 +49,7 @@ class DefaultFilterContext implements KrpcFilterContext {
      */
     @Override
     public String channelDescriptor() {
+        checkNotClosed();
         return channelContext.channel().toString();
     }
 
@@ -54,6 +62,7 @@ class DefaultFilterContext implements KrpcFilterContext {
      */
     @Override
     public ByteBuf allocate(int initialCapacity) {
+        checkNotClosed();
         final ByteBuf buffer = channelContext.alloc().heapBuffer(initialCapacity);
         decodedFrame.add(buffer);
         return buffer;
@@ -62,28 +71,50 @@ class DefaultFilterContext implements KrpcFilterContext {
     /**
      * Forward a request to the next filter in the chain
      * (or to the upstream broker).
-     * @param header The header
      * @param message The message
      */
     @Override
-    public void forwardRequest(ApiMessage header, ApiMessage message) {
-        // TODO something like ctx.fireChannelRead();
-        // but how do we know where to send it?
-        // and what about previous filters in the chain?
-        // This also assumes that the proxy is managing at least correlation ids for itself.
-        // i.e. upstream correlation ids != downstream correlation ids
-        throw new UnsupportedOperationException();
+    public void forwardRequest(ApiMessage message) {
+        checkNotClosed();
+        if (decodedFrame.body() != message) {
+            throw new IllegalStateException();
+        }
+        // check it's a request
+        String name = message.getClass().getName();
+        if (!name.endsWith("RequestData")) {
+            throw new AssertionError("Attempt to use forwardRequest with a non-request: " + name);
+        }
+
+        // TODO check we've not forwarded it already
+        channelContext.write(decodedFrame, promise);
     }
 
     /**
      * Forward a request to the next filter in the chain
      * (or to the downstream client).
-     * @param header The header
      * @param message The message
      */
     @Override
-    public void forwardResponse(ApiMessage header, ApiMessage message) {
-        // TODO
-        throw new UnsupportedOperationException();
+    public void forwardResponse(ApiMessage message) {
+        checkNotClosed();
+        // check it's a response
+        String name = message.getClass().getName();
+        if (!name.endsWith("ResponseData")) {
+            throw new AssertionError("Attempt to use forwardResponse with a non-response: " + name);
+        }
+        // TODO check we've not forwarded it already
+
+        channelContext.fireChannelRead(decodedFrame);
+    }
+
+    private void checkNotClosed() {
+        if (closed) {
+            throw new IllegalStateException("Context is closed");
+        }
+    }
+
+    @Override
+    public void close() {
+        this.closed = true;
     }
 }

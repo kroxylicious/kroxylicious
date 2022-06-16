@@ -44,18 +44,13 @@ import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 
 /**
  * <p>Interface for {@code *RequestFilter}s.
- * This interface can be implemented in two ways:
- * <ul>
- *     <li>filter classes can (multiply) implement one of the RPC-specific subinterfaces such as {@link ProduceRequestFilter} for a type-safe API</li>
- *     <li>filter classes can extend {@link KrpcGenericRequestFilter}</li>
- * </ul>
+ * This interface is not usually implemented directly.
+ * Instead filter classes can (multiply) implement one of the RPC-specific subinterfaces such
+ * as {@link ProduceRequestFilter} for a type-safe API.
  *
  * <p>When implementing one or more of the {@code *RequestFilter} subinterfaces you need only implement
  * the {@code on*Request} method(s), unless your filter can avoid deserialization in which case
  * you can override {@link #shouldDeserializeRequest(ApiKeys, short)} as well.</p>
- *
- * <p>When extending {@link KrpcGenericRequestFilter} you need to override {@link #apply(DecodedRequestFrame, KrpcFilterContext)},
- * and may override {@link #shouldDeserializeRequest(ApiKeys, short)} as well.</p>
  *
  * <h3>Guarantees</h3>
  * <p>Implementors of this API may assume the following:</p>
@@ -81,23 +76,20 @@ public /* sealed */ interface KrpcFilter /* TODO permits ... */ {
      * Apply the filter to the given {@code decodedFrame} using the given {@code filterContext}.
      * @param decodedFrame The request frame.
      * @param filterContext The filter context.
-     * @return The state of the filter.
      */
-    public default KrpcFilterState onRequest(DecodedRequestFrame<?> decodedFrame,
-                                             KrpcFilterContext filterContext) {
-        KrpcFilterState state;
+    public default void onRequest(DecodedRequestFrame<?> decodedFrame,
+                                  KrpcFilterContext filterContext) {
         switch (decodedFrame.apiKey()) {
 <#list messageSpecs as messageSpec>
 <#if messageSpec.type?lower_case == 'request'>
             case ${retrieveApiKey(messageSpec)}:
-                state = ((${messageSpec.name}Filter) this).on${messageSpec.name}((${messageSpec.name}Data) decodedFrame.body(), filterContext);
+                ((${messageSpec.name}Filter) this).on${messageSpec.name}((${messageSpec.name}Data) decodedFrame.body(), filterContext);
                 break;
 </#if>
 </#list>
             default:
                 throw new IllegalStateException("Unsupported RPC " + decodedFrame.apiKey());
         }
-        return state;
     }
 
     /**
@@ -106,21 +98,19 @@ public /* sealed */ interface KrpcFilter /* TODO permits ... */ {
      * @param filterContext The filter context.
      * @return The state of the filter.
      */
-    public default KrpcFilterState onResponse(DecodedResponseFrame<?> decodedFrame,
-                                              KrpcFilterContext filterContext) {
-        KrpcFilterState state;
+    public default void onResponse(DecodedResponseFrame<?> decodedFrame,
+                                   KrpcFilterContext filterContext) {
         switch (decodedFrame.apiKey()) {
 <#list messageSpecs as messageSpec>
 <#if messageSpec.type?lower_case == 'response'>
             case ${retrieveApiKey(messageSpec)}:
-                state = ((${messageSpec.name}Filter) this).on${messageSpec.name}((${messageSpec.name}Data) decodedFrame.body(), filterContext);
+                ((${messageSpec.name}Filter) this).on${messageSpec.name}((${messageSpec.name}Data) decodedFrame.body(), filterContext);
                 break;
 </#if>
 </#list>
             default:
                 throw new IllegalStateException("Unsupported RPC " + decodedFrame.apiKey());
         }
-        return state;
     }
 
 

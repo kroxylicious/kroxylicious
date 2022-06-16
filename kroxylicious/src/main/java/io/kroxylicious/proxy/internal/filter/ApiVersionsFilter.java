@@ -23,7 +23,6 @@ import org.apache.logging.log4j.Logger;
 
 import io.kroxylicious.proxy.filter.ApiVersionsResponseFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
-import io.kroxylicious.proxy.filter.KrpcFilterState;
 
 /**
  * Changes an API_VERSIONS response so that a client sees the intersection of supported version ranges for each
@@ -74,8 +73,8 @@ public class ApiVersionsFilter implements ApiVersionsResponseFilter {
     }
 
     @Override
-    public KrpcFilterState onApiVersionsResponse(ApiVersionsResponseData data, KrpcFilterContext context) {
+    public void onApiVersionsResponse(ApiVersionsResponseData data, KrpcFilterContext context) {
         intersectApiVersions(context.channelDescriptor(), data);
-        return KrpcFilterState.FORWARD;
+        context.forwardResponse(data);
     }
 }
