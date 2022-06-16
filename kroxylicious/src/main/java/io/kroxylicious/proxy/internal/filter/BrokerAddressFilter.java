@@ -33,7 +33,6 @@ import org.apache.logging.log4j.Logger;
 import io.kroxylicious.proxy.filter.DescribeClusterResponseFilter;
 import io.kroxylicious.proxy.filter.FindCoordinatorResponseFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
-import io.kroxylicious.proxy.filter.KrpcFilterState;
 import io.kroxylicious.proxy.filter.MetadataResponseFilter;
 
 /**
@@ -56,27 +55,27 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
     }
 
     @Override
-    public KrpcFilterState onMetadataResponse(MetadataResponseData data, KrpcFilterContext context) {
+    public void onMetadataResponse(MetadataResponseData data, KrpcFilterContext context) {
         for (MetadataResponseBroker broker : data.brokers()) {
             apply(context, broker, MetadataResponseBroker::host, MetadataResponseBroker::port, MetadataResponseBroker::setHost, MetadataResponseBroker::setPort);
         }
-        return KrpcFilterState.FORWARD;
+        context.forwardResponse(data);
     }
 
     @Override
-    public KrpcFilterState onDescribeClusterResponse(DescribeClusterResponseData data, KrpcFilterContext context) {
+    public void onDescribeClusterResponse(DescribeClusterResponseData data, KrpcFilterContext context) {
         for (DescribeClusterBroker broker : data.brokers()) {
             apply(context, broker, DescribeClusterBroker::host, DescribeClusterBroker::port, DescribeClusterBroker::setHost, DescribeClusterBroker::setPort);
         }
-        return KrpcFilterState.FORWARD;
+        context.forwardResponse(data);
     }
 
     @Override
-    public KrpcFilterState onFindCoordinatorResponse(FindCoordinatorResponseData data, KrpcFilterContext context) {
+    public void onFindCoordinatorResponse(FindCoordinatorResponseData data, KrpcFilterContext context) {
         for (Coordinator coordinator : data.coordinators()) {
             apply(context, coordinator, Coordinator::host, Coordinator::port, Coordinator::setHost, Coordinator::setPort);
         }
-        return KrpcFilterState.FORWARD;
+        context.forwardResponse(data);
     }
 
     private <T> void apply(KrpcFilterContext context, T broker, Function<T, String> hostGetter, ToIntFunction<T> portGetter, BiConsumer<T, String> hostSetter,

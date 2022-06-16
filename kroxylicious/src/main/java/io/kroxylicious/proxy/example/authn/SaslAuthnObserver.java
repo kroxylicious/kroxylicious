@@ -23,7 +23,6 @@ import org.apache.kafka.common.message.SaslHandshakeResponseData;
 import org.apache.kafka.common.protocol.Errors;
 
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
-import io.kroxylicious.proxy.filter.KrpcFilterState;
 import io.kroxylicious.proxy.filter.SaslAuthenticateRequestFilter;
 import io.kroxylicious.proxy.filter.SaslAuthenticateResponseFilter;
 import io.kroxylicious.proxy.filter.SaslHandshakeRequestFilter;
@@ -41,24 +40,24 @@ public class SaslAuthnObserver
     private long sessionLifetimeMs;
 
     @Override
-    public KrpcFilterState onSaslHandshakeRequest(SaslHandshakeRequestData request,
-                                                  KrpcFilterContext context) {
+    public void onSaslHandshakeRequest(SaslHandshakeRequestData request,
+                                       KrpcFilterContext context) {
         this.mechanism = request.mechanism();
-        return KrpcFilterState.FORWARD;
+        context.forwardRequest(request);
     }
 
     @Override
-    public KrpcFilterState onSaslHandshakeResponse(SaslHandshakeResponseData response,
-                                                   KrpcFilterContext context) {
+    public void onSaslHandshakeResponse(SaslHandshakeResponseData response,
+                                        KrpcFilterContext context) {
         if (response.errorCode() != Errors.NONE.code()) {
             this.mechanism = null;
         }
-        return KrpcFilterState.FORWARD;
+        context.forwardResponse(response);
     }
 
     @Override
-    public KrpcFilterState onSaslAuthenticateRequest(SaslAuthenticateRequestData request,
-                                                     KrpcFilterContext context) {
+    public void onSaslAuthenticateRequest(SaslAuthenticateRequestData request,
+                                          KrpcFilterContext context) {
         byte[] bytes = request.authBytes();
         switch (mechanism) {
             case "PLAIN":
@@ -71,12 +70,12 @@ public class SaslAuthnObserver
                 principalName = "baz";
                 break;
         }
-        return KrpcFilterState.FORWARD;
+        context.forwardRequest(request);
     }
 
     @Override
-    public KrpcFilterState onSaslAuthenticateResponse(SaslAuthenticateResponseData response,
-                                                      KrpcFilterContext context) {
+    public void onSaslAuthenticateResponse(SaslAuthenticateResponseData response,
+                                           KrpcFilterContext context) {
         if (response.errorCode() == Errors.NONE.code()) {
             authenticated = true;
             sessionLifetimeMs = response.sessionLifetimeMs();
@@ -87,7 +86,7 @@ public class SaslAuthnObserver
         // response.authBytes();
         // response.errorCode();
         // response.errorMessage();
-        return KrpcFilterState.FORWARD;
+        context.forwardResponse(response);
     }
 
 }

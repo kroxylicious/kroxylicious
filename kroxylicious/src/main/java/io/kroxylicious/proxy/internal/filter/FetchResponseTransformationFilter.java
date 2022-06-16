@@ -32,7 +32,6 @@ import org.apache.kafka.common.record.TimestampType;
 
 import io.kroxylicious.proxy.filter.FetchResponseFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
-import io.kroxylicious.proxy.filter.KrpcFilterState;
 import io.kroxylicious.proxy.internal.util.NettyMemoryRecords;
 
 /**
@@ -57,9 +56,9 @@ public class FetchResponseTransformationFilter implements FetchResponseFilter {
     }
 
     @Override
-    public KrpcFilterState onFetchResponse(FetchResponseData responseData, KrpcFilterContext context) {
+    public void onFetchResponse(FetchResponseData responseData, KrpcFilterContext context) {
         applyTransformation(context, responseData);
-        return KrpcFilterState.FORWARD;
+        context.forwardResponse(responseData);
     }
 
     private void applyTransformation(KrpcFilterContext context, FetchResponseData responseData) {

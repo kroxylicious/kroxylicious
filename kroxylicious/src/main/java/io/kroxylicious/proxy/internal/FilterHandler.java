@@ -19,8 +19,6 @@ package io.kroxylicious.proxy.internal;
 import java.net.SocketAddress;
 
 import io.kroxylicious.proxy.filter.KrpcFilter;
-import io.kroxylicious.proxy.filter.KrpcFilterContext;
-import io.kroxylicious.proxy.filter.KrpcFilterState;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.netty.channel.ChannelHandler;
@@ -230,15 +228,8 @@ public class FilterHandler
             DecodedRequestFrame<?> decodedFrame = (DecodedRequestFrame<?>) msg;
             // Guarding against invoking the filter unexpectely
             if (filter.shouldDeserializeRequest(decodedFrame.apiKey(), decodedFrame.apiVersion())) {
-                var filterContext = new DefaultFilterContext(channelContext, decodedFrame);
-                switch (filter.onRequest(decodedFrame, filterContext)) {
-                    case FORWARD:
-                        ctx.write(msg, promise);
-                        break;
-                    case DROP:
-                        break;
-                    case DISCONNECT:
-                        ctx.disconnect();
+                try (var filterContext = new DefaultFilterContext(ctx, decodedFrame, promise)) {
+                    filter.onRequest(decodedFrame, filterContext);
                 }
 
             }
@@ -256,18 +247,9 @@ public class FilterHandler
         if (msg instanceof DecodedResponseFrame) {
             DecodedResponseFrame<?> decodedFrame = (DecodedResponseFrame<?>) msg;
 
-            KrpcFilterContext filterContext = new DefaultFilterContext(channelContext, decodedFrame);
-
             if (filter.shouldDeserializeResponse(decodedFrame.apiKey(), decodedFrame.apiVersion())) {
-                KrpcFilterState krpcFilterState = filter.onResponse(decodedFrame, filterContext);
-                switch (krpcFilterState) {
-                    case FORWARD:
-                        ctx.fireChannelRead(msg);
-                        break;
-                    case DROP:
-                        break;
-                    case DISCONNECT:
-                        channelContext.disconnect();
+                try (var filterContext = new DefaultFilterContext(ctx, decodedFrame, null)) {
+                    filter.onResponse(decodedFrame, filterContext);
                 }
             }
             else {

@@ -22,7 +22,6 @@ import org.apache.kafka.common.message.ProduceRequestData;
 
 import io.kroxylicious.proxy.filter.FetchResponseFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
-import io.kroxylicious.proxy.filter.KrpcFilterState;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
 
 public class TopicEncryption implements ProduceRequestFilter, FetchResponseFilter {
@@ -31,21 +30,21 @@ public class TopicEncryption implements ProduceRequestFilter, FetchResponseFilte
     // but other filters will be interested in keeping track of metadata
 
     @Override
-    public KrpcFilterState onProduceRequest(ProduceRequestData request, KrpcFilterContext context) {
+    public void onProduceRequest(ProduceRequestData request, KrpcFilterContext context) {
         boolean fragmented = false;
         if (fragmented) {
             // TODO forward the fragments
             // TODO context.forwardRequest();
             // drop the original message
-            return KrpcFilterState.DROP;
+            return;
         }
         else {
-            return KrpcFilterState.FORWARD;
+            context.forwardRequest(request);
         }
     }
 
     @Override
-    public KrpcFilterState onFetchResponse(FetchResponseData response, KrpcFilterContext context) {
+    public void onFetchResponse(FetchResponseData response, KrpcFilterContext context) {
         for (var topicResponse : response.responses()) {
             String topicName = topicResponse.topic();
             if (topicName == null) {
@@ -53,7 +52,7 @@ public class TopicEncryption implements ProduceRequestFilter, FetchResponseFilte
             }
             // TODO the rest of it
         }
-        return KrpcFilterState.FORWARD;
+        context.forwardResponse(response);
     }
 
     private String lookupTopic(Uuid topicId) {
