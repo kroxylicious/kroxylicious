@@ -38,14 +38,16 @@ public interface KrpcFilterContext {
     ByteBuf allocate(int initialCapacity);
 
     /**
-     * Send a request upstream, invoking further filters.
+     * Send a request towards the broker, invoking upstream filters.
+     * @param request The request to forward to the broker.
      */
-    void forwardRequest(ApiMessage message);
+    void forwardRequest(ApiMessage request);
 
     /**
-     * Send a response downstream, invoking further filters.
+     * Send a response towards the client, invoking downstream filters.
+     * @param response The response to forward to the client.
      */
-    void forwardResponse(ApiMessage message);
+    void forwardResponse(ApiMessage response);
 
     // TODO an API to allow a filter to add/remove another filter from the pipeline
 }

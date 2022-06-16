@@ -92,13 +92,13 @@ class DefaultFilterContext implements KrpcFilterContext, AutoCloseable {
     /**
      * Forward a request to the next filter in the chain
      * (or to the downstream client).
-     * @param message The message
+     * @param response The message
      */
     @Override
-    public void forwardResponse(ApiMessage message) {
+    public void forwardResponse(ApiMessage response) {
         checkNotClosed();
         // check it's a response
-        String name = message.getClass().getName();
+        String name = response.getClass().getName();
         if (!name.endsWith("ResponseData")) {
             throw new AssertionError("Attempt to use forwardResponse with a non-response: " + name);
         }
