@@ -80,6 +80,7 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
             log().trace("{}: apiVersion: {}", ctx, apiVersion);
         }
         int correlationId = in.readInt();
+        LOGGER.debug("{}: {} downstream correlation id: {}", ctx, apiKey, correlationId);
 
         RequestHeaderData header = null;
         final ByteBufAccessorImpl accessor;
@@ -112,7 +113,7 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
                 log().trace("{}: body {}", ctx, body);
             }
 
-            frame = new DecodedRequestFrame<>(apiVersion, correlationId, decodeResponse, header, body);
+            frame = DecodedRequestFrame.clientRequest(apiVersion, correlationId, decodeResponse, header, body);
             if (log().isTraceEnabled()) {
                 log().trace("{}: frame {}", ctx, frame);
             }

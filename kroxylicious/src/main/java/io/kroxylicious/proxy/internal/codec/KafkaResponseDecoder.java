@@ -75,6 +75,9 @@ public class KafkaResponseDecoder extends KafkaMessageDecoder {
         if (correlation == null) {
             throw new AssertionError("Missing correlation id " + upstreamCorrelationId);
         }
+        else if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("{}: Recovered correlation {} for upstream correlation id {}", ctx.channel(), correlation, upstreamCorrelationId);
+        }
         int correlationId = correlation.downstreamCorrelationId();
         in.writerIndex(ri);
         in.writeInt(correlationId);
@@ -91,7 +94,7 @@ public class KafkaResponseDecoder extends KafkaMessageDecoder {
             log().trace("{}: Header: {}", ctx, header);
             ApiMessage body = readBody(apiKey, apiVersion, accessor);
             log().trace("{}: Body: {}", ctx, body);
-            frame = new DecodedResponseFrame<>(apiVersion, correlationId, header, body);
+            frame = new DecodedResponseFrame<>(correlation.recipient(), correlation.promise(), apiVersion, correlationId, header, body);
         }
         else {
             frame = opaqueFrame(in, correlationId, length);

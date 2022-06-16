@@ -29,7 +29,7 @@ public class ProduceRequestTransformationFilter implements ProduceRequestFilter 
 
     @FunctionalInterface
     public interface ByteBufferTransformation {
-        ByteBuffer transformation(ByteBuffer original);
+        ByteBuffer transformation(String topicName, ByteBuffer original);
     }
 
     /**
@@ -50,8 +50,8 @@ public class ProduceRequestTransformationFilter implements ProduceRequestFilter 
     }
 
     private void applyTransformation(KrpcFilterContext ctx, ProduceRequestData req) {
-        req.topicData().forEach(tpd -> {
-            for (PartitionProduceData partitionData : tpd.partitionData()) {
+        req.topicData().forEach(topicData -> {
+            for (PartitionProduceData partitionData : topicData.partitionData()) {
                 MemoryRecords records = (MemoryRecords) partitionData.records();
                 MemoryRecordsBuilder newRecords = NettyMemoryRecords.builder(ctx.allocate(records.sizeInBytes()), CompressionType.NONE,
                         TimestampType.CREATE_TIME, 0);
@@ -59,7 +59,7 @@ public class ProduceRequestTransformationFilter implements ProduceRequestFilter 
                 for (MutableRecordBatch batch : records.batches()) {
                     for (Iterator<Record> batchRecords = batch.iterator(); batchRecords.hasNext();) {
                         Record batchRecord = batchRecords.next();
-                        newRecords.append(batchRecord.timestamp(), batchRecord.key(), valueTransformation.transformation(batchRecord.value()));
+                        newRecords.append(batchRecord.timestamp(), batchRecord.key(), valueTransformation.transformation(topicData.name(), batchRecord.value()));
                     }
                 }
 
