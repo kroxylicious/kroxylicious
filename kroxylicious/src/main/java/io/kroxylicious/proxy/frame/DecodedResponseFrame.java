@@ -22,5 +22,4 @@ public class DecodedResponseFrame<B extends ApiMessage>
     public short headerVersion() {
         return apiKey().messageType.responseHeaderVersion(apiVersion);
     }
-
 }

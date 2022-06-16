@@ -50,7 +50,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
 
         ChannelPipeline pipeline = ch.pipeline();
         if (logNetwork) {
-            pipeline.addLast("networkLogger", new LoggingHandler("frontend-network", LogLevel.INFO));
+            pipeline.addLast("networkLogger", new LoggingHandler("io.kroxylicious.proxy.internal.DownstreamNetworkLogger", LogLevel.INFO));
         }
         var filters = filterChainFactory.createFilters();
         // The decoder, this only cares about the filters
@@ -60,7 +60,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
 
         pipeline.addLast("responseEncoder", new KafkaResponseEncoder());
         if (logFrames) {
-            pipeline.addLast("frameLogger", new LoggingHandler("frontend-application", LogLevel.INFO));
+            pipeline.addLast("frameLogger", new LoggingHandler("io.kroxylicious.proxy.internal.DownstreamFrameLogger", LogLevel.INFO));
         }
 
         pipeline.addLast("frontendHandler", new KafkaProxyFrontendHandler(remoteHost,

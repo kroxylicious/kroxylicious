@@ -5,10 +5,21 @@
  */
 package io.kroxylicious.proxy.internal;
 
-import org.apache.kafka.common.protocol.ApiMessage;
+import java.util.concurrent.TimeUnit;
 
+import org.apache.kafka.common.errors.TimeoutException;
+import org.apache.kafka.common.message.ProduceRequestData;
+import org.apache.kafka.common.message.RequestHeaderData;
+import org.apache.kafka.common.protocol.ApiKeys;
+import org.apache.kafka.common.protocol.ApiMessage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.proxy.frame.DecodedFrame;
+import io.kroxylicious.proxy.future.Future;
+import io.kroxylicious.proxy.future.Promise;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
@@ -16,20 +27,26 @@ import io.netty.channel.ChannelPromise;
 /**
  * Implementation of {@link KrpcFilterContext}.
  */
-class DefaultFilterContext implements KrpcFilterContext, AutoCloseable {
+class DefaultFilterContext implements KrpcFilterContext {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(DefaultFilterContext.class);
 
     private final DecodedFrame<?, ?> decodedFrame;
     private final ChannelHandlerContext channelContext;
     private final ChannelPromise promise;
-    private boolean closed;
+    private final KrpcFilter filter;
+    private final long timeoutMs;
 
-    DefaultFilterContext(ChannelHandlerContext channelContext,
+    DefaultFilterContext(KrpcFilter filter,
+                         ChannelHandlerContext channelContext,
                          DecodedFrame<?, ?> decodedFrame,
-                         ChannelPromise promise) {
+                         ChannelPromise promise,
+                         long timeoutMs) {
+        this.filter = filter;
         this.channelContext = channelContext;
         this.decodedFrame = decodedFrame;
         this.promise = promise;
-        this.closed = false;
+        this.timeoutMs = timeoutMs;
     }
 
     /**
@@ -38,7 +55,6 @@ class DefaultFilterContext implements KrpcFilterContext, AutoCloseable {
      */
     @Override
     public String channelDescriptor() {
-        checkNotClosed();
         return channelContext.channel().toString();
     }
 
@@ -51,7 +67,6 @@ class DefaultFilterContext implements KrpcFilterContext, AutoCloseable {
      */
     @Override
     public ByteBuf allocate(int initialCapacity) {
-        checkNotClosed();
         final ByteBuf buffer = channelContext.alloc().heapBuffer(initialCapacity);
         decodedFrame.add(buffer);
         return buffer;
@@ -64,7 +79,6 @@ class DefaultFilterContext implements KrpcFilterContext, AutoCloseable {
      */
     @Override
     public void forwardRequest(ApiMessage message) {
-        checkNotClosed();
         if (decodedFrame.body() != message) {
             throw new IllegalStateException();
         }
@@ -74,8 +88,63 @@ class DefaultFilterContext implements KrpcFilterContext, AutoCloseable {
             throw new AssertionError("Attempt to use forwardRequest with a non-request: " + name);
         }
 
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("{}: Forwarding request: {}", channelDescriptor(), decodedFrame);
+        }
         // TODO check we've not forwarded it already
         channelContext.write(decodedFrame, promise);
+    }
+
+    @Override
+    public <T extends ApiMessage> Future<T> sendRequest(short apiVersion, ApiMessage message) {
+        short key = message.apiKey();
+        var apiKey = ApiKeys.forId(key);
+        short headerVersion = apiKey.requestHeaderVersion(apiVersion);
+        var header = new RequestHeaderData()
+                .setCorrelationId(-1)
+                .setRequestApiKey(key)
+                .setRequestApiVersion(apiVersion);
+        if (headerVersion > 1) {
+            header.setClientId(filter.getClass().getSimpleName() + "@" + System.identityHashCode(filter));
+        }
+        boolean hasResponse = apiKey != ApiKeys.PRODUCE
+                || ((ProduceRequestData) message).acks() != 0;
+        var filterPromise = Promise.<T> promise();
+        var frame = new InternalRequestFrame<>(
+                apiVersion, -1, hasResponse,
+                filter, filterPromise, header, message);
+
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("{}: Sending request: {}", channelDescriptor(), frame);
+        }
+        ChannelPromise writePromise = channelContext.channel().newPromise();
+        // if (outboundCtx.channel().isWritable()) {
+        // outboundCtx.write(frame, writePromise);
+        // }
+        // else {
+        channelContext.writeAndFlush(frame, writePromise);
+        // }
+
+        if (!hasResponse) {
+            // Complete the filter promise for an ack-less Produce
+            // based on the success of the channel write
+            // (for all other requests the filter promise will be completed
+            // when handling the response).
+            writePromise.addListener(f -> {
+                if (f.isSuccess()) {
+                    filterPromise.complete(null);
+                }
+                else {
+                    filterPromise.fail(f.cause());
+                }
+            });
+        }
+
+        channelContext.executor().schedule(() -> {
+            LOGGER.debug("{}: Timing out {} request after {}ms", channelContext, apiKey, timeoutMs);
+            filterPromise.tryFail(new TimeoutException());
+        }, timeoutMs, TimeUnit.MILLISECONDS);
+        return filterPromise.future();
     }
 
     /**
@@ -85,7 +154,6 @@ class DefaultFilterContext implements KrpcFilterContext, AutoCloseable {
      */
     @Override
     public void forwardResponse(ApiMessage response) {
-        checkNotClosed();
         // check it's a response
         String name = response.getClass().getName();
         if (!name.endsWith("ResponseData")) {
@@ -93,17 +161,10 @@ class DefaultFilterContext implements KrpcFilterContext, AutoCloseable {
         }
         // TODO check we've not forwarded it already
 
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("{}: Forwarding response: {}", channelDescriptor(), decodedFrame);
+        }
         channelContext.fireChannelRead(decodedFrame);
     }
 
-    private void checkNotClosed() {
-        if (closed) {
-            throw new IllegalStateException("Context is closed");
-        }
-    }
-
-    @Override
-    public void close() {
-        this.closed = true;
-    }
 }

@@ -10,16 +10,24 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.kafka.clients.admin.Admin;
+import org.apache.kafka.clients.admin.AdminClientConfig;
+import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.serialization.ByteArrayDeserializer;
+import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import io.debezium.kafka.KafkaCluster;
@@ -33,10 +41,57 @@ import io.kroxylicious.proxy.internal.filter.ProduceRequestTransformationFilter;
 import io.kroxylicious.proxy.util.SystemTest;
 
 import static java.lang.Integer.parseInt;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @SystemTest
 public class ProxyTest {
+
+    private static final String TOPIC_1 = "my-test-topic";
+    private static final String TOPIC_2 = "other-test-topic";
+    private static final String PLAINTEXT = "Hello, world!";
+    private static final byte[] TOPIC_1_CIPHERTEXT = { (byte) 0x3d, (byte) 0x5a, (byte) 0x61, (byte) 0x61, (byte) 0x64, (byte) 0x21, (byte) 0x15, (byte) 0x6c,
+            (byte) 0x64, (byte) 0x67, (byte) 0x61, (byte) 0x59, (byte) 0x16 };
+    private static final byte[] TOPIC_2_CIPHERTEXT = { (byte) 0xffffffa7, (byte) 0xffffffc4, (byte) 0xffffffcb, (byte) 0xffffffcb, (byte) 0xffffffce, (byte) 0xffffff8b,
+            (byte) 0x7f, (byte) 0xffffffd6, (byte) 0xffffffce, (byte) 0xffffffd1, (byte) 0xffffffcb, (byte) 0xffffffc3, (byte) 0xffffff80 };
+
+    @BeforeAll
+    public static void checkReversibleEncryption() {
+        // The precise details of the cipher don't matter
+        // What matters is that it the ciphertext key depends on the topic name
+        // and that decode() is the inverse of encode()
+        assertArrayEquals(TOPIC_1_CIPHERTEXT, encode(TOPIC_1, ByteBuffer.wrap(PLAINTEXT.getBytes(StandardCharsets.UTF_8))).array());
+        assertEquals(PLAINTEXT, new String(decode(TOPIC_1, ByteBuffer.wrap(TOPIC_1_CIPHERTEXT)).array(), StandardCharsets.UTF_8));
+        assertArrayEquals(TOPIC_2_CIPHERTEXT, encode(TOPIC_2, ByteBuffer.wrap(PLAINTEXT.getBytes(StandardCharsets.UTF_8))).array());
+        assertEquals(PLAINTEXT, new String(decode(TOPIC_2, ByteBuffer.wrap(TOPIC_2_CIPHERTEXT)).array(), StandardCharsets.UTF_8));
+    }
+
+    private static ByteBuffer encode(String topicName, ByteBuffer in) {
+        var out = ByteBuffer.allocate(in.limit());
+        byte rot = (byte) (topicName.hashCode() % Byte.MAX_VALUE);
+        // System.out.println("Encode Rot " + rot);
+        for (int index = 0; index < in.limit(); index++) {
+            byte b = in.get(index);
+            byte rotated = (byte) (b + rot);
+            // System.out.println("rotate(" + b + ", " + rot + "): " + rotated);
+            out.put(index, rotated);
+        }
+        return out;
+    }
+
+    private static ByteBuffer decode(String topicName, ByteBuffer in) {
+        var out = ByteBuffer.allocate(in.limit());
+        out.limit(in.limit());
+        byte rot = (byte) -(topicName.hashCode() % Byte.MAX_VALUE);
+        // System.out.println("Decode Rot " + rot);
+        for (int index = 0; index < in.limit(); index++) {
+            byte b = in.get(index);
+            byte rotated = (byte) (b + rot);
+            // System.out.println("rotate(" + b + ", " + rot + "): " + rotated);
+            out.put(index, rotated);
+        }
+        return out;
+    }
 
     @Test
     public void shouldPassThroughRecordUnchanged() throws Exception {
@@ -45,6 +100,10 @@ public class ProxyTest {
         String proxyAddress = String.format("%s:%d", proxyHost, proxyPort);
 
         String brokerList = startKafkaCluster();
+
+        try (var admin = Admin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, brokerList))) {
+            admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1))).all().get();
+        }
 
         FilterChainFactory filterChainFactory = () -> new KrpcFilter[]{
                 new ApiVersionsFilter(),
@@ -55,9 +114,11 @@ public class ProxyTest {
 
         var producer = new KafkaProducer<String, String>(Map.of(
                 ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
+                ProducerConfig.CLIENT_ID_CONFIG, "shouldPassThroughRecordUnchanged",
                 ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
-                ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class));
-        producer.send(new ProducerRecord<>("my-test-topic", "my-key", "Hello, world!")).get();
+                ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
+                ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000));
+        producer.send(new ProducerRecord<>(TOPIC_1, "my-key", "Hello, world!")).get();
         producer.close();
 
         var consumer = new KafkaConsumer<String, String>(Map.of(
@@ -66,7 +127,7 @@ public class ProxyTest {
                 ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
                 ConsumerConfig.GROUP_ID_CONFIG, "my-group-id",
                 ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"));
-        consumer.subscribe(Set.of("my-test-topic"));
+        consumer.subscribe(Set.of(TOPIC_1));
         var records = consumer.poll(Duration.ofSeconds(10));
         consumer.close();
         assertEquals(1, records.count());
@@ -84,38 +145,68 @@ public class ProxyTest {
 
         String brokerList = startKafkaCluster();
 
+        try (var admin = Admin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, brokerList))) {
+            admin.createTopics(List.of(
+                    new NewTopic(TOPIC_1, 1, (short) 1),
+                    new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
+        }
+
         FilterChainFactory filterChainFactory = () -> new KrpcFilter[]{
                 new ApiVersionsFilter(),
                 new BrokerAddressFilter(new FixedAddressMapping(proxyHost, proxyPort)),
-                new ProduceRequestTransformationFilter(
-                        buffer -> ByteBuffer.wrap(new String(StandardCharsets.UTF_8.decode(buffer).array()).toUpperCase().getBytes(StandardCharsets.UTF_8)))
+                new ProduceRequestTransformationFilter(ProxyTest::encode)
         };
 
         var proxy = startProxy(proxyHost, proxyPort, brokerList,
                 filterChainFactory);
+        try {
+            try (var producer = new KafkaProducer<String, String>(Map.of(
+                    ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
+                    ProducerConfig.CLIENT_ID_CONFIG, "shouldModifyProduceMessage",
+                    ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
+                    ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
+                    ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000))) {
+                producer.send(new ProducerRecord<>(TOPIC_1, "my-key", PLAINTEXT)).get();
+                producer.send(new ProducerRecord<>(TOPIC_2, "my-key", PLAINTEXT)).get();
+                producer.flush();
+            }
 
-        var producer = new KafkaProducer<String, String>(Map.of(
-                ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
-                ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
-                ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
-                ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, 3_600_000));
-        producer.send(new ProducerRecord<>("my-test-topic", "my-key", "Hello, world!")).get();
-        producer.close();
+            ConsumerRecords<String, byte[]> records1;
+            ConsumerRecords<String, byte[]> records2;
+            try (var consumer = new KafkaConsumer<String, byte[]>(Map.of(
+                    ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
+                    ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
+                    ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class,
+                    ConsumerConfig.GROUP_ID_CONFIG, "my-group-id",
+                    ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
+                consumer.subscribe(Set.of(TOPIC_1));
+                records1 = consumer.poll(Duration.ofSeconds(10));
+                consumer.subscribe(Set.of(TOPIC_2));
+                records2 = consumer.poll(Duration.ofSeconds(10));
+            }
 
-        var consumer = new KafkaConsumer<String, String>(Map.of(
-                ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
-                ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
-                ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
-                ConsumerConfig.GROUP_ID_CONFIG, "my-group-id",
-                ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"));
-        consumer.subscribe(Set.of("my-test-topic"));
-        var records = consumer.poll(Duration.ofSeconds(10));
-        consumer.close();
-        assertEquals(1, records.count());
-        assertEquals("HELLO, WORLD!", records.iterator().next().value());
+            assertEquals(1, records1.count());
+            assertArrayEquals(TOPIC_1_CIPHERTEXT, records1.iterator().next().value());
+            assertEquals(1, records2.count());
+            assertArrayEquals(TOPIC_2_CIPHERTEXT, records2.iterator().next().value());
 
-        // shutdown the proxy
-        proxy.shutdown();
+        }
+        finally {
+            // shutdown the proxy
+            proxy.shutdown();
+        }
+    }
+
+    private void printBuf(ByteBuffer buffer) {
+        for (int index = 0; index < 256; index++) {
+            byte i = buffer.get(index);
+            if (i < 16) {
+                System.out.print("0");
+            }
+            System.out.print(Integer.toUnsignedString(i, 16));
+            System.out.print(" ");
+        }
+        System.out.println();
     }
 
     @Test
@@ -126,39 +217,60 @@ public class ProxyTest {
 
         String brokerList = startKafkaCluster();
 
+        try (var admin = Admin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, brokerList))) {
+            admin.createTopics(List.of(
+                    new NewTopic(TOPIC_1, 1, (short) 1),
+                    new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
+        }
+
         FilterChainFactory filterChainFactory = () -> new KrpcFilter[]{
                 new ApiVersionsFilter(),
                 new BrokerAddressFilter(new FixedAddressMapping(proxyHost, proxyPort)),
-                new FetchResponseTransformationFilter(
-                        buffer -> ByteBuffer.wrap(new String(StandardCharsets.UTF_8.decode(buffer).array()).toUpperCase().getBytes(StandardCharsets.UTF_8)))
+                new FetchResponseTransformationFilter(ProxyTest::decode)
         };
 
         var proxy = startProxy(proxyHost, proxyPort, brokerList,
                 filterChainFactory);
+        try {
 
-        var producer = new KafkaProducer<String, String>(Map.of(
-                ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
-                ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
-                ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
-                ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, 3_600_000));
-        producer.send(new ProducerRecord<>("my-test-topic", "my-key", "Hello, world!")).get();
-        producer.close();
+            try (var producer = new KafkaProducer<String, byte[]>(Map.of(
+                    ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
+                    ProducerConfig.CLIENT_ID_CONFIG, "shouldModifyFetchMessage",
+                    ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
+                    ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class,
+                    ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000))) {
 
-        var consumer = new KafkaConsumer<String, String>(Map.of(
-                ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
-                ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
-                ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
-                ConsumerConfig.GROUP_ID_CONFIG, "my-group-id",
-                ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"));
-        consumer.subscribe(Set.of("my-test-topic"));
+                producer.send(new ProducerRecord<>(TOPIC_1, "my-key", TOPIC_1_CIPHERTEXT)).get();
+                producer.send(new ProducerRecord<>(TOPIC_2, "my-key", TOPIC_2_CIPHERTEXT)).get();
+            }
 
-        var records = consumer.poll(Duration.ofSeconds(100));
-        consumer.close();
-        assertEquals(1, records.count());
-        assertEquals("HELLO, WORLD!", records.iterator().next().value());
+            ConsumerRecords<String, String> records1;
+            ConsumerRecords<String, String> records2;
+            try (var consumer = new KafkaConsumer<String, String>(Map.of(
+                    ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
+                    ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
+                    ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
+                    ConsumerConfig.GROUP_ID_CONFIG, "my-group-id",
+                    ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
+                consumer.subscribe(Set.of(TOPIC_1));
 
-        // shutdown the proxy
-        proxy.shutdown();
+                records1 = consumer.poll(Duration.ofSeconds(100));
+
+                consumer.subscribe(Set.of(TOPIC_2));
+
+                records2 = consumer.poll(Duration.ofSeconds(100));
+            }
+            assertEquals(1, records1.count());
+            assertEquals(1, records2.count());
+            assertEquals(List.of(PLAINTEXT, PLAINTEXT),
+                    List.of(records1.iterator().next().value(),
+                            records2.iterator().next().value()));
+
+        }
+        finally {
+            // shutdown the proxy
+            proxy.shutdown();
+        }
     }
 
     private KafkaProxy startProxy(String proxyHost,

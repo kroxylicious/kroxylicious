@@ -7,6 +7,7 @@ package io.kroxylicious.proxy.filter;
 
 import org.apache.kafka.common.protocol.ApiMessage;
 
+import io.kroxylicious.proxy.future.Future;
 import io.netty.buffer.ByteBuf;
 
 /**
@@ -31,6 +32,19 @@ public interface KrpcFilterContext {
      * @param request The request to forward to the broker.
      */
     void forwardRequest(ApiMessage request);
+
+    /**
+     * Send a message from a filter towards the broker, invoking upstream filters
+     * and being informed of the response via TODO.
+     * The response will pass through upstream filters prior to the handler being invoked.
+     * Response propagation will stop once the handler has completed,
+     * i.e. the downstream filters will not receive the response.
+     *
+     * @param apiVersion The version of the request to use
+     * @param request The request to send.
+     * @param <T> The type of the response
+     */
+    <T extends ApiMessage> Future<T> sendRequest(short apiVersion, ApiMessage request);
 
     /**
      * Send a response towards the client, invoking downstream filters.

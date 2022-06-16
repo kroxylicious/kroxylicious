@@ -35,4 +35,5 @@ public class DecodedRequestFrame<B extends ApiMessage>
     public boolean decodeResponse() {
         return decodeResponse;
     }
+
 }

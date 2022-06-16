@@ -86,13 +86,13 @@ public class KafkaProxyFrontendHandler extends ChannelInboundHandlerAdapter {
         ChannelPipeline pipeline = outboundChannel.pipeline();
 
         if (logFrames) {
-            pipeline.addFirst("frameLogger", new LoggingHandler("backend-application"));
+            pipeline.addFirst("frameLogger", new LoggingHandler("io.kroxylicious.proxy.internal.UpstreamFrameLogger"));
         }
         addFiltersToPipeline(pipeline);
         pipeline.addFirst("responseDecoder", new KafkaResponseDecoder(correlationManager));
         pipeline.addFirst("requestEncoder", new KafkaRequestEncoder(correlationManager));
         if (logNetwork) {
-            pipeline.addFirst("networkLogger", new LoggingHandler("backend-network"));
+            pipeline.addFirst("networkLogger", new LoggingHandler("io.kroxylicious.proxy.internal.UpstreamNetworkLogger"));
         }
 
         connectFuture.addListener(future -> {
@@ -111,7 +111,7 @@ public class KafkaProxyFrontendHandler extends ChannelInboundHandlerAdapter {
 
     private void addFiltersToPipeline(ChannelPipeline pipeline) {
         for (var filter : filters) {
-            pipeline.addFirst(filter.toString(), new FilterHandler(filter));
+            pipeline.addFirst(filter.toString(), new FilterHandler(filter, 20000));
         }
     }
 

@@ -5,17 +5,21 @@
  */
 package io.kroxylicious.proxy.internal;
 
-import java.net.SocketAddress;
+import java.util.Objects;
+
+import org.apache.kafka.common.protocol.ApiMessage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
-import io.netty.channel.ChannelHandler;
-import io.netty.channel.ChannelHandlerAdapter;
+import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
+import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
+import io.kroxylicious.proxy.future.Promise;
+import io.netty.buffer.Unpooled;
+import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInboundHandler;
-import io.netty.channel.ChannelOutboundHandler;
-import io.netty.channel.ChannelPipeline;
 import io.netty.channel.ChannelPromise;
 
 /**
@@ -23,210 +27,45 @@ import io.netty.channel.ChannelPromise;
  * that applies a single {@link KrpcFilter}.
  */
 public class FilterHandler
-        extends ChannelHandlerAdapter
-        implements ChannelOutboundHandler, ChannelInboundHandler {
+        extends ChannelDuplexHandler {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(FilterHandler.class);
     private final KrpcFilter filter;
+    private final long timeoutMs;
 
-    private ChannelHandlerContext channelContext;
-
-    public FilterHandler(KrpcFilter filter) {
-        this.filter = filter;
+    public FilterHandler(KrpcFilter filter, long timeoutMs) {
+        this.filter = Objects.requireNonNull(filter);
+        this.timeoutMs = Utils.requireStrictlyPositive(timeoutMs, "timeout");
     }
 
-    /**
-     * Calls {@link ChannelHandlerContext#bind(SocketAddress, ChannelPromise)} to forward
-     * to the next {@link ChannelOutboundHandler} in the {@link ChannelPipeline}.
-     *
-     * Sub-classes may override this method to change behavior.
-     */
-    @Override
-    public void bind(ChannelHandlerContext ctx, SocketAddress localAddress,
-                     ChannelPromise promise)
-            throws Exception {
-        ctx.bind(localAddress, promise);
-    }
-
-    /**
-     * Calls {@link ChannelHandlerContext#connect(SocketAddress, SocketAddress, ChannelPromise)} to forward
-     * to the next {@link ChannelOutboundHandler} in the {@link ChannelPipeline}.
-     *
-     * Sub-classes may override this method to change behavior.
-     */
-    @Override
-    public void connect(ChannelHandlerContext ctx, SocketAddress remoteAddress,
-                        SocketAddress localAddress, ChannelPromise promise)
-            throws Exception {
-        ctx.connect(remoteAddress, localAddress, promise);
-    }
-
-    /**
-     * Calls {@link ChannelHandlerContext#disconnect(ChannelPromise)} to forward
-     * to the next {@link ChannelOutboundHandler} in the {@link ChannelPipeline}.
-     *
-     * Sub-classes may override this method to change behavior.
-     */
-    @Override
-    public void disconnect(ChannelHandlerContext ctx, ChannelPromise promise)
-            throws Exception {
-        ctx.disconnect(promise);
-    }
-
-    /**
-     * Calls {@link ChannelHandlerContext#close(ChannelPromise)} to forward
-     * to the next {@link ChannelOutboundHandler} in the {@link ChannelPipeline}.
-     *
-     * Sub-classes may override this method to change behavior.
-     */
-    @Override
-    public void close(ChannelHandlerContext ctx, ChannelPromise promise)
-            throws Exception {
-        ctx.close(promise);
-    }
-
-    /**
-     * Calls {@link ChannelHandlerContext#deregister(ChannelPromise)} to forward
-     * to the next {@link ChannelOutboundHandler} in the {@link ChannelPipeline}.
-     *
-     * Sub-classes may override this method to change behavior.
-     */
-    @Override
-    public void deregister(ChannelHandlerContext ctx, ChannelPromise promise) throws Exception {
-        ctx.deregister(promise);
-    }
-
-    /**
-     * Calls {@link ChannelHandlerContext#read()} to forward
-     * to the next {@link ChannelOutboundHandler} in the {@link ChannelPipeline}.
-     *
-     * Sub-classes may override this method to change behavior.
-     */
-    @Override
-    public void read(ChannelHandlerContext ctx) throws Exception {
-        ctx.read();
-    }
-
-    /**
-     * Calls {@link ChannelHandlerContext#flush()} to forward
-     * to the next {@link ChannelOutboundHandler} in the {@link ChannelPipeline}.
-     *
-     * Sub-classes may override this method to change behavior.
-     */
-    @Override
-    public void flush(ChannelHandlerContext ctx) throws Exception {
-        ctx.flush();
-    }
-
-    @Override
-    public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
-        this.channelContext = ctx;
-    }
-
-    /**
-     * Calls {@link ChannelHandlerContext#fireChannelRegistered()} to forward
-     * to the next {@link ChannelInboundHandler} in the {@link ChannelPipeline}.
-     *
-     * Sub-classes may override this method to change behavior.
-     */
-    @Override
-    public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
-        ctx.fireChannelRegistered();
-    }
-
-    /**
-     * Calls {@link ChannelHandlerContext#fireChannelUnregistered()} to forward
-     * to the next {@link ChannelInboundHandler} in the {@link ChannelPipeline}.
-     *
-     * Sub-classes may override this method to change behavior.
-     */
-    @Override
-    public void channelUnregistered(ChannelHandlerContext ctx) throws Exception {
-        ctx.fireChannelUnregistered();
-    }
-
-    /**
-     * Calls {@link ChannelHandlerContext#fireChannelActive()} to forward
-     * to the next {@link ChannelInboundHandler} in the {@link ChannelPipeline}.
-     *
-     * Sub-classes may override this method to change behavior.
-     */
-    @Override
-    public void channelActive(ChannelHandlerContext ctx) throws Exception {
-        ctx.fireChannelActive();
-    }
-
-    /**
-     * Calls {@link ChannelHandlerContext#fireChannelInactive()} to forward
-     * to the next {@link ChannelInboundHandler} in the {@link ChannelPipeline}.
-     *
-     * Sub-classes may override this method to change behavior.
-     */
-    @Override
-    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-        ctx.fireChannelInactive();
-    }
-
-    /**
-     * Calls {@link ChannelHandlerContext#fireChannelReadComplete()} to forward
-     * to the next {@link ChannelInboundHandler} in the {@link ChannelPipeline}.
-     *
-     * Sub-classes may override this method to change behavior.
-     */
-    @Override
-    public void channelReadComplete(ChannelHandlerContext ctx) throws Exception {
-        ctx.fireChannelReadComplete();
-    }
-
-    /**
-     * Calls {@link ChannelHandlerContext#fireUserEventTriggered(Object)} to forward
-     * to the next {@link ChannelInboundHandler} in the {@link ChannelPipeline}.
-     *
-     * Sub-classes may override this method to change behavior.
-     */
-    @Override
-    public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
-        ctx.fireUserEventTriggered(evt);
-    }
-
-    /**
-     * Calls {@link ChannelHandlerContext#fireChannelWritabilityChanged()} to forward
-     * to the next {@link ChannelInboundHandler} in the {@link ChannelPipeline}.
-     *
-     * Sub-classes may override this method to change behavior.
-     */
-    @Override
-    public void channelWritabilityChanged(ChannelHandlerContext ctx) throws Exception {
-        ctx.fireChannelWritabilityChanged();
-    }
-
-    /**
-     * Calls {@link ChannelHandlerContext#fireExceptionCaught(Throwable)} to forward
-     * to the next {@link ChannelHandler} in the {@link ChannelPipeline}.
-     *
-     * Sub-classes may override this method to change behavior.
-     */
-    @Override
-    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause)
-            throws Exception {
-        ctx.fireExceptionCaught(cause);
+    String filterDescriptor() {
+        return filter.getClass().getSimpleName() + "@" + System.identityHashCode(filter);
     }
 
     @Override
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
         if (msg instanceof DecodedRequestFrame) {
             DecodedRequestFrame<?> decodedFrame = (DecodedRequestFrame<?>) msg;
-            // Guarding against invoking the filter unexpectely
+            // Guard against invoking the filter unexpectedly
             if (filter.shouldDeserializeRequest(decodedFrame.apiKey(), decodedFrame.apiVersion())) {
-                try (var filterContext = new DefaultFilterContext(ctx, decodedFrame, promise)) {
-                    filter.onRequest(decodedFrame, filterContext);
+                var filterContext = new DefaultFilterContext(filter, ctx, decodedFrame, promise, timeoutMs);
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("{}: Dispatching downstream {} request to filter{}: {}",
+                            ctx.channel(), decodedFrame.apiKey(), filterDescriptor(), msg);
                 }
-
+                filter.onRequest(decodedFrame, filterContext);
             }
             else {
                 ctx.write(msg, promise);
             }
         }
         else {
+            if (!(msg instanceof OpaqueRequestFrame)
+                    && msg != Unpooled.EMPTY_BUFFER) {
+                // Unpooled.EMPTY_BUFFER is used by KafkaProxyFrontendHandler#closeOnFlush
+                // but otherwise we don't expect any other kind of message
+                LOGGER.warn("Unexpected message writing to upstream: {}", msg, new IllegalStateException());
+            }
             ctx.write(msg, promise);
         }
     }
@@ -235,17 +74,40 @@ public class FilterHandler
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         if (msg instanceof DecodedResponseFrame) {
             DecodedResponseFrame<?> decodedFrame = (DecodedResponseFrame<?>) msg;
-
-            if (filter.shouldDeserializeResponse(decodedFrame.apiKey(), decodedFrame.apiVersion())) {
-                try (var filterContext = new DefaultFilterContext(ctx, decodedFrame, null)) {
-                    filter.onResponse(decodedFrame, filterContext);
+            if (decodedFrame instanceof InternalResponseFrame) {
+                InternalResponseFrame<?> frame = (InternalResponseFrame<?>) decodedFrame;
+                if (frame.isRecipient(filter)) {
+                    if (LOGGER.isDebugEnabled()) {
+                        LOGGER.debug("{}: Completing {} response for request sent by this filter{}: {}",
+                                ctx.channel(), decodedFrame.apiKey(), filterDescriptor(), msg);
+                    }
+                    Promise<ApiMessage> p = frame.promise();
+                    p.tryComplete(decodedFrame.body());
                 }
+                else {
+                    if (LOGGER.isDebugEnabled()) {
+                        LOGGER.debug("{}: Not completing {} response for request sent by another filter {}",
+                                ctx.channel(), decodedFrame.apiKey(), frame.recipient());
+                    }
+                    ctx.fireChannelRead(msg);
+                }
+            }
+            else if (filter.shouldDeserializeResponse(decodedFrame.apiKey(), decodedFrame.apiVersion())) {
+                var filterContext = new DefaultFilterContext(filter, ctx, decodedFrame, null, timeoutMs);
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("{}: Dispatching upstream {} response to filter {}: {}",
+                            ctx.channel(), decodedFrame.apiKey(), filterDescriptor(), msg);
+                }
+                filter.onResponse(decodedFrame, filterContext);
             }
             else {
                 ctx.fireChannelRead(msg);
             }
         }
         else {
+            if (!(msg instanceof OpaqueResponseFrame)) {
+                LOGGER.warn("Unexpected message reading from upstream: {}", msg, new IllegalStateException());
+            }
             ctx.fireChannelRead(msg);
         }
     }

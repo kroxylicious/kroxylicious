@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.RequestFrame;
+import io.kroxylicious.proxy.internal.InternalRequestFrame;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 
@@ -45,26 +46,34 @@ public class KafkaRequestEncoder extends KafkaMessageEncoder<RequestFrame> {
         short apiVersion = out.readShort();
         boolean hasResponse = hasResponse(frame, out, ri, apiKey, apiVersion);
         boolean decodeResponse = frame.decodeResponse();
+        int downstreamCorrelationId = frame.correlationId();
         int upstreamCorrelationId = correlationManager.putBrokerRequest(apiKey,
                 apiVersion,
-                frame.correlationId(),
+                downstreamCorrelationId,
                 hasResponse,
+                frame instanceof InternalRequestFrame ? ((InternalRequestFrame<?>) frame).recipient() : null,
+                frame instanceof InternalRequestFrame ? ((InternalRequestFrame<?>) frame).promise() : null,
                 decodeResponse);
         out.writerIndex(LENGTH + API_KEY + API_VERSION);
         out.writeInt(upstreamCorrelationId);
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("{}: {} downstream correlation id {} assigned upstream correlation id: {}",
+                    ctx.channel(), ApiKeys.forId(apiKey), downstreamCorrelationId, upstreamCorrelationId);
+        }
         out.readerIndex(ri);
         out.writerIndex(wi);
 
         if (decodeResponse &&
                 !hasResponse) {
-            log().warn("{}: Not honouring decode of acks=0 PRODUCE response, because there will be none", ctx);
+            log().warn("{}: Not honouring decode of acks=0 PRODUCE response, because there will be none. " +
+                    "This is a bug in your filter.", ctx);
         }
     }
 
     private boolean hasResponse(RequestFrame frame, ByteBuf out, int ri, short apiKey, short apiVersion) {
         if (frame instanceof DecodedRequestFrame) {
             return apiKey != ApiKeys.PRODUCE.id
-                    || ((ProduceRequestData) ((DecodedRequestFrame) frame).body()).acks() != 0;
+                    || ((ProduceRequestData) ((DecodedRequestFrame<?>) frame).body()).acks() != 0;
         }
         else {
             return apiKey != ApiKeys.PRODUCE.id

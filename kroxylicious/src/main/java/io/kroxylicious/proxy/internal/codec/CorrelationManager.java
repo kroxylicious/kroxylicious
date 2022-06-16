@@ -9,6 +9,12 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
+import org.apache.kafka.common.protocol.ApiKeys;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import io.kroxylicious.proxy.filter.KrpcFilter;
+import io.kroxylicious.proxy.future.Promise;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 /**
@@ -16,6 +22,8 @@ import io.kroxylicious.proxy.tag.VisibleForTesting;
  * and a single broker.
  */
 public class CorrelationManager {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(CorrelationManager.class);
 
     // TODO use a specialized map
     @VisibleForTesting
@@ -44,11 +52,18 @@ public class CorrelationManager {
                                 short apiVersion,
                                 int downstreamCorrelationId,
                                 boolean hasResponse,
+                                KrpcFilter recipient,
+                                Promise<? extends Object> promise,
                                 boolean decodeResponse) {
         // need to allocate an id and put in a map for quick lookup, along with the "tag"
         int upstreamCorrelationId = upstreamId++;
+        LOGGER.trace("Allocated upstream id {} for downstream id {}", upstreamCorrelationId, downstreamCorrelationId);
         if (hasResponse) {
-            this.brokerRequests.put(upstreamCorrelationId, new Correlation(apiKey, apiVersion, downstreamCorrelationId, decodeResponse));
+            Correlation existing = this.brokerRequests.put(upstreamCorrelationId,
+                    new Correlation(apiKey, apiVersion, downstreamCorrelationId, decodeResponse, recipient, promise));
+            if (existing != null) {
+                LOGGER.error("Duplicate upstream correlation id {}", upstreamCorrelationId);
+            }
         }
         return upstreamCorrelationId;
     }
@@ -73,12 +88,21 @@ public class CorrelationManager {
 
         private final int downstreamCorrelationId;
         private final boolean decodeResponse;
+        private final KrpcFilter recipient;
+        private final Promise<?> promise;
 
-        private Correlation(short apiKey, short apiVersion, int downstreamCorrelationId, boolean decodeResponse) {
+        private Correlation(short apiKey,
+                            short apiVersion,
+                            int downstreamCorrelationId,
+                            boolean decodeResponse,
+                            KrpcFilter recipient,
+                            Promise<?> promise) {
             this.apiKey = apiKey;
             this.apiVersion = apiVersion;
             this.downstreamCorrelationId = downstreamCorrelationId;
             this.decodeResponse = decodeResponse;
+            this.recipient = recipient;
+            this.promise = promise;
         }
 
         public int downstreamCorrelationId() {
@@ -88,10 +112,12 @@ public class CorrelationManager {
         @Override
         public String toString() {
             return "Correlation(" +
-                    "apiKey=" + apiKey() +
-                    ", apiVersion=" + apiVersion() +
-                    ", downstreamCorrelationId=" + downstreamCorrelationId() +
-                    ", decodeResponse=" + decodeResponse() +
+                    "apiKey=" + ApiKeys.forId(apiKey) +
+                    ", apiVersion=" + apiVersion +
+                    ", downstreamCorrelationId=" + downstreamCorrelationId +
+                    ", decodeResponse=" + decodeResponse +
+                    ", recipient=" + recipient +
+                    ", promise=" + promise +
                     ')';
         }
 
@@ -121,6 +147,14 @@ public class CorrelationManager {
 
         public boolean decodeResponse() {
             return decodeResponse;
+        }
+
+        public KrpcFilter recipient() {
+            return recipient;
+        }
+
+        public Promise<?> promise() {
+            return promise;
         }
     }
 }
