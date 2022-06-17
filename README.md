@@ -39,7 +39,7 @@ $ mvn clean verify -Pdist -Dquick
 Run the following to add missing license headers e.g. when adding new source files:
 
 ```
-$ mvn license:format -Dlicense.header=etc/license.txt
+$ mvn org.commonjava.maven.plugins:directory-maven-plugin:highest-basedir@resolve-rootdir license:format
 ```
 
 ## Run
