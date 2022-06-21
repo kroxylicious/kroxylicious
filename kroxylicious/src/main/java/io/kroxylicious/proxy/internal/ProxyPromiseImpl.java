@@ -3,10 +3,15 @@
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
-package io.kroxylicious.proxy.future;
+package io.kroxylicious.proxy.internal;
 
 import java.util.Objects;
 import java.util.function.Function;
+
+import io.kroxylicious.proxy.future.FailedFutureException;
+import io.kroxylicious.proxy.future.ProxyFuture;
+import io.kroxylicious.proxy.future.ProxyPromise;
+import io.kroxylicious.proxy.future.UncompletedFutureException;
 
 /**
  * Implementation of the {@link ProxyPromise} interface.

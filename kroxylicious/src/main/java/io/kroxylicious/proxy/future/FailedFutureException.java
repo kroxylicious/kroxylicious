@@ -9,7 +9,7 @@ package io.kroxylicious.proxy.future;
  * Exception that indicates an attempt to get the value of a future that failed.
  */
 public class FailedFutureException extends RuntimeException {
-    FailedFutureException(Throwable cause) {
+    public FailedFutureException(Throwable cause) {
         super(cause);
     }
 }

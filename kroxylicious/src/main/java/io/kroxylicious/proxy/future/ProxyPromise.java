@@ -7,6 +7,8 @@ package io.kroxylicious.proxy.future;
 
 import java.util.Objects;
 
+import io.kroxylicious.proxy.internal.ProxyPromiseImpl;
+
 /**
  * A future that can be completed
  *

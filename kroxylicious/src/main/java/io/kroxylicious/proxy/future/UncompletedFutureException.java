@@ -10,7 +10,7 @@ package io.kroxylicious.proxy.future;
  * is not yet done.
  */
 public class UncompletedFutureException extends RuntimeException {
-    UncompletedFutureException() {
+    public UncompletedFutureException() {
         super();
     }
 }
