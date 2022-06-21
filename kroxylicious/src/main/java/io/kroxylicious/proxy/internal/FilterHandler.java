@@ -68,7 +68,7 @@ public class FilterHandler
                     && msg != Unpooled.EMPTY_BUFFER) {
                 // Unpooled.EMPTY_BUFFER is used by KafkaProxyFrontendHandler#closeOnFlush
                 // but otherwise we don't expect any other kind of message
-                LOGGER.warn("Unexpected message writing to upstream: {}", msg, new RuntimeException());
+                LOGGER.warn("Unexpected message writing to upstream: {}", msg, new IllegalStateException());
             }
             ctx.write(msg, promise);
         }
@@ -111,7 +111,7 @@ public class FilterHandler
         }
         else {
             if (!(msg instanceof OpaqueResponseFrame)) {
-                LOGGER.warn("Unexpected message reading from upstream: {}", msg, new RuntimeException());
+                LOGGER.warn("Unexpected message reading from upstream: {}", msg, new IllegalStateException());
             }
             ctx.fireChannelRead(msg);
         }
