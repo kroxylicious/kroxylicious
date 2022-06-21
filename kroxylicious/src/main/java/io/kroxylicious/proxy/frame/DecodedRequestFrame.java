@@ -18,7 +18,7 @@ public class DecodedRequestFrame<B extends ApiMessage>
         implements RequestFrame {
 
     private final ProxyPromise<? extends Object> promise;
-    boolean decodeResponse;
+    private final boolean decodeResponse;
     private final Object recipient;
 
     private DecodedRequestFrame(short apiVersion,

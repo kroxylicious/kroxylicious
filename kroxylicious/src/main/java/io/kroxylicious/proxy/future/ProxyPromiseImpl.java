@@ -177,4 +177,16 @@ public class ProxyPromiseImpl<T> implements ProxyPromise<T>, ProxyFuture<T> {
     public ProxyFuture<T> future() {
         return this;
     }
+
+    /**
+     * Wrapper for throwable, used in {@link ProxyPromiseImpl}.
+     * Package private so that clients can never complete a {@link ProxyFuture} with one.
+     */
+    private static class CauseHolder {
+        final Throwable cause;
+
+        private CauseHolder(Throwable cause) {
+            this.cause = cause;
+        }
+    }
 }
