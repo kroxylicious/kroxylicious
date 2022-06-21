@@ -43,6 +43,7 @@ import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.Frame;
+import io.kroxylicious.proxy.frame.InternalResponseFrame;
 import io.kroxylicious.proxy.frame.OpaqueFrame;
 import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
 import io.netty.buffer.ByteBuf;
@@ -83,7 +84,7 @@ public class KafkaResponseDecoder extends KafkaMessageDecoder {
         in.writeInt(correlationId);
         in.writerIndex(wi);
 
-        Frame frame;
+        final Frame frame;
         if (correlation.decodeResponse()) {
             ApiKeys apiKey = ApiKeys.forId(correlation.apiKey());
             short apiVersion = correlation.apiVersion();
@@ -94,7 +95,13 @@ public class KafkaResponseDecoder extends KafkaMessageDecoder {
             log().trace("{}: Header: {}", ctx, header);
             ApiMessage body = readBody(apiKey, apiVersion, accessor);
             log().trace("{}: Body: {}", ctx, body);
-            frame = new DecodedResponseFrame<>(correlation.recipient(), correlation.promise(), apiVersion, correlationId, header, body);
+            Object recipient = correlation.recipient();
+            if (recipient == null) {
+                frame = new DecodedResponseFrame<>(apiVersion, correlationId, header, body);
+            }
+            else {
+                frame = new InternalResponseFrame<>(recipient, correlation.promise(), apiVersion, correlationId, header, body);
+            }
         }
         else {
             frame = opaqueFrame(in, correlationId, length);

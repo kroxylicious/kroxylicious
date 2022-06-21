@@ -15,7 +15,7 @@ import org.apache.logging.log4j.Logger;
 import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.proxy.frame.DecodedFrame;
-import io.kroxylicious.proxy.frame.DecodedRequestFrame;
+import io.kroxylicious.proxy.frame.InternalRequestFrame;
 import io.kroxylicious.proxy.future.ProxyFuture;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
@@ -113,8 +113,8 @@ class DefaultFilterContext implements KrpcFilterContext, AutoCloseable {
         boolean hasResponse = apiKey != ApiKeys.PRODUCE
                 || ((ProduceRequestData) message).acks() != 0;
         var filterPromise = new ProxyPromiseImpl<T>();
-        var frame = DecodedRequestFrame.internalRequest(
-                apiVersion, 0, hasResponse,
+        var frame = new InternalRequestFrame(
+                apiVersion, -1, hasResponse,
                 filter, filterPromise, header, message);
 
         if (LOGGER.isDebugEnabled()) {

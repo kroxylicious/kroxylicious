@@ -14,6 +14,7 @@ import org.apache.logging.log4j.Logger;
 import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
+import io.kroxylicious.proxy.frame.InternalResponseFrame;
 import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
 import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
 import io.kroxylicious.proxy.future.ProxyPromise;
@@ -78,22 +79,25 @@ public class FilterHandler
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         if (msg instanceof DecodedResponseFrame) {
             DecodedResponseFrame<?> decodedFrame = (DecodedResponseFrame<?>) msg;
-            if (decodedFrame.isRecipient(filter)) {
-                if (LOGGER.isDebugEnabled()) {
-                    LOGGER.debug("{}: Completing {} response for request sent by this filter{}: {}",
-                            ctx.channel(), decodedFrame.apiKey(), filterDescriptor(), msg);
+            if (decodedFrame instanceof InternalResponseFrame) {
+                InternalResponseFrame<?> frame = (InternalResponseFrame<?>) decodedFrame;
+                if (frame.isRecipient(filter)) {
+                    if (LOGGER.isDebugEnabled()) {
+                        LOGGER.debug("{}: Completing {} response for request sent by this filter{}: {}",
+                                ctx.channel(), decodedFrame.apiKey(), filterDescriptor(), msg);
+                    }
+                    ProxyPromise<ApiMessage> p = frame.promise();
+                    p.tryComplete(decodedFrame.body());
                 }
-                ProxyPromise<ApiMessage> p = decodedFrame.promise();
-                p.tryComplete(decodedFrame.body());
-                return;
-            }
-            if (decodedFrame.recipient() != null) {
-                if (LOGGER.isDebugEnabled()) {
-                    LOGGER.debug("{}: Not completing {} response for request sent by another filter {}",
-                            ctx.channel(), decodedFrame.apiKey(), decodedFrame.recipient());
+                else {
+                    if (LOGGER.isDebugEnabled()) {
+                        LOGGER.debug("{}: Not completing {} response for request sent by another filter {}",
+                                ctx.channel(), decodedFrame.apiKey(), frame.recipient());
+                    }
+                    ctx.fireChannelRead(msg);
                 }
             }
-            if (filter.shouldDeserializeResponse(decodedFrame.apiKey(), decodedFrame.apiVersion())) {
+            else if (filter.shouldDeserializeResponse(decodedFrame.apiKey(), decodedFrame.apiVersion())) {
                 try (var filterContext = new DefaultFilterContext(filter, ctx, decodedFrame, null, outboundCtx)) {
                     if (LOGGER.isDebugEnabled()) {
                         LOGGER.debug("{}: Dispatching upstream {} response to filter {}: {}",

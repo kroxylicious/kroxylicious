@@ -11,6 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
+import io.kroxylicious.proxy.frame.InternalRequestFrame;
 import io.kroxylicious.proxy.frame.RequestFrame;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
@@ -50,8 +51,8 @@ public class KafkaRequestEncoder extends KafkaMessageEncoder<RequestFrame> {
                 apiVersion,
                 downstreamCorrelationId,
                 hasResponse,
-                frame instanceof DecodedRequestFrame ? ((DecodedRequestFrame<?>) frame).recipient() : null,
-                frame instanceof DecodedRequestFrame ? ((DecodedRequestFrame<?>) frame).promise() : null,
+                frame instanceof InternalRequestFrame ? ((InternalRequestFrame<?>) frame).recipient() : null,
+                frame instanceof InternalRequestFrame ? ((InternalRequestFrame<?>) frame).promise() : null,
                 decodeResponse);
         out.writerIndex(LENGTH + API_KEY + API_VERSION);
         out.writeInt(upstreamCorrelationId);
