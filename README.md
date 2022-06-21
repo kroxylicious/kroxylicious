@@ -54,6 +54,25 @@ $ java -jar target/kproxy-1.0-SNAPSHOT.jar
 
 See [benchmarking.md](benchmarking.md) for information on running basic performance tests for this proxy.
 
+## Architecture Monitoring
+
+This project uses [Deptective 🕵](https://github.com/moditect/deptective/) for monitoring its architecture and fails any violations,
+either in form of unwanted package dependencies or circular package dependencies.
+The target dependency model is configured in the [deptective.json](kroxylicious/src/main/resources/META-INF/deptective.json) file.
+Any new package relationships need to be registered there.
+
+To verify whether the code base adheres to that target model, run the following:
+
+```
+$ mvn clean verify -Dquick -Parchitecture-check -pl kroxylicious
+```
+
+In case of any architecture violations, the actual architecture can be visualized using GraphViz like so:
+
+```
+$ dot -Tpng kroxylicious/target/generated-sources/annotations/deptective.dot > kroxylicious-arch.png
+```
+
 ## License
 
 This code base is available under the Apache License, version 2.
