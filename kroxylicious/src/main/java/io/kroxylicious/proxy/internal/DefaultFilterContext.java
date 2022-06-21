@@ -104,7 +104,7 @@ class DefaultFilterContext implements KrpcFilterContext, AutoCloseable {
         var apiKey = ApiKeys.forId(key);
         short headerVersion = apiKey.requestHeaderVersion(apiVersion);
         var header = new RequestHeaderData()
-                .setCorrelationId(0)
+                .setCorrelationId(-1)
                 .setRequestApiKey(key)
                 .setRequestApiVersion(apiVersion);
         if (headerVersion > 1) {
