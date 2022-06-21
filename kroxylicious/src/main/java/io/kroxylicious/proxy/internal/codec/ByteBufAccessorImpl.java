@@ -8,8 +8,8 @@ package io.kroxylicious.proxy.internal.codec;
 import java.nio.ByteBuffer;
 
 import org.apache.kafka.common.protocol.Readable;
-import org.apache.kafka.common.protocol.Writable;
 
+import io.kroxylicious.proxy.frame.ByteBufAccessor;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 
@@ -22,10 +22,11 @@ import io.netty.buffer.ByteBufUtil;
  * depends on NIO ByteBuffer, so copying between ByteBuffer and ByteBuf cannot
  * always be avoided.
  */
-public class ByteBufAccessor implements Readable, Writable {
+public class ByteBufAccessorImpl implements ByteBufAccessor, Readable {
+
     private final ByteBuf buf;
 
-    public ByteBufAccessor(ByteBuf buf) {
+    public ByteBufAccessorImpl(ByteBuf buf) {
         this.buf = buf;
     }
 
@@ -213,5 +214,20 @@ public class ByteBufAccessor implements Readable, Writable {
     @Override
     public void writeVarlong(long i) {
         writeVarlong(i, buf);
+    }
+
+    @Override
+    public void ensureWritable(int encodedSize) {
+        buf.ensureWritable(encodedSize);
+    }
+
+    @Override
+    public int writerIndex() {
+        return buf.writerIndex();
+    }
+
+    @Override
+    public void writeBytes(ByteBuf buf, int length) {
+        this.buf.writeBytes(buf, length);
     }
 }

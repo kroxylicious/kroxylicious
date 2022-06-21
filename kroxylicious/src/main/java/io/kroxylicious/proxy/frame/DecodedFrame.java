@@ -15,7 +15,6 @@ import org.apache.kafka.common.protocol.ObjectSerializationCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.kroxylicious.proxy.internal.codec.ByteBufAccessor;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.AbstractReferenceCounted;
 import io.netty.util.ReferenceCounted;
@@ -96,7 +95,7 @@ public abstract class DecodedFrame<H extends ApiMessage, B extends ApiMessage>
     }
 
     @Override
-    public final void encode(ByteBuf out) {
+    public final void encode(ByteBufAccessor out) {
         if (headerAndBodyEncodedLength < 0) {
             LOGGER.warn("Encoding estimation should happen before encoding, if possible");
         }
@@ -107,11 +106,10 @@ public abstract class DecodedFrame<H extends ApiMessage, B extends ApiMessage>
         }
         out.ensureWritable(encodedSize);
         final int initialIndex = out.writerIndex();
-        final ByteBufAccessor writable = new ByteBufAccessor(out);
-        writable.writeInt(headerAndBodyEncodedLength);
+        out.writeInt(headerAndBodyEncodedLength);
         final ObjectSerializationCache cache = serializationCache;
-        header.write(writable, cache, headerVersion());
-        body.write(writable, cache, apiVersion());
+        header.write(out, cache, headerVersion());
+        body.write(out, cache, apiVersion());
         assert (out.writerIndex() - initialIndex) == encodedSize;
     }
 

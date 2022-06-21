@@ -37,6 +37,7 @@ import org.apache.kafka.common.message.UpdateMetadataRequestData;
 import org.apache.kafka.common.message.WriteTxnMarkersRequestData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
+import org.apache.kafka.common.protocol.Readable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -81,7 +82,7 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
         int correlationId = in.readInt();
 
         RequestHeaderData header = null;
-        final ByteBufAccessor accessor;
+        final ByteBufAccessorImpl accessor;
         var decodeRequest = shouldDecodeRequest(apiKey, apiVersion);
         boolean decodeResponse = shouldDecodeResponse(apiKey, apiVersion);
         short headerVersion = apiKey.requestHeaderVersion(apiVersion);
@@ -95,7 +96,7 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
             // TODO Decide whether to decode this API at all
             // TODO Can we implement ApiMessage using an opaque wrapper around a bytebuf?
 
-            accessor = new ByteBufAccessor(in);
+            accessor = new ByteBufAccessorImpl(in);
             header = readHeader(headerVersion, accessor);
             if (log().isTraceEnabled()) {
                 log().trace("{}: header: {}", ctx, header);
@@ -154,11 +155,11 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
                 length);
     }
 
-    private RequestHeaderData readHeader(short headerVersion, ByteBufAccessor accessor) {
+    private RequestHeaderData readHeader(short headerVersion, Readable accessor) {
         return new RequestHeaderData(accessor, headerVersion);
     }
 
-    private ApiMessage readBody(short apiKey, short apiVersion, ByteBufAccessor accessor) {
+    private ApiMessage readBody(short apiKey, short apiVersion, Readable accessor) {
         switch (ApiKeys.forId(apiKey)) {
             case PRODUCE:
                 return new ProduceRequestData(accessor, apiVersion);

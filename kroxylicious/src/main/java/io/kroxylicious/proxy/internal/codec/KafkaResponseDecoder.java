@@ -37,6 +37,7 @@ import org.apache.kafka.common.message.UpdateMetadataResponseData;
 import org.apache.kafka.common.message.WriteTxnMarkersResponseData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
+import org.apache.kafka.common.protocol.Readable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -83,7 +84,7 @@ public class KafkaResponseDecoder extends KafkaMessageDecoder {
         if (correlation.decodeResponse()) {
             ApiKeys apiKey = ApiKeys.forId(correlation.apiKey());
             short apiVersion = correlation.apiVersion();
-            var accessor = new ByteBufAccessor(in);
+            var accessor = new ByteBufAccessorImpl(in);
             short headerVersion = apiKey.responseHeaderVersion(apiVersion);
             log().trace("{}: Header version: {}", ctx, headerVersion);
             ResponseHeaderData header = readHeader(headerVersion, accessor);
@@ -103,11 +104,11 @@ public class KafkaResponseDecoder extends KafkaMessageDecoder {
         return new OpaqueResponseFrame(in.readSlice(length).retain(), correlationId, length);
     }
 
-    private ResponseHeaderData readHeader(short headerVersion, ByteBufAccessor accessor) {
+    private ResponseHeaderData readHeader(short headerVersion, Readable accessor) {
         return new ResponseHeaderData(accessor, headerVersion);
     }
 
-    private ApiMessage readBody(ApiKeys apiKey, short apiVersion, ByteBufAccessor accessor) {
+    private ApiMessage readBody(ApiKeys apiKey, short apiVersion, Readable accessor) {
         switch (apiKey) {
             case PRODUCE:
                 return new ProduceResponseData(accessor, apiVersion);
