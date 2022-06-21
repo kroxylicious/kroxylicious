@@ -51,13 +51,12 @@ public class FilterHandler
             DecodedRequestFrame<?> decodedFrame = (DecodedRequestFrame<?>) msg;
             // Guard against invoking the filter unexpectedly
             if (filter.shouldDeserializeRequest(decodedFrame.apiKey(), decodedFrame.apiVersion())) {
-                try (var filterContext = new DefaultFilterContext(filter, ctx, decodedFrame, promise, Objects.requireNonNull(outboundCtx))) {
-                    if (LOGGER.isDebugEnabled()) {
-                        LOGGER.debug("{}: Dispatching downstream {} request to filter{}: {}",
-                                ctx.channel(), decodedFrame.apiKey(), filterDescriptor(), msg);
-                    }
-                    filter.onRequest(decodedFrame, filterContext);
+                var filterContext = new DefaultFilterContext(filter, ctx, decodedFrame, promise, Objects.requireNonNull(outboundCtx));
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("{}: Dispatching downstream {} request to filter{}: {}",
+                            ctx.channel(), decodedFrame.apiKey(), filterDescriptor(), msg);
                 }
+                filter.onRequest(decodedFrame, filterContext);
             }
             else {
                 ctx.write(msg, promise);
@@ -97,13 +96,12 @@ public class FilterHandler
                 }
             }
             else if (filter.shouldDeserializeResponse(decodedFrame.apiKey(), decodedFrame.apiVersion())) {
-                try (var filterContext = new DefaultFilterContext(filter, ctx, decodedFrame, null, outboundCtx)) {
-                    if (LOGGER.isDebugEnabled()) {
-                        LOGGER.debug("{}: Dispatching upstream {} response to filter {}: {}",
-                                ctx.channel(), decodedFrame.apiKey(), filterDescriptor(), msg);
-                    }
-                    filter.onResponse(decodedFrame, filterContext);
+                var filterContext = new DefaultFilterContext(filter, ctx, decodedFrame, null, outboundCtx);
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("{}: Dispatching upstream {} response to filter {}: {}",
+                            ctx.channel(), decodedFrame.apiKey(), filterDescriptor(), msg);
                 }
+                filter.onResponse(decodedFrame, filterContext);
             }
             else {
                 ctx.fireChannelRead(msg);

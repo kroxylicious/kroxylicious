@@ -23,7 +23,7 @@ import io.netty.channel.ChannelPromise;
 /**
  * Implementation of {@link KrpcFilterContext}.
  */
-class DefaultFilterContext implements KrpcFilterContext, AutoCloseable {
+class DefaultFilterContext implements KrpcFilterContext {
 
     private static final Logger LOGGER = LogManager.getLogger(DefaultFilterContext.class);
 
@@ -32,7 +32,6 @@ class DefaultFilterContext implements KrpcFilterContext, AutoCloseable {
     private final ChannelPromise promise;
     private final KrpcFilter filter;
     private final ChannelHandlerContext outboundCtx;
-    private boolean closed;
 
     DefaultFilterContext(KrpcFilter filter,
                          ChannelHandlerContext channelContext,
@@ -44,7 +43,6 @@ class DefaultFilterContext implements KrpcFilterContext, AutoCloseable {
         this.decodedFrame = decodedFrame;
         this.promise = promise;
         this.outboundCtx = outboundCtx;
-        this.closed = false;
     }
 
     /**
@@ -53,7 +51,6 @@ class DefaultFilterContext implements KrpcFilterContext, AutoCloseable {
      */
     @Override
     public String channelDescriptor() {
-        checkNotClosed();
         return channelContext.channel().toString();
     }
 
@@ -66,7 +63,6 @@ class DefaultFilterContext implements KrpcFilterContext, AutoCloseable {
      */
     @Override
     public ByteBuf allocate(int initialCapacity) {
-        checkNotClosed();
         final ByteBuf buffer = channelContext.alloc().heapBuffer(initialCapacity);
         decodedFrame.add(buffer);
         return buffer;
@@ -79,7 +75,6 @@ class DefaultFilterContext implements KrpcFilterContext, AutoCloseable {
      */
     @Override
     public void forwardRequest(ApiMessage message) {
-        checkNotClosed();
         if (decodedFrame.body() != message) {
             throw new IllegalStateException();
         }
@@ -98,7 +93,6 @@ class DefaultFilterContext implements KrpcFilterContext, AutoCloseable {
 
     @Override
     public <T extends ApiMessage> ProxyFuture<T> sendRequest(short apiVersion, ApiMessage message) {
-        checkNotClosed();
         short key = message.apiKey();
         var apiKey = ApiKeys.forId(key);
         short headerVersion = apiKey.requestHeaderVersion(apiVersion);
@@ -152,7 +146,6 @@ class DefaultFilterContext implements KrpcFilterContext, AutoCloseable {
      */
     @Override
     public void forwardResponse(ApiMessage response) {
-        checkNotClosed();
         // check it's a response
         String name = response.getClass().getName();
         if (!name.endsWith("ResponseData")) {
@@ -166,14 +159,4 @@ class DefaultFilterContext implements KrpcFilterContext, AutoCloseable {
         channelContext.fireChannelRead(decodedFrame);
     }
 
-    private void checkNotClosed() {
-        // if (closed) {
-        // throw new IllegalStateException("Context is closed");
-        // }
-    }
-
-    @Override
-    public void close() {
-        this.closed = true;
-    }
 }
