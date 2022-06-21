@@ -15,7 +15,6 @@ import org.apache.logging.log4j.Logger;
 import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.proxy.frame.DecodedFrame;
-import io.kroxylicious.proxy.frame.InternalRequestFrame;
 import io.kroxylicious.proxy.future.ProxyFuture;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
