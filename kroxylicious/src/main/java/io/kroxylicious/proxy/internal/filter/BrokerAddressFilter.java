@@ -16,8 +16,8 @@ import org.apache.kafka.common.message.FindCoordinatorResponseData;
 import org.apache.kafka.common.message.FindCoordinatorResponseData.Coordinator;
 import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.message.MetadataResponseData.MetadataResponseBroker;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.filter.DescribeClusterResponseFilter;
 import io.kroxylicious.proxy.filter.FindCoordinatorResponseFilter;
@@ -29,7 +29,7 @@ import io.kroxylicious.proxy.filter.MetadataResponseFilter;
  */
 public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordinatorResponseFilter, DescribeClusterResponseFilter {
 
-    private static final Logger LOGGER = LogManager.getLogger(BrokerAddressFilter.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(BrokerAddressFilter.class);
 
     public interface AddressMapping {
         String downstreamHost(String upstreamHost, int upstreamPort);

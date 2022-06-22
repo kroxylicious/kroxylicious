@@ -5,8 +5,8 @@
  */
 package io.kroxylicious.proxy.internal;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
@@ -16,7 +16,7 @@ import static java.util.Objects.requireNonNull;
 
 public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
 
-    private static final Logger LOGGER = LogManager.getLogger(KafkaProxyBackendHandler.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyBackendHandler.class);
 
     private final KafkaProxyFrontendHandler frontendHandler;
     private final ChannelHandlerContext inboundCtx;
@@ -54,7 +54,7 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
     @Override
     public void channelRead(final ChannelHandlerContext ctx, Object msg) {
         assert blockedOutboundCtx == null;
-        LOGGER.trace(msg);
+        LOGGER.trace("Channel read {}", msg);
         final Channel inboundChannel = inboundCtx.channel();
         if (inboundChannel.isWritable()) {
             inboundChannel.write(msg, inboundCtx.voidPromise());

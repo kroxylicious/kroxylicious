@@ -5,7 +5,7 @@
  */
 package io.kroxylicious.proxy.internal.codec;
 
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
 
 import io.kroxylicious.proxy.frame.Frame;
 import io.netty.buffer.ByteBuf;
