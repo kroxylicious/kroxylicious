@@ -14,6 +14,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.kafka.clients.admin.Admin;
+import org.apache.kafka.clients.admin.AdminClientConfig;
+import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
@@ -98,6 +101,10 @@ public class ProxyTest {
 
         String brokerList = startKafkaCluster();
 
+        try (var admin = Admin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, brokerList))) {
+            admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1))).all().get();
+        }
+
         FilterChainFactory filterChainFactory = () -> new KrpcFilter[]{
                 new ApiVersionsFilter(),
                 new BrokerAddressFilter(new FixedAddressMapping(proxyHost, proxyPort))
@@ -109,7 +116,7 @@ public class ProxyTest {
                 ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
                 ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
                 ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class));
-        producer.send(new ProducerRecord<>("my-test-topic", "my-key", "Hello, world!")).get();
+        producer.send(new ProducerRecord<>(TOPIC_1, "my-key", "Hello, world!")).get();
         producer.close();
 
         var consumer = new KafkaConsumer<String, String>(Map.of(
@@ -118,7 +125,7 @@ public class ProxyTest {
                 ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
                 ConsumerConfig.GROUP_ID_CONFIG, "my-group-id",
                 ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"));
-        consumer.subscribe(Set.of("my-test-topic"));
+        consumer.subscribe(Set.of(TOPIC_1));
         var records = consumer.poll(Duration.ofSeconds(10));
         consumer.close();
         assertEquals(1, records.count());
@@ -135,6 +142,12 @@ public class ProxyTest {
         String proxyAddress = String.format("%s:%d", proxyHost, proxyPort);
 
         String brokerList = startKafkaCluster();
+
+        try (var admin = Admin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, brokerList))) {
+            admin.createTopics(List.of(
+                    new NewTopic(TOPIC_1, 1, (short) 1),
+                    new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
+        }
 
         FilterChainFactory filterChainFactory = () -> new KrpcFilter[]{
                 new ApiVersionsFilter(),
@@ -200,6 +213,12 @@ public class ProxyTest {
         String proxyAddress = String.format("%s:%d", proxyHost, proxyPort);
 
         String brokerList = startKafkaCluster();
+
+        try (var admin = Admin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, brokerList))) {
+            admin.createTopics(List.of(
+                    new NewTopic(TOPIC_1, 1, (short) 1),
+                    new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
+        }
 
         FilterChainFactory filterChainFactory = () -> new KrpcFilter[]{
                 new ApiVersionsFilter(),

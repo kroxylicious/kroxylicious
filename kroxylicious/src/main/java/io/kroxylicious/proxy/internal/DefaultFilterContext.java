@@ -5,6 +5,9 @@
  */
 package io.kroxylicious.proxy.internal;
 
+import java.util.concurrent.TimeUnit;
+
+import org.apache.kafka.common.errors.TimeoutException;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
@@ -31,18 +34,18 @@ class DefaultFilterContext implements KrpcFilterContext {
     private final ChannelHandlerContext channelContext;
     private final ChannelPromise promise;
     private final KrpcFilter filter;
-    private final ChannelHandlerContext outboundCtx;
+    private final long timeoutMs;
 
     DefaultFilterContext(KrpcFilter filter,
                          ChannelHandlerContext channelContext,
                          DecodedFrame<?, ?> decodedFrame,
                          ChannelPromise promise,
-                         ChannelHandlerContext outboundCtx) {
+                         long timeoutMs) {
         this.filter = filter;
         this.channelContext = channelContext;
         this.decodedFrame = decodedFrame;
         this.promise = promise;
-        this.outboundCtx = outboundCtx;
+        this.timeoutMs = timeoutMs;
     }
 
     /**
@@ -106,25 +109,27 @@ class DefaultFilterContext implements KrpcFilterContext {
         boolean hasResponse = apiKey != ApiKeys.PRODUCE
                 || ((ProduceRequestData) message).acks() != 0;
         var filterPromise = new ProxyPromiseImpl<T>();
-        var frame = new InternalRequestFrame(
+        var frame = new InternalRequestFrame<>(
                 apiVersion, -1, hasResponse,
                 filter, filterPromise, header, message);
 
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("{}: Sending request: {}", channelDescriptor(), frame);
         }
-        ChannelPromise writePromise = outboundCtx.voidPromise();
+        ChannelPromise writePromise = channelContext.channel().newPromise();
         // if (outboundCtx.channel().isWritable()) {
         // outboundCtx.write(frame, writePromise);
         // }
         // else {
-        outboundCtx.writeAndFlush(frame, writePromise);
+        channelContext.writeAndFlush(frame, writePromise);
         // }
 
         if (!hasResponse) {
+            // Complete the filter promise for an ack-less Produce
+            // based on the success of the channel write
+            // (for all other requests the filter promise will be completed
+            // when handling the response).
             writePromise.addListener(f -> {
-                // Complete the filter promise for an ack-less Produce
-                // based on the success of the channel write
                 if (f.isSuccess()) {
                     filterPromise.complete(null);
                 }
@@ -133,9 +138,11 @@ class DefaultFilterContext implements KrpcFilterContext {
                 }
             });
         }
-        // Otherwise, the filter promise will be completed when handling the response
 
-        // TODO we probably need a timeout mechanism too
+        channelContext.executor().schedule(() -> {
+            LOGGER.debug("{}: Timing out {} request after {}ms", channelContext, apiKey, timeoutMs);
+            filterPromise.tryFail(new TimeoutException());
+        }, timeoutMs, TimeUnit.MILLISECONDS);
         return filterPromise;
     }
 

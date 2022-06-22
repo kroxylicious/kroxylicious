@@ -31,14 +31,11 @@ public class FilterHandler
 
     private static final Logger LOGGER = LogManager.getLogger(FilterHandler.class);
     private final KrpcFilter filter;
-    private ChannelHandlerContext outboundCtx;
+    private final long timeoutMs;
 
-    public FilterHandler(KrpcFilter filter) {
+    public FilterHandler(KrpcFilter filter, long timeoutMs) {
         this.filter = Objects.requireNonNull(filter);
-    }
-
-    public void outboundContext(ChannelHandlerContext outboundCtx) {
-        this.outboundCtx = Objects.requireNonNull(outboundCtx);
+        this.timeoutMs = Utils.requireStrictlyPositive(timeoutMs, "timeout");
     }
 
     String filterDescriptor() {
@@ -51,7 +48,7 @@ public class FilterHandler
             DecodedRequestFrame<?> decodedFrame = (DecodedRequestFrame<?>) msg;
             // Guard against invoking the filter unexpectedly
             if (filter.shouldDeserializeRequest(decodedFrame.apiKey(), decodedFrame.apiVersion())) {
-                var filterContext = new DefaultFilterContext(filter, ctx, decodedFrame, promise, Objects.requireNonNull(outboundCtx));
+                var filterContext = new DefaultFilterContext(filter, ctx, decodedFrame, promise, timeoutMs);
                 if (LOGGER.isDebugEnabled()) {
                     LOGGER.debug("{}: Dispatching downstream {} request to filter{}: {}",
                             ctx.channel(), decodedFrame.apiKey(), filterDescriptor(), msg);
@@ -96,7 +93,7 @@ public class FilterHandler
                 }
             }
             else if (filter.shouldDeserializeResponse(decodedFrame.apiKey(), decodedFrame.apiVersion())) {
-                var filterContext = new DefaultFilterContext(filter, ctx, decodedFrame, null, outboundCtx);
+                var filterContext = new DefaultFilterContext(filter, ctx, decodedFrame, null, timeoutMs);
                 if (LOGGER.isDebugEnabled()) {
                     LOGGER.debug("{}: Dispatching upstream {} response to filter {}: {}",
                             ctx.channel(), decodedFrame.apiKey(), filterDescriptor(), msg);
