@@ -65,7 +65,8 @@ public class KafkaRequestEncoder extends KafkaMessageEncoder<RequestFrame> {
 
         if (decodeResponse &&
                 !hasResponse) {
-            log().warn("{}: Not honouring decode of acks=0 PRODUCE response, because there will be none", ctx);
+            log().warn("{}: Not honouring decode of acks=0 PRODUCE response, because there will be none. " +
+                    "This is a bug in your filter.", ctx);
         }
     }
 

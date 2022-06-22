@@ -115,7 +115,8 @@ public class ProxyTest {
         var producer = new KafkaProducer<String, String>(Map.of(
                 ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
                 ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
-                ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class));
+                ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
+                ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000));
         producer.send(new ProducerRecord<>(TOPIC_1, "my-key", "Hello, world!")).get();
         producer.close();
 
@@ -162,7 +163,7 @@ public class ProxyTest {
                     ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
                     ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
                     ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
-                    ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, 3_600_000))) {
+                    ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000))) {
                 producer.send(new ProducerRecord<>(TOPIC_1, "my-key", PLAINTEXT)).get();
                 producer.send(new ProducerRecord<>(TOPIC_2, "my-key", PLAINTEXT)).get();
                 producer.flush();
@@ -234,7 +235,7 @@ public class ProxyTest {
                     ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
                     ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
                     ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class,
-                    ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, 3_600_000))) {
+                    ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000))) {
 
                 producer.send(new ProducerRecord<>(TOPIC_1, "my-key", TOPIC_1_CIPHERTEXT)).get();
                 producer.send(new ProducerRecord<>(TOPIC_2, "my-key", TOPIC_2_CIPHERTEXT)).get();

@@ -5,11 +5,6 @@
  */
 package io.kroxylicious.proxy.internal;
 
-import io.kroxylicious.proxy.filter.ApiVersionsRequestFilter;
-import io.kroxylicious.proxy.filter.ApiVersionsResponseFilter;
-import io.kroxylicious.proxy.filter.KrpcFilterContext;
-import io.kroxylicious.proxy.future.ProxyFuture;
-import io.kroxylicious.proxy.future.ProxyPromise;
 import org.apache.kafka.common.errors.TimeoutException;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
@@ -19,6 +14,12 @@ import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.junit.jupiter.api.Test;
+
+import io.kroxylicious.proxy.filter.ApiVersionsRequestFilter;
+import io.kroxylicious.proxy.filter.ApiVersionsResponseFilter;
+import io.kroxylicious.proxy.filter.KrpcFilterContext;
+import io.kroxylicious.proxy.future.ProxyFuture;
+import io.kroxylicious.proxy.future.ProxyPromise;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;

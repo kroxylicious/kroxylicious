@@ -1,31 +1,21 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements. See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
+ * Copyright Kroxylicious Authors.
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 package io.kroxylicious.proxy.internal;
+
+import org.apache.kafka.common.message.RequestHeaderData;
+import org.apache.kafka.common.message.ResponseHeaderData;
+import org.apache.kafka.common.protocol.ApiKeys;
+import org.apache.kafka.common.protocol.ApiMessage;
+import org.junit.jupiter.api.AfterEach;
 
 import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.future.ProxyPromise;
 import io.netty.channel.embedded.EmbeddedChannel;
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
-import org.junit.jupiter.api.AfterEach;
 
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -65,7 +55,6 @@ public abstract class FilterHarness {
      * @param <B> The type of the request.
      */
     protected <B extends ApiMessage> DecodedRequestFrame<B> writeRequest(B data) {
-        //ApiVersionsRequestData data = new ApiVersionsRequestData();
         var apiKey = ApiKeys.forId(data.apiKey());
         var header = new RequestHeaderData();
         int correlationId = 42;
@@ -85,7 +74,6 @@ public abstract class FilterHarness {
      * @param <B> The type of the response body.
      */
     protected <B extends ApiMessage> DecodedResponseFrame<B> writeResponse(B data) {
-        //ApiVersionsRequestData data = new ApiVersionsRequestData();
         var apiKey = ApiKeys.forId(data.apiKey());
         var header = new ResponseHeaderData();
         int correlationId = 42;
@@ -124,11 +112,14 @@ public abstract class FilterHarness {
             Object outbound = channel.readOutbound();
             if (inbound != null && outbound != null) {
                 fail("Unexpected inbound and outbound messages: inbound: " + inbound + ", outbound: " + outbound);
-            } else if (inbound != null) {
+            }
+            else if (inbound != null) {
                 fail("Unexpected inbound message: inbound: " + inbound);
-            } else if (outbound != null) {
+            }
+            else if (outbound != null) {
                 fail("Unexpected outbound message: outbound: " + outbound);
-            } else {
+            }
+            else {
                 fail("Logically this is impossible");
             }
         }
