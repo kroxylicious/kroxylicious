@@ -37,8 +37,8 @@ import org.apache.kafka.common.message.UpdateMetadataResponseData;
 import org.apache.kafka.common.message.WriteTxnMarkersResponseData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.Frame;
@@ -49,7 +49,8 @@ import io.netty.channel.ChannelHandlerContext;
 
 public class KafkaResponseDecoder extends KafkaMessageDecoder {
 
-    private static final Logger LOGGER = LogManager.getLogger(KafkaResponseDecoder.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(KafkaResponseDecoder.class);
+
     private final CorrelationManager correlationManager;
 
     public KafkaResponseDecoder(CorrelationManager correlationManager) {

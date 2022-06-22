@@ -37,8 +37,8 @@ import org.apache.kafka.common.message.UpdateMetadataRequestData;
 import org.apache.kafka.common.message.WriteTxnMarkersRequestData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
@@ -50,7 +50,7 @@ import io.netty.channel.ChannelHandlerContext;
 
 public class KafkaRequestDecoder extends KafkaMessageDecoder {
 
-    private static final Logger LOGGER = LogManager.getLogger(KafkaRequestDecoder.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(KafkaRequestDecoder.class);
 
     private final KrpcFilter[] filters;
 

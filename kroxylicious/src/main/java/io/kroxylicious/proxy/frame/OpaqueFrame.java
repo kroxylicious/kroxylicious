@@ -5,8 +5,8 @@
  */
 package io.kroxylicious.proxy.frame;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
@@ -17,7 +17,7 @@ import io.netty.buffer.ByteBuf;
  */
 public abstract class OpaqueFrame implements Frame {
 
-    private static final Logger LOGGER = LogManager.getLogger(OpaqueFrame.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(OpaqueFrame.class);
 
     /**
      * Number of bytes required for storing the frame length.

@@ -5,8 +5,8 @@
  */
 package io.kroxylicious.proxy.internal;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.filter.FilterChainFactory;
 import io.kroxylicious.proxy.internal.codec.CorrelationManager;
@@ -20,7 +20,7 @@ import io.netty.handler.logging.LoggingHandler;
 
 public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
 
-    private static final Logger LOGGER = LogManager.getLogger(KafkaProxyInitializer.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyInitializer.class);
 
     private final String remoteHost;
     private final int remotePort;

@@ -7,8 +7,8 @@ package io.kroxylicious.proxy.internal.filter;
 
 import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.filter.ApiVersionsResponseFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
@@ -18,7 +18,8 @@ import io.kroxylicious.proxy.filter.KrpcFilterContext;
  * API key. This is an intrinsic part of correctly acting as a proxy.
  */
 public class ApiVersionsFilter implements ApiVersionsResponseFilter {
-    private static final Logger LOGGER = LogManager.getLogger(ApiVersionsFilter.class);
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(ApiVersionsFilter.class);
 
     private static void intersectApiVersions(String channel, ApiVersionsResponseData resp) {
         for (var key : resp.apiKeys()) {

@@ -5,8 +5,8 @@
  */
 package io.kroxylicious.proxy;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.filter.FilterChainFactory;
 import io.kroxylicious.proxy.filter.KrpcFilter;
@@ -33,7 +33,8 @@ import io.netty.incubator.channel.uring.IOUringServerSocketChannel;
 
 public final class KafkaProxy {
 
-    private static final Logger LOGGER = LogManager.getLogger(KafkaProxy.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxy.class);
+
     private final String proxyHost;
     private final int proxyPort;
     private final String brokerHost;

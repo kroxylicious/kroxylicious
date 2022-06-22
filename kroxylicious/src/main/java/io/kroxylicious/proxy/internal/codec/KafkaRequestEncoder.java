@@ -7,8 +7,8 @@ package io.kroxylicious.proxy.internal.codec;
 
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.RequestFrame;
@@ -16,7 +16,9 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 
 public class KafkaRequestEncoder extends KafkaMessageEncoder<RequestFrame> {
-    private static final Logger LOGGER = LogManager.getLogger(KafkaRequestEncoder.class);
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(KafkaRequestEncoder.class);
+
     public static final int LENGTH = 4;
     public static final int API_KEY = 2;
     public static final int API_VERSION = 2;
