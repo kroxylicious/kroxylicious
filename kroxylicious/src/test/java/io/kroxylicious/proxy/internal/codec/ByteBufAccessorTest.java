@@ -58,7 +58,7 @@ public class ByteBufAccessorTest {
 
             // Read using ByteBuf accessor
             var bbuf = Unpooled.wrappedBuffer(bbuffer.flip());
-            var kp = new ByteBufAccessor(bbuf);
+            var kp = new ByteBufAccessorImpl(bbuf);
             assertEquals(writtenByte, kp.readByte());
             var readArray = new byte[writtenArray.length];
             kp.readArray(readArray);
@@ -82,7 +82,7 @@ public class ByteBufAccessorTest {
         Random rng = new Random();
         for (int i = 0; i < 1000; i++) {
             // Write using ByteBuffer classes
-            var accessor = new ByteBufAccessor(bbuf);
+            var accessor = new ByteBufAccessorImpl(bbuf);
             byte writtenByte = (byte) rng.nextInt();
             accessor.writeByte(writtenByte);
             byte[] writtenArray = { 1, 2, 3 };
@@ -152,7 +152,7 @@ public class ByteBufAccessorTest {
 
         // Read using our API
         var bbuf = Unpooled.wrappedBuffer(bbuffer);
-        var readReq = new ApiVersionsRequestData(new ByteBufAccessor(bbuf), apiVersion);
+        var readReq = new ApiVersionsRequestData(new ByteBufAccessorImpl(bbuf), apiVersion);
 
         assertSameRequest(schema, message, readReq);
     }
@@ -167,7 +167,7 @@ public class ByteBufAccessorTest {
         var cache = new ObjectSerializationCache();
         int messageSize = message.size(cache, apiVersion);
         var bbuf = Unpooled.buffer(messageSize);
-        var ourAccessor = new ByteBufAccessor(bbuf);
+        var ourAccessor = new ByteBufAccessorImpl(bbuf);
         message.write(ourAccessor, cache, apiVersion);
 
         // Read using the Kafka API
@@ -221,7 +221,7 @@ public class ByteBufAccessorTest {
 
         // Read using our API
         var bbuf = Unpooled.wrappedBuffer(bbuffer);
-        var readReq = new ApiVersionsResponseData(new ByteBufAccessor(bbuf), apiVersion);
+        var readReq = new ApiVersionsResponseData(new ByteBufAccessorImpl(bbuf), apiVersion);
 
         assertSameResponse(apiVersion, schema, message, readReq);
     }
@@ -255,7 +255,7 @@ public class ByteBufAccessorTest {
         var cache = new ObjectSerializationCache();
         int messageSize = message.size(cache, apiVersion);
         var bbuf = Unpooled.buffer(messageSize);
-        var ourAccessor = new ByteBufAccessor(bbuf);
+        var ourAccessor = new ByteBufAccessorImpl(bbuf);
         message.write(ourAccessor, cache, apiVersion);
 
         // Read using Kafka API

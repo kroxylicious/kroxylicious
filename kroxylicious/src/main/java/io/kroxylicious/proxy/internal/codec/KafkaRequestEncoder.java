@@ -90,10 +90,10 @@ public class KafkaRequestEncoder extends KafkaMessageEncoder<RequestFrame> {
             incrementReaderIndex(in, clientIdLength);
         }
         if (headerVersion >= 2) {
-            int numTaggedFields = ByteBufAccessor.readUnsignedVarint(in);
+            int numTaggedFields = ByteBufAccessorImpl.readUnsignedVarint(in);
             for (int i = 0; i < numTaggedFields; i++) {
-                int tag = ByteBufAccessor.readUnsignedVarint(in);
-                int size = ByteBufAccessor.readUnsignedVarint(in);
+                int tag = ByteBufAccessorImpl.readUnsignedVarint(in);
+                int size = ByteBufAccessorImpl.readUnsignedVarint(in);
                 incrementReaderIndex(in, size);
             }
         }
@@ -108,7 +108,7 @@ public class KafkaRequestEncoder extends KafkaMessageEncoder<RequestFrame> {
                 transactionIdLength = in.readShort();
             }
             else if (apiVersion <= 9) { // First flexible version
-                transactionIdLength = ByteBufAccessor.readUnsignedVarint(in);
+                transactionIdLength = ByteBufAccessorImpl.readUnsignedVarint(in);
             }
             else {
                 throw new AssertionError("Unsupported Produce apiVersion: " + apiVersion);

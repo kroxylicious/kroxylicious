@@ -22,7 +22,7 @@ public interface Frame {
      * Write the frame, including the size prefix, to the given buffer
      * @param out The output buffer
      */
-    void encode(ByteBuf out);
+    void encode(ByteBufAccessor out);
 
     /**
      * The correlation id.

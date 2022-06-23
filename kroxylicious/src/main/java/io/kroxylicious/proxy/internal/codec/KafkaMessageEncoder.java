@@ -42,6 +42,6 @@ public abstract class KafkaMessageEncoder<F extends Frame> extends MessageToByte
     @Override
     protected void encode(ChannelHandlerContext ctx, F frame, ByteBuf out) throws Exception {
         log().trace("{}: Encoding {} to buffer {}", ctx, frame, out);
-        frame.encode(out);
+        frame.encode(new ByteBufAccessorImpl(out));
     }
 }
