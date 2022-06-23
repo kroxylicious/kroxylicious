@@ -5,6 +5,8 @@
  */
 package io.kroxylicious.proxy.future;
 
+import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 
 public interface ProxyFuture<T> {
@@ -62,6 +64,16 @@ public interface ProxyFuture<T> {
      */
     <U> ProxyFuture<U> compose(Function<T, ProxyFuture<U>> mapper);
 
+    <U> ProxyFuture<U> compose(BiFunction<Throwable, T, ProxyFuture<U>> mapper);
+
+    /**
+     * Add a handler to be notified of the result.
+     * @param handler – the handler that will be called with the result
+     * Returns:
+     * @return a reference to this, so it can be used fluently
+     */
+    ProxyFuture<T> onComplete(BiConsumer<Throwable, T> handler);
+
     /**
      * Apply a {@code mapper} function on this future.<p>
      *
@@ -77,6 +89,8 @@ public interface ProxyFuture<T> {
      * @return the mapped future
      */
     <U> ProxyFuture<U> map(Function<T, U> mapper);
+
+    <U> ProxyFuture<U> map(BiFunction<Throwable, T, U> mapper);
 
     default <U> ProxyFuture<U> map(U value) {
         return map(x -> value);

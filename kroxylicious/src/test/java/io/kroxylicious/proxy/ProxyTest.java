@@ -114,6 +114,7 @@ public class ProxyTest {
 
         var producer = new KafkaProducer<String, String>(Map.of(
                 ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
+                ProducerConfig.CLIENT_ID_CONFIG, "shouldPassThroughRecordUnchanged",
                 ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
                 ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
                 ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000));
@@ -161,6 +162,7 @@ public class ProxyTest {
         try {
             try (var producer = new KafkaProducer<String, String>(Map.of(
                     ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
+                    ProducerConfig.CLIENT_ID_CONFIG, "shouldModifyProduceMessage",
                     ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
                     ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
                     ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000))) {
@@ -233,6 +235,7 @@ public class ProxyTest {
 
             try (var producer = new KafkaProducer<String, byte[]>(Map.of(
                     ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
+                    ProducerConfig.CLIENT_ID_CONFIG, "shouldModifyFetchMessage",
                     ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
                     ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class,
                     ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000))) {

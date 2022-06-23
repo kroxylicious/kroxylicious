@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.proxy.internal;
 
+import java.util.ArrayList;
 import java.util.Objects;
 import java.util.function.Function;
 
@@ -31,6 +32,12 @@ public class ProxyPromiseImpl<T> implements ProxyPromise<T>, ProxyFuture<T> {
      */
     private Object value;
 
+    /**
+     * Listeners to fire when the future completes (successfully or not).
+     * null when there are no listeners
+     * a {@link Listener<T>} instance when there is a single listener
+     * a {@link ListenerArray<T>} when there is more than one listener
+     */
     private Listener<T> listener;
 
     @Override
@@ -77,11 +84,45 @@ public class ProxyPromiseImpl<T> implements ProxyPromise<T>, ProxyFuture<T> {
         }
     }
 
+    private void addListener(Listener<T> listener) {
+        Object v;
+        synchronized (this) {
+            v = value;
+            if (v == null) {
+                if (this.listener == null) {
+                    this.listener = listener;
+                }
+                else {
+                    ListenerArray<T> listeners;
+                    if (this.listener instanceof ListenerArray) {
+                        listeners = (ListenerArray<T>) this.listener;
+                    }
+                    else {
+                        listeners = new ListenerArray<>();
+                        listeners.add(this.listener);
+                        this.listener = listeners;
+                    }
+                    listeners.add(listener);
+                }
+                return;
+            }
+        }
+        if (v instanceof CauseHolder) {
+            emitFailure(((CauseHolder) v).cause, listener);
+        }
+        else {
+            if (v == NULL_VALUE) {
+                v = null;
+            }
+            emitSuccess((T) v, listener);
+        }
+    }
+
     @Override
-    public <X> ProxyPromise<X> compose(Function<T, ProxyFuture<X>> mapper) {
+    public <X> ProxyFuture<X> compose(Function<T, ProxyFuture<X>> mapper) {
         var p = new ProxyPromiseImpl<X>();
         // TODO support adding listeners properly
-        this.listener = new Listener<T>() {
+        addListener(new Listener<T>() {
             @Override
             public void onSuccess(T value) {
                 ProxyFuture<X> apply = mapper.apply(value);
@@ -102,7 +143,7 @@ public class ProxyPromiseImpl<T> implements ProxyPromise<T>, ProxyFuture<T> {
             public void onFailure(Throwable failure) {
                 p.tryFail(failure);
             }
-        };
+        });
         return p;
     }
 
@@ -192,6 +233,39 @@ public class ProxyPromiseImpl<T> implements ProxyPromise<T>, ProxyFuture<T> {
 
         private CauseHolder(Throwable cause) {
             this.cause = cause;
+        }
+    }
+
+    static interface Listener<T> {
+
+        /**
+         * Signal the success.
+         *
+         * @param value the value
+         */
+        void onSuccess(T value);
+
+        /**
+         * Signal the failure
+         *
+         * @param failure the failure
+         */
+        void onFailure(Throwable failure);
+    }
+
+    private static class ListenerArray<T> extends ArrayList<Listener<T>> implements Listener<T> {
+        @Override
+        public void onSuccess(T value) {
+            for (Listener<T> handler : this) {
+                handler.onSuccess(value);
+            }
+        }
+
+        @Override
+        public void onFailure(Throwable failure) {
+            for (Listener<T> handler : this) {
+                handler.onFailure(failure);
+            }
         }
     }
 }
