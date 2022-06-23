@@ -8,8 +8,8 @@ package io.kroxylicious.proxy.internal;
 import java.util.Objects;
 
 import org.apache.kafka.common.protocol.ApiMessage;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
@@ -29,7 +29,7 @@ import io.netty.channel.ChannelPromise;
 public class FilterHandler
         extends ChannelDuplexHandler {
 
-    private static final Logger LOGGER = LogManager.getLogger(FilterHandler.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(FilterHandler.class);
     private final KrpcFilter filter;
     private final long timeoutMs;
 

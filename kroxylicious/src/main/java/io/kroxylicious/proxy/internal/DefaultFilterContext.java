@@ -12,8 +12,8 @@ import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
@@ -28,7 +28,7 @@ import io.netty.channel.ChannelPromise;
  */
 class DefaultFilterContext implements KrpcFilterContext {
 
-    private static final Logger LOGGER = LogManager.getLogger(DefaultFilterContext.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(DefaultFilterContext.class);
 
     private final DecodedFrame<?, ?> decodedFrame;
     private final ChannelHandlerContext channelContext;

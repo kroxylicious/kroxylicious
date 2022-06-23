@@ -24,8 +24,8 @@ import org.apache.kafka.common.record.MemoryRecordsBuilder;
 import org.apache.kafka.common.record.MutableRecordBatch;
 import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.record.TimestampType;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.filter.FetchResponseFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
@@ -36,7 +36,7 @@ import io.kroxylicious.proxy.internal.util.NettyMemoryRecords;
  */
 public class FetchResponseTransformationFilter implements FetchResponseFilter {
 
-    private static final Logger LOGGER = LogManager.getLogger(FetchResponseTransformationFilter.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(FetchResponseTransformationFilter.class);
 
     @FunctionalInterface
     public interface ByteBufferTransformation {

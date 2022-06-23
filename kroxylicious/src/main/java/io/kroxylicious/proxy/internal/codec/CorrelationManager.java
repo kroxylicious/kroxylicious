@@ -10,8 +10,8 @@ import java.util.Map;
 import java.util.Objects;
 
 import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.future.ProxyPromise;
@@ -23,7 +23,7 @@ import io.kroxylicious.proxy.tag.VisibleForTesting;
  */
 public class CorrelationManager {
 
-    private static final Logger LOGGER = LogManager.getLogger(CorrelationManager.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(CorrelationManager.class);
 
     // TODO use a specialized map
     @VisibleForTesting
