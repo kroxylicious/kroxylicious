@@ -16,7 +16,7 @@ import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
 import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
-import io.kroxylicious.proxy.future.ProxyPromise;
+import io.kroxylicious.proxy.future.Promise;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -81,7 +81,7 @@ public class FilterHandler
                         LOGGER.debug("{}: Completing {} response for request sent by this filter{}: {}",
                                 ctx.channel(), decodedFrame.apiKey(), filterDescriptor(), msg);
                     }
-                    ProxyPromise<ApiMessage> p = frame.promise();
+                    Promise<ApiMessage> p = frame.promise();
                     p.tryComplete(decodedFrame.body());
                 }
                 else {

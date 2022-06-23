@@ -12,18 +12,18 @@ import org.apache.kafka.common.protocol.ApiMessage;
 
 import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
-import io.kroxylicious.proxy.future.ProxyPromise;
+import io.kroxylicious.proxy.future.Promise;
 
 public class InternalRequestFrame<B extends ApiMessage> extends DecodedRequestFrame<B> {
 
-    private final ProxyPromise<? extends Object> promise;
+    private final Promise<? extends Object> promise;
     private final KrpcFilter recipient;
 
     public InternalRequestFrame(short apiVersion,
                                 int correlationId,
                                 boolean decodeResponse,
                                 KrpcFilter recipient,
-                                ProxyPromise<? extends Object> promise,
+                                Promise<? extends Object> promise,
                                 RequestHeaderData header,
                                 B body) {
         super(apiVersion, correlationId, decodeResponse, header, body);
@@ -35,7 +35,7 @@ public class InternalRequestFrame<B extends ApiMessage> extends DecodedRequestFr
         return recipient;
     }
 
-    public ProxyPromise<? extends Object> promise() {
+    public Promise<? extends Object> promise() {
         return promise;
     }
 }

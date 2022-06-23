@@ -14,7 +14,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.filter.KrpcFilter;
-import io.kroxylicious.proxy.future.ProxyPromise;
+import io.kroxylicious.proxy.future.Promise;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 /**
@@ -53,7 +53,7 @@ public class CorrelationManager {
                                 int downstreamCorrelationId,
                                 boolean hasResponse,
                                 KrpcFilter recipient,
-                                ProxyPromise<? extends Object> promise,
+                                Promise<? extends Object> promise,
                                 boolean decodeResponse) {
         // need to allocate an id and put in a map for quick lookup, along with the "tag"
         int upstreamCorrelationId = upstreamId++;
@@ -89,14 +89,14 @@ public class CorrelationManager {
         private final int downstreamCorrelationId;
         private final boolean decodeResponse;
         private final KrpcFilter recipient;
-        private final ProxyPromise<?> promise;
+        private final Promise<?> promise;
 
         private Correlation(short apiKey,
                             short apiVersion,
                             int downstreamCorrelationId,
                             boolean decodeResponse,
                             KrpcFilter recipient,
-                            ProxyPromise<?> promise) {
+                            Promise<?> promise) {
             this.apiKey = apiKey;
             this.apiVersion = apiVersion;
             this.downstreamCorrelationId = downstreamCorrelationId;
@@ -153,7 +153,7 @@ public class CorrelationManager {
             return recipient;
         }
 
-        public ProxyPromise<?> promise() {
+        public Promise<?> promise() {
             return promise;
         }
     }

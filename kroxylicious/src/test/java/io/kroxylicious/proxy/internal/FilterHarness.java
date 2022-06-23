@@ -14,7 +14,7 @@ import org.junit.jupiter.api.AfterEach;
 import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
-import io.kroxylicious.proxy.future.ProxyPromise;
+import io.kroxylicious.proxy.future.Promise;
 import io.netty.channel.embedded.EmbeddedChannel;
 
 import static org.junit.jupiter.api.Assertions.fail;
@@ -91,7 +91,7 @@ public abstract class FilterHarness {
      * @return The frame that was written.
      * @param <B> The type of the response body.
      */
-    protected <B extends ApiMessage> DecodedResponseFrame<B> writeInternalResponse(ProxyPromise<?> promise, B data) {
+    protected <B extends ApiMessage> DecodedResponseFrame<B> writeInternalResponse(Promise<?> promise, B data) {
         var apiKey = ApiKeys.forId(data.apiKey());
         var header = new ResponseHeaderData();
         int correlationId = 42;

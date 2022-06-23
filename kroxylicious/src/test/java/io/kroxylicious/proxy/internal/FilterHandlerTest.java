@@ -18,8 +18,8 @@ import org.junit.jupiter.api.Test;
 import io.kroxylicious.proxy.filter.ApiVersionsRequestFilter;
 import io.kroxylicious.proxy.filter.ApiVersionsResponseFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
-import io.kroxylicious.proxy.future.ProxyFuture;
-import io.kroxylicious.proxy.future.ProxyPromise;
+import io.kroxylicious.proxy.future.Future;
+import io.kroxylicious.proxy.future.Promise;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -104,7 +104,7 @@ class FilterHandlerTest extends FilterHarness {
     @Test
     public void testSendRequest() {
         FetchRequestData body = new FetchRequestData();
-        ProxyFuture<?>[] fut = { null };
+        Future<?>[] fut = { null };
         ApiVersionsRequestFilter filter = (request, context) -> {
             assertNull(fut[0],
                     "Expected to only be called once");
@@ -119,15 +119,15 @@ class FilterHandlerTest extends FilterHarness {
         assertEquals(body, ((InternalRequestFrame<?>) propagated).body(),
                 "Expect the body to be the Fetch request");
 
-        assertFalse(fut[0].isDone(),
+        assertFalse(fut[0].isComplete(),
                 "Future should not be finished yet");
 
         // test the response path
-        ProxyPromise<?> p = (ProxyPromise<?>) fut[0];
+        Promise<?> p = (Promise<?>) fut[0];
         var responseFrame = writeInternalResponse(p, new FetchResponseData());
-        assertTrue(fut[0].isDone(),
+        assertTrue(fut[0].isComplete(),
                 "Future should be finished now");
-        assertEquals(responseFrame.body(), fut[0].value(),
+        assertEquals(responseFrame.body(), fut[0].result(),
                 "Expect the body that was sent");
     }
 
@@ -139,7 +139,7 @@ class FilterHandlerTest extends FilterHarness {
     @Test
     public void testSendAcklessProduceRequest() {
         ProduceRequestData body = new ProduceRequestData().setAcks((short) 0);
-        ProxyFuture<?>[] fut = { null };
+        Future<?>[] fut = { null };
         ApiVersionsRequestFilter filter = (request, context) -> {
             assertNull(fut[0],
                     "Expected to only be called once");
@@ -154,18 +154,18 @@ class FilterHandlerTest extends FilterHarness {
         assertEquals(body, ((InternalRequestFrame<?>) propagated).body(),
                 "Expect the body to be the Fetch request");
 
-        assertTrue(fut[0].isDone(),
+        assertTrue(fut[0].isComplete(),
                 "Future should be done");
-        assertTrue(fut[0].isSuccess(),
+        assertTrue(fut[0].succeeded(),
                 "Future should be successful");
-        assertNull(fut[0].value(),
+        assertNull(fut[0].result(),
                 "Value should be null");
     }
 
     @Test
     public void testSendRequestTimeout() throws InterruptedException {
         FetchRequestData body = new FetchRequestData();
-        ProxyFuture<?>[] fut = { null };
+        Future<?>[] fut = { null };
         ApiVersionsRequestFilter filter = (request, context) -> {
             assertNull(fut[0],
                     "Expected to only be called once");
@@ -180,26 +180,26 @@ class FilterHandlerTest extends FilterHarness {
         assertEquals(body, ((InternalRequestFrame<?>) propagated).body(),
                 "Expect the body to be the Fetch request");
 
-        ProxyPromise<?> p = (ProxyPromise<?>) fut[0];
-        assertFalse(p.isDone(),
+        Future<?> p = (Future<?>) fut[0];
+        assertFalse(p.isComplete(),
                 "Future should not be finished yet");
 
         // timeout the request
         Thread.sleep(60L);
         channel.runPendingTasks();
 
-        assertTrue(p.isDone(),
+        assertTrue(p.isComplete(),
                 "Future should be finished yet");
-        assertTrue(p.isFailed(),
+        assertTrue(p.failed(),
                 "Future should be finished yet");
         assertTrue(p.cause() instanceof TimeoutException,
                 "Cause should be timeout");
 
         // check that when the response arrives late, the promise result doesn't change
-        var responseFrame = writeInternalResponse(p, new FetchResponseData());
-        assertTrue(p.isDone(),
+        var responseFrame = writeInternalResponse((Promise<?>) p, new FetchResponseData());
+        assertTrue(p.isComplete(),
                 "Future should be finished now");
-        assertTrue(p.isFailed(),
+        assertTrue(p.failed(),
                 "Future should be finished yet");
         assertTrue(p.cause() instanceof TimeoutException,
                 "Cause should be timeout");

@@ -12,15 +12,15 @@ import org.apache.kafka.common.protocol.ApiMessage;
 
 import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
-import io.kroxylicious.proxy.future.ProxyPromise;
+import io.kroxylicious.proxy.future.Promise;
 
 public class InternalResponseFrame<B extends ApiMessage> extends DecodedResponseFrame<B> {
 
     private final KrpcFilter recipient;
 
-    private final ProxyPromise<? extends Object> promise;
+    private final Promise<? extends Object> promise;
 
-    public InternalResponseFrame(KrpcFilter recipient, ProxyPromise<?> promise, short apiVersion, int correlationId, ResponseHeaderData header, B body) {
+    public InternalResponseFrame(KrpcFilter recipient, Promise<?> promise, short apiVersion, int correlationId, ResponseHeaderData header, B body) {
         super(apiVersion, correlationId, header, body);
         this.recipient = Objects.requireNonNull(recipient);
         this.promise = Objects.requireNonNull(promise);
@@ -35,8 +35,8 @@ public class InternalResponseFrame<B extends ApiMessage> extends DecodedResponse
     }
 
     @SuppressWarnings("unchecked")
-    public <T extends ApiMessage> ProxyPromise<T> promise() {
-        return (ProxyPromise<T>) promise;
+    public <T extends ApiMessage> Promise<T> promise() {
+        return (Promise<T>) promise;
     }
 
     @Override

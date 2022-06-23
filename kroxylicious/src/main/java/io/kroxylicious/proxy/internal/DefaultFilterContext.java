@@ -18,7 +18,8 @@ import org.slf4j.LoggerFactory;
 import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.proxy.frame.DecodedFrame;
-import io.kroxylicious.proxy.future.ProxyFuture;
+import io.kroxylicious.proxy.future.Future;
+import io.kroxylicious.proxy.future.Promise;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
@@ -95,7 +96,7 @@ class DefaultFilterContext implements KrpcFilterContext {
     }
 
     @Override
-    public <T extends ApiMessage> ProxyFuture<T> sendRequest(short apiVersion, ApiMessage message) {
+    public <T extends ApiMessage> Future<T> sendRequest(short apiVersion, ApiMessage message) {
         short key = message.apiKey();
         var apiKey = ApiKeys.forId(key);
         short headerVersion = apiKey.requestHeaderVersion(apiVersion);
@@ -108,7 +109,7 @@ class DefaultFilterContext implements KrpcFilterContext {
         }
         boolean hasResponse = apiKey != ApiKeys.PRODUCE
                 || ((ProduceRequestData) message).acks() != 0;
-        var filterPromise = new ProxyPromiseImpl<T>();
+        var filterPromise = Promise.<T> promise();
         var frame = new InternalRequestFrame<>(
                 apiVersion, -1, hasResponse,
                 filter, filterPromise, header, message);
@@ -143,7 +144,7 @@ class DefaultFilterContext implements KrpcFilterContext {
             LOGGER.debug("{}: Timing out {} request after {}ms", channelContext, apiKey, timeoutMs);
             filterPromise.tryFail(new TimeoutException());
         }, timeoutMs, TimeUnit.MILLISECONDS);
-        return filterPromise;
+        return filterPromise.future();
     }
 
     /**

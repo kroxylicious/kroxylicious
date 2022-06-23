@@ -7,7 +7,7 @@ package io.kroxylicious.proxy.filter;
 
 import org.apache.kafka.common.protocol.ApiMessage;
 
-import io.kroxylicious.proxy.future.ProxyFuture;
+import io.kroxylicious.proxy.future.Future;
 import io.netty.buffer.ByteBuf;
 
 /**
@@ -44,7 +44,7 @@ public interface KrpcFilterContext {
      * @param request The request to send.
      * @param <T> The type of the response
      */
-    <T extends ApiMessage> ProxyFuture<T> sendRequest(short apiVersion, ApiMessage request);
+    <T extends ApiMessage> Future<T> sendRequest(short apiVersion, ApiMessage request);
 
     /**
      * Send a response towards the client, invoking downstream filters.
