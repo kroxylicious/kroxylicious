@@ -84,7 +84,7 @@ public class ProxyPromiseImpl<T> implements ProxyPromise<T>, ProxyFuture<T> {
         }
     }
 
-    private void addListener(Listener<T> listener) {
+    void addListener(Listener<T> listener) {
         Object v;
         synchronized (this) {
             v = value;
@@ -119,32 +119,42 @@ public class ProxyPromiseImpl<T> implements ProxyPromise<T>, ProxyFuture<T> {
     }
 
     @Override
+    public <U> ProxyFuture<U> compose(Function<T, ProxyFuture<U>> successMapper, Function<Throwable, ProxyFuture<U>> failureMapper) {
+        Objects.requireNonNull(successMapper, "No null success mapper accepted");
+        Objects.requireNonNull(failureMapper, "No null failure mapper accepted");
+        Composition<T, U> operation = new Composition<>(context, successMapper, failureMapper);
+        addListener(operation);
+        return operation;
+    }
+
+
+    @Override
     public <X> ProxyFuture<X> compose(Function<T, ProxyFuture<X>> mapper) {
+        return compose(mapper, ProxyPromiseImpl::failedFuture);
+    }
+
+    public static <X> ProxyFuture<X> failedFuture(Throwable throwable) {
         var p = new ProxyPromiseImpl<X>();
-        // TODO support adding listeners properly
-        addListener(new Listener<T>() {
-            @Override
-            public void onSuccess(T value) {
-                ProxyFuture<X> apply = mapper.apply(value);
-                ((ProxyPromiseImpl<X>) apply).listener = new Listener<X>() {
-                    @Override
-                    public void onSuccess(X value) {
-                        p.tryComplete(value);
-                    }
+        p.fail(throwable);
+        return p.future();
+    }
 
-                    @Override
-                    public void onFailure(Throwable failure) {
-                        p.tryFail(failure);
-                    }
-                };
-            }
+    public static <X> ProxyFuture<X> succeededFuture(X result) {
+        var p = new ProxyPromiseImpl<X>();
+        p.complete(result);
+        return p.future();
+    }
 
-            @Override
-            public void onFailure(Throwable failure) {
-                p.tryFail(failure);
-            }
-        });
-        return p;
+    private static final ProxyFuture<?> EMPTY;
+    static {
+        var p = new ProxyPromiseImpl<>();
+        p.complete(null);
+        EMPTY = p.future();
+    }
+
+    @SuppressWarnings("unchecked")
+    public static <X> ProxyFuture<X> succeededFuture() {
+        return (ProxyFuture<X>) EMPTY;
     }
 
     @Override

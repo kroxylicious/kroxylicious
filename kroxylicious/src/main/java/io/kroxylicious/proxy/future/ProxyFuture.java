@@ -64,7 +64,8 @@ public interface ProxyFuture<T> {
      */
     <U> ProxyFuture<U> compose(Function<T, ProxyFuture<U>> mapper);
 
-    <U> ProxyFuture<U> compose(BiFunction<Throwable, T, ProxyFuture<U>> mapper);
+    <U> ProxyFuture<U> compose(Function<T, ProxyFuture<U>> successMapper, Function<Throwable, ProxyFuture<U>> failureMapper);
+
 
     /**
      * Add a handler to be notified of the result.
@@ -89,8 +90,6 @@ public interface ProxyFuture<T> {
      * @return the mapped future
      */
     <U> ProxyFuture<U> map(Function<T, U> mapper);
-
-    <U> ProxyFuture<U> map(BiFunction<Throwable, T, U> mapper);
 
     default <U> ProxyFuture<U> map(U value) {
         return map(x -> value);
