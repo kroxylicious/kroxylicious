@@ -45,7 +45,7 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @SystemTest
-public class ProxyTest {
+public class KrpcFilterIntegrationTest {
 
     private static final String TOPIC_1 = "my-test-topic";
     private static final String TOPIC_2 = "other-test-topic";
@@ -154,7 +154,7 @@ public class ProxyTest {
         FilterChainFactory filterChainFactory = () -> new KrpcFilter[]{
                 new ApiVersionsFilter(),
                 new BrokerAddressFilter(new FixedAddressMapping(proxyHost, proxyPort)),
-                new ProduceRequestTransformationFilter(ProxyTest::encode)
+                new ProduceRequestTransformationFilter(KrpcFilterIntegrationTest::encode)
         };
 
         var proxy = startProxy(proxyHost, proxyPort, brokerList,
@@ -226,7 +226,7 @@ public class ProxyTest {
         FilterChainFactory filterChainFactory = () -> new KrpcFilter[]{
                 new ApiVersionsFilter(),
                 new BrokerAddressFilter(new FixedAddressMapping(proxyHost, proxyPort)),
-                new FetchResponseTransformationFilter(ProxyTest::decode)
+                new FetchResponseTransformationFilter(KrpcFilterIntegrationTest::decode)
         };
 
         var proxy = startProxy(proxyHost, proxyPort, brokerList,
@@ -295,7 +295,7 @@ public class ProxyTest {
     private String startKafkaCluster() throws IOException {
         var kafkaCluster = new KafkaCluster()
                 .addBrokers(1)
-                .usingDirectory(Files.createTempDirectory(ProxyTest.class.getName()).toFile())
+                .usingDirectory(Files.createTempDirectory(KrpcFilterIntegrationTest.class.getName()).toFile())
                 // .withKafkaConfiguration()
                 .startup();
 
