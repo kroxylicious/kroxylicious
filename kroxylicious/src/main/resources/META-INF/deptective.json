@@ -43,6 +43,7 @@
     "contains" : [ "org.apache.kafka*" ]
   } ],
   "whitelisted" : [
-    "java.*"
+    "java.*",
+    "org.slf4j"
   ]
 }
