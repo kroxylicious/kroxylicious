@@ -112,22 +112,22 @@
         <!-- Keep alphabetic order -->
         <pluginManagement>
             <plugins>
-<!--                <plugin>-->
-<!--                    <groupId>com.mycila</groupId>-->
-<!--                    <artifactId>license-maven-plugin</artifactId>-->
-<!--                    <version>4.1</version>-->
-<!--                    <configuration>-->
-<!--                        <header>${rootdir}/etc/license.txt</header>-->
-<!--                        <strictCheck>true</strictCheck>-->
-<!--                        <aggregate>true</aggregate>-->
-<!--                        <excludes>-->
-<!--                            <exclude>LICENSE.txt</exclude>-->
-<!--                            <exclude>**/.dontdelete</exclude>-->
-<!--                            <exclude>src/main/java/io/kroxylicious/proxy/future/**</exclude>-->
-<!--                            <exclude>src/main/java/io/kroxylicious/proxy/internal/future/**</exclude>-->
-<!--                        </excludes>-->
-<!--                    </configuration>-->
-<!--                </plugin>-->
+                <plugin>
+                    <groupId>com.mycila</groupId>
+                    <artifactId>license-maven-plugin</artifactId>
+                    <version>4.1</version>
+                    <configuration>
+                        <header>${rootdir}/etc/license.txt</header>
+                        <strictCheck>true</strictCheck>
+                        <excludes>
+                            <exclude>LICENSE.txt</exclude>
+                            <exclude>**/.dontdelete</exclude>
+                            <!-- Need to keep original copyright for Vert.x classes -->
+                            <exclude>src/main/java/io/kroxylicious/proxy/future/**</exclude>
+                            <exclude>src/main/java/io/kroxylicious/proxy/internal/future/**</exclude>
+                        </excludes>
+                    </configuration>
+                </plugin>
                 <plugin>
                     <groupId>io.kroxylicious</groupId>
                     <artifactId>kroxylicious-krpc-plugin</artifactId>
