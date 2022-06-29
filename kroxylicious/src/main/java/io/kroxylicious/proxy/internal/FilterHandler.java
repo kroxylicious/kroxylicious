@@ -17,6 +17,7 @@ import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
 import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
 import io.kroxylicious.proxy.future.Promise;
+import io.kroxylicious.proxy.internal.util.Assertions;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -35,7 +36,7 @@ public class FilterHandler
 
     public FilterHandler(KrpcFilter filter, long timeoutMs) {
         this.filter = Objects.requireNonNull(filter);
-        this.timeoutMs = Utils.requireStrictlyPositive(timeoutMs, "timeout");
+        this.timeoutMs = Assertions.requireStrictlyPositive(timeoutMs, "timeout");
     }
 
     String filterDescriptor() {
