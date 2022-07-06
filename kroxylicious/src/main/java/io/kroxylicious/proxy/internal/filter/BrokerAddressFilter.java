@@ -31,16 +31,56 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BrokerAddressFilter.class);
 
+    public static class BrokerAddressFilterConfig extends FilterConfig {
+
+        private final String proxyHost;
+        private final int proxyPort;
+
+        public BrokerAddressFilterConfig(String proxyHost, int proxyPort) {
+            this.proxyHost = proxyHost;
+            this.proxyPort = proxyPort;
+        }
+
+        public String proxyHost() {
+            return proxyHost;
+        }
+
+        public int proxyPort() {
+            return proxyPort;
+        }
+    }
+
     public interface AddressMapping {
         String downstreamHost(String upstreamHost, int upstreamPort);
 
         int downstreamPort(String upstreamHost, int upstreamPort);
     }
 
+    private static class FixedAddressMapping implements AddressMapping {
+
+        private final String targetHost;
+        private final int targetPort;
+
+        public FixedAddressMapping(String targetHost, int targetPort) {
+            this.targetHost = targetHost;
+            this.targetPort = targetPort;
+        }
+
+        @Override
+        public String downstreamHost(String host, int port) {
+            return targetHost;
+        }
+
+        @Override
+        public int downstreamPort(String host, int port) {
+            return targetPort;
+        }
+    }
+
     private final AddressMapping mapping;
 
-    public BrokerAddressFilter(AddressMapping mapping) {
-        this.mapping = mapping;
+    public BrokerAddressFilter(BrokerAddressFilterConfig config) {
+        this.mapping = new FixedAddressMapping(config.proxyHost(), config.proxyPort());
     }
 
     @Override

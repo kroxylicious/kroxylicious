@@ -5,7 +5,7 @@
  */
 package io.kroxylicious.proxy.internal.filter;
 
-import java.nio.ByteBuffer;
+import java.lang.reflect.InvocationTargetException;
 import java.util.Iterator;
 
 import org.apache.kafka.common.message.ProduceRequestData;
@@ -27,12 +27,17 @@ import io.kroxylicious.proxy.internal.util.NettyMemoryRecords;
  */
 public class ProduceRequestTransformationFilter implements ProduceRequestFilter {
 
-    /**
-     * A transformation of the key or value of a produce record.
-     */
-    @FunctionalInterface
-    public interface ByteBufferTransformation {
-        ByteBuffer transform(String topicName, ByteBuffer original);
+    public static class ProduceRequestTransformationFilterConfig extends FilterConfig {
+
+        private final String transformation;
+
+        public ProduceRequestTransformationFilterConfig(String transformation) {
+            this.transformation = transformation;
+        }
+
+        public String transformation() {
+            return transformation;
+        }
     }
 
     /**
@@ -42,8 +47,14 @@ public class ProduceRequestTransformationFilter implements ProduceRequestFilter 
 
     // TODO: add transformation support for key/header/topic
 
-    public ProduceRequestTransformationFilter(ByteBufferTransformation valueTransformation) {
-        this.valueTransformation = valueTransformation;
+    public ProduceRequestTransformationFilter(ProduceRequestTransformationFilterConfig config) {
+        try {
+            this.valueTransformation = (ByteBufferTransformation) Class.forName(config.transformation()).getConstructor().newInstance();
+        }
+        catch (InstantiationException | IllegalAccessException | IllegalArgumentException | InvocationTargetException | NoSuchMethodException | SecurityException
+                | ClassNotFoundException e) {
+            throw new IllegalArgumentException("Couldn't instantiate transformation class: " + config.transformation(), e);
+        }
     }
 
     @Override
