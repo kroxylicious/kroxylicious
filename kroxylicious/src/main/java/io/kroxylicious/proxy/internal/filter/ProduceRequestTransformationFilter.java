@@ -27,9 +27,12 @@ import io.kroxylicious.proxy.internal.util.NettyMemoryRecords;
  */
 public class ProduceRequestTransformationFilter implements ProduceRequestFilter {
 
+    /**
+     * A transformation of the key or value of a produce record.
+     */
     @FunctionalInterface
     public interface ByteBufferTransformation {
-        ByteBuffer transformation(String topicName, ByteBuffer original);
+        ByteBuffer transform(String topicName, ByteBuffer original);
     }
 
     /**
@@ -59,7 +62,7 @@ public class ProduceRequestTransformationFilter implements ProduceRequestFilter 
                 for (MutableRecordBatch batch : records.batches()) {
                     for (Iterator<Record> batchRecords = batch.iterator(); batchRecords.hasNext();) {
                         Record batchRecord = batchRecords.next();
-                        newRecords.append(batchRecord.timestamp(), batchRecord.key(), valueTransformation.transformation(topicData.name(), batchRecord.value()));
+                        newRecords.append(batchRecord.timestamp(), batchRecord.key(), valueTransformation.transform(topicData.name(), batchRecord.value()));
                     }
                 }
 
