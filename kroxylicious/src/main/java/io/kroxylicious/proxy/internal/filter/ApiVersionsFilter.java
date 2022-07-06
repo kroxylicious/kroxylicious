@@ -21,6 +21,9 @@ public class ApiVersionsFilter implements ApiVersionsResponseFilter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ApiVersionsFilter.class);
 
+    public static class ApiVersionsFilterConfig extends FilterConfig {
+    }
+
     private static void intersectApiVersions(String channel, ApiVersionsResponseData resp) {
         for (var key : resp.apiKeys()) {
             short apiId = key.apiKey();

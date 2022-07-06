@@ -18,14 +18,16 @@
 
     <properties>
         <java.version>11</java.version>
+        <java.test.version>17</java.test.version>
         <maven.compiler.parameters>true</maven.compiler.parameters>
         <maven.compiler.release>${java.version}</maven.compiler.release>
+        <maven.compiler.testRelease>${java.test.version}</maven.compiler.testRelease>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
         <debezium.version>1.9.0.Final</debezium.version>
         <freemarker.version>2.3.31</freemarker.version>
-        <jackson.version>2.13.2</jackson.version>
+        <jackson.version>2.13.3</jackson.version>
         <junit.version>5.8.1</junit.version>
         <kafka.version>3.2.0</kafka.version>
         <log4j.version>2.17.2</log4j.version>
@@ -64,6 +66,16 @@
             <dependency>
                 <groupId>com.fasterxml.jackson.core</groupId>
                 <artifactId>jackson-databind</artifactId>
+                <version>${jackson.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.dataformat</groupId>
+                <artifactId>jackson-dataformat-yaml</artifactId>
+                <version>${jackson.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.module</groupId>
+                <artifactId>jackson-module-parameter-names</artifactId>
                 <version>${jackson.version}</version>
             </dependency>
             <dependency>
@@ -144,11 +156,12 @@
                 <plugin>
                     <groupId>net.revelc.code</groupId>
                     <artifactId>impsort-maven-plugin</artifactId>
-                    <version>1.6.2</version>
+                    <version>1.7.0</version>
                     <configuration>
                         <groups>java.,javax.,org.,com.</groups>
                         <removeUnused>true</removeUnused>
                         <staticAfter>true</staticAfter>
+                        <compliance>${java.test.version}</compliance>
                     </configuration>
                 </plugin>
                 <plugin>

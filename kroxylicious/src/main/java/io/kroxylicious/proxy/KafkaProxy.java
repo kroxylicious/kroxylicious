@@ -8,11 +8,8 @@ package io.kroxylicious.proxy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.kroxylicious.proxy.filter.FilterChainFactory;
-import io.kroxylicious.proxy.filter.KrpcFilter;
+import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.internal.KafkaProxyInitializer;
-import io.kroxylicious.proxy.internal.filter.ApiVersionsFilter;
-import io.kroxylicious.proxy.internal.filter.BrokerAddressFilter;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
@@ -48,32 +45,34 @@ public final class KafkaProxy {
     private Channel acceptorChannel;
 
     public static void main(String[] args) throws Exception {
-        new KafkaProxy(null,
-                Integer.parseInt(System.getProperty("localPort", "9192")),
-                System.getProperty("remoteHost", "localhost"),
-                Integer.parseInt(System.getProperty("remotePort", "9092")),
-                Boolean.getBoolean("useIoUring"),
-                false,
-                false,
-                () -> new KrpcFilter[]{
-                        new ApiVersionsFilter(),
-                        new BrokerAddressFilter(new BrokerAddressFilter.AddressMapping() {
-                            @Override
-                            public String downstreamHost(String host, int port) {
-                                return host;
-                            }
-
-                            @Override
-                            public int downstreamPort(String host, int port) {
-                                return port + 100;
-                            }
-                        })// ,
-                          // new ProduceRecordTransformationInterceptor(
-                          // buffer -> ByteBuffer.wrap(new String(StandardCharsets.UTF_8.decode(buffer).array()).toLowerCase().getBytes(StandardCharsets.UTF_8))
-                          // )
-                })
-                        .startup()
-                        .block();
+        // TODO read from configuration file
+        throw new UnsupportedOperationException();
+        // new KafkaProxy(null,
+        // Integer.parseInt(System.getProperty("localPort", "9192")),
+        // System.getProperty("remoteHost", "localhost"),
+        // Integer.parseInt(System.getProperty("remotePort", "9092")),
+        // Boolean.getBoolean("useIoUring"),
+        // false,
+        // false,
+        // () -> new KrpcFilter[]{
+        // new ApiVersionsFilter(),
+        // new BrokerAddressFilter(new BrokerAddressFilter.AddressMapping() {
+        // @Override
+        // public String downstreamHost(String host, int port) {
+        // return host;
+        // }
+        //
+        // @Override
+        // public int downstreamPort(String host, int port) {
+        // return port + 100;
+        // }
+        // })// ,
+        // // new ProduceRecordTransformationInterceptor(
+        // // buffer -> ByteBuffer.wrap(new String(StandardCharsets.UTF_8.decode(buffer).array()).toLowerCase().getBytes(StandardCharsets.UTF_8))
+        // // )
+        // })
+        // .startup()
+        // .block();
     }
 
     public KafkaProxy(

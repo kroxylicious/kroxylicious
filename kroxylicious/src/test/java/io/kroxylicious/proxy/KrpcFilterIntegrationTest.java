@@ -5,6 +5,10 @@
  */
 package io.kroxylicious.proxy;
 
+import static java.lang.Integer.parseInt;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -31,18 +35,10 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import io.debezium.kafka.KafkaCluster;
-import io.kroxylicious.proxy.filter.FilterChainFactory;
-import io.kroxylicious.proxy.filter.KrpcFilter;
-import io.kroxylicious.proxy.internal.filter.ApiVersionsFilter;
-import io.kroxylicious.proxy.internal.filter.BrokerAddressFilter;
-import io.kroxylicious.proxy.internal.filter.BrokerAddressFilter.AddressMapping;
-import io.kroxylicious.proxy.internal.filter.FetchResponseTransformationFilter;
-import io.kroxylicious.proxy.internal.filter.ProduceRequestTransformationFilter;
+import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
+import io.kroxylicious.proxy.config.ConfigParser;
+import io.kroxylicious.proxy.internal.filter.ByteBufferTransformation;
 import io.kroxylicious.proxy.util.SystemTest;
-
-import static java.lang.Integer.parseInt;
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @SystemTest
 public class KrpcFilterIntegrationTest {
@@ -66,6 +62,14 @@ public class KrpcFilterIntegrationTest {
         assertEquals(PLAINTEXT, new String(decode(TOPIC_2, ByteBuffer.wrap(TOPIC_2_CIPHERTEXT)).array(), StandardCharsets.UTF_8));
     }
 
+    public static class TestEncoder implements ByteBufferTransformation {
+
+        @Override
+        public ByteBuffer transform(String topicName, ByteBuffer in) {
+            return encode(topicName, in);
+        }
+    }
+
     private static ByteBuffer encode(String topicName, ByteBuffer in) {
         var out = ByteBuffer.allocate(in.limit());
         byte rot = (byte) (topicName.hashCode() % Byte.MAX_VALUE);
@@ -77,6 +81,14 @@ public class KrpcFilterIntegrationTest {
             out.put(index, rotated);
         }
         return out;
+    }
+
+    public static class TestDecoder implements ByteBufferTransformation {
+
+        @Override
+        public ByteBuffer transform(String topicName, ByteBuffer in) {
+            return decode(topicName, in);
+        }
     }
 
     private static ByteBuffer decode(String topicName, ByteBuffer in) {
@@ -105,10 +117,19 @@ public class KrpcFilterIntegrationTest {
             admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1))).all().get();
         }
 
-        FilterChainFactory filterChainFactory = () -> new KrpcFilter[]{
-                new ApiVersionsFilter(),
-                new BrokerAddressFilter(new FixedAddressMapping(proxyHost, proxyPort))
-        };
+        String config = """
+                clusters:
+                  demo:
+                    address: localhost:9092
+                filters:
+                - type: ApiVersions
+                - type: BrokerAddress
+                  config:
+                    proxyHost: localhost
+                    proxyPort: 9192
+                """;
+
+        FilterChainFactory filterChainFactory = new FilterChainFactory(new ConfigParser().parseConfiguration(config));
 
         var proxy = startProxy(proxyHost, proxyPort, brokerList, filterChainFactory);
 
@@ -151,11 +172,22 @@ public class KrpcFilterIntegrationTest {
                     new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
         }
 
-        FilterChainFactory filterChainFactory = () -> new KrpcFilter[]{
-                new ApiVersionsFilter(),
-                new BrokerAddressFilter(new FixedAddressMapping(proxyHost, proxyPort)),
-                new ProduceRequestTransformationFilter(KrpcFilterIntegrationTest::encode)
-        };
+        String config = """
+                clusters:
+                  demo:
+                    address: localhost:9092
+                filters:
+                - type: ApiVersions
+                - type: BrokerAddress
+                  config:
+                    proxyHost: localhost
+                    proxyPort: 9192
+                - type: ProduceRequestTransformation
+                  config:
+                    transformation: io.kroxylicious.proxy.KrpcFilterIntegrationTest$TestEncoder
+                """;
+
+        FilterChainFactory filterChainFactory = new FilterChainFactory(new ConfigParser().parseConfiguration(config));
 
         var proxy = startProxy(proxyHost, proxyPort, brokerList,
                 filterChainFactory);
@@ -223,11 +255,22 @@ public class KrpcFilterIntegrationTest {
                     new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
         }
 
-        FilterChainFactory filterChainFactory = () -> new KrpcFilter[]{
-                new ApiVersionsFilter(),
-                new BrokerAddressFilter(new FixedAddressMapping(proxyHost, proxyPort)),
-                new FetchResponseTransformationFilter(KrpcFilterIntegrationTest::decode)
-        };
+        String config = """
+                clusters:
+                  demo:
+                    address: localhost:9092
+                filters:
+                - type: ApiVersions
+                - type: BrokerAddress
+                  config:
+                    proxyHost: localhost
+                    proxyPort: 9192
+                - type: FetchResponseTransformation
+                  config:
+                    transformation: io.kroxylicious.proxy.KrpcFilterIntegrationTest$TestDecoder
+                """;
+
+        FilterChainFactory filterChainFactory = new FilterChainFactory(new ConfigParser().parseConfiguration(config));
 
         var proxy = startProxy(proxyHost, proxyPort, brokerList,
                 filterChainFactory);
@@ -300,26 +343,5 @@ public class KrpcFilterIntegrationTest {
                 .startup();
 
         return kafkaCluster.brokerList();
-    }
-
-    private static class FixedAddressMapping implements AddressMapping {
-
-        private final String targetHost;
-        private final int targetPort;
-
-        public FixedAddressMapping(String targetHost, int targetPort) {
-            this.targetHost = targetHost;
-            this.targetPort = targetPort;
-        }
-
-        @Override
-        public String downstreamHost(String host, int port) {
-            return targetHost;
-        }
-
-        @Override
-        public int downstreamPort(String host, int port) {
-            return targetPort;
-        }
     }
 }

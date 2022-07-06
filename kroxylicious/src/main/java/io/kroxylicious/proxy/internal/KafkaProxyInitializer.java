@@ -8,7 +8,7 @@ package io.kroxylicious.proxy.internal;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.kroxylicious.proxy.filter.FilterChainFactory;
+import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.internal.codec.CorrelationManager;
 import io.kroxylicious.proxy.internal.codec.KafkaRequestDecoder;
 import io.kroxylicious.proxy.internal.codec.KafkaResponseEncoder;

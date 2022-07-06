@@ -5,7 +5,7 @@
  */
 package io.kroxylicious.proxy.internal.filter;
 
-import java.nio.ByteBuffer;
+import java.lang.reflect.InvocationTargetException;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -36,12 +36,20 @@ import io.kroxylicious.proxy.internal.util.NettyMemoryRecords;
  */
 public class FetchResponseTransformationFilter implements FetchResponseFilter {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(FetchResponseTransformationFilter.class);
+    public static class FetchResponseTransformationFilterConfig extends FilterConfig {
 
-    @FunctionalInterface
-    public interface ByteBufferTransformation {
-        ByteBuffer transformation(String topicName, ByteBuffer original);
+        private final String transformation;
+
+        public FetchResponseTransformationFilterConfig(String transformation) {
+            this.transformation = transformation;
+        }
+
+        public String transformation() {
+            return transformation;
+        }
     }
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(FetchResponseTransformationFilter.class);
 
     /**
      * Transformation to be applied to record value.
@@ -50,8 +58,14 @@ public class FetchResponseTransformationFilter implements FetchResponseFilter {
 
     // TODO: add transformation support for key/header/topic
 
-    public FetchResponseTransformationFilter(ByteBufferTransformation valueTransformation) {
-        this.valueTransformation = valueTransformation;
+    public FetchResponseTransformationFilter(FetchResponseTransformationFilterConfig config) {
+        try {
+            this.valueTransformation = (ByteBufferTransformation) Class.forName(config.transformation()).getConstructor().newInstance();
+        }
+        catch (InstantiationException | IllegalAccessException | IllegalArgumentException | InvocationTargetException | NoSuchMethodException | SecurityException
+                | ClassNotFoundException e) {
+            throw new IllegalArgumentException("Couldn't instantiate transformation class: " + config.transformation(), e);
+        }
     }
 
     @Override
@@ -98,7 +112,7 @@ public class FetchResponseTransformationFilter implements FetchResponseFilter {
                 for (MutableRecordBatch batch : records.batches()) {
                     for (Iterator<Record> batchRecords = batch.iterator(); batchRecords.hasNext();) {
                         Record batchRecord = batchRecords.next();
-                        newRecords.append(batchRecord.timestamp(), batchRecord.key(), valueTransformation.transformation(topicData.topic(), batchRecord.value()));
+                        newRecords.append(batchRecord.timestamp(), batchRecord.key(), valueTransformation.transform(topicData.topic(), batchRecord.value()));
                     }
                 }
 

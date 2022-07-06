@@ -13,7 +13,7 @@
  * of request and/or response.</p>
  *
  * <p>Filter plugins exist in a chain that is specific to a single channel. The
- * <p>filter chain is instantiated by a {@link io.kroxylicious.proxy.filter.FilterChainFactory}
+ * <p>filter chain is instantiated by a {@link io.kroxylicious.proxy.bootstrap.FilterChainFactory}
  * when a connection is made by a client.</p>
  *
  * <h3 id='assumptions'>Important facts about the Kafka protocol</h3>
