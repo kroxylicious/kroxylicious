@@ -19,6 +19,7 @@ import org.apache.kafka.common.message.MetadataResponseData.MetadataResponseBrok
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.kroxylicious.proxy.config.ProxyConfig;
 import io.kroxylicious.proxy.filter.DescribeClusterResponseFilter;
 import io.kroxylicious.proxy.filter.FindCoordinatorResponseFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
@@ -32,22 +33,6 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
     private static final Logger LOGGER = LoggerFactory.getLogger(BrokerAddressFilter.class);
 
     public static class BrokerAddressFilterConfig extends FilterConfig {
-
-        private final String proxyHost;
-        private final int proxyPort;
-
-        public BrokerAddressFilterConfig(String proxyHost, int proxyPort) {
-            this.proxyHost = proxyHost;
-            this.proxyPort = proxyPort;
-        }
-
-        public String proxyHost() {
-            return proxyHost;
-        }
-
-        public int proxyPort() {
-            return proxyPort;
-        }
     }
 
     public interface AddressMapping {
@@ -79,8 +64,11 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
 
     private final AddressMapping mapping;
 
-    public BrokerAddressFilter(BrokerAddressFilterConfig config) {
-        this.mapping = new FixedAddressMapping(config.proxyHost(), config.proxyPort());
+    public BrokerAddressFilter(ProxyConfig config) {
+        String proxyAddress = config.address();
+        String[] proxyAddressParts = proxyAddress.split(":");
+
+        this.mapping = new FixedAddressMapping(proxyAddressParts[0], Integer.valueOf(proxyAddressParts[1]));
     }
 
     @Override

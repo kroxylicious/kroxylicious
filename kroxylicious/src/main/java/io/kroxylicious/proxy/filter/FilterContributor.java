@@ -5,11 +5,12 @@
  */
 package io.kroxylicious.proxy.filter;
 
+import io.kroxylicious.proxy.config.ProxyConfig;
 import io.kroxylicious.proxy.internal.filter.FilterConfig;
 
 public interface FilterContributor {
 
     Class<? extends FilterConfig> getConfigType(String shortName);
 
-    KrpcFilter getFilter(String shortName, FilterConfig config);
+    KrpcFilter getFilter(String shortName, ProxyConfig proxyConfig, FilterConfig filterConfig);
 }

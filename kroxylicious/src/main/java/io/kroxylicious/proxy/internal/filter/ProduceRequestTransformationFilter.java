@@ -6,6 +6,8 @@
 package io.kroxylicious.proxy.internal.filter;
 
 import java.lang.reflect.InvocationTargetException;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
 
 import org.apache.kafka.common.message.ProduceRequestData;
@@ -26,6 +28,14 @@ import io.kroxylicious.proxy.internal.util.NettyMemoryRecords;
  * An filter for modifying the key/value/header/topic of {@link ApiKeys#PRODUCE} requests.
  */
 public class ProduceRequestTransformationFilter implements ProduceRequestFilter {
+
+    public static class UpperCasing implements ByteBufferTransformation {
+
+        @Override
+        public ByteBuffer transform(String topicName, ByteBuffer in) {
+            return ByteBuffer.wrap(new String(StandardCharsets.UTF_8.decode(in).array()).toUpperCase().getBytes(StandardCharsets.UTF_8));
+        }
+    }
 
     public static class ProduceRequestTransformationFilterConfig extends FilterConfig {
 

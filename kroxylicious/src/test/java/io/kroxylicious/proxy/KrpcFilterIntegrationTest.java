@@ -5,10 +5,6 @@
  */
 package io.kroxylicious.proxy;
 
-import static java.lang.Integer.parseInt;
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -35,10 +31,13 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import io.debezium.kafka.KafkaCluster;
-import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.config.ConfigParser;
+import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.internal.filter.ByteBufferTransformation;
 import io.kroxylicious.proxy.util.SystemTest;
+
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @SystemTest
 public class KrpcFilterIntegrationTest {
@@ -107,10 +106,7 @@ public class KrpcFilterIntegrationTest {
 
     @Test
     public void shouldPassThroughRecordUnchanged() throws Exception {
-        String proxyHost = "localhost";
-        int proxyPort = 9192;
-        String proxyAddress = String.format("%s:%d", proxyHost, proxyPort);
-
+        String proxyAddress = "localhost:9192";
         String brokerList = startKafkaCluster();
 
         try (var admin = Admin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, brokerList))) {
@@ -118,20 +114,17 @@ public class KrpcFilterIntegrationTest {
         }
 
         String config = """
+                proxy:
+                  address: %s
                 clusters:
                   demo:
-                    address: localhost:9092
+                    bootstrap_servers: %s
                 filters:
                 - type: ApiVersions
                 - type: BrokerAddress
-                  config:
-                    proxyHost: localhost
-                    proxyPort: 9192
-                """;
+                """.formatted(proxyAddress, brokerList);
 
-        FilterChainFactory filterChainFactory = new FilterChainFactory(new ConfigParser().parseConfiguration(config));
-
-        var proxy = startProxy(proxyHost, proxyPort, brokerList, filterChainFactory);
+        var proxy = startProxy(config);
 
         var producer = new KafkaProducer<String, String>(Map.of(
                 ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
@@ -160,10 +153,7 @@ public class KrpcFilterIntegrationTest {
 
     @Test
     public void shouldModifyProduceMessage() throws Exception {
-        String proxyHost = "localhost";
-        int proxyPort = 9192;
-        String proxyAddress = String.format("%s:%d", proxyHost, proxyPort);
-
+        String proxyAddress = "localhost:9192";
         String brokerList = startKafkaCluster();
 
         try (var admin = Admin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, brokerList))) {
@@ -173,24 +163,20 @@ public class KrpcFilterIntegrationTest {
         }
 
         String config = """
+                proxy:
+                  address: %s
                 clusters:
                   demo:
-                    address: localhost:9092
+                    bootstrap_servers: %s
                 filters:
                 - type: ApiVersions
                 - type: BrokerAddress
-                  config:
-                    proxyHost: localhost
-                    proxyPort: 9192
                 - type: ProduceRequestTransformation
                   config:
                     transformation: io.kroxylicious.proxy.KrpcFilterIntegrationTest$TestEncoder
-                """;
+                """.formatted(proxyAddress, brokerList);
 
-        FilterChainFactory filterChainFactory = new FilterChainFactory(new ConfigParser().parseConfiguration(config));
-
-        var proxy = startProxy(proxyHost, proxyPort, brokerList,
-                filterChainFactory);
+        var proxy = startProxy(config);
         try {
             try (var producer = new KafkaProducer<String, String>(Map.of(
                     ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
@@ -243,10 +229,7 @@ public class KrpcFilterIntegrationTest {
 
     @Test
     public void shouldModifyFetchMessage() throws Exception {
-        String proxyHost = "localhost";
-        int proxyPort = 9192;
-        String proxyAddress = String.format("%s:%d", proxyHost, proxyPort);
-
+        String proxyAddress = "localhost:9192";
         String brokerList = startKafkaCluster();
 
         try (var admin = Admin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, brokerList))) {
@@ -256,24 +239,21 @@ public class KrpcFilterIntegrationTest {
         }
 
         String config = """
+                proxy:
+                  address: %s
                 clusters:
                   demo:
-                    address: localhost:9092
+                    bootstrap_servers: %s
                 filters:
                 - type: ApiVersions
                 - type: BrokerAddress
-                  config:
-                    proxyHost: localhost
-                    proxyPort: 9192
                 - type: FetchResponseTransformation
                   config:
                     transformation: io.kroxylicious.proxy.KrpcFilterIntegrationTest$TestDecoder
-                """;
+                """.formatted(proxyAddress, brokerList);
 
-        FilterChainFactory filterChainFactory = new FilterChainFactory(new ConfigParser().parseConfiguration(config));
+        var proxy = startProxy(config);
 
-        var proxy = startProxy(proxyHost, proxyPort, brokerList,
-                filterChainFactory);
         try {
 
             try (var producer = new KafkaProducer<String, byte[]>(Map.of(
@@ -316,22 +296,12 @@ public class KrpcFilterIntegrationTest {
         }
     }
 
-    private KafkaProxy startProxy(String proxyHost,
-                                  int proxyPort,
-                                  String brokerList,
-                                  FilterChainFactory filterChainFactory)
-            throws InterruptedException {
-        String[] hostPort = brokerList.split(",")[0].split(":");
+    private KafkaProxy startProxy(String config) throws InterruptedException {
+        Configuration proxyConfig = new ConfigParser().parseConfiguration(config);
 
-        KafkaProxy kafkaProxy = new KafkaProxy(proxyHost,
-                proxyPort,
-                hostPort[0],
-                parseInt(hostPort[1]),
-                true,
-                true,
-                false,
-                filterChainFactory);
+        KafkaProxy kafkaProxy = new KafkaProxy(proxyConfig);
         kafkaProxy.startup();
+
         return kafkaProxy;
     }
 
