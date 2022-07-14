@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
+import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.internal.KafkaProxyInitializer;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
@@ -44,54 +45,23 @@ public final class KafkaProxy {
     private EventLoopGroup workerGroup;
     private Channel acceptorChannel;
 
-    public static void main(String[] args) throws Exception {
-        // TODO read from configuration file
-        throw new UnsupportedOperationException();
-        // new KafkaProxy(null,
-        // Integer.parseInt(System.getProperty("localPort", "9192")),
-        // System.getProperty("remoteHost", "localhost"),
-        // Integer.parseInt(System.getProperty("remotePort", "9092")),
-        // Boolean.getBoolean("useIoUring"),
-        // false,
-        // false,
-        // () -> new KrpcFilter[]{
-        // new ApiVersionsFilter(),
-        // new BrokerAddressFilter(new BrokerAddressFilter.AddressMapping() {
-        // @Override
-        // public String downstreamHost(String host, int port) {
-        // return host;
-        // }
-        //
-        // @Override
-        // public int downstreamPort(String host, int port) {
-        // return port + 100;
-        // }
-        // })// ,
-        // // new ProduceRecordTransformationInterceptor(
-        // // buffer -> ByteBuffer.wrap(new String(StandardCharsets.UTF_8.decode(buffer).array()).toLowerCase().getBytes(StandardCharsets.UTF_8))
-        // // )
-        // })
-        // .startup()
-        // .block();
-    }
+    public KafkaProxy(Configuration config) {
+        String proxyAddress = config.proxy().address();
+        String[] proxyAddressParts = proxyAddress.split(":");
 
-    public KafkaProxy(
-                      String proxyHost,
-                      int proxyPort,
-                      String brokerHost,
-                      int brokerPort,
-                      boolean logNetwork,
-                      boolean logFrames,
-                      boolean useIoUring,
-                      FilterChainFactory filterChainFactory) {
-        this.proxyHost = proxyHost;
-        this.proxyPort = proxyPort;
-        this.brokerHost = brokerHost;
-        this.brokerPort = brokerPort;
-        this.logNetwork = logNetwork;
-        this.logFrames = logFrames;
-        this.useIoUring = useIoUring;
-        this.filterChainFactory = filterChainFactory;
+        // TODO: deal with list
+        String brokerAddress = config.clusters().entrySet().iterator().next().getValue().bootstrapServers();
+        String[] brokerAddressParts = brokerAddress.split(":");
+
+        this.proxyHost = proxyAddressParts[0];
+        this.proxyPort = Integer.valueOf(proxyAddressParts[1]);
+        this.brokerHost = brokerAddressParts[0];
+        this.brokerPort = Integer.valueOf(brokerAddressParts[1]);
+        this.logNetwork = config.proxy().logNetwork();
+        this.logFrames = config.proxy().logFrames();
+        this.useIoUring = config.proxy().useIoUring();
+
+        this.filterChainFactory = new FilterChainFactory(config);
     }
 
     public String proxyHost() {

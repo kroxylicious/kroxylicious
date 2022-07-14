@@ -5,6 +5,9 @@
  */
 package io.kroxylicious.proxy.config;
 
+import java.io.IOException;
+import java.io.InputStream;
+
 import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
 import com.fasterxml.jackson.annotation.PropertyAccessor;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -16,8 +19,10 @@ import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
 
 public class ConfigParser {
 
-    public ProxyConfiguration parseConfiguration(String configuration) {
-        ObjectMapper mapper = new ObjectMapper(new YAMLFactory())
+    private final ObjectMapper mapper;
+
+    public ConfigParser() {
+        this.mapper = new ObjectMapper(new YAMLFactory())
                 .registerModule(new ParameterNamesModule())
                 .setVisibility(PropertyAccessor.ALL, Visibility.NONE)
                 .setVisibility(PropertyAccessor.FIELD, Visibility.ANY)
@@ -25,11 +30,24 @@ public class ConfigParser {
                 .setConstructorDetector(ConstructorDetector.USE_PROPERTIES_BASED)
                 .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
                 .configure(DeserializationFeature.FAIL_ON_MISSING_EXTERNAL_TYPE_ID_PROPERTY, false);
+    }
+
+    public Configuration parseConfiguration(String configuration) {
 
         try {
-            return mapper.readValue(configuration, ProxyConfiguration.class);
+            return mapper.readValue(configuration, Configuration.class);
         }
         catch (JsonProcessingException e) {
+            throw new IllegalArgumentException("Couldn't parse configuration", e);
+        }
+    }
+
+    public Configuration parseConfiguration(InputStream configuration) {
+
+        try {
+            return mapper.readValue(configuration, Configuration.class);
+        }
+        catch (IOException e) {
             throw new IllegalArgumentException("Couldn't parse configuration", e);
         }
     }
