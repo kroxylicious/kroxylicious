@@ -47,7 +47,7 @@ $ mvn org.commonjava.maven.plugins:directory-maven-plugin:highest-basedir@resolv
 Build with the `dist` profile as shown above, then execute this:
 
 ```
-$ java -jar target/kproxy-1.0-SNAPSHOT.jar
+$ java -jar kroxylicious/target/kproxy-1.0-SNAPSHOT.jar
 ```
 
 ## Performance Testing
