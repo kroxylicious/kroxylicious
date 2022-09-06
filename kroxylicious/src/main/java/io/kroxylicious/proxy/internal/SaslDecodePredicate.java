@@ -11,14 +11,14 @@ import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.internal.codec.DecodePredicate;
 
-class MyDecodePredicate implements DecodePredicate {
+class SaslDecodePredicate implements DecodePredicate {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(MyDecodePredicate.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(SaslDecodePredicate.class);
 
     private final boolean handleSasl;
     private DecodePredicate delegate = null;
 
-    public MyDecodePredicate(boolean handleSasl) {
+    public SaslDecodePredicate(boolean handleSasl) {
         this.handleSasl = handleSasl;
     }
 
@@ -43,14 +43,12 @@ class MyDecodePredicate implements DecodePredicate {
         else {
             result = delegate == null ? true : delegate.shouldDecodeRequest(apiKey, apiVersion);
         }
-        // return result;
-        return true;
+        return result;
     }
 
     @Override
     public boolean shouldDecodeResponse(ApiKeys apiKey, short apiVersion) {
-        // return delegate == null ? true : delegate.shouldDecodeResponse(apiKey, apiVersion);
-        return true;
+        return delegate == null ? true : delegate.shouldDecodeResponse(apiKey, apiVersion);
     }
 
     @Override
