@@ -20,8 +20,10 @@
         <java.version>11</java.version>
         <java.test.version>17</java.test.version>
         <maven.compiler.parameters>true</maven.compiler.parameters>
-        <maven.compiler.release>${java.version}</maven.compiler.release>
-        <maven.compiler.testRelease>${java.test.version}</maven.compiler.testRelease>
+        <maven.compiler.source>${java.version}</maven.compiler.source>
+        <maven.compiler.target>${java.version}</maven.compiler.target>
+        <maven.compiler.testSource>${java.test.version}</maven.compiler.testSource>
+        <maven.compiler.testTarget>${java.test.version}</maven.compiler.testTarget>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
@@ -170,6 +172,12 @@
                     <version>3.10.1</version>
                     <configuration>
                         <parameters>true</parameters>
+                        <source>11</source>
+                        <target>11</target>
+<!--                        <release>11</release>-->
+                        <testSource>17</testSource>
+                        <testTarget>17</testTarget>
+<!--                        <testRelease>17</testRelease>-->
                     </configuration>
                 </plugin>
                 <plugin>

@@ -29,6 +29,7 @@ import org.apache.kafka.common.message.OffsetFetchResponseData;
 import org.apache.kafka.common.message.OffsetForLeaderEpochResponseData;
 import org.apache.kafka.common.message.ProduceResponseData;
 import org.apache.kafka.common.message.ResponseHeaderData;
+import org.apache.kafka.common.message.SaslAuthenticateRequestData;
 import org.apache.kafka.common.message.SaslHandshakeResponseData;
 import org.apache.kafka.common.message.StopReplicaRequestData;
 import org.apache.kafka.common.message.SyncGroupResponseData;
@@ -78,7 +79,7 @@ public class KafkaResponseDecoder extends KafkaMessageDecoder {
             throw new AssertionError("Missing correlation id " + upstreamCorrelationId);
         }
         else if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("{}: Recovered correlation {} for upstream correlation id {}", ctx.channel(), correlation, upstreamCorrelationId);
+            LOGGER.debug("{}: Recovered correlation {} for upstream correlation id {}", ctx, correlation, upstreamCorrelationId);
         }
         int correlationId = correlation.downstreamCorrelationId();
         in.writerIndex(ri);
@@ -179,6 +180,8 @@ public class KafkaResponseDecoder extends KafkaMessageDecoder {
                 return new WriteTxnMarkersResponseData(accessor, apiVersion);
             case TXN_OFFSET_COMMIT: // ???
                 return new TxnOffsetCommitResponseData(accessor, apiVersion);
+            case SASL_AUTHENTICATE:
+                return new SaslAuthenticateRequestData(accessor, apiVersion);
             default:
                 throw new IllegalArgumentException("Unsupported API key " + apiKey);
         }

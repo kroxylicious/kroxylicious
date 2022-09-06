@@ -5,16 +5,19 @@
  */
 package io.kroxylicious.proxy.internal;
 
+import java.util.Map;
+
+import org.apache.kafka.common.security.auth.AuthenticateCallbackHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
-import io.kroxylicious.proxy.internal.codec.CorrelationManager;
+import io.kroxylicious.proxy.filter.NetFilter;
 import io.kroxylicious.proxy.internal.codec.KafkaRequestDecoder;
 import io.kroxylicious.proxy.internal.codec.KafkaResponseEncoder;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.socket.SocketChannel;
+import io.netty.handler.codec.haproxy.HAProxyMessageDecoder;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 
@@ -22,20 +25,20 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyInitializer.class);
 
-    private final String remoteHost;
-    private final int remotePort;
-    private final FilterChainFactory filterChainFactory;
     private final boolean logNetwork;
     private final boolean logFrames;
+    private final boolean haproxyProtocol;
+    private final Map<KafkaAuthnHandler.SaslMechanism, AuthenticateCallbackHandler> authnHandlers;
+    private final NetFilter netFilter;
 
-    public KafkaProxyInitializer(String remoteHost,
-                                 int remotePort,
-                                 FilterChainFactory filterChainFactory,
+    public KafkaProxyInitializer(boolean haproxyProtocol,
+                                 Map<KafkaAuthnHandler.SaslMechanism, AuthenticateCallbackHandler> authnMechanismHandlers,
+                                 NetFilter netFilter,
                                  boolean logNetwork,
                                  boolean logFrames) {
-        this.remoteHost = remoteHost;
-        this.remotePort = remotePort;
-        this.filterChainFactory = filterChainFactory;
+        this.haproxyProtocol = haproxyProtocol;
+        this.authnHandlers = authnMechanismHandlers;
+        this.netFilter = netFilter;
         this.logNetwork = logNetwork;
         this.logFrames = logFrames;
     }
@@ -46,16 +49,21 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
 
         LOGGER.trace("Connection from {} to my address {}", ch.remoteAddress(), ch.localAddress());
 
-        var correlation = new CorrelationManager();
-
         ChannelPipeline pipeline = ch.pipeline();
         if (logNetwork) {
             pipeline.addLast("networkLogger", new LoggingHandler("io.kroxylicious.proxy.internal.DownstreamNetworkLogger", LogLevel.INFO));
         }
-        var filters = filterChainFactory.createFilters();
+
+        // Add handler here
+        if (haproxyProtocol) {
+            LOGGER.debug("Adding haproxy handler");
+            pipeline.addLast("HAProxyMessageDecoder", new HAProxyMessageDecoder());
+        }
+
+        var dp = new MyDecodePredicate(authnHandlers != null && !authnHandlers.isEmpty());
         // The decoder, this only cares about the filters
         // because it needs to know whether to decode requests
-        KafkaRequestDecoder decoder = new KafkaRequestDecoder(filters);
+        KafkaRequestDecoder decoder = new KafkaRequestDecoder(dp);
         pipeline.addLast("requestDecoder", decoder);
 
         pipeline.addLast("responseEncoder", new KafkaResponseEncoder());
@@ -63,12 +71,13 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
             pipeline.addLast("frameLogger", new LoggingHandler("io.kroxylicious.proxy.internal.DownstreamFrameLogger", LogLevel.INFO));
         }
 
-        pipeline.addLast("frontendHandler", new KafkaProxyFrontendHandler(remoteHost,
-                remotePort,
-                correlation,
-                filters,
-                logNetwork,
-                logFrames));
+        if (!authnHandlers.isEmpty()) {
+            LOGGER.debug("Adding authn handler for handlers {}", authnHandlers);
+            pipeline.addLast(new KafkaAuthnHandler(authnHandlers));
+        }
+
+        pipeline.addLast("netHandler", new KafkaProxyFrontendHandler(netFilter, dp, logNetwork, logFrames));
+        LOGGER.debug("{}: Initial pipeline: {}", ch, pipeline);
     }
 
 }

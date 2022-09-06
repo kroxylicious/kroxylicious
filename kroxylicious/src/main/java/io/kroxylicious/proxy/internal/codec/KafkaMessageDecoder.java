@@ -25,7 +25,7 @@ public abstract class KafkaMessageDecoder extends ByteToMessageDecoder {
     }
 
     @Override
-    protected synchronized void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) {
+    public synchronized void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) {
         while (in.readableBytes() > 4) {
             try {
                 int sof = in.readerIndex();

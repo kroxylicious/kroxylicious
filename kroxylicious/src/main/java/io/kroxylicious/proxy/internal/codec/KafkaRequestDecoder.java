@@ -29,6 +29,7 @@ import org.apache.kafka.common.message.OffsetFetchRequestData;
 import org.apache.kafka.common.message.OffsetForLeaderEpochRequestData;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
+import org.apache.kafka.common.message.SaslAuthenticateRequestData;
 import org.apache.kafka.common.message.SaslHandshakeRequestData;
 import org.apache.kafka.common.message.StopReplicaRequestData;
 import org.apache.kafka.common.message.SyncGroupRequestData;
@@ -41,7 +42,6 @@ import org.apache.kafka.common.protocol.Readable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.Frame;
 import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
@@ -53,11 +53,11 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaRequestDecoder.class);
 
-    private final KrpcFilter[] filters;
+    private final DecodePredicate decodePredicate;
 
-    public KafkaRequestDecoder(KrpcFilter... filters) {
+    public KafkaRequestDecoder(DecodePredicate decodePredicate) {
         super();
-        this.filters = filters;
+        this.decodePredicate = decodePredicate;
     }
 
     @Override
@@ -80,14 +80,16 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
             log().trace("{}: apiVersion: {}", ctx, apiVersion);
         }
         int correlationId = in.readInt();
+        System.err.printf("Req from client %s/%s correlationId=%s%n", apiKey, apiVersion, correlationId);
         LOGGER.debug("{}: {} downstream correlation id: {}", ctx, apiKey, correlationId);
 
         RequestHeaderData header = null;
         final ByteBufAccessorImpl accessor;
-        var decodeRequest = shouldDecodeRequest(apiKey, apiVersion);
-        boolean decodeResponse = shouldDecodeResponse(apiKey, apiVersion);
+        var decodeRequest = decodePredicate.shouldDecodeRequest(apiKey, apiVersion);
+        LOGGER.debug("Decode {}/v{} request? {}, Predicate {} ", apiKey, apiVersion, decodeRequest, decodePredicate);
+        boolean decodeResponse = decodePredicate.shouldDecodeResponse(apiKey, apiVersion);
+        LOGGER.debug("Decode {}/v{} response? {}, Predicate {}", apiKey, apiVersion, decodeResponse, decodePredicate);
         short headerVersion = apiKey.requestHeaderVersion(apiVersion);
-        log().trace("{}: decodeRequest {}, decodeResponse {}", ctx, decodeRequest, decodeResponse);
         if (decodeRequest) {
             if (log().isTraceEnabled()) { // avoid boxing
                 log().trace("{}: headerVersion {}", ctx, headerVersion);
@@ -125,24 +127,6 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
         }
 
         return frame;
-    }
-
-    private boolean shouldDecodeResponse(ApiKeys apiKey, short apiVersion) {
-        for (var filter : filters) {
-            if (filter.shouldDeserializeResponse(apiKey, apiVersion)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private boolean shouldDecodeRequest(ApiKeys apiKey, short apiVersion) {
-        for (var filter : filters) {
-            if (filter.shouldDeserializeRequest(apiKey, apiVersion)) {
-                return true;
-            }
-        }
-        return false;
     }
 
     private OpaqueRequestFrame opaqueFrame(ByteBuf in,
@@ -220,6 +204,8 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
                 return new WriteTxnMarkersRequestData(accessor, apiVersion);
             case TXN_OFFSET_COMMIT:
                 return new TxnOffsetCommitRequestData(accessor, apiVersion);
+            case SASL_AUTHENTICATE:
+                return new SaslAuthenticateRequestData(accessor, apiVersion);
             default:
                 throw new IllegalArgumentException("Unsupported API key " + apiKey);
         }
