@@ -70,22 +70,6 @@ public class KafkaAuthnHandlerTest {
         channel.pipeline().addLast(kafkaAuthnHandler);
         userEventCollector = new UserEventCollector();
         channel.pipeline().addLast(userEventCollector);
-        // channel.pipeline().addLast(new ChannelInboundHandlerAdapter() {
-        // @Override
-        // public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-        // if (msg instanceof DecodedRequestFrame) {
-        // if (((DecodedRequestFrame<?>) msg).body() instanceof ApiVersionsRequestData) {
-        // ctx.writeAndFlush(new DecodedResponseFrame<>(ApiVersionsRequestData.HIGHEST_SUPPORTED_VERSION,
-        // 1, null, new ApiVersionsResponseData()));
-        // } else {
-        // fail();
-        // }
-        // }
-        // else {
-        // fail();
-        // }
-        // }
-        // });
     }
 
     @AfterEach
