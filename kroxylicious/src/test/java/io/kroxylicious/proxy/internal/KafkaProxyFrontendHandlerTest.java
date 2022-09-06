@@ -9,19 +9,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import io.kroxylicious.proxy.filter.KrpcFilter;
-import io.kroxylicious.proxy.filter.NetFilter;
-import io.kroxylicious.proxy.frame.DecodedRequestFrame;
-import io.netty.bootstrap.Bootstrap;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.DefaultChannelPromise;
-import io.netty.channel.embedded.EmbeddedChannel;
-import io.netty.handler.codec.haproxy.HAProxyCommand;
-import io.netty.handler.codec.haproxy.HAProxyMessage;
-import io.netty.handler.codec.haproxy.HAProxyProtocolVersion;
-import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
-import io.netty.handler.ssl.SniCompletionEvent;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
@@ -36,8 +23,25 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
 
+import io.kroxylicious.proxy.filter.KrpcFilter;
+import io.kroxylicious.proxy.filter.NetFilter;
+import io.kroxylicious.proxy.frame.DecodedRequestFrame;
+import io.kroxylicious.proxy.internal.KafkaProxyFrontendHandler.State;
+import io.netty.bootstrap.Bootstrap;
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.DefaultChannelPromise;
+import io.netty.channel.embedded.EmbeddedChannel;
+import io.netty.handler.codec.haproxy.HAProxyCommand;
+import io.netty.handler.codec.haproxy.HAProxyMessage;
+import io.netty.handler.codec.haproxy.HAProxyProtocolVersion;
+import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
+import io.netty.handler.ssl.SniCompletionEvent;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -45,6 +49,9 @@ import static org.mockito.Mockito.verify;
 
 class KafkaProxyFrontendHandlerTest {
 
+    public static final String SNI_HOSTNAME = "external.example.com";
+    public static final String CLUSTER_HOST = "internal.example.org";
+    public static final int CLUSTER_PORT = 9092;
     EmbeddedChannel inboundChannel;
     EmbeddedChannel outboundChannel;
 
@@ -62,23 +69,6 @@ class KafkaProxyFrontendHandlerTest {
                 .setClientId("client-id")
                 .setCorrelationId(downstreamCorrelationId);
 
-//        correlationManager.putBrokerRequest(body.apiKey(), apiVersion, downstreamCorrelationId, true, new KrpcFilter() {
-//            @Override
-//            public void onRequest(DecodedRequestFrame<?> decodedFrame, KrpcFilterContext filterContext) {
-//
-//            }
-//
-//            @Override
-//            public void onResponse(DecodedResponseFrame<?> decodedFrame, KrpcFilterContext filterContext) {
-//
-//            }
-//
-//            @Override
-//            public boolean shouldDeserializeResponse(ApiKeys apiKey, short apiVersion) {
-//                return true;
-//            }
-//        }, new PromiseImpl<>(), true);
-
         inboundChannel.writeInbound(new DecodedRequestFrame<>(apiVersion, corrId, true, header, body));
     }
 
@@ -95,10 +85,10 @@ class KafkaProxyFrontendHandlerTest {
 
     public static List<Arguments> provideArgsForExpectedFlow() {
         var result = new ArrayList<Arguments>();
-        boolean[] tf = {true, false};
-        for (boolean sslConfigured: tf) {
-            for (boolean haProxyConfigured: tf) {
-                for (boolean saslOffloadConfigured: tf) {
+        boolean[] tf = { true, false };
+        for (boolean sslConfigured : tf) {
+            for (boolean haProxyConfigured : tf) {
+                for (boolean saslOffloadConfigured : tf) {
                     for (boolean sendApiVersions : tf) {
                         for (boolean sendSasl : tf) {
                             result.add(Arguments.of(sslConfigured, haProxyConfigured, saslOffloadConfigured, sendApiVersions, sendSasl));
@@ -110,6 +100,14 @@ class KafkaProxyFrontendHandlerTest {
         return result;
     }
 
+    /**
+     * Test the normal flow, in a number of configurations.
+     * @param sslConfigured Whether SSL is configured
+     * @param haProxyConfigured
+     * @param saslOffloadConfigured
+     * @param sendApiVersions
+     * @param sendSasl
+     */
     @ParameterizedTest
     @MethodSource("provideArgsForExpectedFlow")
     public void expectedFlow(boolean sslConfigured,
@@ -123,7 +121,25 @@ class KafkaProxyFrontendHandlerTest {
         var filter = mock(NetFilter.class);
         doAnswer(i -> {
             NetFilter.NetFilterContext ctx = i.getArgument(0);
-            ctx.connect("internal.example.org", 9092, new KrpcFilter[0]);
+            assertEquals(sslConfigured ? SNI_HOSTNAME : null, ctx.sniHostname());
+            if (haProxyConfigured) {
+                assertEquals("embedded", String.valueOf(ctx.srcAddress()));
+                assertEquals("1.2.3.4", ctx.clientAddress());
+            }
+            else {
+                assertEquals("embedded", String.valueOf(ctx.srcAddress()));
+                assertEquals("embedded", ctx.clientAddress());
+            }
+            assertEquals(sendApiVersions ? "foo" : null, ctx.clientSoftwareName());
+            assertEquals(sendApiVersions ? "1.0.0" : null, ctx.clientSoftwareVersion());
+            if (saslOffloadConfigured && sendSasl) {
+                assertEquals("alice", ctx.authorizedId());
+            }
+            else {
+                assertNull(ctx.authorizedId());
+            }
+
+            ctx.connect(CLUSTER_HOST, CLUSTER_PORT, new KrpcFilter[0]);
             return null;
         }).when(filter).upstreamBroker(valueCapture.capture());
 
@@ -141,39 +157,40 @@ class KafkaProxyFrontendHandlerTest {
         inboundChannel.pipeline().addLast(handler);
         inboundChannel.pipeline().fireChannelActive();
 
-        assertEquals(KafkaProxyFrontendHandler.ST_START, handler.state());
+        assertEquals(State.START, handler.state());
 
         if (sslConfigured) {
             // Simulate the SSL handler
-            inboundChannel.pipeline().fireUserEventTriggered(new SniCompletionEvent("external.example.com"));
+            inboundChannel.pipeline().fireUserEventTriggered(new SniCompletionEvent(SNI_HOSTNAME));
         }
 
         if (haProxyConfigured) {
             // Simulate the HA proxy handler
             inboundChannel.writeInbound(new HAProxyMessage(HAProxyProtocolVersion.V1,
                     HAProxyCommand.PROXY, HAProxyProxiedProtocol.TCP4,
-                    "1.2.3.4", "5.6.7.8", 65535, 9092));
-        }
-
-        if (saslOffloadConfigured) {
-            // Simulate the KafkaAuthnHandler having done SASL offload
-            inboundChannel.pipeline().fireUserEventTriggered(new AuthenticationEvent("alice", Map.of()));
+                    "1.2.3.4", "5.6.7.8", 65535, CLUSTER_PORT));
         }
 
         if (sendApiVersions) {
             // Simulate the client doing ApiVersions
-            writeRequest(ApiVersionsRequestData.HIGHEST_SUPPORTED_VERSION, new ApiVersionsRequestData());
-            assertEquals(KafkaProxyFrontendHandler.ST_API_VERSIONS, handler.state());
+            writeRequest(ApiVersionsRequestData.HIGHEST_SUPPORTED_VERSION, new ApiVersionsRequestData()
+                    .setClientSoftwareName("foo").setClientSoftwareVersion("1.0.0"));
+            assertEquals(State.API_VERSIONS, handler.state());
             verify(filter, never()).upstreamBroker(handler);
         }
 
         if (sendSasl) {
             if (saslOffloadConfigured) {
+
+                // Simulate the KafkaAuthnHandler having done SASL offload
+                inboundChannel.pipeline().fireUserEventTriggered(new AuthenticationEvent("alice", Map.of()));
+
                 // If the pipeline is configured for SASL offload (KafkaAuthnHandler)
                 // then we assume it DOESN'T propagate the SASL frames down the pipeline
                 // and therefore no backend connection happens
                 verify(filter, never()).upstreamBroker(handler);
-            } else {
+            }
+            else {
                 // Simulate the client doing SaslHandshake and SaslAuthentication,
                 writeRequest(SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION, new SaslHandshakeRequestData());
 
@@ -183,20 +200,25 @@ class KafkaProxyFrontendHandlerTest {
             }
         }
 
-
         // Simulate a Metadata request
         writeRequest(MetadataRequestData.HIGHEST_SUPPORTED_VERSION, new MetadataRequestData());
-        if (sendSasl && !saslOffloadConfigured) {
+        if (sendSasl && saslOffloadConfigured) {
             handleConnect(filter, handler);
         }
+
     }
 
     private void handleConnect(NetFilter filter, KafkaProxyFrontendHandler handler) {
         verify(filter).upstreamBroker(handler);
-        assertEquals(KafkaProxyFrontendHandler.ST_CONNECTED, handler.state());
+        assertEquals(State.CONNECTED, handler.state());
         assertFalse(inboundChannel.config().isAutoRead(),
-                "Expect inbound to be unwritable until output active");
-        ChannelHandlerContext context = outboundChannel.pipeline().context(outboundChannel.pipeline().names().get(0));
-        handler.outboundChannelActive(context);
+                "Expect inbound autoRead=true, since outbound not yet active");
+
+        // Simular the backend handler receiving channel active and telling the frontent handler
+        ChannelHandlerContext outboundContext = outboundChannel.pipeline().context(outboundChannel.pipeline().names().get(0));
+        handler.outboundChannelActive(outboundContext);
+        outboundChannel.pipeline().fireChannelActive();
+        assertTrue(inboundChannel.config().isAutoRead(),
+                "Expect inbound autoRead=true, since outbound now active");
     }
 }

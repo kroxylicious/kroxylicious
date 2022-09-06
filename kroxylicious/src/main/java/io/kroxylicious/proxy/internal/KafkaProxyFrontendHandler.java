@@ -7,10 +7,10 @@ package io.kroxylicious.proxy.internal;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.Arrays;
 
-import io.kroxylicious.proxy.tag.VisibleForTesting;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.ApiVersionsResponseDataJsonConverter;
@@ -30,6 +30,7 @@ import io.kroxylicious.proxy.internal.codec.CorrelationManager;
 import io.kroxylicious.proxy.internal.codec.DecodePredicate;
 import io.kroxylicious.proxy.internal.codec.KafkaRequestEncoder;
 import io.kroxylicious.proxy.internal.codec.KafkaResponseDecoder;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
@@ -87,40 +88,22 @@ public class KafkaProxyFrontendHandler
     // once the outbound channel is active
     private boolean pendingReadComplete = true;
 
-    /** The initial state */
-    @VisibleForTesting static final int ST_START = 0;
-    /** An HAProxy message has been received */
-    @VisibleForTesting static final int ST_HA_PROXY = 1;
-    /** A Kafka ApiVersions request has been received */
-    @VisibleForTesting static final int ST_API_VERSIONS = 2;
-    /** Some other Kafka request has been received and we're in the process of connecting to the outbound cluster */
-    @VisibleForTesting static final int ST_CONNECTING = 3;
-    /** The outbound connection is connected but not yet active */
-    @VisibleForTesting static final int ST_CONNECTED = 4;
-    /** The outbound connection is active */
-    @VisibleForTesting static final int ST_OUTBOUND_ACTIVE = 5;
-    /** The connection to the outbound cluster failed */
-    @VisibleForTesting static final int ST_FAILED = 6;
-
-    private String stateName() {
-        switch (state) {
-            case ST_START:
-                return "ST_START";
-            case ST_HA_PROXY:
-                return "ST_HA_PROXY";
-            case ST_API_VERSIONS:
-                return "ST_API_VERSIONS";
-            case ST_CONNECTING:
-                return "ST_CONNECTING";
-            case ST_CONNECTED:
-                return "ST_CONNECTED";
-            case ST_OUTBOUND_ACTIVE:
-                return "ST_ACTIVE";
-            case ST_FAILED:
-                return "ST_FAILED";
-            default:
-                throw new IllegalStateException(Integer.toString(state));
-        }
+    @VisibleForTesting
+    enum State {
+        /** The initial state */
+        START,
+        /** An HAProxy message has been received */
+        HA_PROXY,
+        /** A Kafka ApiVersions request has been received */
+        API_VERSIONS,
+        /** Some other Kafka request has been received and we're in the process of connecting to the outbound cluster */
+        CONNECTING,
+        /** The outbound connection is connected but not yet active */
+        CONNECTED,
+        /** The outbound connection is active */
+        OUTBOUND_ACTIVE,
+        /** The connection to the outbound cluster failed */
+        FAILED
     }
 
     /**
@@ -131,9 +114,9 @@ public class KafkaProxyFrontendHandler
      *     ╰─────────────╰────────────────╰──────────╯      ╰──→ ST_FAILED
      * </pre></code>
      * Unexpected state transitions and exceptions also cause a
-     * transition to {@link #ST_FAILED} (via {@link #illegalState(String)}}
+     * transition to {@link State#FAILED} (via {@link #illegalState(String)}}
      */
-    private int state = ST_START;
+    private State state = State.START;
 
     private boolean isInboundBlocked = true;
     private HAProxyMessage haProxyMessage;
@@ -149,18 +132,18 @@ public class KafkaProxyFrontendHandler
     }
 
     private IllegalStateException illegalState(String msg) {
-        String name = stateName();
-        state = ST_FAILED;
+        String name = state.name();
+        state = State.FAILED;
         return new IllegalStateException((msg == null ? "" : msg + ", ") + "state=" + name);
     }
 
     @VisibleForTesting
-    int state() {
+    State state() {
         return state;
     }
 
     public void outboundChannelActive(ChannelHandlerContext ctx) {
-        if (state != ST_CONNECTED) {
+        if (state != State.CONNECTED) {
             throw illegalState(null);
         }
         LOGGER.trace("{}: outboundChannelActive", inboundCtx.channel().id());
@@ -172,7 +155,7 @@ public class KafkaProxyFrontendHandler
             pendingReadComplete = false;
             channelReadComplete(ctx);
         }
-        state = ST_OUTBOUND_ACTIVE;
+        state = State.OUTBOUND_ACTIVE;
 
         var inboundChannel = this.inboundCtx.channel();
         // once buffered message has been forwarded we enable auto-read to start accepting further messages
@@ -190,17 +173,17 @@ public class KafkaProxyFrontendHandler
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-        if (state == ST_OUTBOUND_ACTIVE) { // post-backend connection
+        if (state == State.OUTBOUND_ACTIVE) { // post-backend connection
             forwardOutbound(ctx, msg);
         }
         else { // pre-backend connection
-            if (state == ST_START
+            if (state == State.START
                     && msg instanceof HAProxyMessage) {
                 this.haProxyMessage = (HAProxyMessage) msg;
-                state = ST_HA_PROXY;
+                state = State.HA_PROXY;
             }
-            else if ((state == ST_START
-                    || state == ST_HA_PROXY)
+            else if ((state == State.START
+                    || state == State.HA_PROXY)
                     && msg instanceof DecodedRequestFrame
                     && ((DecodedRequestFrame<?>) msg).apiKey() == ApiKeys.API_VERSIONS) {
                 // This handler can respond to ApiVersions itself
@@ -208,17 +191,17 @@ public class KafkaProxyFrontendHandler
                 // ctx.fireChannelRead(msg);
                 // Request to read the following request
                 ctx.channel().read();
-                state = ST_API_VERSIONS;
+                state = State.API_VERSIONS;
             }
-            else if ((state == ST_START
-                    || state == ST_HA_PROXY
-                    || state == ST_API_VERSIONS)
+            else if ((state == State.START
+                    || state == State.HA_PROXY
+                    || state == State.API_VERSIONS)
                     && msg instanceof RequestFrame) {
                 if (bufferedMsg != null) {
                     // Single buffered message assertion failed
                     throw illegalState("Already have buffered msg");
                 }
-                state = ST_CONNECTING;
+                state = State.CONNECTING;
                 // But for any other request we'll need a backend connection
                 // (for which we need to ask the filter which cluster to connect to
                 // and with what filters)
@@ -271,14 +254,14 @@ public class KafkaProxyFrontendHandler
 
         connectFuture.addListener(future -> {
             if (future.isSuccess()) {
-                state = ST_CONNECTED;
+                state = State.CONNECTED;
                 LOGGER.trace("{}: Outbound connected", inboundCtx.channel().id());
                 // Now we know which filters are to be used we need to update the DecodePredicate
                 // so that the decoder starts decoding the messages that the filters want to intercept
                 dp.setDelegate(DecodePredicate.forFilters(filters));
             }
             else {
-                state = ST_FAILED;
+                state = State.FAILED;
                 // Close the connection if the connection attempt has failed.
                 LOGGER.trace("Outbound connect error, closing inbound channel", future.cause());
                 inboundChannel.close();
@@ -286,7 +269,8 @@ public class KafkaProxyFrontendHandler
         });
     }
 
-    @VisibleForTesting ChannelFuture getConnect(String remoteHost, int remotePort, Bootstrap b) {
+    @VisibleForTesting
+    ChannelFuture getConnect(String remoteHost, int remotePort, Bootstrap b) {
         return b.connect(remoteHost, remotePort);
     }
 
@@ -422,7 +406,13 @@ public class KafkaProxyFrontendHandler
             return haProxyMessage.sourceAddress();
         }
         else {
-            return null;
+            SocketAddress socketAddress = inboundCtx.channel().remoteAddress();
+            if (socketAddress instanceof InetSocketAddress) {
+                return ((InetSocketAddress) socketAddress).getAddress().getHostAddress();
+            }
+            else {
+                return String.valueOf(socketAddress);
+            }
         }
     }
 
@@ -432,7 +422,13 @@ public class KafkaProxyFrontendHandler
             return haProxyMessage.sourcePort();
         }
         else {
-            return -1;
+            SocketAddress socketAddress = inboundCtx.channel().remoteAddress();
+            if (socketAddress instanceof InetSocketAddress) {
+                return ((InetSocketAddress) socketAddress).getPort();
+            }
+            else {
+                return -1;
+            }
         }
     }
 
@@ -466,13 +462,13 @@ public class KafkaProxyFrontendHandler
         this.inboundCtx = ctx;
         LOGGER.trace("{}: channelActive", inboundCtx.channel().id());
         // Initially the channel is not auto reading, so read the first batch of requests
-        //assert !ctx.channel().config().isAutoRead();
+        ctx.channel().config().setAutoRead(false);
         ctx.channel().read();
         super.channelActive(ctx);
     }
 
     @Override
     public String toString() {
-        return "KafkaProxyFrontendHandler{inbound = " + inboundCtx.channel() + ", state = " + stateName() + "}";
+        return "KafkaProxyFrontendHandler{inbound = " + inboundCtx.channel() + ", state = " + state + "}";
     }
 }

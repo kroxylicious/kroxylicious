@@ -8,10 +8,7 @@ package io.kroxylicious.proxy.internal.codec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.ResponseFrame;
-import io.netty.buffer.ByteBuf;
-import io.netty.channel.ChannelHandlerContext;
 
 public class KafkaResponseEncoder extends KafkaMessageEncoder<ResponseFrame> {
 
