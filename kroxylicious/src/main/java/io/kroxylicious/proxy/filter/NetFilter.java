@@ -8,7 +8,7 @@ package io.kroxylicious.proxy.filter;
 import java.net.SocketAddress;
 
 /**
- * Abstracts some policy/logic for now an upstream connection for a given client connection
+ * Abstracts some policy/logic for how an upstream connection for a given client connection
  * is made.
  */
 public interface NetFilter {

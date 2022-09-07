@@ -60,7 +60,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
             pipeline.addLast("HAProxyMessageDecoder", new HAProxyMessageDecoder());
         }
 
-        var dp = new MyDecodePredicate(authnHandlers != null && !authnHandlers.isEmpty());
+        var dp = new SaslDecodePredicate(authnHandlers != null && !authnHandlers.isEmpty());
         // The decoder, this only cares about the filters
         // because it needs to know whether to decode requests
         KafkaRequestDecoder decoder = new KafkaRequestDecoder(dp);

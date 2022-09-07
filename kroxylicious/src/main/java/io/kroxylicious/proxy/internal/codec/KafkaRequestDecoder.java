@@ -80,7 +80,6 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
             log().trace("{}: apiVersion: {}", ctx, apiVersion);
         }
         int correlationId = in.readInt();
-        System.err.printf("Req from client %s/%s correlationId=%s%n", apiKey, apiVersion, correlationId);
         LOGGER.debug("{}: {} downstream correlation id: {}", ctx, apiKey, correlationId);
 
         RequestHeaderData header = null;

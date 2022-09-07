@@ -70,7 +70,7 @@ public class KafkaProxyFrontendHandler
     private boolean pendingFlushes;
 
     private final NetFilter filter;
-    private final MyDecodePredicate dp;
+    private final SaslDecodePredicate dp;
 
     private AuthenticationEvent authentication;
 
@@ -122,7 +122,7 @@ public class KafkaProxyFrontendHandler
     private HAProxyMessage haProxyMessage;
 
     KafkaProxyFrontendHandler(NetFilter filter,
-                              MyDecodePredicate dp,
+                              SaslDecodePredicate dp,
                               boolean logNetwork,
                               boolean logFrames) {
         this.filter = filter;

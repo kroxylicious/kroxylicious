@@ -116,7 +116,7 @@ class KafkaProxyFrontendHandlerTest {
                              boolean sendApiVersions,
                              boolean sendSasl) {
 
-        var dp = new MyDecodePredicate(saslOffloadConfigured);
+        var dp = new SaslDecodePredicate(saslOffloadConfigured);
         ArgumentCaptor<NetFilter.NetFilterContext> valueCapture = ArgumentCaptor.forClass(NetFilter.NetFilterContext.class);
         var filter = mock(NetFilter.class);
         doAnswer(i -> {
