@@ -81,7 +81,6 @@ public abstract class DecodedFrame<H extends ApiMessage, B extends ApiMessage>
     @Override
     public final int estimateEncodedSize() {
         if (headerAndBodyEncodedLength != -1) {
-            assert serializationCache != null;
             return FRAME_SIZE_LENGTH + headerAndBodyEncodedLength;
         }
         var headerVersion = headerVersion();
@@ -105,12 +104,10 @@ public abstract class DecodedFrame<H extends ApiMessage, B extends ApiMessage>
                     getClass().getSimpleName(), encodedSize, header, body, out);
         }
         out.ensureWritable(encodedSize);
-        final int initialIndex = out.writerIndex();
         out.writeInt(headerAndBodyEncodedLength);
         final ObjectSerializationCache cache = serializationCache;
         header.write(out, cache, headerVersion());
         body.write(out, cache, apiVersion());
-        assert (out.writerIndex() - initialIndex) == encodedSize;
     }
 
     @Override
