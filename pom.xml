@@ -453,7 +453,7 @@
                         <executions>
                             <execution>
                                 <id>check-google-checks</id>
-                                <phase>process-resources</phase>
+                                <phase>verify</phase>
                                 <goals>
                                     <goal>check</goal>
                                 </goals>
@@ -467,7 +467,7 @@
                             </execution>
                             <execution>
                                 <id>check-custom-checks</id>
-                                <phase>process-resources</phase>
+                                <phase>verify</phase>
                                 <goals>
                                     <goal>check</goal>
                                 </goals>
