@@ -12,13 +12,22 @@ Build the project like this:
 $ mvn clean verify
 ```
 
-Optionally, skip long-running system tests like this:
+The running of the tests can be controlled with the following Maven properties:
 
-```
-$ mvn clean verify -DexcludedGroups="system-test"
-```
+| property          | description            |
+|-------------------|------------------------|
+| `-DskipUTs=true`  | skip unit tests        |
+| `-DskipITs=true`  | skip integration tests |
+| `-DskiTests=true` | skip all tests         |
 
-Pass the `-Dquick` option to skip all non-essential plug-ins and create the output artifact as quickly as possible:
+The kafka environment used by the integrations tests can be _defaulted_ with these two environment variables.
+
+| env var                   | default | description                                                                                                  |
+|---------------------------|---------|--------------------------------------------------------------------------------------------------------------|
+| `TEST_CLUSTER_IN_VM`      | `true`  | if true, kafka will be run same virtual machines as the integration test. Otherwise containers will be used. |
+| `TEST_CLUSTER_KRAFT_MODE` | `true`  | if true, kafka will be run in kraft mode.                                                                    |
+
+Pass the `-Dquick` option to skip all tests and non-essential plug-ins and create the output artifact as quickly as possible:
 
 ```
 $ mvn clean verify -Dquick
