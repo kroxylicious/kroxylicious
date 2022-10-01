@@ -131,8 +131,10 @@ public class ByteBufAccessorImpl implements ByteBufAccessor, Readable {
     }
 
     @Override
-    public void readArray(byte[] arr) {
-        buf.readBytes(arr);
+    public byte[] readArray(int length) {
+        byte[] dst = new byte[length];
+        buf.readBytes(dst, 0, length);
+        return dst;
     }
 
     @Override
