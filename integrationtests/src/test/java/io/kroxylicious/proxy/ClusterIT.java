@@ -43,10 +43,11 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 public class ClusterIT {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ClusterIT.class);
+    private TestInfo testInfo;
 
     @Test
     public void kafkaClusterKraftMode() throws Exception {
-        try (var cluster = ClusterFactory.create(ClusterConfig.builder().kraftMode(true).build())) {
+        try (var cluster = ClusterFactory.create(ClusterConfig.builder().testInfo(testInfo).kraftMode(true).build())) {
             cluster.start();
             verify(1, cluster);
         }
@@ -54,16 +55,16 @@ public class ClusterIT {
 
     @Test
     public void kafkaClusterZookeeperMode() throws Exception {
-        try (var cluster = ClusterFactory.create(ClusterConfig.builder().kraftMode(false).build())) {
+        try (var cluster = ClusterFactory.create(ClusterConfig.builder().testInfo(testInfo).kraftMode(false).build())) {
             cluster.start();
             verify(1, cluster);
         }
     }
 
     @Test
-    public void kafkaMultiNodeClusterKraftMode() throws Exception {
+    public void kafkaTwoNodeClusterKraftMode() throws Exception {
         int brokersNum = 2;
-        try (var cluster = ClusterFactory.create(ClusterConfig.builder().brokersNum(brokersNum).kraftMode(true).build())) {
+        try (var cluster = ClusterFactory.create(ClusterConfig.builder().testInfo(testInfo).brokersNum(brokersNum).kraftMode(true).build())) {
             assumeTrue(cluster instanceof ContainerBasedKafkaCluster, "FIXME: kraft timing out on shutdown in multinode case");
             cluster.start();
             verify(brokersNum, cluster);
@@ -71,9 +72,9 @@ public class ClusterIT {
     }
 
     @Test
-    public void kafkaMultiNodeClusterZookeeperMode() throws Exception {
+    public void kafkaTwoNodeClusterZookeeperMode() throws Exception {
         int brokersNum = 2;
-        try (var cluster = ClusterFactory.create(ClusterConfig.builder().brokersNum(brokersNum).kraftMode(false).build())) {
+        try (var cluster = ClusterFactory.create(ClusterConfig.builder().testInfo(testInfo).brokersNum(brokersNum).kraftMode(false).build())) {
             cluster.start();
             verify(brokersNum, cluster);
         }
@@ -82,7 +83,7 @@ public class ClusterIT {
     @Test
     public void kafkaClusterKraftModeWithAuth() throws Exception {
         try (var cluster = ClusterFactory.create(
-                ClusterConfig.builder().kraftMode(true).saslMechanism("PLAIN").user("guest", "guest").build())) {
+                ClusterConfig.builder().kraftMode(true).testInfo(testInfo).saslMechanism("PLAIN").user("guest", "guest").build())) {
             cluster.start();
             verify(1, cluster);
         }
@@ -91,7 +92,7 @@ public class ClusterIT {
     @Test
     public void kafkaClusterZookeeperModeWithAuth() throws Exception {
         try (var cluster = ClusterFactory.create(
-                ClusterConfig.builder().kraftMode(false).saslMechanism("PLAIN").user("guest", "guest").build())) {
+                ClusterConfig.builder().testInfo(testInfo).kraftMode(false).saslMechanism("PLAIN").user("guest", "guest").build())) {
             cluster.start();
             verify(1, cluster);
         }
@@ -149,6 +150,7 @@ public class ClusterIT {
 
     @BeforeEach
     void before(TestInfo testInfo) {
+        this.testInfo = testInfo;
         LOGGER.warn("Running {}", testInfo.getTestMethod().get().getName());
     }
 

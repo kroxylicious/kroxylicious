@@ -5,13 +5,31 @@
  */
 package io.kroxylicious.proxy.testcluster;
 
+import com.github.dockerjava.api.command.InspectContainerResponse;
+import io.kroxylicious.proxy.testcluster.ClusterConfig.KafkaEndpoints;
+import io.kroxylicious.proxy.testcluster.ClusterConfig.KafkaEndpoints.Endpoint;
+import lombok.SneakyThrows;
+import org.junit.jupiter.api.TestInfo;
+import org.rnorth.ducttape.unreliables.Unreliables;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.Network;
+import org.testcontainers.containers.output.OutputFrame;
+import org.testcontainers.images.builder.Transferable;
+import org.testcontainers.lifecycle.Startable;
+import org.testcontainers.lifecycle.Startables;
+import org.testcontainers.utility.DockerImageName;
+
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.file.Path;
 import java.time.Duration;
-import java.util.Arrays;
+import java.time.OffsetDateTime;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -23,22 +41,6 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.rnorth.ducttape.unreliables.Unreliables;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.testcontainers.containers.Container;
-import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.Network;
-import org.testcontainers.images.builder.Transferable;
-import org.testcontainers.lifecycle.Startable;
-import org.testcontainers.lifecycle.Startables;
-import org.testcontainers.utility.DockerImageName;
-import org.testcontainers.utility.MountableFile;
-
-import io.kroxylicious.proxy.testcluster.ClusterConfig.KafkaEndpoints;
-import io.kroxylicious.proxy.testcluster.ClusterConfig.KafkaEndpoints.Endpoint;
-import lombok.SneakyThrows;
-
 /**
  * Provides an easy way to launch a Kafka cluster with multiple brokers in a container
  */
@@ -47,14 +49,16 @@ public class ContainerBasedKafkaCluster implements Startable, Cluster {
     private static final Logger LOGGER = LoggerFactory.getLogger(ContainerBasedKafkaCluster.class);
     public static final int KAFKA_PORT = 9093;
     public static final int ZOOKEEPER_PORT = 2181;
-    private static final DockerImageName DEFAULT_KAFKA_IMAGE = DockerImageName.parse("bitnami/kafka:latest");
-    private static final DockerImageName DEFAULT_ZOOKEEPER_IMAGE = DockerImageName.parse("bitnami/zookeeper:latest");
+    private static final DockerImageName DEFAULT_KAFKA_IMAGE = DockerImageName.parse("quay.io/k_wall/kafka-native:1.0.0-SNAPSHOT");
+    private static final DockerImageName DEFAULT_ZOOKEEPER_IMAGE = DockerImageName.parse("quay.io/k_wall/zookeeper-native:1.0.0-SNAPSHOT");
     private static final int READY_TIMEOUT_SECONDS = 120;
+    private static final String KAFKA_CLUSTER_READY_FLAG = "/tmp/kafka_cluster_ready";
+    private static final String ZOOKEEPER_READY_FLAG = "/tmp/kafka_zookeeper_ready";
     private final DockerImageName kafkaImage;
     private final DockerImageName zookeeperImage;
     private final ClusterConfig clusterConfig;
     private final Network network = Network.newNetwork();
-    private final GenericContainer<?> zookeeper;
+    private final ZookeeperContainer zookeeper;
     private final Collection<KafkaContainer> brokers;
 
     static {
@@ -72,17 +76,22 @@ public class ContainerBasedKafkaCluster implements Startable, Cluster {
         this.zookeeperImage = Optional.ofNullable(zookeeperImage).orElse(DEFAULT_ZOOKEEPER_IMAGE);
         this.clusterConfig = clusterConfig;
 
+        var name = Optional.ofNullable(clusterConfig.getTestInfo())
+                .map(TestInfo::getDisplayName)
+                .map(s -> s.replaceFirst("\\(\\)$", ""))
+                .map(s -> String.format("%s.%s", s, OffsetDateTime.now()))
+                .orElse(null);
+
         if (this.clusterConfig.isKraftMode()) {
             this.zookeeper = null;
         }
         else {
-            var logFile = MountableFile.forClasspathResource("zookeeper_logback.xml", 0644);
-            this.zookeeper = new GenericContainer<>(this.zookeeperImage)
+            this.zookeeper = new ZookeeperContainer(this.zookeeperImage)
+                    .withName(name)
                     .withNetwork(network)
-                    .withNetworkAliases("zookeeper")
-                    .withEnv("ALLOW_ANONYMOUS_LOGIN", "yes")
-                    .withEnv("ZOO_PORT_NUMBER", String.valueOf(ZOOKEEPER_PORT))
-                    .withCopyToContainer(logFile, "/tmp/zookeeper_logback.xml");
+                    .withEnv("SERVER_ZOOKEEPER_READY_FLAG_FILE", ZOOKEEPER_READY_FLAG)
+//                    .withEnv("QUARKUS_LOG_LEVEL", "DEBUG")  // Enable org.apache.zookeeper logging too
+                    .withNetworkAliases("zookeeper");
         }
 
         Supplier<KafkaEndpoints> endPointConfigSupplier = () -> new KafkaEndpoints() {
@@ -106,30 +115,25 @@ public class ContainerBasedKafkaCluster implements Startable, Cluster {
         Supplier<Endpoint> zookeeperEndpointSupplier = () -> new Endpoint("zookeeper", ContainerBasedKafkaCluster.ZOOKEEPER_PORT);
         this.brokers = clusterConfig.getBrokerConfigs(endPointConfigSupplier, zookeeperEndpointSupplier).map(holder -> {
             String netAlias = "broker-" + holder.getBrokerNum();
-            var kafkaJaasConf = MountableFile.forClasspathResource("kafka_jaas.conf", 0644);
             KafkaContainer kafkaContainer = new KafkaContainer(this.kafkaImage)
+                    .withName(name)
                     .withNetwork(this.network)
                     .withNetworkAliases(netAlias)
-                    .withEnv("ALLOW_PLAINTEXT_LISTENER", "yes")
-                    .withEnv("BITNAMI_DEBUG", "true")
-                    .withEnv("XSHELLOPTS", "xtrace")
-                    .withCopyToContainer(Transferable.of(propertiesToBytes(holder.getProperties()), 0666), "/opt/bitnami/kafka/config/server.properties")
-                    .withCopyToContainer(kafkaJaasConf, "/opt/bitnami/kafka/config/kafka_jaas.conf")
+//                  .withEnv("QUARKUS_LOG_LEVEL", "DEBUG")  // Enable org.apache.kafka logging too
+                    .withEnv("SERVER_PROPERTIES_FILE", "/cnf/server.properties" )
+                    .withEnv("SERVER_CLUSTER_ID", holder.getKafkaKraftClusterId() )
+                    .withEnv("SERVER_CLUSTER_READY_FLAG_FILE", KAFKA_CLUSTER_READY_FLAG)
+                    .withEnv("SERVER_CLUSTER_READY_NUM_BROKERS", clusterConfig.getBrokersNum().toString() )
+                    .withCopyToContainer(Transferable.of(propertiesToBytes(holder.getProperties()), 0644), "/cnf/server.properties")
                     .withStartupTimeout(Duration.ofMinutes(2));
+
 
             kafkaContainer.addFixedExposedPort(holder.getExternalPort(), KAFKA_PORT);
 
-            // The Bitnami scripts requires that some properties are set as env vars.
-            kafkaContainer.withEnv(serverPropertiesToBitnamiEnvVar(holder.getProperties()));
-
-            if (this.clusterConfig.isKraftMode()) {
-                return kafkaContainer
-                        .withEnv("KAFKA_ENABLE_KRAFT", "yes")
-                        .withEnv("KAFKA_KRAFT_CLUSTER_ID", holder.getKafkaKraftClusterId());
+            if (!this.clusterConfig.isKraftMode()) {
+                kafkaContainer.dependsOn(this.zookeeper);
             }
-            else {
-                return kafkaContainer.dependsOn(this.zookeeper);
-            }
+            return kafkaContainer;
         }).collect(Collectors.toList());
     }
 
@@ -140,12 +144,6 @@ public class ContainerBasedKafkaCluster implements Startable, Cluster {
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
-    }
-
-    private Map<String, String> serverPropertiesToBitnamiEnvVar(Properties serverProperties) {
-        Map<String, String> envVars = new HashMap<>();
-        serverProperties.entrySet().forEach(p -> envVars.put("KAFKA_CFG_" + p.getKey().toString().toUpperCase().replace('.', '_'), p.getValue().toString()));
-        return envVars;
     }
 
     @Override
@@ -167,13 +165,7 @@ public class ContainerBasedKafkaCluster implements Startable, Cluster {
         try {
             if (zookeeper != null) {
                 zookeeper.start();
-                Unreliables.retryUntilTrue(READY_TIMEOUT_SECONDS, TimeUnit.SECONDS, () -> {
-                    Container.ExecResult result = this.zookeeper.execInContainer(
-                            "sh", "-c",
-                            String.format("_JAVA_OPTIONS=-Dlogback.configurationFile=/tmp/zookeeper_logback.xml zkCli.sh -server zookeeper:%s whoami", ZOOKEEPER_PORT));
-                    LOGGER.debug("zookeeper running {} / {} / exit {}", result.getStdout(), result.getStderr(), result.getExitCode());
-                    return result.getExitCode() == 0;
-                });
+                awaitContainerReadyFlagFile(zookeeper, ZOOKEEPER_READY_FLAG);
             }
             Startables.deepStart(brokers.stream()).get(READY_TIMEOUT_SECONDS, TimeUnit.SECONDS);
         }
@@ -185,29 +177,17 @@ public class ContainerBasedKafkaCluster implements Startable, Cluster {
             throw new RuntimeException("startup failed or timed out", e);
         }
 
-        if (clusterConfig.isKraftMode()) {
-            Unreliables.retryUntilTrue(READY_TIMEOUT_SECONDS, TimeUnit.SECONDS, () -> {
-                Container.ExecResult result = this.brokers.iterator().next().execInContainer(
-                        "sh", "-c",
-                        "kafka-metadata-shell.sh --snapshot /bitnami/kafka/data/__cluster_metadata-0/*.log ls /brokers");
-                LOGGER.debug("kraft cluster ready probe {} / {} / exit {}", result.getStdout(), result.getStderr(), result.getExitCode());
-                Optional<String> brokers = Optional.ofNullable(result.getStdout());
-                return brokers.map(b -> Arrays.stream(b.split(System.lineSeparator())).count()).map(count -> count.intValue() == this.clusterConfig.getBrokersNum())
-                        .orElse(false);
-            });
-        }
-        else {
-            Unreliables.retryUntilTrue(READY_TIMEOUT_SECONDS, TimeUnit.SECONDS, () -> {
-                Container.ExecResult result = this.zookeeper.execInContainer(
-                        "sh", "-c",
-                        String.format("_JAVA_OPTIONS=-Dlogback.configurationFile=/tmp/zookeeper_logback.xml zkCli.sh -server zookeeper:%s ls /brokers/ids | tail -n 1",
-                                ZOOKEEPER_PORT));
-                LOGGER.debug("zookeeper cluster ready probe {} / {} / exit {}", result.getStdout(), result.getStderr(), result.getExitCode());
-                String brokers = result.getStdout();
+        awaitContainerReadyFlagFile(this.brokers.iterator().next(), KAFKA_CLUSTER_READY_FLAG);
+    }
 
-                return brokers != null && brokers.split(",").length == this.clusterConfig.getBrokersNum();
-            });
-        }
+    private void awaitContainerReadyFlagFile(GenericContainer<?> container, String kafkaClusterReadyFlag) {
+        Unreliables.retryUntilTrue(READY_TIMEOUT_SECONDS, TimeUnit.SECONDS, () -> {
+            container.execInContainer(
+                    "sh", "-c",
+                    String.format("while [ ! -f %s ]; do sleep .1; done", kafkaClusterReadyFlag));
+            LOGGER.info("Container {} ready", container.getDockerImageName());
+            return true;
+        });
     }
 
     @Override
@@ -223,7 +203,8 @@ public class ContainerBasedKafkaCluster implements Startable, Cluster {
     // In kraft mode, currently "Advertised listeners cannot be altered when using a Raft-based metadata quorum", so we
     // need to know the listening port before we start the kafka container. For this reason, we need this override
     // to expose addFixedExposedPort to for use.
-    public static class KafkaContainer extends GenericContainer<KafkaContainer> {
+    public static class KafkaContainer extends LoggingGenericContainer<KafkaContainer> {
+
         public KafkaContainer(final DockerImageName dockerImageName) {
             super(dockerImageName);
         }
@@ -231,5 +212,59 @@ public class ContainerBasedKafkaCluster implements Startable, Cluster {
         protected void addFixedExposedPort(int hostPort, int containerPort) {
             super.addFixedExposedPort(hostPort, containerPort);
         }
+
     }
+    public static class ZookeeperContainer extends LoggingGenericContainer<ZookeeperContainer> {
+        public ZookeeperContainer(DockerImageName zookeeperImage) {
+            super(zookeeperImage);
+        }
+    }
+
+    public static class LoggingGenericContainer<C extends GenericContainer<C>>
+            extends GenericContainer<C> {
+        private static final String CONTAINER_LOGS_DIR = "container.logs.dir";
+        private String name;
+
+        public LoggingGenericContainer(DockerImageName dockerImageName) {
+            super(dockerImageName);
+        }
+
+        @Override
+        protected void containerIsStarting(InspectContainerResponse containerInfo) {
+            super.containerIsStarting(containerInfo);
+
+            Optional.ofNullable(System.getProperty(CONTAINER_LOGS_DIR)).ifPresent(logDir -> {
+                var target = Path.of(logDir);
+                if (name != null) {
+                    target = target.resolve(name);
+                }
+                target = target.resolve(String.format("%s.%s.%s", getContainerName().replaceFirst(File.separator, ""), getContainerId(), "log"));
+                target.getParent().toFile().mkdirs();
+                try {
+                    var writer = new FileWriter(target.toFile());
+                    super.followOutput(outputFrame -> {
+                        try {
+                            if (outputFrame.equals(OutputFrame.END)) {
+                                writer.close();
+                            } else {
+                                writer.write(outputFrame.getUtf8String());
+                            }
+                        } catch (IOException e) {
+                            // ignore
+                        }
+                    });
+                } catch (IOException e) {
+                    logger().warn("Failed to create container log file: {}", target);
+                }
+            });
+
+        }
+
+        public LoggingGenericContainer<C> withName(String name) {
+            this.name = name;
+            return this;
+        }
+    }
+
+
 }
