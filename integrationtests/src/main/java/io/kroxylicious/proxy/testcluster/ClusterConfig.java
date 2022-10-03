@@ -26,11 +26,14 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.Singular;
 import lombok.ToString;
+import org.junit.jupiter.api.TestInfo;
 
 @Builder(toBuilder = true)
 @Getter
 @ToString
 public class ClusterConfig {
+
+    private TestInfo testInfo;
 
     /**
      * if true, cluster will use an in-VM kafka
@@ -48,6 +51,9 @@ public class ClusterConfig {
     private final String saslMechanism;
     @Builder.Default
     private Integer brokersNum = 1;
+
+    @Builder.Default
+    private Integer kraftControllers = 1;
 
     private final String kafkaKraftClusterId = Uuid.randomUuid().toString();
     /**
@@ -87,25 +93,31 @@ public class ClusterConfig {
 
             if (isKraftMode()) {
                 var controllerEndpoint = kafkaEndpoints.getControllerEndpoint(brokerNum);
-                var quorumVoters = IntStream.range(0, this.brokersNum)
+                var quorumVoters = IntStream.range(0, kraftControllers)
                         .mapToObj(b -> String.format("%d@%s", b, kafkaEndpoints.getControllerEndpoint(b).getConnect().toString())).collect(Collectors.joining(","));
-
-                server.put("process.roles", "broker,controller");
-
-                server.put("controller.listener.names", "CONTROLLER");
                 server.put("controller.quorum.voters", quorumVoters);
-
+                server.put("controller.listener.names", "CONTROLLER");
                 protocolMap.put("CONTROLLER", "PLAINTEXT");
-                listeners.put("CONTROLLER", controllerEndpoint.getBind().toString());
+
+                if (brokerNum == 0) {
+                    server.put("process.roles", "broker,controller");
+
+
+                    listeners.put("CONTROLLER", controllerEndpoint.getBind().toString());
+                } else {
+                    server.put("process.roles", "broker");
+                }
             }
             else {
                 server.put("zookeeper.connect", String.format("%s:%d", zookeeperEndpointSupplier.get().getHost(), zookeeperEndpointSupplier.get().getPort()));
                 server.put("zookeeper.sasl.enabled", "false");
+                server.put("zookeeper.connection.timeout.ms", Long.toString(60000));
             }
 
             server.put("listener.security.protocol.map", protocolMap.entrySet().stream().map(e -> e.getKey() + ":" + e.getValue()).collect(Collectors.joining(",")));
             server.put("listeners", listeners.entrySet().stream().map(e -> e.getKey() + ":" + e.getValue()).collect(Collectors.joining(",")));
             server.put("advertised.listeners", advertisedListeners.entrySet().stream().map(e -> e.getKey() + ":" + e.getValue()).collect(Collectors.joining(",")));
+            server.put("early.start.listeners", advertisedListeners.keySet().stream().map(Object::toString).collect(Collectors.joining(",")));
 
             if (saslMechanism != null) {
                 server.put("sasl.enabled.mechanisms", saslMechanism);
