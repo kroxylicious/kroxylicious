@@ -141,7 +141,7 @@ public class KafkaProxyFrontendHandler extends ChannelInboundHandlerAdapter {
 
     public void outboundWritabilityChanged(ChannelHandlerContext outboundCtx) {
         if (this.outboundCtx != outboundCtx) {
-            LOGGER.warn("Outbound Channel writability change notification for inappropriate context. {} received notification for {}", this.outboundCtx, outboundCtx);
+            throw new IllegalArgumentException("Outbound Channel writability change notification for inappropriate context. " + this.outboundCtx + " received notification for " + outboundCtx);
         }
         final ChannelHandlerContext inboundCtx = blockedInboundCtx;
         if (inboundCtx != null && outboundCtx.channel().isWritable()) {
