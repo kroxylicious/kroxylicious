@@ -62,7 +62,7 @@ public class ClusterConfig {
         for (int brokerNum = 0; brokerNum < brokersNum; brokerNum++) {
             Properties server = new Properties();
 
-            server.put("broker.id", brokerNum);
+            server.put("broker.id", Integer.toString(brokerNum));
 
             var interBrokerEndpoint = kafkaEndpoints.getInterBrokerEndpoint(brokerNum);
             var clientEndpoint = kafkaEndpoints.getClientEndpoint(brokerNum);
@@ -124,6 +124,7 @@ public class ClusterConfig {
                 server.put(String.format("listener.name.%s.plain.sasl.jaas.config", "EXTERNAL".toLowerCase()), plainModuleConfig);
             }
 
+            server.put("offsets.topic.replication.factor", Integer.toString(1));
             // 1 partition for the __consumer_offsets_ topic should be enough
             server.put("offsets.topic.num.partitions", Integer.toString(1));
             // Disable delay during every re-balance

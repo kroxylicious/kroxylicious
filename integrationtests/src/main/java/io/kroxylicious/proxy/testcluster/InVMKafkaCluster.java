@@ -137,7 +137,6 @@ public class InVMKafkaCluster implements Cluster {
         properties.putAll(c.getProperties());
         Path logsDir = tempDirectory.resolve(String.format("broker-%d", c.getBrokerNum()));
         properties.setProperty(KafkaConfig.LogDirProp(), logsDir.toAbsolutePath().toString());
-        properties.setProperty(KafkaConfig.OffsetsTopicReplicationFactorProp(), String.valueOf(1));
 
         return new KafkaConfig(properties);
     }

@@ -5,6 +5,9 @@
  */
 package io.kroxylicious.proxy.testcluster;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
@@ -26,6 +29,7 @@ import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.Container;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
+import org.testcontainers.images.builder.Transferable;
 import org.testcontainers.lifecycle.Startable;
 import org.testcontainers.lifecycle.Startables;
 import org.testcontainers.utility.DockerImageName;
@@ -72,13 +76,13 @@ public class ContainerBasedKafkaCluster implements Startable, Cluster {
             this.zookeeper = null;
         }
         else {
-            MountableFile logFile = MountableFile.forClasspathResource("zookeeper_logback.xml");
+            var logFile = MountableFile.forClasspathResource("zookeeper_logback.xml", 0644);
             this.zookeeper = new GenericContainer<>(this.zookeeperImage)
                     .withNetwork(network)
                     .withNetworkAliases("zookeeper")
                     .withEnv("ALLOW_ANONYMOUS_LOGIN", "yes")
                     .withEnv("ZOO_PORT_NUMBER", String.valueOf(ZOOKEEPER_PORT))
-                    .withCopyFileToContainer(logFile, "/tmp/");
+                    .withCopyToContainer(logFile, "/tmp/zookeeper_logback.xml");
         }
 
         Supplier<KafkaEndpoints> endPointConfigSupplier = () -> new KafkaEndpoints() {
@@ -102,24 +106,20 @@ public class ContainerBasedKafkaCluster implements Startable, Cluster {
         Supplier<Endpoint> zookeeperEndpointSupplier = () -> new Endpoint("zookeeper", ContainerBasedKafkaCluster.ZOOKEEPER_PORT);
         this.brokers = clusterConfig.getBrokerConfigs(endPointConfigSupplier, zookeeperEndpointSupplier).map(holder -> {
             String netAlias = "broker-" + holder.getBrokerNum();
-            MountableFile kafkaJaasConf = MountableFile.forClasspathResource("kafka_jaas.conf");
+            var kafkaJaasConf = MountableFile.forClasspathResource("kafka_jaas.conf", 0644);
             KafkaContainer kafkaContainer = new KafkaContainer(this.kafkaImage)
                     .withNetwork(this.network)
                     .withNetworkAliases(netAlias)
-                    .withEnv("KAFKA_BROKER_ID", holder.getBrokerNum() + "")
                     .withEnv("ALLOW_PLAINTEXT_LISTENER", "yes")
                     .withEnv("BITNAMI_DEBUG", "true")
                     .withEnv("XSHELLOPTS", "xtrace")
-                    .withStartupTimeout(Duration.ofMinutes(2))
-                    .withCopyFileToContainer(kafkaJaasConf, "/opt/bitnami/kafka/config/");
+                    .withCopyToContainer(Transferable.of(propertiesToBytes(holder.getProperties()), 0666), "/opt/bitnami/kafka/config/server.properties")
+                    .withCopyToContainer(kafkaJaasConf, "/opt/bitnami/kafka/config/kafka_jaas.conf")
+                    .withStartupTimeout(Duration.ofMinutes(2));
 
             kafkaContainer.addFixedExposedPort(holder.getExternalPort(), KAFKA_PORT);
 
-            // Once https://github.com/docker-java/docker-java/pull/1963 is available, we will be able to copy
-            // these properties to the container as server.properties, and avoid the need to map the properties
-            // into environment variables.
-            // kafkaContainer.withCopyFileToContainer(..properties.., "/opt/bitnami/kafka/config/");
-
+            // The Bitnami scripts requires that some properties are set as env vars.
             kafkaContainer.withEnv(serverPropertiesToBitnamiEnvVar(holder.getProperties()));
 
             if (this.clusterConfig.isKraftMode()) {
@@ -131,6 +131,15 @@ public class ContainerBasedKafkaCluster implements Startable, Cluster {
                 return kafkaContainer.dependsOn(this.zookeeper);
             }
         }).collect(Collectors.toList());
+    }
+
+    private byte[] propertiesToBytes(Properties properties) {
+        try (var byteArrayOutputStream = new ByteArrayOutputStream()) {
+            properties.store(byteArrayOutputStream, "server.properties");
+            return byteArrayOutputStream.toByteArray();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     private Map<String, String> serverPropertiesToBitnamiEnvVar(Properties serverProperties) {
