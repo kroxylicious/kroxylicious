@@ -12,10 +12,4 @@
 -->
 <module name="Checker">
     <module name="SuppressWarningsFilter"/>
-
-    <module name="TreeWalker">
-        <module name="IllegalToken">
-            <property name="tokens" value="LABELED_STAT, LITERAL_ASSERT"/>
-        </module>
-    </module>
 </module>
