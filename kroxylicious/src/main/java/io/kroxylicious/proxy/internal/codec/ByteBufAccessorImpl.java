@@ -40,6 +40,11 @@ public class ByteBufAccessorImpl implements ByteBufAccessor, Readable {
                 "converted value: " + Long.toHexString(value));
     }
 
+    private static IllegalArgumentException illegalReadException(int size, int remaining) {
+        throw new IllegalArgumentException("Error reading byte array of " + size + " byte(s): only " + remaining +
+                " byte(s) available");
+    }
+
     /**
      * Read a long stored in variable-length format using zig-zag decoding from
      * <a href="http://code.google.com/apis/protocolbuffers/docs/encoding.html"> Google Protocol Buffers</a>.
@@ -131,9 +136,13 @@ public class ByteBufAccessorImpl implements ByteBufAccessor, Readable {
     }
 
     @Override
-    public byte[] readArray(int length) {
-        byte[] dst = new byte[length];
-        buf.readBytes(dst, 0, length);
+    public byte[] readArray(int size) {
+        int remaining = buf.readableBytes();
+        if (size > remaining) {
+            throw illegalReadException(size, remaining);
+        }
+        byte[] dst = new byte[size];
+        buf.readBytes(dst, 0, size);
         return dst;
     }
 
