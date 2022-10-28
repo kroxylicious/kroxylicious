@@ -220,18 +220,6 @@ public class KrpcFilterIT {
         }
     }
 
-    private void printBuf(ByteBuffer buffer) {
-        for (int index = 0; index < 256; index++) {
-            byte i = buffer.get(index);
-            if (i < 16) {
-                System.out.print("0");
-            }
-            System.out.print(Integer.toUnsignedString(i, 16));
-            System.out.print(" ");
-        }
-        System.out.println();
-    }
-
     @Test
     public void shouldModifyFetchMessage() throws Exception {
         String proxyAddress = "localhost:9192";
