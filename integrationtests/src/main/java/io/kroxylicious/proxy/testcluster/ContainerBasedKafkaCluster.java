@@ -90,7 +90,7 @@ public class ContainerBasedKafkaCluster implements Startable, Cluster {
                     .withName(name)
                     .withNetwork(network)
                     .withEnv("SERVER_ZOOKEEPER_READY_FLAG_FILE", ZOOKEEPER_READY_FLAG)
-//                    .withEnv("QUARKUS_LOG_LEVEL", "DEBUG")  // Enable org.apache.zookeeper logging too
+//                    .withEnv("QUARKUS_LOG_LEVEL", "DEBUG")  // Enables org.apache.zookeeper logging too
                     .withNetworkAliases("zookeeper");
         }
 
@@ -98,18 +98,18 @@ public class ContainerBasedKafkaCluster implements Startable, Cluster {
             final List<Integer> ports = Utils.preAllocateListeningPorts(clusterConfig.getBrokersNum()).collect(Collectors.toList());
 
             @Override
-            public EndpointPair getClientEndpoint(int brokerNum) {
-                return EndpointPair.builder().bind(new Endpoint("0.0.0.0", 9093)).connect(new Endpoint("localhost", ports.get(brokerNum))).build();
+            public EndpointPair getClientEndpoint(int brokerId) {
+                return EndpointPair.builder().bind(new Endpoint("0.0.0.0", 9093)).connect(new Endpoint("localhost", ports.get(brokerId))).build();
             }
 
             @Override
-            public EndpointPair getInterBrokerEndpoint(int brokerNum) {
-                return EndpointPair.builder().bind(new Endpoint("0.0.0.0", 9092)).connect(new Endpoint(String.format("broker-%d", brokerNum), 9092)).build();
+            public EndpointPair getInterBrokerEndpoint(int brokerId) {
+                return EndpointPair.builder().bind(new Endpoint("0.0.0.0", 9092)).connect(new Endpoint(String.format("broker-%d", brokerId), 9092)).build();
             }
 
             @Override
-            public EndpointPair getControllerEndpoint(int brokerNum) {
-                return EndpointPair.builder().bind(new Endpoint("0.0.0.0", 9091)).connect(new Endpoint(String.format("broker-%d", brokerNum), 9091)).build();
+            public EndpointPair getControllerEndpoint(int brokerId) {
+                return EndpointPair.builder().bind(new Endpoint("0.0.0.0", 9091)).connect(new Endpoint(String.format("broker-%d", brokerId), 9091)).build();
             }
         };
         Supplier<Endpoint> zookeeperEndpointSupplier = () -> new Endpoint("zookeeper", ContainerBasedKafkaCluster.ZOOKEEPER_PORT);
@@ -119,7 +119,7 @@ public class ContainerBasedKafkaCluster implements Startable, Cluster {
                     .withName(name)
                     .withNetwork(this.network)
                     .withNetworkAliases(netAlias)
-//                  .withEnv("QUARKUS_LOG_LEVEL", "DEBUG")  // Enable org.apache.kafka logging too
+//                  .withEnv("QUARKUS_LOG_LEVEL", "DEBUG")  // Enables org.apache.kafka logging too
                     .withEnv("SERVER_PROPERTIES_FILE", "/cnf/server.properties" )
                     .withEnv("SERVER_CLUSTER_ID", holder.getKafkaKraftClusterId() )
                     .withEnv("SERVER_CLUSTER_READY_FLAG_FILE", KAFKA_CLUSTER_READY_FLAG)

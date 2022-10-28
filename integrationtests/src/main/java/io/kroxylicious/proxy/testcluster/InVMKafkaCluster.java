@@ -86,23 +86,23 @@ public class InVMKafkaCluster implements Cluster {
                 final List<Integer> controllerPorts = ports.subList(clusterConfig.getBrokersNum() * 2, ports.size());
 
                 @Override
-                public EndpointPair getClientEndpoint(int brokerNum) {
-                    var port = clientPorts.get(brokerNum);
+                public EndpointPair getClientEndpoint(int brokerId) {
+                    var port = clientPorts.get(brokerId);
                     return EndpointPair.builder().bind(new Endpoint("0.0.0.0", port)).connect(new Endpoint("localhost", port)).build();
                 }
 
                 @Override
-                public EndpointPair getInterBrokerEndpoint(int brokerNum) {
-                    var port = interBrokerPorts.get(brokerNum);
+                public EndpointPair getInterBrokerEndpoint(int brokerId) {
+                    var port = interBrokerPorts.get(brokerId);
                     return EndpointPair.builder().bind(new Endpoint("0.0.0.0", port)).connect(new Endpoint("localhost", port)).build();
                 }
 
                 @Override
-                public EndpointPair getControllerEndpoint(int brokerNum) {
+                public EndpointPair getControllerEndpoint(int brokerId) {
                     if (!clusterConfig.isKraftMode()) {
                         throw new IllegalStateException();
                     }
-                    var port = controllerPorts.get(brokerNum);
+                    var port = controllerPorts.get(brokerId);
                     return EndpointPair.builder().bind(new Endpoint("0.0.0.0", port)).connect(new Endpoint("localhost", port)).build();
                 }
             };

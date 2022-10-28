@@ -208,10 +208,10 @@ public class ClusterConfig {
             }
         }
 
-        EndpointPair getInterBrokerEndpoint(int brokerNum);
+        EndpointPair getInterBrokerEndpoint(int brokerId);
 
-        EndpointPair getControllerEndpoint(int brokerNum);
+        EndpointPair getControllerEndpoint(int brokerId);
 
-        EndpointPair getClientEndpoint(int brokerNum);
+        EndpointPair getClientEndpoint(int brokerId);
     }
 }
