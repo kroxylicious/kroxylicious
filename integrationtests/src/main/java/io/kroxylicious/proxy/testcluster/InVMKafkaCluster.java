@@ -175,11 +175,13 @@ public class InVMKafkaCluster implements Cluster {
     @Override
     public void close() throws Exception {
         try {
-            servers.stream().parallel().forEach(Server::shutdown);
-            bootstraps.clear();
-
-            if (zooServer != null) {
-                zooServer.shutdown(true);
+            try {
+                servers.stream().parallel().forEach(Server::shutdown);
+                bootstraps.clear();
+            } finally {
+                if (zooServer != null) {
+                    zooServer.shutdown(true);
+                }
             }
         }
         finally {
