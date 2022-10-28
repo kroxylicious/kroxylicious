@@ -40,7 +40,7 @@ import io.kroxylicious.proxy.testcluster.ClusterConfig.KafkaEndpoints.Endpoint;
 import lombok.SneakyThrows;
 
 /**
- * Provides an easy way to launch a Kafka cluster with multiple brokers.
+ * Provides an easy way to launch a Kafka cluster with multiple brokers in a container
  */
 public class ContainerBasedKafkaCluster implements Startable, Cluster {
 
