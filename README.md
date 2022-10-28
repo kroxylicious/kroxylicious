@@ -27,6 +27,9 @@ The kafka environment used by the integrations tests can be _defaulted_ with the
 | `TEST_CLUSTER_IN_VM`      | `true`  | if true, kafka will be run same virtual machines as the integration test. Otherwise containers will be used. |
 | `TEST_CLUSTER_KRAFT_MODE` | `true`  | if true, kafka will be run in kraft mode.                                                                    |
 
+When the integration-tests are run in container mode, the kafka/zookeeper logs are written to a location specified by
+the `container.logs.dir`  system property. When run through Maven this is defaulted to `integrationtests/target/container-logs`.
+
 Pass the `-Dquick` option to skip all tests and non-essential plug-ins and create the output artifact as quickly as possible:
 
 ```
