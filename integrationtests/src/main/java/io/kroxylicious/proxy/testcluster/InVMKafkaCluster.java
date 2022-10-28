@@ -54,6 +54,8 @@ public class InVMKafkaCluster implements Cluster {
             tempDirectory.toFile().mkdirs();
             tempDirectory.toFile().deleteOnExit();
 
+            // kraft mode: per-broker: 1 external port + 1 inter-broker port + 1 controller port
+            // zk mode: per-cluster: 1 zk port; per-broker: 1 external port + 1 inter-broker port
             var numPorts = clusterConfig.getBrokersNum() * (clusterConfig.isKraftMode() ? 3 : 2) + (clusterConfig.isKraftMode() ? 0 : 1);
             LinkedList<Integer> ports = Utils.preAllocateListeningPorts(numPorts).collect(Collectors.toCollection(LinkedList::new));
 
