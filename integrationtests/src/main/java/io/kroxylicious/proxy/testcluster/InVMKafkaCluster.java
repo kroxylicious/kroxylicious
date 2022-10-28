@@ -51,6 +51,8 @@ public class InVMKafkaCluster implements Cluster {
         this.clusterConfig = clusterConfig;
         try {
             tempDirectory = Files.createTempDirectory("kafka");
+            tempDirectory.toFile().mkdirs();
+            tempDirectory.toFile().deleteOnExit();
 
             var numPorts = clusterConfig.getBrokersNum() * (clusterConfig.isKraftMode() ? 3 : 2) + (clusterConfig.isKraftMode() ? 0 : 1);
             LinkedList<Integer> ports = Utils.preAllocateListeningPorts(numPorts).collect(Collectors.toCollection(LinkedList::new));
@@ -152,8 +154,7 @@ public class InVMKafkaCluster implements Cluster {
             }
             catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                zooServer.shutdown(true);
-                return;
+                throw new RuntimeException(e);
             }
         }
 
