@@ -38,7 +38,7 @@ public class ClusterConfig {
     /**
      * if true, cluster will use an in-VM kafka
      */
-    private final Boolean inVM;
+    private final ClusterExecutionMode execMode;
     /**
      * if true, the cluster will be brought up in Kraft-mode
      */

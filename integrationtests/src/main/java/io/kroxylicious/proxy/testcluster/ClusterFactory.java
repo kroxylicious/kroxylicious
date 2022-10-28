@@ -5,11 +5,6 @@
  */
 package io.kroxylicious.proxy.testcluster;
 
-import java.util.AbstractMap.SimpleEntry;
-import java.util.LinkedHashMap;
-import java.util.Map.Entry;
-import java.util.stream.Collectors;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,50 +12,37 @@ public class ClusterFactory {
     private static final Logger LOGGER = LoggerFactory.getLogger(ClusterFactory.class);
 
     /**
-     * provides default inVM setting for callers that do not provide a inVM.
+     * environment variable specifying execution mode, IN_VM or CONTAINER.
      */
-    public static final String TEST_CLUSTER_IN_VM_DEFAULT = "TEST_CLUSTER_IN_VM";
+    public static final String TEST_CLUSTER_EXECUTION_MODE = "TEST_CLUSTER_EXECUTION_MODE";
 
     /**
-     * provides default kraftMode setting for callers that do not provide a KraftMode.
+     * environment variable specifying kraft mode, true or false.
      */
-    public static final String TEST_CLUSTER_KRAFT_MODE_DEFAULT = "TEST_CLUSTER_KRAFT_MODE";
+    public static final String TEST_CLUSTER_KRAFT_MODE = "TEST_CLUSTER_KRAFT_MODE";
 
     public static Cluster create(ClusterConfig clusterConfig) {
         if (clusterConfig == null) {
             throw new NullPointerException();
         }
 
+        var clusterMode = ClusterExecutionMode.convertClusterExecutionMode(System.getenv().get(TEST_CLUSTER_EXECUTION_MODE), ClusterExecutionMode.IN_VM);
+        var kraftMode = convertClusterKraftMode(System.getenv().get(TEST_CLUSTER_KRAFT_MODE), true);
+
         var builder = clusterConfig.toBuilder();
 
-        var defaults = System.getenv().entrySet().stream()
-                .filter(e -> e.getKey().startsWith("TEST_CLUSTER_")).map(ClusterFactory::convert)
-                .collect(Collectors.toMap(Entry::getKey, Entry::getValue, (x, y) -> y, LinkedHashMap::new));
+        if (clusterConfig.getExecMode() == null) {
+            builder.execMode(clusterMode);
+        }
 
-        defaults.putIfAbsent(TEST_CLUSTER_IN_VM_DEFAULT, true);
-        defaults.putIfAbsent(TEST_CLUSTER_KRAFT_MODE_DEFAULT, true);
-
-        defaults.forEach((key, value) -> {
-            switch (key) {
-                case TEST_CLUSTER_IN_VM_DEFAULT:
-                    if (clusterConfig.getInVM() == null) {
-                        builder.inVM(value);
-                    }
-                    break;
-                case TEST_CLUSTER_KRAFT_MODE_DEFAULT:
-                    if (clusterConfig.getKraftMode() == null) {
-                        builder.kraftMode(value);
-                    }
-                    break;
-                default:
-                    LOGGER.warn("Unrecognised environment variable : {}", key);
-            }
-        });
+        if (clusterConfig.getKraftMode() == null) {
+            builder.kraftMode(kraftMode);
+        }
 
         var actual = builder.build();
         LOGGER.info("Test cluster : {}", actual);
 
-        if (actual.getInVM()) {
+        if (actual.getExecMode() == ClusterExecutionMode.IN_VM) {
             return new InVMKafkaCluster(actual);
         }
         else {
@@ -68,7 +50,11 @@ public class ClusterFactory {
         }
     }
 
-    private static Entry<String, Boolean> convert(Entry<String, String> e) {
-        return new SimpleEntry<>(e.getKey(), Boolean.parseBoolean(e.getValue()));
+    private static boolean convertClusterKraftMode(String mode, boolean defaultMode) {
+        if (mode == null) {
+            return defaultMode;
+        }
+        return Boolean.parseBoolean(mode);
     }
+
 }
