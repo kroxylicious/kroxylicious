@@ -49,7 +49,7 @@ public class ClusterIT {
     public void kafkaClusterKraftMode() throws Exception {
         try (var cluster = ClusterFactory.create(ClusterConfig.builder().testInfo(testInfo).kraftMode(true).build())) {
             cluster.start();
-            verify(1, cluster);
+            verifyRecordRoundTrip(1, cluster);
         }
     }
 
@@ -57,7 +57,7 @@ public class ClusterIT {
     public void kafkaClusterZookeeperMode() throws Exception {
         try (var cluster = ClusterFactory.create(ClusterConfig.builder().testInfo(testInfo).kraftMode(false).build())) {
             cluster.start();
-            verify(1, cluster);
+            verifyRecordRoundTrip(1, cluster);
         }
     }
 
@@ -67,7 +67,7 @@ public class ClusterIT {
         try (var cluster = ClusterFactory.create(ClusterConfig.builder().testInfo(testInfo).brokersNum(brokersNum).kraftMode(true).build())) {
             assumeTrue(cluster instanceof ContainerBasedKafkaCluster, "KAFKA-14287: kraft timing out on shutdown in multinode case");
             cluster.start();
-            verify(brokersNum, cluster);
+            verifyRecordRoundTrip(brokersNum, cluster);
         }
     }
 
@@ -76,7 +76,7 @@ public class ClusterIT {
         int brokersNum = 2;
         try (var cluster = ClusterFactory.create(ClusterConfig.builder().testInfo(testInfo).brokersNum(brokersNum).kraftMode(false).build())) {
             cluster.start();
-            verify(brokersNum, cluster);
+            verifyRecordRoundTrip(brokersNum, cluster);
         }
     }
 
@@ -85,7 +85,7 @@ public class ClusterIT {
         try (var cluster = ClusterFactory.create(
                 ClusterConfig.builder().kraftMode(true).testInfo(testInfo).saslMechanism("PLAIN").user("guest", "guest").build())) {
             cluster.start();
-            verify(1, cluster);
+            verifyRecordRoundTrip(1, cluster);
         }
     }
 
@@ -94,11 +94,11 @@ public class ClusterIT {
         try (var cluster = ClusterFactory.create(
                 ClusterConfig.builder().testInfo(testInfo).kraftMode(false).saslMechanism("PLAIN").user("guest", "guest").build())) {
             cluster.start();
-            verify(1, cluster);
+            verifyRecordRoundTrip(1, cluster);
         }
     }
 
-    private void verify(int expected, Cluster cluster) throws Exception {
+    private void verifyRecordRoundTrip(int expected, Cluster cluster) throws Exception {
         var topic = "TOPIC_1";
         var message = "Hello, world!";
 
