@@ -65,7 +65,7 @@ public class ClusterIT {
     public void kafkaTwoNodeClusterKraftMode() throws Exception {
         int brokersNum = 2;
         try (var cluster = ClusterFactory.create(ClusterConfig.builder().testInfo(testInfo).brokersNum(brokersNum).kraftMode(true).build())) {
-            assumeTrue(cluster instanceof ContainerBasedKafkaCluster, "FIXME: kraft timing out on shutdown in multinode case");
+            assumeTrue(cluster instanceof ContainerBasedKafkaCluster, "KAFKA-14287: kraft timing out on shutdown in multinode case");
             cluster.start();
             verify(brokersNum, cluster);
         }
