@@ -92,6 +92,8 @@ public class ClusterConfig {
             server.put("inter.broker.listener.name", "INTERNAL");
 
             if (isKraftMode()) {
+                server.put("node.id", Integer.toString(brokerNum));  // Required by Kafka 3.3 onwards.
+
                 var controllerEndpoint = kafkaEndpoints.getControllerEndpoint(brokerNum);
                 var quorumVoters = IntStream.range(0, kraftControllers)
                         .mapToObj(b -> String.format("%d@%s", b, kafkaEndpoints.getControllerEndpoint(b).getConnect().toString())).collect(Collectors.joining(","));
