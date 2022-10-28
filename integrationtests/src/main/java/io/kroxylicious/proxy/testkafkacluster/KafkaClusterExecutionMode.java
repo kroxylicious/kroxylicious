@@ -22,7 +22,8 @@ public enum KafkaClusterExecutionMode {
                 return defaultMode;
             }
             return valueOf(KafkaClusterExecutionMode.class, mode.toUpperCase());
-        } catch (IllegalArgumentException e) {
+        }
+        catch (IllegalArgumentException e) {
             return defaultMode;
         }
     }

@@ -20,13 +20,13 @@ import java.util.stream.Stream;
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.config.SaslConfigs;
+import org.junit.jupiter.api.TestInfo;
 
 import io.kroxylicious.proxy.testkafkacluster.KafkaClusterConfig.KafkaEndpoints.Endpoint;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Singular;
 import lombok.ToString;
-import org.junit.jupiter.api.TestInfo;
 
 @Builder(toBuilder = true)
 @Getter
@@ -92,7 +92,7 @@ public class KafkaClusterConfig {
             server.put("inter.broker.listener.name", "INTERNAL");
 
             if (isKraftMode()) {
-                server.put("node.id", Integer.toString(brokerNum));  // Required by Kafka 3.3 onwards.
+                server.put("node.id", Integer.toString(brokerNum)); // Required by Kafka 3.3 onwards.
 
                 var controllerEndpoint = kafkaEndpoints.getControllerEndpoint(brokerNum);
                 var quorumVoters = IntStream.range(0, kraftControllers)
@@ -104,9 +104,9 @@ public class KafkaClusterConfig {
                 if (brokerNum == 0) {
                     server.put("process.roles", "broker,controller");
 
-
                     listeners.put("CONTROLLER", controllerEndpoint.getBind().toString());
-                } else {
+                }
+                else {
                     server.put("process.roles", "broker");
                 }
             }

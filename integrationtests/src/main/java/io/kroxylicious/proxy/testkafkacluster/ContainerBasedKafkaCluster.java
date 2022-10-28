@@ -5,22 +5,6 @@
  */
 package io.kroxylicious.proxy.testkafkacluster;
 
-import com.github.dockerjava.api.command.InspectContainerResponse;
-import io.kroxylicious.proxy.testkafkacluster.KafkaClusterConfig.KafkaEndpoints;
-import io.kroxylicious.proxy.testkafkacluster.KafkaClusterConfig.KafkaEndpoints.Endpoint;
-import lombok.SneakyThrows;
-import org.junit.jupiter.api.TestInfo;
-import org.rnorth.ducttape.unreliables.Unreliables;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.Network;
-import org.testcontainers.containers.output.OutputFrame;
-import org.testcontainers.images.builder.Transferable;
-import org.testcontainers.lifecycle.Startable;
-import org.testcontainers.lifecycle.Startables;
-import org.testcontainers.utility.DockerImageName;
-
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileWriter;
@@ -40,6 +24,24 @@ import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import org.junit.jupiter.api.TestInfo;
+import org.rnorth.ducttape.unreliables.Unreliables;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.Network;
+import org.testcontainers.containers.output.OutputFrame;
+import org.testcontainers.images.builder.Transferable;
+import org.testcontainers.lifecycle.Startable;
+import org.testcontainers.lifecycle.Startables;
+import org.testcontainers.utility.DockerImageName;
+
+import com.github.dockerjava.api.command.InspectContainerResponse;
+
+import io.kroxylicious.proxy.testkafkacluster.KafkaClusterConfig.KafkaEndpoints;
+import io.kroxylicious.proxy.testkafkacluster.KafkaClusterConfig.KafkaEndpoints.Endpoint;
+import lombok.SneakyThrows;
 
 /**
  * Provides an easy way to launch a Kafka cluster with multiple brokers in a container
@@ -90,7 +92,7 @@ public class ContainerBasedKafkaCluster implements Startable, KafkaCluster {
                     .withName(name)
                     .withNetwork(network)
                     .withEnv("SERVER_ZOOKEEPER_READY_FLAG_FILE", ZOOKEEPER_READY_FLAG)
-//                    .withEnv("QUARKUS_LOG_LEVEL", "DEBUG")  // Enables org.apache.zookeeper logging too
+                    // .withEnv("QUARKUS_LOG_LEVEL", "DEBUG") // Enables org.apache.zookeeper logging too
                     .withNetworkAliases("zookeeper");
         }
 
@@ -119,14 +121,13 @@ public class ContainerBasedKafkaCluster implements Startable, KafkaCluster {
                     .withName(name)
                     .withNetwork(this.network)
                     .withNetworkAliases(netAlias)
-//                  .withEnv("QUARKUS_LOG_LEVEL", "DEBUG")  // Enables org.apache.kafka logging too
-                    .withEnv("SERVER_PROPERTIES_FILE", "/cnf/server.properties" )
-                    .withEnv("SERVER_CLUSTER_ID", holder.getKafkaKraftClusterId() )
+                    // .withEnv("QUARKUS_LOG_LEVEL", "DEBUG") // Enables org.apache.kafka logging too
+                    .withEnv("SERVER_PROPERTIES_FILE", "/cnf/server.properties")
+                    .withEnv("SERVER_CLUSTER_ID", holder.getKafkaKraftClusterId())
                     .withEnv("SERVER_CLUSTER_READY_FLAG_FILE", KAFKA_CLUSTER_READY_FLAG)
-                    .withEnv("SERVER_CLUSTER_READY_NUM_BROKERS", clusterConfig.getBrokersNum().toString() )
+                    .withEnv("SERVER_CLUSTER_READY_NUM_BROKERS", clusterConfig.getBrokersNum().toString())
                     .withCopyToContainer(Transferable.of(propertiesToBytes(holder.getProperties()), 0644), "/cnf/server.properties")
                     .withStartupTimeout(Duration.ofMinutes(2));
-
 
             kafkaContainer.addFixedExposedPort(holder.getExternalPort(), KAFKA_PORT);
 
@@ -141,7 +142,8 @@ public class ContainerBasedKafkaCluster implements Startable, KafkaCluster {
         try (var byteArrayOutputStream = new ByteArrayOutputStream()) {
             properties.store(byteArrayOutputStream, "server.properties");
             return byteArrayOutputStream.toByteArray();
-        } catch (IOException e) {
+        }
+        catch (IOException e) {
             throw new UncheckedIOException(e);
         }
     }
@@ -214,6 +216,7 @@ public class ContainerBasedKafkaCluster implements Startable, KafkaCluster {
         }
 
     }
+
     public static class ZookeeperContainer extends LoggingGenericContainer<ZookeeperContainer> {
         public ZookeeperContainer(DockerImageName zookeeperImage) {
             super(zookeeperImage);
@@ -246,14 +249,17 @@ public class ContainerBasedKafkaCluster implements Startable, KafkaCluster {
                         try {
                             if (outputFrame.equals(OutputFrame.END)) {
                                 writer.close();
-                            } else {
+                            }
+                            else {
                                 writer.write(outputFrame.getUtf8String());
                             }
-                        } catch (IOException e) {
+                        }
+                        catch (IOException e) {
                             // ignore
                         }
                     });
-                } catch (IOException e) {
+                }
+                catch (IOException e) {
                     logger().warn("Failed to create container log file: {}", target);
                 }
             });
@@ -265,6 +271,5 @@ public class ContainerBasedKafkaCluster implements Startable, KafkaCluster {
             return this;
         }
     }
-
 
 }

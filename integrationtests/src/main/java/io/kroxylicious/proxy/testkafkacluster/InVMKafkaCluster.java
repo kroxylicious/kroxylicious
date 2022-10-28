@@ -180,7 +180,8 @@ public class InVMKafkaCluster implements KafkaCluster {
             try {
                 servers.stream().parallel().forEach(Server::shutdown);
                 bootstraps.clear();
-            } finally {
+            }
+            finally {
                 if (zooServer != null) {
                     zooServer.shutdown(true);
                 }
