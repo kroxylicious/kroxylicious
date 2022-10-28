@@ -14,11 +14,11 @@ $ mvn clean verify
 
 The running of the tests can be controlled with the following Maven properties:
 
-| property          | description            |
-|-------------------|------------------------|
-| `-DskipUTs=true`  | skip unit tests        |
-| `-DskipITs=true`  | skip integration tests |
-| `-DskiTests=true` | skip all tests         |
+| property           | description            |
+|--------------------|------------------------|
+| `-DskipUTs=true`   | skip unit tests        |
+| `-DskipITs=true`   | skip integration tests |
+| `-DskipTests=true` | skip all tests         |
 
 The kafka environment used by the integrations tests can be _defaulted_ with these two environment variables.
 
