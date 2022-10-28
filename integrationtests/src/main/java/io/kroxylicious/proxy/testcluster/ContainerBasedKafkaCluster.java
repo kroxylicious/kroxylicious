@@ -196,7 +196,7 @@ public class ContainerBasedKafkaCluster implements Startable, Cluster {
     }
 
     @Override
-    public Map<String, Object> getConnectConfigForCluster() {
+    public Map<String, Object> getKafkaClientConfiguration() {
         return clusterConfig.getConnectConfigForCluster(getBootstrapServers());
     }
 

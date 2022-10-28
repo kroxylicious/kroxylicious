@@ -21,10 +21,12 @@ public interface Cluster extends AutoCloseable {
     String getBootstrapServers();
 
     /**
-     * Gets the kafka connect config for this cluster.  Details such the bootstrap and SASL configuration
-     * are provided automatically.  The return map may be muted by the caller.
+     * Gets the kafka configuration for making connections to this cluster as required by the
+     * {@link org.apache.kafka.clients.admin.AdminClient}, {@link org.apache.kafka.clients.producer.Producer} etc.
+     * Details such the bootstrap and SASL configuration are provided automatically.
+     * The returned map is guaranteed to be mutable and is unique to the caller.
      *
-     * @return mutable kafka connect config map
+     * @return mutable configuration map
      */
-    Map<String, Object> getConnectConfigForCluster();
+    Map<String, Object> getKafkaClientConfiguration();
 }

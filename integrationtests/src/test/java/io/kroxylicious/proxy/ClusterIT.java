@@ -102,7 +102,7 @@ public class ClusterIT {
         var topic = "TOPIC_1";
         var message = "Hello, world!";
 
-        try (var admin = KafkaAdminClient.create(cluster.getConnectConfigForCluster())) {
+        try (var admin = KafkaAdminClient.create(cluster.getKafkaClientConfiguration())) {
             assertEquals(expected, getActualNumberOfBrokers(admin));
             var rf = (short) Math.min(1, Math.max(expected, 3));
             createTopic(admin, topic, rf);
@@ -113,7 +113,7 @@ public class ClusterIT {
     }
 
     private void produce(Cluster cluster, String topic, String message) throws Exception {
-        Map<String, Object> config = cluster.getConnectConfigForCluster();
+        Map<String, Object> config = cluster.getKafkaClientConfiguration();
         config.putAll(Map.<String, Object> of(
                 ProducerConfig.CLIENT_ID_CONFIG, "myclient",
                 ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
@@ -125,7 +125,7 @@ public class ClusterIT {
     }
 
     private void consume(Cluster cluster, String topic, String message) throws Exception {
-        Map<String, Object> config = cluster.getConnectConfigForCluster();
+        Map<String, Object> config = cluster.getKafkaClientConfiguration();
         config.putAll(Map.of(
                 ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
                 ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,

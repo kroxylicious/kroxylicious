@@ -168,7 +168,7 @@ public class InVMKafkaCluster implements Cluster {
     }
 
     @Override
-    public Map<String, Object> getConnectConfigForCluster() {
+    public Map<String, Object> getKafkaClientConfiguration() {
         return clusterConfig.getConnectConfigForCluster(getBootstrapServers());
     }
 
