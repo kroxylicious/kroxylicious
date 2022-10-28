@@ -44,8 +44,8 @@ public class InVMKafkaCluster implements Cluster {
     private final Path tempDirectory;
     private final ServerCnxnFactory zooFactory;
     private final ZooKeeperServer zooServer;
-    private List<Server> servers;
-    private List<String> bootstraps = new ArrayList<>();
+    private final List<Server> servers;
+    private final List<String> bootstraps = new ArrayList<>();
 
     public InVMKafkaCluster(ClusterConfig clusterConfig) {
         this.clusterConfig = clusterConfig;
