@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.proxy.testcluster;
+package io.kroxylicious.proxy.testkafkacluster;
 
 import java.io.File;
 import java.io.IOException;
@@ -28,8 +28,8 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.kroxylicious.proxy.testcluster.ClusterConfig.ConfigHolder;
-import io.kroxylicious.proxy.testcluster.ClusterConfig.KafkaEndpoints;
+import io.kroxylicious.proxy.testkafkacluster.KafkaClusterConfig.ConfigHolder;
+import io.kroxylicious.proxy.testkafkacluster.KafkaClusterConfig.KafkaEndpoints;
 import kafka.server.KafkaConfig;
 import kafka.server.KafkaRaftServer;
 import kafka.server.KafkaServer;
@@ -37,17 +37,17 @@ import kafka.server.Server;
 import kafka.tools.StorageTool;
 import scala.Option;
 
-public class InVMKafkaCluster implements Cluster {
+public class InVMKafkaCluster implements KafkaCluster {
     private static final Logger LOGGER = LoggerFactory.getLogger(InVMKafkaCluster.class);
 
-    private final ClusterConfig clusterConfig;
+    private final KafkaClusterConfig clusterConfig;
     private final Path tempDirectory;
     private final ServerCnxnFactory zooFactory;
     private final ZooKeeperServer zooServer;
     private final List<Server> servers;
     private final List<String> bootstraps = new ArrayList<>();
 
-    public InVMKafkaCluster(ClusterConfig clusterConfig) {
+    public InVMKafkaCluster(KafkaClusterConfig clusterConfig) {
         this.clusterConfig = clusterConfig;
         try {
             tempDirectory = Files.createTempDirectory("kafka");

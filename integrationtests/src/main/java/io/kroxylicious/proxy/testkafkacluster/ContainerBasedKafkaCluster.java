@@ -3,11 +3,11 @@
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
-package io.kroxylicious.proxy.testcluster;
+package io.kroxylicious.proxy.testkafkacluster;
 
 import com.github.dockerjava.api.command.InspectContainerResponse;
-import io.kroxylicious.proxy.testcluster.ClusterConfig.KafkaEndpoints;
-import io.kroxylicious.proxy.testcluster.ClusterConfig.KafkaEndpoints.Endpoint;
+import io.kroxylicious.proxy.testkafkacluster.KafkaClusterConfig.KafkaEndpoints;
+import io.kroxylicious.proxy.testkafkacluster.KafkaClusterConfig.KafkaEndpoints.Endpoint;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.TestInfo;
 import org.rnorth.ducttape.unreliables.Unreliables;
@@ -44,7 +44,7 @@ import java.util.stream.Stream;
 /**
  * Provides an easy way to launch a Kafka cluster with multiple brokers in a container
  */
-public class ContainerBasedKafkaCluster implements Startable, Cluster {
+public class ContainerBasedKafkaCluster implements Startable, KafkaCluster {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ContainerBasedKafkaCluster.class);
     public static final int KAFKA_PORT = 9093;
@@ -56,7 +56,7 @@ public class ContainerBasedKafkaCluster implements Startable, Cluster {
     private static final String ZOOKEEPER_READY_FLAG = "/tmp/kafka_zookeeper_ready";
     private final DockerImageName kafkaImage;
     private final DockerImageName zookeeperImage;
-    private final ClusterConfig clusterConfig;
+    private final KafkaClusterConfig clusterConfig;
     private final Network network = Network.newNetwork();
     private final ZookeeperContainer zookeeper;
     private final Collection<KafkaContainer> brokers;
@@ -67,11 +67,11 @@ public class ContainerBasedKafkaCluster implements Startable, Cluster {
         }
     }
 
-    public ContainerBasedKafkaCluster(ClusterConfig clusterConfig) {
+    public ContainerBasedKafkaCluster(KafkaClusterConfig clusterConfig) {
         this(null, null, clusterConfig);
     }
 
-    public ContainerBasedKafkaCluster(DockerImageName kafkaImage, DockerImageName zookeeperImage, ClusterConfig clusterConfig) {
+    public ContainerBasedKafkaCluster(DockerImageName kafkaImage, DockerImageName zookeeperImage, KafkaClusterConfig clusterConfig) {
         this.kafkaImage = Optional.ofNullable(kafkaImage).orElse(DEFAULT_KAFKA_IMAGE);
         this.zookeeperImage = Optional.ofNullable(zookeeperImage).orElse(DEFAULT_ZOOKEEPER_IMAGE);
         this.clusterConfig = clusterConfig;

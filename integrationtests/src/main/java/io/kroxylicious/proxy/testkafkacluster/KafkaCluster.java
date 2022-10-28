@@ -4,11 +4,11 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.proxy.testcluster;
+package io.kroxylicious.proxy.testkafkacluster;
 
 import java.util.Map;
 
-public interface Cluster extends AutoCloseable {
+public interface KafkaCluster extends AutoCloseable {
     /**
      * starts the cluster.  use #close will stop it again.
      */

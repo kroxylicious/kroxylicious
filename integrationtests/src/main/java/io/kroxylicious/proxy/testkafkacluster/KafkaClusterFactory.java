@@ -3,13 +3,13 @@
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
-package io.kroxylicious.proxy.testcluster;
+package io.kroxylicious.proxy.testkafkacluster;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ClusterFactory {
-    private static final Logger LOGGER = LoggerFactory.getLogger(ClusterFactory.class);
+public class KafkaClusterFactory {
+    private static final Logger LOGGER = LoggerFactory.getLogger(KafkaClusterFactory.class);
 
     /**
      * environment variable specifying execution mode, IN_VM or CONTAINER.
@@ -21,12 +21,12 @@ public class ClusterFactory {
      */
     public static final String TEST_CLUSTER_KRAFT_MODE = "TEST_CLUSTER_KRAFT_MODE";
 
-    public static Cluster create(ClusterConfig clusterConfig) {
+    public static KafkaCluster create(KafkaClusterConfig clusterConfig) {
         if (clusterConfig == null) {
             throw new NullPointerException();
         }
 
-        var clusterMode = ClusterExecutionMode.convertClusterExecutionMode(System.getenv().get(TEST_CLUSTER_EXECUTION_MODE), ClusterExecutionMode.IN_VM);
+        var clusterMode = KafkaClusterExecutionMode.convertClusterExecutionMode(System.getenv().get(TEST_CLUSTER_EXECUTION_MODE), KafkaClusterExecutionMode.IN_VM);
         var kraftMode = convertClusterKraftMode(System.getenv().get(TEST_CLUSTER_KRAFT_MODE), true);
 
         var builder = clusterConfig.toBuilder();
@@ -42,7 +42,7 @@ public class ClusterFactory {
         var actual = builder.build();
         LOGGER.info("Test cluster : {}", actual);
 
-        if (actual.getExecMode() == ClusterExecutionMode.IN_VM) {
+        if (actual.getExecMode() == KafkaClusterExecutionMode.IN_VM) {
             return new InVMKafkaCluster(actual);
         }
         else {

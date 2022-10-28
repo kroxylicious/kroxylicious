@@ -28,10 +28,10 @@ import org.junit.jupiter.api.TestInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.kroxylicious.proxy.testcluster.Cluster;
-import io.kroxylicious.proxy.testcluster.ClusterConfig;
-import io.kroxylicious.proxy.testcluster.ClusterFactory;
-import io.kroxylicious.proxy.testcluster.ContainerBasedKafkaCluster;
+import io.kroxylicious.proxy.testkafkacluster.KafkaCluster;
+import io.kroxylicious.proxy.testkafkacluster.KafkaClusterConfig;
+import io.kroxylicious.proxy.testkafkacluster.KafkaClusterFactory;
+import io.kroxylicious.proxy.testkafkacluster.ContainerBasedKafkaCluster;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
@@ -40,14 +40,14 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
  * Test case that simply exercises the ability to control the kafka cluster from the test.
  *
  */
-public class ClusterIT {
+public class KafkaClusterIT {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(ClusterIT.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(KafkaClusterIT.class);
     private TestInfo testInfo;
 
     @Test
     public void kafkaClusterKraftMode() throws Exception {
-        try (var cluster = ClusterFactory.create(ClusterConfig.builder().testInfo(testInfo).kraftMode(true).build())) {
+        try (var cluster = KafkaClusterFactory.create(KafkaClusterConfig.builder().testInfo(testInfo).kraftMode(true).build())) {
             cluster.start();
             verifyRecordRoundTrip(1, cluster);
         }
@@ -55,7 +55,7 @@ public class ClusterIT {
 
     @Test
     public void kafkaClusterZookeeperMode() throws Exception {
-        try (var cluster = ClusterFactory.create(ClusterConfig.builder().testInfo(testInfo).kraftMode(false).build())) {
+        try (var cluster = KafkaClusterFactory.create(KafkaClusterConfig.builder().testInfo(testInfo).kraftMode(false).build())) {
             cluster.start();
             verifyRecordRoundTrip(1, cluster);
         }
@@ -64,7 +64,7 @@ public class ClusterIT {
     @Test
     public void kafkaTwoNodeClusterKraftMode() throws Exception {
         int brokersNum = 2;
-        try (var cluster = ClusterFactory.create(ClusterConfig.builder().testInfo(testInfo).brokersNum(brokersNum).kraftMode(true).build())) {
+        try (var cluster = KafkaClusterFactory.create(KafkaClusterConfig.builder().testInfo(testInfo).brokersNum(brokersNum).kraftMode(true).build())) {
             assumeTrue(cluster instanceof ContainerBasedKafkaCluster, "KAFKA-14287: kraft timing out on shutdown in multinode case");
             cluster.start();
             verifyRecordRoundTrip(brokersNum, cluster);
@@ -74,7 +74,7 @@ public class ClusterIT {
     @Test
     public void kafkaTwoNodeClusterZookeeperMode() throws Exception {
         int brokersNum = 2;
-        try (var cluster = ClusterFactory.create(ClusterConfig.builder().testInfo(testInfo).brokersNum(brokersNum).kraftMode(false).build())) {
+        try (var cluster = KafkaClusterFactory.create(KafkaClusterConfig.builder().testInfo(testInfo).brokersNum(brokersNum).kraftMode(false).build())) {
             cluster.start();
             verifyRecordRoundTrip(brokersNum, cluster);
         }
@@ -82,8 +82,8 @@ public class ClusterIT {
 
     @Test
     public void kafkaClusterKraftModeWithAuth() throws Exception {
-        try (var cluster = ClusterFactory.create(
-                ClusterConfig.builder().kraftMode(true).testInfo(testInfo).saslMechanism("PLAIN").user("guest", "guest").build())) {
+        try (var cluster = KafkaClusterFactory.create(
+                KafkaClusterConfig.builder().kraftMode(true).testInfo(testInfo).saslMechanism("PLAIN").user("guest", "guest").build())) {
             cluster.start();
             verifyRecordRoundTrip(1, cluster);
         }
@@ -91,14 +91,14 @@ public class ClusterIT {
 
     @Test
     public void kafkaClusterZookeeperModeWithAuth() throws Exception {
-        try (var cluster = ClusterFactory.create(
-                ClusterConfig.builder().testInfo(testInfo).kraftMode(false).saslMechanism("PLAIN").user("guest", "guest").build())) {
+        try (var cluster = KafkaClusterFactory.create(
+                KafkaClusterConfig.builder().testInfo(testInfo).kraftMode(false).saslMechanism("PLAIN").user("guest", "guest").build())) {
             cluster.start();
             verifyRecordRoundTrip(1, cluster);
         }
     }
 
-    private void verifyRecordRoundTrip(int expected, Cluster cluster) throws Exception {
+    private void verifyRecordRoundTrip(int expected, KafkaCluster cluster) throws Exception {
         var topic = "TOPIC_1";
         var message = "Hello, world!";
 
@@ -112,7 +112,7 @@ public class ClusterIT {
         consume(cluster, topic, "Hello, world!");
     }
 
-    private void produce(Cluster cluster, String topic, String message) throws Exception {
+    private void produce(KafkaCluster cluster, String topic, String message) throws Exception {
         Map<String, Object> config = cluster.getKafkaClientConfiguration();
         config.putAll(Map.<String, Object> of(
                 ProducerConfig.CLIENT_ID_CONFIG, "myclient",
@@ -124,7 +124,7 @@ public class ClusterIT {
         }
     }
 
-    private void consume(Cluster cluster, String topic, String message) throws Exception {
+    private void consume(KafkaCluster cluster, String topic, String message) throws Exception {
         Map<String, Object> config = cluster.getKafkaClientConfiguration();
         config.putAll(Map.of(
                 ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,

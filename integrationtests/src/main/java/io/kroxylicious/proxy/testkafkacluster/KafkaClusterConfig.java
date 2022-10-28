@@ -3,7 +3,7 @@
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
-package io.kroxylicious.proxy.testcluster;
+package io.kroxylicious.proxy.testkafkacluster;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -21,7 +21,7 @@ import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.config.SaslConfigs;
 
-import io.kroxylicious.proxy.testcluster.ClusterConfig.KafkaEndpoints.Endpoint;
+import io.kroxylicious.proxy.testkafkacluster.KafkaClusterConfig.KafkaEndpoints.Endpoint;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Singular;
@@ -31,14 +31,14 @@ import org.junit.jupiter.api.TestInfo;
 @Builder(toBuilder = true)
 @Getter
 @ToString
-public class ClusterConfig {
+public class KafkaClusterConfig {
 
     private TestInfo testInfo;
 
     /**
      * if true, cluster will use an in-VM kafka
      */
-    private final ClusterExecutionMode execMode;
+    private final KafkaClusterExecutionMode execMode;
     /**
      * if true, the cluster will be brought up in Kraft-mode
      */

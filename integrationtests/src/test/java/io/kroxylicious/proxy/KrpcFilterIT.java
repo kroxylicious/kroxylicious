@@ -31,8 +31,8 @@ import org.junit.jupiter.api.Test;
 import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.internal.filter.ByteBufferTransformation;
-import io.kroxylicious.proxy.testcluster.ClusterConfig;
-import io.kroxylicious.proxy.testcluster.ClusterFactory;
+import io.kroxylicious.proxy.testkafkacluster.KafkaClusterConfig;
+import io.kroxylicious.proxy.testkafkacluster.KafkaClusterFactory;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -105,7 +105,7 @@ public class KrpcFilterIT {
     public void shouldPassThroughRecordUnchanged() throws Exception {
         String proxyAddress = "localhost:9192";
 
-        try (var cluster = ClusterFactory.create(ClusterConfig.builder().build())) {
+        try (var cluster = KafkaClusterFactory.create(KafkaClusterConfig.builder().build())) {
             cluster.start();
 
             String bootstrapServers = cluster.getBootstrapServers();
@@ -157,7 +157,7 @@ public class KrpcFilterIT {
     @Test
     public void shouldModifyProduceMessage() throws Exception {
         String proxyAddress = "localhost:9192";
-        try (var cluster = ClusterFactory.create(ClusterConfig.builder().build())) {
+        try (var cluster = KafkaClusterFactory.create(KafkaClusterConfig.builder().build())) {
             cluster.start();
             try (var admin = Admin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, cluster.getBootstrapServers()))) {
                 admin.createTopics(List.of(
@@ -223,7 +223,7 @@ public class KrpcFilterIT {
     @Test
     public void shouldModifyFetchMessage() throws Exception {
         String proxyAddress = "localhost:9192";
-        try (var cluster = ClusterFactory.create(ClusterConfig.builder().build())) {
+        try (var cluster = KafkaClusterFactory.create(KafkaClusterConfig.builder().build())) {
             cluster.start();
             try (var admin = Admin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, cluster.getBootstrapServers()))) {
                 admin.createTopics(List.of(
