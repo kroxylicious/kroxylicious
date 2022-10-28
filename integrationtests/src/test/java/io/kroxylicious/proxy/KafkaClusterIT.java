@@ -21,7 +21,6 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
@@ -38,7 +37,7 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
  * Test case that simply exercises the ability to control the kafka cluster from the test.
- *
+ * It intentional that this test does not involve the proxy.
  */
 public class KafkaClusterIT {
 
@@ -136,6 +135,7 @@ public class KafkaClusterIT {
             var records = consumer.poll(Duration.ofSeconds(10));
             assertEquals(1, records.count());
             assertEquals(message, records.iterator().next().value());
+            consumer.unsubscribe();
         }
     }
 
@@ -151,12 +151,5 @@ public class KafkaClusterIT {
     @BeforeEach
     void before(TestInfo testInfo) {
         this.testInfo = testInfo;
-        LOGGER.warn("Running {}", testInfo.getTestMethod().get().getName());
     }
-
-    @AfterEach
-    void after(TestInfo testInfo) {
-        LOGGER.warn("Done running {}", testInfo.getTestMethod().get().getName());
-    }
-
 }

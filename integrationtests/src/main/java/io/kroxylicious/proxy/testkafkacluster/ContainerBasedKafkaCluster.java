@@ -51,7 +51,11 @@ public class ContainerBasedKafkaCluster implements Startable, KafkaCluster {
     private static final Logger LOGGER = LoggerFactory.getLogger(ContainerBasedKafkaCluster.class);
     public static final int KAFKA_PORT = 9093;
     public static final int ZOOKEEPER_PORT = 2181;
+
+    // FIXME: uses container image built from https://github.com/ozangunalp/kafka-native/pull/5
     private static final DockerImageName DEFAULT_KAFKA_IMAGE = DockerImageName.parse("quay.io/k_wall/kafka-native:1.0.0-SNAPSHOT");
+
+    // FIXME: uses container image built from https://github.com/k-wall/zookeeper-native, move the repo to a permanent location.
     private static final DockerImageName DEFAULT_ZOOKEEPER_IMAGE = DockerImageName.parse("quay.io/k_wall/zookeeper-native:1.0.0-SNAPSHOT");
     private static final int READY_TIMEOUT_SECONDS = 120;
     private static final String KAFKA_CLUSTER_READY_FLAG = "/tmp/kafka_cluster_ready";
@@ -64,7 +68,7 @@ public class ContainerBasedKafkaCluster implements Startable, KafkaCluster {
     private final Collection<KafkaContainer> brokers;
 
     static {
-        if (!System.getenv().containsValue("TESTCONTAINERS_RYUK_DISABLED")) {
+        if (!System.getenv().containsKey("TESTCONTAINERS_RYUK_DISABLED")) {
             LOGGER.warn("As per https://github.com/containers/podman/issues/7927#issuecomment-731525556 if using podman, set env var TESTCONTAINERS_RYUK_DISABLED=true");
         }
     }

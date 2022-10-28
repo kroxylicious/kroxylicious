@@ -26,7 +26,9 @@ import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInfo;
 
 import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.config.Configuration;
@@ -46,6 +48,13 @@ public class KrpcFilterIT {
             (byte) 0x64, (byte) 0x67, (byte) 0x61, (byte) 0x59, (byte) 0x16 };
     private static final byte[] TOPIC_2_CIPHERTEXT = { (byte) 0xffffffa7, (byte) 0xffffffc4, (byte) 0xffffffcb, (byte) 0xffffffcb, (byte) 0xffffffce, (byte) 0xffffff8b,
             (byte) 0x7f, (byte) 0xffffffd6, (byte) 0xffffffce, (byte) 0xffffffd1, (byte) 0xffffffcb, (byte) 0xffffffc3, (byte) 0xffffff80 };
+
+    private TestInfo testInfo;
+
+    @BeforeEach
+    public void beforeEach(TestInfo testInfo) {
+        this.testInfo = testInfo;
+    }
 
     @BeforeAll
     public static void checkReversibleEncryption() {
@@ -105,7 +114,7 @@ public class KrpcFilterIT {
     public void shouldPassThroughRecordUnchanged() throws Exception {
         String proxyAddress = "localhost:9192";
 
-        try (var cluster = KafkaClusterFactory.create(KafkaClusterConfig.builder().build())) {
+        try (var cluster = KafkaClusterFactory.create(KafkaClusterConfig.builder().testInfo(testInfo).build())) {
             cluster.start();
 
             String bootstrapServers = cluster.getBootstrapServers();
@@ -157,7 +166,7 @@ public class KrpcFilterIT {
     @Test
     public void shouldModifyProduceMessage() throws Exception {
         String proxyAddress = "localhost:9192";
-        try (var cluster = KafkaClusterFactory.create(KafkaClusterConfig.builder().build())) {
+        try (var cluster = KafkaClusterFactory.create(KafkaClusterConfig.builder().testInfo(testInfo).build())) {
             cluster.start();
             try (var admin = Admin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, cluster.getBootstrapServers()))) {
                 admin.createTopics(List.of(
@@ -223,7 +232,7 @@ public class KrpcFilterIT {
     @Test
     public void shouldModifyFetchMessage() throws Exception {
         String proxyAddress = "localhost:9192";
-        try (var cluster = KafkaClusterFactory.create(KafkaClusterConfig.builder().build())) {
+        try (var cluster = KafkaClusterFactory.create(KafkaClusterConfig.builder().testInfo(testInfo).build())) {
             cluster.start();
             try (var admin = Admin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, cluster.getBootstrapServers()))) {
                 admin.createTopics(List.of(
