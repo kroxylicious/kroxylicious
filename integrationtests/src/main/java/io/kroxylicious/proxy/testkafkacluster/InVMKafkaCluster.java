@@ -53,7 +53,6 @@ public class InVMKafkaCluster implements KafkaCluster {
         this.clusterConfig = clusterConfig;
         try {
             tempDirectory = Files.createTempDirectory("kafka");
-            tempDirectory.toFile().mkdirs();
             tempDirectory.toFile().deleteOnExit();
 
             // kraft mode: per-broker: 1 external port + 1 inter-broker port + 1 controller port
