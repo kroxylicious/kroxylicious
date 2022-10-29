@@ -37,6 +37,8 @@ import kafka.server.Server;
 import kafka.tools.StorageTool;
 import scala.Option;
 
+import static org.apache.kafka.server.common.MetadataVersion.MINIMUM_BOOTSTRAP_VERSION;
+
 public class InVMKafkaCluster implements KafkaCluster {
     private static final Logger LOGGER = LoggerFactory.getLogger(InVMKafkaCluster.class);
 
@@ -126,7 +128,7 @@ public class InVMKafkaCluster implements KafkaCluster {
             var directories = StorageTool.configToLogDirectories(config);
             var clusterId = c.getKafkaKraftClusterId();
             var metaProperties = StorageTool.buildMetadataProperties(clusterId, config);
-            StorageTool.formatCommand(System.out, directories, metaProperties, true);
+            StorageTool.formatCommand(System.out, directories, metaProperties, MINIMUM_BOOTSTRAP_VERSION, true);
             return new KafkaRaftServer(config, Time.SYSTEM, threadNamePrefix);
         }
         else {
