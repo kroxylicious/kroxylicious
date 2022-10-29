@@ -60,8 +60,7 @@ public class ByteBufAccessorTest {
             var bbuf = Unpooled.wrappedBuffer(bbuffer.flip());
             var kp = new ByteBufAccessorImpl(bbuf);
             assertEquals(writtenByte, kp.readByte());
-            var readArray = new byte[writtenArray.length];
-            kp.readArray(readArray);
+            var readArray = kp.readArray(writtenArray.length);
             assertArrayEquals(writtenArray, readArray);
             assertEquals(writtenDouble, kp.readDouble());
             assertEquals(writtenInt, kp.readInt());
@@ -106,8 +105,7 @@ public class ByteBufAccessorTest {
             var nio = ByteBuffer.wrap(bbuf.array());
             var kafkaAccessor = new ByteBufferAccessor(nio);
             assertEquals(writtenByte, kafkaAccessor.readByte());
-            var readArray = new byte[writtenArray.length];
-            kafkaAccessor.readArray(readArray);
+            var readArray = kafkaAccessor.readArray(writtenArray.length);
             assertArrayEquals(writtenArray, readArray);
             assertEquals(writtenDouble, kafkaAccessor.readDouble());
             assertEquals(writtenInt, kafkaAccessor.readInt());
