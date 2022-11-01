@@ -78,11 +78,9 @@ public class KrpcFilterIT {
     private static ByteBuffer encode(String topicName, ByteBuffer in) {
         var out = ByteBuffer.allocate(in.limit());
         byte rot = (byte) (topicName.hashCode() % Byte.MAX_VALUE);
-        // System.out.println("Encode Rot " + rot);
         for (int index = 0; index < in.limit(); index++) {
             byte b = in.get(index);
             byte rotated = (byte) (b + rot);
-            // System.out.println("rotate(" + b + ", " + rot + "): " + rotated);
             out.put(index, rotated);
         }
         return out;
@@ -100,11 +98,9 @@ public class KrpcFilterIT {
         var out = ByteBuffer.allocate(in.limit());
         out.limit(in.limit());
         byte rot = (byte) -(topicName.hashCode() % Byte.MAX_VALUE);
-        // System.out.println("Decode Rot " + rot);
         for (int index = 0; index < in.limit(); index++) {
             byte b = in.get(index);
             byte rotated = (byte) (b + rot);
-            // System.out.println("rotate(" + b + ", " + rot + "): " + rotated);
             out.put(index, rotated);
         }
         return out;

@@ -36,7 +36,7 @@ public class KafkaClusterConfig {
     private TestInfo testInfo;
 
     /**
-     * if true, cluster will use an in-VM kafka
+     * specifies the cluster execution mode.
      */
     private final KafkaClusterExecutionMode execMode;
     /**

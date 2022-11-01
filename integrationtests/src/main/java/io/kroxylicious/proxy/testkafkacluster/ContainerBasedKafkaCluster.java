@@ -186,6 +186,11 @@ public class ContainerBasedKafkaCluster implements Startable, KafkaCluster {
         awaitContainerReadyFlagFile(this.brokers.iterator().next(), KAFKA_CLUSTER_READY_FLAG);
     }
 
+    @Override
+    public void close() {
+        this.stop();
+    }
+
     private void awaitContainerReadyFlagFile(GenericContainer<?> container, String kafkaClusterReadyFlag) {
         Unreliables.retryUntilTrue(READY_TIMEOUT_SECONDS, TimeUnit.SECONDS, () -> {
             container.execInContainer(

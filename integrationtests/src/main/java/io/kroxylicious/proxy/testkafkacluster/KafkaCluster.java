@@ -10,9 +10,15 @@ import java.util.Map;
 
 public interface KafkaCluster extends AutoCloseable {
     /**
-     * starts the cluster.  use #close will stop it again.
+     * starts the cluster.
      */
     void start();
+
+    /**
+     * stops the cluster.
+     */
+    @Override
+    void close() throws Exception;
 
     /**
      * Gets the bootstrap servers for this cluster
