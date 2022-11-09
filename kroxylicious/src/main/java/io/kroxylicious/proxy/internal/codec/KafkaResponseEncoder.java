@@ -18,4 +18,5 @@ public class KafkaResponseEncoder extends KafkaMessageEncoder<ResponseFrame> {
     protected Logger log() {
         return LOGGER;
     }
+
 }
