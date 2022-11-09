@@ -5,7 +5,6 @@
  */
 package io.kroxylicious.proxy.internal;
 
-import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
 
@@ -19,7 +18,7 @@ public class AuthenticationEvent {
 
     public AuthenticationEvent(String authorizationId, Map<String, Object> negotiatedProperties) {
         this.authorizationId = authorizationId;
-        this.negotiatedProperties = Collections.unmodifiableMap(negotiatedProperties);
+        this.negotiatedProperties = Map.copyOf(negotiatedProperties);
     }
 
     /**

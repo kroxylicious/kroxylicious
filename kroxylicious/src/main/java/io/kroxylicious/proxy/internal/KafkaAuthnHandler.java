@@ -5,7 +5,6 @@
  */
 package io.kroxylicious.proxy.internal;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -32,12 +31,15 @@ import org.apache.kafka.common.security.authenticator.SaslInternalConfigs;
 import org.apache.kafka.common.security.plain.internals.PlainSaslServerProvider;
 import org.apache.kafka.common.security.scram.internals.ScramMechanism;
 import org.apache.kafka.common.security.scram.internals.ScramSaslServerProvider;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.frame.BareSaslRequest;
 import io.kroxylicious.proxy.frame.BareSaslResponse;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 
@@ -75,6 +77,8 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
         ScramSaslServerProvider.initialize();
     }
 
+    private static final Logger LOG = LoggerFactory.getLogger(KafkaAuthnHandler.class);
+
     /**
      * Represents a state in the {@link KafkaAuthnHandler} state machine.
      * <pre><code>
@@ -108,23 +112,39 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
     }
 
     public enum SaslMechanism {
-        PLAIN("PLAIN", null),
+        PLAIN("PLAIN", null) {
+            @Override
+            public Map<String, Object> negotiatedProperties(SaslServer saslServer) {
+                return Map.of();
+            }
+        },
         SCRAM_SHA_256("SCRAM-SHA-256",
-                ScramMechanism.SCRAM_SHA_256,
-                SaslInternalConfigs.CREDENTIAL_LIFETIME_MS_SASL_NEGOTIATED_PROPERTY_KEY),
-        SCRAM_SHA_512("SCRAM-SHA-512", ScramMechanism.SCRAM_SHA_512,
-                SaslInternalConfigs.CREDENTIAL_LIFETIME_MS_SASL_NEGOTIATED_PROPERTY_KEY);
+                ScramMechanism.SCRAM_SHA_256) {
+            @Override
+            public Map<String, Object> negotiatedProperties(SaslServer saslServer) {
+                Object lifetime = saslServer.getNegotiatedProperty(SaslInternalConfigs.CREDENTIAL_LIFETIME_MS_SASL_NEGOTIATED_PROPERTY_KEY);
+                return lifetime == null
+                        ? Map.of()
+                        : Map.of(SaslInternalConfigs.CREDENTIAL_LIFETIME_MS_SASL_NEGOTIATED_PROPERTY_KEY, lifetime);
+            }
+        },
+        SCRAM_SHA_512("SCRAM-SHA-512", ScramMechanism.SCRAM_SHA_512) {
+            @Override
+            public Map<String, Object> negotiatedProperties(SaslServer saslServer) {
+                Object lifetime = saslServer.getNegotiatedProperty(SaslInternalConfigs.CREDENTIAL_LIFETIME_MS_SASL_NEGOTIATED_PROPERTY_KEY);
+                return lifetime == null
+                        ? Map.of()
+                        : Map.of(SaslInternalConfigs.CREDENTIAL_LIFETIME_MS_SASL_NEGOTIATED_PROPERTY_KEY, lifetime);
+            }
+        };
 
         // TODO support OAUTHBEARER, GSSAPI
         private final String name;
         private final ScramMechanism scramMechanism;
-        private final String[] negotiableProperties;
 
-        private SaslMechanism(String saslName, ScramMechanism scramMechanism,
-                              String... negotiableProperties) {
+        private SaslMechanism(String saslName, ScramMechanism scramMechanism) {
             this.name = saslName;
             this.scramMechanism = scramMechanism;
-            this.negotiableProperties = negotiableProperties;
         }
 
         public String mechanismName() {
@@ -147,9 +167,7 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
             return scramMechanism;
         }
 
-        public String[] negotiableProperties() {
-            return negotiableProperties;
-        }
+        public abstract Map<String, Object> negotiatedProperties(SaslServer saslServer);
     }
 
     // TODO need some way to support SaslAuthenticate v0, which doesn't use Kafka protcol framing at all
@@ -172,17 +190,19 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
     KafkaAuthnHandler(State init,
                       Map<KafkaAuthnHandler.SaslMechanism, AuthenticateCallbackHandler> mechanismHandlers) {
         this.lastSeen = init;
+        LOG.debug("Initial state {}", lastSeen);
         this.mechanismHandlers = mechanismHandlers.entrySet().stream().collect(Collectors.toMap(
                 e -> e.getKey().mechanismName(), Map.Entry::getValue));
         this.enabledMechanisms = List.copyOf(this.mechanismHandlers.keySet());
     }
 
     private InvalidRequestException illegalTransition(State next) {
+        InvalidRequestException e = new InvalidRequestException("Illegal state transition from " + lastSeen + " to " + next);
         lastSeen = State.FAILED;
-        return new InvalidRequestException("Illegal state transition from " + lastSeen + " to " + next);
+        return e;
     }
 
-    private void validateTransition(State next) {
+    private void doTransition(Channel channel, State next) {
         State previous = lastSeen;
         switch (next) {
             case API_VERSIONS:
@@ -221,64 +241,67 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
             default:
                 throw illegalTransition(next);
         }
+        LOG.debug("{}: Transition from {} to {}", channel, lastSeen, next);
         lastSeen = next;
     }
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         if (msg instanceof BareSaslRequest) {
-            var bareSaslRequest = (BareSaslRequest) msg;
-            if (supportsSaslGssApi() && (lastSeen == State.START
-                    || lastSeen == State.API_VERSIONS)) {
-                ctx.writeAndFlush(new BareSaslResponse(doEvaluateResponse(ctx, bareSaslRequest.bytes())));
-            }
-            else if (lastSeen == State.SASL_HANDSHAKE_v0
-                    || lastSeen == State.UNFRAMED_SASL_AUTHENTICATE) {
-                validateTransition(State.UNFRAMED_SASL_AUTHENTICATE);
-                // delegate to the SASL code to read the bytes directly
-                ctx.writeAndFlush(new BareSaslResponse(doEvaluateResponse(ctx, bareSaslRequest.bytes())));
-            }
-            else {
-                lastSeen = State.FAILED;
-                throw new InvalidRequestException("Bare SASL bytes without GSSAPI support or prior SaslHandshake");
-            }
+            handleBareRequest(ctx, (BareSaslRequest) msg);
         }
         else if (msg instanceof DecodedRequestFrame) {
-            DecodedRequestFrame<?> frame = (DecodedRequestFrame<?>) msg;
-            {
-                switch (frame.apiKey()) {
-                    case API_VERSIONS:
-                        validateTransition(State.API_VERSIONS);
-                        ctx.fireChannelRead(frame);
-                        return;
-                    case SASL_HANDSHAKE:
-                        validateTransition(frame.apiVersion() == 0 ? State.SASL_HANDSHAKE_v0 : State.SASL_HANDSHAKE_v1_PLUS);
-                        onSaslHandshakeRequest(ctx, (DecodedRequestFrame<SaslHandshakeRequestData>) frame);
-                        return;
-                    case SASL_AUTHENTICATE:
-                        validateTransition(State.FRAMED_SASL_AUTHENTICATE);
-                        onSaslAuthenticateRequest(ctx, (DecodedRequestFrame<SaslAuthenticateRequestData>) frame);
-                        return;
-                    default:
-                        if (lastSeen == State.AUTHN_SUCCESS) {
-                            ctx.fireChannelRead(msg);
-                        }
-                        else {
-                            ctx.writeAndFlush(
-                                    new DecodedResponseFrame<>(
-                                            frame.apiVersion(),
-                                            frame.correlationId(),
-                                            new ResponseHeaderData().setCorrelationId(frame.correlationId()),
-                                            errorResponse(frame, new IllegalSaslStateException("Nope"))
-                                    // TODO add support for session lifetime/reauth
-                                    ));
-                        }
-                }
-            }
+            handleFramedRequest(ctx, (DecodedRequestFrame<?>) msg);
         }
         else {
             throw new IllegalStateException("Unexpected message " + msg.getClass());
         }
+    }
+
+    private void handleFramedRequest(ChannelHandlerContext ctx, DecodedRequestFrame<?> frame) throws SaslException {
+        switch (frame.apiKey()) {
+            case API_VERSIONS:
+                doTransition(ctx.channel(), State.API_VERSIONS);
+                ctx.fireChannelRead(frame);
+                return;
+            case SASL_HANDSHAKE:
+                doTransition(ctx.channel(), frame.apiVersion() == 0 ? State.SASL_HANDSHAKE_v0 : State.SASL_HANDSHAKE_v1_PLUS);
+                onSaslHandshakeRequest(ctx, (DecodedRequestFrame<SaslHandshakeRequestData>) frame);
+                return;
+            case SASL_AUTHENTICATE:
+                doTransition(ctx.channel(), State.FRAMED_SASL_AUTHENTICATE);
+                onSaslAuthenticateRequest(ctx, (DecodedRequestFrame<SaslAuthenticateRequestData>) frame);
+                return;
+            default:
+                if (lastSeen == State.AUTHN_SUCCESS) {
+                    ctx.fireChannelRead(frame);
+                }
+                else {
+                    writeFramedResponse(ctx, frame, errorResponse(frame, new IllegalSaslStateException("Not authenticated")));
+                }
+        }
+    }
+
+    private void handleBareRequest(ChannelHandlerContext ctx, BareSaslRequest msg) throws SaslException {
+        if (supportsSaslGssApi() && (lastSeen == State.START
+                || lastSeen == State.API_VERSIONS)) {
+            doTransition(ctx.channel(), State.UNFRAMED_SASL_AUTHENTICATE);
+            writeBareResponse(ctx, doEvaluateResponse(ctx, msg.bytes()));
+        }
+        else if (lastSeen == State.SASL_HANDSHAKE_v0
+                || lastSeen == State.UNFRAMED_SASL_AUTHENTICATE) {
+            doTransition(ctx.channel(), State.UNFRAMED_SASL_AUTHENTICATE);
+            // delegate to the SASL code to read the bytes directly
+            writeBareResponse(ctx, doEvaluateResponse(ctx, msg.bytes()));
+        }
+        else {
+            lastSeen = State.FAILED;
+            throw new InvalidRequestException("Bare SASL bytes without GSSAPI support or prior SaslHandshake");
+        }
+    }
+
+    private void writeBareResponse(ChannelHandlerContext ctx, byte[] bytes) throws SaslException {
+        ctx.writeAndFlush(new BareSaslResponse(bytes));
     }
 
     private ApiMessage errorResponse(DecodedRequestFrame<?> frame, Throwable error) {
@@ -317,13 +340,10 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
             error = Errors.UNSUPPORTED_SASL_MECHANISM;
         }
 
-        ctx.writeAndFlush(new DecodedResponseFrame<>(
-                data.apiVersion(),
-                data.correlationId(),
-                new ResponseHeaderData().setCorrelationId(data.correlationId()),
-                new SaslHandshakeResponseData()
-                        .setMechanisms(enabledMechanisms)
-                        .setErrorCode(error.code())));
+        SaslHandshakeResponseData body = new SaslHandshakeResponseData()
+                .setMechanisms(enabledMechanisms)
+                .setErrorCode(error.code());
+        writeFramedResponse(ctx, data, body);
 
     }
 
@@ -347,17 +367,22 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
             errorMessage = "An error occurred";
         }
 
+        SaslAuthenticateResponseData body = new SaslAuthenticateResponseData()
+                .setErrorCode(error.code())
+                .setErrorMessage(errorMessage)
+                .setAuthBytes(bytes);
+        // TODO add support for session lifetime
+        writeFramedResponse(ctx, data, body);
+    }
+
+    private static void writeFramedResponse(ChannelHandlerContext ctx,
+                                            DecodedRequestFrame<?> data, ApiMessage body) {
         ctx.writeAndFlush(
                 new DecodedResponseFrame<>(
                         data.apiVersion(),
                         data.correlationId(),
                         new ResponseHeaderData().setCorrelationId(data.correlationId()),
-                        new SaslAuthenticateResponseData()
-                                .setErrorCode(error.code())
-                                .setErrorMessage(errorMessage)
-                                .setAuthBytes(bytes)
-                // TODO add support for session lifetime
-                ));
+                        body));
     }
 
     private boolean supportsSaslGssApi() {
@@ -372,31 +397,29 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
             bytes = saslServer.evaluateResponse(authBytes);
         }
         catch (SaslAuthenticationException e) {
-            validateTransition(State.FAILED);
+            LOG.debug("{}: Authentication failed", ctx.channel());
+            doTransition(ctx.channel(), State.FAILED);
             saslServer.dispose();
             throw e;
         }
         catch (Exception e) {
-            validateTransition(State.FAILED);
+            LOG.debug("{}: Authentication failed", ctx.channel());
+            doTransition(ctx.channel(), State.FAILED);
             saslServer.dispose();
             throw new SaslAuthenticationException(e.getMessage());
         }
 
         if (saslServer.isComplete()) {
-            validateTransition(State.AUTHN_SUCCESS);
-            String authorizationId = saslServer.getAuthorizationID();
-            String[] properties = SaslMechanism.fromMechanismName(saslServer.getMechanismName()).negotiableProperties();
-            Map<String, Object> negotiatedProperty = new HashMap<>((int) (properties.length * 4.0 / 3));
-            for (String property : properties) {
-                Object value = saslServer.getNegotiatedProperty(property);
-                if (value != null) {
-                    negotiatedProperty.put(property, value);
-                }
+            try {
+                String authorizationId = saslServer.getAuthorizationID();
+                var properties = SaslMechanism.fromMechanismName(saslServer.getMechanismName()).negotiatedProperties(saslServer);
+                doTransition(ctx.channel(), State.AUTHN_SUCCESS);
+                LOG.debug("{}: Authentication successful, authorizationId={}, negotiatedProperties={}", ctx.channel(), authorizationId, properties);
+                ctx.fireUserEventTriggered(new AuthenticationEvent(authorizationId, properties));
             }
-            saslServer.dispose();
-            ctx.fireUserEventTriggered(new AuthenticationEvent(authorizationId,
-                    negotiatedProperty));
-
+            finally {
+                saslServer.dispose();
+            }
         }
         return bytes;
     }
