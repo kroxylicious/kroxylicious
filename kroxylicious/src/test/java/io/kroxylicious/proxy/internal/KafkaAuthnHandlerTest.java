@@ -162,85 +162,91 @@ public class KafkaAuthnHandlerTest {
         return result;
     }
 
-    @ParameterizedTest
-    @MethodSource("apiVersions")
-    public void testSaslPlainSuccessfulAuth(RequestVersions versions) {
-        doSaslPlain(versions,
-                "fred", "foo",
-                "fred", "foo");
+    private PlainServerCallbackHandler saslPlainCallbackHandler(String user,
+                                                                String password) {
+        PlainServerCallbackHandler plainServerCallbackHandler = new PlainServerCallbackHandler();
+        plainServerCallbackHandler.configure(Map.of(),
+                SaslMechanism.PLAIN.mechanismName(),
+                List.of(new AppConfigurationEntry(PlainLoginModule.class.getName(),
+                        AppConfigurationEntry.LoginModuleControlFlag.REQUIRED,
+                        Map.of("user_" + user, password))));
+        return plainServerCallbackHandler;
     }
 
-    @ParameterizedTest
-    @MethodSource("apiVersions")
-    public void testSaslPlainWrongPassword(RequestVersions versions) {
-        doSaslPlain(versions,
-                "fred", "foo",
-                "fred", "bar");
-    }
-
-    @ParameterizedTest
-    @MethodSource("apiVersions")
-    public void testSaslPlainUnknownUser(RequestVersions versions) {
-        doSaslPlain(versions,
-                "fred", "foo",
-                "bob", "foo");
-    }
-
-    private void doSaslPlain(
-                             RequestVersions versions,
-                             String configuredUser,
-                             String configuredPassword,
-                             String authenticatingUser,
-                             String authenticatingPassword) {
-
-        buildChannel(Map.of(KafkaAuthnHandler.SaslMechanism.PLAIN, saslPlainCallbackHandler(configuredUser, configuredPassword)));
-
-        if (versions.sendApiVersions()) {
-            // ApiVersions should propagate
-            doSendApiVersions(versions);
-
-            // We don't expect an ApiVersions response, because there is no handler in the pipeline
-            // which will send one
-        }
-
-        // Other requests should be denied prior to successful authentication
-        assertMetadataDenied();
-
-        if (versions.sendHandshake()) {
-            doSendHandshake("PLAIN", versions);
-        }
-
-        final boolean expectSuccess = configuredUser.equals(authenticatingUser)
-                && configuredPassword.equals(authenticatingPassword)
-                && (versions.useBare() && versions.expectValidBareAuthenticateRequest()
-                        && !versions.expectGssUnsupported() || !versions.useBare() && versions.expectValidFramedAuthenticateRequest());
-        // Prior to KIP-152 and the use of SaslAuthenticate responses
-        // there was no way to communicate failure back to clients so the server-size
-        // SASL code had the throw
-        final boolean expectException = versions.useBare();
-        byte[] saslBytes = (authenticatingUser + "\0" + authenticatingUser + "\0" + authenticatingPassword).getBytes(StandardCharsets.UTF_8);
+    private ScramServerCallbackHandler saslScramShaCallbackHandler(SaslMechanism saslMechanism,
+                                                                   String configuredUser, String configuredPassword) {
+        CredentialCache.Cache<ScramCredential> credentialCache = new CredentialCache.Cache<>(ScramCredential.class);
+        ScramCredential credential;
         try {
-            byte[] responseBytes = doSendAuthenticate(versions, expectSuccess, expectException, saslBytes);
-            if (responseBytes != null) {
-                assertEquals(0, responseBytes.length);
+            credential = new ScramFormatter(saslMechanism.scramMechanism()).generateCredential(configuredPassword, 4096);
+        }
+        catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
+        credentialCache.put(configuredUser, credential);
+        ScramServerCallbackHandler callbackHandler = new ScramServerCallbackHandler(credentialCache, new DelegationTokenCache(List.of(saslMechanism.mechanismName())));
+        callbackHandler.configure(null, saslMechanism.mechanismName(), null);
+        return callbackHandler;
+    }
+
+    private void writeRequest(short apiVersion, ApiMessage body) {
+        var apiKey = ApiKeys.forId(body.apiKey());
+
+        int downstreamCorrelationId = corrId++;
+
+        short headerVersion = apiKey.requestHeaderVersion(apiVersion);
+        RequestHeaderData header = new RequestHeaderData()
+                .setRequestApiKey(apiKey.id)
+                .setRequestApiVersion(apiVersion)
+                .setClientId("client-id")
+                .setCorrelationId(downstreamCorrelationId);
+
+        correlationManager.putBrokerRequest(body.apiKey(), apiVersion, downstreamCorrelationId, true, new KrpcFilter() {
+            @Override
+            public void onRequest(DecodedRequestFrame<?> decodedFrame, KrpcFilterContext filterContext) {
+
             }
-        }
-        catch (SaslAuthenticationException e) {
-            assertTrue(expectException,
-                    e + " thrown when expecting successful authentication");
-            // TODO assert FAILED state, no event propagated, further transitions impossible
-            // subsequent events not passed upstream
-            assertEquals(KafkaAuthnHandler.State.FAILED, kafkaAuthnHandler.lastSeen);
-            return;
-        }
 
-        if (expectSuccess) {
-            assertAuthnSuccess();
-        }
-        else {
-            assertAuthnFailure(versions);
-        }
+            @Override
+            public void onResponse(DecodedResponseFrame<?> decodedFrame, KrpcFilterContext filterContext) {
 
+            }
+
+            @Override
+            public boolean shouldDeserializeResponse(ApiKeys apiKey, short apiVersion) {
+                return true;
+            }
+        }, new PromiseImpl<>(), true);
+
+        channel.writeInbound(new DecodedRequestFrame<>(apiVersion, corrId, true, header, body));
+    }
+
+    private <T extends ApiMessage> T readResponse(Class<T> cls) {
+        DecodedResponseFrame<?> authenticateResponseFrame = assertInstanceOf(DecodedResponseFrame.class, channel.readOutbound());
+        return assertInstanceOf(cls, authenticateResponseFrame.body());
+    }
+
+    private void doSendApiVersions(Short apiVersionsVersion) {
+        // ApiVersions should propagate
+        ApiVersionsRequestData apiVersionsRequest = new ApiVersionsRequestData()
+                .setClientSoftwareName(CLIENT_SOFTWARE_NAME)
+                .setClientSoftwareVersion(CLIENT_SOFTWARE_VERSION);
+        writeRequest(apiVersionsVersion, apiVersionsRequest);
+
+        var cse = assertInstanceOf(DecodedRequestFrame.class, channel.readInbound(),
+                "Expect DecodedRequestFrame");
+        assertInstanceOf(ApiVersionsRequestData.class, cse.body(),
+                "Expected ApiVersions request to be propagated to next handler");
+        // We don't expect an ApiVersions response, because there is no handler in the pipeline
+        // which will send one
+    }
+
+    private SaslHandshakeResponseData doSendHandshake(SaslMechanism saslMechanism, Short saslHandshakeVersion) {
+        SaslHandshakeRequestData handshakeRequest = new SaslHandshakeRequestData()
+                .setMechanism(saslMechanism.mechanismName());
+        writeRequest(saslHandshakeVersion, handshakeRequest);
+        var handshakeResponseBody = readResponse(SaslHandshakeResponseData.class);
+        return handshakeResponseBody;
     }
 
     private byte[] doSendAuthenticate(RequestVersions versions,
@@ -264,8 +270,6 @@ public class KafkaAuthnHandlerTest {
                 else {
                     assertEquals("Bare SASL bytes without GSSAPI support or prior SaslHandshake", msg);
                 }
-                // TODO assertions that the handler is unusable
-                // return;
                 responseBytes = null;
             }
         }
@@ -288,79 +292,89 @@ public class KafkaAuthnHandlerTest {
             }
             else {
                 assertThrows(InvalidRequestException.class, () -> writeRequest(versions.saslAuthenticateVersion, authenticateRequest));
-                // TODO assertions that the handler is unusable
-                // return;
                 responseBytes = null;
             }
         }
         return responseBytes;
     }
 
-    private PlainServerCallbackHandler saslPlainCallbackHandler(String user,
-                                                                String password) {
-        PlainServerCallbackHandler plainServerCallbackHandler = new PlainServerCallbackHandler();
-        plainServerCallbackHandler.configure(Map.of(),
-                KafkaAuthnHandler.SaslMechanism.PLAIN.mechanismName(),
-                List.of(new AppConfigurationEntry(PlainLoginModule.class.getName(),
-                        AppConfigurationEntry.LoginModuleControlFlag.REQUIRED,
-                        Map.of("user_" + user, password))));
-        return plainServerCallbackHandler;
-    }
+    private void doSaslPlain(
+                             RequestVersions versions,
+                             String configuredUser,
+                             String configuredPassword,
+                             String authenticatingUser,
+                             String authenticatingPassword) {
 
-    @ParameterizedTest
-    @MethodSource("apiVersions")
-    public void testSaslScramSha256SuccessfulAuth(RequestVersions versions)
-            throws Exception {
-        doSaslScramShaAuth(KafkaAuthnHandler.SaslMechanism.SCRAM_SHA_256, versions,
-                "fred", "password",
-                "fred", "password");
-    }
+        buildChannel(Map.of(
+                SaslMechanism.PLAIN, saslPlainCallbackHandler(configuredUser, configuredPassword),
+                SaslMechanism.SCRAM_SHA_256, saslScramShaCallbackHandler(SaslMechanism.SCRAM_SHA_256, configuredUser, configuredPassword),
+                SaslMechanism.SCRAM_SHA_512, saslScramShaCallbackHandler(SaslMechanism.SCRAM_SHA_512, configuredUser, configuredPassword)));
 
-    @ParameterizedTest
-    @MethodSource("apiVersions")
-    public void testSaslScramSha512SuccessfulAuth(RequestVersions versions)
-            throws Exception {
-        doSaslScramShaAuth(KafkaAuthnHandler.SaslMechanism.SCRAM_SHA_512, versions,
-                "fred", "password",
-                "fred", "password");
-    }
+        if (versions.sendApiVersions()) {
+            // ApiVersions should propagate
+            doSendApiVersions(versions.apiVersionsVersion);
 
-    @ParameterizedTest
-    @MethodSource("apiVersions")
-    public void testSaslScramSha512WrongPassword(RequestVersions versions)
-            throws Exception {
-        doSaslScramShaAuth(KafkaAuthnHandler.SaslMechanism.SCRAM_SHA_512, versions,
-                "fred", "password",
-                "fred", "wrongpassword");
-    }
+            // We don't expect an ApiVersions response, because there is no handler in the pipeline
+            // which will send one
+        }
 
-    @ParameterizedTest
-    @MethodSource("apiVersions")
-    public void testSaslScramSha512UnknownUser(RequestVersions versions)
-            throws Exception {
-        doSaslScramShaAuth(KafkaAuthnHandler.SaslMechanism.SCRAM_SHA_512, versions,
-                "fred", "password",
-                "bob", "password");
+        // Other requests should be denied prior to successful authentication
+        assertMetadataDenied();
+
+        if (versions.sendHandshake()) {
+            assertErrorCode(Errors.NONE, doSendHandshake(SaslMechanism.PLAIN, versions.saslHandshakeVersion).errorCode());
+        }
+
+        final boolean expectSuccess = configuredUser.equals(authenticatingUser)
+                && configuredPassword.equals(authenticatingPassword)
+                && (versions.useBare() && versions.expectValidBareAuthenticateRequest()
+                        && !versions.expectGssUnsupported() || !versions.useBare() && versions.expectValidFramedAuthenticateRequest());
+        // Prior to KIP-152 and the use of SaslAuthenticate responses
+        // there was no way to communicate failure back to clients so the server-size
+        // SASL code had the throw
+        final boolean expectException = versions.useBare();
+        byte[] saslBytes = (authenticatingUser + "\0" + authenticatingUser + "\0" + authenticatingPassword).getBytes(StandardCharsets.UTF_8);
+        try {
+            byte[] responseBytes = doSendAuthenticate(versions, expectSuccess, expectException, saslBytes);
+            if (responseBytes != null) {
+                assertEquals(0, responseBytes.length);
+            }
+        }
+        catch (SaslAuthenticationException e) {
+            assertTrue(expectException,
+                    e + " thrown when expecting successful authentication");
+            assertEquals(KafkaAuthnHandler.State.FAILED, kafkaAuthnHandler.lastSeen);
+        }
+
+        if (expectSuccess) {
+            assertAuthnSuccess();
+        }
+        else {
+            assertAuthnFailure(versions);
+        }
     }
 
     private void doSaslScramShaAuth(
-                                    KafkaAuthnHandler.SaslMechanism saslMechanism,
+                                    SaslMechanism saslMechanism,
                                     RequestVersions versions,
                                     String configuredUser, String configuredPassword,
                                     String authenticatingUser, String authenticatingPassword)
             throws Exception {
 
-        buildChannel(Map.of(saslMechanism, saslScramShaCallbackHandler(saslMechanism, configuredUser, configuredPassword)));
+        buildChannel(Map.of(
+                SaslMechanism.PLAIN, saslPlainCallbackHandler(configuredUser, configuredPassword),
+                SaslMechanism.SCRAM_SHA_256, saslScramShaCallbackHandler(SaslMechanism.SCRAM_SHA_256, configuredUser, configuredPassword),
+                SaslMechanism.SCRAM_SHA_512, saslScramShaCallbackHandler(SaslMechanism.SCRAM_SHA_512, configuredUser, configuredPassword)));
 
         if (versions.sendApiVersions()) {
-            doSendApiVersions(versions);
+            doSendApiVersions(versions.apiVersionsVersion);
         }
 
         // Other requests should be denied
         assertMetadataDenied();
 
         if (versions.sendHandshake()) {
-            doSendHandshake(saslMechanism.mechanismName(), versions);
+            assertErrorCode(Errors.NONE, doSendHandshake(saslMechanism, versions.saslHandshakeVersion).errorCode());
         }
 
         final boolean expectFirstMessageSuccess = configuredUser.equals(authenticatingUser)
@@ -401,8 +415,6 @@ public class KafkaAuthnHandlerTest {
         catch (SaslAuthenticationException e) {
             assertTrue(expectException,
                     e + " thrown when expecting successful authentication");
-            // TODO assert FAILED state, no event propagated, further transitions impossible
-            // subsequent events not passed upstream
             assertEquals(KafkaAuthnHandler.State.FAILED, kafkaAuthnHandler.lastSeen);
         }
 
@@ -451,14 +463,6 @@ public class KafkaAuthnHandlerTest {
         assertInstanceOf(MetadataRequestData.class, followingFrame.body());
     }
 
-    private void doSendHandshake(String saslMechanism, RequestVersions versions) {
-        SaslHandshakeRequestData handshakeRequest = new SaslHandshakeRequestData()
-                .setMechanism(saslMechanism);
-        writeRequest(versions.saslHandshakeVersion, handshakeRequest);
-        var handshakeResponseBody = readResponse(SaslHandshakeResponseData.class);
-        assertErrorCode(Errors.NONE, handshakeResponseBody.errorCode());
-    }
-
     private static void assertErrorCode(Errors error, short errorCode) {
         assertEquals(error, Errors.forCode(errorCode));
     }
@@ -474,78 +478,76 @@ public class KafkaAuthnHandlerTest {
         assertErrorCode(Errors.ILLEGAL_SASL_STATE, metadataResponse1.topics().iterator().next().errorCode());
     }
 
-    private void doSendApiVersions(RequestVersions versions) {
-        // ApiVersions should propagate
-        ApiVersionsRequestData apiVersionsRequest = new ApiVersionsRequestData()
-                .setClientSoftwareName(CLIENT_SOFTWARE_NAME)
-                .setClientSoftwareVersion(CLIENT_SOFTWARE_VERSION);
-        writeRequest(versions.apiVersionsVersion, apiVersionsRequest);
-
-        var cse = assertInstanceOf(DecodedRequestFrame.class, channel.readInbound(),
-                "Expect DecodedRequestFrame");
-        assertInstanceOf(ApiVersionsRequestData.class, cse.body(),
-                "Expected ApiVersions request to be propagated to next handler");
-        // We don't expect an ApiVersions response, because there is no handler in the pipeline
-        // which will send one
+    @ParameterizedTest
+    @MethodSource("apiVersions")
+    public void testSaslPlainSuccessfulAuth(RequestVersions versions) {
+        doSaslPlain(versions,
+                "fred", "foo",
+                "fred", "foo");
     }
 
-    private ScramServerCallbackHandler saslScramShaCallbackHandler(KafkaAuthnHandler.SaslMechanism saslMechanism,
-                                                                   String configuredUser, String configuredPassword) {
-        CredentialCache.Cache<ScramCredential> credentialCache = new CredentialCache.Cache<>(ScramCredential.class);
-        ScramCredential credential;
-        try {
-            credential = new ScramFormatter(saslMechanism.scramMechanism()).generateCredential(configuredPassword, 4096);
-        }
-        catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
-        }
-        credentialCache.put(configuredUser, credential);
-        ScramServerCallbackHandler callbackHandler = new ScramServerCallbackHandler(credentialCache, new DelegationTokenCache(List.of(saslMechanism.mechanismName())));
-        callbackHandler.configure(null, saslMechanism.mechanismName(), null);
-        return callbackHandler;
+    @ParameterizedTest
+    @MethodSource("apiVersions")
+    public void testSaslPlainWrongPassword(RequestVersions versions) {
+        doSaslPlain(versions,
+                "fred", "foo",
+                "fred", "bar");
     }
 
-    private <T extends ApiMessage> T readResponse(Class<T> cls) {
-        DecodedResponseFrame<?> authenticateResponseFrame = assertInstanceOf(DecodedResponseFrame.class, channel.readOutbound());
-        return assertInstanceOf(cls, authenticateResponseFrame.body());
+    @ParameterizedTest
+    @MethodSource("apiVersions")
+    public void testSaslPlainUnknownUser(RequestVersions versions) {
+        doSaslPlain(versions,
+                "fred", "foo",
+                "bob", "foo");
     }
 
-    private void writeRequest(short apiVersion, ApiMessage body) {
-        var apiKey = ApiKeys.forId(body.apiKey());
-
-        int downstreamCorrelationId = corrId++;
-
-        short headerVersion = apiKey.requestHeaderVersion(apiVersion);
-        RequestHeaderData header = new RequestHeaderData()
-                .setRequestApiKey(apiKey.id)
-                .setRequestApiVersion(apiVersion)
-                .setClientId("client-id")
-                .setCorrelationId(downstreamCorrelationId);
-
-        correlationManager.putBrokerRequest(body.apiKey(), apiVersion, downstreamCorrelationId, true, new KrpcFilter() {
-            @Override
-            public void onRequest(DecodedRequestFrame<?> decodedFrame, KrpcFilterContext filterContext) {
-
-            }
-
-            @Override
-            public void onResponse(DecodedResponseFrame<?> decodedFrame, KrpcFilterContext filterContext) {
-
-            }
-
-            @Override
-            public boolean shouldDeserializeResponse(ApiKeys apiKey, short apiVersion) {
-                return true;
-            }
-        }, new PromiseImpl<>(), true);
-
-        channel.writeInbound(new DecodedRequestFrame<>(apiVersion, corrId, true, header, body));
+    @ParameterizedTest
+    @MethodSource("apiVersions")
+    public void testSaslScramSha256SuccessfulAuth(RequestVersions versions)
+            throws Exception {
+        doSaslScramShaAuth(SaslMechanism.SCRAM_SHA_256, versions,
+                "fred", "password",
+                "fred", "password");
     }
 
-    // TODO check the unsuccessful authentication case
-    // TODO check the bad password case
-    // TODO check the scram sha mechanisms
+    @ParameterizedTest
+    @MethodSource("apiVersions")
+    public void testSaslScramSha512SuccessfulAuth(RequestVersions versions)
+            throws Exception {
+        doSaslScramShaAuth(SaslMechanism.SCRAM_SHA_512, versions,
+                "fred", "password",
+                "fred", "password");
+    }
+
+    @ParameterizedTest
+    @MethodSource("apiVersions")
+    public void testSaslScramSha512WrongPassword(RequestVersions versions)
+            throws Exception {
+        doSaslScramShaAuth(SaslMechanism.SCRAM_SHA_512, versions,
+                "fred", "password",
+                "fred", "wrongpassword");
+    }
+
+    @ParameterizedTest
+    @MethodSource("apiVersions")
+    public void testSaslScramSha512UnknownUser(RequestVersions versions)
+            throws Exception {
+        doSaslScramShaAuth(SaslMechanism.SCRAM_SHA_512, versions,
+                "fred", "password",
+                "bob", "password");
+    }
+
+    @Test
+    public void testUnknownMechanism() {
+        buildChannel(Map.of(
+                SaslMechanism.PLAIN, saslPlainCallbackHandler("bob", "pa55word")));
+        var resp = doSendHandshake(SaslMechanism.SCRAM_SHA_256, SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION);
+        assertErrorCode(Errors.UNSUPPORTED_SASL_MECHANISM, resp.errorCode());
+        assertEquals(List.of("PLAIN"), resp.mechanisms());
+    }
+
+    // TODO check that mechanism selection via SaslHandshake actually works
     // TODO check that unexpected state transitions are handled with disconnection
     // TODO check that unknown read type (like ProxyDecodeEvent) propagate to upstream handlers
-    // TODO SaslGssApi case - bare request down wire first
 }
