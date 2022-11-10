@@ -25,7 +25,7 @@ public class SimpleNetFilter implements NetFilter {
     }
 
     @Override
-    public void upstreamBroker(NetFilterContext context) {
-        context.connect(remoteHost, remotePort, filterChainFactory.createFilters());
+    public void selectServer(NetFilterContext context) {
+        context.initiateConnect(remoteHost, remotePort, filterChainFactory.createFilters());
     }
 }

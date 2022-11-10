@@ -139,9 +139,9 @@ class KafkaProxyFrontendHandlerTest {
                 assertNull(ctx.authorizedId());
             }
 
-            ctx.connect(CLUSTER_HOST, CLUSTER_PORT, new KrpcFilter[0]);
+            ctx.initiateConnect(CLUSTER_HOST, CLUSTER_PORT, new KrpcFilter[0]);
             return null;
-        }).when(filter).upstreamBroker(valueCapture.capture());
+        }).when(filter).selectServer(valueCapture.capture());
 
         var handler = new KafkaProxyFrontendHandler(filter, dp, false, false) {
             @Override
@@ -176,7 +176,7 @@ class KafkaProxyFrontendHandlerTest {
             writeRequest(ApiVersionsRequestData.HIGHEST_SUPPORTED_VERSION, new ApiVersionsRequestData()
                     .setClientSoftwareName("foo").setClientSoftwareVersion("1.0.0"));
             assertEquals(State.API_VERSIONS, handler.state());
-            verify(filter, never()).upstreamBroker(handler);
+            verify(filter, never()).selectServer(handler);
         }
 
         if (sendSasl) {
@@ -188,7 +188,7 @@ class KafkaProxyFrontendHandlerTest {
                 // If the pipeline is configured for SASL offload (KafkaAuthnHandler)
                 // then we assume it DOESN'T propagate the SASL frames down the pipeline
                 // and therefore no backend connection happens
-                verify(filter, never()).upstreamBroker(handler);
+                verify(filter, never()).selectServer(handler);
             }
             else {
                 // Simulate the client doing SaslHandshake and SaslAuthentication,
@@ -209,7 +209,7 @@ class KafkaProxyFrontendHandlerTest {
     }
 
     private void handleConnect(NetFilter filter, KafkaProxyFrontendHandler handler) {
-        verify(filter).upstreamBroker(handler);
+        verify(filter).selectServer(handler);
         assertEquals(State.CONNECTED, handler.state());
         assertFalse(inboundChannel.config().isAutoRead(),
                 "Expect inbound autoRead=true, since outbound not yet active");

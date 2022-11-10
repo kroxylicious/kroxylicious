@@ -16,10 +16,10 @@ public interface NetFilter {
     /**
      * Determine the upstream cluster to connect to based on the information
      * provided by the given {@code context},
-     * by invoking {@link NetFilterContext#connect(String, int, KrpcFilter[])}.
+     * by invoking {@link NetFilterContext#initiateConnect(String, int, KrpcFilter[])}.
      * @param context The context.
      */
-    void upstreamBroker(NetFilterContext context);
+    void selectServer(NetFilterContext context);
 
     interface NetFilterContext {
         /**
@@ -61,13 +61,13 @@ public interface NetFilter {
         public String sniHostname();
 
         /**
-         * Connect to the upstream broker at the given {@code host} and {@code port},
+         * Connect to the Kafka server at the given {@code host} and {@code port},
          * using the given protocol filters
          * @param host The host
          * @param port The port
          * @param filters The filters
          */
-        public void connect(String host, int port, KrpcFilter[] filters);
+        public void initiateConnect(String host, int port, KrpcFilter[] filters);
 
         // TODO add API for delayed responses
     }

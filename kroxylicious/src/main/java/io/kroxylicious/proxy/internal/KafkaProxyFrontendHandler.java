@@ -210,7 +210,7 @@ public class KafkaProxyFrontendHandler
                 // Or not for the topic routing case
 
                 // Note filter.upstreamBroker will call back on the connect() method below
-                filter.upstreamBroker(this);
+                filter.selectServer(this);
             }
             else {
                 throw illegalState("Unexpected channelRead() message of " + msg.getClass());
@@ -219,7 +219,7 @@ public class KafkaProxyFrontendHandler
     }
 
     @Override
-    public void connect(String remoteHost, int remotePort, KrpcFilter[] filters) {
+    public void initiateConnect(String remoteHost, int remotePort, KrpcFilter[] filters) {
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("{}: Connecting to backend broker {}:{} using filters {}",
                     inboundCtx.channel().id(), remoteHost, remotePort, Arrays.toString(filters));
