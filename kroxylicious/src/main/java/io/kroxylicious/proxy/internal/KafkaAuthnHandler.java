@@ -319,15 +319,17 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
     @VisibleForTesting
     State lastSeen;
 
-    public KafkaAuthnHandler(Map<KafkaAuthnHandler.SaslMechanism, AuthenticateCallbackHandler> mechanismHandlers) {
-        this(State.START, mechanismHandlers);
+    public KafkaAuthnHandler(Channel ch,
+                             Map<KafkaAuthnHandler.SaslMechanism, AuthenticateCallbackHandler> mechanismHandlers) {
+        this(ch, State.START, mechanismHandlers);
     }
 
     @VisibleForTesting
-    KafkaAuthnHandler(State init,
+    KafkaAuthnHandler(Channel ch,
+                      State init,
                       Map<KafkaAuthnHandler.SaslMechanism, AuthenticateCallbackHandler> mechanismHandlers) {
         this.lastSeen = init;
-        LOG.debug("Initial state {}", lastSeen);
+        LOG.debug("{}: Initial state {}", ch, lastSeen);
         this.mechanismHandlers = mechanismHandlers.entrySet().stream().collect(Collectors.toMap(
                 e -> e.getKey().mechanismName(), Map.Entry::getValue));
         this.enabledMechanisms = List.copyOf(this.mechanismHandlers.keySet());

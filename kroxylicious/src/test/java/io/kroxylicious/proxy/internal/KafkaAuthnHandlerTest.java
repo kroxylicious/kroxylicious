@@ -39,6 +39,7 @@ import org.apache.kafka.common.security.scram.internals.ScramMessages;
 import org.apache.kafka.common.security.scram.internals.ScramServerCallbackHandler;
 import org.apache.kafka.common.security.token.delegation.internals.DelegationTokenCache;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
@@ -48,6 +49,7 @@ import io.kroxylicious.proxy.frame.BareSaslRequest;
 import io.kroxylicious.proxy.frame.BareSaslResponse;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
+import io.kroxylicious.proxy.internal.KafkaAuthnHandler.SaslMechanism;
 import io.kroxylicious.proxy.internal.codec.CorrelationManager;
 import io.kroxylicious.proxy.internal.future.PromiseImpl;
 import io.netty.channel.embedded.EmbeddedChannel;
@@ -70,9 +72,9 @@ public class KafkaAuthnHandlerTest {
     private UserEventCollector userEventCollector;
     private KafkaAuthnHandler kafkaAuthnHandler;
 
-    private void buildChannel(Map<KafkaAuthnHandler.SaslMechanism, AuthenticateCallbackHandler> mechanismHandlers) {
+    private void buildChannel(Map<SaslMechanism, AuthenticateCallbackHandler> mechanismHandlers) {
         channel = new EmbeddedChannel();
-        kafkaAuthnHandler = new KafkaAuthnHandler(
+        kafkaAuthnHandler = new KafkaAuthnHandler(channel,
                 KafkaAuthnHandler.State.START, mechanismHandlers);
         channel.pipeline().addLast(kafkaAuthnHandler);
         userEventCollector = new UserEventCollector();

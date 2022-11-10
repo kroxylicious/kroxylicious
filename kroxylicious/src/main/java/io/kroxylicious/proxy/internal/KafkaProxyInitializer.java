@@ -62,7 +62,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
         if (logFrames) {
             pipeline.addLast("frameLogger", new LoggingHandler("io.kroxylicious.proxy.internal.DownstreamFrameLogger", LogLevel.INFO));
         }
-
+        
         pipeline.addLast("frontendHandler", new KafkaProxyFrontendHandler(remoteHost,
                 remotePort,
                 correlation,
