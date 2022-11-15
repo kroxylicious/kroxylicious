@@ -27,7 +27,6 @@ import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.internal.codec.CorrelationManager;
-import io.kroxylicious.proxy.internal.codec.DecodePredicate;
 import io.kroxylicious.proxy.internal.codec.KafkaRequestEncoder;
 import io.kroxylicious.proxy.internal.codec.KafkaResponseDecoder;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
@@ -70,7 +69,7 @@ public class KafkaProxyFrontendHandler
     private boolean pendingFlushes;
 
     private final NetFilter filter;
-    private final SaslDecodePredicate dp;
+    private final FilterApis apiBitSet;
 
     private AuthenticationEvent authentication;
 
@@ -124,11 +123,11 @@ public class KafkaProxyFrontendHandler
     private HAProxyMessage haProxyMessage;
 
     KafkaProxyFrontendHandler(NetFilter filter,
-                              SaslDecodePredicate dp,
+                              FilterApis apiBitSet,
                               boolean logNetwork,
                               boolean logFrames) {
         this.filter = filter;
-        this.dp = dp;
+        this.apiBitSet = apiBitSet;
         this.logNetwork = logNetwork;
         this.logFrames = logFrames;
     }
@@ -262,7 +261,7 @@ public class KafkaProxyFrontendHandler
                 LOGGER.trace("{}: Outbound connected", inboundCtx.channel().id());
                 // Now we know which filters are to be used we need to update the DecodePredicate
                 // so that the decoder starts decoding the messages that the filters want to intercept
-                dp.setDelegate(DecodePredicate.forFilters(filters));
+                apiBitSet.or(FilterApis.forFilters(filters));
             }
             else {
                 state = State.FAILED;

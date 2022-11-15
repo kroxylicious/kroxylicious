@@ -290,6 +290,7 @@
                     <version>3.0.0-M7</version>
                     <configuration>
                         <skipTests>${skipITs}</skipTests>
+                        <trimStackTrace>false</trimStackTrace>
                     </configuration>
                 </plugin>
                 <plugin>
@@ -323,6 +324,7 @@
                     <version>3.0.0-M5</version>
                     <configuration>
                         <skipTests>${skipUTs}</skipTests>
+                        <trimStackTrace>false</trimStackTrace>
                     </configuration>
                 </plugin>
                 <plugin>

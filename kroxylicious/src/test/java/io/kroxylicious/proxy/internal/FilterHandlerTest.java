@@ -11,7 +11,6 @@ import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.FetchRequestData;
 import org.apache.kafka.common.message.FetchResponseData;
 import org.apache.kafka.common.message.ProduceRequestData;
-import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.junit.jupiter.api.Test;
 
@@ -25,32 +24,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
 
 public class FilterHandlerTest extends FilterHarness {
 
     @Test
     public void testForwardRequest() {
         ApiVersionsRequestFilter filter = (request, context) -> context.forwardRequest(request);
-        buildChannel(filter);
-        var frame = writeRequest(new ApiVersionsRequestData());
-        var propagated = channel.readOutbound();
-        assertEquals(frame, propagated, "Expect it to be the frame that was sent");
-    }
-
-    @Test
-    public void testShouldNotDeserialiseRequest() {
-        ApiVersionsRequestFilter filter = new ApiVersionsRequestFilter() {
-            @Override
-            public boolean shouldDeserializeRequest(ApiKeys apiKey, short apiVersion) {
-                return false;
-            }
-
-            @Override
-            public void onApiVersionsRequest(ApiVersionsRequestData request, KrpcFilterContext context) {
-                fail("Should not be called");
-            }
-        };
         buildChannel(filter);
         var frame = writeRequest(new ApiVersionsRequestData());
         var propagated = channel.readOutbound();
@@ -68,25 +47,6 @@ public class FilterHandlerTest extends FilterHarness {
     @Test
     public void testForwardResponse() {
         ApiVersionsResponseFilter filter = (response, context) -> context.forwardResponse(response);
-        buildChannel(filter);
-        var frame = writeResponse(new ApiVersionsResponseData());
-        var propagated = channel.readInbound();
-        assertEquals(frame, propagated, "Expect it to be the frame that was sent");
-    }
-
-    @Test
-    public void testShouldNotDeserializeResponse() {
-        ApiVersionsResponseFilter filter = new ApiVersionsResponseFilter() {
-            @Override
-            public boolean shouldDeserializeResponse(ApiKeys apiKey, short apiVersion) {
-                return false;
-            }
-
-            @Override
-            public void onApiVersionsResponse(ApiVersionsResponseData response, KrpcFilterContext context) {
-                fail("Should not be called");
-            }
-        };
         buildChannel(filter);
         var frame = writeResponse(new ApiVersionsResponseData());
         var propagated = channel.readInbound();

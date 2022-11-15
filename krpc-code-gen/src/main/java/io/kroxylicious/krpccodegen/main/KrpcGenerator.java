@@ -18,6 +18,7 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -273,7 +274,9 @@ public class KrpcGenerator {
                         throw new RuntimeException("Exception while processing " + inputPath.toString(), e);
                     }
                 })
-                .sorted((m1, m2) -> m1.name().compareTo(m2.name()))
+                .sorted(Comparator
+                        .<MessageSpec, Short> comparing(x -> x.apiKey().orElse((short) -1))
+                        .thenComparing(MessageSpec::type))
                 .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 

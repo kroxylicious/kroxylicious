@@ -46,6 +46,8 @@ import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.Frame;
 import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
 import io.kroxylicious.proxy.frame.RequestFrame;
+import io.kroxylicious.proxy.internal.FilterApis;
+import io.kroxylicious.proxy.internal.FilterType;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 
@@ -53,11 +55,11 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaRequestDecoder.class);
 
-    private final DecodePredicate decodePredicate;
+    private final FilterApis apiBitSet;
 
-    public KafkaRequestDecoder(DecodePredicate decodePredicate) {
+    public KafkaRequestDecoder(FilterApis apiBitSet) {
         super();
-        this.decodePredicate = decodePredicate;
+        this.apiBitSet = apiBitSet;
     }
 
     @Override
@@ -84,10 +86,10 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
 
         RequestHeaderData header = null;
         final ByteBufAccessorImpl accessor;
-        var decodeRequest = decodePredicate.shouldDecodeRequest(apiKey, apiVersion);
-        LOGGER.debug("Decode {}/v{} request? {}, Predicate {} ", apiKey, apiVersion, decodeRequest, decodePredicate);
-        boolean decodeResponse = decodePredicate.shouldDecodeResponse(apiKey, apiVersion);
-        LOGGER.debug("Decode {}/v{} response? {}, Predicate {}", apiKey, apiVersion, decodeResponse, decodePredicate);
+        var decodeRequest = shouldDecode(FilterType.forKey(apiKey, true), apiVersion);
+        LOGGER.debug("Decode {}/v{} request? {}", apiKey, apiVersion, decodeRequest);
+        boolean decodeResponse = shouldDecode(FilterType.forKey(apiKey, false), apiVersion);
+        LOGGER.debug("Decode {}/v{} response? {}", apiKey, apiVersion, decodeResponse);
         short headerVersion = apiKey.requestHeaderVersion(apiVersion);
         if (decodeRequest) {
             if (log().isTraceEnabled()) { // avoid boxing
@@ -126,6 +128,10 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
         }
 
         return frame;
+    }
+
+    private boolean shouldDecode(FilterType type, short apiVersion) {
+        return apiBitSet.consumesApiVersion(type, apiVersion);
     }
 
     private OpaqueRequestFrame opaqueFrame(ByteBuf in,

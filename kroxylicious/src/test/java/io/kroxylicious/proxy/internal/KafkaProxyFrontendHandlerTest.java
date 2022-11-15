@@ -116,7 +116,7 @@ class KafkaProxyFrontendHandlerTest {
                              boolean sendApiVersions,
                              boolean sendSasl) {
 
-        var dp = new SaslDecodePredicate(saslOffloadConfigured);
+        var apiBitSet = KafkaProxyInitializer.saslApisBitSet(saslOffloadConfigured);
         ArgumentCaptor<NetFilter.NetFilterContext> valueCapture = ArgumentCaptor.forClass(NetFilter.NetFilterContext.class);
         var filter = mock(NetFilter.class);
         doAnswer(i -> {
@@ -154,7 +154,7 @@ class KafkaProxyFrontendHandlerTest {
             return null;
         }).when(filter).selectServer(valueCapture.capture());
 
-        var handler = new KafkaProxyFrontendHandler(filter, dp, false, false) {
+        var handler = new KafkaProxyFrontendHandler(filter, apiBitSet, false, false) {
             @Override
             ChannelFuture initConnection(String remoteHost, int remotePort, Bootstrap b) {
                 // This is ugly... basically the EmbeddedChannel doesn't seem to handle the case

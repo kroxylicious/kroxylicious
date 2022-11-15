@@ -21,6 +21,7 @@ import org.apache.kafka.common.errors.SaslAuthenticationException;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.MetadataResponseData;
+import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.SaslAuthenticateRequestData;
 import org.apache.kafka.common.message.SaslAuthenticateResponseData;
@@ -43,8 +44,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
+import io.kroxylicious.proxy.filter.ProduceRequestFilter;
 import io.kroxylicious.proxy.frame.BareSaslRequest;
 import io.kroxylicious.proxy.frame.BareSaslResponse;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
@@ -200,20 +201,10 @@ public class KafkaAuthnHandlerTest {
                 .setClientId("client-id")
                 .setCorrelationId(downstreamCorrelationId);
 
-        correlationManager.putBrokerRequest(body.apiKey(), apiVersion, downstreamCorrelationId, true, new KrpcFilter() {
+        correlationManager.putBrokerRequest(body.apiKey(), apiVersion, downstreamCorrelationId, true, new ProduceRequestFilter() {
             @Override
-            public void onRequest(DecodedRequestFrame<?> decodedFrame, KrpcFilterContext filterContext) {
+            public void onProduceRequest(ProduceRequestData request, KrpcFilterContext context) {
 
-            }
-
-            @Override
-            public void onResponse(DecodedResponseFrame<?> decodedFrame, KrpcFilterContext filterContext) {
-
-            }
-
-            @Override
-            public boolean shouldDeserializeResponse(ApiKeys apiKey, short apiVersion) {
-                return true;
             }
         }, new PromiseImpl<>(), true);
 

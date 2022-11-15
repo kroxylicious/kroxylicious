@@ -15,6 +15,7 @@ import org.apache.kafka.common.protocol.ObjectSerializationCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.kroxylicious.proxy.internal.FilterType;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.AbstractReferenceCounted;
 import io.netty.util.ReferenceCounted;
@@ -43,10 +44,12 @@ public abstract class DecodedFrame<H extends ApiMessage, B extends ApiMessage>
     protected final B body;
 
     private final List<ByteBuf> buffers;
+    private final FilterType type;
     private int headerAndBodyEncodedLength;
     private ObjectSerializationCache serializationCache;
 
-    DecodedFrame(short apiVersion, int correlationId, H header, B body) {
+    DecodedFrame(FilterType type, short apiVersion, int correlationId, H header, B body) {
+        this.type = type;
         this.apiVersion = apiVersion;
         this.correlationId = correlationId;
         this.header = header;
@@ -71,7 +74,7 @@ public abstract class DecodedFrame<H extends ApiMessage, B extends ApiMessage>
     }
 
     public ApiKeys apiKey() {
-        return ApiKeys.forId(body.apiKey());
+        return type.apiKey;
     }
 
     public short apiVersion() {
@@ -134,5 +137,9 @@ public abstract class DecodedFrame<H extends ApiMessage, B extends ApiMessage>
     @Override
     protected void deallocate() {
         buffers.forEach(ByteBuf::release);
+    }
+
+    public final FilterType type() {
+        return type;
     }
 }

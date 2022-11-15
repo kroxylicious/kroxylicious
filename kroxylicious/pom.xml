@@ -216,7 +216,7 @@
                         </configuration>
                     </execution>
                     <execution>
-                        <id>generate-request-filters</id>
+                        <id>generate-request-filters-2</id>
                         <goals>
                             <goal>generate-multi</goal>
                         </goals>
@@ -225,9 +225,9 @@
                             <messageSpecDirectory>${project.build.directory}/message-specs/common/message</messageSpecDirectory>
                             <messageSpecFilter>*{Request,Response}.json</messageSpecFilter>
                             <templateDirectory>${project.basedir}/src/main/templates</templateDirectory>
-                            <templateNames>Kproxy/KrpcFilter.ftl</templateNames>
+                            <templateNames>Kproxy/FilterType.ftl,Kproxy/FilterInvokerHandler.ftl</templateNames>
                             <outputFilePattern>${templateName}.java</outputFilePattern>
-                            <outputPackage>io.kroxylicious.proxy.filter</outputPackage>
+                            <outputPackage>io.kroxylicious.proxy.internal</outputPackage>
                             <outputDirectory>${project.build.directory}/generated-sources/krpc</outputDirectory>
                         </configuration>
                     </execution>

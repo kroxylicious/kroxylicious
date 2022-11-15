@@ -6,7 +6,10 @@
 package io.kroxylicious.proxy.internal.filter;
 
 import java.util.Iterator;
+import java.util.Objects;
 import java.util.ServiceLoader;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 import io.kroxylicious.proxy.config.ProxyConfig;
 import io.kroxylicious.proxy.filter.FilterContributor;
@@ -27,16 +30,12 @@ public class FilterContributorManager {
     }
 
     public Class<? extends FilterConfig> getConfigType(String shortName) {
-        Iterator<FilterContributor> it = contributors.iterator();
-        while (it.hasNext()) {
-            FilterContributor contributor = it.next();
-            Class<? extends FilterConfig> configType = contributor.getConfigType(shortName);
-            if (configType != null) {
-                return configType;
-            }
-        }
-
-        throw new IllegalArgumentException("No filter found for name '" + shortName + "'");
+        var s = Stream.concat(Stream.of(new BuiltinFilterContributor()),
+                StreamSupport.stream(contributors.spliterator(), false));
+        return s.map(contributor -> contributor.getConfigType(shortName))
+                .filter(Objects::nonNull)
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("No filter found for name '" + shortName + "'"));
     }
 
     public KrpcFilter getFilter(String shortName, ProxyConfig proxyConfig, FilterConfig filterConfig) {
