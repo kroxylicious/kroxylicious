@@ -31,6 +31,13 @@ import io.kroxylicious.test.kafkacluster.KafkaClusterConfig;
 import static org.junit.platform.commons.util.AnnotationUtils.findAnnotatedFields;
 import static org.junit.platform.commons.util.ReflectionUtils.makeAccessible;
 
+/**
+ * A Junit5 extension that allows declarative injection of a {@link KafkaCluster} into a test
+ * via static or instance field(s) and/or parameters annotated
+ * with {@link BrokerCluster @BrokerCluster}.
+ *
+ * Ssee {@link BrokerCluster @BrokerCluster} for usage examples.
+ */
 public class KafkaClusterExtension implements
         ParameterResolver, BeforeEachCallback,
         BeforeAllCallback {
