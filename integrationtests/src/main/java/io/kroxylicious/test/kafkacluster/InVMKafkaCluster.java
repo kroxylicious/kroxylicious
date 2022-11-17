@@ -28,6 +28,7 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.kroxylicious.test.kafkacluster.KafkaClusterConfig.KafkaEndpoints;
 import kafka.server.KafkaConfig;
 import kafka.server.KafkaRaftServer;
 import kafka.server.KafkaServer;
@@ -58,7 +59,7 @@ public class InVMKafkaCluster implements KafkaCluster {
             var numPorts = clusterConfig.getBrokersNum() * (clusterConfig.isKraftMode() ? 3 : 2) + (clusterConfig.isKraftMode() ? 0 : 1);
             LinkedList<Integer> ports = Utils.preAllocateListeningPorts(numPorts).collect(Collectors.toCollection(LinkedList::new));
 
-            final Supplier<KafkaClusterConfig.KafkaEndpoints.Endpoint> zookeeperEndpointSupplier;
+            final Supplier<KafkaEndpoints.Endpoint> zookeeperEndpointSupplier;
             if (!clusterConfig.isKraftMode()) {
                 var zookeeperPort = ports.pop();
 
@@ -71,7 +72,7 @@ public class InVMKafkaCluster implements KafkaCluster {
                 logDir.toFile().mkdirs();
 
                 zooServer = new ZooKeeperServer(snapshotDir.toFile(), logDir.toFile(), 500);
-                zookeeperEndpointSupplier = () -> new KafkaClusterConfig.KafkaEndpoints.Endpoint("localhost", zookeeperPort);
+                zookeeperEndpointSupplier = () -> new KafkaEndpoints.Endpoint("localhost", zookeeperPort);
             }
             else {
                 zooFactory = null;
@@ -79,7 +80,7 @@ public class InVMKafkaCluster implements KafkaCluster {
                 zookeeperEndpointSupplier = null;
             }
 
-            Supplier<KafkaClusterConfig.KafkaEndpoints> kafkaEndpointsSupplier = () -> new KafkaClusterConfig.KafkaEndpoints() {
+            Supplier<KafkaEndpoints> kafkaEndpointsSupplier = () -> new KafkaEndpoints() {
                 final List<Integer> clientPorts = ports.subList(0, clusterConfig.getBrokersNum());
                 final List<Integer> interBrokerPorts = ports.subList(clusterConfig.getBrokersNum(), 2 * clusterConfig.getBrokersNum());
                 final List<Integer> controllerPorts = ports.subList(clusterConfig.getBrokersNum() * 2, ports.size());
@@ -164,6 +165,11 @@ public class InVMKafkaCluster implements KafkaCluster {
     }
 
     @Override
+    public String getClusterId() {
+        return clusterConfig.clusterId();
+    }
+
+    @Override
     public String getBootstrapServers() {
         return String.join(",", bootstraps);
     }
@@ -171,6 +177,12 @@ public class InVMKafkaCluster implements KafkaCluster {
     @Override
     public Map<String, Object> getKafkaClientConfiguration() {
         return clusterConfig.getConnectConfigForCluster(getBootstrapServers());
+    }
+
+    @Override
+    public Map<String, Object> getKafkaClientConfiguration(String user, String password) {
+        return clusterConfig.getConnectConfigForCluster(getBootstrapServers(),
+                user, password);
     }
 
     @Override

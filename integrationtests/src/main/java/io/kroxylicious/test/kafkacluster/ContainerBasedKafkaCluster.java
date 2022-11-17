@@ -39,6 +39,8 @@ import org.testcontainers.utility.DockerImageName;
 
 import com.github.dockerjava.api.command.InspectContainerResponse;
 
+import io.kroxylicious.test.kafkacluster.KafkaClusterConfig.KafkaEndpoints;
+import io.kroxylicious.test.kafkacluster.KafkaClusterConfig.KafkaEndpoints.Endpoint;
 import lombok.SneakyThrows;
 
 /**
@@ -98,7 +100,7 @@ public class ContainerBasedKafkaCluster implements Startable, KafkaCluster {
                     .withNetworkAliases("zookeeper");
         }
 
-        Supplier<KafkaClusterConfig.KafkaEndpoints> endPointConfigSupplier = () -> new KafkaClusterConfig.KafkaEndpoints() {
+        Supplier<KafkaEndpoints> endPointConfigSupplier = () -> new KafkaEndpoints() {
             final List<Integer> ports = Utils.preAllocateListeningPorts(clusterConfig.getBrokersNum()).collect(Collectors.toList());
 
             @Override
@@ -116,7 +118,7 @@ public class ContainerBasedKafkaCluster implements Startable, KafkaCluster {
                 return EndpointPair.builder().bind(new Endpoint("0.0.0.0", 9091)).connect(new Endpoint(String.format("broker-%d", brokerId), 9091)).build();
             }
         };
-        Supplier<KafkaClusterConfig.KafkaEndpoints.Endpoint> zookeeperEndpointSupplier = () -> new KafkaClusterConfig.KafkaEndpoints.Endpoint("zookeeper", ContainerBasedKafkaCluster.ZOOKEEPER_PORT);
+        Supplier<Endpoint> zookeeperEndpointSupplier = () -> new Endpoint("zookeeper", ContainerBasedKafkaCluster.ZOOKEEPER_PORT);
         this.brokers = clusterConfig.getBrokerConfigs(endPointConfigSupplier, zookeeperEndpointSupplier).map(holder -> {
             String netAlias = "broker-" + holder.getBrokerNum();
             KafkaContainer kafkaContainer = new KafkaContainer(this.kafkaImage)
@@ -205,8 +207,19 @@ public class ContainerBasedKafkaCluster implements Startable, KafkaCluster {
     }
 
     @Override
+    public String getClusterId() {
+        return clusterConfig.clusterId();
+    }
+
+    @Override
     public Map<String, Object> getKafkaClientConfiguration() {
         return clusterConfig.getConnectConfigForCluster(getBootstrapServers());
+    }
+
+    @Override
+    public Map<String, Object> getKafkaClientConfiguration(String user, String password) {
+        return clusterConfig.getConnectConfigForCluster(getBootstrapServers(),
+                user, password);
     }
 
     // In kraft mode, currently "Advertised listeners cannot be altered when using a Raft-based metadata quorum", so we

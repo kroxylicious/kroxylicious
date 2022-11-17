@@ -152,18 +152,34 @@ public class KafkaClusterConfig {
     }
 
     protected Map<String, Object> getConnectConfigForCluster(String bootstrapServers) {
+        if (saslMechanism != null) {
+            Map<String, String> users = getUsers();
+            if (!users.isEmpty()) {
+                Map.Entry<String, String> first = users.entrySet().iterator().next();
+                return getConnectConfigForCluster(bootstrapServers, first.getKey(), first.getKey());
+            }
+            else {
+                return getConnectConfigForCluster(bootstrapServers, null, null);
+            }
+        }
+        else {
+            return getConnectConfigForCluster(bootstrapServers, null, null);
+        }
+    }
+
+    protected Map<String, Object> getConnectConfigForCluster(String bootstrapServers, String user, String password) {
         Map<String, Object> kafkaConfig = new HashMap<>();
         String saslMechanism = getSaslMechanism();
         if (saslMechanism != null) {
             kafkaConfig.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SASL_PLAINTEXT");
             kafkaConfig.put(SaslConfigs.SASL_MECHANISM, saslMechanism);
 
-            Map<String, String> users = getUsers();
-            if ("PLAIN".equals(saslMechanism) && !users.isEmpty()) {
-                var first = users.entrySet().iterator().next();
-                kafkaConfig.put(SaslConfigs.SASL_JAAS_CONFIG,
-                        String.format("org.apache.kafka.common.security.plain.PlainLoginModule required username=\"%s\" password=\"%s\";",
-                                first.getKey(), first.getValue()));
+            if ("PLAIN".equals(saslMechanism)) {
+                if (user != null && password != null) {
+                    kafkaConfig.put(SaslConfigs.SASL_JAAS_CONFIG,
+                            String.format("org.apache.kafka.common.security.plain.PlainLoginModule required username=\"%s\" password=\"%s\";",
+                                    user, password));
+                }
             }
             else {
                 throw new IllegalStateException(String.format("unsupported SASL mechanism %s", saslMechanism));
@@ -177,6 +193,10 @@ public class KafkaClusterConfig {
 
     public boolean isKraftMode() {
         return this.getKraftMode() == null || this.getKraftMode();
+    }
+
+    public String clusterId() {
+        return isKraftMode() ? kafkaKraftClusterId : null;
     }
 
     @Builder

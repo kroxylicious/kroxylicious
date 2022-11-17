@@ -3,7 +3,7 @@
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
-package io.kroxylicious.proxy;
+package io.kroxylicious.test.kafkacluster;
 
 import java.time.Duration;
 import java.util.List;
@@ -26,11 +26,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import io.kroxylicious.test.kafkacluster.ContainerBasedKafkaCluster;
-import io.kroxylicious.test.kafkacluster.KafkaCluster;
-import io.kroxylicious.test.kafkacluster.KafkaClusterConfig;
-import io.kroxylicious.test.kafkacluster.KafkaClusterFactory;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;

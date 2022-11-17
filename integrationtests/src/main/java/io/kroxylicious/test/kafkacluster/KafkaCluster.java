@@ -27,6 +27,11 @@ public interface KafkaCluster extends AutoCloseable {
     String getBootstrapServers();
 
     /**
+     * @return The cluster id for KRaft-based clusters, otherwise null;
+     */
+    String getClusterId();
+
+    /**
      * Gets the kafka configuration for making connections to this cluster as required by the
      * {@link org.apache.kafka.clients.admin.AdminClient}, {@link org.apache.kafka.clients.producer.Producer} etc.
      * Details such the bootstrap and SASL configuration are provided automatically.
@@ -35,4 +40,16 @@ public interface KafkaCluster extends AutoCloseable {
      * @return mutable configuration map
      */
     Map<String, Object> getKafkaClientConfiguration();
+
+    /**
+     * Gets the kafka configuration for making connections to this cluster as required by the
+     * {@link org.apache.kafka.clients.admin.AdminClient}, {@link org.apache.kafka.clients.producer.Producer} etc.
+     * Details such the bootstrap and SASL configuration are provided automatically.
+     * The returned map is guaranteed to be mutable and is unique to the caller.
+     *
+     * @param user The user
+     * @param password The password
+     * @return mutable configuration map
+     */
+    Map<String, Object> getKafkaClientConfiguration(String user, String password);
 }
