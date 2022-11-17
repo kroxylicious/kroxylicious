@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.proxy.testkafkacluster;
+package io.kroxylicious.test.kafkacluster;
 
 import java.io.File;
 import java.io.IOException;
@@ -28,8 +28,6 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.kroxylicious.proxy.testkafkacluster.KafkaClusterConfig.ConfigHolder;
-import io.kroxylicious.proxy.testkafkacluster.KafkaClusterConfig.KafkaEndpoints;
 import kafka.server.KafkaConfig;
 import kafka.server.KafkaRaftServer;
 import kafka.server.KafkaServer;
@@ -60,7 +58,7 @@ public class InVMKafkaCluster implements KafkaCluster {
             var numPorts = clusterConfig.getBrokersNum() * (clusterConfig.isKraftMode() ? 3 : 2) + (clusterConfig.isKraftMode() ? 0 : 1);
             LinkedList<Integer> ports = Utils.preAllocateListeningPorts(numPorts).collect(Collectors.toCollection(LinkedList::new));
 
-            final Supplier<KafkaEndpoints.Endpoint> zookeeperEndpointSupplier;
+            final Supplier<KafkaClusterConfig.KafkaEndpoints.Endpoint> zookeeperEndpointSupplier;
             if (!clusterConfig.isKraftMode()) {
                 var zookeeperPort = ports.pop();
 
@@ -73,7 +71,7 @@ public class InVMKafkaCluster implements KafkaCluster {
                 logDir.toFile().mkdirs();
 
                 zooServer = new ZooKeeperServer(snapshotDir.toFile(), logDir.toFile(), 500);
-                zookeeperEndpointSupplier = () -> new KafkaEndpoints.Endpoint("localhost", zookeeperPort);
+                zookeeperEndpointSupplier = () -> new KafkaClusterConfig.KafkaEndpoints.Endpoint("localhost", zookeeperPort);
             }
             else {
                 zooFactory = null;
@@ -81,7 +79,7 @@ public class InVMKafkaCluster implements KafkaCluster {
                 zookeeperEndpointSupplier = null;
             }
 
-            Supplier<KafkaEndpoints> kafkaEndpointsSupplier = () -> new KafkaEndpoints() {
+            Supplier<KafkaClusterConfig.KafkaEndpoints> kafkaEndpointsSupplier = () -> new KafkaClusterConfig.KafkaEndpoints() {
                 final List<Integer> clientPorts = ports.subList(0, clusterConfig.getBrokersNum());
                 final List<Integer> interBrokerPorts = ports.subList(clusterConfig.getBrokersNum(), 2 * clusterConfig.getBrokersNum());
                 final List<Integer> controllerPorts = ports.subList(clusterConfig.getBrokersNum() * 2, ports.size());
@@ -117,7 +115,7 @@ public class InVMKafkaCluster implements KafkaCluster {
     }
 
     @NotNull
-    private Server buildKafkaServer(ConfigHolder c) {
+    private Server buildKafkaServer(KafkaClusterConfig.ConfigHolder c) {
         bootstraps.add(c.getEndpoint());
         KafkaConfig config = buildBrokerConfig(c, tempDirectory);
         Option<String> threadNamePrefix = Option.apply(null);
@@ -137,7 +135,7 @@ public class InVMKafkaCluster implements KafkaCluster {
     }
 
     @NotNull
-    private KafkaConfig buildBrokerConfig(ConfigHolder c, Path tempDirectory) {
+    private KafkaConfig buildBrokerConfig(KafkaClusterConfig.ConfigHolder c, Path tempDirectory) {
         Properties properties = new Properties();
         properties.putAll(c.getProperties());
         Path logsDir = tempDirectory.resolve(String.format("broker-%d", c.getBrokerNum()));

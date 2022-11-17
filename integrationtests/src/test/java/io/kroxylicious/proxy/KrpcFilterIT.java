@@ -33,8 +33,8 @@ import org.junit.jupiter.api.TestInfo;
 import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.internal.filter.ByteBufferTransformation;
-import io.kroxylicious.proxy.testkafkacluster.KafkaClusterConfig;
-import io.kroxylicious.proxy.testkafkacluster.KafkaClusterFactory;
+import io.kroxylicious.test.kafkacluster.KafkaClusterConfig;
+import io.kroxylicious.test.kafkacluster.KafkaClusterFactory;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;

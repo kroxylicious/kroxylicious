@@ -27,10 +27,10 @@ import org.junit.jupiter.api.TestInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.kroxylicious.proxy.testkafkacluster.ContainerBasedKafkaCluster;
-import io.kroxylicious.proxy.testkafkacluster.KafkaCluster;
-import io.kroxylicious.proxy.testkafkacluster.KafkaClusterConfig;
-import io.kroxylicious.proxy.testkafkacluster.KafkaClusterFactory;
+import io.kroxylicious.test.kafkacluster.ContainerBasedKafkaCluster;
+import io.kroxylicious.test.kafkacluster.KafkaCluster;
+import io.kroxylicious.test.kafkacluster.KafkaClusterConfig;
+import io.kroxylicious.test.kafkacluster.KafkaClusterFactory;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;

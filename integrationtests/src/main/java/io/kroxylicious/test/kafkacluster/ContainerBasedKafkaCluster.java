@@ -3,7 +3,7 @@
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
-package io.kroxylicious.proxy.testkafkacluster;
+package io.kroxylicious.test.kafkacluster;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -39,8 +39,6 @@ import org.testcontainers.utility.DockerImageName;
 
 import com.github.dockerjava.api.command.InspectContainerResponse;
 
-import io.kroxylicious.proxy.testkafkacluster.KafkaClusterConfig.KafkaEndpoints;
-import io.kroxylicious.proxy.testkafkacluster.KafkaClusterConfig.KafkaEndpoints.Endpoint;
 import lombok.SneakyThrows;
 
 /**
@@ -100,7 +98,7 @@ public class ContainerBasedKafkaCluster implements Startable, KafkaCluster {
                     .withNetworkAliases("zookeeper");
         }
 
-        Supplier<KafkaEndpoints> endPointConfigSupplier = () -> new KafkaEndpoints() {
+        Supplier<KafkaClusterConfig.KafkaEndpoints> endPointConfigSupplier = () -> new KafkaClusterConfig.KafkaEndpoints() {
             final List<Integer> ports = Utils.preAllocateListeningPorts(clusterConfig.getBrokersNum()).collect(Collectors.toList());
 
             @Override
@@ -118,7 +116,7 @@ public class ContainerBasedKafkaCluster implements Startable, KafkaCluster {
                 return EndpointPair.builder().bind(new Endpoint("0.0.0.0", 9091)).connect(new Endpoint(String.format("broker-%d", brokerId), 9091)).build();
             }
         };
-        Supplier<Endpoint> zookeeperEndpointSupplier = () -> new Endpoint("zookeeper", ContainerBasedKafkaCluster.ZOOKEEPER_PORT);
+        Supplier<KafkaClusterConfig.KafkaEndpoints.Endpoint> zookeeperEndpointSupplier = () -> new KafkaClusterConfig.KafkaEndpoints.Endpoint("zookeeper", ContainerBasedKafkaCluster.ZOOKEEPER_PORT);
         this.brokers = clusterConfig.getBrokerConfigs(endPointConfigSupplier, zookeeperEndpointSupplier).map(holder -> {
             String netAlias = "broker-" + holder.getBrokerNum();
             KafkaContainer kafkaContainer = new KafkaContainer(this.kafkaImage)

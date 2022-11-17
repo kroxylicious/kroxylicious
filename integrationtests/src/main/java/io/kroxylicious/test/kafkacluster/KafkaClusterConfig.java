@@ -3,7 +3,7 @@
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
-package io.kroxylicious.proxy.testkafkacluster;
+package io.kroxylicious.test.kafkacluster;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -22,7 +22,7 @@ import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.config.SaslConfigs;
 import org.junit.jupiter.api.TestInfo;
 
-import io.kroxylicious.proxy.testkafkacluster.KafkaClusterConfig.KafkaEndpoints.Endpoint;
+import io.kroxylicious.test.kafkacluster.KafkaClusterConfig.KafkaEndpoints.Endpoint;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Singular;
