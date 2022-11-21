@@ -404,7 +404,7 @@ public class KafkaProxyFrontendHandler
     }
 
     @Override
-    public String clientAddress() {
+    public String clientHost() {
         if (haProxyMessage != null) {
             return haProxyMessage.sourceAddress();
         }

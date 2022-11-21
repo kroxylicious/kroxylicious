@@ -23,18 +23,23 @@ public interface NetFilter {
 
     interface NetFilterContext {
         /**
-         * @return The address of the client
-         * (possibly not the address of the remote TCP/TLS peer, if any intermediate L4 or
-         * L7 proxy is propagating client connection information).
+         * @return The source host of the client, taking into account source host information
+         * propagated by intermediate proxies.
+         * You can think of this as being like HTTP's {@code X-Forwarded-For} header.
          * @see #srcAddress()
          */
-        public String clientAddress();
+        public String clientHost();
 
+        /**
+         * @return The source port of the client, taking into account source host information
+         * propagated by intermediate proxies.
+         */
         public int clientPort();
 
         /**
-         * @return The address of the remote peer, which may be a proxy or the ultimate client.
-         * @see #clientAddress()
+         * @return The address of the remote TCP peer, which may the ultimate client,
+         * but could be an intermediate proxy.
+         * @see #clientHost()
          */
         public SocketAddress srcAddress();
 

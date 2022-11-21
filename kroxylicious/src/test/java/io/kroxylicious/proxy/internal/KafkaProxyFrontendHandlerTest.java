@@ -124,11 +124,11 @@ class KafkaProxyFrontendHandlerTest {
             assertEquals(sslConfigured ? SNI_HOSTNAME : null, ctx.sniHostname());
             if (haProxyConfigured) {
                 assertEquals("embedded", String.valueOf(ctx.srcAddress()));
-                assertEquals("1.2.3.4", ctx.clientAddress());
+                assertEquals("1.2.3.4", ctx.clientHost());
             }
             else {
                 assertEquals("embedded", String.valueOf(ctx.srcAddress()));
-                assertEquals("embedded", ctx.clientAddress());
+                assertEquals("embedded", ctx.clientHost());
             }
             assertEquals(sendApiVersions ? "foo" : null, ctx.clientSoftwareName());
             assertEquals(sendApiVersions ? "1.0.0" : null, ctx.clientSoftwareVersion());
