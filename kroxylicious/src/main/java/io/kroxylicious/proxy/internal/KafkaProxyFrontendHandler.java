@@ -238,7 +238,7 @@ public class KafkaProxyFrontendHandler
                 .option(ChannelOption.TCP_NODELAY, true);
 
         LOGGER.trace("Connecting to outbound {}:{}", remoteHost, remotePort);
-        ChannelFuture connectFuture = getConnect(remoteHost, remotePort, b);
+        ChannelFuture connectFuture = initConnection(remoteHost, remotePort, b);
         Channel outboundChannel = connectFuture.channel();
         ChannelPipeline pipeline = outboundChannel.pipeline();
 
@@ -270,12 +270,13 @@ public class KafkaProxyFrontendHandler
     }
 
     @VisibleForTesting
-    ChannelFuture getConnect(String remoteHost, int remotePort, Bootstrap b) {
+    ChannelFuture initConnection(String remoteHost, int remotePort, Bootstrap b) {
         return b.connect(remoteHost, remotePort);
     }
 
     private void addFiltersToPipeline(KrpcFilter[] filters, ChannelPipeline pipeline) {
         for (var filter : filters) {
+            // TODO configurable timeout
             pipeline.addFirst(filter.toString(), new FilterHandler(filter, 20000));
         }
     }
@@ -311,6 +312,8 @@ public class KafkaProxyFrontendHandler
      */
     private void writeApiVersionsResponse(ChannelHandlerContext ctx, DecodedRequestFrame<ApiVersionsRequestData> frame) {
         // TODO check the format of the strings using a regex
+        // Needed to reproduce the exact behaviour for how a broker handles this
+        // see org.apache.kafka.common.requests.ApiVersionsRequest#isValid()
         this.clientSoftwareName = frame.body().clientSoftwareName();
         this.clientSoftwareVersion = frame.body().clientSoftwareVersion();
 

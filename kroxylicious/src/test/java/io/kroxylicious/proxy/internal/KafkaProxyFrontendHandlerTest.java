@@ -145,7 +145,7 @@ class KafkaProxyFrontendHandlerTest {
 
         var handler = new KafkaProxyFrontendHandler(filter, dp, false, false) {
             @Override
-            ChannelFuture getConnect(String remoteHost, int remotePort, Bootstrap b) {
+            ChannelFuture initConnection(String remoteHost, int remotePort, Bootstrap b) {
                 // This is ugly... basically the EmbeddedChannel doesn't seem to handle the case
                 // of a handler creating an outgoing connection and ends up
                 // trying to re-register the outbound channel => IllegalStateException
