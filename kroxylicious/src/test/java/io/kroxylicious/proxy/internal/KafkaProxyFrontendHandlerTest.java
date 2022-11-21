@@ -121,7 +121,12 @@ class KafkaProxyFrontendHandlerTest {
         var filter = mock(NetFilter.class);
         doAnswer(i -> {
             NetFilter.NetFilterContext ctx = i.getArgument(0);
-            assertEquals(sslConfigured ? SNI_HOSTNAME : null, ctx.sniHostname());
+            if (sslConfigured) {
+                assertEquals(SNI_HOSTNAME, ctx.sniHostname());
+            }
+            else {
+                assertNull(ctx.sniHostname());
+            }
             if (haProxyConfigured) {
                 assertEquals("embedded", String.valueOf(ctx.srcAddress()));
                 assertEquals("1.2.3.4", ctx.clientHost());
@@ -130,8 +135,14 @@ class KafkaProxyFrontendHandlerTest {
                 assertEquals("embedded", String.valueOf(ctx.srcAddress()));
                 assertEquals("embedded", ctx.clientHost());
             }
-            assertEquals(sendApiVersions ? "foo" : null, ctx.clientSoftwareName());
-            assertEquals(sendApiVersions ? "1.0.0" : null, ctx.clientSoftwareVersion());
+            if (sendApiVersions) {
+                assertEquals("foo", ctx.clientSoftwareName());
+                assertEquals("1.0.0", ctx.clientSoftwareVersion());
+            }
+            else {
+                assertNull(ctx.clientSoftwareName());
+                assertNull(ctx.clientSoftwareVersion());
+            }
             if (saslOffloadConfigured && sendSasl) {
                 assertEquals("alice", ctx.authorizedId());
             }

@@ -23,6 +23,20 @@ class SaslDecodePredicate implements DecodePredicate {
     }
 
     public void setDelegate(DecodePredicate delegate) {
+        /*
+         * This delegate is ugly. The problem it is solving is:
+         *
+         * 1. We want the proxy to avoid deserializing requests and responses "when it doesn't have to"
+         * * So when there isn't a filter which is interested in that request/response API, or API version
+         * * And when the proxy infra itself doesn't need to
+         * 2. With the SASL offload support the proxy itself (when configured) is interested in the SASL APIs.
+         * 3. But it doesn't know, until it's got to the invoking the `NetFilter` impl and that having called
+         * back on the `NetFilterContext`, what protocol filters are to be used.
+         * 4. But it's the `KafkaDecodeFilter` which needs to know about decodability, and that sits in front
+         * of the `KafkaProxyFrontendHandler`, so there's a cyclic dependency.
+         * 5. It's easier to use this delegation pattern than it is to try to reconfigure
+         * the predicate on the `KafkaDecodeFilter`.
+         */
         LOGGER.debug("Setting delegate {}", delegate);
         this.delegate = delegate;
     }

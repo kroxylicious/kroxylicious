@@ -110,8 +110,10 @@ public class KafkaProxyFrontendHandler
      * The current state.
      * Transitions:
      * <code><pre>
-     * ST_START ──→ ST_HA_PROXY ──→ ST_API_VERSIONS ─╭─→ ST_CONNECTING ──→ ST_CONNECTED
-     *     ╰─────────────╰────────────────╰──────────╯      ╰──→ ST_FAILED
+     *    START ──→ HA_PROXY ──→ API_VERSIONS ─╭─→ CONNECTING ──→ CONNECTED ──→ OUTBOUND_ACTIVE
+     *      ╰──────────╰──────────────╰────────╯        |
+     *                                                  |
+     *                                                  ╰──→ FAILED
      * </pre></code>
      * Unexpected state transitions and exceptions also cause a
      * transition to {@link State#FAILED} (via {@link #illegalState(String)}}
@@ -188,7 +190,6 @@ public class KafkaProxyFrontendHandler
                     && ((DecodedRequestFrame<?>) msg).apiKey() == ApiKeys.API_VERSIONS) {
                 // This handler can respond to ApiVersions itself
                 writeApiVersionsResponse(ctx, (DecodedRequestFrame<ApiVersionsRequestData>) msg);
-                // ctx.fireChannelRead(msg);
                 // Request to read the following request
                 ctx.channel().read();
                 state = State.API_VERSIONS;
