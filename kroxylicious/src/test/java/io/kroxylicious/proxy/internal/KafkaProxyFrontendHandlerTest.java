@@ -225,11 +225,12 @@ class KafkaProxyFrontendHandlerTest {
         assertFalse(inboundChannel.config().isAutoRead(),
                 "Expect inbound autoRead=true, since outbound not yet active");
 
-        // Simular the backend handler receiving channel active and telling the frontent handler
+        // Simulate the backend handler receiving channel active and telling the frontent handler
         ChannelHandlerContext outboundContext = outboundChannel.pipeline().context(outboundChannel.pipeline().names().get(0));
         handler.outboundChannelActive(outboundContext);
         outboundChannel.pipeline().fireChannelActive();
         assertTrue(inboundChannel.config().isAutoRead(),
                 "Expect inbound autoRead=true, since outbound now active");
+        assertEquals(State.OUTBOUND_ACTIVE, handler.state());
     }
 }
