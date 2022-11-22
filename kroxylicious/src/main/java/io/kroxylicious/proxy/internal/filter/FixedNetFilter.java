@@ -12,13 +12,13 @@ import io.kroxylicious.proxy.filter.NetFilter;
  * Implementation of {@link NetFilter} that is able to connect to a
  * single cluster, using a single, constant {@link FilterChainFactory}.
  */
-public class SimpleNetFilter implements NetFilter {
+public class FixedNetFilter implements NetFilter {
 
     private final String remoteHost;
     private final int remotePort;
     private final FilterChainFactory filterChainFactory;
 
-    public SimpleNetFilter(String remoteHost, int remotePort, FilterChainFactory filterChainFactory) {
+    public FixedNetFilter(String remoteHost, int remotePort, FilterChainFactory filterChainFactory) {
         this.remoteHost = remoteHost;
         this.remotePort = remotePort;
         this.filterChainFactory = filterChainFactory;
