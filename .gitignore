@@ -7,6 +7,7 @@ target/
 .apt_generated/
 .apt_generated_tests/
 bin/
+certs/
 
 # IntelliJ IDEA specific
 .idea/

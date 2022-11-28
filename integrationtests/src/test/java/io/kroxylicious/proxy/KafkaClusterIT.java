@@ -5,11 +5,7 @@
  */
 package io.kroxylicious.proxy;
 
-import java.time.Duration;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
+import io.kroxylicious.proxy.testkafkacluster.*;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.DescribeClusterResult;
 import org.apache.kafka.clients.admin.KafkaAdminClient;
@@ -21,16 +17,21 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.kroxylicious.proxy.testkafkacluster.ContainerBasedKafkaCluster;
-import io.kroxylicious.proxy.testkafkacluster.KafkaCluster;
-import io.kroxylicious.proxy.testkafkacluster.KafkaClusterConfig;
-import io.kroxylicious.proxy.testkafkacluster.KafkaClusterFactory;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.Duration;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
@@ -97,6 +98,58 @@ public class KafkaClusterIT {
         }
     }
 
+    @Test
+    public void kafkaClusterKraftModeSASL_SSL() throws Exception {
+        try (var cluster = KafkaClusterFactory.create(KafkaClusterConfig.builder()
+                .testInfo(testInfo)
+                .kraftMode(true)
+                .securityProtocol("SASL_SSL")
+                .saslMechanism("PLAIN")
+                .user("guest", "guest")
+                .build())) {
+            cluster.start();
+            verifyRecordRoundTrip(1, cluster);
+        }
+    }
+
+    @Test
+    public void kafkaClusterKraftModeSSL() throws Exception {
+        try (var cluster = KafkaClusterFactory.create(KafkaClusterConfig.builder()
+                .testInfo(testInfo)
+                .kraftMode(true)
+                .securityProtocol("SSL")
+                .build())) {
+            cluster.start();
+            verifyRecordRoundTrip(1, cluster);
+        }
+    }
+
+    @Test
+    public void kafkaClusterZookeeperModeSASL_SSL() throws Exception {
+        try (var cluster = KafkaClusterFactory.create(KafkaClusterConfig.builder()
+                .testInfo(testInfo)
+                .kraftMode(false)
+                .securityProtocol("SASL_SSL")
+                .saslMechanism("PLAIN")
+                .user("guest", "guest")
+                .build())) {
+            cluster.start();
+            verifyRecordRoundTrip(1, cluster);
+        }
+    }
+
+    @Test
+    public void kafkaClusterZookeeperModeSSL() throws Exception {
+        try (var cluster = KafkaClusterFactory.create(KafkaClusterConfig.builder()
+                .testInfo(testInfo)
+                .kraftMode(false)
+                .securityProtocol("SSL")
+                .build())) {
+            cluster.start();
+            verifyRecordRoundTrip(1, cluster);
+        }
+    }
+
     private void verifyRecordRoundTrip(int expected, KafkaCluster cluster) throws Exception {
         var topic = "TOPIC_1";
         var message = "Hello, world!";
@@ -151,5 +204,11 @@ public class KafkaClusterIT {
     @BeforeEach
     void before(TestInfo testInfo) {
         this.testInfo = testInfo;
+    }
+
+    @AfterEach
+    void after() throws IOException {
+        Path filePath = Paths.get(KeytoolCertificateGenerator.getCertLocation());
+        Files.deleteIfExists(filePath);
     }
 }
