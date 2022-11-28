@@ -1,7 +1,9 @@
+/*
+ * Copyright Kroxylicious Authors.
+ *
+ * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package io.kroxylicious.proxy.testkafkacluster;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.nio.file.Files;
@@ -13,6 +15,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class KeytoolCertificateGenerator {
     private static String password;
@@ -37,8 +42,8 @@ public class KeytoolCertificateGenerator {
     }
 
     public void generateSelfSignedCertificateEntry(String email, String domain, String organizationUnit,
-                                                               String organization, String city, String state,
-                                                               String country)
+                                                   String organization, String city, String state,
+                                                   String country)
             throws GeneralSecurityException, IOException {
 
         Path certsPath = Paths.get(certsDirectory);
@@ -78,12 +83,13 @@ public class KeytoolCertificateGenerator {
         final Process process = keytool.start();
         try {
             process.waitFor();
-        } catch (InterruptedException e) {
+        }
+        catch (InterruptedException e) {
             throw new IOException("Keytool execution error");
         }
 
         log.info("Generating certificate using `keytool` using command: " + process.info() + ", parameters: " +
-                        commandParameters);
+                commandParameters);
 
         if (process.exitValue() > 0) {
             final String processError = (new BufferedReader(new InputStreamReader(process.getErrorStream()))).lines()

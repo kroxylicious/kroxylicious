@@ -5,17 +5,6 @@
  */
 package io.kroxylicious.proxy.testkafkacluster;
 
-import io.kroxylicious.proxy.testkafkacluster.KafkaClusterConfig.KafkaEndpoints.Endpoint;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.Singular;
-import lombok.ToString;
-import org.apache.kafka.clients.CommonClientConfigs;
-import org.apache.kafka.common.Uuid;
-import org.apache.kafka.common.config.SaslConfigs;
-import org.apache.kafka.common.security.auth.SecurityProtocol;
-import org.junit.jupiter.api.TestInfo;
-
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.*;
@@ -23,6 +12,18 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
+
+import org.apache.kafka.clients.CommonClientConfigs;
+import org.apache.kafka.common.Uuid;
+import org.apache.kafka.common.config.SaslConfigs;
+import org.apache.kafka.common.security.auth.SecurityProtocol;
+import org.junit.jupiter.api.TestInfo;
+
+import io.kroxylicious.proxy.testkafkacluster.KafkaClusterConfig.KafkaEndpoints.Endpoint;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.Singular;
+import lombok.ToString;
 
 @Builder(toBuilder = true)
 @Getter
@@ -135,12 +136,13 @@ public class KafkaClusterConfig {
                 server.put(String.format("listener.name.%s.plain.sasl.jaas.config", "EXTERNAL".toLowerCase()), plainModuleConfig);
             }
 
-            if (securityProtocol.equals(SecurityProtocol.SSL.toString()) || securityProtocol.equals(SecurityProtocol.SASL_SSL.toString())) {
+            if (securityProtocol != null && securityProtocol.contains("SSL")) {
                 KeytoolCertificateGenerator keytoolCertificateGenerator = new KeytoolCertificateGenerator();
                 try {
-                    keytoolCertificateGenerator.generateSelfSignedCertificateEntry("test@redhat.com", clientEndpoint.getConnect().getHost()
-                            , "KI", "RedHat", null, null, "US");
-                } catch (GeneralSecurityException | IOException e) {
+                    keytoolCertificateGenerator.generateSelfSignedCertificateEntry("test@redhat.com", clientEndpoint.getConnect().getHost(), "KI", "RedHat", null, null,
+                            "US");
+                }
+                catch (GeneralSecurityException | IOException e) {
                     throw new RuntimeException(e);
                 }
                 server.put("ssl.client.auth", "required");
