@@ -5,11 +5,14 @@
  */
 package io.kroxylicious.proxy;
 
-import io.kroxylicious.proxy.testkafkacluster.ContainerBasedKafkaCluster;
-import io.kroxylicious.proxy.testkafkacluster.KafkaCluster;
-import io.kroxylicious.proxy.testkafkacluster.KafkaClusterConfig;
-import io.kroxylicious.proxy.testkafkacluster.KafkaClusterFactory;
-import io.kroxylicious.proxy.testkafkacluster.KeytoolCertificateGenerator;
+import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.Duration;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.DescribeClusterResult;
 import org.apache.kafka.clients.admin.KafkaAdminClient;
@@ -28,13 +31,11 @@ import org.junit.jupiter.api.TestInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.time.Duration;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import io.kroxylicious.proxy.testkafkacluster.ContainerBasedKafkaCluster;
+import io.kroxylicious.proxy.testkafkacluster.KafkaCluster;
+import io.kroxylicious.proxy.testkafkacluster.KafkaClusterConfig;
+import io.kroxylicious.proxy.testkafkacluster.KafkaClusterFactory;
+import io.kroxylicious.proxy.testkafkacluster.KeytoolCertificateGenerator;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
