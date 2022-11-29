@@ -36,6 +36,7 @@ import io.kroxylicious.proxy.testkafkacluster.ContainerBasedKafkaCluster;
 import io.kroxylicious.proxy.testkafkacluster.KafkaCluster;
 import io.kroxylicious.proxy.testkafkacluster.KafkaClusterConfig;
 import io.kroxylicious.proxy.testkafkacluster.KafkaClusterFactory;
+import io.kroxylicious.proxy.testkafkacluster.KeytoolCertificateGenerator;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
