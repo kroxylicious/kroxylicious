@@ -58,7 +58,7 @@ public class KafkaRequestEncoder extends KafkaMessageEncoder<RequestFrame> {
         out.writeInt(upstreamCorrelationId);
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("{}: {} downstream correlation id {} assigned upstream correlation id: {}",
-                    ctx.channel(), ApiKeys.forId(apiKey), downstreamCorrelationId, upstreamCorrelationId);
+                    ctx, ApiKeys.forId(apiKey), downstreamCorrelationId, upstreamCorrelationId);
         }
         out.readerIndex(ri);
         out.writerIndex(wi);

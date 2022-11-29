@@ -27,7 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
-class FilterHandlerTest extends FilterHarness {
+public class FilterHandlerTest extends FilterHarness {
 
     @Test
     public void testForwardRequest() {

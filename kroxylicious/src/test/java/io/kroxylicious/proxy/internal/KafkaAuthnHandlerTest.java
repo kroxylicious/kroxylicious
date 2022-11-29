@@ -154,7 +154,6 @@ public class KafkaAuthnHandlerTest {
         for (Short apiVersionsVersion : rangeClosed(ApiVersionsRequestData.LOWEST_SUPPORTED_VERSION, ApiVersionsRequestData.HIGHEST_SUPPORTED_VERSION)) {
             for (Short handshakeVersion : rangeClosed(SaslHandshakeRequestData.LOWEST_SUPPORTED_VERSION, SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION)) {
                 for (Short authenticateVersion : rangeClosed(SaslHandshakeRequestData.LOWEST_SUPPORTED_VERSION, SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION)) {
-
                     result.add(new Object[]{ new RequestVersions(apiVersionsVersion, handshakeVersion, authenticateVersion) });
                 }
             }
