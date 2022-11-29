@@ -21,7 +21,7 @@ import org.slf4j.LoggerFactory;
 
 public class KeytoolCertificateGenerator {
     private static String password;
-    private static final String certsDirectory = "certs";
+    private static final String certsDirectory = "/tmp/kproxy";
     private static final Path certFilePath = Paths.get(certsDirectory, "kafka.jks");
 
     private static final Logger log = LoggerFactory.getLogger(KeytoolCertificateGenerator.class.getName());

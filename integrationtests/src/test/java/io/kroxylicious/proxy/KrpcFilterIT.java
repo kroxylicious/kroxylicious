@@ -131,26 +131,27 @@ public class KrpcFilterIT {
 
             var proxy = startProxy(config);
 
-            var producer = new KafkaProducer<String, String>(Map.of(
+            try (var producer = new KafkaProducer<String, String>(Map.of(
                     ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
                     ProducerConfig.CLIENT_ID_CONFIG, "shouldPassThroughRecordUnchanged",
                     ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
                     ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
-                    ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000));
-            producer.send(new ProducerRecord<>(TOPIC_1, "my-key", "Hello, world!")).get();
-            producer.close();
+                    ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000))) {
+                producer.send(new ProducerRecord<>(TOPIC_1, "my-key", "Hello, world!")).get();
+            }
 
-            var consumer = new KafkaConsumer<String, String>(Map.of(
+            try (var consumer = new KafkaConsumer<String, String>(Map.of(
                     ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
                     ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
                     ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
                     ConsumerConfig.GROUP_ID_CONFIG, "my-group-id",
-                    ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"));
-            consumer.subscribe(Set.of(TOPIC_1));
-            var records = consumer.poll(Duration.ofSeconds(10));
-            consumer.close();
-            assertEquals(1, records.count());
-            assertEquals("Hello, world!", records.iterator().next().value());
+                    ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
+                consumer.subscribe(Set.of(TOPIC_1));
+                var records = consumer.poll(Duration.ofSeconds(10));
+                consumer.close();
+                assertEquals(1, records.count());
+                assertEquals("Hello, world!", records.iterator().next().value());
+            }
 
             // shutdown the proxy
             proxy.shutdown();

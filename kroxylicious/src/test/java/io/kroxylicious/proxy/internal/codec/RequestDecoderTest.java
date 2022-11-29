@@ -24,7 +24,7 @@ import io.netty.buffer.Unpooled;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-class RequestDecoderTest extends AbstractCodecTest {
+public class RequestDecoderTest extends AbstractCodecTest {
 
     @ParameterizedTest
     @MethodSource("requestApiVersions")
@@ -37,7 +37,7 @@ class RequestDecoderTest extends AbstractCodecTest {
                         AbstractCodecTest::deserializeRequestHeaderUsingKafkaApis,
                         AbstractCodecTest::deserializeApiVersionsRequestUsingKafkaApis,
                         new KafkaRequestDecoder(
-                                (ApiVersionsRequestFilter) (request, context) -> context.forwardRequest(request)),
+                                DecodePredicate.forFilters((ApiVersionsRequestFilter) (request, context) -> context.forwardRequest(request))),
                         DecodedRequestFrame.class,
                         (RequestHeaderData header) -> header),
                 "Unexpected correlation id");
@@ -51,7 +51,7 @@ class RequestDecoderTest extends AbstractCodecTest {
                         ApiKeys.API_VERSIONS::requestHeaderVersion,
                         AbstractCodecTest::exampleRequestHeader,
                         AbstractCodecTest::exampleApiVersionsRequest,
-                        new KafkaRequestDecoder(
+                        new KafkaRequestDecoder(DecodePredicate.forFilters(
                                 new ApiVersionsRequestFilter() {
                                     @Override
                                     public boolean shouldDeserializeRequest(ApiKeys apiKey, short apiVersion) {
@@ -62,7 +62,7 @@ class RequestDecoderTest extends AbstractCodecTest {
                                     public void onApiVersionsRequest(ApiVersionsRequestData request, KrpcFilterContext context) {
                                         context.forwardRequest(request);
                                     }
-                                }),
+                                })),
                         OpaqueRequestFrame.class),
                 "Unexpected correlation id");
     }
@@ -80,7 +80,8 @@ class RequestDecoderTest extends AbstractCodecTest {
 
         var messages = new ArrayList<>();
         new KafkaRequestDecoder(
-                (ApiVersionsRequestFilter) (request, context) -> context.forwardRequest(request)).decode(null, byteBuf, messages);
+                DecodePredicate.forFilters((ApiVersionsRequestFilter) (request, context) -> context.forwardRequest(request)))
+                        .decode(null, byteBuf, messages);
 
         assertEquals(List.of(), messageClasses(messages));
         assertEquals(0, byteBuf.readerIndex());
@@ -97,7 +98,8 @@ class RequestDecoderTest extends AbstractCodecTest {
 
         var messages = new ArrayList<>();
         new KafkaRequestDecoder(
-                (ApiVersionsRequestFilter) (request, context) -> context.forwardRequest(request)).decode(null, byteBuf, messages);
+                DecodePredicate.forFilters((ApiVersionsRequestFilter) (request, context) -> context.forwardRequest(request)))
+                        .decode(null, byteBuf, messages);
 
         assertEquals(List.of(), messageClasses(messages));
         assertEquals(expectRead, byteBuf.readerIndex());
@@ -138,7 +140,8 @@ class RequestDecoderTest extends AbstractCodecTest {
 
         var messages = new ArrayList<>();
         new KafkaRequestDecoder(
-                (ApiVersionsRequestFilter) (request, context) -> context.forwardRequest(request)).decode(null, byteBuf, messages);
+                DecodePredicate.forFilters((ApiVersionsRequestFilter) (request, context) -> context.forwardRequest(request)))
+                        .decode(null, byteBuf, messages);
 
         assertEquals(List.of(DecodedRequestFrame.class, DecodedRequestFrame.class), messageClasses(messages));
         DecodedRequestFrame frame = (DecodedRequestFrame) messages.get(0);

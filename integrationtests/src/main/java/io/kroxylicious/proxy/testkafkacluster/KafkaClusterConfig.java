@@ -5,17 +5,6 @@
  */
 package io.kroxylicious.proxy.testkafkacluster;
 
-import io.kroxylicious.proxy.testkafkacluster.KafkaClusterConfig.KafkaEndpoints.Endpoint;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.Singular;
-import lombok.ToString;
-import org.apache.kafka.clients.CommonClientConfigs;
-import org.apache.kafka.common.Uuid;
-import org.apache.kafka.common.config.SaslConfigs;
-import org.apache.kafka.common.security.auth.SecurityProtocol;
-import org.junit.jupiter.api.TestInfo;
-
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
@@ -29,6 +18,18 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
+
+import org.apache.kafka.clients.CommonClientConfigs;
+import org.apache.kafka.common.Uuid;
+import org.apache.kafka.common.config.SaslConfigs;
+import org.apache.kafka.common.security.auth.SecurityProtocol;
+import org.junit.jupiter.api.TestInfo;
+
+import io.kroxylicious.proxy.testkafkacluster.KafkaClusterConfig.KafkaEndpoints.Endpoint;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.Singular;
+import lombok.ToString;
 
 @Builder(toBuilder = true)
 @Getter
@@ -82,9 +83,9 @@ public class KafkaClusterConfig {
 
             var externalListenerTransport = securityProtocol == null ? SecurityProtocol.PLAINTEXT.name() : securityProtocol;
 
-            var protocolMap = new TreeMap<>();
-            var listeners = new TreeMap<>();
-            var advertisedListeners = new TreeMap<>();
+            var protocolMap = new TreeMap<String, String>();
+            var listeners = new TreeMap<String, String>();
+            var advertisedListeners = new TreeMap<String, String>();
             protocolMap.put("EXTERNAL", externalListenerTransport);
             listeners.put("EXTERNAL", clientEndpoint.getBind().toString());
             advertisedListeners.put("EXTERNAL", clientEndpoint.getConnect().toString());
