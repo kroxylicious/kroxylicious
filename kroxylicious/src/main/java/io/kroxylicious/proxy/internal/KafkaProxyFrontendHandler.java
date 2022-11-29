@@ -221,6 +221,9 @@ public class KafkaProxyFrontendHandler
 
     @Override
     public void initiateConnect(String remoteHost, int remotePort, KrpcFilter[] filters) {
+        if (backendHandler != null) {
+            throw new IllegalStateException();
+        }
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("{}: Connecting to backend broker {}:{} using filters {}",
                     inboundCtx.channel().id(), remoteHost, remotePort, Arrays.toString(filters));

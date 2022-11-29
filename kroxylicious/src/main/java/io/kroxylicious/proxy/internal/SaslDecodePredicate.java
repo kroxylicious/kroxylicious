@@ -55,14 +55,14 @@ class SaslDecodePredicate implements DecodePredicate {
             result = handleSasl;
         }
         else {
-            result = delegate == null ? true : delegate.shouldDecodeRequest(apiKey, apiVersion);
+            result = delegate == null || delegate.shouldDecodeRequest(apiKey, apiVersion);
         }
         return result;
     }
 
     @Override
     public boolean shouldDecodeResponse(ApiKeys apiKey, short apiVersion) {
-        return delegate == null ? true : delegate.shouldDecodeResponse(apiKey, apiVersion);
+        return delegate == null || delegate.shouldDecodeResponse(apiKey, apiVersion);
     }
 
     @Override

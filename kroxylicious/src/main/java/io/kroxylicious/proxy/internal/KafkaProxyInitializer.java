@@ -37,7 +37,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
                                  boolean logNetwork,
                                  boolean logFrames) {
         this.haproxyProtocol = haproxyProtocol;
-        this.authnHandlers = authnMechanismHandlers;
+        this.authnHandlers = authnMechanismHandlers != null ? authnMechanismHandlers : Map.of();
         this.netFilter = netFilter;
         this.logNetwork = logNetwork;
         this.logFrames = logFrames;
@@ -60,7 +60,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
             pipeline.addLast("HAProxyMessageDecoder", new HAProxyMessageDecoder());
         }
 
-        var dp = new SaslDecodePredicate(authnHandlers != null && !authnHandlers.isEmpty());
+        var dp = new SaslDecodePredicate(!authnHandlers.isEmpty());
         // The decoder, this only cares about the filters
         // because it needs to know whether to decode requests
         KafkaRequestDecoder decoder = new KafkaRequestDecoder(dp);
