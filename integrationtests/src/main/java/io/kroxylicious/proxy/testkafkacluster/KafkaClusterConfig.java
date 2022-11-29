@@ -5,6 +5,17 @@
  */
 package io.kroxylicious.proxy.testkafkacluster;
 
+import io.kroxylicious.proxy.testkafkacluster.KafkaClusterConfig.KafkaEndpoints.Endpoint;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.Singular;
+import lombok.ToString;
+import org.apache.kafka.clients.CommonClientConfigs;
+import org.apache.kafka.common.Uuid;
+import org.apache.kafka.common.config.SaslConfigs;
+import org.apache.kafka.common.security.auth.SecurityProtocol;
+import org.junit.jupiter.api.TestInfo;
+
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.*;
@@ -12,18 +23,6 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
-
-import org.apache.kafka.clients.CommonClientConfigs;
-import org.apache.kafka.common.Uuid;
-import org.apache.kafka.common.config.SaslConfigs;
-import org.apache.kafka.common.security.auth.SecurityProtocol;
-import org.junit.jupiter.api.TestInfo;
-
-import io.kroxylicious.proxy.testkafkacluster.KafkaClusterConfig.KafkaEndpoints.Endpoint;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.Singular;
-import lombok.ToString;
 
 @Builder(toBuilder = true)
 @Getter
@@ -75,7 +74,7 @@ public class KafkaClusterConfig {
             // - INTERNAL: used for inter-broker communications (always no auth)
             // - CONTROLLER: used for inter-broker controller communications (kraft - always no auth)
 
-            var externalListenerTransport = securityProtocol == null ? SecurityProtocol.PLAINTEXT.toString() : securityProtocol;
+            var externalListenerTransport = securityProtocol == null ? SecurityProtocol.PLAINTEXT.name() : securityProtocol;
 
             var protocolMap = new TreeMap<>();
             var listeners = new TreeMap<>();
@@ -84,7 +83,7 @@ public class KafkaClusterConfig {
             listeners.put("EXTERNAL", clientEndpoint.getBind().toString());
             advertisedListeners.put("EXTERNAL", clientEndpoint.getConnect().toString());
 
-            protocolMap.put("INTERNAL", SecurityProtocol.PLAINTEXT.toString());
+            protocolMap.put("INTERNAL", SecurityProtocol.PLAINTEXT.name());
             listeners.put("INTERNAL", interBrokerEndpoint.getBind().toString());
             advertisedListeners.put("INTERNAL", interBrokerEndpoint.getConnect().toString());
             server.put("inter.broker.listener.name", "INTERNAL");
@@ -97,7 +96,7 @@ public class KafkaClusterConfig {
                         .mapToObj(b -> String.format("%d@%s", b, kafkaEndpoints.getControllerEndpoint(b).getConnect().toString())).collect(Collectors.joining(","));
                 server.put("controller.quorum.voters", quorumVoters);
                 server.put("controller.listener.names", "CONTROLLER");
-                protocolMap.put("CONTROLLER", SecurityProtocol.PLAINTEXT.toString());
+                protocolMap.put("CONTROLLER", SecurityProtocol.PLAINTEXT.name());
 
                 if (brokerNum == 0) {
                     server.put("process.roles", "broker,controller");
@@ -177,7 +176,7 @@ public class KafkaClusterConfig {
             if (securityProtocol.contains("SSL")) {
                 kafkaConfig.put("ssl.truststore.location", KeytoolCertificateGenerator.getCertLocation());
                 kafkaConfig.put("ssl.truststore.password", KeytoolCertificateGenerator.getPassword());
-                if (securityProtocol.equals(SecurityProtocol.SSL.toString())) {
+                if (securityProtocol.equals(SecurityProtocol.SSL.name())) {
                     kafkaConfig.put("ssl.keystore.location", KeytoolCertificateGenerator.getCertLocation());
                     kafkaConfig.put("ssl.keystore.password", KeytoolCertificateGenerator.getPassword());
                     kafkaConfig.put("ssl.key.password", KeytoolCertificateGenerator.getPassword());
@@ -187,7 +186,7 @@ public class KafkaClusterConfig {
 
         if (saslMechanism != null) {
             if (securityProtocol == null) {
-                kafkaConfig.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SASL_PLAINTEXT.toString());
+                kafkaConfig.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SASL_PLAINTEXT.name());
             }
             kafkaConfig.put(SaslConfigs.SASL_MECHANISM, saslMechanism);
 
