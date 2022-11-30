@@ -5,14 +5,11 @@
  */
 package io.kroxylicious.proxy;
 
-import java.io.IOException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.time.Duration;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
+import io.kroxylicious.proxy.testkafkacluster.ContainerBasedKafkaCluster;
+import io.kroxylicious.proxy.testkafkacluster.KafkaCluster;
+import io.kroxylicious.proxy.testkafkacluster.KafkaClusterConfig;
+import io.kroxylicious.proxy.testkafkacluster.KafkaClusterFactory;
+import io.kroxylicious.proxy.testkafkacluster.KeytoolCertificateGenerator;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.DescribeClusterResult;
 import org.apache.kafka.clients.admin.KafkaAdminClient;
@@ -31,11 +28,13 @@ import org.junit.jupiter.api.TestInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.kroxylicious.proxy.testkafkacluster.ContainerBasedKafkaCluster;
-import io.kroxylicious.proxy.testkafkacluster.KafkaCluster;
-import io.kroxylicious.proxy.testkafkacluster.KafkaClusterConfig;
-import io.kroxylicious.proxy.testkafkacluster.KafkaClusterFactory;
-import io.kroxylicious.proxy.testkafkacluster.KeytoolCertificateGenerator;
+import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.Duration;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
@@ -241,9 +240,8 @@ public class KafkaClusterIT {
     }
 
     @AfterEach
-    void after() throws IOException {
+    void after() {
         Path filePath = Paths.get(keytoolCertificateGenerator.getCertLocation());
         filePath.toFile().deleteOnExit();
-        // Files.deleteIfExists(filePath);
     }
 }
