@@ -6,7 +6,6 @@
 package io.kroxylicious.proxy;
 
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
@@ -49,6 +48,7 @@ public class KafkaClusterIT {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaClusterIT.class);
     private TestInfo testInfo;
+    private KeytoolCertificateGenerator keytoolCertificateGenerator;
 
     @Test
     public void kafkaClusterKraftMode() throws Exception {
@@ -131,6 +131,7 @@ public class KafkaClusterIT {
     public void kafkaClusterKraftModeSASL_SSL() throws Exception {
         try (var cluster = KafkaClusterFactory.create(KafkaClusterConfig.builder()
                 .testInfo(testInfo)
+                .keytoolCertificateGenerator(keytoolCertificateGenerator)
                 .kraftMode(true)
                 .securityProtocol("SASL_SSL")
                 .saslMechanism("PLAIN")
@@ -145,6 +146,7 @@ public class KafkaClusterIT {
     public void kafkaClusterKraftModeSSL() throws Exception {
         try (var cluster = KafkaClusterFactory.create(KafkaClusterConfig.builder()
                 .testInfo(testInfo)
+                .keytoolCertificateGenerator(keytoolCertificateGenerator)
                 .kraftMode(true)
                 .securityProtocol("SSL")
                 .build())) {
@@ -157,6 +159,7 @@ public class KafkaClusterIT {
     public void kafkaClusterZookeeperModeSASL_SSL() throws Exception {
         try (var cluster = KafkaClusterFactory.create(KafkaClusterConfig.builder()
                 .testInfo(testInfo)
+                .keytoolCertificateGenerator(keytoolCertificateGenerator)
                 .kraftMode(false)
                 .securityProtocol("SASL_SSL")
                 .saslMechanism("PLAIN")
@@ -171,6 +174,7 @@ public class KafkaClusterIT {
     public void kafkaClusterZookeeperModeSSL() throws Exception {
         try (var cluster = KafkaClusterFactory.create(KafkaClusterConfig.builder()
                 .testInfo(testInfo)
+                .keytoolCertificateGenerator(keytoolCertificateGenerator)
                 .kraftMode(false)
                 .securityProtocol("SSL")
                 .build())) {
@@ -231,13 +235,15 @@ public class KafkaClusterIT {
     }
 
     @BeforeEach
-    void before(TestInfo testInfo) {
+    void before(TestInfo testInfo) throws IOException {
         this.testInfo = testInfo;
+        this.keytoolCertificateGenerator = new KeytoolCertificateGenerator();
     }
 
     @AfterEach
     void after() throws IOException {
-        Path filePath = Paths.get(KeytoolCertificateGenerator.getCertLocation());
-        Files.deleteIfExists(filePath);
+        Path filePath = Paths.get(keytoolCertificateGenerator.getCertLocation());
+        filePath.toFile().deleteOnExit();
+        // Files.deleteIfExists(filePath);
     }
 }

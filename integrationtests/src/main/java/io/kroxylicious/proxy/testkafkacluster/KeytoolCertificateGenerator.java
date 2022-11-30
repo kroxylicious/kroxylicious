@@ -6,10 +6,10 @@
 package io.kroxylicious.proxy.testkafkacluster;
 
 import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.io.IOException;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -24,17 +24,22 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class KeytoolCertificateGenerator {
-    private static String password;
-    private static final String certsDirectory = "/tmp/kproxy";
-    private static final Path certFilePath = Paths.get(certsDirectory, "kafka.jks");
+    private String password;
+    private Path certsDirectory;
+    private Path certFilePath;
+    private final Logger log = LoggerFactory.getLogger(KeytoolCertificateGenerator.class.getName());
 
-    private static final Logger log = LoggerFactory.getLogger(KeytoolCertificateGenerator.class.getName());
+    public KeytoolCertificateGenerator() throws IOException {
+        certsDirectory = Files.createTempDirectory("kproxy");
+        certsDirectory.toFile().deleteOnExit();
+        certFilePath = Paths.get(certsDirectory.toAbsolutePath().toString(), "kafka.jks");
+    }
 
-    public static String getCertLocation() {
+    public String getCertLocation() {
         return certFilePath.toAbsolutePath().toString();
     }
 
-    public static String getPassword() {
+    public String getPassword() {
         if (password == null) {
             password = UUID.randomUUID().toString().replace("-", "");
         }
@@ -49,11 +54,6 @@ public class KeytoolCertificateGenerator {
                                                    String organization, String city, String state,
                                                    String country)
             throws GeneralSecurityException, IOException {
-
-        Path certsPath = Paths.get(certsDirectory);
-        if (Files.notExists(certsPath)) {
-            Files.createDirectory(certsPath);
-        }
 
         KeyStore keyStore = KeyStore.getInstance("JKS");
         if (certFilePath.toFile().exists()) {
@@ -71,7 +71,7 @@ public class KeytoolCertificateGenerator {
         commandParameters.addAll(List.of("-keysize", "2048"));
         commandParameters.addAll(List.of("-sigalg", "SHA256withRSA"));
         commandParameters.addAll(List.of("-storetype", "JKS"));
-        commandParameters.addAll(List.of("-keystore", certFilePath.toString()));
+        commandParameters.addAll(List.of("-keystore", getCertLocation()));
         commandParameters.addAll(List.of("-storepass", getPassword()));
         commandParameters.addAll(List.of("-keypass", getPassword()));
         commandParameters.addAll(

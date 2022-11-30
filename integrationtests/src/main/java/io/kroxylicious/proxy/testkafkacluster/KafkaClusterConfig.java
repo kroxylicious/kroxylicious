@@ -37,11 +37,13 @@ import lombok.ToString;
 public class KafkaClusterConfig {
 
     private TestInfo testInfo;
+    private KeytoolCertificateGenerator keytoolCertificateGenerator;
 
     /**
      * specifies the cluster execution mode.
      */
     private final KafkaClusterExecutionMode execMode;
+
     /**
      * if true, the cluster will be brought up in Kraft-mode
      */
@@ -143,7 +145,9 @@ public class KafkaClusterConfig {
             }
 
             if (securityProtocol != null && securityProtocol.contains("SSL")) {
-                KeytoolCertificateGenerator keytoolCertificateGenerator = new KeytoolCertificateGenerator();
+                if (keytoolCertificateGenerator == null) {
+                    throw new RuntimeException("keytoolCertificateGenerator needs to be initialized when calling KafkaClusterConfig");
+                }
                 try {
                     keytoolCertificateGenerator.generateSelfSignedCertificateEntry("test@redhat.com", clientEndpoint.getConnect().getHost(), "KI", "RedHat", null, null,
                             "US");
@@ -152,11 +156,11 @@ public class KafkaClusterConfig {
                     throw new RuntimeException(e);
                 }
                 server.put("ssl.client.auth", "required");
-                server.put("ssl.truststore.location", KeytoolCertificateGenerator.getCertLocation());
-                server.put("ssl.truststore.password", KeytoolCertificateGenerator.getPassword());
-                server.put("ssl.keystore.location", KeytoolCertificateGenerator.getCertLocation());
-                server.put("ssl.keystore.password", KeytoolCertificateGenerator.getPassword());
-                server.put("ssl.key.password", KeytoolCertificateGenerator.getPassword());
+                server.put("ssl.truststore.location", keytoolCertificateGenerator.getCertLocation());
+                server.put("ssl.truststore.password", keytoolCertificateGenerator.getPassword());
+                server.put("ssl.keystore.location", keytoolCertificateGenerator.getCertLocation());
+                server.put("ssl.keystore.password", keytoolCertificateGenerator.getPassword());
+                server.put("ssl.key.password", keytoolCertificateGenerator.getPassword());
             }
 
             server.put("offsets.topic.replication.factor", Integer.toString(1));
@@ -181,12 +185,12 @@ public class KafkaClusterConfig {
             kafkaConfig.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, securityProtocol);
 
             if (securityProtocol.contains("SSL")) {
-                kafkaConfig.put("ssl.truststore.location", KeytoolCertificateGenerator.getCertLocation());
-                kafkaConfig.put("ssl.truststore.password", KeytoolCertificateGenerator.getPassword());
+                kafkaConfig.put("ssl.truststore.location", keytoolCertificateGenerator.getCertLocation());
+                kafkaConfig.put("ssl.truststore.password", keytoolCertificateGenerator.getPassword());
                 if (securityProtocol.equals(SecurityProtocol.SSL.name())) {
-                    kafkaConfig.put("ssl.keystore.location", KeytoolCertificateGenerator.getCertLocation());
-                    kafkaConfig.put("ssl.keystore.password", KeytoolCertificateGenerator.getPassword());
-                    kafkaConfig.put("ssl.key.password", KeytoolCertificateGenerator.getPassword());
+                    kafkaConfig.put("ssl.keystore.location", keytoolCertificateGenerator.getCertLocation());
+                    kafkaConfig.put("ssl.keystore.password", keytoolCertificateGenerator.getPassword());
+                    kafkaConfig.put("ssl.key.password", keytoolCertificateGenerator.getPassword());
                 }
             }
         }
