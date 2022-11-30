@@ -5,6 +5,8 @@
  */
 package io.kroxylicious.proxy.testkafkacluster;
 
+import java.io.IOException;
+import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -20,6 +22,7 @@ import java.util.stream.Stream;
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.config.SaslConfigs;
+import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.junit.jupiter.api.TestInfo;
 
 import io.kroxylicious.proxy.testkafkacluster.KafkaClusterConfig.KafkaEndpoints.Endpoint;
@@ -34,11 +37,13 @@ import lombok.ToString;
 public class KafkaClusterConfig {
 
     private TestInfo testInfo;
+    private KeytoolCertificateGenerator keytoolCertificateGenerator;
 
     /**
      * specifies the cluster execution mode.
      */
     private final KafkaClusterExecutionMode execMode;
+
     /**
      * if true, the cluster will be brought up in Kraft-mode
      */
@@ -49,6 +54,7 @@ public class KafkaClusterConfig {
      * will be used.
      */
     private final String saslMechanism;
+    private final String securityProtocol;
     @Builder.Default
     private Integer brokersNum = 1;
 
@@ -77,16 +83,16 @@ public class KafkaClusterConfig {
             // - INTERNAL: used for inter-broker communications (always no auth)
             // - CONTROLLER: used for inter-broker controller communications (kraft - always no auth)
 
-            var externalListenerTransport = saslMechanism == null ? "PLAINTEXT" : "SASL_PLAINTEXT";
+            var externalListenerTransport = securityProtocol == null ? SecurityProtocol.PLAINTEXT.name() : securityProtocol;
 
-            var protocolMap = new TreeMap<>();
-            var listeners = new TreeMap<>();
-            var advertisedListeners = new TreeMap<>();
+            var protocolMap = new TreeMap<String, String>();
+            var listeners = new TreeMap<String, String>();
+            var advertisedListeners = new TreeMap<String, String>();
             protocolMap.put("EXTERNAL", externalListenerTransport);
             listeners.put("EXTERNAL", clientEndpoint.getBind().toString());
             advertisedListeners.put("EXTERNAL", clientEndpoint.getConnect().toString());
 
-            protocolMap.put("INTERNAL", "PLAINTEXT");
+            protocolMap.put("INTERNAL", SecurityProtocol.PLAINTEXT.name());
             listeners.put("INTERNAL", interBrokerEndpoint.getBind().toString());
             advertisedListeners.put("INTERNAL", interBrokerEndpoint.getConnect().toString());
             server.put("inter.broker.listener.name", "INTERNAL");
@@ -99,7 +105,7 @@ public class KafkaClusterConfig {
                         .mapToObj(b -> String.format("%d@%s", b, kafkaEndpoints.getControllerEndpoint(b).getConnect().toString())).collect(Collectors.joining(","));
                 server.put("controller.quorum.voters", quorumVoters);
                 server.put("controller.listener.names", "CONTROLLER");
-                protocolMap.put("CONTROLLER", "PLAINTEXT");
+                protocolMap.put("CONTROLLER", SecurityProtocol.PLAINTEXT.name());
 
                 if (brokerNum == 0) {
                     server.put("process.roles", "broker,controller");
@@ -138,6 +144,25 @@ public class KafkaClusterConfig {
                 server.put(String.format("listener.name.%s.plain.sasl.jaas.config", "EXTERNAL".toLowerCase()), plainModuleConfig);
             }
 
+            if (securityProtocol != null && securityProtocol.contains("SSL")) {
+                if (keytoolCertificateGenerator == null) {
+                    throw new RuntimeException("keytoolCertificateGenerator needs to be initialized when calling KafkaClusterConfig");
+                }
+                try {
+                    keytoolCertificateGenerator.generateSelfSignedCertificateEntry("test@redhat.com", clientEndpoint.getConnect().getHost(), "KI", "RedHat", null, null,
+                            "US");
+                }
+                catch (GeneralSecurityException | IOException e) {
+                    throw new RuntimeException(e);
+                }
+                server.put("ssl.client.auth", "required");
+                server.put("ssl.truststore.location", keytoolCertificateGenerator.getCertLocation());
+                server.put("ssl.truststore.password", keytoolCertificateGenerator.getPassword());
+                server.put("ssl.keystore.location", keytoolCertificateGenerator.getCertLocation());
+                server.put("ssl.keystore.password", keytoolCertificateGenerator.getPassword());
+                server.put("ssl.key.password", keytoolCertificateGenerator.getPassword());
+            }
+
             server.put("offsets.topic.replication.factor", Integer.toString(1));
             // 1 partition for the __consumer_offsets_ topic should be enough
             server.put("offsets.topic.num.partitions", Integer.toString(1));
@@ -154,8 +179,26 @@ public class KafkaClusterConfig {
     protected Map<String, Object> getConnectConfigForCluster(String bootstrapServers) {
         Map<String, Object> kafkaConfig = new HashMap<>();
         String saslMechanism = getSaslMechanism();
+        String securityProtocol = getSecurityProtocol();
+
+        if (securityProtocol != null) {
+            kafkaConfig.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, securityProtocol);
+
+            if (securityProtocol.contains("SSL")) {
+                kafkaConfig.put("ssl.truststore.location", keytoolCertificateGenerator.getCertLocation());
+                kafkaConfig.put("ssl.truststore.password", keytoolCertificateGenerator.getPassword());
+                if (securityProtocol.equals(SecurityProtocol.SSL.name())) {
+                    kafkaConfig.put("ssl.keystore.location", keytoolCertificateGenerator.getCertLocation());
+                    kafkaConfig.put("ssl.keystore.password", keytoolCertificateGenerator.getPassword());
+                    kafkaConfig.put("ssl.key.password", keytoolCertificateGenerator.getPassword());
+                }
+            }
+        }
+
         if (saslMechanism != null) {
-            kafkaConfig.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SASL_PLAINTEXT");
+            if (securityProtocol == null) {
+                kafkaConfig.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SASL_PLAINTEXT.name());
+            }
             kafkaConfig.put(SaslConfigs.SASL_MECHANISM, saslMechanism);
 
             Map<String, String> users = getUsers();
