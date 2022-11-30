@@ -5,6 +5,9 @@
  */
 package io.kroxylicious.proxy.testkafkacluster;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.BufferedReader;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -20,17 +23,13 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 public class KeytoolCertificateGenerator {
     private String password;
-    private Path certsDirectory;
-    private Path certFilePath;
+    private final Path certFilePath;
     private final Logger log = LoggerFactory.getLogger(KeytoolCertificateGenerator.class.getName());
 
     public KeytoolCertificateGenerator() throws IOException {
-        certsDirectory = Files.createTempDirectory("kproxy");
+        Path certsDirectory = Files.createTempDirectory("kproxy");
         certsDirectory.toFile().deleteOnExit();
         certFilePath = Paths.get(certsDirectory.toAbsolutePath().toString(), "kafka.jks");
     }
