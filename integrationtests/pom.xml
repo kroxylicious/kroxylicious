@@ -22,6 +22,18 @@
     <dependencies>
         <dependency>
             <groupId>io.kroxylicious</groupId>
+            <artifactId>testing-junit5-extension</artifactId>
+            <version>0.1-SNAPSHOT</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>testing-api</artifactId>
+            <version>0.1-SNAPSHOT</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious</artifactId>
             <version>1.0-SNAPSHOT</version>
             <scope>test</scope>
