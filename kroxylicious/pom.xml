@@ -34,8 +34,17 @@
             <artifactId>netty-common</artifactId>
         </dependency>
         <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
+        <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-buffer</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-codec-http</artifactId>
+            <version>${netty.version}</version>
         </dependency>
         <dependency>
             <groupId>io.netty</groupId>
@@ -78,7 +87,6 @@
             <artifactId>netty-codec-haproxy</artifactId>
             <version>${netty.version}</version>
         </dependency>
-
         <dependency>
             <groupId>org.apache.kafka</groupId>
             <artifactId>kafka-clients</artifactId>

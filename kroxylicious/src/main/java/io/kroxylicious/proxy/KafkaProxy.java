@@ -23,7 +23,10 @@ import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.config.Configuration;
+import io.kroxylicious.proxy.config.admin.AdminHttpConfiguration;
 import io.kroxylicious.proxy.internal.KafkaProxyInitializer;
+import io.kroxylicious.proxy.internal.MeterRegistries;
+import io.kroxylicious.proxy.internal.admin.AdminHttpInitializer;
 import io.kroxylicious.proxy.internal.filter.FixedNetFilter;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
@@ -57,9 +60,11 @@ public final class KafkaProxy {
     private final boolean logFrames;
     private final boolean useIoUring;
     private final FilterChainFactory filterChainFactory;
+    private final AdminHttpConfiguration adminHttpConfig;
     private EventLoopGroup bossGroup;
     private EventLoopGroup workerGroup;
     private Channel acceptorChannel;
+    private Channel metricsChannel;
     private Optional<File> keyStoreFile;
     private Optional<String> keyStorePassword;
 
@@ -78,6 +83,7 @@ public final class KafkaProxy {
         this.logNetwork = config.proxy().logNetwork();
         this.logFrames = config.proxy().logFrames();
         this.useIoUring = config.proxy().useIoUring();
+        this.adminHttpConfig = config.adminHttpConfig();
 
         this.filterChainFactory = new FilterChainFactory(config);
 
@@ -121,6 +127,7 @@ public final class KafkaProxy {
         if (acceptorChannel != null) {
             throw new IllegalStateException("This proxy is already running");
         }
+
         LOGGER.info("Proxying local {} to remote {}",
                 proxyAddress(), brokerAddress());
 
@@ -175,12 +182,14 @@ public final class KafkaProxy {
             channelClass = NioServerSocketChannel.class;
         }
 
+        MeterRegistries meterRegistries = new MeterRegistries();
+        maybeStartMetricsListener(bossGroup, workerGroup, channelClass, meterRegistries);
+
         ServerBootstrap serverBootstrap = new ServerBootstrap().group(bossGroup, workerGroup)
                 .channel(channelClass)
                 .childHandler(initializer)
                 .childOption(ChannelOption.AUTO_READ, false)
                 .childOption(ChannelOption.TCP_NODELAY, true);
-
         ChannelFuture bindFuture;
         if (proxyHost != null) {
             bindFuture = serverBootstrap.bind(proxyHost, proxyPort);
@@ -189,8 +198,21 @@ public final class KafkaProxy {
             bindFuture = serverBootstrap.bind(proxyPort);
         }
         acceptorChannel = bindFuture.sync().channel();
-        //
         return this;
+    }
+
+    private void maybeStartMetricsListener(EventLoopGroup bossGroup,
+                                           EventLoopGroup workerGroup,
+                                           Class<? extends ServerChannel> channelClass,
+                                           MeterRegistries meterRegistries)
+            throws InterruptedException {
+        if (adminHttpConfig != null
+                && adminHttpConfig.getEndpoints().maybePrometheus().isPresent()) {
+            ServerBootstrap metricsBootstrap = new ServerBootstrap().group(bossGroup, workerGroup)
+                    .channel(channelClass)
+                    .childHandler(new AdminHttpInitializer(meterRegistries, adminHttpConfig));
+            metricsChannel = metricsBootstrap.bind(adminHttpConfig.getHost(), adminHttpConfig.getPort()).sync().channel();
+        }
     }
 
     /**
@@ -218,6 +240,7 @@ public final class KafkaProxy {
         bossGroup = null;
         workerGroup = null;
         acceptorChannel = null;
+        metricsChannel = null;
     }
 
 }
