@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.fail;
  * A test harness for {@link KrpcFilter} implementations.
  */
 public abstract class FilterHarness {
+    public static final String TEST_CLIENT = "test-client";
     protected EmbeddedChannel channel;
     private FilterHandler filterHandler;
     private KrpcFilter filter;
@@ -62,7 +63,7 @@ public abstract class FilterHarness {
         header.setCorrelationId(correlationId);
         header.setRequestApiKey(apiKey.id);
         header.setRequestApiVersion(apiKey.latestVersion());
-        header.setClientId("test-client");
+        header.setClientId(TEST_CLIENT);
         var frame = new DecodedRequestFrame<>(apiKey.latestVersion(), correlationId, false, header, data);
         channel.writeOutbound(frame);
         return frame;
