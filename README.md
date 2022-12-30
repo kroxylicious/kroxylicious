@@ -5,7 +5,8 @@ addressing use cases such as multi-tenancy, schema validation, or encryption.
 
 ## Build
 
-Java, version 11 or newer, and Apache Maven are required for building this project.
+Java, version 11 or newer, and [Apache Maven](https://maven.apache.org/download.cgi) are required for building this project.
+
 Build the project like this:
 
 ```
@@ -16,11 +17,11 @@ The running of the tests can be controlled with the following Maven properties:
 
 | property           | description            |
 |--------------------|------------------------|
-| `-DskipUTs=true`   | skip unit tests        |
-| `-DskipITs=true`   | skip integration tests |
-| `-DskipTests=true` | skip all tests         |
+| `-DskipUTs=true`   | skip unit test         |
+| `-DskipITs=true`   | skip integration test  |
+| `-DskipTests=true` | skip all test          |
 
-The kafka environment used by the integrations tests can be _defaulted_ with these two environment variables.
+The kafka environment used by the integrations test can be _defaulted_ with these two environment variables.
 
 | env var                       | default | description                                                                                                                             |
 |-------------------------------|---------|-----------------------------------------------------------------------------------------------------------------------------------------|
@@ -64,7 +65,7 @@ $ java -jar kroxylicious/target/kproxy-1.0-SNAPSHOT.jar
 
 ## Performance Testing
 
-See [benchmarking.md](benchmarking.md) for information on running basic performance tests for this proxy.
+See [benchmarking.md](benchmarking.md) for information on running basic performance test for this proxy.
 
 ## Architecture Monitoring
 
