@@ -72,7 +72,7 @@ public class MultiTenantIT {
     private static final NewTopic NEW_TOPIC_1 = new NewTopic(TOPIC_1, 1, (short) 1);
     private static final String TOPIC_2 = "other-test-topic";
     private static final NewTopic NEW_TOPIC_2 = new NewTopic(TOPIC_2, 1, (short) 1);
-    private static final String PROXY_ADDRESS = "localhost:9192";
+    private static final String PROXY_ADDRESS = "foo.multitenant.kafka:9192";
     private static final String MY_KEY = "my-key";
     private static final String MY_VALUE = "my-value";
     private TestInfo testInfo;
