@@ -11,12 +11,16 @@ public class ProxyConfig {
     private final boolean logNetwork;
     private final boolean logFrames;
     private final boolean useIoUring;
+    private final String keyStoreFile;
+    private final String keyPassword;
 
-    public ProxyConfig(String address, boolean logNetwork, boolean logFrames, boolean useIoUring) {
+    public ProxyConfig(String address, boolean logNetwork, boolean logFrames, boolean useIoUring, String keyStoreFile, String keyPassword) {
         this.address = address;
         this.logNetwork = logNetwork;
         this.logFrames = logFrames;
         this.useIoUring = useIoUring;
+        this.keyStoreFile = keyStoreFile;
+        this.keyPassword = keyPassword;
     }
 
     public String address() {
@@ -33,5 +37,13 @@ public class ProxyConfig {
 
     public boolean useIoUring() {
         return useIoUring;
+    }
+
+    public String keyStoreFile() {
+        return keyStoreFile;
+    }
+
+    public String keyPassword() {
+        return keyPassword;
     }
 }

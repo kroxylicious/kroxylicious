@@ -20,6 +20,7 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.haproxy.HAProxyMessageDecoder;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
+import io.netty.handler.ssl.SslContext;
 
 public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
 
@@ -30,17 +31,20 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
     private final boolean haproxyProtocol;
     private final Map<KafkaAuthnHandler.SaslMechanism, AuthenticateCallbackHandler> authnHandlers;
     private final NetFilter netFilter;
+    private final SslContext sslContext;
 
     public KafkaProxyInitializer(boolean haproxyProtocol,
                                  Map<KafkaAuthnHandler.SaslMechanism, AuthenticateCallbackHandler> authnMechanismHandlers,
                                  NetFilter netFilter,
                                  boolean logNetwork,
-                                 boolean logFrames) {
+                                 boolean logFrames,
+                                 SslContext sslContext) {
         this.haproxyProtocol = haproxyProtocol;
         this.authnHandlers = authnMechanismHandlers != null ? authnMechanismHandlers : Map.of();
         this.netFilter = netFilter;
         this.logNetwork = logNetwork;
         this.logFrames = logFrames;
+        this.sslContext = sslContext;
     }
 
     @Override
@@ -50,6 +54,12 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
         LOGGER.trace("Connection from {} to my address {}", ch.remoteAddress(), ch.localAddress());
 
         ChannelPipeline pipeline = ch.pipeline();
+
+        if (sslContext != null) {
+            LOGGER.debug("Adding SSL handler");
+            pipeline.addLast(sslContext.newHandler(ch.alloc()));
+        }
+
         if (logNetwork) {
             pipeline.addLast("networkLogger", new LoggingHandler("io.kroxylicious.proxy.internal.DownstreamNetworkLogger", LogLevel.INFO));
         }

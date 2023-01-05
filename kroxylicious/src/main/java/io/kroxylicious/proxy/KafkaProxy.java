@@ -5,7 +5,17 @@
  */
 package io.kroxylicious.proxy;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.UnrecoverableKeyException;
+import java.security.cert.CertificateException;
 import java.util.Map;
+
+import javax.net.ssl.KeyManagerFactory;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,6 +38,8 @@ import io.netty.channel.kqueue.KQueueEventLoopGroup;
 import io.netty.channel.kqueue.KQueueServerSocketChannel;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.incubator.channel.uring.IOUring;
 import io.netty.incubator.channel.uring.IOUringEventLoopGroup;
 import io.netty.incubator.channel.uring.IOUringServerSocketChannel;
@@ -47,6 +59,8 @@ public final class KafkaProxy {
     private EventLoopGroup bossGroup;
     private EventLoopGroup workerGroup;
     private Channel acceptorChannel;
+    private File keyStoreFile;
+    private String keyStorePassword;
 
     public KafkaProxy(Configuration config) {
         String proxyAddress = config.proxy().address();
@@ -65,6 +79,13 @@ public final class KafkaProxy {
         this.useIoUring = config.proxy().useIoUring();
 
         this.filterChainFactory = new FilterChainFactory(config);
+
+        if (config.proxy().keyStoreFile() != null) {
+            keyStoreFile = new File(config.proxy().keyStoreFile());
+        }
+        if (config.proxy().keyPassword() != null) {
+            keyStorePassword = config.proxy().keyPassword();
+        }
     }
 
     public String proxyHost() {
@@ -106,13 +127,29 @@ public final class KafkaProxy {
         LOGGER.info("Proxying local {} to remote {}",
                 proxyAddress(), brokerAddress());
 
+        SslContext sslContext = null;
+        if (keyStoreFile != null) {
+            try (var is = new FileInputStream(keyStoreFile)) {
+                var password = keyStorePassword == null ? null : keyStorePassword.toCharArray();
+                var keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
+                keyStore.load(is, password);
+                var keyManagerFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+                keyManagerFactory.init(keyStore, password);
+                sslContext = SslContextBuilder.forServer(keyManagerFactory).build();
+            }
+            catch (KeyStoreException | IOException | NoSuchAlgorithmException | CertificateException | UnrecoverableKeyException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
         KafkaProxyInitializer initializer = new KafkaProxyInitializer(false,
                 Map.of(),
                 new FixedNetFilter(brokerHost,
                         brokerPort,
                         filterChainFactory),
                 logNetwork,
-                logFrames);
+                logFrames,
+                sslContext);
 
         final int availableCores = Runtime.getRuntime().availableProcessors();
 
@@ -141,6 +178,7 @@ public final class KafkaProxy {
             workerGroup = new NioEventLoopGroup(availableCores);
             channelClass = NioServerSocketChannel.class;
         }
+
         ServerBootstrap serverBootstrap = new ServerBootstrap().group(bossGroup, workerGroup)
                 .channel(channelClass)
                 .childHandler(initializer)

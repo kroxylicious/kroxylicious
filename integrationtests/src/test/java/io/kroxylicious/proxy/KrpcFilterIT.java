@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.NewTopic;
@@ -21,6 +22,7 @@ import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.config.SslConfigs;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
@@ -35,6 +37,7 @@ import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.internal.filter.ByteBufferTransformation;
 import io.kroxylicious.proxy.testkafkacluster.KafkaClusterConfig;
 import io.kroxylicious.proxy.testkafkacluster.KafkaClusterFactory;
+import io.kroxylicious.proxy.testkafkacluster.KeytoolCertificateGenerator;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -273,6 +276,92 @@ public class KrpcFilterIT {
                         ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
                         ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
                         ConsumerConfig.GROUP_ID_CONFIG, "my-group-id",
+                        ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
+                    consumer.subscribe(Set.of(TOPIC_1));
+
+                    records1 = consumer.poll(Duration.ofSeconds(100));
+
+                    consumer.subscribe(Set.of(TOPIC_2));
+
+                    records2 = consumer.poll(Duration.ofSeconds(100));
+                }
+                assertEquals(1, records1.count());
+                assertEquals(1, records2.count());
+                assertEquals(List.of(PLAINTEXT, PLAINTEXT),
+                        List.of(records1.iterator().next().value(),
+                                records2.iterator().next().value()));
+
+            }
+            finally {
+                // shutdown the proxy
+                proxy.shutdown();
+            }
+
+        }
+
+    }
+
+    @Test
+    public void proxySslClusterPlain() throws Exception {
+        String proxyAddress = "localhost:9192";
+
+        var certificateGenerator = new KeytoolCertificateGenerator();
+        certificateGenerator.generateSelfSignedCertificateEntry("test@redhat.com", "localhost", "KI", "RedHat", null, null, "US");
+
+        try (var cluster = KafkaClusterFactory.create(KafkaClusterConfig.builder().testInfo(testInfo).build())) {
+            cluster.start();
+            try (var admin = Admin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, cluster.getBootstrapServers()))) {
+                admin.createTopics(List.of(
+                        new NewTopic(TOPIC_1, 1, (short) 1),
+                        new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
+            }
+
+            String config = """
+                    proxy:
+                      address: %s
+                      keyStoreFile: %s
+                      keyPassword: %s
+                    clusters:
+                      demo:
+                        bootstrap_servers: %s
+                    filters:
+                    - type: ApiVersions
+                    - type: BrokerAddress
+                    - type: FetchResponseTransformation
+                      config:
+                        transformation: %s
+                    """.formatted(proxyAddress,
+                    certificateGenerator.getCertLocation(), certificateGenerator.getPassword(),
+                    cluster.getBootstrapServers(), TestDecoder.class.getName());
+
+            var proxy = startProxy(config);
+
+            try {
+
+                try (var producer = new KafkaProducer<String, byte[]>(Map.of(
+                        ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
+                        ProducerConfig.CLIENT_ID_CONFIG, "proxySslClusterPlain",
+                        ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
+                        ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class,
+                        ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000,
+                        CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SSL",
+                        SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, certificateGenerator.getCertLocation(),
+                        SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, certificateGenerator.getPassword()))) {
+
+                    producer.send(new ProducerRecord<>(TOPIC_1, "my-key", TOPIC_1_CIPHERTEXT)).get();
+                    producer.send(new ProducerRecord<>(TOPIC_2, "my-key", TOPIC_2_CIPHERTEXT)).get();
+                }
+
+                ConsumerRecords<String, String> records1;
+                ConsumerRecords<String, String> records2;
+                try (var consumer = new KafkaConsumer<String, String>(Map.of(
+                        ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
+                        ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
+                        ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
+                        ConsumerConfig.GROUP_ID_CONFIG, "my-group-id",
+                        CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SSL",
+                        SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, certificateGenerator.getCertLocation(),
+                        SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, certificateGenerator.getPassword(),
                         ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
                     consumer.subscribe(Set.of(TOPIC_1));
 
