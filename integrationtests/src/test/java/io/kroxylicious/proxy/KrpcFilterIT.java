@@ -23,6 +23,7 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.config.SslConfigs;
+import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
@@ -41,6 +42,8 @@ import io.kroxylicious.proxy.testkafkacluster.KeytoolCertificateGenerator;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class KrpcFilterIT {
 
@@ -310,11 +313,6 @@ public class KrpcFilterIT {
 
         try (var cluster = KafkaClusterFactory.create(KafkaClusterConfig.builder().testInfo(testInfo).build())) {
             cluster.start();
-            try (var admin = Admin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, cluster.getBootstrapServers()))) {
-                admin.createTopics(List.of(
-                        new NewTopic(TOPIC_1, 1, (short) 1),
-                        new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
-            }
 
             String config = """
                     proxy:
@@ -327,64 +325,31 @@ public class KrpcFilterIT {
                     filters:
                     - type: ApiVersions
                     - type: BrokerAddress
-                    - type: FetchResponseTransformation
-                      config:
-                        transformation: %s
                     """.formatted(proxyAddress,
                     certificateGenerator.getCertLocation(), certificateGenerator.getPassword(),
-                    cluster.getBootstrapServers(), TestDecoder.class.getName());
+                    cluster.getBootstrapServers());
 
             var proxy = startProxy(config);
-
             try {
-
-                try (var producer = new KafkaProducer<String, byte[]>(Map.of(
-                        ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
-                        ProducerConfig.CLIENT_ID_CONFIG, "proxySslClusterPlain",
-                        ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
-                        ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class,
-                        ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000,
-                        CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SSL",
+                try (var admin = Admin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
+                        CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name,
                         SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, certificateGenerator.getCertLocation(),
                         SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, certificateGenerator.getPassword()))) {
-
-                    producer.send(new ProducerRecord<>(TOPIC_1, "my-key", TOPIC_1_CIPHERTEXT)).get();
-                    producer.send(new ProducerRecord<>(TOPIC_2, "my-key", TOPIC_2_CIPHERTEXT)).get();
+                    // do some work to ensure connection is opened
+                    admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1))).all().get();
+                    var connectionsMetric = admin.metrics().entrySet().stream().filter(metricNameEntry -> "connections".equals(metricNameEntry.getKey().name()))
+                            .findFirst();
+                    assertTrue(connectionsMetric.isPresent());
+                    var protocol = connectionsMetric.get().getKey().tags().get("protocol");
+                    assertNotNull(protocol);
+                    assertTrue(protocol.startsWith("TLS"));
                 }
-
-                ConsumerRecords<String, String> records1;
-                ConsumerRecords<String, String> records2;
-                try (var consumer = new KafkaConsumer<String, String>(Map.of(
-                        ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
-                        ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
-                        ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
-                        ConsumerConfig.GROUP_ID_CONFIG, "my-group-id",
-                        CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SSL",
-                        SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, certificateGenerator.getCertLocation(),
-                        SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, certificateGenerator.getPassword(),
-                        ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
-                    consumer.subscribe(Set.of(TOPIC_1));
-
-                    records1 = consumer.poll(Duration.ofSeconds(100));
-
-                    consumer.subscribe(Set.of(TOPIC_2));
-
-                    records2 = consumer.poll(Duration.ofSeconds(100));
-                }
-                assertEquals(1, records1.count());
-                assertEquals(1, records2.count());
-                assertEquals(List.of(PLAINTEXT, PLAINTEXT),
-                        List.of(records1.iterator().next().value(),
-                                records2.iterator().next().value()));
-
             }
             finally {
                 // shutdown the proxy
                 proxy.shutdown();
             }
-
         }
-
     }
 
     private KafkaProxy startProxy(String config) throws InterruptedException {
