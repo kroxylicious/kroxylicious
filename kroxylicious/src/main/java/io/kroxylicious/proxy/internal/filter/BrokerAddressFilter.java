@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.proxy.internal.filter;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.ObjIntConsumer;
@@ -33,42 +34,35 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
     private static final Logger LOGGER = LoggerFactory.getLogger(BrokerAddressFilter.class);
 
     public static class BrokerAddressFilterConfig extends FilterConfig {
-    }
 
-    public interface AddressMapping {
-        String downstreamHost(String upstreamHost, int upstreamPort);
+        private final Class<? extends AddressMapping> addressMapperClazz;
 
-        int downstreamPort(String upstreamHost, int upstreamPort);
-    }
-
-    private static class FixedAddressMapping implements AddressMapping {
-
-        private final String targetHost;
-        private final int targetPort;
-
-        public FixedAddressMapping(String targetHost, int targetPort) {
-            this.targetHost = targetHost;
-            this.targetPort = targetPort;
+        public BrokerAddressFilterConfig(String addressMapper) {
+            try {
+                this.addressMapperClazz = addressMapper == null ? null : (Class<? extends AddressMapping>) Class.forName(addressMapper);
+                ;
+            }
+            catch (ClassNotFoundException e) {
+                throw new RuntimeException(e);
+            }
         }
 
-        @Override
-        public String downstreamHost(String host, int port) {
-            return targetHost;
-        }
-
-        @Override
-        public int downstreamPort(String host, int port) {
-            return targetPort;
+        public Class<? extends AddressMapping> addressMapper() {
+            return addressMapperClazz;
         }
     }
 
     private final AddressMapping mapping;
 
-    public BrokerAddressFilter(ProxyConfig config) {
-        String proxyAddress = config.address();
-        String[] proxyAddressParts = proxyAddress.split(":");
+    public BrokerAddressFilter(ProxyConfig all, BrokerAddressFilterConfig config) {
 
-        this.mapping = new FixedAddressMapping(proxyAddressParts[0], Integer.valueOf(proxyAddressParts[1]));
+        try {
+            this.mapping = config == null || config.addressMapperClazz == null ? new FixedAddressMapping(all)
+                    : config.addressMapper().getDeclaredConstructor(ProxyConfig.class).newInstance(all);
+        }
+        catch (InstantiationException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
@@ -100,8 +94,8 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
         String incomingHost = hostGetter.apply(broker);
         int incomingPort = portGetter.applyAsInt(broker);
 
-        String host = mapping.downstreamHost(incomingHost, incomingPort);
-        int port = mapping.downstreamPort(incomingHost, incomingPort);
+        String host = mapping.downstreamHost(context, incomingHost, incomingPort);
+        int port = mapping.downstreamPort(context, incomingHost, incomingPort);
 
         LOGGER.trace("{}: Rewriting broker address in response {}:{} -> {}:{}", context, incomingHost, incomingPort, host, port);
         hostSetter.accept(broker, host);

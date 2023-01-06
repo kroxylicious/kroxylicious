@@ -26,7 +26,6 @@ import org.apache.kafka.common.message.OffsetForLeaderEpochRequestData;
 import org.apache.kafka.common.message.OffsetForLeaderEpochResponseData;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.ProduceResponseData;
-import org.apache.kafka.common.protocol.ApiKeys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,7 +51,14 @@ import io.kroxylicious.proxy.filter.ProduceResponseFilter;
 import io.kroxylicious.proxy.internal.filter.FilterConfig;
 
 /**
- * An filter for modifying the key/value/header/topic of {@link ApiKeys#FETCH} responses.
+ * Simple multi-tenant filter.
+ *
+ * Uses the first component of a fully-qualified host name as a tenant prefix.
+ * This tenant prefix is prepended to the kafka resources name in order to present an isolated
+ * environment for each tenant.
+ *
+ * TODO prefix other resources e.g. group names, transaction ids
+ * TODO disallow the use of topic uids belonging to one tenant by another.
  */
 public class MultiTenantTransformationFilter
         implements CreateTopicsRequestFilter, CreateTopicsResponseFilter,
@@ -66,49 +72,39 @@ public class MultiTenantTransformationFilter
         OffsetForLeaderEpochRequestFilter, OffsetForLeaderEpochResponseFilter {
 
     public static class MultiTenantTransformationFilterConfig extends FilterConfig {
-
-        private final String tenantPrefix;
-
-        public MultiTenantTransformationFilterConfig(String tenantPrefix) {
-            this.tenantPrefix = tenantPrefix;
-        }
-
-        public String tenantPrefix() {
-            return tenantPrefix;
-        }
-
     }
 
     private static final Logger LOGGER = LoggerFactory.getLogger(MultiTenantTransformationFilter.class);
 
     @Override
     public void onCreateTopicsRequest(CreateTopicsRequestData request, KrpcFilterContext context) {
-        request.topics().forEach(topic -> applyTenantPrefix(topic::name, topic::setName, false));
+        request.topics().forEach(topic -> applyTenantPrefix(context, topic::name, topic::setName, false));
         context.forwardRequest(request);
     }
 
     @Override
     public void onCreateTopicsResponse(CreateTopicsResponseData response, KrpcFilterContext context) {
-        response.topics().forEach(topic -> removeTenantPrefix(topic::name, topic::setName, false));
+        response.topics().forEach(topic -> removeTenantPrefix(context, topic::name, topic::setName, false));
         context.forwardResponse(response);
     }
 
     @Override
     public void onDeleteTopicsRequest(DeleteTopicsRequestData request, KrpcFilterContext context) {
-        request.topics().forEach(topic -> applyTenantPrefix(topic::name, topic::setName, topic.topicId() != null));
+        request.topics().forEach(topic -> applyTenantPrefix(context, topic::name, topic::setName, topic.topicId() != null));
         context.forwardRequest(request);
     }
 
     @Override
     public void onDeleteTopicsResponse(DeleteTopicsResponseData response, KrpcFilterContext context) {
-        response.responses().forEach(topic -> removeTenantPrefix(topic::name, topic::setName, false));
+        response.responses().forEach(topic -> removeTenantPrefix(context, topic::name, topic::setName, false));
         context.forwardResponse(response);
     }
 
     @Override
     public void onMetadataRequest(MetadataRequestData request, KrpcFilterContext context) {
         if (request.topics() != null) {
-            request.topics().forEach(topic -> applyTenantPrefix(topic::name, topic::setName, false));
+            // n.b. request.topics() == null used to query all the topics.
+            request.topics().forEach(topic -> applyTenantPrefix(context, topic::name, topic::setName, false));
         }
         context.forwardRequest(request);
 
@@ -116,101 +112,102 @@ public class MultiTenantTransformationFilter
 
     @Override
     public void onMetadataResponse(MetadataResponseData response, KrpcFilterContext context) {
-        response.topics().forEach(topic -> removeTenantPrefix(topic::name, topic::setName, false));
+        String tenantPrefix = getTenantPrefix(context);
+        response.topics().removeIf(topic -> !topic.name().startsWith(tenantPrefix)); // TODO: allow kafka internal topics to be returned?
+        response.topics().forEach(topic -> removeTenantPrefix(context, topic::name, topic::setName, false));
         context.forwardResponse(response);
-
     }
 
     @Override
     public void onProduceRequest(ProduceRequestData request, KrpcFilterContext context) {
-        request.topicData().forEach(topic -> applyTenantPrefix(topic::name, topic::setName, false));
+        request.topicData().forEach(topic -> applyTenantPrefix(context, topic::name, topic::setName, false));
         context.forwardRequest(request);
 
     }
 
     @Override
     public void onProduceResponse(ProduceResponseData response, KrpcFilterContext context) {
-        response.responses().forEach(topic -> removeTenantPrefix(topic::name, topic::setName, false));
+        response.responses().forEach(topic -> removeTenantPrefix(context, topic::name, topic::setName, false));
         context.forwardResponse(response);
 
     }
 
     @Override
     public void onListOffsetsRequest(ListOffsetsRequestData request, KrpcFilterContext context) {
-        request.topics().forEach(topic -> applyTenantPrefix(topic::name, topic::setName, false));
+        request.topics().forEach(topic -> applyTenantPrefix(context, topic::name, topic::setName, false));
         context.forwardRequest(request);
     }
 
     @Override
     public void onListOffsetsResponse(ListOffsetsResponseData response, KrpcFilterContext context) {
-        response.topics().forEach(topic -> removeTenantPrefix(topic::name, topic::setName, false));
+        response.topics().forEach(topic -> removeTenantPrefix(context, topic::name, topic::setName, false));
         context.forwardResponse(response);
     }
 
     @Override
     public void onOffsetFetchRequest(OffsetFetchRequestData request, KrpcFilterContext context) {
-        request.topics().forEach(topic -> applyTenantPrefix(topic::name, topic::setName, false));
-        request.groups().forEach(requestGroup -> requestGroup.topics().forEach(topic -> applyTenantPrefix(topic::name, topic::setName, false)));
+        request.topics().forEach(topic -> applyTenantPrefix(context, topic::name, topic::setName, false));
+        request.groups().forEach(requestGroup -> requestGroup.topics().forEach(topic -> applyTenantPrefix(context, topic::name, topic::setName, false)));
         context.forwardRequest(request);
     }
 
     @Override
     public void onOffsetFetchResponse(OffsetFetchResponseData response, KrpcFilterContext context) {
-        response.topics().forEach(topic -> removeTenantPrefix(topic::name, topic::setName, false));
-        response.groups().forEach(responseGroup -> responseGroup.topics().forEach(topic -> removeTenantPrefix(topic::name, topic::setName, false)));
+        response.topics().forEach(topic -> removeTenantPrefix(context, topic::name, topic::setName, false));
+        response.groups().forEach(responseGroup -> responseGroup.topics().forEach(topic -> removeTenantPrefix(context, topic::name, topic::setName, false)));
         context.forwardResponse(response);
     }
 
     @Override
     public void onOffsetForLeaderEpochRequest(OffsetForLeaderEpochRequestData request, KrpcFilterContext context) {
-        request.topics().forEach(topic -> applyTenantPrefix(topic::topic, topic::setTopic, false));
+        request.topics().forEach(topic -> applyTenantPrefix(context, topic::topic, topic::setTopic, false));
         context.forwardRequest(request);
     }
 
     @Override
     public void onOffsetForLeaderEpochResponse(OffsetForLeaderEpochResponseData response, KrpcFilterContext context) {
-        response.topics().forEach(topic -> removeTenantPrefix(topic::topic, topic::setTopic, false));
+        response.topics().forEach(topic -> removeTenantPrefix(context, topic::topic, topic::setTopic, false));
         context.forwardResponse(response);
     }
 
     @Override
     public void onOffsetCommitRequest(OffsetCommitRequestData request, KrpcFilterContext context) {
-        request.topics().forEach(topic -> applyTenantPrefix(topic::name, topic::setName, false));
+        request.topics().forEach(topic -> applyTenantPrefix(context, topic::name, topic::setName, false));
         context.forwardRequest(request);
     }
 
     @Override
     public void onOffsetCommitResponse(OffsetCommitResponseData response, KrpcFilterContext context) {
-        response.topics().forEach(topic -> removeTenantPrefix(topic::name, topic::setName, false));
+        response.topics().forEach(topic -> removeTenantPrefix(context, topic::name, topic::setName, false));
         context.forwardResponse(response);
-
     }
 
     @Override
     public void onFetchRequest(FetchRequestData request, KrpcFilterContext context) {
-        request.topics().forEach(topic -> applyTenantPrefix(topic::topic, topic::setTopic, topic.topicId() != null));
+        request.topics().forEach(topic -> applyTenantPrefix(context, topic::topic, topic::setTopic, topic.topicId() != null));
         context.forwardRequest(request);
-
     }
 
     @Override
     public void onFetchResponse(FetchResponseData response, KrpcFilterContext context) {
-        response.responses().forEach(topic -> removeTenantPrefix(topic::topic, topic::setTopic, topic.topicId() != null));
+        response.responses().forEach(topic -> removeTenantPrefix(context, topic::topic, topic::setTopic, topic.topicId() != null));
         context.forwardResponse(response);
 
     }
 
-    private void applyTenantPrefix(Supplier<String> getter, Consumer<String> setter, boolean ignoreEmpty) {
+    private void applyTenantPrefix(KrpcFilterContext context, Supplier<String> getter, Consumer<String> setter, boolean ignoreEmpty) {
+        var tenantPrefix = getTenantPrefix(context);
         String clientSideName = getter.get();
         if (ignoreEmpty && (clientSideName == null || clientSideName.isEmpty())) {
             return;
         }
-
         setter.accept(String.format("%s-%s", tenantPrefix, clientSideName));
     }
 
-    private void removeTenantPrefix(Supplier<String> getter, Consumer<String> setter, boolean ignoreEmpty) {
-        String brokerSideName = getter.get();
+    private void removeTenantPrefix(KrpcFilterContext context, Supplier<String> getter, Consumer<String> setter, boolean ignoreEmpty) {
+        var tenantPrefix = getTenantPrefix(context);
+        var brokerSideName = getter.get();
+
         if (ignoreEmpty && (brokerSideName == null || brokerSideName.isEmpty())) {
             return;
         }
@@ -218,68 +215,10 @@ public class MultiTenantTransformationFilter
         setter.accept(brokerSideName.substring(tenantPrefix.length() + 1));
     }
 
-    /**
-     * Transformation to be applied to record value.
-     */
-    private final String tenantPrefix; // Make me a class that does the mapping.
-
-    // TODO: add transformation support for key/header/topic
-
-    public MultiTenantTransformationFilter(MultiTenantTransformationFilterConfig config) {
-
-        this.tenantPrefix = config.tenantPrefix;
+    private static String getTenantPrefix(KrpcFilterContext context) {
+        return context.sniHostname().split("\\.")[0];
     }
 
-    // @Override
-    // public void onFetchResponse(FetchResponseData fetchResponse, KrpcFilterContext context) {
-    // List<MetadataRequestData.MetadataRequestTopic> requestTopics = fetchResponse.responses().stream()
-    // .filter(t -> t.topic().isEmpty())
-    // .map(fetchableTopicResponse -> {
-    // Uuid uuid = fetchableTopicResponse.topicId();
-    // return new MetadataRequestData.MetadataRequestTopic().setName(null).setTopicId(uuid);
-    // })
-    // .distinct()
-    // .collect(Collectors.toList());
-    // if (!requestTopics.isEmpty()) {
-    // LOGGER.debug("Fetch response contains {} unknown topic ids, lookup via Metadata request: {}", requestTopics.size(), requestTopics);
-    // // TODO Can't necessarily use HIGHEST_SUPPORTED_VERSION, must use highest supported version
-    // context.<MetadataResponseData> sendRequest(MetadataRequestData.HIGHEST_SUPPORTED_VERSION,
-    // new MetadataRequestData()
-    // .setTopics(requestTopics))
-    // .map(metadataResponse -> {
-    // Map<Uuid, String> uidToName = metadataResponse.topics().stream().collect(Collectors.toMap(ti -> ti.topicId(), ti -> ti.name()));
-    // LOGGER.debug("Metadata response yields {}, updating original Fetch response", uidToName);
-    // for (var fetchableTopicResponse : fetchResponse.responses()) {
-    // fetchableTopicResponse.setTopic(uidToName.get(fetchableTopicResponse.topicId()));
-    // }
-    // applyTransformation(context, fetchResponse);
-    // LOGGER.debug("Forwarding original Fetch response");
-    // context.forwardResponse(fetchResponse);
-    // return (Void) null;
-    // });
-    // }
-    // else {
-    // applyTransformation(context, fetchResponse);
-    // context.forwardResponse(fetchResponse);
-    // }
-    // }
-    //
-    // private void applyTransformation(KrpcFilterContext context, FetchResponseData responseData) {
-    // for (FetchableTopicResponse topicData : responseData.responses()) {
-    // for (PartitionData partitionData : topicData.partitions()) {
-    // MemoryRecords records = (MemoryRecords) partitionData.records();
-    // MemoryRecordsBuilder newRecords = NettyMemoryRecords.builder(context.allocate(records.sizeInBytes()), CompressionType.NONE,
-    // TimestampType.CREATE_TIME, 0);
-    //
-    // for (MutableRecordBatch batch : records.batches()) {
-    // for (Iterator<Record> batchRecords = batch.iterator(); batchRecords.hasNext();) {
-    // Record batchRecord = batchRecords.next();
-    // newRecords.append(batchRecord.timestamp(), batchRecord.key(), valueTransformation.transform(topicData.topic(), batchRecord.value()));
-    // }
-    // }
-    //
-    // partitionData.setRecords(newRecords.build());
-    // }
-    // }
-    // }
+    public MultiTenantTransformationFilter() {
+    }
 }

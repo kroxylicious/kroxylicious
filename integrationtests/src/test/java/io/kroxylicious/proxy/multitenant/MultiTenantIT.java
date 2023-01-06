@@ -6,6 +6,7 @@
 package io.kroxylicious.proxy.multitenant;
 
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -35,6 +36,8 @@ import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.TopicCollection;
 import org.apache.kafka.common.TopicCollection.TopicNameCollection;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.config.SslConfigs;
+import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.hamcrest.BaseMatcher;
@@ -53,6 +56,7 @@ import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.testkafkacluster.KafkaCluster;
 import io.kroxylicious.proxy.testkafkacluster.KafkaClusterConfig;
 import io.kroxylicious.proxy.testkafkacluster.KafkaClusterFactory;
+import io.kroxylicious.proxy.testkafkacluster.KeytoolCertificateGenerator;
 
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
@@ -72,14 +76,23 @@ public class MultiTenantIT {
     private static final NewTopic NEW_TOPIC_1 = new NewTopic(TOPIC_1, 1, (short) 1);
     private static final String TOPIC_2 = "other-test-topic";
     private static final NewTopic NEW_TOPIC_2 = new NewTopic(TOPIC_2, 1, (short) 1);
-    private static final String PROXY_ADDRESS = "foo.multitenant.kafka:9192";
+
+    private static final String TOPIC_3 = "and-another-test-topic";
+    private static final NewTopic NEW_TOPIC_3 = new NewTopic(TOPIC_3, 1, (short) 1);
+
+    private static final String PROXY_ADDRESS = "localhost:9192";
+    private static final String TENANT1_PROXY_ADDRESS = "foo.multitenant.kafka:9192";
+    private static final String TENANT2_PROXY_ADDRESS = "bar.multitenant.kafka:9192";
     private static final String MY_KEY = "my-key";
     private static final String MY_VALUE = "my-value";
     private TestInfo testInfo;
+    private KeytoolCertificateGenerator certificateGenerator;
 
     @BeforeEach
-    public void beforeEach(TestInfo testInfo) {
+    public void beforeEach(TestInfo testInfo) throws Exception {
         this.testInfo = testInfo;
+        this.certificateGenerator = new KeytoolCertificateGenerator();
+        this.certificateGenerator.generateSelfSignedCertificateEntry("test@redhat.com", "*.multitenant.kafka", "KI", "RedHat", null, null, "US");
     }
 
     @Test
@@ -90,7 +103,7 @@ public class MultiTenantIT {
             String config = getConfig(PROXY_ADDRESS, cluster);
 
             try (var proxy = startProxy(config)) {
-                try (var admin = Admin.create(commonConfig(commonConfig(Map.of())))) {
+                try (var admin = Admin.create(commonConfig(TENANT1_PROXY_ADDRESS, Map.of()))) {
                     var created = createTopics(admin, List.of(NEW_TOPIC_1, NEW_TOPIC_2));
 
                     ListTopicsResult listTopicsResult = admin.listTopics();
@@ -123,7 +136,7 @@ public class MultiTenantIT {
             String config = getConfig(PROXY_ADDRESS, cluster);
 
             try (var proxy = startProxy(config)) {
-                try (var admin = Admin.create(commonConfig(commonConfig(Map.of())))) {
+                try (var admin = Admin.create(commonConfig(TENANT1_PROXY_ADDRESS, Map.of()))) {
                     var created = createTopics(admin, List.of(NEW_TOPIC_1));
 
                     var describeTopicsResult = admin.describeTopics(TopicNameCollection.ofTopicNames(List.of(TOPIC_1)));
@@ -144,8 +157,8 @@ public class MultiTenantIT {
             String config = getConfig(PROXY_ADDRESS, cluster);
 
             try (var proxy = startProxy(config)) {
-                createTopics(List.of(NEW_TOPIC_1));
-                produceAndVerify(TOPIC_1, MY_KEY, MY_VALUE);
+                createTopics(TENANT1_PROXY_ADDRESS, List.of(NEW_TOPIC_1));
+                produceAndVerify(TENANT1_PROXY_ADDRESS, TOPIC_1, MY_KEY, MY_VALUE);
             }
         }
     }
@@ -158,9 +171,9 @@ public class MultiTenantIT {
             String config = getConfig(PROXY_ADDRESS, cluster);
 
             try (var proxy = startProxy(config)) {
-                createTopics(List.of(NEW_TOPIC_1));
-                produceAndVerify(TOPIC_1, MY_KEY, MY_VALUE);
-                consumeAndVerify(TOPIC_1, MY_KEY, MY_VALUE, false);
+                createTopics(TENANT1_PROXY_ADDRESS, List.of(NEW_TOPIC_1));
+                produceAndVerify(TENANT1_PROXY_ADDRESS, TOPIC_1, MY_KEY, MY_VALUE);
+                consumeAndVerify(TENANT1_PROXY_ADDRESS, TOPIC_1, MY_KEY, MY_VALUE, false);
             }
         }
     }
@@ -172,20 +185,55 @@ public class MultiTenantIT {
             String config = getConfig(PROXY_ADDRESS, cluster);
 
             try (var proxy = startProxy(config)) {
-                createTopics(List.of(NEW_TOPIC_1));
-                produceAndVerify(Stream.of(new ProducerRecord<>(TOPIC_1, MY_KEY, MY_VALUE + "1"), new ProducerRecord<>(TOPIC_1, MY_KEY, MY_VALUE + "2")));
-                consumeAndVerify(TOPIC_1, MY_KEY, MY_VALUE + "1", true);
-                consumeAndVerify(TOPIC_1, MY_KEY, MY_VALUE + "2", true);
+                createTopics(TENANT1_PROXY_ADDRESS, List.of(NEW_TOPIC_1));
+                produceAndVerify(TENANT1_PROXY_ADDRESS,
+                        Stream.of(new ProducerRecord<>(TOPIC_1, MY_KEY, MY_VALUE + "1"), new ProducerRecord<>(TOPIC_1, MY_KEY, MY_VALUE + "2")));
+                consumeAndVerify(TENANT1_PROXY_ADDRESS, TOPIC_1, MY_KEY, MY_VALUE + "1", true);
+                consumeAndVerify(TENANT1_PROXY_ADDRESS, TOPIC_1, MY_KEY, MY_VALUE + "2", true);
             }
         }
     }
 
-    private void consumeAndVerify(String topicName, String expectedKey, String expectedValue, boolean offsetCommit) {
-        consumeAndVerify(topicName, new LinkedList<>(List.of(matchesRecord(topicName, expectedKey, expectedValue))), offsetCommit);
+    @Test
+    public void tenantIsolation() throws Exception {
+        try (var cluster = KafkaClusterFactory.create(KafkaClusterConfig.builder().testInfo(testInfo).build())) {
+            cluster.start();
+            String config = getConfig(PROXY_ADDRESS, cluster);
+
+            try (var proxy = startProxy(config)) {
+                createTopics(TENANT1_PROXY_ADDRESS, List.of(NEW_TOPIC_1));
+                createTopics(TENANT2_PROXY_ADDRESS, List.of(NEW_TOPIC_2, NEW_TOPIC_3));
+
+                verifyTenant(TENANT1_PROXY_ADDRESS, TOPIC_1);
+                verifyTenant(TENANT2_PROXY_ADDRESS, TOPIC_2, TOPIC_3);
+            }
+        }
     }
 
-    private void consumeAndVerify(String topicName, Deque<Matcher<ConsumerRecord<String, String>>> expected, boolean offsetCommit) {
-        try (var consumer = new KafkaConsumer<String, String>(commonConfig(Map.of(
+    private void verifyTenant(String address, String... expectedTopics) throws Exception {
+        try (var admin = Admin.create(commonConfig(address, Map.of()))) {
+
+            var listTopicsResult = admin.listTopics();
+
+            var topicListMap = listTopicsResult.namesToListings().get();
+            assertEquals(expectedTopics.length, topicListMap.size());
+            Arrays.stream(expectedTopics).forEach(
+                    expectedTopic -> assertThat(topicListMap, hasEntry(is(expectedTopic), allOf(matches(TopicListing.class, TopicListing::name, expectedTopic)))));
+
+            var describeTopicsResult = admin.describeTopics(TopicNameCollection.ofTopicNames(Arrays.stream(expectedTopics).toList()));
+            var topicDescribeMap = describeTopicsResult.allTopicNames().get();
+            assertEquals(expectedTopics.length, topicDescribeMap.size());
+            Arrays.stream(expectedTopics).forEach(expectedTopic -> assertThat(topicDescribeMap,
+                    hasEntry(is(expectedTopic), allOf(matches(TopicDescription.class, TopicDescription::name, expectedTopic)))));
+        }
+    }
+
+    private void consumeAndVerify(String address, String topicName, String expectedKey, String expectedValue, boolean offsetCommit) {
+        consumeAndVerify(address, topicName, new LinkedList<>(List.of(matchesRecord(topicName, expectedKey, expectedValue))), offsetCommit);
+    }
+
+    private void consumeAndVerify(String address, String topicName, Deque<Matcher<ConsumerRecord<String, String>>> expected, boolean offsetCommit) {
+        try (var consumer = new KafkaConsumer<String, String>(commonConfig(address, Map.of(
                 ConsumerConfig.GROUP_ID_CONFIG, testInfo.getDisplayName(),
                 ConsumerConfig.ALLOW_AUTO_CREATE_TOPICS_CONFIG, Boolean.FALSE.toString(),
                 ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, Boolean.FALSE.toString(),
@@ -213,13 +261,13 @@ public class MultiTenantIT {
         }
     }
 
-    private void produceAndVerify(String topic, String key, String value) throws Exception {
-        produceAndVerify(Stream.of(new ProducerRecord<>(topic, key, value)));
+    private void produceAndVerify(String address, String topic, String key, String value) throws Exception {
+        produceAndVerify(address, Stream.of(new ProducerRecord<>(topic, key, value)));
     }
 
-    private void produceAndVerify(Stream<ProducerRecord<String, String>> records) throws Exception {
+    private void produceAndVerify(String address, Stream<ProducerRecord<String, String>> records) throws Exception {
 
-        try (var producer = new KafkaProducer<String, String>(commonConfig(Map.of(
+        try (var producer = new KafkaProducer<String, String>(commonConfig(address, Map.of(
                 ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
                 ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
                 ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000)))) {
@@ -239,8 +287,8 @@ public class MultiTenantIT {
         }
     }
 
-    private CreateTopicsResult createTopics(List<NewTopic> topics) throws Exception {
-        try (var admin = Admin.create(commonConfig(commonConfig(Map.of())))) {
+    private CreateTopicsResult createTopics(String address, List<NewTopic> topics) throws Exception {
+        try (var admin = Admin.create(commonConfig(address, Map.of()))) {
             return createTopics(admin, topics);
         }
     }
@@ -252,8 +300,9 @@ public class MultiTenantIT {
         return created;
     }
 
-    private DeleteTopicsResult deleteTopics(TopicCollection topics) throws Exception {
-        try (var admin = Admin.create(commonConfig(commonConfig(Map.of())))) {
+    private DeleteTopicsResult deleteTopics(String address, TopicCollection topics) throws Exception {
+        try (var admin = Admin.create(commonConfig(
+                address, Map.of()))) {
             return deleteTopics(admin, topics);
         }
     }
@@ -265,11 +314,14 @@ public class MultiTenantIT {
     }
 
     @NotNull
-    private Map<String, Object> commonConfig(Map<String, Object> m) {
+    private Map<String, Object> commonConfig(String address, Map<String, Object> m) {
         var config = new HashMap<String, Object>();
         config.putAll(m);
-        config.put(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, PROXY_ADDRESS);
+        config.put(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, address);
         config.put(CommonClientConfigs.CLIENT_ID_CONFIG, testInfo.getDisplayName());
+        config.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name);
+        config.put(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, certificateGenerator.getCertLocation());
+        config.put(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, certificateGenerator.getPassword());
         return config;
     }
 
@@ -277,16 +329,18 @@ public class MultiTenantIT {
         String config = """
                 proxy:
                   address: %s
+                  keyStoreFile: %s
+                  keyPassword: %s
                 clusters:
                   demo:
                     bootstrap_servers: %s
                 filters:
                 - type: ApiVersions
                 - type: BrokerAddress
-                - type: MultiTenant
                   config:
-                    tenantPrefix: tenantprefix
-                """.formatted(proxyAddress, cluster.getBootstrapServers());
+                    addressMapperClazz: io.kroxylicious.proxy.internal.filter.SniAddressMapping
+                - type: MultiTenant
+                """.formatted(proxyAddress, certificateGenerator.getCertLocation(), certificateGenerator.getPassword(), cluster.getBootstrapServers());
         return config;
     }
 

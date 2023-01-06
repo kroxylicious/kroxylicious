@@ -37,17 +37,20 @@ class DefaultFilterContext implements KrpcFilterContext {
     private final ChannelPromise promise;
     private final KrpcFilter filter;
     private final long timeoutMs;
+    private final String sniHostname;
 
     DefaultFilterContext(KrpcFilter filter,
                          ChannelHandlerContext channelContext,
                          DecodedFrame<?, ?> decodedFrame,
                          ChannelPromise promise,
-                         long timeoutMs) {
+                         long timeoutMs,
+                         String sniHostname) {
         this.filter = filter;
         this.channelContext = channelContext;
         this.decodedFrame = decodedFrame;
         this.promise = promise;
         this.timeoutMs = timeoutMs;
+        this.sniHostname = sniHostname;
     }
 
     /**
@@ -70,7 +73,13 @@ class DefaultFilterContext implements KrpcFilterContext {
     public ByteBuf allocate(int initialCapacity) {
         final ByteBuf buffer = channelContext.alloc().heapBuffer(initialCapacity);
         decodedFrame.add(buffer);
+
         return buffer;
+    }
+
+    @Override
+    public String sniHostname() {
+        return sniHostname;
     }
 
     /**

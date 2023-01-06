@@ -41,13 +41,13 @@ public class BuiltinFilterContributor implements FilterContributor {
             case "ApiVersions":
                 return new ApiVersionsFilter();
             case "BrokerAddress":
-                return new BrokerAddressFilter(proxyConfig);
+                return new BrokerAddressFilter(proxyConfig, ((BrokerAddressFilterConfig) filterConfig));
             case "ProduceRequestTransformation":
                 return new ProduceRequestTransformationFilter((ProduceRequestTransformationFilterConfig) filterConfig);
             case "FetchResponseTransformation":
                 return new FetchResponseTransformationFilter((FetchResponseTransformationFilterConfig) filterConfig);
             case "MultiTenant":
-                return new MultiTenantTransformationFilter((MultiTenantTransformationFilterConfig) filterConfig);
+                return new MultiTenantTransformationFilter();
             default:
                 return null;
         }

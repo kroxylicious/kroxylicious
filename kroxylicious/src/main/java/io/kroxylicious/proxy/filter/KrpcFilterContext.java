@@ -28,6 +28,8 @@ public interface KrpcFilterContext {
      */
     ByteBuf allocate(int initialCapacity);
 
+    String sniHostname();
+
     /**
      * Send a request towards the broker, invoking upstream filters.
      * @param request The request to forward to the broker.
