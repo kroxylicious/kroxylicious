@@ -6,6 +6,7 @@
 package io.kroxylicious.proxy.internal;
 
 import java.util.Map;
+import java.util.Optional;
 
 import org.apache.kafka.common.security.auth.AuthenticateCallbackHandler;
 import org.slf4j.Logger;
@@ -31,14 +32,14 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
     private final boolean haproxyProtocol;
     private final Map<KafkaAuthnHandler.SaslMechanism, AuthenticateCallbackHandler> authnHandlers;
     private final NetFilter netFilter;
-    private final SslContext sslContext;
+    private final Optional<SslContext> sslContext;
 
     public KafkaProxyInitializer(boolean haproxyProtocol,
                                  Map<KafkaAuthnHandler.SaslMechanism, AuthenticateCallbackHandler> authnMechanismHandlers,
                                  NetFilter netFilter,
                                  boolean logNetwork,
                                  boolean logFrames,
-                                 SslContext sslContext) {
+                                 Optional<SslContext> sslContext) {
         this.haproxyProtocol = haproxyProtocol;
         this.authnHandlers = authnMechanismHandlers != null ? authnMechanismHandlers : Map.of();
         this.netFilter = netFilter;
@@ -49,16 +50,15 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
 
     @Override
     public void initChannel(SocketChannel ch) {
-        // TODO TLS
 
         LOGGER.trace("Connection from {} to my address {}", ch.remoteAddress(), ch.localAddress());
 
         ChannelPipeline pipeline = ch.pipeline();
 
-        if (sslContext != null) {
+        sslContext.ifPresent(s -> {
             LOGGER.debug("Adding SSL handler");
-            pipeline.addLast(sslContext.newHandler(ch.alloc()));
-        }
+            pipeline.addLast(s.newHandler(ch.alloc()));
+        });
 
         if (logNetwork) {
             pipeline.addLast("networkLogger", new LoggingHandler("io.kroxylicious.proxy.internal.DownstreamNetworkLogger", LogLevel.INFO));

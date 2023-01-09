@@ -40,9 +40,9 @@ import io.kroxylicious.proxy.testkafkacluster.KafkaClusterConfig;
 import io.kroxylicious.proxy.testkafkacluster.KafkaClusterFactory;
 import io.kroxylicious.proxy.testkafkacluster.KeytoolCertificateGenerator;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class KrpcFilterIT {
@@ -341,7 +341,7 @@ public class KrpcFilterIT {
                             .findFirst();
                     assertTrue(connectionsMetric.isPresent());
                     var protocol = connectionsMetric.get().getKey().tags().get("protocol");
-                   org.assertj.core.api.Assertions.assertThat(protocol).startsWith("TLS");
+                    assertThat(protocol).startsWith("TLS");
                 }
             }
             finally {

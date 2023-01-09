@@ -14,6 +14,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
 import java.util.Map;
+import java.util.Optional;
 
 import javax.net.ssl.KeyManagerFactory;
 
@@ -59,8 +60,8 @@ public final class KafkaProxy {
     private EventLoopGroup bossGroup;
     private EventLoopGroup workerGroup;
     private Channel acceptorChannel;
-    private File keyStoreFile;
-    private String keyStorePassword;
+    private Optional<File> keyStoreFile;
+    private Optional<String> keyStorePassword;
 
     public KafkaProxy(Configuration config) {
         String proxyAddress = config.proxy().address();
@@ -80,12 +81,8 @@ public final class KafkaProxy {
 
         this.filterChainFactory = new FilterChainFactory(config);
 
-        if (config.proxy().keyStoreFile() != null) {
-            keyStoreFile = new File(config.proxy().keyStoreFile());
-        }
-        if (config.proxy().keyPassword() != null) {
-            keyStorePassword = config.proxy().keyPassword();
-        }
+        this.keyStoreFile = config.proxy().keyStoreFile().map(File::new);
+        this.keyStorePassword = config.proxy().keyPassword();
     }
 
     public String proxyHost() {
@@ -127,20 +124,19 @@ public final class KafkaProxy {
         LOGGER.info("Proxying local {} to remote {}",
                 proxyAddress(), brokerAddress());
 
-        SslContext sslContext = null;
-        if (keyStoreFile != null) {
-            try (var is = new FileInputStream(keyStoreFile)) {
-                var password = keyStorePassword == null ? null : keyStorePassword.toCharArray();
+        Optional<SslContext> sslContext = keyStoreFile.map(ksf -> {
+            try (var is = new FileInputStream(ksf)) {
+                var password = keyStorePassword.map(String::toCharArray).orElse(null);
                 var keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
                 keyStore.load(is, password);
                 var keyManagerFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
                 keyManagerFactory.init(keyStore, password);
-                sslContext = SslContextBuilder.forServer(keyManagerFactory).build();
+                return SslContextBuilder.forServer(keyManagerFactory).build();
             }
             catch (KeyStoreException | IOException | NoSuchAlgorithmException | CertificateException | UnrecoverableKeyException e) {
                 throw new RuntimeException(e);
             }
-        }
+        });
 
         KafkaProxyInitializer initializer = new KafkaProxyInitializer(false,
                 Map.of(),
