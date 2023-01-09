@@ -341,8 +341,7 @@ public class KrpcFilterIT {
                             .findFirst();
                     assertTrue(connectionsMetric.isPresent());
                     var protocol = connectionsMetric.get().getKey().tags().get("protocol");
-                    assertNotNull(protocol);
-                    assertTrue(protocol.startsWith("TLS"));
+                   org.assertj.core.api.Assertions.assertThat(protocol).startsWith("TLS");
                 }
             }
             finally {
