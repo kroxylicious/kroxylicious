@@ -9,7 +9,7 @@ Java, version 11 or newer, and Apache Maven are required for building this proje
 Build the project like this:
 
 ```
-$ mvn clean verify
+$ mvn clean install
 ```
 
 The running of the tests can be controlled with the following Maven properties:
@@ -59,8 +59,16 @@ $ mvn org.commonjava.maven.plugins:directory-maven-plugin:highest-basedir@resolv
 Build with the `dist` profile as shown above, then execute this:
 
 ```
-$ java -jar kroxylicious/target/kproxy-1.0-SNAPSHOT.jar
+$ java -jar kroxylicious/target/kroxylicious-1.0-SNAPSHOT.jar -cp {path-to-your-class-path}
 ```
+
+To prevent the [following error](https://www.slf4j.org/codes.html#StaticLoggerBinder):
+
+```
+Failed to load class org.slf4j.impl.StaticLoggerBinder
+```
+
+Make sure to follow the [suggestions here](https://www.slf4j.org/codes.html#StaticLoggerBinder) to include one (and only one) of the suggested jars on the classpath.
 
 ## Performance Testing
 
