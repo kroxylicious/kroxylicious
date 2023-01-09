@@ -6,6 +6,7 @@
 package io.kroxylicious.proxy.internal;
 
 import java.util.Map;
+import java.util.Optional;
 
 import org.apache.kafka.common.security.auth.AuthenticateCallbackHandler;
 import org.slf4j.Logger;
@@ -20,6 +21,7 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.haproxy.HAProxyMessageDecoder;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
+import io.netty.handler.ssl.SslContext;
 
 public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
 
@@ -30,26 +32,34 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
     private final boolean haproxyProtocol;
     private final Map<KafkaAuthnHandler.SaslMechanism, AuthenticateCallbackHandler> authnHandlers;
     private final NetFilter netFilter;
+    private final Optional<SslContext> sslContext;
 
     public KafkaProxyInitializer(boolean haproxyProtocol,
                                  Map<KafkaAuthnHandler.SaslMechanism, AuthenticateCallbackHandler> authnMechanismHandlers,
                                  NetFilter netFilter,
                                  boolean logNetwork,
-                                 boolean logFrames) {
+                                 boolean logFrames,
+                                 Optional<SslContext> sslContext) {
         this.haproxyProtocol = haproxyProtocol;
         this.authnHandlers = authnMechanismHandlers != null ? authnMechanismHandlers : Map.of();
         this.netFilter = netFilter;
         this.logNetwork = logNetwork;
         this.logFrames = logFrames;
+        this.sslContext = sslContext;
     }
 
     @Override
     public void initChannel(SocketChannel ch) {
-        // TODO TLS
 
         LOGGER.trace("Connection from {} to my address {}", ch.remoteAddress(), ch.localAddress());
 
         ChannelPipeline pipeline = ch.pipeline();
+
+        sslContext.ifPresent(s -> {
+            LOGGER.debug("Adding SSL handler");
+            pipeline.addLast(s.newHandler(ch.alloc()));
+        });
+
         if (logNetwork) {
             pipeline.addLast("networkLogger", new LoggingHandler("io.kroxylicious.proxy.internal.DownstreamNetworkLogger", LogLevel.INFO));
         }
