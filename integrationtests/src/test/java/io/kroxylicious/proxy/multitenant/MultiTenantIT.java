@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import org.apache.kafka.clients.CommonClientConfigs;
@@ -40,9 +41,7 @@ import org.apache.kafka.common.config.SslConfigs;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
-import org.hamcrest.BaseMatcher;
-import org.hamcrest.Description;
-import org.hamcrest.Matcher;
+import org.assertj.core.api.Condition;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -58,12 +57,8 @@ import io.kroxylicious.proxy.testkafkacluster.KafkaClusterConfig;
 import io.kroxylicious.proxy.testkafkacluster.KafkaClusterFactory;
 import io.kroxylicious.proxy.testkafkacluster.KeytoolCertificateGenerator;
 
-import static org.hamcrest.CoreMatchers.allOf;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.greaterThanOrEqualTo;
-import static org.hamcrest.Matchers.hasEntry;
+import static org.assertj.core.api.Assertions.allOf;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -109,20 +104,24 @@ public class MultiTenantIT {
                     ListTopicsResult listTopicsResult = admin.listTopics();
                     var topicMap = listTopicsResult.namesToListings().get();
                     assertEquals(2, topicMap.size());
-                    assertThat(topicMap, hasEntry(is(TOPIC_1),
-                            allOf(matches(TopicListing.class, TopicListing::name, TOPIC_1),
-                                    matches(TopicListing.class, TopicListing::topicId, created.topicId(TOPIC_1).get()))));
-                    assertThat(topicMap, hasEntry(is(TOPIC_2), matches(TopicListing.class, TopicListing::name, TOPIC_2)));
+                    assertThat(topicMap).hasSize(2);
+                    assertThat(topicMap).hasEntrySatisfying(TOPIC_1,
+                            allOf(matches(TopicListing::name, TOPIC_1),
+                                    matches(TopicListing::topicId, created.topicId(TOPIC_1).get())));
+                    assertThat(topicMap).hasEntrySatisfying(TOPIC_1,
+                            allOf(matches(TopicListing::name, TOPIC_1),
+                                    matches(TopicListing::topicId, created.topicId(TOPIC_1).get())));
+                    assertThat(topicMap).hasEntrySatisfying(TOPIC_2, matches(TopicListing::name, TOPIC_2));
 
                     // Delete by name
                     var topics1 = TopicNameCollection.ofTopicNames(List.of(TOPIC_1));
                     var deleted = deleteTopics(admin, topics1);
-                    assertThat(deleted.topicNameValues().keySet(), contains(topics1.topicNames().toArray()));
+                    assertThat(deleted.topicNameValues().keySet()).containsAll(topics1.topicNames());
 
                     // Delete by id
                     var topics2 = TopicCollection.ofTopicIds(List.of(created.topicId(TOPIC_2).get()));
                     deleted = deleteTopics(admin, topics2);
-                    assertThat(deleted.topicIdValues().keySet(), contains(topics2.topicIds().toArray()));
+                    assertThat(deleted.topicIdValues().keySet()).containsAll(topics2.topicIds());
                 }
             }
         }
@@ -141,9 +140,9 @@ public class MultiTenantIT {
 
                     var describeTopicsResult = admin.describeTopics(TopicNameCollection.ofTopicNames(List.of(TOPIC_1)));
                     var topicMap = describeTopicsResult.allTopicNames().get();
-                    assertThat(topicMap, hasEntry(is(TOPIC_1),
-                            allOf(matches(TopicDescription.class, TopicDescription::name, TOPIC_1),
-                                    matches(TopicDescription.class, TopicDescription::topicId, created.topicId(TOPIC_1).get()))));
+                    assertThat(topicMap).hasEntrySatisfying(TOPIC_1,
+                            allOf(matches(TopicDescription::name, TOPIC_1),
+                                    matches(TopicDescription::topicId, created.topicId(TOPIC_1).get())));
                 }
             }
         }
@@ -218,13 +217,14 @@ public class MultiTenantIT {
             var topicListMap = listTopicsResult.namesToListings().get();
             assertEquals(expectedTopics.length, topicListMap.size());
             Arrays.stream(expectedTopics).forEach(
-                    expectedTopic -> assertThat(topicListMap, hasEntry(is(expectedTopic), allOf(matches(TopicListing.class, TopicListing::name, expectedTopic)))));
+                    expectedTopic -> assertThat(topicListMap).hasEntrySatisfying(expectedTopic,
+                            allOf(matches(TopicListing::name, expectedTopic))));
 
             var describeTopicsResult = admin.describeTopics(TopicNameCollection.ofTopicNames(Arrays.stream(expectedTopics).toList()));
             var topicDescribeMap = describeTopicsResult.allTopicNames().get();
             assertEquals(expectedTopics.length, topicDescribeMap.size());
-            Arrays.stream(expectedTopics).forEach(expectedTopic -> assertThat(topicDescribeMap,
-                    hasEntry(is(expectedTopic), allOf(matches(TopicDescription.class, TopicDescription::name, expectedTopic)))));
+            Arrays.stream(expectedTopics).forEach(expectedTopic -> assertThat(topicDescribeMap).hasEntrySatisfying(expectedTopic,
+                    allOf(matches(TopicDescription::name, expectedTopic))));
         }
     }
 
@@ -232,7 +232,7 @@ public class MultiTenantIT {
         consumeAndVerify(address, topicName, new LinkedList<>(List.of(matchesRecord(topicName, expectedKey, expectedValue))), offsetCommit);
     }
 
-    private void consumeAndVerify(String address, String topicName, Deque<Matcher<ConsumerRecord<String, String>>> expected, boolean offsetCommit) {
+    private void consumeAndVerify(String address, String topicName, Deque<Predicate<ConsumerRecord<String, String>>> expected, boolean offsetCommit) {
         try (var consumer = new KafkaConsumer<String, String>(commonConfig(address, Map.of(
                 ConsumerConfig.GROUP_ID_CONFIG, testInfo.getDisplayName(),
                 ConsumerConfig.ALLOW_AUTO_CREATE_TOPICS_CONFIG, Boolean.FALSE.toString(),
@@ -247,10 +247,10 @@ public class MultiTenantIT {
 
             while (!expected.isEmpty()) {
                 ConsumerRecords<String, String> records = consumer.poll(Duration.ofSeconds(30));
-                assertThat("Too few records received", records.partitions().size(), greaterThanOrEqualTo(1));
+                assertThat(records.partitions()).hasSizeGreaterThanOrEqualTo(1);
                 records.forEach(r -> {
                     assertFalse(expected.isEmpty(), String.format("received unexpected record %s", r));
-                    assertThat(r, expected.pop());
+                    assertThat(r).matches(expected.pop());
                 });
             }
 
@@ -354,42 +354,15 @@ public class MultiTenantIT {
     }
 
     @NotNull
-    private <T, V> BaseMatcher<T> matches(Class<T> clazz, Function<T, V> extractor, V expectedValue) {
-        return new BaseMatcher<>() {
-            @Override
-            public boolean matches(Object item) {
-                if (!clazz.equals(item.getClass())) {
-                    return false;
-                }
-                return Objects.equals(extractor.apply((T) item), expectedValue);
-            }
-
-            @Override
-            public void describeTo(Description description) {
-                description.appendValue(expectedValue);
-            }
-        };
+    private <T, V> Condition<T> matches(Function<T, V> extractor, V expectedValue) {
+        return new Condition<>(item -> Objects.equals(extractor.apply(item), expectedValue), "unexpected entry");
     }
 
     @NotNull
-    private static <K, V> BaseMatcher<ConsumerRecord<K, V>> matchesRecord(final String expectedTopic, final K expectedKey, final V expectedValue) {
-        return new BaseMatcher<>() {
-
-            @Override
-            public boolean matches(Object item) {
-                if (!(item instanceof ConsumerRecord)) {
-                    return false;
-                }
-                var rec = ((ConsumerRecord<K, V>) item);
-                return Objects.equals(rec.topic(), expectedTopic) && Objects.equals(rec.key(), expectedKey) && Objects.equals(rec.value(), expectedValue);
-            }
-
-            @Override
-            public void describeTo(Description description) {
-                description.appendValue(expectedTopic);
-                description.appendValue(expectedKey);
-                description.appendValue(expectedValue);
-            }
+    private static <K, V> Predicate<ConsumerRecord<K, V>> matchesRecord(final String expectedTopic, final K expectedKey, final V expectedValue) {
+        return item -> {
+            var rec = ((ConsumerRecord<K, V>) item);
+            return Objects.equals(rec.topic(), expectedTopic) && Objects.equals(rec.key(), expectedKey) && Objects.equals(rec.value(), expectedValue);
         };
     }
 }
