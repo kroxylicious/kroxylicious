@@ -17,19 +17,21 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
 
+import static com.fasterxml.jackson.annotation.JsonInclude.Include.*;
+
 public class KroxyConfigBuilder {
 
-    public static final ObjectMapper OBJECT_MAPPER = new ObjectMapper(new YAMLFactory().disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER));
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper(new YAMLFactory().disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER));
 
     public record Proxy(String address,
-                        @JsonInclude(JsonInclude.Include.NON_NULL) String keyStoreFile,
-                        @JsonInclude(JsonInclude.Include.NON_NULL) String keyPassword) {
+                        @JsonInclude(NON_NULL) String keyStoreFile,
+                        @JsonInclude(NON_NULL) String keyPassword) {
     }
 
     public record Cluster(@JsonGetter("bootstrap_servers") String bootstrapServers) {
     }
 
-    public record Filter(String type, @JsonInclude(JsonInclude.Include.NON_EMPTY) Map<String, Object> config) {
+    public record Filter(String type, @JsonInclude(NON_EMPTY) Map<String, Object> config) {
     }
 
     private Proxy proxy;
@@ -40,7 +42,7 @@ public class KroxyConfigBuilder {
         proxy = new Proxy(proxyAddress, null, null);
     }
 
-    public KroxyConfigBuilder withDemoCluster(String bootstrapServers) {
+    public KroxyConfigBuilder withDefaultCluster(String bootstrapServers) {
         clusters.put("demo", new Cluster(bootstrapServers));
         return this;
     }

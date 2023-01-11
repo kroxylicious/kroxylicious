@@ -312,7 +312,7 @@ public class KrpcFilterIT {
 
     private static KroxyConfigBuilder baseConfigBuilder(String proxyAddress, String bootstrapServers) {
         return new KroxyConfigBuilder(proxyAddress)
-                .withDemoCluster(bootstrapServers)
+                .withDefaultCluster(bootstrapServers)
                 .addFilter("ApiVersions")
                 .addFilter("BrokerAddress");
     }

@@ -39,7 +39,7 @@ public class KroxyConfigBuilderTest {
     @Test
     public void testClusterConfig() {
         String config = new KroxyConfigBuilder("localhost:9192")
-                .withDemoCluster("localhost:9092").build();
+                .withDefaultCluster("localhost:9092").build();
         assertEquals(config, """
                 proxy:
                   address: "localhost:9192"
