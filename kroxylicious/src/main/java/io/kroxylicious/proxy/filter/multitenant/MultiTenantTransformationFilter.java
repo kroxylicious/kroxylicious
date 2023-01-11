@@ -201,7 +201,7 @@ public class MultiTenantTransformationFilter
         if (ignoreEmpty && (clientSideName == null || clientSideName.isEmpty())) {
             return;
         }
-        setter.accept(String.format("%s-%s", tenantPrefix, clientSideName));
+        setter.accept(tenantPrefix + "-" + clientSideName);
     }
 
     private void removeTenantPrefix(KrpcFilterContext context, Supplier<String> getter, Consumer<String> setter, boolean ignoreEmpty) {
@@ -216,7 +216,16 @@ public class MultiTenantTransformationFilter
     }
 
     private static String getTenantPrefix(KrpcFilterContext context) {
-        return context.sniHostname().split("\\.")[0];
+        // TODO naive - POC implementation uses the first component of a FQDN as the multi-tenant prefix.
+        var sniHostname = context.sniHostname();
+        if (sniHostname == null) {
+            throw new IllegalStateException("This filter requires that the client provides a TLS SNI hostname.");
+        }
+        int dot = sniHostname.indexOf(".");
+        if (dot < 1) {
+            throw new IllegalStateException("Unexpected SNI hostname formation. SNI hostname : " + sniHostname);
+        }
+        return sniHostname.substring(0, dot);
     }
 
     public MultiTenantTransformationFilter() {
