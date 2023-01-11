@@ -123,17 +123,7 @@ public class KrpcFilterIT {
             try (var admin = Admin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers))) {
                 admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1))).all().get();
             }
-
-            String config = """
-                    proxy:
-                      address: %s
-                    clusters:
-                      demo:
-                        bootstrap_servers: %s
-                    filters:
-                    - type: ApiVersions
-                    - type: BrokerAddress
-                    """.formatted(proxyAddress, cluster.getBootstrapServers());
+            String config = baseConfigBuilder(proxyAddress, bootstrapServers).build();
 
             var proxy = startProxy(config);
 
@@ -177,19 +167,9 @@ public class KrpcFilterIT {
                         new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
             }
 
-            String config = """
-                    proxy:
-                      address: %s
-                    clusters:
-                      demo:
-                        bootstrap_servers: %s
-                    filters:
-                    - type: ApiVersions
-                    - type: BrokerAddress
-                    - type: ProduceRequestTransformation
-                      config:
-                        transformation: %s
-                    """.formatted(proxyAddress, cluster.getBootstrapServers(), TestEncoder.class.getName());
+            String config = baseConfigBuilder(proxyAddress, cluster.getBootstrapServers())
+                    .addFilter("ProduceRequestTransformation", "transformation", TestEncoder.class.getName())
+                    .build();
 
             var proxy = startProxy(config);
             try {
@@ -243,19 +223,9 @@ public class KrpcFilterIT {
                         new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
             }
 
-            String config = """
-                    proxy:
-                      address: %s
-                    clusters:
-                      demo:
-                        bootstrap_servers: %s
-                    filters:
-                    - type: ApiVersions
-                    - type: BrokerAddress
-                    - type: FetchResponseTransformation
-                      config:
-                        transformation: %s
-                    """.formatted(proxyAddress, cluster.getBootstrapServers(), TestDecoder.class.getName());
+            String config = baseConfigBuilder(proxyAddress, cluster.getBootstrapServers())
+                    .addFilter("FetchResponseTransformation", "transformation", TestDecoder.class.getName())
+                    .build();
 
             var proxy = startProxy(config);
 
@@ -314,20 +284,9 @@ public class KrpcFilterIT {
         try (var cluster = KafkaClusterFactory.create(KafkaClusterConfig.builder().testInfo(testInfo).build())) {
             cluster.start();
 
-            String config = """
-                    proxy:
-                      address: %s
-                      keyStoreFile: %s
-                      keyPassword: %s
-                    clusters:
-                      demo:
-                        bootstrap_servers: %s
-                    filters:
-                    - type: ApiVersions
-                    - type: BrokerAddress
-                    """.formatted(proxyAddress,
-                    certificateGenerator.getCertLocation(), certificateGenerator.getPassword(),
-                    cluster.getBootstrapServers());
+            String config = baseConfigBuilder(proxyAddress, cluster.getBootstrapServers())
+                    .withKeyStoreConfig(certificateGenerator.getCertLocation(), certificateGenerator.getPassword())
+                    .build();
 
             var proxy = startProxy(config);
             try {
@@ -349,6 +308,13 @@ public class KrpcFilterIT {
                 proxy.shutdown();
             }
         }
+    }
+
+    private static KroxyConfigBuilder baseConfigBuilder(String proxyAddress, String bootstrapServers) {
+        return new KroxyConfigBuilder(proxyAddress)
+                .withDemoCluster(bootstrapServers)
+                .addFilter("ApiVersions")
+                .addFilter("BrokerAddress");
     }
 
     private KafkaProxy startProxy(String config) throws InterruptedException {
