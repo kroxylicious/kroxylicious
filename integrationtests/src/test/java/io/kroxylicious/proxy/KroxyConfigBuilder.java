@@ -43,12 +43,17 @@ public class KroxyConfigBuilder {
     }
 
     public KroxyConfigBuilder withDefaultCluster(String bootstrapServers) {
-        clusters.put("demo", new Cluster(bootstrapServers));
+        return withCluster("demo", bootstrapServers);
+    }
+
+    public KroxyConfigBuilder withCluster(String clusterName, String bootstrapServers) {
+        clusters.put(clusterName, new Cluster(bootstrapServers));
         return this;
     }
 
     public KroxyConfigBuilder withKeyStoreConfig(String keystoreFile, String keyPassword) {
-        proxy = new Proxy(proxy.address, keystoreFile, keyPassword);
+        String address = proxy == null ? null : proxy.address;
+        proxy = new Proxy(address, keystoreFile, keyPassword);
         return this;
     }
 
