@@ -9,6 +9,9 @@ proxy:
   address: localhost:9192
   logNetwork: true
   logFrames: true
+adminHttp:
+  endpoints:
+    prometheus: {}
 clusters:
   demo:
     bootstrap_servers: localhost:9092

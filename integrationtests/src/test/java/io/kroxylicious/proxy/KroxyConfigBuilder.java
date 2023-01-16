@@ -34,9 +34,18 @@ public class KroxyConfigBuilder {
     public record Filter(String type, @JsonInclude(NON_EMPTY) Map<String, Object> config) {
     }
 
+    public record AdminHttp(Endpoints endpoints) {
+    }
+
+    public record Endpoints(@JsonGetter("prometheus") @JsonInclude(NON_NULL) Map<String, String> prometheusEndpointConfig) {
+    }
+
     private Proxy proxy;
     private final Map<String, Cluster> clusters = new LinkedHashMap<>();
     private final List<Filter> filters = new ArrayList<>();
+
+    @JsonInclude(NON_NULL)
+    private AdminHttp adminHttp = null;
 
     public KroxyConfigBuilder(String proxyAddress) {
         proxy = new Proxy(proxyAddress, null, null);
@@ -54,6 +63,11 @@ public class KroxyConfigBuilder {
     public KroxyConfigBuilder withKeyStoreConfig(String keystoreFile, String keyPassword) {
         String address = proxy == null ? null : proxy.address;
         proxy = new Proxy(address, keystoreFile, keyPassword);
+        return this;
+    }
+
+    public KroxyConfigBuilder withPrometheusEndpoint() {
+        adminHttp = new AdminHttp(new Endpoints(Map.of()));
         return this;
     }
 
@@ -78,6 +92,10 @@ public class KroxyConfigBuilder {
 
     public Proxy getProxy() {
         return proxy;
+    }
+
+    public AdminHttp getAdminHttp() {
+        return adminHttp;
     }
 
     public Map<String, Cluster> getClusters() {

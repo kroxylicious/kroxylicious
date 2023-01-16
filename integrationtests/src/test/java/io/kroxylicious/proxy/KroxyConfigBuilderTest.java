@@ -67,6 +67,16 @@ public class KroxyConfigBuilderTest {
         assertTextField(filterConfig, "a", "b");
     }
 
+    @Test
+    public void testPrometheusEndpointConfig() throws IOException {
+        ObjectNode deserializedConfig = serializeAndDeserialize(new KroxyConfigBuilder("localhost:9192")
+                .withPrometheusEndpoint());
+        ObjectNode adminHttp = assertObjectField(deserializedConfig, "adminHttp");
+        ObjectNode endpoints = assertObjectField(adminHttp, "endpoints");
+        ObjectNode prometheus = assertObjectField(endpoints, "prometheus");
+        assertTrue(prometheus.isEmpty(), "expect prometheus endpoint to have an empty object serialized");
+    }
+
     private static ObjectNode serializeAndDeserialize(KroxyConfigBuilder builder) throws IOException {
         String config = builder.build();
         return OBJECT_MAPPER.reader().readValue(config, ObjectNode.class);
