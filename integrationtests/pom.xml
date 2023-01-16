@@ -106,7 +106,7 @@
                         <TESTCONTAINERS_RYUK_DISABLED>true</TESTCONTAINERS_RYUK_DISABLED>
                     </environmentVariables>
                     <systemProperties>
-                        <container.logs.dir>${build.directory}/container-logs/</container.logs.dir>
+                        <container.logs.dir>${project.build.directory}/container-logs/</container.logs.dir>
                     </systemProperties>
                 </configuration>
                 <executions>
