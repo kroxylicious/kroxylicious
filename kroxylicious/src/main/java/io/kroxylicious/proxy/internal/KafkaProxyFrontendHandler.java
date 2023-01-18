@@ -379,7 +379,7 @@ public class KafkaProxyFrontendHandler
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-        cause.printStackTrace();
+        LOGGER.warn("Netty caught exception from the frontend: {}", cause.getMessage(), cause);
         closeOnFlush(ctx.channel());
     }
 
