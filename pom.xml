@@ -219,6 +219,7 @@
                     <artifactId>license-maven-plugin</artifactId>
                     <version>4.1</version>
                     <configuration>
+                        <!--suppress MavenModelInspection -->
                         <header>${rootdir}/etc/license.txt</header>
                         <strictCheck>true</strictCheck>
                         <excludes>
@@ -240,6 +241,7 @@
                     <artifactId>formatter-maven-plugin</artifactId>
                     <version>2.16.0</version>
                     <configuration>
+                        <!--suppress MavenModelInspection -->
                         <configFile>${rootdir}/etc/eclipse-formatter-config.xml</configFile>
                     </configuration>
                 </plugin>
@@ -248,7 +250,7 @@
                     <artifactId>impsort-maven-plugin</artifactId>
                     <version>1.7.0</version>
                     <configuration>
-                        <groups>java.,javax.,org.,com.</groups>
+                        <groups>java.,javax.,org.,com.,io.,io.kroxylicious</groups>
                         <removeUnused>true</removeUnused>
                         <staticAfter>true</staticAfter>
                         <compliance>${java.test.version}</compliance>

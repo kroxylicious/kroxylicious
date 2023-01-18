@@ -5,13 +5,14 @@
  */
 package io.kroxylicious.proxy.internal.admin;
 
-import io.kroxylicious.proxy.config.admin.AdminHttpConfiguration;
-import io.kroxylicious.proxy.internal.MeterRegistries;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.codec.http.HttpServerExpectContinueHandler;
+
+import io.kroxylicious.proxy.config.admin.AdminHttpConfiguration;
+import io.kroxylicious.proxy.internal.MeterRegistries;
 
 public class AdminHttpInitializer extends ChannelInitializer<SocketChannel> {
 
