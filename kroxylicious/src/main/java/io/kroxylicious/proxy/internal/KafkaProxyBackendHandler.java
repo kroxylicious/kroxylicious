@@ -87,7 +87,7 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-        cause.printStackTrace();
+        LOGGER.warn("Netty caught exception from the backend: {}", cause.getMessage(), cause);
         KafkaProxyFrontendHandler.closeOnFlush(ctx.channel());
     }
 }
