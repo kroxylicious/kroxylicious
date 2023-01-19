@@ -95,6 +95,20 @@
                     </execution>
                 </executions>
             </plugin>
+            <!-- We need to ensure that the descriptor is generated at compile phase -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-plugin-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>generate-descriptor</id>
+                        <phase>compile</phase>
+                        <goals>
+                            <goal>descriptor</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
 </project>
