@@ -21,13 +21,6 @@ import javax.net.ssl.KeyManagerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
-import io.kroxylicious.proxy.config.Configuration;
-import io.kroxylicious.proxy.config.admin.AdminHttpConfiguration;
-import io.kroxylicious.proxy.internal.KafkaProxyInitializer;
-import io.kroxylicious.proxy.internal.MeterRegistries;
-import io.kroxylicious.proxy.internal.admin.AdminHttpInitializer;
-import io.kroxylicious.proxy.internal.filter.FixedNetFilter;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
@@ -47,6 +40,14 @@ import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.incubator.channel.uring.IOUring;
 import io.netty.incubator.channel.uring.IOUringEventLoopGroup;
 import io.netty.incubator.channel.uring.IOUringServerSocketChannel;
+
+import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
+import io.kroxylicious.proxy.config.Configuration;
+import io.kroxylicious.proxy.config.admin.AdminHttpConfiguration;
+import io.kroxylicious.proxy.internal.KafkaProxyInitializer;
+import io.kroxylicious.proxy.internal.MeterRegistries;
+import io.kroxylicious.proxy.internal.admin.AdminHttpInitializer;
+import io.kroxylicious.proxy.internal.filter.FixedNetFilter;
 
 public final class KafkaProxy {
 

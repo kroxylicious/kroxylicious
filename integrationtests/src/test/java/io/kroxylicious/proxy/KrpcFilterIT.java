@@ -38,14 +38,15 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 
+import io.micrometer.core.instrument.Metrics;
+import io.netty.handler.codec.http.HttpResponseStatus;
+
 import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.internal.filter.ByteBufferTransformation;
 import io.kroxylicious.proxy.testkafkacluster.KafkaClusterConfig;
 import io.kroxylicious.proxy.testkafkacluster.KafkaClusterFactory;
 import io.kroxylicious.proxy.testkafkacluster.KeytoolCertificateGenerator;
-import io.micrometer.core.instrument.Metrics;
-import io.netty.handler.codec.http.HttpResponseStatus;
 
 import static java.net.http.HttpResponse.BodyHandlers.ofString;
 import static org.assertj.core.api.Assertions.assertThat;

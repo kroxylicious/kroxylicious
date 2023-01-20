@@ -7,10 +7,11 @@ package io.kroxylicious.proxy.internal.admin;
 
 import java.util.function.Function;
 
-import io.kroxylicious.proxy.internal.MeterRegistries;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
+
+import io.kroxylicious.proxy.internal.MeterRegistries;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 
