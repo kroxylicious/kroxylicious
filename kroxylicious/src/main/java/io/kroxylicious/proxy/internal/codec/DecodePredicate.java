@@ -10,6 +10,8 @@ import java.util.Arrays;
 import org.apache.kafka.common.protocol.ApiKeys;
 
 import io.kroxylicious.proxy.filter.KrpcFilter;
+import io.kroxylicious.proxy.invoker.FilterInvoker;
+import io.kroxylicious.proxy.invoker.FilterInvokers;
 
 /**
  * Encapsulates decisions about whether requests and responses should be
@@ -20,12 +22,17 @@ import io.kroxylicious.proxy.filter.KrpcFilter;
  * who the authorized user or, or which back-end cluster they're connected to.
  */
 public interface DecodePredicate {
+
     static DecodePredicate forFilters(KrpcFilter... filters) {
+        return forInvokers(FilterInvokers.invokersFor(filters));
+    }
+
+    static DecodePredicate forInvokers(FilterInvoker... invokers) {
         return new DecodePredicate() {
             @Override
             public boolean shouldDecodeResponse(ApiKeys apiKey, short apiVersion) {
-                for (var filter : filters) {
-                    if (filter.shouldDeserializeResponse(apiKey, apiVersion)) {
+                for (var invoker : invokers) {
+                    if (invoker.shouldDeserializeResponse(apiKey, apiVersion)) {
                         return true;
                     }
                 }
@@ -34,8 +41,8 @@ public interface DecodePredicate {
 
             @Override
             public boolean shouldDecodeRequest(ApiKeys apiKey, short apiVersion) {
-                for (var filter : filters) {
-                    if (filter.shouldDeserializeRequest(apiKey, apiVersion)) {
+                for (var invoker : invokers) {
+                    if (invoker.shouldDeserializeRequest(apiKey, apiVersion)) {
                         return true;
                     }
                 }
@@ -44,7 +51,7 @@ public interface DecodePredicate {
 
             @Override
             public String toString() {
-                return "DecodePredicate$forFilters{" + Arrays.toString(filters) + "}";
+                return "DecodePredicate$forInvokers{" + Arrays.toString(invokers) + "}";
             }
         };
     }

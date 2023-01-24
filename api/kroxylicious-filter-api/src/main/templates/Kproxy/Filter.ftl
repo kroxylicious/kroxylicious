@@ -47,6 +47,7 @@ public interface ${filterClass} extends KrpcFilter {
      * The implementation may modify the given {@code data} in-place and return it,
      * or instantiate a new one.
      *
+     * @param header header.
      * @param ${msgType} The KRPC message to handle.
      * @param context The context.
      */

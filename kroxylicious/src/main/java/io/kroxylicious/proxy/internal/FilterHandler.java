@@ -23,6 +23,7 @@ import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
 import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
 import io.kroxylicious.proxy.future.Promise;
 import io.kroxylicious.proxy.internal.util.Assertions;
+import io.kroxylicious.proxy.invoker.FilterInvoker;
 
 /**
  * A {@code ChannelInboundHandler} (for handling requests from downstream)
@@ -32,18 +33,18 @@ public class FilterHandler
         extends ChannelDuplexHandler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(FilterHandler.class);
-    private final KrpcFilter filter;
+    private final FilterInvoker invoker;
     private final long timeoutMs;
     private final String sniHostname;
 
-    public FilterHandler(KrpcFilter filter, long timeoutMs, String sniHostname) {
-        this.filter = Objects.requireNonNull(filter);
+    public FilterHandler(FilterInvoker invoker, long timeoutMs, String sniHostname) {
+        this.invoker = Objects.requireNonNull(invoker);
         this.timeoutMs = Assertions.requireStrictlyPositive(timeoutMs, "timeout");
         this.sniHostname = sniHostname;
     }
 
     String filterDescriptor() {
-        return filter.getClass().getSimpleName() + "@" + System.identityHashCode(filter);
+        return invoker.getFilter().getClass().getSimpleName() + "@" + System.identityHashCode(invoker.getFilter());
     }
 
     @Override
@@ -51,13 +52,13 @@ public class FilterHandler
         if (msg instanceof DecodedRequestFrame) {
             DecodedRequestFrame<?> decodedFrame = (DecodedRequestFrame<?>) msg;
             // Guard against invoking the filter unexpectedly
-            if (filter.shouldDeserializeRequest(decodedFrame.apiKey(), decodedFrame.apiVersion())) {
-                var filterContext = new DefaultFilterContext(filter, ctx, decodedFrame, promise, timeoutMs, sniHostname);
+            if (invoker.shouldDeserializeRequest(decodedFrame.apiKey(), decodedFrame.apiVersion())) {
+                var filterContext = new DefaultFilterContext(invoker.getFilter(), ctx, decodedFrame, promise, timeoutMs, sniHostname);
                 if (LOGGER.isDebugEnabled()) {
                     LOGGER.debug("{}: Dispatching downstream {} request to filter{}: {}",
                             ctx.channel(), decodedFrame.apiKey(), filterDescriptor(), msg);
                 }
-                filter.onRequest(decodedFrame.apiKey(), decodedFrame.header(), decodedFrame.body(), filterContext);
+                invoker.onRequest(decodedFrame, filterContext);
             }
             else {
                 ctx.write(msg, promise);
@@ -80,7 +81,7 @@ public class FilterHandler
             DecodedResponseFrame<?> decodedFrame = (DecodedResponseFrame<?>) msg;
             if (decodedFrame instanceof InternalResponseFrame) {
                 InternalResponseFrame<?> frame = (InternalResponseFrame<?>) decodedFrame;
-                if (frame.isRecipient(filter)) {
+                if (frame.isRecipient(invoker.getFilter())) {
                     if (LOGGER.isDebugEnabled()) {
                         LOGGER.debug("{}: Completing {} response for request sent by this filter{}: {}",
                                 ctx.channel(), decodedFrame.apiKey(), filterDescriptor(), msg);
@@ -96,13 +97,13 @@ public class FilterHandler
                     ctx.fireChannelRead(msg);
                 }
             }
-            else if (filter.shouldDeserializeResponse(decodedFrame.apiKey(), decodedFrame.apiVersion())) {
-                var filterContext = new DefaultFilterContext(filter, ctx, decodedFrame, null, timeoutMs, sniHostname);
+            else if (invoker.shouldDeserializeResponse(decodedFrame.apiKey(), decodedFrame.apiVersion())) {
+                var filterContext = new DefaultFilterContext(invoker.getFilter(), ctx, decodedFrame, null, timeoutMs, sniHostname);
                 if (LOGGER.isDebugEnabled()) {
                     LOGGER.debug("{}: Dispatching upstream {} response to filter {}: {}",
                             ctx.channel(), decodedFrame.apiKey(), filterDescriptor(), msg);
                 }
-                filter.onResponse(decodedFrame.apiKey(), decodedFrame.header(), decodedFrame.body(), filterContext);
+                invoker.onResponse(decodedFrame, filterContext);
             }
             else {
                 ctx.fireChannelRead(msg);
