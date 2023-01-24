@@ -58,7 +58,7 @@ public class FilterInvokerHandler
         // Rather than a simple if (filter instanceof ProduceRequestFilter) ... else if ...
         // chain we use filterApis to avoid the disturbing the Klass.secondary_super_cache
         // as much as possible.
-        for (var ft : FilterType.values()) {
+        for (var ft : ApiType.values()) {
             if (filterApis.consumesAnyVersion(ft)) {
                 switch (ft) {
 <#list messageSpecs as messageSpec>

@@ -9,9 +9,10 @@ import java.nio.ByteBuffer;
 
 import org.apache.kafka.common.protocol.Readable;
 
-import io.kroxylicious.proxy.frame.ByteBufAccessor;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
+
+import io.kroxylicious.proxy.frame.ByteBufAccessor;
 
 /**
  * An implementation of Kafka's Readable and Writable abstraction in terms of

@@ -75,16 +75,16 @@ class FilterApisTest {
     @Test
     public void consumesAnyVersion() {
         var bitSet = FilterApis.forFilter(MyFilter.class);
-        assertTrue(bitSet.consumesAnyVersion(FilterType.PRODUCE_REQUEST));
-        assertTrue(bitSet.consumesAnyVersion(FilterType.FETCH_RESPONSE));
-        assertTrue(bitSet.consumesAnyVersion(FilterType.METADATA_RESPONSE));
-        assertTrue(bitSet.consumesAnyVersion(FilterType.OFFSET_COMMIT_REQUEST));
+        assertTrue(bitSet.consumesAnyVersion(ApiType.PRODUCE_REQUEST));
+        assertTrue(bitSet.consumesAnyVersion(ApiType.FETCH_RESPONSE));
+        assertTrue(bitSet.consumesAnyVersion(ApiType.METADATA_RESPONSE));
+        assertTrue(bitSet.consumesAnyVersion(ApiType.OFFSET_COMMIT_REQUEST));
 
         var expectAbsent = EnumSet.complementOf(EnumSet.of(
-                FilterType.PRODUCE_REQUEST,
-                FilterType.FETCH_RESPONSE,
-                FilterType.METADATA_RESPONSE,
-                FilterType.OFFSET_COMMIT_REQUEST));
+                ApiType.PRODUCE_REQUEST,
+                ApiType.FETCH_RESPONSE,
+                ApiType.METADATA_RESPONSE,
+                ApiType.OFFSET_COMMIT_REQUEST));
         var unexpectedlyPresent = new HashSet<String>();
         for (var ft : expectAbsent) {
             if (bitSet.consumesAnyVersion(ft)) {
@@ -101,60 +101,60 @@ class FilterApisTest {
 
         // No @ApiVersions
         for (short version = ApiKeys.PRODUCE.oldestVersion(); version <= ApiKeys.PRODUCE.latestVersion(); version++) {
-            assertTrue(bitSet.consumesApiVersion(FilterType.PRODUCE_REQUEST, version),
+            assertTrue(bitSet.consumesApiVersion(ApiType.PRODUCE_REQUEST, version),
                     "Expect interest in all versions of PRODUCE request, but no interest in " + version);
-            assertFalse(bitSet.consumesApiVersion(FilterType.PRODUCE_RESPONSE, version),
+            assertFalse(bitSet.consumesApiVersion(ApiType.PRODUCE_RESPONSE, version),
                     "Don't expect interest in any version of PRODUCE response, but interest in " + version);
         }
 
         // Lower bounded @ApiVersions
         for (short version = ApiKeys.FETCH.oldestVersion(); version <= ApiKeys.FETCH.latestVersion(); version++) {
-            assertFalse(bitSet.consumesApiVersion(FilterType.FETCH_REQUEST, version),
+            assertFalse(bitSet.consumesApiVersion(ApiType.FETCH_REQUEST, version),
                     "Don't expect interest in any version of FETCH request, but interest in " + version);
             if (version >= 5) {
-                assertTrue(bitSet.consumesApiVersion(FilterType.FETCH_RESPONSE, version),
+                assertTrue(bitSet.consumesApiVersion(ApiType.FETCH_RESPONSE, version),
                         "Expect interest in versions >= 5 of FETCH response, but no interest in " + version);
             }
             else {
-                assertFalse(bitSet.consumesApiVersion(FilterType.FETCH_RESPONSE, version),
+                assertFalse(bitSet.consumesApiVersion(ApiType.FETCH_RESPONSE, version),
                         "Don't expect interest in versions < 5 of FETCH response, but interest in " + version);
             }
         }
 
         // Upper bounded @ApiVersions
         for (short version = ApiKeys.METADATA.oldestVersion(); version <= ApiKeys.METADATA.latestVersion(); version++) {
-            assertFalse(bitSet.consumesApiVersion(FilterType.METADATA_REQUEST, version),
+            assertFalse(bitSet.consumesApiVersion(ApiType.METADATA_REQUEST, version),
                     "Don't expect interest in any version of METADATA request, but interest in " + version);
             if (version <= 7) {
-                assertTrue(bitSet.consumesApiVersion(FilterType.METADATA_RESPONSE, version),
+                assertTrue(bitSet.consumesApiVersion(ApiType.METADATA_RESPONSE, version),
                         "Expect interest in versions <= 7 of METADATA response, but no interest in " + version);
             }
             else {
-                assertFalse(bitSet.consumesApiVersion(FilterType.METADATA_RESPONSE, version),
+                assertFalse(bitSet.consumesApiVersion(ApiType.METADATA_RESPONSE, version),
                         "Don't expect interest in versions > 7 of METADATA response, but interest in " + version);
             }
         }
 
         // Bracketed bounded @ApiVersions
         for (short version = ApiKeys.OFFSET_COMMIT.oldestVersion(); version <= ApiKeys.OFFSET_COMMIT.latestVersion(); version++) {
-            assertFalse(bitSet.consumesApiVersion(FilterType.OFFSET_COMMIT_RESPONSE, version),
+            assertFalse(bitSet.consumesApiVersion(ApiType.OFFSET_COMMIT_RESPONSE, version),
                     "Don't expect interest in any version of OFFSET_COMMIT response, but interest in " + version);
             if (2 <= version && version <= 6) {
-                assertTrue(bitSet.consumesApiVersion(FilterType.OFFSET_COMMIT_REQUEST, version),
+                assertTrue(bitSet.consumesApiVersion(ApiType.OFFSET_COMMIT_REQUEST, version),
                         "Expect interest in versions in [2, 6] of OFFSET_COMMIT request, but no interest in " + version);
 
             }
             else {
-                assertFalse(bitSet.consumesApiVersion(FilterType.OFFSET_COMMIT_REQUEST, version),
+                assertFalse(bitSet.consumesApiVersion(ApiType.OFFSET_COMMIT_REQUEST, version),
                         "Don't expect interest in versions not in [2, 6] of OFFSET_COMMIT request, but interest in " + version);
             }
         }
 
         var expectAbsent = EnumSet.complementOf(EnumSet.of(
-                FilterType.PRODUCE_REQUEST,
-                FilterType.FETCH_RESPONSE,
-                FilterType.METADATA_RESPONSE,
-                FilterType.OFFSET_COMMIT_REQUEST));
+                ApiType.PRODUCE_REQUEST,
+                ApiType.FETCH_RESPONSE,
+                ApiType.METADATA_RESPONSE,
+                ApiType.OFFSET_COMMIT_REQUEST));
         var unexpectedlyPresent = new HashSet<String>();
         for (var ft : expectAbsent) {
             for (short version = ft.messageType.lowestSupportedVersion(); version <= ft.messageType.highestSupportedVersion(); version++) {

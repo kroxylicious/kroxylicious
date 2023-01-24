@@ -5,11 +5,12 @@
  */
 package io.kroxylicious.krpccodegen.model;
 
+import io.kroxylicious.krpccodegen.schema.StructSpec;
+
 import freemarker.template.AdapterTemplateModel;
 import freemarker.template.TemplateHashModel;
 import freemarker.template.TemplateModel;
 import freemarker.template.TemplateModelException;
-import io.kroxylicious.krpccodegen.schema.StructSpec;
 
 public class StructSpecModel implements TemplateHashModel, AdapterTemplateModel {
     final StructSpec spec;

@@ -33,7 +33,7 @@ import org.apache.kafka.common.protocol.ApiMessage;
  * Enumerates the Kafka APIs, associating {@code ApiKeys}, {@code ApiMessageType}the subclasses of
  * {@link KrpcFilter} and the subclasses of {@code ApiMessage} that they consume.
  */
-public enum FilterType {
+public enum ApiType {
     // In key order
 <#assign prevFilterType=""/>
 <#assign prevMessageType=""/>
@@ -51,7 +51,7 @@ public enum FilterType {
 
     public static final int NUM_APIS;
     static {
-        var last = FilterType.values()[FilterType.values().length - 1];
+        var last = ApiType.values()[ApiType.values().length - 1];
         int numApis = last.base + 1 + last.messageType.highestSupportedVersion() - last.messageType.lowestSupportedVersion();
         NUM_APIS = numApis;
     }
@@ -63,7 +63,7 @@ public enum FilterType {
     public final ApiMessageType messageType;
     private final int base;
 
-    private FilterType(Class<? extends KrpcFilter> filterClass,
+    private ApiType(Class<? extends KrpcFilter> filterClass,
                        String filterMethod,
                        Class<? extends ApiMessage> messageClass,
                        ApiKeys apiKey,
@@ -98,13 +98,13 @@ public enum FilterType {
      * @param request Whether to get the request or response filter type.
      * @return The request filter type for the given {@code apiKey}.
      */
-    public static FilterType forKey(ApiKeys apiKey, boolean request) {
+    public static ApiType forKey(ApiKeys apiKey, boolean request) {
         Objects.requireNonNull(apiKey);
         switch (apiKey) {
 <#list messageSpecs as messageSpec>
 <#if messageSpec.type?lower_case == 'request'>
         case ${retrieveApiKey(messageSpec)}:
-            return request ? FilterType.${retrieveApiKey(messageSpec)}_REQUEST : FilterType.${retrieveApiKey(messageSpec)}_RESPONSE;
+            return request ? ApiType.${retrieveApiKey(messageSpec)}_REQUEST : ApiType.${retrieveApiKey(messageSpec)}_RESPONSE;
 </#if>
 </#list>
             default:

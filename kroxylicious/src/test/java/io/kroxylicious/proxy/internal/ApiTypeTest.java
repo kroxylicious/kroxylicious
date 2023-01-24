@@ -15,40 +15,40 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class FilterTypeTest {
+class ApiTypeTest {
 
     @Test
     void isRequest() {
-        assertTrue(FilterType.LIST_OFFSETS_REQUEST.isRequest());
-        assertTrue(FilterType.PRODUCE_REQUEST.isRequest());
-        assertFalse(FilterType.LIST_OFFSETS_REQUEST.isResponse());
-        assertFalse(FilterType.PRODUCE_REQUEST.isResponse());
+        assertTrue(ApiType.LIST_OFFSETS_REQUEST.isRequest());
+        assertTrue(ApiType.PRODUCE_REQUEST.isRequest());
+        assertFalse(ApiType.LIST_OFFSETS_REQUEST.isResponse());
+        assertFalse(ApiType.PRODUCE_REQUEST.isResponse());
 
-        assertFalse(FilterType.LIST_OFFSETS_RESPONSE.isRequest());
-        assertFalse(FilterType.PRODUCE_RESPONSE.isRequest());
-        assertTrue(FilterType.LIST_OFFSETS_RESPONSE.isResponse());
-        assertTrue(FilterType.PRODUCE_RESPONSE.isResponse());
+        assertFalse(ApiType.LIST_OFFSETS_RESPONSE.isRequest());
+        assertFalse(ApiType.PRODUCE_RESPONSE.isRequest());
+        assertTrue(ApiType.LIST_OFFSETS_RESPONSE.isResponse());
+        assertTrue(ApiType.PRODUCE_RESPONSE.isResponse());
     }
 
     @Test
     void index() {
         var requestIndices = new TreeSet<Integer>();
-        for (short version = FilterType.LIST_OFFSETS_REQUEST.messageType.lowestSupportedVersion(); version <= FilterType.LIST_OFFSETS_REQUEST.messageType
+        for (short version = ApiType.LIST_OFFSETS_REQUEST.messageType.lowestSupportedVersion(); version <= ApiType.LIST_OFFSETS_REQUEST.messageType
                 .highestSupportedVersion(); version++) {
-            int index = FilterType.LIST_OFFSETS_REQUEST.index(version);
+            int index = ApiType.LIST_OFFSETS_REQUEST.index(version);
             if (!requestIndices.isEmpty()) {
                 assertEquals(requestIndices.last() + 1, index);
             }
             requestIndices.add(index);
         }
         assertEquals(requestIndices.size(),
-                FilterType.LIST_OFFSETS_REQUEST.messageType.highestSupportedVersion()
-                        - FilterType.LIST_OFFSETS_REQUEST.messageType.lowestSupportedVersion() + 1);
+                ApiType.LIST_OFFSETS_REQUEST.messageType.highestSupportedVersion()
+                        - ApiType.LIST_OFFSETS_REQUEST.messageType.lowestSupportedVersion() + 1);
 
         var responseIndices = new TreeSet<Integer>();
-        for (short version = FilterType.LIST_OFFSETS_RESPONSE.messageType.lowestSupportedVersion(); version <= FilterType.LIST_OFFSETS_RESPONSE.messageType
+        for (short version = ApiType.LIST_OFFSETS_RESPONSE.messageType.lowestSupportedVersion(); version <= ApiType.LIST_OFFSETS_RESPONSE.messageType
                 .highestSupportedVersion(); version++) {
-            int index = FilterType.LIST_OFFSETS_RESPONSE.index(version);
+            int index = ApiType.LIST_OFFSETS_RESPONSE.index(version);
             if (!responseIndices.isEmpty()) {
                 assertEquals(responseIndices.last() + 1, index);
             }
@@ -56,8 +56,8 @@ class FilterTypeTest {
         }
 
         assertEquals(responseIndices.size(),
-                FilterType.LIST_OFFSETS_RESPONSE.messageType.highestSupportedVersion()
-                        - FilterType.LIST_OFFSETS_RESPONSE.messageType.lowestSupportedVersion() + 1);
+                ApiType.LIST_OFFSETS_RESPONSE.messageType.highestSupportedVersion()
+                        - ApiType.LIST_OFFSETS_RESPONSE.messageType.lowestSupportedVersion() + 1);
 
         var intersection = new HashSet<>(requestIndices);
         intersection.retainAll(responseIndices);

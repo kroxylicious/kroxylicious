@@ -15,10 +15,11 @@ import org.apache.kafka.common.protocol.ObjectSerializationCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.kroxylicious.proxy.internal.FilterType;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.AbstractReferenceCounted;
 import io.netty.util.ReferenceCounted;
+
+import io.kroxylicious.proxy.internal.ApiType;
 
 /**
  * A frame that has been decoded (as opposed to an {@link OpaqueFrame}).
@@ -44,11 +45,11 @@ public abstract class DecodedFrame<H extends ApiMessage, B extends ApiMessage>
     protected final B body;
 
     private final List<ByteBuf> buffers;
-    private final FilterType type;
+    private final ApiType type;
     private int headerAndBodyEncodedLength;
     private ObjectSerializationCache serializationCache;
 
-    DecodedFrame(FilterType type, short apiVersion, int correlationId, H header, B body) {
+    DecodedFrame(ApiType type, short apiVersion, int correlationId, H header, B body) {
         this.type = type;
         this.apiVersion = apiVersion;
         this.correlationId = correlationId;
@@ -139,7 +140,7 @@ public abstract class DecodedFrame<H extends ApiMessage, B extends ApiMessage>
         buffers.forEach(ByteBuf::release);
     }
 
-    public final FilterType type() {
+    public final ApiType type() {
         return type;
     }
 }

@@ -36,7 +36,7 @@ public class FilterApis {
 
     // TODO do we really need this?
     public static FilterApis forFilters(KrpcFilter... filters) {
-        BitSet bitSet = new BitSet(FilterType.NUM_APIS);
+        BitSet bitSet = new BitSet(ApiType.NUM_APIS);
         for (var filter : filters) {
             var filterClass = filter.getClass();
             bitSet.or(bitset(filterClass));
@@ -48,9 +48,9 @@ public class FilterApis {
         if (filterClass == KrpcFilter.class) {
             throw new IllegalArgumentException();
         }
-        var bitSet = new BitSet(FilterType.NUM_APIS);
+        var bitSet = new BitSet(ApiType.NUM_APIS);
         // loop over filters
-        for (var filterType : FilterType.values()) {
+        for (var filterType : ApiType.values()) {
             if (filterType.filterClass.isAssignableFrom(filterClass)) {
                 var versionsAnno = filterType.annotations(ApiVersions.class, filterClass);
                 int from = filterType.messageType.lowestSupportedVersion();
@@ -78,7 +78,7 @@ public class FilterApis {
 
     private static void checkVersionWithinApiBounds(
                                                     int v, String vName,
-                                                    Class<? extends KrpcFilter> filterClass, FilterType filterType, ApiVersions versions) {
+                                                    Class<? extends KrpcFilter> filterClass, ApiType filterType, ApiVersions versions) {
         if (v > filterType.messageType.highestSupportedVersion()
                 || v < filterType.messageType.lowestSupportedVersion()) {
             throw new IllegalArgumentException(String.format(
@@ -96,11 +96,11 @@ public class FilterApis {
      * @param apiVersion The API version
      * @return Whether the given {@code filter} consumes requests or responses of the given {@code apiKey}.
      */
-    public boolean consumesApiVersion(FilterType type, short apiVersion) {
+    public boolean consumesApiVersion(ApiType type, short apiVersion) {
         return bitSet.get(type.index(apiVersion));
     }
 
-    public boolean consumesAnyVersion(FilterType type) {
+    public boolean consumesAnyVersion(ApiType type) {
         var bs = new BitSet();
         for (short v = type.apiKey.oldestVersion(); v <= type.apiKey.latestVersion(); v++) {
             bs.set(type.index(v));
@@ -111,7 +111,7 @@ public class FilterApis {
     public String toString() {
         StringBuilder sb = new StringBuilder();
         boolean appendedAny = false;
-        for (var filterType : FilterType.values()) {
+        for (var filterType : ApiType.values()) {
             short from = filterType.messageType.lowestSupportedVersion();
             short to = filterType.messageType.highestSupportedVersion();
             for (short version = from; version <= to; version++) {

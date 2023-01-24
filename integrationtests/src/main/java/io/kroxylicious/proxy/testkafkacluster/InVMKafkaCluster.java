@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.testkafkacluster.KafkaClusterConfig.ConfigHolder;
 import io.kroxylicious.proxy.testkafkacluster.KafkaClusterConfig.KafkaEndpoints;
+
 import kafka.server.KafkaConfig;
 import kafka.server.KafkaRaftServer;
 import kafka.server.KafkaServer;

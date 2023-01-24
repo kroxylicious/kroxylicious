@@ -42,14 +42,15 @@ import org.apache.kafka.common.protocol.Readable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.ChannelHandlerContext;
+
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.Frame;
 import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
 import io.kroxylicious.proxy.frame.RequestFrame;
+import io.kroxylicious.proxy.internal.ApiType;
 import io.kroxylicious.proxy.internal.FilterApis;
-import io.kroxylicious.proxy.internal.FilterType;
-import io.netty.buffer.ByteBuf;
-import io.netty.channel.ChannelHandlerContext;
 
 public class KafkaRequestDecoder extends KafkaMessageDecoder {
 
@@ -86,9 +87,9 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
 
         RequestHeaderData header = null;
         final ByteBufAccessorImpl accessor;
-        var decodeRequest = shouldDecode(FilterType.forKey(apiKey, true), apiVersion);
+        var decodeRequest = shouldDecode(ApiType.forKey(apiKey, true), apiVersion);
         LOGGER.debug("Decode {}/v{} request? {}", apiKey, apiVersion, decodeRequest);
-        boolean decodeResponse = shouldDecode(FilterType.forKey(apiKey, false), apiVersion);
+        boolean decodeResponse = shouldDecode(ApiType.forKey(apiKey, false), apiVersion);
         LOGGER.debug("Decode {}/v{} response? {}", apiKey, apiVersion, decodeResponse);
         short headerVersion = apiKey.requestHeaderVersion(apiVersion);
         if (decodeRequest) {
@@ -130,7 +131,7 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
         return frame;
     }
 
-    private boolean shouldDecode(FilterType type, short apiVersion) {
+    private boolean shouldDecode(ApiType type, short apiVersion) {
         return apiBitSet.consumesApiVersion(type, apiVersion);
     }
 
