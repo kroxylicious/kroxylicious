@@ -77,10 +77,10 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
         }
 
         // var dp = new SaslDecodePredicate(!authnHandlers.isEmpty());
-        FilterApis apiBitSet = saslApisBitSet(!authnHandlers.isEmpty());
+        FilterApis filterApis = saslApisBitSet(!authnHandlers.isEmpty());
         // The decoder, this only cares about the filters
         // because it needs to know whether to decode requests
-        KafkaRequestDecoder decoder = new KafkaRequestDecoder(apiBitSet);
+        KafkaRequestDecoder decoder = new KafkaRequestDecoder(filterApis);
         pipeline.addLast("requestDecoder", decoder);
 
         pipeline.addLast("responseEncoder", new KafkaResponseEncoder());
@@ -93,19 +93,19 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
             pipeline.addLast(new KafkaAuthnHandler(ch, authnHandlers));
         }
 
-        pipeline.addLast("netHandler", new KafkaProxyFrontendHandler(netFilter, apiBitSet, logNetwork, logFrames));
+        pipeline.addLast("netHandler", new KafkaProxyFrontendHandler(netFilter, filterApis, logNetwork, logFrames));
         LOGGER.debug("{}: Initial pipeline: {}", ch, pipeline);
     }
 
     static FilterApis saslApisBitSet(boolean sasl) {
-        var apiBitSet = FilterApis.forFilter(ApiVersionsRequestFilter.class);
-        apiBitSet.or(FilterApis.forFilter(MetadataRequestFilter.class));
-        apiBitSet.or(FilterApis.forFilter(MetadataResponseFilter.class));
+        var filterApis = FilterApis.forFilter(ApiVersionsRequestFilter.class);
+        filterApis.orInplace(FilterApis.forFilter(MetadataRequestFilter.class));
+        filterApis.orInplace(FilterApis.forFilter(MetadataResponseFilter.class));
         if (sasl) {
-            apiBitSet.or(FilterApis.forFilter(SaslHandshakeRequestFilter.class));
-            apiBitSet.or(FilterApis.forFilter(SaslAuthenticateRequestFilter.class));
+            filterApis.orInplace(FilterApis.forFilter(SaslHandshakeRequestFilter.class));
+            filterApis.orInplace(FilterApis.forFilter(SaslAuthenticateRequestFilter.class));
         }
-        return apiBitSet;
+        return filterApis;
     }
 
 }

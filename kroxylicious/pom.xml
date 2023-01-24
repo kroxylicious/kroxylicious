@@ -200,7 +200,7 @@
                 <artifactId>kroxylicious-krpc-plugin</artifactId>
                 <executions>
                     <execution>
-                        <id>generate-filters</id>
+                        <id>generate-filter-interfaces</id>
                         <goals>
                             <goal>generate-single</goal>
                         </goals>
@@ -216,7 +216,7 @@
                         </configuration>
                     </execution>
                     <execution>
-                        <id>generate-request-filters-2</id>
+                        <id>generate-invoker-handler</id>
                         <goals>
                             <goal>generate-multi</goal>
                         </goals>

@@ -70,7 +70,7 @@ public class KafkaProxyFrontendHandler
     private boolean pendingFlushes;
 
     private final NetFilter filter;
-    private final FilterApis apiBitSet;
+    private final FilterApis filterApis;
 
     private AuthenticationEvent authentication;
 
@@ -124,11 +124,11 @@ public class KafkaProxyFrontendHandler
     private HAProxyMessage haProxyMessage;
 
     KafkaProxyFrontendHandler(NetFilter filter,
-                              FilterApis apiBitSet,
+                              FilterApis filterApis,
                               boolean logNetwork,
                               boolean logFrames) {
         this.filter = filter;
-        this.apiBitSet = apiBitSet;
+        this.filterApis = filterApis;
         this.logNetwork = logNetwork;
         this.logFrames = logFrames;
     }
@@ -249,7 +249,7 @@ public class KafkaProxyFrontendHandler
         if (logFrames) {
             pipeline.addFirst("frameLogger", new LoggingHandler("io.kroxylicious.proxy.internal.UpstreamFrameLogger"));
         }
-        addFiltersToPipeline(filters, pipeline);
+        FilterApis filterApis = addFiltersToPipeline(filters, pipeline);
         pipeline.addFirst("responseDecoder", new KafkaResponseDecoder(correlationManager));
         pipeline.addFirst("requestEncoder", new KafkaRequestEncoder(correlationManager));
         if (logNetwork) {
@@ -262,7 +262,7 @@ public class KafkaProxyFrontendHandler
                 LOGGER.trace("{}: Outbound connected", inboundCtx.channel().id());
                 // Now we know which filters are to be used we need to update the DecodePredicate
                 // so that the decoder starts decoding the messages that the filters want to intercept
-                apiBitSet.or(FilterApis.forFilters(filters));
+                this.filterApis.orInplace(filterApis);
             }
             else {
                 state = State.FAILED;
@@ -278,11 +278,16 @@ public class KafkaProxyFrontendHandler
         return b.connect(remoteHost, remotePort);
     }
 
-    private void addFiltersToPipeline(KrpcFilter[] filters, ChannelPipeline pipeline) {
+    private FilterApis addFiltersToPipeline(KrpcFilter[] filters, ChannelPipeline pipeline) {
+        FilterApis result = FilterApis.empty();
         for (var filter : filters) {
             // TODO configurable timeout
-            pipeline.addFirst(filter.toString(), new FilterHandler(filter, 20000));
+            FilterApis filterApis = FilterApis.forFilter(filter.getClass());
+            FilterHandler handler = new FilterHandler(filterApis, filter, 20000);
+            pipeline.addFirst(filter.toString(), handler);
+            result.orInplace(filterApis);
         }
+        return result;
     }
 
     public void forwardOutbound(final ChannelHandlerContext ctx, Object msg) {

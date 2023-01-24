@@ -120,6 +120,14 @@ public enum ApiType {
         return base + version - messageType.lowestSupportedVersion();
     }
 
+    int lowestIndex() {
+        return base;
+    }
+
+    int highestIndex() {
+        return base + messageType.highestSupportedVersion() - messageType.lowestSupportedVersion();
+    }
+
     public <A extends Annotation> A annotations(Class<A> annotationClass,
                                                 Class<? extends KrpcFilter> filterImplementation) {
         Objects.requireNonNull(annotationClass);

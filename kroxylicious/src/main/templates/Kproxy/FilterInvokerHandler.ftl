@@ -23,6 +23,8 @@
  */
 package ${outputPackage};
 
+import java.util.Objects;
+
 import io.kroxylicious.proxy.frame.DecodedFrame;
 import io.netty.channel.ChannelDuplexHandler;
 <#list messageSpecs as messageSpec>
@@ -48,10 +50,10 @@ public class FilterInvokerHandler
 </#list>
     protected final KrpcFilter filter;
 
-    public FilterInvokerHandler(KrpcFilter filter) {
+    public FilterInvokerHandler(FilterApis filterApis, KrpcFilter filter) {
         super();
-        this.filter = filter;
-        FilterApis filterApis = FilterApis.forFilter(filter.getClass());
+        Objects.requireNonNull(filterApis);
+        this.filter = Objects.requireNonNull(filter);
 <#list messageSpecs as messageSpec>
         ${messageSpec.name}Filter ${messageSpec.name}Filter = null;
 </#list>

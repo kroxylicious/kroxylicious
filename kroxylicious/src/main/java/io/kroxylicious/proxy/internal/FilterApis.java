@@ -34,14 +34,8 @@ public class FilterApis {
         });
     }
 
-    // TODO do we really need this?
-    public static FilterApis forFilters(KrpcFilter... filters) {
-        BitSet bitSet = new BitSet(ApiType.NUM_APIS);
-        for (var filter : filters) {
-            var filterClass = filter.getClass();
-            bitSet.or(bitset(filterClass));
-        }
-        return new FilterApis(bitSet);
+    public static FilterApis empty() {
+        return new FilterApis(new BitSet(ApiType.NUM_APIS));
     }
 
     private static BitSet bitset(Class<? extends KrpcFilter> filterClass) {
@@ -101,11 +95,12 @@ public class FilterApis {
     }
 
     public boolean consumesAnyVersion(ApiType type) {
-        var bs = new BitSet();
-        for (short v = type.apiKey.oldestVersion(); v <= type.apiKey.latestVersion(); v++) {
-            bs.set(type.index(v));
+        for (int index = type.highestIndex(); index >= type.lowestIndex(); index--) {
+            if (bitSet.get(index)) {
+                return true;
+            }
         }
-        return bitSet.intersects(bs);
+        return false;
     }
 
     public String toString() {
@@ -138,8 +133,7 @@ public class FilterApis {
         return sb.toString();
     }
 
-    // TODO do we really need this?
-    public void or(FilterApis forFilter) {
+    public void orInplace(FilterApis forFilter) {
         bitSet.or(forFilter.bitSet);
     }
 }

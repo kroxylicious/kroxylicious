@@ -5,8 +5,6 @@
  */
 package io.kroxylicious.proxy.internal;
 
-import java.util.Objects;
-
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,8 +33,8 @@ public class FilterHandler
 
     private final long timeoutMs;
 
-    public FilterHandler(KrpcFilter filter, long timeoutMs) {
-        super(Objects.requireNonNull(filter));
+    public FilterHandler(FilterApis filterApis, KrpcFilter filter, long timeoutMs) {
+        super(filterApis, filter);
         this.timeoutMs = Assertions.requireStrictlyPositive(timeoutMs, "timeout");
     }
 

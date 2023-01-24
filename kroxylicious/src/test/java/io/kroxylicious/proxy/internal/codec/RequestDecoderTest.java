@@ -33,7 +33,12 @@ public class RequestDecoderTest extends AbstractCodecTest {
     @ParameterizedTest
     @MethodSource("requestApiVersions")
     public void testApiVersionsExactlyOneFrame_decoded(short apiVersion) throws Exception {
-        var apiBitSet = FilterApis.forFilters((ApiVersionsRequestFilter) (request, context) -> context.forwardRequest(request));
+        var apiBitSet = FilterApis.forFilter(new ApiVersionsRequestFilter() {
+            @Override
+            public void onApiVersionsRequest(ApiVersionsRequestData request, KrpcFilterContext context) {
+                context.forwardRequest(request);
+            }
+        }.getClass());
         assertEquals(12,
                 exactlyOneFrame_decoded(apiVersion,
                         ApiKeys.API_VERSIONS::requestHeaderVersion,
@@ -50,13 +55,13 @@ public class RequestDecoderTest extends AbstractCodecTest {
     @ParameterizedTest
     @MethodSource("requestApiVersions")
     public void testApiVersionsExactlyOneFrame_opaque(short apiVersion) throws Exception {
-        var apiBitSet = FilterApis.forFilters(new ProduceRequestFilter() {
+        var apiBitSet = FilterApis.forFilter(new ProduceRequestFilter() {
 
             @Override
             public void onProduceRequest(ProduceRequestData request, KrpcFilterContext context) {
                 context.forwardRequest(request);
             }
-        });
+        }.getClass());
         assertEquals(12,
                 exactlyOneFrame_encoded(apiVersion,
                         ApiKeys.API_VERSIONS::requestHeaderVersion,
@@ -79,7 +84,12 @@ public class RequestDecoderTest extends AbstractCodecTest {
         ByteBuf byteBuf = Unpooled.wrappedBuffer(bbuffer.limit(bbuffer.limit() - 1));
 
         var messages = new ArrayList<>();
-        var apiBitSet = FilterApis.forFilters((ApiVersionsRequestFilter) (request, context) -> context.forwardRequest(request));
+        var apiBitSet = FilterApis.forFilter(new ApiVersionsRequestFilter() {
+            @Override
+            public void onApiVersionsRequest(ApiVersionsRequestData request, KrpcFilterContext context) {
+                context.forwardRequest(request);
+            }
+        }.getClass());
         new KafkaRequestDecoder(apiBitSet)
                 .decode(null, byteBuf, messages);
 
@@ -97,7 +107,12 @@ public class RequestDecoderTest extends AbstractCodecTest {
         ByteBuf byteBuf = Unpooled.wrappedBuffer(bbuffer.limit(n));
 
         var messages = new ArrayList<>();
-        var apiBitSet = FilterApis.forFilters((ApiVersionsRequestFilter) (request, context) -> context.forwardRequest(request));
+        var apiBitSet = FilterApis.forFilter(new ApiVersionsRequestFilter() {
+            @Override
+            public void onApiVersionsRequest(ApiVersionsRequestData request, KrpcFilterContext context) {
+                context.forwardRequest(request);
+            }
+        }.getClass());
         new KafkaRequestDecoder(apiBitSet)
                 .decode(null, byteBuf, messages);
 
@@ -139,7 +154,12 @@ public class RequestDecoderTest extends AbstractCodecTest {
         ByteBuf byteBuf = Unpooled.wrappedBuffer(bbuffer);
 
         var messages = new ArrayList<>();
-        var apiBitSet = FilterApis.forFilters((ApiVersionsRequestFilter) (request, context) -> context.forwardRequest(request));
+        var apiBitSet = FilterApis.forFilter(new ApiVersionsRequestFilter() {
+            @Override
+            public void onApiVersionsRequest(ApiVersionsRequestData request, KrpcFilterContext context) {
+                context.forwardRequest(request);
+            }
+        }.getClass());
         new KafkaRequestDecoder(apiBitSet)
                 .decode(null, byteBuf, messages);
 
