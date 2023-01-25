@@ -10,8 +10,9 @@
  */
 package io.kroxylicious.proxy.internal.future;
 
-import io.kroxylicious.proxy.future.Promise;
 import io.netty.util.concurrent.FutureListener;
+
+import io.kroxylicious.proxy.future.Promise;
 
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>

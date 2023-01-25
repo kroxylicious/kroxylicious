@@ -5,12 +5,13 @@
  */
 package io.kroxylicious.krpccodegen.model;
 
+import io.kroxylicious.krpccodegen.schema.FieldType;
+
 import freemarker.template.AdapterTemplateModel;
 import freemarker.template.TemplateHashModel;
 import freemarker.template.TemplateModel;
 import freemarker.template.TemplateModelException;
 import freemarker.template.TemplateScalarModel;
-import io.kroxylicious.krpccodegen.schema.FieldType;
 
 public class FieldTypeModel implements TemplateHashModel, TemplateScalarModel, AdapterTemplateModel {
     final FieldType fieldType;

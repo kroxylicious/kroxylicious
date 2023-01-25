@@ -41,6 +41,7 @@ import com.github.dockerjava.api.command.InspectContainerResponse;
 
 import io.kroxylicious.proxy.testkafkacluster.KafkaClusterConfig.KafkaEndpoints;
 import io.kroxylicious.proxy.testkafkacluster.KafkaClusterConfig.KafkaEndpoints.Endpoint;
+
 import lombok.SneakyThrows;
 
 /**
