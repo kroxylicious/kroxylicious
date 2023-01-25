@@ -9,10 +9,11 @@ import java.util.List;
 
 import org.slf4j.Logger;
 
-import io.kroxylicious.proxy.frame.Frame;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
+
+import io.kroxylicious.proxy.frame.Frame;
 
 /**
  * Abstraction for request and response decoders.

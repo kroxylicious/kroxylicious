@@ -8,8 +8,9 @@ package io.kroxylicious.proxy.frame;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.kroxylicious.proxy.tag.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
+
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 /**
  * A frame in the Kafka protocol which has not been decoded.

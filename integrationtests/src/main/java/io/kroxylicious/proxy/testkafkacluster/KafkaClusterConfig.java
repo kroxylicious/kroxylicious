@@ -26,6 +26,7 @@ import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.junit.jupiter.api.TestInfo;
 
 import io.kroxylicious.proxy.testkafkacluster.KafkaClusterConfig.KafkaEndpoints.Endpoint;
+
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Singular;

@@ -12,9 +12,6 @@ import org.apache.kafka.common.security.auth.AuthenticateCallbackHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.kroxylicious.proxy.filter.NetFilter;
-import io.kroxylicious.proxy.internal.codec.KafkaRequestDecoder;
-import io.kroxylicious.proxy.internal.codec.KafkaResponseEncoder;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.socket.SocketChannel;
@@ -22,6 +19,10 @@ import io.netty.handler.codec.haproxy.HAProxyMessageDecoder;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SslContext;
+
+import io.kroxylicious.proxy.filter.NetFilter;
+import io.kroxylicious.proxy.internal.codec.KafkaRequestDecoder;
+import io.kroxylicious.proxy.internal.codec.KafkaResponseEncoder;
 
 public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
 

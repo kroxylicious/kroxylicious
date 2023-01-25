@@ -5,15 +5,16 @@
  */
 package io.kroxylicious.krpccodegen.model;
 
-import freemarker.template.DefaultObjectWrapper;
-import freemarker.template.TemplateModel;
-import freemarker.template.TemplateModelException;
-import freemarker.template.Version;
 import io.kroxylicious.krpccodegen.schema.FieldSpec;
 import io.kroxylicious.krpccodegen.schema.FieldType;
 import io.kroxylicious.krpccodegen.schema.MessageSpec;
 import io.kroxylicious.krpccodegen.schema.StructSpec;
 import io.kroxylicious.krpccodegen.schema.Versions;
+
+import freemarker.template.DefaultObjectWrapper;
+import freemarker.template.TemplateModel;
+import freemarker.template.TemplateModelException;
+import freemarker.template.Version;
 
 public class KrpcSchemaObjectWrapper extends DefaultObjectWrapper {
 

@@ -7,8 +7,9 @@ package io.kroxylicious.proxy.filter;
 
 import org.apache.kafka.common.protocol.ApiMessage;
 
-import io.kroxylicious.proxy.future.Future;
 import io.netty.buffer.ByteBuf;
+
+import io.kroxylicious.proxy.future.Future;
 
 /**
  * A context to allow filters to interact with other filters and the pipeline.

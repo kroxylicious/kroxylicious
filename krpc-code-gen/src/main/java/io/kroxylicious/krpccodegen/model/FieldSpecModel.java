@@ -5,11 +5,12 @@
  */
 package io.kroxylicious.krpccodegen.model;
 
+import io.kroxylicious.krpccodegen.schema.FieldSpec;
+
 import freemarker.template.AdapterTemplateModel;
 import freemarker.template.TemplateHashModel;
 import freemarker.template.TemplateModel;
 import freemarker.template.TemplateModelException;
-import io.kroxylicious.krpccodegen.schema.FieldSpec;
 
 public class FieldSpecModel implements TemplateHashModel, AdapterTemplateModel {
     final FieldSpec spec;

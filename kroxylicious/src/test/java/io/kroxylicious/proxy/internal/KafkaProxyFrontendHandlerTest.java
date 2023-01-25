@@ -23,10 +23,6 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
 
-import io.kroxylicious.proxy.filter.KrpcFilter;
-import io.kroxylicious.proxy.filter.NetFilter;
-import io.kroxylicious.proxy.frame.DecodedRequestFrame;
-import io.kroxylicious.proxy.internal.KafkaProxyFrontendHandler.State;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
@@ -37,6 +33,11 @@ import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.handler.codec.haproxy.HAProxyProtocolVersion;
 import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
 import io.netty.handler.ssl.SniCompletionEvent;
+
+import io.kroxylicious.proxy.filter.KrpcFilter;
+import io.kroxylicious.proxy.filter.NetFilter;
+import io.kroxylicious.proxy.frame.DecodedRequestFrame;
+import io.kroxylicious.proxy.internal.KafkaProxyFrontendHandler.State;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;

@@ -21,16 +21,6 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import io.kroxylicious.proxy.filter.KrpcFilter;
-import io.kroxylicious.proxy.filter.NetFilter;
-import io.kroxylicious.proxy.frame.DecodedRequestFrame;
-import io.kroxylicious.proxy.frame.DecodedResponseFrame;
-import io.kroxylicious.proxy.frame.RequestFrame;
-import io.kroxylicious.proxy.internal.codec.CorrelationManager;
-import io.kroxylicious.proxy.internal.codec.DecodePredicate;
-import io.kroxylicious.proxy.internal.codec.KafkaRequestEncoder;
-import io.kroxylicious.proxy.internal.codec.KafkaResponseDecoder;
-import io.kroxylicious.proxy.tag.VisibleForTesting;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
@@ -43,6 +33,17 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SniCompletionEvent;
+
+import io.kroxylicious.proxy.filter.KrpcFilter;
+import io.kroxylicious.proxy.filter.NetFilter;
+import io.kroxylicious.proxy.frame.DecodedRequestFrame;
+import io.kroxylicious.proxy.frame.DecodedResponseFrame;
+import io.kroxylicious.proxy.frame.RequestFrame;
+import io.kroxylicious.proxy.internal.codec.CorrelationManager;
+import io.kroxylicious.proxy.internal.codec.DecodePredicate;
+import io.kroxylicious.proxy.internal.codec.KafkaRequestEncoder;
+import io.kroxylicious.proxy.internal.codec.KafkaResponseDecoder;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 public class KafkaProxyFrontendHandler
         extends ChannelInboundHandlerAdapter

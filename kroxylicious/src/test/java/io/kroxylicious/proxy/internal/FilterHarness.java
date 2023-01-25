@@ -11,11 +11,12 @@ import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.junit.jupiter.api.AfterEach;
 
+import io.netty.channel.embedded.EmbeddedChannel;
+
 import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.future.Promise;
-import io.netty.channel.embedded.EmbeddedChannel;
 
 import static org.junit.jupiter.api.Assertions.fail;
 
