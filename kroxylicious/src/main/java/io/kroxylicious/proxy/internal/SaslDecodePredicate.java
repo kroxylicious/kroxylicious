@@ -42,7 +42,7 @@ class SaslDecodePredicate implements DecodePredicate {
     }
 
     @Override
-    public boolean shouldDecodeRequest(ApiKeys apiKey, short apiVersion) {
+    public boolean shouldDeserializeRequest(ApiKeys apiKey, short apiVersion) {
         boolean result;
         if (apiKey == ApiKeys.API_VERSIONS) {
             // TODO For now let's assume we need to always decode this, since the NetHandler
@@ -55,14 +55,14 @@ class SaslDecodePredicate implements DecodePredicate {
             result = handleSasl;
         }
         else {
-            result = delegate == null || delegate.shouldDecodeRequest(apiKey, apiVersion);
+            result = delegate == null || delegate.shouldDeserializeRequest(apiKey, apiVersion);
         }
         return result;
     }
 
     @Override
-    public boolean shouldDecodeResponse(ApiKeys apiKey, short apiVersion) {
-        return delegate == null || delegate.shouldDecodeResponse(apiKey, apiVersion);
+    public boolean shouldDeserializeResponse(ApiKeys apiKey, short apiVersion) {
+        return delegate == null || delegate.shouldDeserializeResponse(apiKey, apiVersion);
     }
 
     @Override

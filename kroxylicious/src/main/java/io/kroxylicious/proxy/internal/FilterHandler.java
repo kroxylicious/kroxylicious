@@ -22,8 +22,10 @@ import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
 import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
 import io.kroxylicious.proxy.future.Promise;
+import io.kroxylicious.proxy.internal.codec.DecodePredicate;
 import io.kroxylicious.proxy.internal.util.Assertions;
 import io.kroxylicious.proxy.invoker.FilterInvoker;
+import io.kroxylicious.proxy.invoker.FilterInvokers;
 
 /**
  * A {@code ChannelInboundHandler} (for handling requests from downstream)
@@ -33,18 +35,20 @@ public class FilterHandler
         extends ChannelDuplexHandler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(FilterHandler.class);
+    private final KrpcFilter filter;
     private final FilterInvoker invoker;
     private final long timeoutMs;
     private final String sniHostname;
 
-    public FilterHandler(FilterInvoker invoker, long timeoutMs, String sniHostname) {
-        this.invoker = Objects.requireNonNull(invoker);
+    public FilterHandler(KrpcFilter filter, long timeoutMs, String sniHostname) {
+        this.filter = Objects.requireNonNull(filter);
+        this.invoker = FilterInvokers.invokerFor(filter);
         this.timeoutMs = Assertions.requireStrictlyPositive(timeoutMs, "timeout");
         this.sniHostname = sniHostname;
     }
 
     String filterDescriptor() {
-        return invoker.getFilter().getClass().getSimpleName() + "@" + System.identityHashCode(invoker.getFilter());
+        return filter.getClass().getSimpleName() + "@" + System.identityHashCode(filter);
     }
 
     @Override
@@ -53,7 +57,7 @@ public class FilterHandler
             DecodedRequestFrame<?> decodedFrame = (DecodedRequestFrame<?>) msg;
             // Guard against invoking the filter unexpectedly
             if (invoker.shouldDeserializeRequest(decodedFrame.apiKey(), decodedFrame.apiVersion())) {
-                var filterContext = new DefaultFilterContext(invoker.getFilter(), ctx, decodedFrame, promise, timeoutMs, sniHostname);
+                var filterContext = new DefaultFilterContext(filter, ctx, decodedFrame, promise, timeoutMs, sniHostname);
                 if (LOGGER.isDebugEnabled()) {
                     LOGGER.debug("{}: Dispatching downstream {} request to filter{}: {}",
                             ctx.channel(), decodedFrame.apiKey(), filterDescriptor(), msg);
@@ -81,7 +85,7 @@ public class FilterHandler
             DecodedResponseFrame<?> decodedFrame = (DecodedResponseFrame<?>) msg;
             if (decodedFrame instanceof InternalResponseFrame) {
                 InternalResponseFrame<?> frame = (InternalResponseFrame<?>) decodedFrame;
-                if (frame.isRecipient(invoker.getFilter())) {
+                if (frame.isRecipient(filter)) {
                     if (LOGGER.isDebugEnabled()) {
                         LOGGER.debug("{}: Completing {} response for request sent by this filter{}: {}",
                                 ctx.channel(), decodedFrame.apiKey(), filterDescriptor(), msg);
@@ -98,7 +102,7 @@ public class FilterHandler
                 }
             }
             else if (invoker.shouldDeserializeResponse(decodedFrame.apiKey(), decodedFrame.apiVersion())) {
-                var filterContext = new DefaultFilterContext(invoker.getFilter(), ctx, decodedFrame, null, timeoutMs, sniHostname);
+                var filterContext = new DefaultFilterContext(filter, ctx, decodedFrame, null, timeoutMs, sniHostname);
                 if (LOGGER.isDebugEnabled()) {
                     LOGGER.debug("{}: Dispatching upstream {} response to filter {}: {}",
                             ctx.channel(), decodedFrame.apiKey(), filterDescriptor(), msg);
@@ -115,6 +119,10 @@ public class FilterHandler
             }
             ctx.fireChannelRead(msg);
         }
+    }
+
+    DecodePredicate decodePredicate() {
+        return invoker;
     }
 
 }

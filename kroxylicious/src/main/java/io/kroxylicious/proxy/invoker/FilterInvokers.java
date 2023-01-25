@@ -19,7 +19,8 @@ public class FilterInvokers {
         }
     }
 
-    public static FilterInvoker[] invokersFor(KrpcFilter[] filters) {
+    public static FilterInvoker[] invokersFor(KrpcFilter... filters) {
         return Arrays.stream(filters).map(FilterInvokers::invokerFor).toArray(FilterInvoker[]::new);
     }
+
 }

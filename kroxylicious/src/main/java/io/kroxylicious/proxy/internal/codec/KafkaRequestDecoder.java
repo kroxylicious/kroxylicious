@@ -85,9 +85,9 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
 
         RequestHeaderData header = null;
         final ByteBufAccessorImpl accessor;
-        var decodeRequest = decodePredicate.shouldDecodeRequest(apiKey, apiVersion);
+        var decodeRequest = decodePredicate.shouldDeserializeRequest(apiKey, apiVersion);
         LOGGER.debug("Decode {}/v{} request? {}, Predicate {} ", apiKey, apiVersion, decodeRequest, decodePredicate);
-        boolean decodeResponse = decodePredicate.shouldDecodeResponse(apiKey, apiVersion);
+        boolean decodeResponse = decodePredicate.shouldDeserializeResponse(apiKey, apiVersion);
         LOGGER.debug("Decode {}/v{} response? {}, Predicate {}", apiKey, apiVersion, decodeResponse, decodePredicate);
         short headerVersion = apiKey.requestHeaderVersion(apiVersion);
         if (decodeRequest) {

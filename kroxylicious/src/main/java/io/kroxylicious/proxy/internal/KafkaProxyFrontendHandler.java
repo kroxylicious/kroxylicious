@@ -9,7 +9,9 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
@@ -43,8 +45,6 @@ import io.kroxylicious.proxy.internal.codec.CorrelationManager;
 import io.kroxylicious.proxy.internal.codec.DecodePredicate;
 import io.kroxylicious.proxy.internal.codec.KafkaRequestEncoder;
 import io.kroxylicious.proxy.internal.codec.KafkaResponseDecoder;
-import io.kroxylicious.proxy.invoker.FilterInvoker;
-import io.kroxylicious.proxy.invoker.FilterInvokers;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 public class KafkaProxyFrontendHandler
@@ -252,8 +252,7 @@ public class KafkaProxyFrontendHandler
         if (logFrames) {
             pipeline.addFirst("frameLogger", new LoggingHandler("io.kroxylicious.proxy.internal.UpstreamFrameLogger"));
         }
-        FilterInvoker[] invokers = FilterInvokers.invokersFor(filters);
-        addInvokersToPipeline(pipeline, invokers);
+        DecodePredicate decodePredicate = addFiltersToPipeline(filters, pipeline);
         pipeline.addFirst("responseDecoder", new KafkaResponseDecoder(correlationManager));
         pipeline.addFirst("requestEncoder", new KafkaRequestEncoder(correlationManager));
         if (logNetwork) {
@@ -266,7 +265,7 @@ public class KafkaProxyFrontendHandler
                 LOGGER.trace("{}: Outbound connected", inboundCtx.channel().id());
                 // Now we know which filters are to be used we need to update the DecodePredicate
                 // so that the decoder starts decoding the messages that the filters want to intercept
-                dp.setDelegate(DecodePredicate.forInvokers(invokers));
+                dp.setDelegate(decodePredicate);
             }
             else {
                 state = State.FAILED;
@@ -282,11 +281,15 @@ public class KafkaProxyFrontendHandler
         return b.connect(remoteHost, remotePort);
     }
 
-    private void addInvokersToPipeline(ChannelPipeline pipeline, FilterInvoker[] invokers) {
-        for (var invoker : invokers) {
+    private DecodePredicate addFiltersToPipeline(KrpcFilter[] filters, ChannelPipeline pipeline) {
+        List<DecodePredicate> predicates = new ArrayList<>();
+        for (var filter : filters) {
             // TODO configurable timeout
-            pipeline.addFirst(invoker.toString(), new FilterHandler(invoker, 20000, sniHostname));
+            FilterHandler handler = new FilterHandler(filter, 20000, sniHostname);
+            predicates.add(handler.decodePredicate());
+            pipeline.addFirst(filter.toString(), handler);
         }
+        return DecodePredicate.anyOf(predicates.toArray(DecodePredicate[]::new));
     }
 
     public void forwardOutbound(final ChannelHandlerContext ctx, Object msg) {

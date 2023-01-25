@@ -5,13 +5,7 @@
  */
 package io.kroxylicious.proxy.internal.codec;
 
-import java.util.Arrays;
-
 import org.apache.kafka.common.protocol.ApiKeys;
-
-import io.kroxylicious.proxy.filter.KrpcFilter;
-import io.kroxylicious.proxy.invoker.FilterInvoker;
-import io.kroxylicious.proxy.invoker.FilterInvokers;
 
 /**
  * Encapsulates decisions about whether requests and responses should be
@@ -23,15 +17,11 @@ import io.kroxylicious.proxy.invoker.FilterInvokers;
  */
 public interface DecodePredicate {
 
-    static DecodePredicate forFilters(KrpcFilter... filters) {
-        return forInvokers(FilterInvokers.invokersFor(filters));
-    }
-
-    static DecodePredicate forInvokers(FilterInvoker... invokers) {
+    static DecodePredicate anyOf(DecodePredicate[] predicates) {
         return new DecodePredicate() {
             @Override
-            public boolean shouldDecodeResponse(ApiKeys apiKey, short apiVersion) {
-                for (var invoker : invokers) {
+            public boolean shouldDeserializeResponse(ApiKeys apiKey, short apiVersion) {
+                for (var invoker : predicates) {
                     if (invoker.shouldDeserializeResponse(apiKey, apiVersion)) {
                         return true;
                     }
@@ -40,24 +30,19 @@ public interface DecodePredicate {
             }
 
             @Override
-            public boolean shouldDecodeRequest(ApiKeys apiKey, short apiVersion) {
-                for (var invoker : invokers) {
+            public boolean shouldDeserializeRequest(ApiKeys apiKey, short apiVersion) {
+                for (var invoker : predicates) {
                     if (invoker.shouldDeserializeRequest(apiKey, apiVersion)) {
                         return true;
                     }
                 }
                 return false;
             }
-
-            @Override
-            public String toString() {
-                return "DecodePredicate$forInvokers{" + Arrays.toString(invokers) + "}";
-            }
         };
     }
 
-    boolean shouldDecodeRequest(ApiKeys apiKey, short apiVersion);
+    boolean shouldDeserializeRequest(ApiKeys apiKey, short apiVersion);
 
-    boolean shouldDecodeResponse(ApiKeys apiKey, short apiVersion);
+    boolean shouldDeserializeResponse(ApiKeys apiKey, short apiVersion);
 
 }

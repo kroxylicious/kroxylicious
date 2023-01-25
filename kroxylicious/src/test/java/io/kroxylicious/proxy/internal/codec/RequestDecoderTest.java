@@ -32,6 +32,7 @@ public class RequestDecoderTest extends AbstractCodecTest {
     @ParameterizedTest
     @MethodSource("requestApiVersions()")
     public void testApiVersionsExactlyOneFrame_decoded(short apiVersion) throws Exception {
+        KrpcFilter[] filters = { (ApiVersionsRequestFilter) (headers, request, context) -> context.forwardRequest(request) };
         assertEquals(12,
                 exactlyOneFrame_decoded(apiVersion,
                         ApiKeys.API_VERSIONS::requestHeaderVersion,
@@ -39,9 +40,7 @@ public class RequestDecoderTest extends AbstractCodecTest {
                         AbstractCodecTest::exampleApiVersionsRequest,
                         AbstractCodecTest::deserializeRequestHeaderUsingKafkaApis,
                         AbstractCodecTest::deserializeApiVersionsRequestUsingKafkaApis,
-                        new KafkaRequestDecoder(
-                                DecodePredicate.forInvokers(FilterInvokers
-                                        .invokersFor(new KrpcFilter[]{ (ApiVersionsRequestFilter) (headers, request, context) -> context.forwardRequest(request) }))),
+                        new KafkaRequestDecoder(DecodePredicate.anyOf(FilterInvokers.invokersFor(filters))),
                         DecodedRequestFrame.class,
                         (RequestHeaderData header) -> header),
                 "Unexpected correlation id");
@@ -55,7 +54,7 @@ public class RequestDecoderTest extends AbstractCodecTest {
                         ApiKeys.API_VERSIONS::requestHeaderVersion,
                         AbstractCodecTest::exampleRequestHeader,
                         AbstractCodecTest::exampleApiVersionsRequest,
-                        new KafkaRequestDecoder(DecodePredicate.forInvokers(FilterInvokers.invokersFor(new KrpcFilter[]{ new ApiVersionsRequestFilter() {
+                        new KafkaRequestDecoder(DecodePredicate.anyOf(FilterInvokers.invokersFor(new ApiVersionsRequestFilter() {
                             @Override
                             public boolean shouldDeserializeRequest(ApiKeys apiKey, short apiVersion1) {
                                 return false;
@@ -64,7 +63,7 @@ public class RequestDecoderTest extends AbstractCodecTest {
                             public void onApiVersionsRequest(RequestHeaderData header, ApiVersionsRequestData request, KrpcFilterContext context) {
                                 context.forwardRequest(request);
                             }
-                        } }))),
+                        }))),
                         OpaqueRequestFrame.class),
                 "Unexpected correlation id");
     }
@@ -83,8 +82,8 @@ public class RequestDecoderTest extends AbstractCodecTest {
         var messages = new ArrayList<>();
         new KafkaRequestDecoder(
                 DecodePredicate
-                        .forInvokers(
-                                FilterInvokers.invokersFor(new KrpcFilter[]{ (ApiVersionsRequestFilter) (header, request, context) -> context.forwardRequest(request) })))
+                        .anyOf(
+                                FilterInvokers.invokersFor((ApiVersionsRequestFilter) (header, request, context) -> context.forwardRequest(request))))
                 .decode(null, byteBuf, messages);
 
         assertEquals(List.of(), messageClasses(messages));
@@ -103,8 +102,8 @@ public class RequestDecoderTest extends AbstractCodecTest {
         var messages = new ArrayList<>();
         new KafkaRequestDecoder(
                 DecodePredicate
-                        .forInvokers(FilterInvokers
-                                .invokersFor(new KrpcFilter[]{ (ApiVersionsRequestFilter) (headers, request, context) -> context.forwardRequest(request) })))
+                        .anyOf(FilterInvokers
+                                .invokersFor((ApiVersionsRequestFilter) (headers, request, context) -> context.forwardRequest(request))))
                 .decode(null, byteBuf, messages);
 
         assertEquals(List.of(), messageClasses(messages));
@@ -147,8 +146,8 @@ public class RequestDecoderTest extends AbstractCodecTest {
         var messages = new ArrayList<>();
         new KafkaRequestDecoder(
                 DecodePredicate
-                        .forInvokers(FilterInvokers
-                                .invokersFor(new KrpcFilter[]{ (ApiVersionsRequestFilter) (headers, request, context) -> context.forwardRequest(request) })))
+                        .anyOf(FilterInvokers
+                                .invokersFor((ApiVersionsRequestFilter) (headers, request, context) -> context.forwardRequest(request))))
                 .decode(null, byteBuf, messages);
 
         assertEquals(List.of(DecodedRequestFrame.class, DecodedRequestFrame.class), messageClasses(messages));

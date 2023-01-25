@@ -39,7 +39,7 @@ import java.util.HashSet;
 import java.util.EnumSet;
 import java.util.Set;
 
-public class PerMessageInvoker implements FilterInvoker
+class PerMessageInvoker implements FilterInvoker
 {
     private final Set<ApiKeys> requestKeys;
     private final Set<ApiKeys> responseKeys;
@@ -48,7 +48,7 @@ public class PerMessageInvoker implements FilterInvoker
     <#list messageSpecs as messageSpec>
     private final ${messageSpec.name}Filter ${messageSpec.name}Filter;
     </#list>
-    public PerMessageInvoker(KrpcFilter filter){
+    PerMessageInvoker(KrpcFilter filter){
         this.inner = filter;
         Set<ApiKeys> supportedRequestKeys = new HashSet<>();
         Set<ApiKeys> supportedResponseKeys = new HashSet<>();
@@ -112,16 +112,6 @@ public class PerMessageInvoker implements FilterInvoker
         }
         </#list>
         return false;
-    }
-
-    @Override
-    public KrpcFilter getFilter(){
-        return inner;
-    }
-
-    @Override
-    public String toString(){
-        return "PerMessageInvoker for filter " + inner.toString();
     }
 
 }
