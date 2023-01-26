@@ -116,13 +116,12 @@
             <groupId>com.fasterxml.jackson.datatype</groupId>
             <artifactId>jackson-datatype-jdk8</artifactId>
         </dependency>
-
-        <!-- Test dependencies -->
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
             <artifactId>log4j-slf4j-impl</artifactId>
-            <scope>test</scope>
         </dependency>
+
+        <!-- Test dependencies -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
@@ -146,6 +145,16 @@
     </dependencies>
 
     <build>
+        <!-- Without this extension, the os arch and name can't be detected
+         while building from inside a Docker build and maven can't find the artifact
+          for io.netty:netty-transport-native-unix-common:jar -->
+        <extensions>
+            <extension>
+                <groupId>kr.motd.maven</groupId>
+                <artifactId>os-maven-plugin</artifactId>
+                <version>1.7.0</version>
+            </extension>
+        </extensions>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -269,8 +278,38 @@
                                     <classpathPrefix>${libs.dir}/</classpathPrefix>
                                     <mainClass>io.kroxylicious.proxy.Kroxylicious</mainClass>
                                 </manifest>
+                                <manifestEntries>
+                                    <Multi-Release>true</Multi-Release>
+                                </manifestEntries>
                             </archive>
                         </configuration>
+                    </plugin>
+                    <plugin>
+                        <!-- Needed to build a fat jar for the container -->
+                        <artifactId>maven-assembly-plugin</artifactId>
+                        <version>3.4.2</version>
+                        <configuration>
+                            <descriptorRefs>
+                                <descriptorRef>jar-with-dependencies</descriptorRef>
+                            </descriptorRefs>
+                            <archive>
+                                <manifestEntries>
+                                    <Multi-Release>true</Multi-Release>
+                                </manifestEntries>
+                                <manifest>
+                                    <mainClass>io.kroxylicious.proxy.Kroxylicious</mainClass>
+                                </manifest>
+                            </archive>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>make-assembly</id>
+                                <phase>package</phase> 
+                                <goals>
+                                    <goal>single</goal>
+                                </goals>
+                            </execution>
+                        </executions>
                     </plugin>
                 </plugins>
             </build>
