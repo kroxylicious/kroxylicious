@@ -450,6 +450,13 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-checkstyle-plugin</artifactId>
+                        <configuration>
+                            <violationSeverity>warning</violationSeverity>
+                            <failOnViolation>true</failOnViolation>
+                            <failsOnError>true</failsOnError>
+                            <logViolationCountToConsole>true</logViolationCountToConsole>
+                            <logViolationsToConsole>true</logViolationsToConsole>
+                        </configuration>
                         <executions>
                             <execution>
                                 <id>check-google-checks</id>
@@ -472,6 +479,8 @@
                                     <goal>check</goal>
                                 </goals>
                                 <configuration>
+                                    <consoleOutput>true</consoleOutput>
+                                    <failOnViolation>true</failOnViolation>
                                     <!--suppress MavenModelInspection -->
                                     <configLocation>${rootdir}/etc/checkstyle-custom_checks.xml</configLocation>
                                     <!--suppress MavenModelInspection -->
