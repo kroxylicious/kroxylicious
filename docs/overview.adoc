@@ -1,0 +1,84 @@
+= Overview
+
+== What is Kroxylicious Proxy?
+
+Kroxylicous Proxy provides a pluggable, protocol-aware ("Layer 7") proxy for Apache Kafka brokers and clusters, together with an API for conveniently implementing custom logic within such a proxy.
+
+== Why?
+
+Proxies are a powerful and flexible architectural pattern.
+For Kafka they can be used to add functionality to Kafka clusters which is not available out-of-the-box with Apache Kafka.
+In an ideal world, such functionality would be implemented directly in Apache Kafka. But there are numerous practical reasons that prevent this, for example:
+
+* Organizations having very niche requirements which unsuitable for implementation directly in Apache Kafka.
+* Functionality which requires an plugin API in Apache Kafka which doesn't currently exist, and the Apache Kafka project is unwilling to implement.
+* Experimental functionality which might end up being implemented in Apache Kafka eventually.
+For example using Kroxylicious proxy it's easier to experiment with alternative transport protocols, such as Quic, or operating system APIs, such as io_uring, because there is already support for this in Netty, the networking framework on which Kroxylicious is built.
+
+== How it works
+
+// TODO include a diagram
+
+When a Kafka protocol client (typically a producer, consumer or admin client) connects to a proxy instance it is first handled by a pluggable _network filter_
+This handles things like:
+
+* SSL
+* Possibly initial client requests such as `ApiVersions`, `SaslHandshake` and `SaslAuthenticate`
+
+The network filter then
+
+1. determines which broker to connect the client to
+1. instantiates a chain of protocol filters for processing all further messages.
+1. removes itself from the further processing
+
+A _filter chain_ consists of one or more pluggable _protocol filters_.
+Kafka protocol messages (such as `Produce` requests and `Fetch` responses) pass  sequentially through each of the protocol filters in the chain before being forwarded to the broker.
+A  _protocol filter_ implements some logic for intercepting, inspecting and/or manipulating Kafka protocol messages.
+
+== Implementation
+
+The proxy is written in Java, on top of Netty.
+Standard Netty handlers are used where appropriate (e.g. SSL).
+The Kafka-aware parts use the Apache Kafka project's own classes for serialization and deserialization.
+Protocol filters get executed using a handler-per-filter model.
+
+== Deployment topologies
+
+The proxy supports a range of possibly deployment topologies.
+Which style is used depends on what the proxy is meant to _achieve_, architecturally speaking.
+Broadly speaking a proxy instance can be deployed:
+
+As a forward proxy::
+proxying the access of one or more clients to a particular cluster/broker that might also accessible (to other clients) directly.
++
+// TODO include a diagram
++
+Topic-level encryption provides one example use case for a forward proxy.
+This might be applicable for a client that doesn't support interceptors, or an organisation wanting to apply the same encryption policy in a single place while  securing access to the keys.
+
+As a reverse proxy::
+proxying access for all clients trying to reach a particular cluster/broker.
++
+// TODO include a diagram
++
+Transparent multi-tenancy provides an example use case for a reverse proxy.
+While Apache Kafka itself has some features that enable multi-tenancy they rely on topic name prefixing as the primary mechanism for ensuring isolation.
+Tenants have to adhere to the naming policy and so know they're a tenant of a larger shared cluster.
++
+_Transparent_ multi-tenancy means each tenant has the illusion of having their own cluster, with almost complete freedom over topic and group naming, while still actually sharing a cluster.
+
+// TODO we probably don't need the level of detail below, just summarize
+// and provide the detail in the deploying section
+
+We can further classify deployment topologies in how many proxy instances are used. For example:
+
+Proxy-per-broker::
+This is probably the simplest way to deploy a proxy.
+If you control the Kafka cluster you can use the `advertized.listeners` broker config to ensure all access to the cluster happens via the proxy.
+If you do not control the Kafka cluster you can use a protocol filter to rewrite  `Metadata` and other responses sent to clients so that they will only connect to brokers via proxies
+
+Single proxy instance::
+
+Proxy cluster::
+
+== More about filters

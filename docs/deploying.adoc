@@ -1,0 +1,19 @@
+= Deploying proxies
+
+Topologies etc
+
+== Selecting plugins
+Put the filter jars in some directory
+
+== Providing implementations for façades
+
+
+
+== Configuring the proxy networking
+
+YAML
+Proxy level configuration
+SSL
+
+== Configuring proxy plugins
+Filter level configuration
