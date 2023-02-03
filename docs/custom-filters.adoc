@@ -6,29 +6,32 @@ Knowledge of the Kafka protocol is generally required to write a protocol filter
 As explained in the overview, there are two kinds of filter:
 
 Net filters:: allow customisation over how Kafka client connections are handled.
+
 Protocol filters:: allow customisation of how protocol messages are handled on their way to, or from, the Kafka cluster.
 
 The following sections explain in more detail how to write your own filters.
 
 == API docs
-TODO Link to the API docs
+// TODO Link to the API docs
 
 == Dependencies
 
 How filter classes are loaded is not currently defined by the filter contract.
-In other words, filters might be loaded using a classloaded-per-filter model,
+In other words, filters might be loaded using a classloader-per-filter model,
 or using a single class loader.
-This doesn't really make a difference to filter authors except where they want to make use of other libraries.
-Because those dependencies might be loaded by the same classloader as the dependencies of other filters there is the possibility of collision.
+This doesn't really make a difference to filter authors except where they want to make use of libraries as dependencies.
+Because those dependencies might be loaded by the same classloader as the dependencies of other filters there is the possibility of collision. Filter A and Filter B might both want to use Library C, and they might want to use different versions of Library C.
 
 For common things like logging and metric facade APIs it is recommended to use the facade APIs which are also used by the proxy core.
 
 // TODO Maven dependency
 // TODO Gradle dependency
 
+// TODO recommend BOM usage
+
 == Net filters
 
-== An example net filter
+=== An example net filter
 
 == Protocol filters
 
@@ -55,3 +58,5 @@ Therefore there is no need to use synchronization when accessing such fields.
 == Packaging filters
 
 Filters are packaged as standard `.jar` files.
+
+// TODO
