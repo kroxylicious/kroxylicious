@@ -1,6 +1,6 @@
-# kproxy
+# Kroxylicious
 
-kproxy is an exploration for building a Kafka protocol proxy,
+Kroxylicious is an exploration for building a Kafka protocol proxy,
 addressing use cases such as multi-tenancy, schema validation, or encryption.
 
 ## Build
