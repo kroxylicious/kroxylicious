@@ -43,7 +43,7 @@ When the broker returns a response (such as a `Produce` response) the protocol f
 
 An important principal for the protocol filter API is that filters should _compose_ nicely.
 That means that filters generally don't know what other filters might be present in the chain, and what they might be doing to messages.
-When a filter forwards a request or response it doesn't know whether the message be being sent to the next filter in the chain, or straight back to the client.
+When a filter forwards a request or response it doesn't know whether the message is being sent to the next filter in the chain, or straight back to the client.
 
 Such composition is important because it means a _proxy user_ can configure multiple filters (possibly written by several _filter authors_) and expect to get the combined effect of all of them.
 
@@ -53,7 +53,7 @@ In practice they will often need to understand what each filter does in some det
 == Implementation
 
 The proxy is written in Java, on top of https://netty.io[Netty].
-The usual https://netty.io/4.1/api/io/netty/channel/ChannelHandler.html[`ChannelHandlers`] provided by the Netty project are used where appropriate (e.g. SSL support uses https://netty.io/4.1/api/io/netty/handler/ssl/SslHandler.html[`SslHandler`]), and Kroxy provides Kafka-specific handlers of its own.
+The usual https://netty.io/4.1/api/io/netty/channel/ChannelHandler.html[`ChannelHandlers`] provided by the Netty project are used where appropriate (e.g. SSL support uses https://netty.io/4.1/api/io/netty/handler/ssl/SslHandler.html[`SslHandler`]), and Kroxylicious provides Kafka-specific handlers of its own.
 
 The Kafka-aware parts use the Apache Kafka project's own classes for serialization and deserialization.
 
@@ -61,12 +61,12 @@ Protocol filters get executed using a handler-per-filter model.
 
 == Deployment topologies
 
-The proxy supports a range of possibly deployment topologies.
+The proxy supports a range of possible deployment topologies.
 Which style is used depends on what the proxy is meant to _achieve_, architecturally speaking.
 Broadly speaking a proxy instance can be deployed:
 
 As a forward proxy::
-proxying the access of one or more clients to a particular cluster/broker that might also accessible (to other clients) directly.
+Proxying the access of one or more clients to a particular cluster/broker that might also accessible (to other clients) directly.
 +
 // TODO include a diagram
 +
@@ -74,7 +74,7 @@ Topic-level encryption provides one example use case for a forward proxy-style d
 This might be applicable when using clients that don't support interceptors, or if an organisation wants to apply the same encryption policy in a single place, securing access to the keys within their network.
 
 As a reverse proxy::
-proxying access for all clients trying to reach a particular cluster/broker.
+Proxying access for all clients trying to reach a particular cluster/broker.
 +
 // TODO include a diagram
 +
@@ -93,6 +93,7 @@ Proxy-per-broker::
 This is probably the simplest way to deploy a proxy.
 +
 If you control the Kafka cluster you can use the https://kafka.apache.org/documentation.html#brokerconfigs_advertised.listeners[`advertised.listeners`] broker config to ensure all access to the cluster happens via the proxy.
+When the Kafka cluster is running on Kubernetes proxy-per-broker can be achived using the side-car pattern.
 +
 If you do not control the Kafka cluster you can use a protocol filter to rewrite  `Metadata` (and a few other responses) sent to clients so that they only discover proxy-fronted brokers, and therefore only connect via proxies.
 

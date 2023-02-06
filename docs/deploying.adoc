@@ -5,7 +5,7 @@ Topologies etc
 == Selecting plugins
 Put the filter jars in some directory
 
-== Providing implementations for façades
+== Providing implementations for facades
 
 
 
