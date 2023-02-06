@@ -383,7 +383,6 @@
                 <executions>
                     <execution>
                         <id>convert-to-html</id>
-                        <phase>generate-resources</phase>
                         <goals>
                             <goal>process-asciidoc</goal>
                         </goals>
