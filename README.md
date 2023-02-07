@@ -70,6 +70,17 @@ Failed to load class org.slf4j.impl.StaticLoggerBinder
 
 Make sure to follow the [suggestions here](https://www.slf4j.org/codes.html#StaticLoggerBinder) to include one (and only one) of the suggested jars on the classpath.
 
+## Rendering documentation
+
+The `docs` directory has some user documentation written in [AsciiDoc](https://docs.asciidoctor.org/asciidoc/latest/) format.
+You can render it to HTML using:
+
+```
+./mvnw org.asciidoctor:asciidoctor-maven-plugin:process-asciidoc@convert-to-html
+```
+
+The output will be in `target/html/master.html`. 
+
 ## Performance Testing
 
 See [benchmarking.md](benchmarking.md) for information on running basic performance tests for this proxy.
