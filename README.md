@@ -3,6 +3,46 @@
 Kroxylicious is an exploration for building a Kafka protocol proxy,
 addressing use cases such as multi-tenancy, schema validation, or encryption.
 
+# Setting Up in Windows Using WSL
+### For installing WSL (Skip the First '3' steps if already done)
+1. Enable the Windows Subsystem for Linux feature: To enable WSL, you need to enable the Windows Subsystem for Linux feature in the Windows Features dialog.
+
+
+2. Install a Linux distribution from the Microsoft Store(Ubuntu preferably).
+
+3. Launch the Linux distribution and Configure the Linux environment: After launching the Linux distribution, you can configure the environment by creating a user account and setting the password.
+
+With these steps, you should now have WSL installed and configured on your Windows system. 
+
+For further assistance:https://learn.microsoft.com/en-us/windows/wsl/install
+
+
+4. Open the WSL window and update the packages using
+
+```bash
+  sudo apt update
+  sudo apt upgrade
+```
+5. Install Latest Java version by typing 
+```bash
+java
+```
+and Choose the version (preferably v18), it should look like:
+```bash
+sudo apt install openjdk-18-jre-headless
+```
+6. Check whether Java is installed correctly or not using:
+```bash
+java --version
+```
+It should give the description of jdk package installed.
+
+7. Navigate to kroxylicious folder using :
+```bash
+ cd kroxylicious
+ ```
+
+
 ## Build
 
 Java, version 11 or newer, and Apache Maven are required for building this project.
@@ -102,53 +142,6 @@ In case of any architecture violations, the actual architecture can be visualize
 
 ```
 $ dot -Tpng kroxylicious/target/generated-sources/annotations/deptective.dot > kroxylicious-arch.png
-```
-
-
-# Setting Up in Windows Using WSL
-### For installing WSL (Skip this step if already done)
-1. Enable the Windows Subsystem for Linux feature: To enable WSL, you need to enable the Windows Subsystem for Linux feature in the Windows Features dialog.
-
-
-2. Install a Linux distribution from the Microsoft Store(Ubuntu preferably)
-
-3. Launch the Linux distribution and Configure the Linux environment: After launching the Linux distribution, you can configure the environment by creating a user account and setting the password.
-
-With these steps, you should now have WSL installed and configured on your Windows system. 
-
-For further assistance:https://learn.microsoft.com/en-us/windows/wsl/install
-
-
-### Build the project 
-
-1. Open the WSL window and update the packages using
-
-```bash
-  sudo apt update
-  sudo apt upgrade
-```
-2. Install Latest Java version by typing 
-```bash
-java
-```
-and Choose the version (preferably v18), it should look like:
-```bash
-sudo apt install openjdk-18-jre-headless
-```
-3. Check whether Java is installed correctly or not using:
-```bash
-java --version
-```
-It should give the description of jdk package installed.
-
-4. Navigate to kroxylicious folder using :
-```bash
- cd kroxylicious
- ```
-
-5. Build it now using:
-```bash
-mvn clean install
 ```
 
 ## IntelliJ setup
