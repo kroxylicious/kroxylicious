@@ -29,6 +29,7 @@ import org.apache.kafka.common.message.${messageSpec.name}Data;
 import org.apache.kafka.common.protocol.ApiKeys;
 
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
+import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 
 /**

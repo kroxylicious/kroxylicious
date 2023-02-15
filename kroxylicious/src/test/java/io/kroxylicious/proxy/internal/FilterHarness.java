@@ -16,6 +16,8 @@ import io.netty.channel.embedded.EmbeddedChannel;
 import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
+import io.kroxylicious.proxy.frame.NettyDecodedRequestFrame;
+import io.kroxylicious.proxy.frame.NettyDecodedResponseFrame;
 import io.kroxylicious.proxy.future.Promise;
 
 import static org.junit.jupiter.api.Assertions.fail;
@@ -63,7 +65,7 @@ public abstract class FilterHarness {
         header.setRequestApiKey(apiKey.id);
         header.setRequestApiVersion(apiKey.latestVersion());
         header.setClientId("test-client");
-        var frame = new DecodedRequestFrame<>(apiKey.latestVersion(), correlationId, false, header, data);
+        var frame = new NettyDecodedRequestFrame<>(apiKey.latestVersion(), correlationId, false, header, data);
         channel.writeOutbound(frame);
         return frame;
     }
@@ -79,7 +81,7 @@ public abstract class FilterHarness {
         var header = new ResponseHeaderData();
         int correlationId = 42;
         header.setCorrelationId(correlationId);
-        var frame = new DecodedResponseFrame<>(apiKey.latestVersion(), correlationId, header, data);
+        var frame = new NettyDecodedResponseFrame<>(apiKey.latestVersion(), correlationId, header, data);
         channel.writeInbound(frame);
         return frame;
     }

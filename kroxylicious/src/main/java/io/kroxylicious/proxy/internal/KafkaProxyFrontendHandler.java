@@ -36,8 +36,8 @@ import io.netty.handler.ssl.SniCompletionEvent;
 
 import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.filter.NetFilter;
-import io.kroxylicious.proxy.frame.DecodedRequestFrame;
-import io.kroxylicious.proxy.frame.DecodedResponseFrame;
+import io.kroxylicious.proxy.frame.NettyDecodedRequestFrame;
+import io.kroxylicious.proxy.frame.NettyDecodedResponseFrame;
 import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.internal.codec.CorrelationManager;
 import io.kroxylicious.proxy.internal.codec.DecodePredicate;
@@ -187,10 +187,10 @@ public class KafkaProxyFrontendHandler
             }
             else if ((state == State.START
                     || state == State.HA_PROXY)
-                    && msg instanceof DecodedRequestFrame
-                    && ((DecodedRequestFrame<?>) msg).apiKey() == ApiKeys.API_VERSIONS) {
+                    && msg instanceof NettyDecodedRequestFrame
+                    && ((NettyDecodedRequestFrame<?>) msg).apiKey() == ApiKeys.API_VERSIONS) {
                 // This handler can respond to ApiVersions itself
-                writeApiVersionsResponse(ctx, (DecodedRequestFrame<ApiVersionsRequestData>) msg);
+                writeApiVersionsResponse(ctx, (NettyDecodedRequestFrame<ApiVersionsRequestData>) msg);
                 // Request to read the following request
                 ctx.channel().read();
                 state = State.API_VERSIONS;
@@ -315,7 +315,7 @@ public class KafkaProxyFrontendHandler
      * Sends an ApiVersions response from this handler to the client
      * (i.e. prior to having backend connection)
      */
-    private void writeApiVersionsResponse(ChannelHandlerContext ctx, DecodedRequestFrame<ApiVersionsRequestData> frame) {
+    private void writeApiVersionsResponse(ChannelHandlerContext ctx, NettyDecodedRequestFrame<ApiVersionsRequestData> frame) {
         // TODO check the format of the strings using a regex
         // Needed to reproduce the exact behaviour for how a broker handles this
         // see org.apache.kafka.common.requests.ApiVersionsRequest#isValid()
@@ -327,7 +327,7 @@ public class KafkaProxyFrontendHandler
         ResponseHeaderData header = new ResponseHeaderData()
                 .setCorrelationId(correlationId);
         LOGGER.debug("{}: Writing ApiVersions response", ctx.channel());
-        ctx.writeAndFlush(new DecodedResponseFrame<>(
+        ctx.writeAndFlush(new NettyDecodedResponseFrame<>(
                 apiVersion, correlationId, header, API_VERSIONS_RESPONSE));
     }
 

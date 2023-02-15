@@ -13,7 +13,7 @@ import org.slf4j.LoggerFactory;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 
-import io.kroxylicious.proxy.frame.DecodedRequestFrame;
+import io.kroxylicious.proxy.frame.NettyDecodedRequestFrame;
 import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.internal.InternalRequestFrame;
 
@@ -72,9 +72,9 @@ public class KafkaRequestEncoder extends KafkaMessageEncoder<RequestFrame> {
     }
 
     private boolean hasResponse(RequestFrame frame, ByteBuf out, int ri, short apiKey, short apiVersion) {
-        if (frame instanceof DecodedRequestFrame) {
+        if (frame instanceof NettyDecodedRequestFrame) {
             return apiKey != ApiKeys.PRODUCE.id
-                    || ((ProduceRequestData) ((DecodedRequestFrame<?>) frame).body()).acks() != 0;
+                    || ((ProduceRequestData) ((NettyDecodedRequestFrame<?>) frame).body()).acks() != 0;
         }
         else {
             return apiKey != ApiKeys.PRODUCE.id

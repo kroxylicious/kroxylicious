@@ -11,10 +11,10 @@ import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
 
 import io.kroxylicious.proxy.filter.KrpcFilter;
-import io.kroxylicious.proxy.frame.DecodedResponseFrame;
+import io.kroxylicious.proxy.frame.NettyDecodedResponseFrame;
 import io.kroxylicious.proxy.future.Promise;
 
-public class InternalResponseFrame<B extends ApiMessage> extends DecodedResponseFrame<B> {
+public class InternalResponseFrame<B extends ApiMessage> extends NettyDecodedResponseFrame<B> {
 
     private final KrpcFilter recipient;
 

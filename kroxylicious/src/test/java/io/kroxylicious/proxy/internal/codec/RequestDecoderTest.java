@@ -20,7 +20,7 @@ import io.netty.buffer.Unpooled;
 
 import io.kroxylicious.proxy.filter.ApiVersionsRequestFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
-import io.kroxylicious.proxy.frame.DecodedRequestFrame;
+import io.kroxylicious.proxy.frame.NettyDecodedRequestFrame;
 import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -39,7 +39,7 @@ public class RequestDecoderTest extends AbstractCodecTest {
                         AbstractCodecTest::deserializeApiVersionsRequestUsingKafkaApis,
                         new KafkaRequestDecoder(
                                 DecodePredicate.forFilters((ApiVersionsRequestFilter) (request, context) -> context.forwardRequest(request))),
-                        DecodedRequestFrame.class,
+                        NettyDecodedRequestFrame.class,
                         (RequestHeaderData header) -> header),
                 "Unexpected correlation id");
     }
@@ -144,11 +144,11 @@ public class RequestDecoderTest extends AbstractCodecTest {
                 DecodePredicate.forFilters((ApiVersionsRequestFilter) (request, context) -> context.forwardRequest(request)))
                         .decode(null, byteBuf, messages);
 
-        assertEquals(List.of(DecodedRequestFrame.class, DecodedRequestFrame.class), messageClasses(messages));
-        DecodedRequestFrame frame = (DecodedRequestFrame) messages.get(0);
+        assertEquals(List.of(NettyDecodedRequestFrame.class, NettyDecodedRequestFrame.class), messageClasses(messages));
+        NettyDecodedRequestFrame frame = (NettyDecodedRequestFrame) messages.get(0);
         assertEquals(header, frame.header());
         assertEquals(body, frame.body());
-        frame = (DecodedRequestFrame) messages.get(1);
+        frame = (NettyDecodedRequestFrame) messages.get(1);
         assertEquals(header, frame.header());
         assertEquals(body, frame.body());
 

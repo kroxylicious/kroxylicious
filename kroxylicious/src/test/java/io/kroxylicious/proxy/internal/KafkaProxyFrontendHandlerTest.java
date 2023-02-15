@@ -36,7 +36,7 @@ import io.netty.handler.ssl.SniCompletionEvent;
 
 import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.filter.NetFilter;
-import io.kroxylicious.proxy.frame.DecodedRequestFrame;
+import io.kroxylicious.proxy.frame.NettyDecodedRequestFrame;
 import io.kroxylicious.proxy.internal.KafkaProxyFrontendHandler.State;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -70,7 +70,7 @@ class KafkaProxyFrontendHandlerTest {
                 .setClientId("client-id")
                 .setCorrelationId(downstreamCorrelationId);
 
-        inboundChannel.writeInbound(new DecodedRequestFrame<>(apiVersion, corrId, true, header, body));
+        inboundChannel.writeInbound(new NettyDecodedRequestFrame<>(apiVersion, corrId, true, header, body));
     }
 
     @BeforeEach

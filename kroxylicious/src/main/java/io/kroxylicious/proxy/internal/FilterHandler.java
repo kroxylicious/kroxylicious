@@ -17,8 +17,8 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 
 import io.kroxylicious.proxy.filter.KrpcFilter;
-import io.kroxylicious.proxy.frame.DecodedRequestFrame;
-import io.kroxylicious.proxy.frame.DecodedResponseFrame;
+import io.kroxylicious.proxy.frame.NettyDecodedRequestFrame;
+import io.kroxylicious.proxy.frame.NettyDecodedResponseFrame;
 import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
 import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
 import io.kroxylicious.proxy.future.Promise;
@@ -46,8 +46,8 @@ public class FilterHandler
 
     @Override
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
-        if (msg instanceof DecodedRequestFrame) {
-            DecodedRequestFrame<?> decodedFrame = (DecodedRequestFrame<?>) msg;
+        if (msg instanceof NettyDecodedRequestFrame) {
+            NettyDecodedRequestFrame<?> decodedFrame = (NettyDecodedRequestFrame<?>) msg;
             // Guard against invoking the filter unexpectedly
             if (filter.shouldDeserializeRequest(decodedFrame.apiKey(), decodedFrame.apiVersion())) {
                 var filterContext = new DefaultFilterContext(filter, ctx, decodedFrame, promise, timeoutMs);
@@ -74,8 +74,8 @@ public class FilterHandler
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-        if (msg instanceof DecodedResponseFrame) {
-            DecodedResponseFrame<?> decodedFrame = (DecodedResponseFrame<?>) msg;
+        if (msg instanceof NettyDecodedResponseFrame) {
+            NettyDecodedResponseFrame<?> decodedFrame = (NettyDecodedResponseFrame<?>) msg;
             if (decodedFrame instanceof InternalResponseFrame) {
                 InternalResponseFrame<?> frame = (InternalResponseFrame<?>) decodedFrame;
                 if (frame.isRecipient(filter)) {

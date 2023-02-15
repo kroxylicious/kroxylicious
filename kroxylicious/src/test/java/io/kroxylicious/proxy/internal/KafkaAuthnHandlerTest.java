@@ -51,6 +51,8 @@ import io.kroxylicious.proxy.frame.BareSaslRequest;
 import io.kroxylicious.proxy.frame.BareSaslResponse;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
+import io.kroxylicious.proxy.frame.NettyDecodedRequestFrame;
+import io.kroxylicious.proxy.frame.NettyDecodedResponseFrame;
 import io.kroxylicious.proxy.internal.KafkaAuthnHandler.SaslMechanism;
 import io.kroxylicious.proxy.internal.codec.CorrelationManager;
 import io.kroxylicious.proxy.internal.future.PromiseImpl;
@@ -218,11 +220,11 @@ public class KafkaAuthnHandlerTest {
             }
         }, new PromiseImpl<>(), true);
 
-        channel.writeInbound(new DecodedRequestFrame<>(apiVersion, corrId, true, header, body));
+        channel.writeInbound(new NettyDecodedRequestFrame<>(apiVersion, corrId, true, header, body));
     }
 
     private <T extends ApiMessage> T readResponse(Class<T> cls) {
-        DecodedResponseFrame<?> authenticateResponseFrame = assertInstanceOf(DecodedResponseFrame.class, channel.readOutbound());
+        NettyDecodedResponseFrame<?> authenticateResponseFrame = assertInstanceOf(NettyDecodedResponseFrame.class, channel.readOutbound());
         return assertInstanceOf(cls, authenticateResponseFrame.body());
     }
 
@@ -233,7 +235,7 @@ public class KafkaAuthnHandlerTest {
                 .setClientSoftwareVersion(CLIENT_SOFTWARE_VERSION);
         writeRequest(apiVersionsVersion, apiVersionsRequest);
 
-        var cse = assertInstanceOf(DecodedRequestFrame.class, channel.readInbound(),
+        var cse = assertInstanceOf(NettyDecodedRequestFrame.class, channel.readInbound(),
                 "Expect DecodedRequestFrame");
         assertInstanceOf(ApiVersionsRequestData.class, cse.body(),
                 "Expected ApiVersions request to be propagated to next handler");
@@ -458,7 +460,7 @@ public class KafkaAuthnHandlerTest {
         // Subsequent events should be passed upstream
         MetadataRequestData metadataRequest = new MetadataRequestData();
         writeRequest(MetadataRequestData.HIGHEST_SUPPORTED_VERSION, metadataRequest);
-        var followingFrame = assertInstanceOf(DecodedRequestFrame.class, channel.readInbound(),
+        var followingFrame = assertInstanceOf(NettyDecodedRequestFrame.class, channel.readInbound(),
                 "Expect RPC following successful authentication to be propagated");
         assertInstanceOf(MetadataRequestData.class, followingFrame.body());
     }

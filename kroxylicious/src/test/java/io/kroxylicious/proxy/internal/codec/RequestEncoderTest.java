@@ -22,7 +22,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 
-import io.kroxylicious.proxy.frame.DecodedRequestFrame;
+import io.kroxylicious.proxy.frame.NettyDecodedRequestFrame;
 import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -41,7 +41,7 @@ public class RequestEncoderTest extends AbstractCodecTest {
 
         CorrelationManager correlationManager = new CorrelationManager(exampleHeader.correlationId());
         var encoder = new KafkaRequestEncoder(correlationManager);
-        testEncode(expected, new DecodedRequestFrame<ApiVersionsRequestData>(apiVersion, exampleHeader.correlationId(), true, exampleHeader, exampleBody), encoder);
+        testEncode(expected, new NettyDecodedRequestFrame<ApiVersionsRequestData>(apiVersion, exampleHeader.correlationId(), true, exampleHeader, exampleBody), encoder);
         var corr = correlationManager.getBrokerCorrelation(exampleHeader.correlationId());
         assertEquals(ApiKeys.API_VERSIONS.id, corr.apiKey());
         assertEquals(exampleHeader.requestApiKey(), corr.apiKey());

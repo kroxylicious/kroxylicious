@@ -9,7 +9,7 @@ import org.apache.kafka.common.protocol.ApiKeys;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import io.kroxylicious.proxy.frame.DecodedResponseFrame;
+import io.kroxylicious.proxy.frame.NettyDecodedResponseFrame;
 import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -28,7 +28,7 @@ public class ResponseDecoderTest extends AbstractCodecTest {
                 AbstractCodecTest::deserializeResponseHeaderUsingKafkaApis,
                 AbstractCodecTest::deserializeApiVersionsResponseUsingKafkaApis,
                 new KafkaResponseDecoder(mgr),
-                DecodedResponseFrame.class,
+                NettyDecodedResponseFrame.class,
                 header -> header.setCorrelationId(12)),
                 "Unexpected correlation id");
     }

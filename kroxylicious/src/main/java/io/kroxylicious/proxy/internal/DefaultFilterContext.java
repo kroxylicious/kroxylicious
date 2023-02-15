@@ -24,7 +24,7 @@ import io.netty.channel.ChannelPromise;
 
 import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
-import io.kroxylicious.proxy.frame.DecodedFrame;
+import io.kroxylicious.proxy.frame.NettyDecodedFrame;
 import io.kroxylicious.proxy.future.Future;
 import io.kroxylicious.proxy.future.Promise;
 import io.kroxylicious.proxy.internal.util.NettyMemoryRecords;
@@ -36,7 +36,7 @@ class DefaultFilterContext implements KrpcFilterContext {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DefaultFilterContext.class);
 
-    private final DecodedFrame<?, ?> decodedFrame;
+    private final NettyDecodedFrame<?, ?> decodedFrame;
     private final ChannelHandlerContext channelContext;
     private final ChannelPromise promise;
     private final KrpcFilter filter;
@@ -44,7 +44,7 @@ class DefaultFilterContext implements KrpcFilterContext {
 
     DefaultFilterContext(KrpcFilter filter,
                          ChannelHandlerContext channelContext,
-                         DecodedFrame<?, ?> decodedFrame,
+                         NettyDecodedFrame<?, ?> decodedFrame,
                          ChannelPromise promise,
                          long timeoutMs) {
         this.filter = filter;
@@ -61,20 +61,6 @@ class DefaultFilterContext implements KrpcFilterContext {
     @Override
     public String channelDescriptor() {
         return channelContext.channel().toString();
-    }
-
-    /**
-     * Allocate a buffer with the given {@code initialCapacity}.
-     * The returned buffer will be released automatically
-     * TODO when?
-     * @param initialCapacity The initial capacity of the buffer.
-     * @return The allocated buffer.
-     */
-    @Override
-    public ByteBuf allocate(int initialCapacity) {
-        final ByteBuf buffer = channelContext.alloc().heapBuffer(initialCapacity);
-        decodedFrame.add(buffer);
-        return buffer;
     }
 
     @Override

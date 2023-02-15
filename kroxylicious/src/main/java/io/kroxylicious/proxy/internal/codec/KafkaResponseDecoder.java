@@ -46,8 +46,8 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 
 import io.kroxylicious.proxy.filter.KrpcFilter;
-import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.Frame;
+import io.kroxylicious.proxy.frame.NettyDecodedResponseFrame;
 import io.kroxylicious.proxy.frame.OpaqueFrame;
 import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
 import io.kroxylicious.proxy.internal.InternalResponseFrame;
@@ -100,7 +100,7 @@ public class KafkaResponseDecoder extends KafkaMessageDecoder {
             log().trace("{}: Body: {}", ctx, body);
             KrpcFilter recipient = correlation.recipient();
             if (recipient == null) {
-                frame = new DecodedResponseFrame<>(apiVersion, correlationId, header, body);
+                frame = new NettyDecodedResponseFrame<>(apiVersion, correlationId, header, body);
             }
             else {
                 frame = new InternalResponseFrame<>(recipient, correlation.promise(), apiVersion, correlationId, header, body);

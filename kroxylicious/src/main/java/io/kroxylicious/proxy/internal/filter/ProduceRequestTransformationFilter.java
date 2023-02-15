@@ -22,7 +22,6 @@ import org.apache.kafka.common.record.TimestampType;
 
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
-import io.kroxylicious.proxy.internal.util.NettyMemoryRecords;
 
 /**
  * An filter for modifying the key/value/header/topic of {@link ApiKeys#PRODUCE} requests.
@@ -81,7 +80,7 @@ public class ProduceRequestTransformationFilter implements ProduceRequestFilter 
                         TimestampType.CREATE_TIME, 0)) {
 
                     for (MutableRecordBatch batch : records.batches()) {
-                        for (Iterator<Record> batchRecords = batch.iterator(); batchRecords.hasNext(); ) {
+                        for (Iterator<Record> batchRecords = batch.iterator(); batchRecords.hasNext();) {
                             Record batchRecord = batchRecords.next();
                             newRecords.append(batchRecord.timestamp(), batchRecord.key(), valueTransformation.transform(topicData.name(), batchRecord.value()));
                         }

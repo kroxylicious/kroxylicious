@@ -9,17 +9,7 @@ import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
 
 /**
- * A decoded response frame.
+ * docco
  */
-public class DecodedResponseFrame<B extends ApiMessage>
-        extends DecodedFrame<ResponseHeaderData, B>
-        implements ResponseFrame {
-
-    public DecodedResponseFrame(short apiVersion, int correlationId, ResponseHeaderData header, B body) {
-        super(apiVersion, correlationId, header, body);
-    }
-
-    public short headerVersion() {
-        return apiKey().messageType.responseHeaderVersion(apiVersion);
-    }
+public interface DecodedResponseFrame<B extends ApiMessage> extends DecodedFrame<ResponseHeaderData, B> {
 }

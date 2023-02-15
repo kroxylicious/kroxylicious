@@ -13,7 +13,7 @@ import org.apache.kafka.common.protocol.ApiKeys;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import io.kroxylicious.proxy.frame.DecodedResponseFrame;
+import io.kroxylicious.proxy.frame.NettyDecodedResponseFrame;
 
 public class ResponseEncoderTest extends AbstractCodecTest {
     @ParameterizedTest
@@ -23,6 +23,6 @@ public class ResponseEncoderTest extends AbstractCodecTest {
         ApiVersionsResponseData exampleBody = exampleApiVersionsResponse();
         short headerVersion = ApiKeys.API_VERSIONS.responseHeaderVersion(apiVersion);
         ByteBuffer expected = serializeUsingKafkaApis(headerVersion, exampleHeader, apiVersion, exampleBody);
-        testEncode(expected, new DecodedResponseFrame<>(apiVersion, exampleHeader.correlationId(), exampleHeader, exampleBody), new KafkaResponseEncoder());
+        testEncode(expected, new NettyDecodedResponseFrame<>(apiVersion, exampleHeader.correlationId(), exampleHeader, exampleBody), new KafkaResponseEncoder());
     }
 }

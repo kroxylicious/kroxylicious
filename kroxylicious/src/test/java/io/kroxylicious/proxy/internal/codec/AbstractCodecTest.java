@@ -35,6 +35,7 @@ import io.netty.channel.ChannelHandlerContext;
 
 import io.kroxylicious.proxy.frame.DecodedFrame;
 import io.kroxylicious.proxy.frame.Frame;
+import io.kroxylicious.proxy.frame.NettyDecodedFrame;
 import io.kroxylicious.proxy.frame.OpaqueFrame;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
@@ -206,7 +207,7 @@ public abstract class AbstractCodecTest {
         assertEquals(akBuf.writerIndex(), akBuf.readerIndex(), "Expect to have read whole buf");
 
         assertEquals(List.of(frameClass), messageClasses(messages), "Expected a single decoded frame");
-        DecodedFrame<H, B> frame = (DecodedFrame<H, B>) messages.get(0);
+        NettyDecodedFrame<H, B> frame = (NettyDecodedFrame<H, B>) messages.get(0);
         assertEquals(akHeader, headerAdjuster.apply(frame.header()));
         assertEquals(akBody, frame.body());
         return frame.correlationId();

@@ -179,8 +179,8 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
 
 import io.kroxylicious.proxy.frame.BareSaslRequest;
 import io.kroxylicious.proxy.frame.BareSaslResponse;
-import io.kroxylicious.proxy.frame.DecodedRequestFrame;
-import io.kroxylicious.proxy.frame.DecodedResponseFrame;
+import io.kroxylicious.proxy.frame.NettyDecodedRequestFrame;
+import io.kroxylicious.proxy.frame.NettyDecodedResponseFrame;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 /**
@@ -390,15 +390,15 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
         if (msg instanceof BareSaslRequest) {
             handleBareRequest(ctx, (BareSaslRequest) msg);
         }
-        else if (msg instanceof DecodedRequestFrame) {
-            handleFramedRequest(ctx, (DecodedRequestFrame<?>) msg);
+        else if (msg instanceof NettyDecodedRequestFrame) {
+            handleFramedRequest(ctx, (NettyDecodedRequestFrame<?>) msg);
         }
         else {
             throw new IllegalStateException("Unexpected message " + msg.getClass());
         }
     }
 
-    private void handleFramedRequest(ChannelHandlerContext ctx, DecodedRequestFrame<?> frame) throws SaslException {
+    private void handleFramedRequest(ChannelHandlerContext ctx, NettyDecodedRequestFrame<?> frame) throws SaslException {
         switch (frame.apiKey()) {
             case API_VERSIONS:
                 doTransition(ctx.channel(), State.API_VERSIONS);
@@ -406,11 +406,11 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
                 return;
             case SASL_HANDSHAKE:
                 doTransition(ctx.channel(), frame.apiVersion() == 0 ? State.SASL_HANDSHAKE_v0 : State.SASL_HANDSHAKE_v1_PLUS);
-                onSaslHandshakeRequest(ctx, (DecodedRequestFrame<SaslHandshakeRequestData>) frame);
+                onSaslHandshakeRequest(ctx, (NettyDecodedRequestFrame<SaslHandshakeRequestData>) frame);
                 return;
             case SASL_AUTHENTICATE:
                 doTransition(ctx.channel(), State.FRAMED_SASL_AUTHENTICATE);
-                onSaslAuthenticateRequest(ctx, (DecodedRequestFrame<SaslAuthenticateRequestData>) frame);
+                onSaslAuthenticateRequest(ctx, (NettyDecodedRequestFrame<SaslAuthenticateRequestData>) frame);
                 return;
             default:
                 if (lastSeen == State.AUTHN_SUCCESS) {
@@ -444,7 +444,7 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
         ctx.writeAndFlush(new BareSaslResponse(bytes));
     }
 
-    private ApiMessage errorResponse(DecodedRequestFrame<?> frame, Throwable error) {
+    private ApiMessage errorResponse(NettyDecodedRequestFrame<?> frame, Throwable error) {
         /*
          * This monstrosity is needed because there isn't any _nicely_ abstracted code we can borrow from Kafka
          * which creates and response with error codes set appropriately.
@@ -763,7 +763,7 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
     }
 
     private void onSaslHandshakeRequest(ChannelHandlerContext ctx,
-                                        DecodedRequestFrame<SaslHandshakeRequestData> data)
+                                        NettyDecodedRequestFrame<SaslHandshakeRequestData> data)
             throws SaslException {
         String mechanism = data.body().mechanism();
         Errors error;
@@ -793,7 +793,7 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
     }
 
     private void onSaslAuthenticateRequest(ChannelHandlerContext ctx,
-                                           DecodedRequestFrame<SaslAuthenticateRequestData> data) {
+                                           NettyDecodedRequestFrame<SaslAuthenticateRequestData> data) {
         byte[] bytes = new byte[0];
         Errors error;
         String errorMessage;
@@ -821,9 +821,9 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
     }
 
     private static void writeFramedResponse(ChannelHandlerContext ctx,
-                                            DecodedRequestFrame<?> data, ApiMessage body) {
+                                            NettyDecodedRequestFrame<?> data, ApiMessage body) {
         ctx.writeAndFlush(
-                new DecodedResponseFrame<>(
+                new NettyDecodedResponseFrame<>(
                         data.apiVersion(),
                         data.correlationId(),
                         new ResponseHeaderData().setCorrelationId(data.correlationId()),

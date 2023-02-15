@@ -10,8 +10,6 @@ import org.apache.kafka.common.record.CompressionType;
 import org.apache.kafka.common.record.MemoryRecordsBuilder;
 import org.apache.kafka.common.record.TimestampType;
 
-import io.netty.buffer.ByteBuf;
-
 import io.kroxylicious.proxy.future.Future;
 
 /**
