@@ -51,14 +51,4 @@ public final class PromiseImpl<T> extends FutureImpl<T> implements PromiseIntern
     public Future<T> future() {
         return this;
     }
-
-    @Override
-    public void operationComplete(io.netty.util.concurrent.Future<T> future) {
-        if (future.isSuccess()) {
-            complete(future.getNow());
-        }
-        else {
-            fail(future.cause());
-        }
-    }
 }

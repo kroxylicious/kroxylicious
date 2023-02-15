@@ -10,13 +10,11 @@
  */
 package io.kroxylicious.proxy.internal.future;
 
-import io.netty.util.concurrent.FutureListener;
-
 import io.kroxylicious.proxy.future.Promise;
 
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
  */
-public interface PromiseInternal<T> extends Promise<T>, FutureListener<T>, FutureInternal<T> {
+public interface PromiseInternal<T> extends Promise<T>, FutureInternal<T> {
 
 }
