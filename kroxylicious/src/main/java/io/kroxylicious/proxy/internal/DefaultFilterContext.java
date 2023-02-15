@@ -12,6 +12,9 @@ import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
+import org.apache.kafka.common.record.CompressionType;
+import org.apache.kafka.common.record.MemoryRecordsBuilder;
+import org.apache.kafka.common.record.TimestampType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,6 +27,7 @@ import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.proxy.frame.DecodedFrame;
 import io.kroxylicious.proxy.future.Future;
 import io.kroxylicious.proxy.future.Promise;
+import io.kroxylicious.proxy.internal.util.NettyMemoryRecords;
 
 /**
  * Implementation of {@link KrpcFilterContext}.
@@ -71,6 +75,14 @@ class DefaultFilterContext implements KrpcFilterContext {
         final ByteBuf buffer = channelContext.alloc().heapBuffer(initialCapacity);
         decodedFrame.add(buffer);
         return buffer;
+    }
+
+    @Override
+    public MemoryRecordsBuilder recordsBuilder(int sizeInBytes, CompressionType compressionType, TimestampType timestampType, long baseOffset) {
+        final ByteBuf buffer = channelContext.alloc().heapBuffer(sizeInBytes);
+        decodedFrame.add(buffer);
+        return NettyMemoryRecords.builder(buffer, CompressionType.NONE,
+                TimestampType.CREATE_TIME, 0);
     }
 
     /**

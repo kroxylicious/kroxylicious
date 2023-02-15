@@ -106,17 +106,18 @@ public class FetchResponseTransformationFilter implements FetchResponseFilter {
         for (FetchableTopicResponse topicData : responseData.responses()) {
             for (PartitionData partitionData : topicData.partitions()) {
                 MemoryRecords records = (MemoryRecords) partitionData.records();
-                MemoryRecordsBuilder newRecords = NettyMemoryRecords.builder(context.allocate(records.sizeInBytes()), CompressionType.NONE,
-                        TimestampType.CREATE_TIME, 0);
+                try (MemoryRecordsBuilder newRecords = context.recordsBuilder(records.sizeInBytes(), CompressionType.NONE,
+                        TimestampType.CREATE_TIME, 0)) {
 
-                for (MutableRecordBatch batch : records.batches()) {
-                    for (Iterator<Record> batchRecords = batch.iterator(); batchRecords.hasNext();) {
-                        Record batchRecord = batchRecords.next();
-                        newRecords.append(batchRecord.timestamp(), batchRecord.key(), valueTransformation.transform(topicData.topic(), batchRecord.value()));
+                    for (MutableRecordBatch batch : records.batches()) {
+                        for (Iterator<Record> batchRecords = batch.iterator(); batchRecords.hasNext(); ) {
+                            Record batchRecord = batchRecords.next();
+                            newRecords.append(batchRecord.timestamp(), batchRecord.key(), valueTransformation.transform(topicData.topic(), batchRecord.value()));
+                        }
                     }
-                }
 
-                partitionData.setRecords(newRecords.build());
+                    partitionData.setRecords(newRecords.build());
+                }
             }
         }
     }

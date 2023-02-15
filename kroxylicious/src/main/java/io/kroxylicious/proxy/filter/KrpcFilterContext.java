@@ -6,6 +6,9 @@
 package io.kroxylicious.proxy.filter;
 
 import org.apache.kafka.common.protocol.ApiMessage;
+import org.apache.kafka.common.record.CompressionType;
+import org.apache.kafka.common.record.MemoryRecordsBuilder;
+import org.apache.kafka.common.record.TimestampType;
 
 import io.netty.buffer.ByteBuf;
 
@@ -21,12 +24,14 @@ public interface KrpcFilterContext {
     String channelDescriptor();
 
     /**
-     * Allocate a ByteBuffer of the given capacity.
-     * The buffer will be deallocated when the request processing is completed
-     * @param initialCapacity The initial capacity of the buffer.
-     * @return The allocated buffer
+     * Allocate a MemoryRecordsBuilder
+     *
+     * @return the memory records builder
      */
-    ByteBuf allocate(int initialCapacity);
+    public MemoryRecordsBuilder recordsBuilder(int size,
+                                               CompressionType compressionType,
+                                               TimestampType timestampType,
+                                               long baseOffset);
 
     /**
      * Send a request towards the broker, invoking upstream filters.
