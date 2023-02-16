@@ -46,6 +46,7 @@
         <mockito-core.version>4.6.1</mockito-core.version>
         <slf4j-api.version>1.7.36</slf4j-api.version>
         <zookeeper.version>3.6.3</zookeeper.version>
+        <micrometer.version>1.10.2</micrometer.version>
     </properties>
 
     <name>Kroxylicious Parent</name>
@@ -90,9 +91,23 @@
                 <version>${jackson.version}</version>
             </dependency>
             <dependency>
+                <groupId>com.fasterxml.jackson.datatype</groupId>
+                <artifactId>jackson-datatype-jdk8</artifactId>
+                <version>${jackson.version}</version>
+            </dependency>
+            <dependency>
                 <groupId>io.netty</groupId>
                 <artifactId>netty-bom</artifactId>
                 <version>${netty.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.micrometer</groupId>
+                <artifactId>micrometer-bom</artifactId>
+                <version>${micrometer.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
             </dependency>
             <dependency>
                 <groupId>org.apache.kafka</groupId>
@@ -204,6 +219,7 @@
                     <artifactId>license-maven-plugin</artifactId>
                     <version>4.1</version>
                     <configuration>
+                        <!--suppress MavenModelInspection -->
                         <header>${rootdir}/etc/license.txt</header>
                         <strictCheck>true</strictCheck>
                         <excludes>
@@ -225,6 +241,7 @@
                     <artifactId>formatter-maven-plugin</artifactId>
                     <version>2.16.0</version>
                     <configuration>
+                        <!--suppress MavenModelInspection -->
                         <configFile>${rootdir}/etc/eclipse-formatter-config.xml</configFile>
                     </configuration>
                 </plugin>
@@ -233,7 +250,7 @@
                     <artifactId>impsort-maven-plugin</artifactId>
                     <version>1.7.0</version>
                     <configuration>
-                        <groups>java.,javax.,org.,com.</groups>
+                        <groups>java.,javax.,org.,com.,io.,io.kroxylicious</groups>
                         <removeUnused>true</removeUnused>
                         <staticAfter>true</staticAfter>
                         <compliance>${java.test.version}</compliance>
@@ -306,6 +323,7 @@
                     <version>3.0.0-M5</version>
                     <configuration>
                         <skipTests>${skipUTs}</skipTests>
+                        <runOrder>random</runOrder>
                     </configuration>
                 </plugin>
                 <plugin>
@@ -358,6 +376,32 @@
                 </plugin>
             </plugins>
         </pluginManagement>
+        <plugins>
+            <plugin>
+                <groupId>org.asciidoctor</groupId>
+                <artifactId>asciidoctor-maven-plugin</artifactId>
+                <version>2.2.2</version>
+                <executions>
+                    <execution>
+                        <id>convert-to-html</id>
+                        <goals>
+                            <goal>process-asciidoc</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.build.directory}/html</outputDirectory>
+                            <attributes>
+                                <source-highlighter>coderay</source-highlighter>
+                                <imagesdir>./images</imagesdir>
+                                <toc>left</toc>
+                                <icons>font</icons>
+                            </attributes>
+                            <sourceDirectory>docs</sourceDirectory>
+                            <sourceDocumentName>master.adoc</sourceDocumentName>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
     </build>
 
     <profiles>

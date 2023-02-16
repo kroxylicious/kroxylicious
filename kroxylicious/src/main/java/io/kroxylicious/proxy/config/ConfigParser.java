@@ -15,6 +15,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.cfg.ConstructorDetector;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
 
 public class ConfigParser {
@@ -24,6 +25,7 @@ public class ConfigParser {
     public ConfigParser() {
         this.mapper = new ObjectMapper(new YAMLFactory())
                 .registerModule(new ParameterNamesModule())
+                .registerModule(new Jdk8Module())
                 .setVisibility(PropertyAccessor.ALL, Visibility.NONE)
                 .setVisibility(PropertyAccessor.FIELD, Visibility.ANY)
                 .setVisibility(PropertyAccessor.CREATOR, Visibility.ANY)

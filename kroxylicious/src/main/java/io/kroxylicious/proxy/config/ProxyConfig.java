@@ -5,18 +5,24 @@
  */
 package io.kroxylicious.proxy.config;
 
+import java.util.Optional;
+
 public class ProxyConfig {
 
     private final String address;
     private final boolean logNetwork;
     private final boolean logFrames;
     private final boolean useIoUring;
+    private final Optional<String> keyStoreFile;
+    private final Optional<String> keyPassword;
 
-    public ProxyConfig(String address, boolean logNetwork, boolean logFrames, boolean useIoUring) {
+    public ProxyConfig(String address, boolean logNetwork, boolean logFrames, boolean useIoUring, Optional<String> keyStoreFile, Optional<String> keyPassword) {
         this.address = address;
         this.logNetwork = logNetwork;
         this.logFrames = logFrames;
         this.useIoUring = useIoUring;
+        this.keyStoreFile = keyStoreFile;
+        this.keyPassword = keyPassword;
     }
 
     public String address() {
@@ -33,5 +39,13 @@ public class ProxyConfig {
 
     public boolean useIoUring() {
         return useIoUring;
+    }
+
+    public Optional<String> keyStoreFile() {
+        return keyStoreFile;
+    }
+
+    public Optional<String> keyPassword() {
+        return keyPassword;
     }
 }

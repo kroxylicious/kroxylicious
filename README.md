@@ -1,6 +1,6 @@
-# kproxy
+# Kroxylicious
 
-kproxy is an exploration for building a Kafka protocol proxy,
+Kroxylicious is an exploration for building a Kafka protocol proxy,
 addressing use cases such as multi-tenancy, schema validation, or encryption.
 
 ## Build
@@ -9,7 +9,7 @@ Java, version 11 or newer, and Apache Maven are required for building this proje
 Build the project like this:
 
 ```
-$ mvn clean verify
+$ mvn clean install
 ```
 
 The running of the tests can be controlled with the following Maven properties:
@@ -59,8 +59,27 @@ $ mvn org.commonjava.maven.plugins:directory-maven-plugin:highest-basedir@resolv
 Build with the `dist` profile as shown above, then execute this:
 
 ```
-$ java -jar kroxylicious/target/kproxy-1.0-SNAPSHOT.jar
+$ java -jar kroxylicious/target/kroxylicious-1.0-SNAPSHOT.jar -cp {path-to-your-class-path}
 ```
+
+To prevent the [following error](https://www.slf4j.org/codes.html#StaticLoggerBinder):
+
+```
+Failed to load class org.slf4j.impl.StaticLoggerBinder
+```
+
+Make sure to follow the [suggestions here](https://www.slf4j.org/codes.html#StaticLoggerBinder) to include one (and only one) of the suggested jars on the classpath.
+
+## Rendering documentation
+
+The `docs` directory has some user documentation written in [AsciiDoc](https://docs.asciidoctor.org/asciidoc/latest/) format.
+You can render it to HTML using:
+
+```
+./mvnw org.asciidoctor:asciidoctor-maven-plugin:process-asciidoc@convert-to-html
+```
+
+The output will be in `target/html/master.html`. 
 
 ## Performance Testing
 
@@ -84,6 +103,16 @@ In case of any architecture violations, the actual architecture can be visualize
 ```
 $ dot -Tpng kroxylicious/target/generated-sources/annotations/deptective.dot > kroxylicious-arch.png
 ```
+
+## IntelliJ setup
+
+Currently the project uses JDK 11 for the actual code and JDK 17 for tests. 
+IntelliJ needs to be configured to use the "new Workspace Model" in order for it to understand this
+(and to be useful for things like debugging):
+
+1. Open the Settings dialog (`File > Settings`)
+2. Navigate to `Build, Execution, Deployment > Build tools > Maven > Importing`.
+3. Tick "Import using the new IntelliJ Workspace Model API (experimental)" 
 
 ## License
 

@@ -1,0 +1,62 @@
+= Custom filters
+
+Custom filters can be written in the Java programming language.
+Knowledge of the Kafka protocol is generally required to write a protocol filter.
+
+As explained in the overview, there are two kinds of filter:
+
+Net filters:: Allow customisation over how Kafka client connections are handled.
+
+Protocol filters:: Allow customisation of how protocol messages are handled on their way to, or from, the Kafka cluster.
+
+The following sections explain in more detail how to write your own filters.
+
+== API docs
+// TODO Link to the API docs
+
+== Dependencies
+
+How filter classes are loaded is not currently defined by the filter contract.
+In other words, filters might be loaded using a classloader-per-filter model,
+or using a single class loader.
+This doesn't really make a difference to filter authors except where they want to make use of libraries as dependencies.
+Because those dependencies might be loaded by the same classloader as the dependencies of other filters there is the possibility of collision. Filter A and Filter B might both want to use Library C, and they might want to use different versions of Library C.
+
+For common things like logging and metric facade APIs it is recommended to use the facade APIs which are also used by the proxy core.
+
+// TODO Maven dependency
+// TODO Gradle dependency
+
+// TODO recommend BOM usage
+
+== Net filters
+
+=== An example net filter
+
+== Protocol filters
+
+A protocol filter is a `public` top-level, concrete class with a particular public constructor and which implements
+one or more protocol filter interfaces.
+
+=== The protocol filter lifecycle
+
+Instances of the filter class are created on demand when a protocol message is first sent by a client.
+Instances are specific to the channel between a single client and a single broker.
+
+It exists while the client remains connected.
+
+=== Handling state
+
+The simplest way of managing per-client state is to use member fields.
+The proxy guarantees that all methods of a given filter instance will always be invoked on the same thread.
+Therefore there is no need to use synchronization when accessing such fields.
+
+=== An example protocol filter
+
+// TODO
+
+== Packaging filters
+
+Filters are packaged as standard `.jar` files.
+
+// TODO

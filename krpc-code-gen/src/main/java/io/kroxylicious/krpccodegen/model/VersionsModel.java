@@ -5,6 +5,8 @@
  */
 package io.kroxylicious.krpccodegen.model;
 
+import io.kroxylicious.krpccodegen.schema.Versions;
+
 import freemarker.template.AdapterTemplateModel;
 import freemarker.template.SimpleNumber;
 import freemarker.template.TemplateHashModel;
@@ -13,7 +15,6 @@ import freemarker.template.TemplateModel;
 import freemarker.template.TemplateModelException;
 import freemarker.template.TemplateScalarModel;
 import freemarker.template.TemplateSequenceModel;
-import io.kroxylicious.krpccodegen.schema.Versions;
 
 public class VersionsModel implements TemplateHashModel, TemplateScalarModel, TemplateSequenceModel, AdapterTemplateModel {
     final Versions versions;
