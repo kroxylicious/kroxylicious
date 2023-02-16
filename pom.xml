@@ -207,6 +207,7 @@
     <modules>
         <module>krpc-code-gen</module>
         <module>kroxylicious-futures</module>
+        <module>kroxylicious-filter-api</module>
         <module>kroxylicious</module>
         <module>integrationtests</module>
     </modules>

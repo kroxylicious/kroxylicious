@@ -14,8 +14,6 @@ import org.junit.jupiter.api.AfterEach;
 import io.netty.channel.embedded.EmbeddedChannel;
 
 import io.kroxylicious.proxy.filter.KrpcFilter;
-import io.kroxylicious.proxy.frame.DecodedRequestFrame;
-import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.NettyDecodedRequestFrame;
 import io.kroxylicious.proxy.frame.NettyDecodedResponseFrame;
 import io.kroxylicious.proxy.future.Promise;
@@ -57,7 +55,7 @@ public abstract class FilterHarness {
      * @return The frame that was sent.
      * @param <B> The type of the request.
      */
-    protected <B extends ApiMessage> DecodedRequestFrame<B> writeRequest(B data) {
+    protected <B extends ApiMessage> NettyDecodedRequestFrame<B> writeRequest(B data) {
         var apiKey = ApiKeys.forId(data.apiKey());
         var header = new RequestHeaderData();
         int correlationId = 42;
@@ -76,7 +74,7 @@ public abstract class FilterHarness {
      * @return The frame that was written.
      * @param <B> The type of the response body.
      */
-    protected <B extends ApiMessage> DecodedResponseFrame<B> writeResponse(B data) {
+    protected <B extends ApiMessage> NettyDecodedResponseFrame<B> writeResponse(B data) {
         var apiKey = ApiKeys.forId(data.apiKey());
         var header = new ResponseHeaderData();
         int correlationId = 42;
@@ -94,7 +92,7 @@ public abstract class FilterHarness {
      * @return The frame that was written.
      * @param <B> The type of the response body.
      */
-    protected <B extends ApiMessage> DecodedResponseFrame<B> writeInternalResponse(Promise<?> promise, B data) {
+    protected <B extends ApiMessage> NettyDecodedResponseFrame<B> writeInternalResponse(Promise<?> promise, B data) {
         var apiKey = ApiKeys.forId(data.apiKey());
         var header = new ResponseHeaderData();
         int correlationId = 42;
