@@ -70,6 +70,13 @@ Failed to load class org.slf4j.impl.StaticLoggerBinder
 
 Make sure to follow the [suggestions here](https://www.slf4j.org/codes.html#StaticLoggerBinder) to include one (and only one) of the suggested jars on the classpath.
 
+### Debugging
+Logging is turned off by default for better performance. In case you want to debug, logging should be turned on in the `example-proxy-config.yml` file:
+```yaml
+  logNetwork: true
+  logFrames: true
+```
+
 ## Rendering documentation
 
 The `docs` directory has some user documentation written in [AsciiDoc](https://docs.asciidoctor.org/asciidoc/latest/) format.
