@@ -9,7 +9,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.annotation.JsonTypeIdResolver;
 
-import io.kroxylicious.proxy.internal.filter.FilterConfig;
+import io.kroxylicious.proxy.filter.FilterConfig;
 
 public class FilterDefinition {
 

@@ -38,6 +38,11 @@
             <artifactId>kroxylicious-filter-api</artifactId>
             <version>1.0-SNAPSHOT</version>
         </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-builtin-filters</artifactId>
+            <version>1.0-SNAPSHOT</version>
+        </dependency>
         <!-- We depend on the specific Netty dependencies not netty-all to reduce the size of fatjars -->
         <dependency>
             <groupId>io.netty</groupId>

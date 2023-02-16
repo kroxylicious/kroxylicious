@@ -19,8 +19,9 @@ import org.apache.kafka.common.message.MetadataResponseData.MetadataResponseBrok
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.kroxylicious.proxy.config.ProxyConfig;
+import io.kroxylicious.proxy.config.ProxiedClusterConfig;
 import io.kroxylicious.proxy.filter.DescribeClusterResponseFilter;
+import io.kroxylicious.proxy.filter.FilterConfig;
 import io.kroxylicious.proxy.filter.FindCoordinatorResponseFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.proxy.filter.MetadataResponseFilter;
@@ -64,7 +65,7 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
 
     private final AddressMapping mapping;
 
-    public BrokerAddressFilter(ProxyConfig config) {
+    public BrokerAddressFilter(ProxiedClusterConfig config) {
         String proxyAddress = config.address();
         String[] proxyAddressParts = proxyAddress.split(":");
 

@@ -7,7 +7,7 @@ package io.kroxylicious.proxy.config;
 
 import java.util.Optional;
 
-public class ProxyConfig {
+public class ProxyConfig implements ProxiedClusterConfig {
 
     private final String address;
     private final boolean logNetwork;
@@ -25,6 +25,7 @@ public class ProxyConfig {
         this.keyPassword = keyPassword;
     }
 
+    @Override
     public String address() {
         return address;
     }

@@ -6,6 +6,7 @@
 package io.kroxylicious.proxy.internal.filter;
 
 import io.kroxylicious.proxy.config.ProxyConfig;
+import io.kroxylicious.proxy.filter.FilterConfig;
 import io.kroxylicious.proxy.filter.FilterContributor;
 import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.internal.filter.ApiVersionsFilter.ApiVersionsFilterConfig;
