@@ -21,9 +21,6 @@ public class ApiVersionsFilter implements ApiVersionsResponseFilter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ApiVersionsFilter.class);
 
-    public static class ApiVersionsFilterConfig extends FilterConfig {
-    }
-
     private static void intersectApiVersions(String channel, ApiVersionsResponseData resp) {
         for (var key : resp.apiKeys()) {
             short apiId = key.apiKey();
@@ -37,9 +34,10 @@ public class ApiVersionsFilter implements ApiVersionsResponseFilter {
     /**
      * Update the given {@code key}'s max and min versions so that the client uses APIs versions mutually
      * understood by both the proxy and the broker.
+     *
      * @param channel The channel.
-     * @param key The key data from an upstream API_VERSIONS response.
-     * @param apiKey The proxy's API key for this API.
+     * @param key     The key data from an upstream API_VERSIONS response.
+     * @param apiKey  The proxy's API key for this API.
      */
     private static void intersectApiVersion(String channel, ApiVersionsResponseData.ApiVersion key, ApiKeys apiKey) {
         short mutualMin = (short) Math.max(

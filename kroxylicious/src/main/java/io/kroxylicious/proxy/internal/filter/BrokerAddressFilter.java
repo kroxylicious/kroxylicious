@@ -32,9 +32,6 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BrokerAddressFilter.class);
 
-    public static class BrokerAddressFilterConfig extends FilterConfig {
-    }
-
     public interface AddressMapping {
         String downstreamHost(String upstreamHost, int upstreamPort);
 
