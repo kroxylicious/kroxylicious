@@ -18,7 +18,7 @@
 
     <properties>
         <java.version>11</java.version>
-        <java.test.version>18</java.test.version>
+        <java.test.version>19</java.test.version>
         <maven.compiler.parameters>true</maven.compiler.parameters>
         <maven.compiler.release>${java.version}</maven.compiler.release>
         <maven.compiler.testRelease>${java.test.version}</maven.compiler.testRelease>
@@ -41,7 +41,7 @@
         <netty.epoll.classifier>linux-x86_64</netty.epoll.classifier>
         <netty.io_uring.classifier>linux-x86_64</netty.io_uring.classifier>
         <netty.kqueue.classifier>osx-x86_64</netty.kqueue.classifier>
-        <lombok.version>1.18.24</lombok.version>
+        <lombok.version>1.18.26</lombok.version>
         <assertj-core.version>3.22.0</assertj-core.version>
         <mockito-core.version>4.6.1</mockito-core.version>
         <slf4j-api.version>1.7.36</slf4j-api.version>
