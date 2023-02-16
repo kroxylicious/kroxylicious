@@ -106,7 +106,7 @@ $ dot -Tpng kroxylicious/target/generated-sources/annotations/deptective.dot > k
 
 ## IntelliJ setup
 
-Currently the project uses JDK 11 for the actual code and JDK 17 for tests. 
+Currently the project uses JDK 11 for the actual code and JDK 18 for tests. 
 IntelliJ needs to be configured to use the "new Workspace Model" in order for it to understand this
 (and to be useful for things like debugging):
 
