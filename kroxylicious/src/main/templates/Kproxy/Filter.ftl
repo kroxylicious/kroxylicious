@@ -44,8 +44,6 @@ public interface ${filterClass} extends KrpcFilter {
      *
      * @param ${msgType} The KRPC message to handle.
      * @param context The context.
-     * @return the {@code ${msgType}} to be passed to the next filter.
-     * If null is returned then the given {@code ${msgType}} will be used.
      */
     public void on${messageSpec.name}(${dataClass} ${msgType}, KrpcFilterContext context);
 

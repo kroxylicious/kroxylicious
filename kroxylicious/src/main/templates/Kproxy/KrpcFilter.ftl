@@ -41,12 +41,12 @@ import io.kroxylicious.proxy.frame.DecodedResponseFrame;
  * the {@code on*Request} method(s), unless your filter can avoid deserialization in which case
  * you can override {@link #shouldDeserializeRequest(ApiKeys, short)} as well.</p>
  *
- * <h3>Guarantees</h3>
+ * <h2>Guarantees</h2>
  * <p>Implementors of this API may assume the following:</p>
  * <ol>
  *     <li>That each instance of the filter is associated with a single channel</li>
  *     <li>That {@link #shouldDeserializeRequest(ApiKeys, short)} and
- *     {@link #apply(DecodedRequestFrame, KrpcFilterContext)} (or {@code on*Request} as appropriate)
+ *     {@link #onRequest(DecodedRequestFrame, KrpcFilterContext)} (or {@code on*Request} as appropriate)
  *     will always be invoked on the same thread.</li>
  *     <li>That filters are applied in the order they were configured.</li>
  * </ol>
@@ -85,7 +85,6 @@ public /* sealed */ interface KrpcFilter /* TODO permits ... */ {
      * Apply the filter to the given {@code decodedFrame} using the given {@code filterContext}.
      * @param decodedFrame The response frame.
      * @param filterContext The filter context.
-     * @return The state of the filter.
      */
     public default void onResponse(DecodedResponseFrame<?> decodedFrame,
                                    KrpcFilterContext filterContext) {
@@ -112,8 +111,8 @@ public /* sealed */ interface KrpcFilter /* TODO permits ... */ {
      *     <li>{@code shouldDeserializeRequest} on request A</li>
      *     <li>{@code shouldDeserializeRequest} on request B</li>
      *     <li>{@code shouldDeserializeRequest} on request A</li>
-     *     <li>{@code apply} on request A</li>
-     *     <li>{@code apply} on request B</li>
+     *     <li>{@code onRequest} on request A</li>
+     *     <li>{@code onRequest} on request B</li>
      * </ol>
      * @param apiKey The API key
      * @param apiVersion The API version
