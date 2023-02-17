@@ -7,8 +7,8 @@
 ---
 proxy:
   address: localhost:9192
-  logNetwork: true
-  logFrames: true
+  logNetwork: false
+  logFrames: false
 adminHttp:
   endpoints:
     prometheus: {}
@@ -18,6 +18,6 @@ clusters:
 filters:
 - type: ApiVersions
 - type: BrokerAddress
-- type: ProduceRequestTransformation
-  config:
-    transformation: io.kroxylicious.proxy.internal.filter.ProduceRequestTransformationFilter$UpperCasing
+#- type: ProduceRequestTransformation
+#  config:
+#    transformation: io.kroxylicious.proxy.internal.filter.ProduceRequestTransformationFilter$UpperCasing
