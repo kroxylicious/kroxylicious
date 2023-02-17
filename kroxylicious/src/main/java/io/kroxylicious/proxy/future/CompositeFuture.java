@@ -26,9 +26,8 @@ import io.kroxylicious.proxy.internal.future.CompositeFutureImpl;
 public interface CompositeFuture extends Future<CompositeFuture> {
 
     /**
-     * Return a composite future, succeeded when all futures are succeeded, failed when any future is failed.
-     * <p/>
-     * The returned future fails as soon as one of {@code f1} or {@code f2} fails.
+     * <p>Return a composite future, succeeded when all futures are succeeded, failed when any future is failed.</p>
+     * <p>The returned future fails as soon as one of {@code f1} or {@code f2} fails.</p>
      *
      * @param f1 future
      * @param f2 future
@@ -76,9 +75,8 @@ public interface CompositeFuture extends Future<CompositeFuture> {
     }
 
     /**
-     * Return a composite future, succeeded when any futures is succeeded, failed when all futures are failed.
-     * <p/>
-     * The returned future succeeds as soon as one of {@code f1} or {@code f2} succeeds.
+     * <p>Return a composite future, succeeded when any futures is succeeded, failed when all futures are failed.</p>
+     * <p>The returned future succeeds as soon as one of {@code f1} or {@code f2} succeeds.</p>
      *
      * @param f1 future
      * @param f2 future
@@ -126,9 +124,8 @@ public interface CompositeFuture extends Future<CompositeFuture> {
     }
 
     /**
-     * Return a composite future, succeeded when all futures are succeeded, failed when any future is failed.
-     * <p/>
-     * It always wait until all its futures are completed and will not fail as soon as one of {@code f1} or {@code f2} fails.
+     * <p>Return a composite future, succeeded when all futures are succeeded, failed when any future is failed.</p>
+     * <p>It always wait until all its futures are completed and will not fail as soon as one of {@code f1} or {@code f2} fails.</p>
      *
      * @param f1 future
      * @param f2 future

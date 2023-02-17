@@ -45,7 +45,7 @@ import io.kroxylicious.proxy.codec.DecodedRequestFrame;
  * <p>When extending {@link KrpcGenericRequestFilter} you need to override {@link #apply(DecodedRequestFrame, KrpcFilterContext)},
  * and may override {@link #shouldDeserializeRequest(ApiKeys, short)} as well.</p>
  *
- * <h3>Guarantees</h3>
+ * <h2>Guarantees</h2>
  * <p>Implementors of this API may assume the following:</p>
  * <ol>
  *     <li>That each instance of the filter is associated with a single channel</li>

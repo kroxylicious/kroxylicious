@@ -51,9 +51,8 @@ public interface Promise<T> extends Handler<AsyncResult<T>> {
     }
 
     /**
-     * Set the result. Any handler will be called, if there is one, and the promise will be marked as completed.
-     * <p/>
-     * Any handler set on the associated promise will be called.
+     * <p>Set the result. Any handler will be called, if there is one, and the promise will be marked as completed.</p>
+     * <p>Any handler set on the associated promise will be called.</p>
      *
      * @param result  the result
      * @throws IllegalStateException when the promise is already completed
