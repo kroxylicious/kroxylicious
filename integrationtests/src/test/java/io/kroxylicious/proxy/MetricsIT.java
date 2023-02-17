@@ -44,12 +44,14 @@ public class MetricsIT {
         this.testInfo = testInfo;
         Metrics.globalRegistry.clear();
     }
+
     @AfterEach
     public void teardown() {
-        if(proxy != null){
+        if (proxy != null) {
             try {
                 proxy.shutdown();
-            } catch (InterruptedException e) {
+            }
+            catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
         }

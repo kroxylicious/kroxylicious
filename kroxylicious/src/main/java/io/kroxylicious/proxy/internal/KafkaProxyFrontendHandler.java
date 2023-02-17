@@ -282,7 +282,7 @@ public class KafkaProxyFrontendHandler
     private void addFiltersToPipeline(KrpcFilter[] filters, ChannelPipeline pipeline) {
         for (var filter : filters) {
             // TODO configurable timeout
-            pipeline.addFirst(filter.toString(), new FilterHandler(filter, 20000));
+            pipeline.addFirst(filter.toString(), new FilterHandler(filter, 20000, sniHostname));
         }
     }
 

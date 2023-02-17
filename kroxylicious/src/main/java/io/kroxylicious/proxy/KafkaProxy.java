@@ -50,7 +50,7 @@ import io.kroxylicious.proxy.internal.MeterRegistries;
 import io.kroxylicious.proxy.internal.admin.AdminHttpInitializer;
 import io.kroxylicious.proxy.internal.filter.FixedNetFilter;
 
-public final class KafkaProxy {
+public final class KafkaProxy implements AutoCloseable {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxy.class);
 
@@ -246,4 +246,10 @@ public final class KafkaProxy {
         metricsChannel = null;
     }
 
+    @Override
+    public void close() throws Exception {
+        if (acceptorChannel != null) {
+            shutdown();
+        }
+    }
 }

@@ -18,7 +18,7 @@
 
     <properties>
         <java.version>11</java.version>
-        <java.test.version>17</java.test.version>
+        <java.test.version>19</java.test.version>
         <maven.compiler.parameters>true</maven.compiler.parameters>
         <maven.compiler.release>${java.version}</maven.compiler.release>
         <maven.compiler.testRelease>${java.test.version}</maven.compiler.testRelease>
@@ -41,7 +41,7 @@
         <netty.epoll.classifier>linux-x86_64</netty.epoll.classifier>
         <netty.io_uring.classifier>linux-x86_64</netty.io_uring.classifier>
         <netty.kqueue.classifier>osx-x86_64</netty.kqueue.classifier>
-        <lombok.version>1.18.24</lombok.version>
+        <lombok.version>1.18.26</lombok.version>
         <assertj-core.version>3.22.0</assertj-core.version>
         <mockito-core.version>4.6.1</mockito-core.version>
         <slf4j-api.version>1.7.36</slf4j-api.version>
@@ -210,6 +210,7 @@
         <module>integrationtests</module>
     </modules>
 
+
     <build>
         <!-- Keep alphabetic order -->
         <pluginManagement>
@@ -248,12 +249,13 @@
                 <plugin>
                     <groupId>net.revelc.code</groupId>
                     <artifactId>impsort-maven-plugin</artifactId>
-                    <version>1.7.0</version>
+                    <version>1.8.0</version>
                     <configuration>
                         <groups>java.,javax.,org.,com.,io.,io.kroxylicious</groups>
                         <removeUnused>true</removeUnused>
                         <staticAfter>true</staticAfter>
-                        <compliance>${java.test.version}</compliance>
+                        <!-- use langauge level 17, see https://github.com/javaparser/javaparser/issues/3833 -->
+                        <compliance>17</compliance>
                     </configuration>
                 </plugin>
                 <plugin>
@@ -305,7 +307,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-plugin-plugin</artifactId>
-                    <version>3.6.1</version>
+                    <version>3.7.0</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>

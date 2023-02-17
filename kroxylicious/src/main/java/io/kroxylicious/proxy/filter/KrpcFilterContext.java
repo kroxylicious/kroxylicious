@@ -29,6 +29,12 @@ public interface KrpcFilterContext {
     ByteBuf allocate(int initialCapacity);
 
     /**
+     * @return the SNI hostname provided by the client.  Will be null if the client is
+     * using a non-TLS connection or the TLS client hello didn't provide one.
+     */
+    String sniHostname();
+
+    /**
      * Send a request towards the broker, invoking upstream filters.
      * @param request The request to forward to the broker.
      */
