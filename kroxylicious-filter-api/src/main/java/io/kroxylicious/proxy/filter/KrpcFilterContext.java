@@ -22,7 +22,7 @@ public interface KrpcFilterContext {
     String channelDescriptor();
 
     /**
-     * Allocate a MemoryRecordsBuilder
+     *  Creates a MemoryRecordsBuilder by allocating an additional buffer to support back it.
      *
      * @return the memory records builder
      */
