@@ -12,8 +12,9 @@ proxy:
 adminHttp:
   endpoints:
     prometheus: {}
-clusters:
-  demo:
+addressManager:
+  type: FixedCluster
+  config:
     bootstrap_servers: localhost:9092
 filters:
 - type: ApiVersions

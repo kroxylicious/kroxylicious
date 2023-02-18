@@ -328,7 +328,6 @@ public class MultiTenantIT {
     private KroxyConfigBuilder baseConfigBuilder(String proxyAddress, String bootstrapServers) {
         return new KroxyConfigBuilder(proxyAddress)
                 .withKeyStoreConfig(certificateGenerator.getCertLocation(), certificateGenerator.getPassword())
-                .withDefaultCluster(bootstrapServers)
                 .withAddressManager("FixedClusterSni", "bootstrap_servers", bootstrapServers)
                 .addFilter("ApiVersions")
                 .addFilter("BrokerAddress")

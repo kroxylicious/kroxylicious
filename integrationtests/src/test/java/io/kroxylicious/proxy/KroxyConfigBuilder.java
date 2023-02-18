@@ -7,7 +7,6 @@ package io.kroxylicious.proxy;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -65,7 +64,6 @@ public class KroxyConfigBuilder {
     }
 
     private Proxy proxy;
-    private final Map<String, Cluster> clusters = new LinkedHashMap<>();
     private final List<Filter> filters = new ArrayList<>();
     private AddressManager addressManager;
 
@@ -77,10 +75,6 @@ public class KroxyConfigBuilder {
 
     public KroxyConfigBuilder(String proxyAddress) {
         proxy = new Proxy(proxyAddress, null, null);
-    }
-
-    public KroxyConfigBuilder withDefaultCluster(String bootstrapServers) {
-        return withCluster("demo", bootstrapServers);
     }
 
     public KroxyConfigBuilder withMicrometerBinder(String binder) {
@@ -103,11 +97,6 @@ public class KroxyConfigBuilder {
 
     private MicrometerConfig currentOrNewMicrometerConfig() {
         return micrometer != null ? micrometer : new MicrometerConfig(null, null, null);
-    }
-
-    public KroxyConfigBuilder withCluster(String clusterName, String bootstrapServers) {
-        clusters.put(clusterName, new Cluster(bootstrapServers));
-        return this;
     }
 
     public KroxyConfigBuilder withKeyStoreConfig(String keystoreFile, String keyPassword) {
@@ -159,10 +148,6 @@ public class KroxyConfigBuilder {
 
     public AdminHttp getAdminHttp() {
         return adminHttp;
-    }
-
-    public Map<String, Cluster> getClusters() {
-        return clusters;
     }
 
     public List<Filter> getFilters() {

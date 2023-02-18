@@ -39,15 +39,6 @@ public class KroxyConfigBuilderTest {
     }
 
     @Test
-    public void testClusterConfig() throws IOException {
-        ObjectNode deserializedConfig = serializeAndDeserialize(new KroxyConfigBuilder("localhost:9192")
-                .withDefaultCluster("localhost:9092"));
-        ObjectNode clusterObj = assertObjectField(deserializedConfig, "clusters");
-        ObjectNode demoObj = assertObjectField(clusterObj, "demo");
-        assertTextField(demoObj, "bootstrap_servers", "localhost:9092");
-    }
-
-    @Test
     public void testAddressManagerConfig() throws IOException {
         ObjectNode deserializedConfig = serializeAndDeserialize(new KroxyConfigBuilder("localhost:9192")
                 .withAddressManager("mapper", "foo", "bar"));
