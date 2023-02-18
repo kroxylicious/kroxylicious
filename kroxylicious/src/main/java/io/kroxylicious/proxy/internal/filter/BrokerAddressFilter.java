@@ -5,7 +5,6 @@
  */
 package io.kroxylicious.proxy.internal.filter;
 
-import java.lang.reflect.InvocationTargetException;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.ObjIntConsumer;
@@ -21,8 +20,6 @@ import org.apache.kafka.common.message.ResponseHeaderData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.kroxylicious.proxy.config.BaseConfig;
-import io.kroxylicious.proxy.config.ProxyConfig;
 import io.kroxylicious.proxy.filter.DescribeClusterResponseFilter;
 import io.kroxylicious.proxy.filter.FindCoordinatorResponseFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
@@ -34,38 +31,6 @@ import io.kroxylicious.proxy.filter.MetadataResponseFilter;
 public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordinatorResponseFilter, DescribeClusterResponseFilter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BrokerAddressFilter.class);
-
-    public static class BrokerAddressConfig extends BaseConfig {
-
-        private final Class<? extends AddressMapping> addressMapperClazz;
-
-        public BrokerAddressConfig(String addressMapper) {
-            try {
-                this.addressMapperClazz = addressMapper == null ? null : (Class<? extends AddressMapping>) Class.forName(addressMapper);
-                ;
-            }
-            catch (ClassNotFoundException e) {
-                throw new RuntimeException(e);
-            }
-        }
-
-        public Class<? extends AddressMapping> addressMapper() {
-            return addressMapperClazz;
-        }
-    }
-
-    private final AddressMapping mapping;
-
-    public BrokerAddressFilter(ProxyConfig all, BrokerAddressConfig config) {
-
-        try {
-            this.mapping = config == null || config.addressMapperClazz == null ? new FixedAddressMapping(all)
-                    : config.addressMapper().getDeclaredConstructor(ProxyConfig.class).newInstance(all);
-        }
-        catch (InstantiationException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
-            throw new RuntimeException(e);
-        }
-    }
 
     @Override
     public void onMetadataResponse(ResponseHeaderData header, MetadataResponseData data, KrpcFilterContext context) {
