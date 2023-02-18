@@ -30,8 +30,22 @@ import io.kroxylicious.proxy.filter.NetFilterContext;
  * AddressManager implementation are made available to the service loader via the {@link AddressManagerContributor}.
  */
 public interface AddressManager extends Closeable {
-    AddressMapper createMapper(NetFilterContext netFilterContext);
+    /**
+     * Creates a mapper that maps between upstream and downstream broker addresses.
+     * The context object provides details such as the client host/ip, the SNI name etc.  Implementations use this
+     * information to compute the mapping.
+     *
+     * This method will be invoked exactly once per connection.  The resulting object will be made available to
+     * filter implementations via the {@link io.kroxylicious.proxy.filter.KrpcFilterContext}.
+     *
+     * @param context net context.
+     * @return mapper
+     */
+    AddressMapper createMapper(NetFilterContext context);
 
+    /**
+     * Will be invoked exactly once by kroxylicious as it is shutdown.
+     */
     @Override
     default void close() {
     }

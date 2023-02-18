@@ -16,6 +16,7 @@ import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 
+import io.kroxylicious.proxy.addressmapper.AddressMapper;
 import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
@@ -35,11 +36,13 @@ public class FilterHandler
     private final KrpcFilter filter;
     private final long timeoutMs;
     private final String sniHostname;
+    private final AddressMapper addressMapper;
 
-    public FilterHandler(KrpcFilter filter, long timeoutMs, String sniHostname) {
+    public FilterHandler(KrpcFilter filter, long timeoutMs, String sniHostname, AddressMapper addressMapper) {
         this.filter = Objects.requireNonNull(filter);
         this.timeoutMs = Assertions.requireStrictlyPositive(timeoutMs, "timeout");
         this.sniHostname = sniHostname;
+        this.addressMapper = addressMapper;
     }
 
     String filterDescriptor() {
@@ -52,7 +55,7 @@ public class FilterHandler
             DecodedRequestFrame<?> decodedFrame = (DecodedRequestFrame<?>) msg;
             // Guard against invoking the filter unexpectedly
             if (filter.shouldDeserializeRequest(decodedFrame.apiKey(), decodedFrame.apiVersion())) {
-                var filterContext = new DefaultFilterContext(filter, ctx, decodedFrame, promise, timeoutMs, sniHostname);
+                var filterContext = new DefaultFilterContext(filter, ctx, decodedFrame, promise, timeoutMs, sniHostname, addressMapper);
                 if (LOGGER.isDebugEnabled()) {
                     LOGGER.debug("{}: Dispatching downstream {} request to filter{}: {}",
                             ctx.channel(), decodedFrame.apiKey(), filterDescriptor(), msg);
@@ -97,7 +100,7 @@ public class FilterHandler
                 }
             }
             else if (filter.shouldDeserializeResponse(decodedFrame.apiKey(), decodedFrame.apiVersion())) {
-                var filterContext = new DefaultFilterContext(filter, ctx, decodedFrame, null, timeoutMs, sniHostname);
+                var filterContext = new DefaultFilterContext(filter, ctx, decodedFrame, null, timeoutMs, sniHostname, addressMapper);
                 if (LOGGER.isDebugEnabled()) {
                     LOGGER.debug("{}: Dispatching upstream {} response to filter {}: {}",
                             ctx.channel(), decodedFrame.apiKey(), filterDescriptor(), msg);

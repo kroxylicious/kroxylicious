@@ -35,6 +35,7 @@ import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SniCompletionEvent;
 
 import io.kroxylicious.proxy.addressmapper.AddressManager;
+import io.kroxylicious.proxy.addressmapper.AddressMapper;
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.filter.NetFilterContext;
@@ -95,6 +96,8 @@ public class KafkaProxyFrontendHandler
     // so we can perform the channelReadComplete()/outbound flush & auto_read
     // once the outbound channel is active
     private boolean pendingReadComplete = true;
+
+    private AddressMapper addressMapper;
 
     @VisibleForTesting
     enum State {
@@ -219,8 +222,8 @@ public class KafkaProxyFrontendHandler
                 // Or not for the topic routing case
 
                 // Note filter.upstreamBroker will call back on the connect() method below
-                var mapper = addressManager.createMapper(this);
-                var upstream = mapper.getUpstream();
+                addressMapper = this.addressManager.createMapper(this);
+                var upstream = addressMapper.getUpstream();
                 initiateConnect(upstream.getHostString(), upstream.getPort(), filterChainFactory.createFilters());
             }
             else {
@@ -291,7 +294,7 @@ public class KafkaProxyFrontendHandler
     private void addFiltersToPipeline(KrpcFilter[] filters, ChannelPipeline pipeline) {
         for (var filter : filters) {
             // TODO configurable timeout
-            pipeline.addFirst(filter.toString(), new FilterHandler(filter, 20000, sniHostname));
+            pipeline.addFirst(filter.toString(), new FilterHandler(filter, 20000, sniHostname, addressMapper));
         }
     }
 

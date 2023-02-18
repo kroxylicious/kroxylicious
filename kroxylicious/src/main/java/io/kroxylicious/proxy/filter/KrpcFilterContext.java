@@ -11,6 +11,8 @@ import org.apache.kafka.common.protocol.ApiMessage;
 
 import io.netty.buffer.ByteBuf;
 
+import io.kroxylicious.proxy.addressmapper.AddressMapper;
+
 /**
  * A context to allow filters to interact with other filters and the pipeline.
  */
@@ -33,6 +35,8 @@ public interface KrpcFilterContext {
      * using a non-TLS connection or the TLS client hello didn't provide one.
      */
     String sniHostname();
+
+    AddressMapper addressMapper();
 
     /**
      * Send a request towards the broker, invoking upstream filters.

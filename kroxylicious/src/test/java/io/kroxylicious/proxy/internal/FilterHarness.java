@@ -46,7 +46,7 @@ public abstract class FilterHarness {
      */
     protected void buildChannel(KrpcFilter filter, long timeoutMs) {
         this.filter = filter;
-        filterHandler = new FilterHandler(filter, timeoutMs, null);
+        filterHandler = new FilterHandler(filter, timeoutMs, null, null);
         channel = new EmbeddedChannel(filterHandler);
     }
 

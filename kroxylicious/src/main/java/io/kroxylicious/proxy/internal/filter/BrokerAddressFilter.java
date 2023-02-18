@@ -96,8 +96,9 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
         String incomingHost = hostGetter.apply(broker);
         int incomingPort = portGetter.applyAsInt(broker);
 
-        String host = mapping.downstreamHost(context, incomingHost, incomingPort);
-        int port = mapping.downstreamPort(context, incomingHost, incomingPort);
+        var downstream = context.addressMapper().getDownstream(incomingHost, incomingPort);
+        var host = downstream.getHostString();
+        var port = downstream.getPort();
 
         LOGGER.trace("{}: Rewriting broker address in response {}:{} -> {}:{}", context, incomingHost, incomingPort, host, port);
         hostSetter.accept(broker, host);

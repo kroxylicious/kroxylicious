@@ -4,20 +4,20 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.proxy.addressmapper.fixedcluster;
+package io.kroxylicious.proxy.multitenant;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.kroxylicious.proxy.config.BaseConfig;
 
-public class FixedClusterAddressManagerConfig extends BaseConfig {
+public class FixedClusterSingleNodeSniAddressManagerConfig extends BaseConfig {
+    private final String bootstrapServers;
+
     @JsonCreator
-    public FixedClusterAddressManagerConfig(@JsonProperty(value = "bootstrap_servers") String bootstrapServers) {
+    public FixedClusterSingleNodeSniAddressManagerConfig(@JsonProperty(value = "bootstrap_servers") String bootstrapServers) {
         this.bootstrapServers = bootstrapServers;
     }
-
-    private final String bootstrapServers;
 
     public String bootstrapServers() {
         return bootstrapServers;
@@ -25,6 +25,6 @@ public class FixedClusterAddressManagerConfig extends BaseConfig {
 
     @Override
     public String toString() {
-        return "FixedClusterAddressMapperFactoryConfig [bootstrapServers=" + bootstrapServers + "]";
+        return "FixedSingleNodeClusterAddressManagerConfig [bootstrapServers=" + bootstrapServers + "]";
     }
 }

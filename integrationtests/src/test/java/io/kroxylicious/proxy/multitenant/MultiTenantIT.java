@@ -50,9 +50,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.KafkaProxy;
+import io.kroxylicious.proxy.KroxyConfigBuilder;
 import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.config.Configuration;
-import io.kroxylicious.proxy.testkafkacluster.KafkaCluster;
 import io.kroxylicious.proxy.testkafkacluster.KafkaClusterConfig;
 import io.kroxylicious.proxy.testkafkacluster.KafkaClusterFactory;
 import io.kroxylicious.proxy.testkafkacluster.KeytoolCertificateGenerator;
@@ -95,7 +95,7 @@ public class MultiTenantIT {
         try (var cluster = KafkaClusterFactory.create(KafkaClusterConfig.builder().testInfo(testInfo).build())) {
             cluster.start();
 
-            String config = getConfig(PROXY_ADDRESS, cluster);
+            String config = baseConfigBuilder(PROXY_ADDRESS, cluster.getBootstrapServers()).build();
 
             try (var proxy = startProxy(config)) {
                 try (var admin = Admin.create(commonConfig(TENANT1_PROXY_ADDRESS, Map.of()))) {
@@ -132,7 +132,7 @@ public class MultiTenantIT {
         try (var cluster = KafkaClusterFactory.create(KafkaClusterConfig.builder().testInfo(testInfo).build())) {
             cluster.start();
 
-            String config = getConfig(PROXY_ADDRESS, cluster);
+            String config = baseConfigBuilder(PROXY_ADDRESS, cluster.getBootstrapServers()).build();
 
             try (var proxy = startProxy(config)) {
                 try (var admin = Admin.create(commonConfig(TENANT1_PROXY_ADDRESS, Map.of()))) {
@@ -153,7 +153,7 @@ public class MultiTenantIT {
         try (var cluster = KafkaClusterFactory.create(KafkaClusterConfig.builder().testInfo(testInfo).build())) {
             cluster.start();
 
-            String config = getConfig(PROXY_ADDRESS, cluster);
+            String config = baseConfigBuilder(PROXY_ADDRESS, cluster.getBootstrapServers()).build();
 
             try (var proxy = startProxy(config)) {
                 createTopics(TENANT1_PROXY_ADDRESS, List.of(NEW_TOPIC_1));
@@ -167,7 +167,7 @@ public class MultiTenantIT {
         try (var cluster = KafkaClusterFactory.create(KafkaClusterConfig.builder().testInfo(testInfo).build())) {
             cluster.start();
 
-            String config = getConfig(PROXY_ADDRESS, cluster);
+            String config = baseConfigBuilder(PROXY_ADDRESS, cluster.getBootstrapServers()).build();
 
             try (var proxy = startProxy(config)) {
                 createTopics(TENANT1_PROXY_ADDRESS, List.of(NEW_TOPIC_1));
@@ -181,7 +181,7 @@ public class MultiTenantIT {
     public void consumeOneAndOffsetCommit() throws Exception {
         try (var cluster = KafkaClusterFactory.create(KafkaClusterConfig.builder().testInfo(testInfo).build())) {
             cluster.start();
-            String config = getConfig(PROXY_ADDRESS, cluster);
+            String config = baseConfigBuilder(PROXY_ADDRESS, cluster.getBootstrapServers()).build();
 
             try (var proxy = startProxy(config)) {
                 createTopics(TENANT1_PROXY_ADDRESS, List.of(NEW_TOPIC_1));
@@ -197,7 +197,7 @@ public class MultiTenantIT {
     public void tenantIsolation() throws Exception {
         try (var cluster = KafkaClusterFactory.create(KafkaClusterConfig.builder().testInfo(testInfo).build())) {
             cluster.start();
-            String config = getConfig(PROXY_ADDRESS, cluster);
+            String config = baseConfigBuilder(PROXY_ADDRESS, cluster.getBootstrapServers()).build();
 
             try (var proxy = startProxy(config)) {
                 createTopics(TENANT1_PROXY_ADDRESS, List.of(NEW_TOPIC_1));
@@ -325,28 +325,14 @@ public class MultiTenantIT {
         return config;
     }
 
-    private String getConfig(String proxyAddress, KafkaCluster cluster) {
-        String config = """
-                proxy:
-                  address: %s
-                  keyStoreFile: %s
-                  keyPassword: %s
-                clusters:
-                  demo:
-                    bootstrap_servers: %s
-                addressManager:
-                  type: FixedCluster
-                  config:
-                     bootstrap_servers: %s
-                filters:
-                - type: ApiVersions
-                - type: BrokerAddress
-                  config:
-                    addressMapperClazz: io.kroxylicious.proxy.internal.filter.SniAddressMapping
-                - type: MultiTenant
-                """.formatted(proxyAddress, certificateGenerator.getCertLocation(), certificateGenerator.getPassword(), cluster.getBootstrapServers(),
-                cluster.getBootstrapServers());
-        return config;
+    private KroxyConfigBuilder baseConfigBuilder(String proxyAddress, String bootstrapServers) {
+        return new KroxyConfigBuilder(proxyAddress)
+                .withKeyStoreConfig(certificateGenerator.getCertLocation(), certificateGenerator.getPassword())
+                .withDefaultCluster(bootstrapServers)
+                .withAddressManager("FixedClusterSni", "bootstrap_servers", bootstrapServers)
+                .addFilter("ApiVersions")
+                .addFilter("BrokerAddress")
+                .addFilter("MultiTenant");
     }
 
     private KafkaProxy startProxy(String config) throws InterruptedException {
