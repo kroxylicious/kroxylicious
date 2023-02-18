@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.proxy.internal;
 
+import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -34,8 +35,11 @@ import io.netty.handler.codec.haproxy.HAProxyProtocolVersion;
 import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
 import io.netty.handler.ssl.SniCompletionEvent;
 
+import io.kroxylicious.proxy.addressmapper.AddressManager;
+import io.kroxylicious.proxy.addressmapper.AddressMapper;
+import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.filter.KrpcFilter;
-import io.kroxylicious.proxy.filter.NetFilter;
+import io.kroxylicious.proxy.filter.NetFilterContext;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.internal.KafkaProxyFrontendHandler.State;
 
@@ -43,10 +47,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
 
 class KafkaProxyFrontendHandlerTest {
 
@@ -118,10 +119,12 @@ class KafkaProxyFrontendHandlerTest {
                              boolean sendSasl) {
 
         var dp = new SaslDecodePredicate(saslOffloadConfigured);
-        ArgumentCaptor<NetFilter.NetFilterContext> valueCapture = ArgumentCaptor.forClass(NetFilter.NetFilterContext.class);
-        var filter = mock(NetFilter.class);
+        ArgumentCaptor<NetFilterContext> valueCapture = ArgumentCaptor.forClass(NetFilterContext.class);
+        var addressMapperFactory = mock(AddressManager.class);
+        var filterChainFactory = mock(FilterChainFactory.class);
+        when(filterChainFactory.createFilters()).thenReturn(new KrpcFilter[0]);
         doAnswer(i -> {
-            NetFilter.NetFilterContext ctx = i.getArgument(0);
+            NetFilterContext ctx = i.getArgument(0);
             if (sslConfigured) {
                 assertEquals(SNI_HOSTNAME, ctx.sniHostname());
             }
@@ -151,11 +154,12 @@ class KafkaProxyFrontendHandlerTest {
                 assertNull(ctx.authorizedId());
             }
 
-            ctx.initiateConnect(CLUSTER_HOST, CLUSTER_PORT, new KrpcFilter[0]);
-            return null;
-        }).when(filter).selectServer(valueCapture.capture());
+            var addressMapper = mock(AddressMapper.class);
+            when(addressMapper.getUpstream()).thenReturn(InetSocketAddress.createUnresolved(CLUSTER_HOST, CLUSTER_PORT));
+            return addressMapper;
+        }).when(addressMapperFactory).createMapper(valueCapture.capture());
 
-        var handler = new KafkaProxyFrontendHandler(filter, dp, false, false) {
+        var handler = new KafkaProxyFrontendHandler(dp, false, false, addressMapperFactory, filterChainFactory) {
             @Override
             ChannelFuture initConnection(String remoteHost, int remotePort, Bootstrap b) {
                 // This is ugly... basically the EmbeddedChannel doesn't seem to handle the case
@@ -188,7 +192,7 @@ class KafkaProxyFrontendHandlerTest {
             writeRequest(ApiVersionsRequestData.HIGHEST_SUPPORTED_VERSION, new ApiVersionsRequestData()
                     .setClientSoftwareName("foo").setClientSoftwareVersion("1.0.0"));
             assertEquals(State.API_VERSIONS, handler.state());
-            verify(filter, never()).selectServer(handler);
+            verify(addressMapperFactory, never()).createMapper(handler);
         }
 
         if (sendSasl) {
@@ -200,14 +204,14 @@ class KafkaProxyFrontendHandlerTest {
                 // If the pipeline is configured for SASL offload (KafkaAuthnHandler)
                 // then we assume it DOESN'T propagate the SASL frames down the pipeline
                 // and therefore no backend connection happens
-                verify(filter, never()).selectServer(handler);
+                verify(addressMapperFactory, never()).createMapper(handler);
             }
             else {
                 // Simulate the client doing SaslHandshake and SaslAuthentication,
                 writeRequest(SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION, new SaslHandshakeRequestData());
 
                 // these should cause connection to the backend cluster
-                handleConnect(filter, handler);
+                handleConnect(handler);
                 writeRequest(SaslAuthenticateRequestData.HIGHEST_SUPPORTED_VERSION, new SaslAuthenticateRequestData());
             }
         }
@@ -215,13 +219,12 @@ class KafkaProxyFrontendHandlerTest {
         // Simulate a Metadata request
         writeRequest(MetadataRequestData.HIGHEST_SUPPORTED_VERSION, new MetadataRequestData());
         if (sendSasl && saslOffloadConfigured) {
-            handleConnect(filter, handler);
+            handleConnect(handler);
         }
 
     }
 
-    private void handleConnect(NetFilter filter, KafkaProxyFrontendHandler handler) {
-        verify(filter).selectServer(handler);
+    private void handleConnect(KafkaProxyFrontendHandler handler) {
         assertEquals(State.CONNECTED, handler.state());
         assertFalse(inboundChannel.config().isAutoRead(),
                 "Expect inbound autoRead=true, since outbound not yet active");

@@ -35,6 +35,9 @@ public class KroxyConfigBuilder {
     public record Filter(String type, @JsonInclude(NON_EMPTY) Map<String, Object> config) {
     }
 
+    public record AddressManager(String type, @JsonInclude(NON_EMPTY) Map<String, Object> config) {
+    }
+
     public record AdminHttp(Endpoints endpoints) {
     }
 
@@ -64,6 +67,7 @@ public class KroxyConfigBuilder {
     private Proxy proxy;
     private final Map<String, Cluster> clusters = new LinkedHashMap<>();
     private final List<Filter> filters = new ArrayList<>();
+    private AddressManager addressManager;
 
     @JsonInclude(NON_NULL)
     private AdminHttp adminHttp = null;
@@ -125,6 +129,19 @@ public class KroxyConfigBuilder {
     public KroxyConfigBuilder addFilter(String type, String configKey, Object configValue) {
         filters.add(new Filter(type, Map.of(configKey, configValue)));
         return this;
+    }
+
+    public KroxyConfigBuilder withAddressManager(String type, String configKey, Object configValue) {
+        addressManager = new AddressManager(type, Map.of(configKey, configValue));
+        return this;
+    }
+
+    public KroxyConfigBuilder withDefaultAddressMapper(String bootstrapServers) {
+        return withAddressManager("FixedCluster", "bootstrap_servers", bootstrapServers);
+    }
+
+    public AddressManager getAddressManager() {
+        return addressManager;
     }
 
     public String build() {

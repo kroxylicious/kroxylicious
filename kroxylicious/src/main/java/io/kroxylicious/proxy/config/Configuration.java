@@ -18,17 +18,19 @@ public class Configuration {
     private final AdminHttpConfiguration adminHttp;
     private final MicrometerConfiguration micrometer;
     private final Map<String, Cluster> clusters;
+    private final AddressManagerDefinition addressManager;
     private final List<FilterDefinition> filters;
 
     public Configuration(ProxyConfig proxy,
                          AdminHttpConfiguration adminHttp,
                          MicrometerConfiguration micrometer,
                          Map<String, Cluster> clusters,
-                         List<FilterDefinition> filters) {
+                         AddressManagerDefinition addressManager, List<FilterDefinition> filters) {
         this.proxy = proxy;
         this.adminHttp = adminHttp;
         this.micrometer = micrometer;
         this.clusters = clusters;
+        this.addressManager = addressManager;
         this.filters = filters;
     }
 
@@ -50,5 +52,9 @@ public class Configuration {
 
     public MicrometerConfiguration micrometerConfig() {
         return micrometer == null ? MicrometerConfiguration.empty() : micrometer;
+    }
+
+    public AddressManagerDefinition getAddressManager() {
+        return addressManager;
     }
 }

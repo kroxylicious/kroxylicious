@@ -334,13 +334,18 @@ public class MultiTenantIT {
                 clusters:
                   demo:
                     bootstrap_servers: %s
+                addressManager:
+                  type: FixedCluster
+                  config:
+                     bootstrap_servers: %s
                 filters:
                 - type: ApiVersions
                 - type: BrokerAddress
                   config:
                     addressMapperClazz: io.kroxylicious.proxy.internal.filter.SniAddressMapping
                 - type: MultiTenant
-                """.formatted(proxyAddress, certificateGenerator.getCertLocation(), certificateGenerator.getPassword(), cluster.getBootstrapServers());
+                """.formatted(proxyAddress, certificateGenerator.getCertLocation(), certificateGenerator.getPassword(), cluster.getBootstrapServers(),
+                cluster.getBootstrapServers());
         return config;
     }
 

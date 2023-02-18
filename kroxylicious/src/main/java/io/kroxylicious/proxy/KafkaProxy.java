@@ -41,6 +41,8 @@ import io.netty.incubator.channel.uring.IOUring;
 import io.netty.incubator.channel.uring.IOUringEventLoopGroup;
 import io.netty.incubator.channel.uring.IOUringServerSocketChannel;
 
+import io.kroxylicious.proxy.addressmapper.AddressManager;
+import io.kroxylicious.proxy.bootstrap.AddressManagerFactory;
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.admin.AdminHttpConfiguration;
@@ -48,7 +50,6 @@ import io.kroxylicious.proxy.config.micrometer.MicrometerConfiguration;
 import io.kroxylicious.proxy.internal.KafkaProxyInitializer;
 import io.kroxylicious.proxy.internal.MeterRegistries;
 import io.kroxylicious.proxy.internal.admin.AdminHttpInitializer;
-import io.kroxylicious.proxy.internal.filter.FixedNetFilter;
 
 public final class KafkaProxy implements AutoCloseable {
 
@@ -56,14 +57,13 @@ public final class KafkaProxy implements AutoCloseable {
 
     private final String proxyHost;
     private final int proxyPort;
-    private final String brokerHost;
-    private final int brokerPort;
     private final boolean logNetwork;
     private final boolean logFrames;
     private final boolean useIoUring;
     private final FilterChainFactory filterChainFactory;
     private final AdminHttpConfiguration adminHttpConfig;
     private final MicrometerConfiguration micrometerConfig;
+    private final AddressManager addressManager;
     private EventLoopGroup bossGroup;
     private EventLoopGroup workerGroup;
     private Channel acceptorChannel;
@@ -75,14 +75,9 @@ public final class KafkaProxy implements AutoCloseable {
         String proxyAddress = config.proxy().address();
         String[] proxyAddressParts = proxyAddress.split(":");
 
-        // TODO: deal with list
-        String brokerAddress = config.clusters().entrySet().iterator().next().getValue().bootstrapServers();
-        String[] brokerAddressParts = brokerAddress.split(":");
-
         this.proxyHost = proxyAddressParts[0];
         this.proxyPort = Integer.valueOf(proxyAddressParts[1]);
-        this.brokerHost = brokerAddressParts[0];
-        this.brokerPort = Integer.valueOf(brokerAddressParts[1]);
+        this.addressManager = new AddressManagerFactory(config).createAddressManager();
         this.logNetwork = config.proxy().logNetwork();
         this.logFrames = config.proxy().logFrames();
         this.useIoUring = config.proxy().useIoUring();
@@ -106,18 +101,6 @@ public final class KafkaProxy implements AutoCloseable {
         return proxyHost() + ":" + proxyPort();
     }
 
-    public String brokerHost() {
-        return brokerHost;
-    }
-
-    public int brokerPort() {
-        return brokerPort;
-    }
-
-    public String brokerAddress() {
-        return brokerHost() + ":" + brokerPort();
-    }
-
     public boolean useIoUring() {
         return useIoUring;
     }
@@ -130,9 +113,6 @@ public final class KafkaProxy implements AutoCloseable {
         if (acceptorChannel != null) {
             throw new IllegalStateException("This proxy is already running");
         }
-
-        LOGGER.info("Proxying local {} to remote {}",
-                proxyAddress(), brokerAddress());
 
         Optional<SslContext> sslContext = keyStoreFile.map(ksf -> {
             try (var is = new FileInputStream(ksf)) {
@@ -150,9 +130,8 @@ public final class KafkaProxy implements AutoCloseable {
 
         KafkaProxyInitializer initializer = new KafkaProxyInitializer(false,
                 Map.of(),
-                new FixedNetFilter(brokerHost,
-                        brokerPort,
-                        filterChainFactory),
+                addressManager,
+                filterChainFactory,
                 logNetwork,
                 logFrames,
                 sslContext);
@@ -244,6 +223,7 @@ public final class KafkaProxy implements AutoCloseable {
         workerGroup = null;
         acceptorChannel = null;
         metricsChannel = null;
+        addressManager.close();
     }
 
     @Override

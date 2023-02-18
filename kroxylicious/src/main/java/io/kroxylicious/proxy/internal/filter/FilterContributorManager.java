@@ -5,51 +5,20 @@
  */
 package io.kroxylicious.proxy.internal.filter;
 
-import java.util.Iterator;
-import java.util.ServiceLoader;
-
-import io.kroxylicious.proxy.config.BaseConfig;
-import io.kroxylicious.proxy.config.ProxyConfig;
+import io.kroxylicious.proxy.config.AbstractContributorManager;
 import io.kroxylicious.proxy.filter.FilterContributor;
 import io.kroxylicious.proxy.filter.KrpcFilter;
 
-public class FilterContributorManager {
+public class FilterContributorManager extends AbstractContributorManager<FilterContributor, KrpcFilter> {
 
     private static final FilterContributorManager INSTANCE = new FilterContributorManager();
 
-    private final ServiceLoader<FilterContributor> contributors;
-
     private FilterContributorManager() {
-        this.contributors = ServiceLoader.load(FilterContributor.class);
+        super(FilterContributor.class);
     }
 
     public static FilterContributorManager getInstance() {
         return INSTANCE;
     }
 
-    public Class<? extends BaseConfig> getConfigType(String shortName) {
-        Iterator<FilterContributor> it = contributors.iterator();
-        while (it.hasNext()) {
-            FilterContributor contributor = it.next();
-            Class<? extends BaseConfig> configType = contributor.getConfigType(shortName);
-            if (configType != null) {
-                return configType;
-            }
-        }
-
-        throw new IllegalArgumentException("No filter found for name '" + shortName + "'");
-    }
-
-    public KrpcFilter getFilter(String shortName, ProxyConfig proxyConfig, BaseConfig filterConfig) {
-        Iterator<FilterContributor> it = contributors.iterator();
-        while (it.hasNext()) {
-            FilterContributor contributor = it.next();
-            KrpcFilter filter = contributor.getInstance(shortName, proxyConfig, filterConfig);
-            if (filter != null) {
-                return filter;
-            }
-        }
-
-        throw new IllegalArgumentException("No filter found for name '" + shortName + "'");
-    }
 }

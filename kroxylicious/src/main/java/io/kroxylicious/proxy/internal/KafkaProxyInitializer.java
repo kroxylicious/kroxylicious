@@ -22,7 +22,8 @@ import io.netty.handler.ssl.SniHandler;
 import io.netty.handler.ssl.SslContext;
 import io.netty.util.DomainWildcardMappingBuilder;
 
-import io.kroxylicious.proxy.filter.NetFilter;
+import io.kroxylicious.proxy.addressmapper.AddressManager;
+import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.internal.codec.KafkaRequestDecoder;
 import io.kroxylicious.proxy.internal.codec.KafkaResponseEncoder;
 
@@ -34,21 +35,22 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
     private final boolean logFrames;
     private final boolean haproxyProtocol;
     private final Map<KafkaAuthnHandler.SaslMechanism, AuthenticateCallbackHandler> authnHandlers;
-    private final NetFilter netFilter;
     private final Optional<SslContext> sslContext;
+    private final AddressManager addressManager;
+    private final FilterChainFactory filterChainFactory;
 
     public KafkaProxyInitializer(boolean haproxyProtocol,
                                  Map<KafkaAuthnHandler.SaslMechanism, AuthenticateCallbackHandler> authnMechanismHandlers,
-                                 NetFilter netFilter,
-                                 boolean logNetwork,
+                                 AddressManager addressManager, FilterChainFactory filterChainFactory, boolean logNetwork,
                                  boolean logFrames,
                                  Optional<SslContext> sslContext) {
         this.haproxyProtocol = haproxyProtocol;
         this.authnHandlers = authnMechanismHandlers != null ? authnMechanismHandlers : Map.of();
-        this.netFilter = netFilter;
         this.logNetwork = logNetwork;
         this.logFrames = logFrames;
         this.sslContext = sslContext;
+        this.addressManager = addressManager;
+        this.filterChainFactory = filterChainFactory;
     }
 
     @Override
@@ -89,7 +91,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
             pipeline.addLast(new KafkaAuthnHandler(ch, authnHandlers));
         }
 
-        pipeline.addLast("netHandler", new KafkaProxyFrontendHandler(netFilter, dp, logNetwork, logFrames));
+        pipeline.addLast("netHandler", new KafkaProxyFrontendHandler(dp, logNetwork, logFrames, addressManager, filterChainFactory));
         LOGGER.debug("{}: Initial pipeline: {}", ch, pipeline);
     }
 

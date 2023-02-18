@@ -8,13 +8,13 @@ package io.kroxylicious.proxy.config;
 import com.fasterxml.jackson.databind.DatabindContext;
 import com.fasterxml.jackson.databind.JavaType;
 
-import io.kroxylicious.proxy.internal.filter.FilterContributorManager;
+import io.kroxylicious.proxy.addressmapper.AddressManagerContributorManager;
 
-public class FilterConfigTypeIdResolver extends AbstractConfigTypeIdResolver {
+public class AddressMapperConfigTypeIdResolver extends AbstractConfigTypeIdResolver {
 
     @Override
     public JavaType typeFromId(DatabindContext context, String id) {
-        Class<?> subType = FilterContributorManager.getInstance().getConfigType(id);
+        Class<?> subType = AddressManagerContributorManager.getInstance().getConfigType(id);
         return context.constructSpecializedType(superType, subType);
     }
 }

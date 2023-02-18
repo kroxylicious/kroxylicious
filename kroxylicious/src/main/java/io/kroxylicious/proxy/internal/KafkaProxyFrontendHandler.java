@@ -34,8 +34,10 @@ import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SniCompletionEvent;
 
+import io.kroxylicious.proxy.addressmapper.AddressManager;
+import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.filter.KrpcFilter;
-import io.kroxylicious.proxy.filter.NetFilter;
+import io.kroxylicious.proxy.filter.NetFilterContext;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.RequestFrame;
@@ -47,7 +49,7 @@ import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 public class KafkaProxyFrontendHandler
         extends ChannelInboundHandlerAdapter
-        implements NetFilter.NetFilterContext {
+        implements NetFilterContext {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyFrontendHandler.class);
 
@@ -55,8 +57,12 @@ public class KafkaProxyFrontendHandler
     private static final ApiVersionsResponseData API_VERSIONS_RESPONSE;
     static {
         var objectMapper = new ObjectMapper();
-        try (var parser = KafkaProxyFrontendHandler.class.getResourceAsStream("/ApiVersions-3.2.json")) {
-            API_VERSIONS_RESPONSE = ApiVersionsResponseDataJsonConverter.read(objectMapper.readTree(parser), (short) 3);
+        var apiVersionsJson = "/ApiVersions-3.2.json";
+        try (var stream = KafkaProxyFrontendHandler.class.getResourceAsStream(apiVersionsJson)) {
+            if (stream == null) {
+                throw new ExceptionInInitializerError(String.format("Failed to find %s", apiVersionsJson));
+            }
+            API_VERSIONS_RESPONSE = ApiVersionsResponseDataJsonConverter.read(objectMapper.readTree(stream), (short) 3);
         }
         catch (IOException e) {
             throw new UncheckedIOException(e);
@@ -65,12 +71,13 @@ public class KafkaProxyFrontendHandler
 
     private final boolean logNetwork;
     private final boolean logFrames;
+    private final AddressManager addressManager;
+    private final FilterChainFactory filterChainFactory;
 
     private ChannelHandlerContext outboundCtx;
     private KafkaProxyBackendHandler backendHandler;
     private boolean pendingFlushes;
 
-    private final NetFilter filter;
     private final SaslDecodePredicate dp;
 
     private AuthenticationEvent authentication;
@@ -124,14 +131,14 @@ public class KafkaProxyFrontendHandler
     private boolean isInboundBlocked = true;
     private HAProxyMessage haProxyMessage;
 
-    KafkaProxyFrontendHandler(NetFilter filter,
-                              SaslDecodePredicate dp,
+    KafkaProxyFrontendHandler(SaslDecodePredicate dp,
                               boolean logNetwork,
-                              boolean logFrames) {
-        this.filter = filter;
+                              boolean logFrames, AddressManager addressManager, FilterChainFactory filterChainFactory) {
         this.dp = dp;
         this.logNetwork = logNetwork;
         this.logFrames = logFrames;
+        this.addressManager = addressManager;
+        this.filterChainFactory = filterChainFactory;
     }
 
     private IllegalStateException illegalState(String msg) {
@@ -212,7 +219,9 @@ public class KafkaProxyFrontendHandler
                 // Or not for the topic routing case
 
                 // Note filter.upstreamBroker will call back on the connect() method below
-                filter.selectServer(this);
+                var mapper = addressManager.createMapper(this);
+                var upstream = mapper.getUpstream();
+                initiateConnect(upstream.getHostString(), upstream.getPort(), filterChainFactory.createFilters());
             }
             else {
                 throw illegalState("Unexpected channelRead() message of " + msg.getClass());

@@ -48,6 +48,16 @@ public class KroxyConfigBuilderTest {
     }
 
     @Test
+    public void testAddressManagerConfig() throws IOException {
+        ObjectNode deserializedConfig = serializeAndDeserialize(new KroxyConfigBuilder("localhost:9192")
+                .withAddressManager("mapper", "foo", "bar"));
+        ObjectNode addressMapper = assertObjectField(deserializedConfig, "addressManager");
+        assertTextField(addressMapper, "type", "mapper");
+        ObjectNode addressMapperConfig = assertObjectField(addressMapper, "config");
+        assertTextField(addressMapperConfig, "foo", "bar");
+    }
+
+    @Test
     public void testTypeOnlyFilter() throws IOException {
         ObjectNode deserializedConfig = serializeAndDeserialize(new KroxyConfigBuilder("localhost:9192")
                 .addFilter("FilterType"));

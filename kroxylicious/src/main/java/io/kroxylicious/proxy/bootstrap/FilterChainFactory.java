@@ -31,7 +31,7 @@ public class FilterChainFactory {
 
         return config.filters()
                 .stream()
-                .map(f -> filterContributorManager.getFilter(f.type(), config.proxy(), f.config()))
+                .map(f -> filterContributorManager.getInstance(f.type(), config.proxy(), f.config()))
                 .toArray(KrpcFilter[]::new);
     }
 }
