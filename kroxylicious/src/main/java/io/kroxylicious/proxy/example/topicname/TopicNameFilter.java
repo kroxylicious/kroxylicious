@@ -12,6 +12,7 @@ import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.CreateTopicsResponseData;
 import org.apache.kafka.common.message.DeleteTopicsResponseData;
 import org.apache.kafka.common.message.MetadataResponseData;
+import org.apache.kafka.common.message.ResponseHeaderData;
 
 import io.kroxylicious.proxy.filter.CreateTopicsResponseFilter;
 import io.kroxylicious.proxy.filter.DeleteTopicsResponseFilter;
@@ -27,7 +28,7 @@ public class TopicNameFilter
     private final Map<Uuid, String> topicNames = new HashMap<>();
 
     @Override
-    public void onMetadataResponse(MetadataResponseData response, KrpcFilterContext context) {
+    public void onMetadataResponse(ResponseHeaderData header, MetadataResponseData response, KrpcFilterContext context) {
         if (response.topics() != null) {
             for (var topic : response.topics()) {
                 topicNames.put(topic.topicId(), topic.name());
@@ -41,7 +42,7 @@ public class TopicNameFilter
     // We don't implement DeleteTopicsRequestFilter because we don't know whether
     // a delete topics request will succeed.
     @Override
-    public void onDeleteTopicsResponse(DeleteTopicsResponseData response, KrpcFilterContext context) {
+    public void onDeleteTopicsResponse(ResponseHeaderData header, DeleteTopicsResponseData response, KrpcFilterContext context) {
         for (var resp : response.responses()) {
             topicNames.remove(resp.topicId());
         }
@@ -49,7 +50,7 @@ public class TopicNameFilter
     }
 
     @Override
-    public void onCreateTopicsResponse(CreateTopicsResponseData response, KrpcFilterContext context) {
+    public void onCreateTopicsResponse(ResponseHeaderData header, CreateTopicsResponseData response, KrpcFilterContext context) {
         for (var topic : response.topics()) {
             topicNames.put(topic.topicId(), topic.name());
         }

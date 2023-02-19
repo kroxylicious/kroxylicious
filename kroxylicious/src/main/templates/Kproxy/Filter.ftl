@@ -29,6 +29,11 @@
 package io.kroxylicious.proxy.filter;
 
 import org.apache.kafka.common.message.${messageSpec.name}Data;
+<#if messageSpec.type?lower_case == 'response'>
+import org.apache.kafka.common.message.ResponseHeaderData;
+<#else>
+import org.apache.kafka.common.message.RequestHeaderData;
+</#if>
 
 /**
  * A stateless filter for ${messageSpec.name}s.
@@ -45,6 +50,6 @@ public interface ${filterClass} extends KrpcFilter {
      * @param ${msgType} The KRPC message to handle.
      * @param context The context.
      */
-    public void on${messageSpec.name}(${dataClass} ${msgType}, KrpcFilterContext context);
+    public void on${messageSpec.name}(<#if messageSpec.type?lower_case == 'response'>ResponseHeaderData<#else>RequestHeaderData</#if> header, ${dataClass} ${msgType}, KrpcFilterContext context);
 
 }

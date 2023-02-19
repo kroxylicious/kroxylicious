@@ -12,6 +12,7 @@ import java.util.Iterator;
 
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.ProduceRequestData.PartitionProduceData;
+import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.record.CompressionType;
 import org.apache.kafka.common.record.MemoryRecords;
@@ -68,7 +69,7 @@ public class ProduceRequestTransformationFilter implements ProduceRequestFilter 
     }
 
     @Override
-    public void onProduceRequest(ProduceRequestData data, KrpcFilterContext context) {
+    public void onProduceRequest(RequestHeaderData header, ProduceRequestData data, KrpcFilterContext context) {
         applyTransformation(context, data);
         context.forwardRequest(data);
     }

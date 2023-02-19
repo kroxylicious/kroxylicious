@@ -76,7 +76,7 @@ public /* sealed */ interface KrpcFilter /* TODO permits ... */ {
 <#list messageSpecs as messageSpec>
 <#if messageSpec.type?lower_case == 'request'>
             case ${retrieveApiKey(messageSpec)}:
-                ((${messageSpec.name}Filter) this).on${messageSpec.name}((${messageSpec.name}Data) body, filterContext);
+                ((${messageSpec.name}Filter) this).on${messageSpec.name}(header, (${messageSpec.name}Data) body, filterContext);
                 break;
 </#if>
 </#list>
@@ -100,7 +100,7 @@ public /* sealed */ interface KrpcFilter /* TODO permits ... */ {
 <#list messageSpecs as messageSpec>
 <#if messageSpec.type?lower_case == 'response'>
             case ${retrieveApiKey(messageSpec)}:
-                ((${messageSpec.name}Filter) this).on${messageSpec.name}((${messageSpec.name}Data) body, filterContext);
+                ((${messageSpec.name}Filter) this).on${messageSpec.name}(header, (${messageSpec.name}Data) body, filterContext);
                 break;
 </#if>
 </#list>
