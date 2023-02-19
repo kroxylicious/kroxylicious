@@ -108,7 +108,7 @@ public class FilterHandlerTest extends FilterHarness {
         ApiVersionsRequestFilter filter = (request, context) -> {
             assertNull(fut[0],
                     "Expected to only be called once");
-            fut[0] = context.sendRequest((short) 3, body);
+            fut[0] = Future.fromCompletionStage(context.sendRequest((short) 3, body));
         };
 
         buildChannel(filter);
@@ -143,7 +143,7 @@ public class FilterHandlerTest extends FilterHarness {
         ApiVersionsRequestFilter filter = (request, context) -> {
             assertNull(fut[0],
                     "Expected to only be called once");
-            fut[0] = context.sendRequest((short) 3, body);
+            fut[0] = Future.fromCompletionStage(context.sendRequest((short) 3, body));
         };
 
         buildChannel(filter);
@@ -169,7 +169,7 @@ public class FilterHandlerTest extends FilterHarness {
         ApiVersionsRequestFilter filter = (request, context) -> {
             assertNull(fut[0],
                     "Expected to only be called once");
-            fut[0] = context.sendRequest((short) 3, body);
+            fut[0] = Future.fromCompletionStage(context.sendRequest((short) 3, body));
         };
 
         buildChannel(filter, 50L);

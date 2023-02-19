@@ -29,6 +29,7 @@ import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.filter.FetchResponseFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
+import io.kroxylicious.proxy.future.Future;
 import io.kroxylicious.proxy.internal.util.NettyMemoryRecords;
 
 /**
@@ -81,9 +82,9 @@ public class FetchResponseTransformationFilter implements FetchResponseFilter {
         if (!requestTopics.isEmpty()) {
             LOGGER.debug("Fetch response contains {} unknown topic ids, lookup via Metadata request: {}", requestTopics.size(), requestTopics);
             // TODO Can't necessarily use HIGHEST_SUPPORTED_VERSION, must use highest supported version
-            context.<MetadataResponseData> sendRequest(MetadataRequestData.HIGHEST_SUPPORTED_VERSION,
+            Future.fromCompletionStage(context.<MetadataResponseData> sendRequest(MetadataRequestData.HIGHEST_SUPPORTED_VERSION,
                     new MetadataRequestData()
-                            .setTopics(requestTopics))
+                            .setTopics(requestTopics)))
                     .map(metadataResponse -> {
                         Map<Uuid, String> uidToName = metadataResponse.topics().stream().collect(Collectors.toMap(ti -> ti.topicId(), ti -> ti.name()));
                         LOGGER.debug("Metadata response yields {}, updating original Fetch response", uidToName);
