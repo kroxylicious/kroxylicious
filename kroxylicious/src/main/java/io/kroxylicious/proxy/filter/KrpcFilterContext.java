@@ -8,8 +8,9 @@ package io.kroxylicious.proxy.filter;
 import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.protocol.ApiMessage;
-
-import io.netty.buffer.ByteBuf;
+import org.apache.kafka.common.record.CompressionType;
+import org.apache.kafka.common.record.MemoryRecordsBuilder;
+import org.apache.kafka.common.record.TimestampType;
 
 /**
  * A context to allow filters to interact with other filters and the pipeline.
@@ -21,12 +22,17 @@ public interface KrpcFilterContext {
     String channelDescriptor();
 
     /**
-     * Allocate a ByteBuffer of the given capacity.
-     * The buffer will be deallocated when the request processing is completed
-     * @param initialCapacity The initial capacity of the buffer.
-     * @return The allocated buffer
+     * Creates a MemoryRecordsBuilder of the given capacity.
+     * @param initialCapacity The initial capacity of the backing buffer in bytes.
+     * @param compressionType The compression type.
+     * @param timestampType The timestamp type.
+     * @param baseOffset The bash offset.
+     * @return The created MemoryRecordsBuilder
      */
-    ByteBuf allocate(int initialCapacity);
+    MemoryRecordsBuilder memoryRecordsBuilder(int initialCapacity,
+                                              CompressionType compressionType,
+                                              TimestampType timestampType,
+                                              long baseOffset);
 
     /**
      * @return the SNI hostname provided by the client.  Will be null if the client is
