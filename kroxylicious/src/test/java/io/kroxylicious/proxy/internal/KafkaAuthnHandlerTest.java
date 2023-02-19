@@ -22,6 +22,7 @@ import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
+import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.message.SaslAuthenticateRequestData;
 import org.apache.kafka.common.message.SaslAuthenticateResponseData;
 import org.apache.kafka.common.message.SaslHandshakeRequestData;
@@ -203,13 +204,11 @@ public class KafkaAuthnHandlerTest {
 
         correlationManager.putBrokerRequest(body.apiKey(), apiVersion, downstreamCorrelationId, true, new KrpcFilter() {
             @Override
-            public void onRequest(DecodedRequestFrame<?> decodedFrame, KrpcFilterContext filterContext) {
-
+            public void onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
             }
 
             @Override
-            public void onResponse(DecodedResponseFrame<?> decodedFrame, KrpcFilterContext filterContext) {
-
+            public void onResponse(ApiKeys apiKey, ResponseHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
             }
 
             @Override
