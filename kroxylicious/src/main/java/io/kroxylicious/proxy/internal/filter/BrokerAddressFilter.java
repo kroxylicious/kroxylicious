@@ -21,6 +21,7 @@ import org.apache.kafka.common.message.ResponseHeaderData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.config.ProxyConfig;
 import io.kroxylicious.proxy.filter.DescribeClusterResponseFilter;
 import io.kroxylicious.proxy.filter.FindCoordinatorResponseFilter;
@@ -34,11 +35,11 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BrokerAddressFilter.class);
 
-    public static class BrokerAddressFilterConfig extends FilterConfig {
+    public static class BrokerAddressConfig extends BaseConfig {
 
         private final Class<? extends AddressMapping> addressMapperClazz;
 
-        public BrokerAddressFilterConfig(String addressMapper) {
+        public BrokerAddressConfig(String addressMapper) {
             try {
                 this.addressMapperClazz = addressMapper == null ? null : (Class<? extends AddressMapping>) Class.forName(addressMapper);
                 ;
@@ -55,7 +56,7 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
 
     private final AddressMapping mapping;
 
-    public BrokerAddressFilter(ProxyConfig all, BrokerAddressFilterConfig config) {
+    public BrokerAddressFilter(ProxyConfig all, BrokerAddressConfig config) {
 
         try {
             this.mapping = config == null || config.addressMapperClazz == null ? new FixedAddressMapping(all)

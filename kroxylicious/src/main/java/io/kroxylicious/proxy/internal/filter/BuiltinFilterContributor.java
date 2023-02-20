@@ -5,51 +5,24 @@
  */
 package io.kroxylicious.proxy.internal.filter;
 
-import io.kroxylicious.proxy.config.ProxyConfig;
 import io.kroxylicious.proxy.filter.FilterContributor;
 import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.filter.multitenant.MultiTenantTransformationFilter;
-import io.kroxylicious.proxy.filter.multitenant.MultiTenantTransformationFilter.MultiTenantTransformationFilterConfig;
-import io.kroxylicious.proxy.internal.filter.ApiVersionsFilter.ApiVersionsFilterConfig;
-import io.kroxylicious.proxy.internal.filter.BrokerAddressFilter.BrokerAddressFilterConfig;
-import io.kroxylicious.proxy.internal.filter.FetchResponseTransformationFilter.FetchResponseTransformationFilterConfig;
-import io.kroxylicious.proxy.internal.filter.ProduceRequestTransformationFilter.ProduceRequestTransformationFilterConfig;
+import io.kroxylicious.proxy.internal.filter.BrokerAddressFilter.BrokerAddressConfig;
+import io.kroxylicious.proxy.internal.filter.FetchResponseTransformationFilter.FetchResponseTransformationConfig;
+import io.kroxylicious.proxy.internal.filter.ProduceRequestTransformationFilter.ProduceRequestTransformationConfig;
+import io.kroxylicious.proxy.service.BaseContributor;
 
-public class BuiltinFilterContributor implements FilterContributor {
+public class BuiltinFilterContributor extends BaseContributor<KrpcFilter> implements FilterContributor {
 
-    @Override
-    public Class<? extends FilterConfig> getConfigType(String shortName) {
-        switch (shortName) {
-            case "ApiVersions":
-                return ApiVersionsFilterConfig.class;
-            case "BrokerAddress":
-                return BrokerAddressFilterConfig.class;
-            case "ProduceRequestTransformation":
-                return ProduceRequestTransformationFilterConfig.class;
-            case "FetchResponseTransformation":
-                return FetchResponseTransformationFilterConfig.class;
-            case "MultiTenant":
-                return MultiTenantTransformationFilterConfig.class;
-            default:
-                return null;
-        }
-    }
+    public static final BaseContributorBuilder<KrpcFilter> FILTERS = BaseContributor.<KrpcFilter> builder()
+            .add("ApiVersions", ApiVersionsFilter::new)
+            .add("BrokerAddress", BrokerAddressConfig.class, BrokerAddressFilter::new)
+            .add("ProduceRequestTransformation", ProduceRequestTransformationConfig.class, ProduceRequestTransformationFilter::new)
+            .add("FetchResponseTransformation", FetchResponseTransformationConfig.class, FetchResponseTransformationFilter::new)
+            .add("MultiTenant", MultiTenantTransformationFilter::new);
 
-    @Override
-    public KrpcFilter getFilter(String shortName, ProxyConfig proxyConfig, FilterConfig filterConfig) {
-        switch (shortName) {
-            case "ApiVersions":
-                return new ApiVersionsFilter();
-            case "BrokerAddress":
-                return new BrokerAddressFilter(proxyConfig, ((BrokerAddressFilterConfig) filterConfig));
-            case "ProduceRequestTransformation":
-                return new ProduceRequestTransformationFilter((ProduceRequestTransformationFilterConfig) filterConfig);
-            case "FetchResponseTransformation":
-                return new FetchResponseTransformationFilter((FetchResponseTransformationFilterConfig) filterConfig);
-            case "MultiTenant":
-                return new MultiTenantTransformationFilter();
-            default:
-                return null;
-        }
+    public BuiltinFilterContributor() {
+        super(FILTERS);
     }
 }

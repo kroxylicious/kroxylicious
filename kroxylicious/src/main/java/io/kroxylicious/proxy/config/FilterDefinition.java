@@ -9,16 +9,14 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.annotation.JsonTypeIdResolver;
 
-import io.kroxylicious.proxy.internal.filter.FilterConfig;
-
 public class FilterDefinition {
 
     private final String type;
-    private final FilterConfig config;
+    private final BaseConfig config;
 
     @JsonCreator
     public FilterDefinition(String type,
-                            @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.EXTERNAL_PROPERTY, property = "type") @JsonTypeIdResolver(FilterConfigTypeIdResolver.class) FilterConfig config) {
+                            @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.EXTERNAL_PROPERTY, property = "type") @JsonTypeIdResolver(FilterConfigTypeIdResolver.class) BaseConfig config) {
         this.type = type;
         this.config = config;
     }
@@ -27,7 +25,7 @@ public class FilterDefinition {
         return type;
     }
 
-    public FilterConfig config() {
+    public BaseConfig config() {
         return config;
     }
 }
