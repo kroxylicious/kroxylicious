@@ -22,6 +22,7 @@ import javax.net.ssl.KeyManagerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.micrometer.core.instrument.Metrics;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
@@ -51,6 +52,10 @@ import io.kroxylicious.proxy.internal.KafkaProxyInitializer;
 import io.kroxylicious.proxy.internal.MeterRegistries;
 import io.kroxylicious.proxy.internal.admin.AdminHttpInitializer;
 import io.kroxylicious.proxy.internal.filter.FixedNetFilter;
+
+import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_INBOUND_DOWNSTREAM_DECODED_MESSAGES;
+import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_INBOUND_DOWNSTREAM_MESSAGES;
+import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_REQUEST_SIZE_BYTES;
 
 public final class KafkaProxy implements AutoCloseable {
 
@@ -205,6 +210,10 @@ public final class KafkaProxy implements AutoCloseable {
             bindFuture = serverBootstrap.bind(proxyPort);
         }
         acceptorChannel = bindFuture.sync().channel();
+        // Pre-register counters/summaries to avoid creating them on first request and thus skewing the request latency
+        Metrics.counter(KROXYLICIOUS_INBOUND_DOWNSTREAM_MESSAGES);
+        Metrics.counter(KROXYLICIOUS_INBOUND_DOWNSTREAM_DECODED_MESSAGES);
+        Metrics.summary(KROXYLICIOUS_REQUEST_SIZE_BYTES);
         return this;
     }
 
