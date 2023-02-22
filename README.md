@@ -25,7 +25,7 @@ For further assistance please see the [Microsoft documentation](https://learn.mi
 ```
 5. Install Latest Java version by typing 
 ```bash
-java
+java --version
 ```
 and Choose the version (preferably v18), it should look like:
 ```bash
