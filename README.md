@@ -16,14 +16,10 @@ With these steps, you should now have WSL installed and configured on your Windo
 
 For further assistance please see the [Microsoft documentation](https://learn.microsoft.com/en-us/windows/wsl/install)
 
+4. Open the WSL window.
 
-4. Open the WSL window and update the packages using
 
-```bash
-  sudo apt update
-  sudo apt upgrade
-```
-5. Install Latest Java version by typing 
+5.a. Install Latest Java version by typing 
 ```bash
 java --version
 ```
@@ -31,13 +27,13 @@ and Choose the version (preferably v18), it should look like:
 ```bash
 sudo apt install openjdk-18-jre-headless
 ```
-6. Check whether Java is installed correctly or not using:
+5.b. Update the packages using
 ```bash
-java --version
+  sudo apt update
+  sudo apt upgrade
 ```
-It should give the description of jdk package installed.
 
-7. Navigate to kroxylicious folder using :
+6. Navigate to kroxylicious folder using :
 ```bash
  cd kroxylicious
  ```
