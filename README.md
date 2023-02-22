@@ -4,7 +4,7 @@ Kroxylicious is an exploration for building a Kafka protocol proxy,
 addressing use cases such as multi-tenancy, schema validation, or encryption.
 
 # Setting Up in Windows Using WSL
-### For installing WSL (Skip the First '3' steps if already done)
+### For installing WSL (Skip the First '4' steps if already done)
 1. Enable the Windows Subsystem for Linux feature: To enable WSL, you need to enable the Windows Subsystem for Linux feature in the Windows Features dialog.
 
 
