@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.proxy.internal;
 
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.kafka.common.errors.TimeoutException;
@@ -22,7 +23,6 @@ import io.netty.channel.ChannelPromise;
 import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.proxy.frame.DecodedFrame;
-import io.kroxylicious.proxy.future.Future;
 import io.kroxylicious.proxy.future.Promise;
 
 /**
@@ -106,7 +106,7 @@ class DefaultFilterContext implements KrpcFilterContext {
     }
 
     @Override
-    public <T extends ApiMessage> Future<T> sendRequest(short apiVersion, ApiMessage message) {
+    public <T extends ApiMessage> CompletionStage<T> sendRequest(short apiVersion, ApiMessage message) {
         short key = message.apiKey();
         var apiKey = ApiKeys.forId(key);
         short headerVersion = apiKey.requestHeaderVersion(apiVersion);
@@ -154,7 +154,7 @@ class DefaultFilterContext implements KrpcFilterContext {
             LOGGER.debug("{}: Timing out {} request after {}ms", channelContext, apiKey, timeoutMs);
             filterPromise.tryFail(new TimeoutException());
         }, timeoutMs, TimeUnit.MILLISECONDS);
-        return filterPromise.future();
+        return filterPromise.future().toCompletionStage();
     }
 
     /**

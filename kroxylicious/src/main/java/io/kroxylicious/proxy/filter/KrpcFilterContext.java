@@ -5,11 +5,11 @@
  */
 package io.kroxylicious.proxy.filter;
 
+import java.util.concurrent.CompletionStage;
+
 import org.apache.kafka.common.protocol.ApiMessage;
 
 import io.netty.buffer.ByteBuf;
-
-import io.kroxylicious.proxy.future.Future;
 
 /**
  * A context to allow filters to interact with other filters and the pipeline.
@@ -51,7 +51,7 @@ public interface KrpcFilterContext {
      * @param request The request to send.
      * @param <T> The type of the response
      */
-    <T extends ApiMessage> Future<T> sendRequest(short apiVersion, ApiMessage request);
+    <T extends ApiMessage> CompletionStage<T> sendRequest(short apiVersion, ApiMessage request);
 
     /**
      * Send a response towards the client, invoking downstream filters.
