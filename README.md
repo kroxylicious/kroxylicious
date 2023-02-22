@@ -14,7 +14,7 @@ addressing use cases such as multi-tenancy, schema validation, or encryption.
 
 With these steps, you should now have WSL installed and configured on your Windows system. 
 
-For further assistance:https://learn.microsoft.com/en-us/windows/wsl/install
+For further assistance please see the [Microsoft documentation](https://learn.microsoft.com/en-us/windows/wsl/install)
 
 
 4. Open the WSL window and update the packages using
