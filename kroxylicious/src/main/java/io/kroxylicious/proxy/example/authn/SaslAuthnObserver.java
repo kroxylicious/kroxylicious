@@ -5,6 +5,8 @@
  */
 package io.kroxylicious.proxy.example.authn;
 
+import org.apache.kafka.common.message.RequestHeaderData;
+import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.message.SaslAuthenticateRequestData;
 import org.apache.kafka.common.message.SaslAuthenticateResponseData;
 import org.apache.kafka.common.message.SaslHandshakeRequestData;
@@ -29,14 +31,15 @@ public class SaslAuthnObserver
     private long sessionLifetimeMs;
 
     @Override
-    public void onSaslHandshakeRequest(SaslHandshakeRequestData request,
+    public void onSaslHandshakeRequest(RequestHeaderData header,
+                                       SaslHandshakeRequestData request,
                                        KrpcFilterContext context) {
         this.mechanism = request.mechanism();
         context.forwardRequest(request);
     }
 
     @Override
-    public void onSaslHandshakeResponse(SaslHandshakeResponseData response,
+    public void onSaslHandshakeResponse(ResponseHeaderData header, SaslHandshakeResponseData response,
                                         KrpcFilterContext context) {
         if (response.errorCode() != Errors.NONE.code()) {
             this.mechanism = null;
@@ -45,7 +48,8 @@ public class SaslAuthnObserver
     }
 
     @Override
-    public void onSaslAuthenticateRequest(SaslAuthenticateRequestData request,
+    public void onSaslAuthenticateRequest(RequestHeaderData header,
+                                          SaslAuthenticateRequestData request,
                                           KrpcFilterContext context) {
         byte[] bytes = request.authBytes();
         switch (mechanism) {
@@ -63,7 +67,7 @@ public class SaslAuthnObserver
     }
 
     @Override
-    public void onSaslAuthenticateResponse(SaslAuthenticateResponseData response,
+    public void onSaslAuthenticateResponse(ResponseHeaderData header, SaslAuthenticateResponseData response,
                                            KrpcFilterContext context) {
         if (response.errorCode() == Errors.NONE.code()) {
             authenticated = true;

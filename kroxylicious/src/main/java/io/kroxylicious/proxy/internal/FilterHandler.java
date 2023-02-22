@@ -57,7 +57,7 @@ public class FilterHandler
                     LOGGER.debug("{}: Dispatching downstream {} request to filter{}: {}",
                             ctx.channel(), decodedFrame.apiKey(), filterDescriptor(), msg);
                 }
-                filter.onRequest(decodedFrame, filterContext);
+                filter.onRequest(decodedFrame.apiKey(), decodedFrame.header(), decodedFrame.body(), filterContext);
             }
             else {
                 ctx.write(msg, promise);
@@ -102,7 +102,7 @@ public class FilterHandler
                     LOGGER.debug("{}: Dispatching upstream {} response to filter {}: {}",
                             ctx.channel(), decodedFrame.apiKey(), filterDescriptor(), msg);
                 }
-                filter.onResponse(decodedFrame, filterContext);
+                filter.onResponse(decodedFrame.apiKey(), decodedFrame.header(), decodedFrame.body(), filterContext);
             }
             else {
                 ctx.fireChannelRead(msg);

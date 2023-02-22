@@ -17,6 +17,7 @@ import org.apache.kafka.common.message.FetchResponseData.FetchableTopicResponse;
 import org.apache.kafka.common.message.FetchResponseData.PartitionData;
 import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.MetadataResponseData;
+import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.record.CompressionType;
 import org.apache.kafka.common.record.MemoryRecords;
@@ -70,7 +71,7 @@ public class FetchResponseTransformationFilter implements FetchResponseFilter {
     }
 
     @Override
-    public void onFetchResponse(FetchResponseData fetchResponse, KrpcFilterContext context) {
+    public void onFetchResponse(ResponseHeaderData header, FetchResponseData fetchResponse, KrpcFilterContext context) {
         List<MetadataRequestData.MetadataRequestTopic> requestTopics = fetchResponse.responses().stream()
                 .filter(t -> t.topic().isEmpty())
                 .map(fetchableTopicResponse -> {
