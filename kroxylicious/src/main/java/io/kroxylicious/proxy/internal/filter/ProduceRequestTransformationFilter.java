@@ -21,6 +21,7 @@ import org.apache.kafka.common.record.MutableRecordBatch;
 import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.record.TimestampType;
 
+import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
 import io.kroxylicious.proxy.internal.util.NettyMemoryRecords;
@@ -38,11 +39,11 @@ public class ProduceRequestTransformationFilter implements ProduceRequestFilter 
         }
     }
 
-    public static class ProduceRequestTransformationFilterConfig extends FilterConfig {
+    public static class ProduceRequestTransformationConfig extends BaseConfig {
 
         private final String transformation;
 
-        public ProduceRequestTransformationFilterConfig(String transformation) {
+        public ProduceRequestTransformationConfig(String transformation) {
             this.transformation = transformation;
         }
 
@@ -58,7 +59,7 @@ public class ProduceRequestTransformationFilter implements ProduceRequestFilter 
 
     // TODO: add transformation support for key/header/topic
 
-    public ProduceRequestTransformationFilter(ProduceRequestTransformationFilterConfig config) {
+    public ProduceRequestTransformationFilter(ProduceRequestTransformationConfig config) {
         try {
             this.valueTransformation = (ByteBufferTransformation) Class.forName(config.transformation()).getConstructor().newInstance();
         }

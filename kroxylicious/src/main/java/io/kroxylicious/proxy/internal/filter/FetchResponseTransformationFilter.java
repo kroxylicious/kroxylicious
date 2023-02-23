@@ -28,6 +28,7 @@ import org.apache.kafka.common.record.TimestampType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.filter.FetchResponseFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.proxy.future.Future;
@@ -38,11 +39,11 @@ import io.kroxylicious.proxy.internal.util.NettyMemoryRecords;
  */
 public class FetchResponseTransformationFilter implements FetchResponseFilter {
 
-    public static class FetchResponseTransformationFilterConfig extends FilterConfig {
+    public static class FetchResponseTransformationConfig extends BaseConfig {
 
         private final String transformation;
 
-        public FetchResponseTransformationFilterConfig(String transformation) {
+        public FetchResponseTransformationConfig(String transformation) {
             this.transformation = transformation;
         }
 
@@ -60,7 +61,7 @@ public class FetchResponseTransformationFilter implements FetchResponseFilter {
 
     // TODO: add transformation support for key/header/topic
 
-    public FetchResponseTransformationFilter(FetchResponseTransformationFilterConfig config) {
+    public FetchResponseTransformationFilter(FetchResponseTransformationConfig config) {
         try {
             this.valueTransformation = (ByteBufferTransformation) Class.forName(config.transformation()).getConstructor().newInstance();
         }

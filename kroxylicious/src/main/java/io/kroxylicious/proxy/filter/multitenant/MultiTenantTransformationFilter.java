@@ -50,7 +50,6 @@ import io.kroxylicious.proxy.filter.OffsetForLeaderEpochRequestFilter;
 import io.kroxylicious.proxy.filter.OffsetForLeaderEpochResponseFilter;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
 import io.kroxylicious.proxy.filter.ProduceResponseFilter;
-import io.kroxylicious.proxy.internal.filter.FilterConfig;
 
 /**
  * Simple multi-tenant filter.
@@ -72,10 +71,6 @@ public class MultiTenantTransformationFilter
         OffsetFetchRequestFilter, OffsetFetchResponseFilter,
         OffsetCommitRequestFilter, OffsetCommitResponseFilter,
         OffsetForLeaderEpochRequestFilter, OffsetForLeaderEpochResponseFilter {
-
-    public static class MultiTenantTransformationFilterConfig extends FilterConfig {
-    }
-
     private static final Logger LOGGER = LoggerFactory.getLogger(MultiTenantTransformationFilter.class);
 
     @Override
