@@ -3,6 +3,42 @@
 Kroxylicious is an exploration for building a Kafka protocol proxy,
 addressing use cases such as multi-tenancy, schema validation, or encryption.
 
+# Setting Up in Windows Using WSL
+### For installing WSL (Skip the First '4' steps if already done)
+1. Enable the Windows Subsystem for Linux feature: To enable WSL, you need to enable the Windows Subsystem for Linux feature in the Windows Features dialog.
+
+
+2. Install a Linux distribution from the Microsoft Store. The rest of these instructions assume a distribution (such as Ubuntu) which uses `apt` for package management, but the process should be similar for distributions using other package managers/ such as Fedora/`dnf`.
+
+3. Launch the Linux distribution and Configure the Linux environment: After launching the Linux distribution, you can configure the environment by creating a user account and setting the password.
+
+With these steps, you should now have WSL installed and configured on your Windows system. 
+
+For further assistance please see the [Microsoft documentation](https://learn.microsoft.com/en-us/windows/wsl/install)
+
+4. Open the WSL window.
+
+
+5. Install Latest Java version by typing 
+```bash
+java --version
+```
+and Choose the version (preferably v18), it should look like:
+```bash
+sudo apt install openjdk-18-jre-headless
+```
+6. Update the packages using
+```bash
+  sudo apt update
+  sudo apt upgrade
+```
+
+7. Navigate to kroxylicious folder using :
+```bash
+ cd kroxylicious
+ ```
+
+
 ## Build
 
 Java, version 11 or newer, and Apache Maven are required for building this project.
