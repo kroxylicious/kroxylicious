@@ -19,7 +19,7 @@ For further assistance please see the [Microsoft documentation](https://learn.mi
 4. Open the WSL window.
 
 
-5.a. Install Latest Java version by typing 
+5. Install Latest Java version by typing 
 ```bash
 java --version
 ```
@@ -27,13 +27,13 @@ and Choose the version (preferably v18), it should look like:
 ```bash
 sudo apt install openjdk-18-jre-headless
 ```
-5.b. Update the packages using
+6. Update the packages using
 ```bash
   sudo apt update
   sudo apt upgrade
 ```
 
-6. Navigate to kroxylicious folder using :
+7. Navigate to kroxylicious folder using :
 ```bash
  cd kroxylicious
  ```
