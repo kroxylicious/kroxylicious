@@ -5,16 +5,11 @@
  */
 package io.kroxylicious.proxy;
 
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 import java.util.Set;
 
 import org.apache.kafka.clients.CommonClientConfigs;
@@ -38,9 +33,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 
-import io.micrometer.core.instrument.Metrics;
-import io.netty.handler.codec.http.HttpResponseStatus;
-
 import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.internal.filter.ByteBufferTransformation;
@@ -48,7 +40,6 @@ import io.kroxylicious.proxy.testkafkacluster.KafkaClusterConfig;
 import io.kroxylicious.proxy.testkafkacluster.KafkaClusterFactory;
 import io.kroxylicious.proxy.testkafkacluster.KeytoolCertificateGenerator;
 
-import static java.net.http.HttpResponse.BodyHandlers.ofString;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -158,33 +149,6 @@ public class KrpcFilterIT {
                 assertEquals("Hello, world!", records.iterator().next().value());
             }
 
-            // shutdown the proxy
-            proxy.shutdown();
-
-        }
-
-    }
-
-    @Test
-    public void shouldOfferPrometheusMetricsScrapeEndpoint() throws Exception {
-        String proxyAddress = "localhost:9192";
-
-        try (var cluster = KafkaClusterFactory.create(KafkaClusterConfig.builder().testInfo(testInfo).build())) {
-            cluster.start();
-
-            String config = baseConfigBuilder(proxyAddress, cluster.getBootstrapServers())
-                    .withPrometheusEndpoint().build();
-
-            var proxy = startProxy(config);
-
-            String counter_name = "test_metric_" + Math.abs(new Random().nextLong()) + "_total";
-            Metrics.counter(counter_name).increment();
-            HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:9193/metrics")).GET().build();
-            HttpResponse<String> response = HttpClient.newHttpClient().send(request, ofString());
-            assertTrue(response.body().contains(counter_name + " 1.0"));
-            HttpRequest notFoundReq = HttpRequest.newBuilder(URI.create("http://localhost:9193/nonexistant")).GET().build();
-            HttpResponse<String> notFoundResp = HttpClient.newHttpClient().send(notFoundReq, ofString());
-            assertEquals(notFoundResp.statusCode(), HttpResponseStatus.NOT_FOUND.code());
             // shutdown the proxy
             proxy.shutdown();
 

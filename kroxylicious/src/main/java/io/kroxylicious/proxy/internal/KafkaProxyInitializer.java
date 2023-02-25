@@ -18,7 +18,9 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.haproxy.HAProxyMessageDecoder;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
+import io.netty.handler.ssl.SniHandler;
 import io.netty.handler.ssl.SslContext;
+import io.netty.util.DomainWildcardMappingBuilder;
 
 import io.kroxylicious.proxy.filter.NetFilter;
 import io.kroxylicious.proxy.internal.codec.KafkaRequestDecoder;
@@ -57,8 +59,8 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
         ChannelPipeline pipeline = ch.pipeline();
 
         sslContext.ifPresent(s -> {
-            LOGGER.debug("Adding SSL handler");
-            pipeline.addLast(s.newHandler(ch.alloc()));
+            LOGGER.debug("Adding SSL/SNI handler");
+            pipeline.addLast(new SniHandler(new DomainWildcardMappingBuilder<>(s).build()));
         });
 
         if (logNetwork) {

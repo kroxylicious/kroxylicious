@@ -17,6 +17,7 @@ import org.apache.kafka.common.message.FetchResponseData.FetchableTopicResponse;
 import org.apache.kafka.common.message.FetchResponseData.PartitionData;
 import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.MetadataResponseData;
+import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.record.CompressionType;
 import org.apache.kafka.common.record.MemoryRecords;
@@ -27,8 +28,10 @@ import org.apache.kafka.common.record.TimestampType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.filter.FetchResponseFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
+import io.kroxylicious.proxy.future.Future;
 import io.kroxylicious.proxy.internal.util.NettyMemoryRecords;
 
 /**
@@ -36,11 +39,11 @@ import io.kroxylicious.proxy.internal.util.NettyMemoryRecords;
  */
 public class FetchResponseTransformationFilter implements FetchResponseFilter {
 
-    public static class FetchResponseTransformationFilterConfig extends FilterConfig {
+    public static class FetchResponseTransformationConfig extends BaseConfig {
 
         private final String transformation;
 
-        public FetchResponseTransformationFilterConfig(String transformation) {
+        public FetchResponseTransformationConfig(String transformation) {
             this.transformation = transformation;
         }
 
@@ -58,7 +61,7 @@ public class FetchResponseTransformationFilter implements FetchResponseFilter {
 
     // TODO: add transformation support for key/header/topic
 
-    public FetchResponseTransformationFilter(FetchResponseTransformationFilterConfig config) {
+    public FetchResponseTransformationFilter(FetchResponseTransformationConfig config) {
         try {
             this.valueTransformation = (ByteBufferTransformation) Class.forName(config.transformation()).getConstructor().newInstance();
         }
@@ -69,7 +72,7 @@ public class FetchResponseTransformationFilter implements FetchResponseFilter {
     }
 
     @Override
-    public void onFetchResponse(FetchResponseData fetchResponse, KrpcFilterContext context) {
+    public void onFetchResponse(ResponseHeaderData header, FetchResponseData fetchResponse, KrpcFilterContext context) {
         List<MetadataRequestData.MetadataRequestTopic> requestTopics = fetchResponse.responses().stream()
                 .filter(t -> t.topic().isEmpty())
                 .map(fetchableTopicResponse -> {
@@ -81,9 +84,9 @@ public class FetchResponseTransformationFilter implements FetchResponseFilter {
         if (!requestTopics.isEmpty()) {
             LOGGER.debug("Fetch response contains {} unknown topic ids, lookup via Metadata request: {}", requestTopics.size(), requestTopics);
             // TODO Can't necessarily use HIGHEST_SUPPORTED_VERSION, must use highest supported version
-            context.<MetadataResponseData> sendRequest(MetadataRequestData.HIGHEST_SUPPORTED_VERSION,
+            Future.fromCompletionStage(context.<MetadataResponseData> sendRequest(MetadataRequestData.HIGHEST_SUPPORTED_VERSION,
                     new MetadataRequestData()
-                            .setTopics(requestTopics))
+                            .setTopics(requestTopics)))
                     .map(metadataResponse -> {
                         Map<Uuid, String> uidToName = metadataResponse.topics().stream().collect(Collectors.toMap(ti -> ti.topicId(), ti -> ti.name()));
                         LOGGER.debug("Metadata response yields {}, updating original Fetch response", uidToName);

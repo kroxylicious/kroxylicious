@@ -195,19 +195,19 @@ import io.kroxylicious.proxy.tag.VisibleForTesting;
  * an {@link AuthenticationEvent} to upstream handlers, specifically {@link KafkaProxyFrontendHandler}, to use in
  * deciding how the connection to an upstream connection should be made.</p>
  *
- * @see "<a href="https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=51809888">KIP-12: Kafka Sasl/Kerberos and SSL implementation</a>
+ * @see <a href="https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=51809888">KIP-12: Kafka Sasl/Kerberos and SSL implementation</a>
  * added support for Kerberos authentication"
- * @see "<a href="https://cwiki.apache.org/confluence/display/KAFKA/KIP-43%3A+Kafka+SASL+enhancements">KIP-43: Kafka SASL enhancements</a>
+ * @see <a href="https://cwiki.apache.org/confluence/display/KAFKA/KIP-43%3A+Kafka+SASL+enhancements">KIP-43: Kafka SASL enhancements</a>
  * added the SaslHandshake RPC in Kafka 0.10.0.0"
- * @see "<a href="https://cwiki.apache.org/confluence/display/KAFKA/KIP-84%3A+Support+SASL+SCRAM+mechanisms">KIP-84: Support SASL SCRAM mechanisms</a>
+ * @see <a href="https://cwiki.apache.org/confluence/display/KAFKA/KIP-84%3A+Support+SASL+SCRAM+mechanisms">KIP-84: Support SASL SCRAM mechanisms</a>
  * added support for the SCRAM-SHA-256 and SCRAM-SHA-512 mechanisms"
- * @see "<a href="https://cwiki.apache.org/confluence/display/KAFKA/KIP-152+-+Improve+diagnostics+for+SASL+authentication+failures">KIP-152: Improve diagnostics for SASL authentication failures</a>
+ * @see <a href="https://cwiki.apache.org/confluence/display/KAFKA/KIP-152+-+Improve+diagnostics+for+SASL+authentication+failures">KIP-152: Improve diagnostics for SASL authentication failures</a>
  * added support for the SaslAuthenticate RPC (previously the auth bytes were not encapsulated in a Kafka frame"
- * @see "<a href="https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=75968876">KIP-255: OAuth Authentication via SASL/OAUTHBEARER</a>
+ * @see <a href="https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=75968876">KIP-255: OAuth Authentication via SASL/OAUTHBEARER</a>
  * added support for OAUTH authentication"
- * @see "<a href="https://cwiki.apache.org/confluence/display/KAFKA/KIP-368%3A+Allow+SASL+Connections+to+Periodically+Re-Authenticate">KIP-365: Allow SASL Connections to Periodically Re-Authenticate</a>
+ * @see <a href="https://cwiki.apache.org/confluence/display/KAFKA/KIP-368%3A+Allow+SASL+Connections+to+Periodically+Re-Authenticate">KIP-365: Allow SASL Connections to Periodically Re-Authenticate</a>
  * added time-based reauthentication requirements for clients"
- * @see "<a href="https://cwiki.apache.org/confluence/display/KAFKA/KIP-684+-+Support+mutual+TLS+authentication+on+SASL_SSL+listeners">KIP-684: Support mTLS authentication on SASL_SSL listeners</a>
+ * @see <a href="https://cwiki.apache.org/confluence/display/KAFKA/KIP-684+-+Support+mutual+TLS+authentication+on+SASL_SSL+listeners">KIP-684: Support mTLS authentication on SASL_SSL listeners</a>
  * added support for mutual TLS authentication even on SASL_SSL listeners (which was previously ignored)"
  */
 public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {

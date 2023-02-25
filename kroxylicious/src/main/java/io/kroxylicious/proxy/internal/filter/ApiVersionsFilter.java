@@ -6,6 +6,7 @@
 package io.kroxylicious.proxy.internal.filter;
 
 import org.apache.kafka.common.message.ApiVersionsResponseData;
+import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,9 +21,6 @@ import io.kroxylicious.proxy.filter.KrpcFilterContext;
 public class ApiVersionsFilter implements ApiVersionsResponseFilter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ApiVersionsFilter.class);
-
-    public static class ApiVersionsFilterConfig extends FilterConfig {
-    }
 
     private static void intersectApiVersions(String channel, ApiVersionsResponseData resp) {
         for (var key : resp.apiKeys()) {
@@ -66,7 +64,7 @@ public class ApiVersionsFilter implements ApiVersionsResponseFilter {
     }
 
     @Override
-    public void onApiVersionsResponse(ApiVersionsResponseData data, KrpcFilterContext context) {
+    public void onApiVersionsResponse(ResponseHeaderData header, ApiVersionsResponseData data, KrpcFilterContext context) {
         intersectApiVersions(context.channelDescriptor(), data);
         context.forwardResponse(data);
     }

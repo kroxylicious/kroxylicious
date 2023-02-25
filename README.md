@@ -106,6 +106,13 @@ Failed to load class org.slf4j.impl.StaticLoggerBinder
 
 Make sure to follow the [suggestions here](https://www.slf4j.org/codes.html#StaticLoggerBinder) to include one (and only one) of the suggested jars on the classpath.
 
+### Debugging
+Logging is turned off by default for better performance. In case you want to debug, logging should be turned on in the `example-proxy-config.yml` file:
+```yaml
+  logNetwork: true
+  logFrames: true
+```
+
 ## Rendering documentation
 
 The `docs` directory has some user documentation written in [AsciiDoc](https://docs.asciidoctor.org/asciidoc/latest/) format.
@@ -142,7 +149,7 @@ $ dot -Tpng kroxylicious/target/generated-sources/annotations/deptective.dot > k
 
 ## IntelliJ setup
 
-Currently the project uses JDK 11 for the actual code and JDK 17 for tests. 
+Currently the project uses JDK 11 for the actual code and JDK 19 for tests. 
 IntelliJ needs to be configured to use the "new Workspace Model" in order for it to understand this
 (and to be useful for things like debugging):
 

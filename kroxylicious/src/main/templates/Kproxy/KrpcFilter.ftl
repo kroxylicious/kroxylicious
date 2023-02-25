@@ -26,10 +26,10 @@ package ${outputPackage};
 <#list messageSpecs as messageSpec>
 import org.apache.kafka.common.message.${messageSpec.name}Data;
 </#list>
+import org.apache.kafka.common.message.RequestHeaderData;
+import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
-
-import io.kroxylicious.proxy.frame.DecodedRequestFrame;
-import io.kroxylicious.proxy.frame.DecodedResponseFrame;
+import org.apache.kafka.common.protocol.ApiMessage;
 
 /**
  * <p>Interface for {@code *RequestFilter}s.
@@ -41,12 +41,12 @@ import io.kroxylicious.proxy.frame.DecodedResponseFrame;
  * the {@code on*Request} method(s), unless your filter can avoid deserialization in which case
  * you can override {@link #shouldDeserializeRequest(ApiKeys, short)} as well.</p>
  *
- * <h3>Guarantees</h3>
+ * <h2>Guarantees</h2>
  * <p>Implementors of this API may assume the following:</p>
  * <ol>
  *     <li>That each instance of the filter is associated with a single channel</li>
  *     <li>That {@link #shouldDeserializeRequest(ApiKeys, short)} and
- *     {@link #apply(DecodedRequestFrame, KrpcFilterContext)} (or {@code on*Request} as appropriate)
+ *     {@link #onRequest(ApiKeys, RequestHeaderData, ApiMessage, KrpcFilterContext)} (or {@code on*Request} as appropriate)
  *     will always be invoked on the same thread.</li>
  *     <li>That filters are applied in the order they were configured.</li>
  * </ol>
@@ -62,43 +62,50 @@ import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 public /* sealed */ interface KrpcFilter /* TODO permits ... */ {
 
     /**
-     * Apply the filter to the given {@code decodedFrame} using the given {@code filterContext}.
-     * @param decodedFrame The request frame.
+     * Apply the filter to the given {@code header} and {@code body} using the given {@code filterContext}.
+     * @param apiKey The request api key.
+     * @param header The request header.
+     * @param body The request body.
      * @param filterContext The filter context.
      */
-    public default void onRequest(DecodedRequestFrame<?> decodedFrame,
+    public default void onRequest(ApiKeys apiKey,
+                                  RequestHeaderData header,
+                                  ApiMessage body,
                                   KrpcFilterContext filterContext) {
-        switch (decodedFrame.apiKey()) {
+        switch (apiKey) {
 <#list messageSpecs as messageSpec>
 <#if messageSpec.type?lower_case == 'request'>
             case ${retrieveApiKey(messageSpec)}:
-                ((${messageSpec.name}Filter) this).on${messageSpec.name}((${messageSpec.name}Data) decodedFrame.body(), filterContext);
+                ((${messageSpec.name}Filter) this).on${messageSpec.name}(header, (${messageSpec.name}Data) body, filterContext);
                 break;
 </#if>
 </#list>
             default:
-                throw new IllegalStateException("Unsupported RPC " + decodedFrame.apiKey());
+                throw new IllegalStateException("Unsupported RPC " + apiKey);
         }
     }
 
     /**
-     * Apply the filter to the given {@code decodedFrame} using the given {@code filterContext}.
-     * @param decodedFrame The response frame.
+     * Apply the filter to the given {@code header} and {@code body} using the given {@code filterContext}.
+     * @param apiKey The request api key.
+     * @param header The request header.
+     * @param body The request body.
      * @param filterContext The filter context.
-     * @return The state of the filter.
      */
-    public default void onResponse(DecodedResponseFrame<?> decodedFrame,
+    public default void onResponse(ApiKeys apiKey,
+                                   ResponseHeaderData header,
+                                   ApiMessage body,
                                    KrpcFilterContext filterContext) {
-        switch (decodedFrame.apiKey()) {
+        switch (apiKey) {
 <#list messageSpecs as messageSpec>
 <#if messageSpec.type?lower_case == 'response'>
             case ${retrieveApiKey(messageSpec)}:
-                ((${messageSpec.name}Filter) this).on${messageSpec.name}((${messageSpec.name}Data) decodedFrame.body(), filterContext);
+                ((${messageSpec.name}Filter) this).on${messageSpec.name}(header, (${messageSpec.name}Data) body, filterContext);
                 break;
 </#if>
 </#list>
             default:
-                throw new IllegalStateException("Unsupported RPC " + decodedFrame.apiKey());
+                throw new IllegalStateException("Unsupported RPC " + apiKey);
         }
     }
 
@@ -112,8 +119,8 @@ public /* sealed */ interface KrpcFilter /* TODO permits ... */ {
      *     <li>{@code shouldDeserializeRequest} on request A</li>
      *     <li>{@code shouldDeserializeRequest} on request B</li>
      *     <li>{@code shouldDeserializeRequest} on request A</li>
-     *     <li>{@code apply} on request A</li>
-     *     <li>{@code apply} on request B</li>
+     *     <li>{@code onRequest} on request A</li>
+     *     <li>{@code onRequest} on request B</li>
      * </ol>
      * @param apiKey The API key
      * @param apiVersion The API version

@@ -34,10 +34,12 @@ public class FilterHandler
     private static final Logger LOGGER = LoggerFactory.getLogger(FilterHandler.class);
     private final KrpcFilter filter;
     private final long timeoutMs;
+    private final String sniHostname;
 
-    public FilterHandler(KrpcFilter filter, long timeoutMs) {
+    public FilterHandler(KrpcFilter filter, long timeoutMs, String sniHostname) {
         this.filter = Objects.requireNonNull(filter);
         this.timeoutMs = Assertions.requireStrictlyPositive(timeoutMs, "timeout");
+        this.sniHostname = sniHostname;
     }
 
     String filterDescriptor() {
@@ -50,12 +52,12 @@ public class FilterHandler
             DecodedRequestFrame<?> decodedFrame = (DecodedRequestFrame<?>) msg;
             // Guard against invoking the filter unexpectedly
             if (filter.shouldDeserializeRequest(decodedFrame.apiKey(), decodedFrame.apiVersion())) {
-                var filterContext = new DefaultFilterContext(filter, ctx, decodedFrame, promise, timeoutMs);
+                var filterContext = new DefaultFilterContext(filter, ctx, decodedFrame, promise, timeoutMs, sniHostname);
                 if (LOGGER.isDebugEnabled()) {
                     LOGGER.debug("{}: Dispatching downstream {} request to filter{}: {}",
                             ctx.channel(), decodedFrame.apiKey(), filterDescriptor(), msg);
                 }
-                filter.onRequest(decodedFrame, filterContext);
+                filter.onRequest(decodedFrame.apiKey(), decodedFrame.header(), decodedFrame.body(), filterContext);
             }
             else {
                 ctx.write(msg, promise);
@@ -95,12 +97,12 @@ public class FilterHandler
                 }
             }
             else if (filter.shouldDeserializeResponse(decodedFrame.apiKey(), decodedFrame.apiVersion())) {
-                var filterContext = new DefaultFilterContext(filter, ctx, decodedFrame, null, timeoutMs);
+                var filterContext = new DefaultFilterContext(filter, ctx, decodedFrame, null, timeoutMs, sniHostname);
                 if (LOGGER.isDebugEnabled()) {
                     LOGGER.debug("{}: Dispatching upstream {} response to filter {}: {}",
                             ctx.channel(), decodedFrame.apiKey(), filterDescriptor(), msg);
                 }
-                filter.onResponse(decodedFrame, filterContext);
+                filter.onResponse(decodedFrame.apiKey(), decodedFrame.header(), decodedFrame.body(), filterContext);
             }
             else {
                 ctx.fireChannelRead(msg);

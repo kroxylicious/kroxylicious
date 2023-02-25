@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.proxy.internal;
 
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.kafka.common.errors.TimeoutException;
@@ -22,7 +23,6 @@ import io.netty.channel.ChannelPromise;
 import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.proxy.frame.DecodedFrame;
-import io.kroxylicious.proxy.future.Future;
 import io.kroxylicious.proxy.future.Promise;
 
 /**
@@ -37,17 +37,20 @@ class DefaultFilterContext implements KrpcFilterContext {
     private final ChannelPromise promise;
     private final KrpcFilter filter;
     private final long timeoutMs;
+    private final String sniHostname;
 
     DefaultFilterContext(KrpcFilter filter,
                          ChannelHandlerContext channelContext,
                          DecodedFrame<?, ?> decodedFrame,
                          ChannelPromise promise,
-                         long timeoutMs) {
+                         long timeoutMs,
+                         String sniHostname) {
         this.filter = filter;
         this.channelContext = channelContext;
         this.decodedFrame = decodedFrame;
         this.promise = promise;
         this.timeoutMs = timeoutMs;
+        this.sniHostname = sniHostname;
     }
 
     /**
@@ -70,7 +73,13 @@ class DefaultFilterContext implements KrpcFilterContext {
     public ByteBuf allocate(int initialCapacity) {
         final ByteBuf buffer = channelContext.alloc().heapBuffer(initialCapacity);
         decodedFrame.add(buffer);
+
         return buffer;
+    }
+
+    @Override
+    public String sniHostname() {
+        return sniHostname;
     }
 
     /**
@@ -97,7 +106,7 @@ class DefaultFilterContext implements KrpcFilterContext {
     }
 
     @Override
-    public <T extends ApiMessage> Future<T> sendRequest(short apiVersion, ApiMessage message) {
+    public <T extends ApiMessage> CompletionStage<T> sendRequest(short apiVersion, ApiMessage message) {
         short key = message.apiKey();
         var apiKey = ApiKeys.forId(key);
         short headerVersion = apiKey.requestHeaderVersion(apiVersion);
@@ -145,7 +154,7 @@ class DefaultFilterContext implements KrpcFilterContext {
             LOGGER.debug("{}: Timing out {} request after {}ms", channelContext, apiKey, timeoutMs);
             filterPromise.tryFail(new TimeoutException());
         }, timeoutMs, TimeUnit.MILLISECONDS);
-        return filterPromise.future();
+        return filterPromise.future().toCompletionStage();
     }
 
     /**

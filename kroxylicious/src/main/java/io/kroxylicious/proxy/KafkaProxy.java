@@ -44,12 +44,13 @@ import io.netty.incubator.channel.uring.IOUringServerSocketChannel;
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.admin.AdminHttpConfiguration;
+import io.kroxylicious.proxy.config.micrometer.MicrometerConfiguration;
 import io.kroxylicious.proxy.internal.KafkaProxyInitializer;
 import io.kroxylicious.proxy.internal.MeterRegistries;
 import io.kroxylicious.proxy.internal.admin.AdminHttpInitializer;
 import io.kroxylicious.proxy.internal.filter.FixedNetFilter;
 
-public final class KafkaProxy {
+public final class KafkaProxy implements AutoCloseable {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxy.class);
 
@@ -62,6 +63,7 @@ public final class KafkaProxy {
     private final boolean useIoUring;
     private final FilterChainFactory filterChainFactory;
     private final AdminHttpConfiguration adminHttpConfig;
+    private final MicrometerConfiguration micrometerConfig;
     private EventLoopGroup bossGroup;
     private EventLoopGroup workerGroup;
     private Channel acceptorChannel;
@@ -85,7 +87,7 @@ public final class KafkaProxy {
         this.logFrames = config.proxy().logFrames();
         this.useIoUring = config.proxy().useIoUring();
         this.adminHttpConfig = config.adminHttpConfig();
-
+        this.micrometerConfig = config.micrometerConfig();
         this.filterChainFactory = new FilterChainFactory(config);
 
         this.keyStoreFile = config.proxy().keyStoreFile().map(File::new);
@@ -183,7 +185,7 @@ public final class KafkaProxy {
             channelClass = NioServerSocketChannel.class;
         }
 
-        MeterRegistries meterRegistries = new MeterRegistries();
+        MeterRegistries meterRegistries = new MeterRegistries(micrometerConfig);
         maybeStartMetricsListener(bossGroup, workerGroup, channelClass, meterRegistries);
 
         ServerBootstrap serverBootstrap = new ServerBootstrap().group(bossGroup, workerGroup)
@@ -244,4 +246,10 @@ public final class KafkaProxy {
         metricsChannel = null;
     }
 
+    @Override
+    public void close() throws Exception {
+        if (acceptorChannel != null) {
+            shutdown();
+        }
+    }
 }
