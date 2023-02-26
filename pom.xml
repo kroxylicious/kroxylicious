@@ -198,11 +198,11 @@
                                 <excludes>
                                     <exclude>LICENSE.txt</exclude>
                                     <exclude>**/.dontdelete</exclude>
+                                    <exclude>etc/.editorconfig</exclude>
                                     <exclude>docs/**</exclude>
                                     <!-- Need to keep original copyright for Vert.x classes -->
                                     <exclude>src/main/java/io/kroxylicious/proxy/future/**</exclude>
                                     <exclude>src/main/java/io/kroxylicious/proxy/internal/future/**</exclude>
-                                    <exclude>**/.dontdelete</exclude>
                                 </excludes>
                             </licenseSet>
                         </licenseSets>
