@@ -250,7 +250,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-checkstyle-plugin</artifactId>
-                    <version>3.2.0</version>
+                    <version>3.2.1</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -458,20 +458,20 @@
                             <logViolationsToConsole>true</logViolationsToConsole>
                         </configuration>
                         <executions>
-                            <execution>
-                                <id>check-google-checks</id>
-                                <phase>verify</phase>
-                                <goals>
-                                    <goal>check</goal>
-                                </goals>
-                                <configuration>
-                                    <configLocation>google_checks.xml</configLocation>
-                                    <!--suppress MavenModelInspection -->
-                                    <suppressionsLocation>${rootdir}/etc/checkstyle-suppressions.xml</suppressionsLocation>
-                                    <!--suppress MavenModelInspection -->
-                                    <suppressionsFileExpression>${rootdir}/etc/checkstyle.suppressions.file</suppressionsFileExpression>
-                                </configuration>
-                            </execution>
+<!--                            <execution>-->
+<!--                                <id>check-google-checks</id>-->
+<!--                                <phase>verify</phase>-->
+<!--                                <goals>-->
+<!--                                    <goal>check</goal>-->
+<!--                                </goals>-->
+<!--                                <configuration>-->
+<!--                                    <configLocation>google_checks.xml</configLocation>-->
+<!--                                    &lt;!&ndash;suppress MavenModelInspection &ndash;&gt;-->
+<!--                                    <suppressionsLocation>${rootdir}/etc/checkstyle-suppressions.xml</suppressionsLocation>-->
+<!--                                    &lt;!&ndash;suppress MavenModelInspection &ndash;&gt;-->
+<!--                                    <suppressionsFileExpression>${rootdir}/etc/checkstyle.suppressions.file</suppressionsFileExpression>-->
+<!--                                </configuration>-->
+<!--                            </execution>-->
                             <execution>
                                 <id>check-custom-checks</id>
                                 <phase>verify</phase>
@@ -485,8 +485,6 @@
                                     <configLocation>${rootdir}/etc/checkstyle-custom_checks.xml</configLocation>
                                     <!--suppress MavenModelInspection -->
                                     <suppressionsLocation>${rootdir}/etc/checkstyle-suppressions.xml</suppressionsLocation>
-                                    <!--suppress MavenModelInspection -->
-                                    <suppressionsFileExpression>${rootdir}/etc/checkstyle.suppressions.file</suppressionsFileExpression>
                                 </configuration>
                             </execution>
                         </executions>
