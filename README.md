@@ -3,42 +3,6 @@
 Kroxylicious is an exploration for building a Kafka protocol proxy,
 addressing use cases such as multi-tenancy, schema validation, or encryption.
 
-# Setting Up in Windows Using WSL
-### For installing WSL (Skip the First '4' steps if already done)
-1. Enable the Windows Subsystem for Linux feature: To enable WSL, you need to enable the Windows Subsystem for Linux feature in the Windows Features dialog.
-
-
-2. Install a Linux distribution from the Microsoft Store. The rest of these instructions assume a distribution (such as Ubuntu) which uses `apt` for package management, but the process should be similar for distributions using other package managers/ such as Fedora/`dnf`.
-
-3. Launch the Linux distribution and Configure the Linux environment: After launching the Linux distribution, you can configure the environment by creating a user account and setting the password.
-
-With these steps, you should now have WSL installed and configured on your Windows system. 
-
-For further assistance please see the [Microsoft documentation](https://learn.microsoft.com/en-us/windows/wsl/install)
-
-4. Open the WSL window.
-
-
-5. Install Latest Java version by typing 
-```bash
-java --version
-```
-and Choose the version (preferably v18), it should look like:
-```bash
-sudo apt install openjdk-18-jre-headless
-```
-6. Update the packages using
-```bash
-  sudo apt update
-  sudo apt upgrade
-```
-
-7. Navigate to kroxylicious folder using :
-```bash
- cd kroxylicious
- ```
-
-
 ## Build
 
 Java, version 11 or newer, and Apache Maven are required for building this project.
@@ -149,7 +113,7 @@ $ dot -Tpng kroxylicious/target/generated-sources/annotations/deptective.dot > k
 
 ## IntelliJ setup
 
-Currently the project uses JDK 11 for the actual code and JDK 19 for tests. 
+Currently, the project uses JDK 11 for the actual code and JDK 19 for tests. 
 IntelliJ needs to be configured to use the "new Workspace Model" in order for it to understand this
 (and to be useful for things like debugging):
 
@@ -160,3 +124,50 @@ IntelliJ needs to be configured to use the "new Workspace Model" in order for it
 ## License
 
 This code base is available under the Apache License, version 2.
+
+## Setting Up in Windows Using WSL
+While Kroxylicious is a java application we've had reports of issues running the build natively on Windows and thus suggest using the Windows Subsystem for Linux (WSL) for development.
+### Installing WSL
+
+1. Enable the Windows Subsystem for Linux feature: To enable WSL, you need to enable the Windows Subsystem for Linux
+   feature in the Windows Features dialog.
+2. Install a Linux distribution from the Microsoft Store. The rest of these instructions assume a distribution (such as
+   Ubuntu) which uses `apt` for package management, but the process should be similar for distributions using other
+   package managers/ such as Fedora/`dnf`.
+3. Launch the Linux distribution and Configure the Linux environment: After launching the Linux distribution, you can
+   configure the environment by creating a user account and setting the password.
+   With these steps, you should now have WSL installed and configured on your Windows system.
+   For further assistance please see the [Microsoft documentation](https://learn.microsoft.com/en-us/windows/wsl/install)
+### Ensure appropriate tooling available
+1. Open the WSL window.
+2. Update the packages using
+    ```bash
+    sudo apt update
+    sudo apt upgrade
+    ```
+3. 
+    1. Check the Java version by typing
+      ```bash
+      java --version
+      ```
+      Expect output similar to: 
+      ```bash
+      > java --version
+   openjdk 19.0.2 2023-01-17
+   OpenJDK Runtime Environment Temurin-19.0.2+7 (build 19.0.2+7)
+   OpenJDK 64-Bit Server VM Temurin-19.0.2+7 (build 19.0.2+7, mixed mode, sharing)
+   ```
+    2. Update if needed: sample update command like:
+    ```bash
+    sudo apt update
+    sudo apt upgrade
+    sudo apt install openjdk-18-jre-headless
+    ```
+4. Ensure GIT is available
+   1. ```bash
+      git --version
+      ```
+      Expect a version string similar to `git version 2.37.1 (Apple Git-137.1)`
+   2. Follow the [WSL-git tutorial](https://learn.microsoft.com/en-us/windows/wsl/tutorials/wsl-git) if needed.
+5. Checkout Kroxylicious to `${kroxylicious-checkout}`
+6. Build & develop following the [standard build](#Build) instructions
