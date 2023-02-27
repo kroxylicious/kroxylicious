@@ -511,6 +511,35 @@
             </build>
         </profile>
         <profile>
+            <!-- note CI is deliberately defined after qa so that it can replace the formatter config plugin -->
+            <!-- see https://maven.apache.org/guides/introduction/introduction-to-profiles.html#profile-order -->
+            <id>ci</id>
+            <activation>
+                <activeByDefault>false</activeByDefault>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>net.revelc.code.formatter</groupId>
+                        <artifactId>formatter-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>validate-formatting</id>
+                                <goals>
+                                    <goal>validate</goal>
+                                </goals>
+                                <phase>process-sources</phase>
+                            </execution>
+                            <execution>
+                                <id>format</id>
+                                <phase>none</phase>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
             <id>quick</id>
             <activation>
                 <property>
