@@ -32,7 +32,7 @@ import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.filter.FetchResponseFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.proxy.future.Future;
-import io.kroxylicious.proxy.internal.util.NettyMemoryRecords;
+import io.kroxylicious.proxy.internal.util.MemoryRecordsHelper;
 
 /**
  * An filter for modifying the key/value/header/topic of {@link ApiKeys#FETCH} responses.
@@ -109,7 +109,7 @@ public class FetchResponseTransformationFilter implements FetchResponseFilter {
         for (FetchableTopicResponse topicData : responseData.responses()) {
             for (PartitionData partitionData : topicData.partitions()) {
                 MemoryRecords records = (MemoryRecords) partitionData.records();
-                MemoryRecordsBuilder newRecords = NettyMemoryRecords.builder(context.allocate(records.sizeInBytes()), CompressionType.NONE,
+                MemoryRecordsBuilder newRecords = MemoryRecordsHelper.builder(context.createByteBufferOutputStream(records.sizeInBytes()), CompressionType.NONE,
                         TimestampType.CREATE_TIME, 0);
 
                 for (MutableRecordBatch batch : records.batches()) {

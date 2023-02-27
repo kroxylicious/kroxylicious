@@ -9,31 +9,23 @@ import org.apache.kafka.common.record.CompressionType;
 import org.apache.kafka.common.record.MemoryRecordsBuilder;
 import org.apache.kafka.common.record.RecordBatch;
 import org.apache.kafka.common.record.TimestampType;
-
-import io.netty.buffer.ByteBuf;
+import org.apache.kafka.common.utils.ByteBufferOutputStream;
 
 /**
  * This is introduces additional factory builder methods then {@link org.apache.kafka.common.record.MemoryRecords#builder} ones,
  * in order to use {@link ByteBufOutputStream}<br>
  *
  */
-public class NettyMemoryRecords {
+public class MemoryRecordsHelper {
 
-    public static MemoryRecordsBuilder builder(ByteBuf buffer,
+    public static MemoryRecordsBuilder builder(ByteBufferOutputStream stream,
                                                CompressionType compressionType,
                                                TimestampType timestampType,
                                                long baseOffset) {
-        return builder(new ByteBufOutputStream(buffer), RecordBatch.CURRENT_MAGIC_VALUE, compressionType, timestampType, baseOffset);
-    }
-
-    private static MemoryRecordsBuilder builder(ByteBufOutputStream stream,
-                                                CompressionType compressionType,
-                                                TimestampType timestampType,
-                                                long baseOffset) {
         return builder(stream, RecordBatch.CURRENT_MAGIC_VALUE, compressionType, timestampType, baseOffset);
     }
 
-    private static MemoryRecordsBuilder builder(ByteBufOutputStream stream,
+    private static MemoryRecordsBuilder builder(ByteBufferOutputStream stream,
                                                 byte magic,
                                                 CompressionType compressionType,
                                                 TimestampType timestampType,
@@ -46,7 +38,7 @@ public class NettyMemoryRecords {
                 RecordBatch.NO_PARTITION_LEADER_EPOCH);
     }
 
-    private static MemoryRecordsBuilder builder(ByteBufOutputStream stream,
+    private static MemoryRecordsBuilder builder(ByteBufferOutputStream stream,
                                                 byte magic,
                                                 CompressionType compressionType,
                                                 TimestampType timestampType,
@@ -61,7 +53,7 @@ public class NettyMemoryRecords {
                 logAppendTime, producerId, producerEpoch, baseSequence, isTransactional, false, partitionLeaderEpoch);
     }
 
-    private static MemoryRecordsBuilder builder(ByteBufOutputStream stream,
+    private static MemoryRecordsBuilder builder(ByteBufferOutputStream stream,
                                                 byte magic,
                                                 CompressionType compressionType,
                                                 TimestampType timestampType,
