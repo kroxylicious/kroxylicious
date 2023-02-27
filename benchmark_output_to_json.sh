@@ -22,6 +22,6 @@ LATENCY_99TH_MS=${LATENCY_99TH[0]}
 
 JSON_FILE="[ {\"name\": \"AVG Latency\", \"unit\": \"ms\", \"value\": $LATENCY_AVG_MS},
 {\"name\": \"95th Latency\", \"unit\": \"ms\", \"value\": $LATENCY_95TH_MS},
-{\"name\": \"99.9th Latency\", \"unit\": \"ms\", \"value\": $LATENCY_99TH_MS}]"
+{\"name\": \"99th Latency\", \"unit\": \"ms\", \"value\": $LATENCY_99TH_MS}]"
 
 echo "$JSON_FILE" | jq . > "$DIR/$OUTPUT_FILE"
