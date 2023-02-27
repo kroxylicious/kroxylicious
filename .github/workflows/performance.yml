@@ -1,0 +1,152 @@
+#
+#  Licensed to the Apache Software Foundation (ASF) under one or more
+#  contributor license agreements. See the NOTICE file distributed with
+#  this work for additional information regarding copyright ownership.
+#  The ASF licenses this file to You under the Apache License, Version 2.0
+#  (the "License"); you may not use this file except in compliance with
+#  the License. You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+#
+name: Performance
+
+on:
+  issue_comment:
+  workflow_dispatch:
+
+jobs:
+  pr_comment:
+    name: Benchmark by comment
+    if: ${{ (github.event.issue.pull_request && contains(github.event.comment.body, '/perf')) }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: xt0rted/pull-request-comment-branch@v1
+        id: comment-branch
+
+      - name: 'Check out repository'
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ steps.comment-branch.outputs.head_ref }}
+          submodules: 'true'
+
+      - name: 'Set up Java'
+        uses: actions/setup-java@v3
+        with:
+          java-version: 19
+          distribution: 'zulu'
+
+      - name: 'Cache Maven packages'
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+
+      - name: 'Build kroxy service'
+        run: mvn -B clean verify -Pdist -Dquick
+
+      - name: 'Download kafka'
+        run: wget -q https://downloads.apache.org/kafka/3.4.0/kafka_2.13-3.4.0.tgz; tar xf kafka_2.13-3.4.0.tgz
+
+      - name: 'Run zookeeper'
+        run: cd kafka_2.13-3.4.0; bin/zookeeper-server-start.sh config/zookeeper.properties &
+
+      - name: 'Run kafka'
+        run: cd kafka_2.13-3.4.0; bin/kafka-server-start.sh config/server.properties &
+
+      - name: 'Run kroxy'
+        run: java -jar kroxylicious/target/kroxylicious-1.0-SNAPSHOT.jar --config kroxylicious/example-proxy-config.yml &
+
+      - name: 'Run warm-up'
+        run: cd kafka_2.13-3.4.0; bin/kafka-producer-perf-test.sh --topic perf-test --throughput -1 --num-records 1000000 --record-size 1024 --producer-props acks=all bootstrap.servers=localhost:9192
+
+      - name: 'Run performance tests'
+        run: kafka_2.13-3.4.0/bin/kafka-producer-perf-test.sh --topic perf-test --throughput -1 --num-records 10000000 --record-size 1024 --producer-props acks=all bootstrap.servers=localhost:9192 | tee output.txt
+
+      - name: 'Create json file'
+        run: ./benchmark_output_to_json.sh output.txt output.json
+
+      - name: 'Store benchmark result'
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          name: kafka producer perf test Benchmark
+          tool: 'customSmallerIsBetter'
+          output-file-path: output.json
+          gh-pages-branch: gh-pages
+          benchmark-data-dir-path: benchmark
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: true
+          alert-threshold: '150%'
+          comment-on-alert: true
+          fail-on-alert: true
+          alert-comment-cc-users: '@franvila,@k-wall,@SamBarker,@robobario,@tombentley,@devguyio,@racheljpg'
+
+  workflow:
+    name: Benchmark manually launched
+    if: ${{ contains(github.event_name, 'workflow') }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 'Check out repository'
+        uses: actions/checkout@v3
+        with:
+          submodules: 'true'
+
+      - name: 'Set up Java'
+        uses: actions/setup-java@v3
+        with:
+          java-version: 19
+          distribution: 'zulu'
+
+      - name: 'Cache Maven packages'
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+
+      - name: 'Build kroxy service'
+        run: mvn -B clean verify -Pdist -Dquick
+
+      - name: 'Download kafka'
+        run: wget -q https://downloads.apache.org/kafka/3.4.0/kafka_2.13-3.4.0.tgz; tar xf kafka_2.13-3.4.0.tgz
+
+      - name: 'Run zookeeper'
+        run: cd kafka_2.13-3.4.0; bin/zookeeper-server-start.sh config/zookeeper.properties &
+
+      - name: 'Run kafka'
+        run: cd kafka_2.13-3.4.0; bin/kafka-server-start.sh config/server.properties &
+
+      - name: 'Run kroxy'
+        run: java -jar kroxylicious/target/kroxylicious-1.0-SNAPSHOT.jar --config kroxylicious/example-proxy-config.yml &
+
+      - name: 'Run warm-up'
+        run: cd kafka_2.13-3.4.0; bin/kafka-producer-perf-test.sh --topic perf-test --throughput -1 --num-records 1000000 --record-size 1024 --producer-props acks=all bootstrap.servers=localhost:9192
+
+      - name: 'Run performance tests'
+        run: kafka_2.13-3.4.0/bin/kafka-producer-perf-test.sh --topic perf-test --throughput -1 --num-records 10000000 --record-size 1024 --producer-props acks=all bootstrap.servers=localhost:9192 | tee output.txt
+
+      - name: 'Create json file'
+        run: ./benchmark_output_to_json.sh output.txt output.json
+
+      - name: 'Store benchmark result'
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          name: kafka producer perf test Benchmark
+          tool: 'customSmallerIsBetter'
+          output-file-path: output.json
+          gh-pages-branch: gh-pages
+          benchmark-data-dir-path: benchmark
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: true
+          alert-threshold: '150%'
+          comment-on-alert: false
+          fail-on-alert: true
+          alert-comment-cc-users: '@franvila,@k-wall,@SamBarker,@robobario,@tombentley,@devguyio,@racheljpg'
