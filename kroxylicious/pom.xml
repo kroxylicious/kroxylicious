@@ -30,6 +30,11 @@
     <dependencies>
         <!-- We depend on the specific Netty dependencies not netty-all to reduce the size of fatjars -->
         <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-api</artifactId>
+            <version>0.0.0-SNAPSHOT</version>
+        </dependency>
+        <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-common</artifactId>
         </dependency>

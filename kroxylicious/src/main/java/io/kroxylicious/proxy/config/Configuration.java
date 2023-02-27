@@ -13,14 +13,14 @@ import io.kroxylicious.proxy.config.micrometer.MicrometerConfiguration;
 
 public class Configuration {
 
-    private final ProxyConfig proxy;
+    private final DefaultProxyConfig proxy;
 
     private final AdminHttpConfiguration adminHttp;
     private final MicrometerConfiguration micrometer;
     private final Map<String, Cluster> clusters;
     private final List<FilterDefinition> filters;
 
-    public Configuration(ProxyConfig proxy,
+    public Configuration(DefaultProxyConfig proxy,
                          AdminHttpConfiguration adminHttp,
                          MicrometerConfiguration micrometer,
                          Map<String, Cluster> clusters,
@@ -32,7 +32,7 @@ public class Configuration {
         this.filters = filters;
     }
 
-    public ProxyConfig proxy() {
+    public DefaultProxyConfig proxy() {
         return proxy;
     }
 
