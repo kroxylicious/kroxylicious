@@ -50,6 +50,6 @@ public interface ${filterClass} extends KrpcFilter {
      * @param ${msgType} The KRPC message to handle.
      * @param context The context.
      */
-    public void on${messageSpec.name}(<#if messageSpec.type?lower_case == 'response'>ResponseHeaderData<#else>RequestHeaderData</#if> header, ${dataClass} ${msgType}, KrpcFilterContext context);
+    void on${messageSpec.name}(<#if messageSpec.type?lower_case == 'response'>ResponseHeaderData<#else>RequestHeaderData</#if> header, ${dataClass} ${msgType}, KrpcFilterContext context);
 
 }

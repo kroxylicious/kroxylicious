@@ -42,7 +42,6 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
         public BrokerAddressConfig(String addressMapper) {
             try {
                 this.addressMapperClazz = addressMapper == null ? null : (Class<? extends AddressMapping>) Class.forName(addressMapper);
-                ;
             }
             catch (ClassNotFoundException e) {
                 throw new RuntimeException(e);

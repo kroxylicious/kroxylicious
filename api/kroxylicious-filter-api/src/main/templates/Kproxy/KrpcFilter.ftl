@@ -68,7 +68,7 @@ public /* sealed */ interface KrpcFilter /* TODO permits ... */ {
      * @param body The request body.
      * @param filterContext The filter context.
      */
-    public default void onRequest(ApiKeys apiKey,
+    default void onRequest(ApiKeys apiKey,
                                   RequestHeaderData header,
                                   ApiMessage body,
                                   KrpcFilterContext filterContext) {
@@ -92,7 +92,7 @@ public /* sealed */ interface KrpcFilter /* TODO permits ... */ {
      * @param body The request body.
      * @param filterContext The filter context.
      */
-    public default void onResponse(ApiKeys apiKey,
+    default void onResponse(ApiKeys apiKey,
                                    ResponseHeaderData header,
                                    ApiMessage body,
                                    KrpcFilterContext filterContext) {

@@ -14,7 +14,7 @@ class FixedAddressMapping implements AddressMapping {
     private final String targetHost;
     private final int targetPort;
 
-    public FixedAddressMapping(ProxyConfig config) {
+    FixedAddressMapping(ProxyConfig config) {
         String proxyAddress = config.address();
         String[] proxyAddressParts = proxyAddress.split(":");
 

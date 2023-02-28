@@ -431,6 +431,11 @@
                                     <goal>format</goal>
                                 </goals>
                                 <phase>process-sources</phase>
+                                <configuration>
+                                    <directories>
+                                        <directory>${project.build.sourceDirectory}</directory>
+                                    </directories>
+                                </configuration>
                             </execution>
                         </executions>
                     </plugin>

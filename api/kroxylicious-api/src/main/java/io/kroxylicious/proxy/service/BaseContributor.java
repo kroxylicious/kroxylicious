@@ -42,7 +42,7 @@ public abstract class BaseContributor<L> implements Contributor<L> {
         private final Class<T> configClass;
         private final BiFunction<ProxyConfig, T, L> instanceFunction;
 
-        public InstanceBuilder(Class<T> configClass, BiFunction<ProxyConfig, T, L> instanceFunction) {
+        InstanceBuilder(Class<T> configClass, BiFunction<ProxyConfig, T, L> instanceFunction) {
             this.configClass = configClass;
             this.instanceFunction = instanceFunction;
         }

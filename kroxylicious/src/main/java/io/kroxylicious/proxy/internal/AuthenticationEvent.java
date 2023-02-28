@@ -38,10 +38,12 @@ public class AuthenticationEvent {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o)
+        if (this == o) {
             return true;
-        if (o == null || getClass() != o.getClass())
+        }
+        if (o == null || getClass() != o.getClass()) {
             return false;
+        }
         AuthenticationEvent that = (AuthenticationEvent) o;
         return Objects.equals(authorizationId(), that.authorizationId()) && Objects.equals(negotiatedProperties(), that.negotiatedProperties());
     }
