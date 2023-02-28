@@ -221,15 +221,21 @@
                     <version>4.1</version>
                     <configuration>
                         <!--suppress MavenModelInspection -->
-                        <header>${rootdir}/etc/license.txt</header>
                         <strictCheck>true</strictCheck>
-                        <excludes>
-                            <exclude>LICENSE.txt</exclude>
-                            <exclude>**/.dontdelete</exclude>
-                            <!-- Need to keep original copyright for Vert.x classes -->
-                            <exclude>src/main/java/io/kroxylicious/proxy/future/**</exclude>
-                            <exclude>src/main/java/io/kroxylicious/proxy/internal/future/**</exclude>
-                        </excludes>
+                        <licenseSets>
+                            <licenseSet>
+                                <header>${rootdir}/etc/license.txt</header>
+                                <excludes>
+                                    <exclude>LICENSE.txt</exclude>
+                                    <exclude>**/.dontdelete</exclude>
+                                    <exclude>docs/**</exclude>
+                                    <!-- Need to keep original copyright for Vert.x classes -->
+                                    <exclude>src/main/java/io/kroxylicious/proxy/future/**</exclude>
+                                    <exclude>src/main/java/io/kroxylicious/proxy/internal/future/**</exclude>
+                                    <exclude>**/.dontdelete</exclude>
+                                </excludes>
+                            </licenseSet>
+                        </licenseSets>
                     </configuration>
                 </plugin>
                 <plugin>
