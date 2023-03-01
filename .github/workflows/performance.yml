@@ -24,7 +24,7 @@ jobs:
   pr_comment:
     name: Benchmark by comment
     if: ${{ (github.event.issue.pull_request && contains(github.event.comment.body, '/perf')) }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
       - uses: xt0rted/pull-request-comment-branch@v1
@@ -80,18 +80,18 @@ jobs:
           tool: 'customSmallerIsBetter'
           output-file-path: output.json
           gh-pages-branch: gh-pages
-          benchmark-data-dir-path: benchmark
+          benchmark-data-dir-path: .benchmark
           github-token: ${{ secrets.GITHUB_TOKEN }}
           auto-push: true
           alert-threshold: '150%'
           comment-on-alert: true
           fail-on-alert: true
-          alert-comment-cc-users: '@franvila,@k-wall,@SamBarker,@robobario,@tombentley,@devguyio,@racheljpg'
+          alert-comment-cc-users: '@kroxylicious/developers'
 
   workflow:
     name: Benchmark manually launched
     if: ${{ contains(github.event_name, 'workflow') }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
       - name: 'Check out repository'
@@ -143,10 +143,10 @@ jobs:
           tool: 'customSmallerIsBetter'
           output-file-path: output.json
           gh-pages-branch: gh-pages
-          benchmark-data-dir-path: benchmark
+          benchmark-data-dir-path: .benchmark
           github-token: ${{ secrets.GITHUB_TOKEN }}
           auto-push: true
           alert-threshold: '150%'
           comment-on-alert: false
           fail-on-alert: true
-          alert-comment-cc-users: '@franvila,@k-wall,@SamBarker,@robobario,@tombentley,@devguyio,@racheljpg'
+          alert-comment-cc-users: '@kroxylicious/developers'
