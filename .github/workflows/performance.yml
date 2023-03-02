@@ -116,7 +116,7 @@ jobs:
 
       - name: 'Set Kafka Version'
         run: |
-            echo "KAFKA_VERSION=${{ github.event.inputs.branch }}" >> $GITHUB_ENV
+            echo "KAFKA_VERSION=${{ github.event.inputs.kafkaVersion }}" >> $GITHUB_ENV
 
       - name: 'Cache Maven packages'
         uses: actions/cache@v3
