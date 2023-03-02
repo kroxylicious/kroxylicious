@@ -8,8 +8,7 @@ package io.kroxylicious.proxy.filter;
 import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.protocol.ApiMessage;
-
-import io.netty.buffer.ByteBuf;
+import org.apache.kafka.common.utils.ByteBufferOutputStream;
 
 /**
  * A context to allow filters to interact with other filters and the pipeline.
@@ -21,12 +20,12 @@ public interface KrpcFilterContext {
     String channelDescriptor();
 
     /**
-     * Allocate a ByteBuffer of the given capacity.
-     * The buffer will be deallocated when the request processing is completed
+     * Create a ByteBufferOutputStream of the given capacity.
+     * The backing buffer will be deallocated when the request processing is completed
      * @param initialCapacity The initial capacity of the buffer.
-     * @return The allocated buffer
+     * @return The allocated ByteBufferOutputStream
      */
-    ByteBuf allocate(int initialCapacity);
+    ByteBufferOutputStream createByteBufferOutputStream(int initialCapacity);
 
     /**
      * @return the SNI hostname provided by the client.  Will be null if the client is

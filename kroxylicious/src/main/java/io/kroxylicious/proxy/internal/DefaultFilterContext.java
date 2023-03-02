@@ -13,6 +13,7 @@ import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
+import org.apache.kafka.common.utils.ByteBufferOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,6 +25,7 @@ import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.proxy.frame.DecodedFrame;
 import io.kroxylicious.proxy.future.Promise;
+import io.kroxylicious.proxy.internal.util.ByteBufOutputStream;
 
 /**
  * Implementation of {@link KrpcFilterContext}.
@@ -63,18 +65,16 @@ class DefaultFilterContext implements KrpcFilterContext {
     }
 
     /**
-     * Allocate a buffer with the given {@code initialCapacity}.
-     * The returned buffer will be released automatically
-     * TODO when?
+     * Create a ByteBufferOutputStream of the given capacity.
+     * The backing buffer will be deallocated when the request processing is completed
      * @param initialCapacity The initial capacity of the buffer.
-     * @return The allocated buffer.
+     * @return The allocated ByteBufferOutputStream
      */
     @Override
-    public ByteBuf allocate(int initialCapacity) {
+    public ByteBufferOutputStream createByteBufferOutputStream(int initialCapacity) {
         final ByteBuf buffer = channelContext.alloc().heapBuffer(initialCapacity);
         decodedFrame.add(buffer);
-
-        return buffer;
+        return new ByteBufOutputStream(buffer);
     }
 
     @Override

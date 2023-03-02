@@ -7,7 +7,7 @@ package io.kroxylicious.proxy.config;
 
 import java.util.Optional;
 
-public class ProxyConfig {
+public class DefaultProxyConfig implements ProxyConfig {
 
     private final String address;
     private final boolean logNetwork;
@@ -16,7 +16,7 @@ public class ProxyConfig {
     private final Optional<String> keyStoreFile;
     private final Optional<String> keyPassword;
 
-    public ProxyConfig(String address, boolean logNetwork, boolean logFrames, boolean useIoUring, Optional<String> keyStoreFile, Optional<String> keyPassword) {
+    public DefaultProxyConfig(String address, boolean logNetwork, boolean logFrames, boolean useIoUring, Optional<String> keyStoreFile, Optional<String> keyPassword) {
         this.address = address;
         this.logNetwork = logNetwork;
         this.logFrames = logFrames;
@@ -25,6 +25,7 @@ public class ProxyConfig {
         this.keyPassword = keyPassword;
     }
 
+    @Override
     public String address() {
         return address;
     }

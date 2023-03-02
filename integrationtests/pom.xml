@@ -105,9 +105,9 @@
                         <!-- https://github.com/containers/podman/issues/7927#issuecomment-731525556 - required for testcontainers/podman support -->
                         <TESTCONTAINERS_RYUK_DISABLED>true</TESTCONTAINERS_RYUK_DISABLED>
                     </environmentVariables>
-                    <systemProperties>
+                    <systemPropertyVariables>
                         <container.logs.dir>${project.build.directory}/container-logs/</container.logs.dir>
-                    </systemProperties>
+                    </systemPropertyVariables>
                     <runOrder>random</runOrder>
                 </configuration>
                 <executions>
