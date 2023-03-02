@@ -7,7 +7,6 @@ package io.kroxylicious.proxy.internal.filter;
 
 import io.kroxylicious.proxy.filter.FilterContributor;
 import io.kroxylicious.proxy.filter.KrpcFilter;
-import io.kroxylicious.proxy.filter.multitenant.MultiTenantTransformationFilter;
 import io.kroxylicious.proxy.internal.filter.BrokerAddressFilter.BrokerAddressConfig;
 import io.kroxylicious.proxy.internal.filter.FetchResponseTransformationFilter.FetchResponseTransformationConfig;
 import io.kroxylicious.proxy.internal.filter.ProduceRequestTransformationFilter.ProduceRequestTransformationConfig;
@@ -19,8 +18,7 @@ public class BuiltinFilterContributor extends BaseContributor<KrpcFilter> implem
             .add("ApiVersions", ApiVersionsFilter::new)
             .add("BrokerAddress", BrokerAddressConfig.class, BrokerAddressFilter::new)
             .add("ProduceRequestTransformation", ProduceRequestTransformationConfig.class, ProduceRequestTransformationFilter::new)
-            .add("FetchResponseTransformation", FetchResponseTransformationConfig.class, FetchResponseTransformationFilter::new)
-            .add("MultiTenant", MultiTenantTransformationFilter::new);
+            .add("FetchResponseTransformation", FetchResponseTransformationConfig.class, FetchResponseTransformationFilter::new);
 
     public BuiltinFilterContributor() {
         super(FILTERS);
