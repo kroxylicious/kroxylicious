@@ -19,6 +19,11 @@ name: Performance
 on:
   issue_comment:
   workflow_dispatch:
+    inputs:
+      kafkaVersion:
+        description: 'The version of kafka to be used'
+        required: true
+        default: '3.4.0'
 
 jobs:
   pr_comment:
@@ -42,6 +47,10 @@ jobs:
           java-version: 19
           distribution: 'zulu'
 
+      - name: 'Set Kafka Version'
+        run: |
+          echo "KAFKA_VERSION=3.4.0" >> $GITHUB_ENV
+
       - name: 'Cache Maven packages'
         uses: actions/cache@v3
         with:
@@ -53,22 +62,22 @@ jobs:
         run: mvn -B clean verify -Pdist -Dquick
 
       - name: 'Download kafka'
-        run: wget -q https://downloads.apache.org/kafka/3.4.0/kafka_2.13-3.4.0.tgz; tar xf kafka_2.13-3.4.0.tgz
+        run: mkdir kafka_2.13; wget -q https://downloads.apache.org/kafka/${{ env.KAFKA_VERSION }}/kafka_2.13-${{ env.KAFKA_VERSION }}.tgz; tar xf kafka_2.13-${{ env.KAFKA_VERSION }}.tgz -C kafka_2.13 --strip-components=1
 
       - name: 'Run zookeeper'
-        run: cd kafka_2.13-3.4.0; bin/zookeeper-server-start.sh config/zookeeper.properties &
+        run: cd kafka_2.13; bin/zookeeper-server-start.sh config/zookeeper.properties &
 
       - name: 'Run kafka'
-        run: cd kafka_2.13-3.4.0; bin/kafka-server-start.sh config/server.properties &
+        run: cd kafka_2.13; bin/kafka-server-start.sh config/server.properties &
 
       - name: 'Run kroxy'
         run: java -jar kroxylicious/target/kroxylicious-1.0-SNAPSHOT.jar --config kroxylicious/example-proxy-config.yml &
 
       - name: 'Run warm-up'
-        run: cd kafka_2.13-3.4.0; bin/kafka-producer-perf-test.sh --topic perf-test --throughput -1 --num-records 1000000 --record-size 1024 --producer-props acks=all bootstrap.servers=localhost:9192
+        run: cd kafka_2.13; bin/kafka-producer-perf-test.sh --topic perf-test --throughput -1 --num-records 1000000 --record-size 1024 --producer-props acks=all bootstrap.servers=localhost:9192
 
       - name: 'Run performance tests'
-        run: kafka_2.13-3.4.0/bin/kafka-producer-perf-test.sh --topic perf-test --throughput -1 --num-records 10000000 --record-size 1024 --producer-props acks=all bootstrap.servers=localhost:9192 | tee output.txt
+        run: kafka_2.13/bin/kafka-producer-perf-test.sh --topic perf-test --throughput -1 --num-records 10000000 --record-size 1024 --producer-props acks=all bootstrap.servers=localhost:9192 | tee output.txt
 
       - name: 'Create json file'
         run: ./benchmark_output_to_json.sh output.txt output.json
@@ -105,6 +114,10 @@ jobs:
           java-version: 19
           distribution: 'zulu'
 
+      - name: 'Set Kafka Version'
+        run: |
+            echo "KAFKA_VERSION=${{ github.event.inputs.branch }}" >> $GITHUB_ENV
+
       - name: 'Cache Maven packages'
         uses: actions/cache@v3
         with:
@@ -116,22 +129,22 @@ jobs:
         run: mvn -B clean verify -Pdist -Dquick
 
       - name: 'Download kafka'
-        run: wget -q https://downloads.apache.org/kafka/3.4.0/kafka_2.13-3.4.0.tgz; tar xf kafka_2.13-3.4.0.tgz
+        run: mkdir kafka_2.13; wget -q https://downloads.apache.org/kafka/${{ env.KAFKA_VERSION }}/kafka_2.13-${{ env.KAFKA_VERSION }}.tgz; tar xf kafka_2.13-${{ env.KAFKA_VERSION }}.tgz -C kafka_2.13 --strip-components=1
 
       - name: 'Run zookeeper'
-        run: cd kafka_2.13-3.4.0; bin/zookeeper-server-start.sh config/zookeeper.properties &
+        run: cd kafka_2.13; bin/zookeeper-server-start.sh config/zookeeper.properties &
 
       - name: 'Run kafka'
-        run: cd kafka_2.13-3.4.0; bin/kafka-server-start.sh config/server.properties &
+        run: cd kafka_2.13; bin/kafka-server-start.sh config/server.properties &
 
       - name: 'Run kroxy'
         run: java -jar kroxylicious/target/kroxylicious-1.0-SNAPSHOT.jar --config kroxylicious/example-proxy-config.yml &
 
       - name: 'Run warm-up'
-        run: cd kafka_2.13-3.4.0; bin/kafka-producer-perf-test.sh --topic perf-test --throughput -1 --num-records 1000000 --record-size 1024 --producer-props acks=all bootstrap.servers=localhost:9192
+        run: cd kafka_2.13; bin/kafka-producer-perf-test.sh --topic perf-test --throughput -1 --num-records 1000000 --record-size 1024 --producer-props acks=all bootstrap.servers=localhost:9192
 
       - name: 'Run performance tests'
-        run: kafka_2.13-3.4.0/bin/kafka-producer-perf-test.sh --topic perf-test --throughput -1 --num-records 10000000 --record-size 1024 --producer-props acks=all bootstrap.servers=localhost:9192 | tee output.txt
+        run: kafka_2.13/bin/kafka-producer-perf-test.sh --topic perf-test --throughput -1 --num-records 10000000 --record-size 1024 --producer-props acks=all bootstrap.servers=localhost:9192 | tee output.txt
 
       - name: 'Create json file'
         run: ./benchmark_output_to_json.sh output.txt output.json
