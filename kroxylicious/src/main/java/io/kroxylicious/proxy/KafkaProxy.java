@@ -13,6 +13,7 @@ import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -43,8 +44,9 @@ import io.netty.incubator.channel.uring.IOUringServerSocketChannel;
 
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.config.Configuration;
+import io.kroxylicious.proxy.config.MicrometerDefinition;
+import io.kroxylicious.proxy.config.ProxyConfig;
 import io.kroxylicious.proxy.config.admin.AdminHttpConfiguration;
-import io.kroxylicious.proxy.config.micrometer.MicrometerConfiguration;
 import io.kroxylicious.proxy.internal.KafkaProxyInitializer;
 import io.kroxylicious.proxy.internal.MeterRegistries;
 import io.kroxylicious.proxy.internal.admin.AdminHttpInitializer;
@@ -63,7 +65,8 @@ public final class KafkaProxy implements AutoCloseable {
     private final boolean useIoUring;
     private final FilterChainFactory filterChainFactory;
     private final AdminHttpConfiguration adminHttpConfig;
-    private final MicrometerConfiguration micrometerConfig;
+    private final List<MicrometerDefinition> micrometerConfig;
+    private final ProxyConfig proxyConfig;
     private EventLoopGroup bossGroup;
     private EventLoopGroup workerGroup;
     private Channel acceptorChannel;
@@ -87,7 +90,8 @@ public final class KafkaProxy implements AutoCloseable {
         this.logFrames = config.proxy().logFrames();
         this.useIoUring = config.proxy().useIoUring();
         this.adminHttpConfig = config.adminHttpConfig();
-        this.micrometerConfig = config.micrometerConfig();
+        this.micrometerConfig = config.getMicrometer();
+        this.proxyConfig = config.proxy();
         this.filterChainFactory = new FilterChainFactory(config);
 
         this.keyStoreFile = config.proxy().keyStoreFile().map(File::new);
@@ -185,7 +189,7 @@ public final class KafkaProxy implements AutoCloseable {
             channelClass = NioServerSocketChannel.class;
         }
 
-        MeterRegistries meterRegistries = new MeterRegistries(micrometerConfig);
+        MeterRegistries meterRegistries = new MeterRegistries(micrometerConfig, proxyConfig);
         maybeStartMetricsListener(bossGroup, workerGroup, channelClass, meterRegistries);
 
         ServerBootstrap serverBootstrap = new ServerBootstrap().group(bossGroup, workerGroup)

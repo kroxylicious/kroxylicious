@@ -9,27 +9,26 @@ import java.util.List;
 import java.util.Map;
 
 import io.kroxylicious.proxy.config.admin.AdminHttpConfiguration;
-import io.kroxylicious.proxy.config.micrometer.MicrometerConfiguration;
 
 public class Configuration {
 
     private final DefaultProxyConfig proxy;
 
     private final AdminHttpConfiguration adminHttp;
-    private final MicrometerConfiguration micrometer;
     private final Map<String, Cluster> clusters;
     private final List<FilterDefinition> filters;
+    private final List<MicrometerDefinition> micrometer;
 
     public Configuration(DefaultProxyConfig proxy,
                          AdminHttpConfiguration adminHttp,
-                         MicrometerConfiguration micrometer,
                          Map<String, Cluster> clusters,
-                         List<FilterDefinition> filters) {
+                         List<FilterDefinition> filters,
+                         List<MicrometerDefinition> micrometer) {
         this.proxy = proxy;
         this.adminHttp = adminHttp;
-        this.micrometer = micrometer;
         this.clusters = clusters;
         this.filters = filters;
+        this.micrometer = micrometer;
     }
 
     public DefaultProxyConfig proxy() {
@@ -48,7 +47,7 @@ public class Configuration {
         return filters;
     }
 
-    public MicrometerConfiguration micrometerConfig() {
-        return micrometer == null ? MicrometerConfiguration.empty() : micrometer;
+    public List<MicrometerDefinition> getMicrometer() {
+        return micrometer == null ? List.of() : micrometer;
     }
 }
