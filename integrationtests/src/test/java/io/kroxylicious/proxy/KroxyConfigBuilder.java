@@ -10,6 +10,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import com.fasterxml.jackson.annotation.JsonGetter;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -18,7 +19,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
 
-import static com.fasterxml.jackson.annotation.JsonInclude.Include.*;
+import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_EMPTY;
+import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL;
 
 public class KroxyConfigBuilder {
 
@@ -35,27 +37,10 @@ public class KroxyConfigBuilder {
     public record Filter(String type, @JsonInclude(NON_EMPTY) Map<String, Object> config) {
     }
 
-    public record AdminHttp(Endpoints endpoints) {
+    public record MicrometerConfig(String type, @JsonInclude(NON_EMPTY) Map<String, Object> config) {
     }
 
-    public record MicrometerConfig(@JsonInclude(NON_EMPTY) List<String> binders,
-                                   @JsonInclude(NON_NULL) String configurationHookClass,
-                                   @JsonInclude(NON_EMPTY) Map<String, String> commonTags) {
-        public MicrometerConfig withTag(String key, String value) {
-            Map<String, String> tags = commonTags != null ? new HashMap<>(commonTags) : new HashMap<>();
-            tags.put(key, value);
-            return new MicrometerConfig(this.binders, this.configurationHookClass, tags);
-        }
-
-        public MicrometerConfig withConfigHook(String className) {
-            return new MicrometerConfig(this.binders, className, this.commonTags);
-        }
-
-        public MicrometerConfig withBinder(String binder) {
-            List<String> binders = this.binders != null ? new ArrayList<>(this.binders) : new ArrayList<>();
-            binders.add(binder);
-            return new MicrometerConfig(binders, this.configurationHookClass, this.commonTags);
-        }
+    public record AdminHttp(Endpoints endpoints) {
     }
 
     public record Endpoints(@JsonGetter("prometheus") @JsonInclude(NON_NULL) Map<String, String> prometheusEndpointConfig) {
@@ -69,7 +54,7 @@ public class KroxyConfigBuilder {
     private AdminHttp adminHttp = null;
 
     @JsonInclude(NON_NULL)
-    private MicrometerConfig micrometer = null;
+    private List<MicrometerConfig> micrometer = null;
 
     public KroxyConfigBuilder(String proxyAddress) {
         proxy = new Proxy(proxyAddress, null, null);
@@ -80,25 +65,39 @@ public class KroxyConfigBuilder {
     }
 
     public KroxyConfigBuilder withMicrometerBinder(String binder) {
-        MicrometerConfig original = currentOrNewMicrometerConfig();
-        micrometer = original.withBinder(binder);
-        return this;
-    }
-
-    public KroxyConfigBuilder withMicrometerConfigHook(String className) {
-        MicrometerConfig original = currentOrNewMicrometerConfig();
-        micrometer = original.withConfigHook(className);
+        MicrometerConfig config = getMicrometerConfigForType("StandardBinders");
+        @SuppressWarnings("unchecked")
+        List<String> binderNames = (List<String>) config.config.computeIfAbsent("binderNames", s -> new ArrayList<String>());
+        binderNames.add(binder);
         return this;
     }
 
     public KroxyConfigBuilder withMicrometerCommonTag(String key, String value) {
-        MicrometerConfig original = currentOrNewMicrometerConfig();
-        micrometer = original.withTag(key, value);
+        MicrometerConfig config = getMicrometerConfigForType("CommonTags");
+        @SuppressWarnings("unchecked")
+        Map<String, String> commonTags = (Map<String, String>) config.config.computeIfAbsent("commonTags", s -> new HashMap<String, String>());
+        commonTags.put(key, value);
         return this;
     }
 
-    private MicrometerConfig currentOrNewMicrometerConfig() {
-        return micrometer != null ? micrometer : new MicrometerConfig(null, null, null);
+    private MicrometerConfig getMicrometerConfigForType(String type) {
+        Optional<MicrometerConfig> standardBinders = getOrCreateMicrometer().stream().filter(micrometerConfig -> micrometerConfig.type.equals(type)).findFirst();
+        MicrometerConfig config;
+        if (standardBinders.isPresent()) {
+            config = standardBinders.get();
+        }
+        else {
+            config = new MicrometerConfig(type, new HashMap<>());
+            micrometer.add(config);
+        }
+        return config;
+    }
+
+    private List<MicrometerConfig> getOrCreateMicrometer() {
+        if (micrometer == null) {
+            micrometer = new ArrayList<>();
+        }
+        return micrometer;
     }
 
     public KroxyConfigBuilder withCluster(String clusterName, String bootstrapServers) {
@@ -152,7 +151,7 @@ public class KroxyConfigBuilder {
         return filters;
     }
 
-    public MicrometerConfig getMicrometer() {
+    public List<MicrometerConfig> getMicrometer() {
         return micrometer;
     }
 }

@@ -17,12 +17,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
-import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Metrics;
-import io.micrometer.core.instrument.binder.jvm.JvmThreadMetrics;
 import io.netty.handler.codec.http.HttpResponseStatus;
 
-import io.kroxylicious.proxy.config.micrometer.MicrometerConfigurationHook;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
@@ -39,14 +36,6 @@ public class MetricsIT {
     @BeforeEach
     public void beforeEach() {
         Metrics.globalRegistry.clear();
-    }
-
-    public static class ConfigHook implements MicrometerConfigurationHook {
-
-        @Override
-        public void configure(MeterRegistry targetRegistry) {
-            new JvmThreadMetrics().bindTo(targetRegistry);
-        }
     }
 
     @Test
@@ -91,32 +80,6 @@ public class MetricsIT {
             HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:9193/metrics")).GET().build();
             HttpResponse<String> response = HttpClient.newHttpClient().send(request, ofString());
             assertResponseBodyContainsMeterWithTag(response, counter_name, "a", "b");
-        }
-    }
-
-    @Test
-    public void shouldOfferPrometheusMetricsWithConfigHook(KafkaCluster cluster) throws Exception {
-        String config = baseConfigBuilder(PROXY_ADDRESS, cluster.getBootstrapServers())
-                .withMicrometerConfigHook(ConfigHook.class.getTypeName())
-                .withPrometheusEndpoint().build();
-
-        try (var proxy = startProxy(config)) {
-            HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:9193/metrics")).GET().build();
-            HttpResponse<String> response = HttpClient.newHttpClient().send(request, ofString());
-            assertResponseBodyContainsMeter(response, "jvm_threads_live_threads");
-        }
-    }
-
-    @Test
-    public void shouldOfferPrometheusMetricsWithFullyQualifiedBinder(KafkaCluster cluster) throws Exception {
-        String config = baseConfigBuilder(PROXY_ADDRESS, cluster.getBootstrapServers())
-                .withMicrometerBinder("io.micrometer.core.instrument.binder.system.UptimeMetrics")
-                .withPrometheusEndpoint().build();
-
-        try (var proxy = startProxy(config)) {
-            HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:9193/metrics")).GET().build();
-            HttpResponse<String> response = HttpClient.newHttpClient().send(request, ofString());
-            assertResponseBodyContainsMeter(response, "process_uptime_seconds");
         }
     }
 
