@@ -92,6 +92,20 @@ The output will be in `target/html/master.html`.
 
 See [benchmarking.md](benchmarking.md) for information on running basic performance tests for this proxy.
 
+### GitHub action for performance
+When a PR is created and the performance tests are needed, the following comment shall be added into the PR:
+
+```
+/perf
+```
+
+It will launch the `Performance` build, compare the results with the previous execution and store the results in the gh-pages repo under the `.benchmark` directory.
+
+In case the results are worse than expected (150% threshold) and alert will be shown into the commit and an email will be sent to the kroxylicious developers
+to inform them.
+
+**NOTE**: The alert cannot be currently shown in the PR, but the [upstream project](https://github.com/benchmark-action/github-action-benchmark) is working on adding this functionality.
+
 ## Architecture Monitoring
 
 This project uses [Deptective 🕵](https://github.com/moditect/deptective/) for monitoring its architecture and fails any violations,
