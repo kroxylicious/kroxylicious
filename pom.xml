@@ -30,7 +30,7 @@
         <skipUTs>${skipTests}</skipUTs>
 
         <debezium.version>1.9.0.Final</debezium.version>
-        <freemarker.version>2.3.31</freemarker.version>
+        <freemarker.version>2.3.32</freemarker.version>
         <jackson.version>2.14.2</jackson.version>
         <jackson-databind.version>2.14.2</jackson-databind.version>
         <junit.version>5.8.2</junit.version>
