@@ -83,7 +83,7 @@ public class RequestDecoderTest extends AbstractCodecTest {
         var messages = new ArrayList<>();
         new KafkaRequestDecoder(
                 DecodePredicate.forFilters((ApiVersionsRequestFilter) (header, request, context) -> context.forwardRequest(request)))
-                        .decode(null, byteBuf, messages);
+                .decode(null, byteBuf, messages);
 
         assertEquals(List.of(), messageClasses(messages));
         assertEquals(0, byteBuf.readerIndex());
@@ -101,7 +101,7 @@ public class RequestDecoderTest extends AbstractCodecTest {
         var messages = new ArrayList<>();
         new KafkaRequestDecoder(
                 DecodePredicate.forFilters((ApiVersionsRequestFilter) (header, request, context) -> context.forwardRequest(request)))
-                        .decode(null, byteBuf, messages);
+                .decode(null, byteBuf, messages);
 
         assertEquals(List.of(), messageClasses(messages));
         assertEquals(expectRead, byteBuf.readerIndex());
@@ -143,7 +143,7 @@ public class RequestDecoderTest extends AbstractCodecTest {
         var messages = new ArrayList<>();
         new KafkaRequestDecoder(
                 DecodePredicate.forFilters((ApiVersionsRequestFilter) (head, request, context) -> context.forwardRequest(request)))
-                        .decode(null, byteBuf, messages);
+                .decode(null, byteBuf, messages);
 
         assertEquals(List.of(DecodedRequestFrame.class, DecodedRequestFrame.class), messageClasses(messages));
         DecodedRequestFrame frame = (DecodedRequestFrame) messages.get(0);
