@@ -88,7 +88,7 @@ jobs:
           name: kafka producer perf test Benchmark
           tool: 'customSmallerIsBetter'
           output-file-path: output.json
-          gh-pages-branch: gh-pages
+          gh-pages-branch: performance-results
           benchmark-data-dir-path: .benchmark
           github-token: ${{ secrets.GITHUB_TOKEN }}
           auto-push: true
@@ -155,7 +155,7 @@ jobs:
           name: kafka producer perf test Benchmark
           tool: 'customSmallerIsBetter'
           output-file-path: output.json
-          gh-pages-branch: gh-pages
+          gh-pages-branch: performance-results
           benchmark-data-dir-path: .benchmark
           github-token: ${{ secrets.GITHUB_TOKEN }}
           auto-push: true
