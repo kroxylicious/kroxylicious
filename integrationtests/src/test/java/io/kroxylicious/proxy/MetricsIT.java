@@ -26,8 +26,8 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.micrometer.MicrometerConfigurationHook;
-import io.kroxylicious.proxy.testkafkacluster.KafkaClusterConfig;
-import io.kroxylicious.proxy.testkafkacluster.KafkaClusterFactory;
+import io.kroxylicious.testing.kafka.common.KafkaClusterConfig;
+import io.kroxylicious.testing.kafka.common.KafkaClusterFactory;
 
 import static java.net.http.HttpResponse.BodyHandlers.ofString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
