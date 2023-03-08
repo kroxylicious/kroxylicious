@@ -464,22 +464,8 @@
                             <logViolationsToConsole>true</logViolationsToConsole>
                         </configuration>
                         <executions>
-<!--                            <execution>-->
-<!--                                <id>check-google-checks</id>-->
-<!--                                <phase>verify</phase>-->
-<!--                                <goals>-->
-<!--                                    <goal>check</goal>-->
-<!--                                </goals>-->
-<!--                                <configuration>-->
-<!--                                    <configLocation>google_checks.xml</configLocation>-->
-<!--                                    &lt;!&ndash;suppress MavenModelInspection &ndash;&gt;-->
-<!--                                    <suppressionsLocation>${rootdir}/etc/checkstyle-suppressions.xml</suppressionsLocation>-->
-<!--                                    &lt;!&ndash;suppress MavenModelInspection &ndash;&gt;-->
-<!--                                    <suppressionsFileExpression>${rootdir}/etc/checkstyle.suppressions.file</suppressionsFileExpression>-->
-<!--                                </configuration>-->
-<!--                            </execution>-->
                             <execution>
-                                <id>check-custom-checks</id>
+                                <id>run-project-checks</id>
                                 <phase>verify</phase>
                                 <goals>
                                     <goal>check</goal>
