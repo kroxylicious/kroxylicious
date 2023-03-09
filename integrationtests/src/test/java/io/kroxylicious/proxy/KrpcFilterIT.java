@@ -34,13 +34,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 
-import io.kroxylicious.proxy.config.ConfigParser;
-import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.internal.filter.ByteBufferTransformation;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
+import static io.kroxylicious.proxy.Utils.startProxy;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -124,32 +123,29 @@ public class KrpcFilterIT {
                 - type: BrokerAddress
                 """.formatted(proxyAddress, cluster.getBootstrapServers());
 
-        var proxy = startProxy(config);
+        try (var proxy = startProxy(config)) {
+            try (var producer = new KafkaProducer<String, String>(Map.of(
+                    ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
+                    ProducerConfig.CLIENT_ID_CONFIG, "shouldPassThroughRecordUnchanged",
+                    ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
+                    ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
+                    ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000))) {
+                producer.send(new ProducerRecord<>(TOPIC_1, "my-key", "Hello, world!")).get();
+            }
 
-        try (var producer = new KafkaProducer<String, String>(Map.of(
-                ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
-                ProducerConfig.CLIENT_ID_CONFIG, "shouldPassThroughRecordUnchanged",
-                ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
-                ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
-                ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000))) {
-            producer.send(new ProducerRecord<>(TOPIC_1, "my-key", "Hello, world!")).get();
+            try (var consumer = new KafkaConsumer<String, String>(Map.of(
+                    ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
+                    ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
+                    ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
+                    ConsumerConfig.GROUP_ID_CONFIG, "my-group-id",
+                    ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
+                consumer.subscribe(Set.of(TOPIC_1));
+                var records = consumer.poll(Duration.ofSeconds(10));
+                consumer.close();
+                assertEquals(1, records.count());
+                assertEquals("Hello, world!", records.iterator().next().value());
+            }
         }
-
-        try (var consumer = new KafkaConsumer<String, String>(Map.of(
-                ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
-                ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
-                ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
-                ConsumerConfig.GROUP_ID_CONFIG, "my-group-id",
-                ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
-            consumer.subscribe(Set.of(TOPIC_1));
-            var records = consumer.poll(Duration.ofSeconds(10));
-            consumer.close();
-            assertEquals(1, records.count());
-            assertEquals("Hello, world!", records.iterator().next().value());
-        }
-
-        // shutdown the proxy
-        proxy.shutdown();
     }
 
     @Test
@@ -174,8 +170,7 @@ public class KrpcFilterIT {
                     transformation: %s
                 """.formatted(proxyAddress, cluster.getBootstrapServers(), TestEncoder.class.getName());
 
-        var proxy = startProxy(config);
-        try {
+        try (var proxy = startProxy(config)) {
             try (var producer = new KafkaProducer<String, String>(Map.of(
                     ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
                     ProducerConfig.CLIENT_ID_CONFIG, "shouldModifyProduceMessage",
@@ -206,10 +201,6 @@ public class KrpcFilterIT {
             assertEquals(1, records2.count());
             assertArrayEquals(TOPIC_2_CIPHERTEXT, records2.iterator().next().value());
         }
-        finally {
-            // shutdown the proxy
-            proxy.shutdown();
-        }
     }
 
     @Test
@@ -234,9 +225,7 @@ public class KrpcFilterIT {
                     transformation: %s
                 """.formatted(proxyAddress, cluster.getBootstrapServers(), TestDecoder.class.getName());
 
-        var proxy = startProxy(config);
-
-        try {
+        try (var proxy = startProxy(config)) {
             try (var producer = new KafkaProducer<String, byte[]>(Map.of(
                     ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
                     ProducerConfig.CLIENT_ID_CONFIG, "shouldModifyFetchMessage",
@@ -270,10 +259,6 @@ public class KrpcFilterIT {
                     List.of(records1.iterator().next().value(),
                             records2.iterator().next().value()));
         }
-        finally {
-            // shutdown the proxy
-            proxy.shutdown();
-        }
     }
 
     @Test
@@ -298,8 +283,7 @@ public class KrpcFilterIT {
                 - type: BrokerAddress
                 """.formatted(proxyAddress, brokerCertificateGenerator.getKeyStoreLocation(), brokerCertificateGenerator.getPassword(), cluster.getBootstrapServers());
 
-        var proxy = startProxy(config);
-        try {
+        try (var proxy = startProxy(config)) {
             try (var admin = Admin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
                     CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name,
                     SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
@@ -313,18 +297,5 @@ public class KrpcFilterIT {
                 assertThat(protocol).startsWith("TLS");
             }
         }
-        finally {
-            // shutdown the proxy
-            proxy.shutdown();
-        }
-    }
-
-    private KafkaProxy startProxy(String config) throws InterruptedException {
-        Configuration proxyConfig = new ConfigParser().parseConfiguration(config);
-
-        KafkaProxy kafkaProxy = new KafkaProxy(proxyConfig);
-        kafkaProxy.startup();
-
-        return kafkaProxy;
     }
 }
