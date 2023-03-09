@@ -21,7 +21,6 @@
 
     <properties>
         <java.version>19</java.version>
-        <kroxy.extension.version>0.1</kroxy.extension.version>
     </properties>
 
     <dependencies>
@@ -40,24 +39,17 @@
         <dependency>
             <groupId>io.kroxylicious.testing</groupId>
             <artifactId>testing-junit5-extension</artifactId>
-            <version>${kroxy.extension.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>io.kroxylicious.testing</groupId>
             <artifactId>testing-api</artifactId>
-            <version>${kroxy.extension.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
             <artifactId>log4j-slf4j-impl</artifactId>
             <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.kafka</groupId>
-            <artifactId>kafka-server-common</artifactId>
-            <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
