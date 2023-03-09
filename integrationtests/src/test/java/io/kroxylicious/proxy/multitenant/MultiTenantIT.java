@@ -5,9 +5,7 @@
  */
 package io.kroxylicious.proxy.multitenant;
 
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Deque;
@@ -50,6 +48,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -85,16 +84,15 @@ public class MultiTenantIT {
     private TestInfo testInfo;
     private KeytoolCertificateGenerator certificateGenerator;
     private Path clientTrustStore;
+    @TempDir
+    private Path certsDirectory;
 
     @BeforeEach
     public void beforeEach(TestInfo testInfo) throws Exception {
         this.testInfo = testInfo;
         this.certificateGenerator = new KeytoolCertificateGenerator();
         this.certificateGenerator.generateSelfSignedCertificateEntry("test@redhat.com", "*.multitenant.kafka", "KI", "RedHat", null, null, "US");
-        Path certsDirectory = Files.createTempDirectory("kafkaClient");
-        this.clientTrustStore = Paths.get(certsDirectory.toAbsolutePath().toString(), "kafka.truststore.jks");
-        certsDirectory.toFile().deleteOnExit();
-        clientTrustStore.toFile().deleteOnExit();
+        this.clientTrustStore = certsDirectory.resolve("kafka.truststore.jks");
         this.certificateGenerator.generateTrustStore(this.certificateGenerator.getCertFilePath(), "client",
                 clientTrustStore.toAbsolutePath().toString());
     }
