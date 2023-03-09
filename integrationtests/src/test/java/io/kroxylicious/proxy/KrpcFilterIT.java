@@ -107,11 +107,11 @@ public class KrpcFilterIT {
     }
 
     @Test
-    public void shouldPassThroughRecordUnchanged(KafkaCluster cluster) throws Exception {
+    public void shouldPassThroughRecordUnchanged(KafkaCluster cluster, Admin admin) throws Exception {
         String proxyAddress = "localhost:9192";
-        try (var admin = Admin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, cluster.getBootstrapServers()))) {
-            admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1))).all().get();
-        }
+
+        admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1))).all().get();
+
         String config = """
                 proxy:
                   address: %s
@@ -149,13 +149,13 @@ public class KrpcFilterIT {
     }
 
     @Test
-    public void shouldModifyProduceMessage(KafkaCluster cluster) throws Exception {
+    public void shouldModifyProduceMessage(KafkaCluster cluster, Admin admin) throws Exception {
         String proxyAddress = "localhost:9192";
-        try (var admin = Admin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, cluster.getBootstrapServers()))) {
-            admin.createTopics(List.of(
-                    new NewTopic(TOPIC_1, 1, (short) 1),
-                    new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
-        }
+
+        admin.createTopics(List.of(
+                new NewTopic(TOPIC_1, 1, (short) 1),
+                new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
+
         String config = """
                 proxy:
                   address: %s
@@ -204,13 +204,13 @@ public class KrpcFilterIT {
     }
 
     @Test
-    public void shouldModifyFetchMessage(KafkaCluster cluster) throws Exception {
+    public void shouldModifyFetchMessage(KafkaCluster cluster, Admin admin) throws Exception {
         String proxyAddress = "localhost:9192";
-        try (var admin = Admin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, cluster.getBootstrapServers()))) {
-            admin.createTopics(List.of(
-                    new NewTopic(TOPIC_1, 1, (short) 1),
-                    new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
-        }
+
+        admin.createTopics(List.of(
+                new NewTopic(TOPIC_1, 1, (short) 1),
+                new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
+
         String config = """
                 proxy:
                   address: %s
