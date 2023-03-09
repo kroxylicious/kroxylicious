@@ -41,7 +41,7 @@ public class KroxyConfigBuilder {
     public record MicrometerConfig(@JsonInclude(NON_EMPTY) List<String> binders,
                                    @JsonInclude(NON_NULL) String configurationHookClass,
                                    @JsonInclude(NON_EMPTY) Map<String, String> commonTags) {
-        MicrometerConfig withTag(String key, String value){
+        public MicrometerConfig withTag(String key, String value) {
             Map<String, String> tags = commonTags != null ? new HashMap<>(commonTags) : new HashMap<>();
             tags.put(key, value);
             return new MicrometerConfig(this.binders, this.configurationHookClass, tags);

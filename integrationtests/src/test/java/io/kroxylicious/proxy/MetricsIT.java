@@ -13,48 +13,32 @@ import java.util.Arrays;
 import java.util.Random;
 import java.util.regex.Pattern;
 
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInfo;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.binder.jvm.JvmThreadMetrics;
 import io.netty.handler.codec.http.HttpResponseStatus;
 
-import io.kroxylicious.proxy.config.ConfigParser;
-import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.micrometer.MicrometerConfigurationHook;
-import io.kroxylicious.proxy.testkafkacluster.KafkaClusterConfig;
-import io.kroxylicious.proxy.testkafkacluster.KafkaClusterFactory;
+import io.kroxylicious.testing.kafka.api.KafkaCluster;
+import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
+import static io.kroxylicious.proxy.Utils.startProxy;
 import static java.net.http.HttpResponse.BodyHandlers.ofString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+@ExtendWith(KafkaClusterExtension.class)
 public class MetricsIT {
 
     public static final String PROXY_ADDRESS = "localhost:9192";
-    private TestInfo testInfo;
-    private KafkaProxy proxy;
 
     @BeforeEach
-    public void beforeEach(TestInfo testInfo) {
-        this.testInfo = testInfo;
+    public void beforeEach() {
         Metrics.globalRegistry.clear();
-    }
-
-    @AfterEach
-    public void teardown() {
-        if (proxy != null) {
-            try {
-                proxy.shutdown();
-            }
-            catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-        }
     }
 
     public static class ConfigHook implements MicrometerConfigurationHook {
@@ -66,15 +50,11 @@ public class MetricsIT {
     }
 
     @Test
-    public void shouldOfferPrometheusMetricsScrapeEndpoint() throws Exception {
-        try (var cluster = KafkaClusterFactory.create(KafkaClusterConfig.builder().testInfo(testInfo).build())) {
-            cluster.start();
+    public void shouldOfferPrometheusMetricsScrapeEndpoint(KafkaCluster cluster) throws Exception {
+        String config = baseConfigBuilder(PROXY_ADDRESS, cluster.getBootstrapServers())
+                .withPrometheusEndpoint().build();
 
-            String config = baseConfigBuilder(PROXY_ADDRESS, cluster.getBootstrapServers())
-                    .withPrometheusEndpoint().build();
-
-            startProxy(config);
-
+        try (var proxy = startProxy(config)) {
             String counter_name = "test_metric_" + Math.abs(new Random().nextLong()) + "_total";
             Metrics.counter(counter_name).increment();
             HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:9193/metrics")).GET().build();
@@ -87,33 +67,25 @@ public class MetricsIT {
     }
 
     @Test
-    public void shouldOfferPrometheusMetricsWithNamedBinder() throws Exception {
-        try (var cluster = KafkaClusterFactory.create(KafkaClusterConfig.builder().testInfo(testInfo).build())) {
-            cluster.start();
+    public void shouldOfferPrometheusMetricsWithNamedBinder(KafkaCluster cluster) throws Exception {
+        String config = baseConfigBuilder(PROXY_ADDRESS, cluster.getBootstrapServers())
+                .withMicrometerBinder("JvmGcMetrics")
+                .withPrometheusEndpoint().build();
 
-            String config = baseConfigBuilder(PROXY_ADDRESS, cluster.getBootstrapServers())
-                    .withMicrometerBinder("JvmGcMetrics")
-                    .withPrometheusEndpoint().build();
-
-            startProxy(config);
+        try (var proxy = startProxy(config)) {
             HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:9193/metrics")).GET().build();
             HttpResponse<String> response = HttpClient.newHttpClient().send(request, ofString());
             assertResponseBodyContainsMeter(response, "jvm_gc_memory_allocated_bytes_total");
         }
-
     }
 
     @Test
-    public void shouldOfferPrometheusMetricsWithCommonTags() throws Exception {
-        try (var cluster = KafkaClusterFactory.create(KafkaClusterConfig.builder().testInfo(testInfo).build())) {
-            cluster.start();
+    public void shouldOfferPrometheusMetricsWithCommonTags(KafkaCluster cluster) throws Exception {
+        String config = baseConfigBuilder(PROXY_ADDRESS, cluster.getBootstrapServers())
+                .withMicrometerCommonTag("a", "b")
+                .withPrometheusEndpoint().build();
 
-            String config = baseConfigBuilder(PROXY_ADDRESS, cluster.getBootstrapServers())
-                    .withMicrometerCommonTag("a", "b")
-                    .withPrometheusEndpoint().build();
-
-            startProxy(config);
-
+        try (var proxy = startProxy(config)) {
             String counter_name = "test_metric_" + Math.abs(new Random().nextLong()) + "_total";
             Metrics.counter(counter_name).increment();
             HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:9193/metrics")).GET().build();
@@ -123,15 +95,12 @@ public class MetricsIT {
     }
 
     @Test
-    public void shouldOfferPrometheusMetricsWithConfigHook() throws Exception {
-        try (var cluster = KafkaClusterFactory.create(KafkaClusterConfig.builder().testInfo(testInfo).build())) {
-            cluster.start();
+    public void shouldOfferPrometheusMetricsWithConfigHook(KafkaCluster cluster) throws Exception {
+        String config = baseConfigBuilder(PROXY_ADDRESS, cluster.getBootstrapServers())
+                .withMicrometerConfigHook(ConfigHook.class.getTypeName())
+                .withPrometheusEndpoint().build();
 
-            String config = baseConfigBuilder(PROXY_ADDRESS, cluster.getBootstrapServers())
-                    .withMicrometerConfigHook(ConfigHook.class.getTypeName())
-                    .withPrometheusEndpoint().build();
-
-            startProxy(config);
+        try (var proxy = startProxy(config)) {
             HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:9193/metrics")).GET().build();
             HttpResponse<String> response = HttpClient.newHttpClient().send(request, ofString());
             assertResponseBodyContainsMeter(response, "jvm_threads_live_threads");
@@ -139,15 +108,12 @@ public class MetricsIT {
     }
 
     @Test
-    public void shouldOfferPrometheusMetricsWithFullyQualifiedBinder() throws Exception {
-        try (var cluster = KafkaClusterFactory.create(KafkaClusterConfig.builder().testInfo(testInfo).build())) {
-            cluster.start();
+    public void shouldOfferPrometheusMetricsWithFullyQualifiedBinder(KafkaCluster cluster) throws Exception {
+        String config = baseConfigBuilder(PROXY_ADDRESS, cluster.getBootstrapServers())
+                .withMicrometerBinder("io.micrometer.core.instrument.binder.system.UptimeMetrics")
+                .withPrometheusEndpoint().build();
 
-            String config = baseConfigBuilder(PROXY_ADDRESS, cluster.getBootstrapServers())
-                    .withMicrometerBinder("io.micrometer.core.instrument.binder.system.UptimeMetrics")
-                    .withPrometheusEndpoint().build();
-
-            startProxy(config);
+        try (var proxy = startProxy(config)) {
             HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:9193/metrics")).GET().build();
             HttpResponse<String> response = HttpClient.newHttpClient().send(request, ofString());
             assertResponseBodyContainsMeter(response, "process_uptime_seconds");
@@ -176,14 +142,4 @@ public class MetricsIT {
                 .addFilter("ApiVersions")
                 .addFilter("BrokerAddress");
     }
-
-    private void startProxy(String config) throws InterruptedException {
-        Configuration proxyConfig = new ConfigParser().parseConfiguration(config);
-
-        KafkaProxy kafkaProxy = new KafkaProxy(proxyConfig);
-        kafkaProxy.startup();
-
-        proxy = kafkaProxy;
-    }
-
 }

@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.proxy.multitenant;
 
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Deque;
@@ -46,23 +47,21 @@ import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.kroxylicious.proxy.KafkaProxy;
-import io.kroxylicious.proxy.config.ConfigParser;
-import io.kroxylicious.proxy.config.Configuration;
-import io.kroxylicious.proxy.testkafkacluster.KafkaCluster;
-import io.kroxylicious.proxy.testkafkacluster.KafkaClusterConfig;
-import io.kroxylicious.proxy.testkafkacluster.KafkaClusterFactory;
-import io.kroxylicious.proxy.testkafkacluster.KeytoolCertificateGenerator;
+import io.kroxylicious.testing.kafka.api.KafkaCluster;
+import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
+import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
+import static io.kroxylicious.proxy.Utils.startProxy;
 import static org.assertj.core.api.Assertions.allOf;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.*;
 
+@ExtendWith(KafkaClusterExtension.class)
 public class MultiTenantIT {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(MultiTenantIT.class);
@@ -82,130 +81,109 @@ public class MultiTenantIT {
     private static final String MY_VALUE = "my-value";
     private TestInfo testInfo;
     private KeytoolCertificateGenerator certificateGenerator;
+    private Path clientTrustStore;
+    @TempDir
+    private Path certsDirectory;
 
     @BeforeEach
     public void beforeEach(TestInfo testInfo) throws Exception {
         this.testInfo = testInfo;
         this.certificateGenerator = new KeytoolCertificateGenerator();
         this.certificateGenerator.generateSelfSignedCertificateEntry("test@redhat.com", "*.multitenant.kafka", "KI", "RedHat", null, null, "US");
+        this.clientTrustStore = certsDirectory.resolve("kafka.truststore.jks");
+        this.certificateGenerator.generateTrustStore(this.certificateGenerator.getCertFilePath(), "client",
+                clientTrustStore.toAbsolutePath().toString());
     }
 
     @Test
-    public void createAndDeleteTopic() throws Exception {
-        try (var cluster = KafkaClusterFactory.create(KafkaClusterConfig.builder().testInfo(testInfo).build())) {
-            cluster.start();
+    public void createAndDeleteTopic(KafkaCluster cluster) throws Exception {
+        String config = getConfig(PROXY_ADDRESS, cluster);
 
-            String config = getConfig(PROXY_ADDRESS, cluster);
+        try (var proxy = startProxy(config)) {
+            try (var admin = Admin.create(commonConfig(TENANT1_PROXY_ADDRESS, Map.of()))) {
+                var created = createTopics(admin, List.of(NEW_TOPIC_1, NEW_TOPIC_2));
 
-            try (var proxy = startProxy(config)) {
-                try (var admin = Admin.create(commonConfig(TENANT1_PROXY_ADDRESS, Map.of()))) {
-                    var created = createTopics(admin, List.of(NEW_TOPIC_1, NEW_TOPIC_2));
+                ListTopicsResult listTopicsResult = admin.listTopics();
+                var topicMap = listTopicsResult.namesToListings().get();
+                assertEquals(2, topicMap.size());
+                assertThat(topicMap).hasSize(2);
+                assertThat(topicMap).hasEntrySatisfying(TOPIC_1,
+                        allOf(matches(TopicListing::name, TOPIC_1),
+                                matches(TopicListing::topicId, created.topicId(TOPIC_1).get())));
+                assertThat(topicMap).hasEntrySatisfying(TOPIC_1,
+                        allOf(matches(TopicListing::name, TOPIC_1),
+                                matches(TopicListing::topicId, created.topicId(TOPIC_1).get())));
+                assertThat(topicMap).hasEntrySatisfying(TOPIC_2, matches(TopicListing::name, TOPIC_2));
 
-                    ListTopicsResult listTopicsResult = admin.listTopics();
-                    var topicMap = listTopicsResult.namesToListings().get();
-                    assertEquals(2, topicMap.size());
-                    assertThat(topicMap).hasSize(2);
-                    assertThat(topicMap).hasEntrySatisfying(TOPIC_1,
-                            allOf(matches(TopicListing::name, TOPIC_1),
-                                    matches(TopicListing::topicId, created.topicId(TOPIC_1).get())));
-                    assertThat(topicMap).hasEntrySatisfying(TOPIC_1,
-                            allOf(matches(TopicListing::name, TOPIC_1),
-                                    matches(TopicListing::topicId, created.topicId(TOPIC_1).get())));
-                    assertThat(topicMap).hasEntrySatisfying(TOPIC_2, matches(TopicListing::name, TOPIC_2));
+                // Delete by name
+                var topics1 = TopicNameCollection.ofTopicNames(List.of(TOPIC_1));
+                var deleted = deleteTopics(admin, topics1);
+                assertThat(deleted.topicNameValues().keySet()).containsAll(topics1.topicNames());
 
-                    // Delete by name
-                    var topics1 = TopicNameCollection.ofTopicNames(List.of(TOPIC_1));
-                    var deleted = deleteTopics(admin, topics1);
-                    assertThat(deleted.topicNameValues().keySet()).containsAll(topics1.topicNames());
-
-                    // Delete by id
-                    var topics2 = TopicCollection.ofTopicIds(List.of(created.topicId(TOPIC_2).get()));
-                    deleted = deleteTopics(admin, topics2);
-                    assertThat(deleted.topicIdValues().keySet()).containsAll(topics2.topicIds());
-                }
+                // Delete by id
+                var topics2 = TopicCollection.ofTopicIds(List.of(created.topicId(TOPIC_2).get()));
+                deleted = deleteTopics(admin, topics2);
+                assertThat(deleted.topicIdValues().keySet()).containsAll(topics2.topicIds());
             }
         }
     }
 
     @Test
-    public void describeTopic() throws Exception {
-        try (var cluster = KafkaClusterFactory.create(KafkaClusterConfig.builder().testInfo(testInfo).build())) {
-            cluster.start();
+    public void describeTopic(KafkaCluster cluster) throws Exception {
+        String config = getConfig(PROXY_ADDRESS, cluster);
+        try (var proxy = startProxy(config)) {
+            try (var admin = Admin.create(commonConfig(TENANT1_PROXY_ADDRESS, Map.of()))) {
+                var created = createTopics(admin, List.of(NEW_TOPIC_1));
 
-            String config = getConfig(PROXY_ADDRESS, cluster);
-
-            try (var proxy = startProxy(config)) {
-                try (var admin = Admin.create(commonConfig(TENANT1_PROXY_ADDRESS, Map.of()))) {
-                    var created = createTopics(admin, List.of(NEW_TOPIC_1));
-
-                    var describeTopicsResult = admin.describeTopics(TopicNameCollection.ofTopicNames(List.of(TOPIC_1)));
-                    var topicMap = describeTopicsResult.allTopicNames().get();
-                    assertThat(topicMap).hasEntrySatisfying(TOPIC_1,
-                            allOf(matches(TopicDescription::name, TOPIC_1),
-                                    matches(TopicDescription::topicId, created.topicId(TOPIC_1).get())));
-                }
+                var describeTopicsResult = admin.describeTopics(TopicNameCollection.ofTopicNames(List.of(TOPIC_1)));
+                var topicMap = describeTopicsResult.allTopicNames().get();
+                assertThat(topicMap).hasEntrySatisfying(TOPIC_1,
+                        allOf(matches(TopicDescription::name, TOPIC_1),
+                                matches(TopicDescription::topicId, created.topicId(TOPIC_1).get())));
             }
         }
     }
 
     @Test
-    public void publishOne() throws Exception {
-        try (var cluster = KafkaClusterFactory.create(KafkaClusterConfig.builder().testInfo(testInfo).build())) {
-            cluster.start();
-
-            String config = getConfig(PROXY_ADDRESS, cluster);
-
-            try (var proxy = startProxy(config)) {
-                createTopics(TENANT1_PROXY_ADDRESS, List.of(NEW_TOPIC_1));
-                produceAndVerify(TENANT1_PROXY_ADDRESS, TOPIC_1, MY_KEY, MY_VALUE);
-            }
+    public void publishOne(KafkaCluster cluster) throws Exception {
+        String config = getConfig(PROXY_ADDRESS, cluster);
+        try (var proxy = startProxy(config)) {
+            createTopics(TENANT1_PROXY_ADDRESS, List.of(NEW_TOPIC_1));
+            produceAndVerify(TENANT1_PROXY_ADDRESS, TOPIC_1, MY_KEY, MY_VALUE);
         }
     }
 
     @Test
-    public void consumeOne() throws Exception {
-        try (var cluster = KafkaClusterFactory.create(KafkaClusterConfig.builder().testInfo(testInfo).build())) {
-            cluster.start();
-
-            String config = getConfig(PROXY_ADDRESS, cluster);
-
-            try (var proxy = startProxy(config)) {
-                createTopics(TENANT1_PROXY_ADDRESS, List.of(NEW_TOPIC_1));
-                produceAndVerify(TENANT1_PROXY_ADDRESS, TOPIC_1, MY_KEY, MY_VALUE);
-                consumeAndVerify(TENANT1_PROXY_ADDRESS, TOPIC_1, MY_KEY, MY_VALUE, false);
-            }
+    public void consumeOne(KafkaCluster cluster) throws Exception {
+        String config = getConfig(PROXY_ADDRESS, cluster);
+        try (var proxy = startProxy(config)) {
+            createTopics(TENANT1_PROXY_ADDRESS, List.of(NEW_TOPIC_1));
+            produceAndVerify(TENANT1_PROXY_ADDRESS, TOPIC_1, MY_KEY, MY_VALUE);
+            consumeAndVerify(TENANT1_PROXY_ADDRESS, TOPIC_1, MY_KEY, MY_VALUE, false);
         }
     }
 
     @Test
-    public void consumeOneAndOffsetCommit() throws Exception {
-        try (var cluster = KafkaClusterFactory.create(KafkaClusterConfig.builder().testInfo(testInfo).build())) {
-            cluster.start();
-            String config = getConfig(PROXY_ADDRESS, cluster);
-
-            try (var proxy = startProxy(config)) {
-                createTopics(TENANT1_PROXY_ADDRESS, List.of(NEW_TOPIC_1));
-                produceAndVerify(TENANT1_PROXY_ADDRESS,
-                        Stream.of(new ProducerRecord<>(TOPIC_1, MY_KEY, MY_VALUE + "1"), new ProducerRecord<>(TOPIC_1, MY_KEY, MY_VALUE + "2")));
-                consumeAndVerify(TENANT1_PROXY_ADDRESS, TOPIC_1, MY_KEY, MY_VALUE + "1", true);
-                consumeAndVerify(TENANT1_PROXY_ADDRESS, TOPIC_1, MY_KEY, MY_VALUE + "2", true);
-            }
+    public void consumeOneAndOffsetCommit(KafkaCluster cluster) throws Exception {
+        String config = getConfig(PROXY_ADDRESS, cluster);
+        try (var proxy = startProxy(config)) {
+            createTopics(TENANT1_PROXY_ADDRESS, List.of(NEW_TOPIC_1));
+            produceAndVerify(TENANT1_PROXY_ADDRESS,
+                    Stream.of(new ProducerRecord<>(TOPIC_1, MY_KEY, MY_VALUE + "1"), new ProducerRecord<>(TOPIC_1, MY_KEY, MY_VALUE + "2")));
+            consumeAndVerify(TENANT1_PROXY_ADDRESS, TOPIC_1, MY_KEY, MY_VALUE + "1", true);
+            consumeAndVerify(TENANT1_PROXY_ADDRESS, TOPIC_1, MY_KEY, MY_VALUE + "2", true);
         }
     }
 
     @Test
-    public void tenantIsolation() throws Exception {
-        try (var cluster = KafkaClusterFactory.create(KafkaClusterConfig.builder().testInfo(testInfo).build())) {
-            cluster.start();
-            String config = getConfig(PROXY_ADDRESS, cluster);
+    public void tenantIsolation(KafkaCluster cluster) throws Exception {
+        String config = getConfig(PROXY_ADDRESS, cluster);
+        try (var proxy = startProxy(config)) {
+            createTopics(TENANT1_PROXY_ADDRESS, List.of(NEW_TOPIC_1));
+            createTopics(TENANT2_PROXY_ADDRESS, List.of(NEW_TOPIC_2, NEW_TOPIC_3));
 
-            try (var proxy = startProxy(config)) {
-                createTopics(TENANT1_PROXY_ADDRESS, List.of(NEW_TOPIC_1));
-                createTopics(TENANT2_PROXY_ADDRESS, List.of(NEW_TOPIC_2, NEW_TOPIC_3));
-
-                verifyTenant(TENANT1_PROXY_ADDRESS, TOPIC_1);
-                verifyTenant(TENANT2_PROXY_ADDRESS, TOPIC_2, TOPIC_3);
-            }
+            verifyTenant(TENANT1_PROXY_ADDRESS, TOPIC_1);
+            verifyTenant(TENANT2_PROXY_ADDRESS, TOPIC_2, TOPIC_3);
         }
     }
 
@@ -257,7 +235,6 @@ public class MultiTenantIT {
             if (offsetCommit) {
                 consumer.commitSync(Duration.ofSeconds(5));
             }
-
         }
     }
 
@@ -287,9 +264,9 @@ public class MultiTenantIT {
         }
     }
 
-    private CreateTopicsResult createTopics(String address, List<NewTopic> topics) throws Exception {
+    private void createTopics(String address, List<NewTopic> topics) throws Exception {
         try (var admin = Admin.create(commonConfig(address, Map.of()))) {
-            return createTopics(admin, topics);
+            createTopics(admin, topics);
         }
     }
 
@@ -320,7 +297,7 @@ public class MultiTenantIT {
         config.put(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, address);
         config.put(CommonClientConfigs.CLIENT_ID_CONFIG, testInfo.getDisplayName());
         config.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name);
-        config.put(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, certificateGenerator.getCertLocation());
+        config.put(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, this.clientTrustStore.toAbsolutePath().toString());
         config.put(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, certificateGenerator.getPassword());
         return config;
     }
@@ -340,17 +317,8 @@ public class MultiTenantIT {
                   config:
                     addressMapperClazz: io.kroxylicious.proxy.internal.filter.SniAddressMapping
                 - type: MultiTenant
-                """.formatted(proxyAddress, certificateGenerator.getCertLocation(), certificateGenerator.getPassword(), cluster.getBootstrapServers());
+                """.formatted(proxyAddress, certificateGenerator.getKeyStoreLocation(), certificateGenerator.getPassword(), cluster.getBootstrapServers());
         return config;
-    }
-
-    private KafkaProxy startProxy(String config) throws InterruptedException {
-        Configuration proxyConfig = new ConfigParser().parseConfiguration(config);
-
-        KafkaProxy kafkaProxy = new KafkaProxy(proxyConfig);
-        kafkaProxy.startup();
-
-        return kafkaProxy;
     }
 
     @NotNull

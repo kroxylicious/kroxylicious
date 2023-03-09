@@ -37,7 +37,6 @@
         <kafka.version>3.4.0</kafka.version>
         <log4j.version>2.17.2</log4j.version>
         <netty.version>4.1.89.Final</netty.version>
-        <testcontainers.version>1.17.6</testcontainers.version>
         <netty.io_uring.version>0.0.14.Final</netty.io_uring.version>
         <netty.epoll.classifier>linux-x86_64</netty.epoll.classifier>
         <netty.io_uring.classifier>linux-x86_64</netty.io_uring.classifier>
@@ -46,8 +45,8 @@
         <assertj-core.version>3.22.0</assertj-core.version>
         <mockito-core.version>4.6.1</mockito-core.version>
         <slf4j-api.version>1.7.36</slf4j-api.version>
-        <zookeeper.version>3.6.3</zookeeper.version>
         <micrometer.version>1.10.2</micrometer.version>
+        <kroxy.extension.version>0.1</kroxy.extension.version>
     </properties>
 
     <name>Kroxylicious Parent</name>
@@ -116,33 +115,6 @@
                 <version>${kafka.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.apache.kafka</groupId>
-                <artifactId>kafka_2.13</artifactId>
-                <version>${kafka.version}</version>
-                <scope>test</scope>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.kafka</groupId>
-                <artifactId>kafka-server-common</artifactId>
-                <version>${kafka.version}</version>
-                <scope>test</scope>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.zookeeper</groupId>
-                <artifactId>zookeeper</artifactId>
-                <version>${zookeeper.version}</version>
-                <exclusions>
-                    <exclusion>
-                        <groupId>org.slf4j</groupId>
-                        <artifactId>slf4j-log4j12</artifactId>
-                    </exclusion>
-                    <exclusion>
-                        <groupId>log4j</groupId>
-                        <artifactId>log4j</artifactId>
-                    </exclusion>
-                </exclusions>
-            </dependency>
-            <dependency>
                 <groupId>org.apache.logging.log4j</groupId>
                 <artifactId>log4j-bom</artifactId>
                 <version>${log4j.version}</version>
@@ -167,24 +139,6 @@
                 <version>${slf4j-api.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.testcontainers</groupId>
-                <artifactId>testcontainers</artifactId>
-                <version>${testcontainers.version}</version>
-                <scope>test</scope>
-            </dependency>
-            <dependency>
-                <groupId>org.testcontainers</groupId>
-                <artifactId>kafka</artifactId>
-                <version>${testcontainers.version}</version>
-                <scope>test</scope>
-            </dependency>
-            <dependency>
-                <groupId>org.testcontainers</groupId>
-                <artifactId>junit-jupiter</artifactId>
-                <version>${testcontainers.version}</version>
-                <scope>test</scope>
-            </dependency>
-            <dependency>
                 <groupId>org.projectlombok</groupId>
                 <artifactId>lombok</artifactId>
                 <version>${lombok.version}</version>
@@ -200,6 +154,18 @@
                 <groupId>org.mockito</groupId>
                 <artifactId>mockito-core</artifactId>
                 <version>${mockito-core.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.kroxylicious.testing</groupId>
+                <artifactId>testing-junit5-extension</artifactId>
+                <version>${kroxy.extension.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.kroxylicious.testing</groupId>
+                <artifactId>testing-api</artifactId>
+                <version>${kroxy.extension.version}</version>
                 <scope>test</scope>
             </dependency>
         </dependencies>
@@ -279,27 +245,27 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-clean-plugin</artifactId>
-                    <version>3.1.0</version>
+                    <version>3.2.0</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-dependency-plugin</artifactId>
-                    <version>3.3.0</version>
+                    <version>3.5.0</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-deploy-plugin</artifactId>
-                    <version>3.0.0-M1</version>
+                    <version>3.1.0</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-enforcer-plugin</artifactId>
-                    <version>3.0.0-M3</version>
+                    <version>3.2.1</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-failsafe-plugin</artifactId>
-                    <version>3.0.0-M7</version>
+                    <version>3.0.0-M9</version>
                     <configuration>
                         <skipTests>${skipITs}</skipTests>
                     </configuration>
@@ -307,12 +273,12 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-install-plugin</artifactId>
-                    <version>3.0.0-M1</version>
+                    <version>3.1.0</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-jar-plugin</artifactId>
-                    <version>3.2.0</version>
+                    <version>3.3.0</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -322,17 +288,17 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-resources-plugin</artifactId>
-                    <version>3.2.0</version>
+                    <version>3.3.0</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-site-plugin</artifactId>
-                    <version>3.9.1</version>
+                    <version>3.12.1</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-surefire-plugin</artifactId>
-                    <version>3.0.0-M5</version>
+                    <version>3.0.0-M9</version>
                     <configuration>
                         <skipTests>${skipUTs}</skipTests>
                         <runOrder>random</runOrder>
