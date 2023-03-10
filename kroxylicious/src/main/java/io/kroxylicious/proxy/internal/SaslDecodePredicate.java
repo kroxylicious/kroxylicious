@@ -18,7 +18,7 @@ class SaslDecodePredicate implements DecodePredicate {
     private final boolean handleSasl;
     private DecodePredicate delegate = null;
 
-    public SaslDecodePredicate(boolean handleSasl) {
+    SaslDecodePredicate(boolean handleSasl) {
         this.handleSasl = handleSasl;
     }
 

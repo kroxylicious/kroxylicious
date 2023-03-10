@@ -5,7 +5,9 @@ addressing use cases such as multi-tenancy, schema validation, or encryption.
 
 ## Build
 
-Java, version 11 or newer, and Apache Maven are required for building this project.
+Java, version 19 or newer, and Apache Maven are required for building this project.
+Technically we currently only require Java 11+ for `src/main` but Java 19+ is used for `src/test`. This will probably change when we move to Netty 5.
+
 Build the project like this:
 
 ```
@@ -53,6 +55,14 @@ Run the following to add missing license headers e.g. when adding new source fil
 ```
 $ mvn org.commonjava.maven.plugins:directory-maven-plugin:highest-basedir@resolve-rootdir license:format
 ```
+
+### Formatting
+No one likes to argue about code formatting in pull requests, as project we take the stance that if we can't automate the formatting we are not going to argue about it either. Having said that we don't want a mishmash of conflicting styles! So we attack this from multiple angles.
+
+1. Shared Code formatter settings. Included in the repo are code formatter settings for `Eclipse`, `InjtellJ` and `.editorconfig`.
+2. We auto-format code as part of the maven build process (note this is driven from the Eclipse formatting config)
+3. The Continuous Integration (CI) job building Pull Requests will fail if there is formatting which doesn't pass our agreed conventions
+4. We apply [Checkstyle](https://checkstyle.org/) validation to the project as well. You can find our [agreed ruleset](etc/checkstyle-custom_checks.xml) in the `etc` folder. We bind checkstyle to the `verify` phase of the build so `mvn clean verify` will 
 
 ## Run
 

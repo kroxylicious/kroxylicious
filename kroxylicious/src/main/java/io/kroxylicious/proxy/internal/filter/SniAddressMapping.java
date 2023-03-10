@@ -14,7 +14,7 @@ class SniAddressMapping implements AddressMapping {
     private final String targetHost;
     private final int targetPort;
 
-    public SniAddressMapping(ProxyConfig config) {
+    SniAddressMapping(ProxyConfig config) {
         String proxyAddress = config.address();
         String[] proxyAddressParts = proxyAddress.split(":");
 

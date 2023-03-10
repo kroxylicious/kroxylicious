@@ -97,8 +97,9 @@ public class ByteBufOutputStream extends ByteBufferOutputStream {
 
     @Override
     public void ensureRemaining(int remainingBytesRequired) {
-        if (remainingBytesRequired > byteBuf.writableBytes())
+        if (remainingBytesRequired > byteBuf.writableBytes()) {
             expandBuffer(remainingBytesRequired);
+        }
     }
 
     private void expandBuffer(int remainingRequired) {

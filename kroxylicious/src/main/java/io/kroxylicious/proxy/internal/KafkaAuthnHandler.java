@@ -282,7 +282,7 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
         private final String name;
         private final ScramMechanism scramMechanism;
 
-        private SaslMechanism(String saslName, ScramMechanism scramMechanism) {
+        SaslMechanism(String saslName, ScramMechanism scramMechanism) {
             this.name = saslName;
             this.scramMechanism = scramMechanism;
         }

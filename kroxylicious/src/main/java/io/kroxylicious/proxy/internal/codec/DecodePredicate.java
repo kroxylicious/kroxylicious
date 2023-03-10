@@ -20,7 +20,7 @@ import io.kroxylicious.proxy.filter.KrpcFilter;
  * who the authorized user or, or which back-end cluster they're connected to.
  */
 public interface DecodePredicate {
-    public static DecodePredicate forFilters(KrpcFilter... filters) {
+    static DecodePredicate forFilters(KrpcFilter... filters) {
         return new DecodePredicate() {
             @Override
             public boolean shouldDecodeResponse(ApiKeys apiKey, short apiVersion) {
@@ -49,8 +49,8 @@ public interface DecodePredicate {
         };
     }
 
-    public boolean shouldDecodeRequest(ApiKeys apiKey, short apiVersion);
+    boolean shouldDecodeRequest(ApiKeys apiKey, short apiVersion);
 
-    public boolean shouldDecodeResponse(ApiKeys apiKey, short apiVersion);
+    boolean shouldDecodeResponse(ApiKeys apiKey, short apiVersion);
 
 }
