@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1678409957381,
+  "lastUpdate": 1678411415652,
   "repoUrl": "https://github.com/kroxylicious/kroxylicious",
   "entries": {
     "kafka producer perf test Benchmark": [
@@ -110,6 +110,43 @@ window.BENCHMARK_DATA = {
           {
             "name": "99th Latency",
             "value": 664,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Sam Barker",
+            "username": "SamBarker",
+            "email": "sam@quadrocket.co.uk"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "165b4c5555afd43509e3945fa83c3dcdca50270c",
+          "message": "Merge pull request #78 from SamBarker/helloCheckstyle\n\nAdd checkstyle",
+          "timestamp": "2023-03-10T01:14:09Z",
+          "url": "https://github.com/kroxylicious/kroxylicious/commit/165b4c5555afd43509e3945fa83c3dcdca50270c"
+        },
+        "date": 1678411415087,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "AVG Latency",
+            "value": 21.78,
+            "unit": "ms"
+          },
+          {
+            "name": "95th Latency",
+            "value": 44,
+            "unit": "ms"
+          },
+          {
+            "name": "99th Latency",
+            "value": 636,
             "unit": "ms"
           }
         ]
