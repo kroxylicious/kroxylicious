@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1678331776961,
+  "lastUpdate": 1678409957381,
   "repoUrl": "https://github.com/kroxylicious/kroxylicious",
   "entries": {
     "kafka producer perf test Benchmark": [
@@ -73,6 +73,43 @@ window.BENCHMARK_DATA = {
           {
             "name": "99th Latency",
             "value": 505,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Robert Young",
+            "username": "robobario",
+            "email": "robeyoun@redhat.com"
+          },
+          "committer": {
+            "name": "Robert Young",
+            "username": "robobario",
+            "email": "robertyoungnz@gmail.com"
+          },
+          "id": "26e3071dd873fafdbb8673092a5b048c57463c81",
+          "message": "Use a PR ref in the performance action when triggered by PR comment\n\nWhy:\nCurrently the action fails if you comment `/perf` on a PR that exists\nin a remote fork because the checkout action can't checkout the ref\nwe get from the pull-request-comment-branch action\n\nhttps://www.jvt.me/posts/2019/01/19/git-ref-github-pull-requests\n\ngithub creates two refs in the base repository for each PR:\nrefs/pull/123/head\nrefs/pull/123/merge\n\nWe can checkout refs/pull/123/head instead of using the github API to\nlookup the ref associated with the PR",
+          "timestamp": "2023-03-09T08:29:28Z",
+          "url": "https://github.com/kroxylicious/kroxylicious/commit/26e3071dd873fafdbb8673092a5b048c57463c81"
+        },
+        "date": 1678409956414,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "AVG Latency",
+            "value": 140.39,
+            "unit": "ms"
+          },
+          {
+            "name": "95th Latency",
+            "value": 606,
+            "unit": "ms"
+          },
+          {
+            "name": "99th Latency",
+            "value": 664,
             "unit": "ms"
           }
         ]
