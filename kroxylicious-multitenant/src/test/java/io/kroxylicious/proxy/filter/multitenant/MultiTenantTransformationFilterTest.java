@@ -32,6 +32,10 @@ import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.MetadataRequestDataJsonConverter;
 import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.message.MetadataResponseDataJsonConverter;
+import org.apache.kafka.common.message.OffsetFetchRequestData;
+import org.apache.kafka.common.message.OffsetFetchRequestDataJsonConverter;
+import org.apache.kafka.common.message.OffsetFetchResponseData;
+import org.apache.kafka.common.message.OffsetFetchResponseDataJsonConverter;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.ProduceRequestDataJsonConverter;
 import org.apache.kafka.common.message.ProduceResponseData;
@@ -105,6 +109,12 @@ class MultiTenantTransformationFilterTest {
                     ListOffsetsResponseDataJsonConverter::read,
                     (o, ver) -> ListOffsetsRequestDataJsonConverter.write(((ListOffsetsRequestData) o), ver),
                     (o, ver) -> ListOffsetsResponseDataJsonConverter.write(((ListOffsetsResponseData) o), ver)
+            ),
+            ApiMessageType.OFFSET_FETCH, new Converters(
+                    OffsetFetchRequestDataJsonConverter::read,
+                    OffsetFetchResponseDataJsonConverter::read,
+                    (o, ver) -> OffsetFetchRequestDataJsonConverter.write(((OffsetFetchRequestData) o), ver),
+                    (o, ver) -> OffsetFetchResponseDataJsonConverter.write(((OffsetFetchResponseData) o), ver)
             )
             );
 
