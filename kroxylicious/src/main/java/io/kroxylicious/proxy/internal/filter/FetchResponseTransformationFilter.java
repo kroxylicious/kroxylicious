@@ -31,7 +31,6 @@ import org.slf4j.LoggerFactory;
 import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.filter.FetchResponseFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
-import io.kroxylicious.proxy.future.Future;
 import io.kroxylicious.proxy.internal.util.MemoryRecordsHelper;
 
 /**
@@ -84,10 +83,10 @@ public class FetchResponseTransformationFilter implements FetchResponseFilter {
         if (!requestTopics.isEmpty()) {
             LOGGER.debug("Fetch response contains {} unknown topic ids, lookup via Metadata request: {}", requestTopics.size(), requestTopics);
             // TODO Can't necessarily use HIGHEST_SUPPORTED_VERSION, must use highest supported version
-            Future.fromCompletionStage(context.<MetadataResponseData> sendRequest(MetadataRequestData.HIGHEST_SUPPORTED_VERSION,
+            context.<MetadataResponseData> sendRequest(MetadataRequestData.HIGHEST_SUPPORTED_VERSION,
                     new MetadataRequestData()
-                            .setTopics(requestTopics)))
-                    .map(metadataResponse -> {
+                            .setTopics(requestTopics))
+                    .thenAccept(metadataResponse -> {
                         Map<Uuid, String> uidToName = metadataResponse.topics().stream().collect(Collectors.toMap(ti -> ti.topicId(), ti -> ti.name()));
                         LOGGER.debug("Metadata response yields {}, updating original Fetch response", uidToName);
                         for (var fetchableTopicResponse : fetchResponse.responses()) {
@@ -96,7 +95,6 @@ public class FetchResponseTransformationFilter implements FetchResponseFilter {
                         applyTransformation(context, fetchResponse);
                         LOGGER.debug("Forwarding original Fetch response");
                         context.forwardResponse(fetchResponse);
-                        return (Void) null;
                     });
         }
         else {
