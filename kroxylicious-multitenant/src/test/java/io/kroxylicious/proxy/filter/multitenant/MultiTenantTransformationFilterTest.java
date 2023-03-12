@@ -24,6 +24,14 @@ import org.apache.kafka.common.message.DeleteTopicsRequestData;
 import org.apache.kafka.common.message.DeleteTopicsRequestDataJsonConverter;
 import org.apache.kafka.common.message.DeleteTopicsResponseData;
 import org.apache.kafka.common.message.DeleteTopicsResponseDataJsonConverter;
+import org.apache.kafka.common.message.MetadataRequestData;
+import org.apache.kafka.common.message.MetadataRequestDataJsonConverter;
+import org.apache.kafka.common.message.MetadataResponseData;
+import org.apache.kafka.common.message.MetadataResponseDataJsonConverter;
+import org.apache.kafka.common.message.ProduceRequestData;
+import org.apache.kafka.common.message.ProduceRequestDataJsonConverter;
+import org.apache.kafka.common.message.ProduceResponseData;
+import org.apache.kafka.common.message.ProduceResponseDataJsonConverter;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
@@ -74,7 +82,21 @@ class MultiTenantTransformationFilterTest {
                     DeleteTopicsRequestDataJsonConverter::read,
                     DeleteTopicsResponseDataJsonConverter::read,
                     (o, ver) -> DeleteTopicsRequestDataJsonConverter.write(((DeleteTopicsRequestData) o), ver),
-                    (o, ver) -> DeleteTopicsResponseDataJsonConverter.write(((DeleteTopicsResponseData) o), ver)));
+                    (o, ver) -> DeleteTopicsResponseDataJsonConverter.write(((DeleteTopicsResponseData) o), ver)
+            ),
+            ApiMessageType.METADATA, new Converters(
+                    MetadataRequestDataJsonConverter::read,
+                    MetadataResponseDataJsonConverter::read,
+                    (o, ver) -> MetadataRequestDataJsonConverter.write(((MetadataRequestData) o), ver),
+                    (o, ver) -> MetadataResponseDataJsonConverter.write(((MetadataResponseData) o), ver)
+            ),
+            ApiMessageType.PRODUCE, new Converters(
+                    ProduceRequestDataJsonConverter::read,
+                    ProduceResponseDataJsonConverter::read,
+                    (o, ver) -> ProduceRequestDataJsonConverter.write(((ProduceRequestData) o), ver),
+                    (o, ver) -> ProduceResponseDataJsonConverter.write(((ProduceResponseData) o), ver)
+            ));
+
     private static Stream<RequestResponseTestDef> requestResponseTestDefinitions() throws Exception {
         return ClassPath.from(MultiTenantTransformationFilterTest.class.getClassLoader()).getResources().stream()
                 .filter(ri -> TEST_RESOURCE_FILTER.matcher(ri.getResourceName()).matches())

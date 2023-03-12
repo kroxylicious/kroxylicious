@@ -1,0 +1,49 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+- apiMessageType: METADATA
+  version: 12
+  request:
+    payload:
+      topics:
+        - name: foo
+          topicId: AAAAAAAAAAAAAAAAAAAAAA
+      allowAutoTopicCreation: true
+      includeTopicAuthorizedOperations: true
+    diff:
+      - op: replace
+        path: "/topics/0/name"
+        value: tenant1-foo
+  response:
+    payload:
+      topics:
+        - name: tenant1-foo
+          topicId: AAAAAAAAAAAAAAAAAAAAAA
+          isInternal: false
+          topicAuthorizedOperations: 0
+          errorCode: 0
+          errorMessage:
+          partitions:
+            - partitionIndex: 0
+              leaderId: 1
+              leaderEpoch: 1
+              replicaNodes: []
+              isrNodes: []
+              offlineReplicas: []
+              errorCode: 0
+      brokers:
+        - nodeId: 1
+          host: localhost
+          port: 9999
+          rack: us-east1
+      clusterId: AAAAAAAAAAAAAAAAAAAAAA
+      controllerId: 1
+      throttleTimeMs: 0
+    diff:
+      - op: replace
+        path: "/topics/0/name"
+        value: foo
+  disabled: false
