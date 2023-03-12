@@ -79,7 +79,7 @@ import static org.mockito.Mockito.when;
 class MultiTenantTransformationFilterTest {
     private static final Pattern TEST_RESOURCE_FILTER = Pattern.compile(
             String.format("%s/.*\\.yaml", MultiTenantTransformationFilterTest.class.getPackageName().replace(".", "/")));
-    private  static final ObjectMapper MAPPER = new ObjectMapper(new YAMLFactory());
+    private static final ObjectMapper MAPPER = new ObjectMapper(new YAMLFactory());
 
     private record ApiMessageTestDef(ApiMessage message, JsonNode expectedPatch) {
     }
@@ -98,57 +98,47 @@ class MultiTenantTransformationFilterTest {
                     CreateTopicsRequestDataJsonConverter::read,
                     CreateTopicsResponseDataJsonConverter::read,
                     (o, ver) -> CreateTopicsRequestDataJsonConverter.write(((CreateTopicsRequestData) o), ver),
-                    (o, ver) -> CreateTopicsResponseDataJsonConverter.write(((CreateTopicsResponseData) o), ver)
-            ),
+                    (o, ver) -> CreateTopicsResponseDataJsonConverter.write(((CreateTopicsResponseData) o), ver)),
             ApiMessageType.DELETE_TOPICS, new Converters(
                     DeleteTopicsRequestDataJsonConverter::read,
                     DeleteTopicsResponseDataJsonConverter::read,
                     (o, ver) -> DeleteTopicsRequestDataJsonConverter.write(((DeleteTopicsRequestData) o), ver),
-                    (o, ver) -> DeleteTopicsResponseDataJsonConverter.write(((DeleteTopicsResponseData) o), ver)
-            ),
+                    (o, ver) -> DeleteTopicsResponseDataJsonConverter.write(((DeleteTopicsResponseData) o), ver)),
             ApiMessageType.METADATA, new Converters(
                     MetadataRequestDataJsonConverter::read,
                     MetadataResponseDataJsonConverter::read,
                     (o, ver) -> MetadataRequestDataJsonConverter.write(((MetadataRequestData) o), ver),
-                    (o, ver) -> MetadataResponseDataJsonConverter.write(((MetadataResponseData) o), ver)
-            ),
+                    (o, ver) -> MetadataResponseDataJsonConverter.write(((MetadataResponseData) o), ver)),
             ApiMessageType.PRODUCE, new Converters(
                     ProduceRequestDataJsonConverter::read,
                     ProduceResponseDataJsonConverter::read,
                     (o, ver) -> ProduceRequestDataJsonConverter.write(((ProduceRequestData) o), ver),
-                    (o, ver) -> ProduceResponseDataJsonConverter.write(((ProduceResponseData) o), ver)
-            ),
+                    (o, ver) -> ProduceResponseDataJsonConverter.write(((ProduceResponseData) o), ver)),
             ApiMessageType.LIST_OFFSETS, new Converters(
                     ListOffsetsRequestDataJsonConverter::read,
                     ListOffsetsResponseDataJsonConverter::read,
                     (o, ver) -> ListOffsetsRequestDataJsonConverter.write(((ListOffsetsRequestData) o), ver),
-                    (o, ver) -> ListOffsetsResponseDataJsonConverter.write(((ListOffsetsResponseData) o), ver)
-            ),
+                    (o, ver) -> ListOffsetsResponseDataJsonConverter.write(((ListOffsetsResponseData) o), ver)),
             ApiMessageType.OFFSET_FETCH, new Converters(
                     OffsetFetchRequestDataJsonConverter::read,
                     OffsetFetchResponseDataJsonConverter::read,
                     (o, ver) -> OffsetFetchRequestDataJsonConverter.write(((OffsetFetchRequestData) o), ver),
-                    (o, ver) -> OffsetFetchResponseDataJsonConverter.write(((OffsetFetchResponseData) o), ver)
-            ),
+                    (o, ver) -> OffsetFetchResponseDataJsonConverter.write(((OffsetFetchResponseData) o), ver)),
             ApiMessageType.OFFSET_FOR_LEADER_EPOCH, new Converters(
                     OffsetForLeaderEpochRequestDataJsonConverter::read,
                     OffsetForLeaderEpochResponseDataJsonConverter::read,
                     (o, ver) -> OffsetForLeaderEpochRequestDataJsonConverter.write(((OffsetForLeaderEpochRequestData) o), ver),
-                    (o, ver) -> OffsetForLeaderEpochResponseDataJsonConverter.write(((OffsetForLeaderEpochResponseData) o), ver)
-            ),
+                    (o, ver) -> OffsetForLeaderEpochResponseDataJsonConverter.write(((OffsetForLeaderEpochResponseData) o), ver)),
             ApiMessageType.OFFSET_COMMIT, new Converters(
                     OffsetCommitRequestDataJsonConverter::read,
                     OffsetCommitResponseDataJsonConverter::read,
                     (o, ver) -> OffsetCommitRequestDataJsonConverter.write(((OffsetCommitRequestData) o), ver),
-                    (o, ver) -> OffsetCommitResponseDataJsonConverter.write(((OffsetCommitResponseData) o), ver)
-            ),
+                    (o, ver) -> OffsetCommitResponseDataJsonConverter.write(((OffsetCommitResponseData) o), ver)),
             ApiMessageType.FETCH, new Converters(
                     FetchRequestDataJsonConverter::read,
                     FetchResponseDataJsonConverter::read,
                     (o, ver) -> FetchRequestDataJsonConverter.write(((FetchRequestData) o), ver),
-                    (o, ver) -> FetchResponseDataJsonConverter.write(((FetchResponseData) o), ver)
-            )
-            );
+                    (o, ver) -> FetchResponseDataJsonConverter.write(((FetchResponseData) o), ver)));
 
     private static Stream<RequestResponseTestDef> requestResponseTestDefinitions() throws Exception {
         return ClassPath.from(MultiTenantTransformationFilterTest.class.getClassLoader()).getResources().stream()
@@ -221,11 +211,9 @@ class MultiTenantTransformationFilterTest {
         assertEquals(requestTestDef.expectedPatch(), JsonDiff.asJson(marshalled, filtered));
     }
 
-
     public static Stream<Arguments> responses() throws Exception {
         return requestResponseTestDefinitions().map(t -> Arguments.of(t.apiKey(), t.header(), t.response()));
     }
-
 
     @ParameterizedTest
     @MethodSource
