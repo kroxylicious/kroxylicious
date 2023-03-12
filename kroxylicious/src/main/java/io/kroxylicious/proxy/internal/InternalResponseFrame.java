@@ -12,18 +12,18 @@ import org.apache.kafka.common.protocol.ApiMessage;
 
 import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
-import io.kroxylicious.proxy.future.Promise;
+import io.kroxylicious.proxy.future.BrutalFuture;
 
 public class InternalResponseFrame<B extends ApiMessage> extends DecodedResponseFrame<B> {
 
     private final KrpcFilter recipient;
 
-    private final Promise<? extends Object> promise;
+    private final BrutalFuture<?> future;
 
-    public InternalResponseFrame(KrpcFilter recipient, Promise<?> promise, short apiVersion, int correlationId, ResponseHeaderData header, B body) {
+    public InternalResponseFrame(KrpcFilter recipient, short apiVersion, int correlationId, ResponseHeaderData header, B body, BrutalFuture<?> future) {
         super(apiVersion, correlationId, header, body);
         this.recipient = Objects.requireNonNull(recipient);
-        this.promise = Objects.requireNonNull(promise);
+        this.future = future;
     }
 
     public boolean isRecipient(KrpcFilter candidate) {
@@ -35,15 +35,15 @@ public class InternalResponseFrame<B extends ApiMessage> extends DecodedResponse
     }
 
     @SuppressWarnings("unchecked")
-    public <T extends ApiMessage> Promise<T> promise() {
-        return (Promise<T>) promise;
+    public <T extends ApiMessage> BrutalFuture<T> promise() {
+        return (BrutalFuture<T>) future;
     }
 
     @Override
     public String toString() {
         return "InternalResponseFrame(" +
                 "recipient=" + recipient +
-                ", promise=" + promise +
+                ", promise=" + future +
                 ", apiVersion=" + apiVersion +
                 ", correlationId=" + correlationId +
                 ", header=" + header +

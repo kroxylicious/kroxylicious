@@ -21,7 +21,7 @@ import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
 import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
-import io.kroxylicious.proxy.future.Promise;
+import io.kroxylicious.proxy.future.BrutalFuture;
 import io.kroxylicious.proxy.internal.util.Assertions;
 
 /**
@@ -85,8 +85,8 @@ public class FilterHandler
                         LOGGER.debug("{}: Completing {} response for request sent by this filter{}: {}",
                                 ctx.channel(), decodedFrame.apiKey(), filterDescriptor(), msg);
                     }
-                    Promise<ApiMessage> p = frame.promise();
-                    p.tryComplete(decodedFrame.body());
+                    BrutalFuture<ApiMessage> p = frame.promise();
+                    p.internalComplete(decodedFrame.body());
                 }
                 else {
                     if (LOGGER.isDebugEnabled()) {

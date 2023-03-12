@@ -24,7 +24,7 @@ import io.netty.channel.ChannelPromise;
 import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.proxy.frame.DecodedFrame;
-import io.kroxylicious.proxy.future.Promise;
+import io.kroxylicious.proxy.future.BrutalFuture;
 import io.kroxylicious.proxy.internal.util.ByteBufOutputStream;
 
 /**
@@ -119,7 +119,7 @@ class DefaultFilterContext implements KrpcFilterContext {
         }
         boolean hasResponse = apiKey != ApiKeys.PRODUCE
                 || ((ProduceRequestData) message).acks() != 0;
-        var filterPromise = Promise.<T> promise();
+        var filterPromise = new BrutalFuture<T>();
         var frame = new InternalRequestFrame<>(
                 apiVersion, -1, hasResponse,
                 filter, filterPromise, header, message);
@@ -142,19 +142,19 @@ class DefaultFilterContext implements KrpcFilterContext {
             // when handling the response).
             writePromise.addListener(f -> {
                 if (f.isSuccess()) {
-                    filterPromise.complete(null);
+                    filterPromise.internalComplete(null);
                 }
                 else {
-                    filterPromise.fail(f.cause());
+                    filterPromise.internalCompleteExceptionally(f.cause());
                 }
             });
         }
 
         channelContext.executor().schedule(() -> {
             LOGGER.debug("{}: Timing out {} request after {}ms", channelContext, apiKey, timeoutMs);
-            filterPromise.tryFail(new TimeoutException());
+            filterPromise.internalCompleteExceptionally(new TimeoutException());
         }, timeoutMs, TimeUnit.MILLISECONDS);
-        return filterPromise.future().toCompletionStage();
+        return filterPromise;
     }
 
     /**

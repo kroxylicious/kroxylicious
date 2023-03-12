@@ -14,7 +14,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.filter.KrpcFilter;
-import io.kroxylicious.proxy.future.Promise;
+import io.kroxylicious.proxy.future.BrutalFuture;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 /**
@@ -42,18 +42,20 @@ public class CorrelationManager {
 
     /**
      * Allocate and return a correlation id for an outgoing request to the broker.
-     * @param apiKey The API key.
-     * @param apiVersion The API version.
+     *
+     * @param apiKey                  The API key.
+     * @param apiVersion              The API version.
      * @param downstreamCorrelationId The downstream client's correlation id.
-     * @param decodeResponse Whether the response should be decoded.
-     * @param hasResponse Whether a response is expected.
+     * @param hasResponse             Whether a response is expected.
+     * @param promise
+     * @param decodeResponse          Whether the response should be decoded.
      */
     public int putBrokerRequest(short apiKey,
                                 short apiVersion,
                                 int downstreamCorrelationId,
                                 boolean hasResponse,
                                 KrpcFilter recipient,
-                                Promise<? extends Object> promise,
+                                BrutalFuture<?> promise,
                                 boolean decodeResponse) {
         // need to allocate an id and put in a map for quick lookup, along with the "tag"
         int upstreamCorrelationId = upstreamId++;
@@ -89,14 +91,14 @@ public class CorrelationManager {
         private final int downstreamCorrelationId;
         private final boolean decodeResponse;
         private final KrpcFilter recipient;
-        private final Promise<?> promise;
+        private final BrutalFuture<?> promise;
 
         private Correlation(short apiKey,
                             short apiVersion,
                             int downstreamCorrelationId,
                             boolean decodeResponse,
                             KrpcFilter recipient,
-                            Promise<?> promise) {
+                            BrutalFuture<?> promise) {
             this.apiKey = apiKey;
             this.apiVersion = apiVersion;
             this.downstreamCorrelationId = downstreamCorrelationId;
@@ -155,7 +157,7 @@ public class CorrelationManager {
             return recipient;
         }
 
-        public Promise<?> promise() {
+        public BrutalFuture<?> promise() {
             return promise;
         }
     }
