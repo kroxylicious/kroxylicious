@@ -32,10 +32,18 @@ import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.MetadataRequestDataJsonConverter;
 import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.message.MetadataResponseDataJsonConverter;
+import org.apache.kafka.common.message.OffsetCommitRequestData;
+import org.apache.kafka.common.message.OffsetCommitRequestDataJsonConverter;
+import org.apache.kafka.common.message.OffsetCommitResponseData;
+import org.apache.kafka.common.message.OffsetCommitResponseDataJsonConverter;
 import org.apache.kafka.common.message.OffsetFetchRequestData;
 import org.apache.kafka.common.message.OffsetFetchRequestDataJsonConverter;
 import org.apache.kafka.common.message.OffsetFetchResponseData;
 import org.apache.kafka.common.message.OffsetFetchResponseDataJsonConverter;
+import org.apache.kafka.common.message.OffsetForLeaderEpochRequestData;
+import org.apache.kafka.common.message.OffsetForLeaderEpochRequestDataJsonConverter;
+import org.apache.kafka.common.message.OffsetForLeaderEpochResponseData;
+import org.apache.kafka.common.message.OffsetForLeaderEpochResponseDataJsonConverter;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.ProduceRequestDataJsonConverter;
 import org.apache.kafka.common.message.ProduceResponseData;
@@ -115,6 +123,18 @@ class MultiTenantTransformationFilterTest {
                     OffsetFetchResponseDataJsonConverter::read,
                     (o, ver) -> OffsetFetchRequestDataJsonConverter.write(((OffsetFetchRequestData) o), ver),
                     (o, ver) -> OffsetFetchResponseDataJsonConverter.write(((OffsetFetchResponseData) o), ver)
+            ),
+            ApiMessageType.OFFSET_FOR_LEADER_EPOCH, new Converters(
+                    OffsetForLeaderEpochRequestDataJsonConverter::read,
+                    OffsetForLeaderEpochResponseDataJsonConverter::read,
+                    (o, ver) -> OffsetForLeaderEpochRequestDataJsonConverter.write(((OffsetForLeaderEpochRequestData) o), ver),
+                    (o, ver) -> OffsetForLeaderEpochResponseDataJsonConverter.write(((OffsetForLeaderEpochResponseData) o), ver)
+            ),
+            ApiMessageType.OFFSET_COMMIT, new Converters(
+                    OffsetCommitRequestDataJsonConverter::read,
+                    OffsetCommitResponseDataJsonConverter::read,
+                    (o, ver) -> OffsetCommitRequestDataJsonConverter.write(((OffsetCommitRequestData) o), ver),
+                    (o, ver) -> OffsetCommitResponseDataJsonConverter.write(((OffsetCommitResponseData) o), ver)
             )
             );
 
