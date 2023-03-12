@@ -10,6 +10,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -54,7 +55,6 @@ import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.internal.KafkaAuthnHandler.SaslMechanism;
 import io.kroxylicious.proxy.internal.codec.CorrelationManager;
-import io.kroxylicious.proxy.internal.future.PromiseImpl;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -201,7 +201,6 @@ public class KafkaAuthnHandlerTest {
                 .setRequestApiVersion(apiVersion)
                 .setClientId("client-id")
                 .setCorrelationId(downstreamCorrelationId);
-
         correlationManager.putBrokerRequest(body.apiKey(), apiVersion, downstreamCorrelationId, true, new KrpcFilter() {
             @Override
             public void onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
@@ -215,7 +214,7 @@ public class KafkaAuthnHandlerTest {
             public boolean shouldDeserializeResponse(ApiKeys apiKey, short apiVersion) {
                 return true;
             }
-        }, new PromiseImpl<>(), true);
+        }, new CompletableFuture<>(), true);
 
         channel.writeInbound(new DecodedRequestFrame<>(apiVersion, corrId, true, header, body));
     }

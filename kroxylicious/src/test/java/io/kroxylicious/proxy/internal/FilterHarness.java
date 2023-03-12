@@ -5,6 +5,8 @@
  */
 package io.kroxylicious.proxy.internal;
 
+import java.util.concurrent.CompletableFuture;
+
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
@@ -16,7 +18,6 @@ import io.netty.channel.embedded.EmbeddedChannel;
 import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
-import io.kroxylicious.proxy.future.Promise;
 
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -87,18 +88,17 @@ public abstract class FilterHarness {
 
     /**
      * Write a response for a filter-originated request, as if from the broker.
-     * @param promise The promise that was returned from
-     * {@link io.kroxylicious.proxy.filter.KrpcFilterContext#sendRequest(short, ApiMessage)}.
      * @param data The body of the response.
+     * @param future
      * @return The frame that was written.
      * @param <B> The type of the response body.
      */
-    protected <B extends ApiMessage> DecodedResponseFrame<B> writeInternalResponse(Promise<?> promise, B data) {
+    protected <B extends ApiMessage> DecodedResponseFrame<B> writeInternalResponse(B data, CompletableFuture<?> future) {
         var apiKey = ApiKeys.forId(data.apiKey());
         var header = new ResponseHeaderData();
         int correlationId = 42;
         header.setCorrelationId(correlationId);
-        var frame = new InternalResponseFrame<>(filter, promise, apiKey.latestVersion(), correlationId, header, data);
+        var frame = new InternalResponseFrame<>(filter, apiKey.latestVersion(), correlationId, header, data, future);
         channel.writeInbound(frame);
         return frame;
     }

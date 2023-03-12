@@ -5,7 +5,10 @@
  */
 package io.kroxylicious.proxy.internal;
 
-import org.apache.kafka.common.errors.TimeoutException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ExecutionException;
+
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.FetchRequestData;
@@ -20,14 +23,9 @@ import org.junit.jupiter.api.Test;
 import io.kroxylicious.proxy.filter.ApiVersionsRequestFilter;
 import io.kroxylicious.proxy.filter.ApiVersionsResponseFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
-import io.kroxylicious.proxy.future.Future;
-import io.kroxylicious.proxy.future.Promise;
+import io.kroxylicious.proxy.future.InternalCompletionStage;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class FilterHandlerTest extends FilterHarness {
 
@@ -62,7 +60,8 @@ public class FilterHandlerTest extends FilterHarness {
     @Test
     public void testDropRequest() {
         ApiVersionsRequestFilter filter = (header, request, context) -> {
-            /* don't call forwardRequest => drop the request */ };
+            /* don't call forwardRequest => drop the request */
+        };
         buildChannel(filter);
         var frame = writeRequest(new ApiVersionsRequestData());
     }
@@ -98,7 +97,8 @@ public class FilterHandlerTest extends FilterHarness {
     @Test
     public void testDropResponse() {
         ApiVersionsResponseFilter filter = (header, response, context) -> {
-            /* don't call forwardRequest => drop the request */ };
+            /* don't call forwardRequest => drop the request */
+        };
         buildChannel(filter);
         var frame = writeResponse(new ApiVersionsResponseData());
     }
@@ -106,11 +106,11 @@ public class FilterHandlerTest extends FilterHarness {
     @Test
     public void testSendRequest() {
         FetchRequestData body = new FetchRequestData();
-        Future<?>[] fut = { null };
+        InternalCompletionStage<ApiMessage>[] fut = new InternalCompletionStage[]{ null };
         ApiVersionsRequestFilter filter = (header, request, context) -> {
             assertNull(fut[0],
                     "Expected to only be called once");
-            fut[0] = Future.fromCompletionStage(context.sendRequest((short) 3, body));
+            fut[0] = (InternalCompletionStage<ApiMessage>) context.sendRequest((short) 3, body);
         };
 
         buildChannel(filter);
@@ -121,16 +121,54 @@ public class FilterHandlerTest extends FilterHarness {
         assertEquals(body, ((InternalRequestFrame<?>) propagated).body(),
                 "Expect the body to be the Fetch request");
 
-        assertFalse(fut[0].isComplete(),
+        InternalCompletionStage<ApiMessage> completionStage = fut[0];
+        CompletableFuture<ApiMessage> future = toCompletableFuture(completionStage);
+        assertFalse(future.isDone(),
                 "Future should not be finished yet");
 
         // test the response path
-        Promise<?> p = (Promise<?>) fut[0];
-        var responseFrame = writeInternalResponse(p, new FetchResponseData());
-        assertTrue(fut[0].isComplete(),
+        CompletableFuture<ApiMessage> futu = new CompletableFuture<>();
+        var responseFrame = writeInternalResponse(new FetchResponseData(), futu);
+        assertTrue(futu.isDone(),
                 "Future should be finished now");
-        assertEquals(responseFrame.body(), fut[0].result(),
+        assertEquals(responseFrame.body(), futu.getNow(null),
                 "Expect the body that was sent");
+    }
+
+    private static CompletableFuture<ApiMessage> toCompletableFuture(CompletionStage<ApiMessage> completionStage) {
+        CompletableFuture<ApiMessage> future = new CompletableFuture<>();
+        completionStage.whenComplete((o, throwable) -> {
+            if (throwable != null) {
+                future.completeExceptionally(throwable);
+            }
+            else {
+                future.complete(o);
+            }
+        });
+        return future;
+    }
+
+    @Test
+    public void testSendRequestCompletionStageCannotBeConvertedToFuture() {
+        FetchRequestData body = new FetchRequestData();
+        CompletionStage<?>[] fut = { null };
+        ApiVersionsRequestFilter filter = (header, request, context) -> {
+            assertNull(fut[0],
+                    "Expected to only be called once");
+            fut[0] = context.sendRequest((short) 3, body);
+        };
+
+        buildChannel(filter);
+
+        var frame = writeRequest(new ApiVersionsRequestData());
+        var propagated = channel.readOutbound();
+        assertTrue(propagated instanceof InternalRequestFrame);
+        assertEquals(body, ((InternalRequestFrame<?>) propagated).body(),
+                "Expect the body to be the Fetch request");
+
+        assertThrows(UnsupportedOperationException.class, () -> {
+            fut[0].toCompletableFuture();
+        });
     }
 
     /**
@@ -139,13 +177,13 @@ public class FilterHandlerTest extends FilterHarness {
      * with acks=0 Produce requests.
      */
     @Test
-    public void testSendAcklessProduceRequest() {
+    public void testSendAcklessProduceRequest() throws ExecutionException, InterruptedException {
         ProduceRequestData body = new ProduceRequestData().setAcks((short) 0);
-        Future<?>[] fut = { null };
+        CompletionStage<ApiMessage>[] fut = new CompletionStage[]{ null };
         ApiVersionsRequestFilter filter = (header, request, context) -> {
             assertNull(fut[0],
                     "Expected to only be called once");
-            fut[0] = Future.fromCompletionStage(context.sendRequest((short) 3, body));
+            fut[0] = context.sendRequest((short) 3, body);
         };
 
         buildChannel(filter);
@@ -156,22 +194,25 @@ public class FilterHandlerTest extends FilterHarness {
         assertEquals(body, ((InternalRequestFrame<?>) propagated).body(),
                 "Expect the body to be the Fetch request");
 
-        assertTrue(fut[0].isComplete(),
+        CompletableFuture<ApiMessage> future = toCompletableFuture(fut[0]);
+        assertTrue(future.isDone(),
                 "Future should be done");
-        assertTrue(fut[0].succeeded(),
+        assertFalse(future.isCompletedExceptionally(),
                 "Future should be successful");
-        assertNull(fut[0].result(),
+        CompletableFuture<Object> blocking = new CompletableFuture<>();
+        fut[0].thenApply(blocking::complete);
+        assertNull(blocking.get(),
                 "Value should be null");
     }
 
     @Test
     public void testSendRequestTimeout() throws InterruptedException {
         FetchRequestData body = new FetchRequestData();
-        Future<?>[] fut = { null };
+        CompletionStage<ApiMessage>[] fut = new CompletionStage[]{ null };
         ApiVersionsRequestFilter filter = (header, request, context) -> {
             assertNull(fut[0],
                     "Expected to only be called once");
-            fut[0] = Future.fromCompletionStage(context.sendRequest((short) 3, body));
+            fut[0] = context.sendRequest((short) 3, body);
         };
 
         buildChannel(filter, 50L);
@@ -182,29 +223,20 @@ public class FilterHandlerTest extends FilterHarness {
         assertEquals(body, ((InternalRequestFrame<?>) propagated).body(),
                 "Expect the body to be the Fetch request");
 
-        Future<?> p = (Future<?>) fut[0];
-        assertFalse(p.isComplete(),
+        CompletionStage<ApiMessage> p = fut[0];
+        CompletableFuture<ApiMessage> q = toCompletableFuture(p);
+        assertFalse(q.isDone(),
                 "Future should not be finished yet");
 
         // timeout the request
         Thread.sleep(60L);
         channel.runPendingTasks();
 
-        assertTrue(p.isComplete(),
+        assertTrue(q.isDone(),
                 "Future should be finished yet");
-        assertTrue(p.failed(),
+        assertTrue(q.isCompletedExceptionally(),
                 "Future should be finished yet");
-        assertTrue(p.cause() instanceof TimeoutException,
-                "Cause should be timeout");
-
-        // check that when the response arrives late, the promise result doesn't change
-        var responseFrame = writeInternalResponse((Promise<?>) p, new FetchResponseData());
-        assertTrue(p.isComplete(),
-                "Future should be finished now");
-        assertTrue(p.failed(),
-                "Future should be finished yet");
-        assertTrue(p.cause() instanceof TimeoutException,
-                "Cause should be timeout");
+        assertThrows(ExecutionException.class, q::get);
     }
 
 }

@@ -6,6 +6,7 @@
 package io.kroxylicious.proxy.internal;
 
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.slf4j.Logger;
@@ -21,7 +22,6 @@ import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
 import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
-import io.kroxylicious.proxy.future.Promise;
 import io.kroxylicious.proxy.internal.util.Assertions;
 
 /**
@@ -85,8 +85,8 @@ public class FilterHandler
                         LOGGER.debug("{}: Completing {} response for request sent by this filter{}: {}",
                                 ctx.channel(), decodedFrame.apiKey(), filterDescriptor(), msg);
                     }
-                    Promise<ApiMessage> p = frame.promise();
-                    p.tryComplete(decodedFrame.body());
+                    CompletableFuture<ApiMessage> p = frame.promise();
+                    p.complete(decodedFrame.body());
                 }
                 else {
                     if (LOGGER.isDebugEnabled()) {
