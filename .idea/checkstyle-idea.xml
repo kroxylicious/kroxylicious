@@ -1,14 +1,24 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="CheckStyle-IDEA" serialisationVersion="2">
-    <checkstyleVersion>10.3.1</checkstyleVersion>
-    <scanScope>JavaOnly</scanScope>
+    <checkstyleVersion>10.7.0</checkstyleVersion>
+    <scanScope>JavaOnlyWithTests</scanScope>
     <option name="thirdPartyClasspath" />
-    <option name="activeLocationIds" />
+    <option name="activeLocationIds">
+      <option value="4134d36d-9580-44e5-ac16-ba5135e0e096" />
+    </option>
     <option name="locations">
       <list>
         <ConfigurationLocation id="bundled-sun-checks" type="BUNDLED" scope="All" description="Sun Checks">(bundled)</ConfigurationLocation>
         <ConfigurationLocation id="bundled-google-checks" type="BUNDLED" scope="All" description="Google Checks">(bundled)</ConfigurationLocation>
+        <ConfigurationLocation id="4134d36d-9580-44e5-ac16-ba5135e0e096" type="PROJECT_RELATIVE" scope="All" description="Kroxylicious Custom Checks">
+          $PROJECT_DIR$/etc/checkstyle-custom_checks.xml
+          <option name="properties">
+            <map>
+              <entry key="checkstyle.suppressions.file" value="etc/checkstyle-suppressions.xml" />
+            </map>
+          </option>
+        </ConfigurationLocation>
       </list>
     </option>
   </component>
