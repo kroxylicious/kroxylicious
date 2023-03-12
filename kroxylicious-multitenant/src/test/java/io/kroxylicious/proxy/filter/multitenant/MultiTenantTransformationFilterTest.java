@@ -24,6 +24,10 @@ import org.apache.kafka.common.message.DeleteTopicsRequestData;
 import org.apache.kafka.common.message.DeleteTopicsRequestDataJsonConverter;
 import org.apache.kafka.common.message.DeleteTopicsResponseData;
 import org.apache.kafka.common.message.DeleteTopicsResponseDataJsonConverter;
+import org.apache.kafka.common.message.ListOffsetsRequestData;
+import org.apache.kafka.common.message.ListOffsetsRequestDataJsonConverter;
+import org.apache.kafka.common.message.ListOffsetsResponseData;
+import org.apache.kafka.common.message.ListOffsetsResponseDataJsonConverter;
 import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.MetadataRequestDataJsonConverter;
 import org.apache.kafka.common.message.MetadataResponseData;
@@ -95,7 +99,14 @@ class MultiTenantTransformationFilterTest {
                     ProduceResponseDataJsonConverter::read,
                     (o, ver) -> ProduceRequestDataJsonConverter.write(((ProduceRequestData) o), ver),
                     (o, ver) -> ProduceResponseDataJsonConverter.write(((ProduceResponseData) o), ver)
-            ));
+            ),
+            ApiMessageType.LIST_OFFSETS, new Converters(
+                    ListOffsetsRequestDataJsonConverter::read,
+                    ListOffsetsResponseDataJsonConverter::read,
+                    (o, ver) -> ListOffsetsRequestDataJsonConverter.write(((ListOffsetsRequestData) o), ver),
+                    (o, ver) -> ListOffsetsResponseDataJsonConverter.write(((ListOffsetsResponseData) o), ver)
+            )
+            );
 
     private static Stream<RequestResponseTestDef> requestResponseTestDefinitions() throws Exception {
         return ClassPath.from(MultiTenantTransformationFilterTest.class.getClassLoader()).getResources().stream()
