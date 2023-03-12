@@ -60,6 +60,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.mockito.ArgumentCaptor;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -72,6 +73,7 @@ import io.kroxylicious.proxy.filter.KrpcFilterContext;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class MultiTenantTransformationFilterTest {
@@ -91,7 +93,7 @@ class MultiTenantTransformationFilterTest {
                               BiFunction<ApiMessage, Short, JsonNode> responseWriters) {
     }
 
-    private static Map<ApiMessageType, Converters> converters = Map.of(
+    private static final Map<ApiMessageType, Converters> converters = Map.of(
             ApiMessageType.CREATE_TOPICS, new Converters(
                     CreateTopicsRequestDataJsonConverter::read,
                     CreateTopicsResponseDataJsonConverter::read,
@@ -191,7 +193,10 @@ class MultiTenantTransformationFilterTest {
 
     private final MultiTenantTransformationFilter filter = new MultiTenantTransformationFilter();
 
-    private KrpcFilterContext context = mock(KrpcFilterContext.class);
+    private final KrpcFilterContext context = mock(KrpcFilterContext.class);
+
+    private final ArgumentCaptor<ApiMessage> apiMessageCaptor = ArgumentCaptor.forClass(ApiMessage.class);
+
     @BeforeEach
     public void beforeEach() {
         when(context.sniHostname()).thenReturn("tenant1.kafka.example.com");
@@ -210,8 +215,9 @@ class MultiTenantTransformationFilterTest {
         var marshalled = requestWriter.apply(request, header.requestApiVersion());
 
         filter.onRequest(ApiKeys.forId(apiMessageType.apiKey()), header, request, context);
+        verify(context).forwardRequest(apiMessageCaptor.capture());
 
-        var filtered = requestWriter.apply(request, header.requestApiVersion());
+        var filtered = requestWriter.apply(apiMessageCaptor.getValue(), header.requestApiVersion());
         assertEquals(requestTestDef.expectedPatch(), JsonDiff.asJson(marshalled, filtered));
     }
 
@@ -219,6 +225,7 @@ class MultiTenantTransformationFilterTest {
     public static Stream<Arguments> responses() throws Exception {
         return requestResponseTestDefinitions().map(t -> Arguments.of(t.apiKey(), t.header(), t.response()));
     }
+
 
     @ParameterizedTest
     @MethodSource
@@ -230,8 +237,9 @@ class MultiTenantTransformationFilterTest {
         var marshalled = responseWriter.apply(response, header.requestApiVersion());
 
         filter.onResponse(ApiKeys.forId(apiMessageType.apiKey()), new ResponseHeaderData(), response, context);
+        verify(context).forwardResponse(apiMessageCaptor.capture());
 
-        var filtered = responseWriter.apply(responseTestDef.message(), header.requestApiVersion());
+        var filtered = responseWriter.apply(apiMessageCaptor.getValue(), header.requestApiVersion());
         assertEquals(responseTestDef.expectedPatch(), JsonDiff.asJson(marshalled, filtered));
     }
 }
