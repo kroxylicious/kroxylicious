@@ -24,6 +24,10 @@ import org.apache.kafka.common.message.DeleteTopicsRequestData;
 import org.apache.kafka.common.message.DeleteTopicsRequestDataJsonConverter;
 import org.apache.kafka.common.message.DeleteTopicsResponseData;
 import org.apache.kafka.common.message.DeleteTopicsResponseDataJsonConverter;
+import org.apache.kafka.common.message.FetchRequestData;
+import org.apache.kafka.common.message.FetchRequestDataJsonConverter;
+import org.apache.kafka.common.message.FetchResponseData;
+import org.apache.kafka.common.message.FetchResponseDataJsonConverter;
 import org.apache.kafka.common.message.ListOffsetsRequestData;
 import org.apache.kafka.common.message.ListOffsetsRequestDataJsonConverter;
 import org.apache.kafka.common.message.ListOffsetsResponseData;
@@ -135,6 +139,12 @@ class MultiTenantTransformationFilterTest {
                     OffsetCommitResponseDataJsonConverter::read,
                     (o, ver) -> OffsetCommitRequestDataJsonConverter.write(((OffsetCommitRequestData) o), ver),
                     (o, ver) -> OffsetCommitResponseDataJsonConverter.write(((OffsetCommitResponseData) o), ver)
+            ),
+            ApiMessageType.FETCH, new Converters(
+                    FetchRequestDataJsonConverter::read,
+                    FetchResponseDataJsonConverter::read,
+                    (o, ver) -> FetchRequestDataJsonConverter.write(((FetchRequestData) o), ver),
+                    (o, ver) -> FetchResponseDataJsonConverter.write(((FetchResponseData) o), ver)
             )
             );
 
