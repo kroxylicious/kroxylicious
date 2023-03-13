@@ -24,7 +24,7 @@ import io.netty.channel.ChannelPromise;
 import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.proxy.frame.DecodedFrame;
-import io.kroxylicious.proxy.future.BrutalFuture;
+import io.kroxylicious.proxy.future.InternalFuture;
 import io.kroxylicious.proxy.internal.util.ByteBufOutputStream;
 
 /**
@@ -119,7 +119,7 @@ class DefaultFilterContext implements KrpcFilterContext {
         }
         boolean hasResponse = apiKey != ApiKeys.PRODUCE
                 || ((ProduceRequestData) message).acks() != 0;
-        var filterPromise = new BrutalFuture<T>();
+        var filterPromise = new InternalFuture<T>();
         var frame = new InternalRequestFrame<>(
                 apiVersion, -1, hasResponse,
                 filter, filterPromise, header, message);

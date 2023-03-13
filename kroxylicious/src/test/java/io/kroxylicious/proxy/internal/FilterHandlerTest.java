@@ -23,7 +23,7 @@ import org.junit.jupiter.api.Test;
 import io.kroxylicious.proxy.filter.ApiVersionsRequestFilter;
 import io.kroxylicious.proxy.filter.ApiVersionsResponseFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
-import io.kroxylicious.proxy.future.BrutalFuture;
+import io.kroxylicious.proxy.future.InternalFuture;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -106,11 +106,11 @@ public class FilterHandlerTest extends FilterHarness {
     @Test
     public void testSendRequest() {
         FetchRequestData body = new FetchRequestData();
-        BrutalFuture<?>[] fut = { null };
+        InternalFuture<?>[] fut = { null };
         ApiVersionsRequestFilter filter = (header, request, context) -> {
             assertNull(fut[0],
                     "Expected to only be called once");
-            fut[0] = (BrutalFuture<?>) context.sendRequest((short) 3, body);
+            fut[0] = (InternalFuture<?>) context.sendRequest((short) 3, body);
         };
 
         buildChannel(filter);
@@ -125,7 +125,7 @@ public class FilterHandlerTest extends FilterHarness {
                 "Future should not be finished yet");
 
         // test the response path
-        BrutalFuture<?> p = fut[0];
+        InternalFuture<?> p = fut[0];
         var responseFrame = writeInternalResponse(new FetchResponseData(), p);
         assertTrue(fut[0].isDone(),
                 "Future should be finished now");
@@ -247,11 +247,11 @@ public class FilterHandlerTest extends FilterHarness {
     @Test
     public void testSendRequestTimeout() throws InterruptedException {
         FetchRequestData body = new FetchRequestData();
-        BrutalFuture<?>[] fut = { null };
+        InternalFuture<?>[] fut = { null };
         ApiVersionsRequestFilter filter = (header, request, context) -> {
             assertNull(fut[0],
                     "Expected to only be called once");
-            fut[0] = (BrutalFuture<?>) context.sendRequest((short) 3, body);
+            fut[0] = (InternalFuture<?>) context.sendRequest((short) 3, body);
         };
 
         buildChannel(filter, 50L);
@@ -262,7 +262,7 @@ public class FilterHandlerTest extends FilterHarness {
         assertEquals(body, ((InternalRequestFrame<?>) propagated).body(),
                 "Expect the body to be the Fetch request");
 
-        BrutalFuture<?> p = (BrutalFuture<?>) fut[0];
+        InternalFuture<?> p = (InternalFuture<?>) fut[0];
         assertFalse(p.isDone(),
                 "Future should not be finished yet");
 

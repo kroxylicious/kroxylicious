@@ -52,7 +52,7 @@ import io.kroxylicious.proxy.frame.BareSaslRequest;
 import io.kroxylicious.proxy.frame.BareSaslResponse;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
-import io.kroxylicious.proxy.future.BrutalFuture;
+import io.kroxylicious.proxy.future.InternalFuture;
 import io.kroxylicious.proxy.internal.KafkaAuthnHandler.SaslMechanism;
 import io.kroxylicious.proxy.internal.codec.CorrelationManager;
 
@@ -214,7 +214,7 @@ public class KafkaAuthnHandlerTest {
             public boolean shouldDeserializeResponse(ApiKeys apiKey, short apiVersion) {
                 return true;
             }
-        }, new BrutalFuture<>(), true);
+        }, new InternalFuture<>(), true);
 
         channel.writeInbound(new DecodedRequestFrame<>(apiVersion, corrId, true, header, body));
     }
