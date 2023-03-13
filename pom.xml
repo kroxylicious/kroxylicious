@@ -220,14 +220,34 @@
         <pluginManagement>
             <plugins>
                 <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-javadoc-plugin</artifactId>
+                    <version>3.5.0</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-source-plugin</artifactId>
+                    <version>3.2.1</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-gpg-plugin</artifactId>
+                    <version>3.0.1</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-deploy-plugin</artifactId>
+                    <version>3.1.0</version>
+                </plugin>
+                <plugin>
                     <groupId>com.mycila</groupId>
                     <artifactId>license-maven-plugin</artifactId>
                     <version>4.1</version>
                     <configuration>
-                        <!--suppress MavenModelInspection -->
                         <strictCheck>true</strictCheck>
                         <licenseSets>
                             <licenseSet>
+                                <!--suppress MavenModelInspection -->
                                 <header>${rootdir}/etc/license.txt</header>
                                 <excludes>
                                     <exclude>LICENSE.txt</exclude>
@@ -392,12 +412,23 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
-                <version>3.5.0</version>
                 <executions>
                     <execution>
                         <id>attach-javadocs</id>
                         <goals>
                             <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <goals>
+                            <goal>jar-no-fork</goal>
                         </goals>
                     </execution>
                 </executions>
@@ -578,7 +609,6 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-gpg-plugin</artifactId>
-                        <version>3.0.1</version>
                         <executions>
                             <execution>
                                 <id>sign-artifacts</id>
@@ -587,7 +617,8 @@
                                     <goal>sign</goal>
                                 </goals>
                                 <configuration>
-                                    <keyname>F33DF289</keyname>
+                                    <!--suppress UnresolvedMavenProperty -->
+                                    <keyname>${releaseSigningKey}</keyname>
                                 </configuration>
                             </execution>
                         </executions>
@@ -595,7 +626,6 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-deploy-plugin</artifactId>
-                        <version>3.0.0-M1</version>
                         <executions>
                             <execution>
                                 <id>default-deploy</id>
@@ -609,6 +639,26 @@
                                 </goals>
                                 <configuration>
                                     <deployAtEnd>true</deployAtEnd>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-enforcer-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>enforce-property</id>
+                                <goals>
+                                    <goal>enforce</goal>
+                                </goals>
+                                <configuration>
+                                    <rules>
+                                        <requireProperty>
+                                            <property>releaseSigningKey</property>
+                                            <message>You must specify your GPG key when running a release</message>
+                                        </requireProperty>
+                                    </rules>
                                 </configuration>
                             </execution>
                         </executions>
