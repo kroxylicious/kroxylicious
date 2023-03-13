@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 public class ResponseDecoderTest extends AbstractCodecTest {
 
     @ParameterizedTest
-    @MethodSource("requestApiVersions")
+    @MethodSource("requestApiVersions()")
     public void testApiVersionsExactlyOneFrame_decoded(short apiVersion) throws Exception {
         var mgr = new CorrelationManager(12);
         mgr.putBrokerRequest(ApiKeys.API_VERSIONS.id, apiVersion, 52, true, null, null, true);
@@ -34,7 +34,7 @@ public class ResponseDecoderTest extends AbstractCodecTest {
     }
 
     @ParameterizedTest
-    @MethodSource("requestApiVersions")
+    @MethodSource("requestApiVersions()")
     public void testApiVersionsExactlyOneFrame_opaque(short apiVersion) throws Exception {
         var mgr = new CorrelationManager(12);
         mgr.putBrokerRequest(ApiKeys.API_VERSIONS.id, apiVersion, 52, true, null, null, false);
