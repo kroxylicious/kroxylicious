@@ -32,7 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class RequestEncoderTest extends AbstractCodecTest {
 
     @ParameterizedTest
-    @MethodSource("requestApiVersions")
+    @MethodSource("requestApiVersions()")
     public void testApiVersions(short apiVersion) throws Exception {
         RequestHeaderData exampleHeader = exampleRequestHeader(apiVersion);
         ApiVersionsRequestData exampleBody = exampleApiVersionsRequest();
