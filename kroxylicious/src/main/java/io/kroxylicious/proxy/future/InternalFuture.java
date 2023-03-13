@@ -8,6 +8,13 @@ import java.util.concurrent.TimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * A CompletableFuture implementation with guard rails so that Filter Authors are unable
+ * to block the proxy thread loop using the CompletionStage we offer though the kroxylicious
+ * filter api. It also prohibits completion of the future using the methods of `CompletableFuture`
+ * so that we can signal to Filter Authors that they should not complete the future themselves.
+ * @param <T> The result type of the Future
+ */
 public class InternalFuture<T> extends CompletableFuture<T> {
 
     private static final Logger logger = LoggerFactory.getLogger(InternalFuture.class);
