@@ -19,10 +19,6 @@
     <artifactId>integrationtests</artifactId>
     <description>Integration tests where Kroxylicious is tested end-to-end with a real Kafka cluster.</description>
 
-    <properties>
-        <java.version>19</java.version>
-    </properties>
-
     <dependencies>
         <dependency>
             <groupId>io.kroxylicious</groupId>
