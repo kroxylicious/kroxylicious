@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1678411415652,
+  "lastUpdate": 1678746061456,
   "repoUrl": "https://github.com/kroxylicious/kroxylicious",
   "entries": {
     "kafka producer perf test Benchmark": [
@@ -147,6 +147,43 @@ window.BENCHMARK_DATA = {
           {
             "name": "99th Latency",
             "value": 636,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Robert Young",
+            "username": "robobario",
+            "email": "robeyoun@redhat.com"
+          },
+          "committer": {
+            "name": "Robert Young",
+            "username": "robobario",
+            "email": "robertyoungnz@gmail.com"
+          },
+          "id": "d331499423b49effe0e98c413319f1665407f8b6",
+          "message": "Use new MethodSource syntax\n\nThere was a change of behaviour in 5.9.0 where methods with arguments became\nconsidered candidate factory methods causing it to throw exceptions when it was\nambiguous which method was targeted.\n\nhttps://github.com/junit-team/junit5/issues/3080\nhttps://github.com/junit-team/junit5/commit/825ea38857bff2dcbc200c6ceb7972dbc89482b0\nhttps://junit.org/junit5/docs/current/release-notes/index.html#bug-fixes-2",
+          "timestamp": "2023-03-13T20:16:39Z",
+          "url": "https://github.com/kroxylicious/kroxylicious/commit/d331499423b49effe0e98c413319f1665407f8b6"
+        },
+        "date": 1678746059644,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "AVG Latency",
+            "value": 10.5,
+            "unit": "ms"
+          },
+          {
+            "name": "95th Latency",
+            "value": 4,
+            "unit": "ms"
+          },
+          {
+            "name": "99th Latency",
+            "value": 479,
             "unit": "ms"
           }
         ]
