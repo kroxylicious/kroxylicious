@@ -43,4 +43,10 @@ public class InternalFuture<T> extends CompletableFuture<T> {
         logger.debug("Blocking get(timeout, unit) called on InternalFuture, we don't want to block the proxy event loop");
         throw new UnsupportedOperationException("Blocking operations unsupported");
     }
+
+    @Override
+    public T join() {
+        logger.debug("Blocking join called on InternalFuture, we don't want to block the proxy event loop");
+        throw new UnsupportedOperationException("Blocking operations unsupported");
+    }
 }
