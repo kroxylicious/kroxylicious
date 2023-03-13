@@ -17,6 +17,7 @@
     <packaging>pom</packaging>
 
     <properties>
+        <kroxyliciousApiVersion>0.1.0-SNAPSHOT</kroxyliciousApiVersion>
         <java.version>11</java.version>
         <java.test.version>19</java.test.version>
         <maven.compiler.parameters>true</maven.compiler.parameters>
@@ -265,7 +266,7 @@
                 <plugin>
                     <groupId>io.kroxylicious</groupId>
                     <artifactId>kroxylicious-krpc-plugin</artifactId>
-                    <version>1.0-SNAPSHOT</version>
+                    <version>0.1.0</version>
                 </plugin>
                 <plugin>
                     <groupId>net.revelc.code.formatter</groupId>
@@ -305,11 +306,6 @@
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-dependency-plugin</artifactId>
                     <version>3.5.0</version>
-                </plugin>
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-deploy-plugin</artifactId>
-                    <version>3.1.0</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -619,26 +615,6 @@
                                 <configuration>
                                     <!--suppress UnresolvedMavenProperty -->
                                     <keyname>${releaseSigningKey}</keyname>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-deploy-plugin</artifactId>
-                        <executions>
-                            <execution>
-                                <id>default-deploy</id>
-                                <phase>none</phase>
-                            </execution>
-                            <execution>
-                                <id>deploy-artefacts</id>
-                                <phase>deploy</phase>
-                                <goals>
-                                    <goal>deploy</goal>
-                                </goals>
-                                <configuration>
-                                    <deployAtEnd>true</deployAtEnd>
                                 </configuration>
                             </execution>
                         </executions>
