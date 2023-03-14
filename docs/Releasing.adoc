@@ -49,9 +49,10 @@ TIP: To get the short ID for your key `gpg2 --show-keys --keyid-format short $\{
 // .. *TODO*: Using the staging repository to validate the release.
 . `Close` the staging repository in the central Nexus instance, see the https://central.sonatype.org/publish/release/#close-and-drop-or-release-your-staging-repository[Central release docs]. This triggers the promotion from staging to being publicly available on central.
 . Switch to the next version number for development.
-.. `export DEV_VERSION=0.1.0`
-.. `export DEV_API_VERSION=0.1.0`
-.. `mvn versions:set -DnewVersion=$\{DEV_VERSION}`
+.. `export DEV_VERSION=0.1.0-SNAPSHOT`
+.. `export DEV_API_VERSION=0.1.0-SNAPSHOT`
+.. `mvn versions:set -DnewVersion=$\{DEV_VERSION} -pl '!:kroxylicious-api,!:kroxylicious-filter-api'`
+.. `mvn versions:set -DnewVersion=$\{DEV_API_VERSION} -pl ':kroxylicious-api,:kroxylicious-filter-api'`
 .. `mvn versions:set-property -Dproperty=kroxyliciousApi.version -DnewVersion=$\{DEV_API_VERSIION}`
 .. `git add **/pom.xml`
 .. `git commit -m "Next development version v$\{DEV_VERSION}`
