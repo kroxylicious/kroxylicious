@@ -34,7 +34,7 @@ TIP: To get the short ID for your key `gpg2 --show-keys --keyid-format short $\{
 .. `mvn versions:set -DnewVersion=$\{RELEASE_VERSION} -pl '!:kroxylicious-api,!:kroxylicious-filter-api'`
 .. `mvn versions:set -DnewVersion=$\{RELEASE_API_VERSION} -pl ':kroxylicious-api,:kroxylicious-filter-api'`
 .. `mvn versions:set-property -Dproperty=kroxyliciousApi.version -DnewVersion=$\{RELEASE_API_VERSION}`
-.. `mvn clean install`
+.. `mvn clean install -Pquick`
 // .. *TODO*: Should we use the https://maven.apache.org/maven-release/maven-release-plugin[release plug-in] instead? .
 .. `git add **/pom.xml`
 .. `git commit -m "Release version v$\{RELEASE_VERSION}`
