@@ -7,5 +7,9 @@ package io.kroxylicious.proxy.filter;
 
 import io.kroxylicious.proxy.service.Contributor;
 
+/**
+ * FilterContributor is a pluggable source of Kroxylicious filter implementations.
+ * @see Contributor
+ */
 public interface FilterContributor extends Contributor<KrpcFilter> {
 }

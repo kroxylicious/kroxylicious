@@ -15,6 +15,7 @@ import org.apache.kafka.common.utils.ByteBufferOutputStream;
  */
 public interface KrpcFilterContext {
     /**
+     * A description of this channel.
      * @return A description of this channel (typically used for logging).
      */
     String channelDescriptor();
@@ -28,6 +29,7 @@ public interface KrpcFilterContext {
     ByteBufferOutputStream createByteBufferOutputStream(int initialCapacity);
 
     /**
+     * The SNI hostname provided by the client, if any.
      * @return the SNI hostname provided by the client.  Will be null if the client is
      * using a non-TLS connection or the TLS client hello didn't provide one.
      */
@@ -49,6 +51,7 @@ public interface KrpcFilterContext {
      * @param apiVersion The version of the request to use
      * @param request The request to send.
      * @param <T> The type of the response
+     * @return CompletionStage providing the response.
      */
     <T extends ApiMessage> CompletionStage<T> sendRequest(short apiVersion, ApiMessage request);
 

@@ -124,7 +124,7 @@ public /* sealed */ interface KrpcFilter /* TODO permits ... */ {
      * </ol>
      * @param apiKey The API key
      * @param apiVersion The API version
-     * @return
+     * @return true if request should be deserialized
      */
     default boolean shouldDeserializeRequest(ApiKeys apiKey, short apiVersion) {
         switch (apiKey) {
@@ -153,7 +153,7 @@ public /* sealed */ interface KrpcFilter /* TODO permits ... */ {
      * </ol>
      * @param apiKey The API key
      * @param apiVersion The API version
-     * @return
+     * @return true if response should be deserialized
      */
     default boolean shouldDeserializeResponse(ApiKeys apiKey, short apiVersion) {
         switch (apiKey) {
