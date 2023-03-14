@@ -28,12 +28,12 @@
         <dependency>
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-api</artifactId>
-            <version>${kroxyliciousApiVersion}</version>
+            <version>${kroxyliciousApi.version}</version>
         </dependency>
         <dependency>
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-filter-api</artifactId>
-            <version>${kroxyliciousApiVersion}</version>
+            <version>${kroxyliciousApi.version}</version>
         </dependency>
     </dependencies>
 </project>

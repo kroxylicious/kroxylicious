@@ -31,12 +31,12 @@
         <dependency>
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-api</artifactId>
-            <version>${kroxyliciousApiVersion}</version>
+            <version>${kroxyliciousApi.version}</version>
         </dependency>
         <dependency>
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-filter-api</artifactId>
-            <version>${kroxyliciousApiVersion}</version>
+            <version>${kroxyliciousApi.version}</version>
         </dependency>
         <!-- We depend on the specific Netty dependencies not netty-all to reduce the size of fatjars -->
         <dependency>

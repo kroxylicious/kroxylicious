@@ -27,10 +27,13 @@ TIP: To get the short ID for your key `gpg2 --show-keys --keyid-format short $\{
 . `mvn clean install`
 .. We are looking for a clean and green build.
 .. If it's not, shout scream and swear.
-.* Think *very very* carefully if its worth proceeding. Releases are forever!
+.. Think *very very* carefully if its worth proceeding. Releases are forever!
 . Switch to the release version number.
 .. `export RELEASE_VERSION=0.1.0`
-.. `mvn versions:set -DnewVersion=$\{RELEASE_VERSION}`
+.. `export RELEASE_API_VERSION=0.1.0`
+.. `mvn versions:set -DnewVersion=$\{RELEASE_VERSION} -pl '!:kroxylicious-api,!:kroxylicious-filter-api'`
+.. `mvn versions:set -DnewVersion=$\{RELEASE_API_VERSION} -pl ':kroxylicious-api,:kroxylicious-filter-api'`
+.. `mvn versions:set-property -Dproperty=kroxyliciousApi.version -DnewVersion=$\{RELEASE_API_VERSION}`
 .. `mvn clean install`
 // .. *TODO*: Should we use the https://maven.apache.org/maven-release/maven-release-plugin[release plug-in] instead? .
 .. `git add **/pom.xml`
@@ -47,7 +50,9 @@ TIP: To get the short ID for your key `gpg2 --show-keys --keyid-format short $\{
 . `Close` the staging repository in the central Nexus instance, see the https://central.sonatype.org/publish/release/#close-and-drop-or-release-your-staging-repository[Central release docs]. This triggers the promotion from staging to being publicly available on central.
 . Switch to the next version number for development.
 .. `export DEV_VERSION=0.1.0`
+.. `export DEV_API_VERSION=0.1.0`
 .. `mvn versions:set -DnewVersion=$\{DEV_VERSION}`
+.. `mvn versions:set-property -Dproperty=kroxyliciousApi.version -DnewVersion=$\{DEV_API_VERSIION}`
 .. `git add **/pom.xml`
 .. `git commit -m "Next development version v$\{DEV_VERSION}`
 .. `git push`
