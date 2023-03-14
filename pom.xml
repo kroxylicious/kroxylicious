@@ -13,10 +13,11 @@
 
     <groupId>io.kroxylicious</groupId>
     <artifactId>kroxylicious-parent</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>0.1.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <properties>
+        <kroxyliciousApi.version>0.1.0-SNAPSHOT</kroxyliciousApi.version>
         <java.version>11</java.version>
         <java.test.version>19</java.test.version>
         <maven.compiler.parameters>true</maven.compiler.parameters>
@@ -52,7 +53,7 @@
     <name>Kroxylicious Parent</name>
     <description>A proof-of-concept for a Kafka wire protocol proxy</description>
     <inceptionYear>2021</inceptionYear>
-    <url>https://github.com/kroxylicious</url>
+    <url>https://kroxylicious.io/kroxylicious/</url>
 
     <licenses>
         <license>
@@ -62,6 +63,46 @@
         </license>
     </licenses>
 
+    <developers>
+        <developer>
+            <name>Tom Bentley</name>
+            <email>tbentley@redhat.com</email>
+            <organization>Red Hat</organization>
+            <organizationUrl>https://www.redhat.com</organizationUrl>
+        </developer>
+        <developer>
+            <name>Keith Wall</name>
+            <email>kwall@redhat.com</email>
+            <organization>Red Hat</organization>
+            <organizationUrl>https://www.redhat.com</organizationUrl>
+        </developer>
+        <developer>
+            <name>Sam Barker</name>
+            <email>sbarker@redhat.com</email>
+            <organization>Red Hat</organization>
+            <organizationUrl>https://www.redhat.com</organizationUrl>
+            <timezone>Pacific/Auckland</timezone>
+        </developer>
+        <developer>
+            <name>Robert Young</name>
+            <email>robeyoun@redhat.com</email>
+            <organization>Red Hat</organization>
+            <organizationUrl>https://www.redhat.com</organizationUrl>
+            <timezone>Pacific/Auckland</timezone>
+        </developer>
+        <developer>
+            <name>Francisco Vila</name>
+            <email>fvila@redhat.com</email>
+            <organization>Red Hat</organization>
+            <organizationUrl>https://www.redhat.com</organizationUrl>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>scm:git:git@github.com:kroxylicious/kroxylicious.git</connection>
+        <developerConnection>scm:git:git@github.com:kroxylicious/kroxylicious.git</developerConnection>
+        <url>https://github.com/kroxylicious/kroxylicious</url>
+    </scm>
 
     <dependencyManagement>
         <dependencies>
@@ -186,14 +227,34 @@
         <pluginManagement>
             <plugins>
                 <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-javadoc-plugin</artifactId>
+                    <version>3.5.0</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-source-plugin</artifactId>
+                    <version>3.2.1</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-gpg-plugin</artifactId>
+                    <version>3.0.1</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-deploy-plugin</artifactId>
+                    <version>3.1.0</version>
+                </plugin>
+                <plugin>
                     <groupId>com.mycila</groupId>
                     <artifactId>license-maven-plugin</artifactId>
                     <version>4.1</version>
                     <configuration>
-                        <!--suppress MavenModelInspection -->
                         <strictCheck>true</strictCheck>
                         <licenseSets>
                             <licenseSet>
+                                <!--suppress MavenModelInspection -->
                                 <header>${rootdir}/etc/license.txt</header>
                                 <excludes>
                                     <exclude>LICENSE.txt</exclude>
@@ -212,7 +273,7 @@
                 <plugin>
                     <groupId>io.kroxylicious</groupId>
                     <artifactId>kroxylicious-krpc-plugin</artifactId>
-                    <version>1.0-SNAPSHOT</version>
+                    <version>0.1.0-SNAPSHOT</version>
                 </plugin>
                 <plugin>
                     <groupId>net.revelc.code.formatter</groupId>
@@ -257,11 +318,6 @@
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-dependency-plugin</artifactId>
                     <version>3.5.0</version>
-                </plugin>
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-deploy-plugin</artifactId>
-                    <version>3.1.0</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -364,12 +420,23 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
-                <version>3.5.0</version>
                 <executions>
                     <execution>
                         <id>attach-javadocs</id>
                         <goals>
                             <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <goals>
+                            <goal>jar-no-fork</goal>
                         </goals>
                     </execution>
                 </executions>
@@ -416,6 +483,17 @@
             </plugin>
         </plugins>
     </build>
+
+    <distributionManagement>
+        <snapshotRepository>
+            <id>ossrh</id>
+            <url>https://s01.oss.sonatype.org/content/repositories/snapshots</url>
+        </snapshotRepository>
+        <repository>
+            <id>ossrh</id>
+            <url>https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+        </repository>
+    </distributionManagement>
 
     <profiles>
         <profile>
@@ -564,6 +642,56 @@
             <properties>
                 <skipTests>true</skipTests>
             </properties>
+        </profile>
+        <profile>
+            <id>release</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                                <configuration>
+                                    <!--suppress UnresolvedMavenProperty -->
+                                    <keyname>${releaseSigningKey}</keyname>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-enforcer-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>enforce-property</id>
+                                <goals>
+                                    <goal>enforce</goal>
+                                </goals>
+                                <configuration>
+                                    <rules>
+                                        <requireProperty>
+                                            <property>releaseSigningKey</property>
+                                            <message>You must specify your GPG key when running a release</message>
+                                        </requireProperty>
+                                        <requireReleaseDeps>
+                                            <message>No Snapshots Allowed!</message>
+                                        </requireReleaseDeps>
+                                        <requireReleaseVersion>
+                                            <message>Ensure all modules have a release version</message>
+                                        </requireReleaseVersion>
+                                    </rules>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
         </profile>
     </profiles>
 </project>

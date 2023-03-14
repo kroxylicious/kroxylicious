@@ -14,12 +14,12 @@
     <parent>
         <groupId>io.kroxylicious</groupId>
         <artifactId>kroxylicious-parent</artifactId>
-        <version>1.0-SNAPSHOT</version>
+        <version>0.1.0-SNAPSHOT</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
-    
+
     <artifactId>kroxylicious-filter-api</artifactId>
-    <version>0.0.0-SNAPSHOT</version>
+    <version>0.1.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <properties>
@@ -33,7 +33,7 @@
         <dependency>
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-api</artifactId>
-            <version>0.0.0-SNAPSHOT</version>
+            <version>${kroxyliciousApi.version}</version>
         </dependency>
         <dependency>
             <groupId>io.micrometer</groupId>
@@ -108,6 +108,7 @@
                             <messageSpecFilter>*{Request,Response}.json</messageSpecFilter>
                             <templateDirectory>${project.basedir}/src/main/templates</templateDirectory>
                             <templateNames>Kproxy/Filter.ftl</templateNames>
+                            <!--suppress UnresolvedMavenProperty -->
                             <outputFilePattern>${messageSpecName}Filter.java</outputFilePattern>
                             <outputPackage>io.kroxylicious.proxy.filter</outputPackage>
                             <outputDirectory>${project.build.directory}/generated-sources/krpc</outputDirectory>
@@ -124,6 +125,7 @@
                             <messageSpecFilter>*{Request,Response}.json</messageSpecFilter>
                             <templateDirectory>${project.basedir}/src/main/templates</templateDirectory>
                             <templateNames>Kproxy/KrpcFilter.ftl</templateNames>
+                            <!--suppress UnresolvedMavenProperty -->
                             <outputFilePattern>${templateName}.java</outputFilePattern>
                             <outputPackage>io.kroxylicious.proxy.filter</outputPackage>
                             <outputDirectory>${project.build.directory}/generated-sources/krpc</outputDirectory>

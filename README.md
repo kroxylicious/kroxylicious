@@ -195,3 +195,6 @@ While Kroxylicious is a java application we've had reports of issues running the
    2. Follow the [WSL-git tutorial](https://learn.microsoft.com/en-us/windows/wsl/tutorials/wsl-git) if needed.
 5. Checkout Kroxylicious to `${kroxylicious-checkout}`
 6. Build & develop following the [standard build](#Build) instructions
+
+## Releasing the project
+See [The release guide](docs/Releasing.adoc)
