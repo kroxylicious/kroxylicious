@@ -640,6 +640,10 @@
                                             <property>releaseSigningKey</property>
                                             <message>You must specify your GPG key when running a release</message>
                                         </requireProperty>
+                                        <banDynamicVersions/>
+                                        <requireReleaseVersion>
+                                            <message>Ensure all modules have a release version</message>
+                                        </requireReleaseVersion>
                                     </rules>
                                 </configuration>
                             </execution>
