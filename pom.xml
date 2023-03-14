@@ -53,7 +53,7 @@
     <name>Kroxylicious Parent</name>
     <description>A proof-of-concept for a Kafka wire protocol proxy</description>
     <inceptionYear>2021</inceptionYear>
-    <url>https://github.com/kroxylicious</url>
+    <url>https://kroxylicious.io/kroxylicious/</url>
 
     <licenses>
         <license>
@@ -97,6 +97,12 @@
             <organizationUrl>https://www.redhat.com</organizationUrl>
         </developer>
     </developers>
+
+    <scm>
+        <connection>scm:git:git@github.com:kroxylicious/kroxylicious.git</connection>
+        <developerConnection>scm:git:git@github.com:kroxylicious/kroxylicious.git</developerConnection>
+        <url>https://github.com/kroxylicious/kroxylicious</url>
+    </scm>
 
     <dependencyManagement>
         <dependencies>
