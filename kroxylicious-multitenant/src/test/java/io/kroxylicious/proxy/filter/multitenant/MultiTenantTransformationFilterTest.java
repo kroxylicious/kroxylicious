@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.filter.multitenant;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.function.BiFunction;
@@ -64,6 +65,7 @@ import org.mockito.ArgumentCaptor;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.flipkart.zjsonpatch.JsonDiff;
 import com.google.common.reflect.ClassPath;
@@ -84,7 +86,7 @@ class MultiTenantTransformationFilterTest {
     private record ApiMessageTestDef(ApiMessage message, JsonNode expectedPatch) {
     }
 
-    private record RequestResponseTestDef(ApiMessageType apiKey, RequestHeaderData header, ApiMessageTestDef request, ApiMessageTestDef response) {
+    private record RequestResponseTestDef(String source, ApiMessageType apiKey, RequestHeaderData header, ApiMessageTestDef request, ApiMessageTestDef response) {
     }
 
     private record Converters(BiFunction<JsonNode, Short, ApiMessage> requestReader,
@@ -151,7 +153,14 @@ class MultiTenantTransformationFilterTest {
 
     private static JsonNode[] readTestResource(ResourceInfo resourceInfo) {
         try {
-            return MAPPER.reader().readValue(resourceInfo.url(), JsonNode[].class);
+            var sourceFile = Path.of(resourceInfo.url().getPath()).getFileName().toString();
+            var jsonNodes = MAPPER.reader().readValue(resourceInfo.url(), JsonNode[].class);
+            for (int i = 0; i < jsonNodes.length; i++) {
+                if (jsonNodes[i] instanceof ObjectNode objectNode) {
+                    objectNode.put("source", String.format("%s[%d]", sourceFile, i));
+                }
+            }
+            return jsonNodes;
         }
         catch (IOException e) {
             throw new UncheckedIOException(e);
@@ -161,15 +170,17 @@ class MultiTenantTransformationFilterTest {
     private static RequestResponseTestDef buildRequestResponseTestDef(JsonNode jsonNode) {
         var apiMessageType = jsonNode.get("apiMessageType");
         var version = jsonNode.get("version");
+        var source = jsonNode.get("source");
         assertNotNull(apiMessageType);
         assertNotNull(version);
+        assertNotNull(source);
         var messageType = ApiMessageType.valueOf(apiMessageType.asText());
         var header = new RequestHeaderData().setRequestApiKey(messageType.apiKey()).setRequestApiVersion(version.shortValue());
 
         var conv = converters.get(messageType);
         var request = buildApiMessageTestDef(header.requestApiVersion(), jsonNode.get("request"), conv.requestReader());
         var response = buildApiMessageTestDef(header.requestApiVersion(), jsonNode.get("response"), conv.responseReader());
-        return new RequestResponseTestDef(messageType, header, request, response);
+        return new RequestResponseTestDef(source.textValue(), messageType, header, request, response);
     }
 
     private static ApiMessageTestDef buildApiMessageTestDef(short apiVersion, JsonNode node, BiFunction<JsonNode, Short, ApiMessage> readerFunc) {
@@ -193,12 +204,12 @@ class MultiTenantTransformationFilterTest {
     }
 
     public static Stream<Arguments> requests() throws Exception {
-        return requestResponseTestDefinitions().map(t -> Arguments.of(t.apiKey(), t.header(), t.request()));
+        return requestResponseTestDefinitions().map(t -> Arguments.of(t.source(), t.apiKey(), t.header(), t.request()));
     }
 
     @ParameterizedTest
     @MethodSource
-    void requests(ApiMessageType apiMessageType, RequestHeaderData header, ApiMessageTestDef requestTestDef) {
+    void requests(@SuppressWarnings("unused") String source, ApiMessageType apiMessageType, RequestHeaderData header, ApiMessageTestDef requestTestDef) {
         var request = requestTestDef.message();
         // marshalled the request object back to json, this is used for the comparison later.
         var requestWriter = converters.get(apiMessageType).requestWriter();
@@ -212,12 +223,12 @@ class MultiTenantTransformationFilterTest {
     }
 
     public static Stream<Arguments> responses() throws Exception {
-        return requestResponseTestDefinitions().map(t -> Arguments.of(t.apiKey(), t.header(), t.response()));
+        return requestResponseTestDefinitions().map(t -> Arguments.of(t.source(), t.apiKey(), t.header(), t.response()));
     }
 
     @ParameterizedTest
     @MethodSource
-    void responses(ApiMessageType apiMessageType, RequestHeaderData header, ApiMessageTestDef responseTestDef) {
+    void responses(@SuppressWarnings("unused") String source, ApiMessageType apiMessageType, RequestHeaderData header, ApiMessageTestDef responseTestDef) {
         var response = responseTestDef.message();
         // marshalled the response object back to json, this is used for comparison later.
         var responseWriter = converters.get(apiMessageType).responseWriters();
