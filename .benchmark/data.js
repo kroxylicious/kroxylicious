@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1678762929846,
+  "lastUpdate": 1678762959074,
   "repoUrl": "https://github.com/kroxylicious/kroxylicious",
   "entries": {
     "kafka producer perf test Benchmark": [
@@ -258,6 +258,43 @@ window.BENCHMARK_DATA = {
           {
             "name": "99th Latency",
             "value": 331,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Robert Young",
+            "username": "robobario",
+            "email": "robeyoun@redhat.com"
+          },
+          "committer": {
+            "name": "Robert Young",
+            "username": "robobario",
+            "email": "robertyoungnz@gmail.com"
+          },
+          "id": "d096dab2d21cc5195df06c7b25188618213a2cbc",
+          "message": "Always execute maven plugin to calculate rootdir\n\nWhy:\nWhen running `mvn clean verify -Dquick` the rootdir resolver plugin\nwas excluded due to the `quick` but the `formatter` plugin config depends\non `rootdir` being made available.\n\nThis prevented performance tests running.",
+          "timestamp": "2023-03-13T22:10:34Z",
+          "url": "https://github.com/kroxylicious/kroxylicious/commit/d096dab2d21cc5195df06c7b25188618213a2cbc"
+        },
+        "date": 1678762957902,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "AVG Latency",
+            "value": 238.87,
+            "unit": "ms"
+          },
+          {
+            "name": "95th Latency",
+            "value": 661,
+            "unit": "ms"
+          },
+          {
+            "name": "99th Latency",
+            "value": 717,
             "unit": "ms"
           }
         ]
