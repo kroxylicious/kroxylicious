@@ -18,8 +18,8 @@
 
     <properties>
         <kroxyliciousApi.version>0.1.0-SNAPSHOT</kroxyliciousApi.version>
-        <java.version>11</java.version>
-        <java.test.version>19</java.test.version>
+        <java.version>17</java.version>
+        <java.test.version>17</java.test.version>
         <maven.compiler.parameters>true</maven.compiler.parameters>
         <maven.compiler.release>${java.version}</maven.compiler.release>
         <maven.compiler.testRelease>${java.test.version}</maven.compiler.testRelease>
