@@ -21,6 +21,7 @@
 
     <properties>
         <java.version>19</java.version>
+        <java.test.version>19</java.test.version>
     </properties>
 
     <dependencies>
