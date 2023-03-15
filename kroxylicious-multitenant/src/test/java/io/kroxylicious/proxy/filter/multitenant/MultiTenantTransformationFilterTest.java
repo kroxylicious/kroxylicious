@@ -188,7 +188,8 @@ class MultiTenantTransformationFilterTest {
         var messageType = ApiMessageType.valueOf(apiMessageTypeNode.asText());
         var header = new RequestHeaderData().setRequestApiKey(messageType.apiKey()).setRequestApiVersion(versionNode.shortValue());
 
-        var testName = String.format("%s,%s,v%d[%s]", source, messageType, versionNode.intValue(), Optional.ofNullable(descriptionNode).map(JsonNode::asText).orElse("-"));
+        var testName = String.format("%s,%s,v%d[%s]", source, messageType, versionNode.intValue(),
+                Optional.ofNullable(descriptionNode).map(JsonNode::asText).orElse("-"));
         var conv = converters.get(messageType);
         var request = buildApiMessageTestDef(header.requestApiVersion(), jsonNode.get("request"), conv.requestReader());
         var response = buildApiMessageTestDef(header.requestApiVersion(), jsonNode.get("response"), conv.responseReader());
