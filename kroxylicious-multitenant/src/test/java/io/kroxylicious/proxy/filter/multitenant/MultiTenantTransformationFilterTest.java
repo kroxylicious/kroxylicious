@@ -149,8 +149,9 @@ class MultiTenantTransformationFilterTest {
         var resourceInfoStream = ClassPath.from(MultiTenantTransformationFilterTest.class.getClassLoader()).getResources().stream()
                 .filter(ri -> TEST_RESOURCE_FILTER.matcher(ri.getResourceName()).matches()).toList();
 
-        // note: we've seen issues in IDEA in IntelliJ Workspace Model API mode where test resources don't get added to the Junit runner classpath.
-        // you can work around by not using that mode, or by adding src/test/resources to the runner's classpath using 'modify classpath' option in the dialogue.
+        // https://youtrack.jetbrains.com/issue/IDEA-315462: we've seen issues in IDEA in IntelliJ Workspace Model API mode where test resources
+        // don't get added to the Junit runner classpath. You can work around by not using that mode, or by adding src/test/resources to the
+        // runner's classpath using 'modify classpath' option in the dialogue.
         checkState(!resourceInfoStream.isEmpty(), "no test resource files found on classpath matching %s", TEST_RESOURCE_FILTER);
 
         return resourceInfoStream.stream()
@@ -221,8 +222,8 @@ class MultiTenantTransformationFilterTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @MethodSource
-    void requests(@SuppressWarnings("unused") String testName, ApiMessageType apiMessageType, RequestHeaderData header, ApiMessageTestDef requestTestDef) {
+    @MethodSource(value = "requests")
+    void requestsTransformed(@SuppressWarnings("unused") String testName, ApiMessageType apiMessageType, RequestHeaderData header, ApiMessageTestDef requestTestDef) {
         var request = requestTestDef.message();
         // marshalled the request object back to json, this is used for the comparison later.
         var requestWriter = converters.get(apiMessageType).requestWriter();
@@ -235,12 +236,12 @@ class MultiTenantTransformationFilterTest {
         assertEquals(requestTestDef.expectedPatch(), JsonDiff.asJson(marshalled, filtered));
     }
 
-    public static Stream<Arguments> responseTransformed() throws Exception {
+    public static Stream<Arguments> responses() throws Exception {
         return requestResponseTestDefinitions().map(t -> Arguments.of(t.testName(), t.apiKey(), t.header(), t.response()));
     }
 
     @ParameterizedTest(name = "{0}")
-    @MethodSource
+    @MethodSource(value = "responses")
     void responseTransformed(@SuppressWarnings("unused") String testName, ApiMessageType apiMessageType, RequestHeaderData header, ApiMessageTestDef responseTestDef) {
         var response = responseTestDef.message();
         // marshalled the response object back to json, this is used for comparison later.
