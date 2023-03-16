@@ -32,10 +32,12 @@
 
         <debezium.version>1.9.0.Final</debezium.version>
         <freemarker.version>2.3.32</freemarker.version>
+        <guava.version>31.1-jre</guava.version>
         <jackson.version>2.14.2</jackson.version>
         <jackson-databind.version>2.14.2</jackson-databind.version>
         <junit.version>5.9.2</junit.version>
         <kafka.version>3.4.0</kafka.version>
+        <kroxy.extension.version>0.1</kroxy.extension.version>
         <log4j.version>2.17.2</log4j.version>
         <netty.version>4.1.89.Final</netty.version>
         <netty.io_uring.version>0.0.14.Final</netty.io_uring.version>
@@ -48,6 +50,7 @@
         <slf4j-api.version>1.7.36</slf4j-api.version>
         <micrometer.version>1.10.4</micrometer.version>
         <kroxy.extension.version>0.1</kroxy.extension.version>
+        <zjsonpatch.version>0.4.14</zjsonpatch.version>
     </properties>
 
     <name>Kroxylicious Parent</name>
@@ -168,6 +171,12 @@
                 <version>${freemarker.version}</version>
             </dependency>
             <dependency>
+                <groupId>com.google.guava</groupId>
+                <artifactId>guava</artifactId>
+                <version>${guava.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
                 <groupId>org.junit</groupId>
                 <artifactId>junit-bom</artifactId>
                 <version>${junit.version}</version>
@@ -207,6 +216,12 @@
                 <groupId>io.kroxylicious.testing</groupId>
                 <artifactId>testing-api</artifactId>
                 <version>${kroxy.extension.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.flipkart.zjsonpatch</groupId>
+                <artifactId>zjsonpatch</artifactId>
+                <version>${zjsonpatch.version}</version>
                 <scope>test</scope>
             </dependency>
         </dependencies>
@@ -364,6 +379,9 @@
                     <configuration>
                         <skipTests>${skipUTs}</skipTests>
                         <runOrder>random</runOrder>
+                        <statelessTestsetReporter implementation="org.apache.maven.plugin.surefire.extensions.junit5.JUnit5Xml30StatelessReporter">
+                            <usePhrasedTestCaseMethodName>true</usePhrasedTestCaseMethodName>
+                        </statelessTestsetReporter>
                     </configuration>
                 </plugin>
                 <plugin>
