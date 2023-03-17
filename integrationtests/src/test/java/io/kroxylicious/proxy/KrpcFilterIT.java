@@ -9,6 +9,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -20,9 +21,11 @@ import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.config.SslConfigs;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
@@ -49,6 +52,7 @@ public class KrpcFilterIT {
     private static final String TOPIC_1 = "my-test-topic";
     private static final String TOPIC_2 = "other-test-topic";
     private static final String PLAINTEXT = "Hello, world!";
+    private static final String PROXY_ADDRESS = "localhost:9192";
     private static final byte[] TOPIC_1_CIPHERTEXT = { (byte) 0x3d, (byte) 0x5a, (byte) 0x61, (byte) 0x61, (byte) 0x64, (byte) 0x21, (byte) 0x15, (byte) 0x6c,
             (byte) 0x64, (byte) 0x67, (byte) 0x61, (byte) 0x59, (byte) 0x16 };
     private static final byte[] TOPIC_2_CIPHERTEXT = { (byte) 0xffffffa7, (byte) 0xffffffc4, (byte) 0xffffffcb, (byte) 0xffffffcb, (byte) 0xffffffce, (byte) 0xffffff8b,
@@ -108,8 +112,6 @@ public class KrpcFilterIT {
 
     @Test
     public void shouldPassThroughRecordUnchanged(KafkaCluster cluster, Admin admin) throws Exception {
-        String proxyAddress = "localhost:9192";
-
         admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1))).all().get();
 
         String config = """
@@ -121,20 +123,20 @@ public class KrpcFilterIT {
                 filters:
                 - type: ApiVersions
                 - type: BrokerAddress
-                """.formatted(proxyAddress, cluster.getBootstrapServers());
+                """.formatted(PROXY_ADDRESS, cluster.getBootstrapServers());
 
         try (var proxy = startProxy(config)) {
             try (var producer = new KafkaProducer<String, String>(Map.of(
-                    ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
+                    ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, PROXY_ADDRESS,
                     ProducerConfig.CLIENT_ID_CONFIG, "shouldPassThroughRecordUnchanged",
                     ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
                     ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
                     ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000))) {
-                producer.send(new ProducerRecord<>(TOPIC_1, "my-key", "Hello, world!")).get();
+                producer.send(new ProducerRecord<>(TOPIC_1, "my-key", PLAINTEXT)).get();
             }
 
             try (var consumer = new KafkaConsumer<String, String>(Map.of(
-                    ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
+                    ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, PROXY_ADDRESS,
                     ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
                     ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
                     ConsumerConfig.GROUP_ID_CONFIG, "my-group-id",
@@ -143,15 +145,13 @@ public class KrpcFilterIT {
                 var records = consumer.poll(Duration.ofSeconds(10));
                 consumer.close();
                 assertEquals(1, records.count());
-                assertEquals("Hello, world!", records.iterator().next().value());
+                assertEquals(PLAINTEXT, records.iterator().next().value());
             }
         }
     }
 
     @Test
     public void shouldModifyProduceMessage(KafkaCluster cluster, Admin admin) throws Exception {
-        String proxyAddress = "localhost:9192";
-
         admin.createTopics(List.of(
                 new NewTopic(TOPIC_1, 1, (short) 1),
                 new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
@@ -168,11 +168,11 @@ public class KrpcFilterIT {
                 - type: ProduceRequestTransformation
                   config:
                     transformation: %s
-                """.formatted(proxyAddress, cluster.getBootstrapServers(), TestEncoder.class.getName());
+                """.formatted(PROXY_ADDRESS, cluster.getBootstrapServers(), TestEncoder.class.getName());
 
         try (var proxy = startProxy(config)) {
             try (var producer = new KafkaProducer<String, String>(Map.of(
-                    ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
+                    ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, PROXY_ADDRESS,
                     ProducerConfig.CLIENT_ID_CONFIG, "shouldModifyProduceMessage",
                     ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
                     ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
@@ -185,7 +185,7 @@ public class KrpcFilterIT {
             ConsumerRecords<String, byte[]> records1;
             ConsumerRecords<String, byte[]> records2;
             try (var consumer = new KafkaConsumer<String, byte[]>(Map.of(
-                    ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
+                    ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, PROXY_ADDRESS,
                     ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
                     ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class,
                     ConsumerConfig.GROUP_ID_CONFIG, "my-group-id",
@@ -204,8 +204,64 @@ public class KrpcFilterIT {
     }
 
     @Test
+    public void offsetManuallyManaged(KafkaCluster cluster, Admin admin) throws Exception {
+        admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1))).all().get();
+
+        String config = """
+                proxy:
+                  address: %s
+                clusters:
+                  demo:
+                    bootstrap_servers: %s
+                filters:
+                - type: ApiVersions
+                - type: BrokerAddress
+                """.formatted(PROXY_ADDRESS, cluster.getBootstrapServers());
+
+        try (var proxy = startProxy(config)) {
+            try (var producer = new KafkaProducer<String, String>(Map.of(
+                    ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, PROXY_ADDRESS,
+                    ProducerConfig.CLIENT_ID_CONFIG, "offsetManuallyManaged",
+                    ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
+                    ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
+                    ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000))) {
+                producer.send(new ProducerRecord<>(TOPIC_1, "my-key", PLAINTEXT)).get();
+                producer.send(new ProducerRecord<>(TOPIC_1, "my-key2", PLAINTEXT)).get();
+                producer.flush();
+            }
+
+            ConsumerRecords<String, String> records1;
+            long offsetCommitted;
+            long actualEndOffset;
+            try (var consumer = new KafkaConsumer<String, String>(Map.of(
+                    ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, PROXY_ADDRESS,
+                    ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
+                    ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
+                    ConsumerConfig.GROUP_ID_CONFIG, "my-group-id",
+                    ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false",
+                    ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
+
+                Set<TopicPartition> partitions = new HashSet<>();
+                TopicPartition actualTopicPartition = new TopicPartition(TOPIC_1, 0);
+                partitions.add(actualTopicPartition);
+                consumer.assign(Set.of(actualTopicPartition));
+
+                records1 = consumer.poll(Duration.ofSeconds(100));
+
+                consumer.commitSync();
+
+                var committed = consumer.committed(partitions);
+                OffsetAndMetadata offsetAndMetadata = committed.get(actualTopicPartition);
+                offsetCommitted = offsetAndMetadata.offset();
+                actualEndOffset = consumer.endOffsets(partitions).get(actualTopicPartition);
+            }
+            assertEquals(offsetCommitted, actualEndOffset);
+            assertEquals(PLAINTEXT, records1.iterator().next().value());
+        }
+    }
+
+    @Test
     public void shouldModifyFetchMessage(KafkaCluster cluster, Admin admin) throws Exception {
-        String proxyAddress = "localhost:9192";
 
         admin.createTopics(List.of(
                 new NewTopic(TOPIC_1, 1, (short) 1),
@@ -223,11 +279,11 @@ public class KrpcFilterIT {
                 - type: FetchResponseTransformation
                   config:
                     transformation: %s
-                """.formatted(proxyAddress, cluster.getBootstrapServers(), TestDecoder.class.getName());
+                """.formatted(PROXY_ADDRESS, cluster.getBootstrapServers(), TestDecoder.class.getName());
 
         try (var proxy = startProxy(config)) {
             try (var producer = new KafkaProducer<String, byte[]>(Map.of(
-                    ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
+                    ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, PROXY_ADDRESS,
                     ProducerConfig.CLIENT_ID_CONFIG, "shouldModifyFetchMessage",
                     ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
                     ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class,
@@ -240,7 +296,7 @@ public class KrpcFilterIT {
             ConsumerRecords<String, String> records1;
             ConsumerRecords<String, String> records2;
             try (var consumer = new KafkaConsumer<String, String>(Map.of(
-                    ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
+                    ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, PROXY_ADDRESS,
                     ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
                     ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
                     ConsumerConfig.GROUP_ID_CONFIG, "my-group-id",
@@ -263,7 +319,6 @@ public class KrpcFilterIT {
 
     @Test
     public void proxySslClusterPlain(KafkaCluster cluster) throws Exception {
-        String proxyAddress = "localhost:9192";
 
         var brokerCertificateGenerator = new KeytoolCertificateGenerator();
         brokerCertificateGenerator.generateSelfSignedCertificateEntry("test@redhat.com", "localhost", "KI", "RedHat", null, null, "US");
@@ -281,10 +336,10 @@ public class KrpcFilterIT {
                 filters:
                 - type: ApiVersions
                 - type: BrokerAddress
-                """.formatted(proxyAddress, brokerCertificateGenerator.getKeyStoreLocation(), brokerCertificateGenerator.getPassword(), cluster.getBootstrapServers());
+                """.formatted(PROXY_ADDRESS, brokerCertificateGenerator.getKeyStoreLocation(), brokerCertificateGenerator.getPassword(), cluster.getBootstrapServers());
 
         try (var proxy = startProxy(config)) {
-            try (var admin = Admin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
+            try (var admin = Admin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, PROXY_ADDRESS,
                     CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name,
                     SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
                     SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, brokerCertificateGenerator.getPassword()))) {
