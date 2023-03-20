@@ -5,7 +5,6 @@
  */
 package io.kroxylicious.proxy.filter.multitenant;
 
-import java.util.ArrayList;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -212,23 +211,30 @@ public class MultiTenantTransformationFilter
     }
 
     private void applyTenantPrefix(KrpcFilterContext context, Supplier<String> getter, Consumer<String> setter, boolean ignoreEmpty) {
-        var tenantPrefix = getTenantPrefix(context);
         String clientSideName = getter.get();
         if (ignoreEmpty && (clientSideName == null || clientSideName.isEmpty())) {
             return;
         }
-        setter.accept(tenantPrefix + "-" + clientSideName);
+        setter.accept(applyTenantPrefix(context, clientSideName));
+    }
+
+    private String applyTenantPrefix(KrpcFilterContext context, String clientSideName) {
+        var tenantPrefix = getTenantPrefix(context);
+        return tenantPrefix + "-" + clientSideName;
     }
 
     private void removeTenantPrefix(KrpcFilterContext context, Supplier<String> getter, Consumer<String> setter, boolean ignoreEmpty) {
-        var tenantPrefix = getTenantPrefix(context);
         var brokerSideName = getter.get();
-
         if (ignoreEmpty && (brokerSideName == null || brokerSideName.isEmpty())) {
             return;
         }
 
-        setter.accept(brokerSideName.substring(tenantPrefix.length() + 1));
+        setter.accept(removeTenantPrefix(context, brokerSideName));
+    }
+
+    private String removeTenantPrefix(KrpcFilterContext context, String brokerSideName) {
+        var tenantPrefix = getTenantPrefix(context);
+        return brokerSideName.substring(tenantPrefix.length() + 1);
     }
 
     private static String getTenantPrefix(KrpcFilterContext context) {
@@ -249,16 +255,7 @@ public class MultiTenantTransformationFilter
 
     @Override
     public void onFindCoordinatorRequest(RequestHeaderData header, FindCoordinatorRequestData request, KrpcFilterContext context) {
-        // TODO - refactor
-        var copy = new ArrayList<String>(request.coordinatorKeys());
-        var mapped = new ArrayList<String>();
-        var tenantPrefix = getTenantPrefix(context);
-
-        for (var key : copy) {
-            mapped.add(tenantPrefix + "-" + key);
-        }
-
-        request.setCoordinatorKeys(mapped);
+        request.setCoordinatorKeys(request.coordinatorKeys().stream().map(key -> applyTenantPrefix(context, key)).toList());
         context.forwardRequest(request);
     }
 
