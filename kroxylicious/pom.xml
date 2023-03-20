@@ -297,5 +297,15 @@
                 </plugins>
             </build>
         </profile>
+        <profile>
+            <id>debug</id>
+            <dependencies>
+                <dependency>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-simple</artifactId>
+                    <scope>runtime</scope>
+                </dependency>
+            </dependencies>
+        </profile>
     </profiles>
 </project>
