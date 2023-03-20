@@ -72,7 +72,7 @@ class DefaultFilterContext implements KrpcFilterContext {
      */
     @Override
     public ByteBufferOutputStream createByteBufferOutputStream(int initialCapacity) {
-        final ByteBuf buffer = channelContext.alloc().heapBuffer(initialCapacity);
+        final ByteBuf buffer = channelContext.alloc().ioBuffer(initialCapacity);
         decodedFrame.add(buffer);
         return new ByteBufOutputStream(buffer);
     }
