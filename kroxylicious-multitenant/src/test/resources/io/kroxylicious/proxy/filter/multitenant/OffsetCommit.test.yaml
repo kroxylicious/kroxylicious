@@ -21,6 +21,9 @@
               committedMetadata: null
     diff:
       - op: replace
+        path: "/groupId"
+        value: tenant1-mygroup
+      - op: replace
         path: "/topics/0/name"
         value: tenant1-foo
   response:
