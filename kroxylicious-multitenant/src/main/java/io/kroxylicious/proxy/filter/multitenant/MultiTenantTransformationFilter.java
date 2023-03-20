@@ -150,14 +150,21 @@ public class MultiTenantTransformationFilter
     @Override
     public void onOffsetFetchRequest(RequestHeaderData data, OffsetFetchRequestData request, KrpcFilterContext context) {
         request.topics().forEach(topic -> applyTenantPrefix(context, topic::name, topic::setName, false));
-        request.groups().forEach(requestGroup -> requestGroup.topics().forEach(topic -> applyTenantPrefix(context, topic::name, topic::setName, false)));
+        request.groups().forEach(requestGroup -> {
+            applyTenantPrefix(context, requestGroup::groupId, requestGroup::setGroupId, false);
+            requestGroup.topics().forEach(topic -> applyTenantPrefix(context, topic::name, topic::setName, false));
+        });
+
         context.forwardRequest(request);
     }
 
     @Override
     public void onOffsetFetchResponse(ResponseHeaderData data, OffsetFetchResponseData response, KrpcFilterContext context) {
         response.topics().forEach(topic -> removeTenantPrefix(context, topic::name, topic::setName, false));
-        response.groups().forEach(responseGroup -> responseGroup.topics().forEach(topic -> removeTenantPrefix(context, topic::name, topic::setName, false)));
+        response.groups().forEach(responseGroup -> {
+            removeTenantPrefix(context, responseGroup::groupId, responseGroup::setGroupId, false);
+            responseGroup.topics().forEach(topic -> removeTenantPrefix(context, topic::name, topic::setName, false));
+        });
         context.forwardResponse(response);
     }
 
