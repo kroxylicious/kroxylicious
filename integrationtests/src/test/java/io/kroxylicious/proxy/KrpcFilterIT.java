@@ -51,7 +51,7 @@ public class KrpcFilterIT {
 
     private static final String TOPIC_1 = "my-test-topic";
     private static final String TOPIC_2 = "other-test-topic";
-    private static final String PLAINTEXT = "Hello, world!";
+    private static final String MESSAGE_TEXT = "Hello, world!";
     private static final String PROXY_ADDRESS = "localhost:9192";
     private static final byte[] TOPIC_1_CIPHERTEXT = { (byte) 0x3d, (byte) 0x5a, (byte) 0x61, (byte) 0x61, (byte) 0x64, (byte) 0x21, (byte) 0x15, (byte) 0x6c,
             (byte) 0x64, (byte) 0x67, (byte) 0x61, (byte) 0x59, (byte) 0x16 };
@@ -65,10 +65,10 @@ public class KrpcFilterIT {
         // The precise details of the cipher don't matter
         // What matters is that it the ciphertext key depends on the topic name
         // and that decode() is the inverse of encode()
-        assertArrayEquals(TOPIC_1_CIPHERTEXT, encode(TOPIC_1, ByteBuffer.wrap(PLAINTEXT.getBytes(StandardCharsets.UTF_8))).array());
-        assertEquals(PLAINTEXT, new String(decode(TOPIC_1, ByteBuffer.wrap(TOPIC_1_CIPHERTEXT)).array(), StandardCharsets.UTF_8));
-        assertArrayEquals(TOPIC_2_CIPHERTEXT, encode(TOPIC_2, ByteBuffer.wrap(PLAINTEXT.getBytes(StandardCharsets.UTF_8))).array());
-        assertEquals(PLAINTEXT, new String(decode(TOPIC_2, ByteBuffer.wrap(TOPIC_2_CIPHERTEXT)).array(), StandardCharsets.UTF_8));
+        assertArrayEquals(TOPIC_1_CIPHERTEXT, encode(TOPIC_1, ByteBuffer.wrap(MESSAGE_TEXT.getBytes(StandardCharsets.UTF_8))).array());
+        assertEquals(MESSAGE_TEXT, new String(decode(TOPIC_1, ByteBuffer.wrap(TOPIC_1_CIPHERTEXT)).array(), StandardCharsets.UTF_8));
+        assertArrayEquals(TOPIC_2_CIPHERTEXT, encode(TOPIC_2, ByteBuffer.wrap(MESSAGE_TEXT.getBytes(StandardCharsets.UTF_8))).array());
+        assertEquals(MESSAGE_TEXT, new String(decode(TOPIC_2, ByteBuffer.wrap(TOPIC_2_CIPHERTEXT)).array(), StandardCharsets.UTF_8));
     }
 
     public static class TestEncoder implements ByteBufferTransformation {
@@ -132,7 +132,7 @@ public class KrpcFilterIT {
                     ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
                     ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
                     ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000))) {
-                producer.send(new ProducerRecord<>(TOPIC_1, "my-key", PLAINTEXT)).get();
+                producer.send(new ProducerRecord<>(TOPIC_1, "my-key", MESSAGE_TEXT)).get();
             }
 
             try (var consumer = new KafkaConsumer<String, String>(Map.of(
@@ -145,7 +145,7 @@ public class KrpcFilterIT {
                 var records = consumer.poll(Duration.ofSeconds(10));
                 consumer.close();
                 assertEquals(1, records.count());
-                assertEquals(PLAINTEXT, records.iterator().next().value());
+                assertEquals(MESSAGE_TEXT, records.iterator().next().value());
             }
         }
     }
@@ -177,8 +177,8 @@ public class KrpcFilterIT {
                     ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
                     ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
                     ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000))) {
-                producer.send(new ProducerRecord<>(TOPIC_1, "my-key", PLAINTEXT)).get();
-                producer.send(new ProducerRecord<>(TOPIC_2, "my-key", PLAINTEXT)).get();
+                producer.send(new ProducerRecord<>(TOPIC_1, "my-key", MESSAGE_TEXT)).get();
+                producer.send(new ProducerRecord<>(TOPIC_2, "my-key", MESSAGE_TEXT)).get();
                 producer.flush();
             }
 
@@ -225,8 +225,8 @@ public class KrpcFilterIT {
                     ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
                     ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
                     ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000))) {
-                producer.send(new ProducerRecord<>(TOPIC_1, "my-key", PLAINTEXT)).get();
-                producer.send(new ProducerRecord<>(TOPIC_1, "my-key2", PLAINTEXT)).get();
+                producer.send(new ProducerRecord<>(TOPIC_1, "my-key", MESSAGE_TEXT)).get();
+                producer.send(new ProducerRecord<>(TOPIC_1, "my-key2", MESSAGE_TEXT)).get();
                 producer.flush();
             }
 
@@ -256,7 +256,7 @@ public class KrpcFilterIT {
                 actualEndOffset = consumer.endOffsets(partitions).get(actualTopicPartition);
             }
             assertEquals(offsetCommitted, actualEndOffset);
-            assertEquals(PLAINTEXT, records1.iterator().next().value());
+            assertEquals(MESSAGE_TEXT, records1.iterator().next().value());
         }
     }
 
@@ -311,7 +311,7 @@ public class KrpcFilterIT {
             }
             assertEquals(1, records1.count());
             assertEquals(1, records2.count());
-            assertEquals(List.of(PLAINTEXT, PLAINTEXT),
+            assertEquals(List.of(MESSAGE_TEXT, MESSAGE_TEXT),
                     List.of(records1.iterator().next().value(),
                             records2.iterator().next().value()));
         }
