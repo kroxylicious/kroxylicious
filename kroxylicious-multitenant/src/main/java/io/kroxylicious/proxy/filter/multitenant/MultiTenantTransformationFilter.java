@@ -207,7 +207,32 @@ public class MultiTenantTransformationFilter
     public void onFetchResponse(ResponseHeaderData data, FetchResponseData response, KrpcFilterContext context) {
         response.responses().forEach(topic -> removeTenantPrefix(context, topic::topic, topic::setTopic, topic.topicId() != null));
         context.forwardResponse(response);
+    }
 
+    @Override
+    public void onFindCoordinatorRequest(RequestHeaderData header, FindCoordinatorRequestData request, KrpcFilterContext context) {
+        request.setCoordinatorKeys(request.coordinatorKeys().stream().map(key -> applyTenantPrefix(context, key)).toList());
+        context.forwardRequest(request);
+    }
+
+    @Override
+    public void onFindCoordinatorResponse(ResponseHeaderData header, FindCoordinatorResponseData response, KrpcFilterContext context) {
+        response.coordinators().forEach(coordinator -> removeTenantPrefix(context, coordinator::key, coordinator::setKey, false));
+        context.forwardResponse(response);
+    }
+
+    @Override
+    public void onListGroupsRequest(RequestHeaderData header, ListGroupsRequestData request, KrpcFilterContext context) {
+        context.forwardRequest(request);
+    }
+
+    @Override
+    public void onListGroupsResponse(ResponseHeaderData header, ListGroupsResponseData response, KrpcFilterContext context) {
+        var tenantPrefix = getTenantPrefix(context);
+        var filteredGroups = response.groups().stream().filter(listedGroup -> listedGroup.groupId().startsWith(tenantPrefix)).toList();
+        filteredGroups.forEach(listedGroup -> removeTenantPrefix(context, listedGroup::groupId, listedGroup::setGroupId, false));
+        response.setGroups(filteredGroups);
+        context.forwardResponse(response);
     }
 
     private void applyTenantPrefix(KrpcFilterContext context, Supplier<String> getter, Consumer<String> setter, boolean ignoreEmpty) {
@@ -253,29 +278,4 @@ public class MultiTenantTransformationFilter
     public MultiTenantTransformationFilter() {
     }
 
-    @Override
-    public void onFindCoordinatorRequest(RequestHeaderData header, FindCoordinatorRequestData request, KrpcFilterContext context) {
-        request.setCoordinatorKeys(request.coordinatorKeys().stream().map(key -> applyTenantPrefix(context, key)).toList());
-        context.forwardRequest(request);
-    }
-
-    @Override
-    public void onFindCoordinatorResponse(ResponseHeaderData header, FindCoordinatorResponseData response, KrpcFilterContext context) {
-        response.coordinators().forEach(coordinator -> removeTenantPrefix(context, coordinator::key, coordinator::setKey, false));
-        context.forwardResponse(response);
-    }
-
-    @Override
-    public void onListGroupsRequest(RequestHeaderData header, ListGroupsRequestData request, KrpcFilterContext context) {
-        context.forwardRequest(request);
-    }
-
-    @Override
-    public void onListGroupsResponse(ResponseHeaderData header, ListGroupsResponseData response, KrpcFilterContext context) {
-        var tenantPrefix = getTenantPrefix(context);
-        var filteredGroups = response.groups().stream().filter(listedGroup -> listedGroup.groupId().startsWith(tenantPrefix)).toList();
-        filteredGroups.forEach(listedGroup -> removeTenantPrefix(context, listedGroup::groupId, listedGroup::setGroupId, false));
-        response.setGroups(filteredGroups);
-        context.forwardResponse(response);
-    }
 }
