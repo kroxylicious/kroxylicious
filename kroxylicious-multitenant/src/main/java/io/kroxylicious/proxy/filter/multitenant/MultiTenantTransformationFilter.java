@@ -17,6 +17,8 @@ import org.apache.kafka.common.message.FetchRequestData;
 import org.apache.kafka.common.message.FetchResponseData;
 import org.apache.kafka.common.message.FindCoordinatorRequestData;
 import org.apache.kafka.common.message.FindCoordinatorResponseData;
+import org.apache.kafka.common.message.ListGroupsRequestData;
+import org.apache.kafka.common.message.ListGroupsResponseData;
 import org.apache.kafka.common.message.ListOffsetsRequestData;
 import org.apache.kafka.common.message.ListOffsetsResponseData;
 import org.apache.kafka.common.message.MetadataRequestData;
@@ -43,6 +45,8 @@ import io.kroxylicious.proxy.filter.FetchResponseFilter;
 import io.kroxylicious.proxy.filter.FindCoordinatorRequestFilter;
 import io.kroxylicious.proxy.filter.FindCoordinatorResponseFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
+import io.kroxylicious.proxy.filter.ListGroupsRequestFilter;
+import io.kroxylicious.proxy.filter.ListGroupsResponseFilter;
 import io.kroxylicious.proxy.filter.ListOffsetsRequestFilter;
 import io.kroxylicious.proxy.filter.ListOffsetsResponseFilter;
 import io.kroxylicious.proxy.filter.MetadataRequestFilter;
@@ -76,7 +80,8 @@ public class MultiTenantTransformationFilter
         OffsetFetchRequestFilter, OffsetFetchResponseFilter,
         OffsetCommitRequestFilter, OffsetCommitResponseFilter,
         OffsetForLeaderEpochRequestFilter, OffsetForLeaderEpochResponseFilter,
-        FindCoordinatorRequestFilter, FindCoordinatorResponseFilter {
+        FindCoordinatorRequestFilter, FindCoordinatorResponseFilter,
+        ListGroupsRequestFilter, ListGroupsResponseFilter {
     private static final Logger LOGGER = LoggerFactory.getLogger(MultiTenantTransformationFilter.class);
 
     @Override
@@ -260,6 +265,20 @@ public class MultiTenantTransformationFilter
     @Override
     public void onFindCoordinatorResponse(ResponseHeaderData header, FindCoordinatorResponseData response, KrpcFilterContext context) {
         response.coordinators().forEach(coordinator -> removeTenantPrefix(context, coordinator::key, coordinator::setKey, false));
+        context.forwardResponse(response);
+    }
+
+    @Override
+    public void onListGroupsRequest(RequestHeaderData header, ListGroupsRequestData request, KrpcFilterContext context) {
+        context.forwardRequest(request);
+    }
+
+    @Override
+    public void onListGroupsResponse(ResponseHeaderData header, ListGroupsResponseData response, KrpcFilterContext context) {
+        var tenantPrefix = getTenantPrefix(context);
+        var filteredGroups = response.groups().stream().filter(listedGroup -> listedGroup.groupId().startsWith(tenantPrefix)).toList();
+        filteredGroups.forEach(listedGroup -> removeTenantPrefix(context, listedGroup::groupId, listedGroup::setGroupId, false));
+        response.setGroups(filteredGroups);
         context.forwardResponse(response);
     }
 }
