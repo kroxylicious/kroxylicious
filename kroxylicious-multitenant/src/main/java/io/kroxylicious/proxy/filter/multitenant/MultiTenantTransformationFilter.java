@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.proxy.filter.multitenant;
 
+import java.util.ArrayList;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -14,6 +15,8 @@ import org.apache.kafka.common.message.DeleteTopicsRequestData;
 import org.apache.kafka.common.message.DeleteTopicsResponseData;
 import org.apache.kafka.common.message.FetchRequestData;
 import org.apache.kafka.common.message.FetchResponseData;
+import org.apache.kafka.common.message.FindCoordinatorRequestData;
+import org.apache.kafka.common.message.FindCoordinatorResponseData;
 import org.apache.kafka.common.message.ListOffsetsRequestData;
 import org.apache.kafka.common.message.ListOffsetsResponseData;
 import org.apache.kafka.common.message.MetadataRequestData;
@@ -37,6 +40,8 @@ import io.kroxylicious.proxy.filter.DeleteTopicsRequestFilter;
 import io.kroxylicious.proxy.filter.DeleteTopicsResponseFilter;
 import io.kroxylicious.proxy.filter.FetchRequestFilter;
 import io.kroxylicious.proxy.filter.FetchResponseFilter;
+import io.kroxylicious.proxy.filter.FindCoordinatorRequestFilter;
+import io.kroxylicious.proxy.filter.FindCoordinatorResponseFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.proxy.filter.ListOffsetsRequestFilter;
 import io.kroxylicious.proxy.filter.ListOffsetsResponseFilter;
@@ -70,7 +75,8 @@ public class MultiTenantTransformationFilter
         FetchRequestFilter, FetchResponseFilter,
         OffsetFetchRequestFilter, OffsetFetchResponseFilter,
         OffsetCommitRequestFilter, OffsetCommitResponseFilter,
-        OffsetForLeaderEpochRequestFilter, OffsetForLeaderEpochResponseFilter {
+        OffsetForLeaderEpochRequestFilter, OffsetForLeaderEpochResponseFilter,
+        FindCoordinatorRequestFilter, FindCoordinatorResponseFilter {
     private static final Logger LOGGER = LoggerFactory.getLogger(MultiTenantTransformationFilter.class);
 
     @Override
@@ -226,5 +232,26 @@ public class MultiTenantTransformationFilter
     }
 
     public MultiTenantTransformationFilter() {
+    }
+
+    @Override
+    public void onFindCoordinatorRequest(RequestHeaderData header, FindCoordinatorRequestData request, KrpcFilterContext context) {
+        // TODO - refactor
+        var copy = new ArrayList<String>(request.coordinatorKeys());
+        var mapped = new ArrayList<String>();
+        var tenantPrefix = getTenantPrefix(context);
+
+        for (var key : copy) {
+            mapped.add(tenantPrefix + "-" + key);
+        }
+
+        request.setCoordinatorKeys(mapped);
+        context.forwardRequest(request);
+    }
+
+    @Override
+    public void onFindCoordinatorResponse(ResponseHeaderData header, FindCoordinatorResponseData response, KrpcFilterContext context) {
+        response.coordinators().forEach(coordinator -> removeTenantPrefix(context, coordinator::key, coordinator::setKey, false));
+        context.forwardResponse(response);
     }
 }
