@@ -192,18 +192,18 @@ public class MultiTenantIT {
     public void tenantGroupIsolation(KafkaCluster cluster) throws Exception {
         String config = getConfig(PROXY_ADDRESS, cluster);
         try (var proxy = startProxy(config)) {
-            //tenant 1 - creates topic
+            // tenant 1 - creates topic
             createTopics(TENANT1_PROXY_ADDRESS, List.of(NEW_TOPIC_1));
-            //tenant 1 - creates a consumer
+            // tenant 1 - creates a consumer
             createConsumerWithGroup(TENANT1_PROXY_ADDRESS, "Tenant1Group", NEW_TOPIC_1);
-            //tenant 1 - uses kafka admin api to check consumer groups
+            // tenant 1 - uses kafka admin api to check consumer groups
             verifyConsumerGroups(TENANT1_PROXY_ADDRESS, "Tenant1Group");
 
-            //tenant 2 - creates a topic
+            // tenant 2 - creates a topic
             createTopics(TENANT2_PROXY_ADDRESS, List.of(NEW_TOPIC_1));
-            //tenant 2 - creates a consumer
+            // tenant 2 - creates a consumer
             createConsumerWithGroup(TENANT2_PROXY_ADDRESS, "Tenant2Group", NEW_TOPIC_1);
-            //tenant 2 - uses kafka admin api to check consumer groups, and it will fail because it can see tenant 1 also
+            // tenant 2 - uses kafka admin api to check consumer groups, and it will fail because it can see tenant 1 also
             verifyConsumerGroups(TENANT2_PROXY_ADDRESS, "Tenant2Group");
         }
     }
