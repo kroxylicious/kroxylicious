@@ -35,3 +35,11 @@ git push "${PUSH_REMOTE:-origin}" --tags
 
 echo "Deploying release to maven central"
 mvn deploy -Prelease -DskipTests=true -DreleaseSigningKey="${GPG_KEY}"
+
+if ! command -v gh &> /dev/null
+then
+    echo "gh command could not be found. Please create a pull request by hand https://github.com/kroxylicious/kroxylicious/compare"
+    exit
+fi
+
+gh pr create --base main --title "Release v${RELEASE_VERSION}" --body "Release v${RELEASE_VERSION} which includes API version ${RELEASE_API_VERSION}"
