@@ -245,7 +245,7 @@ public class MultiTenantTransformationFilter
 
     private String applyTenantPrefix(KrpcFilterContext context, String clientSideName) {
         var tenantPrefix = getTenantPrefix(context);
-        return tenantPrefix + "-" + clientSideName;
+        return tenantPrefix + clientSideName;
     }
 
     private void removeTenantPrefix(KrpcFilterContext context, Supplier<String> getter, Consumer<String> setter, boolean ignoreEmpty) {
@@ -259,7 +259,7 @@ public class MultiTenantTransformationFilter
 
     private String removeTenantPrefix(KrpcFilterContext context, String brokerSideName) {
         var tenantPrefix = getTenantPrefix(context);
-        return brokerSideName.substring(tenantPrefix.length() + 1);
+        return brokerSideName.substring(tenantPrefix.length());
     }
 
     private static String getTenantPrefix(KrpcFilterContext context) {
@@ -272,7 +272,7 @@ public class MultiTenantTransformationFilter
         if (dot < 1) {
             throw new IllegalStateException("Unexpected SNI hostname formation. SNI hostname : " + sniHostname);
         }
-        return sniHostname.substring(0, dot);
+        return sniHostname.substring(0, dot) + "-";
     }
 
     public MultiTenantTransformationFilter() {

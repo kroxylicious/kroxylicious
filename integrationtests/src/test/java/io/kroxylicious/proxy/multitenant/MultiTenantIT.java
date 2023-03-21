@@ -14,6 +14,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -21,6 +22,7 @@ import java.util.stream.Stream;
 
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.admin.Admin;
+import org.apache.kafka.clients.admin.ConsumerGroupListing;
 import org.apache.kafka.clients.admin.CreateTopicsResult;
 import org.apache.kafka.clients.admin.DeleteTopicsResult;
 import org.apache.kafka.clients.admin.ListTopicsResult;
@@ -189,21 +191,24 @@ public class MultiTenantIT {
     }
 
     @Test
+    public void tenantConsumeWithGroup(KafkaCluster cluster) throws Exception {
+        String config = getConfig(PROXY_ADDRESS, cluster);
+        try (var proxy = startProxy(config)) {
+            createTopics(TENANT1_PROXY_ADDRESS, List.of(NEW_TOPIC_1));
+            createConsumerWithGroup(TENANT1_PROXY_ADDRESS, "Tenant1Group", NEW_TOPIC_1);
+            verifyConsumerGroups(TENANT1_PROXY_ADDRESS, "Tenant1Group");
+        }
+    }
+
+    @Test
     public void tenantGroupIsolation(KafkaCluster cluster) throws Exception {
         String config = getConfig(PROXY_ADDRESS, cluster);
         try (var proxy = startProxy(config)) {
-            // tenant 1 - creates topic
             createTopics(TENANT1_PROXY_ADDRESS, List.of(NEW_TOPIC_1));
-            // tenant 1 - creates a consumer
             createConsumerWithGroup(TENANT1_PROXY_ADDRESS, "Tenant1Group", NEW_TOPIC_1);
-            // tenant 1 - uses kafka admin api to check consumer groups
-            verifyConsumerGroups(TENANT1_PROXY_ADDRESS, "Tenant1Group");
 
-            // tenant 2 - creates a topic
             createTopics(TENANT2_PROXY_ADDRESS, List.of(NEW_TOPIC_1));
-            // tenant 2 - creates a consumer
             createConsumerWithGroup(TENANT2_PROXY_ADDRESS, "Tenant2Group", NEW_TOPIC_1);
-            // tenant 2 - uses kafka admin api to check consumer groups, and it will fail because it can see tenant 1 also
             verifyConsumerGroups(TENANT2_PROXY_ADDRESS, "Tenant2Group");
         }
     }
@@ -224,11 +229,10 @@ public class MultiTenantIT {
         }
     }
 
-    private void verifyConsumerGroups(String proxyAddress, String expectedGroupId) throws InterruptedException, ExecutionException {
+    private void verifyConsumerGroups(String proxyAddress, String... expectedGroupIds) throws InterruptedException, ExecutionException {
         try (var admin = Admin.create(commonConfig(proxyAddress, Map.of()))) {
-            var groups = admin.listConsumerGroups().all().get();
-            assertEquals(1, groups.size());
-            assertEquals(expectedGroupId, groups.iterator().next().groupId());
+            var groups = admin.listConsumerGroups().all().get().stream().map(ConsumerGroupListing::groupId).toList();
+            assertThat(groups).containsExactlyInAnyOrderElementsOf(Set.of(expectedGroupIds));
         }
     }
 
