@@ -6,6 +6,7 @@
 package io.kroxylicious.proxy.internal;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 
 import org.apache.kafka.common.errors.TimeoutException;
@@ -154,7 +155,7 @@ public class FilterHandlerTest extends FilterHarness {
         assertFalse(fut[0].isDone(),
                 "Future should not be finished yet");
 
-        assertThrows(RuntimeException.class, () -> {
+        assertThrows(UnsupportedOperationException.class, () -> {
             fut[0].complete(null);
         });
     }
@@ -180,8 +181,60 @@ public class FilterHandlerTest extends FilterHarness {
         assertFalse(fut[0].isDone(),
                 "Future should not be finished yet");
 
-        assertThrows(RuntimeException.class, () -> {
+        assertThrows(UnsupportedOperationException.class, () -> {
             fut[0].completeExceptionally(new RuntimeException());
+        });
+    }
+
+    @Test
+    public void testSendRequestCompletionStageCannotBeObtrudedExceptionallyByClient() {
+        FetchRequestData body = new FetchRequestData();
+        CompletableFuture<?>[] fut = { null };
+        ApiVersionsRequestFilter filter = (header, request, context) -> {
+            assertNull(fut[0],
+                    "Expected to only be called once");
+            fut[0] = context.sendRequest((short) 3, body).toCompletableFuture();
+        };
+
+        buildChannel(filter);
+
+        var frame = writeRequest(new ApiVersionsRequestData());
+        var propagated = channel.readOutbound();
+        assertTrue(propagated instanceof InternalRequestFrame);
+        assertEquals(body, ((InternalRequestFrame<?>) propagated).body(),
+                "Expect the body to be the Fetch request");
+
+        assertFalse(fut[0].isDone(),
+                "Future should not be finished yet");
+
+        assertThrows(UnsupportedOperationException.class, () -> {
+            fut[0].obtrudeException(new RuntimeException());
+        });
+    }
+
+    @Test
+    public void testSendRequestCompletionStageCannotBeObtrudedByClient() {
+        FetchRequestData body = new FetchRequestData();
+        CompletableFuture<?>[] fut = { null };
+        ApiVersionsRequestFilter filter = (header, request, context) -> {
+            assertNull(fut[0],
+                    "Expected to only be called once");
+            fut[0] = context.sendRequest((short) 3, body).toCompletableFuture();
+        };
+
+        buildChannel(filter);
+
+        var frame = writeRequest(new ApiVersionsRequestData());
+        var propagated = channel.readOutbound();
+        assertTrue(propagated instanceof InternalRequestFrame);
+        assertEquals(body, ((InternalRequestFrame<?>) propagated).body(),
+                "Expect the body to be the Fetch request");
+
+        assertFalse(fut[0].isDone(),
+                "Future should not be finished yet");
+
+        assertThrows(UnsupportedOperationException.class, () -> {
+            fut[0].obtrudeValue(null);
         });
     }
 
@@ -206,7 +259,7 @@ public class FilterHandlerTest extends FilterHarness {
         assertFalse(fut[0].isDone(),
                 "Future should not be finished yet");
 
-        assertThrows(RuntimeException.class, () -> {
+        assertThrows(UnsupportedOperationException.class, () -> {
             fut[0].get();
         });
     }
@@ -274,8 +327,10 @@ public class FilterHandlerTest extends FilterHarness {
                 "Future should be finished yet");
         assertTrue(p.isCompletedExceptionally(),
                 "Future should be finished yet");
-        assertTrue(p.exceptionNow() instanceof TimeoutException,
-                "Cause should be timeout");
+        CompletionException ex = assertThrows(CompletionException.class, () -> {
+            p.getNow(null);
+        });
+        assertEquals(TimeoutException.class, ex.getCause().getClass());
 
         // check that when the response arrives late, the promise result doesn't change
         var responseFrame = writeInternalResponse(new FetchResponseData(), p);
@@ -283,8 +338,10 @@ public class FilterHandlerTest extends FilterHarness {
                 "Future should be finished now");
         assertTrue(p.isCompletedExceptionally(),
                 "Future should be finished yet");
-        assertTrue(p.exceptionNow() instanceof TimeoutException,
-                "Cause should be timeout");
+        ex = assertThrows(CompletionException.class, () -> {
+            p.getNow(null);
+        });
+        assertEquals(TimeoutException.class, ex.getCause().getClass());
     }
 
 }

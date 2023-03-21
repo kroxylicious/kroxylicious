@@ -61,4 +61,16 @@ public class InternalFuture<T> extends CompletableFuture<T> {
         logger.debug("Blocking join called on InternalFuture, we don't want to block the proxy event loop");
         throw new UnsupportedOperationException("Blocking operations unsupported");
     }
+
+    @Override
+    public void obtrudeValue(T value) {
+        logger.debug("InternalFuture unexpectedly obtruded with value {}", value);
+        throw new UnsupportedOperationException("Internal future obtruded unexpectedly");
+    }
+
+    @Override
+    public void obtrudeException(Throwable ex) {
+        logger.debug("InternalFuture unexpectedly obtruded with exception", ex);
+        throw new UnsupportedOperationException("Internal future obtruded unexpectedly");
+    }
 }
