@@ -47,6 +47,11 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>org.apache.logging.log4j</groupId>
             <artifactId>log4j-slf4j-impl</artifactId>
             <scope>test</scope>
@@ -77,4 +82,75 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>unpack-message-specs</id>
+                        <goals>
+                            <goal>unpack</goal>
+                        </goals>
+                        <phase>generate-sources</phase>
+                        <configuration>
+                            <artifact>org.apache.kafka:kafka-clients:${kafka.version}</artifact>
+                            <includes>common/message/*.json</includes>
+                            <outputDirectory>${project.build.directory}/message-specs</outputDirectory>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>io.kroxylicious</groupId>
+                <artifactId>kroxylicious-krpc-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>generate-converters</id>
+                        <goals>
+                            <goal>generate-multi</goal>
+                        </goals>
+                        <phase>generate-test-sources</phase>
+                        <configuration>
+                            <messageSpecDirectory>${project.build.directory}/message-specs/common/message</messageSpecDirectory>
+                            <messageSpecFilter>*{Request,Response}.json</messageSpecFilter>
+                            <templateDirectory>${project.basedir}/src/test/templates</templateDirectory>
+                            <templateNames>KafkaApiMessageConverter.ftl</templateNames>
+                            <outputFilePattern>${templateName}.java</outputFilePattern>
+                            <outputPackage>io.kroxylicious.proxy.filter.multitenant</outputPackage>
+                            <outputDirectory>${project.build.directory}/generated-test-sources</outputDirectory>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>add-source</id>
+                        <phase>generate-test-sources</phase>
+                        <goals>
+                            <goal>add-test-source</goal>
+                        </goals>
+                        <configuration>
+                            <sources>
+                                <source>${project.build.directory}/generated-test-sources</source>
+                            </sources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <configuration>
+                    <!-- Javadoc generation fails to resolve jackson databind.  KW doesn't understand why -->
+                    <!-- Turn off javadoc generation for this module to work-around -->
+                    <skip>true</skip>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 </project>
