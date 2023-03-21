@@ -37,7 +37,7 @@
         <junit.version>5.9.2</junit.version>
         <kafka.version>3.4.0</kafka.version>
         <kroxy.extension.version>0.1</kroxy.extension.version>
-        <log4j.version>2.17.2</log4j.version>
+        <log4j.version>2.20.0</log4j.version>
         <netty.version>4.1.90.Final</netty.version>
         <netty.io_uring.version>0.0.14.Final</netty.io_uring.version>
         <netty.epoll.classifier>linux-x86_64</netty.epoll.classifier>
