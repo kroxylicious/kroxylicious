@@ -14,12 +14,15 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.admin.Admin;
+import org.apache.kafka.clients.admin.ConsumerGroupListing;
 import org.apache.kafka.clients.admin.CreateTopicsResult;
 import org.apache.kafka.clients.admin.DeleteTopicsResult;
 import org.apache.kafka.clients.admin.ListTopicsResult;
@@ -176,7 +179,7 @@ public class MultiTenantIT {
     }
 
     @Test
-    public void tenantIsolation(KafkaCluster cluster) throws Exception {
+    public void tenantTopicIsolation(KafkaCluster cluster) throws Exception {
         String config = getConfig(PROXY_ADDRESS, cluster);
         try (var proxy = startProxy(config)) {
             createTopics(TENANT1_PROXY_ADDRESS, List.of(NEW_TOPIC_1));
@@ -184,6 +187,52 @@ public class MultiTenantIT {
 
             verifyTenant(TENANT1_PROXY_ADDRESS, TOPIC_1);
             verifyTenant(TENANT2_PROXY_ADDRESS, TOPIC_2, TOPIC_3);
+        }
+    }
+
+    @Test
+    public void tenantConsumeWithGroup(KafkaCluster cluster) throws Exception {
+        String config = getConfig(PROXY_ADDRESS, cluster);
+        try (var proxy = startProxy(config)) {
+            createTopics(TENANT1_PROXY_ADDRESS, List.of(NEW_TOPIC_1));
+            createConsumerWithGroup(TENANT1_PROXY_ADDRESS, "Tenant1Group", NEW_TOPIC_1);
+            verifyConsumerGroups(TENANT1_PROXY_ADDRESS, "Tenant1Group");
+        }
+    }
+
+    @Test
+    public void tenantGroupIsolation(KafkaCluster cluster) throws Exception {
+        String config = getConfig(PROXY_ADDRESS, cluster);
+        try (var proxy = startProxy(config)) {
+            createTopics(TENANT1_PROXY_ADDRESS, List.of(NEW_TOPIC_1));
+            createConsumerWithGroup(TENANT1_PROXY_ADDRESS, "Tenant1Group", NEW_TOPIC_1);
+
+            createTopics(TENANT2_PROXY_ADDRESS, List.of(NEW_TOPIC_1));
+            createConsumerWithGroup(TENANT2_PROXY_ADDRESS, "Tenant2Group", NEW_TOPIC_1);
+            verifyConsumerGroups(TENANT2_PROXY_ADDRESS, "Tenant2Group");
+        }
+    }
+
+    private void createConsumerWithGroup(String proxyAddress, String groupId, NewTopic topic) {
+        try (var consumer = new KafkaConsumer<String, String>(commonConfig(proxyAddress, Map.of(
+                ConsumerConfig.GROUP_ID_CONFIG, groupId,
+                ConsumerConfig.ALLOW_AUTO_CREATE_TOPICS_CONFIG, Boolean.FALSE.toString(),
+                ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, Boolean.TRUE.toString(),
+                ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, OffsetResetStrategy.EARLIEST.toString(),
+                ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
+                ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class)))) {
+
+            var topicPartitions = List.of(new TopicPartition(topic.name(), 0));
+            consumer.assign(topicPartitions);
+
+            consumer.poll(Duration.ofSeconds(1));
+        }
+    }
+
+    private void verifyConsumerGroups(String proxyAddress, String... expectedGroupIds) throws InterruptedException, ExecutionException {
+        try (var admin = Admin.create(commonConfig(proxyAddress, Map.of()))) {
+            var groups = admin.listConsumerGroups().all().get().stream().map(ConsumerGroupListing::groupId).toList();
+            assertThat(groups).containsExactlyInAnyOrderElementsOf(Set.of(expectedGroupIds));
         }
     }
 
