@@ -52,6 +52,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -192,24 +194,14 @@ public class MultiTenantIT {
         }
     }
 
-    // TODO: Would like to use EnumSource but there's an interop issue with our KafkaClusterExtension
-    // see https://github.com/kroxylicious/kroxylicious-junit5-extension/issues/62
     private enum ConsumerStyle {
         ASSIGN,
         SUBSCRIBE
     }
 
-    @Test
-    public void tenantConsumerWithGroup_Assignment(KafkaCluster cluster) throws Exception {
-        tenantConsumeWithGroup(cluster, ConsumerStyle.ASSIGN);
-    }
-
-    @Test
-    public void tenantConsumerWithGroup_Subscription(KafkaCluster cluster) throws Exception {
-        tenantConsumeWithGroup(cluster, ConsumerStyle.SUBSCRIBE);
-    }
-
-    private void tenantConsumeWithGroup(KafkaCluster cluster, ConsumerStyle consumerStyle) throws Exception {
+    @ParameterizedTest
+    @EnumSource
+    public void tenantConsumeWithGroup(ConsumerStyle consumerStyle, KafkaCluster cluster) throws Exception {
         String config = getConfig(PROXY_ADDRESS, cluster);
         try (var proxy = startProxy(config)) {
             createTopics(TENANT1_PROXY_ADDRESS, List.of(NEW_TOPIC_1));
@@ -218,24 +210,16 @@ public class MultiTenantIT {
         }
     }
 
-    @Test
-    public void tenantGroupIsolation_Assignment(KafkaCluster cluster) throws Exception {
-        tenantGroupIsolation(cluster, ConsumerStyle.ASSIGN);
-    }
-
-    @Test
-    public void tenantGroupIsolation_Subscription(KafkaCluster cluster) throws Exception {
-        tenantGroupIsolation(cluster, ConsumerStyle.SUBSCRIBE);
-    }
-
-    private void tenantGroupIsolation(KafkaCluster cluster, ConsumerStyle assign) throws Exception {
+    @ParameterizedTest
+    @EnumSource
+    public void tenantGroupIsolation(ConsumerStyle consumerStyle, KafkaCluster cluster) throws Exception {
         String config = getConfig(PROXY_ADDRESS, cluster);
         try (var proxy = startProxy(config)) {
             createTopics(TENANT1_PROXY_ADDRESS, List.of(NEW_TOPIC_1));
-            createConsumerWithGroup(TENANT1_PROXY_ADDRESS, "Tenant1Group", NEW_TOPIC_1, assign);
+            createConsumerWithGroup(TENANT1_PROXY_ADDRESS, "Tenant1Group", NEW_TOPIC_1, consumerStyle);
 
             createTopics(TENANT2_PROXY_ADDRESS, List.of(NEW_TOPIC_1));
-            createConsumerWithGroup(TENANT2_PROXY_ADDRESS, "Tenant2Group", NEW_TOPIC_1, assign);
+            createConsumerWithGroup(TENANT2_PROXY_ADDRESS, "Tenant2Group", NEW_TOPIC_1, consumerStyle);
             verifyConsumerGroups(TENANT2_PROXY_ADDRESS, "Tenant2Group");
         }
     }
