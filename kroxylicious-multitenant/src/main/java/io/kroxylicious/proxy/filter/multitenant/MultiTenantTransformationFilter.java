@@ -16,6 +16,12 @@ import org.apache.kafka.common.message.FetchRequestData;
 import org.apache.kafka.common.message.FetchResponseData;
 import org.apache.kafka.common.message.FindCoordinatorRequestData;
 import org.apache.kafka.common.message.FindCoordinatorResponseData;
+import org.apache.kafka.common.message.HeartbeatRequestData;
+import org.apache.kafka.common.message.HeartbeatResponseData;
+import org.apache.kafka.common.message.JoinGroupRequestData;
+import org.apache.kafka.common.message.JoinGroupResponseData;
+import org.apache.kafka.common.message.LeaveGroupRequestData;
+import org.apache.kafka.common.message.LeaveGroupResponseData;
 import org.apache.kafka.common.message.ListGroupsRequestData;
 import org.apache.kafka.common.message.ListGroupsResponseData;
 import org.apache.kafka.common.message.ListOffsetsRequestData;
@@ -32,6 +38,8 @@ import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.ProduceResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
+import org.apache.kafka.common.message.SyncGroupRequestData;
+import org.apache.kafka.common.message.SyncGroupResponseData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,7 +51,13 @@ import io.kroxylicious.proxy.filter.FetchRequestFilter;
 import io.kroxylicious.proxy.filter.FetchResponseFilter;
 import io.kroxylicious.proxy.filter.FindCoordinatorRequestFilter;
 import io.kroxylicious.proxy.filter.FindCoordinatorResponseFilter;
+import io.kroxylicious.proxy.filter.HeartbeatRequestFilter;
+import io.kroxylicious.proxy.filter.HeartbeatResponseFilter;
+import io.kroxylicious.proxy.filter.JoinGroupRequestFilter;
+import io.kroxylicious.proxy.filter.JoinGroupResponseFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
+import io.kroxylicious.proxy.filter.LeaveGroupRequestFilter;
+import io.kroxylicious.proxy.filter.LeaveGroupResponseFilter;
 import io.kroxylicious.proxy.filter.ListGroupsRequestFilter;
 import io.kroxylicious.proxy.filter.ListGroupsResponseFilter;
 import io.kroxylicious.proxy.filter.ListOffsetsRequestFilter;
@@ -58,6 +72,8 @@ import io.kroxylicious.proxy.filter.OffsetForLeaderEpochRequestFilter;
 import io.kroxylicious.proxy.filter.OffsetForLeaderEpochResponseFilter;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
 import io.kroxylicious.proxy.filter.ProduceResponseFilter;
+import io.kroxylicious.proxy.filter.SyncGroupRequestFilter;
+import io.kroxylicious.proxy.filter.SyncGroupResponseFilter;
 
 /**
  * Simple multi-tenant filter.
@@ -80,7 +96,11 @@ public class MultiTenantTransformationFilter
         OffsetCommitRequestFilter, OffsetCommitResponseFilter,
         OffsetForLeaderEpochRequestFilter, OffsetForLeaderEpochResponseFilter,
         FindCoordinatorRequestFilter, FindCoordinatorResponseFilter,
-        ListGroupsRequestFilter, ListGroupsResponseFilter {
+        ListGroupsRequestFilter, ListGroupsResponseFilter,
+        JoinGroupRequestFilter, JoinGroupResponseFilter,
+        SyncGroupRequestFilter, SyncGroupResponseFilter,
+        LeaveGroupRequestFilter, LeaveGroupResponseFilter,
+        HeartbeatRequestFilter, HeartbeatResponseFilter {
     private static final Logger LOGGER = LoggerFactory.getLogger(MultiTenantTransformationFilter.class);
 
     @Override
@@ -232,6 +252,54 @@ public class MultiTenantTransformationFilter
         var filteredGroups = response.groups().stream().filter(listedGroup -> listedGroup.groupId().startsWith(tenantPrefix)).toList();
         filteredGroups.forEach(listedGroup -> removeTenantPrefix(context, listedGroup::groupId, listedGroup::setGroupId, false));
         response.setGroups(filteredGroups);
+        context.forwardResponse(response);
+    }
+
+    @Override
+    public void onJoinGroupRequest(RequestHeaderData header, JoinGroupRequestData request, KrpcFilterContext context) {
+        var tenantPrefix = getTenantPrefix(context);
+        request.setGroupId(tenantPrefix + request.groupId());
+        context.forwardRequest(request);
+    }
+
+    @Override
+    public void onJoinGroupResponse(ResponseHeaderData header, JoinGroupResponseData response, KrpcFilterContext context) {
+        context.forwardResponse(response);
+    }
+
+    @Override
+    public void onSyncGroupRequest(RequestHeaderData header, SyncGroupRequestData request, KrpcFilterContext context) {
+        var tenantPrefix = getTenantPrefix(context);
+        request.setGroupId(tenantPrefix + request.groupId());
+        context.forwardRequest(request);
+    }
+
+    @Override
+    public void onSyncGroupResponse(ResponseHeaderData header, SyncGroupResponseData response, KrpcFilterContext context) {
+        context.forwardResponse(response);
+    }
+
+    @Override
+    public void onLeaveGroupRequest(RequestHeaderData header, LeaveGroupRequestData request, KrpcFilterContext context) {
+        var tenantPrefix = getTenantPrefix(context);
+        request.setGroupId(tenantPrefix + request.groupId());
+        context.forwardRequest(request);
+    }
+
+    @Override
+    public void onLeaveGroupResponse(ResponseHeaderData header, LeaveGroupResponseData response, KrpcFilterContext context) {
+        context.forwardResponse(response);
+    }
+
+    @Override
+    public void onHeartbeatRequest(RequestHeaderData header, HeartbeatRequestData request, KrpcFilterContext context) {
+        var tenantPrefix = getTenantPrefix(context);
+        request.setGroupId(tenantPrefix + request.groupId());
+        context.forwardRequest(request);
+    }
+
+    @Override
+    public void onHeartbeatResponse(ResponseHeaderData header, HeartbeatResponseData response, KrpcFilterContext context) {
         context.forwardResponse(response);
     }
 

@@ -10,18 +10,18 @@
     payload:
       keyType: 0
       coordinatorKeys:
-        - test-group
+        - mygroup
       timeoutMs: 0
       validateOnly: false
     diff:
       - op: replace
         path: /coordinatorKeys/0
-        value: tenant1-test-group
+        value: tenant1-mygroup
   response:
     payload:
       throttleTimeMs: 0
       coordinators:
-        - key: tenant1-test-group
+        - key: tenant1-mygroup
           nodeId: 0
           host: localhost
           port: 12345
@@ -30,5 +30,5 @@
     diff:
       - op: replace
         path: "/coordinators/0/key"
-        value: test-group
+        value: mygroup
   disabled: false
