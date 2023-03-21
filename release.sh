@@ -10,6 +10,11 @@ RELEASE_VERSION=${1:-0.1.0}
 RELEASE_API_VERSION=${2:-0.1.0}
 API_MODULES=':kroxylicious-api,:kroxylicious-filter-api'
 
+if [[ -z "${GPG_KEY}" ]]; then
+    echo "GPG_KEY not set unable to sign the release. Please export GPG_KEY" 1>&2
+    exit 1
+fi
+
 echo "Validating the build is green"
 mvn clean install || { echo 'maven build failed' ; exit 1; }
 echo "Releasing API version ${RELEASE_API_VERSION} as part of version ${RELEASE_VERSION}"
@@ -25,3 +30,8 @@ git add '**/pom.xml' 'pom.xml'
 git commit --message "Release version v${RELEASE_VERSION}" --signoff
 git tag "api-v${RELEASE_API_VERSION}"
 git tag "v${RELEASE_VERSION}"
+
+git push "${PUSH_REMOTE:-origin}" --tags
+
+echo "Deploying release to maven central"
+mvn deploy -Prelease -DskipTests=true -DreleaseSigningKey="${GPG_KEY}"
