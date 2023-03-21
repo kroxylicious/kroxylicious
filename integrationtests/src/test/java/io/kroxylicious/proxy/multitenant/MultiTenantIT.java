@@ -38,6 +38,7 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
+import org.apache.kafka.common.ConsumerGroupState;
 import org.apache.kafka.common.TopicCollection;
 import org.apache.kafka.common.TopicCollection.TopicNameCollection;
 import org.apache.kafka.common.TopicPartition;
@@ -249,6 +250,12 @@ public class MultiTenantIT {
         try (var admin = Admin.create(commonConfig(proxyAddress, Map.of()))) {
             var groups = admin.listConsumerGroups().all().get().stream().map(ConsumerGroupListing::groupId).toList();
             assertThat(groups).containsExactlyInAnyOrderElementsOf(Set.of(expectedGroupIds));
+            var describedGroups = admin.describeConsumerGroups(groups).all().get();
+            assertThat(describedGroups.size()).isEqualTo(expectedGroupIds.length);
+            // The consumer group comes back as "dead" when it doesn't exist, so we have to check that it's not dead
+            describedGroups.forEach((k, v) -> {
+                assertThat(v.state()).isNotEqualTo(ConsumerGroupState.DEAD);
+            });
         }
     }
 

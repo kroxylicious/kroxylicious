@@ -12,6 +12,8 @@ import org.apache.kafka.common.message.CreateTopicsRequestData;
 import org.apache.kafka.common.message.CreateTopicsResponseData;
 import org.apache.kafka.common.message.DeleteTopicsRequestData;
 import org.apache.kafka.common.message.DeleteTopicsResponseData;
+import org.apache.kafka.common.message.DescribeGroupsRequestData;
+import org.apache.kafka.common.message.DescribeGroupsResponseData;
 import org.apache.kafka.common.message.FetchRequestData;
 import org.apache.kafka.common.message.FetchResponseData;
 import org.apache.kafka.common.message.FindCoordinatorRequestData;
@@ -47,6 +49,8 @@ import io.kroxylicious.proxy.filter.CreateTopicsRequestFilter;
 import io.kroxylicious.proxy.filter.CreateTopicsResponseFilter;
 import io.kroxylicious.proxy.filter.DeleteTopicsRequestFilter;
 import io.kroxylicious.proxy.filter.DeleteTopicsResponseFilter;
+import io.kroxylicious.proxy.filter.DescribeGroupsRequestFilter;
+import io.kroxylicious.proxy.filter.DescribeGroupsResponseFilter;
 import io.kroxylicious.proxy.filter.FetchRequestFilter;
 import io.kroxylicious.proxy.filter.FetchResponseFilter;
 import io.kroxylicious.proxy.filter.FindCoordinatorRequestFilter;
@@ -100,7 +104,8 @@ public class MultiTenantTransformationFilter
         JoinGroupRequestFilter,
         SyncGroupRequestFilter,
         LeaveGroupRequestFilter,
-        HeartbeatRequestFilter {
+        HeartbeatRequestFilter,
+        DescribeGroupsRequestFilter, DescribeGroupsResponseFilter {
     private static final Logger LOGGER = LoggerFactory.getLogger(MultiTenantTransformationFilter.class);
 
     @Override
@@ -278,6 +283,18 @@ public class MultiTenantTransformationFilter
         context.forwardRequest(request);
     }
 
+    @Override
+    public void onDescribeGroupsRequest(RequestHeaderData header, DescribeGroupsRequestData request, KrpcFilterContext context) {
+        request.setGroups(request.groups().stream().map(group -> applyTenantPrefix(context, group)).toList());
+        context.forwardRequest(request);
+    }
+
+    @Override
+    public void onDescribeGroupsResponse(ResponseHeaderData header, DescribeGroupsResponseData response, KrpcFilterContext context) {
+        response.groups().forEach(group -> removeTenantPrefix(context, group::groupId, group::setGroupId, false));
+        context.forwardResponse(response);
+    }
+    
     private void applyTenantPrefix(KrpcFilterContext context, Supplier<String> getter, Consumer<String> setter, boolean ignoreEmpty) {
         String clientSideName = getter.get();
         if (ignoreEmpty && (clientSideName == null || clientSideName.isEmpty())) {
