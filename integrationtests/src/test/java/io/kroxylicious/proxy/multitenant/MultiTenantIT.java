@@ -62,7 +62,9 @@ import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import static io.kroxylicious.proxy.Utils.startProxy;
 import static org.assertj.core.api.Assertions.allOf;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 @ExtendWith(KafkaClusterExtension.class)
 public class MultiTenantIT {
@@ -190,30 +192,55 @@ public class MultiTenantIT {
         }
     }
 
+    // TODO: Would like to use EnumSource but there's an interop issue with our KafkaClusterExtension
+    // see https://github.com/kroxylicious/kroxylicious-junit5-extension/issues/62
+    private enum ConsumerStyle {
+        ASSIGN,
+        SUBSCRIBE
+    }
+
     @Test
-    public void tenantConsumeWithGroup(KafkaCluster cluster) throws Exception {
+    public void tenantConsumerWithGroup_Assignment(KafkaCluster cluster) throws Exception {
+        tenantConsumeWithGroup(cluster, ConsumerStyle.ASSIGN);
+    }
+
+    @Test
+    public void tenantConsumerWithGroup_Subscription(KafkaCluster cluster) throws Exception {
+        tenantConsumeWithGroup(cluster, ConsumerStyle.SUBSCRIBE);
+    }
+
+    private void tenantConsumeWithGroup(KafkaCluster cluster, ConsumerStyle consumerStyle) throws Exception {
         String config = getConfig(PROXY_ADDRESS, cluster);
         try (var proxy = startProxy(config)) {
             createTopics(TENANT1_PROXY_ADDRESS, List.of(NEW_TOPIC_1));
-            createConsumerWithGroup(TENANT1_PROXY_ADDRESS, "Tenant1Group", NEW_TOPIC_1);
+            createConsumerWithGroup(TENANT1_PROXY_ADDRESS, "Tenant1Group", NEW_TOPIC_1, consumerStyle);
             verifyConsumerGroups(TENANT1_PROXY_ADDRESS, "Tenant1Group");
         }
     }
 
     @Test
-    public void tenantGroupIsolation(KafkaCluster cluster) throws Exception {
+    public void tenantGroupIsolation_Assignment(KafkaCluster cluster) throws Exception {
+        tenantGroupIsolation(cluster, ConsumerStyle.ASSIGN);
+    }
+
+    @Test
+    public void tenantGroupIsolation_Subscription(KafkaCluster cluster) throws Exception {
+        tenantGroupIsolation(cluster, ConsumerStyle.SUBSCRIBE);
+    }
+
+    private void tenantGroupIsolation(KafkaCluster cluster, ConsumerStyle assign) throws Exception {
         String config = getConfig(PROXY_ADDRESS, cluster);
         try (var proxy = startProxy(config)) {
             createTopics(TENANT1_PROXY_ADDRESS, List.of(NEW_TOPIC_1));
-            createConsumerWithGroup(TENANT1_PROXY_ADDRESS, "Tenant1Group", NEW_TOPIC_1);
+            createConsumerWithGroup(TENANT1_PROXY_ADDRESS, "Tenant1Group", NEW_TOPIC_1, assign);
 
             createTopics(TENANT2_PROXY_ADDRESS, List.of(NEW_TOPIC_1));
-            createConsumerWithGroup(TENANT2_PROXY_ADDRESS, "Tenant2Group", NEW_TOPIC_1);
+            createConsumerWithGroup(TENANT2_PROXY_ADDRESS, "Tenant2Group", NEW_TOPIC_1, assign);
             verifyConsumerGroups(TENANT2_PROXY_ADDRESS, "Tenant2Group");
         }
     }
 
-    private void createConsumerWithGroup(String proxyAddress, String groupId, NewTopic topic) {
+    private void createConsumerWithGroup(String proxyAddress, String groupId, NewTopic topic, ConsumerStyle consumerStyle) {
         try (var consumer = new KafkaConsumer<String, String>(commonConfig(proxyAddress, Map.of(
                 ConsumerConfig.GROUP_ID_CONFIG, groupId,
                 ConsumerConfig.ALLOW_AUTO_CREATE_TOPICS_CONFIG, Boolean.FALSE.toString(),
@@ -222,8 +249,13 @@ public class MultiTenantIT {
                 ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
                 ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class)))) {
 
-            var topicPartitions = List.of(new TopicPartition(topic.name(), 0));
-            consumer.assign(topicPartitions);
+            if (consumerStyle == ConsumerStyle.ASSIGN) {
+                var topicPartitions = List.of(new TopicPartition(topic.name(), 0));
+                consumer.assign(topicPartitions);
+            }
+            else {
+                consumer.subscribe(List.of(topic.name()));
+            }
 
             consumer.poll(Duration.ofSeconds(1));
         }
