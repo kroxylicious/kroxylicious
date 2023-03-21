@@ -73,4 +73,9 @@ public class InternalFuture<T> extends CompletableFuture<T> {
         logger.debug("InternalFuture unexpectedly obtruded with exception", ex);
         throw new UnsupportedOperationException("Internal future obtruded unexpectedly");
     }
+
+    @Override
+    public CompletableFuture<T> toCompletableFuture() {
+        throw new UnsupportedOperationException("this completion stage should not be converted to a future");
+    }
 }

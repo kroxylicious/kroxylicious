@@ -141,7 +141,7 @@ public class FilterHandlerTest extends FilterHarness {
         ApiVersionsRequestFilter filter = (header, request, context) -> {
             assertNull(fut[0],
                     "Expected to only be called once");
-            fut[0] = context.sendRequest((short) 3, body).toCompletableFuture();
+            fut[0] = (CompletableFuture<?>) context.sendRequest((short) 3, body);
         };
 
         buildChannel(filter);
@@ -167,7 +167,7 @@ public class FilterHandlerTest extends FilterHarness {
         ApiVersionsRequestFilter filter = (header, request, context) -> {
             assertNull(fut[0],
                     "Expected to only be called once");
-            fut[0] = context.sendRequest((short) 3, body).toCompletableFuture();
+            fut[0] = (CompletableFuture<?>) context.sendRequest((short) 3, body);
         };
 
         buildChannel(filter);
@@ -187,13 +187,39 @@ public class FilterHandlerTest extends FilterHarness {
     }
 
     @Test
+    public void testSendRequestCompletionStageCannotBeConvertedToCompletableFutureByClient() {
+        FetchRequestData body = new FetchRequestData();
+        CompletableFuture<?>[] fut = { null };
+        ApiVersionsRequestFilter filter = (header, request, context) -> {
+            assertNull(fut[0],
+                    "Expected to only be called once");
+            fut[0] = (CompletableFuture<?>) context.sendRequest((short) 3, body);
+        };
+
+        buildChannel(filter);
+
+        var frame = writeRequest(new ApiVersionsRequestData());
+        var propagated = channel.readOutbound();
+        assertTrue(propagated instanceof InternalRequestFrame);
+        assertEquals(body, ((InternalRequestFrame<?>) propagated).body(),
+                "Expect the body to be the Fetch request");
+
+        assertFalse(fut[0].isDone(),
+                "Future should not be finished yet");
+
+        assertThrows(UnsupportedOperationException.class, () -> {
+            fut[0].toCompletableFuture();
+        });
+    }
+
+    @Test
     public void testSendRequestCompletionStageCannotBeObtrudedExceptionallyByClient() {
         FetchRequestData body = new FetchRequestData();
         CompletableFuture<?>[] fut = { null };
         ApiVersionsRequestFilter filter = (header, request, context) -> {
             assertNull(fut[0],
                     "Expected to only be called once");
-            fut[0] = context.sendRequest((short) 3, body).toCompletableFuture();
+            fut[0] = (CompletableFuture<?>) context.sendRequest((short) 3, body);
         };
 
         buildChannel(filter);
@@ -219,7 +245,7 @@ public class FilterHandlerTest extends FilterHarness {
         ApiVersionsRequestFilter filter = (header, request, context) -> {
             assertNull(fut[0],
                     "Expected to only be called once");
-            fut[0] = context.sendRequest((short) 3, body).toCompletableFuture();
+            fut[0] = (CompletableFuture<?>) context.sendRequest((short) 3, body);
         };
 
         buildChannel(filter);
@@ -245,7 +271,7 @@ public class FilterHandlerTest extends FilterHarness {
         ApiVersionsRequestFilter filter = (header, request, context) -> {
             assertNull(fut[0],
                     "Expected to only be called once");
-            fut[0] = context.sendRequest((short) 3, body).toCompletableFuture();
+            fut[0] = (CompletableFuture<?>) context.sendRequest((short) 3, body);
         };
 
         buildChannel(filter);
@@ -276,7 +302,7 @@ public class FilterHandlerTest extends FilterHarness {
         ApiVersionsRequestFilter filter = (header, request, context) -> {
             assertNull(fut[0],
                     "Expected to only be called once");
-            fut[0] = context.sendRequest((short) 3, body).toCompletableFuture();
+            fut[0] = (CompletableFuture<?>) context.sendRequest((short) 3, body);
         };
 
         buildChannel(filter);
