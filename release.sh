@@ -21,4 +21,7 @@ echo "Validating things still build"
 mvn clean install -Pquick
 
 echo "Committing release to git"
-git add **/pom.xml && git commit -m "Release version v${RELEASE_VERSION}" && git tag "api-v${RELEASE_API_VERSION}"
+git add '**/pom.xml' 'pom.xml'
+git commit --message "Release version v${RELEASE_VERSION}" --signoff
+git tag "api-v${RELEASE_API_VERSION}"
+git tag "v${RELEASE_VERSION}"
