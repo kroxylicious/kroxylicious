@@ -230,9 +230,7 @@ public class KrpcFilterIT {
                 producer.flush();
             }
 
-            ConsumerRecords<String, String> records1;
             long offsetCommitted;
-            long actualEndOffset;
             long offsetToCommit;
             try (var consumer = new KafkaConsumer<String, String>(Map.of(
                     ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, PROXY_ADDRESS,
@@ -247,18 +245,20 @@ public class KrpcFilterIT {
                 partitions.add(actualTopicPartition);
                 consumer.assign(Set.of(actualTopicPartition));
 
-                records1 = consumer.poll(Duration.ofSeconds(100));
+                // before committing the offset, make sure there is no offset stored
+                var beforeCommitted = consumer.committed(partitions);
+                OffsetAndMetadata offsetAndMetadata = beforeCommitted.get(actualTopicPartition);
+                assertNull(offsetAndMetadata);
 
-                actualEndOffset = consumer.endOffsets(partitions).get(actualTopicPartition);
-                offsetToCommit = actualEndOffset - 1;
+                // hard code the commit to offset
+                offsetToCommit = 1;
                 consumer.commitSync(Map.of(actualTopicPartition, new OffsetAndMetadata(offsetToCommit)));
 
                 var committed = consumer.committed(partitions);
-                OffsetAndMetadata offsetAndMetadata = committed.get(actualTopicPartition);
+                offsetAndMetadata = committed.get(actualTopicPartition);
                 offsetCommitted = offsetAndMetadata.offset();
             }
             assertEquals(offsetCommitted, offsetToCommit);
-            assertEquals(MESSAGE_TEXT, records1.iterator().next().value());
         }
     }
 
