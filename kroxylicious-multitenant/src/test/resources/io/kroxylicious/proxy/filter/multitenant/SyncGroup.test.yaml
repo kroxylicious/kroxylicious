@@ -19,13 +19,4 @@
       - op: replace
         path: "/groupId"
         value: tenant1-mygroup
-  response:
-    payload:
-      throttleTimeMs: 0
-      errorCode: 0
-      protocolType: consumer
-      protocolName: protocolname
-      assignment: !!binary |
-        Zm9v
-    diff: []
   disabled: false

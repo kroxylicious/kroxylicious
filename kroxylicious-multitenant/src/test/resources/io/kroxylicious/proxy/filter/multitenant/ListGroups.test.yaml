@@ -7,10 +7,6 @@
 - apiMessageType: LIST_GROUPS
   description: Group mapping
   version: 4
-  request:
-    payload:
-      statesFilter: []
-    diff: []
   response:
     payload:
       throttleTimeMs: 0
@@ -28,10 +24,6 @@
 - apiMessageType: LIST_GROUPS
   description: Group filtering
   version: 4
-  request:
-    payload:
-      statesFilter: [ ]
-    diff: [ ]
   response:
     payload:
       throttleTimeMs: 0

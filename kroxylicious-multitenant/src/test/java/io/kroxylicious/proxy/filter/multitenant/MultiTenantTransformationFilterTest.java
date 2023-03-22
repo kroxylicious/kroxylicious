@@ -131,7 +131,7 @@ class MultiTenantTransformationFilterTest {
     }
 
     public static Stream<Arguments> requests() throws Exception {
-        return requestResponseTestDefinitions().map(t -> Arguments.of(t.testName(), t.apiKey(), t.header(), t.request()));
+        return requestResponseTestDefinitions().filter(td -> td.request() != null).map(td -> Arguments.of(td.testName(), td.apiKey(), td.header(), td.request()));
     }
 
     @ParameterizedTest(name = "{0}")
@@ -150,7 +150,7 @@ class MultiTenantTransformationFilterTest {
     }
 
     public static Stream<Arguments> responses() throws Exception {
-        return requestResponseTestDefinitions().map(t -> Arguments.of(t.testName(), t.apiKey(), t.header(), t.response()));
+        return requestResponseTestDefinitions().filter(td -> td.response() != null).map(td -> Arguments.of(td.testName(), td.apiKey(), td.header(), td.response()));
     }
 
     @ParameterizedTest(name = "{0}")

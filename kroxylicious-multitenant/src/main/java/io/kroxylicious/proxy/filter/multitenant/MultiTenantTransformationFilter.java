@@ -96,11 +96,11 @@ public class MultiTenantTransformationFilter
         OffsetCommitRequestFilter, OffsetCommitResponseFilter,
         OffsetForLeaderEpochRequestFilter, OffsetForLeaderEpochResponseFilter,
         FindCoordinatorRequestFilter, FindCoordinatorResponseFilter,
-        ListGroupsRequestFilter, ListGroupsResponseFilter,
-        JoinGroupRequestFilter, JoinGroupResponseFilter,
-        SyncGroupRequestFilter, SyncGroupResponseFilter,
-        LeaveGroupRequestFilter, LeaveGroupResponseFilter,
-        HeartbeatRequestFilter, HeartbeatResponseFilter {
+        ListGroupsResponseFilter,
+        JoinGroupRequestFilter,
+        SyncGroupRequestFilter,
+        LeaveGroupRequestFilter,
+        HeartbeatRequestFilter {
     private static final Logger LOGGER = LoggerFactory.getLogger(MultiTenantTransformationFilter.class);
 
     @Override
@@ -242,11 +242,6 @@ public class MultiTenantTransformationFilter
     }
 
     @Override
-    public void onListGroupsRequest(RequestHeaderData header, ListGroupsRequestData request, KrpcFilterContext context) {
-        context.forwardRequest(request);
-    }
-
-    @Override
     public void onListGroupsResponse(ResponseHeaderData header, ListGroupsResponseData response, KrpcFilterContext context) {
         var tenantPrefix = getTenantPrefix(context);
         var filteredGroups = response.groups().stream().filter(listedGroup -> listedGroup.groupId().startsWith(tenantPrefix)).toList();
@@ -263,20 +258,10 @@ public class MultiTenantTransformationFilter
     }
 
     @Override
-    public void onJoinGroupResponse(ResponseHeaderData header, JoinGroupResponseData response, KrpcFilterContext context) {
-        context.forwardResponse(response);
-    }
-
-    @Override
     public void onSyncGroupRequest(RequestHeaderData header, SyncGroupRequestData request, KrpcFilterContext context) {
         var tenantPrefix = getTenantPrefix(context);
         request.setGroupId(tenantPrefix + request.groupId());
         context.forwardRequest(request);
-    }
-
-    @Override
-    public void onSyncGroupResponse(ResponseHeaderData header, SyncGroupResponseData response, KrpcFilterContext context) {
-        context.forwardResponse(response);
     }
 
     @Override
@@ -287,20 +272,10 @@ public class MultiTenantTransformationFilter
     }
 
     @Override
-    public void onLeaveGroupResponse(ResponseHeaderData header, LeaveGroupResponseData response, KrpcFilterContext context) {
-        context.forwardResponse(response);
-    }
-
-    @Override
     public void onHeartbeatRequest(RequestHeaderData header, HeartbeatRequestData request, KrpcFilterContext context) {
         var tenantPrefix = getTenantPrefix(context);
         request.setGroupId(tenantPrefix + request.groupId());
         context.forwardRequest(request);
-    }
-
-    @Override
-    public void onHeartbeatResponse(ResponseHeaderData header, HeartbeatResponseData response, KrpcFilterContext context) {
-        context.forwardResponse(response);
     }
 
     private void applyTenantPrefix(KrpcFilterContext context, Supplier<String> getter, Consumer<String> setter, boolean ignoreEmpty) {
