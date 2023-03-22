@@ -4,25 +4,35 @@
 #
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
-
-while getopts ":a:f:" opt; do
+REPOSITORY="origin"
+BRANCH_FROM="main"
+while getopts ":a:f:b:r:" opt; do
   case $opt in
-    a) RELEASE_API_VERSION="$OPTARG"
+    a) RELEASE_API_VERSION="${OPTARG}"
     ;;
-    f) RELEASE_VERSION="$OPTARG"
+    f) RELEASE_VERSION="${OPTARG}"
+    ;;
+    b) BRANCH_FROM="${OPTARG}"
+    ;;
+    r) REPOSITORY="${OPTARG}"
     ;;
 
-    \?) echo "Invalid option -$OPTARG" >&2
+    \?) echo "Invalid option -${OPTARG}" >&2
     exit 1
     ;;
   esac
 
-  case $OPTARG in
+  case ${OPTARG} in
     -*) echo "Option $opt needs a valid argument"
     exit 1
     ;;
   esac
 done
+
+git stash --all
+echo "Creating release branch from ${BASE_BRANCH}"
+git fetch -q "${REPOSITORY}"
+git branch prepare-release "${REPOSITORY}/${BRANCH_FROM}"
 
 if [[ -n ${RELEASE_API_VERSION} ]]; then
   echo "Releasing Public APIs as ${RELEASE_API_VERSION}"
@@ -45,16 +55,13 @@ then
     exit
 fi
 
-TITLE=""
 BODY=""
 if [[ -n ${RELEASE_API_VERSION} ]]; then
-  TITLE="${TITLE} Release API v${RELEASE_API_VERSION}"
   BODY="${BODY} Release API version ${RELEASE_API_VERSION}"
 fi
 
 if [[ -n ${RELEASE_VERSION} ]]; then
-  TITLE="${TITLE} Release v${RELEASE_VERSION}"
-  BODY="${BODY} release version ${RELEASE_VERSION}"
+  BODY="${BODY} Release version ${RELEASE_VERSION}"
 fi
 
-gh pr create --base main --title "${TITLE}" --body "${BODY}"
+gh pr create --base main --title "Kroxylicious Release" --body "${BODY}"
