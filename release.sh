@@ -6,7 +6,7 @@
 #
 REPOSITORY="origin"
 BRANCH_FROM="main"
-while getopts ":a:f:b:r:" opt; do
+while getopts ":a:f:b:r:k:" opt; do
   case $opt in
     a) RELEASE_API_VERSION="${OPTARG}"
     ;;
@@ -15,6 +15,8 @@ while getopts ":a:f:b:r:" opt; do
     b) BRANCH_FROM="${OPTARG}"
     ;;
     r) REPOSITORY="${OPTARG}"
+    ;;
+    k) GPG_KEY="${OPTARG}"
     ;;
 
     \?) echo "Invalid option -${OPTARG}" >&2
@@ -28,6 +30,13 @@ while getopts ":a:f:b:r:" opt; do
     ;;
   esac
 done
+
+if [[ -z "${GPG_KEY}" ]]; then
+    echo "GPG_KEY not set unable to sign the release. Please specify -k <YOUR_GPG_KEY>" 1>&2
+    exit 1
+else
+  export GPG_KEY
+fi
 
 git stash --all
 echo "Creating release branch from ${BASE_BRANCH}"
