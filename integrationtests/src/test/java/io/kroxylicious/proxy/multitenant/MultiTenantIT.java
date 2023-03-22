@@ -253,9 +253,7 @@ public class MultiTenantIT {
             var describedGroups = admin.describeConsumerGroups(groups).all().get();
             assertThat(describedGroups).hasSameSizeAs(expectedGroupIds);
             // The consumer group comes back as "dead" when it doesn't exist, so we have to check that it's not dead
-            describedGroups.forEach((k, v) -> {
-                assertThat(v.state()).isNotEqualTo(ConsumerGroupState.DEAD);
-            });
+            assertThat(describedGroups).allSatisfy((s, consumerGroupDescription) -> assertThat(consumerGroupDescription.state()).isNotIn(ConsumerGroupState.DEAD));
         }
     }
 

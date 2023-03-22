@@ -294,7 +294,7 @@ public class MultiTenantTransformationFilter
         response.groups().forEach(group -> removeTenantPrefix(context, group::groupId, group::setGroupId, false));
         context.forwardResponse(response);
     }
-    
+
     private void applyTenantPrefix(KrpcFilterContext context, Supplier<String> getter, Consumer<String> setter, boolean ignoreEmpty) {
         String clientSideName = getter.get();
         if (ignoreEmpty && (clientSideName == null || clientSideName.isEmpty())) {
