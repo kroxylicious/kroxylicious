@@ -9,19 +9,23 @@ set -e
 
 REPOSITORY="origin"
 BRANCH_FROM="main"
-while getopts ":a:f:" opt; do
+while getopts ":a:f:b:r:" opt; do
   case $opt in
-    a) RELEASE_API_VERSION="$OPTARG"
+    a) RELEASE_API_VERSION="${OPTARG}"
     ;;
-    f) RELEASE_VERSION="$OPTARG"
+    f) RELEASE_VERSION="${OPTARG}"
+    ;;
+    b) BRANCH_FROM="${OPTARG}"
+    ;;
+    r) REPOSITORY="${OPTARG}"
     ;;
 
-    \?) echo "Invalid option -$OPTARG" >&2
+    \?) echo "Invalid option -${OPTARG}" >&2
     exit 1
     ;;
   esac
 
-  case $OPTARG in
+  case ${OPTARG} in
     -*) echo "Option $opt needs a valid argument"
     exit 1
     ;;
@@ -31,7 +35,8 @@ done
 git stash --all
 echo "Creating release branch from ${BRANCH_FROM}"
 git fetch -q "${REPOSITORY}"
-git branch prepare-release "${REPOSITORY}/${BRANCH_FROM}"
+release_date=$(date -u '+%Y-%m-%d')
+git checkout -b "prepare-release-${release_date}" #"${REPOSITORY}/${BRANCH_FROM}"
 
 if [[ -n ${RELEASE_API_VERSION} ]]; then
   echo "Releasing Public APIs as ${RELEASE_API_VERSION}"
@@ -54,16 +59,13 @@ then
     exit
 fi
 
-TITLE=""
 BODY=""
 if [[ -n ${RELEASE_API_VERSION} ]]; then
-  TITLE="${TITLE} Release API v${RELEASE_API_VERSION}"
   BODY="${BODY} Release API version ${RELEASE_API_VERSION}"
 fi
 
 if [[ -n ${RELEASE_VERSION} ]]; then
-  TITLE="${TITLE} Release v${RELEASE_VERSION}"
-  BODY="${BODY} release version ${RELEASE_VERSION}"
+  BODY="${BODY} Release version ${RELEASE_VERSION}"
 fi
 
-gh pr create --base main --title "${TITLE}" --body "${BODY}"
+gh pr create --base main --title "Kroxylicious Release" --body "${BODY}"
