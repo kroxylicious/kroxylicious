@@ -22,6 +22,7 @@ import java.util.stream.Stream;
 
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.admin.Admin;
+import org.apache.kafka.clients.admin.ConsumerGroupDescription;
 import org.apache.kafka.clients.admin.ConsumerGroupListing;
 import org.apache.kafka.clients.admin.CreateTopicsResult;
 import org.apache.kafka.clients.admin.DeleteTopicsResult;
@@ -38,6 +39,7 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
+import org.apache.kafka.common.ConsumerGroupState;
 import org.apache.kafka.common.TopicCollection;
 import org.apache.kafka.common.TopicCollection.TopicNameCollection;
 import org.apache.kafka.common.TopicPartition;
@@ -205,8 +207,8 @@ public class MultiTenantIT {
         String config = getConfig(PROXY_ADDRESS, cluster);
         try (var proxy = startProxy(config)) {
             createTopics(TENANT1_PROXY_ADDRESS, List.of(NEW_TOPIC_1));
-            createConsumerWithGroup(TENANT1_PROXY_ADDRESS, "Tenant1Group", NEW_TOPIC_1, consumerStyle);
-            verifyConsumerGroups(TENANT1_PROXY_ADDRESS, "Tenant1Group");
+            runConsumerInOrderToCreateGroup(TENANT1_PROXY_ADDRESS, "Tenant1Group", NEW_TOPIC_1, consumerStyle);
+            verifyConsumerGroupsWithList(TENANT1_PROXY_ADDRESS, Set.of("Tenant1Group"));
         }
     }
 
@@ -216,15 +218,51 @@ public class MultiTenantIT {
         String config = getConfig(PROXY_ADDRESS, cluster);
         try (var proxy = startProxy(config)) {
             createTopics(TENANT1_PROXY_ADDRESS, List.of(NEW_TOPIC_1));
-            createConsumerWithGroup(TENANT1_PROXY_ADDRESS, "Tenant1Group", NEW_TOPIC_1, consumerStyle);
+            runConsumerInOrderToCreateGroup(TENANT1_PROXY_ADDRESS, "Tenant1Group", NEW_TOPIC_1, consumerStyle);
 
             createTopics(TENANT2_PROXY_ADDRESS, List.of(NEW_TOPIC_1));
-            createConsumerWithGroup(TENANT2_PROXY_ADDRESS, "Tenant2Group", NEW_TOPIC_1, consumerStyle);
-            verifyConsumerGroups(TENANT2_PROXY_ADDRESS, "Tenant2Group");
+            runConsumerInOrderToCreateGroup(TENANT2_PROXY_ADDRESS, "Tenant2Group", NEW_TOPIC_1, consumerStyle);
+            verifyConsumerGroupsWithList(TENANT2_PROXY_ADDRESS, Set.of("Tenant2Group"));
         }
     }
 
-    private void createConsumerWithGroup(String proxyAddress, String groupId, NewTopic topic, ConsumerStyle consumerStyle) {
+    @Test
+    public void describeGroup(KafkaCluster cluster) throws Exception {
+        String config = getConfig(PROXY_ADDRESS, cluster);
+        try (var proxy = startProxy(config)) {
+            createTopics(TENANT1_PROXY_ADDRESS, List.of(NEW_TOPIC_1));
+            runConsumerInOrderToCreateGroup(TENANT1_PROXY_ADDRESS, "Tenant1Group", NEW_TOPIC_1, ConsumerStyle.ASSIGN);
+
+            createTopics(TENANT2_PROXY_ADDRESS, List.of(NEW_TOPIC_1));
+            runConsumerInOrderToCreateGroup(TENANT2_PROXY_ADDRESS, "Tenant2Group", NEW_TOPIC_1, ConsumerStyle.ASSIGN);
+
+            verifyConsumerGroupsWithDescribe(TENANT1_PROXY_ADDRESS, Set.of("Tenant1Group"), Set.of("Tenant2Group", "idontexist"));
+            verifyConsumerGroupsWithDescribe(TENANT2_PROXY_ADDRESS, Set.of("Tenant2Group"), Set.of("Tenant1Group", "idontexist"));
+        }
+    }
+
+    private void verifyConsumerGroupsWithDescribe(String proxyAddress, Set<String> expectedPresent, Set<String> expectedAbsent) throws Exception {
+        try (var admin = Admin.create(commonConfig(proxyAddress, Map.of()))) {
+            var describedGroups = admin.describeConsumerGroups(Stream.concat(expectedPresent.stream(), expectedAbsent.stream()).toList()).all().get();
+            assertThat(describedGroups).hasSize(expectedAbsent.size() + expectedPresent.size());
+
+            var actualPresent = retainKeySubset(describedGroups, expectedPresent);
+            var actualAbsent = retainKeySubset(describedGroups, expectedAbsent);
+
+            // The consumer group comes back as "dead" when it doesn't exist, so we have to check that it's not dead/it is dead if we don't expect to see it
+            assertThat(actualPresent).allSatisfy((s, consumerGroupDescription) -> assertThat(consumerGroupDescription.state()).isNotIn(ConsumerGroupState.DEAD));
+            assertThat(actualAbsent).allSatisfy((s, consumerGroupDescription) -> assertThat(consumerGroupDescription.state()).isIn(ConsumerGroupState.DEAD));
+        }
+    }
+
+    @NotNull
+    private static Map<String, ConsumerGroupDescription> retainKeySubset(Map<String, ConsumerGroupDescription> groups, Set<String> retainedKeys) {
+        var copy = new HashMap<>(groups);
+        copy.keySet().retainAll(retainedKeys);
+        return copy;
+    }
+
+    private void runConsumerInOrderToCreateGroup(String proxyAddress, String groupId, NewTopic topic, ConsumerStyle consumerStyle) {
         try (var consumer = new KafkaConsumer<String, String>(commonConfig(proxyAddress, Map.of(
                 ConsumerConfig.GROUP_ID_CONFIG, groupId,
                 ConsumerConfig.ALLOW_AUTO_CREATE_TOPICS_CONFIG, Boolean.FALSE.toString(),
@@ -245,10 +283,10 @@ public class MultiTenantIT {
         }
     }
 
-    private void verifyConsumerGroups(String proxyAddress, String... expectedGroupIds) throws InterruptedException, ExecutionException {
+    private void verifyConsumerGroupsWithList(String proxyAddress, Set<String> expectedGroupIds) throws Exception {
         try (var admin = Admin.create(commonConfig(proxyAddress, Map.of()))) {
             var groups = admin.listConsumerGroups().all().get().stream().map(ConsumerGroupListing::groupId).toList();
-            assertThat(groups).containsExactlyInAnyOrderElementsOf(Set.of(expectedGroupIds));
+            assertThat(groups).containsExactlyInAnyOrderElementsOf(expectedGroupIds);
         }
     }
 
