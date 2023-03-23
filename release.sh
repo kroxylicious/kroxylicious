@@ -44,7 +44,8 @@ fi
 git stash --all
 echo "Creating release branch from ${BRANCH_FROM}"
 git fetch -q "${REPOSITORY}"
-git checkout -b prepare-release #"${REPOSITORY}/${BRANCH_FROM}"
+release_date=$(date -u '+%Y-%m-%d')
+git checkout -b "prepare-release-${release_date}" #"${REPOSITORY}/${BRANCH_FROM}"
 
 if [[ -n ${RELEASE_API_VERSION} ]]; then
   echo "Releasing Public APIs as ${RELEASE_API_VERSION}"
