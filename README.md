@@ -139,13 +139,7 @@ $ dot -Tpng kroxylicious/target/generated-sources/annotations/deptective.dot > k
 
 ## IntelliJ setup
 
-Currently, the project uses JDK 11 for the actual code and JDK 19 for tests. 
-IntelliJ needs to be configured to use the "new Workspace Model" in order for it to understand this
-(and to be useful for things like debugging):
-
-1. Open the Settings dialog (`File > Settings`)
-2. Navigate to `Build, Execution, Deployment > Build tools > Maven > Importing`.
-3. Tick "Import using the new IntelliJ Workspace Model API (experimental)" 
+Open the root `pom.xml` as a project.
 
 ## License
 
