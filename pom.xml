@@ -460,7 +460,7 @@
                                 <icons>font</icons>
                             </attributes>
                             <sourceDirectory>docs</sourceDirectory>
-                            <sourceDocumentName>master.adoc</sourceDocumentName>
+                            <sourceDocumentName>index.adoc</sourceDocumentName>
                         </configuration>
                     </execution>
                 </executions>
