@@ -5,6 +5,8 @@
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
 
+set -e
+
 REPOSITORY="origin"
 BRANCH_FROM="main"
 while getopts ":a:f:b:r:k:" opt; do

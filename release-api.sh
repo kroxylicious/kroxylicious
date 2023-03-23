@@ -5,7 +5,7 @@
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
 
-set -o nounset
+set -o nounset -e
 
 RELEASE_API_VERSION=${1}
 API_MODULES=':kroxylicious-api,:kroxylicious-filter-api'
