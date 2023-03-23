@@ -20,25 +20,23 @@ if [[ -z ${RELEASE_API_VERSION} ]]; then
   exit 1
 fi
 
-echo "Validating the build is green"
-mvn clean verify || { echo 'maven build failed' ; exit 1; }
+printf "Validating the build is %sgreen%s" "${GREEN}" "${NC}"
+mvn -q clean verify
 
 echo "Setting API version to ${RELEASE_API_VERSION}"
-mvn versions:set -DnewVersion="${RELEASE_API_VERSION}" -DprocessAllModules=true -pl ":kroxylicious-api" -DgenerateBackupPoms=false || { echo 'failed to set the API version' ; exit 1; }
-mvn versions:set -DnewVersion="${RELEASE_API_VERSION}" -DprocessAllModules=true -pl ":kroxylicious-filter-api" -DgenerateBackupPoms=false || { echo 'failed to set the API version' ; exit 1; }
-mvn clean install -Pquick -pl ${API_MODULES}  #quick sanity check to ensure the API modules still build
-mvn versions:set-property -Dproperty=kroxyliciousApi.version -DnewVersion="${RELEASE_API_VERSION}" -DgenerateBackupPoms=false || { echo "failed to depend on API version ${RELEASE_API_VERSION}" ; exit 1; }
+mvn -q versions:set -DnewVersion="${RELEASE_API_VERSION}" -DprocessAllModules=true -pl ":kroxylicious-api" -DgenerateBackupPoms=false
+mvn -q versions:set -DnewVersion="${RELEASE_API_VERSION}" -DprocessAllModules=true -pl ":kroxylicious-filter-api" -DgenerateBackupPoms=false
+mvn -q clean install -Pquick -pl ${API_MODULES}  #quick sanity check to ensure the API modules still build
+mvn -q versions:set-property -Dproperty=kroxyliciousApi.version -DnewVersion="${RELEASE_API_VERSION}" -DgenerateBackupPoms=false
 
 echo "Validating things still build"
-mvn clean install -Pquick
+mvn -q clean install -Pquick
 
-echo "Committing release to git"
+echo "Committing API release to git"
 git add '**/pom.xml' 'pom.xml'
 git commit --message "Release API version v${RELEASE_API_VERSION}" --signoff
 
 git tag -f "api-v${RELEASE_API_VERSION}"
-
-git push --tags
 
 #echo "Deploying release to maven central"
 #mvn deploy -Prelease -DskipTests=true -DreleaseSigningKey="${GPG_KEY}" -pl "${API_MODULES}"
