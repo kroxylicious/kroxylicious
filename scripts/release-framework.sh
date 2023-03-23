@@ -8,7 +8,7 @@
 set -o nounset -e
 
 RELEASE_VERSION=${1}
-API_MODULES=':kroxylicious-api,:kroxylicious-filter-api'
+#API_MODULES=':kroxylicious-api,:kroxylicious-filter-api'
 
 if [[ -z "${GPG_KEY}" ]]; then
     echo "GPG_KEY not set unable to sign the release. Please export GPG_KEY" 1>&2
@@ -37,5 +37,5 @@ fi
 
 git push --tags
 
-echo "Deploying release to maven central"
-mvn deploy -Prelease -DskipTests=true -DreleaseSigningKey="${GPG_KEY}" -pl "${API_MODULES}"
+#echo "Deploying release to maven central"
+#mvn deploy -Prelease -DskipTests=true -DreleaseSigningKey="${GPG_KEY}" -pl "${API_MODULES}"

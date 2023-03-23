@@ -40,5 +40,5 @@ git tag -f "api-v${RELEASE_API_VERSION}"
 
 git push --tags
 
-echo "Deploying release to maven central"
-mvn deploy -Prelease -DskipTests=true -DreleaseSigningKey="${GPG_KEY}" -pl "${API_MODULES}"
+#echo "Deploying release to maven central"
+#mvn deploy -Prelease -DskipTests=true -DreleaseSigningKey="${GPG_KEY}" -pl "${API_MODULES}"
