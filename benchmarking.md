@@ -7,7 +7,7 @@ This document describes how to run some basic performance tests for the proxy.
 Download Apache Kafka:
 
 ```
-$ wget https://downloads.apache.org/kafka/3.1.0/kafka_2.13-3.4.0.tgz
+$ wget https://downloads.apache.org/kafka/3.4.0/kafka_2.13-3.4.0.tgz
 $ tar xvf kafka_2.13-3.4.0.tgz
 ```
 
@@ -25,7 +25,7 @@ Build and launch the proxy:
 
 ```
 $ mvn clean verify -Pdist -Dquick
-$ java -jar kroxylicious/target/kroxylicious-1.0-SNAPSHOT.jar --config kroxylicious/example-proxy-config.yml
+$ java -jar kroxylicious/target/kroxylicious-*-SNAPSHOT.jar --config kroxylicious/example-proxy-config.yml
 ```
 
 Run Kafka's _kafka-producer-perf-test.sh_ script:
