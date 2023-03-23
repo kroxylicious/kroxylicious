@@ -5,8 +5,10 @@ addressing use cases such as multi-tenancy, schema validation, or encryption.
 
 ## Build
 
-Java, version 19 or newer, and Apache Maven are required for building this project.
-Technically we currently only require Java 11+ for `src/main` but Java 19+ is used for `src/test`. This will probably change when we move to Netty 5.
+JDK version 19 or newer, and Apache Maven are required for building this project.
+
+Kroxylicious targets language level 17, except for the `integrationtests` module
+which targets 19 to access some new language features.
 
 Build the project like this:
 
