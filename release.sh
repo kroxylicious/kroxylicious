@@ -64,6 +64,8 @@ if [[ -n ${RELEASE_VERSION} ]]; then
   echo "Versioned the Framework"
 fi
 
+git push --tags
+
 echo "Deploying release to maven central"
 mvn deploy -Prelease -DskipTests=true -DreleaseSigningKey="${GPG_KEY}"
 

@@ -31,11 +31,7 @@ echo "Committing release to git"
 git add '**/pom.xml' 'pom.xml'
 git commit --message "Release Framework version v${RELEASE_VERSION}" --signoff
 
-if [[ -n ${RELEASE_VERSION}  ]]; then
-  git tag "v${RELEASE_VERSION}"
-fi
-
-git push --tags
+git tag -f "v${RELEASE_VERSION}"
 
 #echo "Deploying release to maven central"
 #mvn deploy -Prelease -DskipTests=true -DreleaseSigningKey="${GPG_KEY}" -pl "${API_MODULES}"
