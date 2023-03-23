@@ -42,7 +42,7 @@ fi
 git stash --all
 echo "Creating release branch from ${BRANCH_FROM}"
 git fetch -q "${REPOSITORY}"
-git branch prepare-release "${REPOSITORY}/${BRANCH_FROM}"
+git checkout -b prepare-release #"${REPOSITORY}/${BRANCH_FROM}"
 
 if [[ -n ${RELEASE_API_VERSION} ]]; then
   echo "Releasing Public APIs as ${RELEASE_API_VERSION}"
