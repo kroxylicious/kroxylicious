@@ -71,7 +71,7 @@ No one likes to argue about code formatting in pull requests, as project we take
 Build with the `dist` profile as shown above, then execute this:
 
 ```
-$ java -jar kroxylicious/target/kroxylicious-1.0-SNAPSHOT.jar -cp {path-to-your-class-path}
+$ java -jar kroxylicious/target/kroxylicious-*-SNAPSHOT.jar -cp {path-to-your-class-path} --config {path-to-kroxylicious-config}
 ```
 
 To prevent the [following error](https://www.slf4j.org/codes.html#StaticLoggerBinder):
@@ -95,7 +95,7 @@ The `docs` directory has some user documentation written in [AsciiDoc](https://d
 You can render it to HTML using:
 
 ```
-./mvnw org.asciidoctor:asciidoctor-maven-plugin:process-asciidoc@convert-to-html
+mvn org.asciidoctor:asciidoctor-maven-plugin:process-asciidoc@convert-to-html
 ```
 
 The output will be in `target/html/master.html`. 
