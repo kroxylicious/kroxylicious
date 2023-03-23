@@ -41,6 +41,11 @@ else
   export GPG_KEY
 fi
 
+if [[ -z ${RELEASE_API_VERSION} && -z ${RELEASE_VERSION} ]]; then
+  echo "No versions specified aborting"
+  exit 1
+fi
+
 git stash --all
 echo "Creating release branch from ${BRANCH_FROM}"
 git fetch -q "${REPOSITORY}"
@@ -48,21 +53,19 @@ release_date=$(date -u '+%Y-%m-%d')
 git checkout -B "prepare-release-${release_date}" #"${REPOSITORY}/${BRANCH_FROM}"
 
 if [[ -n ${RELEASE_API_VERSION} ]]; then
-  echo "Releasing Public APIs as ${RELEASE_API_VERSION}"
+  echo "Versioning Public APIs as ${RELEASE_API_VERSION}"
   ./release-api.sh "${RELEASE_API_VERSION}"
-  echo "Released API"
+  echo "Versioned the public API"
 fi
 
 if [[ -n ${RELEASE_VERSION} ]]; then
-  echo "Releasing Kroxylicious as ${RELEASE_VERSION}"
+  echo "Versioning Kroxylicious as ${RELEASE_VERSION}"
   ./release-framework.sh "${RELEASE_VERSION}"
-  echo "Released Framework"
+  echo "Versioned the Framework"
 fi
 
-if [[ -z ${RELEASE_API_VERSION} && -z ${RELEASE_VERSION} ]]; then
-  echo "No versions specified aborting"
-  exit 1
-fi
+echo "Deploying release to maven central"
+mvn deploy -Prelease -DskipTests=true -DreleaseSigningKey="${GPG_KEY}"
 
 if ! command -v gh &> /dev/null
 then
@@ -79,4 +82,5 @@ if [[ -n ${RELEASE_VERSION} ]]; then
   BODY="${BODY} Release version ${RELEASE_VERSION}"
 fi
 
+echo "Create pull request to merge the released version."
 gh pr create --base main --title "Kroxylicious Release" --body "${BODY}"
