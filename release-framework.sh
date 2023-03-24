@@ -20,11 +20,11 @@ if [[ -z ${RELEASE_VERSION} ]]; then
 fi
 
 echo "Validating the build is green"
-mvn clean verify || { echo 'maven build failed' ; exit 1; }
+mvn -q clean verify
 
-mvn versions:set -DnewVersion="${RELEASE_VERSION}" -DgenerateBackupPoms=false || { echo 'failed to set the release version' ; exit 1; }
+mvn -q versions:set -DnewVersion="${RELEASE_VERSION}" -DgenerateBackupPoms=false
 echo "Validating things still build"
-mvn clean install -Pquick
+mvn -q clean install -Pquick
 
 echo "Committing framework release to git"
 git add '**/pom.xml' 'pom.xml'
