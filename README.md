@@ -3,6 +3,12 @@
 Kroxylicious is an exploration for building a Kafka protocol proxy,
 addressing use cases such as multi-tenancy, schema validation, or encryption.
 
+## Quick Links
+- [kroxylicious.io](https://www.kroxylicious.io)
+- [Documentation](https://www.kroxylicious.io/kroxylicious)
+- [GitHub design and discussion](https://github.com/kroxylicious/design)
+- [Community Slack chat](https://kroxylicious.slack.com/)
+
 ## Build
 
 JDK version 19 or newer, and Apache Maven are required for building this project.
