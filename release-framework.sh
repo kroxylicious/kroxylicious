@@ -19,7 +19,7 @@ if [[ -z ${RELEASE_VERSION} ]]; then
   exit 1
 fi
 
-echo "Validating the build is green"
+printf "Validating the build is %sgreen%s" "${GREEN}" "${NC}"
 mvn -q clean verify
 
 mvn -q versions:set -DnewVersion="${RELEASE_VERSION}" -DgenerateBackupPoms=false

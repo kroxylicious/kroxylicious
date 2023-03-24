@@ -46,6 +46,10 @@ if [[ -z ${RELEASE_API_VERSION} && -z ${RELEASE_VERSION} ]]; then
   exit 1
 fi
 
+export RED='\033[0;31m'
+export GREEN='\033[0;32m'
+export NC='\033[0m' # No Color
+
 git stash --all
 echo "Creating release branch from ${BRANCH_FROM}"
 git fetch -q "${REPOSITORY}"

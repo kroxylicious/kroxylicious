@@ -20,7 +20,7 @@ if [[ -z ${RELEASE_API_VERSION} ]]; then
   exit 1
 fi
 
-echo "Validating the build is green"
+printf "Validating the build is %sgreen%s" "${GREEN}" "${NC}"
 mvn -q clean verify
 
 echo "Setting API version to ${RELEASE_API_VERSION}"
