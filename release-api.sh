@@ -20,9 +20,6 @@ if [[ -z ${RELEASE_API_VERSION} ]]; then
   exit 1
 fi
 
-printf "Validating the build is %sgreen%s" "${GREEN}" "${NC}"
-mvn -q clean verify
-
 echo "Setting API version to ${RELEASE_API_VERSION}"
 mvn -q versions:set -DnewVersion="${RELEASE_API_VERSION}" -DprocessAllModules=true -pl ":kroxylicious-api" -DgenerateBackupPoms=false
 mvn -q versions:set -DnewVersion="${RELEASE_API_VERSION}" -DprocessAllModules=true -pl ":kroxylicious-filter-api" -DgenerateBackupPoms=false

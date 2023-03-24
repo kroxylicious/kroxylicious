@@ -46,15 +46,19 @@ if [[ -z ${RELEASE_API_VERSION} && -z ${RELEASE_VERSION} ]]; then
   exit 1
 fi
 
-export RED='\033[0;31m'
-export GREEN='\033[0;32m'
-export NC='\033[0m' # No Color
+GREEN='\033[0;32m'
+NC='\033[0m' # No Color
 
 git stash --all
 echo "Creating release branch from ${BRANCH_FROM}"
 git fetch -q "${REPOSITORY}"
 release_date=$(date -u '+%Y-%m-%d')
 git checkout -B "prepare-release-${release_date}" #"${REPOSITORY}/${BRANCH_FROM}"
+
+#Disable the shell check as the colour codes only work with interpolation.
+# shellcheck disable=SC2059
+printf "Validating the build is ${GREEN}green${NC}"
+mvn -q clean verify
 
 if [[ -n ${RELEASE_API_VERSION} ]]; then
   echo "Versioning Public APIs as ${RELEASE_API_VERSION}"
