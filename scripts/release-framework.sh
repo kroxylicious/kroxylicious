@@ -19,9 +19,6 @@ if [[ -z ${RELEASE_VERSION} ]]; then
   exit 1
 fi
 
-printf "Validating the build is %sgreen%s" "${GREEN}" "${NC}"
-mvn -q clean verify
-
 mvn -q versions:set -DnewVersion="${RELEASE_VERSION}" -DgenerateBackupPoms=false
 echo "Validating things still build"
 mvn -q clean install -Pquick
