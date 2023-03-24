@@ -32,7 +32,7 @@ mvn versions:set-property -Dproperty=kroxyliciousApi.version -DnewVersion="${REL
 echo "Validating things still build"
 mvn clean install -Pquick
 
-echo "Committing release to git"
+echo "Committing API release to git"
 git add '**/pom.xml' 'pom.xml'
 git commit --message "Release API version v${RELEASE_API_VERSION}" --signoff
 
