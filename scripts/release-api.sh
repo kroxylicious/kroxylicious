@@ -10,10 +10,10 @@ set -o nounset -e
 RELEASE_API_VERSION=${1}
 API_MODULES=':kroxylicious-api,:kroxylicious-filter-api'
 
-if [[ -z "${GPG_KEY}" ]]; then
-    echo "GPG_KEY not set unable to sign the release. Please export GPG_KEY" 1>&2
-    exit 1
-fi
+#if [[ -z "${GPG_KEY}" ]]; then
+#    echo "GPG_KEY not set unable to sign the release. Please export GPG_KEY" 1>&2
+#    exit 1
+#fi
 
 if [[ -z ${RELEASE_API_VERSION} ]]; then
   echo "no api release version specified please specify at least one"
