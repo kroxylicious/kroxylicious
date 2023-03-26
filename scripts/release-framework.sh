@@ -15,7 +15,7 @@ if [[ -z "${GPG_KEY}" ]]; then
 fi
 
 if [[ -z ${RELEASE_VERSION} ]]; then
-  echo "no api release version specified please specify at least one"
+  echo "no release version specified please specify at least one"
   exit 1
 fi
 
@@ -29,5 +29,6 @@ git commit --message "Release Framework version v${RELEASE_VERSION}" --signoff
 
 git tag -f "v${RELEASE_VERSION}"
 
+#Keeping this here as the intention is to be able to deploy the API and framework independently
 #echo "Deploying release to maven central"
 #mvn deploy -Prelease -DskipTests=true -DreleaseSigningKey="${GPG_KEY}"

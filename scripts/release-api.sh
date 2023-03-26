@@ -35,5 +35,6 @@ git commit --message "Release API version v${RELEASE_API_VERSION}" --signoff
 
 git tag -f "api-v${RELEASE_API_VERSION}"
 
+#Keeping this here as the intention is to be able to deploy the API and framework independently
 #echo "Deploying release to maven central"
 #mvn deploy -Prelease -DskipTests=true -DreleaseSigningKey="${GPG_KEY}" -pl "${API_MODULES}"
