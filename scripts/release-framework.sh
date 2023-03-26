@@ -9,10 +9,10 @@ set -o nounset -e
 
 RELEASE_VERSION=${1}
 
-if [[ -z "${GPG_KEY}" ]]; then
-    echo "GPG_KEY not set unable to sign the release. Please export GPG_KEY" 1>&2
-    exit 1
-fi
+#if [[ -z "${GPG_KEY}" ]]; then
+#    echo "GPG_KEY not set unable to sign the release. Please export GPG_KEY" 1>&2
+#    exit 1
+#fi
 
 if [[ -z ${RELEASE_VERSION} ]]; then
   echo "no release version specified please specify at least one"
