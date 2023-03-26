@@ -256,8 +256,6 @@
                                 <excludes>
                                     <exclude>LICENSE.txt</exclude>
                                     <exclude>**/.dontdelete</exclude>
-                                    <!-- .editorconfig should have a header but even when its included correctly the check fails. -->
-                                    <exclude>.editorconfig</exclude>
                                     <exclude>docs/**</exclude>
                                     <!-- Need to keep original copyright for Vert.x classes -->
                                     <exclude>src/main/java/io/kroxylicious/proxy/future/**</exclude>
