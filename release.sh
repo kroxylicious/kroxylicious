@@ -60,13 +60,13 @@ mvn -q clean verify
 
 if [[ -n ${RELEASE_API_VERSION} ]]; then
   echo "Versioning Public APIs as ${RELEASE_API_VERSION}"
-  ./bin/release-api.sh "${RELEASE_API_VERSION}"
+  ./scripts/release-api.sh "${RELEASE_API_VERSION}"
   echo "Versioned the public API"
 fi
 
 if [[ -n ${RELEASE_VERSION} ]]; then
   echo "Versioning Kroxylicious as ${RELEASE_VERSION}"
-  ./bin/release-framework.sh "${RELEASE_VERSION}"
+  ./scripts/release-framework.sh "${RELEASE_VERSION}"
   echo "Versioned the Framework"
 fi
 
