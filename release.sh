@@ -51,7 +51,7 @@ git stash --all
 echo "Creating release branch from ${BRANCH_FROM}"
 git fetch -q "${REPOSITORY}"
 RELEASE_DATE=$(date -u '+%Y-%m-%d')
-git checkout -b "prepare-release-${RELEASE_DATE}" #"${REPOSITORY}/${BRANCH_FROM}"
+git checkout -b "prepare-release-${RELEASE_DATE}" "${REPOSITORY}/${BRANCH_FROM}"
 
 #Disable the shell check as the colour codes only work with interpolation.
 # shellcheck disable=SC2059
