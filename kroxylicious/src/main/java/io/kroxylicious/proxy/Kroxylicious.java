@@ -8,6 +8,7 @@ package io.kroxylicious.proxy;
 import java.io.File;
 import java.io.InputStream;
 import java.nio.file.Files;
+import java.util.Properties;
 import java.util.concurrent.Callable;
 
 import io.kroxylicious.proxy.config.ConfigParser;
@@ -20,7 +21,7 @@ import picocli.CommandLine.Option;
 import picocli.CommandLine.ParameterException;
 import picocli.CommandLine.Spec;
 
-@Command(name = "kroxilicious", mixinStandardHelpOptions = true, version = "kroxilicious 1.0", description = "A customizeable wire protocol proxy for Apache Kafka")
+@Command(name = "kroxilicious", mixinStandardHelpOptions = true, versionProvider = Kroxylicious.VersionProvider.class, description = "A customizeable wire protocol proxy for Apache Kafka")
 class Kroxylicious implements Callable<Integer> {
 
     @Spec
@@ -49,5 +50,19 @@ class Kroxylicious implements Callable<Integer> {
     public static void main(String... args) {
         int exitCode = new CommandLine(new Kroxylicious()).execute(args);
         System.exit(exitCode);
+    }
+
+    static class VersionProvider implements CommandLine.IVersionProvider {
+        @Override
+        public String[] getVersion() throws Exception {
+            try (InputStream resource = this.getClass().getClassLoader().getResourceAsStream("META-INF/metadata.properties")) {
+                if (resource != null) {
+                    Properties properties = new Properties();
+                    properties.load(resource);
+                    return new String[]{ properties.getProperty("kroxylicious.version", "unknown") };
+                }
+            }
+            return new String[]{ "unknown" };
+        }
     }
 }
