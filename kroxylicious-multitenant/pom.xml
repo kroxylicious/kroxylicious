@@ -22,7 +22,8 @@
     <packaging>jar</packaging>
 
     <name>Kroxylicious Multitenant</name>
-    <description>Kroxylicious Filters and other plugins required to implement Multitenancy over Apache Kafka</description>
+    <description>Kroxylicious Filters and other plugins required to implement Multitenancy over Apache Kafka
+    </description>
 
     <dependencies>
         <dependency>
@@ -113,10 +114,12 @@
                         </goals>
                         <phase>generate-test-sources</phase>
                         <configuration>
-                            <messageSpecDirectory>${project.build.directory}/message-specs/common/message</messageSpecDirectory>
+                            <messageSpecDirectory>${project.build.directory}/message-specs/common/message
+                            </messageSpecDirectory>
                             <messageSpecFilter>*{Request,Response}.json</messageSpecFilter>
                             <templateDirectory>${project.basedir}/src/test/templates</templateDirectory>
                             <templateNames>KafkaApiMessageConverter.ftl</templateNames>
+                            <!--suppress MavenModelInspection -->
                             <outputFilePattern>${templateName}.java</outputFilePattern>
                             <outputPackage>io.kroxylicious.proxy.filter.multitenant</outputPackage>
                             <outputDirectory>${project.build.directory}/generated-test-sources</outputDirectory>
@@ -146,9 +149,16 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
                 <configuration>
-                    <!-- Javadoc generation fails to resolve jackson databind.  KW doesn't understand why -->
-                    <!-- Turn off javadoc generation for this module to work-around -->
-                    <skip>true</skip>
+                    <!-- Javadoc generation fails to resolve jackson databind.  KW & SB don't understand why -->
+                    <!-- Databind is in test scope, and we are only generating javadocs for src/main -->
+                    <!-- so explicitly add the dependency, so we can build the javadoc -->
+                    <additionalDependencies>
+                        <additionalDependency>
+                            <groupId>com.fasterxml.jackson.core</groupId>
+                            <artifactId>jackson-databind</artifactId>
+                            <version>2.14.2</version>
+                        </additionalDependency>
+                    </additionalDependencies>
                 </configuration>
             </plugin>
         </plugins>
