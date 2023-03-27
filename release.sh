@@ -91,4 +91,4 @@ if [[ -n ${RELEASE_VERSION} ]]; then
 fi
 
 echo "Create pull request to merge the released version."
-gh pr create --base main --title "Kroxylicious Release %{RELEASE_DATE}" --body "${BODY}"
+gh pr create --base main --title "Kroxylicious Release ${RELEASE_DATE}" --body "${BODY}"
