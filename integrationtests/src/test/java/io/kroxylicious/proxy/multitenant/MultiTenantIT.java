@@ -165,9 +165,10 @@ public class MultiTenantIT {
     public void consumeOne(KafkaCluster cluster) throws Exception {
         String config = getConfig(PROXY_ADDRESS, cluster);
         try (var proxy = startProxy(config)) {
+            var groupName = testInfo.getDisplayName();
             createTopics(TENANT1_PROXY_ADDRESS, List.of(NEW_TOPIC_1));
             produceAndVerify(TENANT1_PROXY_ADDRESS, TOPIC_1, MY_KEY, MY_VALUE);
-            consumeAndVerify(TENANT1_PROXY_ADDRESS, TOPIC_1, MY_KEY, MY_VALUE, false);
+            consumeAndVerify(TENANT1_PROXY_ADDRESS, TOPIC_1, groupName, MY_KEY, MY_VALUE, false);
         }
     }
 
@@ -175,12 +176,51 @@ public class MultiTenantIT {
     public void consumeOneAndOffsetCommit(KafkaCluster cluster) throws Exception {
         String config = getConfig(PROXY_ADDRESS, cluster);
         try (var proxy = startProxy(config)) {
+            var groupName = testInfo.getDisplayName();
             createTopics(TENANT1_PROXY_ADDRESS, List.of(NEW_TOPIC_1));
             produceAndVerify(TENANT1_PROXY_ADDRESS,
-                    Stream.of(new ProducerRecord<>(TOPIC_1, MY_KEY, MY_VALUE + "1"), new ProducerRecord<>(TOPIC_1, MY_KEY, MY_VALUE + "2")));
-            consumeAndVerify(TENANT1_PROXY_ADDRESS, TOPIC_1, MY_KEY, MY_VALUE + "1", true);
-            consumeAndVerify(TENANT1_PROXY_ADDRESS, TOPIC_1, MY_KEY, MY_VALUE + "2", true);
+                    Stream.of(new ProducerRecord<>(TOPIC_1, MY_KEY, "1"), new ProducerRecord<>(TOPIC_1, MY_KEY, "2")));
+            consumeAndVerify(TENANT1_PROXY_ADDRESS, TOPIC_1, groupName, MY_KEY, "1", true);
+            consumeAndVerify(TENANT1_PROXY_ADDRESS, TOPIC_1, groupName, MY_KEY, "2", true);
         }
+    }
+
+    @Test
+    public void alterOffsetCommit(KafkaCluster cluster) throws Exception {
+        String config = getConfig(PROXY_ADDRESS, cluster);
+        try (var proxy = startProxy(config); var admin = Admin.create(commonConfig(TENANT1_PROXY_ADDRESS, Map.of()))) {
+            var groupName = testInfo.getDisplayName();
+            createTopics(TENANT1_PROXY_ADDRESS, List.of(NEW_TOPIC_1));
+            produceAndVerify(TENANT1_PROXY_ADDRESS,
+                    Stream.of(new ProducerRecord<>(TOPIC_1, MY_KEY, "1"), new ProducerRecord<>(TOPIC_1, MY_KEY, "2"),
+                            inCaseOfFailure()));
+            consumeAndVerify(TENANT1_PROXY_ADDRESS, TOPIC_1, groupName, MY_KEY, "1", true);
+            var rememberedOffsets = admin.listConsumerGroupOffsets(groupName).partitionsToOffsetAndMetadata().get();
+            consumeAndVerify(TENANT1_PROXY_ADDRESS, TOPIC_1, groupName, MY_KEY, "2", true);
+
+            admin.alterConsumerGroupOffsets(groupName, rememberedOffsets).all().get();
+            consumeAndVerify(TENANT1_PROXY_ADDRESS, TOPIC_1, groupName, MY_KEY, "2", true);
+        }
+    }
+
+    @Test
+    public void deleteConsumerGroupOffsets(KafkaCluster cluster) throws Exception {
+        String config = getConfig(PROXY_ADDRESS, cluster);
+        try (var proxy = startProxy(config); var admin = Admin.create(commonConfig(TENANT1_PROXY_ADDRESS, Map.of()))) {
+            var groupName = testInfo.getDisplayName();
+            createTopics(TENANT1_PROXY_ADDRESS, List.of(NEW_TOPIC_1));
+            produceAndVerify(TENANT1_PROXY_ADDRESS,
+                    Stream.of(new ProducerRecord<>(TOPIC_1, MY_KEY, "1"), inCaseOfFailure()));
+            consumeAndVerify(TENANT1_PROXY_ADDRESS, TOPIC_1, groupName, MY_KEY, "1", true);
+
+            admin.deleteConsumerGroupOffsets(groupName, Set.of(new TopicPartition(NEW_TOPIC_1.name(), 0))).all().get();
+            consumeAndVerify(TENANT1_PROXY_ADDRESS, TOPIC_1, groupName, MY_KEY, "1", true);
+        }
+    }
+
+    @NotNull
+    private static ProducerRecord<String, String> inCaseOfFailure() {
+        return new ProducerRecord<>(TOPIC_1, MY_KEY, "unexpected - should never be consumed");
     }
 
     @Test
@@ -308,13 +348,13 @@ public class MultiTenantIT {
         }
     }
 
-    private void consumeAndVerify(String address, String topicName, String expectedKey, String expectedValue, boolean offsetCommit) {
-        consumeAndVerify(address, topicName, new LinkedList<>(List.of(matchesRecord(topicName, expectedKey, expectedValue))), offsetCommit);
+    private void consumeAndVerify(String address, String topicName, String groupId, String expectedKey, String expectedValue, boolean offsetCommit) {
+        consumeAndVerify(address, topicName, groupId, new LinkedList<>(List.of(matchesRecord(topicName, expectedKey, expectedValue))), offsetCommit);
     }
 
-    private void consumeAndVerify(String address, String topicName, Deque<Predicate<ConsumerRecord<String, String>>> expected, boolean offsetCommit) {
+    private void consumeAndVerify(String address, String topicName, String groupId, Deque<Predicate<ConsumerRecord<String, String>>> expected, boolean offsetCommit) {
         try (var consumer = new KafkaConsumer<String, String>(commonConfig(address, Map.of(
-                ConsumerConfig.GROUP_ID_CONFIG, testInfo.getDisplayName(),
+                ConsumerConfig.GROUP_ID_CONFIG, groupId,
                 ConsumerConfig.ALLOW_AUTO_CREATE_TOPICS_CONFIG, Boolean.FALSE.toString(),
                 ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, Boolean.FALSE.toString(),
                 ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, OffsetResetStrategy.EARLIEST.toString(),
@@ -330,7 +370,8 @@ public class MultiTenantIT {
                 assertThat(records.partitions()).hasSizeGreaterThanOrEqualTo(1);
                 records.forEach(r -> {
                     assertFalse(expected.isEmpty(), String.format("received unexpected record %s", r));
-                    assertThat(r).matches(expected.pop());
+                    var predicate = expected.pop();
+                    assertThat(r).matches(predicate, predicate.toString());
                 });
             }
 
@@ -430,9 +471,17 @@ public class MultiTenantIT {
 
     @NotNull
     private static <K, V> Predicate<ConsumerRecord<K, V>> matchesRecord(final String expectedTopic, final K expectedKey, final V expectedValue) {
-        return item -> {
-            var rec = ((ConsumerRecord<K, V>) item);
-            return Objects.equals(rec.topic(), expectedTopic) && Objects.equals(rec.key(), expectedKey) && Objects.equals(rec.value(), expectedValue);
+        return new Predicate<>() {
+            @Override
+            public boolean test(ConsumerRecord<K, V> item) {
+                var rec = ((ConsumerRecord<K, V>) item);
+                return Objects.equals(rec.topic(), expectedTopic) && Objects.equals(rec.key(), expectedKey) && Objects.equals(rec.value(), expectedValue);
+            }
+
+            @Override
+            public String toString() {
+                return String.format("expected: key %s value %s", expectedKey, expectedValue);
+            }
         };
     }
 }

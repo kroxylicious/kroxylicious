@@ -1,0 +1,35 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+- apiMessageType: OFFSET_DELETE
+  version: 0
+  request:
+    payload:
+      groupId: mygroup
+      topics:
+        - name: foo
+          partitions: []
+    diff:
+      - op: replace
+        path: "/groupId"
+        value: tenant1-mygroup
+      - op: replace
+        path: "/topics/0/name"
+        value: tenant1-foo
+  response:
+    payload:
+      topics:
+        - name: tenant1-foo
+          partitions:
+            - partitionIndex: 0
+              errorCode: 0
+      throttleTimeMs: 0
+      errorCode: 0
+    diff:
+      - op: replace
+        path: "/topics/0/name"
+        value: foo
+  disabled: false

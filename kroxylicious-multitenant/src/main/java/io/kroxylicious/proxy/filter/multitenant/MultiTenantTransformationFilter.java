@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.proxy.filter.multitenant;
 
+import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -28,6 +29,8 @@ import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.message.OffsetCommitRequestData;
 import org.apache.kafka.common.message.OffsetCommitResponseData;
+import org.apache.kafka.common.message.OffsetDeleteRequestData;
+import org.apache.kafka.common.message.OffsetDeleteResponseData;
 import org.apache.kafka.common.message.OffsetFetchRequestData;
 import org.apache.kafka.common.message.OffsetFetchResponseData;
 import org.apache.kafka.common.message.OffsetForLeaderEpochRequestData;
@@ -61,6 +64,8 @@ import io.kroxylicious.proxy.filter.MetadataRequestFilter;
 import io.kroxylicious.proxy.filter.MetadataResponseFilter;
 import io.kroxylicious.proxy.filter.OffsetCommitRequestFilter;
 import io.kroxylicious.proxy.filter.OffsetCommitResponseFilter;
+import io.kroxylicious.proxy.filter.OffsetDeleteRequestFilter;
+import io.kroxylicious.proxy.filter.OffsetDeleteResponseFilter;
 import io.kroxylicious.proxy.filter.OffsetFetchRequestFilter;
 import io.kroxylicious.proxy.filter.OffsetFetchResponseFilter;
 import io.kroxylicious.proxy.filter.OffsetForLeaderEpochRequestFilter;
@@ -88,6 +93,7 @@ public class MultiTenantTransformationFilter
         FetchRequestFilter, FetchResponseFilter,
         OffsetFetchRequestFilter, OffsetFetchResponseFilter,
         OffsetCommitRequestFilter, OffsetCommitResponseFilter,
+        OffsetDeleteRequestFilter, OffsetDeleteResponseFilter,
         OffsetForLeaderEpochRequestFilter, OffsetForLeaderEpochResponseFilter,
         FindCoordinatorRequestFilter, FindCoordinatorResponseFilter,
         ListGroupsResponseFilter,
@@ -171,7 +177,8 @@ public class MultiTenantTransformationFilter
         request.topics().forEach(topic -> applyTenantPrefix(context, topic::name, topic::setName, false));
         request.groups().forEach(requestGroup -> {
             applyTenantPrefix(context, requestGroup::groupId, requestGroup::setGroupId, false);
-            requestGroup.topics().forEach(topic -> applyTenantPrefix(context, topic::name, topic::setName, false));
+            Optional.ofNullable(requestGroup.topics())
+                    .ifPresent(topics -> topics.forEach(topic -> applyTenantPrefix(context, topic::name, topic::setName, false)));
         });
 
         context.forwardRequest(request);
@@ -208,6 +215,19 @@ public class MultiTenantTransformationFilter
 
     @Override
     public void onOffsetCommitResponse(ResponseHeaderData data, OffsetCommitResponseData response, KrpcFilterContext context) {
+        response.topics().forEach(topic -> removeTenantPrefix(context, topic::name, topic::setName, false));
+        context.forwardResponse(response);
+    }
+
+    @Override
+    public void onOffsetDeleteRequest(RequestHeaderData header, OffsetDeleteRequestData request, KrpcFilterContext context) {
+        applyTenantPrefix(context, request::groupId, request::setGroupId, false);
+        request.topics().forEach(topic -> applyTenantPrefix(context, topic::name, topic::setName, false));
+        context.forwardRequest(request);
+    }
+
+    @Override
+    public void onOffsetDeleteResponse(ResponseHeaderData header, OffsetDeleteResponseData response, KrpcFilterContext context) {
         response.topics().forEach(topic -> removeTenantPrefix(context, topic::name, topic::setName, false));
         context.forwardResponse(response);
     }
@@ -327,5 +347,4 @@ public class MultiTenantTransformationFilter
 
     public MultiTenantTransformationFilter() {
     }
-
 }
