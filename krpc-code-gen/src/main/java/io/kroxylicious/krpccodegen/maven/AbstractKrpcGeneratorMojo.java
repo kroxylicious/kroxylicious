@@ -6,6 +6,7 @@
 package io.kroxylicious.krpccodegen.maven;
 
 import java.io.File;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -46,6 +47,9 @@ public abstract class AbstractKrpcGeneratorMojo extends AbstractMojo {
     @Parameter(defaultValue = "${messageSpecName}.java")
     private String outputFilePattern;
 
+    @Parameter(defaultValue = "compile")
+    private String addToProjectSourceRoots;
+
     @Parameter(defaultValue = "${project.build.directory}${file.separator}generated-sources${file.separator}/krpc")
     private File outputDirectory;
 
@@ -77,7 +81,20 @@ public abstract class AbstractKrpcGeneratorMojo extends AbstractMojo {
                 throw new MojoExecutionException("Couldn't generate messages", e);
             }
 
-            project.addCompileSourceRoot(outputDirectory.getAbsolutePath());
+            String absolutePath = outputDirectory.getAbsolutePath();
+            Arrays.stream(addToProjectSourceRoots.split(",")).forEach(sourceRoot -> {
+                switch (sourceRoot) {
+                    case "compile" -> {
+                        project.addCompileSourceRoot(absolutePath);
+                    }
+                    case "testCompile" -> {
+                        project.addTestCompileSourceRoot(absolutePath);
+                    }
+                    default -> {
+                        throw new IllegalArgumentException("unexpected source root " + sourceRoot);
+                    }
+                }
+            });
         }
     }
 
