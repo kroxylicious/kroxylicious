@@ -165,10 +165,10 @@ public class MultiTenantIT {
     public void consumeOne(KafkaCluster cluster) throws Exception {
         String config = getConfig(PROXY_ADDRESS, cluster);
         try (var proxy = startProxy(config)) {
-            var groupName = testInfo.getDisplayName();
+            var groupId = testInfo.getDisplayName();
             createTopics(TENANT1_PROXY_ADDRESS, List.of(NEW_TOPIC_1));
             produceAndVerify(TENANT1_PROXY_ADDRESS, TOPIC_1, MY_KEY, MY_VALUE);
-            consumeAndVerify(TENANT1_PROXY_ADDRESS, TOPIC_1, groupName, MY_KEY, MY_VALUE, false);
+            consumeAndVerify(TENANT1_PROXY_ADDRESS, TOPIC_1, groupId, MY_KEY, MY_VALUE, false);
         }
     }
 
@@ -176,12 +176,12 @@ public class MultiTenantIT {
     public void consumeOneAndOffsetCommit(KafkaCluster cluster) throws Exception {
         String config = getConfig(PROXY_ADDRESS, cluster);
         try (var proxy = startProxy(config)) {
-            var groupName = testInfo.getDisplayName();
+            var groupId = testInfo.getDisplayName();
             createTopics(TENANT1_PROXY_ADDRESS, List.of(NEW_TOPIC_1));
             produceAndVerify(TENANT1_PROXY_ADDRESS,
-                    Stream.of(new ProducerRecord<>(TOPIC_1, MY_KEY, "1"), new ProducerRecord<>(TOPIC_1, MY_KEY, "2")));
-            consumeAndVerify(TENANT1_PROXY_ADDRESS, TOPIC_1, groupName, MY_KEY, "1", true);
-            consumeAndVerify(TENANT1_PROXY_ADDRESS, TOPIC_1, groupName, MY_KEY, "2", true);
+                    Stream.of(new ProducerRecord<>(TOPIC_1, MY_KEY, "1"), new ProducerRecord<>(TOPIC_1, MY_KEY, "2"), inCaseOfFailure()));
+            consumeAndVerify(TENANT1_PROXY_ADDRESS, TOPIC_1, groupId, MY_KEY, "1", true);
+            consumeAndVerify(TENANT1_PROXY_ADDRESS, TOPIC_1, groupId, MY_KEY, "2", true);
         }
     }
 
@@ -189,17 +189,17 @@ public class MultiTenantIT {
     public void alterOffsetCommit(KafkaCluster cluster) throws Exception {
         String config = getConfig(PROXY_ADDRESS, cluster);
         try (var proxy = startProxy(config); var admin = Admin.create(commonConfig(TENANT1_PROXY_ADDRESS, Map.of()))) {
-            var groupName = testInfo.getDisplayName();
+            var groupId = testInfo.getDisplayName();
             createTopics(TENANT1_PROXY_ADDRESS, List.of(NEW_TOPIC_1));
             produceAndVerify(TENANT1_PROXY_ADDRESS,
                     Stream.of(new ProducerRecord<>(TOPIC_1, MY_KEY, "1"), new ProducerRecord<>(TOPIC_1, MY_KEY, "2"),
                             inCaseOfFailure()));
-            consumeAndVerify(TENANT1_PROXY_ADDRESS, TOPIC_1, groupName, MY_KEY, "1", true);
-            var rememberedOffsets = admin.listConsumerGroupOffsets(groupName).partitionsToOffsetAndMetadata().get();
-            consumeAndVerify(TENANT1_PROXY_ADDRESS, TOPIC_1, groupName, MY_KEY, "2", true);
+            consumeAndVerify(TENANT1_PROXY_ADDRESS, TOPIC_1, groupId, MY_KEY, "1", true);
+            var rememberedOffsets = admin.listConsumerGroupOffsets(groupId).partitionsToOffsetAndMetadata().get();
+            consumeAndVerify(TENANT1_PROXY_ADDRESS, TOPIC_1, groupId, MY_KEY, "2", true);
 
-            admin.alterConsumerGroupOffsets(groupName, rememberedOffsets).all().get();
-            consumeAndVerify(TENANT1_PROXY_ADDRESS, TOPIC_1, groupName, MY_KEY, "2", true);
+            admin.alterConsumerGroupOffsets(groupId, rememberedOffsets).all().get();
+            consumeAndVerify(TENANT1_PROXY_ADDRESS, TOPIC_1, groupId, MY_KEY, "2", true);
         }
     }
 
@@ -207,14 +207,14 @@ public class MultiTenantIT {
     public void deleteConsumerGroupOffsets(KafkaCluster cluster) throws Exception {
         String config = getConfig(PROXY_ADDRESS, cluster);
         try (var proxy = startProxy(config); var admin = Admin.create(commonConfig(TENANT1_PROXY_ADDRESS, Map.of()))) {
-            var groupName = testInfo.getDisplayName();
+            var groupId = testInfo.getDisplayName();
             createTopics(TENANT1_PROXY_ADDRESS, List.of(NEW_TOPIC_1));
             produceAndVerify(TENANT1_PROXY_ADDRESS,
                     Stream.of(new ProducerRecord<>(TOPIC_1, MY_KEY, "1"), inCaseOfFailure()));
-            consumeAndVerify(TENANT1_PROXY_ADDRESS, TOPIC_1, groupName, MY_KEY, "1", true);
+            consumeAndVerify(TENANT1_PROXY_ADDRESS, TOPIC_1, groupId, MY_KEY, "1", true);
 
-            admin.deleteConsumerGroupOffsets(groupName, Set.of(new TopicPartition(NEW_TOPIC_1.name(), 0))).all().get();
-            consumeAndVerify(TENANT1_PROXY_ADDRESS, TOPIC_1, groupName, MY_KEY, "1", true);
+            admin.deleteConsumerGroupOffsets(groupId, Set.of(new TopicPartition(NEW_TOPIC_1.name(), 0))).all().get();
+            consumeAndVerify(TENANT1_PROXY_ADDRESS, TOPIC_1, groupId, MY_KEY, "1", true);
         }
     }
 
