@@ -59,7 +59,9 @@ class Kroxylicious implements Callable<Integer> {
                 if (resource != null) {
                     Properties properties = new Properties();
                     properties.load(resource);
-                    return new String[]{ properties.getProperty("kroxylicious.version", "unknown") };
+                    String version = properties.getProperty("kroxylicious.version", "unknown");
+                    String apiVersion = properties.getProperty("kroxylicious.api.version", "unknown");
+                    return new String[]{ "kroxylicious: " + version, "kroxylicous apis: " + apiVersion };
                 }
             }
             return new String[]{ "unknown" };
