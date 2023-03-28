@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.multitenant;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -15,8 +16,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.kafka.clients.CommonClientConfigs;
@@ -30,9 +33,11 @@ import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.clients.admin.TopicListing;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRebalanceListener;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.consumer.OffsetResetStrategy;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -68,6 +73,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.testcontainers.shaded.org.awaitility.Awaitility.await;
 
 @ExtendWith(KafkaClusterExtension.class)
 public class MultiTenantIT {
@@ -261,24 +267,26 @@ public class MultiTenantIT {
         return copy;
     }
 
-    private void runConsumerInOrderToCreateGroup(String proxyAddress, String groupId, NewTopic topic, ConsumerStyle consumerStyle) {
+    private void runConsumerInOrderToCreateGroup(String proxyAddress, String groupId, NewTopic topic, ConsumerStyle consumerStyle) throws Exception {
         try (var consumer = new KafkaConsumer<String, String>(commonConfig(proxyAddress, Map.of(
                 ConsumerConfig.GROUP_ID_CONFIG, groupId,
                 ConsumerConfig.ALLOW_AUTO_CREATE_TOPICS_CONFIG, Boolean.FALSE.toString(),
-                ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, Boolean.TRUE.toString(),
+                ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, Boolean.FALSE.toString(),
                 ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, OffsetResetStrategy.EARLIEST.toString(),
                 ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
                 ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class)))) {
 
             if (consumerStyle == ConsumerStyle.ASSIGN) {
-                var topicPartitions = List.of(new TopicPartition(topic.name(), 0));
-                consumer.assign(topicPartitions);
+                consumer.assign(List.of(new TopicPartition(topic.name(), 0)));
             }
             else {
-                consumer.subscribe(List.of(topic.name()));
+                var listener = new PartitionAssignmentAwaitingRebalanceListener<>(consumer);
+                consumer.subscribe(List.of(topic.name()), listener);
+                listener.awaitAssignment(Duration.ofMinutes(1));
             }
 
-            consumer.poll(Duration.ofSeconds(1));
+            var zeroOffset = new OffsetAndMetadata(0);
+            consumer.commitSync(consumer.assignment().stream().collect(Collectors.toMap(Function.identity(), a -> zeroOffset)));
         }
     }
 
@@ -434,5 +442,30 @@ public class MultiTenantIT {
             var rec = ((ConsumerRecord<K, V>) item);
             return Objects.equals(rec.topic(), expectedTopic) && Objects.equals(rec.key(), expectedKey) && Objects.equals(rec.value(), expectedValue);
         };
+    }
+
+    private static class PartitionAssignmentAwaitingRebalanceListener<K, V> implements ConsumerRebalanceListener {
+        private final AtomicBoolean assigned = new AtomicBoolean();
+        private final KafkaConsumer<K, V> consumer;
+
+        PartitionAssignmentAwaitingRebalanceListener(KafkaConsumer<K, V> consumer) {
+            this.consumer = consumer;
+        }
+
+        @Override
+        public void onPartitionsRevoked(Collection<TopicPartition> partitions) {
+        }
+
+        @Override
+        public void onPartitionsAssigned(Collection<TopicPartition> partitions) {
+            assigned.set(true);
+        }
+
+        public void awaitAssignment(Duration timeout) {
+            await().atMost(timeout).until(() -> {
+                consumer.poll(Duration.ofMillis(50));
+                return assigned.get();
+            });
+        }
     }
 }
