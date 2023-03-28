@@ -1,2 +1,3 @@
-build = "mvn"
-jdkVersion = "19"
+# integrationtests requires Java 19, exclude from the reactor, see https://community.sonatype.com/t/java-19-supported/10371
+build = "mvn -DskipTests=true -pl !integrationtests"
+jdkVersion = "17"
