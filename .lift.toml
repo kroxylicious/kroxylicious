@@ -1,0 +1,2 @@
+build = "mvn"
+jdkVersion = "19"
