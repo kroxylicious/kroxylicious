@@ -7,7 +7,6 @@ package io.kroxylicious.proxy.multitenant;
 
 import java.nio.file.Path;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Deque;
@@ -17,8 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -75,6 +73,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.testcontainers.shaded.org.awaitility.Awaitility.await;
 
 @ExtendWith(KafkaClusterExtension.class)
 public class MultiTenantIT {
@@ -446,31 +445,27 @@ public class MultiTenantIT {
     }
 
     private static class PartitionAssignmentAwaitingRebalanceListener<K, V> implements ConsumerRebalanceListener {
-        private final CompletableFuture<Object> future = new CompletableFuture<>();
+        private final AtomicBoolean assigned = new AtomicBoolean();
         private final KafkaConsumer<K, V> consumer;
 
-        public PartitionAssignmentAwaitingRebalanceListener(KafkaConsumer<K, V> consumer) {
+        PartitionAssignmentAwaitingRebalanceListener(KafkaConsumer<K, V> consumer) {
             this.consumer = consumer;
         }
 
         @Override
         public void onPartitionsRevoked(Collection<TopicPartition> partitions) {
-
         }
 
         @Override
         public void onPartitionsAssigned(Collection<TopicPartition> partitions) {
-            future.complete(null);
+            assigned.set(true);
         }
 
-        public void awaitAssignment(Duration timeout) throws TimeoutException {
-            var deadline = Instant.now().plus(timeout);
-            do {
+        public void awaitAssignment(Duration timeout) {
+            await().atMost(timeout).until(() -> {
                 consumer.poll(Duration.ofMillis(50));
-            } while (!future.isDone() && Instant.now().isBefore(deadline));
-            if (!future.isDone()) {
-                throw new TimeoutException("timed out awaiting consumer assignment");
-            }
+                return assigned.get();
+            });
         }
     }
 }
