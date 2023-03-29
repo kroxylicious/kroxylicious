@@ -7,3 +7,4 @@
 #
 
 mvn install -DskipTests -pl :kroxylicious-krpc-plugin
+tree "${M2_HOME}/repository/io/kroxylicious"
