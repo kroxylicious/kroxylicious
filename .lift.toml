@@ -1,2 +1,4 @@
-build = "./mvnw -pl !:integrationtests --also-make-dependents"
+ignoreFiles = """
+integrationtests/
+"""
 jdkVersion = "17"
