@@ -5,3 +5,4 @@
 #
 
 mvn install -DskipTests -pl :kroxylicious-krpc-plugin
+mvn install -DskipTests -pl :kroxylicious-filter-api
