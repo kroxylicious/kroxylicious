@@ -1,2 +1,2 @@
-build = "mvn clean install -DskipTests -pl :kroxylicious-krpc-plugin; mvn -pl !:integrationtests --also-make-dependents"
+build = "mvn -pl :kroxylicious-krpc-plugin; mvn -pl !:integrationtests --also-make-dependents"
 jdkVersion = "17"
