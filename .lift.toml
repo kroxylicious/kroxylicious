@@ -6,5 +6,5 @@
 
 #integrationtests requires Java 19, exclude from the reactor, see https://community.sonatype.com/t/java-19-supported/10371
 setup = "scripts/setupLift.sh"
-build = "mvn install -pl !:integrationtests --also-make-dependents"
+build = "mvn install -pl !:integrationtests --also-make-dependents -Dquick=true"
 jdkVersion = "17"

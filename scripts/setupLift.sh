@@ -21,4 +21,4 @@ cat <<EOF > ~/.m2/settings.xml
 </settings>
 EOF
 
-mvn install -DskipTests -pl :kroxylicious-krpc-plugin
+mvn install -DskipTests -pl :kroxylicious-krpc-plugin -Dquick=true
