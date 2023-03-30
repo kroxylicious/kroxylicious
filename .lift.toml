@@ -1,0 +1,2 @@
+build = "mvn -pl !:integrationtests --also-make-dependents"
+jdkVersion = "17"
