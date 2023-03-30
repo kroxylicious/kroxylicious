@@ -4,6 +4,7 @@
 #
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
+
 mkdir -p ~/.m2
 cat <<EOF > ~/.m2/settings.xml
 <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
