@@ -1,4 +1,3 @@
-ignoreFiles = """
-integrationtests/
-"""
+setup = "scripts/setupLift.sh"
+build = "mvn -pl !:integrationtests --also-make-dependents"
 jdkVersion = "17"
