@@ -6,7 +6,6 @@
 #
 
 M2_HOME=~/.m2
-HOME=~/
 
 mkdir -p $M2_HOME
 cat <<EOF > $M2_HOME/settings.xml
@@ -19,9 +18,5 @@ cat <<EOF > $M2_HOME/settings.xml
   <offline>false</offline>
 </settings>
 EOF
-cat <<EOF > $HOME/.mavenrc
-export MAVEN_CONFIG="-pl !:integrationtests --also-make-dependents -Dquick"
-EOF
-
 
 mvn install -DskipTests -pl :kroxylicious-krpc-plugin -Dquick
