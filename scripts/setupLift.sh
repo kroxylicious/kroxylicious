@@ -5,8 +5,6 @@
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
 
-rm -f mvnw*
-
 M2_HOME=~/.m2
 
 mkdir -p $M2_HOME
