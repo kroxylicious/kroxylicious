@@ -63,8 +63,8 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.kroxylicious.proxy.ClusterBuilder;
 import io.kroxylicious.proxy.KroxyConfig;
+import io.kroxylicious.proxy.VirtualClusterBuilder;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
@@ -462,7 +462,7 @@ public class MultiTenantIT {
                 .withKeyPassword(certificateGenerator.getPassword())
                 .withKeyStoreFile(certificateGenerator.getKeyStoreLocation())
                 .endProxy()
-                .addToClusters("demo", new ClusterBuilder().withBootstrapServers(cluster.getBootstrapServers()).build())
+                .addToVirtualClusters("demo", new VirtualClusterBuilder().withNewTargetCluster().withBootstrapServers(cluster.getBootstrapServers()).endTargetCluster().build())
                 .addNewFilter().withType("ApiVersions").endFilter()
                 .addNewFilter().withType("BrokerAddress").withConfig(Map.of("addressMapperClazz", "io.kroxylicious.proxy.internal.filter.SniAddressMapping")).endFilter()
                 .addNewFilter().withType("MultiTenant").endFilter()

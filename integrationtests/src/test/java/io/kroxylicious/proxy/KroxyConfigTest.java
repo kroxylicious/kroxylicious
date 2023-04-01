@@ -40,12 +40,13 @@ public class KroxyConfigTest {
     }
 
     @Test
-    public void testClusterConfig() throws Exception {
+    public void testVirtualClusterConfig() throws Exception {
         ObjectNode deserializedConfig = serializeAndDeserialize(
-                builder().addToClusters("demo", new ClusterBuilder().withBootstrapServers("localhost:9092").build()).build());
-        ObjectNode clusterObj = assertObjectField(deserializedConfig, "clusters");
+                builder().addToVirtualClusters("demo", new VirtualClusterBuilder().withNewTargetCluster().withBootstrapServers("localhost:9092").endTargetCluster().build()).build());
+        ObjectNode clusterObj = assertObjectField(deserializedConfig, "virtualClusters");
         ObjectNode demoObj = assertObjectField(clusterObj, "demo");
-        assertTextField(demoObj, "bootstrap_servers", "localhost:9092");
+        ObjectNode targetClusterObj = assertObjectField(demoObj, "targetCluster");
+        assertTextField(targetClusterObj, "bootstrap_servers", "localhost:9092");
     }
 
     @Test

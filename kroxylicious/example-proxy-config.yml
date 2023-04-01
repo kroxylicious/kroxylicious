@@ -12,9 +12,10 @@ proxy:
 adminHttp:
   endpoints:
     prometheus: {}
-clusters:
+virtualClusters:
   demo:
-    bootstrap_servers: localhost:9092
+    targetCluster:
+      bootstrap_servers: localhost:9092
 filters:
 - type: ApiVersions
 - type: BrokerAddress

@@ -7,11 +7,11 @@ package io.kroxylicious.proxy.config;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-public class Cluster {
+public class TargetCluster {
 
     private final String bootstrapServers;
 
-    public Cluster(@JsonProperty(value = "bootstrap_servers") String bootstrapServers) {
+    public TargetCluster(@JsonProperty(value = "bootstrap_servers") String bootstrapServers) {
         this.bootstrapServers = bootstrapServers;
     }
 
@@ -21,6 +21,6 @@ public class Cluster {
 
     @Override
     public String toString() {
-        return "Cluster [bootstrapServers=" + bootstrapServers + "]";
+        return "TargetCluster [bootstrapServers=" + bootstrapServers + "]";
     }
 }

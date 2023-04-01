@@ -272,7 +272,7 @@ public class KrpcFilterIT {
 
     private static KroxyConfigBuilder baseConfigBuilder(String proxyAddress, String bootstrapServers) {
         return KroxyConfig.builder().withNewProxy().withAddress(proxyAddress).endProxy()
-                .addToClusters("demo", new ClusterBuilder().withBootstrapServers(bootstrapServers).build())
+                .addToVirtualClusters("demo", new VirtualClusterBuilder().withNewTargetCluster().withBootstrapServers(bootstrapServers).endTargetCluster().build())
                 .addNewFilter().withType("ApiVersions").endFilter()
                 .addNewFilter().withType("BrokerAddress").endFilter();
     }

@@ -6,10 +6,8 @@
 
 package io.kroxylicious.proxy;
 
-import com.fasterxml.jackson.annotation.JsonGetter;
-
 import io.sundr.builder.annotations.Buildable;
 
 @Buildable(editableEnabled = false)
-public record Cluster(@JsonGetter("bootstrap_servers") String bootstrapServers) {
+public record VirtualCluster(TargetCluster targetCluster) {
 }
