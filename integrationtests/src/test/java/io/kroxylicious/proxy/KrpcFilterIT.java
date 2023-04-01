@@ -41,7 +41,9 @@ import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
 import static io.kroxylicious.proxy.Utils.startProxy;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @ExtendWith(KafkaClusterExtension.class)
 public class KrpcFilterIT {
@@ -112,16 +114,7 @@ public class KrpcFilterIT {
 
         admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1))).all().get();
 
-        String config = """
-                proxy:
-                  address: %s
-                clusters:
-                  demo:
-                    bootstrap_servers: %s
-                filters:
-                - type: ApiVersions
-                - type: BrokerAddress
-                """.formatted(proxyAddress, cluster.getBootstrapServers());
+        var config = baseConfigBuilder(proxyAddress, cluster.getBootstrapServers()).build();
 
         try (var proxy = startProxy(config)) {
             try (var producer = new KafkaProducer<String, String>(Map.of(
@@ -156,19 +149,9 @@ public class KrpcFilterIT {
                 new NewTopic(TOPIC_1, 1, (short) 1),
                 new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
 
-        String config = """
-                proxy:
-                  address: %s
-                clusters:
-                  demo:
-                    bootstrap_servers: %s
-                filters:
-                - type: ApiVersions
-                - type: BrokerAddress
-                - type: ProduceRequestTransformation
-                  config:
-                    transformation: %s
-                """.formatted(proxyAddress, cluster.getBootstrapServers(), TestEncoder.class.getName());
+        var config = baseConfigBuilder(proxyAddress, cluster.getBootstrapServers())
+                .addFilter("ProduceRequestTransformation", "transformation", TestEncoder.class.getName())
+                .build();
 
         try (var proxy = startProxy(config)) {
             try (var producer = new KafkaProducer<String, String>(Map.of(
@@ -211,19 +194,9 @@ public class KrpcFilterIT {
                 new NewTopic(TOPIC_1, 1, (short) 1),
                 new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
 
-        String config = """
-                proxy:
-                  address: %s
-                clusters:
-                  demo:
-                    bootstrap_servers: %s
-                filters:
-                - type: ApiVersions
-                - type: BrokerAddress
-                - type: FetchResponseTransformation
-                  config:
-                    transformation: %s
-                """.formatted(proxyAddress, cluster.getBootstrapServers(), TestDecoder.class.getName());
+        var config = baseConfigBuilder(proxyAddress, cluster.getBootstrapServers())
+                .addFilter("FetchResponseTransformation", "transformation", TestDecoder.class.getName())
+                .build();
 
         try (var proxy = startProxy(config)) {
             try (var producer = new KafkaProducer<String, byte[]>(Map.of(
@@ -270,18 +243,10 @@ public class KrpcFilterIT {
         Path clientTrustStore = certsDirectory.resolve("kafka.truststore.jks");
         brokerCertificateGenerator.generateTrustStore(brokerCertificateGenerator.getCertFilePath(), "client",
                 clientTrustStore.toAbsolutePath().toString());
-        String config = """
-                proxy:
-                  address: %s
-                  keyStoreFile: %s
-                  keyPassword: %s
-                clusters:
-                  demo:
-                    bootstrap_servers: %s
-                filters:
-                - type: ApiVersions
-                - type: BrokerAddress
-                """.formatted(proxyAddress, brokerCertificateGenerator.getKeyStoreLocation(), brokerCertificateGenerator.getPassword(), cluster.getBootstrapServers());
+
+        var config = baseConfigBuilder(proxyAddress, cluster.getBootstrapServers())
+                .withKeyStoreConfig(brokerCertificateGenerator.getKeyStoreLocation(), brokerCertificateGenerator.getPassword())
+                .build();
 
         try (var proxy = startProxy(config)) {
             try (var admin = Admin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
@@ -298,4 +263,12 @@ public class KrpcFilterIT {
             }
         }
     }
+
+    private static KroxyConfigBuilder baseConfigBuilder(String proxyAddress, String bootstrapServers) {
+        return new KroxyConfigBuilder(proxyAddress)
+                .withDefaultCluster(bootstrapServers)
+                .addFilter("ApiVersions")
+                .addFilter("BrokerAddress");
+    }
+
 }

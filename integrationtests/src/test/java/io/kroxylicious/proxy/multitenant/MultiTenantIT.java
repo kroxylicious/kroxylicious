@@ -63,6 +63,7 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.kroxylicious.proxy.KroxyConfigBuilder;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
@@ -454,22 +455,13 @@ public class MultiTenantIT {
     }
 
     private String getConfig(String proxyAddress, KafkaCluster cluster) {
-        String config = """
-                proxy:
-                  address: %s
-                  keyStoreFile: %s
-                  keyPassword: %s
-                clusters:
-                  demo:
-                    bootstrap_servers: %s
-                filters:
-                - type: ApiVersions
-                - type: BrokerAddress
-                  config:
-                    addressMapperClazz: io.kroxylicious.proxy.internal.filter.SniAddressMapping
-                - type: MultiTenant
-                """.formatted(proxyAddress, certificateGenerator.getKeyStoreLocation(), certificateGenerator.getPassword(), cluster.getBootstrapServers());
-        return config;
+        return new KroxyConfigBuilder(proxyAddress)
+                .withDefaultCluster(cluster.getBootstrapServers())
+                .withKeyStoreConfig(certificateGenerator.getKeyStoreLocation(), certificateGenerator.getPassword())
+                .addFilter("ApiVersions")
+                .addFilter("BrokerAddress", "addressMapperClazz", "io.kroxylicious.proxy.internal.filter.SniAddressMapping")
+                .addFilter("MultiTenant")
+                .build();
     }
 
     @NotNull
