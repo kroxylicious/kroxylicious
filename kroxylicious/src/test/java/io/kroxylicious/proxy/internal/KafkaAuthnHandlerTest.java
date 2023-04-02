@@ -102,7 +102,7 @@ public class KafkaAuthnHandlerTest {
         // saslAuthenticateVersion == null => use a base SASL request (no kafka header)
         private final Short saslAuthenticateVersion;
 
-        public RequestVersions(Short apiVersionsVersion, Short saslHandshakeVersion, Short saslAuthenticateVersion) {
+        RequestVersions(Short apiVersionsVersion, Short saslHandshakeVersion, Short saslAuthenticateVersion) {
             this.apiVersionsVersion = apiVersionsVersion;
             this.saslHandshakeVersion = saslHandshakeVersion;
             this.saslAuthenticateVersion = saslAuthenticateVersion;

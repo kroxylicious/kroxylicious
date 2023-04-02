@@ -23,7 +23,8 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import io.netty.buffer.Unpooled;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * Test of ByteBufAccessor
