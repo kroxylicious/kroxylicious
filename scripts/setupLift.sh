@@ -8,11 +8,11 @@
 
 set -e
 
-M2_HOME=~/.m2
+export M2_HOME=${HOME}/.m2
 
-mkdir -p ${M2_HOME}
+mkdir -p "${M2_HOME}"
 
-cat <<EOF > ${M2_HOME}/settings.xml
+cat <<EOF > "${M2_HOME}/settings.xml"
 <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
@@ -23,7 +23,7 @@ cat <<EOF > ${M2_HOME}/settings.xml
 </settings>
 EOF
 
-cat <<EOF > ~/.mavenrc
+cat <<EOF > "${HOME}/.mavenrc"
 MAVEN_CONFIG="-pl !:integrationtests --also-make-dependents"
 EOF
 
