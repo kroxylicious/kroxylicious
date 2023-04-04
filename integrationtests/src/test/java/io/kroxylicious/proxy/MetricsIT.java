@@ -10,6 +10,8 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.regex.Pattern;
 
@@ -41,7 +43,13 @@ public class MetricsIT {
     @Test
     public void shouldOfferPrometheusMetricsScrapeEndpoint(KafkaCluster cluster) throws Exception {
         String config = baseConfigBuilder(PROXY_ADDRESS, cluster.getBootstrapServers())
-                .withPrometheusEndpoint().build();
+                .withNewAdminHttp()
+                .withNewEndpoints()
+                .withPrometheusEndpointConfig(Map.of())
+                .endEndpoints()
+                .endAdminHttp()
+                .build()
+                .toYaml();
 
         try (var proxy = startProxy(config)) {
             String counter_name = "test_metric_" + Math.abs(new Random().nextLong()) + "_total";
@@ -58,8 +66,17 @@ public class MetricsIT {
     @Test
     public void shouldOfferPrometheusMetricsWithNamedBinder(KafkaCluster cluster) throws Exception {
         String config = baseConfigBuilder(PROXY_ADDRESS, cluster.getBootstrapServers())
-                .withMicrometerBinder("JvmGcMetrics")
-                .withPrometheusEndpoint().build();
+                .addToMicrometer(new MicrometerConfigBuilder()
+                        .withType("StandardBinders")
+                        .withConfig(Map.of("binderNames", List.of("JvmGcMetrics")))
+                        .build())
+                .withNewAdminHttp()
+                .withNewEndpoints()
+                .withPrometheusEndpointConfig(Map.of())
+                .endEndpoints()
+                .endAdminHttp()
+                .build()
+                .toYaml();
 
         try (var proxy = startProxy(config)) {
             HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:9193/metrics")).GET().build();
@@ -71,8 +88,14 @@ public class MetricsIT {
     @Test
     public void shouldOfferPrometheusMetricsWithCommonTags(KafkaCluster cluster) throws Exception {
         String config = baseConfigBuilder(PROXY_ADDRESS, cluster.getBootstrapServers())
-                .withMicrometerCommonTag("a", "b")
-                .withPrometheusEndpoint().build();
+                .addNewMicrometer().withType("CommonTags").withConfig(Map.of("commonTags", Map.of("a", "b"))).endMicrometer()
+                .withNewAdminHttp()
+                .withNewEndpoints()
+                .withPrometheusEndpointConfig(Map.of())
+                .endEndpoints()
+                .endAdminHttp()
+                .build()
+                .toYaml();
 
         try (var proxy = startProxy(config)) {
             String counter_name = "test_metric_" + Math.abs(new Random().nextLong()) + "_total";
@@ -100,9 +123,7 @@ public class MetricsIT {
     }
 
     private static KroxyConfigBuilder baseConfigBuilder(String proxyAddress, String bootstrapServers) {
-        return new KroxyConfigBuilder(proxyAddress)
-                .withDefaultCluster(bootstrapServers)
-                .addFilter("ApiVersions")
-                .addFilter("BrokerAddress");
+        return KroxyConfig.builder().withNewProxy().withAddress(proxyAddress).endProxy()
+                .addToClusters("demo", new ClusterBuilder().withBootstrapServers(bootstrapServers).build());
     }
 }

@@ -5,7 +5,7 @@
  */
 package io.kroxylicious.proxy;
 
-import java.io.IOException;
+import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
@@ -15,23 +15,24 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 
+import static io.kroxylicious.proxy.KroxyConfig.builder;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public class KroxyConfigBuilderTest {
+public class KroxyConfigTest {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper(new YAMLFactory());
 
     @Test
-    public void testBareConfig() throws IOException {
-        ObjectNode deserializedConfig = serializeAndDeserialize(new KroxyConfigBuilder("localhost:9192"));
+    public void testBareConfig() throws Exception {
+        ObjectNode deserializedConfig = serializeAndDeserialize(builder().withNewProxy().withAddress("localhost:9192").endProxy().build());
         ObjectNode proxyObj = assertObjectField(deserializedConfig, "proxy");
         assertTextField(proxyObj, "address", "localhost:9192");
     }
 
     @Test
-    public void testSslConfig() throws IOException {
-        ObjectNode deserializedConfig = serializeAndDeserialize(new KroxyConfigBuilder("localhost:9192")
-                .withKeyStoreConfig("file", "pass"));
+    public void testSslConfig() throws Exception {
+        ObjectNode deserializedConfig = serializeAndDeserialize(
+                builder().withNewProxy().withAddress("localhost:9192").withKeyPassword("pass").withKeyStoreFile("file").endProxy().build());
         ObjectNode proxyObj = assertObjectField(deserializedConfig, "proxy");
         assertTextField(proxyObj, "address", "localhost:9192");
         assertTextField(proxyObj, "keyStoreFile", "file");
@@ -39,27 +40,25 @@ public class KroxyConfigBuilderTest {
     }
 
     @Test
-    public void testClusterConfig() throws IOException {
-        ObjectNode deserializedConfig = serializeAndDeserialize(new KroxyConfigBuilder("localhost:9192")
-                .withDefaultCluster("localhost:9092"));
+    public void testClusterConfig() throws Exception {
+        ObjectNode deserializedConfig = serializeAndDeserialize(
+                builder().addToClusters("demo", new ClusterBuilder().withBootstrapServers("localhost:9092").build()).build());
         ObjectNode clusterObj = assertObjectField(deserializedConfig, "clusters");
         ObjectNode demoObj = assertObjectField(clusterObj, "demo");
         assertTextField(demoObj, "bootstrap_servers", "localhost:9092");
     }
 
     @Test
-    public void testTypeOnlyFilter() throws IOException {
-        ObjectNode deserializedConfig = serializeAndDeserialize(new KroxyConfigBuilder("localhost:9192")
-                .addFilter("FilterType"));
+    public void testTypeOnlyFilter() throws Exception {
+        ObjectNode deserializedConfig = serializeAndDeserialize(builder().addNewFilter().withType("FilterType").endFilter().build());
         ArrayNode filters = assertArrayField(deserializedConfig, "filters", 1);
         ObjectNode filterObj = assertOnlyElementIsObject(filters);
         assertTextField(filterObj, "type", "FilterType");
     }
 
     @Test
-    public void testFilterWithSingleParam() throws IOException {
-        ObjectNode deserializedConfig = serializeAndDeserialize(new KroxyConfigBuilder("localhost:9192")
-                .addFilter("FilterType", "a", "b"));
+    public void testFilterWithSingleParam() throws Exception {
+        ObjectNode deserializedConfig = serializeAndDeserialize(builder().addNewFilter().withType("FilterType").withConfig(Map.of("a", "b")).endFilter().build());
         ArrayNode filters = assertArrayField(deserializedConfig, "filters", 1);
         ObjectNode filterObj = assertOnlyElementIsObject(filters);
         assertTextField(filterObj, "type", "FilterType");
@@ -68,17 +67,17 @@ public class KroxyConfigBuilderTest {
     }
 
     @Test
-    public void testPrometheusEndpointConfig() throws IOException {
-        ObjectNode deserializedConfig = serializeAndDeserialize(new KroxyConfigBuilder("localhost:9192")
-                .withPrometheusEndpoint());
+    public void testPrometheusEndpointConfig() throws Exception {
+        ObjectNode deserializedConfig = serializeAndDeserialize(
+                builder().withNewAdminHttp().withNewEndpoints().withPrometheusEndpointConfig(Map.of()).endEndpoints().endAdminHttp().build());
         ObjectNode adminHttp = assertObjectField(deserializedConfig, "adminHttp");
         ObjectNode endpoints = assertObjectField(adminHttp, "endpoints");
         ObjectNode prometheus = assertObjectField(endpoints, "prometheus");
         assertTrue(prometheus.isEmpty(), "expect prometheus endpoint to have an empty object serialized");
     }
 
-    private static ObjectNode serializeAndDeserialize(KroxyConfigBuilder builder) throws IOException {
-        String config = builder.build();
+    private static ObjectNode serializeAndDeserialize(KroxyConfig builder) throws Exception {
+        String config = builder.toYaml();
         return OBJECT_MAPPER.reader().readValue(config, ObjectNode.class);
     }
 

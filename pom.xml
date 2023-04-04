@@ -50,6 +50,7 @@
         <micrometer.version>1.10.5</micrometer.version>
         <kroxy.extension.version>0.1</kroxy.extension.version>
         <zjsonpatch.version>0.4.14</zjsonpatch.version>
+        <sundr-builder-annotations.version>0.94.0</sundr-builder-annotations.version>
     </properties>
 
     <name>Kroxylicious Parent</name>
@@ -205,6 +206,12 @@
                 <artifactId>zjsonpatch</artifactId>
                 <version>${zjsonpatch.version}</version>
                 <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.sundr</groupId>
+                <artifactId>builder-annotations</artifactId>
+                <version>${sundr-builder-annotations.version}</version>
+                <scope>provided</scope>
             </dependency>
         </dependencies>
     </dependencyManagement>
