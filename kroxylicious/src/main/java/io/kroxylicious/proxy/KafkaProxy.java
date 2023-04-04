@@ -43,10 +43,10 @@ import io.netty.incubator.channel.uring.IOUring;
 import io.netty.incubator.channel.uring.IOUringEventLoopGroup;
 import io.netty.incubator.channel.uring.IOUringServerSocketChannel;
 
+import io.kroxylicious.proxy.bootstrap.ClusterEndpointProviderFactory;
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.MicrometerDefinition;
-import io.kroxylicious.proxy.config.ProxyConfig;
 import io.kroxylicious.proxy.config.admin.AdminHttpConfiguration;
 import io.kroxylicious.proxy.internal.KafkaProxyInitializer;
 import io.kroxylicious.proxy.internal.MeterRegistries;
@@ -71,7 +71,6 @@ public final class KafkaProxy implements AutoCloseable {
     private final FilterChainFactory filterChainFactory;
     private final AdminHttpConfiguration adminHttpConfig;
     private final List<MicrometerDefinition> micrometerConfig;
-    private final ProxyConfig proxyConfig;
     private EventLoopGroup bossGroup;
     private EventLoopGroup workerGroup;
     private Channel acceptorChannel;
@@ -80,27 +79,28 @@ public final class KafkaProxy implements AutoCloseable {
     private Optional<String> keyStorePassword;
 
     public KafkaProxy(Configuration config) {
-        String proxyAddress = config.proxy().address();
+        var virtualCluster = config.virtualClusters().entrySet().iterator().next().getValue();
+        var endpointAssigner = new ClusterEndpointProviderFactory(config, virtualCluster).createClusterEndpointProvider();
+        String proxyAddress = endpointAssigner.getClusterBootstrapAddress();
         String[] proxyAddressParts = proxyAddress.split(":");
 
         // TODO: deal with list
-        String brokerAddress = config.virtualClusters().entrySet().iterator().next().getValue().targetCluster().bootstrapServers();
+        String brokerAddress = virtualCluster.targetCluster().bootstrapServers();
         String[] brokerAddressParts = brokerAddress.split(":");
 
         this.proxyHost = proxyAddressParts[0];
         this.proxyPort = Integer.valueOf(proxyAddressParts[1]);
         this.brokerHost = brokerAddressParts[0];
         this.brokerPort = Integer.valueOf(brokerAddressParts[1]);
-        this.logNetwork = config.proxy().logNetwork();
-        this.logFrames = config.proxy().logFrames();
-        this.useIoUring = config.proxy().useIoUring();
+        this.logNetwork = virtualCluster.isLogNetwork();
+        this.logFrames = virtualCluster.isLogFrames();
+        this.useIoUring = virtualCluster.isUseIoUring();
         this.adminHttpConfig = config.adminHttpConfig();
         this.micrometerConfig = config.getMicrometer();
-        this.proxyConfig = config.proxy();
-        this.filterChainFactory = new FilterChainFactory(config);
+        this.filterChainFactory = new FilterChainFactory(config, endpointAssigner);
 
-        this.keyStoreFile = config.proxy().keyStoreFile().map(File::new);
-        this.keyStorePassword = config.proxy().keyPassword();
+        this.keyStoreFile = virtualCluster.keyStoreFile().map(File::new);
+        this.keyStorePassword = virtualCluster.keyPassword();
     }
 
     public String proxyHost() {
@@ -194,7 +194,7 @@ public final class KafkaProxy implements AutoCloseable {
             channelClass = NioServerSocketChannel.class;
         }
 
-        MeterRegistries meterRegistries = new MeterRegistries(micrometerConfig, proxyConfig);
+        MeterRegistries meterRegistries = new MeterRegistries(micrometerConfig, () -> proxyHost() + ":" + proxyPort);
         maybeStartMetricsListener(bossGroup, workerGroup, channelClass, meterRegistries);
 
         ServerBootstrap serverBootstrap = new ServerBootstrap().group(bossGroup, workerGroup)

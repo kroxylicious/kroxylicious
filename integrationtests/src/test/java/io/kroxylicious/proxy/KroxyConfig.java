@@ -24,7 +24,6 @@ public class KroxyConfig {
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper(new YAMLFactory().disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER));
 
-    private final Proxy proxy;
     private final Map<String, VirtualCluster> virtualClusters;
     private final List<Filter> filters;
 
@@ -38,8 +37,7 @@ public class KroxyConfig {
         return new KroxyConfigBuilder();
     }
 
-    public KroxyConfig(Proxy proxy, Map<String, VirtualCluster> virtualClusters, List<Filter> filters, AdminHttp adminHttp, List<MicrometerConfig> micrometer) {
-        this.proxy = proxy;
+    public KroxyConfig(Map<String, VirtualCluster> virtualClusters, List<Filter> filters, AdminHttp adminHttp, List<MicrometerConfig> micrometer) {
         this.virtualClusters = virtualClusters;
         this.filters = filters;
         this.adminHttp = adminHttp;
@@ -53,10 +51,6 @@ public class KroxyConfig {
         catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
-    }
-
-    public Proxy getProxy() {
-        return proxy;
     }
 
     public AdminHttp getAdminHttp() {

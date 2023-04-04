@@ -126,8 +126,16 @@ public class ProxyRpcTest {
     }
 
     private static String configure(MockServer mockServer) {
-        return KroxyConfig.builder().withNewProxy().withAddress(ProxyRpcTest.PROXY_ADDRESS).endProxy()
-                .addToClusters("demo", new ClusterBuilder().withBootstrapServers("localhost:" + mockServer.port()).build())
+        return KroxyConfig.builder()
+                .addToVirtualClusters("demo", new VirtualClusterBuilder()
+                        .withNewTargetCluster()
+                        .withBootstrapServers("localhost:" + mockServer.port())
+                        .endTargetCluster()
+                        .withNewClusterEndpointProvider()
+                        .withType("StaticCluster")
+                        .withConfig(Map.of("bootstrapAddress", ProxyRpcTest.PROXY_ADDRESS))
+                        .endClusterEndpointProvider()
+                        .build())
                 .addNewFilter().withType("ApiVersions").endFilter()
                 .addNewFilter().withType("FixedClientId").withConfig(Map.of("clientId", "fixed")).endFilter()
                 .build().toYaml();

@@ -6,7 +6,6 @@
 package io.kroxylicious.proxy.service;
 
 import io.kroxylicious.proxy.config.BaseConfig;
-import io.kroxylicious.proxy.config.ProxyConfig;
 
 /**
  * Support loading an Instance of a service, optionally providing it with configuration obtained
@@ -28,9 +27,9 @@ public interface Contributor<T> {
      * Creates an instance of the service.
      *
      * @param shortName service short name
-     * @param proxyConfig proxy configuration
+     * @param endpointProvider endpoint provider
      * @param config service configuration which may be null if the service instance does not accept configuration.
      * @return the service instance
      */
-    T getInstance(String shortName, ProxyConfig proxyConfig, BaseConfig config);
+    T getInstance(String shortName, ClusterEndpointProvider endpointProvider, BaseConfig config);
 }

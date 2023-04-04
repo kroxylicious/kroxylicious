@@ -14,19 +14,19 @@ import io.micrometer.prometheus.PrometheusConfig;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
 
 import io.kroxylicious.proxy.config.MicrometerDefinition;
-import io.kroxylicious.proxy.config.ProxyConfig;
 import io.kroxylicious.proxy.micrometer.MicrometerConfigurationHookContributorManager;
+import io.kroxylicious.proxy.service.ClusterEndpointProvider;
 
 public class MeterRegistries {
     private final PrometheusMeterRegistry prometheusMeterRegistry;
 
-    public MeterRegistries(List<MicrometerDefinition> micrometerConfig, ProxyConfig proxyConfig) {
+    public MeterRegistries(List<MicrometerDefinition> micrometerConfig, ClusterEndpointProvider proxyConfig) {
         configureMicrometer(micrometerConfig, proxyConfig);
         this.prometheusMeterRegistry = new PrometheusMeterRegistry(PrometheusConfig.DEFAULT);
         Metrics.addRegistry(prometheusMeterRegistry);
     }
 
-    private void configureMicrometer(List<MicrometerDefinition> micrometerConfig, ProxyConfig proxyConfig) {
+    private void configureMicrometer(List<MicrometerDefinition> micrometerConfig, ClusterEndpointProvider proxyConfig) {
         CompositeMeterRegistry globalRegistry = Metrics.globalRegistry;
         MicrometerConfigurationHookContributorManager manager = MicrometerConfigurationHookContributorManager.getInstance();
         micrometerConfig

@@ -123,7 +123,15 @@ public class MetricsIT {
     }
 
     private static KroxyConfigBuilder baseConfigBuilder(String proxyAddress, String bootstrapServers) {
-        return KroxyConfig.builder().withNewProxy().withAddress(proxyAddress).endProxy()
-                .addToVirtualClusters("demo", new VirtualClusterBuilder().withNewTargetCluster().withBootstrapServers(bootstrapServers).endTargetCluster().build());
+        return KroxyConfig.builder()
+                .addToVirtualClusters("demo", new VirtualClusterBuilder()
+                        .withNewTargetCluster()
+                        .withBootstrapServers(bootstrapServers)
+                        .endTargetCluster()
+                        .withNewClusterEndpointProvider()
+                        .withType("StaticCluster")
+                        .withConfig(Map.of("bootstrapAddress", proxyAddress))
+                        .endClusterEndpointProvider()
+                        .build());
     }
 }

@@ -12,7 +12,6 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 import io.kroxylicious.proxy.config.BaseConfig;
-import io.kroxylicious.proxy.config.ProxyConfig;
 
 /**
  * A convenience base class for creating concrete contributor subclasses using a typesafe builder
@@ -38,7 +37,7 @@ public abstract class BaseContributor<T> implements Contributor<T> {
     }
 
     @Override
-    public T getInstance(String shortName, ProxyConfig proxyConfig, BaseConfig config) {
+    public T getInstance(String shortName, ClusterEndpointProvider proxyConfig, BaseConfig config) {
         InstanceBuilder<? extends BaseConfig, T> instanceBuilder = shortNameToInstanceBuilder.get(shortName);
         return instanceBuilder == null ? null : instanceBuilder.construct(proxyConfig, config);
     }
@@ -46,14 +45,14 @@ public abstract class BaseContributor<T> implements Contributor<T> {
     private static class InstanceBuilder<T extends BaseConfig, L> {
 
         private final Class<T> configClass;
-        private final BiFunction<ProxyConfig, T, L> instanceFunction;
+        private final BiFunction<ClusterEndpointProvider, T, L> instanceFunction;
 
-        InstanceBuilder(Class<T> configClass, BiFunction<ProxyConfig, T, L> instanceFunction) {
+        InstanceBuilder(Class<T> configClass, BiFunction<ClusterEndpointProvider, T, L> instanceFunction) {
             this.configClass = configClass;
             this.instanceFunction = instanceFunction;
         }
 
-        L construct(ProxyConfig proxyConfig, BaseConfig config) {
+        L construct(ClusterEndpointProvider proxyConfig, BaseConfig config) {
             if (config == null) {
                 // tests pass in a null config, which some instance functions can tolerate
                 return instanceFunction.apply(proxyConfig, null);
@@ -89,7 +88,7 @@ public abstract class BaseContributor<T> implements Contributor<T> {
          * @return this
          * @param <T> the configuration concrete type
          */
-        public <T extends BaseConfig> BaseContributorBuilder<L> add(String shortName, Class<T> configClass, BiFunction<ProxyConfig, T, L> instanceFunction) {
+        public <T extends BaseConfig> BaseContributorBuilder<L> add(String shortName, Class<T> configClass, BiFunction<ClusterEndpointProvider, T, L> instanceFunction) {
             if (shortNameToInstanceBuilder.containsKey(shortName)) {
                 throw new IllegalArgumentException(shortName + " already registered");
             }
@@ -104,7 +103,7 @@ public abstract class BaseContributor<T> implements Contributor<T> {
          * @param instanceFunction function that constructs the service instance
          * @return this
          */
-        public BaseContributorBuilder<L> add(String shortName, Function<ProxyConfig, L> instanceFunction) {
+        public BaseContributorBuilder<L> add(String shortName, Function<ClusterEndpointProvider, L> instanceFunction) {
             add(shortName, BaseConfig.class, (proxyConfig, config) -> instanceFunction.apply(proxyConfig));
             return this;
         }

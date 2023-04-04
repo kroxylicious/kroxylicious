@@ -12,27 +12,19 @@ import io.kroxylicious.proxy.config.admin.AdminHttpConfiguration;
 
 public class Configuration {
 
-    private final DefaultProxyConfig proxy;
-
     private final AdminHttpConfiguration adminHttp;
     private final Map<String, VirtualCluster> virtualClusters;
     private final List<FilterDefinition> filters;
     private final List<MicrometerDefinition> micrometer;
 
-    public Configuration(DefaultProxyConfig proxy,
-                         AdminHttpConfiguration adminHttp,
+    public Configuration(AdminHttpConfiguration adminHttp,
                          Map<String, VirtualCluster> virtualClusters,
                          List<FilterDefinition> filters,
                          List<MicrometerDefinition> micrometer) {
-        this.proxy = proxy;
         this.adminHttp = adminHttp;
         this.virtualClusters = virtualClusters;
         this.filters = filters;
         this.micrometer = micrometer;
-    }
-
-    public DefaultProxyConfig proxy() {
-        return proxy;
     }
 
     public AdminHttpConfiguration adminHttpConfig() {

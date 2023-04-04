@@ -22,11 +22,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.config.BaseConfig;
-import io.kroxylicious.proxy.config.ProxyConfig;
 import io.kroxylicious.proxy.filter.DescribeClusterResponseFilter;
 import io.kroxylicious.proxy.filter.FindCoordinatorResponseFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.proxy.filter.MetadataResponseFilter;
+import io.kroxylicious.proxy.service.ClusterEndpointProvider;
 
 /**
  * A filter that rewrites broker addresses in all relevant responses to the corresponding proxy address.
@@ -55,11 +55,11 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
 
     private final AddressMapping mapping;
 
-    public BrokerAddressFilter(ProxyConfig all, BrokerAddressConfig config) {
+    public BrokerAddressFilter(ClusterEndpointProvider all, BrokerAddressConfig config) {
 
         try {
             this.mapping = config == null || config.addressMapperClazz == null ? new FixedAddressMapping(all)
-                    : config.addressMapper().getDeclaredConstructor(ProxyConfig.class).newInstance(all);
+                    : config.addressMapper().getDeclaredConstructor(ClusterEndpointProvider.class).newInstance(all);
         }
         catch (InstantiationException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
             throw new RuntimeException(e);

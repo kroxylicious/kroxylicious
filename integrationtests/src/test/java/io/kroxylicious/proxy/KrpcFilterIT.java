@@ -246,13 +246,14 @@ public class KrpcFilterIT {
         brokerCertificateGenerator.generateTrustStore(brokerCertificateGenerator.getCertFilePath(), "client",
                 clientTrustStore.toAbsolutePath().toString());
 
-        var config = baseConfigBuilder(proxyAddress, cluster.getBootstrapServers())
-                .editProxy()
+        var builder = baseConfigBuilder(proxyAddress, cluster.getBootstrapServers());
+        var demo = builder.getVirtualClusters().get("demo");
+        demo = new VirtualClusterBuilder(demo)
                 .withKeyPassword(brokerCertificateGenerator.getPassword())
                 .withKeyStoreFile(brokerCertificateGenerator.getKeyStoreLocation())
-                .endProxy()
-                .build()
-                .toYaml();
+                .build();
+        builder.addToVirtualClusters("demo", demo);
+        var config = builder.build().toYaml();
 
         try (var proxy = startProxy(config)) {
             try (var admin = Admin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
@@ -271,8 +272,16 @@ public class KrpcFilterIT {
     }
 
     private static KroxyConfigBuilder baseConfigBuilder(String proxyAddress, String bootstrapServers) {
-        return KroxyConfig.builder().withNewProxy().withAddress(proxyAddress).endProxy()
-                .addToVirtualClusters("demo", new VirtualClusterBuilder().withNewTargetCluster().withBootstrapServers(bootstrapServers).endTargetCluster().build())
+        return KroxyConfig.builder()
+                .addToVirtualClusters("demo", new VirtualClusterBuilder()
+                        .withNewTargetCluster()
+                        .withBootstrapServers(bootstrapServers)
+                        .endTargetCluster()
+                        .withNewClusterEndpointProvider()
+                        .withType("StaticCluster")
+                        .withConfig(Map.of("bootstrapAddress", proxyAddress))
+                        .endClusterEndpointProvider()
+                        .build())
                 .addNewFilter().withType("ApiVersions").endFilter()
                 .addNewFilter().withType("BrokerAddress").endFilter();
     }

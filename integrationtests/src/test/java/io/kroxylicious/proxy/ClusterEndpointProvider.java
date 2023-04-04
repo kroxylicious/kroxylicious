@@ -6,8 +6,14 @@
 
 package io.kroxylicious.proxy;
 
+import java.util.Map;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+
 import io.sundr.builder.annotations.Buildable;
 
+import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_EMPTY;
+
 @Buildable(editableEnabled = false)
-public record VirtualCluster(TargetCluster targetCluster, ClusterEndpointProvider clusterEndpointProvider, String keyStoreFile, String keyPassword, boolean logNetwork, boolean logFrames, boolean useIoUring) {
+public record ClusterEndpointProvider(String type, @JsonInclude(NON_EMPTY) Map<String, Object> config) {
 }

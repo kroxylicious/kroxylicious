@@ -6,16 +6,16 @@
 
 package io.kroxylicious.proxy.internal.filter;
 
-import io.kroxylicious.proxy.config.ProxyConfig;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
+import io.kroxylicious.proxy.service.ClusterEndpointProvider;
 
 class FixedAddressMapping implements AddressMapping {
 
     private final String targetHost;
     private final int targetPort;
 
-    FixedAddressMapping(ProxyConfig config) {
-        String proxyAddress = config.address();
+    FixedAddressMapping(ClusterEndpointProvider config) {
+        String proxyAddress = config.getClusterBootstrapAddress();
         String[] proxyAddressParts = proxyAddress.split(":");
 
         this.targetHost = proxyAddressParts[0];

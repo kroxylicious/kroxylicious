@@ -23,30 +23,31 @@ public class KroxyConfigTest {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper(new YAMLFactory());
 
     @Test
-    public void testBareConfig() throws Exception {
-        ObjectNode deserializedConfig = serializeAndDeserialize(builder().withNewProxy().withAddress("localhost:9192").endProxy().build());
-        ObjectNode proxyObj = assertObjectField(deserializedConfig, "proxy");
-        assertTextField(proxyObj, "address", "localhost:9192");
-    }
-
-    @Test
-    public void testSslConfig() throws Exception {
-        ObjectNode deserializedConfig = serializeAndDeserialize(
-                builder().withNewProxy().withAddress("localhost:9192").withKeyPassword("pass").withKeyStoreFile("file").endProxy().build());
-        ObjectNode proxyObj = assertObjectField(deserializedConfig, "proxy");
-        assertTextField(proxyObj, "address", "localhost:9192");
-        assertTextField(proxyObj, "keyStoreFile", "file");
-        assertTextField(proxyObj, "keyPassword", "pass");
-    }
-
-    @Test
     public void testVirtualClusterConfig() throws Exception {
         ObjectNode deserializedConfig = serializeAndDeserialize(
-                builder().addToVirtualClusters("demo", new VirtualClusterBuilder().withNewTargetCluster().withBootstrapServers("localhost:9092").endTargetCluster().build()).build());
+                builder().addToVirtualClusters("demo",
+                        new VirtualClusterBuilder().withNewTargetCluster().withBootstrapServers("localhost:9092").endTargetCluster().build()).build());
         ObjectNode clusterObj = assertObjectField(deserializedConfig, "virtualClusters");
         ObjectNode demoObj = assertObjectField(clusterObj, "demo");
         ObjectNode targetClusterObj = assertObjectField(demoObj, "targetCluster");
         assertTextField(targetClusterObj, "bootstrap_servers", "localhost:9092");
+    }
+
+    @Test
+    public void testVirtualClusterConfigWithClusterEndpointProvider() throws Exception {
+        ObjectNode deserializedConfig = serializeAndDeserialize(
+                builder().addToVirtualClusters("demo", new VirtualClusterBuilder()
+                        .withNewClusterEndpointProvider()
+                        .withType("providertype")
+                        .withConfig(Map.of("a", "b"))
+                        .endClusterEndpointProvider()
+                        .build()).build());
+        ObjectNode clusterObj = assertObjectField(deserializedConfig, "virtualClusters");
+        ObjectNode demoObj = assertObjectField(clusterObj, "demo");
+        ObjectNode endpointAssignerObj = assertObjectField(demoObj, "clusterEndpointProvider");
+        assertTextField(endpointAssignerObj, "type", "providertype");
+        ObjectNode endpointAssignerConfig = assertObjectField(endpointAssignerObj, "config");
+        assertTextField(endpointAssignerConfig, "a", "b");
     }
 
     @Test
