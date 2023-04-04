@@ -1,0 +1,3 @@
+setup = "scripts/setupLift.sh"
+build = "mvn install -pl !:integrationtests --also-make-dependents -Dquick"
+jdkVersion = "17"
