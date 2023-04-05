@@ -40,6 +40,11 @@
         </dependency>
         <!-- We depend on the specific Netty dependencies not netty-all to reduce the size of fatjars -->
         <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-common</artifactId>
         </dependency>

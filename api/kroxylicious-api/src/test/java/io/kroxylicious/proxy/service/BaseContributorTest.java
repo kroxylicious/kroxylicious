@@ -26,6 +26,11 @@ class BaseContributorTest {
         public String getClusterBootstrapAddress() {
             return "3";
         }
+
+        @Override
+        public String getBrokerAddress(int nodeId) {
+            return "localhost:1234";
+        }
     }
 
     @Test

@@ -278,15 +278,26 @@ public class KrpcFilterIT {
     public void proxyExposesClusterOfTwoBrokers(@BrokerCluster(numBrokers = 2) KafkaCluster cluster) throws Exception {
         String proxyAddress = "localhost:9192";
 
-        var config = baseConfigBuilder(proxyAddress, cluster.getBootstrapServers()).build().toYaml();
+        var builder = baseConfigBuilder(proxyAddress, cluster.getBootstrapServers());
+        var demo = builder.getVirtualClusters().get("demo");
+        var brokerEndpoints = Map.of(0, "localhost:9193", 1, "localhost:9194");
+        demo = new VirtualClusterBuilder(demo)
+                .editClusterEndpointProvider()
+                .withType("StaticCluster")
+                .withConfig(Map.of("bootstrapAddress", proxyAddress,
+                        "brokers", brokerEndpoints))
+                .endClusterEndpointProvider()
+                .build();
+        builder.addToVirtualClusters("demo", demo);
+        var config = builder.build().toYaml();
 
         try (var proxy = startProxy(config)) {
 
             try (var admin = Admin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress))) {
                 var nodes = admin.describeCluster().nodes().get();
                 assertThat(nodes).hasSize(2);
-                var unique = nodes.stream().map(KrpcFilterIT::toAddress).collect(Collectors.toSet());
-                assertThat(unique).hasSize(2);
+                var unique = nodes.stream().collect(Collectors.toMap(Node::id, KrpcFilterIT::toAddress));
+                assertThat(unique).containsExactlyEntriesOf(brokerEndpoints);
             }
         }
     }
