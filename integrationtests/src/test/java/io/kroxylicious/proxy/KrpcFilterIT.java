@@ -12,6 +12,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.admin.Admin;
@@ -23,6 +24,7 @@ import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.Node;
 import org.apache.kafka.common.config.SslConfigs;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
@@ -36,6 +38,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import io.kroxylicious.proxy.internal.filter.ByteBufferTransformation;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
+import io.kroxylicious.testing.kafka.common.BrokerCluster;
 import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
@@ -269,6 +272,27 @@ public class KrpcFilterIT {
                 assertThat(protocol).startsWith("TLS");
             }
         }
+    }
+
+    @Test
+    public void proxyExposesClusterOfTwoBrokers(@BrokerCluster(numBrokers = 2) KafkaCluster cluster) throws Exception {
+        String proxyAddress = "localhost:9192";
+
+        var config = baseConfigBuilder(proxyAddress, cluster.getBootstrapServers()).build().toYaml();
+
+        try (var proxy = startProxy(config)) {
+
+            try (var admin = Admin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress))) {
+                var nodes = admin.describeCluster().nodes().get();
+                assertThat(nodes).hasSize(2);
+                var unique = nodes.stream().map(KrpcFilterIT::toAddress).collect(Collectors.toSet());
+                assertThat(unique).hasSize(2);
+            }
+        }
+    }
+
+    private static String toAddress(Node n) {
+        return n.host() + ":" + n.port();
     }
 
     private static KroxyConfigBuilder baseConfigBuilder(String proxyAddress, String bootstrapServers) {

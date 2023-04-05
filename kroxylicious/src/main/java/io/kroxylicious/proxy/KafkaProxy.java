@@ -81,12 +81,13 @@ public final class KafkaProxy implements AutoCloseable {
     public KafkaProxy(Configuration config) {
         var virtualCluster = config.virtualClusters().entrySet().iterator().next().getValue();
         var endpointAssigner = new ClusterEndpointProviderFactory(config, virtualCluster).createClusterEndpointProvider();
-        String proxyAddress = endpointAssigner.getClusterBootstrapAddress();
-        String[] proxyAddressParts = proxyAddress.split(":");
+        var proxyAddress = endpointAssigner.getClusterBootstrapAddress();
+        var proxyAddressParts = proxyAddress.split(":");
 
         // TODO: deal with list
-        String brokerAddress = virtualCluster.targetCluster().bootstrapServers();
-        String[] brokerAddressParts = brokerAddress.split(":");
+        var targetBootstrapServers = virtualCluster.targetCluster().bootstrapServers();
+        var targetBootstrapServersParts = targetBootstrapServers.split(",");
+        var brokerAddressParts = targetBootstrapServersParts[0].split(":");
 
         this.proxyHost = proxyAddressParts[0];
         this.proxyPort = Integer.valueOf(proxyAddressParts[1]);
