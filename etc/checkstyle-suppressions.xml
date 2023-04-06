@@ -11,4 +11,7 @@
         "https://checkstyle.org/dtds/suppressions_1_2.dtd">
 
 <suppressions>
+    <!-- Generated classes which we do not edit -->
+    <suppress checks=".*"
+              files="io[/\\]kroxylicious[/\\]proxy[/\\].*(Builder|Editable|Fluent|Nested|Visitor|Visitable).*\.java"/>
 </suppressions>

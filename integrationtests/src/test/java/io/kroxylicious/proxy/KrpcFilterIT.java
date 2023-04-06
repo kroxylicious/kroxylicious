@@ -114,7 +114,7 @@ public class KrpcFilterIT {
 
         admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1))).all().get();
 
-        var config = baseConfigBuilder(proxyAddress, cluster.getBootstrapServers()).build();
+        var config = baseConfigBuilder(proxyAddress, cluster.getBootstrapServers()).build().toYaml();
 
         try (var proxy = startProxy(config)) {
             try (var producer = new KafkaProducer<String, String>(Map.of(
@@ -150,8 +150,9 @@ public class KrpcFilterIT {
                 new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
 
         var config = baseConfigBuilder(proxyAddress, cluster.getBootstrapServers())
-                .addFilter("ProduceRequestTransformation", "transformation", TestEncoder.class.getName())
-                .build();
+                .addNewFilter().withType("ProduceRequestTransformation").withConfig(Map.of("transformation", TestEncoder.class.getName())).endFilter()
+                .build()
+                .toYaml();
 
         try (var proxy = startProxy(config)) {
             try (var producer = new KafkaProducer<String, String>(Map.of(
@@ -195,8 +196,9 @@ public class KrpcFilterIT {
                 new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
 
         var config = baseConfigBuilder(proxyAddress, cluster.getBootstrapServers())
-                .addFilter("FetchResponseTransformation", "transformation", TestDecoder.class.getName())
-                .build();
+                .addNewFilter().withType("FetchResponseTransformation").withConfig(Map.of("transformation", TestDecoder.class.getName())).endFilter()
+                .build()
+                .toYaml();
 
         try (var proxy = startProxy(config)) {
             try (var producer = new KafkaProducer<String, byte[]>(Map.of(
@@ -245,8 +247,12 @@ public class KrpcFilterIT {
                 clientTrustStore.toAbsolutePath().toString());
 
         var config = baseConfigBuilder(proxyAddress, cluster.getBootstrapServers())
-                .withKeyStoreConfig(brokerCertificateGenerator.getKeyStoreLocation(), brokerCertificateGenerator.getPassword())
-                .build();
+                .editProxy()
+                .withKeyPassword(brokerCertificateGenerator.getPassword())
+                .withKeyStoreFile(brokerCertificateGenerator.getKeyStoreLocation())
+                .endProxy()
+                .build()
+                .toYaml();
 
         try (var proxy = startProxy(config)) {
             try (var admin = Admin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
@@ -265,10 +271,10 @@ public class KrpcFilterIT {
     }
 
     private static KroxyConfigBuilder baseConfigBuilder(String proxyAddress, String bootstrapServers) {
-        return new KroxyConfigBuilder(proxyAddress)
-                .withDefaultCluster(bootstrapServers)
-                .addFilter("ApiVersions")
-                .addFilter("BrokerAddress");
+        return KroxyConfig.builder().withNewProxy().withAddress(proxyAddress).endProxy()
+                .addToClusters("demo", new ClusterBuilder().withBootstrapServers(bootstrapServers).build())
+                .addNewFilter().withType("ApiVersions").endFilter()
+                .addNewFilter().withType("BrokerAddress").endFilter();
     }
 
 }
