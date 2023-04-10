@@ -68,7 +68,7 @@ jobs:
         run: cd kafka_2.13; bin/kafka-server-start.sh config/server.properties &
 
       - name: 'Run kroxy'
-        run: java -jar kroxylicious/target/kroxylicious-1.0-SNAPSHOT.jar --config kroxylicious/example-proxy-config.yml &
+        run: java -jar kroxylicious/target/kroxylicious-*-SNAPSHOT.jar --config kroxylicious/example-proxy-config.yml &
 
       - name: 'Run warm-up'
         run: cd kafka_2.13; bin/kafka-producer-perf-test.sh --topic perf-test --throughput -1 --num-records 1000000 --record-size 1024 --producer-props acks=all bootstrap.servers=localhost:9192
@@ -135,7 +135,7 @@ jobs:
         run: cd kafka_2.13; bin/kafka-server-start.sh config/server.properties &
 
       - name: 'Run kroxy'
-        run: java -jar kroxylicious/target/kroxylicious-1.0-SNAPSHOT.jar --config kroxylicious/example-proxy-config.yml &
+        run: java -jar kroxylicious/target/kroxylicious-*-SNAPSHOT.jar --config kroxylicious/example-proxy-config.yml &
 
       - name: 'Run warm-up'
         run: cd kafka_2.13; bin/kafka-producer-perf-test.sh --topic perf-test --throughput -1 --num-records 1000000 --record-size 1024 --producer-props acks=all bootstrap.servers=localhost:9192
