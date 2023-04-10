@@ -51,15 +51,18 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
         public Class<? extends AddressMapping> addressMapper() {
             return addressMapperClazz;
         }
+
     }
 
     private final AddressMapping mapping;
+    private final ClusterEndpointProvider endpointProvider;
 
-    public BrokerAddressFilter(ClusterEndpointProvider all, BrokerAddressConfig config) {
+    public BrokerAddressFilter(ClusterEndpointProvider endpointProvider, BrokerAddressConfig config) {
+        this.endpointProvider = endpointProvider;
 
         try {
-            this.mapping = config == null || config.addressMapperClazz == null ? new FixedAddressMapping(all)
-                    : config.addressMapper().getDeclaredConstructor(ClusterEndpointProvider.class).newInstance(all);
+            this.mapping = config == null || config.addressMapperClazz == null ? new FixedAddressMapping(endpointProvider)
+                    : config.addressMapper().getDeclaredConstructor(ClusterEndpointProvider.class).newInstance(endpointProvider);
         }
         catch (InstantiationException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
             throw new RuntimeException(e);
@@ -69,7 +72,8 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
     @Override
     public void onMetadataResponse(ResponseHeaderData header, MetadataResponseData data, KrpcFilterContext context) {
         for (MetadataResponseBroker broker : data.brokers()) {
-            apply(context, broker, MetadataResponseBroker::host, MetadataResponseBroker::port, MetadataResponseBroker::setHost, MetadataResponseBroker::setPort);
+            apply(context, broker, MetadataResponseBroker::nodeId, MetadataResponseBroker::host, MetadataResponseBroker::port, MetadataResponseBroker::setHost,
+                    MetadataResponseBroker::setPort);
         }
         context.forwardResponse(data);
     }
@@ -77,7 +81,8 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
     @Override
     public void onDescribeClusterResponse(ResponseHeaderData header, DescribeClusterResponseData data, KrpcFilterContext context) {
         for (DescribeClusterBroker broker : data.brokers()) {
-            apply(context, broker, DescribeClusterBroker::host, DescribeClusterBroker::port, DescribeClusterBroker::setHost, DescribeClusterBroker::setPort);
+            apply(context, broker, DescribeClusterBroker::brokerId, DescribeClusterBroker::host, DescribeClusterBroker::port, DescribeClusterBroker::setHost,
+                    DescribeClusterBroker::setPort);
         }
         context.forwardResponse(data);
     }
@@ -85,18 +90,21 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
     @Override
     public void onFindCoordinatorResponse(ResponseHeaderData header, FindCoordinatorResponseData data, KrpcFilterContext context) {
         for (Coordinator coordinator : data.coordinators()) {
-            apply(context, coordinator, Coordinator::host, Coordinator::port, Coordinator::setHost, Coordinator::setPort);
+            apply(context, coordinator, Coordinator::nodeId, Coordinator::host, Coordinator::port, Coordinator::setHost, Coordinator::setPort);
         }
         context.forwardResponse(data);
     }
 
-    private <T> void apply(KrpcFilterContext context, T broker, Function<T, String> hostGetter, ToIntFunction<T> portGetter, BiConsumer<T, String> hostSetter,
+    private <T> void apply(KrpcFilterContext context, T broker, Function<T, Integer> nodeIdGetter, Function<T, String> hostGetter, ToIntFunction<T> portGetter,
+                           BiConsumer<T, String> hostSetter,
                            ObjIntConsumer<T> portSetter) {
         String incomingHost = hostGetter.apply(broker);
         int incomingPort = portGetter.applyAsInt(broker);
 
-        String host = mapping.downstreamHost(context, incomingHost, incomingPort);
-        int port = mapping.downstreamPort(context, incomingHost, incomingPort);
+        var downstreamAddress = endpointProvider.getBrokerAddress(nodeIdGetter.apply(broker));
+        var parts = downstreamAddress.split(":");
+        var host = parts[0];
+        var port = Integer.parseInt(parts[1]);
 
         LOGGER.trace("{}: Rewriting broker address in response {}:{} -> {}:{}", context, incomingHost, incomingPort, host, port);
         hostSetter.accept(broker, host);
