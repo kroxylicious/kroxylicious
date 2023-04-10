@@ -198,7 +198,7 @@ public final class KafkaProxy implements AutoCloseable {
             channelClass = NioServerSocketChannel.class;
         }
 
-        MeterRegistries meterRegistries = new MeterRegistries(micrometerConfig, endpointProvider);
+        MeterRegistries meterRegistries = new MeterRegistries(micrometerConfig);
         maybeStartMetricsListener(bossGroup, workerGroup, channelClass, meterRegistries);
 
         ServerBootstrap serverBootstrap = new ServerBootstrap().group(bossGroup, workerGroup)

@@ -8,7 +8,6 @@ package io.kroxylicious.proxy.micrometer;
 import java.util.ServiceLoader;
 
 import io.kroxylicious.proxy.config.BaseConfig;
-import io.kroxylicious.proxy.service.ClusterEndpointProvider;
 
 public class MicrometerConfigurationHookContributorManager {
 
@@ -35,9 +34,9 @@ public class MicrometerConfigurationHookContributorManager {
         throw new IllegalArgumentException("No micrometer configuration hook found for name '" + shortName + "'");
     }
 
-    public MicrometerConfigurationHook getHook(String shortName, ClusterEndpointProvider proxyConfig, BaseConfig filterConfig) {
+    public MicrometerConfigurationHook getHook(String shortName, BaseConfig filterConfig) {
         for (MicrometerConfigurationHookContributor contributor : contributors) {
-            MicrometerConfigurationHook hook = contributor.getInstance(shortName, proxyConfig, filterConfig);
+            MicrometerConfigurationHook hook = contributor.getInstance(shortName, null, filterConfig);
             if (hook != null) {
                 return hook;
             }
