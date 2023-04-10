@@ -481,7 +481,7 @@ public class MultiTenantIT {
                         .withKeyStoreFile(certificateGenerator.getKeyStoreLocation())
                         .build())
                 .addNewFilter().withType("ApiVersions").endFilter()
-                .addNewFilter().withType("BrokerAddress").withConfig(Map.of("addressMapperClazz", "io.kroxylicious.proxy.internal.filter.SniAddressMapping")).endFilter()
+                .addNewFilter().withType("BrokerAddress").endFilter()
                 .addNewFilter().withType("MultiTenant").endFilter()
                 .build().toYaml();
     }

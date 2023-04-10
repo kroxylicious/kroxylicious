@@ -5,7 +5,6 @@
  */
 package io.kroxylicious.proxy.internal.filter;
 
-import java.lang.reflect.InvocationTargetException;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.ObjIntConsumer;
@@ -21,7 +20,6 @@ import org.apache.kafka.common.message.ResponseHeaderData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.filter.DescribeClusterResponseFilter;
 import io.kroxylicious.proxy.filter.FindCoordinatorResponseFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
@@ -35,38 +33,10 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BrokerAddressFilter.class);
 
-    public static class BrokerAddressConfig extends BaseConfig {
-
-        private final Class<? extends AddressMapping> addressMapperClazz;
-
-        public BrokerAddressConfig(String addressMapper) {
-            try {
-                this.addressMapperClazz = addressMapper == null ? null : (Class<? extends AddressMapping>) Class.forName(addressMapper);
-            }
-            catch (ClassNotFoundException e) {
-                throw new RuntimeException(e);
-            }
-        }
-
-        public Class<? extends AddressMapping> addressMapper() {
-            return addressMapperClazz;
-        }
-
-    }
-
-    private final AddressMapping mapping;
     private final ClusterEndpointProvider endpointProvider;
 
-    public BrokerAddressFilter(ClusterEndpointProvider endpointProvider, BrokerAddressConfig config) {
+    public BrokerAddressFilter(ClusterEndpointProvider endpointProvider) {
         this.endpointProvider = endpointProvider;
-
-        try {
-            this.mapping = config == null || config.addressMapperClazz == null ? new FixedAddressMapping(endpointProvider)
-                    : config.addressMapper().getDeclaredConstructor(ClusterEndpointProvider.class).newInstance(endpointProvider);
-        }
-        catch (InstantiationException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
-            throw new RuntimeException(e);
-        }
     }
 
     @Override
