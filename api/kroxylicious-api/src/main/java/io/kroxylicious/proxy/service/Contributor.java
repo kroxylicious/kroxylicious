@@ -11,10 +11,26 @@ import io.kroxylicious.proxy.config.ProxyConfig;
 /**
  * Support loading an Instance of a service, optionally providing it with configuration obtained
  * from the Kroxylicious configuration file.
+ *
+ * @param <T> the service type
  */
 public interface Contributor<T> {
 
+    /**
+     * Gets the concrete type of the configuration required by this service instance.
+     * @param shortName service short name
+     *
+     * @return class of a concrete type or null, if this service instance does not accept configuration.
+     */
     Class<? extends BaseConfig> getConfigType(String shortName);
 
+    /**
+     * Creates a instance of the service.
+     *
+     * @param shortName service short name
+     * @param proxyConfig proxy configuration
+     * @param config service configuration which may be null if the service instance does not accept configuration.
+     * @return the service instance
+     */
     T getInstance(String shortName, ProxyConfig proxyConfig, BaseConfig config);
 }

@@ -16,24 +16,30 @@ import io.kroxylicious.proxy.config.ProxyConfig;
 
 /**
  * A convenience base class for creating concrete contributor subclasses using a typesafe builder
+ *
+ * @param <T> the service type
  */
-public abstract class BaseContributor<L> implements Contributor<L> {
+public abstract class BaseContributor<T> implements Contributor<T> {
 
-    private final Map<String, InstanceBuilder<? extends BaseConfig, L>> shortNameToInstanceBuilder;
+    private final Map<String, InstanceBuilder<? extends BaseConfig, T>> shortNameToInstanceBuilder;
 
-    public BaseContributor(BaseContributorBuilder<L> builder) {
+    /**
+     * Constructs the contributor using the supplied {@code builder}.
+     * @param builder builder
+     */
+    public BaseContributor(BaseContributorBuilder<T> builder) {
         shortNameToInstanceBuilder = builder.build();
     }
 
     @Override
     public Class<? extends BaseConfig> getConfigType(String shortName) {
-        InstanceBuilder<?, L> instanceBuilder = shortNameToInstanceBuilder.get(shortName);
+        InstanceBuilder<?, T> instanceBuilder = shortNameToInstanceBuilder.get(shortName);
         return instanceBuilder == null ? null : instanceBuilder.configClass;
     }
 
     @Override
-    public L getInstance(String shortName, ProxyConfig proxyConfig, BaseConfig config) {
-        InstanceBuilder<? extends BaseConfig, L> instanceBuilder = shortNameToInstanceBuilder.get(shortName);
+    public T getInstance(String shortName, ProxyConfig proxyConfig, BaseConfig config) {
+        InstanceBuilder<? extends BaseConfig, T> instanceBuilder = shortNameToInstanceBuilder.get(shortName);
         return instanceBuilder == null ? null : instanceBuilder.construct(proxyConfig, config);
     }
 
@@ -62,6 +68,11 @@ public abstract class BaseContributor<L> implements Contributor<L> {
         }
     }
 
+    /**
+     * Builder for registration of contributor service implementations.
+     * @see BaseContributor#builder()
+     * @param <L> the service type
+     */
     public static class BaseContributorBuilder<L> {
 
         private BaseContributorBuilder() {
@@ -69,6 +80,15 @@ public abstract class BaseContributor<L> implements Contributor<L> {
 
         private final Map<String, InstanceBuilder<?, L>> shortNameToInstanceBuilder = new HashMap<>();
 
+        /**
+         * Registers a service instance constructor.
+         *
+         * @param shortName service short name
+         * @param configClass concrete type of configuration required by the service
+         * @param instanceFunction function that constructs the service instance
+         * @return this
+         * @param <T> the configuration concrete type
+         */
         public <T extends BaseConfig> BaseContributorBuilder<L> add(String shortName, Class<T> configClass, BiFunction<ProxyConfig, T, L> instanceFunction) {
             if (shortNameToInstanceBuilder.containsKey(shortName)) {
                 throw new IllegalArgumentException(shortName + " already registered");
@@ -77,26 +97,55 @@ public abstract class BaseContributor<L> implements Contributor<L> {
             return this;
         }
 
+        /**
+         * Registers a service instance constructor.
+         *
+         * @param shortName service short name
+         * @param instanceFunction function that constructs the service instance
+         * @return this
+         */
         public BaseContributorBuilder<L> add(String shortName, Function<ProxyConfig, L> instanceFunction) {
             add(shortName, BaseConfig.class, (proxyConfig, config) -> instanceFunction.apply(proxyConfig));
             return this;
         }
 
+        /**
+         * Registers a service instance constructor.
+         *
+         * @param shortName service short name
+         * @param configClass concrete type of configuration required by the service
+         * @param instanceFunction function that constructs the service instance
+         * @return this
+         * @param <T> the configuration concrete type
+         */
         public <T extends BaseConfig> BaseContributorBuilder<L> add(String shortName, Class<T> configClass, Function<T, L> instanceFunction) {
             add(shortName, configClass, (proxyConfig, config) -> instanceFunction.apply(config));
             return this;
         }
 
+        /**
+         * Registers a service instance constructor.
+         *
+         * @param shortName service short name
+         * @param instanceFunction function that constructs the service instance
+         * @return this
+         */
         public BaseContributorBuilder<L> add(String shortName, Supplier<L> instanceFunction) {
             add(shortName, BaseConfig.class, (proxyConfig, config) -> instanceFunction.get());
             return this;
         }
 
-        public Map<String, InstanceBuilder<?, L>> build() {
+        Map<String, InstanceBuilder<?, L>> build() {
             return Map.copyOf(shortNameToInstanceBuilder);
         }
     }
 
+    /**
+     * Creates a builder for registration of contributor service implementations.
+     *
+     * @return the builder
+     * @param <L> the service type
+     */
     public static <L> BaseContributorBuilder<L> builder() {
         return new BaseContributorBuilder<>();
     }
