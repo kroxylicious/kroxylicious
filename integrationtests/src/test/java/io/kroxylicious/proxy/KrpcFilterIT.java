@@ -297,7 +297,7 @@ public class KrpcFilterIT {
                 var nodes = admin.describeCluster().nodes().get();
                 assertThat(nodes).hasSize(2);
                 var unique = nodes.stream().collect(Collectors.toMap(Node::id, KrpcFilterIT::toAddress));
-                assertThat(unique).containsExactlyEntriesOf(brokerEndpoints);
+                assertThat(unique).containsExactlyInAnyOrderEntriesOf(brokerEndpoints);
             }
         }
     }

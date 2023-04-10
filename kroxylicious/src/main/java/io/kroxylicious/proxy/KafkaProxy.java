@@ -13,9 +13,14 @@ import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.net.ssl.KeyManagerFactory;
 
@@ -37,22 +42,22 @@ import io.netty.channel.kqueue.KQueueEventLoopGroup;
 import io.netty.channel.kqueue.KQueueServerSocketChannel;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
-import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.incubator.channel.uring.IOUring;
 import io.netty.incubator.channel.uring.IOUringEventLoopGroup;
 import io.netty.incubator.channel.uring.IOUringServerSocketChannel;
+import io.netty.util.concurrent.Future;
 
 import io.kroxylicious.proxy.bootstrap.ClusterEndpointProviderFactory;
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.MicrometerDefinition;
+import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.config.admin.AdminHttpConfiguration;
 import io.kroxylicious.proxy.internal.KafkaProxyInitializer;
 import io.kroxylicious.proxy.internal.MeterRegistries;
 import io.kroxylicious.proxy.internal.admin.AdminHttpInitializer;
 import io.kroxylicious.proxy.internal.filter.FixedNetFilter;
-import io.kroxylicious.proxy.service.ClusterEndpointProvider;
 
 import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_INBOUND_DOWNSTREAM_DECODED_MESSAGES;
 import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_INBOUND_DOWNSTREAM_MESSAGES;
@@ -60,79 +65,31 @@ import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_REQUEST_S
 
 public final class KafkaProxy implements AutoCloseable {
 
+    private record EventGroupConfig(EventLoopGroup bossGroup, EventLoopGroup workerGroup, Class<? extends ServerChannel> clazz) {
+        public List<Future<?>> shutdownGracefully() {
+            return List.of(bossGroup.shutdownGracefully(), workerGroup.shutdownGracefully());
+        }
+    };
+
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxy.class);
 
-    private final String proxyHost;
-    private final int proxyPort;
-    private final String brokerHost;
-    private final int brokerPort;
-    private final boolean logNetwork;
-    private final boolean logFrames;
-    private final boolean useIoUring;
-    private final FilterChainFactory filterChainFactory;
+    private final Configuration config;
     private final AdminHttpConfiguration adminHttpConfig;
     private final List<MicrometerDefinition> micrometerConfig;
-    private final ClusterEndpointProvider endpointProvider;
-    private EventLoopGroup bossGroup;
-    private EventLoopGroup workerGroup;
-    private Channel acceptorChannel;
+    private final Map<String, VirtualCluster> virtualClusterMap;
+    private EventGroupConfig adminEventGroup;
+    private final List<EventGroupConfig> virtualHostEventGroups = new CopyOnWriteArrayList<>();
+
+    private final Queue<Channel> acceptorChannel = new ConcurrentLinkedQueue<>();
+    private final AtomicBoolean running = new AtomicBoolean();
     private Channel metricsChannel;
-    private Optional<File> keyStoreFile;
-    private Optional<String> keyStorePassword;
 
     public KafkaProxy(Configuration config) {
-        var virtualCluster = config.virtualClusters().entrySet().iterator().next().getValue();
-        var endpointProvider = new ClusterEndpointProviderFactory(config, virtualCluster).createClusterEndpointProvider();
-        var proxyAddress = endpointProvider.getClusterBootstrapAddress();
-        var proxyAddressParts = proxyAddress.split(":");
-
-        // TODO: deal with list
-        var targetBootstrapServers = virtualCluster.targetCluster().bootstrapServers();
-        var targetBootstrapServersParts = targetBootstrapServers.split(",");
-        var brokerAddressParts = targetBootstrapServersParts[0].split(":");
-
-        this.proxyHost = proxyAddressParts[0];
-        this.proxyPort = Integer.valueOf(proxyAddressParts[1]);
-        this.brokerHost = brokerAddressParts[0];
-        this.brokerPort = Integer.valueOf(brokerAddressParts[1]);
-        this.logNetwork = virtualCluster.isLogNetwork();
-        this.logFrames = virtualCluster.isLogFrames();
-        this.useIoUring = virtualCluster.isUseIoUring();
+        this.config = config;
+        this.virtualClusterMap = config.virtualClusters();
         this.adminHttpConfig = config.adminHttpConfig();
         this.micrometerConfig = config.getMicrometer();
-        this.endpointProvider = endpointProvider;
-        this.filterChainFactory = new FilterChainFactory(config, endpointProvider);
 
-        this.keyStoreFile = virtualCluster.keyStoreFile().map(File::new);
-        this.keyStorePassword = virtualCluster.keyPassword();
-    }
-
-    public String proxyHost() {
-        return proxyHost;
-    }
-
-    public int proxyPort() {
-        return proxyPort;
-    }
-
-    public String proxyAddress() {
-        return proxyHost() + ":" + proxyPort();
-    }
-
-    public String brokerHost() {
-        return brokerHost;
-    }
-
-    public int brokerPort() {
-        return brokerPort;
-    }
-
-    public String brokerAddress() {
-        return brokerHost() + ":" + brokerPort();
-    }
-
-    public boolean useIoUring() {
-        return useIoUring;
     }
 
     /**
@@ -140,40 +97,111 @@ public final class KafkaProxy implements AutoCloseable {
      * @return This proxy.
      */
     public KafkaProxy startup() throws InterruptedException {
-        if (acceptorChannel != null) {
+        if (running.getAndSet(true)) {
             throw new IllegalStateException("This proxy is already running");
         }
 
-        LOGGER.info("Proxying local {} to remote {}",
-                proxyAddress(), brokerAddress());
+        var availableCores = Runtime.getRuntime().availableProcessors();
+        var meterRegistries = new MeterRegistries(micrometerConfig);
+        this.adminEventGroup = buildNettyEventGroups(availableCores, false);
+        maybeStartMetricsListener(adminEventGroup, meterRegistries);
 
-        Optional<SslContext> sslContext = keyStoreFile.map(ksf -> {
-            try (var is = new FileInputStream(ksf)) {
-                var password = keyStorePassword.map(String::toCharArray).orElse(null);
-                var keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
-                keyStore.load(is, password);
-                var keyManagerFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
-                keyManagerFactory.init(keyStore, password);
-                return SslContextBuilder.forServer(keyManagerFactory).build();
+        virtualClusterMap.forEach((name, virtualCluster) -> {
+
+            var endpointProvider = new ClusterEndpointProviderFactory(config, virtualCluster).createClusterEndpointProvider();
+
+            // TODO: target bootstrap servers could be a list - we should be prepared to try them all.
+            var targetBootstrapServers = virtualCluster.targetCluster().bootstrapServers();
+            var targetBootstrapServersParts = targetBootstrapServers.split(",");
+            var brokerAddressParts = targetBootstrapServersParts[0].split(":");
+            var brokerHost = brokerAddressParts[0];
+            var brokerPort = Integer.valueOf(brokerAddressParts[1]);
+
+            var keyStoreFile = virtualCluster.keyStoreFile().map(File::new);
+            var keyStorePassword = virtualCluster.keyPassword();
+
+            var filterChainFactory = new FilterChainFactory(config, endpointProvider);
+
+            LOGGER.info("{}: Proxying local {} to remote {}",
+                    name, endpointProvider.getClusterBootstrapAddress(), targetBootstrapServers);
+
+            var sslContext = keyStoreFile.map(ksf -> {
+                try (var is = new FileInputStream(ksf)) {
+                    var password = keyStorePassword.map(String::toCharArray).orElse(null);
+                    var keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
+                    keyStore.load(is, password);
+                    var keyManagerFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+                    keyManagerFactory.init(keyStore, password);
+                    return SslContextBuilder.forServer(keyManagerFactory).build();
+                }
+                catch (KeyStoreException | IOException | NoSuchAlgorithmException | CertificateException | UnrecoverableKeyException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+
+            KafkaProxyInitializer initializer = new KafkaProxyInitializer(false,
+                    Map.of(),
+                    new FixedNetFilter(brokerHost,
+                            brokerPort,
+                            filterChainFactory),
+                    virtualCluster.isLogNetwork(),
+                    virtualCluster.isLogFrames(),
+                    sslContext);
+
+            // Configure the bootstrap.
+            var virtualHostEventGroup = buildNettyEventGroups(availableCores, virtualCluster.isUseIoUring());
+            this.virtualHostEventGroups.add(virtualHostEventGroup);
+
+            ServerBootstrap serverBootstrap = new ServerBootstrap().group(virtualHostEventGroup.bossGroup(), virtualHostEventGroup.workerGroup())
+                    .channel(virtualHostEventGroup.clazz())
+                    .option(ChannelOption.SO_REUSEADDR, true)
+                    .childHandler(initializer)
+                    .childOption(ChannelOption.AUTO_READ, false)
+                    .childOption(ChannelOption.TCP_NODELAY, true);
+            ChannelFuture bindFuture;
+
+            var toBind = new HashSet<String>();
+            toBind.add(endpointProvider.getClusterBootstrapAddress());
+            for (int i = 0; i < endpointProvider.getNumberOfBrokerEndpointsToPrebind(); i++) {
+                toBind.add(endpointProvider.getBrokerAddress(i));
             }
-            catch (KeyStoreException | IOException | NoSuchAlgorithmException | CertificateException | UnrecoverableKeyException e) {
-                throw new RuntimeException(e);
+
+            for (String address : toBind) {
+                var parts = address.split(":");
+                var proxyPort = Integer.valueOf(parts[1]);
+
+                if (endpointProvider.getBindAddress().isPresent()) {
+                    bindFuture = serverBootstrap.bind(endpointProvider.getBindAddress().get(), proxyPort);
+                }
+                else {
+                    bindFuture = serverBootstrap.bind(proxyPort);
+                }
+
+                try {
+                    var channel = bindFuture.sync().channel();
+                    acceptorChannel.add(channel);
+                    LOGGER.debug("{}: Listener started {}", name, channel.localAddress());
+                }
+                catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
             }
+
         });
 
-        KafkaProxyInitializer initializer = new KafkaProxyInitializer(false,
-                Map.of(),
-                new FixedNetFilter(brokerHost,
-                        brokerPort,
-                        filterChainFactory),
-                logNetwork,
-                logFrames,
-                sslContext);
+        // Pre-register counters/summaries to avoid creating them on first request and thus skewing the request latency
+        // TODO add a virtual host tag to metrics
+        Metrics.counter(KROXYLICIOUS_INBOUND_DOWNSTREAM_MESSAGES);
+        Metrics.counter(KROXYLICIOUS_INBOUND_DOWNSTREAM_DECODED_MESSAGES);
+        Metrics.summary(KROXYLICIOUS_REQUEST_SIZE_BYTES);
+        return this;
+    }
 
-        final int availableCores = Runtime.getRuntime().availableProcessors();
-
-        // Configure the bootstrap.
+    private EventGroupConfig buildNettyEventGroups(int availableCores, boolean useIoUring) {
         final Class<? extends ServerChannel> channelClass;
+        final EventLoopGroup bossGroup;
+        final EventLoopGroup workerGroup;
+
         if (useIoUring) {
             if (!IOUring.isAvailable()) {
                 throw new IllegalStateException("io_uring not available due to: " + IOUring.unavailabilityCause());
@@ -197,39 +225,17 @@ public final class KafkaProxy implements AutoCloseable {
             workerGroup = new NioEventLoopGroup(availableCores);
             channelClass = NioServerSocketChannel.class;
         }
-
-        MeterRegistries meterRegistries = new MeterRegistries(micrometerConfig);
-        maybeStartMetricsListener(bossGroup, workerGroup, channelClass, meterRegistries);
-
-        ServerBootstrap serverBootstrap = new ServerBootstrap().group(bossGroup, workerGroup)
-                .channel(channelClass)
-                .childHandler(initializer)
-                .childOption(ChannelOption.AUTO_READ, false)
-                .childOption(ChannelOption.TCP_NODELAY, true);
-        ChannelFuture bindFuture;
-        if (proxyHost != null) {
-            bindFuture = serverBootstrap.bind(proxyHost, proxyPort);
-        }
-        else {
-            bindFuture = serverBootstrap.bind(proxyPort);
-        }
-        acceptorChannel = bindFuture.sync().channel();
-        // Pre-register counters/summaries to avoid creating them on first request and thus skewing the request latency
-        Metrics.counter(KROXYLICIOUS_INBOUND_DOWNSTREAM_MESSAGES);
-        Metrics.counter(KROXYLICIOUS_INBOUND_DOWNSTREAM_DECODED_MESSAGES);
-        Metrics.summary(KROXYLICIOUS_REQUEST_SIZE_BYTES);
-        return this;
+        return new EventGroupConfig(bossGroup, workerGroup, channelClass);
     }
 
-    private void maybeStartMetricsListener(EventLoopGroup bossGroup,
-                                           EventLoopGroup workerGroup,
-                                           Class<? extends ServerChannel> channelClass,
+    private void maybeStartMetricsListener(EventGroupConfig eventGroupConfig,
                                            MeterRegistries meterRegistries)
             throws InterruptedException {
         if (adminHttpConfig != null
                 && adminHttpConfig.getEndpoints().maybePrometheus().isPresent()) {
-            ServerBootstrap metricsBootstrap = new ServerBootstrap().group(bossGroup, workerGroup)
-                    .channel(channelClass)
+            ServerBootstrap metricsBootstrap = new ServerBootstrap().group(eventGroupConfig.bossGroup(), eventGroupConfig.workerGroup())
+                    .option(ChannelOption.SO_REUSEADDR, true)
+                    .channel(eventGroupConfig.clazz())
                     .childHandler(new AdminHttpInitializer(meterRegistries, adminHttpConfig));
             metricsChannel = metricsBootstrap.bind(adminHttpConfig.getHost(), adminHttpConfig.getPort()).sync().channel();
         }
@@ -241,10 +247,15 @@ public final class KafkaProxy implements AutoCloseable {
      * @throws InterruptedException
      */
     public void block() throws InterruptedException {
-        if (acceptorChannel == null) {
+        if (!running.get()) {
             throw new IllegalStateException("This proxy is not running");
         }
-        acceptorChannel.closeFuture().sync();
+        while (!acceptorChannel.isEmpty()) {
+            Channel channel = acceptorChannel.peek();
+            if (channel != null) {
+                channel.closeFuture().sync();
+            }
+        }
     }
 
     /**
@@ -252,20 +263,21 @@ public final class KafkaProxy implements AutoCloseable {
      * @throws InterruptedException
      */
     public void shutdown() throws InterruptedException {
-        if (acceptorChannel == null) {
+        if (!running.getAndSet(false)) {
             throw new IllegalStateException("This proxy is not running");
         }
-        bossGroup.shutdownGracefully().sync();
-        workerGroup.shutdownGracefully().sync();
-        bossGroup = null;
-        workerGroup = null;
-        acceptorChannel = null;
+        var closeFutures = new ArrayList<Future<?>>();
+        virtualHostEventGroups.forEach(g -> closeFutures.addAll(g.shutdownGracefully()));
+        closeFutures.addAll(adminEventGroup.shutdownGracefully());
+        closeFutures.forEach(Future::syncUninterruptibly);
+        virtualHostEventGroups.clear();
+        acceptorChannel.clear();
         metricsChannel = null;
     }
 
     @Override
     public void close() throws Exception {
-        if (acceptorChannel != null) {
+        if (running.get()) {
             shutdown();
         }
     }
