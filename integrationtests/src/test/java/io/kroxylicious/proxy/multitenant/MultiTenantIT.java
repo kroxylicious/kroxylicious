@@ -92,7 +92,7 @@ public class MultiTenantIT {
 
     private static final String PROXY_ADDRESS = "localhost:9192";
     private static final String TENANT1_PROXY_ADDRESS = "foo.multitenant.kafka:9192";
-    private static final String TENANT2_PROXY_ADDRESS = "bar.multitenant.kafka:9192";
+    private static final String TENANT2_PROXY_ADDRESS = "bar.multitenant.kafka:9193";
     private static final String MY_KEY = "my-key";
     private static final String MY_VALUE = "my-value";
     private TestInfo testInfo;
@@ -104,6 +104,7 @@ public class MultiTenantIT {
     @BeforeEach
     public void beforeEach(TestInfo testInfo) throws Exception {
         this.testInfo = testInfo;
+        // TODO: use a per-tenant server certificate.
         this.certificateGenerator = new KeytoolCertificateGenerator();
         this.certificateGenerator.generateSelfSignedCertificateEntry("test@redhat.com", "*.multitenant.kafka", "KI", "RedHat", null, null, "US");
         this.clientTrustStore = certsDirectory.resolve("kafka.truststore.jks");
@@ -113,7 +114,7 @@ public class MultiTenantIT {
 
     @Test
     public void createAndDeleteTopic(KafkaCluster cluster) throws Exception {
-        String config = getConfig(PROXY_ADDRESS, cluster);
+        String config = getConfig(cluster);
 
         try (var proxy = startProxy(config)) {
             try (var admin = Admin.create(commonConfig(TENANT1_PROXY_ADDRESS, Map.of()))) {
@@ -146,7 +147,7 @@ public class MultiTenantIT {
 
     @Test
     public void describeTopic(KafkaCluster cluster) throws Exception {
-        String config = getConfig(PROXY_ADDRESS, cluster);
+        String config = getConfig(cluster);
         try (var proxy = startProxy(config)) {
             try (var admin = Admin.create(commonConfig(TENANT1_PROXY_ADDRESS, Map.of()))) {
                 var created = createTopics(admin, List.of(NEW_TOPIC_1));
@@ -162,7 +163,7 @@ public class MultiTenantIT {
 
     @Test
     public void publishOne(KafkaCluster cluster) throws Exception {
-        String config = getConfig(PROXY_ADDRESS, cluster);
+        String config = getConfig(cluster);
         try (var proxy = startProxy(config)) {
             createTopics(TENANT1_PROXY_ADDRESS, List.of(NEW_TOPIC_1));
             produceAndVerify(TENANT1_PROXY_ADDRESS, TOPIC_1, MY_KEY, MY_VALUE);
@@ -171,7 +172,7 @@ public class MultiTenantIT {
 
     @Test
     public void consumeOne(KafkaCluster cluster) throws Exception {
-        String config = getConfig(PROXY_ADDRESS, cluster);
+        String config = getConfig(cluster);
         try (var proxy = startProxy(config)) {
             var groupId = testInfo.getDisplayName();
             createTopics(TENANT1_PROXY_ADDRESS, List.of(NEW_TOPIC_1));
@@ -182,7 +183,7 @@ public class MultiTenantIT {
 
     @Test
     public void consumeOneAndOffsetCommit(KafkaCluster cluster) throws Exception {
-        String config = getConfig(PROXY_ADDRESS, cluster);
+        String config = getConfig(cluster);
         try (var proxy = startProxy(config)) {
             var groupId = testInfo.getDisplayName();
             createTopics(TENANT1_PROXY_ADDRESS, List.of(NEW_TOPIC_1));
@@ -195,7 +196,7 @@ public class MultiTenantIT {
 
     @Test
     public void alterOffsetCommit(KafkaCluster cluster) throws Exception {
-        String config = getConfig(PROXY_ADDRESS, cluster);
+        String config = getConfig(cluster);
         try (var proxy = startProxy(config); var admin = Admin.create(commonConfig(TENANT1_PROXY_ADDRESS, Map.of()))) {
             var groupId = testInfo.getDisplayName();
             createTopics(TENANT1_PROXY_ADDRESS, List.of(NEW_TOPIC_1));
@@ -213,7 +214,7 @@ public class MultiTenantIT {
 
     @Test
     public void deleteConsumerGroupOffsets(KafkaCluster cluster) throws Exception {
-        String config = getConfig(PROXY_ADDRESS, cluster);
+        String config = getConfig(cluster);
         try (var proxy = startProxy(config); var admin = Admin.create(commonConfig(TENANT1_PROXY_ADDRESS, Map.of()))) {
             var groupId = testInfo.getDisplayName();
             createTopics(TENANT1_PROXY_ADDRESS, List.of(NEW_TOPIC_1));
@@ -233,7 +234,7 @@ public class MultiTenantIT {
 
     @Test
     public void tenantTopicIsolation(KafkaCluster cluster) throws Exception {
-        String config = getConfig(PROXY_ADDRESS, cluster);
+        String config = getConfig(cluster);
         try (var proxy = startProxy(config)) {
             createTopics(TENANT1_PROXY_ADDRESS, List.of(NEW_TOPIC_1));
             createTopics(TENANT2_PROXY_ADDRESS, List.of(NEW_TOPIC_2, NEW_TOPIC_3));
@@ -251,7 +252,7 @@ public class MultiTenantIT {
     @ParameterizedTest
     @EnumSource
     public void tenantConsumeWithGroup(ConsumerStyle consumerStyle, KafkaCluster cluster) throws Exception {
-        String config = getConfig(PROXY_ADDRESS, cluster);
+        String config = getConfig(cluster);
         try (var proxy = startProxy(config)) {
             createTopics(TENANT1_PROXY_ADDRESS, List.of(NEW_TOPIC_1));
             runConsumerInOrderToCreateGroup(TENANT1_PROXY_ADDRESS, "Tenant1Group", NEW_TOPIC_1, consumerStyle);
@@ -262,7 +263,7 @@ public class MultiTenantIT {
     @ParameterizedTest
     @EnumSource
     public void tenantGroupIsolation(ConsumerStyle consumerStyle, KafkaCluster cluster) throws Exception {
-        String config = getConfig(PROXY_ADDRESS, cluster);
+        String config = getConfig(cluster);
         try (var proxy = startProxy(config)) {
             createTopics(TENANT1_PROXY_ADDRESS, List.of(NEW_TOPIC_1));
             runConsumerInOrderToCreateGroup(TENANT1_PROXY_ADDRESS, "Tenant1Group", NEW_TOPIC_1, consumerStyle);
@@ -275,7 +276,7 @@ public class MultiTenantIT {
 
     @Test
     public void describeGroup(KafkaCluster cluster) throws Exception {
-        String config = getConfig(PROXY_ADDRESS, cluster);
+        String config = getConfig(cluster);
         try (var proxy = startProxy(config)) {
             createTopics(TENANT1_PROXY_ADDRESS, List.of(NEW_TOPIC_1));
             runConsumerInOrderToCreateGroup(TENANT1_PROXY_ADDRESS, "Tenant1Group", NEW_TOPIC_1, ConsumerStyle.ASSIGN);
@@ -455,15 +456,26 @@ public class MultiTenantIT {
         return config;
     }
 
-    private String getConfig(String proxyAddress, KafkaCluster cluster) {
+    private String getConfig(KafkaCluster cluster) {
         return KroxyConfig.builder()
-                .addToVirtualClusters("demo", new VirtualClusterBuilder()
+                .addToVirtualClusters("foo", new VirtualClusterBuilder()
                         .withNewTargetCluster()
                         .withBootstrapServers(cluster.getBootstrapServers())
                         .endTargetCluster()
                         .withNewClusterEndpointProvider()
                         .withType("StaticCluster")
-                        .withConfig(Map.of("bootstrapAddress", proxyAddress))
+                        .withConfig(Map.of("bootstrapAddress", TENANT1_PROXY_ADDRESS))
+                        .endClusterEndpointProvider()
+                        .withKeyPassword(certificateGenerator.getPassword())
+                        .withKeyStoreFile(certificateGenerator.getKeyStoreLocation())
+                        .build())
+                .addToVirtualClusters("bar", new VirtualClusterBuilder()
+                        .withNewTargetCluster()
+                        .withBootstrapServers(cluster.getBootstrapServers())
+                        .endTargetCluster()
+                        .withNewClusterEndpointProvider()
+                        .withType("StaticCluster")
+                        .withConfig(Map.of("bootstrapAddress", TENANT2_PROXY_ADDRESS))
                         .endClusterEndpointProvider()
                         .withKeyPassword(certificateGenerator.getPassword())
                         .withKeyStoreFile(certificateGenerator.getKeyStoreLocation())
