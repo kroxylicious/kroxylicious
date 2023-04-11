@@ -67,8 +67,12 @@ jobs:
       - name: 'Run kafka'
         run: cd kafka_2.13; bin/kafka-server-start.sh config/server.properties &
 
+      - name: 'Set Kroxylicious jar file'
+        run: |
+          echo "KROXY_JAR_FILE=$(find kroxylicious/target ! -path 'kroxylicious/target/libs/*' -name 'kroxylicious-*.jar' ! -name '*javadoc.jar' ! -name '*sources.jar')" >> $GITHUB_ENV
+
       - name: 'Run kroxy'
-        run: java -jar kroxylicious/target/kroxylicious-*-SNAPSHOT.jar --config kroxylicious/example-proxy-config.yml &
+        run: java -jar ${{ env.KROXY_JAR_FILE }} --config kroxylicious/example-proxy-config.yml &
 
       - name: 'Run warm-up'
         run: cd kafka_2.13; bin/kafka-producer-perf-test.sh --topic perf-test --throughput -1 --num-records 1000000 --record-size 1024 --producer-props acks=all bootstrap.servers=localhost:9192
@@ -134,8 +138,12 @@ jobs:
       - name: 'Run kafka'
         run: cd kafka_2.13; bin/kafka-server-start.sh config/server.properties &
 
+      - name: 'Set Kroxylicious jar file'
+        run: |
+          echo "KROXY_JAR_FILE=$(find kroxylicious/target ! -path 'kroxylicious/target/libs/*' -name 'kroxylicious-*.jar' ! -name '*javadoc.jar' ! -name '*sources.jar')" >> $GITHUB_ENV
+
       - name: 'Run kroxy'
-        run: java -jar kroxylicious/target/kroxylicious-*-SNAPSHOT.jar --config kroxylicious/example-proxy-config.yml &
+        run: java -jar ${{ env.KROXY_JAR_FILE }} --config kroxylicious/example-proxy-config.yml &
 
       - name: 'Run warm-up'
         run: cd kafka_2.13; bin/kafka-producer-perf-test.sh --topic perf-test --throughput -1 --num-records 1000000 --record-size 1024 --producer-props acks=all bootstrap.servers=localhost:9192
