@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1681197024445,
+  "lastUpdate": 1681203658275,
   "repoUrl": "https://github.com/kroxylicious/kroxylicious",
   "entries": {
     "kafka producer perf test Benchmark": [
@@ -369,6 +369,43 @@ window.BENCHMARK_DATA = {
           {
             "name": "99th Latency",
             "value": 315,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Francisco Vila",
+            "username": "franvila",
+            "email": "57452611+franvila@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "6bf98ac9add1ad8b01d108ea707ac079a90dc046",
+          "message": "Fix performance action (#262)\n\n* finding the proper kroxy jar file\r\n\r\n* finding the proper kroxy jar file",
+          "timestamp": "2023-04-11T07:02:47Z",
+          "url": "https://github.com/kroxylicious/kroxylicious/commit/6bf98ac9add1ad8b01d108ea707ac079a90dc046"
+        },
+        "date": 1681203657151,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "AVG Latency",
+            "value": 263.63,
+            "unit": "ms"
+          },
+          {
+            "name": "95th Latency",
+            "value": 653,
+            "unit": "ms"
+          },
+          {
+            "name": "99th Latency",
+            "value": 781,
             "unit": "ms"
           }
         ]
