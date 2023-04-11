@@ -73,6 +73,24 @@ jobs:
 
       - name: 'Run kroxy'
         run: java -jar ${{ env.KROXY_JAR_FILE }} --config kroxylicious/example-proxy-config.yml &
+      
+      - name: 'await zookeeper'
+        uses: iFaxity/wait-on-action@v1
+        with:
+            resource: tcp:localhost:2181
+            timeout: 30000
+
+      - name: 'await kafka'
+        uses: iFaxity/wait-on-action@v1
+        with:
+            resource: tcp:localhost:9092
+            timeout: 30000
+      
+      - name: 'await kroxylicious'
+        uses: iFaxity/wait-on-action@v1
+        with:
+            resource: tcp:localhost:9192
+            timeout: 30000
 
       - name: 'Run warm-up'
         run: cd kafka_2.13; bin/kafka-producer-perf-test.sh --topic perf-test --throughput -1 --num-records 1000000 --record-size 1024 --producer-props acks=all bootstrap.servers=localhost:9192
@@ -144,6 +162,24 @@ jobs:
 
       - name: 'Run kroxy'
         run: java -jar ${{ env.KROXY_JAR_FILE }} --config kroxylicious/example-proxy-config.yml &
+      
+      - name: 'await zookeeper'
+        uses: iFaxity/wait-on-action@v1
+        with:
+            resource: tcp:localhost:2181
+            timeout: 30000
+
+      - name: 'await kafka'
+        uses: iFaxity/wait-on-action@v1
+        with:
+            resource: tcp:localhost:9092
+            timeout: 30000
+      
+      - name: 'await kroxylicious'
+        uses: iFaxity/wait-on-action@v1
+        with:
+            resource: tcp:localhost:9192
+            timeout: 30000
 
       - name: 'Run warm-up'
         run: cd kafka_2.13; bin/kafka-producer-perf-test.sh --topic perf-test --throughput -1 --num-records 1000000 --record-size 1024 --producer-props acks=all bootstrap.servers=localhost:9192
