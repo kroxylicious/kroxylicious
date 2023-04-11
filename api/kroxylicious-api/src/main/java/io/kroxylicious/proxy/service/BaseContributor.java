@@ -69,7 +69,7 @@ public abstract class BaseContributor<T> implements Contributor<T> {
     }
 
     /**
-     * Builder for registration of contributor service implementations.
+     * Builder for the registration of contributor service implementations.
      * @see BaseContributor#builder()
      * @param <L> the service type
      */
@@ -81,7 +81,7 @@ public abstract class BaseContributor<T> implements Contributor<T> {
         private final Map<String, InstanceBuilder<?, L>> shortNameToInstanceBuilder = new HashMap<>();
 
         /**
-         * Registers a service instance constructor.
+         * Registers registers a factory function for the construction of a service instance.
          *
          * @param shortName service short name
          * @param configClass concrete type of configuration required by the service
@@ -98,7 +98,7 @@ public abstract class BaseContributor<T> implements Contributor<T> {
         }
 
         /**
-         * Registers a service instance constructor.
+         * Registers registers a factory function for the construction of a service instance.
          *
          * @param shortName service short name
          * @param instanceFunction function that constructs the service instance
@@ -110,7 +110,7 @@ public abstract class BaseContributor<T> implements Contributor<T> {
         }
 
         /**
-         * Registers a service instance constructor.
+         * Registers registers a factory function for the construction of a service instance.
          *
          * @param shortName service short name
          * @param configClass concrete type of configuration required by the service
@@ -124,7 +124,7 @@ public abstract class BaseContributor<T> implements Contributor<T> {
         }
 
         /**
-         * Registers a service instance constructor.
+         * Registers registers a factory function for the construction of a service instance.
          *
          * @param shortName service short name
          * @param instanceFunction function that constructs the service instance
@@ -141,7 +141,7 @@ public abstract class BaseContributor<T> implements Contributor<T> {
     }
 
     /**
-     * Creates a builder for registration of contributor service implementations.
+     * Creates a builder for the registration of contributor service implementations.
      *
      * @return the builder
      * @param <L> the service type
