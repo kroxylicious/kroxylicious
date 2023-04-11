@@ -24,7 +24,7 @@ public abstract class BaseContributor<T> implements Contributor<T> {
     private final Map<String, InstanceBuilder<? extends BaseConfig, T>> shortNameToInstanceBuilder;
 
     /**
-     * Constructs the contributor using the supplied {@code builder}.
+     * Constructs and configures the contributor using the supplied {@code builder}.
      * @param builder builder
      */
     public BaseContributor(BaseContributorBuilder<T> builder) {
