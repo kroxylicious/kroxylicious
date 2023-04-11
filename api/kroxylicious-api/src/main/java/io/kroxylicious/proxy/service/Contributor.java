@@ -25,7 +25,7 @@ public interface Contributor<T> {
     Class<? extends BaseConfig> getConfigType(String shortName);
 
     /**
-     * Creates a instance of the service.
+     * Creates an instance of the service.
      *
      * @param shortName service short name
      * @param proxyConfig proxy configuration
