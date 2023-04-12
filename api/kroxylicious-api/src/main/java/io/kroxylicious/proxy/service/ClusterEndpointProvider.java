@@ -16,7 +16,7 @@ public interface ClusterEndpointProvider {
     String getClusterBootstrapAddress();
 
     /** Address of broker with the given node id, includes the port. Note that
-     * {@code nodeId} are consecutively numbered and  begin at zero.
+     * {@code nodeId} are generally expected to be consecutively numbered and starting from zero. However gaps in the sequence can potentially emerge as the the target cluster topology evolves. 
      *
      * @return broker address in the form host:port
      * @throws IllegalArgumentException if this provider cannot produce a broker address for the given nodeId.
