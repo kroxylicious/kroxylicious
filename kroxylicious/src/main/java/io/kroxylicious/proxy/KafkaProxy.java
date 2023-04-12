@@ -67,8 +67,8 @@ import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_REQUEST_S
 public final class KafkaProxy implements AutoCloseable {
 
     private record EventGroupConfig(EventLoopGroup bossGroup, EventLoopGroup workerGroup, Class<? extends ServerChannel> clazz) {
-        public List<Future<?>> shutdownGracefully() {
-            return List.of(bossGroup.shutdownGracefully(), workerGroup.shutdownGracefully());
+        public Future<?> shutdownGracefully() {
+            return CompleteableFuture.allOf(bossGroup.shutdownGracefully(), workerGroup.shutdownGracefully());
         }
     };
 
