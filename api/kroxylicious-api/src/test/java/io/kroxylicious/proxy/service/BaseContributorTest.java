@@ -11,6 +11,7 @@ import io.kroxylicious.proxy.config.BaseConfig;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
 
 class BaseContributorTest {
     static class LongConfig extends BaseConfig {
@@ -19,18 +20,6 @@ class BaseContributorTest {
     }
 
     static class AnotherConfig extends BaseConfig {
-    }
-
-    static class LongClusterEndpointProvider implements ClusterEndpointProvider {
-        @Override
-        public String getClusterBootstrapAddress() {
-            return "3";
-        }
-
-        @Override
-        public String getBrokerAddress(int nodeId) {
-            return "localhost:1234";
-        }
     }
 
     @Test
@@ -49,7 +38,7 @@ class BaseContributorTest {
         builder.add("one", () -> 1L);
         BaseContributor<Long> baseContributor = new BaseContributor<>(builder) {
         };
-        Long instance = baseContributor.getInstance("one", new LongClusterEndpointProvider(), new BaseConfig());
+        Long instance = baseContributor.getInstance("one", mock(ClusterEndpointProvider.class), new BaseConfig());
         assertThat(instance).isEqualTo(1L);
     }
 
@@ -69,7 +58,7 @@ class BaseContributorTest {
         builder.add("fromBaseConfig", LongConfig.class, baseConfig -> baseConfig.value);
         BaseContributor<Long> baseContributor = new BaseContributor<>(builder) {
         };
-        Long instance = baseContributor.getInstance("fromBaseConfig", new LongClusterEndpointProvider(), new LongConfig());
+        Long instance = baseContributor.getInstance("fromBaseConfig", mock(ClusterEndpointProvider.class), new LongConfig());
         assertThat(instance).isEqualTo(2L);
     }
 
@@ -81,18 +70,8 @@ class BaseContributorTest {
         };
         AnotherConfig incompatibleConfig = new AnotherConfig();
         assertThatThrownBy(() -> {
-            baseContributor.getInstance("fromBaseConfig", new LongClusterEndpointProvider(), incompatibleConfig);
+            baseContributor.getInstance("fromBaseConfig", mock(ClusterEndpointProvider.class), incompatibleConfig);
         }).isInstanceOf(IllegalArgumentException.class);
-    }
-
-    @Test
-    public void testUsingProxyConfig() {
-        BaseContributor.BaseContributorBuilder<Long> builder = BaseContributor.builder();
-        builder.add("fromProxyConfig", LongConfig.class, (proxyConfig, longConfig) -> Long.valueOf(proxyConfig.getClusterBootstrapAddress()));
-        BaseContributor<Long> baseContributor = new BaseContributor<>(builder) {
-        };
-        Long instance = baseContributor.getInstance("fromProxyConfig", new LongClusterEndpointProvider(), new LongConfig());
-        assertThat(instance).isEqualTo(3L);
     }
 
 }

@@ -58,6 +58,7 @@ import io.kroxylicious.proxy.internal.KafkaProxyInitializer;
 import io.kroxylicious.proxy.internal.MeterRegistries;
 import io.kroxylicious.proxy.internal.admin.AdminHttpInitializer;
 import io.kroxylicious.proxy.internal.filter.FixedNetFilter;
+import io.kroxylicious.proxy.service.HostPort;
 
 import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_INBOUND_DOWNSTREAM_DECODED_MESSAGES;
 import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_INBOUND_DOWNSTREAM_MESSAGES;
@@ -160,15 +161,14 @@ public final class KafkaProxy implements AutoCloseable {
                     .childOption(ChannelOption.TCP_NODELAY, true);
             ChannelFuture bindFuture;
 
-            var toBind = new HashSet<String>();
+            var toBind = new HashSet<HostPort>();
             toBind.add(endpointProvider.getClusterBootstrapAddress());
             for (int i = 0; i < endpointProvider.getNumberOfBrokerEndpointsToPrebind(); i++) {
                 toBind.add(endpointProvider.getBrokerAddress(i));
             }
 
-            for (String address : toBind) {
-                var parts = address.split(":");
-                var proxyPort = Integer.valueOf(parts[1]);
+            for (var address : toBind) {
+                var proxyPort = address.port();
 
                 if (endpointProvider.getBindAddress().isPresent()) {
                     bindFuture = serverBootstrap.bind(endpointProvider.getBindAddress().get(), proxyPort);

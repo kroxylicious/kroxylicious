@@ -72,12 +72,9 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
         int incomingPort = portGetter.applyAsInt(broker);
 
         var downstreamAddress = endpointProvider.getBrokerAddress(nodeIdGetter.apply(broker));
-        var parts = downstreamAddress.split(":");
-        var host = parts[0];
-        var port = Integer.parseInt(parts[1]);
 
-        LOGGER.trace("{}: Rewriting broker address in response {}:{} -> {}:{}", context, incomingHost, incomingPort, host, port);
-        hostSetter.accept(broker, host);
-        portSetter.accept(broker, port);
+        LOGGER.trace("{}: Rewriting broker address in response {}:{} -> {}", context, incomingHost, incomingPort, downstreamAddress);
+        hostSetter.accept(broker, downstreamAddress.host());
+        portSetter.accept(broker, downstreamAddress.port());
     }
 }

@@ -8,14 +8,13 @@ package io.kroxylicious.proxy.internal.clusterendpointprovider;
 
 import java.util.Collections;
 import java.util.Map;
-import java.util.TreeSet;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import com.google.common.base.Preconditions;
 
 import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.service.ClusterEndpointProvider;
+import io.kroxylicious.proxy.service.HostPort;
 
 public class StaticClusterEndpointProvider implements ClusterEndpointProvider {
 
@@ -26,12 +25,12 @@ public class StaticClusterEndpointProvider implements ClusterEndpointProvider {
     }
 
     @Override
-    public String getClusterBootstrapAddress() {
+    public HostPort getClusterBootstrapAddress() {
         return config.bootstrapAddress;
     }
 
     @Override
-    public String getBrokerAddress(int nodeId) throws IllegalArgumentException {
+    public HostPort getBrokerAddress(int nodeId) throws IllegalArgumentException {
         var addr = config.brokers.get(nodeId);
         if (addr == null) {
             throw new IllegalArgumentException("No broker address known for nodeId %d".formatted(nodeId));
@@ -45,32 +44,23 @@ public class StaticClusterEndpointProvider implements ClusterEndpointProvider {
     }
 
     public static class StaticClusterEndpointProviderConfig extends BaseConfig {
-        private final String bootstrapAddress;
-        private final Map<Integer, String> brokers;
+        private final HostPort bootstrapAddress;
+        private final Map<Integer, HostPort> brokers;
 
-        public StaticClusterEndpointProviderConfig(String bootstrapAddress, Map<Integer, String> brokers) {
-            Preconditions.checkArgument(String.valueOf(bootstrapAddress).split(":").length == 2, "requires bootstrap to have the form 'host:port' (found %s)",
-                    bootstrapAddress);
+        public StaticClusterEndpointProviderConfig(HostPort bootstrapAddress, Map<Integer, HostPort> brokers) {
+            this.bootstrapAddress = HostPort.parse(bootstrapAddress.toString());
+
             if (brokers == null) {
-                brokers = Map.of(0, bootstrapAddress);
+                this.brokers = Map.of(0, this.bootstrapAddress);
             }
             else {
-                Preconditions.checkArgument(!(brokers == null || brokers.isEmpty()), "requires non-empty map of nodeid to broker address mappings");
-                brokers.forEach((k, v) -> Preconditions.checkArgument(String.valueOf(v).split(":").length == 2,
-                        "require broker address for node %s to have the form 'host:port' (found %s)", k, v));
-                int expectedSize = brokers.size();
-                var expectedKeys = IntStream.range(0, expectedSize).boxed().collect(Collectors.toSet());
-                var actualKeys = new TreeSet<>(brokers.keySet());
-                Preconditions.checkArgument(expectedSize == actualKeys.size() && expectedKeys.containsAll(actualKeys),
-                        "broker keys must describe a integer range 0..%s (inclusive) (found %s)", expectedSize - 1,
-                        actualKeys.stream().map(String::valueOf).collect(Collectors.joining(",")));
-                var actualValues = brokers.values();
-                var duplicateBrokerAddresses = actualValues.stream().filter(e -> Collections.frequency(actualValues, e) > 1).distinct().toList();
+                Preconditions.checkArgument(!brokers.isEmpty(), "requires non-empty map of nodeid to broker address mappings");
+
+                var duplicateBrokerAddresses = brokers.values().stream().filter(e -> Collections.frequency(brokers.values(), e) > 1).distinct().toList();
                 Preconditions.checkArgument(duplicateBrokerAddresses.isEmpty(), "all broker addresses must be unique (found duplicates: %s)",
-                        String.join(",", duplicateBrokerAddresses));
+                        duplicateBrokerAddresses.stream().map(HostPort::toString).collect(Collectors.joining(",")));
+                this.brokers = brokers;
             }
-            this.bootstrapAddress = bootstrapAddress;
-            this.brokers = brokers;
         }
     }
 

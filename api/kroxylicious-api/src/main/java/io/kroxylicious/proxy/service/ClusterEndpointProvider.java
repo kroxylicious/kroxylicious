@@ -9,19 +9,22 @@ import java.util.Optional;
 
 public interface ClusterEndpointProvider {
 
-    /** Address of the cluster's bootstrap address, includes the port.
+    /**
+     * Address of the cluster's bootstrap address.
      *
-     * @return cluster's bootstrap address in the form host:port
+     * @return cluster's bootstrap address.
      */
-    String getClusterBootstrapAddress();
+    HostPort getClusterBootstrapAddress();
 
-    /** Address of broker with the given node id, includes the port. Note that
-     * {@code nodeId} are generally expected to be consecutively numbered and starting from zero. However gaps in the sequence can potentially emerge as the the target cluster topology evolves. 
+    /**
+     * Address of broker with the given node id, includes the port. Note that
+     * {@code nodeId} are generally expected to be consecutively numbered and starting from zero. However, gaps in the sequence can potentially emerge as
+     * the target cluster topology evolves.
      *
-     * @return broker address in the form host:port
+     * @return broker address
      * @throws IllegalArgumentException if this provider cannot produce a broker address for the given nodeId.
      */
-    String getBrokerAddress(int nodeId) throws IllegalArgumentException;
+    HostPort getBrokerAddress(int nodeId) throws IllegalArgumentException;
 
     /**
      * Provides the number of broker endpoints to pre-bind.

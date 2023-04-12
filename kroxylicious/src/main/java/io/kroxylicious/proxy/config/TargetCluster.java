@@ -7,6 +7,9 @@ package io.kroxylicious.proxy.config;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+/**
+ * Represents the target (upstream) kafka cluster.
+ */
 public class TargetCluster {
 
     private final String bootstrapServers;
@@ -15,6 +18,12 @@ public class TargetCluster {
         this.bootstrapServers = bootstrapServers;
     }
 
+    /**
+     * A list of host/port pairs to use for establishing the initial connection to the target (upstream) Kafka cluster.
+     * This list should be in the form host1:port1,host2:port2,...
+     *
+     * @return comma separated list of bootstrap servers.
+     */
     public String bootstrapServers() {
         return bootstrapServers;
     }
