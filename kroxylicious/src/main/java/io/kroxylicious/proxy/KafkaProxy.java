@@ -167,6 +167,7 @@ public final class KafkaProxy implements AutoCloseable {
                 toBind.add(endpointProvider.getBrokerAddress(i));
             }
 
+            List<ChannelFuture> bindFutures = new ArrayList<>();
             for (var address : toBind) {
                 var proxyPort = address.port();
 
@@ -176,17 +177,16 @@ public final class KafkaProxy implements AutoCloseable {
                 else {
                     bindFuture = serverBootstrap.bind(proxyPort);
                 }
+                bindFutures.add(bindFuture);
 
-                try {
-                    var channel = bindFuture.sync().channel();
+                bindFuture.addListener(f -> {
+                    var channel = ((ChannelFuture) f).channel();
                     acceptorChannels.add(channel);
-                    LOGGER.debug("{}: Listener started {}", name, channel.localAddress());
-                }
-                catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
+                    LOGGER.info("{}: Listener started {}", name, channel.localAddress());
+                });
             }
 
+            bindFutures.forEach(ChannelFuture::syncUninterruptibly);
         });
 
         // Pre-register counters/summaries to avoid creating them on first request and thus skewing the request latency
