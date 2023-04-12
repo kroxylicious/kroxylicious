@@ -7,6 +7,9 @@ package io.kroxylicious.proxy.service;
 
 import java.util.Optional;
 
+/**
+ * Provides the addresses of the network endpoints required by a virtual cluster.
+ */
 public interface ClusterEndpointProvider {
 
     /**
@@ -21,6 +24,7 @@ public interface ClusterEndpointProvider {
      * {@code nodeId} are generally expected to be consecutively numbered and starting from zero. However, gaps in the sequence can potentially emerge as
      * the target cluster topology evolves.
      *
+     * @param nodeId node identifier
      * @return broker address
      * @throws IllegalArgumentException if this provider cannot produce a broker address for the given nodeId.
      */

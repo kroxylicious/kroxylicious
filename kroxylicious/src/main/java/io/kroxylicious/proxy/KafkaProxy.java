@@ -81,7 +81,7 @@ public final class KafkaProxy implements AutoCloseable {
     private EventGroupConfig adminEventGroup;
     private final List<EventGroupConfig> virtualHostEventGroups = new CopyOnWriteArrayList<>();
 
-    private final Queue<Channel> acceptorChannel = new ConcurrentLinkedQueue<>();
+    private final Queue<Channel> acceptorChannels = new ConcurrentLinkedQueue<>();
     private final AtomicBoolean running = new AtomicBoolean();
     private Channel metricsChannel;
 
@@ -179,7 +179,7 @@ public final class KafkaProxy implements AutoCloseable {
 
                 try {
                     var channel = bindFuture.sync().channel();
-                    acceptorChannel.add(channel);
+                    acceptorChannels.add(channel);
                     LOGGER.debug("{}: Listener started {}", name, channel.localAddress());
                 }
                 catch (InterruptedException e) {
@@ -250,8 +250,8 @@ public final class KafkaProxy implements AutoCloseable {
         if (!running.get()) {
             throw new IllegalStateException("This proxy is not running");
         }
-        while (!acceptorChannel.isEmpty()) {
-            Channel channel = acceptorChannel.peek();
+        while (!acceptorChannels.isEmpty()) {
+            Channel channel = acceptorChannels.peek();
             if (channel != null) {
                 channel.closeFuture().sync();
             }
@@ -271,7 +271,7 @@ public final class KafkaProxy implements AutoCloseable {
         closeFutures.addAll(adminEventGroup.shutdownGracefully());
         closeFutures.forEach(Future::syncUninterruptibly);
         virtualHostEventGroups.clear();
-        acceptorChannel.clear();
+        acceptorChannels.clear();
         metricsChannel = null;
     }
 
