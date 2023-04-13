@@ -9,22 +9,30 @@ import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
+import org.apache.kafka.common.message.AddOffsetsToTxnRequestData;
+import org.apache.kafka.common.message.AddPartitionsToTxnRequestData;
+import org.apache.kafka.common.message.AddPartitionsToTxnResponseData;
 import org.apache.kafka.common.message.CreateTopicsRequestData;
 import org.apache.kafka.common.message.CreateTopicsResponseData;
 import org.apache.kafka.common.message.DeleteTopicsRequestData;
 import org.apache.kafka.common.message.DeleteTopicsResponseData;
 import org.apache.kafka.common.message.DescribeGroupsRequestData;
 import org.apache.kafka.common.message.DescribeGroupsResponseData;
+import org.apache.kafka.common.message.DescribeTransactionsRequestData;
+import org.apache.kafka.common.message.DescribeTransactionsResponseData;
+import org.apache.kafka.common.message.EndTxnRequestData;
 import org.apache.kafka.common.message.FetchRequestData;
 import org.apache.kafka.common.message.FetchResponseData;
 import org.apache.kafka.common.message.FindCoordinatorRequestData;
 import org.apache.kafka.common.message.FindCoordinatorResponseData;
 import org.apache.kafka.common.message.HeartbeatRequestData;
+import org.apache.kafka.common.message.InitProducerIdRequestData;
 import org.apache.kafka.common.message.JoinGroupRequestData;
 import org.apache.kafka.common.message.LeaveGroupRequestData;
 import org.apache.kafka.common.message.ListGroupsResponseData;
 import org.apache.kafka.common.message.ListOffsetsRequestData;
 import org.apache.kafka.common.message.ListOffsetsResponseData;
+import org.apache.kafka.common.message.ListTransactionsResponseData;
 import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.message.OffsetCommitRequestData;
@@ -40,26 +48,36 @@ import org.apache.kafka.common.message.ProduceResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.message.SyncGroupRequestData;
+import org.apache.kafka.common.message.TxnOffsetCommitRequestData;
+import org.apache.kafka.common.message.TxnOffsetCommitResponseData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.kroxylicious.proxy.filter.AddOffsetsToTxnRequestFilter;
+import io.kroxylicious.proxy.filter.AddPartitionsToTxnRequestFilter;
+import io.kroxylicious.proxy.filter.AddPartitionsToTxnResponseFilter;
 import io.kroxylicious.proxy.filter.CreateTopicsRequestFilter;
 import io.kroxylicious.proxy.filter.CreateTopicsResponseFilter;
 import io.kroxylicious.proxy.filter.DeleteTopicsRequestFilter;
 import io.kroxylicious.proxy.filter.DeleteTopicsResponseFilter;
 import io.kroxylicious.proxy.filter.DescribeGroupsRequestFilter;
 import io.kroxylicious.proxy.filter.DescribeGroupsResponseFilter;
+import io.kroxylicious.proxy.filter.DescribeTransactionsRequestFilter;
+import io.kroxylicious.proxy.filter.DescribeTransactionsResponseFilter;
+import io.kroxylicious.proxy.filter.EndTxnRequestFilter;
 import io.kroxylicious.proxy.filter.FetchRequestFilter;
 import io.kroxylicious.proxy.filter.FetchResponseFilter;
 import io.kroxylicious.proxy.filter.FindCoordinatorRequestFilter;
 import io.kroxylicious.proxy.filter.FindCoordinatorResponseFilter;
 import io.kroxylicious.proxy.filter.HeartbeatRequestFilter;
+import io.kroxylicious.proxy.filter.InitProducerIdRequestFilter;
 import io.kroxylicious.proxy.filter.JoinGroupRequestFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.proxy.filter.LeaveGroupRequestFilter;
 import io.kroxylicious.proxy.filter.ListGroupsResponseFilter;
 import io.kroxylicious.proxy.filter.ListOffsetsRequestFilter;
 import io.kroxylicious.proxy.filter.ListOffsetsResponseFilter;
+import io.kroxylicious.proxy.filter.ListTransactionsResponseFilter;
 import io.kroxylicious.proxy.filter.MetadataRequestFilter;
 import io.kroxylicious.proxy.filter.MetadataResponseFilter;
 import io.kroxylicious.proxy.filter.OffsetCommitRequestFilter;
@@ -73,6 +91,8 @@ import io.kroxylicious.proxy.filter.OffsetForLeaderEpochResponseFilter;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
 import io.kroxylicious.proxy.filter.ProduceResponseFilter;
 import io.kroxylicious.proxy.filter.SyncGroupRequestFilter;
+import io.kroxylicious.proxy.filter.TxnOffsetCommitRequestFilter;
+import io.kroxylicious.proxy.filter.TxnOffsetCommitResponseFilter;
 
 /**
  * Simple multi-tenant filter.
@@ -101,7 +121,14 @@ public class MultiTenantTransformationFilter
         SyncGroupRequestFilter,
         LeaveGroupRequestFilter,
         HeartbeatRequestFilter,
-        DescribeGroupsRequestFilter, DescribeGroupsResponseFilter {
+        DescribeGroupsRequestFilter, DescribeGroupsResponseFilter,
+        InitProducerIdRequestFilter,
+        ListTransactionsResponseFilter,
+        DescribeTransactionsRequestFilter, DescribeTransactionsResponseFilter,
+        EndTxnRequestFilter,
+        AddPartitionsToTxnRequestFilter, AddPartitionsToTxnResponseFilter,
+        AddOffsetsToTxnRequestFilter,
+        TxnOffsetCommitRequestFilter, TxnOffsetCommitResponseFilter {
     private static final Logger LOGGER = LoggerFactory.getLogger(MultiTenantTransformationFilter.class);
 
     @Override
@@ -148,6 +175,11 @@ public class MultiTenantTransformationFilter
 
     @Override
     public void onProduceRequest(RequestHeaderData header, ProduceRequestData request, KrpcFilterContext context) {
+        if (request.transactionalId() != null) {
+            // the producer is transactional.
+            var tenantPrefix = getTenantPrefix(context);
+            request.setTransactionalId(tenantPrefix + request.transactionalId());
+        }
         request.topicData().forEach(topic -> applyTenantPrefix(context, topic::name, topic::setName, false));
         context.forwardRequest(header, request);
 
@@ -303,6 +335,88 @@ public class MultiTenantTransformationFilter
     public void onDescribeGroupsResponse(ResponseHeaderData header, DescribeGroupsResponseData response, KrpcFilterContext context) {
         response.groups().forEach(group -> removeTenantPrefix(context, group::groupId, group::setGroupId, false));
         context.forwardResponse(header, response);
+    }
+
+    @Override
+    public void onInitProducerIdRequest(RequestHeaderData header, InitProducerIdRequestData request, KrpcFilterContext context) {
+        if (request.transactionalId() != null && !request.transactionalId().isEmpty()) {
+            var tenantPrefix = getTenantPrefix(context);
+            request.setTransactionalId(tenantPrefix + request.transactionalId());
+
+        }
+        context.forwardRequest(header, request);
+    }
+
+    @Override
+    public void onAddPartitionsToTxnRequest(RequestHeaderData header, AddPartitionsToTxnRequestData request, KrpcFilterContext context) {
+        request.topics().forEach(topic -> applyTenantPrefix(context, topic::name, topic::setName, false));
+        if (request.transactionalId() != null) {
+            // the producer is transactional.
+            var tenantPrefix = getTenantPrefix(context);
+            request.setTransactionalId(tenantPrefix + request.transactionalId());
+        }
+
+        context.forwardRequest(header, request);
+    }
+
+    @Override
+    public void onAddPartitionsToTxnResponse(ResponseHeaderData header, AddPartitionsToTxnResponseData response, KrpcFilterContext context) {
+        response.results().forEach(results -> removeTenantPrefix(context, results::name, results::setName, false));
+        context.forwardResponse(header, response);
+    }
+
+    @Override
+    public void onAddOffsetsToTxnRequest(RequestHeaderData header, AddOffsetsToTxnRequestData request, KrpcFilterContext context) {
+        var tenantPrefix = getTenantPrefix(context);
+        request.setTransactionalId(tenantPrefix + request.transactionalId());
+        request.setGroupId(tenantPrefix + request.groupId());
+        context.forwardRequest(header, request);
+    }
+
+    @Override
+    public void onTxnOffsetCommitRequest(RequestHeaderData header, TxnOffsetCommitRequestData request, KrpcFilterContext context) {
+        var tenantPrefix = getTenantPrefix(context);
+        request.setTransactionalId(tenantPrefix + request.transactionalId());
+        request.setGroupId(tenantPrefix + request.groupId());
+        request.topics().forEach(topic -> applyTenantPrefix(context, topic::name, topic::setName, false));
+        context.forwardRequest(header, request);
+    }
+
+    @Override
+    public void onTxnOffsetCommitResponse(ResponseHeaderData header, TxnOffsetCommitResponseData response, KrpcFilterContext context) {
+        response.topics().forEach(results -> removeTenantPrefix(context, results::name, results::setName, false));
+        context.forwardResponse(header, response);
+    }
+
+    @Override
+    public void onListTransactionsResponse(ResponseHeaderData header, ListTransactionsResponseData response, KrpcFilterContext context) {
+        var tenantPrefix = getTenantPrefix(context);
+        var filteredTransactions = response.transactionStates().stream().filter(listedTxn -> listedTxn.transactionalId().startsWith(tenantPrefix)).toList();
+        filteredTransactions.forEach(listedTxn -> removeTenantPrefix(context, listedTxn::transactionalId, listedTxn::setTransactionalId, false));
+        response.setTransactionStates(filteredTransactions);
+        context.forwardResponse(header, response);
+    }
+
+    @Override
+    public void onDescribeTransactionsRequest(RequestHeaderData header, DescribeTransactionsRequestData request, KrpcFilterContext context) {
+        request.setTransactionalIds(request.transactionalIds().stream().map(group -> applyTenantPrefix(context, group)).toList());
+        context.forwardRequest(header, request);
+    }
+
+    @Override
+    public void onDescribeTransactionsResponse(ResponseHeaderData header, DescribeTransactionsResponseData response, KrpcFilterContext context) {
+        response.transactionStates().forEach(ts -> {
+            removeTenantPrefix(context, ts::transactionalId, ts::setTransactionalId, false);
+            ts.topics().forEach(t -> removeTenantPrefix(context, t::topic, t::setTopic, false));
+        });
+        context.forwardResponse(header, response);
+    }
+
+    @Override
+    public void onEndTxnRequest(RequestHeaderData header, EndTxnRequestData request, KrpcFilterContext context) {
+        var tenantPrefix = getTenantPrefix(context);
+        request.setTransactionalId(tenantPrefix + request.transactionalId());
+        context.forwardRequest(header, request);
     }
 
     private void applyTenantPrefix(KrpcFilterContext context, Supplier<String> getter, Consumer<String> setter, boolean ignoreEmpty) {
