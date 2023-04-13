@@ -7,9 +7,17 @@ package io.kroxylicious.proxy.internal;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import io.micrometer.core.instrument.Meter;
 import io.micrometer.core.instrument.Metrics;
+import io.micrometer.core.instrument.Tag;
 import io.micrometer.core.instrument.composite.CompositeMeterRegistry;
+import io.micrometer.core.instrument.config.MeterFilter;
+import io.micrometer.core.instrument.config.MeterFilterReply;
 import io.micrometer.prometheus.PrometheusConfig;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
 
@@ -19,6 +27,8 @@ import io.kroxylicious.proxy.micrometer.MicrometerConfigurationHookContributorMa
 public class MeterRegistries {
     private final PrometheusMeterRegistry prometheusMeterRegistry;
 
+    private static final Logger logger = LoggerFactory.getLogger(MeterRegistries.class);
+
     public MeterRegistries(List<MicrometerDefinition> micrometerConfig) {
         configureMicrometer(micrometerConfig);
         this.prometheusMeterRegistry = new PrometheusMeterRegistry(PrometheusConfig.DEFAULT);
@@ -27,11 +37,38 @@ public class MeterRegistries {
 
     private void configureMicrometer(List<MicrometerDefinition> micrometerConfig) {
         CompositeMeterRegistry globalRegistry = Metrics.globalRegistry;
+        preventDifferentTagNameRegistration(globalRegistry);
         MicrometerConfigurationHookContributorManager manager = MicrometerConfigurationHookContributorManager.getInstance();
         micrometerConfig
                 .stream()
                 .map(f -> manager.getHook(f.type(), f.config()))
                 .forEach(micrometerConfigurationHook -> micrometerConfigurationHook.configure(globalRegistry));
+    }
+
+    /**
+     * By default, when we register multiple meters with the same name but different tag names,
+     * only the data for one of those meters can be scraped at the prometheus endpoint.
+     * This is a limitation of the prometheus client. So we add a filter that explodes when we
+     * attempt to register a metric with a different set of tags.
+     *
+     * @param registry registry
+     */
+    /* test */ static void preventDifferentTagNameRegistration(CompositeMeterRegistry registry) {
+        registry.config().meterFilter(new MeterFilter() {
+            @Override
+            public MeterFilterReply accept(Meter.Id id) {
+                boolean allTagsSame = registry.find(id.getName()).meters().stream().allMatch(meter -> tagNames(meter.getId()).equals(tagNames(id)));
+                if (!allTagsSame) {
+                    logger.error("Attempted to register a meter with id {} which is already registered but with a different set of tag names", id);
+                    throw new IllegalArgumentException("tags for id " + id + " differ from existing meters registered");
+                }
+                return MeterFilterReply.ACCEPT;
+            }
+        });
+    }
+
+    private static Object tagNames(Meter.Id id1) {
+        return id1.getTags().stream().map(Tag::getKey).collect(Collectors.toSet());
     }
 
     /**
