@@ -57,7 +57,7 @@ import io.kroxylicious.proxy.config.admin.AdminHttpConfiguration;
 import io.kroxylicious.proxy.internal.KafkaProxyInitializer;
 import io.kroxylicious.proxy.internal.MeterRegistries;
 import io.kroxylicious.proxy.internal.admin.AdminHttpInitializer;
-import io.kroxylicious.proxy.internal.filter.FixedNetFilter;
+import io.kroxylicious.proxy.internal.filter.UpstreamBrokerAddressCachingNetFilter;
 import io.kroxylicious.proxy.service.HostPort;
 
 import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_INBOUND_DOWNSTREAM_DECODED_MESSAGES;
@@ -142,9 +142,10 @@ public final class KafkaProxy implements AutoCloseable {
 
             KafkaProxyInitializer initializer = new KafkaProxyInitializer(false,
                     Map.of(),
-                    new FixedNetFilter(brokerHost,
-                            brokerPort,
-                            filterChainFactory),
+                    new UpstreamBrokerAddressCachingNetFilter(
+                            new HostPort(brokerHost, brokerPort),
+                            filterChainFactory,
+                            endpointProvider),
                     virtualCluster.isLogNetwork(),
                     virtualCluster.isLogFrames(),
                     sslContext);

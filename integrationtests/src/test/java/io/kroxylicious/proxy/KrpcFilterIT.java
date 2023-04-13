@@ -51,6 +51,7 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
+import static org.testcontainers.shaded.org.awaitility.Awaitility.await;
 
 @ExtendWith(KafkaClusterExtension.class)
 public class KrpcFilterIT {
@@ -310,9 +311,10 @@ public class KrpcFilterIT {
             try (var admin = Admin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress))) {
                 // create topic and ensure that leaders are on different brokers.
                 admin.createTopics(List.of(new NewTopic(TOPIC_1, numPartitions, (short) 1))).all().get();
-                var topicDescription = admin.describeTopics(List.of(TOPIC_1)).topicNameValues().get(TOPIC_1).get();
-                var leaders = topicDescription.partitions().stream().map(TopicPartitionInfo::leader).collect(Collectors.toSet());
-                assertThat(leaders).hasSize(numPartitions);
+                await().atMost(Duration.ofSeconds(5)).until(() -> admin.describeTopics(List.of(TOPIC_1)).topicNameValues().get(TOPIC_1).get()
+                        .partitions().stream().map(TopicPartitionInfo::leader)
+                        .collect(Collectors.toSet()),
+                        leaders -> leaders.size() == numPartitions);
 
                 try (var producer = new KafkaProducer<String, String>(Map.of(
                         ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,

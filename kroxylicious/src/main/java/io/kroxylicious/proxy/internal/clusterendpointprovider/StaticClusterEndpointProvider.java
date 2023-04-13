@@ -16,20 +16,27 @@ import io.kroxylicious.proxy.service.HostPort;
 
 public class StaticClusterEndpointProvider implements ClusterEndpointProvider {
 
-    private final StaticClusterEndpointProviderConfig config;
+    private static final EndpointMatchResult BOOTSTRAP_MATCHED = new EndpointMatchResult(true, null);
+    private static final EndpointMatchResult NO_MATCH = new EndpointMatchResult(false, null);
+    private final HostPort bootstrapAddress;
+    private final Map<Integer, HostPort> brokers;
+    private final Map<Integer, EndpointMatchResult> portToNodeIdMatchedMap;
 
     public StaticClusterEndpointProvider(StaticClusterEndpointProviderConfig config) {
-        this.config = config;
+        this.bootstrapAddress = config.bootstrapAddress;
+        this.brokers = config.brokers;
+        this.portToNodeIdMatchedMap = this.brokers.entrySet().stream()
+                .collect(Collectors.toMap(e -> e.getValue().port(), e -> new EndpointMatchResult(true, e.getKey())));
     }
 
     @Override
     public HostPort getClusterBootstrapAddress() {
-        return config.bootstrapAddress;
+        return this.bootstrapAddress;
     }
 
     @Override
     public HostPort getBrokerAddress(int nodeId) throws IllegalArgumentException {
-        var addr = config.brokers.get(nodeId);
+        var addr = this.brokers.get(nodeId);
         if (addr == null) {
             throw new IllegalArgumentException("No broker address known for nodeId %d".formatted(nodeId));
         }
@@ -38,7 +45,15 @@ public class StaticClusterEndpointProvider implements ClusterEndpointProvider {
 
     @Override
     public int getNumberOfBrokerEndpointsToPrebind() {
-        return config.brokers.size();
+        return this.brokers.size();
+    }
+
+    @Override
+    public EndpointMatchResult hasMatchingEndpoint(String sniHostname, int port) {
+        if (bootstrapAddress.port() == port) {
+            return BOOTSTRAP_MATCHED;
+        }
+        return portToNodeIdMatchedMap.getOrDefault(port, NO_MATCH);
     }
 
     public static class StaticClusterEndpointProviderConfig extends BaseConfig {
@@ -59,6 +74,12 @@ public class StaticClusterEndpointProvider implements ClusterEndpointProvider {
                 if (!duplicateBrokerAddresses.isEmpty()) {
                     throw new IllegalArgumentException("all broker addresses must be unique (found duplicates: %s)".formatted(
                             duplicateBrokerAddresses.stream().map(HostPort::toString).collect(Collectors.joining(","))));
+                }
+                var allPorts = brokers.values().stream().map(HostPort::port).toList();
+                var duplicatePorts = allPorts.stream().filter(e -> Collections.frequency(allPorts, e) > 1).distinct().toList();
+                if (!duplicatePorts.isEmpty()) {
+                    throw new IllegalArgumentException("all broker addresses must have unique ports (found duplicates: %s)".formatted(
+                            brokers.values().stream().filter(hp -> duplicatePorts.contains(hp.port())).map(HostPort::toString).collect(Collectors.joining(","))));
                 }
                 this.brokers = brokers;
             }

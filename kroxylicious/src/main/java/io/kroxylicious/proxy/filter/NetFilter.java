@@ -44,6 +44,11 @@ public interface NetFilter {
         SocketAddress srcAddress();
 
         /**
+         * @return Returns the address of the local connection.
+         */
+        SocketAddress localAddress();
+
+        /**
          * The authorized id, or null if there is no authentication configured for this listener.
          * @return
          */
