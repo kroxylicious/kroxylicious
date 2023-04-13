@@ -48,7 +48,7 @@ public class StaticClusterEndpointProvider implements ClusterEndpointProvider {
         private final Map<Integer, HostPort> brokers;
 
         public StaticClusterEndpointProviderConfig(HostPort bootstrapAddress, Map<Integer, HostPort> brokers) {
-            this.bootstrapAddress = HostPort.parse(bootstrapAddress.toString());
+            this.bootstrapAddress = bootstrapAddress;
 
             if (brokers == null) {
                 this.brokers = Map.of(0, this.bootstrapAddress);
