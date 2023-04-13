@@ -12,6 +12,8 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
 import org.apache.kafka.clients.CommonClientConfigs;
@@ -25,6 +27,7 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.Node;
+import org.apache.kafka.common.TopicPartitionInfo;
 import org.apache.kafka.common.config.SslConfigs;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
@@ -47,6 +50,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 @ExtendWith(KafkaClusterExtension.class)
 public class KrpcFilterIT {
@@ -276,8 +280,7 @@ public class KrpcFilterIT {
 
     @Test
     public void proxyExposesClusterOfTwoBrokers(@BrokerCluster(numBrokers = 2) KafkaCluster cluster) throws Exception {
-        String proxyAddress = "localhost:9192";
-
+        var proxyAddress = "localhost:9192";
         var builder = baseConfigBuilder(proxyAddress, cluster.getBootstrapServers());
         var demo = builder.getVirtualClusters().get("demo");
         var brokerEndpoints = Map.of(0, "localhost:9193", 1, "localhost:9194");
@@ -298,6 +301,36 @@ public class KrpcFilterIT {
                 assertThat(nodes).hasSize(2);
                 var unique = nodes.stream().collect(Collectors.toMap(Node::id, KrpcFilterIT::toAddress));
                 assertThat(unique).containsExactlyInAnyOrderEntriesOf(brokerEndpoints);
+            }
+
+            // Create a topic with one partition on each broker and publish to all of them..
+            // As kafka client must connect to the partition leader, this verifies that kroxylicious is
+            // indeed connecting to all brokers.
+            int numPartitions = 2;
+            try (var admin = Admin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress))) {
+                // create topic and ensure that leaders are on different brokers.
+                admin.createTopics(List.of(new NewTopic(TOPIC_1, numPartitions, (short) 1))).all().get();
+                var topicDescription = admin.describeTopics(List.of(TOPIC_1)).topicNameValues().get(TOPIC_1).get();
+                var leaders = topicDescription.partitions().stream().map(TopicPartitionInfo::leader).collect(Collectors.toSet());
+                assertThat(leaders).hasSize(numPartitions);
+
+                try (var producer = new KafkaProducer<String, String>(Map.of(
+                        ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
+                        ProducerConfig.CLIENT_ID_CONFIG, "myclient",
+                        ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
+                        ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class))) {
+                    for (int partition = 0; partition < numPartitions; partition++) {
+                        try {
+                            var send = producer.send(new ProducerRecord<>(TOPIC_1, partition, "key", "value"));
+                            send.get(10, TimeUnit.SECONDS);
+                        }
+                        catch (TimeoutException e) {
+                            // Need to explicitly close the producer otherwise it will await forever awaiting the in-flight send to complete.
+                            producer.close(Duration.ofSeconds(1));
+                            fail("send for partition %d timed-out (check logs for root cause)".formatted(partition), e);
+                        }
+                    }
+                }
             }
         }
     }
