@@ -10,8 +10,6 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import com.google.common.base.Preconditions;
-
 import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.service.ClusterEndpointProvider;
 import io.kroxylicious.proxy.service.HostPort;
@@ -49,16 +47,19 @@ public class StaticClusterEndpointProvider implements ClusterEndpointProvider {
 
         public StaticClusterEndpointProviderConfig(HostPort bootstrapAddress, Map<Integer, HostPort> brokers) {
             this.bootstrapAddress = bootstrapAddress;
-
             if (brokers == null) {
                 this.brokers = Map.of(0, this.bootstrapAddress);
             }
             else {
-                Preconditions.checkArgument(!brokers.isEmpty(), "requires non-empty map of nodeid to broker address mappings");
+                if (brokers.isEmpty()) {
+                    throw new IllegalArgumentException("requires non-empty map of nodeid to broker address mappings");
+                }
 
                 var duplicateBrokerAddresses = brokers.values().stream().filter(e -> Collections.frequency(brokers.values(), e) > 1).distinct().toList();
-                Preconditions.checkArgument(duplicateBrokerAddresses.isEmpty(), "all broker addresses must be unique (found duplicates: %s)",
-                        duplicateBrokerAddresses.stream().map(HostPort::toString).collect(Collectors.joining(",")));
+                if (!duplicateBrokerAddresses.isEmpty()) {
+                    throw new IllegalArgumentException("all broker addresses must be unique (found duplicates: %s)".formatted(
+                            duplicateBrokerAddresses.stream().map(HostPort::toString).collect(Collectors.joining(","))));
+                }
                 this.brokers = brokers;
             }
         }
