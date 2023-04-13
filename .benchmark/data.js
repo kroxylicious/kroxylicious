@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1681203658275,
+  "lastUpdate": 1681383165139,
   "repoUrl": "https://github.com/kroxylicious/kroxylicious",
   "entries": {
     "kafka producer perf test Benchmark": [
@@ -406,6 +406,43 @@ window.BENCHMARK_DATA = {
           {
             "name": "99th Latency",
             "value": 781,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Robert Young",
+            "username": "robobario",
+            "email": "robeyoun@redhat.com"
+          },
+          "committer": {
+            "name": "Robert Young",
+            "username": "robobario",
+            "email": "robertyoungnz@gmail.com"
+          },
+          "id": "88bfa9f750f56ae5e8f54e3107f393488fcad779",
+          "message": "Wait for services in performance action\n\nWhy:\nWe saw a failure where kroxylicious was never started due to trying to\nreference a non-existent JAR. Because this was backgrounded it didn't\ncause the action to fail and the kafka producer performance script will\nretry forever, so the action eventually timed out after 6 hours. We want\nto fail faster to conserve action time and expose the issue.",
+          "timestamp": "2023-04-11T21:26:19Z",
+          "url": "https://github.com/kroxylicious/kroxylicious/commit/88bfa9f750f56ae5e8f54e3107f393488fcad779"
+        },
+        "date": 1681383164377,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "AVG Latency",
+            "value": 32.92,
+            "unit": "ms"
+          },
+          {
+            "name": "95th Latency",
+            "value": 217,
+            "unit": "ms"
+          },
+          {
+            "name": "99th Latency",
+            "value": 476,
             "unit": "ms"
           }
         ]
