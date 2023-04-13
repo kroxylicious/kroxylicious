@@ -5,8 +5,6 @@
  */
 package io.kroxylicious.proxy.internal.codec;
 
-import java.util.List;
-
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
@@ -14,8 +12,6 @@ import org.apache.kafka.common.protocol.Readable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.micrometer.core.instrument.Metrics;
-import io.micrometer.core.instrument.Tag;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 
@@ -23,11 +19,7 @@ import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.Frame;
 import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
 import io.kroxylicious.proxy.frame.RequestFrame;
-
-import static io.kroxylicious.proxy.internal.util.Metrics.FLOWING_UPSTREAM;
-import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_INBOUND_DOWNSTREAM_DECODED_MESSAGES;
-import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_INBOUND_DOWNSTREAM_MESSAGES;
-import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_REQUEST_SIZE_BYTES;
+import io.kroxylicious.proxy.internal.util.Metrics;
 
 public class KafkaRequestDecoder extends KafkaMessageDecoder {
 
@@ -64,19 +56,15 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
 
         RequestHeaderData header = null;
         final ByteBufAccessorImpl accessor;
-        Metrics.counter(KROXYLICIOUS_INBOUND_DOWNSTREAM_MESSAGES, List.of(Tag.of("flowing", "downstream"))).increment();
+        Metrics.inboundDownstreamMessagesCounter().increment();
         var decodeRequest = decodePredicate.shouldDecodeRequest(apiKey, apiVersion);
         LOGGER.debug("Decode {}/v{} request? {}, Predicate {} ", apiKey, apiVersion, decodeRequest, decodePredicate);
         boolean decodeResponse = decodePredicate.shouldDecodeResponse(apiKey, apiVersion);
         LOGGER.debug("Decode {}/v{} response? {}, Predicate {}", apiKey, apiVersion, decodeResponse, decodePredicate);
         short headerVersion = apiKey.requestHeaderVersion(apiVersion);
         if (decodeRequest) {
-            Metrics.counter(KROXYLICIOUS_INBOUND_DOWNSTREAM_DECODED_MESSAGES, List.of(Tag.of("flowing", "downstream"))).increment();
-            final List<Tag> LIST_OF_TAGS = List.of(
-                    Tag.of("ApiKey", apiKey.name()),
-                    Tag.of("ApiVersion", String.valueOf(apiVersion)),
-                    FLOWING_UPSTREAM);
-            Metrics.summary(KROXYLICIOUS_REQUEST_SIZE_BYTES, LIST_OF_TAGS).record(length);
+            Metrics.inboundDownstreamDecodedMessagesCounter().increment();
+            Metrics.requestSizeBytesUpstreamSummary(apiKey, apiVersion).record(length);
             if (log().isTraceEnabled()) { // avoid boxing
                 log().trace("{}: headerVersion {}", ctx, headerVersion);
             }

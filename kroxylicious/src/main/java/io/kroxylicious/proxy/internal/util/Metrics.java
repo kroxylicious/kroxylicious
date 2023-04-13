@@ -6,22 +6,55 @@
 
 package io.kroxylicious.proxy.internal.util;
 
+import java.util.List;
+
+import org.apache.kafka.common.protocol.ApiKeys;
+
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.Tag;
+
+import static io.micrometer.core.instrument.Metrics.counter;
+import static io.micrometer.core.instrument.Metrics.summary;
 
 public class Metrics {
 
     // creating a constant for all Metrics in the one place so we can easily see what metrics there are
 
-    public static final String KROXYLICIOUS_INBOUND_DOWNSTREAM_MESSAGES = "kroxylicious_inbound_downstream_messages";
+    private static final String KROXYLICIOUS_INBOUND_DOWNSTREAM_MESSAGES = "kroxylicious_inbound_downstream_messages";
 
-    public static final String KROXYLICIOUS_INBOUND_DOWNSTREAM_DECODED_MESSAGES = "kroxylicious_inbound_downstream_decoded_messages";
+    private static final String KROXYLICIOUS_INBOUND_DOWNSTREAM_DECODED_MESSAGES = "kroxylicious_inbound_downstream_decoded_messages";
 
-    public static final String KROXYLICIOUS_REQUEST_SIZE_BYTES = "kroxylicious_request_size_bytes";
+    private static final String KROXYLICIOUS_REQUEST_SIZE_BYTES = "kroxylicious_request_size_bytes";
 
-    public static final String FLOWING_TAG = "flowing";
+    private static final String FLOWING_TAG = "flowing";
 
-    public static final Tag FLOWING_UPSTREAM = Tag.of(FLOWING_TAG, "upstream");
+    private static final Tag FLOWING_UPSTREAM = Tag.of(FLOWING_TAG, "upstream");
 
-    public static final Tag FLOWING_DOWNSTREAM = Tag.of(FLOWING_TAG, "downstream");
+    private static final Tag FLOWING_DOWNSTREAM = Tag.of(FLOWING_TAG, "downstream");
+
+    public static Counter inboundDownstreamMessagesCounter() {
+        return counter(KROXYLICIOUS_INBOUND_DOWNSTREAM_MESSAGES, List.of(FLOWING_DOWNSTREAM));
+    }
+
+    public static Counter inboundDownstreamDecodedMessagesCounter() {
+        return counter(KROXYLICIOUS_INBOUND_DOWNSTREAM_DECODED_MESSAGES, List.of(FLOWING_DOWNSTREAM));
+    }
+
+    public static DistributionSummary requestSizeBytesUpstreamSummary(ApiKeys apiKey, short apiVersion) {
+        return requestSizeBytesSummary(apiKey, apiVersion, FLOWING_UPSTREAM);
+    }
+
+    public static DistributionSummary requestSizeBytesDownstreamSummary(ApiKeys apiKey, short apiVersion) {
+        return requestSizeBytesSummary(apiKey, apiVersion, FLOWING_DOWNSTREAM);
+    }
+
+    private static DistributionSummary requestSizeBytesSummary(ApiKeys apiKey, short apiVersion, Tag flowing) {
+        List<Tag> tags = List.of(
+                Tag.of("ApiKey", apiKey.name()),
+                Tag.of("ApiVersion", String.valueOf(apiVersion)),
+                flowing);
+        return summary(KROXYLICIOUS_REQUEST_SIZE_BYTES, tags);
+    }
 
 }

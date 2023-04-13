@@ -5,8 +5,6 @@
  */
 package io.kroxylicious.proxy.internal.codec;
 
-import java.util.List;
-
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
@@ -14,8 +12,6 @@ import org.apache.kafka.common.protocol.Readable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.micrometer.core.instrument.Metrics;
-import io.micrometer.core.instrument.Tag;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 
@@ -25,9 +21,7 @@ import io.kroxylicious.proxy.frame.Frame;
 import io.kroxylicious.proxy.frame.OpaqueFrame;
 import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
 import io.kroxylicious.proxy.internal.InternalResponseFrame;
-
-import static io.kroxylicious.proxy.internal.util.Metrics.FLOWING_DOWNSTREAM;
-import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_REQUEST_SIZE_BYTES;
+import io.kroxylicious.proxy.internal.util.Metrics;
 
 public class KafkaResponseDecoder extends KafkaMessageDecoder {
 
@@ -76,11 +70,7 @@ public class KafkaResponseDecoder extends KafkaMessageDecoder {
             ApiMessage body = BodyDecoder.decodeResponse(apiKey, apiVersion, accessor);
             log().trace("{}: Body: {}", ctx, body);
             KrpcFilter recipient = correlation.recipient();
-            final List<Tag> LIST_OF_TAGS = List.of(
-                    Tag.of("ApiKey", apiKey.name()),
-                    Tag.of("ApiVersion", String.valueOf(apiVersion)),
-                    FLOWING_DOWNSTREAM);
-            Metrics.summary(KROXYLICIOUS_REQUEST_SIZE_BYTES, LIST_OF_TAGS).record(length);
+            Metrics.requestSizeBytesDownstreamSummary(apiKey, apiVersion).record(length);
             if (recipient == null) {
                 frame = new DecodedResponseFrame<>(apiVersion, correlationId, header, body);
             }
