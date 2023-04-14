@@ -10,15 +10,16 @@
         <module name="kroxylicious-multitenant" />
         <module name="kroxylicious.main" />
         <module name="integrationtests.main" />
+        <module name="kroxylicious-test-tools" />
         <module name="kroxylicious-api" />
+        <module name="kroxylicious" />
+        <module name="integrationtests" />
+        <module name="integrationtests.test" />
         <module name="kroxylicious-krpc-plugin.main" />
         <module name="kroxylicious.test" />
-        <module name="kroxylicious" />
         <module name="kroxylicious-filter-api" />
         <module name="kroxylicious-krpc-plugin" />
-        <module name="integrationtests" />
         <module name="kroxylicious-krpc-plugin.test" />
-        <module name="integrationtests.test" />
       </profile>
     </annotationProcessing>
   </component>
@@ -35,6 +36,7 @@
       <module name="kroxylicious-krpc-plugin.test" options="-parameters" />
       <module name="kroxylicious-multitenant" options="-parameters" />
       <module name="kroxylicious-parent" options="-parameters" />
+      <module name="kroxylicious-test-tools" options="-parameters" />
       <module name="kroxylicious.main" options="-parameters" />
       <module name="kroxylicious.test" options="-parameters" />
     </option>
