@@ -29,23 +29,6 @@ public record HostPort(String host, int port) {
     }
 
     @Override
-    public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (o == null || getClass() != o.getClass()) {
-            return false;
-        }
-        var hostPort = (HostPort) o;
-        return port == hostPort.port && host.equals(hostPort.host);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(host, port);
-    }
-
-    @Override
     public String toString() {
         return host + ":" + port;
     }
