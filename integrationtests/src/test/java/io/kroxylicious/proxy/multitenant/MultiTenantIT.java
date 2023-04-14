@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -32,6 +33,7 @@ import org.apache.kafka.clients.admin.ListTopicsResult;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.clients.admin.TopicListing;
+import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRebalanceListener;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -67,12 +69,16 @@ import io.kroxylicious.net.IntegrationTestInetAddressResolverProvider;
 import io.kroxylicious.proxy.KroxyConfig;
 import io.kroxylicious.proxy.VirtualClusterBuilder;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
+import io.kroxylicious.testing.kafka.clients.CloseableAdmin;
+import io.kroxylicious.testing.kafka.clients.CloseableConsumer;
+import io.kroxylicious.testing.kafka.clients.CloseableProducer;
 import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
 import static io.kroxylicious.proxy.Utils.startProxy;
 import static org.assertj.core.api.Assertions.allOf;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -96,6 +102,8 @@ public class MultiTenantIT {
     private static final String TENANT2_PROXY_ADDRESS = IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName("bar", 9193);
     private static final String MY_KEY = "my-key";
     private static final String MY_VALUE = "my-value";
+    private static final long FUTURE_TIMEOUT_SECONDS = 5L;
+
     private TestInfo testInfo;
     private KeytoolCertificateGenerator certificateGenerator;
     private Path clientTrustStore;
@@ -110,8 +118,7 @@ public class MultiTenantIT {
         this.certificateGenerator.generateSelfSignedCertificateEntry("test@redhat.com", IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName("*"),
                 "KI", "RedHat", null, null, "US");
         this.clientTrustStore = certsDirectory.resolve("kafka.truststore.jks");
-        this.certificateGenerator.generateTrustStore(this.certificateGenerator.getCertFilePath(), "client",
-                clientTrustStore.toAbsolutePath().toString());
+        this.certificateGenerator.generateTrustStore(this.certificateGenerator.getCertFilePath(), "client", clientTrustStore.toAbsolutePath().toString());
     }
 
     @Test
@@ -119,7 +126,7 @@ public class MultiTenantIT {
         String config = getConfig(cluster);
 
         try (var proxy = startProxy(config)) {
-            try (var admin = Admin.create(commonConfig(TENANT1_PROXY_ADDRESS, Map.of()))) {
+            try (var admin = CloseableAdmin.create(commonConfig(TENANT1_PROXY_ADDRESS, Map.of()))) {
                 var created = createTopics(admin, List.of(NEW_TOPIC_1, NEW_TOPIC_2));
 
                 ListTopicsResult listTopicsResult = admin.listTopics();
@@ -127,11 +134,9 @@ public class MultiTenantIT {
                 assertEquals(2, topicMap.size());
                 assertThat(topicMap).hasSize(2);
                 assertThat(topicMap).hasEntrySatisfying(TOPIC_1,
-                        allOf(matches(TopicListing::name, TOPIC_1),
-                                matches(TopicListing::topicId, created.topicId(TOPIC_1).get())));
+                        allOf(matches(TopicListing::name, TOPIC_1), matches(TopicListing::topicId, created.topicId(TOPIC_1).get())));
                 assertThat(topicMap).hasEntrySatisfying(TOPIC_1,
-                        allOf(matches(TopicListing::name, TOPIC_1),
-                                matches(TopicListing::topicId, created.topicId(TOPIC_1).get())));
+                        allOf(matches(TopicListing::name, TOPIC_1), matches(TopicListing::topicId, created.topicId(TOPIC_1).get())));
                 assertThat(topicMap).hasEntrySatisfying(TOPIC_2, matches(TopicListing::name, TOPIC_2));
 
                 // Delete by name
@@ -151,14 +156,13 @@ public class MultiTenantIT {
     public void describeTopic(KafkaCluster cluster) throws Exception {
         String config = getConfig(cluster);
         try (var proxy = startProxy(config)) {
-            try (var admin = Admin.create(commonConfig(TENANT1_PROXY_ADDRESS, Map.of()))) {
+            try (var admin = CloseableAdmin.create(commonConfig(TENANT1_PROXY_ADDRESS, Map.of()))) {
                 var created = createTopics(admin, List.of(NEW_TOPIC_1));
 
                 var describeTopicsResult = admin.describeTopics(TopicNameCollection.ofTopicNames(List.of(TOPIC_1)));
                 var topicMap = describeTopicsResult.allTopicNames().get();
                 assertThat(topicMap).hasEntrySatisfying(TOPIC_1,
-                        allOf(matches(TopicDescription::name, TOPIC_1),
-                                matches(TopicDescription::topicId, created.topicId(TOPIC_1).get())));
+                        allOf(matches(TopicDescription::name, TOPIC_1), matches(TopicDescription::topicId, created.topicId(TOPIC_1).get())));
             }
         }
     }
@@ -189,8 +193,7 @@ public class MultiTenantIT {
         try (var proxy = startProxy(config)) {
             var groupId = testInfo.getDisplayName();
             createTopics(TENANT1_PROXY_ADDRESS, List.of(NEW_TOPIC_1));
-            produceAndVerify(TENANT1_PROXY_ADDRESS,
-                    Stream.of(new ProducerRecord<>(TOPIC_1, MY_KEY, "1"), new ProducerRecord<>(TOPIC_1, MY_KEY, "2"), inCaseOfFailure()));
+            produceAndVerify(TENANT1_PROXY_ADDRESS, Stream.of(new ProducerRecord<>(TOPIC_1, MY_KEY, "1"), new ProducerRecord<>(TOPIC_1, MY_KEY, "2"), inCaseOfFailure()));
             consumeAndVerify(TENANT1_PROXY_ADDRESS, TOPIC_1, groupId, MY_KEY, "1", true);
             consumeAndVerify(TENANT1_PROXY_ADDRESS, TOPIC_1, groupId, MY_KEY, "2", true);
         }
@@ -199,12 +202,10 @@ public class MultiTenantIT {
     @Test
     public void alterOffsetCommit(KafkaCluster cluster) throws Exception {
         String config = getConfig(cluster);
-        try (var proxy = startProxy(config); var admin = Admin.create(commonConfig(TENANT1_PROXY_ADDRESS, Map.of()))) {
+        try (var proxy = startProxy(config); var admin = CloseableAdmin.create(commonConfig(TENANT1_PROXY_ADDRESS, Map.of()))) {
             var groupId = testInfo.getDisplayName();
             createTopics(TENANT1_PROXY_ADDRESS, List.of(NEW_TOPIC_1));
-            produceAndVerify(TENANT1_PROXY_ADDRESS,
-                    Stream.of(new ProducerRecord<>(TOPIC_1, MY_KEY, "1"), new ProducerRecord<>(TOPIC_1, MY_KEY, "2"),
-                            inCaseOfFailure()));
+            produceAndVerify(TENANT1_PROXY_ADDRESS, Stream.of(new ProducerRecord<>(TOPIC_1, MY_KEY, "1"), new ProducerRecord<>(TOPIC_1, MY_KEY, "2"), inCaseOfFailure()));
             consumeAndVerify(TENANT1_PROXY_ADDRESS, TOPIC_1, groupId, MY_KEY, "1", true);
             var rememberedOffsets = admin.listConsumerGroupOffsets(groupId).partitionsToOffsetAndMetadata().get();
             consumeAndVerify(TENANT1_PROXY_ADDRESS, TOPIC_1, groupId, MY_KEY, "2", true);
@@ -217,11 +218,10 @@ public class MultiTenantIT {
     @Test
     public void deleteConsumerGroupOffsets(KafkaCluster cluster) throws Exception {
         String config = getConfig(cluster);
-        try (var proxy = startProxy(config); var admin = Admin.create(commonConfig(TENANT1_PROXY_ADDRESS, Map.of()))) {
+        try (var proxy = startProxy(config); var admin = CloseableAdmin.create(commonConfig(TENANT1_PROXY_ADDRESS, Map.of()))) {
             var groupId = testInfo.getDisplayName();
             createTopics(TENANT1_PROXY_ADDRESS, List.of(NEW_TOPIC_1));
-            produceAndVerify(TENANT1_PROXY_ADDRESS,
-                    Stream.of(new ProducerRecord<>(TOPIC_1, MY_KEY, "1"), inCaseOfFailure()));
+            produceAndVerify(TENANT1_PROXY_ADDRESS, Stream.of(new ProducerRecord<>(TOPIC_1, MY_KEY, "1"), inCaseOfFailure()));
             consumeAndVerify(TENANT1_PROXY_ADDRESS, TOPIC_1, groupId, MY_KEY, "1", true);
 
             admin.deleteConsumerGroupOffsets(groupId, Set.of(new TopicPartition(NEW_TOPIC_1.name(), 0))).all().get();
@@ -292,7 +292,7 @@ public class MultiTenantIT {
     }
 
     private void verifyConsumerGroupsWithDescribe(String proxyAddress, Set<String> expectedPresent, Set<String> expectedAbsent) throws Exception {
-        try (var admin = Admin.create(commonConfig(proxyAddress, Map.of()))) {
+        try (var admin = CloseableAdmin.create(commonConfig(proxyAddress, Map.of()))) {
             var describedGroups = admin.describeConsumerGroups(Stream.concat(expectedPresent.stream(), expectedAbsent.stream()).toList()).all().get();
             assertThat(describedGroups).hasSize(expectedAbsent.size() + expectedPresent.size());
 
@@ -313,13 +313,11 @@ public class MultiTenantIT {
     }
 
     private void runConsumerInOrderToCreateGroup(String proxyAddress, String groupId, NewTopic topic, ConsumerStyle consumerStyle) throws Exception {
-        try (var consumer = new KafkaConsumer<String, String>(commonConfig(proxyAddress, Map.of(
-                ConsumerConfig.GROUP_ID_CONFIG, groupId,
-                ConsumerConfig.ALLOW_AUTO_CREATE_TOPICS_CONFIG, Boolean.FALSE.toString(),
-                ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, Boolean.FALSE.toString(),
-                ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, OffsetResetStrategy.EARLIEST.toString(),
-                ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
-                ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class)))) {
+        try (var consumer = CloseableConsumer.wrap(new KafkaConsumer<String, String>(commonConfig(proxyAddress,
+                Map.of(ConsumerConfig.GROUP_ID_CONFIG, groupId, ConsumerConfig.ALLOW_AUTO_CREATE_TOPICS_CONFIG, Boolean.FALSE.toString(),
+                        ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, Boolean.FALSE.toString(), ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
+                        OffsetResetStrategy.EARLIEST.toString(), ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
+                        ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class))))) {
 
             if (consumerStyle == ConsumerStyle.ASSIGN) {
                 consumer.assign(List.of(new TopicPartition(topic.name(), 0)));
@@ -336,28 +334,27 @@ public class MultiTenantIT {
     }
 
     private void verifyConsumerGroupsWithList(String proxyAddress, Set<String> expectedGroupIds) throws Exception {
-        try (var admin = Admin.create(commonConfig(proxyAddress, Map.of()))) {
+        try (var admin = CloseableAdmin.create(commonConfig(proxyAddress, Map.of()))) {
             var groups = admin.listConsumerGroups().all().get().stream().map(ConsumerGroupListing::groupId).toList();
             assertThat(groups).containsExactlyInAnyOrderElementsOf(expectedGroupIds);
         }
     }
 
     private void verifyTenant(String address, String... expectedTopics) throws Exception {
-        try (var admin = Admin.create(commonConfig(address, Map.of()))) {
+        try (var admin = CloseableAdmin.create(commonConfig(address, Map.of()))) {
 
             var listTopicsResult = admin.listTopics();
 
             var topicListMap = listTopicsResult.namesToListings().get();
             assertEquals(expectedTopics.length, topicListMap.size());
-            Arrays.stream(expectedTopics).forEach(
-                    expectedTopic -> assertThat(topicListMap).hasEntrySatisfying(expectedTopic,
-                            allOf(matches(TopicListing::name, expectedTopic))));
+            Arrays.stream(expectedTopics)
+                    .forEach(expectedTopic -> assertThat(topicListMap).hasEntrySatisfying(expectedTopic, allOf(matches(TopicListing::name, expectedTopic))));
 
             var describeTopicsResult = admin.describeTopics(TopicNameCollection.ofTopicNames(Arrays.stream(expectedTopics).toList()));
             var topicDescribeMap = describeTopicsResult.allTopicNames().get();
             assertEquals(expectedTopics.length, topicDescribeMap.size());
-            Arrays.stream(expectedTopics).forEach(expectedTopic -> assertThat(topicDescribeMap).hasEntrySatisfying(expectedTopic,
-                    allOf(matches(TopicDescription::name, expectedTopic))));
+            Arrays.stream(expectedTopics)
+                    .forEach(expectedTopic -> assertThat(topicDescribeMap).hasEntrySatisfying(expectedTopic, allOf(matches(TopicDescription::name, expectedTopic))));
         }
     }
 
@@ -366,14 +363,12 @@ public class MultiTenantIT {
     }
 
     private void consumeAndVerify(String address, String topicName, String groupId, Deque<Predicate<ConsumerRecord<String, String>>> expected, boolean offsetCommit) {
-        try (var consumer = new KafkaConsumer<String, String>(commonConfig(address, Map.of(
-                ConsumerConfig.GROUP_ID_CONFIG, groupId,
-                ConsumerConfig.ALLOW_AUTO_CREATE_TOPICS_CONFIG, Boolean.FALSE.toString(),
-                ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, Boolean.FALSE.toString(),
-                ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, OffsetResetStrategy.EARLIEST.toString(),
-                ConsumerConfig.MAX_POLL_RECORDS_CONFIG, String.format("%d", expected.size()),
-                ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
-                ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class)))) {
+        try (var consumer = CloseableConsumer.wrap(new KafkaConsumer<String, String>(commonConfig(address,
+                Map.of(ConsumerConfig.GROUP_ID_CONFIG, groupId, ConsumerConfig.ALLOW_AUTO_CREATE_TOPICS_CONFIG, Boolean.FALSE.toString(),
+                        ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, Boolean.FALSE.toString(), ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
+                        OffsetResetStrategy.EARLIEST.toString(), ConsumerConfig.MAX_POLL_RECORDS_CONFIG, String.format("%d", expected.size()),
+                        ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class, ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
+                        StringDeserializer.class))))) {
 
             var topicPartitions = List.of(new TopicPartition(topicName, 0));
             consumer.assign(topicPartitions);
@@ -400,18 +395,17 @@ public class MultiTenantIT {
 
     private void produceAndVerify(String address, Stream<ProducerRecord<String, String>> records) throws Exception {
 
-        try (var producer = new KafkaProducer<String, String>(commonConfig(address, Map.of(
-                ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
-                ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
-                ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000)))) {
+        try (var producer = CloseableProducer.wrap(new KafkaProducer<String, String>(commonConfig(address,
+                Map.of(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class, ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
+                        ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000))))) {
 
             records.forEach(rec -> {
-                RecordMetadata recordMetadata;
+                RecordMetadata recordMetadata = null;
                 try {
-                    recordMetadata = producer.send(rec).get();
+                    recordMetadata = producer.send(rec).get(FUTURE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
                 }
                 catch (Exception e) {
-                    throw new RuntimeException(e);
+                    fail("Caught: %s producing to %s", e.getMessage(), rec.topic());
                 }
                 assertNotNull(recordMetadata);
                 assertNotNull(rec.topic(), recordMetadata.topic());
@@ -421,7 +415,7 @@ public class MultiTenantIT {
     }
 
     private void createTopics(String address, List<NewTopic> topics) throws Exception {
-        try (var admin = Admin.create(commonConfig(address, Map.of()))) {
+        try (var admin = CloseableAdmin.create(commonConfig(address, Map.of()))) {
             createTopics(admin, topics);
         }
     }
@@ -429,20 +423,19 @@ public class MultiTenantIT {
     private static CreateTopicsResult createTopics(Admin admin, List<NewTopic> topics) throws Exception {
         var created = admin.createTopics(topics);
         assertEquals(topics.size(), created.values().size());
-        created.all().get();
+        created.all().get(FUTURE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
         return created;
     }
 
     private DeleteTopicsResult deleteTopics(String address, TopicCollection topics) throws Exception {
-        try (var admin = Admin.create(commonConfig(
-                address, Map.of()))) {
+        try (var admin = CloseableAdmin.create(commonConfig(address, Map.of()))) {
             return deleteTopics(admin, topics);
         }
     }
 
     private DeleteTopicsResult deleteTopics(Admin admin, TopicCollection topics) throws Exception {
         var deleted = admin.deleteTopics(topics);
-        deleted.all().get();
+        deleted.all().get(FUTURE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
         return deleted;
     }
 
@@ -511,9 +504,9 @@ public class MultiTenantIT {
 
     private static class PartitionAssignmentAwaitingRebalanceListener<K, V> implements ConsumerRebalanceListener {
         private final AtomicBoolean assigned = new AtomicBoolean();
-        private final KafkaConsumer<K, V> consumer;
+        private final Consumer<K, V> consumer;
 
-        PartitionAssignmentAwaitingRebalanceListener(KafkaConsumer<K, V> consumer) {
+        PartitionAssignmentAwaitingRebalanceListener(Consumer<K, V> consumer) {
             this.consumer = consumer;
         }
 
