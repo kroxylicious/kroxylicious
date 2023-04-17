@@ -64,7 +64,7 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
         short headerVersion = apiKey.requestHeaderVersion(apiVersion);
         if (decodeRequest) {
             Metrics.inboundDownstreamDecodedMessagesCounter().increment();
-            Metrics.requestSizeBytesUpstreamSummary(apiKey, apiVersion).record(length);
+            Metrics.payloadSizeBytesUpstreamSummary(apiKey, apiVersion).record(length);
             if (log().isTraceEnabled()) { // avoid boxing
                 log().trace("{}: headerVersion {}", ctx, headerVersion);
             }
