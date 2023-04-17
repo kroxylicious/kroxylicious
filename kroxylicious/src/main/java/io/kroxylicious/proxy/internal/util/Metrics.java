@@ -25,7 +25,7 @@ public class Metrics {
 
     private static final String KROXYLICIOUS_INBOUND_DOWNSTREAM_DECODED_MESSAGES = "kroxylicious_inbound_downstream_decoded_messages";
 
-    private static final String KROXYLICIOUS_REQUEST_SIZE_BYTES = "kroxylicious_request_size_bytes";
+    private static final String KROXYLICIOUS_PAYLOAD_SIZE_BYTES = "kroxylicious_payload_size_bytes";
 
     private static final String FLOWING_TAG = "flowing";
 
@@ -41,20 +41,20 @@ public class Metrics {
         return counter(KROXYLICIOUS_INBOUND_DOWNSTREAM_DECODED_MESSAGES, List.of(FLOWING_DOWNSTREAM));
     }
 
-    public static DistributionSummary requestSizeBytesUpstreamSummary(ApiKeys apiKey, short apiVersion) {
-        return requestSizeBytesSummary(apiKey, apiVersion, FLOWING_UPSTREAM);
+    public static DistributionSummary payloadSizeBytesUpstreamSummary(ApiKeys apiKey, short apiVersion) {
+        return payloadSizeBytesSummary(apiKey, apiVersion, FLOWING_UPSTREAM);
     }
 
-    public static DistributionSummary requestSizeBytesDownstreamSummary(ApiKeys apiKey, short apiVersion) {
-        return requestSizeBytesSummary(apiKey, apiVersion, FLOWING_DOWNSTREAM);
+    public static DistributionSummary payloadSizeBytesDownstreamSummary(ApiKeys apiKey, short apiVersion) {
+        return payloadSizeBytesSummary(apiKey, apiVersion, FLOWING_DOWNSTREAM);
     }
 
-    private static DistributionSummary requestSizeBytesSummary(ApiKeys apiKey, short apiVersion, Tag flowing) {
+    private static DistributionSummary payloadSizeBytesSummary(ApiKeys apiKey, short apiVersion, Tag flowing) {
         List<Tag> tags = List.of(
                 Tag.of("ApiKey", apiKey.name()),
                 Tag.of("ApiVersion", String.valueOf(apiVersion)),
                 flowing);
-        return summary(KROXYLICIOUS_REQUEST_SIZE_BYTES, tags);
+        return summary(KROXYLICIOUS_PAYLOAD_SIZE_BYTES, tags);
     }
 
 }
