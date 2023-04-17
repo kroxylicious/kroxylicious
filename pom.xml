@@ -48,7 +48,7 @@
         <assertj-core.version>3.24.2</assertj-core.version>
         <mockito.version>5.2.0</mockito.version>
         <slf4j.version>2.0.7</slf4j.version>
-        <micrometer.version>1.10.5</micrometer.version>
+        <micrometer.version>1.10.6</micrometer.version>
         <kroxy.extension.version>0.1</kroxy.extension.version>
         <zjsonpatch.version>0.4.14</zjsonpatch.version>
         <sundr-builder-annotations.version>0.94.0</sundr-builder-annotations.version>
