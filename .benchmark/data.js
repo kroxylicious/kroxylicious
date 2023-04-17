@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1681383165139,
+  "lastUpdate": 1681717154905,
   "repoUrl": "https://github.com/kroxylicious/kroxylicious",
   "entries": {
     "kafka producer perf test Benchmark": [
@@ -443,6 +443,43 @@ window.BENCHMARK_DATA = {
           {
             "name": "99th Latency",
             "value": 476,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Sam Barker",
+            "username": "SamBarker",
+            "email": "sam@quadrocket.co.uk"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "9e537ed04b80f62017d50d9929f784dd7435eb26",
+          "message": "Merge pull request #274 from kroxylicious/dependabot/maven/org.mockito-mockito-bom-5.3.0\n\nBump mockito-bom from 5.2.0 to 5.3.0",
+          "timestamp": "2023-04-17T04:51:52Z",
+          "url": "https://github.com/kroxylicious/kroxylicious/commit/9e537ed04b80f62017d50d9929f784dd7435eb26"
+        },
+        "date": 1681717153979,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "AVG Latency",
+            "value": 10.9,
+            "unit": "ms"
+          },
+          {
+            "name": "95th Latency",
+            "value": 5,
+            "unit": "ms"
+          },
+          {
+            "name": "99th Latency",
+            "value": 444,
             "unit": "ms"
           }
         ]
