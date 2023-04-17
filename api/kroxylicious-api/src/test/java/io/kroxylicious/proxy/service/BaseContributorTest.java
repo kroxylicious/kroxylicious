@@ -8,10 +8,10 @@ package io.kroxylicious.proxy.service;
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.proxy.config.BaseConfig;
-import io.kroxylicious.proxy.config.ProxyConfig;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
 
 class BaseContributorTest {
     static class LongConfig extends BaseConfig {
@@ -20,13 +20,6 @@ class BaseContributorTest {
     }
 
     static class AnotherConfig extends BaseConfig {
-    }
-
-    static class LongProxyConfig implements ProxyConfig {
-        @Override
-        public String address() {
-            return "3";
-        }
     }
 
     @Test
@@ -45,7 +38,7 @@ class BaseContributorTest {
         builder.add("one", () -> 1L);
         BaseContributor<Long> baseContributor = new BaseContributor<>(builder) {
         };
-        Long instance = baseContributor.getInstance("one", new LongProxyConfig(), new BaseConfig());
+        Long instance = baseContributor.getInstance("one", mock(ClusterEndpointConfigProvider.class), new BaseConfig());
         assertThat(instance).isEqualTo(1L);
     }
 
@@ -65,7 +58,7 @@ class BaseContributorTest {
         builder.add("fromBaseConfig", LongConfig.class, baseConfig -> baseConfig.value);
         BaseContributor<Long> baseContributor = new BaseContributor<>(builder) {
         };
-        Long instance = baseContributor.getInstance("fromBaseConfig", new LongProxyConfig(), new LongConfig());
+        Long instance = baseContributor.getInstance("fromBaseConfig", mock(ClusterEndpointConfigProvider.class), new LongConfig());
         assertThat(instance).isEqualTo(2L);
     }
 
@@ -77,18 +70,8 @@ class BaseContributorTest {
         };
         AnotherConfig incompatibleConfig = new AnotherConfig();
         assertThatThrownBy(() -> {
-            baseContributor.getInstance("fromBaseConfig", new LongProxyConfig(), incompatibleConfig);
+            baseContributor.getInstance("fromBaseConfig", mock(ClusterEndpointConfigProvider.class), incompatibleConfig);
         }).isInstanceOf(IllegalArgumentException.class);
-    }
-
-    @Test
-    public void testUsingProxyConfig() {
-        BaseContributor.BaseContributorBuilder<Long> builder = BaseContributor.builder();
-        builder.add("fromProxyConfig", LongConfig.class, (proxyConfig, longConfig) -> Long.valueOf(proxyConfig.address()));
-        BaseContributor<Long> baseContributor = new BaseContributor<>(builder) {
-        };
-        Long instance = baseContributor.getInstance("fromProxyConfig", new LongProxyConfig(), new LongConfig());
-        assertThat(instance).isEqualTo(3L);
     }
 
 }

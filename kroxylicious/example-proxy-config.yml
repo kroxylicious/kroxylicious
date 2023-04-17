@@ -5,16 +5,19 @@
 #
 
 ---
-proxy:
-  address: localhost:9192
-  logNetwork: false
-  logFrames: false
 adminHttp:
   endpoints:
     prometheus: {}
-clusters:
+virtualClusters:
   demo:
-    bootstrap_servers: localhost:9092
+    targetCluster:
+      bootstrap_servers: localhost:9092
+    clusterEndpointConfigProvider:
+      type: StaticCluster
+      config:
+        bootstrapAddress: localhost:9192
+    logNetwork: false
+    logFrames: false
 filters:
 - type: ApiVersions
 - type: BrokerAddress

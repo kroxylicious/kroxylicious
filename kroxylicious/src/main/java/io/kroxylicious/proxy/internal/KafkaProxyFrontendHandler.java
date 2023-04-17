@@ -446,6 +446,11 @@ public class KafkaProxyFrontendHandler
     }
 
     @Override
+    public SocketAddress localAddress() {
+        return inboundCtx.channel().localAddress();
+    }
+
+    @Override
     public String authorizedId() {
         return authentication != null ? authentication.authorizationId() : null;
     }

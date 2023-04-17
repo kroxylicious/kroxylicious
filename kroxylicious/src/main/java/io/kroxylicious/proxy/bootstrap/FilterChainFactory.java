@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.bootstrap;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.internal.filter.FilterContributorManager;
+import io.kroxylicious.proxy.service.ClusterEndpointConfigProvider;
 
 /**
  * Abstracts the creation of a chain of filter instances, hiding the configuration
@@ -17,9 +18,11 @@ import io.kroxylicious.proxy.internal.filter.FilterContributorManager;
 public class FilterChainFactory {
 
     private final Configuration config;
+    private final ClusterEndpointConfigProvider clusterEndpointConfigProvider;
 
-    public FilterChainFactory(Configuration config) {
+    public FilterChainFactory(Configuration config, ClusterEndpointConfigProvider clusterEndpointConfigProvider) {
         this.config = config;
+        this.clusterEndpointConfigProvider = clusterEndpointConfigProvider;
     }
 
     /**
@@ -31,7 +34,7 @@ public class FilterChainFactory {
 
         return config.filters()
                 .stream()
-                .map(f -> filterContributorManager.getFilter(f.type(), config.proxy(), f.config()))
+                .map(f -> filterContributorManager.getFilter(f.type(), clusterEndpointConfigProvider, f.config()))
                 .toArray(KrpcFilter[]::new);
     }
 }
