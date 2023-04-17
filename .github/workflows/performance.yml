@@ -113,6 +113,7 @@ jobs:
           auto-push: true
           alert-threshold: '150%'
           comment-on-alert: true
+          summary-always: true
           fail-on-alert: true
           alert-comment-cc-users: '@kroxylicious/developers'
 
@@ -202,5 +203,6 @@ jobs:
           auto-push: true
           alert-threshold: '150%'
           comment-on-alert: false
+          summary-always: true
           fail-on-alert: true
           alert-comment-cc-users: '@kroxylicious/developers'
