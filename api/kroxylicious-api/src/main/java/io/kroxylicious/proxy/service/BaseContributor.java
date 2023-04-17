@@ -37,28 +37,28 @@ public abstract class BaseContributor<T> implements Contributor<T> {
     }
 
     @Override
-    public T getInstance(String shortName, ClusterEndpointProvider proxyConfig, BaseConfig config) {
+    public T getInstance(String shortName, ClusterEndpointConfigProvider endpointConfigProvider, BaseConfig config) {
         InstanceBuilder<? extends BaseConfig, T> instanceBuilder = shortNameToInstanceBuilder.get(shortName);
-        return instanceBuilder == null ? null : instanceBuilder.construct(proxyConfig, config);
+        return instanceBuilder == null ? null : instanceBuilder.construct(endpointConfigProvider, config);
     }
 
     private static class InstanceBuilder<T extends BaseConfig, L> {
 
         private final Class<T> configClass;
-        private final BiFunction<ClusterEndpointProvider, T, L> instanceFunction;
+        private final BiFunction<ClusterEndpointConfigProvider, T, L> instanceFunction;
 
-        InstanceBuilder(Class<T> configClass, BiFunction<ClusterEndpointProvider, T, L> instanceFunction) {
+        InstanceBuilder(Class<T> configClass, BiFunction<ClusterEndpointConfigProvider, T, L> instanceFunction) {
             this.configClass = configClass;
             this.instanceFunction = instanceFunction;
         }
 
-        L construct(ClusterEndpointProvider proxyConfig, BaseConfig config) {
+        L construct(ClusterEndpointConfigProvider endpointConfigProvider, BaseConfig config) {
             if (config == null) {
                 // tests pass in a null config, which some instance functions can tolerate
-                return instanceFunction.apply(proxyConfig, null);
+                return instanceFunction.apply(endpointConfigProvider, null);
             }
             else if (configClass.isAssignableFrom(config.getClass())) {
-                return instanceFunction.apply(proxyConfig, configClass.cast(config));
+                return instanceFunction.apply(endpointConfigProvider, configClass.cast(config));
             }
             else {
                 throw new IllegalArgumentException("config has the wrong type, expected "
@@ -88,7 +88,8 @@ public abstract class BaseContributor<T> implements Contributor<T> {
          * @return this
          * @param <T> the configuration concrete type
          */
-        public <T extends BaseConfig> BaseContributorBuilder<L> add(String shortName, Class<T> configClass, BiFunction<ClusterEndpointProvider, T, L> instanceFunction) {
+        public <T extends BaseConfig> BaseContributorBuilder<L> add(String shortName, Class<T> configClass,
+                                                                    BiFunction<ClusterEndpointConfigProvider, T, L> instanceFunction) {
             if (shortNameToInstanceBuilder.containsKey(shortName)) {
                 throw new IllegalArgumentException(shortName + " already registered");
             }
@@ -103,7 +104,7 @@ public abstract class BaseContributor<T> implements Contributor<T> {
          * @param instanceFunction function that constructs the service instance
          * @return this
          */
-        public BaseContributorBuilder<L> add(String shortName, Function<ClusterEndpointProvider, L> instanceFunction) {
+        public BaseContributorBuilder<L> add(String shortName, Function<ClusterEndpointConfigProvider, L> instanceFunction) {
             add(shortName, BaseConfig.class, (proxyConfig, config) -> instanceFunction.apply(proxyConfig));
             return this;
         }

@@ -6,14 +6,14 @@
 package io.kroxylicious.proxy.internal.clusterendpointprovider;
 
 import io.kroxylicious.proxy.clusterendpointprovider.ClusterEndpointProviderContributor;
-import io.kroxylicious.proxy.internal.clusterendpointprovider.StaticClusterEndpointProvider.StaticClusterEndpointProviderConfig;
+import io.kroxylicious.proxy.internal.clusterendpointprovider.StaticClusterEndpointConfigProvider.StaticClusterEndpointProviderConfig;
 import io.kroxylicious.proxy.service.BaseContributor;
-import io.kroxylicious.proxy.service.ClusterEndpointProvider;
+import io.kroxylicious.proxy.service.ClusterEndpointConfigProvider;
 
-public class BuiltinClusterEndpointProviderContributor extends BaseContributor<ClusterEndpointProvider> implements ClusterEndpointProviderContributor {
+public class BuiltinClusterEndpointProviderContributor extends BaseContributor<ClusterEndpointConfigProvider> implements ClusterEndpointProviderContributor {
 
-    public static final BaseContributorBuilder<ClusterEndpointProvider> FILTERS = BaseContributor.<ClusterEndpointProvider> builder()
-            .add("StaticCluster", StaticClusterEndpointProviderConfig.class, StaticClusterEndpointProvider::new);
+    public static final BaseContributorBuilder<ClusterEndpointConfigProvider> FILTERS = BaseContributor.<ClusterEndpointConfigProvider> builder()
+            .add("StaticCluster", StaticClusterEndpointProviderConfig.class, StaticClusterEndpointConfigProvider::new);
 
     public BuiltinClusterEndpointProviderContributor() {
         super(FILTERS);

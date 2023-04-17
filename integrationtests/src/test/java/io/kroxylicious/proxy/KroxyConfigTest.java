@@ -37,14 +37,14 @@ public class KroxyConfigTest {
     public void testVirtualClusterConfigWithClusterEndpointProvider() throws Exception {
         ObjectNode deserializedConfig = serializeAndDeserialize(
                 builder().addToVirtualClusters("demo", new VirtualClusterBuilder()
-                        .withNewClusterEndpointProvider()
+                        .withNewClusterEndpointConfigProvider()
                         .withType("providertype")
                         .withConfig(Map.of("a", "b"))
-                        .endClusterEndpointProvider()
+                        .endClusterEndpointConfigProvider()
                         .build()).build());
         ObjectNode clusterObj = assertObjectField(deserializedConfig, "virtualClusters");
         ObjectNode demoObj = assertObjectField(clusterObj, "demo");
-        ObjectNode endpointAssignerObj = assertObjectField(demoObj, "clusterEndpointProvider");
+        ObjectNode endpointAssignerObj = assertObjectField(demoObj, "clusterEndpointConfigProvider");
         assertTextField(endpointAssignerObj, "type", "providertype");
         ObjectNode endpointAssignerConfig = assertObjectField(endpointAssignerObj, "config");
         assertTextField(endpointAssignerConfig, "a", "b");

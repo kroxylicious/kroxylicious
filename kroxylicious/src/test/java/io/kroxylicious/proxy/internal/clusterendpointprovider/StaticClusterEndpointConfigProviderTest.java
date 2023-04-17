@@ -13,15 +13,15 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 
-import io.kroxylicious.proxy.internal.clusterendpointprovider.StaticClusterEndpointProvider.StaticClusterEndpointProviderConfig;
-import io.kroxylicious.proxy.service.ClusterEndpointProvider.EndpointMatchResult;
+import io.kroxylicious.proxy.internal.clusterendpointprovider.StaticClusterEndpointConfigProvider.StaticClusterEndpointProviderConfig;
+import io.kroxylicious.proxy.service.ClusterEndpointConfigProvider.EndpointMatchResult;
 import io.kroxylicious.proxy.service.HostPort;
 
 import static io.kroxylicious.proxy.service.HostPort.parse;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-class StaticClusterEndpointProviderTest {
+class StaticClusterEndpointConfigProviderTest {
 
     @Test
     void noBrokerAddresses() {
@@ -42,7 +42,7 @@ class StaticClusterEndpointProviderTest {
 
     @Test
     void validArguments() {
-        var provider = new StaticClusterEndpointProvider(
+        var provider = new StaticClusterEndpointConfigProvider(
                 new StaticClusterEndpointProviderConfig(parse("boot:1235"), Map.of(0, parse("good:1234"), 1, parse("good:2345"))));
         assertThat(provider.getClusterBootstrapAddress()).isEqualTo(parse("boot:1235"));
         assertThat(provider.getBrokerAddress(0)).isEqualTo(parse("good:1234"));
@@ -52,7 +52,7 @@ class StaticClusterEndpointProviderTest {
 
     @Test
     void defaultsBrokerZero() {
-        var provider = new StaticClusterEndpointProvider(new StaticClusterEndpointProviderConfig(parse("boot:1235"), null));
+        var provider = new StaticClusterEndpointConfigProvider(new StaticClusterEndpointProviderConfig(parse("boot:1235"), null));
         HostPort parse1 = parse("boot:1235");
         assertThat(provider.getClusterBootstrapAddress()).isEqualTo(parse1);
         HostPort parse = parse("boot:1235");
@@ -64,7 +64,7 @@ class StaticClusterEndpointProviderTest {
     @NullAndEmptySource
     @ValueSource(strings = { "idontcare" })
     void findsBootstrapMatchByPort(String sniHostname) {
-        var provider = new StaticClusterEndpointProvider(new StaticClusterEndpointProviderConfig(parse("boot:1234"), null));
+        var provider = new StaticClusterEndpointConfigProvider(new StaticClusterEndpointProviderConfig(parse("boot:1234"), null));
         assertThat(provider.hasMatchingEndpoint(sniHostname, 1234)).isEqualTo(new EndpointMatchResult(true, null));
         assertThat(provider.hasMatchingEndpoint(sniHostname, 1235)).isEqualTo(new EndpointMatchResult(false, null));
     }
@@ -73,7 +73,7 @@ class StaticClusterEndpointProviderTest {
     @NullAndEmptySource
     @ValueSource(strings = { "idontcare" })
     void findsBrokerMatchByPort(String sniHostname) {
-        var provider = new StaticClusterEndpointProvider(
+        var provider = new StaticClusterEndpointConfigProvider(
                 new StaticClusterEndpointProviderConfig(parse("boot:1234"), Map.of(0, parse("broker:1235"), 1, parse("broker:1236"))));
         assertThat(provider.hasMatchingEndpoint(sniHostname, 1235)).isEqualTo(new EndpointMatchResult(true, 0));
         assertThat(provider.hasMatchingEndpoint(sniHostname, 1236)).isEqualTo(new EndpointMatchResult(true, 1));

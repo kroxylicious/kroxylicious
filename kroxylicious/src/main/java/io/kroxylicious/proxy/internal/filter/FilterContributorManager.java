@@ -11,7 +11,7 @@ import java.util.ServiceLoader;
 import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.filter.FilterContributor;
 import io.kroxylicious.proxy.filter.KrpcFilter;
-import io.kroxylicious.proxy.service.ClusterEndpointProvider;
+import io.kroxylicious.proxy.service.ClusterEndpointConfigProvider;
 
 public class FilterContributorManager {
 
@@ -40,7 +40,7 @@ public class FilterContributorManager {
         throw new IllegalArgumentException("No filter found for name '" + shortName + "'");
     }
 
-    public KrpcFilter getFilter(String shortName, ClusterEndpointProvider proxyConfig, BaseConfig filterConfig) {
+    public KrpcFilter getFilter(String shortName, ClusterEndpointConfigProvider proxyConfig, BaseConfig filterConfig) {
         Iterator<FilterContributor> it = contributors.iterator();
         while (it.hasNext()) {
             FilterContributor contributor = it.next();

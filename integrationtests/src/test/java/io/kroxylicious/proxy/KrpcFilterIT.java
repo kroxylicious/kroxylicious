@@ -286,11 +286,11 @@ public class KrpcFilterIT {
         var demo = builder.getVirtualClusters().get("demo");
         var brokerEndpoints = Map.of(0, "localhost:9193", 1, "localhost:9194");
         demo = new VirtualClusterBuilder(demo)
-                .editClusterEndpointProvider()
+                .editClusterEndpointConfigProvider()
                 .withType("StaticCluster")
                 .withConfig(Map.of("bootstrapAddress", proxyAddress,
                         "brokers", brokerEndpoints))
-                .endClusterEndpointProvider()
+                .endClusterEndpointConfigProvider()
                 .build();
         builder.addToVirtualClusters("demo", demo);
         var config = builder.build().toYaml();
@@ -347,10 +347,10 @@ public class KrpcFilterIT {
                         .withNewTargetCluster()
                         .withBootstrapServers(bootstrapServers)
                         .endTargetCluster()
-                        .withNewClusterEndpointProvider()
+                        .withNewClusterEndpointConfigProvider()
                         .withType("StaticCluster")
                         .withConfig(Map.of("bootstrapAddress", proxyAddress))
-                        .endClusterEndpointProvider()
+                        .endClusterEndpointConfigProvider()
                         .build())
                 .addNewFilter().withType("ApiVersions").endFilter()
                 .addNewFilter().withType("BrokerAddress").endFilter();

@@ -12,7 +12,7 @@ virtualClusters:
   demo:
     targetCluster:
       bootstrap_servers: localhost:9092
-    clusterEndpointProvider:
+    clusterEndpointConfigProvider:
       type: StaticCluster
       config:
         bootstrapAddress: localhost:9192

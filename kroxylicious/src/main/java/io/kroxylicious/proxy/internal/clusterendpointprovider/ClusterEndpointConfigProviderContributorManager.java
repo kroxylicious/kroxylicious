@@ -10,19 +10,19 @@ import java.util.ServiceLoader;
 
 import io.kroxylicious.proxy.clusterendpointprovider.ClusterEndpointProviderContributor;
 import io.kroxylicious.proxy.config.BaseConfig;
-import io.kroxylicious.proxy.service.ClusterEndpointProvider;
+import io.kroxylicious.proxy.service.ClusterEndpointConfigProvider;
 
-public class ClusterEndpointProviderContributorManager {
+public class ClusterEndpointConfigProviderContributorManager {
 
-    private static final ClusterEndpointProviderContributorManager INSTANCE = new ClusterEndpointProviderContributorManager();
+    private static final ClusterEndpointConfigProviderContributorManager INSTANCE = new ClusterEndpointConfigProviderContributorManager();
 
     private final ServiceLoader<ClusterEndpointProviderContributor> contributors;
 
-    private ClusterEndpointProviderContributorManager() {
+    private ClusterEndpointConfigProviderContributorManager() {
         this.contributors = ServiceLoader.load(ClusterEndpointProviderContributor.class);
     }
 
-    public static ClusterEndpointProviderContributorManager getInstance() {
+    public static ClusterEndpointConfigProviderContributorManager getInstance() {
         return INSTANCE;
     }
 
@@ -39,9 +39,9 @@ public class ClusterEndpointProviderContributorManager {
         throw new IllegalArgumentException("No endpoint provider found for name '" + shortName + "'");
     }
 
-    public ClusterEndpointProvider getClusterEndpointProvider(String shortName, BaseConfig endpointAssignerConfig) {
+    public ClusterEndpointConfigProvider getClusterEndpointConfigProvider(String shortName, BaseConfig baseConfig) {
         for (ClusterEndpointProviderContributor contributor : contributors) {
-            var assigner = contributor.getInstance(shortName, null, endpointAssignerConfig);
+            var assigner = contributor.getInstance(shortName, null, baseConfig);
             if (assigner != null) {
                 return assigner;
             }

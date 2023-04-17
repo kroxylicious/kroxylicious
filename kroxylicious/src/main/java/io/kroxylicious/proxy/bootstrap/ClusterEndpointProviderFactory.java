@@ -7,8 +7,8 @@ package io.kroxylicious.proxy.bootstrap;
 
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.VirtualCluster;
-import io.kroxylicious.proxy.internal.clusterendpointprovider.ClusterEndpointProviderContributorManager;
-import io.kroxylicious.proxy.service.ClusterEndpointProvider;
+import io.kroxylicious.proxy.internal.clusterendpointprovider.ClusterEndpointConfigProviderContributorManager;
+import io.kroxylicious.proxy.service.ClusterEndpointConfigProvider;
 
 public class ClusterEndpointProviderFactory {
 
@@ -20,9 +20,9 @@ public class ClusterEndpointProviderFactory {
         this.virtualCluster = virtualCluster;
     }
 
-    public ClusterEndpointProvider createClusterEndpointProvider() {
-        return ClusterEndpointProviderContributorManager.getInstance()
-                .getClusterEndpointProvider(virtualCluster.clusterEndpointProvider().type(), virtualCluster.clusterEndpointProvider()
+    public ClusterEndpointConfigProvider createClusterEndpointProvider() {
+        return ClusterEndpointConfigProviderContributorManager.getInstance()
+                .getClusterEndpointConfigProvider(virtualCluster.clusterEndpointProvider().type(), virtualCluster.clusterEndpointProvider()
                         .config());
     }
 }

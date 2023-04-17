@@ -10,7 +10,7 @@ import java.util.Optional;
 /**
  * Provides the addresses of the network endpoints required by a virtual cluster.
  */
-public interface ClusterEndpointProvider {
+public interface ClusterEndpointConfigProvider {
 
     /**
      * Address of the cluster's bootstrap address.

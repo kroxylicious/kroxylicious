@@ -27,9 +27,9 @@ public interface Contributor<T> {
      * Creates an instance of the service.
      *
      * @param shortName service short name
-     * @param endpointProvider endpoint provider
+     * @param endpointConfigProvider endpoint provider
      * @param config service configuration which may be null if the service instance does not accept configuration.
      * @return the service instance
      */
-    T getInstance(String shortName, ClusterEndpointProvider endpointProvider, BaseConfig config);
+    T getInstance(String shortName, ClusterEndpointConfigProvider endpointConfigProvider, BaseConfig config);
 }

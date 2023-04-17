@@ -11,10 +11,10 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import io.kroxylicious.proxy.config.BaseConfig;
-import io.kroxylicious.proxy.service.ClusterEndpointProvider;
+import io.kroxylicious.proxy.service.ClusterEndpointConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 
-public class StaticClusterEndpointProvider implements ClusterEndpointProvider {
+public class StaticClusterEndpointConfigProvider implements ClusterEndpointConfigProvider {
 
     private static final EndpointMatchResult BOOTSTRAP_MATCHED = new EndpointMatchResult(true, null);
     private static final EndpointMatchResult NO_MATCH = new EndpointMatchResult(false, null);
@@ -22,7 +22,7 @@ public class StaticClusterEndpointProvider implements ClusterEndpointProvider {
     private final Map<Integer, HostPort> brokers;
     private final Map<Integer, EndpointMatchResult> portToNodeIdMatchedMap;
 
-    public StaticClusterEndpointProvider(StaticClusterEndpointProviderConfig config) {
+    public StaticClusterEndpointConfigProvider(StaticClusterEndpointProviderConfig config) {
         this.bootstrapAddress = config.bootstrapAddress;
         this.brokers = config.brokers;
         this.portToNodeIdMatchedMap = this.brokers.entrySet().stream()

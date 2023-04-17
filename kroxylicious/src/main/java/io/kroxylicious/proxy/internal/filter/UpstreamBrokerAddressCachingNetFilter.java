@@ -18,7 +18,7 @@ import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.filter.MetadataResponseFilter;
 import io.kroxylicious.proxy.filter.NetFilter;
-import io.kroxylicious.proxy.service.ClusterEndpointProvider;
+import io.kroxylicious.proxy.service.ClusterEndpointConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 
 /**
@@ -32,15 +32,15 @@ public class UpstreamBrokerAddressCachingNetFilter implements NetFilter {
 
     private final HostPort targetClusterBootstrap;
     private final FilterChainFactory filterChainFactory;
-    private final ClusterEndpointProvider endpointProvider;
+    private final ClusterEndpointConfigProvider endpointConfigProvider;
 
     private final Map<Integer, HostPort> upstreamBrokers = new ConcurrentHashMap<>();
 
     public UpstreamBrokerAddressCachingNetFilter(HostPort targetClusterBootstrap, FilterChainFactory filterChainFactory,
-                                                 ClusterEndpointProvider endpointProvider) {
+                                                 ClusterEndpointConfigProvider endpointConfigProvider) {
         this.targetClusterBootstrap = targetClusterBootstrap;
         this.filterChainFactory = filterChainFactory;
-        this.endpointProvider = endpointProvider;
+        this.endpointConfigProvider = endpointConfigProvider;
     }
 
     @Override
@@ -60,7 +60,7 @@ public class UpstreamBrokerAddressCachingNetFilter implements NetFilter {
         });
 
         var targetPort = ((InetSocketAddress) context.localAddress()).getPort();
-        var endpointMatchResult = endpointProvider.hasMatchingEndpoint(context.sniHostname(), targetPort);
+        var endpointMatchResult = endpointConfigProvider.hasMatchingEndpoint(context.sniHostname(), targetPort);
 
         HostPort target;
         if (endpointMatchResult.matched() && endpointMatchResult.nodeId() != null) {

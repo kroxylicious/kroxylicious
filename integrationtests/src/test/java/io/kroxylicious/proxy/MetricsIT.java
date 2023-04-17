@@ -128,10 +128,10 @@ public class MetricsIT {
                         .withNewTargetCluster()
                         .withBootstrapServers(bootstrapServers)
                         .endTargetCluster()
-                        .withNewClusterEndpointProvider()
+                        .withNewClusterEndpointConfigProvider()
                         .withType("StaticCluster")
                         .withConfig(Map.of("bootstrapAddress", proxyAddress))
-                        .endClusterEndpointProvider()
+                        .endClusterEndpointConfigProvider()
                         .build());
     }
 }

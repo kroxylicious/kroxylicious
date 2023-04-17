@@ -24,7 +24,7 @@ import io.kroxylicious.proxy.filter.DescribeClusterResponseFilter;
 import io.kroxylicious.proxy.filter.FindCoordinatorResponseFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.proxy.filter.MetadataResponseFilter;
-import io.kroxylicious.proxy.service.ClusterEndpointProvider;
+import io.kroxylicious.proxy.service.ClusterEndpointConfigProvider;
 
 /**
  * A filter that rewrites broker addresses in all relevant responses to the corresponding proxy address.
@@ -33,10 +33,10 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BrokerAddressFilter.class);
 
-    private final ClusterEndpointProvider endpointProvider;
+    private final ClusterEndpointConfigProvider clusterEndpointConfigProvider;
 
-    public BrokerAddressFilter(ClusterEndpointProvider endpointProvider) {
-        this.endpointProvider = endpointProvider;
+    public BrokerAddressFilter(ClusterEndpointConfigProvider clusterEndpointConfigProvider) {
+        this.clusterEndpointConfigProvider = clusterEndpointConfigProvider;
     }
 
     @Override
@@ -71,7 +71,7 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
         String incomingHost = hostGetter.apply(broker);
         int incomingPort = portGetter.applyAsInt(broker);
 
-        var downstreamAddress = endpointProvider.getBrokerAddress(nodeIdGetter.apply(broker));
+        var downstreamAddress = clusterEndpointConfigProvider.getBrokerAddress(nodeIdGetter.apply(broker));
 
         LOGGER.trace("{}: Rewriting broker address in response {}:{} -> {}", context, incomingHost, incomingPort, downstreamAddress);
         hostSetter.accept(broker, downstreamAddress.host());

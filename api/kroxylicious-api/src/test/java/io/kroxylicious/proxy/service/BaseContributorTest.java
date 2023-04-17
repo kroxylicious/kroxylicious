@@ -38,7 +38,7 @@ class BaseContributorTest {
         builder.add("one", () -> 1L);
         BaseContributor<Long> baseContributor = new BaseContributor<>(builder) {
         };
-        Long instance = baseContributor.getInstance("one", mock(ClusterEndpointProvider.class), new BaseConfig());
+        Long instance = baseContributor.getInstance("one", mock(ClusterEndpointConfigProvider.class), new BaseConfig());
         assertThat(instance).isEqualTo(1L);
     }
 
@@ -58,7 +58,7 @@ class BaseContributorTest {
         builder.add("fromBaseConfig", LongConfig.class, baseConfig -> baseConfig.value);
         BaseContributor<Long> baseContributor = new BaseContributor<>(builder) {
         };
-        Long instance = baseContributor.getInstance("fromBaseConfig", mock(ClusterEndpointProvider.class), new LongConfig());
+        Long instance = baseContributor.getInstance("fromBaseConfig", mock(ClusterEndpointConfigProvider.class), new LongConfig());
         assertThat(instance).isEqualTo(2L);
     }
 
@@ -70,7 +70,7 @@ class BaseContributorTest {
         };
         AnotherConfig incompatibleConfig = new AnotherConfig();
         assertThatThrownBy(() -> {
-            baseContributor.getInstance("fromBaseConfig", mock(ClusterEndpointProvider.class), incompatibleConfig);
+            baseContributor.getInstance("fromBaseConfig", mock(ClusterEndpointConfigProvider.class), incompatibleConfig);
         }).isInstanceOf(IllegalArgumentException.class);
     }
 

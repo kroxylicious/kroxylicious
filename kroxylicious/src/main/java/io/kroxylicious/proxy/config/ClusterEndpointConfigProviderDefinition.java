@@ -9,14 +9,14 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.annotation.JsonTypeIdResolver;
 
-public class ClusterEndpointProviderDefinition {
+public class ClusterEndpointConfigProviderDefinition {
 
     private final String type;
     private final BaseConfig config;
 
     @JsonCreator
-    public ClusterEndpointProviderDefinition(String type,
-                                             @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.EXTERNAL_PROPERTY, property = "type") @JsonTypeIdResolver(ClusterEndpointProviderTypeIdResolver.class) BaseConfig config) {
+    public ClusterEndpointConfigProviderDefinition(String type,
+                                                   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.EXTERNAL_PROPERTY, property = "type") @JsonTypeIdResolver(ClusterEndpointConfigProviderTypeIdResolver.class) BaseConfig config) {
         this.type = type;
         this.config = config;
     }

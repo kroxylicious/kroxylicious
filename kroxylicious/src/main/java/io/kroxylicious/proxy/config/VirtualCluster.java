@@ -10,7 +10,7 @@ import java.util.Optional;
 public class VirtualCluster {
 
     private final TargetCluster targetCluster;
-    private final ClusterEndpointProviderDefinition clusterEndpointProvider;
+    private final ClusterEndpointConfigProviderDefinition clusterEndpointConfigProvider;
 
     private final Optional<String> keyStoreFile;
     private final Optional<String> keyPassword;
@@ -20,11 +20,11 @@ public class VirtualCluster {
     private final boolean logFrames;
     private final boolean useIoUring;
 
-    public VirtualCluster(TargetCluster targetCluster, ClusterEndpointProviderDefinition clusterEndpointProvider, Optional<String> keyStoreFile,
+    public VirtualCluster(TargetCluster targetCluster, ClusterEndpointConfigProviderDefinition clusterEndpointConfigProvider, Optional<String> keyStoreFile,
                           Optional<String> keyPassword,
                           boolean logNetwork, boolean logFrames, boolean useIoUring) {
         this.targetCluster = targetCluster;
-        this.clusterEndpointProvider = clusterEndpointProvider;
+        this.clusterEndpointConfigProvider = clusterEndpointConfigProvider;
         this.logNetwork = logNetwork;
         this.logFrames = logFrames;
         this.useIoUring = useIoUring;
@@ -36,8 +36,8 @@ public class VirtualCluster {
         return targetCluster;
     }
 
-    public ClusterEndpointProviderDefinition clusterEndpointProvider() {
-        return clusterEndpointProvider;
+    public ClusterEndpointConfigProviderDefinition clusterEndpointProvider() {
+        return clusterEndpointConfigProvider;
     }
 
     public Optional<String> keyStoreFile() {
@@ -64,7 +64,7 @@ public class VirtualCluster {
     public String toString() {
         final StringBuilder sb = new StringBuilder("VirtualCluster [");
         sb.append("targetCluster=").append(targetCluster);
-        sb.append(", clusterEndpointProvider=").append(clusterEndpointProvider);
+        sb.append(", clusterEndpointProvider=").append(clusterEndpointConfigProvider);
         sb.append(", keyStoreFile=").append(keyStoreFile);
         sb.append(", keyPassword=").append(keyPassword);
         sb.append(", logNetwork=").append(logNetwork);

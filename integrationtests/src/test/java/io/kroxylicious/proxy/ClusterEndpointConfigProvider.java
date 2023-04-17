@@ -15,5 +15,5 @@ import io.sundr.builder.annotations.Buildable;
 import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_EMPTY;
 
 @Buildable(editableEnabled = false)
-public record ClusterEndpointProvider(String type, @JsonInclude(NON_EMPTY) Map<String, Object> config) {
+public record ClusterEndpointConfigProvider(String type, @JsonInclude(NON_EMPTY) Map<String, Object> config) {
 }
