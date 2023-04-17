@@ -47,7 +47,7 @@ class HostPortTest {
     @ParameterizedTest
     @NullAndEmptySource
     @ValueSource(strings = { " ", "localhost", ":1000", ":onethousand", "something:really:odd" })
-    public void bad(String input) {
+    public void shouldThrowExceptionForMalformedInput(String input) {
         assertThatThrownBy(() -> {
             HostPort.parse(input);
         }).isInstanceOf(IllegalArgumentException.class);
