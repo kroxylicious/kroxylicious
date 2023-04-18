@@ -43,21 +43,22 @@ class SaslDecodePredicate implements DecodePredicate {
 
     @Override
     public boolean shouldDecodeRequest(ApiKeys apiKey, short apiVersion) {
-        boolean result;
         if (apiKey == ApiKeys.API_VERSIONS) {
             // TODO For now let's assume we need to always decode this, since the NetHandler
             // currently does this. At some point we'll need a way to figure out the mutual intersection
             // of api versions over all backend clusters plus the proxy itself.
-            result = true;
+            return true;
         }
-        else if (apiKey == ApiKeys.SASL_HANDSHAKE
-                || apiKey == ApiKeys.SASL_AUTHENTICATE) {
-            result = handleSasl;
+        if (delegate == null) {
+            // on the first request, before the delegate is set decode everything in case a filter wants
+            // to intercept it
+            return true;
         }
-        else {
-            result = delegate == null || delegate.shouldDecodeRequest(apiKey, apiVersion);
-        }
-        return result;
+        return isAuthenticationOffloaded(apiKey) || delegate.shouldDecodeRequest(apiKey, apiVersion);
+    }
+
+    private boolean isAuthenticationOffloaded(ApiKeys apiKey) {
+        return handleSasl && (apiKey == ApiKeys.SASL_HANDSHAKE || apiKey == ApiKeys.SASL_AUTHENTICATE);
     }
 
     @Override
