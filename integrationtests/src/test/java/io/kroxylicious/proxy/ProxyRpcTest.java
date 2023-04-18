@@ -34,8 +34,6 @@ import io.kroxylicious.test.server.MockServer;
 import static io.kroxylicious.proxy.Utils.startProxy;
 import static org.apache.kafka.common.protocol.ApiKeys.API_VERSIONS;
 import static org.apache.kafka.common.protocol.ApiKeys.CONTROLLED_SHUTDOWN;
-import static org.apache.kafka.common.protocol.ApiKeys.SASL_AUTHENTICATE;
-import static org.apache.kafka.common.protocol.ApiKeys.SASL_HANDSHAKE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -101,10 +99,6 @@ public class ProxyRpcTest {
             if (v0HeaderVersion.equals(apiAndVersion)) {
                 // controlled shutdown is the only usage of a version 0 header schema which doesn't have clientId
                 expected = "";
-            }
-            else if (apiAndVersion.keys() == SASL_AUTHENTICATE || apiAndVersion.keys() == SASL_HANDSHAKE) {
-                // sasl requests have special logic in kroxy, and they do not get Filtered
-                expected = "mockClientId";
             }
             else {
                 expected = "fixed";
