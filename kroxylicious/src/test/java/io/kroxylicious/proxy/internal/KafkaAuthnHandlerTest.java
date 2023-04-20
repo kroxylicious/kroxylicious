@@ -47,8 +47,8 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import io.netty.channel.embedded.EmbeddedChannel;
 
-import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
+import io.kroxylicious.proxy.filter.ResponseFilter;
 import io.kroxylicious.proxy.frame.BareSaslRequest;
 import io.kroxylicious.proxy.frame.BareSaslResponse;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
@@ -201,18 +201,15 @@ public class KafkaAuthnHandlerTest {
                 .setRequestApiVersion(apiVersion)
                 .setClientId("client-id")
                 .setCorrelationId(downstreamCorrelationId);
-        correlationManager.putBrokerRequest(body.apiKey(), apiVersion, downstreamCorrelationId, true, new KrpcFilter() {
+        correlationManager.putBrokerRequest(body.apiKey(), apiVersion, downstreamCorrelationId, true, new ResponseFilter() {
             @Override
-            public void onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
+            public boolean shouldHandleResponse(ApiKeys apiKey, short apiVersion) {
+                return true;
             }
 
             @Override
             public void onResponse(ApiKeys apiKey, ResponseHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
-            }
 
-            @Override
-            public boolean shouldDeserializeResponse(ApiKeys apiKey, short apiVersion) {
-                return true;
             }
         }, new CompletableFuture<>(), true);
 

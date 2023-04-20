@@ -54,8 +54,9 @@ public class RequestDecoderTest extends AbstractCodecTest {
                         AbstractCodecTest::exampleApiVersionsRequest,
                         new KafkaRequestDecoder(DecodePredicate.forFilters(
                                 new ApiVersionsRequestFilter() {
+
                                     @Override
-                                    public boolean shouldDeserializeRequest(ApiKeys apiKey, short apiVersion) {
+                                    public boolean shouldHandleApiVersionsRequest(short apiVersion) {
                                         return false;
                                     }
 

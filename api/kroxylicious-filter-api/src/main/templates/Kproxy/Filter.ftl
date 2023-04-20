@@ -42,6 +42,18 @@ import org.apache.kafka.common.message.RequestHeaderData;
 public interface ${filterClass} extends KrpcFilter {
 
     /**
+     * Determine if a ${msgType} message of type ${messageSpec.name} should be handled by
+     * this filter implementation.
+     * returns true then {@code on${messageSpec.name}} is eligible to be invoked with
+     * deserialized data, if the message reaches this filter in the chain.
+     * @param apiVersion the apiVersion of the message
+     * @return true if it should be handled
+     */
+    default boolean shouldHandle${messageSpec.name}(short apiVersion) {
+        return true;
+    }
+
+    /**
      * Handle the given {@code ${msgType}},
      * returning the {@code ${messageSpec.name}Data} instance to be passed to the next filter.
      * The implementation may modify the given {@code data} in-place and return it,
