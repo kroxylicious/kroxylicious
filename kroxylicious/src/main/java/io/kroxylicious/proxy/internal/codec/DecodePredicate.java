@@ -6,9 +6,12 @@
 package io.kroxylicious.proxy.internal.codec;
 
 import java.util.Arrays;
+import java.util.List;
 
 import org.apache.kafka.common.protocol.ApiKeys;
 
+import io.kroxylicious.proxy.filter.FilterInvoker;
+import io.kroxylicious.proxy.filter.FilterInvokers;
 import io.kroxylicious.proxy.filter.KrpcFilter;
 
 /**
@@ -21,11 +24,13 @@ import io.kroxylicious.proxy.filter.KrpcFilter;
  */
 public interface DecodePredicate {
     static DecodePredicate forFilters(KrpcFilter... filters) {
+
+        List<FilterInvoker> invokers = Arrays.stream(filters).map(krpcFilter -> FilterInvokers.from(krpcFilter)).toList();
         return new DecodePredicate() {
             @Override
             public boolean shouldDecodeResponse(ApiKeys apiKey, short apiVersion) {
-                for (var filter : filters) {
-                    if (filter.shouldDeserializeResponse(apiKey, apiVersion)) {
+                for (var filter : invokers) {
+                    if (filter.shouldHandleResponse(apiKey, apiVersion)) {
                         return true;
                     }
                 }
@@ -34,8 +39,8 @@ public interface DecodePredicate {
 
             @Override
             public boolean shouldDecodeRequest(ApiKeys apiKey, short apiVersion) {
-                for (var filter : filters) {
-                    if (filter.shouldDeserializeRequest(apiKey, apiVersion)) {
+                for (var filter : invokers) {
+                    if (filter.shouldHandleRequest(apiKey, apiVersion)) {
                         return true;
                     }
                 }

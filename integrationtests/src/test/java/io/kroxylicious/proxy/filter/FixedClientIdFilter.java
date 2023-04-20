@@ -13,7 +13,7 @@ import org.apache.kafka.common.protocol.ApiMessage;
 
 import io.kroxylicious.proxy.config.BaseConfig;
 
-public class FixedClientIdFilter implements KrpcFilter {
+public class FixedClientIdFilter implements RequestFilter, ResponseFilter {
 
     private final String clientId;
 
@@ -35,12 +35,12 @@ public class FixedClientIdFilter implements KrpcFilter {
     }
 
     @Override
-    public boolean shouldDeserializeRequest(ApiKeys apiKey, short apiVersion) {
+    public boolean shouldHandleRequest(ApiKeys apiKey, short apiVersion) {
         return true;
     }
 
     @Override
-    public boolean shouldDeserializeResponse(ApiKeys apiKey, short apiVersion) {
+    public boolean shouldHandleResponse(ApiKeys apiKey, short apiVersion) {
         return true;
     }
 

@@ -17,6 +17,8 @@ import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 
+import io.kroxylicious.proxy.filter.FilterInvoker;
+import io.kroxylicious.proxy.filter.FilterInvokers;
 import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
@@ -35,9 +37,11 @@ public class FilterHandler
     private final KrpcFilter filter;
     private final long timeoutMs;
     private final String sniHostname;
+    private final FilterInvoker invoker;
 
     public FilterHandler(KrpcFilter filter, long timeoutMs, String sniHostname) {
         this.filter = Objects.requireNonNull(filter);
+        this.invoker = FilterInvokers.from(filter);
         this.timeoutMs = Assertions.requireStrictlyPositive(timeoutMs, "timeout");
         this.sniHostname = sniHostname;
     }
@@ -51,13 +55,13 @@ public class FilterHandler
         if (msg instanceof DecodedRequestFrame) {
             DecodedRequestFrame<?> decodedFrame = (DecodedRequestFrame<?>) msg;
             // Guard against invoking the filter unexpectedly
-            if (filter.shouldDeserializeRequest(decodedFrame.apiKey(), decodedFrame.apiVersion())) {
+            if (invoker.shouldHandleRequest(decodedFrame.apiKey(), decodedFrame.apiVersion())) {
                 var filterContext = new DefaultFilterContext(filter, ctx, decodedFrame, promise, timeoutMs, sniHostname);
                 if (LOGGER.isDebugEnabled()) {
                     LOGGER.debug("{}: Dispatching downstream {} request to filter{}: {}",
                             ctx.channel(), decodedFrame.apiKey(), filterDescriptor(), msg);
                 }
-                filter.onRequest(decodedFrame.apiKey(), decodedFrame.header(), decodedFrame.body(), filterContext);
+                invoker.onRequest(decodedFrame.apiKey(), decodedFrame.header(), decodedFrame.body(), filterContext);
             }
             else {
                 ctx.write(msg, promise);
@@ -96,13 +100,13 @@ public class FilterHandler
                     ctx.fireChannelRead(msg);
                 }
             }
-            else if (filter.shouldDeserializeResponse(decodedFrame.apiKey(), decodedFrame.apiVersion())) {
+            else if (invoker.shouldHandleResponse(decodedFrame.apiKey(), decodedFrame.apiVersion())) {
                 var filterContext = new DefaultFilterContext(filter, ctx, decodedFrame, null, timeoutMs, sniHostname);
                 if (LOGGER.isDebugEnabled()) {
                     LOGGER.debug("{}: Dispatching upstream {} response to filter {}: {}",
                             ctx.channel(), decodedFrame.apiKey(), filterDescriptor(), msg);
                 }
-                filter.onResponse(decodedFrame.apiKey(), decodedFrame.header(), decodedFrame.body(), filterContext);
+                invoker.onResponse(decodedFrame.apiKey(), decodedFrame.header(), decodedFrame.body(), filterContext);
             }
             else {
                 ctx.fireChannelRead(msg);

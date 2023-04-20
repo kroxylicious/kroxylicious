@@ -35,6 +35,8 @@ import com.flipkart.zjsonpatch.JsonDiff;
 import com.google.common.reflect.ClassPath;
 import com.google.common.reflect.ClassPath.ResourceInfo;
 
+import io.kroxylicious.proxy.filter.FilterInvoker;
+import io.kroxylicious.proxy.filter.FilterInvokers;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
 
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -121,6 +123,8 @@ class MultiTenantTransformationFilterTest {
 
     private final MultiTenantTransformationFilter filter = new MultiTenantTransformationFilter();
 
+    private final FilterInvoker invoker = FilterInvokers.from(filter);
+
     private final KrpcFilterContext context = mock(KrpcFilterContext.class);
 
     private final ArgumentCaptor<ApiMessage> apiMessageCaptor = ArgumentCaptor.forClass(ApiMessage.class);
@@ -142,7 +146,7 @@ class MultiTenantTransformationFilterTest {
         var requestWriter = requestConverterFor(apiMessageType).writer();
         var marshalled = requestWriter.apply(request, header.requestApiVersion());
 
-        filter.onRequest(ApiKeys.forId(apiMessageType.apiKey()), header, request, context);
+        invoker.onRequest(ApiKeys.forId(apiMessageType.apiKey()), header, request, context);
         verify(context).forwardRequest(apiMessageCaptor.capture());
 
         var filtered = requestWriter.apply(apiMessageCaptor.getValue(), header.requestApiVersion());
@@ -162,7 +166,7 @@ class MultiTenantTransformationFilterTest {
 
         var marshalled = responseWriter.apply(response, header.requestApiVersion());
 
-        filter.onResponse(ApiKeys.forId(apiMessageType.apiKey()), new ResponseHeaderData(), response, context);
+        invoker.onResponse(ApiKeys.forId(apiMessageType.apiKey()), new ResponseHeaderData(), response, context);
         verify(context).forwardResponse(apiMessageCaptor.capture());
 
         var filtered = responseWriter.apply(apiMessageCaptor.getValue(), header.requestApiVersion());

@@ -16,7 +16,6 @@ import org.apache.kafka.common.message.FetchResponseData;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.junit.jupiter.api.Test;
 
@@ -47,7 +46,7 @@ public class FilterHandlerTest extends FilterHarness {
     public void testShouldNotDeserialiseRequest() {
         ApiVersionsRequestFilter filter = new ApiVersionsRequestFilter() {
             @Override
-            public boolean shouldDeserializeRequest(ApiKeys apiKey, short apiVersion) {
+            public boolean shouldHandleApiVersionsRequest(short apiVersion) {
                 return false;
             }
 
@@ -84,7 +83,7 @@ public class FilterHandlerTest extends FilterHarness {
     public void testShouldNotDeserializeResponse() {
         ApiVersionsResponseFilter filter = new ApiVersionsResponseFilter() {
             @Override
-            public boolean shouldDeserializeResponse(ApiKeys apiKey, short apiVersion) {
+            public boolean shouldHandleApiVersionsResponse(short apiVersion) {
                 return false;
             }
 
