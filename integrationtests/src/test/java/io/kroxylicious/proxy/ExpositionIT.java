@@ -179,7 +179,6 @@ public class ExpositionIT {
             for (int i = 0; i < numberOfVirtualClusters; i++) {
                 var trust = clientTrust.get(i);
                 try (var admin = Admin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, virtualClusterBootstrapPattern.formatted(i) + ":9192",
-                        "socket.connection.setup.timeout.ms", 30000,
                         CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name,
                         SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, trust.trustStore().toAbsolutePath().toString(),
                         SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, trust.password()))) {
