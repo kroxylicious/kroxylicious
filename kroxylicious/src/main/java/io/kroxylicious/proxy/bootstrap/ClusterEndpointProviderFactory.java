@@ -5,24 +5,20 @@
  */
 package io.kroxylicious.proxy.bootstrap;
 
-import io.kroxylicious.proxy.config.Configuration;
-import io.kroxylicious.proxy.config.VirtualCluster;
+import io.kroxylicious.proxy.config.ClusterEndpointConfigProviderDefinition;
 import io.kroxylicious.proxy.internal.clusterendpointprovider.ClusterEndpointConfigProviderContributorManager;
 import io.kroxylicious.proxy.service.ClusterEndpointConfigProvider;
 
 public class ClusterEndpointProviderFactory {
 
-    private final Configuration config;
-    private final VirtualCluster virtualCluster;
+    private ClusterEndpointConfigProviderDefinition clusterEndpointConfigProviderDefinition;
 
-    public ClusterEndpointProviderFactory(Configuration config, VirtualCluster virtualCluster) {
-        this.config = config;
-        this.virtualCluster = virtualCluster;
+    public ClusterEndpointProviderFactory(ClusterEndpointConfigProviderDefinition clusterEndpointConfigProviderDefinition1) {
+        this.clusterEndpointConfigProviderDefinition = clusterEndpointConfigProviderDefinition1;
     }
 
     public ClusterEndpointConfigProvider createClusterEndpointProvider() {
         return ClusterEndpointConfigProviderContributorManager.getInstance()
-                .getClusterEndpointConfigProvider(virtualCluster.clusterEndpointProvider().type(), virtualCluster.clusterEndpointProvider()
-                        .config());
+                .getClusterEndpointConfigProvider(clusterEndpointConfigProviderDefinition.type(), clusterEndpointConfigProviderDefinition.config());
     }
 }

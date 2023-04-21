@@ -61,6 +61,9 @@ public class StaticClusterEndpointConfigProvider implements ClusterEndpointConfi
         private final Map<Integer, HostPort> brokers;
 
         public StaticClusterEndpointProviderConfig(HostPort bootstrapAddress, Map<Integer, HostPort> brokers) {
+            if (bootstrapAddress == null) {
+                throw new IllegalArgumentException("bootstrapAddress cannot be null");
+            }
             this.bootstrapAddress = bootstrapAddress;
             if (brokers == null) {
                 this.brokers = Map.of(0, this.bootstrapAddress);

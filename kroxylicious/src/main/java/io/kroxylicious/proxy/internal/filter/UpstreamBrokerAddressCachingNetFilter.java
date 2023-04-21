@@ -8,17 +8,16 @@ package io.kroxylicious.proxy.internal.filter;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
+import io.kroxylicious.proxy.config.Configuration;
+import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.filter.MetadataResponseFilter;
 import io.kroxylicious.proxy.filter.NetFilter;
-import io.kroxylicious.proxy.service.ClusterEndpointConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 
 /**
@@ -30,28 +29,25 @@ public class UpstreamBrokerAddressCachingNetFilter implements NetFilter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(UpstreamBrokerAddressCachingNetFilter.class);
 
-    private final HostPort targetClusterBootstrap;
-    private final FilterChainFactory filterChainFactory;
-    private final ClusterEndpointConfigProvider endpointConfigProvider;
+    private final Configuration config;
+    private final VirtualCluster virtualCluster;
 
-    private final Map<Integer, HostPort> upstreamBrokers = new ConcurrentHashMap<>();
-
-    public UpstreamBrokerAddressCachingNetFilter(HostPort targetClusterBootstrap, FilterChainFactory filterChainFactory,
-                                                 ClusterEndpointConfigProvider endpointConfigProvider) {
-        this.targetClusterBootstrap = targetClusterBootstrap;
-        this.filterChainFactory = filterChainFactory;
-        this.endpointConfigProvider = endpointConfigProvider;
+    public UpstreamBrokerAddressCachingNetFilter(Configuration config, VirtualCluster virtualCluster) {
+        this.config = config;
+        this.virtualCluster = virtualCluster;
     }
 
     @Override
     public void selectServer(NetFilterContext context) {
+        var filterChainFactory = new FilterChainFactory(config, virtualCluster.getClusterEndpointProvider());
+
         var filters = new ArrayList<>(Arrays.stream(filterChainFactory.createFilters()).toList());
 
         // Add a filter to the *end of the chain* that gathers the true nodeId/upstream broker mapping.
         filters.add((MetadataResponseFilter) (header, response, filterContext) -> {
             response.brokers().forEach(b -> {
                 var replacement = new HostPort(b.host(), b.port());
-                var existing = upstreamBrokers.put(b.nodeId(), replacement);
+                var existing = virtualCluster.getUpstreamClusterCache().put(b.nodeId(), replacement);
                 if (!replacement.equals(existing)) {
                     LOGGER.info("Got upstream for broker {} : {}", b.nodeId(), replacement);
                 }
@@ -60,11 +56,15 @@ public class UpstreamBrokerAddressCachingNetFilter implements NetFilter {
         });
 
         var targetPort = ((InetSocketAddress) context.localAddress()).getPort();
-        var endpointMatchResult = endpointConfigProvider.hasMatchingEndpoint(context.sniHostname(), targetPort);
+        var endpointMatchResult = virtualCluster.getClusterEndpointProvider().hasMatchingEndpoint(context.sniHostname(), targetPort);
+
+        var targetBootstrapServers = virtualCluster.targetCluster().bootstrapServers();
+        var targetBootstrapServersParts = targetBootstrapServers.split(",");
+        var targetClusterBootstrap = HostPort.parse(targetBootstrapServersParts[0]);
 
         HostPort target;
         if (endpointMatchResult.matched() && endpointMatchResult.nodeId() != null) {
-            var upstreamBroker = upstreamBrokers.get(endpointMatchResult.nodeId());
+            var upstreamBroker = virtualCluster.getUpstreamClusterCache().get(endpointMatchResult.nodeId());
             if (upstreamBroker != null) {
                 target = upstreamBroker;
             }

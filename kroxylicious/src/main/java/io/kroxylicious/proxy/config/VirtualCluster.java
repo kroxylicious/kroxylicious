@@ -5,7 +5,24 @@
  */
 package io.kroxylicious.proxy.config;
 
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.UnrecoverableKeyException;
+import java.security.cert.CertificateException;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+
+import javax.net.ssl.KeyManagerFactory;
+
+import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslContextBuilder;
+
+import io.kroxylicious.proxy.bootstrap.ClusterEndpointProviderFactory;
+import io.kroxylicious.proxy.service.ClusterEndpointConfigProvider;
+import io.kroxylicious.proxy.service.HostPort;
 
 public class VirtualCluster {
 
@@ -19,6 +36,8 @@ public class VirtualCluster {
 
     private final boolean logFrames;
     private final boolean useIoUring;
+    private final ClusterEndpointConfigProvider endpointProvider;
+    private final ConcurrentHashMap<Integer, HostPort> upstreamClusterCache = new ConcurrentHashMap<>();
 
     public VirtualCluster(TargetCluster targetCluster, ClusterEndpointConfigProviderDefinition clusterEndpointConfigProvider, Optional<String> keyStoreFile,
                           Optional<String> keyPassword,
@@ -30,6 +49,9 @@ public class VirtualCluster {
         this.useIoUring = useIoUring;
         this.keyStoreFile = keyStoreFile;
         this.keyPassword = keyPassword;
+        // TODO can we get jackson to instantiate this?
+        this.endpointProvider = new ClusterEndpointProviderFactory(clusterEndpointConfigProvider).createClusterEndpointProvider();
+
     }
 
     public TargetCluster targetCluster() {
@@ -38,6 +60,10 @@ public class VirtualCluster {
 
     public ClusterEndpointConfigProviderDefinition clusterEndpointProvider() {
         return clusterEndpointConfigProvider;
+    }
+
+    public ClusterEndpointConfigProvider getClusterEndpointProvider() {
+        return endpointProvider;
     }
 
     public Optional<String> keyStoreFile() {
@@ -60,6 +86,27 @@ public class VirtualCluster {
         return useIoUring;
     }
 
+    public boolean isUseTls() {
+        return keyStoreFile.isPresent();
+    }
+
+    public Optional<SslContext> buildSslContext() {
+
+        return keyStoreFile.map(ksf -> {
+            try (var is = new FileInputStream(ksf)) {
+                var password = keyPassword.map(String::toCharArray).orElse(null);
+                var keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
+                keyStore.load(is, password);
+                var keyManagerFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+                keyManagerFactory.init(keyStore, password);
+                return SslContextBuilder.forServer(keyManagerFactory).build();
+            }
+            catch (KeyStoreException | IOException | NoSuchAlgorithmException | CertificateException | UnrecoverableKeyException e) {
+                throw new RuntimeException(e);
+            }
+        });
+    }
+
     @Override
     public String toString() {
         final StringBuilder sb = new StringBuilder("VirtualCluster [");
@@ -72,6 +119,11 @@ public class VirtualCluster {
         sb.append(", useIoUring=").append(useIoUring);
         sb.append(']');
         return sb.toString();
+    }
+
+    // TODO - better abstraction required around this
+    public ConcurrentHashMap<Integer, HostPort> getUpstreamClusterCache() {
+        return upstreamClusterCache;
     }
 
 }
