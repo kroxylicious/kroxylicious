@@ -43,6 +43,7 @@ import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.config.admin.AdminHttpConfiguration;
 import io.kroxylicious.proxy.internal.KafkaProxyInitializer;
 import io.kroxylicious.proxy.internal.MeterRegistries;
+import io.kroxylicious.proxy.internal.VirtualClusterResolutionException;
 import io.kroxylicious.proxy.internal.VirtualClusterResolver;
 import io.kroxylicious.proxy.internal.admin.AdminHttpInitializer;
 import io.kroxylicious.proxy.internal.net.NetworkBinding;
@@ -231,10 +232,10 @@ public final class KafkaProxy implements AutoCloseable, VirtualClusterResolver {
                 .filter(e -> e.getKey().hasMatchingEndpoint(sniHostname, targetPort).matched()).map(Map.Entry::getValue).toList();
         // We only expect one match
         if (matchingVirtualClusters.isEmpty()) {
-            throw new IllegalStateException("Failed to find matching virtual cluster for %s on port %d".formatted(sniHostname, targetPort));
+            throw new VirtualClusterResolutionException("Failed to find matching virtual cluster for %s on port %d".formatted(sniHostname, targetPort));
         }
         else if (matchingVirtualClusters.size() > 1) {
-            throw new IllegalStateException("Found too many virtual cluster matches for %s on port %d".formatted(sniHostname, targetPort));
+            throw new VirtualClusterResolutionException("Found too many virtual cluster matches for %s on port %d".formatted(sniHostname, targetPort));
         }
         return matchingVirtualClusters.get(0);
     }
@@ -245,10 +246,10 @@ public final class KafkaProxy implements AutoCloseable, VirtualClusterResolver {
                 .filter(e -> e.getKey().hasMatchingEndpoint(null, targetPort).matched()).map(Map.Entry::getValue).toList();
         // We only expect one match
         if (matchingVirtualClusters.isEmpty()) {
-            throw new IllegalStateException("Failed to find matching virtual cluster for port %d".formatted(targetPort));
+            throw new VirtualClusterResolutionException("Failed to find matching virtual cluster for port %d".formatted(targetPort));
         }
         else if (matchingVirtualClusters.size() > 1) {
-            throw new IllegalStateException("Found too many virtual cluster matches for port %d".formatted(targetPort));
+            throw new VirtualClusterResolutionException("Found too many virtual cluster matches for port %d".formatted(targetPort));
         }
         return matchingVirtualClusters.get(0);
     }

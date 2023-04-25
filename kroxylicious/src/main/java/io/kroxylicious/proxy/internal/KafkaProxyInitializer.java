@@ -61,7 +61,6 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
             LOGGER.debug("Adding SSL/SNI handler");
             pipeline.addLast(new SniHandler(hostname -> {
                 var virtualCluster = virtualClusterResolver.resolve(hostname, targetPort);
-                // TODO Error handling.
                 var sslContext = virtualCluster.buildSslContext();
                 if (sslContext.isEmpty()) {
                     throw new IllegalStateException("Virtual cluster %s does not provide SSL context".formatted(virtualCluster));
