@@ -100,7 +100,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
         }
 
         // Add handler here
-        // TODO FIXME this is in the wrong place, proxy protocol comes over the wire first (before SSL). KW broke this when SSL was introduced.
+        // TODO https://github.com/kroxylicious/kroxylicious/issues/287 this is in the wrong place, proxy protocol comes over the wire first (so before SSL handler).
         if (haproxyProtocol) {
             LOGGER.debug("Adding haproxy handler");
             pipeline.addLast("HAProxyMessageDecoder", new HAProxyMessageDecoder());
