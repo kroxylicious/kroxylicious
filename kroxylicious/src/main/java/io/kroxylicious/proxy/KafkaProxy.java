@@ -92,7 +92,7 @@ public final class KafkaProxy implements AutoCloseable, VirtualClusterResolver {
 
         var availableCores = Runtime.getRuntime().availableProcessors();
         var meterRegistries = new MeterRegistries(micrometerConfig);
-        this.adminEventGroup = buildNettyEventGroups(availableCores, false);
+        this.adminEventGroup = buildNettyEventGroups(availableCores, config.isUseIoUring());
         maybeStartMetricsListener(adminEventGroup, meterRegistries);
 
         this.endpointProviders = virtualClusterMap.entrySet().stream()
@@ -113,7 +113,7 @@ public final class KafkaProxy implements AutoCloseable, VirtualClusterResolver {
                     .collect(Collectors.toSet()));
         });
 
-        var virtualHostEventGroup = buildNettyEventGroups(availableCores, false /* FIXME */);
+        var virtualHostEventGroup = buildNettyEventGroups(availableCores, config.isUseIoUring());
         this.virtualHostEventGroups.add(virtualHostEventGroup);
 
         var tlsServerBootstrap = buildServerBootstrap(virtualHostEventGroup, new KafkaProxyInitializer(config, true, this, false, Map.of()));

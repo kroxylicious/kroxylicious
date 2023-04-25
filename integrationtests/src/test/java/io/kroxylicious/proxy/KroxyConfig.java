@@ -32,16 +32,18 @@ public class KroxyConfig {
 
     @JsonInclude(NON_NULL)
     private final List<MicrometerConfig> micrometer;
+    private final boolean useIoUring;
 
     public static KroxyConfigBuilder builder() {
         return new KroxyConfigBuilder();
     }
 
-    public KroxyConfig(Map<String, VirtualCluster> virtualClusters, List<Filter> filters, AdminHttp adminHttp, List<MicrometerConfig> micrometer) {
+    public KroxyConfig(Map<String, VirtualCluster> virtualClusters, List<Filter> filters, AdminHttp adminHttp, List<MicrometerConfig> micrometer, boolean useIoUring) {
         this.virtualClusters = virtualClusters;
         this.filters = filters;
         this.adminHttp = adminHttp;
         this.micrometer = micrometer;
+        this.useIoUring = useIoUring;
     }
 
     public String toYaml() {

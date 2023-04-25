@@ -35,7 +35,6 @@ public class VirtualCluster {
     private final boolean logNetwork;
 
     private final boolean logFrames;
-    private final boolean useIoUring;
     private final ClusterEndpointConfigProvider endpointProvider;
     private final ConcurrentHashMap<Integer, HostPort> upstreamClusterCache = new ConcurrentHashMap<>();
 
@@ -43,11 +42,10 @@ public class VirtualCluster {
                           @JsonDeserialize(converter = ClusterEndpointConfigProviderConverter.class) ClusterEndpointConfigProvider clusterEndpointConfigProvider,
                           Optional<String> keyStoreFile,
                           Optional<String> keyPassword,
-                          boolean logNetwork, boolean logFrames, boolean useIoUring) {
+                          boolean logNetwork, boolean logFrames) {
         this.targetCluster = targetCluster;
         this.logNetwork = logNetwork;
         this.logFrames = logFrames;
-        this.useIoUring = useIoUring;
         this.keyStoreFile = keyStoreFile;
         this.keyPassword = keyPassword;
         // TODO can we get jackson to instantiate this?
@@ -77,10 +75,6 @@ public class VirtualCluster {
 
     public boolean isLogFrames() {
         return logFrames;
-    }
-
-    public boolean isUseIoUring() {
-        return useIoUring;
     }
 
     public boolean isUseTls() {
@@ -113,7 +107,6 @@ public class VirtualCluster {
         sb.append(", keyPassword=").append(keyPassword);
         sb.append(", logNetwork=").append(logNetwork);
         sb.append(", logFrames=").append(logFrames);
-        sb.append(", useIoUring=").append(useIoUring);
         sb.append(']');
         return sb.toString();
     }
