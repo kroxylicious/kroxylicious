@@ -11,7 +11,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
@@ -67,11 +66,10 @@ public final class KafkaProxy implements AutoCloseable, VirtualClusterResolver {
     private final AdminHttpConfiguration adminHttpConfig;
     private final List<MicrometerDefinition> micrometerConfig;
     private final Map<String, VirtualCluster> virtualClusterMap;
-    private EventGroupConfig adminEventGroup;
-    private final List<EventGroupConfig> virtualHostEventGroups = new CopyOnWriteArrayList<>();
-
     private final Queue<Channel> acceptorChannels = new ConcurrentLinkedQueue<>();
     private final AtomicBoolean running = new AtomicBoolean();
+    private EventGroupConfig adminEventGroup;
+    private EventGroupConfig serverEventGroup;
     private Channel metricsChannel;
 
     public KafkaProxy(Configuration config) {
@@ -92,7 +90,10 @@ public final class KafkaProxy implements AutoCloseable, VirtualClusterResolver {
 
         var availableCores = Runtime.getRuntime().availableProcessors();
         var meterRegistries = new MeterRegistries(micrometerConfig);
+
         this.adminEventGroup = buildNettyEventGroups(availableCores, config.isUseIoUring());
+        this.serverEventGroup = buildNettyEventGroups(availableCores, config.isUseIoUring());
+
         maybeStartMetricsListener(adminEventGroup, meterRegistries);
 
         this.endpointProviders = virtualClusterMap.entrySet().stream()
@@ -113,11 +114,8 @@ public final class KafkaProxy implements AutoCloseable, VirtualClusterResolver {
                     .collect(Collectors.toSet()));
         });
 
-        var virtualHostEventGroup = buildNettyEventGroups(availableCores, config.isUseIoUring());
-        this.virtualHostEventGroups.add(virtualHostEventGroup);
-
-        var tlsServerBootstrap = buildServerBootstrap(virtualHostEventGroup, new KafkaProxyInitializer(config, true, this, false, Map.of()));
-        var plainServerBootstrap = buildServerBootstrap(virtualHostEventGroup, new KafkaProxyInitializer(config, false, this, false, Map.of()));
+        var tlsServerBootstrap = buildServerBootstrap(serverEventGroup, new KafkaProxyInitializer(config, true, this, false, Map.of()));
+        var plainServerBootstrap = buildServerBootstrap(serverEventGroup, new KafkaProxyInitializer(config, false, this, false, Map.of()));
 
         var bindFutures = networkBinders.stream()
                 .map(networkBinder -> networkBinder.bind(networkBinder.tls() ? tlsServerBootstrap : plainServerBootstrap))
@@ -133,12 +131,11 @@ public final class KafkaProxy implements AutoCloseable, VirtualClusterResolver {
     }
 
     private ServerBootstrap buildServerBootstrap(EventGroupConfig virtualHostEventGroup, KafkaProxyInitializer kafkaProxyInitializer) {
-        ServerBootstrap serverBootstrap = new ServerBootstrap().group(virtualHostEventGroup.bossGroup(), virtualHostEventGroup.workerGroup())
+        return new ServerBootstrap().group(virtualHostEventGroup.bossGroup(), virtualHostEventGroup.workerGroup())
                 .channel(virtualHostEventGroup.clazz())
                 .option(ChannelOption.SO_REUSEADDR, true)
                 .childHandler(kafkaProxyInitializer)
                 .childOption(ChannelOption.TCP_NODELAY, true);
-        return serverBootstrap;
     }
 
     private EventGroupConfig buildNettyEventGroups(int availableCores, boolean useIoUring) {
@@ -211,11 +208,12 @@ public final class KafkaProxy implements AutoCloseable, VirtualClusterResolver {
             throw new IllegalStateException("This proxy is not running");
         }
         var closeFutures = new ArrayList<Future<?>>();
-        virtualHostEventGroups.forEach(g -> closeFutures.addAll(g.shutdownGracefully()));
+        closeFutures.addAll(serverEventGroup.shutdownGracefully());
         closeFutures.addAll(adminEventGroup.shutdownGracefully());
         closeFutures.forEach(Future::syncUninterruptibly);
-        virtualHostEventGroups.clear();
         acceptorChannels.clear();
+        adminEventGroup = null;
+        serverEventGroup = null;
         metricsChannel = null;
     }
 
