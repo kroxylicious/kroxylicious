@@ -73,7 +73,7 @@ public interface ClusterEndpointConfigProvider {
     }
 
     /**
-     * Indicates if this provider requires this use of TLS.
+     * Indicates if this provider requires the use of TLS.
      *
      * @return true if this provider requires the use of TLS.
      */
