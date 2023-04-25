@@ -17,17 +17,17 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import javax.net.ssl.KeyManagerFactory;
 
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 
-import io.kroxylicious.proxy.bootstrap.ClusterEndpointProviderFactory;
 import io.kroxylicious.proxy.service.ClusterEndpointConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 
 public class VirtualCluster {
 
     private final TargetCluster targetCluster;
-    private final ClusterEndpointConfigProviderDefinition clusterEndpointConfigProvider;
 
     private final Optional<String> keyStoreFile;
     private final Optional<String> keyPassword;
@@ -39,27 +39,24 @@ public class VirtualCluster {
     private final ClusterEndpointConfigProvider endpointProvider;
     private final ConcurrentHashMap<Integer, HostPort> upstreamClusterCache = new ConcurrentHashMap<>();
 
-    public VirtualCluster(TargetCluster targetCluster, ClusterEndpointConfigProviderDefinition clusterEndpointConfigProvider, Optional<String> keyStoreFile,
+    public VirtualCluster(TargetCluster targetCluster,
+                          @JsonDeserialize(converter = ClusterEndpointConfigProviderConverter.class) ClusterEndpointConfigProvider clusterEndpointConfigProvider,
+                          Optional<String> keyStoreFile,
                           Optional<String> keyPassword,
                           boolean logNetwork, boolean logFrames, boolean useIoUring) {
         this.targetCluster = targetCluster;
-        this.clusterEndpointConfigProvider = clusterEndpointConfigProvider;
         this.logNetwork = logNetwork;
         this.logFrames = logFrames;
         this.useIoUring = useIoUring;
         this.keyStoreFile = keyStoreFile;
         this.keyPassword = keyPassword;
         // TODO can we get jackson to instantiate this?
-        this.endpointProvider = new ClusterEndpointProviderFactory(clusterEndpointConfigProvider).createClusterEndpointProvider();
+        this.endpointProvider = clusterEndpointConfigProvider;
 
     }
 
     public TargetCluster targetCluster() {
         return targetCluster;
-    }
-
-    public ClusterEndpointConfigProviderDefinition clusterEndpointProvider() {
-        return clusterEndpointConfigProvider;
     }
 
     public ClusterEndpointConfigProvider getClusterEndpointProvider() {
@@ -111,7 +108,7 @@ public class VirtualCluster {
     public String toString() {
         final StringBuilder sb = new StringBuilder("VirtualCluster [");
         sb.append("targetCluster=").append(targetCluster);
-        sb.append(", clusterEndpointProvider=").append(clusterEndpointConfigProvider);
+        sb.append(", clusterEndpointProvider=").append(endpointProvider);
         sb.append(", keyStoreFile=").append(keyStoreFile);
         sb.append(", keyPassword=").append(keyPassword);
         sb.append(", logNetwork=").append(logNetwork);
