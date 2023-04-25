@@ -10,6 +10,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
@@ -99,25 +100,12 @@ public final class KafkaProxy implements AutoCloseable, VirtualClusterResolver {
         this.endpointProviders = virtualClusterMap.entrySet().stream()
                 .collect(Collectors.toMap(e -> e.getValue().getClusterEndpointProvider(), Map.Entry::getValue));
 
-        var networkBinders = new HashSet<NetworkBinding>();
-
-        virtualClusterMap.forEach((name, virtualCluster) -> {
-            var endpointProvider = virtualCluster.getClusterEndpointProvider();
-
-            var toBind = new HashSet<HostPort>();
-            toBind.add(endpointProvider.getClusterBootstrapAddress());
-            for (int i = 0; i < endpointProvider.getNumberOfBrokerEndpointsToPrebind(); i++) {
-                toBind.add(endpointProvider.getBrokerAddress(i));
-            }
-
-            networkBinders.addAll(toBind.stream().map(hp -> NetworkBinding.createNetworkBinding(endpointProvider.getBindAddress(), hp.port(), virtualCluster.isUseTls()))
-                    .collect(Collectors.toSet()));
-        });
+        var networkBindings = buildNetworkBindings();
 
         var tlsServerBootstrap = buildServerBootstrap(serverEventGroup, new KafkaProxyInitializer(config, true, this, false, Map.of()));
         var plainServerBootstrap = buildServerBootstrap(serverEventGroup, new KafkaProxyInitializer(config, false, this, false, Map.of()));
 
-        var bindFutures = networkBinders.stream()
+        var bindFutures = networkBindings.stream()
                 .map(networkBinder -> networkBinder.bind(networkBinder.tls() ? tlsServerBootstrap : plainServerBootstrap))
                 .collect(Collectors.toSet());
         bindFutures.forEach(channelFuture -> channelFuture.addListener(f -> LOGGER.info("Listening : {}", channelFuture.channel().localAddress())));
@@ -128,6 +116,45 @@ public final class KafkaProxy implements AutoCloseable, VirtualClusterResolver {
         Metrics.inboundDownstreamMessagesCounter();
         Metrics.inboundDownstreamDecodedMessagesCounter();
         return this;
+    }
+
+    private Set<NetworkBinding> buildNetworkBindings() {
+        var exclusivePortBindings = new HashSet<Integer>();
+        var allBindings = new HashSet<NetworkBinding>();
+
+        virtualClusterMap.forEach((name, virtualCluster) -> {
+            var endpointProvider = virtualCluster.getClusterEndpointProvider();
+
+            if (endpointProvider.requiresTls() && !virtualCluster.isUseTls()) {
+                throw new IllegalStateException("Endpoint configuration for virtual cluster %s requires TLS, but no TLS configuration is specified".formatted(name));
+            }
+
+            var toBind = new HashSet<HostPort>();
+            toBind.add(endpointProvider.getClusterBootstrapAddress());
+            for (int i = 0; i < endpointProvider.getNumberOfBrokerEndpointsToPrebind(); i++) {
+                toBind.add(endpointProvider.getBrokerAddress(i));
+            }
+
+            var virtualHostEndpoints = toBind.stream()
+                    .map(hp -> NetworkBinding.createNetworkBinding(endpointProvider.getBindAddress(), hp.port(), virtualCluster.isUseTls()))
+                    .collect(Collectors.toSet());
+
+            var virtualClusterPorts = virtualHostEndpoints.stream().map(NetworkBinding::port).collect(Collectors.toSet());
+            checkForPortExclusivityConflicts(exclusivePortBindings, virtualClusterPorts);
+            if (endpointProvider.requiresPortExclusivity()) {
+                exclusivePortBindings.addAll(virtualClusterPorts);
+            }
+            allBindings.addAll(virtualHostEndpoints);
+        });
+        return allBindings;
+    }
+
+    private void checkForPortExclusivityConflicts(Set<Integer> exclusivePortBindings, Set<Integer> virtualClusterPorts) {
+        var conflicts = exclusivePortBindings.stream().filter(virtualClusterPorts::contains).collect(Collectors.toSet());
+        if (!conflicts.isEmpty()) {
+            var conflictsString = conflicts.stream().map(String::valueOf).sorted().collect(Collectors.joining(","));
+            throw new IllegalStateException("Configuration produces port conflict(s) : " + conflictsString);
+        }
     }
 
     private ServerBootstrap buildServerBootstrap(EventGroupConfig virtualHostEventGroup, KafkaProxyInitializer kafkaProxyInitializer) {

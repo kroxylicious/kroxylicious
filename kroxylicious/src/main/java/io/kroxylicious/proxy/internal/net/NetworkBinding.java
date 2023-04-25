@@ -16,6 +16,8 @@ public interface NetworkBinding {
 
     boolean tls();
 
+    int port();
+
     static NetworkBinding createNetworkBinding(Optional<String> host, int port, boolean tls) {
         if (host.isPresent()) {
             return new InterfaceSpecificNetworkBinding(host.get(), port, tls);
@@ -29,7 +31,7 @@ public interface NetworkBinding {
     record InterfaceSpecificNetworkBinding(String host, int port, boolean tls) implements NetworkBinding {
 
     @Override
-        public ChannelFuture bind(ServerBootstrap bootstrap) {
+    public ChannelFuture bind(ServerBootstrap bootstrap) {
             return bootstrap.bind(host, port);
         }}
 

@@ -58,8 +58,19 @@ public class SniAwareClusterEndpointConfigProvider implements ClusterEndpointCon
         return NO_MATCH;
     }
 
+    @Override
+    public boolean requiresPortExclusivity() {
+        return false;
+    }
+
+    @Override
+    public boolean requiresTls() {
+        return true;
+    }
+
     public static class SniAwareClusterEndpointProviderConfig extends BaseConfig {
         private final Pattern brokerAddressPatternRegExp;
+
         private final HostPort bootstrapAddress;
         private final String brokerAddressPattern;
 
@@ -86,8 +97,6 @@ public class SniAwareClusterEndpointConfigProvider implements ClusterEndpointCon
             this.brokerAddressPattern = brokerAddressPattern;
             this.brokerAddressPatternRegExp = Pattern.compile("\\Q" + NODE_ID_TOKEN.matcher(brokerAddressPattern).replaceFirst("\\\\E(\\\\d+)\\\\Q") + "\\E",
                     Pattern.CASE_INSENSITIVE);
-
         }
-
     }
 }
