@@ -30,6 +30,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 
+import io.kroxylicious.net.IntegrationTestInetAddressResolverProvider;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.common.BrokerCluster;
 import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
@@ -134,7 +135,7 @@ public class ExpositionIT {
     @Test
     public void exposesTwoClusterOverTlsWithSharedPort(KafkaCluster cluster) throws Exception {
         var clientTrust = new ArrayList<ClientTrust>();
-        var virtualClusterCommonNamePattern = ".virtualcluster%d.multitenant.kafka";
+        var virtualClusterCommonNamePattern = IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName(".virtualcluster%d");
         var virtualClusterBootstrapPattern = "bootstrap" + virtualClusterCommonNamePattern;
         var virtualClusterBrokerAddressPattern = "broker-$(nodeId)" + virtualClusterCommonNamePattern;
 
