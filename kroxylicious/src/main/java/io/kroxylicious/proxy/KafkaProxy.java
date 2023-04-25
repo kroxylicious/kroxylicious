@@ -37,7 +37,6 @@ import io.netty.incubator.channel.uring.IOUringEventLoopGroup;
 import io.netty.incubator.channel.uring.IOUringServerSocketChannel;
 import io.netty.util.concurrent.Future;
 
-import io.kroxylicious.proxy.bootstrap.ClusterEndpointProviderFactory;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.MicrometerDefinition;
 import io.kroxylicious.proxy.config.VirtualCluster;
@@ -53,17 +52,15 @@ import io.kroxylicious.proxy.service.HostPort;
 
 public final class KafkaProxy implements AutoCloseable, VirtualClusterResolver {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxy.class);
+
     private Map<ClusterEndpointConfigProvider, VirtualCluster> endpointProviders;
 
     private record EventGroupConfig(EventLoopGroup bossGroup, EventLoopGroup workerGroup, Class<? extends ServerChannel> clazz) {
         public List<Future<?>> shutdownGracefully() {
             return List.of(bossGroup.shutdownGracefully(), workerGroup.shutdownGracefully());
         }
-    }
-
-    ;
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxy.class);
+    };
 
     private final Configuration config;
     private final AdminHttpConfiguration adminHttpConfig;
@@ -97,10 +94,8 @@ public final class KafkaProxy implements AutoCloseable, VirtualClusterResolver {
         this.adminEventGroup = buildNettyEventGroups(availableCores, false);
         maybeStartMetricsListener(adminEventGroup, meterRegistries);
 
-        // TODO make clusterProvider a property of the virtualcluster
         this.endpointProviders = virtualClusterMap.entrySet().stream()
-                .collect(Collectors.toMap(e -> new ClusterEndpointProviderFactory(e.getValue().clusterEndpointProvider()).createClusterEndpointProvider(),
-                        Map.Entry::getValue));
+                .collect(Collectors.toMap(e -> e.getValue().getClusterEndpointProvider(), Map.Entry::getValue));
 
         var networkBinders = new HashSet<NetworkBinding>();
 
@@ -232,7 +227,6 @@ public final class KafkaProxy implements AutoCloseable, VirtualClusterResolver {
 
     @Override
     public VirtualCluster resolve(String sniHostname, int targetPort) {
-
         var matchingVirtualClusters = endpointProviders.entrySet().stream()
                 .filter(e -> e.getKey().hasMatchingEndpoint(sniHostname, targetPort).matched()).map(Map.Entry::getValue).toList();
         // We only expect one match
