@@ -23,7 +23,7 @@ public class FilterInvokers {
      *     <li>A KrpcFilter implementing {@link ResponseFilter}</li>
      *     <li>A KrpcFilter implementing {@link RequestFilter}</li>
      *     <li>A KrpcFilter implementing both {@link ResponseFilter} and {@link RequestFilter} </li>
-     *     <li>A KrpcFilter implementing qny number of Specific Message Filter interfaces</li>
+     *     <li>A KrpcFilter implementing any number of Specific Message Filter interfaces</li>
      * </ol>
      * @throws IllegalArgumentException if specific Message Filter interfaces are mixed with {@link RequestFilter} or  {@link ResponseFilter}
      * @throws IllegalArgumentException if none of the supported interfaces are implemented
