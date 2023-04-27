@@ -35,10 +35,10 @@ public class FilterInvokers {
         boolean isRequestFilter = filter instanceof RequestFilter;
         boolean isAnySpecificFilterInterface = SpecificFilterInvoker.implementsAnySpecificFilterInterface(filter);
         if (isAnySpecificFilterInterface && (isRequestFilter || isResponseFilter)) {
-            throw new IllegalArgumentException("Cannot mix specific message filter interfaces and all message filter interfaces");
+            throw unsupportedFilterInstance(filter, "Cannot mix specific message filter interfaces and [RequestFilter|ResponseFilter] interfaces");
         }
         if (!isRequestFilter && !isResponseFilter && !isAnySpecificFilterInterface) {
-            throw new IllegalArgumentException("KrpcFilter must implement ResponseFilter, RequestFilter or any combination of specific message Filter interfaces");
+            throw unsupportedFilterInstance(filter, "KrpcFilter must implement ResponseFilter, RequestFilter or any combination of specific message Filter interfaces");
         }
         if (isResponseFilter && isRequestFilter) {
             return requestResponseInvoker((RequestFilter) filter, (ResponseFilter) filter);
@@ -52,6 +52,10 @@ public class FilterInvokers {
         else {
             return new SpecificFilterInvoker(filter);
         }
+    }
+
+    private static IllegalArgumentException unsupportedFilterInstance(KrpcFilter filter, String message) {
+        return new IllegalArgumentException("Invoker could not be created for: " + filter.getClass().getName() + ". " + message);
     }
 
     private static FilterInvoker requestInvoker(RequestFilter filter) {
