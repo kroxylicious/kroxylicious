@@ -7,7 +7,9 @@
 package io.kroxylicious.proxy.internal.clusterendpointprovider;
 
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import io.kroxylicious.proxy.config.BaseConfig;
@@ -16,17 +18,14 @@ import io.kroxylicious.proxy.service.HostPort;
 
 public class StaticClusterEndpointConfigProvider implements ClusterEndpointConfigProvider {
 
-    private static final EndpointMatchResult BOOTSTRAP_MATCHED = new EndpointMatchResult(true, null);
-    private static final EndpointMatchResult NO_MATCH = new EndpointMatchResult(false, null);
     private final HostPort bootstrapAddress;
     private final Map<Integer, HostPort> brokers;
-    private final Map<Integer, EndpointMatchResult> portToNodeIdMatchedMap;
+    private final Set<Integer> ports;
 
     public StaticClusterEndpointConfigProvider(StaticClusterEndpointProviderConfig config) {
         this.bootstrapAddress = config.bootstrapAddress;
         this.brokers = config.brokers;
-        this.portToNodeIdMatchedMap = this.brokers.entrySet().stream()
-                .collect(Collectors.toMap(e -> e.getValue().port(), e -> new EndpointMatchResult(true, e.getKey())));
+        this.ports = brokers.values().stream().map(HostPort::port).collect(Collectors.toCollection(HashSet::new));
     }
 
     @Override
@@ -49,11 +48,9 @@ public class StaticClusterEndpointConfigProvider implements ClusterEndpointConfi
     }
 
     @Override
-    public EndpointMatchResult hasMatchingEndpoint(String sniHostname, int port) {
-        if (bootstrapAddress.port() == port) {
-            return BOOTSTRAP_MATCHED;
-        }
-        return portToNodeIdMatchedMap.getOrDefault(port, NO_MATCH);
+    public Set<Integer> getExclusivePorts() {
+        ports.add(bootstrapAddress.port());
+        return ports;
     }
 
     public static class StaticClusterEndpointProviderConfig extends BaseConfig {

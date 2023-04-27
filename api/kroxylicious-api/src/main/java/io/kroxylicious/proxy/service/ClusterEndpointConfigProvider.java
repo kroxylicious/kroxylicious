@@ -6,6 +6,7 @@
 package io.kroxylicious.proxy.service;
 
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Provides the addresses of the network endpoints required by a virtual cluster.
@@ -31,16 +32,6 @@ public interface ClusterEndpointConfigProvider {
     HostPort getBrokerAddress(int nodeId) throws IllegalArgumentException;
 
     /**
-     * Tests whether this endpoint providers has a matching endpoint for the given parameters.  This considers both bootstrap and broker endpoints.
-     * If the endpoint is known and corresponds to a broker endpoint, the result encapsulates the {@code nodeId} of the endpoint.
-     *
-     * @param sniHostname sniHostname provided by TLS negotiation or null if TLS is not in use or SNI is not available.
-     * @param port local port number of the connection
-     * @return an {@link EndpointMatchResult}
-     */
-    EndpointMatchResult hasMatchingEndpoint(String sniHostname, int port);
-
-    /**
      * Provides the number of broker endpoints to pre-bind.
      * Kroxylicious will pre-bind all the broker end-points between
      * 0..{@code numberOfWarmStartBrokerEndpoints}-1 on startup, rather
@@ -63,16 +54,6 @@ public interface ClusterEndpointConfigProvider {
     }
 
     /**
-     * Indicates if this provider requires exclusive use of ports that it defines.  If true,
-     * no other provider will be able to bind the same port.
-     *
-     * @return true if this endpoint provider requires exclusive use of ports.
-     */
-    default boolean requiresPortExclusivity() {
-        return true;
-    }
-
-    /**
      * Indicates if this provider requires the use of TLS.
      *
      * @return true if this provider requires the use of TLS.
@@ -82,11 +63,21 @@ public interface ClusterEndpointConfigProvider {
     }
 
     /**
-     * Encapsulates the result of a endpoint match.
+     * Set of ports number that this provider requires exclusive use.
      *
-     * @param matched true if matched, false otherwise.
-     * @param nodeId if a broker endpoint match, carries the {@code nodeId}.
+     * @return set of port numbers
      */
-    record EndpointMatchResult(boolean matched, Integer nodeId) {
+    default Set<Integer> getExclusivePorts() {
+        return Set.of();
     }
+
+    /**
+     * Set of ports number that this provider can share with another provider.
+     *
+     * @return set of port numbers
+     */
+    default Set<Integer> getSharedPorts() {
+        return Set.of();
+    }
+
 }

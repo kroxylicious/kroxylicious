@@ -20,7 +20,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class KafkaProxyTest {
 
-    // TODO: test cases related to different interfaces.
     public static Stream<Arguments> detectsConflictingPorts() {
         return Stream.of(Arguments.of("bootstrap port conflict", """
                 virtualClusters:
@@ -34,7 +33,7 @@ class KafkaProxyTest {
                       type: StaticCluster
                       config:
                         bootstrapAddress: localhost:9192 # Conflict
-                """, "conflict(s) : 9192"),
+                """, "The exclusive bind of port(s) 9192 to <any> would conflict with existing exclusive port bindings on <any>."),
                 Arguments.of("broker port conflict", """
                         virtualClusters:
                           demo1:
@@ -53,7 +52,7 @@ class KafkaProxyTest {
                                 brokers:
                                     0: localhost:9193  # Conflict
                                     1: localhost:8194
-                        """, "conflict(s) : 9193"),
+                        """, "The exclusive bind of port(s) 9193 to <any> would conflict with existing exclusive port bindings on <any>."),
                 Arguments.of("Static/SniRouting bootstrap port conflict", """
                         virtualClusters:
                           demo1:
@@ -69,7 +68,7 @@ class KafkaProxyTest {
                                 brokerAddressPattern: broker-$(nodeId)
                             keyStoreFile: /tmp/notused
                             keystorePassword: apassword
-                        """, "conflict(s) : 9192"));
+                        """, "The shared bind of port(s) 9192 to <any> would conflict with existing exclusive port bindings on <any>."));
     }
 
     @ParameterizedTest(name = "{0}")
@@ -77,7 +76,7 @@ class KafkaProxyTest {
     public void detectsConflictingPorts(String name, String config, String expectedMessage) throws Exception {
         try (var kafkaProxy = new KafkaProxy(new ConfigParser().parseConfiguration(config))) {
             var illegalStateException = assertThrows(IllegalStateException.class, kafkaProxy::startup);
-            assertThat(illegalStateException.getMessage()).contains(expectedMessage);
+            assertThat(illegalStateException).hasStackTraceContaining(expectedMessage);
         }
     }
 
@@ -90,17 +89,18 @@ class KafkaProxyTest {
                       config:
                         bootstrapAddress: cluster1:9192
                         brokerAddressPattern:  broker-$(nodeId)
-                """, "no TLS configuration is specified"));
+                """, "Cluster endpoint provider requires tls, but this virtual cluster does not define it"));
     }
 
     @ParameterizedTest(name = "{0}")
     @MethodSource
     public void missingTls(String name, String config, String expectedMessage) throws Exception {
 
-        try (var kafkaProxy = new KafkaProxy(new ConfigParser().parseConfiguration(config))) {
-            var illegalStateException = assertThrows(IllegalStateException.class, kafkaProxy::startup);
-            assertThat(illegalStateException.getMessage()).contains(expectedMessage);
-        }
+        var illegalArgumentException = assertThrows(IllegalArgumentException.class, () -> {
+            try (var kafkaProxy = new KafkaProxy(new ConfigParser().parseConfiguration(config))) {
+            }
+        });
+        assertThat(illegalArgumentException).hasStackTraceContaining(expectedMessage);
     }
 
     public static Stream<Arguments> validConfig() {
@@ -112,7 +112,7 @@ class KafkaProxyTest {
                               type: SniRouting
                               config:
                                 bootstrapAddress: cluster1:9192
-                                brokerAddressPattern:  broker-$(nodeId)
+                                brokerAddressPattern:  broker-$(nodeId)-cluster1
                             keyStoreFile: /tmo/notused
                             keystorePassword: apassword
                           demo2:
@@ -120,7 +120,7 @@ class KafkaProxyTest {
                               type: SniRouting
                               config:
                                 bootstrapAddress: cluster2:9192
-                                brokerAddressPattern:  broker-$(nodeId)
+                                brokerAddressPattern:  broker-$(nodeId)-cluster2
                             keyStoreFile: /tmo/notused
                             keystorePassword: apassword
                         """));
