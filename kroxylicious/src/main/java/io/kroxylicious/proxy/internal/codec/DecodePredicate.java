@@ -25,12 +25,12 @@ import io.kroxylicious.proxy.filter.KrpcFilter;
 public interface DecodePredicate {
     static DecodePredicate forFilters(KrpcFilter... filters) {
 
-        List<FilterInvoker> invokers = Arrays.stream(filters).map(krpcFilter -> FilterInvokers.from(krpcFilter)).toList();
+        List<FilterInvoker> invokers = Arrays.stream(filters).map(FilterInvokers::from).toList();
         return new DecodePredicate() {
             @Override
             public boolean shouldDecodeResponse(ApiKeys apiKey, short apiVersion) {
-                for (var filter : invokers) {
-                    if (filter.shouldHandleResponse(apiKey, apiVersion)) {
+                for (var invoker : invokers) {
+                    if (invoker.shouldHandleResponse(apiKey, apiVersion)) {
                         return true;
                     }
                 }
@@ -39,8 +39,8 @@ public interface DecodePredicate {
 
             @Override
             public boolean shouldDecodeRequest(ApiKeys apiKey, short apiVersion) {
-                for (var filter : invokers) {
-                    if (filter.shouldHandleRequest(apiKey, apiVersion)) {
+                for (var invoker : invokers) {
+                    if (invoker.shouldHandleRequest(apiKey, apiVersion)) {
                         return true;
                     }
                 }
