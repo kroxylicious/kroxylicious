@@ -39,6 +39,7 @@ public class SniAwareClusterEndpointConfigProvider implements ClusterEndpointCon
             // nodeIds of < 0 have special meaning to kafka.
             throw new IllegalArgumentException("nodeId cannot be less than zero");
         }
+        // TODO: consider introducing an cache (LRU?)
         return new HostPort(brokerAddressPattern.replace(LITERAL_NODE_ID, Integer.toString(nodeId)), bootstrapAddress.port());
     }
 
