@@ -47,7 +47,7 @@ public class UpstreamBrokerAddressCachingNetFilter implements NetFilter {
         filters.add((MetadataResponseFilter) (header, response, filterContext) -> {
             response.brokers().forEach(b -> {
                 var replacement = new HostPort(b.host(), b.port());
-                var existing = virtualCluster.getUpstreamClusterCache().put(b.nodeId(), replacement);
+                var existing = virtualCluster.updateUpstreamClusterAddressForNode(b.nodeId(), replacement);
                 if (!replacement.equals(existing)) {
                     LOGGER.info("Got upstream for broker {} : {}", b.nodeId(), replacement);
                 }
@@ -64,7 +64,7 @@ public class UpstreamBrokerAddressCachingNetFilter implements NetFilter {
 
         HostPort target;
         if (endpointMatchResult.matched() && endpointMatchResult.nodeId() != null) {
-            var upstreamBroker = virtualCluster.getUpstreamClusterCache().get(endpointMatchResult.nodeId());
+            var upstreamBroker = virtualCluster.getUpstreamClusterAddressForNode(endpointMatchResult.nodeId());
             if (upstreamBroker != null) {
                 target = upstreamBroker;
             }

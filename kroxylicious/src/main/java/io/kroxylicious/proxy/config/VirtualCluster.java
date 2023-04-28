@@ -109,9 +109,11 @@ public class VirtualCluster {
         return sb.toString();
     }
 
-    // TODO - better abstraction required around this
-    public ConcurrentHashMap<Integer, HostPort> getUpstreamClusterCache() {
-        return upstreamClusterCache;
+    public HostPort getUpstreamClusterAddressForNode(int nodeId) {
+        return upstreamClusterCache.get(nodeId);
     }
 
+    public HostPort updateUpstreamClusterAddressForNode(int nodeId, HostPort replacement) {
+        return upstreamClusterCache.put(nodeId, replacement);
+    }
 }
