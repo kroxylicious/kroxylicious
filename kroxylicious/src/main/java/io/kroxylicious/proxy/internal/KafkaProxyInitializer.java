@@ -12,16 +12,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.haproxy.HAProxyMessageDecoder;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
-import io.netty.handler.ssl.SniCompletionEvent;
 import io.netty.handler.ssl.SniHandler;
-import io.netty.util.AttributeKey;
+import io.netty.handler.ssl.SslContext;
+import io.netty.util.concurrent.Future;
 
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.VirtualCluster;
@@ -32,7 +31,6 @@ import io.kroxylicious.proxy.internal.filter.UpstreamBrokerAddressCachingNetFilt
 public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyInitializer.class);
-    private static final AttributeKey<Object> VIRTUAL_CLUSTER = AttributeKey.newInstance("virtualHost");
 
     private final boolean haproxyProtocol;
     private final Map<KafkaAuthnHandler.SaslMechanism, AuthenticateCallbackHandler> authnHandlers;
@@ -65,24 +63,14 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
                 if (sslContext.isEmpty()) {
                     throw new IllegalStateException("Virtual cluster %s does not provide SSL context".formatted(virtualCluster));
                 }
-                ch.attr(VIRTUAL_CLUSTER).set(virtualCluster);
+                addHandlers(ch, virtualCluster);
                 return sslContext.get();
-            }));
+            }) {
 
-            // Intercept the SniCompletionEvent and use that as a trigger to add the remainder of the pipeline.
-            pipeline.addLast(new ChannelInboundHandlerAdapter() {
                 @Override
-                public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
-                    // The order is important here, we need to add the handlers before propagating the user event.
-                    // This is important as our pipeline line needs to hear the SNI event.
-                    if (evt instanceof SniCompletionEvent) {
-                        var virtualCluster = ((VirtualCluster) ctx.channel().attr(VIRTUAL_CLUSTER).get());
-                        addHandlers(ch, virtualCluster);
-                        ctx.fireChannelActive();
-                        ctx.pipeline().remove(this);
-                        ctx.channel().attr(VIRTUAL_CLUSTER).set(null);
-                    }
-                    super.userEventTriggered(ctx, evt);
+                protected void onLookupComplete(ChannelHandlerContext ctx, Future<SslContext> future) throws Exception {
+                    super.onLookupComplete(ctx, future);
+                    ctx.fireChannelActive();
                 }
             });
         }
