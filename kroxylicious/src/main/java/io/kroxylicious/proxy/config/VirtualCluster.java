@@ -48,9 +48,7 @@ public class VirtualCluster {
         this.logFrames = logFrames;
         this.keyStoreFile = keyStoreFile;
         this.keyPassword = keyPassword;
-        // TODO can we get jackson to instantiate this?
         this.endpointProvider = clusterEndpointConfigProvider;
-
     }
 
     public TargetCluster targetCluster() {
