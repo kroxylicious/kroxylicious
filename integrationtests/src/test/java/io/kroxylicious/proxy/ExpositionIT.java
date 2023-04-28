@@ -10,6 +10,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
@@ -32,6 +33,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import io.kroxylicious.net.IntegrationTestInetAddressResolverProvider;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
+import io.kroxylicious.testing.kafka.clients.CloseableAdmin;
 import io.kroxylicious.testing.kafka.common.BrokerCluster;
 import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
@@ -39,7 +41,6 @@ import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import static io.kroxylicious.proxy.Utils.startProxy;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
 import static org.testcontainers.shaded.org.awaitility.Awaitility.await;
 
 /**
@@ -76,12 +77,13 @@ public class ExpositionIT {
         var config = builder.build().toYaml();
 
         try (var proxy = startProxy(config)) {
-            try (var admin = Admin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
+            try (var admin = CloseableAdmin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
                     CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name,
                     SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
                     SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, brokerCertificateGenerator.getPassword()))) {
                 // do some work to ensure connection is opened
-                admin.createTopics(List.of(new NewTopic(TOPIC, 1, (short) 1))).all().get();
+                createTopic(admin, TOPIC, 1);
+
                 var connectionsMetric = admin.metrics().entrySet().stream().filter(metricNameEntry -> "connections".equals(metricNameEntry.getKey().name()))
                         .findFirst();
                 assertTrue(connectionsMetric.isPresent());
@@ -119,14 +121,9 @@ public class ExpositionIT {
 
         try (var proxy = startProxy(config)) {
             for (int i = 0; i < clusterProxyAddresses.size(); i++) {
-                try (var admin = Admin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, clusterProxyAddresses.get(i)))) {
+                try (var admin = CloseableAdmin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, clusterProxyAddresses.get(i)))) {
                     // do some work to ensure virtual cluster is operational
-                    try {
-                        admin.createTopics(List.of(new NewTopic(TOPIC + i, 1, (short) 1))).all().get();
-                    }
-                    catch (Exception e) {
-                        throw new RuntimeException(e);
-                    }
+                    createTopic(admin, TOPIC + i, 1);
                 }
             }
         }
@@ -179,12 +176,12 @@ public class ExpositionIT {
         try (var proxy = startProxy(config)) {
             for (int i = 0; i < numberOfVirtualClusters; i++) {
                 var trust = clientTrust.get(i);
-                try (var admin = Admin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, virtualClusterBootstrapPattern.formatted(i) + ":9192",
+                try (var admin = CloseableAdmin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, virtualClusterBootstrapPattern.formatted(i) + ":9192",
                         CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name,
                         SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, trust.trustStore().toAbsolutePath().toString(),
                         SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, trust.password()))) {
                     // do some work to ensure virtual cluster is operational
-                    admin.createTopics(List.of(new NewTopic(TOPIC + i, 1, (short) 1))).all().get();
+                    createTopic(admin, TOPIC + i, 1);
                 }
             }
         }
@@ -208,7 +205,7 @@ public class ExpositionIT {
 
         try (var proxy = startProxy(config)) {
 
-            try (var admin = Admin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress))) {
+            try (var admin = CloseableAdmin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress))) {
                 var nodes = admin.describeCluster().nodes().get();
                 assertThat(nodes).hasSize(2);
                 var unique = nodes.stream().collect(Collectors.toMap(Node::id, ExpositionIT::toAddress));
@@ -221,7 +218,7 @@ public class ExpositionIT {
             int numPartitions = 2;
             try (var admin = Admin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress))) {
                 // create topic and ensure that leaders are on different brokers.
-                admin.createTopics(List.of(new NewTopic(TOPIC, numPartitions, (short) 1))).all().get();
+                createTopic(admin, TOPIC, numPartitions);
                 await().atMost(Duration.ofSeconds(5)).until(() -> admin.describeTopics(List.of(TOPIC)).topicNameValues().get(TOPIC).get()
                         .partitions().stream().map(TopicPartitionInfo::leader)
                         .collect(Collectors.toSet()),
@@ -233,18 +230,23 @@ public class ExpositionIT {
                         ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
                         ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class))) {
                     for (int partition = 0; partition < numPartitions; partition++) {
-                        try {
-                            var send = producer.send(new ProducerRecord<>(TOPIC, partition, "key", "value"));
-                            send.get(10, TimeUnit.SECONDS);
-                        }
-                        catch (TimeoutException e) {
-                            // Need to explicitly close the producer otherwise it will await forever awaiting the in-flight send to complete.
-                            producer.close(Duration.ofSeconds(1));
-                            fail("send for partition %d timed-out (check logs for root cause)".formatted(partition), e);
-                        }
+                        var send = producer.send(new ProducerRecord<>(TOPIC, partition, "key", "value"));
+                        send.get(10, TimeUnit.SECONDS);
                     }
                 }
             }
+        }
+    }
+
+    private void createTopic(Admin admin, String topic, int numPartitions) {
+        try {
+            admin.createTopics(List.of(new NewTopic(topic, numPartitions, (short) 1))).all().get(10, TimeUnit.SECONDS);
+        }
+        catch (ExecutionException e) {
+            throw new RuntimeException(e.getCause());
+        }
+        catch (InterruptedException | TimeoutException e) {
+            throw new RuntimeException(e);
         }
     }
 
