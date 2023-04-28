@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -125,7 +126,8 @@ public final class KafkaProxy implements AutoCloseable, VirtualClusterResolver {
         virtualClusterMap.forEach((name, virtualCluster) -> {
             var endpointProvider = virtualCluster.getClusterEndpointProvider();
 
-            if (endpointProvider.requiresTls() && !virtualCluster.isUseTls()) {
+            var useTls = virtualCluster.isUseTls();
+            if (endpointProvider.requiresTls() && !useTls) {
                 throw new IllegalStateException("Endpoint configuration for virtual cluster %s requires TLS, but no TLS configuration is specified".formatted(name));
             }
 
@@ -135,8 +137,9 @@ public final class KafkaProxy implements AutoCloseable, VirtualClusterResolver {
                 toBind.add(endpointProvider.getBrokerAddress(i));
             }
 
+            var bindAddress = endpointProvider.getBindAddress();
             var virtualHostEndpoints = toBind.stream()
-                    .map(hp -> NetworkBinding.createNetworkBinding(endpointProvider.getBindAddress(), hp.port(), virtualCluster.isUseTls()))
+                    .map(hp -> NetworkBinding.createNetworkBinding(bindAddress, hp.port(), useTls))
                     .collect(Collectors.toSet());
 
             var virtualClusterPorts = virtualHostEndpoints.stream().map(NetworkBinding::port).collect(Collectors.toSet());
