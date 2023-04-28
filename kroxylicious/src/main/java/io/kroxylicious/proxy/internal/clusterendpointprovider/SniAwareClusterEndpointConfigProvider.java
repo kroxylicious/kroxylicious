@@ -6,7 +6,6 @@
 
 package io.kroxylicious.proxy.internal.clusterendpointprovider;
 
-import java.util.Locale;
 import java.util.regex.Pattern;
 
 import io.kroxylicious.proxy.config.BaseConfig;
@@ -48,7 +47,7 @@ public class SniAwareClusterEndpointConfigProvider implements ClusterEndpointCon
         if (sniHostname == null || bootstrapAddress.port() != port) {
             return NO_MATCH;
         }
-        else if (bootstrapAddress.host().equals(sniHostname) || bootstrapAddress.host().toLowerCase(Locale.ROOT).equals(sniHostname.toLowerCase(Locale.ROOT))) {
+        else if (bootstrapAddress.host().equals(sniHostname) || bootstrapAddress.host().equalsIgnoreCase(sniHostname)) {
             return BOOTSTRAP_MATCHED;
         }
         var matcher = brokerAddressPatternRegExp.matcher(sniHostname);

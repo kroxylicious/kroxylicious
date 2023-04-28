@@ -6,6 +6,7 @@
 
 package io.kroxylicious.proxy.service;
 
+import java.util.Locale;
 import java.util.Objects;
 import java.util.regex.Pattern;
 
@@ -14,23 +15,52 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 /**
  * Represents a host port pair.
  *
- * @param host host name
- * @param port port number.
  */
-public record HostPort(String host, int port) {
+public final class HostPort {
     private static final Pattern IPV6_WITH_PORT = Pattern.compile("^(\\[.+]):(.+)$");
     private static final Pattern PORT_SEPARATOR = Pattern.compile(":");
+    private final String host;
+    private final int port;
+    private final int hash;
 
     /**
      * Creates a host port.
      */
-     public HostPort {
+    public HostPort(String host, int port) {
         Objects.requireNonNull(host, "host cannot be null");
+        this.host = host;
+        this.port = port;
+        this.hash = Objects.hash(host.toLowerCase(Locale.ROOT), port);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == this) {
+            return true;
+        }
+        if (obj == null || obj.getClass() != this.getClass()) {
+            return false;
+        }
+        var that = (HostPort) obj;
+        return this.host.equalsIgnoreCase(that.host) && this.port == that.port;
+    }
+
+    @Override
+    public int hashCode() {
+        return hash;
     }
 
     @Override
     public String toString() {
         return host + ":" + port;
+    }
+
+    public String host() {
+        return host;
+    }
+
+    public int port() {
+        return port;
     }
 
     /**
@@ -46,7 +76,8 @@ public record HostPort(String host, int port) {
      */
     @JsonCreator
     public static HostPort parse(String address) {
-        var exceptionText = "unexpected address formation '%s'. Valid formations are 'host:9092', 'host.example.com:9092', or '[::ffff:c0a8:1]:9092', ".formatted(address);
+        var exceptionText = ("unexpected address formation '%s'." +
+                " Valid formations are 'host:9092', 'host.example.com:9092', or '[::ffff:c0a8:1]:9092', ").formatted(address);
 
         if (address == null) {
             throw new IllegalArgumentException(exceptionText);
