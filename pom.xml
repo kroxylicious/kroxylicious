@@ -219,6 +219,7 @@
     <modules>
         <module>api/kroxylicious-api</module>
         <module>api/kroxylicious-filter-api</module>
+        <module>kroxylicious-schema-validation</module>
         <module>krpc-code-gen</module>
         <module>kroxylicious-test-tools</module>
         <module>kroxylicious</module>

@@ -44,6 +44,12 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-schema-validation</artifactId>
+            <version>0.2.0-SNAPSHOT</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>io.kroxylicious.testing</groupId>
             <artifactId>testing-junit5-extension</artifactId>
             <scope>test</scope>
