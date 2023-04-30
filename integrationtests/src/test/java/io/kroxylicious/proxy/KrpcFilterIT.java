@@ -12,6 +12,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
@@ -29,16 +30,19 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.Node;
 import org.apache.kafka.common.TopicPartitionInfo;
 import org.apache.kafka.common.config.SslConfigs;
+import org.apache.kafka.common.errors.InvalidTopicException;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 
+import io.kroxylicious.proxy.filter.CreateTopicRejectFilter;
 import io.kroxylicious.proxy.internal.filter.ByteBufferTransformation;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.common.BrokerCluster;
@@ -145,6 +149,30 @@ public class KrpcFilterIT {
                 consumer.close();
                 assertEquals(1, records.count());
                 assertEquals("Hello, world!", records.iterator().next().value());
+            }
+        }
+    }
+
+    @Test
+    public void requestFiltersCanRespondWithoutProxying(KafkaCluster cluster, Admin admin) throws Exception {
+        String proxyAddress = "localhost:9192";
+
+        var config = baseConfigBuilder(proxyAddress, cluster.getBootstrapServers())
+                .addNewFilter().withType("CreateTopicRejectFilter").endFilter().build().toYaml();
+
+        try (var ignored = startProxy(config)) {
+            try (var proxyAdmin = Admin.create(Map.of(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress))) {
+                Assertions.assertThatExceptionOfType(ExecutionException.class)
+                        .isThrownBy(() -> {
+                            proxyAdmin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1))).all().get();
+                        })
+                        .withCauseInstanceOf(InvalidTopicException.class)
+                        .havingCause()
+                        .withMessage(CreateTopicRejectFilter.ERROR_MESSAGE);
+
+                // check no topic created on the cluster
+                Set<String> names = admin.listTopics().names().get(10, TimeUnit.SECONDS);
+                assertEquals(Set.of(), names);
             }
         }
     }
