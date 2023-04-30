@@ -44,6 +44,7 @@ import static com.google.common.base.Preconditions.checkState;
 import static io.kroxylicious.proxy.filter.multitenant.KafkaApiMessageConverter.requestConverterFor;
 import static io.kroxylicious.proxy.filter.multitenant.KafkaApiMessageConverter.responseConverterFor;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -147,7 +148,7 @@ class MultiTenantTransformationFilterTest {
         var marshalled = requestWriter.apply(request, header.requestApiVersion());
 
         invoker.onRequest(ApiKeys.forId(apiMessageType.apiKey()), header.requestApiVersion(), header, request, context);
-        verify(context).forwardRequest(apiMessageCaptor.capture());
+        verify(context).forwardRequest(any(), apiMessageCaptor.capture());
 
         var filtered = requestWriter.apply(apiMessageCaptor.getValue(), header.requestApiVersion());
         assertEquals(requestTestDef.expectedPatch(), JsonDiff.asJson(marshalled, filtered));
@@ -166,8 +167,9 @@ class MultiTenantTransformationFilterTest {
 
         var marshalled = responseWriter.apply(response, header.requestApiVersion());
 
-        invoker.onResponse(ApiKeys.forId(apiMessageType.apiKey()), header.requestApiVersion(), new ResponseHeaderData(), response, context);
-        verify(context).forwardResponse(apiMessageCaptor.capture());
+        ResponseHeaderData headerData = new ResponseHeaderData();
+        invoker.onResponse(ApiKeys.forId(apiMessageType.apiKey()), header.requestApiVersion(), headerData, response, context);
+        verify(context).forwardResponse(any(), apiMessageCaptor.capture());
 
         var filtered = responseWriter.apply(apiMessageCaptor.getValue(), header.requestApiVersion());
         assertEquals(responseTestDef.expectedPatch(), JsonDiff.asJson(marshalled, filtered));

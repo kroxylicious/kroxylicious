@@ -7,6 +7,8 @@ package io.kroxylicious.proxy.filter;
 
 import java.util.concurrent.CompletionStage;
 
+import org.apache.kafka.common.message.RequestHeaderData;
+import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 
@@ -37,9 +39,11 @@ public interface KrpcFilterContext {
 
     /**
      * Send a request towards the broker, invoking upstream filters.
+     *
+     * @param header The header to forward to the broker.
      * @param request The request to forward to the broker.
      */
-    void forwardRequest(ApiMessage request);
+    void forwardRequest(RequestHeaderData header, ApiMessage request);
 
     /**
      * Send a message from a filter towards the broker, invoking upstream filters
@@ -60,12 +64,24 @@ public interface KrpcFilterContext {
      * <p>If this is invoked while the message is flowing downstream towards the broker, then
      * it will not be sent to the broker. So this method can be used to generate responses in
      * the proxy.</p>
+     * @param header The header to forward to the client.
+     * @param response The response to forward to the client.
+     * @throws AssertionError if response is logically inconsistent, for example responding with request data
+     * or responding with a produce response to a fetch request. It is up to specific implementations to
+     * determine what logically inconsistent means.
+     */
+    void forwardResponse(ResponseHeaderData header, ApiMessage response);
+
+    /**
+     * Send a response towards the client, invoking downstream filters.
+     * <p>If this is invoked while the message is flowing downstream towards the broker, then
+     * it will not be sent to the broker. So this method can be used to generate responses in
+     * the proxy. In this case response headers will be created with a correlationId matching the request</p>
      * @param response The response to forward to the client.
      * @throws AssertionError if response is logically inconsistent, for example responding with request data
      * or responding with a produce response to a fetch request. It is up to specific implementations to
      * determine what logically inconsistent means.
      */
     void forwardResponse(ApiMessage response);
-
     // TODO an API to allow a filter to add/remove another filter from the pipeline
 }

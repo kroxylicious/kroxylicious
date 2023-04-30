@@ -72,7 +72,7 @@ public class ProduceRequestTransformationFilter implements ProduceRequestFilter 
     @Override
     public void onProduceRequest(RequestHeaderData header, ProduceRequestData data, KrpcFilterContext context) {
         applyTransformation(context, data);
-        context.forwardRequest(data);
+        context.forwardRequest(header, data);
     }
 
     private void applyTransformation(KrpcFilterContext ctx, ProduceRequestData req) {

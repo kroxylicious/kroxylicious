@@ -45,7 +45,7 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
             apply(context, broker, MetadataResponseBroker::nodeId, MetadataResponseBroker::host, MetadataResponseBroker::port, MetadataResponseBroker::setHost,
                     MetadataResponseBroker::setPort);
         }
-        context.forwardResponse(data);
+        context.forwardResponse(header, data);
     }
 
     @Override
@@ -54,7 +54,7 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
             apply(context, broker, DescribeClusterBroker::brokerId, DescribeClusterBroker::host, DescribeClusterBroker::port, DescribeClusterBroker::setHost,
                     DescribeClusterBroker::setPort);
         }
-        context.forwardResponse(data);
+        context.forwardResponse(header, data);
     }
 
     @Override
@@ -62,7 +62,7 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
         for (Coordinator coordinator : data.coordinators()) {
             apply(context, coordinator, Coordinator::nodeId, Coordinator::host, Coordinator::port, Coordinator::setHost, Coordinator::setPort);
         }
-        context.forwardResponse(data);
+        context.forwardResponse(header, data);
     }
 
     private <T> void apply(KrpcFilterContext context, T broker, Function<T, Integer> nodeIdGetter, Function<T, String> hostGetter, ToIntFunction<T> portGetter,

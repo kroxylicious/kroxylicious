@@ -134,7 +134,7 @@ public class FilterInvokers {
             invoker.onRequest(apiKey, apiVersion, header, body, filterContext);
         }
         else {
-            filterContext.forwardRequest(body);
+            filterContext.forwardRequest(header, body);
         }
     }
 
@@ -144,7 +144,7 @@ public class FilterInvokers {
             invoker.onResponse(apiKey, apiVersion, header, body, filterContext);
         }
         else {
-            filterContext.forwardResponse(body);
+            filterContext.forwardResponse(header, body);
         }
     }
 

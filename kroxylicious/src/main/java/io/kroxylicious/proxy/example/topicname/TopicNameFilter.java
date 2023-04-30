@@ -36,7 +36,7 @@ public class TopicNameFilter
         }
         // TODO how can we expose this state to other filters?
         // TODO filterContext.put("topicNames", topicNames);
-        context.forwardResponse(response);
+        context.forwardResponse(header, response);
     }
 
     // We don't implement DeleteTopicsRequestFilter because we don't know whether
@@ -46,7 +46,7 @@ public class TopicNameFilter
         for (var resp : response.responses()) {
             topicNames.remove(resp.topicId());
         }
-        context.forwardResponse(response);
+        context.forwardResponse(header, response);
     }
 
     @Override
@@ -54,6 +54,6 @@ public class TopicNameFilter
         for (var topic : response.topics()) {
             topicNames.put(topic.topicId(), topic.name());
         }
-        context.forwardResponse(response);
+        context.forwardResponse(header, response);
     }
 }

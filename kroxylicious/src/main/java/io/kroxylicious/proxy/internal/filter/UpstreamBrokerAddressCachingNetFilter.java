@@ -52,7 +52,7 @@ public class UpstreamBrokerAddressCachingNetFilter implements NetFilter {
                     LOGGER.info("Got upstream for broker {} : {}", b.nodeId(), replacement);
                 }
             });
-            filterContext.forwardResponse(response);
+            filterContext.forwardResponse(header, response);
         });
 
         var targetPort = ((InetSocketAddress) context.localAddress()).getPort();
