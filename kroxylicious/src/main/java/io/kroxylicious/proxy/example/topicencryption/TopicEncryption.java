@@ -30,7 +30,7 @@ public class TopicEncryption implements ProduceRequestFilter, FetchResponseFilte
             return;
         }
         else {
-            context.forwardRequest(request);
+            context.forwardRequest(header, request);
         }
     }
 
@@ -43,7 +43,7 @@ public class TopicEncryption implements ProduceRequestFilter, FetchResponseFilte
             }
             // TODO the rest of it
         }
-        context.forwardResponse(response);
+        context.forwardResponse(header, response);
     }
 
     private String lookupTopic(Uuid topicId) {

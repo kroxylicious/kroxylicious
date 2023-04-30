@@ -72,7 +72,7 @@ public interface FilterInvoker {
      * <p>Handle deserialized request data. It is implicit that the underlying filter
      * wants to handle this data because it indicated that with {@link #shouldHandleRequest(ApiKeys, short)}
      * </p><p>
-     * Most Filters will want to call a method on {@link KrpcFilterContext} like {@link KrpcFilterContext#forwardRequest(ApiMessage)}
+     * Most Filters will want to call a method on {@link KrpcFilterContext} like {@link KrpcFilterContext#forwardRequest(RequestHeaderData, ApiMessage)}
      * so that the message continues to flow through the filter chain.
      * </p>
      * @param apiKey the key of the message
@@ -81,14 +81,14 @@ public interface FilterInvoker {
      * @param filterContext contains methods to continue the filter chain and other contextual data
      */
     default void onRequest(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
-        filterContext.forwardRequest(body);
+        filterContext.forwardRequest(header, body);
     }
 
     /**
      * <p>Handle deserialized response data. It is implicit that the underlying filter
      * wants to handle this data because it indicated that with {@link #shouldHandleResponse(ApiKeys, short)}
      * </p><p>
-     * Most Filters will want to call a method on {@link KrpcFilterContext} like {@link KrpcFilterContext#forwardRequest(ApiMessage)}
+     * Most Filters will want to call a method on {@link KrpcFilterContext} like {@link KrpcFilterContext#forwardResponse(ResponseHeaderData, ApiMessage)}
      * so that the message continues to flow through the filter chain.
      * </p>
      * @param apiKey the key of the message
@@ -98,7 +98,7 @@ public interface FilterInvoker {
      * @param filterContext contains methods to continue the filter chain and other contextual data
      */
     default void onResponse(ApiKeys apiKey, short apiVersion, ResponseHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
-        filterContext.forwardResponse(body);
+        filterContext.forwardResponse(header, body);
     }
 
 }

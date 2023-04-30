@@ -35,7 +35,7 @@ public class SaslAuthnObserver
                                        SaslHandshakeRequestData request,
                                        KrpcFilterContext context) {
         this.mechanism = request.mechanism();
-        context.forwardRequest(request);
+        context.forwardRequest(header, request);
     }
 
     @Override
@@ -44,7 +44,7 @@ public class SaslAuthnObserver
         if (response.errorCode() != Errors.NONE.code()) {
             this.mechanism = null;
         }
-        context.forwardResponse(response);
+        context.forwardResponse(header, response);
     }
 
     @Override
@@ -63,7 +63,7 @@ public class SaslAuthnObserver
                 principalName = "baz";
                 break;
         }
-        context.forwardRequest(request);
+        context.forwardRequest(header, request);
     }
 
     @Override
@@ -79,7 +79,7 @@ public class SaslAuthnObserver
         // response.authBytes();
         // response.errorCode();
         // response.errorMessage();
-        context.forwardResponse(response);
+        context.forwardResponse(header, response);
     }
 
 }

@@ -89,11 +89,16 @@ class DefaultFilterContext implements KrpcFilterContext {
     /**
      * Forward a request to the next filter in the chain
      * (or to the upstream broker).
+     *
+     * @param header The header
      * @param message The message
      */
     @Override
-    public void forwardRequest(ApiMessage message) {
+    public void forwardRequest(RequestHeaderData header, ApiMessage message) {
         if (decodedFrame.body() != message) {
+            throw new IllegalStateException();
+        }
+        if (decodedFrame.header() != header) {
             throw new IllegalStateException();
         }
         // check it's a request
@@ -165,21 +170,28 @@ class DefaultFilterContext implements KrpcFilterContext {
     /**
      * Forward a request to the next filter in the chain
      * (or to the downstream client).
+     *
+     * @param header The header
      * @param response The message
      */
     @Override
-    public void forwardResponse(ApiMessage response) {
+    public void forwardResponse(ResponseHeaderData header, ApiMessage response) {
         // check it's a response
         String name = response.getClass().getName();
         if (!name.endsWith("ResponseData")) {
             throw new AssertionError("Attempt to use forwardResponse with a non-response: " + name);
         }
         if (decodedFrame instanceof RequestFrame) {
-            forwardShortCircuitResponse(response);
+            forwardShortCircuitResponse(header, response);
         }
         else {
             // TODO check we've not forwarded it already
-
+            if (decodedFrame.body() != response) {
+                throw new AssertionError();
+            }
+            if (decodedFrame.header() != header) {
+                throw new AssertionError();
+            }
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug("{}: Forwarding response: {}", channelDescriptor(), decodedFrame);
             }
@@ -187,19 +199,30 @@ class DefaultFilterContext implements KrpcFilterContext {
         }
     }
 
+    @Override
+    public void forwardResponse(ApiMessage response) {
+        if (decodedFrame instanceof RequestFrame) {
+            this.forwardResponse(new ResponseHeaderData().setCorrelationId(decodedFrame.correlationId()), response);
+        }
+        else {
+            this.forwardResponse((ResponseHeaderData) decodedFrame.header(), response);
+        }
+    }
+
     /**
      * In this case we are not forwarding to the proxied broker but responding immediately.
      * We want to check that the ApiMessage is the correct type for the request. Ie if the
      * request was a Produce Request we want the response to be a Produce Response.
+     *
+     * @param header the response header
      * @param response the response body
      */
-    private void forwardShortCircuitResponse(ApiMessage response) {
+    private void forwardShortCircuitResponse(ResponseHeaderData header, ApiMessage response) {
         if (response.apiKey() != decodedFrame.apiKey().id) {
             throw new AssertionError(
                     "Attempt to respond with ApiMessage of type " + ApiKeys.forId(response.apiKey()) + " but request is of type " + decodedFrame.apiKey());
         }
-        DecodedResponseFrame<?> responseFrame = new DecodedResponseFrame<>(decodedFrame.apiVersion(), decodedFrame.correlationId(),
-                new ResponseHeaderData().setCorrelationId(decodedFrame.correlationId()), response);
+        DecodedResponseFrame<?> responseFrame = new DecodedResponseFrame<>(decodedFrame.apiVersion(), decodedFrame.correlationId(), header, response);
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("{}: Forwarding response: {}", channelDescriptor(), decodedFrame);
         }

@@ -94,12 +94,12 @@ public class FetchResponseTransformationFilter implements FetchResponseFilter {
                         }
                         applyTransformation(context, fetchResponse);
                         LOGGER.debug("Forwarding original Fetch response");
-                        context.forwardResponse(fetchResponse);
+                        context.forwardResponse(header, fetchResponse);
                     });
         }
         else {
             applyTransformation(context, fetchResponse);
-            context.forwardResponse(fetchResponse);
+            context.forwardResponse(header, fetchResponse);
         }
     }
 

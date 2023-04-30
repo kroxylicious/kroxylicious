@@ -35,7 +35,7 @@ public class FilterHandlerTest extends FilterHarness {
 
     @Test
     public void testForwardRequest() {
-        ApiVersionsRequestFilter filter = (header, request, context) -> context.forwardRequest(request);
+        ApiVersionsRequestFilter filter = (header, request, context) -> context.forwardRequest(header, request);
         buildChannel(filter);
         var frame = writeRequest(new ApiVersionsRequestData());
         var propagated = channel.readOutbound();
@@ -72,7 +72,7 @@ public class FilterHandlerTest extends FilterHarness {
 
     @Test
     public void testForwardResponse() {
-        ApiVersionsResponseFilter filter = (header, response, context) -> context.forwardResponse(response);
+        ApiVersionsResponseFilter filter = (header, response, context) -> context.forwardResponse(header, response);
         buildChannel(filter);
         var frame = writeResponse(new ApiVersionsResponseData());
         var propagated = channel.readInbound();

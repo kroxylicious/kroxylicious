@@ -47,11 +47,11 @@ public class FixedClientIdFilter implements RequestFilter, ResponseFilter {
     @Override
     public void onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
         header.setClientId(clientId);
-        filterContext.forwardRequest(body);
+        filterContext.forwardRequest(header, body);
     }
 
     @Override
     public void onResponse(ApiKeys apiKey, ResponseHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
-        filterContext.forwardResponse(body);
+        filterContext.forwardResponse(header, body);
     }
 }
