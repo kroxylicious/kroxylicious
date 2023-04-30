@@ -12,6 +12,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.kafka.common.errors.TimeoutException;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
+import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
@@ -25,6 +26,8 @@ import io.netty.channel.ChannelPromise;
 import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.proxy.frame.DecodedFrame;
+import io.kroxylicious.proxy.frame.DecodedResponseFrame;
+import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.future.InternalCompletionStage;
 import io.kroxylicious.proxy.internal.util.ByteBufOutputStream;
 
@@ -171,12 +174,38 @@ class DefaultFilterContext implements KrpcFilterContext {
         if (!name.endsWith("ResponseData")) {
             throw new AssertionError("Attempt to use forwardResponse with a non-response: " + name);
         }
-        // TODO check we've not forwarded it already
+        if (decodedFrame instanceof RequestFrame) {
+            forwardShortCircuitResponse(response);
+        }
+        else {
+            // TODO check we've not forwarded it already
 
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("{}: Forwarding response: {}", channelDescriptor(), decodedFrame);
+            }
+            channelContext.fireChannelRead(decodedFrame);
+        }
+    }
+
+    /**
+     * In this case we are not forwarding to the proxied broker but responding immediately.
+     * We want to check that the ApiMessage is the correct type for the request. Ie if the
+     * request was a Produce Request we want the response to be a Produce Response.
+     * @param response the response body
+     */
+    private void forwardShortCircuitResponse(ApiMessage response) {
+        if (response.apiKey() != decodedFrame.apiKey().id) {
+            throw new AssertionError(
+                    "Attempt to respond with ApiMessage of type " + ApiKeys.forId(response.apiKey()) + " but request is of type " + decodedFrame.apiKey());
+        }
+        DecodedResponseFrame<?> responseFrame = new DecodedResponseFrame<>(decodedFrame.apiVersion(), decodedFrame.correlationId(),
+                new ResponseHeaderData().setCorrelationId(decodedFrame.correlationId()), response);
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("{}: Forwarding response: {}", channelDescriptor(), decodedFrame);
         }
-        channelContext.fireChannelRead(decodedFrame);
+        channelContext.fireChannelRead(responseFrame);
+        // required to flush the message back to the client
+        channelContext.fireChannelReadComplete();
     }
 
 }
