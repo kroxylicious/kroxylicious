@@ -25,7 +25,7 @@ import org.apache.kafka.common.protocol.ApiMessage;
  * <ol>
  *     <li>That each instance of the FilterInvoker is associated with a single channel</li>
  *     <li>That {@link #shouldHandleRequest(ApiKeys, short)} and
- *     {@link #onRequest(ApiKeys, RequestHeaderData, ApiMessage, KrpcFilterContext)} (or {@code on*Request} as appropriate)
+ *     {@link #onRequest(ApiKeys, short, RequestHeaderData, ApiMessage, KrpcFilterContext)} (or {@code on*Request} as appropriate)
  *     will always be invoked on the same thread.</li>
  *     <li>That filters are applied in the order they were configured.</li>
  * </ol>
@@ -43,7 +43,7 @@ public interface FilterInvoker {
     /**
      * Should this Invoker handle a request with a given api key and api version.
      * Returning true implies that this request will be deserialized and
-     * {@link #onRequest(ApiKeys, RequestHeaderData, ApiMessage, KrpcFilterContext)}
+     * {@link #onRequest(ApiKeys, short, RequestHeaderData, ApiMessage, KrpcFilterContext)}
      * is eligible to be called with the deserialized data (if the message flows to that filter).
      *
      * @param apiKey the key of the message
@@ -80,7 +80,7 @@ public interface FilterInvoker {
      * @param body the body of the message
      * @param filterContext contains methods to continue the filter chain and other contextual data
      */
-    default void onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
+    default void onRequest(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
         filterContext.forwardRequest(body);
     }
 
