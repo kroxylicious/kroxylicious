@@ -40,7 +40,7 @@
         <log4j.version>2.20.0</log4j.version>
         <picocli.version>4.7.2</picocli.version>
         <netty.version>4.1.92.Final</netty.version>
-        <netty.io_uring.version>0.0.20.Final</netty.io_uring.version>
+        <netty.io_uring.version>0.0.21.Final</netty.io_uring.version>
         <netty.epoll.classifier>linux-x86_64</netty.epoll.classifier>
         <netty.io_uring.classifier>linux-x86_64</netty.io_uring.classifier>
         <netty.kqueue.classifier>osx-x86_64</netty.kqueue.classifier>
