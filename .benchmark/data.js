@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1681717154905,
+  "lastUpdate": 1682914716830,
   "repoUrl": "https://github.com/kroxylicious/kroxylicious",
   "entries": {
     "kafka producer perf test Benchmark": [
@@ -480,6 +480,43 @@ window.BENCHMARK_DATA = {
           {
             "name": "99th Latency",
             "value": 444,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Sam Barker",
+            "username": "SamBarker",
+            "email": "sam@quadrocket.co.uk"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "3d0d80173b2a71f4bbfb270403db643a538efbf7",
+          "message": "Merge pull request #297 from robobario/perf-test-git-details-fix\n\nRecord PR-comment triggered performance results against PR commit",
+          "timestamp": "2023-05-01T04:14:03Z",
+          "url": "https://github.com/kroxylicious/kroxylicious/commit/3d0d80173b2a71f4bbfb270403db643a538efbf7"
+        },
+        "date": 1682914715606,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "AVG Latency",
+            "value": 19.33,
+            "unit": "ms"
+          },
+          {
+            "name": "95th Latency",
+            "value": 115,
+            "unit": "ms"
+          },
+          {
+            "name": "99th Latency",
+            "value": 360,
             "unit": "ms"
           }
         ]
