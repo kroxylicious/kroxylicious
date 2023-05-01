@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1682914716830,
+  "lastUpdate": 1682915694018,
   "repoUrl": "https://github.com/kroxylicious/kroxylicious",
   "entries": {
     "kafka producer perf test Benchmark": [
@@ -517,6 +517,43 @@ window.BENCHMARK_DATA = {
           {
             "name": "99th Latency",
             "value": 360,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]",
+            "email": "49699333+dependabot[bot]@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "a48c56f4e2e70371222720b74ec20481e6e87a6e",
+          "message": "Bump netty.version from 4.1.91.Final to 4.1.92.Final\n\nBumps `netty.version` from 4.1.91.Final to 4.1.92.Final.\n\nUpdates `netty-bom` from 4.1.91.Final to 4.1.92.Final\n- [Release notes](https://github.com/netty/netty/releases)\n- [Commits](https://github.com/netty/netty/compare/netty-4.1.91.Final...netty-4.1.92.Final)\n\nUpdates `netty-codec-http` from 4.1.91.Final to 4.1.92.Final\n- [Release notes](https://github.com/netty/netty/releases)\n- [Commits](https://github.com/netty/netty/compare/netty-4.1.91.Final...netty-4.1.92.Final)\n\nUpdates `netty-codec-haproxy` from 4.1.91.Final to 4.1.92.Final\n- [Release notes](https://github.com/netty/netty/releases)\n- [Commits](https://github.com/netty/netty/compare/netty-4.1.91.Final...netty-4.1.92.Final)\n\n---\nupdated-dependencies:\n- dependency-name: io.netty:netty-bom\n  dependency-type: direct:production\n  update-type: version-update:semver-patch\n- dependency-name: io.netty:netty-codec-http\n  dependency-type: direct:production\n  update-type: version-update:semver-patch\n- dependency-name: io.netty:netty-codec-haproxy\n  dependency-type: direct:production\n  update-type: version-update:semver-patch\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>",
+          "timestamp": "2023-05-01T04:23:28Z",
+          "url": "https://github.com/kroxylicious/kroxylicious/commit/a48c56f4e2e70371222720b74ec20481e6e87a6e"
+        },
+        "date": 1682915693194,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "AVG Latency",
+            "value": 20.92,
+            "unit": "ms"
+          },
+          {
+            "name": "95th Latency",
+            "value": 97,
+            "unit": "ms"
+          },
+          {
+            "name": "99th Latency",
+            "value": 511,
             "unit": "ms"
           }
         ]
