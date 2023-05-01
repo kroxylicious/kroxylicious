@@ -61,7 +61,7 @@ public class FilterHandler
                     LOGGER.debug("{}: Dispatching downstream {} request to filter{}: {}",
                             ctx.channel(), decodedFrame.apiKey(), filterDescriptor(), msg);
                 }
-                invoker.onRequest(decodedFrame.apiKey(), decodedFrame.header(), decodedFrame.body(), filterContext);
+                invoker.onRequest(decodedFrame.apiKey(), decodedFrame.apiVersion(), decodedFrame.header(), decodedFrame.body(), filterContext);
             }
             else {
                 ctx.write(msg, promise);

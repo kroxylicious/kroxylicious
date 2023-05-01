@@ -46,12 +46,14 @@ class SpecificFilterInvoker implements FilterInvoker {
     /**
      * Apply the filter to the given {@code header} and {@code body} using the given {@code filterContext}.
      * @param apiKey The request api key.
+     * @param apiVersion The request api version.
      * @param header The request header.
      * @param body The request body.
      * @param filterContext The filter context.
      */
     @Override
     public void onRequest(ApiKeys apiKey,
+                           short apiVersion,
                            RequestHeaderData header,
                            ApiMessage body,
                            KrpcFilterContext filterContext) {

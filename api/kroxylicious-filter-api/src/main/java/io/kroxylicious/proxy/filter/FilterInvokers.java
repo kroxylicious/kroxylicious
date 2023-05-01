@@ -73,7 +73,7 @@ public class FilterInvokers {
     private record RequestFilterInvoker(RequestFilter filter) implements FilterInvoker {
 
     @Override
-    public void onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
+    public void onRequest(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
         filter.onRequest(apiKey, header, body, filterContext);
     }
 
@@ -101,7 +101,7 @@ public class FilterInvokers {
     private record RequestResponseInvoker(RequestFilter requestFilter, ResponseFilter responseFilter) implements FilterInvoker {
 
     @Override
-    public void onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
+    public void onRequest(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
         requestFilter.onRequest(apiKey, header, body, filterContext);
     }
 
