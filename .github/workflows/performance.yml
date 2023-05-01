@@ -102,7 +102,7 @@ jobs:
         run: ./benchmark_output_to_json.sh output.txt output.json
 
       - name: 'Store benchmark result'
-        uses: benchmark-action/github-action-benchmark@v1
+        uses: benchmark-action/github-action-benchmark@v1.17.0
         with:
           name: kafka producer perf test Benchmark
           tool: 'customSmallerIsBetter'
@@ -116,6 +116,7 @@ jobs:
           summary-always: true
           fail-on-alert: true
           alert-comment-cc-users: '@kroxylicious/developers'
+          ref: refs/pull/${{ github.event.issue.number }}/head
 
   workflow:
     name: Benchmark manually launched
