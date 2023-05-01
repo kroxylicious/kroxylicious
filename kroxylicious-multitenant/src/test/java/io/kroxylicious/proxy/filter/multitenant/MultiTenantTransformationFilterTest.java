@@ -146,7 +146,7 @@ class MultiTenantTransformationFilterTest {
         var requestWriter = requestConverterFor(apiMessageType).writer();
         var marshalled = requestWriter.apply(request, header.requestApiVersion());
 
-        invoker.onRequest(ApiKeys.forId(apiMessageType.apiKey()), apiMessageType.highestSupportedVersion(), header, request, context);
+        invoker.onRequest(ApiKeys.forId(apiMessageType.apiKey()), header.requestApiVersion(), header, request, context);
         verify(context).forwardRequest(apiMessageCaptor.capture());
 
         var filtered = requestWriter.apply(apiMessageCaptor.getValue(), header.requestApiVersion());
@@ -166,7 +166,7 @@ class MultiTenantTransformationFilterTest {
 
         var marshalled = responseWriter.apply(response, header.requestApiVersion());
 
-        invoker.onResponse(ApiKeys.forId(apiMessageType.apiKey()), apiMessageType.highestSupportedVersion(), new ResponseHeaderData(), response, context);
+        invoker.onResponse(ApiKeys.forId(apiMessageType.apiKey()), header.requestApiVersion(), new ResponseHeaderData(), response, context);
         verify(context).forwardResponse(apiMessageCaptor.capture());
 
         var filtered = responseWriter.apply(apiMessageCaptor.getValue(), header.requestApiVersion());
