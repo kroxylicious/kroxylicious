@@ -31,6 +31,10 @@ public class FilterInvokers {
      * @return the invoker
      */
     public static FilterInvoker from(KrpcFilter filter) {
+        return new SafeInvoker(invokerForFilter(filter));
+    }
+
+    private static FilterInvoker invokerForFilter(KrpcFilter filter) {
         boolean isResponseFilter = filter instanceof ResponseFilter;
         boolean isRequestFilter = filter instanceof RequestFilter;
         boolean isAnySpecificFilterInterface = SpecificFilterInvoker.implementsAnySpecificFilterInterface(filter);
@@ -118,6 +122,40 @@ public class FilterInvokers {
     @Override
     public boolean shouldHandleResponse(ApiKeys apiKey, short apiVersion) {
         return responseFilter.shouldHandleResponse(apiKey, apiVersion);
+    }
+
+    }
+
+    private record SafeInvoker(FilterInvoker invoker) implements FilterInvoker {
+
+    @Override
+    public void onRequest(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
+        if (invoker.shouldHandleRequest(apiKey, apiVersion)) {
+            invoker.onRequest(apiKey, apiVersion, header, body, filterContext);
+        }
+        else {
+            filterContext.forwardRequest(body);
+        }
+    }
+
+    @Override
+    public void onResponse(ApiKeys apiKey, short apiVersion, ResponseHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
+        if (invoker.shouldHandleResponse(apiKey, apiVersion)) {
+            invoker.onResponse(apiKey, apiVersion, header, body, filterContext);
+        }
+        else {
+            filterContext.forwardResponse(body);
+        }
+    }
+
+    @Override
+    public boolean shouldHandleRequest(ApiKeys apiKey, short apiVersion) {
+        return invoker.shouldHandleRequest(apiKey, apiVersion);
+    }
+
+    @Override
+    public boolean shouldHandleResponse(ApiKeys apiKey, short apiVersion) {
+        return invoker.shouldHandleResponse(apiKey, apiVersion);
     }
 }
 
