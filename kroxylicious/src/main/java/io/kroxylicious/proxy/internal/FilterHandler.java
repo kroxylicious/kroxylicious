@@ -106,7 +106,7 @@ public class FilterHandler
                     LOGGER.debug("{}: Dispatching upstream {} response to filter {}: {}",
                             ctx.channel(), decodedFrame.apiKey(), filterDescriptor(), msg);
                 }
-                invoker.onResponse(decodedFrame.apiKey(), decodedFrame.header(), decodedFrame.body(), filterContext);
+                invoker.onResponse(decodedFrame.apiKey(), decodedFrame.apiVersion(), decodedFrame.header(), decodedFrame.body(), filterContext);
             }
             else {
                 ctx.fireChannelRead(msg);

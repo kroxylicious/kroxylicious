@@ -87,7 +87,7 @@ public class FilterInvokers {
     private record ResponseFilterInvoker(ResponseFilter filter) implements FilterInvoker {
 
     @Override
-    public void onResponse(ApiKeys apiKey, ResponseHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
+    public void onResponse(ApiKeys apiKey, short apiVersion, ResponseHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
         filter.onResponse(apiKey, header, body, filterContext);
     }
 
@@ -106,7 +106,7 @@ public class FilterInvokers {
     }
 
     @Override
-    public void onResponse(ApiKeys apiKey, ResponseHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
+    public void onResponse(ApiKeys apiKey, short apiVersion, ResponseHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
         responseFilter.onResponse(apiKey, header, body, filterContext);
     }
 

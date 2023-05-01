@@ -57,7 +57,7 @@ public interface FilterInvoker {
     /**
      * Should this Invoker handle a response with a given api key and api version.
      * Returning true implies that this response will be deserialized and
-     * {@link #onResponse(ApiKeys, ResponseHeaderData, ApiMessage, KrpcFilterContext)}
+     * {@link #onResponse(ApiKeys, short, ResponseHeaderData, ApiMessage, KrpcFilterContext)}
      * is eligible to be called with the deserialized data (if the message flows to that filter).
      *
      * @param apiKey the key of the message
@@ -92,11 +92,12 @@ public interface FilterInvoker {
      * so that the message continues to flow through the filter chain.
      * </p>
      * @param apiKey the key of the message
+     * @param apiVersion the apiVersion of the message
      * @param header the header of the message
      * @param body the body of the message
      * @param filterContext contains methods to continue the filter chain and other contextual data
      */
-    default void onResponse(ApiKeys apiKey, ResponseHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
+    default void onResponse(ApiKeys apiKey, short apiVersion, ResponseHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
         filterContext.forwardResponse(body);
     }
 
