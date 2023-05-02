@@ -12,7 +12,7 @@ import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.service.ClusterEndpointConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 
-public class SniAwareClusterEndpointConfigProvider implements ClusterEndpointConfigProvider {
+public class SniRoutingClusterEndpointConfigProvider implements ClusterEndpointConfigProvider {
 
     private static final EndpointMatchResult BOOTSTRAP_MATCHED = new EndpointMatchResult(true, null);
     private static final EndpointMatchResult NO_MATCH = new EndpointMatchResult(false, null);
@@ -22,7 +22,7 @@ public class SniAwareClusterEndpointConfigProvider implements ClusterEndpointCon
     private final String brokerAddressPattern;
     private final Pattern brokerAddressPatternRegExp;
 
-    public SniAwareClusterEndpointConfigProvider(SniAwareClusterEndpointProviderConfig config) {
+    public SniRoutingClusterEndpointConfigProvider(SniRoutingClusterEndpointProviderConfig config) {
         this.bootstrapAddress = config.bootstrapAddress;
         this.brokerAddressPattern = config.brokerAddressPattern;
         this.brokerAddressPatternRegExp = config.brokerAddressPatternRegExp;
@@ -68,13 +68,13 @@ public class SniAwareClusterEndpointConfigProvider implements ClusterEndpointCon
         return true;
     }
 
-    public static class SniAwareClusterEndpointProviderConfig extends BaseConfig {
+    public static class SniRoutingClusterEndpointProviderConfig extends BaseConfig {
         private final Pattern brokerAddressPatternRegExp;
 
         private final HostPort bootstrapAddress;
         private final String brokerAddressPattern;
 
-        public SniAwareClusterEndpointProviderConfig(HostPort bootstrapAddress, String brokerAddressPattern) {
+        public SniRoutingClusterEndpointProviderConfig(HostPort bootstrapAddress, String brokerAddressPattern) {
             if (bootstrapAddress == null) {
                 throw new IllegalArgumentException("bootstrapAddress cannot be null");
             }

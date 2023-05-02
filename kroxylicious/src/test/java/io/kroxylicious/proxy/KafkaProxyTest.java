@@ -54,7 +54,7 @@ class KafkaProxyTest {
                                     0: localhost:9193  # Conflict
                                     1: localhost:8194
                         """, "conflict(s) : 9193"),
-                Arguments.of("static/sniaware bootstrap port conflict", """
+                Arguments.of("Static/SniRouting bootstrap port conflict", """
                         virtualClusters:
                           demo1:
                             clusterEndpointConfigProvider:
@@ -63,7 +63,7 @@ class KafkaProxyTest {
                                 bootstrapAddress: localhost:9192
                           demo2:
                             clusterEndpointConfigProvider:
-                              type: SniAware
+                              type: SniRouting
                               config:
                                 bootstrapAddress: localhost:9192
                                 brokerAddressPattern: broker-$(nodeId)
@@ -75,7 +75,6 @@ class KafkaProxyTest {
     @ParameterizedTest(name = "{0}")
     @MethodSource
     public void detectsConflictingPorts(String name, String config, String expectedMessage) throws Exception {
-
         try (var kafkaProxy = new KafkaProxy(new ConfigParser().parseConfiguration(config))) {
             var illegalStateException = assertThrows(IllegalStateException.class, kafkaProxy::startup);
             assertThat(illegalStateException.getMessage()).contains(expectedMessage);
@@ -87,7 +86,7 @@ class KafkaProxyTest {
                 virtualClusters:
                   demo1:
                     clusterEndpointConfigProvider:
-                      type: SniAware
+                      type: SniRouting
                       config:
                         bootstrapAddress: cluster1:9192
                         brokerAddressPattern:  broker-$(nodeId)
@@ -110,7 +109,7 @@ class KafkaProxyTest {
                         virtualClusters:
                           demo1:
                             clusterEndpointConfigProvider:
-                              type: SniAware
+                              type: SniRouting
                               config:
                                 bootstrapAddress: cluster1:9192
                                 brokerAddressPattern:  broker-$(nodeId)
@@ -118,7 +117,7 @@ class KafkaProxyTest {
                             keystorePassword: apassword
                           demo2:
                             clusterEndpointConfigProvider:
-                              type: SniAware
+                              type: SniRouting
                               config:
                                 bootstrapAddress: cluster2:9192
                                 brokerAddressPattern:  broker-$(nodeId)

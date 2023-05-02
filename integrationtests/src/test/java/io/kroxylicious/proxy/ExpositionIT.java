@@ -159,7 +159,7 @@ public class ExpositionIT {
 
             var virtualCluster = new VirtualClusterBuilder(base)
                     .withNewClusterEndpointConfigProvider()
-                    .withType("SniAware")
+                    .withType("SniRouting")
                     .withConfig(Map.of("bootstrapAddress", virtualClusterFQDN + ":9192",
                             "brokerAddressPattern", virtualClusterBrokerAddressPattern.formatted(i)))
                     .endClusterEndpointConfigProvider()
