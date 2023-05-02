@@ -63,6 +63,25 @@ public interface ClusterEndpointConfigProvider {
     }
 
     /**
+     * Indicates if this provider requires exclusive use of ports that it defines.  If true,
+     * no other provider will be able to bind the same port.
+     *
+     * @return true if this endpoint provider requires exclusive use of ports.
+     */
+    default boolean requiresPortExclusivity() {
+        return true;
+    }
+
+    /**
+     * Indicates if this provider requires the use of TLS.
+     *
+     * @return true if this provider requires the use of TLS.
+     */
+    default boolean requiresTls() {
+        return false;
+    }
+
+    /**
      * Encapsulates the result of a endpoint match.
      *
      * @param matched true if matched, false otherwise.

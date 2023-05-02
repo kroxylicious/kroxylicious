@@ -7,19 +7,14 @@ package io.kroxylicious.proxy;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import java.util.stream.Collectors;
 
-import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.admin.Admin;
-import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -27,11 +22,7 @@ import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.common.Node;
-import org.apache.kafka.common.TopicPartitionInfo;
-import org.apache.kafka.common.config.SslConfigs;
 import org.apache.kafka.common.errors.InvalidTopicException;
-import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
@@ -40,22 +31,15 @@ import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.api.io.TempDir;
 
 import io.kroxylicious.proxy.filter.CreateTopicRejectFilter;
 import io.kroxylicious.proxy.internal.filter.ByteBufferTransformation;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
-import io.kroxylicious.testing.kafka.common.BrokerCluster;
-import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
 import static io.kroxylicious.proxy.Utils.startProxy;
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
-import static org.testcontainers.shaded.org.awaitility.Awaitility.await;
 
 @ExtendWith(KafkaClusterExtension.class)
 public class KrpcFilterIT {
@@ -67,8 +51,6 @@ public class KrpcFilterIT {
             (byte) 0x64, (byte) 0x67, (byte) 0x61, (byte) 0x59, (byte) 0x16 };
     private static final byte[] TOPIC_2_CIPHERTEXT = { (byte) 0xffffffa7, (byte) 0xffffffc4, (byte) 0xffffffcb, (byte) 0xffffffcb, (byte) 0xffffffce, (byte) 0xffffff8b,
             (byte) 0x7f, (byte) 0xffffffd6, (byte) 0xffffffce, (byte) 0xffffffd1, (byte) 0xffffffcb, (byte) 0xffffffc3, (byte) 0xffffff80 };
-    @TempDir
-    private Path certsDirectory;
 
     @BeforeAll
     public static void checkReversibleEncryption() {
@@ -270,103 +252,6 @@ public class KrpcFilterIT {
                     List.of(records1.iterator().next().value(),
                             records2.iterator().next().value()));
         }
-    }
-
-    @Test
-    public void proxySslClusterPlain(KafkaCluster cluster) throws Exception {
-        String proxyAddress = "localhost:9192";
-
-        var brokerCertificateGenerator = new KeytoolCertificateGenerator();
-        brokerCertificateGenerator.generateSelfSignedCertificateEntry("test@redhat.com", "localhost", "KI", "RedHat", null, null, "US");
-        Path clientTrustStore = certsDirectory.resolve("kafka.truststore.jks");
-        brokerCertificateGenerator.generateTrustStore(brokerCertificateGenerator.getCertFilePath(), "client",
-                clientTrustStore.toAbsolutePath().toString());
-
-        var builder = baseConfigBuilder(proxyAddress, cluster.getBootstrapServers());
-        var demo = builder.getVirtualClusters().get("demo");
-        demo = new VirtualClusterBuilder(demo)
-                .withKeyPassword(brokerCertificateGenerator.getPassword())
-                .withKeyStoreFile(brokerCertificateGenerator.getKeyStoreLocation())
-                .build();
-        builder.addToVirtualClusters("demo", demo);
-        var config = builder.build().toYaml();
-
-        try (var proxy = startProxy(config)) {
-            try (var admin = Admin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
-                    CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name,
-                    SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
-                    SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, brokerCertificateGenerator.getPassword()))) {
-                // do some work to ensure connection is opened
-                admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1))).all().get();
-                var connectionsMetric = admin.metrics().entrySet().stream().filter(metricNameEntry -> "connections".equals(metricNameEntry.getKey().name()))
-                        .findFirst();
-                assertTrue(connectionsMetric.isPresent());
-                var protocol = connectionsMetric.get().getKey().tags().get("protocol");
-                assertThat(protocol).startsWith("TLS");
-            }
-        }
-    }
-
-    @Test
-    public void proxyExposesClusterOfTwoBrokers(@BrokerCluster(numBrokers = 2) KafkaCluster cluster) throws Exception {
-        var proxyAddress = "localhost:9192";
-        var builder = baseConfigBuilder(proxyAddress, cluster.getBootstrapServers());
-        var demo = builder.getVirtualClusters().get("demo");
-        var brokerEndpoints = Map.of(0, "localhost:9193", 1, "localhost:9194");
-        demo = new VirtualClusterBuilder(demo)
-                .editClusterEndpointConfigProvider()
-                .withType("StaticCluster")
-                .withConfig(Map.of("bootstrapAddress", proxyAddress,
-                        "brokers", brokerEndpoints))
-                .endClusterEndpointConfigProvider()
-                .build();
-        builder.addToVirtualClusters("demo", demo);
-        var config = builder.build().toYaml();
-
-        try (var proxy = startProxy(config)) {
-
-            try (var admin = Admin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress))) {
-                var nodes = admin.describeCluster().nodes().get();
-                assertThat(nodes).hasSize(2);
-                var unique = nodes.stream().collect(Collectors.toMap(Node::id, KrpcFilterIT::toAddress));
-                assertThat(unique).containsExactlyInAnyOrderEntriesOf(brokerEndpoints);
-            }
-
-            // Create a topic with one partition on each broker and publish to all of them..
-            // As kafka client must connect to the partition leader, this verifies that kroxylicious is
-            // indeed connecting to all brokers.
-            int numPartitions = 2;
-            try (var admin = Admin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress))) {
-                // create topic and ensure that leaders are on different brokers.
-                admin.createTopics(List.of(new NewTopic(TOPIC_1, numPartitions, (short) 1))).all().get();
-                await().atMost(Duration.ofSeconds(5)).until(() -> admin.describeTopics(List.of(TOPIC_1)).topicNameValues().get(TOPIC_1).get()
-                        .partitions().stream().map(TopicPartitionInfo::leader)
-                        .collect(Collectors.toSet()),
-                        leaders -> leaders.size() == numPartitions);
-
-                try (var producer = new KafkaProducer<String, String>(Map.of(
-                        ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
-                        ProducerConfig.CLIENT_ID_CONFIG, "myclient",
-                        ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
-                        ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class))) {
-                    for (int partition = 0; partition < numPartitions; partition++) {
-                        try {
-                            var send = producer.send(new ProducerRecord<>(TOPIC_1, partition, "key", "value"));
-                            send.get(10, TimeUnit.SECONDS);
-                        }
-                        catch (TimeoutException e) {
-                            // Need to explicitly close the producer otherwise it will await forever awaiting the in-flight send to complete.
-                            producer.close(Duration.ofSeconds(1));
-                            fail("send for partition %d timed-out (check logs for root cause)".formatted(partition), e);
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private static String toAddress(Node n) {
-        return n.host() + ":" + n.port();
     }
 
     private static KroxyConfigBuilder baseConfigBuilder(String proxyAddress, String bootstrapServers) {

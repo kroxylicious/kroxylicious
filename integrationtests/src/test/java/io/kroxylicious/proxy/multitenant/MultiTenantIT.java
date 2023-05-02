@@ -63,6 +63,7 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.kroxylicious.net.IntegrationTestInetAddressResolverProvider;
 import io.kroxylicious.proxy.KroxyConfig;
 import io.kroxylicious.proxy.VirtualClusterBuilder;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
@@ -91,8 +92,8 @@ public class MultiTenantIT {
     private static final NewTopic NEW_TOPIC_3 = new NewTopic(TOPIC_3, 1, (short) 1);
 
     private static final String PROXY_ADDRESS = "localhost:9192";
-    private static final String TENANT1_PROXY_ADDRESS = "foo.multitenant.kafka:9192";
-    private static final String TENANT2_PROXY_ADDRESS = "bar.multitenant.kafka:9193";
+    private static final String TENANT1_PROXY_ADDRESS = IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName("foo", 9192);
+    private static final String TENANT2_PROXY_ADDRESS = IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName("bar", 9193);
     private static final String MY_KEY = "my-key";
     private static final String MY_VALUE = "my-value";
     private TestInfo testInfo;
@@ -106,7 +107,8 @@ public class MultiTenantIT {
         this.testInfo = testInfo;
         // TODO: use a per-tenant server certificate.
         this.certificateGenerator = new KeytoolCertificateGenerator();
-        this.certificateGenerator.generateSelfSignedCertificateEntry("test@redhat.com", "*.multitenant.kafka", "KI", "RedHat", null, null, "US");
+        this.certificateGenerator.generateSelfSignedCertificateEntry("test@redhat.com", IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName("*"),
+                "KI", "RedHat", null, null, "US");
         this.clientTrustStore = certsDirectory.resolve("kafka.truststore.jks");
         this.certificateGenerator.generateTrustStore(this.certificateGenerator.getCertFilePath(), "client",
                 clientTrustStore.toAbsolutePath().toString());

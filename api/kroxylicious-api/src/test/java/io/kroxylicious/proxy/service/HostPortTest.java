@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.service;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 
@@ -42,6 +43,19 @@ class HostPortTest {
         var hp = HostPort.parse("[2001:db8::1]:12345");
         assertThat(hp.host()).isEqualTo("[2001:db8::1]");
         assertThat(hp.port()).isEqualTo(12345);
+    }
+
+    @ParameterizedTest
+    @CsvSource(value = { "foo.example.net:80,Foo.ExamplE.net:80",
+            "aol.com:80,AOL.COM:80",
+            "www.gnu.ai.mit.edu:80,WWW.gnu.AI.mit.EDU:80",
+            "69.2.0.192.in-addr.arpa:80,69.2.0.192.in-ADDR.ARPA:80" })
+    public void caseInsensitivityRfc4343(String left, String right) {
+        var l = HostPort.parse(left);
+        var r = HostPort.parse(right);
+        assertThat(l).isEqualTo(r);
+        assertThat(r).isEqualTo(l);
+        assertThat(r.hashCode()).isEqualTo(l.hashCode());
     }
 
     @ParameterizedTest

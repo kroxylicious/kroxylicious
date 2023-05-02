@@ -16,15 +16,18 @@ public class Configuration {
     private final Map<String, VirtualCluster> virtualClusters;
     private final List<FilterDefinition> filters;
     private final List<MicrometerDefinition> micrometer;
+    private final boolean useIoUring;
 
     public Configuration(AdminHttpConfiguration adminHttp,
                          Map<String, VirtualCluster> virtualClusters,
                          List<FilterDefinition> filters,
-                         List<MicrometerDefinition> micrometer) {
+                         List<MicrometerDefinition> micrometer,
+                         boolean useIoUring) {
         this.adminHttp = adminHttp;
         this.virtualClusters = virtualClusters;
         this.filters = filters;
         this.micrometer = micrometer;
+        this.useIoUring = useIoUring;
     }
 
     public AdminHttpConfiguration adminHttpConfig() {
@@ -41,5 +44,21 @@ public class Configuration {
 
     public List<MicrometerDefinition> getMicrometer() {
         return micrometer == null ? List.of() : micrometer;
+    }
+
+    public boolean isUseIoUring() {
+        return useIoUring;
+    }
+
+    @Override
+    public String toString() {
+        final StringBuilder sb = new StringBuilder("Configuration [");
+        sb.append("adminHttp=").append(adminHttp);
+        sb.append(", virtualClusters=").append(virtualClusters);
+        sb.append(", filters=").append(filters);
+        sb.append(", micrometer=").append(micrometer);
+        sb.append(", useIoUring=").append(useIoUring);
+        sb.append(']');
+        return sb.toString();
     }
 }
