@@ -124,12 +124,12 @@ class KafkaProxyTest {
                                 brokerAddressPattern:  broker-$(nodeId)
                             keyStoreFile: /tmo/notused
                             keystorePassword: apassword
-                        """, "conflict(s) : 9192"));
+                        """));
     }
 
     @ParameterizedTest(name = "{0}")
     @MethodSource
-    public void validConfig(String name, String config, String expectedMessage) throws Exception {
+    public void validConfig(String name, String config) throws Exception {
 
         try (var kafkaProxy = new KafkaProxy(new ConfigParser().parseConfiguration(config))) {
             assertDoesNotThrow(kafkaProxy::startup);

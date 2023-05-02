@@ -152,10 +152,9 @@ public final class KafkaProxy implements AutoCloseable, VirtualClusterResolver {
     }
 
     private void checkForPortExclusivityConflicts(Set<Integer> exclusivePortBindings, Set<Integer> virtualClusterPorts) {
-        var conflicts = exclusivePortBindings.stream().filter(virtualClusterPorts::contains).collect(Collectors.toSet());
-        if (!conflicts.isEmpty()) {
-            var conflictsString = conflicts.stream().map(String::valueOf).sorted().collect(Collectors.joining(","));
-            throw new IllegalStateException("Configuration produces port conflict(s) : " + conflictsString);
+        var conflicts = exclusivePortBindings.stream().filter(virtualClusterPorts::contains).map(String::valueOf).collect(Collectors.joining(","));
+        if (!conflicts.isBlank()) {
+            throw new IllegalStateException("Configuration produces port conflict(s) : " + conflicts);
         }
     }
 
