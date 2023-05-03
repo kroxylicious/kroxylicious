@@ -6,16 +6,15 @@
 
 package io.kroxylicious.proxy.filter;
 
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
-
 /**
  * Factory for FilterInvokers. The intention is to keep the Invoker implementations
  * as private as we can, so that invocation is a framework concern.
  */
 public class FilterInvokers {
+
+    private FilterInvokers() {
+
+    }
 
     /**
      * Create a FilterInvoker for this filter. Supported cases are:
@@ -37,7 +36,7 @@ public class FilterInvokers {
     private static FilterInvoker invokerForFilter(KrpcFilter filter) {
         boolean isResponseFilter = filter instanceof ResponseFilter;
         boolean isRequestFilter = filter instanceof RequestFilter;
-        boolean isAnySpecificFilterInterface = SpecificFilterInvoker.implementsAnySpecificFilterInterface(filter);
+        boolean isAnySpecificFilterInterface = SpecificFilterArrayInvoker.implementsAnySpecificFilterInterface(filter);
         if (isAnySpecificFilterInterface && (isRequestFilter || isResponseFilter)) {
             throw unsupportedFilterInstance(filter, "Cannot mix specific message filter interfaces and [RequestFilter|ResponseFilter] interfaces");
         }
@@ -45,118 +44,40 @@ public class FilterInvokers {
             throw unsupportedFilterInstance(filter, "KrpcFilter must implement ResponseFilter, RequestFilter or any combination of specific message Filter interfaces");
         }
         if (isResponseFilter && isRequestFilter) {
-            return requestResponseInvoker((RequestFilter) filter, (ResponseFilter) filter);
+            return new RequestResponseInvoker((RequestFilter) filter, (ResponseFilter) filter);
         }
         else if (isRequestFilter) {
-            return requestInvoker((RequestFilter) filter);
+            return new RequestFilterInvoker((RequestFilter) filter);
         }
         else if (isResponseFilter) {
-            return responseInvoker((ResponseFilter) filter);
+            return new ResponseFilterInvoker((ResponseFilter) filter);
         }
         else {
-            return new SpecificFilterInvoker(filter);
+            return arrayInvoker(filter);
         }
+    }
+
+    /**
+     * Create an invoker for this filter that avoids instanceof when deciding
+     * if the filter should be consulted/handle messages. Instead, it stores
+     * an invoker for each targeted request-type and response-type in an array.
+     * @param filter the filter
+     * @return an invoker for the filter
+     */
+    public static FilterInvoker arrayInvoker(KrpcFilter filter) {
+        return new SpecificFilterArrayInvoker(filter);
+    }
+
+    /**
+     * An invoker that does not handle any requests or responses
+     * @return invoker
+     */
+    public static FilterInvoker handleNothingInvoker() {
+        return HandleNothingFilterInvoker.INSTANCE;
     }
 
     private static IllegalArgumentException unsupportedFilterInstance(KrpcFilter filter, String message) {
         return new IllegalArgumentException("Invoker could not be created for: " + filter.getClass().getName() + ". " + message);
     }
-
-    private static FilterInvoker requestInvoker(RequestFilter filter) {
-        return new RequestFilterInvoker(filter);
-    }
-
-    private static FilterInvoker responseInvoker(ResponseFilter filter) {
-        return new ResponseFilterInvoker(filter);
-    }
-
-    private static FilterInvoker requestResponseInvoker(RequestFilter requestFilter, ResponseFilter responseFilter) {
-        return new RequestResponseInvoker(requestFilter, responseFilter);
-    }
-
-    private record RequestFilterInvoker(RequestFilter filter) implements FilterInvoker {
-
-    @Override
-    public void onRequest(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
-        filter.onRequest(apiKey, header, body, filterContext);
-    }
-
-    @Override
-    public boolean shouldHandleRequest(ApiKeys apiKey, short apiVersion) {
-        return filter.shouldHandleRequest(apiKey, apiVersion);
-    }
-
-    }
-
-    private record ResponseFilterInvoker(ResponseFilter filter) implements FilterInvoker {
-
-    @Override
-    public void onResponse(ApiKeys apiKey, short apiVersion, ResponseHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
-        filter.onResponse(apiKey, header, body, filterContext);
-    }
-
-    @Override
-    public boolean shouldHandleResponse(ApiKeys apiKey, short apiVersion) {
-        return filter.shouldHandleResponse(apiKey, apiVersion);
-    }
-
-    }
-
-    private record RequestResponseInvoker(RequestFilter requestFilter, ResponseFilter responseFilter) implements FilterInvoker {
-
-    @Override
-    public void onRequest(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
-        requestFilter.onRequest(apiKey, header, body, filterContext);
-    }
-
-    @Override
-    public void onResponse(ApiKeys apiKey, short apiVersion, ResponseHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
-        responseFilter.onResponse(apiKey, header, body, filterContext);
-    }
-
-    @Override
-    public boolean shouldHandleRequest(ApiKeys apiKey, short apiVersion) {
-        return requestFilter.shouldHandleRequest(apiKey, apiVersion);
-    }
-
-    @Override
-    public boolean shouldHandleResponse(ApiKeys apiKey, short apiVersion) {
-        return responseFilter.shouldHandleResponse(apiKey, apiVersion);
-    }
-
-    }
-
-    private record SafeInvoker(FilterInvoker invoker) implements FilterInvoker {
-
-    @Override
-    public void onRequest(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
-        if (invoker.shouldHandleRequest(apiKey, apiVersion)) {
-            invoker.onRequest(apiKey, apiVersion, header, body, filterContext);
-        }
-        else {
-            filterContext.forwardRequest(header, body);
-        }
-    }
-
-    @Override
-    public void onResponse(ApiKeys apiKey, short apiVersion, ResponseHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
-        if (invoker.shouldHandleResponse(apiKey, apiVersion)) {
-            invoker.onResponse(apiKey, apiVersion, header, body, filterContext);
-        }
-        else {
-            filterContext.forwardResponse(header, body);
-        }
-    }
-
-    @Override
-    public boolean shouldHandleRequest(ApiKeys apiKey, short apiVersion) {
-        return invoker.shouldHandleRequest(apiKey, apiVersion);
-    }
-
-    @Override
-    public boolean shouldHandleResponse(ApiKeys apiKey, short apiVersion) {
-        return invoker.shouldHandleResponse(apiKey, apiVersion);
-    }
-}
 
 }

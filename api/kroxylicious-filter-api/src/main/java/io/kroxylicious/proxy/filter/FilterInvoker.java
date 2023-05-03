@@ -76,6 +76,7 @@ public interface FilterInvoker {
      * so that the message continues to flow through the filter chain.
      * </p>
      * @param apiKey the key of the message
+     * @param apiVersion the apiVersion of the message
      * @param header the header of the message
      * @param body the body of the message
      * @param filterContext contains methods to continue the filter chain and other contextual data

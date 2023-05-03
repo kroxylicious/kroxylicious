@@ -23,9 +23,12 @@
  */
 package ${outputPackage};
 
-<#list messageSpecs as messageSpec>
-import org.apache.kafka.common.message.${messageSpec.name}Data;
-</#list>
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.OptionalInt;
+
+import org.apache.kafka.common.message.ApiMessageType;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
@@ -35,12 +38,23 @@ import org.apache.kafka.common.protocol.ApiMessage;
  * Invoker for KrpcFilters that implement any number of Specific Message interfaces (for
  * example {@link io.kroxylicious.proxy.filter.AlterConfigsResponseFilter}.
  */
-class SpecificFilterInvoker implements FilterInvoker {
+class SpecificFilterArrayInvoker implements FilterInvoker {
 
-    private final KrpcFilter filter;
+    private static final FilterInvoker[] HANDLE_NOTHING = createHandleNothing();
 
-    SpecificFilterInvoker(KrpcFilter filter) {
-        this.filter = filter;
+    private final FilterInvoker[] requestInvokers;
+    private final FilterInvoker[] responseInvokers;
+
+    SpecificFilterArrayInvoker(KrpcFilter filter) {
+        Map<Integer, FilterInvoker> requestInvokers = new HashMap<>();
+        Map<Integer, FilterInvoker> responseInvokers = new HashMap<>();
+        <#list messageSpecs as messageSpec>
+        if (filter instanceof ${messageSpec.name}Filter) {
+            ${messageSpec.type?lower_case}Invokers.put(${messageSpec.apiKey.get()}, new ${messageSpec.name}FilterInvoker((${messageSpec.name}Filter) filter));
+        }
+        </#list>
+        this.requestInvokers = createFrom(requestInvokers);
+        this.responseInvokers = createFrom(responseInvokers);
     }
 
     /**
@@ -57,14 +71,8 @@ class SpecificFilterInvoker implements FilterInvoker {
                            RequestHeaderData header,
                            ApiMessage body,
                            KrpcFilterContext filterContext) {
-        switch (apiKey) {
-<#list messageSpecs as messageSpec>
-    <#if messageSpec.type?lower_case == 'request'>
-            case ${retrieveApiKey(messageSpec)} -> ((${messageSpec.name}Filter) filter).on${messageSpec.name}(header, (${messageSpec.name}Data) body, filterContext);
-    </#if>
-</#list>
-            default -> throw new IllegalStateException("Unsupported RPC " + apiKey);
-        }
+        FilterInvoker invoker = requestInvokers[apiKey.id];
+        invoker.onRequest(apiKey, apiVersion, header, body, filterContext);
     }
 
     /**
@@ -81,16 +89,9 @@ class SpecificFilterInvoker implements FilterInvoker {
                             ResponseHeaderData header,
                             ApiMessage body,
                             KrpcFilterContext filterContext) {
-        switch (apiKey) {
-<#list messageSpecs as messageSpec>
-    <#if messageSpec.type?lower_case == 'response'>
-            case ${retrieveApiKey(messageSpec)} -> ((${messageSpec.name}Filter) filter).on${messageSpec.name}(header, (${messageSpec.name}Data) body, filterContext);
-    </#if>
-</#list>
-            default -> throw new IllegalStateException("Unsupported RPC " + apiKey);
-        }
+        FilterInvoker invoker = responseInvokers[apiKey.id];
+        invoker.onResponse(apiKey, apiVersion, header, body, filterContext);
     }
-
 
     /**
      * <p>Determines whether a request with the given {@code apiKey} and {@code apiVersion} should be deserialized.
@@ -110,14 +111,8 @@ class SpecificFilterInvoker implements FilterInvoker {
      */
     @Override
     public boolean shouldHandleRequest(ApiKeys apiKey, short apiVersion) {
-        return switch (apiKey) {
-<#list messageSpecs as messageSpec>
-    <#if messageSpec.type?lower_case == 'request'>
-            case ${retrieveApiKey(messageSpec)} -> filter instanceof ${messageSpec.name}Filter && ((${messageSpec.name}Filter) filter).shouldHandle${messageSpec.name}(apiVersion);
-    </#if>
-</#list>
-            default -> throw new IllegalStateException("Unsupported API key " + apiKey);
-        };
+        FilterInvoker invoker = requestInvokers[apiKey.id];
+        return invoker.shouldHandleRequest(apiKey, apiVersion);
     }
 
     /**
@@ -138,14 +133,8 @@ class SpecificFilterInvoker implements FilterInvoker {
      */
     @Override
     public boolean shouldHandleResponse(ApiKeys apiKey, short apiVersion) {
-        return switch (apiKey) {
-<#list messageSpecs as messageSpec>
-    <#if messageSpec.type?lower_case == 'response'>
-            case ${retrieveApiKey(messageSpec)} -> filter instanceof ${messageSpec.name}Filter && ((${messageSpec.name}Filter) filter).shouldHandle${messageSpec.name}(apiVersion);
-    </#if>
-</#list>
-            default -> throw new IllegalStateException("Unsupported API key " + apiKey);
-        };
+        FilterInvoker invoker = responseInvokers[apiKey.id];
+        return invoker.shouldHandleResponse(apiKey, apiVersion);
     }
 
     /**
@@ -155,7 +144,35 @@ class SpecificFilterInvoker implements FilterInvoker {
     */
     public static boolean implementsAnySpecificFilterInterface(KrpcFilter filter) {
         return <#list messageSpecs as messageSpec>filter instanceof ${messageSpec.name}Filter<#sep> ||
-                </#sep></#list>;
+        </#sep></#list>;
+    }
+
+    private static FilterInvoker[] createHandleNothing() {
+        FilterInvoker[] filterInvokers = emptyInvokerArraySizedForMessageTypes();
+        Arrays.stream(ApiMessageType.values()).mapToInt(ApiMessageType::apiKey).forEach(value -> {
+            filterInvokers[value] = FilterInvokers.handleNothingInvoker();
+        });
+        return filterInvokers;
+    }
+
+    private static FilterInvoker[] createFrom(Map<Integer, FilterInvoker> filterInvokersByApiMessageId) {
+        if (filterInvokersByApiMessageId.isEmpty()) {
+            return HANDLE_NOTHING;
+        }
+        FilterInvoker[] filterInvokers = emptyInvokerArraySizedForMessageTypes();
+        Arrays.stream(ApiMessageType.values()).mapToInt(ApiMessageType::apiKey).forEach(value -> {
+            filterInvokers[value] = filterInvokersByApiMessageId.getOrDefault(value, FilterInvokers.handleNothingInvoker());
+        });
+        return filterInvokers;
+    }
+
+    private static FilterInvoker[] emptyInvokerArraySizedForMessageTypes() {
+        OptionalInt maybeMaxId = Arrays.stream(ApiMessageType.values()).mapToInt(ApiMessageType::apiKey).max();
+        if (maybeMaxId.isEmpty()) {
+            throw new IllegalStateException("no maximum id found");
+        }
+        int arraySize = maybeMaxId.getAsInt() + 1;
+        return new FilterInvoker[arraySize];
     }
 
 }
