@@ -58,7 +58,7 @@ public class FilterInvokers {
             return responseInvoker((ResponseFilter) filter);
         }
         else {
-            return instanceOfInvoker(filter);
+            return arrayInvoker(filter);
         }
     }
 
