@@ -224,6 +224,7 @@
         <module>kroxylicious</module>
         <module>kroxylicious-multitenant</module>
         <module>integrationtests</module>
+        <module>performance-tests</module>
     </modules>
 
 

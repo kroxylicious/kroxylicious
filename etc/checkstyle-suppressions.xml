@@ -14,4 +14,6 @@
     <!-- Generated classes which we do not edit -->
     <suppress checks=".*"
               files="io[/\\]kroxylicious[/\\]proxy[/\\].*(Builder|Editable|Fluent|Nested|Visitor|Visitable).*\.java"/>
+    <suppress checks=".*"
+              files="io[/\\]kroxylicious[/\\]jmh_generated[/\\].*"/>
 </suppressions>
