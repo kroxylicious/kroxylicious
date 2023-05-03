@@ -115,6 +115,23 @@
                         </configuration>
                     </execution>
                     <execution>
+                        <id>generate-per-message-filter-invokers</id>
+                        <goals>
+                            <goal>generate-single</goal>
+                        </goals>
+                        <phase>generate-sources</phase>
+                        <configuration>
+                            <messageSpecDirectory>${project.build.directory}/message-specs/common/message</messageSpecDirectory>
+                            <messageSpecFilter>*{Request,Response}.json</messageSpecFilter>
+                            <templateDirectory>${project.basedir}/src/main/templates</templateDirectory>
+                            <templateNames>Kproxy/FilterInvoker.ftl</templateNames>
+                            <!--suppress UnresolvedMavenProperty -->
+                            <outputFilePattern>${messageSpecName}FilterInvoker.java</outputFilePattern>
+                            <outputPackage>io.kroxylicious.proxy.filter</outputPackage>
+                            <outputDirectory>${project.build.directory}/generated-sources/krpc</outputDirectory>
+                        </configuration>
+                    </execution>
+                    <execution>
                         <id>generate-request-filters</id>
                         <goals>
                             <goal>generate-multi</goal>
@@ -125,6 +142,24 @@
                             <messageSpecFilter>*{Request,Response}.json</messageSpecFilter>
                             <templateDirectory>${project.basedir}/src/main/templates</templateDirectory>
                             <templateNames>Kproxy/SpecificFilterInvoker.ftl</templateNames>
+                            <!--suppress UnresolvedMavenProperty -->
+                            <outputFilePattern>${templateName}.java</outputFilePattern>
+                            <outputPackage>io.kroxylicious.proxy.filter</outputPackage>
+                            <outputDirectory>${project.build.directory}/generated-sources/krpc</outputDirectory>
+                        </configuration>
+                    </execution>
+
+                    <execution>
+                        <id>generate-array-filter-invoker</id>
+                        <goals>
+                            <goal>generate-multi</goal>
+                        </goals>
+                        <phase>generate-sources</phase>
+                        <configuration>
+                            <messageSpecDirectory>${project.build.directory}/message-specs/common/message</messageSpecDirectory>
+                            <messageSpecFilter>*{Request,Response}.json</messageSpecFilter>
+                            <templateDirectory>${project.basedir}/src/main/templates</templateDirectory>
+                            <templateNames>Kproxy/SpecificFilterArrayInvoker.ftl</templateNames>
                             <!--suppress UnresolvedMavenProperty -->
                             <outputFilePattern>${templateName}.java</outputFilePattern>
                             <outputPackage>io.kroxylicious.proxy.filter</outputPackage>

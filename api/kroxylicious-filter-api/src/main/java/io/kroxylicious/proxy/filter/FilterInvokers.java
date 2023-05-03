@@ -17,6 +17,10 @@ import org.apache.kafka.common.protocol.ApiMessage;
  */
 public class FilterInvokers {
 
+    private FilterInvokers() {
+
+    }
+
     /**
      * Create a FilterInvoker for this filter. Supported cases are:
      * <ol>
@@ -54,8 +58,29 @@ public class FilterInvokers {
             return responseInvoker((ResponseFilter) filter);
         }
         else {
-            return new SpecificFilterInvoker(filter);
+            return instanceOfInvoker(filter);
         }
+    }
+
+    /**
+     * Create an invoker for this filter that uses instanceof when deciding
+     * if the filter should be consulted/handle messages.
+     * @param filter the filter
+     * @return an invoker for the filter
+     */
+    public static FilterInvoker instanceOfInvoker(KrpcFilter filter) {
+        return new SpecificFilterInvoker(filter);
+    }
+
+    /**
+     * Create an invoker for this filter that avoids instanceof when deciding
+     * if the filter should be consulted/handle messages. Instead, it stores
+     * an invoker for each targeted request-type and response-type in an array.
+     * @param filter the filter
+     * @return an invoker for the filter
+     */
+    public static FilterInvoker arrayInvoker(KrpcFilter filter) {
+        return new SpecificFilterArrayInvoker(filter);
     }
 
     private static IllegalArgumentException unsupportedFilterInstance(KrpcFilter filter, String message) {
