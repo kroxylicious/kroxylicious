@@ -23,6 +23,7 @@
 
     <properties>
         <libs.dir>libs</libs.dir>
+        <log4j.version>2.20.0</log4j.version>
     </properties>
 
     <name>Kroxylicious Proxy</name>
@@ -332,10 +333,31 @@
         </profile>
         <profile>
             <id>debug</id>
+            <dependencyManagement>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.apache.logging.log4j</groupId>
+                        <artifactId>log4j-bom</artifactId>
+                        <version>${log4j.version}</version>
+                        <scope>import</scope>
+                        <type>pom</type>
+                    </dependency>
+                </dependencies>
+            </dependencyManagement>
             <dependencies>
                 <dependency>
-                    <groupId>org.slf4j</groupId>
-                    <artifactId>slf4j-simple</artifactId>
+                    <groupId>org.apache.logging.log4j</groupId>
+                    <artifactId>log4j-api</artifactId>
+                    <scope>runtime</scope>
+                </dependency>
+                <dependency>
+                    <groupId>org.apache.logging.log4j</groupId>
+                    <artifactId>log4j-core</artifactId>
+                    <scope>runtime</scope>
+                </dependency>
+                <dependency>
+                    <groupId>org.apache.logging.log4j</groupId>
+                    <artifactId>log4j-slf4j2-impl</artifactId>
                     <scope>runtime</scope>
                 </dependency>
             </dependencies>

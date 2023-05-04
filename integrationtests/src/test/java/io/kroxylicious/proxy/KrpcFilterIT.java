@@ -35,6 +35,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import io.kroxylicious.proxy.filter.CreateTopicRejectFilter;
 import io.kroxylicious.proxy.internal.filter.ByteBufferTransformation;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
+import io.kroxylicious.testing.kafka.clients.CloseableConsumer;
+import io.kroxylicious.testing.kafka.clients.CloseableProducer;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
 import static io.kroxylicious.proxy.Utils.startProxy;
@@ -111,21 +113,21 @@ public class KrpcFilterIT {
         var config = baseConfigBuilder(proxyAddress, cluster.getBootstrapServers()).build().toYaml();
 
         try (var proxy = startProxy(config)) {
-            try (var producer = new KafkaProducer<String, String>(Map.of(
+            try (var producer = CloseableProducer.wrap(new KafkaProducer<String, String>(Map.of(
                     ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
                     ProducerConfig.CLIENT_ID_CONFIG, "shouldPassThroughRecordUnchanged",
                     ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
                     ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
-                    ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000))) {
+                    ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000)))) {
                 producer.send(new ProducerRecord<>(TOPIC_1, "my-key", "Hello, world!")).get();
             }
 
-            try (var consumer = new KafkaConsumer<String, String>(Map.of(
+            try (var consumer = CloseableConsumer.wrap(new KafkaConsumer<String, String>(Map.of(
                     ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
                     ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
                     ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
                     ConsumerConfig.GROUP_ID_CONFIG, "my-group-id",
-                    ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
+                    ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")))) {
                 consumer.subscribe(Set.of(TOPIC_1));
                 var records = consumer.poll(Duration.ofSeconds(10));
                 consumer.close();
@@ -173,12 +175,12 @@ public class KrpcFilterIT {
                 .toYaml();
 
         try (var proxy = startProxy(config)) {
-            try (var producer = new KafkaProducer<String, String>(Map.of(
+            try (var producer = CloseableProducer.wrap(new KafkaProducer<String, String>(Map.of(
                     ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
                     ProducerConfig.CLIENT_ID_CONFIG, "shouldModifyProduceMessage",
                     ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
                     ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
-                    ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000))) {
+                    ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000)))) {
                 producer.send(new ProducerRecord<>(TOPIC_1, "my-key", PLAINTEXT)).get();
                 producer.send(new ProducerRecord<>(TOPIC_2, "my-key", PLAINTEXT)).get();
                 producer.flush();
@@ -186,12 +188,12 @@ public class KrpcFilterIT {
 
             ConsumerRecords<String, byte[]> records1;
             ConsumerRecords<String, byte[]> records2;
-            try (var consumer = new KafkaConsumer<String, byte[]>(Map.of(
+            try (var consumer = CloseableConsumer.wrap(new KafkaConsumer<String, byte[]>(Map.of(
                     ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
                     ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
                     ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class,
                     ConsumerConfig.GROUP_ID_CONFIG, "my-group-id",
-                    ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
+                    ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")))) {
                 consumer.subscribe(Set.of(TOPIC_1));
                 records1 = consumer.poll(Duration.ofSeconds(10));
                 consumer.subscribe(Set.of(TOPIC_2));
@@ -219,12 +221,12 @@ public class KrpcFilterIT {
                 .toYaml();
 
         try (var proxy = startProxy(config)) {
-            try (var producer = new KafkaProducer<String, byte[]>(Map.of(
+            try (var producer = CloseableProducer.wrap(new KafkaProducer<String, byte[]>(Map.of(
                     ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
                     ProducerConfig.CLIENT_ID_CONFIG, "shouldModifyFetchMessage",
                     ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
                     ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class,
-                    ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000))) {
+                    ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000)))) {
 
                 producer.send(new ProducerRecord<>(TOPIC_1, "my-key", TOPIC_1_CIPHERTEXT)).get();
                 producer.send(new ProducerRecord<>(TOPIC_2, "my-key", TOPIC_2_CIPHERTEXT)).get();
@@ -232,12 +234,12 @@ public class KrpcFilterIT {
 
             ConsumerRecords<String, String> records1;
             ConsumerRecords<String, String> records2;
-            try (var consumer = new KafkaConsumer<String, String>(Map.of(
+            try (var consumer = CloseableConsumer.wrap(new KafkaConsumer<String, String>(Map.of(
                     ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
                     ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
                     ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
                     ConsumerConfig.GROUP_ID_CONFIG, "my-group-id",
-                    ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
+                    ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")))) {
                 consumer.subscribe(Set.of(TOPIC_1));
 
                 records1 = consumer.poll(Duration.ofSeconds(100));

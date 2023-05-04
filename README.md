@@ -24,11 +24,12 @@ $ mvn clean install
 
 The running of the tests can be controlled with the following Maven properties:
 
-| property           | description            |
-|--------------------|------------------------|
-| `-DskipUTs=true`   | skip unit tests        |
-| `-DskipITs=true`   | skip integration tests |
-| `-DskipTests=true` | skip all tests         |
+| property           | description                                                                               |
+|--------------------|-------------------------------------------------------------------------------------------|
+| `-DskipUTs=true`   | skip unit tests                                                                           |
+| `-DskipITs=true`   | skip integration tests                                                                    |
+| `-DskipTests=true` | skip all tests                                                                            |
+| `-Pdebug`          | enables logging so you can see what the Kafka clients, Proxy and in VM brokers are up to. |
 
 The kafka environment used by the integrations tests can be _defaulted_ with these two environment variables.
 
