@@ -19,7 +19,11 @@ public class MyBenchmark {
     @org.openjdk.jmh.annotations.State(Scope.Benchmark)
     public static class BenchState {
         volatile FilterInvoker instanceOfInvokerFilterHasTwoInterfaces = FilterInvokers.instanceOfInvoker(new TwoInterfaceFilter());
+        volatile FilterInvoker instanceOfInvokerFilterHasFourInterfaces = FilterInvokers.instanceOfInvoker(new FourInterfaceFilter());
+        volatile FilterInvoker instanceOfInvokerFilterHasEightInterfaces = FilterInvokers.instanceOfInvoker(new EightInterfaceFilter());
         volatile FilterInvoker arrayInvokerFilterHasTwoInterfaces = FilterInvokers.arrayInvoker(new TwoInterfaceFilter());
+        volatile FilterInvoker arrayInvokerFilterHasFourInterfaces = FilterInvokers.arrayInvoker(new FourInterfaceFilter());
+        volatile FilterInvoker arrayInvokerFilterHasEightInterfaces = FilterInvokers.arrayInvoker(new EightInterfaceFilter());
         volatile FilterInvoker instanceOfInvokerFilterHasOneInterface = FilterInvokers.instanceOfInvoker(new OneInterfaceFilter());
         volatile FilterInvoker arrayInvokerFilterHasOneInterface = FilterInvokers.arrayInvoker(new OneInterfaceFilter());
     }
@@ -32,6 +36,26 @@ public class MyBenchmark {
     @Benchmark
     public void testArrayInvokerFilterHasTwoInterfaces(BenchState state, Blackhole blackhole) {
         invoke(blackhole, state.arrayInvokerFilterHasTwoInterfaces);
+    }
+
+    @Benchmark
+    public void testInstanceOfInvokerFilterHasFourInterfaces(BenchState state, Blackhole blackhole) {
+        invoke(blackhole, state.instanceOfInvokerFilterHasFourInterfaces);
+    }
+
+    @Benchmark
+    public void testArrayInvokerFilterHasFourInterfaces(BenchState state, Blackhole blackhole) {
+        invoke(blackhole, state.arrayInvokerFilterHasFourInterfaces);
+    }
+
+    @Benchmark
+    public void testInstanceOfInvokerFilterHasEightInterfaces(BenchState state, Blackhole blackhole) {
+        invoke(blackhole, state.instanceOfInvokerFilterHasEightInterfaces);
+    }
+
+    @Benchmark
+    public void testArrayInvokerFilterHasEightInterfaces(BenchState state, Blackhole blackhole) {
+        invoke(blackhole, state.arrayInvokerFilterHasEightInterfaces);
     }
 
     @Benchmark
