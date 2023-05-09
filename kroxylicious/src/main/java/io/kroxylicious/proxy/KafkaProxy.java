@@ -108,7 +108,11 @@ public final class KafkaProxy implements AutoCloseable, VirtualClusterResolver {
         var bindFutures = networkBindings.stream()
                 .map(networkBinder -> networkBinder.bind(networkBinder.tls() ? tlsServerBootstrap : plainServerBootstrap))
                 .collect(Collectors.toSet());
-        bindFutures.forEach(channelFuture -> channelFuture.addListener(f -> LOGGER.info("Listening : {}", channelFuture.channel().localAddress())));
+        bindFutures.forEach(channelFuture -> channelFuture.addListener(f -> {
+            var channel = ((ChannelFuture) f).channel();
+            acceptorChannels.add(channel);
+            LOGGER.info("Listening : {}", channelFuture.channel().localAddress());
+        }));
         bindFutures.forEach(ChannelFuture::syncUninterruptibly);
 
         // Pre-register counters/summaries to avoid creating them on first request and thus skewing the request latency
