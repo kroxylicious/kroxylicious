@@ -9,9 +9,8 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Queue;
 import java.util.Set;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
@@ -67,7 +66,7 @@ public final class KafkaProxy implements AutoCloseable, VirtualClusterResolver {
     private final AdminHttpConfiguration adminHttpConfig;
     private final List<MicrometerDefinition> micrometerConfig;
     private final Map<String, VirtualCluster> virtualClusterMap;
-    private final Queue<Channel> acceptorChannels = new ConcurrentLinkedQueue<>();
+    private CompletableFuture<Void> closeFuture;
     private final AtomicBoolean running = new AtomicBoolean();
     private EventGroupConfig adminEventGroup;
     private EventGroupConfig serverEventGroup;
@@ -108,18 +107,22 @@ public final class KafkaProxy implements AutoCloseable, VirtualClusterResolver {
         var bindFutures = networkBindings.stream()
                 .map(networkBinder -> networkBinder.bind(networkBinder.tls() ? tlsServerBootstrap : plainServerBootstrap))
                 .collect(Collectors.toSet());
-        bindFutures.forEach(channelFuture -> channelFuture.addListener(f -> {
-            var channel = ((ChannelFuture) f).channel();
-            acceptorChannels.add(channel);
-            LOGGER.info("Listening : {}", channelFuture.channel().localAddress());
-        }));
-        bindFutures.forEach(ChannelFuture::syncUninterruptibly);
+
+        bindFutures.forEach(channelFuture -> channelFuture.addListener(f -> LOGGER.info("Listening : {}", channelFuture.channel().localAddress())));
+        closeFuture = CompletableFuture.allOf(bindFutures.stream().map(this::toCloseFuture).toArray(CompletableFuture[]::new));
 
         // Pre-register counters/summaries to avoid creating them on first request and thus skewing the request latency
         // TODO add a virtual host tag to metrics
         Metrics.inboundDownstreamMessagesCounter();
         Metrics.inboundDownstreamDecodedMessagesCounter();
         return this;
+    }
+
+    private CompletableFuture<Void> toCloseFuture(ChannelFuture channelFuture) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        ChannelFuture closeFuture = channelFuture.syncUninterruptibly().channel().closeFuture();
+        closeFuture.addListener(f -> future.complete(null));
+        return future;
     }
 
     private Set<NetworkBinding> buildNetworkBindings() {
@@ -219,16 +222,11 @@ public final class KafkaProxy implements AutoCloseable, VirtualClusterResolver {
      * This should only be called after a successful call to {@link #startup()}.
      * @throws InterruptedException
      */
-    public void block() throws InterruptedException {
+    public void block() throws Exception {
         if (!running.get()) {
             throw new IllegalStateException("This proxy is not running");
         }
-        while (!acceptorChannels.isEmpty()) {
-            Channel channel = acceptorChannels.peek();
-            if (channel != null) {
-                channel.closeFuture().sync();
-            }
-        }
+        closeFuture.get();
     }
 
     /**
@@ -243,7 +241,6 @@ public final class KafkaProxy implements AutoCloseable, VirtualClusterResolver {
         closeFutures.addAll(serverEventGroup.shutdownGracefully());
         closeFutures.addAll(adminEventGroup.shutdownGracefully());
         closeFutures.forEach(Future::syncUninterruptibly);
-        acceptorChannels.clear();
         adminEventGroup = null;
         serverEventGroup = null;
         metricsChannel = null;
