@@ -83,6 +83,30 @@ public class FilterInvokers {
         return new SpecificFilterArrayInvoker(filter);
     }
 
+    /**
+     * Create an invoker for this filter that avoids instanceof when deciding
+     * if the filter should be consulted/handle messages. Instead, it has a field
+     * for each specific filter type and populates them at construction time if the
+     * filter matches those types.
+     * @param filter the filter
+     * @return an invoker for the filter
+     */
+    public static FilterInvoker fieldInvoker(KrpcFilter filter) {
+        return new SpecificFilterFieldInvoker(filter);
+    }
+
+    /**
+     * Create an invoker for this filter that avoids instanceof when deciding
+     * if the filter should be consulted/handle messages. Instead, it has a map
+     * containing invokers for each specific filter type and populates them at
+     * construction time if the filter matches those types.
+     * @param filter the filter
+     * @return an invoker for the filter
+     */
+    public static FilterInvoker mapInvoker(KrpcFilter filter) {
+        return new SpecificFilterMapInvoker(filter);
+    }
+
     private static IllegalArgumentException unsupportedFilterInstance(KrpcFilter filter, String message) {
         return new IllegalArgumentException("Invoker could not be created for: " + filter.getClass().getName() + ". " + message);
     }
