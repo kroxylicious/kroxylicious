@@ -79,8 +79,7 @@ public class PortConflictDetector {
                 // binding to any
 
                 // check whether one or more of the proposed exclusive ports are already bound to any other interface
-                specificInterfaceExclusivePorts.forEach((bindingAddress, ports) -> {
-                    var existing = specificInterfaceExclusivePorts.get(bindingAddress);
+                specificInterfaceExclusivePorts.forEach((bindingAddress, existing) -> {
 
                     var specificInterfaceConflicts = getSortedPortConflicts(existing, exclusivePorts);
                     if (!specificInterfaceConflicts.isEmpty()) {
