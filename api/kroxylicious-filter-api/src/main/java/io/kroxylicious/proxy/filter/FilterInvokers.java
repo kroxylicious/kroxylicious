@@ -107,8 +107,35 @@ public class FilterInvokers {
         return new SpecificFilterMapInvoker(filter);
     }
 
+    /**
+     * Create an invoker for this filter that avoids instanceof when deciding
+     * if the filter should be consulted/handle messages. Instead, it has a map
+     * containing invokers for each specific filter type and populates them at
+     * construction time if the filter matches those types.
+     * @param filter the filter
+     * @return an invoker for the filter
+     */
+    public static FilterInvoker mapInvoker2(KrpcFilter filter) {
+        return new SpecificFilterMapInvoker2(filter);
+    }
+
     private static IllegalArgumentException unsupportedFilterInstance(KrpcFilter filter, String message) {
         return new IllegalArgumentException("Invoker could not be created for: " + filter.getClass().getName() + ". " + message);
+    }
+
+    public static FilterInvoker handleNothingInvoker() {
+        return new FilterInvoker() {
+
+            @Override
+            public void onRequest(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
+                throw new IllegalStateException("I should never be invoked");
+            }
+
+            @Override
+            public void onResponse(ApiKeys apiKey, short apiVersion, ResponseHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
+                throw new IllegalStateException("I should never be invoked");
+            }
+        };
     }
 
     private static FilterInvoker requestInvoker(RequestFilter filter) {

@@ -26,6 +26,10 @@ public class MyBenchmark {
         volatile FilterInvoker mapInvokerFilterHasTwoInterfaces = FilterInvokers.mapInvoker(new TwoInterfaceFilter());
         volatile FilterInvoker mapInvokerFilterHasFourInterfaces = FilterInvokers.mapInvoker(new FourInterfaceFilter());
         volatile FilterInvoker mapInvokerFilterHasEightInterfaces = FilterInvokers.mapInvoker(new EightInterfaceFilter());
+        volatile FilterInvoker mapInvoker2FilterHasOneInterface = FilterInvokers.mapInvoker2(new OneInterfaceFilter());
+        volatile FilterInvoker mapInvoker2FilterHasTwoInterfaces = FilterInvokers.mapInvoker2(new TwoInterfaceFilter());
+        volatile FilterInvoker mapInvoker2FilterHasFourInterfaces = FilterInvokers.mapInvoker2(new FourInterfaceFilter());
+        volatile FilterInvoker mapInvoker2FilterHasEightInterfaces = FilterInvokers.mapInvoker2(new EightInterfaceFilter());
         volatile FilterInvoker fieldInvokerFilterHasOneInterface = FilterInvokers.fieldInvoker(new OneInterfaceFilter());
         volatile FilterInvoker fieldInvokerFilterHasTwoInterfaces = FilterInvokers.fieldInvoker(new TwoInterfaceFilter());
         volatile FilterInvoker fieldInvokerFilterHasFourInterfaces = FilterInvokers.fieldInvoker(new FourInterfaceFilter());
@@ -94,6 +98,26 @@ public class MyBenchmark {
     @Benchmark
     public void testMapInvokerFilterHasEightInterfaces(BenchState state, Blackhole blackhole) {
         invoke(blackhole, state.mapInvokerFilterHasEightInterfaces);
+    }
+
+    @Benchmark
+    public void testMapInvoker2FilterHasOneInterface(BenchState state, Blackhole blackhole) {
+        invoke(blackhole, state.mapInvoker2FilterHasOneInterface);
+    }
+
+    @Benchmark
+    public void testMapInvoker2FilterHasTwoInterfaces(BenchState state, Blackhole blackhole) {
+        invoke(blackhole, state.mapInvoker2FilterHasTwoInterfaces);
+    }
+
+    @Benchmark
+    public void testMapInvoker2FilterHasFourInterfaces(BenchState state, Blackhole blackhole) {
+        invoke(blackhole, state.mapInvoker2FilterHasFourInterfaces);
+    }
+
+    @Benchmark
+    public void testMapInvoker2FilterHasEightInterfaces(BenchState state, Blackhole blackhole) {
+        invoke(blackhole, state.mapInvoker2FilterHasEightInterfaces);
     }
 
     @Benchmark
