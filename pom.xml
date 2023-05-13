@@ -30,7 +30,6 @@
         <skipITs>${skipTests}</skipITs>
         <skipUTs>${skipTests}</skipUTs>
 
-        <debezium.version>1.9.0.Final</debezium.version>
         <freemarker.version>2.3.32</freemarker.version>
         <guava.version>31.1-jre</guava.version>
         <jackson.version>2.15.0</jackson.version>
