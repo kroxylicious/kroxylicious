@@ -65,7 +65,7 @@ class PortConflictDetectorTest {
                 Arguments.of("loopback/any:single shared conflict",
                         createMockVirtualCluster(Set.of(), Set.of(9080), loopback),
                         createMockVirtualCluster(Set.of(), Set.of(9080), any),
-                        "The shared bind of port(s) 9080 to 127.0.0.1 would conflict with existing shared port bindings on <any>."),
+                        "The shared bind of port(s) 9080 to <any> would conflict with existing shared port bindings on 127.0.0.1."),
                 Arguments.of("shared/exclusivity mismatch",
                         createMockVirtualCluster(Set.of(), Set.of(9080), any),
                         createMockVirtualCluster(Set.of(9080), Set.of(), any),

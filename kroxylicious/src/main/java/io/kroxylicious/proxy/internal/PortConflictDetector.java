@@ -11,18 +11,19 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import io.kroxylicious.proxy.config.VirtualCluster;
-import io.kroxylicious.proxy.service.ClusterEndpointConfigProvider;
 
 /**
  * Detects potential for port conflicts arising between virtual cluster configurations.
  */
 public class PortConflictDetector {
 
-    private static final String ANY = "<any>";
+    private final Optional<String> ANY_INTERFACE = Optional.empty();
+    private static final String ANY_STRING = "<any>";
 
     private enum BindingScope {
         SHARED,
@@ -37,152 +38,97 @@ public class PortConflictDetector {
     public void validate(Map<String, VirtualCluster> virtualClusterMap) {
 
         Set<String> seenVirtualClusters = new HashSet<>();
-        Set<Integer> anyInterfaceExclusivePorts = new HashSet<>();
-        Map<String, Set<Integer>> specificInterfaceExclusivePorts = new HashMap<>();
 
-        Map<Integer, Boolean> anyInterfaceSharedPorts = new HashMap<>();
-        Map<String, Map<Integer, Boolean>> specificInterfaceSharedPorts = new HashMap<>();
+        Map<Optional<String>, Set<Integer>> inUseExclusivePorts = new HashMap<>();
+        Map<Optional<String>, Map<Integer, Boolean>> inUseSharedPorts = new HashMap<>();
 
         virtualClusterMap.entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(e -> {
             var name = e.getKey();
             var cluster = e.getValue();
-            var sharedPorts = cluster.getSharedPorts();
-            var exclusivePorts = cluster.getExclusivePorts();
-            var specificInterface = cluster.getBindAddress().isPresent();
+            var proposedSharedPorts = cluster.getSharedPorts();
+            var proposedExclusivePorts = cluster.getExclusivePorts();
 
-            // check exclusive ports
+            // if this virtual cluster is binding to <any>, we need to check for conflicts on the <any> interface and *all* specific interfaces,
+            // otherwise we just check for conflicts on <any> and the specified specific interface
+            var exclusiveCheckSet = cluster.getBindAddress().isEmpty() ? inUseExclusivePorts.keySet() : Set.of(ANY_INTERFACE, cluster.getBindAddress());
 
-            // check whether this virtual cluster's configuration would produce conflicts on <any> interface (0.0.0.0)
-            var conflicts = getSortedPortConflicts(anyInterfaceExclusivePorts, exclusivePorts);
-            if (!conflicts.isEmpty()) {
-                throw buildPortConflictException(name, seenVirtualClusters, conflicts,
-                        getBindingAddressAsString(cluster), BindingScope.EXCLUSIVE,
-                        ANY, BindingScope.EXCLUSIVE);
-            }
+            // check the proposed *exclusive ports* for conflicts with the *exclusive ports* seen so far.
 
-            if (specificInterface) {
-                // binding to a specific interface
-
-                // check whether one or more of the proposed exclusive ports are already bound on the same interface
-                var targetBindingAddress = cluster.getBindAddress().get();
-                var existing = specificInterfaceExclusivePorts.get(cluster.getBindAddress().get());
-                if (existing != null) {
-                    var specificInterfaceConflicts = getSortedPortConflicts(existing, exclusivePorts);
-                    if (!specificInterfaceConflicts.isEmpty()) {
-                        throw buildPortConflictException(name, seenVirtualClusters, specificInterfaceConflicts,
-                                targetBindingAddress, BindingScope.EXCLUSIVE,
-                                targetBindingAddress, BindingScope.EXCLUSIVE);
-                    }
-                }
-            }
-            else {
-                // binding to any
-
-                // check whether one or more of the proposed exclusive ports are already bound to any other interface
-                specificInterfaceExclusivePorts.forEach((bindingAddress, existing) -> {
-
-                    var specificInterfaceConflicts = getSortedPortConflicts(existing, exclusivePorts);
-                    if (!specificInterfaceConflicts.isEmpty()) {
-                        throw buildPortConflictException(name, seenVirtualClusters, specificInterfaceConflicts,
-                                ANY, BindingScope.EXCLUSIVE,
-                                bindingAddress, BindingScope.EXCLUSIVE);
-                    }
-                });
-            }
-
-            // check shared ports
-
-            if (specificInterface) {
-                // binding to a specific interface
-
-                var targetBindingAddress = cluster.getBindAddress().get();
-
-                // check whether one or more of the proposed shared ports are already bound to the <any> interface
-                var existing = getSortedPortConflicts(anyInterfaceSharedPorts.keySet(), sharedPorts);
-                if (!existing.isEmpty()) {
-                    throw buildPortConflictException(name, seenVirtualClusters, existing,
-                            targetBindingAddress, BindingScope.SHARED,
-                            ANY, BindingScope.SHARED);
-                }
-
-                // check whether one or more of the proposed shared ports are already used exclusively
-                var existingExclusive = specificInterfaceExclusivePorts.get(targetBindingAddress);
-                if (existingExclusive != null) {
-                    var specificInterfaceConflicts = getSortedPortConflicts(existingExclusive, sharedPorts);
-                    if (!specificInterfaceConflicts.isEmpty()) {
-                        throw buildPortConflictException(name, seenVirtualClusters, specificInterfaceConflicts,
-                                targetBindingAddress, BindingScope.SHARED,
-                                targetBindingAddress, BindingScope.EXCLUSIVE);
-                    }
-                }
-
-                var existingShared = specificInterfaceSharedPorts.get(targetBindingAddress);
-                if (existingShared != null) {
-                    // check whether one or more of the proposed exclusive ports are already shared
-                    var specificInterfaceConflicts = getSortedPortConflicts(existingShared.keySet(), exclusivePorts);
-                    if (!specificInterfaceConflicts.isEmpty()) {
-                        throw buildPortConflictException(name, seenVirtualClusters, specificInterfaceConflicts,
-                                targetBindingAddress, BindingScope.EXCLUSIVE,
-                                targetBindingAddress, BindingScope.SHARED);
-                    }
-
-                    sharedPorts.forEach(p -> {
-                        var tls = existingShared.get(p);
-                        if (tls != null && !tls.equals(cluster.isUseTls())) {
-                            throw buildOverviewException(name, seenVirtualClusters, buildTlsConflictException(p, targetBindingAddress));
+            inUseExclusivePorts.entrySet().stream()
+                    .filter(interfacePortsEntry -> exclusiveCheckSet.contains(interfacePortsEntry.getKey()))
+                    .forEach((entry) -> {
+                        var bindingInterface = entry.getKey();
+                        var ports = entry.getValue();
+                        var conflicts = getSortedPortConflicts(ports, proposedExclusivePorts);
+                        if (!conflicts.isEmpty()) {
+                            throw buildPortConflictException(name, seenVirtualClusters, conflicts,
+                                    cluster.getBindAddress(), BindingScope.EXCLUSIVE,
+                                    bindingInterface, BindingScope.EXCLUSIVE);
                         }
                     });
+
+            // check the proposed *shared ports* for conflicts with the *exclusive ports* seen so far.
+
+            inUseExclusivePorts.entrySet().stream()
+                    .filter(interfacePortsEntry -> exclusiveCheckSet.contains(interfacePortsEntry.getKey()))
+                    .forEach((entry) -> {
+                        var bindingInterface = entry.getKey();
+                        var ports = entry.getValue();
+                        var conflicts = getSortedPortConflicts(ports, proposedSharedPorts);
+                        if (!conflicts.isEmpty()) {
+                            throw buildPortConflictException(name, seenVirtualClusters, conflicts,
+                                    cluster.getBindAddress(), BindingScope.SHARED,
+                                    bindingInterface, BindingScope.EXCLUSIVE);
+                        }
+                    });
+
+            // check the proposed *exclusive ports* for conflicts with the *shared ports* seen so far.
+
+            inUseSharedPorts.entrySet().stream()
+                    .filter(interfacePortsEntry -> exclusiveCheckSet.contains(interfacePortsEntry.getKey()))
+                    .forEach((entry) -> {
+                        var bindingInterface = entry.getKey();
+                        var ports = entry.getValue().keySet();
+                        var conflicts = getSortedPortConflicts(ports, proposedExclusivePorts);
+                        if (!conflicts.isEmpty()) {
+                            throw buildPortConflictException(name, seenVirtualClusters, conflicts,
+                                    cluster.getBindAddress(), BindingScope.EXCLUSIVE,
+                                    bindingInterface, BindingScope.SHARED);
+                        }
+                    });
+
+            // check the proposed *shared ports* for conflicts with the shared ports seen so far on *different* interfaces.
+
+            var sharedCheckSet = new HashSet<>(exclusiveCheckSet);
+            sharedCheckSet.remove(cluster.getBindAddress());
+
+            inUseSharedPorts.entrySet().stream()
+                    .filter(interfacePortsEntry -> sharedCheckSet.contains(interfacePortsEntry.getKey()))
+                    .forEach((entry) -> {
+                        var bindingInterface = entry.getKey();
+                        var ports = entry.getValue().keySet();
+                        var conflicts = getSortedPortConflicts(ports, proposedSharedPorts);
+                        if (!conflicts.isEmpty()) {
+                            throw buildPortConflictException(name, seenVirtualClusters, conflicts,
+                                    cluster.getBindAddress(), BindingScope.SHARED,
+                                    bindingInterface, BindingScope.SHARED);
+                        }
+                    });
+
+            // check for proposed shared ports for differing TLS configuration
+
+            proposedSharedPorts.forEach(p -> {
+                var tls = inUseSharedPorts.getOrDefault(cluster.getBindAddress(), Map.of()).get(p);
+                if (tls != null && !tls.equals(cluster.isUseTls())) {
+                    throw buildOverviewException(name, seenVirtualClusters, buildTlsConflictException(p, cluster.getBindAddress()));
                 }
-
-            }
-            else {
-                // binding to any
-
-                // check whether one or more of the proposed shared ports are already bound to other specific interface
-                specificInterfaceSharedPorts.forEach((bindingAddress, ports) -> {
-                    var existing = getSortedPortConflicts(ports.keySet(), sharedPorts);
-                    if (!existing.isEmpty()) {
-                        throw buildPortConflictException(name, seenVirtualClusters, existing,
-                                bindingAddress, BindingScope.SHARED,
-                                ANY, BindingScope.SHARED);
-                    }
-                });
-
-                // check whether one or more of the proposed exclusive ports are already shared
-                var existingExclusive = getSortedPortConflicts(anyInterfaceSharedPorts.keySet(), exclusivePorts);
-                if (!existingExclusive.isEmpty()) {
-                    throw buildPortConflictException(name, seenVirtualClusters, existingExclusive,
-                            ANY, BindingScope.EXCLUSIVE,
-                            ANY, BindingScope.SHARED);
-                }
-
-                // check whether one or more of the proposed shared ports are already exclusive
-                var existingShared = getSortedPortConflicts(anyInterfaceExclusivePorts, sharedPorts);
-                if (!existingShared.isEmpty()) {
-                    throw buildPortConflictException(name, seenVirtualClusters, existingShared,
-                            ANY, BindingScope.SHARED,
-                            ANY, BindingScope.EXCLUSIVE);
-                }
-
-                sharedPorts.forEach(p -> {
-                    var tls = anyInterfaceSharedPorts.get(p);
-                    if (tls != null && !tls.equals(cluster.isUseTls())) {
-                        throw buildOverviewException(name, seenVirtualClusters, buildTlsConflictException(p, ANY));
-                    }
-                });
-
-            }
+            });
 
             seenVirtualClusters.add(name);
-            if (cluster.getBindAddress().isEmpty()) {
-                anyInterfaceExclusivePorts.addAll(exclusivePorts);
-                sharedPorts.forEach(p -> anyInterfaceSharedPorts.put(p, cluster.isUseTls()));
-            }
-            else {
-                specificInterfaceExclusivePorts.computeIfAbsent(cluster.getBindAddress().get(), (k) -> new HashSet<>()).addAll(exclusivePorts);
-                var sharedMap = specificInterfaceSharedPorts.computeIfAbsent(cluster.getBindAddress().get(), (k) -> new HashMap<>());
-                sharedPorts.forEach(p -> sharedMap.put(p, cluster.isUseTls()));
-            }
+            inUseExclusivePorts.computeIfAbsent(cluster.getBindAddress(), (k) -> new HashSet<>()).addAll(proposedExclusivePorts);
+            var sharedMap = inUseSharedPorts.computeIfAbsent(cluster.getBindAddress(), (k) -> new HashMap<>());
+            proposedSharedPorts.forEach(p -> sharedMap.put(p, cluster.isUseTls()));
+
         });
     }
 
@@ -191,23 +137,23 @@ public class PortConflictDetector {
     }
 
     private IllegalStateException buildPortConflictException(String virtualClusterName, Set<String> seenVirtualClusters, List<Integer> conflicts,
-                                                             String proposedBindingInterface, BindingScope proposedScope,
-                                                             String existingBindingInterface, BindingScope existingBindingScope) {
+                                                             Optional<String> proposedBindingInterface, BindingScope proposedScope,
+                                                             Optional<String> existingBindingInterface, BindingScope existingBindingScope) {
         var portConflicts = conflicts.stream().map(String::valueOf).collect(Collectors.joining(","));
 
         var underlying = new IllegalStateException(("The %s bind of port(s) %s to %s would conflict with existing %s port bindings on %s.").formatted(
                 proposedScope.name().toLowerCase(Locale.ROOT),
                 portConflicts,
-                proposedBindingInterface,
+                proposedBindingInterface.orElse(ANY_STRING),
                 existingBindingScope.name().toLowerCase(Locale.ROOT),
-
-                existingBindingInterface));
+                existingBindingInterface.orElse(ANY_STRING)));
         return buildOverviewException(virtualClusterName, seenVirtualClusters, underlying);
     }
 
-    private IllegalStateException buildTlsConflictException(Integer port, String bindingAddress) {
+    private IllegalStateException buildTlsConflictException(Integer port, Optional<String> bindingAddress) {
         return new IllegalStateException(
-                "The shared bind of port %d to %s has conflicting TLS settings with existing port on the same interface.".formatted(port, bindingAddress));
+                "The shared bind of port %d to %s has conflicting TLS settings with existing port on the same interface.".formatted(port,
+                        bindingAddress.orElse(ANY_STRING)));
     }
 
     private IllegalStateException buildOverviewException(String virtualClusterName, Set<String> seenVirtualClusters, IllegalStateException underlying) {
@@ -216,7 +162,4 @@ public class PortConflictDetector {
                 seenVirtualClusters.size() > 1 ? "s" : "", seenVirtualClustersString), underlying);
     }
 
-    private String getBindingAddressAsString(ClusterEndpointConfigProvider cep) {
-        return cep.getBindAddress().orElse(ANY);
-    }
 }
