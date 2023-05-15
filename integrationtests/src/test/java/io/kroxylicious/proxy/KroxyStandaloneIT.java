@@ -115,7 +115,7 @@ public class KroxyStandaloneIT {
         Files.writeString(configPath, config);
         String java = System.getProperty("java.home") + File.separator + "bin" + File.separator + "java";
         String classpath = System.getProperty("java.class.path");
-        ProcessBuilder processBuilder = new ProcessBuilder(java, "-cp", classpath, Kroxylicious.class.getName(), "-c", configPath.toString());
+        var processBuilder = new ProcessBuilder(java, "-cp", classpath, Kroxylicious.class.getName(), "-c", configPath.toString()).inheritIO();
         try {
             Process start = processBuilder.start();
             return start::destroy;

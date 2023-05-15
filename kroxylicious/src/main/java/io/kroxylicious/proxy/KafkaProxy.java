@@ -121,7 +121,14 @@ public final class KafkaProxy implements AutoCloseable, VirtualClusterResolver {
     private CompletableFuture<Void> toCloseFuture(ChannelFuture channelFuture) {
         CompletableFuture<Void> future = new CompletableFuture<>();
         ChannelFuture closeFuture = channelFuture.syncUninterruptibly().channel().closeFuture();
-        closeFuture.addListener(f -> future.complete(null));
+        closeFuture.addListener(f -> {
+            if (f.cause() != null) {
+                future.completeExceptionally(f.cause());
+            }
+            else {
+                future.complete(null);
+            }
+        });
         return future;
     }
 
