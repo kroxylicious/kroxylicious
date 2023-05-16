@@ -85,6 +85,17 @@ public class FilterInvokers {
 
     /**
      * Create an invoker for this filter that avoids instanceof when deciding
+     * if the filter should be consulted/handle messages. Instead, it stores
+     * an invoker for each targeted request-type and response-type in an array.
+     * @param filter the filter
+     * @return an invoker for the filter
+     */
+    public static FilterInvoker arrayInvoker2(KrpcFilter filter) {
+        return new SpecificFilterArrayInvoker2(filter);
+    }
+
+    /**
+     * Create an invoker for this filter that avoids instanceof when deciding
      * if the filter should be consulted/handle messages. Instead, it has a field
      * for each specific filter type and populates them at construction time if the
      * filter matches those types.
