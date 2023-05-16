@@ -31,6 +31,7 @@ import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.filter.MetadataResponseFilter;
 import io.kroxylicious.proxy.internal.codec.KafkaRequestDecoder;
 import io.kroxylicious.proxy.internal.codec.KafkaResponseEncoder;
+import io.kroxylicious.proxy.internal.net.Endpoint;
 import io.kroxylicious.proxy.internal.net.VirtualClusterBinding;
 import io.kroxylicious.proxy.internal.net.VirtualClusterBindingResolver;
 import io.kroxylicious.proxy.service.HostPort;
@@ -67,7 +68,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
             LOGGER.debug("Adding SSL/SNI handler");
             pipeline.addLast(new SniHandler((sniHostname, promise) -> {
                 try {
-                    var stage = virtualClusterBindingResolver.resolve(bindingAddress, targetPort, sniHostname, tls);
+                    var stage = virtualClusterBindingResolver.resolve(new Endpoint(bindingAddress, targetPort, tls), sniHostname);
                     // completes the netty promise when then resolution completes (success/otherwise).
                     var unused = stage.handle((binding, t) -> {
                         try {
@@ -108,7 +109,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
             pipeline.addLast(new ChannelInboundHandlerAdapter() {
                 @Override
                 public void channelActive(ChannelHandlerContext ctx) {
-                    var stage = virtualClusterBindingResolver.resolve(bindingAddress, targetPort, null, tls);
+                    var stage = virtualClusterBindingResolver.resolve(new Endpoint(bindingAddress, targetPort, tls), null);
                     var unused = stage.handle((binding, t) -> {
                         if (t != null) {
                             ctx.fireExceptionCaught(t);

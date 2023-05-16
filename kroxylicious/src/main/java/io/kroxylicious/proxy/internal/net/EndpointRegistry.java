@@ -58,7 +58,7 @@ import io.kroxylicious.proxy.service.HostPort;
  * {@link #deregisterVirtualCluster(VirtualCluster)} of virtual clusters.  The registry emits the required network binding
  * operations to expose the virtual cluster to the network.  These API calls return futures that will complete once
  * the underlying network operations are completed.</li>
- *    <li>The registry provides an {@link VirtualClusterBindingResolver}.  The {@link #resolve(String, int, String, boolean)} method accepts
+ *    <li>The registry provides an {@link VirtualClusterBindingResolver}.  The {@link VirtualClusterBindingResolver#resolve(Endpoint, String)} method accepts
  * connection metadata (port, SNI etc) and resolves this to a @{@link VirtualClusterBinding}.  This allows
  * Kroxylicious to determine the destination of any incoming connection.</li>
  * </ul>
@@ -67,7 +67,7 @@ import io.kroxylicious.proxy.service.HostPort;
  *    <li>virtual cluster registration uses java.util.concurrent features to ensure registration is single threaded.</li>
  *    <li>virtual cluster de-registration uses java.util.concurrent.atomic to ensure de-registration is single threaded.</li>
  *    <li>updates to the binding mapping (attached to channel) are made only whilst holding an intrinsic lock on the {@link ListeningChannelRecord}.</li>
- *    <li>updates to the binding mapping are published safely to readers (i.e. threads calling {@link #resolve(String, int, String, boolean)}).  This relies the
+ *    <li>updates to the binding mapping are published safely to readers (i.e. threads calling {@link VirtualClusterBindingResolver#resolve(Endpoint, String)}).  This relies the
  *    fact that the binding map uses concurrency safe data structures ({@link ConcurrentHashMap} and the exclusive use of immutable objects within it.</li>
  * </ul>
  */
@@ -346,40 +346,37 @@ public class EndpointRegistry implements AutoCloseable, VirtualClusterBindingRes
     /**
      * Uses channel metadata (port, SNI name etc.) from the incoming connection to resolve a {@link VirtualClusterBinding}.
      *
-     * @param bindingAddress binding address of the accepting socket
-     * @param port target port of this connection
+     * @param endpoint    endpoint being resolved
      * @param sniHostname SNI hostname, may be null.
-     * @param tls true if this connection uses TLS.
      * @return completion stage yielding the {@link VirtualClusterBinding} or exceptionally a EndpointResolutionException.
      */
     @Override
-    public CompletionStage<VirtualClusterBinding> resolve(String bindingAddress, int port, String sniHostname, boolean tls) {
-        var endpoint = new Endpoint(bindingAddress, port, tls);
+    public CompletionStage<VirtualClusterBinding> resolve(Endpoint endpoint, String sniHostname) {
         var lcr = this.listeningChannels.get(endpoint);
         if (lcr == null || lcr.unbindingStage().get() != null) {
-            return CompletableFuture.failedStage(buildEndpointResolutionException("Failed to find channel matching ", bindingAddress, port, sniHostname, tls));
+            return CompletableFuture.failedStage(buildEndpointResolutionException("Failed to find channel matching ", endpoint, sniHostname));
         }
         return lcr.bindingStage().thenApply(acceptorChannel -> {
             var bindings = acceptorChannel.attr(CHANNEL_BINDINGS);
             if (bindings == null || bindings.get() == null) {
-                throw buildEndpointResolutionException("No channel bindings found for ", bindingAddress, port, sniHostname, tls);
+                throw buildEndpointResolutionException("No channel bindings found for ", endpoint, sniHostname);
             }
             // We first look for a binding matching by SNI name, then fallback to a null match.
             var binding = bindings.get().getOrDefault(RoutingKey.createBindingKey(sniHostname), bindings.get().get(RoutingKey.NULL_ROUTING_KEY));
             if (binding == null) {
-                throw buildEndpointResolutionException("No channel bindings found for ", bindingAddress, port, sniHostname, tls);
+                throw buildEndpointResolutionException("No channel bindings found for ", endpoint, sniHostname);
             }
             return binding;
         });
     }
 
-    private EndpointResolutionException buildEndpointResolutionException(String prefix, String bindingAddress, int port, String sniHostname, boolean tls) {
+    private EndpointResolutionException buildEndpointResolutionException(String prefix, Endpoint endpoint, String sniHostname) {
         return new EndpointResolutionException(
                 ("%s binding address: %s, port %d, sniHostname: %s, tls %s").formatted(prefix,
-                        bindingAddress == null ? "any" : bindingAddress,
-                        port,
+                        endpoint.bindingAddress() == null ? "any" : endpoint.bindingAddress(),
+                        endpoint.port(),
                         sniHostname == null ? "<none>" : sniHostname,
-                        tls));
+                        endpoint.tls()));
     }
 
     /**

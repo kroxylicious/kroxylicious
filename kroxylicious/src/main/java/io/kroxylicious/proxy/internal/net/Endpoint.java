@@ -9,7 +9,7 @@ package io.kroxylicious.proxy.internal.net;
 /**
  * Represents a network endpoint.  Network endpoints accepts Kafka protocol traffic on behalf of a virtual clusters.
  *
- * @param bindingAddress address of the interface to which the endpoint is bound.  Null indicates the any address.
+ * @param bindingAddress address of the interface to which the endpoint is bound.  Null indicates the 'any' address.
  * @param port port number
  * @param tls true if TLS is in use for this endpoint.
  */

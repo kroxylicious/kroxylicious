@@ -323,7 +323,7 @@ class EndpointRegistryTest {
         verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(null, address.port(), tls));
         assertThat(f.isDone()).isTrue();
 
-        var binding = endpointRegistry.resolve(null, address.port(), tls ? address.host() : null, tls).toCompletableFuture().get();
+        var binding = endpointRegistry.resolve(new Endpoint(null, address.port(), tls), tls ? address.host() : null).toCompletableFuture().get();
         assertThat(binding).isEqualTo(VirtualClusterBinding.createBinding(virtualCluster1));
     }
 
@@ -339,7 +339,7 @@ class EndpointRegistryTest {
         assertThat(f.isDone()).isTrue();
 
         var executionException = assertThrows(ExecutionException.class,
-                () -> endpointRegistry.resolve(null, resolve.port(), resolve.host(), true).toCompletableFuture().get());
+                () -> endpointRegistry.resolve(new Endpoint(null, resolve.port(), true), resolve.host()).toCompletableFuture().get());
         assertThat(executionException).hasCauseInstanceOf(EndpointResolutionException.class);
     }
 
@@ -352,7 +352,7 @@ class EndpointRegistryTest {
         verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(null, address.port(), true));
         assertThat(f.isDone()).isTrue();
 
-        var binding = endpointRegistry.resolve(null, address.port(), sniHostname, true).toCompletableFuture().get();
+        var binding = endpointRegistry.resolve(new Endpoint(null, address.port(), true), sniHostname).toCompletableFuture().get();
         assertThat(binding).isEqualTo(VirtualClusterBinding.createBinding(virtualCluster1));
     }
 
@@ -366,7 +366,7 @@ class EndpointRegistryTest {
         verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(null, 9192, false), createTestNetworkBindRequest(null, 9193, false));
         assertThat(f.isDone()).isTrue();
 
-        var binding = endpointRegistry.resolve(null, 9193, null, false).toCompletableFuture().get();
+        var binding = endpointRegistry.resolve(new Endpoint(null, 9193, false), null).toCompletableFuture().get();
         assertThat(binding).isEqualTo(VirtualClusterBinding.createBinding(virtualCluster1, 0));
     }
 
@@ -386,15 +386,16 @@ class EndpointRegistryTest {
                 createTestNetworkBindRequest(bindingAddress2, 9192, false));
         assertThat(CompletableFuture.allOf(f1, f2).isDone()).isTrue();
 
-        var b1 = endpointRegistry.resolve(bindingAddress1, 9192, null, false).toCompletableFuture().get();
+        var b1 = endpointRegistry.resolve(new Endpoint(bindingAddress1, 9192, false), null).toCompletableFuture().get();
         assertThat(b1).isNotNull();
         assertThat(b1.virtualCluster()).isEqualTo(virtualCluster1);
 
-        var b2 = endpointRegistry.resolve(bindingAddress2, 9192, null, false).toCompletableFuture().get();
+        var b2 = endpointRegistry.resolve(new Endpoint(bindingAddress2, 9192, false), null).toCompletableFuture().get();
         assertThat(b2).isNotNull();
         assertThat(b2.virtualCluster()).isEqualTo(virtualCluster2);
 
-        var executionException = assertThrows(ExecutionException.class, () -> endpointRegistry.resolve(null, 9192, null, false).toCompletableFuture().get());
+        var executionException = assertThrows(ExecutionException.class,
+                () -> endpointRegistry.resolve(new Endpoint(null, 9192, false), null).toCompletableFuture().get());
         assertThat(executionException).hasCauseInstanceOf(EndpointResolutionException.class);
     }
 

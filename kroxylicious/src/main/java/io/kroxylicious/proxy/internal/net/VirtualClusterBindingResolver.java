@@ -17,11 +17,9 @@ public interface VirtualClusterBindingResolver {
     /**
      * Uses channel metadata from the incoming connection to resolve a {@link VirtualClusterBinding}.
      *
-     * @param bindingAddress binding address of the accepting socket
-     * @param targetPort target port of this connection
+     * @param endpoint endpoint being resolved
      * @param sniHostname SNI hostname, may be null.
-     * @param tls true if this connection uses TLS.
      * @return completion stage that when complete will yield a {@link VirtualClusterBinding}.
      */
-    CompletionStage<VirtualClusterBinding> resolve(String bindingAddress, int targetPort, String sniHostname, boolean tls);
+    CompletionStage<VirtualClusterBinding> resolve(Endpoint endpoint, String sniHostname);
 }
