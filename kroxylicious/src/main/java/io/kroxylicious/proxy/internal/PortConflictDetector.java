@@ -22,7 +22,7 @@ import io.kroxylicious.proxy.config.VirtualCluster;
  */
 public class PortConflictDetector {
 
-    private final Optional<String> ANY_INTERFACE = Optional.empty();
+    private final static Optional<String> ANY_INTERFACE = Optional.empty();
     private static final String ANY_STRING = "<any>";
 
     private enum BindingScope {
