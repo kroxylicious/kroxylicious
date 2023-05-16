@@ -278,7 +278,7 @@ public class EndpointRegistry implements AutoCloseable, VirtualClusterBindingRes
                 }
             }));
 
-            queue.add(new NetworkBindRequest(key.bindingAddress(), key.port(), virtualCluster.isUseTls(), future));
+            queue.add(new NetworkBindRequest(future, new Endpoint(key.bindingAddress(), key.port(), virtualCluster.isUseTls())));
             return r;
         });
 

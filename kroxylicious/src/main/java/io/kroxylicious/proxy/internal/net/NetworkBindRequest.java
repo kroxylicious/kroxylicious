@@ -23,24 +23,22 @@ import io.netty.channel.ChannelFutureListener;
  */
 public class NetworkBindRequest extends NetworkBindingOperation<Channel> {
     private static final Logger LOGGER = LoggerFactory.getLogger(NetworkBindRequest.class);
-    private final String bindingAddress;
-    private final int port;
     private final CompletableFuture<Channel> future;
+    private final Endpoint endpoint;
 
-    public NetworkBindRequest(String bindingAddress, int port, boolean tls, CompletableFuture<Channel> future) {
-        super(tls);
-        this.bindingAddress = bindingAddress;
-        this.port = port;
+    public NetworkBindRequest(CompletableFuture<Channel> future, Endpoint endpoint) {
+        super(endpoint.tls());
         this.future = future;
+        this.endpoint = endpoint;
     }
 
     public String getBindingAddress() {
-        return bindingAddress;
+        return endpoint.bindingAddress();
     }
 
     @Override
     public int port() {
-        return port;
+        return endpoint.port();
     }
 
     @Override
@@ -52,6 +50,7 @@ public class NetworkBindRequest extends NetworkBindingOperation<Channel> {
     public void performBindingOperation(ServerBootstrap serverBootstrap, ExecutorService executorService) {
         try {
             int port = port();
+            var bindingAddress = endpoint.bindingAddress();
             ChannelFuture bind;
             if (bindingAddress != null) {
                 LOGGER.info("Binding {}:{}", bindingAddress, port);

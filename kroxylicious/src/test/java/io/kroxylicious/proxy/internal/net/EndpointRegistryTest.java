@@ -415,7 +415,7 @@ class EndpointRegistryTest {
 
     private NetworkBindRequest createTestNetworkBindRequest(String expectedBindingAddress, int expectedPort, boolean expectedTls,
                                                             CompletableFuture<Channel> channelFuture) {
-        return new NetworkBindRequest(expectedBindingAddress, expectedPort, expectedTls, channelFuture);
+        return new NetworkBindRequest(channelFuture, new Endpoint(expectedBindingAddress, expectedPort, expectedTls));
     }
 
     private NetworkUnbindRequest createTestNetworkUnbindRequest(int port, final boolean tls) {
