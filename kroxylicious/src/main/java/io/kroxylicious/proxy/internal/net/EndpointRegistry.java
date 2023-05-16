@@ -58,7 +58,7 @@ import io.kroxylicious.proxy.service.HostPort;
  * {@link #deregisterVirtualCluster(VirtualCluster)} of virtual clusters.  The registry emits the required network binding
  * operations to expose the virtual cluster to the network.  These API calls return futures that will complete once
  * the underlying network operations are completed.</li>
- *    <li>The registry provides an {@link EndpointResolver}.  The {@link #resolve(String, int, String, boolean)} method accepts
+ *    <li>The registry provides an {@link VirtualClusterBindingResolver}.  The {@link #resolve(String, int, String, boolean)} method accepts
  * connection metadata (port, SNI etc) and resolves this to a @{@link VirtualClusterBinding}.  This allows
  * Kroxylicious to determine the destination of any incoming connection.</li>
  * </ul>
@@ -71,7 +71,7 @@ import io.kroxylicious.proxy.service.HostPort;
  *    fact that the binding map uses concurrency safe data structures ({@link ConcurrentHashMap} and the exclusive use of immutable objects within it.</li>
  * </ul>
  */
-public class EndpointRegistry implements AutoCloseable, EndpointResolver {
+public class EndpointRegistry implements AutoCloseable, VirtualClusterBindingResolver {
     private static final Logger LOGGER = LoggerFactory.getLogger(EndpointRegistry.class);
     private final AtomicBoolean registryClosed = new AtomicBoolean(false);
 

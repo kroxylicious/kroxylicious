@@ -12,7 +12,7 @@ import java.util.concurrent.CompletionStage;
  * Used by the {@link io.kroxylicious.proxy.internal.KafkaProxyInitializer} to resolve incoming channel
  * metadata into a {@link VirtualClusterBinding}.
  */
-public interface EndpointResolver {
+public interface VirtualClusterBindingResolver {
 
     /**
      * Uses channel metadata from the incoming connection to resolve a {@link VirtualClusterBinding}.
