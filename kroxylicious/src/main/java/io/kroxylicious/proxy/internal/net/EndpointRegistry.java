@@ -287,13 +287,15 @@ public class EndpointRegistry implements AutoCloseable, EndpointResolver {
             return lcr.unbindingStage().get().thenCompose(u -> registerBinding(key, host, virtualClusterBinding));
         }
 
-        return lcr.bindingStage().thenApply(c -> {
+        return lcr.bindingStage().thenApply(acceptorChannel -> {
             synchronized (lcr) {
-                var bindings = c.attr(CHANNEL_BINDINGS);
+                var bindings = acceptorChannel.attr(CHANNEL_BINDINGS);
                 bindings.setIfAbsent(new ConcurrentHashMap<>());
                 var bindingMap = bindings.get();
                 var bindingKey = virtualCluster.requiresTls() ? RoutingKey.createBindingKey(host) : RoutingKey.NULL_ROUTING_KEY;
 
+                // we use a bindingMap attached to the channel to record the bindings to the channel.  the #deregisterBinding path
+                // knows to tear down the acceptorChannel when the map becomes empty.
                 var existing = bindingMap.putIfAbsent(bindingKey, virtualClusterBinding);
 
                 if (existing != null) {
@@ -314,9 +316,9 @@ public class EndpointRegistry implements AutoCloseable, EndpointResolver {
                 .map((e) -> {
                     var endpoint = e.getKey();
                     var lcr = e.getValue();
-                    return lcr.bindingStage().thenCompose(channel -> {
+                    return lcr.bindingStage().thenCompose(acceptorChannel -> {
                         synchronized (lcr) {
-                            var bindingMap = channel.attr(EndpointRegistry.CHANNEL_BINDINGS).get();
+                            var bindingMap = acceptorChannel.attr(EndpointRegistry.CHANNEL_BINDINGS).get();
                             var allEntries = bindingMap.entrySet();
                             var toRemove = allEntries.stream().filter(be -> predicate.test(be.getValue())).collect(Collectors.toSet());
                             // If our removal leaves the channel without bindings, trigger its unbinding
@@ -324,7 +326,7 @@ public class EndpointRegistry implements AutoCloseable, EndpointResolver {
                                 var unbindFuture = new CompletableFuture<Void>();
                                 var afterUnbind = unbindFuture.whenComplete((u, t) -> listeningChannels.remove(endpoint));
                                 if (lcr.unbindingStage().compareAndSet(null, afterUnbind)) {
-                                    queue.add(new NetworkUnbindRequest(virtualCluster.isUseTls(), channel, unbindFuture));
+                                    queue.add(new NetworkUnbindRequest(virtualCluster.isUseTls(), acceptorChannel, unbindFuture));
                                     return afterUnbind;
                                 }
                                 else {
@@ -357,8 +359,8 @@ public class EndpointRegistry implements AutoCloseable, EndpointResolver {
         if (lcr == null || lcr.unbindingStage().get() != null) {
             return CompletableFuture.failedStage(buildEndpointResolutionException("Failed to find channel matching ", bindingAddress, port, sniHostname, tls));
         }
-        return lcr.bindingStage().thenApply(channel -> {
-            var bindings = channel.attr(CHANNEL_BINDINGS);
+        return lcr.bindingStage().thenApply(acceptorChannel -> {
+            var bindings = acceptorChannel.attr(CHANNEL_BINDINGS);
             if (bindings == null || bindings.get() == null) {
                 throw buildEndpointResolutionException("No channel bindings found for ", bindingAddress, port, sniHostname, tls);
             }
