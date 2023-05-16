@@ -7,8 +7,13 @@
 package io.kroxylicious.proxy.internal.net;
 
 import java.util.Objects;
+import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Stream;
 
+import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.config.VirtualCluster;
+import io.kroxylicious.proxy.service.HostPort;
 
 /**
  * Used to represent a binding from an @{@link Endpoint} to a @{@link VirtualCluster}.
@@ -16,14 +21,23 @@ import io.kroxylicious.proxy.config.VirtualCluster;
  */
 public class VirtualClusterBinding {
     private final VirtualCluster virtualCluster;
+    private final HostPort targetBootstrapServer;
 
     public VirtualClusterBinding(VirtualCluster virtualCluster) {
         Objects.requireNonNull(virtualCluster, "virtualCluster cannot be null");
         this.virtualCluster = virtualCluster;
+        this.targetBootstrapServer = Optional.ofNullable(virtualCluster.targetCluster())
+                .map(TargetCluster::bootstrapServers)
+                .map(s -> Stream.of(s.split(",")))
+                .stream().flatMap(Function.identity()).findFirst().map(HostPort::parse).orElse(null);
     }
 
     public VirtualCluster virtualCluster() {
         return virtualCluster;
+    }
+
+    public HostPort getTargetHostPort() {
+        return targetBootstrapServer;
     }
 
     @Override

@@ -33,7 +33,6 @@ import io.kroxylicious.proxy.internal.codec.KafkaRequestDecoder;
 import io.kroxylicious.proxy.internal.codec.KafkaResponseEncoder;
 import io.kroxylicious.proxy.internal.net.EndpointResolver;
 import io.kroxylicious.proxy.internal.net.VirtualClusterBinding;
-import io.kroxylicious.proxy.internal.net.VirtualClusterBrokerBinding;
 import io.kroxylicious.proxy.service.HostPort;
 
 public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
@@ -179,25 +178,12 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
                 filterContext.forwardResponse(response);
             });
 
-            var targetBootstrapServers = virtualCluster.targetCluster().bootstrapServers();
-            var targetBootstrapServersParts = targetBootstrapServers.split(",");
-            var targetClusterBootstrap = HostPort.parse(targetBootstrapServersParts[0]);
-
-            HostPort target;
-            if (binding instanceof VirtualClusterBrokerBinding brokerBinding) {
-                var upstreamBroker = virtualCluster.getUpstreamClusterAddressForNode(brokerBinding.nodeId());
-                if (upstreamBroker != null) {
-                    target = upstreamBroker;
-                }
-                else {
-                    // TODO: this behaviour is sub-optimal as it means a client will proceed with a connection to the wrong broker.
-                    // This will lead to difficult to diagnose failure cases later (produces going to the wrong broker, metadata refresh cycles, etc).
-                    LOGGER.warn("An upstream address for broker {} is not yet known, connecting the client to bootstrap instead.", brokerBinding.nodeId());
-                    target = targetClusterBootstrap;
-                }
-            }
-            else {
-                target = targetClusterBootstrap;
+            HostPort target = binding.getTargetHostPort();
+            if (target == null) {
+                // TODO: this behaviour is sub-optimal as it means a client will proceed with a connection to the wrong broker.
+                // This will lead to difficult to diagnose failure cases later (produces going to the wrong broker, metadata refresh cycles, etc).
+                LOGGER.warn("An target address for binding {} is not yet known, connecting the client to bootstrap instead.", binding);
+                target = HostPort.parse(binding.virtualCluster().targetCluster().bootstrapServers().split(",")[0]);
             }
 
             context.initiateConnect(target.host(), target.port(), filters.toArray(new KrpcFilter[0]));

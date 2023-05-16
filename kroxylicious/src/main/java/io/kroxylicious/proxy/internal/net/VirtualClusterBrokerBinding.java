@@ -8,18 +8,29 @@ package io.kroxylicious.proxy.internal.net;
 
 import java.util.Objects;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.kroxylicious.proxy.config.VirtualCluster;
+import io.kroxylicious.proxy.service.HostPort;
 
 /**
  * Used to represent a binding from an @{@link Endpoint} to a @{@link VirtualCluster}.
  * This is a binding to specific broker (indicated by nodeId).
  */
 public final class VirtualClusterBrokerBinding extends VirtualClusterBinding {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(VirtualClusterBrokerBinding.class);
+
     private final int nodeId;
 
     public VirtualClusterBrokerBinding(VirtualCluster virtualCluster, int nodeId) {
         super(virtualCluster);
         this.nodeId = nodeId;
+    }
+
+    public HostPort getTargetHostPort() {
+        return virtualCluster().getUpstreamClusterAddressForNode(nodeId);
     }
 
     public int nodeId() {
