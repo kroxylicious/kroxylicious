@@ -294,7 +294,7 @@ public class EndpointRegistry implements AutoCloseable, EndpointResolver {
                 var bindingMap = bindings.get();
                 var bindingKey = virtualCluster.requiresTls() ? RoutingKey.createBindingKey(host) : RoutingKey.NULL_ROUTING_KEY;
 
-                // we use a bindingMap attached to the channel to record the bindings to the channel.  the #deregisterBinding path
+                // we use a bindingMap attached to the channel to record the bindings to the channel. the #deregisterBinding path
                 // knows to tear down the acceptorChannel when the map becomes empty.
                 var existing = bindingMap.putIfAbsent(bindingKey, virtualClusterBinding);
 
