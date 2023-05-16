@@ -163,7 +163,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
         }
 
         var frontendHandler = new KafkaProxyFrontendHandler(context -> {
-            var filterChainFactory = new FilterChainFactory(config, virtualCluster.getClusterEndpointProvider());
+            var filterChainFactory = new FilterChainFactory(config, virtualCluster, virtualCluster.getClusterEndpointProvider());
 
             var filters = new ArrayList<>(Arrays.stream(filterChainFactory.createFilters()).toList());
 
