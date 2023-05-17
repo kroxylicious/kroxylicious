@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.internal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.apache.kafka.common.security.auth.AuthenticateCallbackHandler;
 import org.slf4j.Logger;
@@ -165,7 +166,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
         var frontendHandler = new KafkaProxyFrontendHandler(context -> {
             var filterChainFactory = new FilterChainFactory(config, virtualCluster);
 
-            var filters = new ArrayList<>(Arrays.stream(filterChainFactory.createFilters()).toList());
+            var filters = Arrays.stream(filterChainFactory.createFilters()).collect(Collectors.toCollection(ArrayList::new));
 
             // Add a filter to the *end of the chain* that gathers the true nodeId/upstream broker mapping.
             filters.add((MetadataResponseFilter) (header, response, filterContext) -> {

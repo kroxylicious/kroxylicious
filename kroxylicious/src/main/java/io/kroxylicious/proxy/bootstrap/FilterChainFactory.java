@@ -9,7 +9,6 @@ import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.internal.filter.FilterContributorManager;
-import io.kroxylicious.proxy.service.ClusterEndpointConfigProvider;
 
 /**
  * Abstracts the creation of a chain of filter instances, hiding the configuration
