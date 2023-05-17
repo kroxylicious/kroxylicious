@@ -11,6 +11,12 @@ import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 
+/**
+ * Wraps a delegate invoker so that onRequest and onResponse can be safely called even if this
+ * Invoker does not want to handle this message, in this case the message will be forwarded without
+ * the delegate doing anything with it.
+ * @param invoker the delegate
+ */
 record SafeInvoker(FilterInvoker invoker) implements FilterInvoker {
 
     @Override

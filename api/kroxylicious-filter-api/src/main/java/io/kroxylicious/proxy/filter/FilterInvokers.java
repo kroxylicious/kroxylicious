@@ -30,6 +30,8 @@ public class FilterInvokers {
      * @return the invoker
      */
     public static FilterInvoker from(KrpcFilter filter) {
+        // all invokers are wrapped in safe invoker so that clients can safely call onRequest/onResponse
+        // even if the invoker isn't interested in that message.
         return new SafeInvoker(invokerForFilter(filter));
     }
 
