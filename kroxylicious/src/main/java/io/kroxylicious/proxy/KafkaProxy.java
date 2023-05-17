@@ -109,7 +109,13 @@ public final class KafkaProxy implements AutoCloseable {
                 do {
                     var networkBindingOperation = endpointRegistry.takeNetworkBindingEvent();
                     var bootstrap = networkBindingOperation.tls() ? tlsServerBootstrap : plainServerBootstrap;
-                    networkBindingOperation.performBindingOperation(bootstrap, networkBindingExecutor);
+                    try {
+                        networkBindingOperation.performBindingOperation(bootstrap, networkBindingExecutor);
+                    }
+                    catch (Exception e) {
+                        // We don't expect performBindingOperation to throw an exception but if it does we don't want to break the executor loop.
+                        LOGGER.error("Unexpected error performing the binding operation", e);
+                    }
                 } while (!(Thread.interrupted() || endpointRegistry.isRegistryClosed()));
             }
             catch (InterruptedException e) {
