@@ -21,7 +21,7 @@ public class FilterChainFactory {
     private final Configuration config;
     private final VirtualCluster virtualCluster;
 
-    public FilterChainFactory(Configuration config, VirtualCluster virtualCluster, ClusterEndpointConfigProvider clusterEndpointConfigProvider) {
+    public FilterChainFactory(Configuration config, VirtualCluster virtualCluster) {
         this.config = config;
         this.virtualCluster = virtualCluster;
     }
