@@ -5,6 +5,8 @@
  */
 package io.kroxylicious.proxy.bootstrap;
 
+import java.util.List;
+
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.filter.KrpcFilter;
@@ -27,14 +29,15 @@ public class FilterChainFactory {
 
     /**
      * Create a new chain of filter instances
+     *
      * @return the new chain.
      */
-    public KrpcFilter[] createFilters() {
+    public List<KrpcFilter> createFilters() {
         FilterContributorManager filterContributorManager = FilterContributorManager.getInstance();
 
         return config.filters()
                 .stream()
                 .map(f -> filterContributorManager.getFilter(f.type(), virtualCluster.getClusterEndpointProvider(), f.config()))
-                .toArray(KrpcFilter[]::new);
+                .toList();
     }
 }

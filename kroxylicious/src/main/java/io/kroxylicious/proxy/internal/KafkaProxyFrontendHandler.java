@@ -9,7 +9,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
-import java.util.Arrays;
+import java.util.List;
 
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
@@ -43,6 +43,7 @@ import io.kroxylicious.proxy.internal.codec.CorrelationManager;
 import io.kroxylicious.proxy.internal.codec.DecodePredicate;
 import io.kroxylicious.proxy.internal.codec.KafkaRequestEncoder;
 import io.kroxylicious.proxy.internal.codec.KafkaResponseDecoder;
+import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 public class KafkaProxyFrontendHandler
@@ -221,13 +222,13 @@ public class KafkaProxyFrontendHandler
     }
 
     @Override
-    public void initiateConnect(String remoteHost, int remotePort, KrpcFilter[] filters) {
+    public void initiateConnect(HostPort remote, List<KrpcFilter> filters) {
         if (backendHandler != null) {
             throw new IllegalStateException();
         }
         if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("{}: Connecting to backend broker {}:{} using filters {}",
-                    inboundCtx.channel().id(), remoteHost, remotePort, Arrays.toString(filters));
+            LOGGER.debug("{}: Connecting to backend broker {} using filters {}",
+                    inboundCtx.channel().id(), remote, filters);
         }
         var correlationManager = new CorrelationManager();
 
@@ -242,8 +243,8 @@ public class KafkaProxyFrontendHandler
                 .option(ChannelOption.AUTO_READ, true)
                 .option(ChannelOption.TCP_NODELAY, true);
 
-        LOGGER.trace("Connecting to outbound {}:{}", remoteHost, remotePort);
-        ChannelFuture connectFuture = initConnection(remoteHost, remotePort, b);
+        LOGGER.trace("Connecting to outbound {}", remote);
+        ChannelFuture connectFuture = initConnection(remote.host(), remote.port(), b);
         Channel outboundChannel = connectFuture.channel();
         ChannelPipeline pipeline = outboundChannel.pipeline();
 
@@ -279,7 +280,7 @@ public class KafkaProxyFrontendHandler
         return b.connect(remoteHost, remotePort);
     }
 
-    private void addFiltersToPipeline(KrpcFilter[] filters, ChannelPipeline pipeline) {
+    private void addFiltersToPipeline(List<KrpcFilter> filters, ChannelPipeline pipeline) {
         for (var filter : filters) {
             // TODO configurable timeout
             pipeline.addFirst(filter.toString(), new FilterHandler(filter, 20000, sniHostname));

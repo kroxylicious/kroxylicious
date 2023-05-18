@@ -6,9 +6,7 @@
 package io.kroxylicious.proxy.internal;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import org.apache.kafka.common.security.auth.AuthenticateCallbackHandler;
 import org.slf4j.Logger;
@@ -28,7 +26,6 @@ import io.netty.util.concurrent.Future;
 
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.config.Configuration;
-import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.filter.MetadataResponseFilter;
 import io.kroxylicious.proxy.internal.codec.KafkaRequestDecoder;
 import io.kroxylicious.proxy.internal.codec.KafkaResponseEncoder;
@@ -166,7 +163,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
         var frontendHandler = new KafkaProxyFrontendHandler(context -> {
             var filterChainFactory = new FilterChainFactory(config, virtualCluster);
 
-            var filters = Arrays.stream(filterChainFactory.createFilters()).collect(Collectors.toCollection(ArrayList::new));
+            var filters = new ArrayList<>(filterChainFactory.createFilters());
 
             // Add a filter to the *end of the chain* that gathers the true nodeId/upstream broker mapping.
             filters.add((MetadataResponseFilter) (header, response, filterContext) -> {
@@ -188,7 +185,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
                 target = HostPort.parse(binding.virtualCluster().targetCluster().bootstrapServers().split(",")[0]);
             }
 
-            context.initiateConnect(target.host(), target.port(), filters.toArray(new KrpcFilter[0]));
+            context.initiateConnect(target, filters);
         }, dp, virtualCluster.isLogNetwork(), virtualCluster.isLogFrames());
 
         pipeline.addLast("netHandler", frontendHandler);

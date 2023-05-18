@@ -5,7 +5,6 @@
  */
 package io.kroxylicious.proxy.internal.codec;
 
-import java.util.Arrays;
 import java.util.List;
 
 import org.apache.kafka.common.protocol.ApiKeys;
@@ -23,9 +22,9 @@ import io.kroxylicious.proxy.filter.KrpcFilter;
  * who the authorized user or, or which back-end cluster they're connected to.
  */
 public interface DecodePredicate {
-    static DecodePredicate forFilters(KrpcFilter... filters) {
+    static DecodePredicate forFilters(List<KrpcFilter> filters) {
 
-        List<FilterInvoker> invokers = Arrays.stream(filters).map(FilterInvokers::from).toList();
+        List<FilterInvoker> invokers = filters.stream().map(FilterInvokers::from).toList();
         return new DecodePredicate() {
             @Override
             public boolean shouldDecodeResponse(ApiKeys apiKey, short apiVersion) {
@@ -49,7 +48,7 @@ public interface DecodePredicate {
 
             @Override
             public String toString() {
-                return "DecodePredicate$forFilters{" + Arrays.toString(filters) + "}";
+                return "DecodePredicate$forFilters{" + filters + "}";
             }
         };
     }
