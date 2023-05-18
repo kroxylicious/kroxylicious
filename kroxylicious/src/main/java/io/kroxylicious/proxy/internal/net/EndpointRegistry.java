@@ -212,7 +212,15 @@ public class EndpointRegistry implements AutoCloseable, VirtualClusterBindingRes
         var updated = vcr.deregistrationStage().compareAndSet(null, deregisterFuture);
         if (!updated) {
             // cluster de-registration already in progress.
-            return vcr.deregistrationStage().get();
+            vcr.deregistrationStage().get().whenComplete((u, t) -> {
+                if (t != null) {
+                    deregisterFuture.completeExceptionally(t);
+                }
+                else {
+                    deregisterFuture.complete(u);
+                }
+            });
+            return deregisterFuture;
         }
 
         var unused = vcr.registrationStage()
