@@ -77,7 +77,7 @@ public interface NetFilter {
          * Connect to the Kafka server at the given {@code host} and {@code port},
          * using the given protocol filters
          *
-         * @param target
+         * @param target upstream broker target
          * @param filters The filters
          */
         void initiateConnect(HostPort target, List<KrpcFilter> filters);
