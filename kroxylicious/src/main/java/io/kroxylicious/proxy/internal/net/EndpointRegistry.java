@@ -222,14 +222,13 @@ public class EndpointRegistry implements AutoCloseable, VirtualClusterBindingRes
     public CompletionStage<Void> deregisterVirtualCluster(VirtualCluster virtualCluster) {
         Objects.requireNonNull(virtualCluster, "virtualCluster cannot be null");
 
-        var deregisterFuture = new CompletableFuture<Void>();
         var vcr = registeredVirtualClusters.get(virtualCluster);
         if (vcr == null) {
             // cluster not currently registered
-            deregisterFuture.complete(null);
-            return deregisterFuture;
+            return CompletableFuture.completedFuture(null);
         }
 
+        var deregisterFuture = new CompletableFuture<Void>();
         var updated = vcr.deregistrationStage().compareAndSet(null, deregisterFuture);
         if (!updated) {
             // cluster de-registration already in progress.
