@@ -298,7 +298,8 @@ public class EndpointRegistry implements AutoCloseable, VirtualClusterBindingRes
                 var existing = bindingMap.putIfAbsent(bindingKey, virtualClusterBinding);
 
                 if (existing != null) {
-                    throw new EndpointBindingException("Endpoint %s cannot be bound with key %s, that key is already bound to %s".formatted(key, bindingKey, virtualClusterBinding));
+                    throw new EndpointBindingException(
+                            "Endpoint %s cannot be bound with key %s, that key is already bound to %s".formatted(key, bindingKey, virtualClusterBinding));
                 }
 
                 return key;
