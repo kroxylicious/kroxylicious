@@ -10,8 +10,10 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Arrays;
 import java.util.Optional;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.Test;
@@ -22,6 +24,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.util.Attribute;
 import io.netty.util.AttributeKey;
@@ -40,7 +43,8 @@ import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class EndpointRegistryTest {
-    private final EndpointRegistry endpointRegistry = new EndpointRegistry();
+    private final TestNetworkBindingOperationProcessor bindingOperationProcessor = new TestNetworkBindingOperationProcessor();
+    private final EndpointRegistry endpointRegistry = new EndpointRegistry(bindingOperationProcessor);
     @Mock(strictness = LENIENT)
     private VirtualCluster virtualCluster1;
     @Mock(strictness = LENIENT)
@@ -443,28 +447,7 @@ class EndpointRegistryTest {
 
     @SuppressWarnings("unchecked")
     private void verifyAndProcessNetworkEventQueue(NetworkBindingOperation... expectedEvents) throws Exception {
-        assertThat(endpointRegistry.countNetworkEvents()).as("unexpected number of events").isEqualTo(expectedEvents.length);
-        var expectedEventIterator = Arrays.stream(expectedEvents).iterator();
-        while (expectedEventIterator.hasNext()) {
-            var expectedEvent = expectedEventIterator.next();
-            if (endpointRegistry.countNetworkEvents() == 0) {
-                fail("No network event available, expecting one matching " + expectedEvent);
-            }
-            var event = endpointRegistry.takeNetworkBindingEvent();
-            if (event instanceof NetworkBindRequest bindEvent) {
-                assertThat(bindEvent.getBindingAddress()).isEqualTo(((NetworkBindRequest) expectedEvent).getBindingAddress());
-                assertThat(bindEvent.port()).isEqualTo(expectedEvent.port());
-                assertThat(bindEvent.tls()).isEqualTo(expectedEvent.tls());
-            }
-            else if (event instanceof NetworkUnbindRequest unbindEvent) {
-                assertThat(unbindEvent.port()).isEqualTo(expectedEvent.port());
-                assertThat(unbindEvent.tls()).isEqualTo(expectedEvent.tls());
-            }
-            else {
-                fail("unexpected event type received");
-            }
-            propagateFutureResult(expectedEvent.getFuture(), event.getFuture());
-        }
+        bindingOperationProcessor.verifyAndProcessNetworkEvents(expectedEvents);
     }
 
     private <U> void propagateFutureResult(CompletableFuture<U> source, CompletableFuture<U> dest) {
@@ -525,5 +508,61 @@ class EndpointRegistryTest {
                 map.set(null);
             }
         };
+    }
+
+    private static class TestNetworkBindingOperationProcessor implements NetworkBindingOperationProcessor {
+        private final BlockingQueue<NetworkBindingOperation<?>> queue = new LinkedBlockingQueue<>();
+
+        @Override
+        public void start(ServerBootstrap plain, ServerBootstrap tls) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void enqueueNetworkBindingEvent(NetworkBindingOperation<?> o) {
+            queue.add(o);
+        }
+
+        public void verifyAndProcessNetworkEvents(NetworkBindingOperation... expectedEvents) {
+            assertThat(queue.size()).as("unexpected number of events").isEqualTo(expectedEvents.length);
+            var expectedEventIterator = Arrays.stream(expectedEvents).iterator();
+            while (expectedEventIterator.hasNext()) {
+                var expectedEvent = expectedEventIterator.next();
+                if (queue.isEmpty()) {
+                    fail("No network event available, expecting one matching " + expectedEvent);
+                }
+                var event = queue.poll();
+                if (event instanceof NetworkBindRequest bindEvent) {
+                    assertThat(bindEvent.getBindingAddress()).isEqualTo(((NetworkBindRequest) expectedEvent).getBindingAddress());
+                    assertThat(bindEvent.port()).isEqualTo(expectedEvent.port());
+                    assertThat(bindEvent.tls()).isEqualTo(expectedEvent.tls());
+                }
+                else if (event instanceof NetworkUnbindRequest unbindEvent) {
+                    assertThat(unbindEvent.port()).isEqualTo(expectedEvent.port());
+                    assertThat(unbindEvent.tls()).isEqualTo(expectedEvent.tls());
+                }
+                else {
+                    fail("unexpected event type received");
+                }
+                propagateFutureResult(expectedEvent.getFuture(), event.getFuture());
+            }
+        }
+
+        private <U> void propagateFutureResult(CompletableFuture<U> source, CompletableFuture<U> dest) {
+            var unused = source.handle((c, t) -> {
+                if (t != null) {
+                    dest.completeExceptionally(t);
+                }
+                else {
+                    dest.complete(c);
+                }
+                return null;
+            });
+        }
+
+        @Override
+        public void close() {
+
+        }
     }
 }

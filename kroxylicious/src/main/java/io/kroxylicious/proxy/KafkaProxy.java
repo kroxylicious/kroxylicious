@@ -9,8 +9,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.slf4j.Logger;
@@ -42,20 +40,18 @@ import io.kroxylicious.proxy.internal.KafkaProxyInitializer;
 import io.kroxylicious.proxy.internal.MeterRegistries;
 import io.kroxylicious.proxy.internal.PortConflictDetector;
 import io.kroxylicious.proxy.internal.admin.AdminHttpInitializer;
+import io.kroxylicious.proxy.internal.net.DefaultNetworkBindingOperationProcessor;
 import io.kroxylicious.proxy.internal.net.Endpoint;
 import io.kroxylicious.proxy.internal.net.EndpointRegistry;
+import io.kroxylicious.proxy.internal.net.NetworkBindingOperationProcessor;
 import io.kroxylicious.proxy.internal.util.Metrics;
 
 public final class KafkaProxy implements AutoCloseable {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxy.class);
 
-    private final ExecutorService networkBindingExecutor = Executors.newFixedThreadPool(2, r -> {
-        var t = new Thread(r);
-        t.setDaemon(true);
-        return t;
-    });
-    private final EndpointRegistry endpointRegistry = new EndpointRegistry();
+    private final NetworkBindingOperationProcessor bindingOperationProcessor = new DefaultNetworkBindingOperationProcessor();
+    private final EndpointRegistry endpointRegistry = new EndpointRegistry(bindingOperationProcessor);
 
     private record EventGroupConfig(String name, EventLoopGroup bossGroup, EventLoopGroup workerGroup, Class<? extends ServerChannel> clazz) {
 
@@ -104,28 +100,7 @@ public final class KafkaProxy implements AutoCloseable {
         var tlsServerBootstrap = buildServerBootstrap(serverEventGroup, new KafkaProxyInitializer(config, true, endpointRegistry, false, Map.of()));
         var plainServerBootstrap = buildServerBootstrap(serverEventGroup, new KafkaProxyInitializer(config, false, endpointRegistry, false, Map.of()));
 
-        var unused = networkBindingExecutor.submit(() -> {
-            try {
-                do {
-                    var networkBindingOperation = endpointRegistry.takeNetworkBindingEvent();
-                    var bootstrap = networkBindingOperation.tls() ? tlsServerBootstrap : plainServerBootstrap;
-                    try {
-                        networkBindingOperation.performBindingOperation(bootstrap, networkBindingExecutor);
-                    }
-                    catch (Exception e) {
-                        // We don't expect performBindingOperation to throw an exception but if it does we don't want to break the executor loop.
-                        LOGGER.error("Unexpected error performing the binding operation", e);
-                    }
-                } while (!(Thread.interrupted() || endpointRegistry.isRegistryClosed()));
-            }
-            catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new RuntimeException(e);
-            }
-            finally {
-                LOGGER.debug("Shutting down network event processor");
-            }
-        });
+        bindingOperationProcessor.start(plainServerBootstrap, tlsServerBootstrap);
 
         // TODO: startup/shutdown should return a completionstage
         List<CompletableFuture<Endpoint>> futures = new ArrayList<>();
@@ -216,7 +191,7 @@ public final class KafkaProxy implements AutoCloseable {
         }
         try {
             endpointRegistry.shutdown().handle((u, t) -> {
-                networkBindingExecutor.shutdown();
+                bindingOperationProcessor.close();
                 var closeFutures = new ArrayList<Future<?>>();
                 if (serverEventGroup != null) {
                     closeFutures.addAll(serverEventGroup.shutdownGracefully());

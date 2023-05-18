@@ -10,12 +10,9 @@ import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -50,10 +47,8 @@ import io.kroxylicious.proxy.service.HostPort;
  *
  *  Key points about the implementation:
  *  <ul>
- *    <li>The registry does not take direct responsibility for binding and unbinding network sockets.  Instead, it exposes
- * a queue of network binding operation events {@link NetworkBindingOperation}.  Callers get the next network
- * event by calling the {@link #takeNetworkBindingEvent()}.  Once the underlying network operation is complete, the caller
- * must complete the provided future.</li>
+ *    <li>The registry does not take direct responsibility for binding and unbinding network sockets.  Instead, it emits
+ * network binding operations {@link NetworkBindingOperation} which are processed by a {@link NetworkBindingOperationProcessor}.
  *    <li>The registry exposes methods for the registration {@link #registerVirtualCluster(VirtualCluster)} and deregistration
  * {@link #deregisterVirtualCluster(VirtualCluster)} of virtual clusters.  The registry emits the required network binding
  * operations to expose the virtual cluster to the network.  These API calls return futures that will complete once
@@ -73,7 +68,7 @@ import io.kroxylicious.proxy.service.HostPort;
  */
 public class EndpointRegistry implements AutoCloseable, VirtualClusterBindingResolver {
     private static final Logger LOGGER = LoggerFactory.getLogger(EndpointRegistry.class);
-    private final AtomicBoolean registryClosed = new AtomicBoolean(false);
+    private final NetworkBindingOperationProcessor bindingOperationProcessor;
 
     interface RoutingKey {
         RoutingKey NULL_ROUTING_KEY = new NullRoutingKey();
@@ -109,9 +104,6 @@ public class EndpointRegistry implements AutoCloseable, VirtualClusterBindingRes
             return new VirtualClusterRecord(stage, new AtomicReference<>());
         }}
 
-    /** Queue of network binding operations */
-    private final BlockingQueue<NetworkBindingOperation<?>> queue = new LinkedBlockingQueue<>();
-
     /** Registry of virtual clusters that have been registered */
     private final Map<VirtualCluster, VirtualClusterRecord> registeredVirtualClusters = new ConcurrentHashMap<>();
 
@@ -124,20 +116,8 @@ public class EndpointRegistry implements AutoCloseable, VirtualClusterBindingRes
     /** Registry of endpoints and their underlying Netty Channel */
     private final Map<Endpoint, ListeningChannelRecord> listeningChannels = new ConcurrentHashMap<>();
 
-    /**
-     * Blocking operation that gets the next binding operation.  Once the network operation is complete,
-     * the caller must complete the {@link NetworkBindingOperation#getFuture()}.
-     *
-     * @return network binding operation
-     *
-     * @throws InterruptedException - operation interrupted
-     */
-    public NetworkBindingOperation<?> takeNetworkBindingEvent() throws InterruptedException {
-        return queue.take();
-    }
-
-    /* test */ int countNetworkEvents() {
-        return queue.size();
+    public EndpointRegistry(NetworkBindingOperationProcessor bindingOperationProcessor) {
+        this.bindingOperationProcessor = bindingOperationProcessor;
     }
 
     /**
@@ -277,7 +257,8 @@ public class EndpointRegistry implements AutoCloseable, VirtualClusterBindingRes
                 }
             }));
 
-            queue.add(new NetworkBindRequest(future, new Endpoint(key.bindingAddress(), key.port(), virtualCluster.isUseTls())));
+            bindingOperationProcessor
+                    .enqueueNetworkBindingEvent(new NetworkBindRequest(future, new Endpoint(key.bindingAddress(), key.port(), virtualCluster.isUseTls())));
             return r;
         });
 
@@ -326,7 +307,8 @@ public class EndpointRegistry implements AutoCloseable, VirtualClusterBindingRes
                                 var unbindFuture = new CompletableFuture<Void>();
                                 var afterUnbind = unbindFuture.whenComplete((u, t) -> listeningChannels.remove(endpoint));
                                 if (lcr.unbindingStage().compareAndSet(null, afterUnbind)) {
-                                    queue.add(new NetworkUnbindRequest(virtualCluster.isUseTls(), acceptorChannel, unbindFuture));
+                                    bindingOperationProcessor
+                                            .enqueueNetworkBindingEvent(new NetworkUnbindRequest(virtualCluster.isUseTls(), acceptorChannel, unbindFuture));
                                     return afterUnbind;
                                 }
                                 else {
@@ -380,25 +362,13 @@ public class EndpointRegistry implements AutoCloseable, VirtualClusterBindingRes
     }
 
     /**
-     * Indicates if the registry is in closed state.
-     * @return true if the registry has been closed.
-     */
-    public boolean isRegistryClosed() {
-        return registryClosed.get();
-    }
-
-    /**
      * Signals that the registry should be shut down.  The operation returns a {@link java.util.concurrent.CompletionStage}
      * that will complete once shutdown is complete (endpoints unbound).
      *
      * @return CompletionStage that completes once shut-down is complete.
      */
     public CompletionStage<Void> shutdown() {
-        return allOfStage(registeredVirtualClusters.keySet().stream().map(this::deregisterVirtualCluster))
-                .whenComplete((u, t) -> {
-                    LOGGER.debug("EndpointRegistry shutdown complete.");
-                    registryClosed.set(true);
-                });
+        return allOfStage(registeredVirtualClusters.keySet().stream().map(this::deregisterVirtualCluster));
     }
 
     @Override
