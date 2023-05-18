@@ -6,7 +6,6 @@
 
 package io.kroxylicious.proxy.internal.net;
 
-import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -20,6 +19,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -164,26 +164,19 @@ public class EndpointRegistry implements AutoCloseable, VirtualClusterBindingRes
             return current.registrationStage();
         }
 
-        var tls = virtualCluster.isUseTls();
-        var bootstrapAddress = virtualCluster.getClusterBootstrapAddress();
-        var bindingAddress = virtualCluster.getBindAddress().orElse(null);
+        var bootstrapEndpointFuture = createEndpointAndBind(virtualCluster.getClusterBootstrapAddress(), null, virtualCluster);
 
         var initialBindings = new LinkedHashMap<HostPort, Integer>();
-        initialBindings.put(bootstrapAddress, null); // bootstrap is at index 0.
         for (int i = 0; i < virtualCluster.getNumberOfBrokerEndpointsToPrebind(); i++) {
-            initialBindings.put(virtualCluster.getBrokerAddress(i), i);
+            if (!virtualCluster.getBrokerAddress(i).equals(virtualCluster.getClusterBootstrapAddress())) {
+                initialBindings.put(virtualCluster.getBrokerAddress(i), i);
+            }
         }
 
-        var endpointFutures = initialBindings.entrySet().stream().map(e -> {
-            var hp = e.getKey();
-            var nodeId = e.getValue();
-            var key = Endpoint.createEndpoint(bindingAddress, hp.port(), tls);
-            VirtualClusterBinding virtualClusterBinding = VirtualClusterBinding.createBinding(virtualCluster, nodeId);
-            return registerBinding(key, hp.host(), virtualClusterBinding).toCompletableFuture();
-            // TODO cache endpoints when future completes
-        }).toList();
+        var brokerEndpointFutures = initialBindings.entrySet().stream().map(e -> createEndpointAndBind(e.getKey(), e.getValue(), virtualCluster)).toList();
+        var allBrokerEndpointFutures = allOfFutures(brokerEndpointFutures.stream());
 
-        var unused = allOfFutures(endpointFutures).whenComplete((u, t) -> {
+        var unused = CompletableFuture.allOf(bootstrapEndpointFuture, allBrokerEndpointFutures).whenComplete((u, t) -> {
             var future = vcr.registrationStage.toCompletableFuture();
             if (t != null) {
                 // Try to roll back any bindings that were successfully made
@@ -200,7 +193,7 @@ public class EndpointRegistry implements AutoCloseable, VirtualClusterBindingRes
             }
             else {
                 try {
-                    future.complete(endpointFutures.get(0).get());
+                    future.complete(bootstrapEndpointFuture.get());
                 }
                 catch (Throwable t1) {
                     future.completeExceptionally(t1);
@@ -209,6 +202,13 @@ public class EndpointRegistry implements AutoCloseable, VirtualClusterBindingRes
         });
 
         return vcr.registrationStage();
+    }
+
+    private CompletableFuture<Endpoint> createEndpointAndBind(HostPort hostPort, Integer nodeId, VirtualCluster virtualCluster) {
+        var key = Endpoint.createEndpoint(virtualCluster.getBindAddress().orElse(null), hostPort.port(), virtualCluster.isUseTls());
+        VirtualClusterBinding virtualClusterBinding = VirtualClusterBinding.createBinding(virtualCluster, nodeId);
+        return registerBinding(key, hostPort.host(), virtualClusterBinding).toCompletableFuture();
+        // TODO cache endpoints when future completes
     }
 
     /**
@@ -338,7 +338,7 @@ public class EndpointRegistry implements AutoCloseable, VirtualClusterBindingRes
                             }
                         }
                     });
-                }).toList();
+                });
 
         return allOfStage(unbindStages);
     }
@@ -394,7 +394,7 @@ public class EndpointRegistry implements AutoCloseable, VirtualClusterBindingRes
      * @return CompletionStage that completes once shut-down is complete.
      */
     public CompletionStage<Void> shutdown() {
-        return allOfStage(registeredVirtualClusters.keySet().stream().map(this::deregisterVirtualCluster).toList())
+        return allOfStage(registeredVirtualClusters.keySet().stream().map(this::deregisterVirtualCluster))
                 .whenComplete((u, t) -> {
                     LOGGER.debug("EndpointRegistry shutdown complete.");
                     registryClosed.set(true);
@@ -406,11 +406,11 @@ public class EndpointRegistry implements AutoCloseable, VirtualClusterBindingRes
         shutdown().toCompletableFuture().get();
     }
 
-    private static <T> CompletableFuture<Void> allOfStage(Collection<CompletionStage<T>> futures) {
-        return allOfFutures(futures.stream().map(CompletionStage::toCompletableFuture).toList());
+    private static <T> CompletableFuture<Void> allOfStage(Stream<CompletionStage<T>> stageStream) {
+        return allOfFutures(stageStream.map(CompletionStage::toCompletableFuture));
     }
 
-    private static <T> CompletableFuture<Void> allOfFutures(Collection<CompletableFuture<T>> futures) {
-        return CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new));
+    private static <T> CompletableFuture<Void> allOfFutures(Stream<CompletableFuture<T>> futureStream) {
+        return CompletableFuture.allOf(futureStream.toArray(CompletableFuture[]::new));
     }
 }
