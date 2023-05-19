@@ -7,6 +7,7 @@ package io.kroxylicious.proxy.internal.filter;
 
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.filter.NetFilter;
+import io.kroxylicious.proxy.service.HostPort;
 
 /**
  * Implementation of {@link NetFilter} that is able to connect to a
@@ -26,6 +27,6 @@ public class FixedNetFilter implements NetFilter {
 
     @Override
     public void selectServer(NetFilterContext context) {
-        context.initiateConnect(remoteHost, remotePort, filterChainFactory.createFilters());
+        context.initiateConnect(new HostPort(remoteHost, remotePort), filterChainFactory.createFilters());
     }
 }

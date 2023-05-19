@@ -9,12 +9,8 @@ package io.kroxylicious.proxy.internal.clusterendpointprovider;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.NullAndEmptySource;
-import org.junit.jupiter.params.provider.ValueSource;
 
 import io.kroxylicious.proxy.internal.clusterendpointprovider.StaticClusterEndpointConfigProvider.StaticClusterEndpointProviderConfig;
-import io.kroxylicious.proxy.service.ClusterEndpointConfigProvider.EndpointMatchResult;
 import io.kroxylicious.proxy.service.HostPort;
 
 import static io.kroxylicious.proxy.service.HostPort.parse;
@@ -58,25 +54,5 @@ class StaticClusterEndpointConfigProviderTest {
         HostPort parse = parse("boot:1235");
         assertThat(provider.getBrokerAddress(0)).isEqualTo(parse);
         assertThat(provider.getNumberOfBrokerEndpointsToPrebind()).isEqualTo(1);
-    }
-
-    @ParameterizedTest
-    @NullAndEmptySource
-    @ValueSource(strings = { "idontcare" })
-    void findsBootstrapMatchByPort(String sniHostname) {
-        var provider = new StaticClusterEndpointConfigProvider(new StaticClusterEndpointProviderConfig(parse("boot:1234"), null));
-        assertThat(provider.hasMatchingEndpoint(sniHostname, 1234)).isEqualTo(new EndpointMatchResult(true, null));
-        assertThat(provider.hasMatchingEndpoint(sniHostname, 1235)).isEqualTo(new EndpointMatchResult(false, null));
-    }
-
-    @ParameterizedTest
-    @NullAndEmptySource
-    @ValueSource(strings = { "idontcare" })
-    void findsBrokerMatchByPort(String sniHostname) {
-        var provider = new StaticClusterEndpointConfigProvider(
-                new StaticClusterEndpointProviderConfig(parse("boot:1234"), Map.of(0, parse("broker:1235"), 1, parse("broker:1236"))));
-        assertThat(provider.hasMatchingEndpoint(sniHostname, 1235)).isEqualTo(new EndpointMatchResult(true, 0));
-        assertThat(provider.hasMatchingEndpoint(sniHostname, 1236)).isEqualTo(new EndpointMatchResult(true, 1));
-        assertThat(provider.hasMatchingEndpoint(sniHostname, 1237)).isEqualTo(new EndpointMatchResult(false, null));
     }
 }

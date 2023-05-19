@@ -5,10 +5,12 @@
  */
 package io.kroxylicious.proxy.bootstrap;
 
+import java.util.List;
+
 import io.kroxylicious.proxy.config.Configuration;
+import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.internal.filter.FilterContributorManager;
-import io.kroxylicious.proxy.service.ClusterEndpointConfigProvider;
 
 /**
  * Abstracts the creation of a chain of filter instances, hiding the configuration
@@ -18,23 +20,24 @@ import io.kroxylicious.proxy.service.ClusterEndpointConfigProvider;
 public class FilterChainFactory {
 
     private final Configuration config;
-    private final ClusterEndpointConfigProvider clusterEndpointConfigProvider;
+    private final VirtualCluster virtualCluster;
 
-    public FilterChainFactory(Configuration config, ClusterEndpointConfigProvider clusterEndpointConfigProvider) {
+    public FilterChainFactory(Configuration config, VirtualCluster virtualCluster) {
         this.config = config;
-        this.clusterEndpointConfigProvider = clusterEndpointConfigProvider;
+        this.virtualCluster = virtualCluster;
     }
 
     /**
      * Create a new chain of filter instances
+     *
      * @return the new chain.
      */
-    public KrpcFilter[] createFilters() {
+    public List<KrpcFilter> createFilters() {
         FilterContributorManager filterContributorManager = FilterContributorManager.getInstance();
 
         return config.filters()
                 .stream()
-                .map(f -> filterContributorManager.getFilter(f.type(), clusterEndpointConfigProvider, f.config()))
-                .toArray(KrpcFilter[]::new);
+                .map(f -> filterContributorManager.getFilter(f.type(), virtualCluster.getClusterEndpointProvider(), f.config()))
+                .toList();
     }
 }

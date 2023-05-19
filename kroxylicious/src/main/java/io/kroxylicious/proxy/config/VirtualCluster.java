@@ -13,7 +13,9 @@ import java.security.NoSuchAlgorithmException;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 import javax.net.ssl.KeyManagerFactory;
 
@@ -25,7 +27,7 @@ import io.netty.handler.ssl.SslContextBuilder;
 import io.kroxylicious.proxy.service.ClusterEndpointConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 
-public class VirtualCluster {
+public class VirtualCluster implements ClusterEndpointConfigProvider {
 
     private final TargetCluster targetCluster;
 
@@ -43,6 +45,15 @@ public class VirtualCluster {
                           Optional<String> keyStoreFile,
                           Optional<String> keyPassword,
                           boolean logNetwork, boolean logFrames) {
+        if (clusterEndpointConfigProvider.requiresTls() && keyStoreFile.isEmpty()) {
+            throw new IllegalStateException("Cluster endpoint provider requires tls, but this virtual cluster does not define it");
+        }
+        var conflicts = clusterEndpointConfigProvider.getExclusivePorts().stream().filter(p -> clusterEndpointConfigProvider.getSharedPorts().contains(p))
+                .collect(Collectors.toSet());
+        if (!conflicts.isEmpty()) {
+            throw new IllegalStateException(
+                    "The set of exclusive ports described by the cluster endpoint provider must be distinct from those described as shared. Intersection: " + conflicts);
+        }
         this.targetCluster = targetCluster;
         this.logNetwork = logNetwork;
         this.logFrames = logFrames;
@@ -115,5 +126,40 @@ public class VirtualCluster {
 
     public HostPort updateUpstreamClusterAddressForNode(int nodeId, HostPort replacement) {
         return upstreamClusterCache.put(nodeId, replacement);
+    }
+
+    @Override
+    public HostPort getClusterBootstrapAddress() {
+        return endpointProvider.getClusterBootstrapAddress();
+    }
+
+    @Override
+    public HostPort getBrokerAddress(int nodeId) throws IllegalArgumentException {
+        return endpointProvider.getBrokerAddress(nodeId);
+    }
+
+    @Override
+    public int getNumberOfBrokerEndpointsToPrebind() {
+        return endpointProvider.getNumberOfBrokerEndpointsToPrebind();
+    }
+
+    @Override
+    public Optional<String> getBindAddress() {
+        return endpointProvider.getBindAddress();
+    }
+
+    @Override
+    public boolean requiresTls() {
+        return endpointProvider.requiresTls();
+    }
+
+    @Override
+    public Set<Integer> getExclusivePorts() {
+        return endpointProvider.getExclusivePorts();
+    }
+
+    @Override
+    public Set<Integer> getSharedPorts() {
+        return endpointProvider.getSharedPorts();
     }
 }

@@ -6,20 +6,16 @@
 package io.kroxylicious.proxy;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
-import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.ServerChannel;
@@ -42,21 +38,23 @@ import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.config.admin.AdminHttpConfiguration;
 import io.kroxylicious.proxy.internal.KafkaProxyInitializer;
 import io.kroxylicious.proxy.internal.MeterRegistries;
-import io.kroxylicious.proxy.internal.VirtualClusterResolutionException;
-import io.kroxylicious.proxy.internal.VirtualClusterResolver;
+import io.kroxylicious.proxy.internal.PortConflictDetector;
 import io.kroxylicious.proxy.internal.admin.AdminHttpInitializer;
-import io.kroxylicious.proxy.internal.net.NetworkBinding;
+import io.kroxylicious.proxy.internal.net.DefaultNetworkBindingOperationProcessor;
+import io.kroxylicious.proxy.internal.net.Endpoint;
+import io.kroxylicious.proxy.internal.net.EndpointRegistry;
+import io.kroxylicious.proxy.internal.net.NetworkBindingOperationProcessor;
 import io.kroxylicious.proxy.internal.util.Metrics;
-import io.kroxylicious.proxy.service.ClusterEndpointConfigProvider;
-import io.kroxylicious.proxy.service.HostPort;
 
-public final class KafkaProxy implements AutoCloseable, VirtualClusterResolver {
+public final class KafkaProxy implements AutoCloseable {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxy.class);
 
-    private Map<ClusterEndpointConfigProvider, VirtualCluster> endpointProviders;
+    private final NetworkBindingOperationProcessor bindingOperationProcessor = new DefaultNetworkBindingOperationProcessor();
+    private final EndpointRegistry endpointRegistry = new EndpointRegistry(bindingOperationProcessor);
 
-    private record EventGroupConfig(EventLoopGroup bossGroup, EventLoopGroup workerGroup, Class<? extends ServerChannel> clazz) {
+    private record EventGroupConfig(String name, EventLoopGroup bossGroup, EventLoopGroup workerGroup, Class<? extends ServerChannel> clazz) {
+
         public List<Future<?>> shutdownGracefully() {
             return List.of(bossGroup.shutdownGracefully(), workerGroup.shutdownGracefully());
         }
@@ -66,8 +64,8 @@ public final class KafkaProxy implements AutoCloseable, VirtualClusterResolver {
     private final AdminHttpConfiguration adminHttpConfig;
     private final List<MicrometerDefinition> micrometerConfig;
     private final Map<String, VirtualCluster> virtualClusterMap;
-    private CompletableFuture<Void> closeFuture;
     private final AtomicBoolean running = new AtomicBoolean();
+    private final CompletableFuture<Void> shutdown = new CompletableFuture<>();
     private EventGroupConfig adminEventGroup;
     private EventGroupConfig serverEventGroup;
     private Channel metricsChannel;
@@ -88,88 +86,35 @@ public final class KafkaProxy implements AutoCloseable, VirtualClusterResolver {
             throw new IllegalStateException("This proxy is already running");
         }
 
+        var portConflictDefector = new PortConflictDetector();
+        portConflictDefector.validate(virtualClusterMap);
+
         var availableCores = Runtime.getRuntime().availableProcessors();
         var meterRegistries = new MeterRegistries(micrometerConfig);
 
-        this.adminEventGroup = buildNettyEventGroups(availableCores, config.isUseIoUring());
-        this.serverEventGroup = buildNettyEventGroups(availableCores, config.isUseIoUring());
+        this.adminEventGroup = buildNettyEventGroups("admin", availableCores, config.isUseIoUring());
+        this.serverEventGroup = buildNettyEventGroups("server", availableCores, config.isUseIoUring());
 
         maybeStartMetricsListener(adminEventGroup, meterRegistries);
 
-        this.endpointProviders = virtualClusterMap.entrySet().stream()
-                .collect(Collectors.toMap(e -> e.getValue().getClusterEndpointProvider(), Map.Entry::getValue));
+        var tlsServerBootstrap = buildServerBootstrap(serverEventGroup, new KafkaProxyInitializer(config, true, endpointRegistry, false, Map.of()));
+        var plainServerBootstrap = buildServerBootstrap(serverEventGroup, new KafkaProxyInitializer(config, false, endpointRegistry, false, Map.of()));
 
-        var networkBindings = buildNetworkBindings();
+        bindingOperationProcessor.start(plainServerBootstrap, tlsServerBootstrap);
 
-        var tlsServerBootstrap = buildServerBootstrap(serverEventGroup, new KafkaProxyInitializer(config, true, this, false, Map.of()));
-        var plainServerBootstrap = buildServerBootstrap(serverEventGroup, new KafkaProxyInitializer(config, false, this, false, Map.of()));
+        // TODO: startup/shutdown should return a completionstage
+        List<CompletableFuture<Endpoint>> futures = new ArrayList<>();
+        virtualClusterMap.forEach((n, vc) -> {
+            futures.add(endpointRegistry.registerVirtualCluster(vc).toCompletableFuture());
+        });
 
-        var bindFutures = networkBindings.stream()
-                .map(networkBinder -> networkBinder.bind(networkBinder.tls() ? tlsServerBootstrap : plainServerBootstrap))
-                .collect(Collectors.toSet());
-
-        bindFutures.forEach(channelFuture -> channelFuture.addListener(f -> LOGGER.info("Listening : {}", channelFuture.channel().localAddress())));
-        closeFuture = CompletableFuture.allOf(bindFutures.stream().map(this::toCloseFuture).toArray(CompletableFuture[]::new));
+        CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new)).join();
 
         // Pre-register counters/summaries to avoid creating them on first request and thus skewing the request latency
         // TODO add a virtual host tag to metrics
         Metrics.inboundDownstreamMessagesCounter();
         Metrics.inboundDownstreamDecodedMessagesCounter();
         return this;
-    }
-
-    private CompletableFuture<Void> toCloseFuture(ChannelFuture channelFuture) {
-        CompletableFuture<Void> future = new CompletableFuture<>();
-        ChannelFuture closeFuture = channelFuture.syncUninterruptibly().channel().closeFuture();
-        closeFuture.addListener(f -> {
-            if (f.cause() != null) {
-                future.completeExceptionally(f.cause());
-            }
-            else {
-                future.complete(null);
-            }
-        });
-        return future;
-    }
-
-    private Set<NetworkBinding> buildNetworkBindings() {
-        var exclusivePortBindings = new HashSet<Integer>();
-        var allBindings = new HashSet<NetworkBinding>();
-
-        virtualClusterMap.forEach((name, virtualCluster) -> {
-            var endpointProvider = virtualCluster.getClusterEndpointProvider();
-
-            var useTls = virtualCluster.isUseTls();
-            if (endpointProvider.requiresTls() && !useTls) {
-                throw new IllegalStateException("Endpoint configuration for virtual cluster %s requires TLS, but no TLS configuration is specified".formatted(name));
-            }
-
-            var toBind = new HashSet<HostPort>();
-            toBind.add(endpointProvider.getClusterBootstrapAddress());
-            for (int i = 0; i < endpointProvider.getNumberOfBrokerEndpointsToPrebind(); i++) {
-                toBind.add(endpointProvider.getBrokerAddress(i));
-            }
-
-            var bindAddress = endpointProvider.getBindAddress();
-            var virtualHostEndpoints = toBind.stream()
-                    .map(hp -> NetworkBinding.createNetworkBinding(bindAddress, hp.port(), useTls))
-                    .collect(Collectors.toSet());
-
-            var virtualClusterPorts = virtualHostEndpoints.stream().map(NetworkBinding::port).collect(Collectors.toSet());
-            checkForPortExclusivityConflicts(exclusivePortBindings, virtualClusterPorts);
-            if (endpointProvider.requiresPortExclusivity()) {
-                exclusivePortBindings.addAll(virtualClusterPorts);
-            }
-            allBindings.addAll(virtualHostEndpoints);
-        });
-        return allBindings;
-    }
-
-    private void checkForPortExclusivityConflicts(Set<Integer> exclusivePortBindings, Set<Integer> virtualClusterPorts) {
-        var conflicts = exclusivePortBindings.stream().filter(virtualClusterPorts::contains).map(String::valueOf).collect(Collectors.joining(","));
-        if (!conflicts.isBlank()) {
-            throw new IllegalStateException("Configuration produces port conflict(s) : " + conflicts);
-        }
     }
 
     private ServerBootstrap buildServerBootstrap(EventGroupConfig virtualHostEventGroup, KafkaProxyInitializer kafkaProxyInitializer) {
@@ -180,7 +125,7 @@ public final class KafkaProxy implements AutoCloseable, VirtualClusterResolver {
                 .childOption(ChannelOption.TCP_NODELAY, true);
     }
 
-    private EventGroupConfig buildNettyEventGroups(int availableCores, boolean useIoUring) {
+    private EventGroupConfig buildNettyEventGroups(String name, int availableCores, boolean useIoUring) {
         final Class<? extends ServerChannel> channelClass;
         final EventLoopGroup bossGroup;
         final EventLoopGroup workerGroup;
@@ -208,7 +153,7 @@ public final class KafkaProxy implements AutoCloseable, VirtualClusterResolver {
             workerGroup = new NioEventLoopGroup(availableCores);
             channelClass = NioServerSocketChannel.class;
         }
-        return new EventGroupConfig(bossGroup, workerGroup, channelClass);
+        return new EventGroupConfig(name, bossGroup, workerGroup, channelClass);
     }
 
     private void maybeStartMetricsListener(EventGroupConfig eventGroupConfig,
@@ -233,7 +178,7 @@ public final class KafkaProxy implements AutoCloseable, VirtualClusterResolver {
         if (!running.get()) {
             throw new IllegalStateException("This proxy is not running");
         }
-        closeFuture.get();
+        shutdown.join();
     }
 
     /**
@@ -244,13 +189,35 @@ public final class KafkaProxy implements AutoCloseable, VirtualClusterResolver {
         if (!running.getAndSet(false)) {
             throw new IllegalStateException("This proxy is not running");
         }
-        var closeFutures = new ArrayList<Future<?>>();
-        closeFutures.addAll(serverEventGroup.shutdownGracefully());
-        closeFutures.addAll(adminEventGroup.shutdownGracefully());
-        closeFutures.forEach(Future::syncUninterruptibly);
-        adminEventGroup = null;
-        serverEventGroup = null;
-        metricsChannel = null;
+        try {
+            endpointRegistry.shutdown().handle((u, t) -> {
+                bindingOperationProcessor.close();
+                var closeFutures = new ArrayList<Future<?>>();
+                if (serverEventGroup != null) {
+                    closeFutures.addAll(serverEventGroup.shutdownGracefully());
+                }
+                if (adminEventGroup != null) {
+                    closeFutures.addAll(adminEventGroup.shutdownGracefully());
+                }
+                closeFutures.forEach(Future::syncUninterruptibly);
+                if (t != null) {
+                    if (t instanceof RuntimeException re) {
+                        throw re;
+
+                    }
+                    else {
+                        throw new RuntimeException(t);
+                    }
+                }
+                return null;
+            }).toCompletableFuture().join();
+        }
+        finally {
+            adminEventGroup = null;
+            serverEventGroup = null;
+            metricsChannel = null;
+            shutdown.complete(null);
+        }
     }
 
     @Override
@@ -258,33 +225,5 @@ public final class KafkaProxy implements AutoCloseable, VirtualClusterResolver {
         if (running.get()) {
             shutdown();
         }
-    }
-
-    @Override
-    public VirtualCluster resolve(String sniHostname, int targetPort) {
-        var matchingVirtualClusters = endpointProviders.entrySet().stream()
-                .filter(e -> e.getKey().hasMatchingEndpoint(sniHostname, targetPort).matched()).map(Map.Entry::getValue).toList();
-        // We only expect one match
-        if (matchingVirtualClusters.isEmpty()) {
-            throw new VirtualClusterResolutionException("Failed to find matching virtual cluster for %s on port %d".formatted(sniHostname, targetPort));
-        }
-        else if (matchingVirtualClusters.size() > 1) {
-            throw new VirtualClusterResolutionException("Found too many virtual cluster matches for %s on port %d".formatted(sniHostname, targetPort));
-        }
-        return matchingVirtualClusters.get(0);
-    }
-
-    @Override
-    public VirtualCluster resolve(int targetPort) {
-        var matchingVirtualClusters = endpointProviders.entrySet().stream()
-                .filter(e -> e.getKey().hasMatchingEndpoint(null, targetPort).matched()).map(Map.Entry::getValue).toList();
-        // We only expect one match
-        if (matchingVirtualClusters.isEmpty()) {
-            throw new VirtualClusterResolutionException("Failed to find matching virtual cluster for port %d".formatted(targetPort));
-        }
-        else if (matchingVirtualClusters.size() > 1) {
-            throw new VirtualClusterResolutionException("Found too many virtual cluster matches for port %d".formatted(targetPort));
-        }
-        return matchingVirtualClusters.get(0);
     }
 }

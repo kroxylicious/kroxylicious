@@ -34,10 +34,10 @@ import io.netty.handler.codec.haproxy.HAProxyProtocolVersion;
 import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
 import io.netty.handler.ssl.SniCompletionEvent;
 
-import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.filter.NetFilter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.internal.KafkaProxyFrontendHandler.State;
+import io.kroxylicious.proxy.service.HostPort;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -151,7 +151,7 @@ class KafkaProxyFrontendHandlerTest {
                 assertNull(ctx.authorizedId());
             }
 
-            ctx.initiateConnect(CLUSTER_HOST, CLUSTER_PORT, new KrpcFilter[0]);
+            ctx.initiateConnect(new HostPort(CLUSTER_HOST, CLUSTER_PORT), List.of());
             return null;
         }).when(filter).selectServer(valueCapture.capture());
 

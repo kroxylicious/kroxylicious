@@ -11,6 +11,9 @@ import java.nio.file.Files;
 import java.util.Properties;
 import java.util.concurrent.Callable;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.config.Configuration;
 
@@ -23,6 +26,8 @@ import picocli.CommandLine.Spec;
 
 @Command(name = "kroxilicious", mixinStandardHelpOptions = true, versionProvider = Kroxylicious.VersionProvider.class, description = "A customizeable wire protocol proxy for Apache Kafka")
 class Kroxylicious implements Callable<Integer> {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(Kroxylicious.class);
 
     @Spec
     private CommandSpec spec;
@@ -42,6 +47,10 @@ class Kroxylicious implements Callable<Integer> {
             KafkaProxy kafkaProxy = new KafkaProxy(config);
             kafkaProxy.startup();
             kafkaProxy.block();
+        }
+        catch (Exception e) {
+            LOGGER.error("Exception on startup", e);
+            throw e;
         }
 
         return 0;

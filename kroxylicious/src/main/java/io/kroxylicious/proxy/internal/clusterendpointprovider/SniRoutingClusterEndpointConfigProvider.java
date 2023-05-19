@@ -6,6 +6,7 @@
 
 package io.kroxylicious.proxy.internal.clusterendpointprovider;
 
+import java.util.Set;
 import java.util.regex.Pattern;
 
 import io.kroxylicious.proxy.config.BaseConfig;
@@ -14,18 +15,14 @@ import io.kroxylicious.proxy.service.HostPort;
 
 public class SniRoutingClusterEndpointConfigProvider implements ClusterEndpointConfigProvider {
 
-    private static final EndpointMatchResult BOOTSTRAP_MATCHED = new EndpointMatchResult(true, null);
-    private static final EndpointMatchResult NO_MATCH = new EndpointMatchResult(false, null);
     private static final Pattern NODE_ID_TOKEN = Pattern.compile("\\$\\(nodeId\\)");
     public static final String LITERAL_NODE_ID = "$(nodeId)";
     private final HostPort bootstrapAddress;
     private final String brokerAddressPattern;
-    private final Pattern brokerAddressPatternRegExp;
 
     public SniRoutingClusterEndpointConfigProvider(SniRoutingClusterEndpointProviderConfig config) {
         this.bootstrapAddress = config.bootstrapAddress;
         this.brokerAddressPattern = config.brokerAddressPattern;
-        this.brokerAddressPatternRegExp = config.brokerAddressPatternRegExp;
     }
 
     @Override
@@ -44,23 +41,8 @@ public class SniRoutingClusterEndpointConfigProvider implements ClusterEndpointC
     }
 
     @Override
-    public EndpointMatchResult hasMatchingEndpoint(String sniHostname, int port) {
-        if (sniHostname == null || bootstrapAddress.port() != port) {
-            return NO_MATCH;
-        }
-        else if (bootstrapAddress.host().equals(sniHostname) || bootstrapAddress.host().equalsIgnoreCase(sniHostname)) {
-            return BOOTSTRAP_MATCHED;
-        }
-        var matcher = brokerAddressPatternRegExp.matcher(sniHostname);
-        if (matcher.find()) {
-            return new EndpointMatchResult(true, Integer.parseInt(matcher.group(1)));
-        }
-        return NO_MATCH;
-    }
-
-    @Override
-    public boolean requiresPortExclusivity() {
-        return false;
+    public Set<Integer> getSharedPorts() {
+        return Set.of(bootstrapAddress.port());
     }
 
     @Override
