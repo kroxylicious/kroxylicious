@@ -6,7 +6,9 @@
 package io.kroxylicious.proxy.internal;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.kafka.common.security.auth.AuthenticateCallbackHandler;
 import org.slf4j.Logger;
@@ -30,6 +32,7 @@ import io.kroxylicious.proxy.filter.MetadataResponseFilter;
 import io.kroxylicious.proxy.internal.codec.KafkaRequestDecoder;
 import io.kroxylicious.proxy.internal.codec.KafkaResponseEncoder;
 import io.kroxylicious.proxy.internal.net.Endpoint;
+import io.kroxylicious.proxy.internal.net.EndpointReconciler;
 import io.kroxylicious.proxy.internal.net.VirtualClusterBinding;
 import io.kroxylicious.proxy.internal.net.VirtualClusterBindingResolver;
 import io.kroxylicious.proxy.service.HostPort;
@@ -42,10 +45,14 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
     private final Map<KafkaAuthnHandler.SaslMechanism, AuthenticateCallbackHandler> authnHandlers;
     private final boolean tls;
     private final VirtualClusterBindingResolver virtualClusterBindingResolver;
+    private final EndpointReconciler endpointReconciler;
     private final Configuration config;
 
-    public KafkaProxyInitializer(Configuration config, boolean tls, VirtualClusterBindingResolver virtualClusterBindingResolver, boolean haproxyProtocol,
+    public KafkaProxyInitializer(Configuration config, boolean tls,
+                                 VirtualClusterBindingResolver virtualClusterBindingResolver, EndpointReconciler endpointReconciler,
+                                 boolean haproxyProtocol,
                                  Map<KafkaAuthnHandler.SaslMechanism, AuthenticateCallbackHandler> authnMechanismHandlers) {
+        this.endpointReconciler = endpointReconciler;
         this.haproxyProtocol = haproxyProtocol;
         this.authnHandlers = authnMechanismHandlers != null ? authnMechanismHandlers : Map.of();
         this.tls = tls;
@@ -167,11 +174,27 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
 
             // Add a filter to the *end of the chain* that gathers the true nodeId/upstream broker mapping.
             filters.add((MetadataResponseFilter) (header, response, filterContext) -> {
+                Set<Integer> currentNodeIds = new HashSet<>();
                 response.brokers().forEach(b -> {
                     var replacement = new HostPort(b.host(), b.port());
                     var existing = virtualCluster.updateUpstreamClusterAddressForNode(b.nodeId(), replacement);
                     if (!replacement.equals(existing)) {
-                        LOGGER.info("Got upstream for broker {} : {}", b.nodeId(), replacement);
+                        LOGGER.debug("Got upstream for broker {} : {}", b.nodeId(), replacement);
+                    }
+                    if (b.nodeId() >= 0) {
+                        currentNodeIds.add(b.nodeId());
+                    }
+                    else {
+                        // TODO - KW not sure if we actually need this guard
+                        LOGGER.warn("Got a unexpected node id {} - ignored it", b.nodeId());
+                    }
+                });
+                endpointReconciler.reconcile(virtualCluster, currentNodeIds).whenComplete((unused, t) -> {
+                    if (t != null) {
+                        LOGGER.warn("Failed to reconcile endpoints for virtual cluster {}", virtualCluster, t);
+                    }
+                    else {
+                        LOGGER.debug("Endpoint reconciliation complete for  virtual cluster {}", virtualCluster);
                     }
                 });
                 filterContext.forwardResponse(response);
