@@ -24,6 +24,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.test.ApiMessageSampleGenerator;
 import io.kroxylicious.test.ApiMessageSampleGenerator.ApiAndVersion;
 import io.kroxylicious.test.Request;
@@ -40,7 +41,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 public class ProxyRpcTest {
 
     public static final int PROXY_PORT = 9192;
-    public static final String PROXY_ADDRESS = "localhost:" + PROXY_PORT;
+    public static final HostPort PROXY_ADDRESS = HostPort.parse("localhost:" + PROXY_PORT);
     private static MockServer mockServer;
     private static KafkaClient kafkaClient;
     private static KafkaProxy kafkaProxy;
@@ -126,8 +127,8 @@ public class ProxyRpcTest {
                         .withBootstrapServers("localhost:" + mockServer.port())
                         .endTargetCluster()
                         .withNewClusterEndpointConfigProvider()
-                        .withType("StaticCluster")
-                        .withConfig(Map.of("bootstrapAddress", ProxyRpcTest.PROXY_ADDRESS))
+                        .withType("PortPerBroker")
+                        .withConfig(Map.of("bootstrapAddress", ProxyRpcTest.PROXY_ADDRESS.toString()))
                         .endClusterEndpointConfigProvider()
                         .build())
                 .addNewFilter().withType("ApiVersions").endFilter()

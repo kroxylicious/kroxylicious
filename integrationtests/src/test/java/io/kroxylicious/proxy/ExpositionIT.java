@@ -14,6 +14,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.admin.Admin;
@@ -32,6 +33,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 
 import io.kroxylicious.net.IntegrationTestInetAddressResolverProvider;
+import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.clients.CloseableAdmin;
 import io.kroxylicious.testing.kafka.common.BrokerCluster;
@@ -59,7 +61,7 @@ public class ExpositionIT {
 
     @Test
     public void exposesClusterOverTls(KafkaCluster cluster) throws Exception {
-        String proxyAddress = "localhost:9192";
+        var proxyAddress = HostPort.parse("localhost:9192");
 
         var brokerCertificateGenerator = new KeytoolCertificateGenerator();
         brokerCertificateGenerator.generateSelfSignedCertificateEntry("test@redhat.com", "localhost", "KI", "RedHat", null, null, "US");
@@ -67,7 +69,21 @@ public class ExpositionIT {
         brokerCertificateGenerator.generateTrustStore(brokerCertificateGenerator.getCertFilePath(), "client",
                 clientTrustStore.toAbsolutePath().toString());
 
-        var builder = baseConfigBuilder(proxyAddress, cluster.getBootstrapServers());
+        String bootstrapServers = cluster.getBootstrapServers();
+
+        var builder = KroxyConfig.builder()
+                .addToVirtualClusters("demo", new VirtualClusterBuilder()
+                        .withNewTargetCluster()
+                        .withBootstrapServers(bootstrapServers)
+                        .endTargetCluster()
+                        .withNewClusterEndpointConfigProvider()
+                        .withType("PortPerBroker")
+                        .withConfig(Map.of("bootstrapAddress", proxyAddress.toString()))
+                        .endClusterEndpointConfigProvider()
+                        .build())
+                .addNewFilter().withType("ApiVersions").endFilter()
+                .addNewFilter().withType("BrokerAddress").endFilter();
+
         var demo = builder.getVirtualClusters().get("demo");
         demo = new VirtualClusterBuilder(demo)
                 .withKeyPassword(brokerCertificateGenerator.getPassword())
@@ -77,7 +93,7 @@ public class ExpositionIT {
         var config = builder.build().toYaml();
 
         try (var proxy = startProxy(config)) {
-            try (var admin = CloseableAdmin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
+            try (var admin = CloseableAdmin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress.toString(),
                     CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name,
                     SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
                     SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, brokerCertificateGenerator.getPassword()))) {
@@ -95,7 +111,7 @@ public class ExpositionIT {
 
     @Test
     public void exposesTwoClusterOverPlainWithSeparatePorts(KafkaCluster cluster) throws Exception {
-        List<String> clusterProxyAddresses = List.of("localhost:9192", "localhost:9193");
+        var clusterProxyAddresses = Stream.of("localhost:9192", "localhost:9294").map(HostPort::parse).toList();
 
         var builder = KroxyConfig.builder()
                 .addNewFilter().withType("ApiVersions").endFilter()
@@ -108,10 +124,11 @@ public class ExpositionIT {
                 .build();
 
         for (int i = 0; i < clusterProxyAddresses.size(); i++) {
+            var bootstrap = clusterProxyAddresses.get(i);
             var virtualCluster = new VirtualClusterBuilder(base)
                     .withNewClusterEndpointConfigProvider()
-                    .withType("StaticCluster")
-                    .withConfig(Map.of("bootstrapAddress", clusterProxyAddresses.get(i)))
+                    .withType("PortPerBroker")
+                    .withConfig(Map.of("bootstrapAddress", bootstrap.toString()))
                     .endClusterEndpointConfigProvider()
                     .build();
             builder.addToVirtualClusters("cluster" + i, virtualCluster);
@@ -121,7 +138,7 @@ public class ExpositionIT {
 
         try (var proxy = startProxy(config)) {
             for (int i = 0; i < clusterProxyAddresses.size(); i++) {
-                try (var admin = CloseableAdmin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, clusterProxyAddresses.get(i)))) {
+                try (var admin = CloseableAdmin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, clusterProxyAddresses.get(i).toString()))) {
                     // do some work to ensure virtual cluster is operational
                     createTopic(admin, TOPIC + i, 1);
                 }
@@ -189,43 +206,48 @@ public class ExpositionIT {
 
     @Test
     public void exposesClusterOfTwoBrokers(@BrokerCluster(numBrokers = 2) KafkaCluster cluster) throws Exception {
-        var proxyAddress = "localhost:9192";
-        var builder = baseConfigBuilder(proxyAddress, cluster.getBootstrapServers());
-        var demo = builder.getVirtualClusters().get("demo");
-        var brokerEndpoints = Map.of(0, "localhost:9193", 1, "localhost:9194");
-        demo = new VirtualClusterBuilder(demo)
-                .editClusterEndpointConfigProvider()
-                .withType("StaticCluster")
-                .withConfig(Map.of("bootstrapAddress", proxyAddress,
-                        "brokers", brokerEndpoints))
-                .endClusterEndpointConfigProvider()
-                .build();
-        builder.addToVirtualClusters("demo", demo);
+        var proxyAddress = HostPort.parse("localhost:9192");
+        String bootstrapServers = cluster.getBootstrapServers();
+
+        var builder = KroxyConfig.builder()
+                .addToVirtualClusters("demo", new VirtualClusterBuilder()
+                        .withNewTargetCluster()
+                        .withBootstrapServers(bootstrapServers)
+                        .endTargetCluster()
+                        .withNewClusterEndpointConfigProvider()
+                        .withType("PortPerBroker")
+                        .withConfig(Map.of("bootstrapAddress", proxyAddress.toString()))
+                        .endClusterEndpointConfigProvider()
+                        .build())
+                .addNewFilter().withType("ApiVersions").endFilter()
+                .addNewFilter().withType("BrokerAddress").endFilter();
         var config = builder.build().toYaml();
+
+        var brokerEndpoints = Map.of(0, "localhost:9193", 1, "localhost:9194");
 
         try (var proxy = startProxy(config)) {
 
-            try (var admin = CloseableAdmin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress))) {
-                var nodes = admin.describeCluster().nodes().get();
-                assertThat(nodes).hasSize(2);
+            try (var admin = CloseableAdmin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress.toString()))) {
+                var nodes = await().atMost(Duration.ofSeconds(5)).until(() -> admin.describeCluster().nodes().get(),
+                        n -> n.size() == cluster.getNumOfBrokers());
                 var unique = nodes.stream().collect(Collectors.toMap(Node::id, ExpositionIT::toAddress));
                 assertThat(unique).containsExactlyInAnyOrderEntriesOf(brokerEndpoints);
             }
 
             // Create a topic with one partition on each broker and publish to all of them..
             // As kafka client must connect to the partition leader, this verifies that kroxylicious is
-            // indeed connecting to all brokers.
+            // indeed exposing/connecting to all brokers.
             int numPartitions = 2;
-            try (var admin = Admin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress))) {
+            try (var admin = Admin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress.toString()))) {
                 // create topic and ensure that leaders are on different brokers.
                 createTopic(admin, TOPIC, numPartitions);
-                await().atMost(Duration.ofSeconds(5)).until(() -> admin.describeTopics(List.of(TOPIC)).topicNameValues().get(TOPIC).get()
+                await().atMost(Duration.ofSeconds(10)).until(() -> admin.describeTopics(List.of(TOPIC)).topicNameValues().get(TOPIC).get()
                         .partitions().stream().map(TopicPartitionInfo::leader)
                         .collect(Collectors.toSet()),
                         leaders -> leaders.size() == numPartitions);
 
                 try (var producer = new KafkaProducer<String, String>(Map.of(
-                        ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
+                        ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress.toString(),
                         ProducerConfig.CLIENT_ID_CONFIG, "myclient",
                         ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
                         ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class))) {
@@ -252,21 +274,6 @@ public class ExpositionIT {
 
     private static String toAddress(Node n) {
         return n.host() + ":" + n.port();
-    }
-
-    private static KroxyConfigBuilder baseConfigBuilder(String proxyAddress, String bootstrapServers) {
-        return KroxyConfig.builder()
-                .addToVirtualClusters("demo", new VirtualClusterBuilder()
-                        .withNewTargetCluster()
-                        .withBootstrapServers(bootstrapServers)
-                        .endTargetCluster()
-                        .withNewClusterEndpointConfigProvider()
-                        .withType("StaticCluster")
-                        .withConfig(Map.of("bootstrapAddress", proxyAddress))
-                        .endClusterEndpointConfigProvider()
-                        .build())
-                .addNewFilter().withType("ApiVersions").endFilter()
-                .addNewFilter().withType("BrokerAddress").endFilter();
     }
 
 }

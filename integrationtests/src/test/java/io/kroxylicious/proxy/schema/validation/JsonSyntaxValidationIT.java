@@ -34,6 +34,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import io.kroxylicious.proxy.KroxyConfig;
 import io.kroxylicious.proxy.KroxyConfigBuilder;
 import io.kroxylicious.proxy.VirtualClusterBuilder;
+import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
@@ -51,7 +52,7 @@ public class JsonSyntaxValidationIT {
 
     @Test
     public void testInvalidJsonProduceRejected(KafkaCluster cluster, Admin admin) throws Exception {
-        String proxyAddress = "localhost:9192";
+        var proxyAddress = HostPort.parse("localhost:9192");
 
         admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1))).all().get();
 
@@ -69,19 +70,21 @@ public class JsonSyntaxValidationIT {
         }
     }
 
-    private static KroxyConfigBuilder baseConfigBuilder(KafkaCluster cluster, String proxyAddress) {
+    private static KroxyConfigBuilder baseConfigBuilder(KafkaCluster cluster, HostPort proxyAddress) {
         assertEquals(1, cluster.getNumOfBrokers());
         String bootstrapServers = cluster.getBootstrapServers();
         return KroxyConfig.builder().addToVirtualClusters("demo",
                 new VirtualClusterBuilder().withNewTargetCluster().withBootstrapServers(bootstrapServers).endTargetCluster().withNewClusterEndpointConfigProvider()
-                        .withType("StaticCluster").withConfig(Map.of("bootstrapAddress", proxyAddress)).endClusterEndpointConfigProvider().build())
+                        .withType("PortPerBroker")
+                        .withConfig(Map.of("bootstrapAddress", proxyAddress.toString()))
+                        .endClusterEndpointConfigProvider().build())
                 .addNewFilter()
                 .withType("ApiVersions").endFilter().addNewFilter().withType("BrokerAddress").endFilter();
     }
 
     @Test
     public void testInvalidJsonProduceRejectedUsingTopicNames(KafkaCluster cluster, Admin admin) throws Exception {
-        String proxyAddress = "localhost:9192";
+        var proxyAddress = HostPort.parse("localhost:9192");
 
         admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1), new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
 
@@ -98,7 +101,7 @@ public class JsonSyntaxValidationIT {
 
                 producer.send(new ProducerRecord<>(TOPIC_2, "my-key", SYNTACTICALLY_INCORRECT_JSON)).get();
                 try (var consumer = new KafkaConsumer<String, String>(
-                        Map.of(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress, ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
+                        Map.of(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress.toString(), ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
                                 ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class, ConsumerConfig.GROUP_ID_CONFIG, "my-group-id",
                                 ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
                     consumer.subscribe(Set.of(TOPIC_2));
@@ -112,7 +115,7 @@ public class JsonSyntaxValidationIT {
 
     @Test
     public void testPartiallyInvalidJsonTransactionalAllRejected(KafkaCluster cluster, Admin admin) throws Exception {
-        String proxyAddress = "localhost:9192";
+        var proxyAddress = HostPort.parse("localhost:9192");
 
         admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1), new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
 
@@ -139,7 +142,7 @@ public class JsonSyntaxValidationIT {
 
     @Test
     public void testPartiallyInvalidJsonNotConfiguredToForwardAllRejected(KafkaCluster cluster, Admin admin) throws Exception {
-        String proxyAddress = "localhost:9192";
+        var proxyAddress = HostPort.parse("localhost:9192");
 
         admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1), new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
 
@@ -163,7 +166,7 @@ public class JsonSyntaxValidationIT {
 
     @Test
     public void testPartiallyInvalidJsonProduceRejected(KafkaCluster cluster, Admin admin) throws Exception {
-        String proxyAddress = "localhost:9192";
+        var proxyAddress = HostPort.parse("localhost:9192");
 
         admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1), new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
 
@@ -184,7 +187,7 @@ public class JsonSyntaxValidationIT {
             }
 
             try (var consumer = new KafkaConsumer<String, String>(
-                    Map.of(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress, ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
+                    Map.of(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress.toString(), ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
                             ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class, ConsumerConfig.GROUP_ID_CONFIG, "my-group-id",
                             ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
                 consumer.subscribe(Set.of(TOPIC_2));
@@ -197,7 +200,7 @@ public class JsonSyntaxValidationIT {
 
     @Test
     public void testPartiallyInvalidAcrossPartitionsOfSameTopic(KafkaCluster cluster, Admin admin) throws Exception {
-        String proxyAddress = "localhost:9192";
+        var proxyAddress = HostPort.parse("localhost:9192");
 
         admin.createTopics(List.of(new NewTopic(TOPIC_1, 2, (short) 1))).all().get();
 
@@ -218,7 +221,7 @@ public class JsonSyntaxValidationIT {
             }
 
             try (var consumer = new KafkaConsumer<String, String>(
-                    Map.of(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress, ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
+                    Map.of(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress.toString(), ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
                             ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class, ConsumerConfig.GROUP_ID_CONFIG, "my-group-id",
                             ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
                 consumer.subscribe(Set.of(TOPIC_1));
@@ -231,7 +234,7 @@ public class JsonSyntaxValidationIT {
 
     @Test
     public void testPartiallyInvalidWithinOnePartitionOfTopic(KafkaCluster cluster, Admin admin) throws Exception {
-        String proxyAddress = "localhost:9192";
+        var proxyAddress = HostPort.parse("localhost:9192");
 
         admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1))).all().get();
 
@@ -257,7 +260,7 @@ public class JsonSyntaxValidationIT {
 
     @Test
     public void testValidJsonProduceAccepted(KafkaCluster cluster, Admin admin) throws Exception {
-        String proxyAddress = "localhost:9192";
+        var proxyAddress = HostPort.parse("localhost:9192");
 
         admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1))).all().get();
 
@@ -275,13 +278,13 @@ public class JsonSyntaxValidationIT {
     }
 
     @NotNull
-    private static KafkaProducer<String, String> getProducer(String proxyAddress, int linger, int batchSize) {
+    private static KafkaProducer<String, String> getProducer(HostPort proxyAddress, int linger, int batchSize) {
         return getProducer(proxyAddress, Map.of(ProducerConfig.LINGER_MS_CONFIG, linger, ProducerConfig.BATCH_SIZE_CONFIG, batchSize));
     }
 
-    private static KafkaProducer<String, String> getProducer(String proxyAddress, Map<String, Object> additionalProps) {
-        Map<String, Object> produceProps = new java.util.HashMap<>(Map.of(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress, ProducerConfig.CLIENT_ID_CONFIG,
-                "shouldModifyProduceMessage",
+    private static KafkaProducer<String, String> getProducer(HostPort proxyAddress, Map<String, Object> additionalProps) {
+        Map<String, Object> produceProps = new java.util.HashMap<>(Map.of(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress.toString(),
+                ProducerConfig.CLIENT_ID_CONFIG, "shouldModifyProduceMessage",
                 ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
                 ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class, ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000));
         produceProps.putAll(additionalProps);

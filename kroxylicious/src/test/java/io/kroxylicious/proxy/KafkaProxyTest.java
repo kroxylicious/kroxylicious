@@ -25,39 +25,39 @@ class KafkaProxyTest {
                 virtualClusters:
                   demo1:
                     clusterEndpointConfigProvider:
-                      type: StaticCluster
+                      type: PortPerBroker
                       config:
                         bootstrapAddress: localhost:9192
+                        numberOfBrokerPorts: 1
                   demo2:
                     clusterEndpointConfigProvider:
-                      type: StaticCluster
+                      type: PortPerBroker
                       config:
                         bootstrapAddress: localhost:9192 # Conflict
-                """, "The exclusive bind of port(s) 9192 to <any> would conflict with existing exclusive port bindings on <any>."),
+                        numberOfBrokerPorts: 1
+                """, "The exclusive bind of port(s) 9192,9193 to <any> would conflict with existing exclusive port bindings on <any>."),
                 Arguments.of("broker port conflict", """
                         virtualClusters:
                           demo1:
                             clusterEndpointConfigProvider:
-                              type: StaticCluster
+                              type: PortPerBroker
                               config:
                                 bootstrapAddress: localhost:9192
-                                brokers:
-                                    0: localhost:9193
-                                    1: localhost:9194
+                                brokerStartPort: 9193
+                                numberOfBrokerPorts: 2
                           demo2:
                             clusterEndpointConfigProvider:
-                              type: StaticCluster
+                              type: PortPerBroker
                               config:
                                 bootstrapAddress: localhost:8192
-                                brokers:
-                                    0: localhost:9193  # Conflict
-                                    1: localhost:8194
+                                brokerStartPort: 9193 # Conflict
+                                numberOfBrokerPorts: 1
                         """, "The exclusive bind of port(s) 9193 to <any> would conflict with existing exclusive port bindings on <any>."),
                 Arguments.of("Static/SniRouting bootstrap port conflict", """
                         virtualClusters:
                           demo1:
                             clusterEndpointConfigProvider:
-                              type: StaticCluster
+                              type: PortPerBroker
                               config:
                                 bootstrapAddress: localhost:9192
                           demo2:

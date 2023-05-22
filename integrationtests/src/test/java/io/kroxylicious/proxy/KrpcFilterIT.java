@@ -32,6 +32,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 
 import io.kroxylicious.proxy.filter.CreateTopicRejectFilter;
 import io.kroxylicious.proxy.internal.filter.ByteBufferTransformation;
+import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.clients.CloseableConsumer;
 import io.kroxylicious.testing.kafka.clients.CloseableProducer;
@@ -104,7 +105,7 @@ public class KrpcFilterIT {
 
     @Test
     public void shouldPassThroughRecordUnchanged(KafkaCluster cluster, Admin admin) throws Exception {
-        String proxyAddress = "localhost:9192";
+        var proxyAddress = HostPort.parse("localhost:9192");
 
         admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1))).all().get();
 
@@ -112,7 +113,7 @@ public class KrpcFilterIT {
 
         try (var proxy = startProxy(config)) {
             try (var producer = CloseableProducer.<String, String> create(Map.of(
-                    ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
+                    ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress.toString(),
                     ProducerConfig.CLIENT_ID_CONFIG, "shouldPassThroughRecordUnchanged",
                     ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
                     ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
@@ -121,7 +122,7 @@ public class KrpcFilterIT {
             }
 
             try (var consumer = CloseableConsumer.<String, String> create(Map.of(
-                    ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
+                    ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress.toString(),
                     ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
                     ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
                     ConsumerConfig.GROUP_ID_CONFIG, "my-group-id",
@@ -137,13 +138,13 @@ public class KrpcFilterIT {
 
     @Test
     public void requestFiltersCanRespondWithoutProxying(KafkaCluster cluster, Admin admin) throws Exception {
-        String proxyAddress = "localhost:9192";
+        var proxyAddress = HostPort.parse("localhost:9192");
 
         var config = baseConfigBuilder(proxyAddress, cluster.getBootstrapServers())
                 .addNewFilter().withType("CreateTopicRejectFilter").endFilter().build().toYaml();
 
         try (var ignored = startProxy(config)) {
-            try (var proxyAdmin = Admin.create(Map.of(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress))) {
+            try (var proxyAdmin = Admin.create(Map.of(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress.toString()))) {
                 Assertions.assertThatExceptionOfType(ExecutionException.class)
                         .isThrownBy(() -> {
                             proxyAdmin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1))).all().get();
@@ -161,7 +162,7 @@ public class KrpcFilterIT {
 
     @Test
     public void shouldModifyProduceMessage(KafkaCluster cluster, Admin admin) throws Exception {
-        String proxyAddress = "localhost:9192";
+        var proxyAddress = HostPort.parse("localhost:9192");
 
         admin.createTopics(List.of(
                 new NewTopic(TOPIC_1, 1, (short) 1),
@@ -174,7 +175,7 @@ public class KrpcFilterIT {
 
         try (var proxy = startProxy(config)) {
             try (var producer = CloseableProducer.create(Map.of(
-                    ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
+                    ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress.toString(),
                     ProducerConfig.CLIENT_ID_CONFIG, "shouldModifyProduceMessage",
                     ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
                     ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
@@ -187,7 +188,7 @@ public class KrpcFilterIT {
             ConsumerRecords<String, byte[]> records1;
             ConsumerRecords<String, byte[]> records2;
             try (var consumer = CloseableConsumer.<String, byte[]> create(Map.of(
-                    ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
+                    ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress.toString(),
                     ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
                     ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class,
                     ConsumerConfig.GROUP_ID_CONFIG, "my-group-id",
@@ -207,7 +208,7 @@ public class KrpcFilterIT {
 
     @Test
     public void shouldModifyFetchMessage(KafkaCluster cluster, Admin admin) throws Exception {
-        String proxyAddress = "localhost:9192";
+        var proxyAddress = HostPort.parse("localhost:9192");
 
         admin.createTopics(List.of(
                 new NewTopic(TOPIC_1, 1, (short) 1),
@@ -220,7 +221,7 @@ public class KrpcFilterIT {
 
         try (var proxy = startProxy(config)) {
             try (var producer = CloseableProducer.create(Map.of(
-                    ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
+                    ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress.toString(),
                     ProducerConfig.CLIENT_ID_CONFIG, "shouldModifyFetchMessage",
                     ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
                     ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class,
@@ -233,7 +234,7 @@ public class KrpcFilterIT {
             ConsumerRecords<String, String> records1;
             ConsumerRecords<String, String> records2;
             try (var consumer = CloseableConsumer.<String, String> create(Map.of(
-                    ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
+                    ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress.toString(),
                     ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
                     ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
                     ConsumerConfig.GROUP_ID_CONFIG, "my-group-id",
@@ -254,15 +255,16 @@ public class KrpcFilterIT {
         }
     }
 
-    private static KroxyConfigBuilder baseConfigBuilder(String proxyAddress, String bootstrapServers) {
+    private static KroxyConfigBuilder baseConfigBuilder(HostPort proxyAddress, String bootstrapServers) {
         return KroxyConfig.builder()
                 .addToVirtualClusters("demo", new VirtualClusterBuilder()
                         .withNewTargetCluster()
                         .withBootstrapServers(bootstrapServers)
                         .endTargetCluster()
                         .withNewClusterEndpointConfigProvider()
-                        .withType("StaticCluster")
-                        .withConfig(Map.of("bootstrapAddress", proxyAddress))
+                        .withType("PortPerBroker")
+                        .withConfig(Map.of("bootstrapAddress", proxyAddress.toString(),
+                                "brokerAddressPattern", "localhost:$(portNumber)"))
                         .endClusterEndpointConfigProvider()
                         .build())
                 .addNewFilter().withType("ApiVersions").endFilter()

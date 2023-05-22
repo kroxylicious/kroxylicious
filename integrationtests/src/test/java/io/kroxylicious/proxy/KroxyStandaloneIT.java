@@ -26,6 +26,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 
+import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.clients.CloseableConsumer;
 import io.kroxylicious.testing.kafka.clients.CloseableProducer;
@@ -45,7 +46,7 @@ public class KroxyStandaloneIT {
 
     @Test
     public void shouldProxyWhenRunAsStandaloneProcess(KafkaCluster cluster, Admin admin, @TempDir Path tempDir) throws Exception {
-        String proxyAddress = "localhost:9192";
+        var proxyAddress = HostPort.parse("localhost:9192");
 
         admin.createTopics(List.of(
                 new NewTopic(TOPIC_1, 1, (short) 1),
@@ -57,7 +58,7 @@ public class KroxyStandaloneIT {
 
         try (var ignored = startProxy(config, tempDir)) {
             try (var producer = CloseableProducer.<String, String> create(Map.of(
-                    ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
+                    ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress.toString(),
                     ProducerConfig.CLIENT_ID_CONFIG, "shouldModifyProduceMessage",
                     ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
                     ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
@@ -70,7 +71,7 @@ public class KroxyStandaloneIT {
             ConsumerRecords<String, String> records1;
             ConsumerRecords<String, String> records2;
             try (var consumer = CloseableConsumer.<String, String> create(Map.of(
-                    ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
+                    ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress.toString(),
                     ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
                     ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
                     ConsumerConfig.GROUP_ID_CONFIG, "my-group-id",
@@ -88,15 +89,15 @@ public class KroxyStandaloneIT {
         }
     }
 
-    private static KroxyConfigBuilder baseConfigBuilder(String proxyAddress, String bootstrapServers) {
+    private static KroxyConfigBuilder baseConfigBuilder(HostPort proxyAddress, String bootstrapServers) {
         return KroxyConfig.builder()
                 .addToVirtualClusters("demo", new VirtualClusterBuilder()
                         .withNewTargetCluster()
                         .withBootstrapServers(bootstrapServers)
                         .endTargetCluster()
                         .withNewClusterEndpointConfigProvider()
-                        .withType("StaticCluster")
-                        .withConfig(Map.of("bootstrapAddress", proxyAddress))
+                        .withType("PortPerBroker")
+                        .withConfig(Map.of("bootstrapAddress", proxyAddress.toString()))
                         .endClusterEndpointConfigProvider()
                         .build())
                 .addNewFilter().withType("ApiVersions").endFilter()

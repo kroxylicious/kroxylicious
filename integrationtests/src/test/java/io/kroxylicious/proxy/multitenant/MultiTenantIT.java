@@ -66,6 +66,7 @@ import org.slf4j.LoggerFactory;
 import io.kroxylicious.net.IntegrationTestInetAddressResolverProvider;
 import io.kroxylicious.proxy.KroxyConfig;
 import io.kroxylicious.proxy.VirtualClusterBuilder;
+import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.clients.CloseableAdmin;
 import io.kroxylicious.testing.kafka.clients.CloseableConsumer;
@@ -95,9 +96,8 @@ public class MultiTenantIT {
     private static final String TOPIC_3 = "and-another-test-topic";
     private static final NewTopic NEW_TOPIC_3 = new NewTopic(TOPIC_3, 1, (short) 1);
 
-    private static final String PROXY_ADDRESS = "localhost:9192";
-    private static final String TENANT1_PROXY_ADDRESS = IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName("foo", 9192);
-    private static final String TENANT2_PROXY_ADDRESS = IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName("bar", 9193);
+    private static final HostPort TENANT1_PROXY_ADDRESS = HostPort.parse(IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName("foo", 9192));
+    private static final HostPort TENANT2_PROXY_ADDRESS = HostPort.parse(IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName("bar", 9293));
     private static final String MY_KEY = "my-key";
     private static final String MY_VALUE = "my-value";
     private static final long FUTURE_TIMEOUT_SECONDS = 5L;
@@ -289,7 +289,7 @@ public class MultiTenantIT {
         }
     }
 
-    private void verifyConsumerGroupsWithDescribe(String proxyAddress, Set<String> expectedPresent, Set<String> expectedAbsent) throws Exception {
+    private void verifyConsumerGroupsWithDescribe(HostPort proxyAddress, Set<String> expectedPresent, Set<String> expectedAbsent) throws Exception {
         try (var admin = CloseableAdmin.create(commonConfig(proxyAddress, Map.of()))) {
             var describedGroups = admin.describeConsumerGroups(Stream.concat(expectedPresent.stream(), expectedAbsent.stream()).toList()).all().get();
             assertThat(describedGroups).hasSize(expectedAbsent.size() + expectedPresent.size());
@@ -310,7 +310,7 @@ public class MultiTenantIT {
         return copy;
     }
 
-    private void runConsumerInOrderToCreateGroup(String proxyAddress, String groupId, NewTopic topic, ConsumerStyle consumerStyle) throws Exception {
+    private void runConsumerInOrderToCreateGroup(HostPort proxyAddress, String groupId, NewTopic topic, ConsumerStyle consumerStyle) throws Exception {
         try (var consumer = CloseableConsumer.<String, String> create(commonConfig(proxyAddress,
                 Map.of(ConsumerConfig.GROUP_ID_CONFIG, groupId, ConsumerConfig.ALLOW_AUTO_CREATE_TOPICS_CONFIG, Boolean.FALSE.toString(),
                         ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, Boolean.FALSE.toString(), ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
@@ -331,14 +331,14 @@ public class MultiTenantIT {
         }
     }
 
-    private void verifyConsumerGroupsWithList(String proxyAddress, Set<String> expectedGroupIds) throws Exception {
+    private void verifyConsumerGroupsWithList(HostPort proxyAddress, Set<String> expectedGroupIds) throws Exception {
         try (var admin = CloseableAdmin.create(commonConfig(proxyAddress, Map.of()))) {
             var groups = admin.listConsumerGroups().all().get().stream().map(ConsumerGroupListing::groupId).toList();
             assertThat(groups).containsExactlyInAnyOrderElementsOf(expectedGroupIds);
         }
     }
 
-    private void verifyTenant(String address, String... expectedTopics) throws Exception {
+    private void verifyTenant(HostPort address, String... expectedTopics) throws Exception {
         try (var admin = CloseableAdmin.create(commonConfig(address, Map.of()))) {
 
             var listTopicsResult = admin.listTopics();
@@ -356,11 +356,11 @@ public class MultiTenantIT {
         }
     }
 
-    private void consumeAndVerify(String address, String topicName, String groupId, String expectedKey, String expectedValue, boolean offsetCommit) {
+    private void consumeAndVerify(HostPort address, String topicName, String groupId, String expectedKey, String expectedValue, boolean offsetCommit) {
         consumeAndVerify(address, topicName, groupId, new LinkedList<>(List.of(matchesRecord(topicName, expectedKey, expectedValue))), offsetCommit);
     }
 
-    private void consumeAndVerify(String address, String topicName, String groupId, Deque<Predicate<ConsumerRecord<String, String>>> expected, boolean offsetCommit) {
+    private void consumeAndVerify(HostPort address, String topicName, String groupId, Deque<Predicate<ConsumerRecord<String, String>>> expected, boolean offsetCommit) {
         try (var consumer = CloseableConsumer.<String, String> create(commonConfig(address,
                 Map.of(ConsumerConfig.GROUP_ID_CONFIG, groupId, ConsumerConfig.ALLOW_AUTO_CREATE_TOPICS_CONFIG, Boolean.FALSE.toString(),
                         ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, Boolean.FALSE.toString(), ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
@@ -387,11 +387,11 @@ public class MultiTenantIT {
         }
     }
 
-    private void produceAndVerify(String address, String topic, String key, String value) throws Exception {
+    private void produceAndVerify(HostPort address, String topic, String key, String value) throws Exception {
         produceAndVerify(address, Stream.of(new ProducerRecord<>(topic, key, value)));
     }
 
-    private void produceAndVerify(String address, Stream<ProducerRecord<String, String>> records) throws Exception {
+    private void produceAndVerify(HostPort address, Stream<ProducerRecord<String, String>> records) throws Exception {
 
         try (var producer = CloseableProducer.<String, String> create(commonConfig(address,
                 Map.of(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class, ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
@@ -412,7 +412,7 @@ public class MultiTenantIT {
         }
     }
 
-    private void createTopics(String address, List<NewTopic> topics) throws Exception {
+    private void createTopics(HostPort address, List<NewTopic> topics) throws Exception {
         try (var admin = CloseableAdmin.create(commonConfig(address, Map.of()))) {
             createTopics(admin, topics);
         }
@@ -425,7 +425,7 @@ public class MultiTenantIT {
         return created;
     }
 
-    private DeleteTopicsResult deleteTopics(String address, TopicCollection topics) throws Exception {
+    private DeleteTopicsResult deleteTopics(HostPort address, TopicCollection topics) throws Exception {
         try (var admin = CloseableAdmin.create(commonConfig(address, Map.of()))) {
             return deleteTopics(admin, topics);
         }
@@ -438,10 +438,10 @@ public class MultiTenantIT {
     }
 
     @NotNull
-    private Map<String, Object> commonConfig(String address, Map<String, Object> m) {
+    private Map<String, Object> commonConfig(HostPort address, Map<String, Object> m) {
         var config = new HashMap<String, Object>();
         config.putAll(m);
-        config.put(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, address);
+        config.put(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, address.toString());
         config.put(CommonClientConfigs.CLIENT_ID_CONFIG, testInfo.getDisplayName());
         config.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name);
         config.put(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, this.clientTrustStore.toAbsolutePath().toString());
@@ -456,8 +456,8 @@ public class MultiTenantIT {
                         .withBootstrapServers(cluster.getBootstrapServers())
                         .endTargetCluster()
                         .withNewClusterEndpointConfigProvider()
-                        .withType("StaticCluster")
-                        .withConfig(Map.of("bootstrapAddress", TENANT1_PROXY_ADDRESS))
+                        .withType("PortPerBroker")
+                        .withConfig(Map.of("bootstrapAddress", TENANT1_PROXY_ADDRESS.toString()))
                         .endClusterEndpointConfigProvider()
                         .withKeyPassword(certificateGenerator.getPassword())
                         .withKeyStoreFile(certificateGenerator.getKeyStoreLocation())
@@ -467,8 +467,8 @@ public class MultiTenantIT {
                         .withBootstrapServers(cluster.getBootstrapServers())
                         .endTargetCluster()
                         .withNewClusterEndpointConfigProvider()
-                        .withType("StaticCluster")
-                        .withConfig(Map.of("bootstrapAddress", TENANT2_PROXY_ADDRESS))
+                        .withType("PortPerBroker")
+                        .withConfig(Map.of("bootstrapAddress", TENANT2_PROXY_ADDRESS.toString()))
                         .endClusterEndpointConfigProvider()
                         .withKeyPassword(certificateGenerator.getPassword())
                         .withKeyStoreFile(certificateGenerator.getKeyStoreLocation())

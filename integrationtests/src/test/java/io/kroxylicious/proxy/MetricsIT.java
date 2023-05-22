@@ -22,6 +22,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import io.micrometer.core.instrument.Metrics;
 import io.netty.handler.codec.http.HttpResponseStatus;
 
+import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
@@ -33,7 +34,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @ExtendWith(KafkaClusterExtension.class)
 public class MetricsIT {
 
-    public static final String PROXY_ADDRESS = "localhost:9192";
+    public static final HostPort PROXY_ADDRESS = HostPort.parse("localhost:19192");
 
     @BeforeEach
     public void beforeEach() {
@@ -122,15 +123,15 @@ public class MetricsIT {
         assertTrue(Arrays.stream(response.body().split("\n")).anyMatch(it -> it.matches(meterName + labelRegex + " " + valueRegex)));
     }
 
-    private static KroxyConfigBuilder baseConfigBuilder(String proxyAddress, String bootstrapServers) {
+    private static KroxyConfigBuilder baseConfigBuilder(HostPort proxyAddress, String bootstrapServers) {
         return KroxyConfig.builder()
                 .addToVirtualClusters("demo", new VirtualClusterBuilder()
                         .withNewTargetCluster()
                         .withBootstrapServers(bootstrapServers)
                         .endTargetCluster()
                         .withNewClusterEndpointConfigProvider()
-                        .withType("StaticCluster")
-                        .withConfig(Map.of("bootstrapAddress", proxyAddress))
+                        .withType("PortPerBroker")
+                        .withConfig(Map.of("bootstrapAddress", proxyAddress.toString()))
                         .endClusterEndpointConfigProvider()
                         .build());
     }
