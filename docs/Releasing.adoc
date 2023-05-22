@@ -7,56 +7,39 @@
 A quick and dirty guide to actually releasing builds for consumption via maven central.
 
 == Requirements
-.Maven Central
+=== Sonatype/Maven Central
+
 * A Maven Central/Sonatype account. Accounts are created via their https://issues.sonatype.org/secure/Signup!default.jspa[JIRA signup]
 * Your Sonatype account needs to be granted publication permissions for the Kroxylicous project.
 ** One of the existing team members with publishing rights needs to raise a https://issues.sonatype.org/secure/CreateIssue.jspa?pid=10134&issuetype=11003[JIRA ticket] to request the new account is added (or removed...). The requirements for the ticket are listed in the https://central.sonatype.org/publish/manage-permissions/[Central Docs]
 
 Signing the builds with a GPG key is a requirement for publishing to Maven Central.
 
-.PGP
+=== PGP
 * Ensure your PGP key is published to a public key server (for example keys.openpgp.org)
 * Get your PGP key signed by the Kroxylicious project key. Rather than share a single key between project members (which has issues with revocation and re-issuing) we sign the releases individually using a key signed by the project key as a mark of trust.
 * A copy of your keys short ID.
 
 TIP: To get the short ID for your key `gpg2 --show-keys --keyid-format short $\{YOUR_KEY_LONG_ID}`
 
+=== Development environment
+
+* Once logged in to the https://s01.oss.sonatype.org/[Sonatype Nexus UI], create a User Token and configure this in the https://maven.apache.org/settings.html#servers[`<servers>`] element o  `.m2/settings.xml`.  This is required in order to allow Maven to push the artifacts to Nexus. 
+* The release scripts will make use of the GitHub CLI https://cli.github.com/ if present, so you may wish to install to reduces the number of chores.
+
+
 == Running a release
 
-.Releasing Locally
-. `mvn clean install`
-.. We are looking for a clean and green build.
-.. If it's not, shout scream and swear.
-.. Think *very very* carefully if its worth proceeding. Releases are forever!
-. Switch to the release version number.
-.. `export RELEASE_VERSION=0.1.0`
-.. `export RELEASE_API_VERSION=0.1.0`
-.. `mvn versions:set -DnewVersion=$\{RELEASE_VERSION} -pl '!:kroxylicious-api,!:kroxylicious-filter-api'`
-.. `mvn versions:set -DnewVersion=$\{RELEASE_API_VERSION} -pl ':kroxylicious-api,:kroxylicious-filter-api'`
-.. `mvn versions:set-property -Dproperty=kroxyliciousApi.version -DnewVersion=$\{RELEASE_API_VERSION}`
-.. `mvn clean install -Pquick`
-// .. *TODO*: Should we use the https://maven.apache.org/maven-release/maven-release-plugin[release plug-in] instead? .
-.. `git add **/pom.xml`
-.. `git commit -m "Release version v$\{RELEASE_VERSION}`
-.. `git tag v$\{RELEASE_VERSION}`
-.. `git push upstream --tags`
-. `mvn deploy -Prelease -DskipTests=true -DreleaseSigningKey=<YOUR_KEY_SHORT_ID>`
-.. The `release` profile enables GPG signing
-.. The release profile will not run without specifying the `releaseSigningKey` property.
-. Validate the release in the central Nexus instance.
-.. Locate the https://central.sonatype.org/publish/release/#locate-and-examine-your-staging-repository[Staging repository]
-.. Check that the right tree of artefacts are there, ensure there are source & docs jars.
-// .. *TODO*: Using the staging repository to validate the release.
-. `Close` the staging repository in the central Nexus instance, see the https://central.sonatype.org/publish/release/#close-and-drop-or-release-your-staging-repository[Central release docs]. This triggers the promotion from staging to being publicly available on central.
-. Switch to the next version number for development.
-.. `export DEV_VERSION=0.1.0-SNAPSHOT`
-.. `export DEV_API_VERSION=0.1.0-SNAPSHOT`
-.. `mvn versions:set -DnewVersion=$\{DEV_VERSION} -pl '!:kroxylicious-api,!:kroxylicious-filter-api'`
-.. `mvn versions:set -DnewVersion=$\{DEV_API_VERSION} -pl ':kroxylicious-api,:kroxylicious-filter-api'`
-.. `mvn versions:set-property -Dproperty=kroxyliciousApi.version -DnewVersion=$\{DEV_API_VERSIION}`
-.. `git add **/pom.xml`
-.. `git commit -m "Next development version v$\{DEV_VERSION}`
-.. `git push`
+The project is release is two parts, the API and the Framework. There are separate release scripts beneath `./scripts` for each of these.
+
+```
+scripts/release-api.sh <RELEASE_VERSION>
+```
+
+```
+scripts/release-framework.sh <RELEASE_VERSION>
+```
+
 
 .Releasing via the build server
 **TBD**
