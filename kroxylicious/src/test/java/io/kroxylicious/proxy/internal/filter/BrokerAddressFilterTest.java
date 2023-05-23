@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.proxy.filter.multitenant;
+package io.kroxylicious.proxy.internal.filter;
 
 import java.io.IOException;
 import java.util.List;
@@ -17,36 +17,41 @@ import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.flipkart.zjsonpatch.JsonDiff;
 import com.google.common.reflect.ClassPath;
-import com.google.common.reflect.ClassPath.ResourceInfo;
 
+import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.filter.FilterInvoker;
 import io.kroxylicious.proxy.filter.FilterInvokers;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
+import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.test.requestresponsetestdef.ApiMessageTestDef;
 import io.kroxylicious.test.requestresponsetestdef.RequestResponseTestDef;
 
 import static com.google.common.base.Preconditions.checkState;
-import static io.kroxylicious.test.requestresponsetestdef.KafkaApiMessageConverter.requestConverterFor;
 import static io.kroxylicious.test.requestresponsetestdef.KafkaApiMessageConverter.responseConverterFor;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-class MultiTenantTransformationFilterTest {
-    private static final Pattern TEST_RESOURCE_FILTER = Pattern.compile(
-            String.format("%s/.*\\.yaml", MultiTenantTransformationFilterTest.class.getPackageName().replace(".", "/")));
+@ExtendWith(MockitoExtension.class)
+class BrokerAddressFilterTest {
 
-    private static List<ResourceInfo> getTestResources() throws IOException {
-        var resources = ClassPath.from(MultiTenantTransformationFilterTest.class.getClassLoader()).getResources().stream()
+    private static final Pattern TEST_RESOURCE_FILTER = Pattern.compile(
+            String.format("%s/.*\\.yaml", BrokerAddressFilterTest.class.getPackageName().replace(".", "/")));
+
+    private static List<ClassPath.ResourceInfo> getTestResources() throws IOException {
+        var resources = ClassPath.from(BrokerAddressFilterTest.class.getClassLoader()).getResources().stream()
                 .filter(ri -> TEST_RESOURCE_FILTER.matcher(ri.getResourceName()).matches()).toList();
 
         // https://youtrack.jetbrains.com/issue/IDEA-315462: we've seen issues in IDEA in IntelliJ Workspace Model API mode where test resources
@@ -57,42 +62,29 @@ class MultiTenantTransformationFilterTest {
         return resources;
     }
 
-    private final MultiTenantTransformationFilter filter = new MultiTenantTransformationFilter();
+    @Mock
+    private VirtualCluster virtualCluster;
 
-    private final FilterInvoker invoker = FilterInvokers.from(filter);
+    @Mock
+    private KrpcFilterContext context;
 
-    private final KrpcFilterContext context = mock(KrpcFilterContext.class);
+    @Captor
+    private ArgumentCaptor<ApiMessage> apiMessageCaptor;
 
-    private final ArgumentCaptor<ApiMessage> apiMessageCaptor = ArgumentCaptor.forClass(ApiMessage.class);
+    private BrokerAddressFilter filter;
 
-    @BeforeEach
-    public void beforeEach() {
-        when(context.sniHostname()).thenReturn("tenant1.kafka.example.com");
-    }
-
-    public static Stream<Arguments> requests() throws Exception {
-        return RequestResponseTestDef.requestResponseTestDefinitions(getTestResources()).filter(td -> td.request() != null)
-                .map(td -> Arguments.of(td.testName(), td.apiKey(), td.header(), td.request()));
-    }
-
-    @ParameterizedTest(name = "{0}")
-    @MethodSource(value = "requests")
-    void requestsTransformed(@SuppressWarnings("unused") String testName, ApiMessageType apiMessageType, RequestHeaderData header, ApiMessageTestDef requestTestDef) {
-        var request = requestTestDef.message();
-        // marshalled the request object back to json, this is used for the comparison later.
-        var requestWriter = requestConverterFor(apiMessageType).writer();
-        var marshalled = requestWriter.apply(request, header.requestApiVersion());
-
-        invoker.onRequest(ApiKeys.forId(apiMessageType.apiKey()), header.requestApiVersion(), header, request, context);
-        verify(context).forwardRequest(any(), apiMessageCaptor.capture());
-
-        var filtered = requestWriter.apply(apiMessageCaptor.getValue(), header.requestApiVersion());
-        assertEquals(requestTestDef.expectedPatch(), JsonDiff.asJson(marshalled, filtered));
-    }
+    private FilterInvoker invoker;
 
     public static Stream<Arguments> responses() throws Exception {
         return RequestResponseTestDef.requestResponseTestDefinitions(getTestResources()).filter(td -> td.response() != null)
                 .map(td -> Arguments.of(td.testName(), td.apiKey(), td.header(), td.response()));
+    }
+
+    @BeforeEach
+    public void beforeEach() {
+        filter = new BrokerAddressFilter(virtualCluster);
+        invoker = FilterInvokers.from(filter);
+        when(virtualCluster.getBrokerAddress(0)).thenReturn(HostPort.parse("downstream:19199"));
     }
 
     @ParameterizedTest(name = "{0}")
@@ -111,4 +103,5 @@ class MultiTenantTransformationFilterTest {
         var filtered = responseWriter.apply(apiMessageCaptor.getValue(), header.requestApiVersion());
         assertEquals(responseTestDef.expectedPatch(), JsonDiff.asJson(marshalled, filtered));
     }
+
 }
