@@ -18,8 +18,6 @@ import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
-import org.apache.kafka.clients.consumer.KafkaConsumer;
-import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.StringDeserializer;
@@ -58,12 +56,12 @@ public class KroxyStandaloneIT {
                 .toYaml();
 
         try (var ignored = startProxy(config, tempDir)) {
-            try (var producer = CloseableProducer.wrap(new KafkaProducer<String, String>(Map.of(
+            try (var producer = CloseableProducer.<String, String> create(Map.of(
                     ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
                     ProducerConfig.CLIENT_ID_CONFIG, "shouldModifyProduceMessage",
                     ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
                     ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
-                    ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000)))) {
+                    ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000))) {
                 producer.send(new ProducerRecord<>(TOPIC_1, "my-key", PLAINTEXT)).get();
                 producer.send(new ProducerRecord<>(TOPIC_2, "my-key", PLAINTEXT)).get();
                 producer.flush();
@@ -71,12 +69,12 @@ public class KroxyStandaloneIT {
 
             ConsumerRecords<String, String> records1;
             ConsumerRecords<String, String> records2;
-            try (var consumer = CloseableConsumer.wrap(new KafkaConsumer<String, String>(Map.of(
+            try (var consumer = CloseableConsumer.<String, String> create(Map.of(
                     ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
                     ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
                     ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
                     ConsumerConfig.GROUP_ID_CONFIG, "my-group-id",
-                    ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")))) {
+                    ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
                 consumer.subscribe(Set.of(TOPIC_1));
                 records1 = consumer.poll(Duration.ofSeconds(10));
                 consumer.subscribe(Set.of(TOPIC_2));
