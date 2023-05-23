@@ -100,5 +100,6 @@ If you do not control the Kafka cluster you can use a protocol filter to rewrite
 Single proxy instance::
 
 Proxy cluster::
+//-
 
 == More about filters
