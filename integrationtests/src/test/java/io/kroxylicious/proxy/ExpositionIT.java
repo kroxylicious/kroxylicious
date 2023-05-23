@@ -28,8 +28,6 @@ import org.apache.kafka.common.TopicPartitionInfo;
 import org.apache.kafka.common.config.SslConfigs;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.kafka.common.serialization.StringSerializer;
-import org.assertj.core.api.Condition;
-import org.assertj.core.condition.DoesNotHave;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
@@ -50,6 +48,8 @@ import static org.testcontainers.shaded.org.awaitility.Awaitility.await;
 
 /**
  * Integration tests that focus on how Kroxylicious presents itself to the network.
+ *
+ * TODO corner case test - verify kroxy's ability to recover for a temporary port already bound condition.
  */
 @ExtendWith(KafkaClusterExtension.class)
 public class ExpositionIT {
