@@ -59,11 +59,17 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
 
     @Override
     public void onFindCoordinatorResponse(ResponseHeaderData header, FindCoordinatorResponseData data, KrpcFilterContext context) {
+        // Version 4+
         for (Coordinator coordinator : data.coordinators()) {
             // If the coordinator is not yet available, the server returns a nodeId of -1.
             if (coordinator.nodeId() >= 0) {
                 apply(context, coordinator, Coordinator::nodeId, Coordinator::host, Coordinator::port, Coordinator::setHost, Coordinator::setPort);
             }
+        }
+        // Version 3
+        if (data.nodeId() >= 0 && data.host() != null && !data.host().isEmpty() && data.port() > 0) {
+            apply(context, data, FindCoordinatorResponseData::nodeId, FindCoordinatorResponseData::host, FindCoordinatorResponseData::port,
+                    FindCoordinatorResponseData::setHost, FindCoordinatorResponseData::setPort);
         }
         context.forwardResponse(header, data);
     }
