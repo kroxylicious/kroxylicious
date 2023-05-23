@@ -38,10 +38,8 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRebalanceListener;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
-import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.consumer.OffsetResetStrategy;
-import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
@@ -313,11 +311,11 @@ public class MultiTenantIT {
     }
 
     private void runConsumerInOrderToCreateGroup(String proxyAddress, String groupId, NewTopic topic, ConsumerStyle consumerStyle) throws Exception {
-        try (var consumer = CloseableConsumer.wrap(new KafkaConsumer<String, String>(commonConfig(proxyAddress,
+        try (var consumer = CloseableConsumer.<String, String> create(commonConfig(proxyAddress,
                 Map.of(ConsumerConfig.GROUP_ID_CONFIG, groupId, ConsumerConfig.ALLOW_AUTO_CREATE_TOPICS_CONFIG, Boolean.FALSE.toString(),
                         ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, Boolean.FALSE.toString(), ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
                         OffsetResetStrategy.EARLIEST.toString(), ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
-                        ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class))))) {
+                        ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class)))) {
 
             if (consumerStyle == ConsumerStyle.ASSIGN) {
                 consumer.assign(List.of(new TopicPartition(topic.name(), 0)));
@@ -363,12 +361,12 @@ public class MultiTenantIT {
     }
 
     private void consumeAndVerify(String address, String topicName, String groupId, Deque<Predicate<ConsumerRecord<String, String>>> expected, boolean offsetCommit) {
-        try (var consumer = CloseableConsumer.wrap(new KafkaConsumer<String, String>(commonConfig(address,
+        try (var consumer = CloseableConsumer.<String, String> create(commonConfig(address,
                 Map.of(ConsumerConfig.GROUP_ID_CONFIG, groupId, ConsumerConfig.ALLOW_AUTO_CREATE_TOPICS_CONFIG, Boolean.FALSE.toString(),
                         ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, Boolean.FALSE.toString(), ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
                         OffsetResetStrategy.EARLIEST.toString(), ConsumerConfig.MAX_POLL_RECORDS_CONFIG, String.format("%d", expected.size()),
                         ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class, ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
-                        StringDeserializer.class))))) {
+                        StringDeserializer.class)))) {
 
             var topicPartitions = List.of(new TopicPartition(topicName, 0));
             consumer.assign(topicPartitions);
@@ -395,9 +393,9 @@ public class MultiTenantIT {
 
     private void produceAndVerify(String address, Stream<ProducerRecord<String, String>> records) throws Exception {
 
-        try (var producer = CloseableProducer.wrap(new KafkaProducer<String, String>(commonConfig(address,
+        try (var producer = CloseableProducer.<String, String> create(commonConfig(address,
                 Map.of(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class, ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
-                        ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000))))) {
+                        ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000)))) {
 
             records.forEach(rec -> {
                 RecordMetadata recordMetadata = null;
