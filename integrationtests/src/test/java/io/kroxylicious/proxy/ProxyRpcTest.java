@@ -88,7 +88,8 @@ public class ProxyRpcTest {
     private static Stream<Scenario> scenarios() {
         Map<ApiAndVersion, ApiMessage> requestSamples = ApiMessageSampleGenerator.createRequestSamples();
         Map<ApiAndVersion, ApiMessage> responseSamples = ApiMessageSampleGenerator.createResponseSamples();
-        return Arrays.stream(ApiKeys.values()).filter(apiKeys -> !SKIPPED_API_KEYS.contains(apiKeys)).flatMap(apiKeys -> toScenario(requestSamples, responseSamples, apiKeys));
+        return Arrays.stream(ApiKeys.values()).filter(apiKeys -> !SKIPPED_API_KEYS.contains(apiKeys))
+                .flatMap(apiKeys -> toScenario(requestSamples, responseSamples, apiKeys));
     }
 
     private static final ApiAndVersion v0HeaderVersion = new ApiAndVersion(CONTROLLED_SHUTDOWN, (short) 0);
