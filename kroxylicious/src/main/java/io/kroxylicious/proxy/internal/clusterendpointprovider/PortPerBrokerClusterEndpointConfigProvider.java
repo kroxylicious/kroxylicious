@@ -38,8 +38,8 @@ public class PortPerBrokerClusterEndpointConfigProvider implements ClusterEndpoi
 
     private final HostPort bootstrapAddress;
 
-    public static final String LITERAL_PORT_NUMBER = "$(portNumber)";
-    public static final String LITERAL_NODE_ID = "$(nodeId)";
+    private static final String LITERAL_PORT_NUMBER = "$(portNumber)";
+    private static final String LITERAL_NODE_ID = "$(nodeId)";
     private static final Pattern ANCHORED_PORT_NUMBER_TOKEN_RE = Pattern.compile(":" + Pattern.quote(LITERAL_PORT_NUMBER) + "$");
     private final String brokerAddressPattern;
     private final int brokerStartPort;
