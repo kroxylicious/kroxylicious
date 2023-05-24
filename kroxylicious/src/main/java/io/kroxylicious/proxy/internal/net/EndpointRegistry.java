@@ -6,7 +6,6 @@
 
 package io.kroxylicious.proxy.internal.net;
 
-import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
@@ -26,7 +25,6 @@ import io.netty.channel.Channel;
 import io.netty.util.AttributeKey;
 
 import io.kroxylicious.proxy.config.VirtualCluster;
-import io.kroxylicious.proxy.service.HostPort;
 
 /**
  * The endpoint registry is responsible for associating network endpoints with broker/bootstrap addresses of virtual clusters.
@@ -154,20 +152,14 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
             return current.registrationStage();
         }
 
-        var bootstrapEndpointFuture = createEndpointAndBind(virtualCluster.getClusterBootstrapAddress(), null, virtualCluster);
+        var key = Endpoint.createEndpoint(virtualCluster.getBindAddress().orElse(null), virtualCluster.getClusterBootstrapAddress().port(), virtualCluster.isUseTls());
+        var bootstrapEndpointFuture = registerBinding(key,
+                virtualCluster.getClusterBootstrapAddress().host(),
+                VirtualClusterBinding.createBinding(virtualCluster, null)).toCompletableFuture();
 
-        var initialBindings = new LinkedHashMap<HostPort, Integer>();
-        for (int i = 0; i < virtualCluster.getNumberOfBrokerEndpointsToPrebind(); i++) {
-            if (!virtualCluster.getBrokerAddress(i).equals(virtualCluster.getClusterBootstrapAddress())) {
-                initialBindings.put(virtualCluster.getBrokerAddress(i), i);
-            }
-        }
-        vcr.reconciliationEntry().set(createReconcileEntry(Set.copyOf(initialBindings.values()), CompletableFuture.completedFuture(null)));
+        vcr.reconciliationEntry().set(createReconcileEntry(Set.of(), CompletableFuture.completedFuture(null)));
 
-        var brokerEndpointFutures = initialBindings.entrySet().stream().map(e -> createEndpointAndBind(e.getKey(), e.getValue(), virtualCluster)).toList();
-        var allBrokerEndpointFutures = allOfFutures(brokerEndpointFutures.stream());
-
-        var unused = CompletableFuture.allOf(bootstrapEndpointFuture, allBrokerEndpointFutures).whenComplete((u, t) -> {
+        var unused = bootstrapEndpointFuture.whenComplete((u, t) -> {
             var future = vcr.registrationStage.toCompletableFuture();
             if (t != null) {
                 // Try to roll back any bindings that were successfully made
@@ -193,13 +185,6 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
         });
 
         return vcr.registrationStage();
-    }
-
-    private CompletableFuture<Endpoint> createEndpointAndBind(HostPort hostPort, Integer nodeId, VirtualCluster virtualCluster) {
-        var key = Endpoint.createEndpoint(virtualCluster.getBindAddress().orElse(null), hostPort.port(), virtualCluster.isUseTls());
-        VirtualClusterBinding virtualClusterBinding = VirtualClusterBinding.createBinding(virtualCluster, nodeId);
-        return registerBinding(key, hostPort.host(), virtualClusterBinding).toCompletableFuture();
-        // TODO cache endpoints when future completes
     }
 
     /**

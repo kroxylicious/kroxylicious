@@ -99,7 +99,6 @@ class PortPerBrokerClusterEndpointConfigProviderTest {
         assertThat(provider.getClusterBootstrapAddress()).isEqualTo(parse("localhost:1235"));
         assertThat(provider.getBrokerAddress(0)).isEqualTo(parse("localhost:1236"));
         assertThat(provider.getBrokerAddress(1)).isEqualTo(parse("localhost:1237"));
-        assertThat(provider.getNumberOfBrokerEndpointsToPrebind()).isEqualTo(1);
     }
 
     @Test
@@ -109,7 +108,6 @@ class PortPerBrokerClusterEndpointConfigProviderTest {
         assertThat(provider.getClusterBootstrapAddress()).isEqualTo(parse("cluster.kafka.example.com:1235"));
         assertThat(provider.getBrokerAddress(0)).isEqualTo(parse("broker.kafka.example.com:1236"));
         assertThat(provider.getBrokerAddress(1)).isEqualTo(parse("broker.kafka.example.com:1237"));
-        assertThat(provider.getNumberOfBrokerEndpointsToPrebind()).isEqualTo(1);
     }
 
     @Test
@@ -119,6 +117,5 @@ class PortPerBrokerClusterEndpointConfigProviderTest {
         assertThat(provider.getClusterBootstrapAddress()).isEqualTo(parse("cluster.kafka.example.com:1235"));
         assertThat(provider.getBrokerAddress(0)).isEqualTo(parse("broker0.kafka.example.com:1236"));
         assertThat(provider.getBrokerAddress(1)).isEqualTo(parse("broker1.kafka.example.com:1237"));
-        assertThat(provider.getNumberOfBrokerEndpointsToPrebind()).isEqualTo(1);
     }
 }

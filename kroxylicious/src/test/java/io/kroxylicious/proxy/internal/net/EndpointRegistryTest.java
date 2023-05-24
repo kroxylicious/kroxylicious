@@ -119,18 +119,6 @@ class EndpointRegistryTest {
     }
 
     @Test
-    public void registerVirtualClusterWithBrokerAddress() throws Exception {
-        configureVirtualClusterMock(virtualCluster1, "localhost:9192", false);
-        when(virtualCluster1.getNumberOfBrokerEndpointsToPrebind()).thenReturn(1);
-        when(virtualCluster1.getBrokerAddress(0)).thenReturn(HostPort.parse("localhost:9193"));
-
-        var f = endpointRegistry.registerVirtualCluster(virtualCluster1).toCompletableFuture();
-        verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(null, 9192, false), createTestNetworkBindRequest(null, 9193, false));
-        assertThat(f.isDone()).isTrue();
-        assertThat(f.get()).isEqualTo(Endpoint.createEndpoint(null, 9192, false));
-    }
-
-    @Test
     public void registerRejectsDuplicatedBinding() throws Exception {
         configureVirtualClusterMock(virtualCluster1, "localhost:9191", false);
         configureVirtualClusterMock(virtualCluster2, "localhost:9191", false);
@@ -159,31 +147,6 @@ class EndpointRegistryTest {
         var f = endpointRegistry.registerVirtualCluster(virtualCluster1).toCompletableFuture();
         verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(null, 9191, false, CompletableFuture.failedFuture(new IOException("mocked port in use"))));
         assertThat(f.isDone()).isTrue();
-        var executionException = assertThrows(ExecutionException.class, f::get);
-        assertThat(executionException).hasRootCauseInstanceOf(IOException.class);
-
-        assertThat(endpointRegistry.isRegistered(virtualCluster1)).isFalse();
-        assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(0);
-    }
-
-    @Test
-    public void registerVirtualClusterFailsDueToExternalPortConflictOnSecondAddress() throws Exception {
-        configureVirtualClusterMock(virtualCluster1, "localhost:9192", false);
-        when(virtualCluster1.getNumberOfBrokerEndpointsToPrebind()).thenReturn(1);
-        when(virtualCluster1.getBrokerAddress(0)).thenReturn(HostPort.parse("localhost:9193"));
-
-        var f = endpointRegistry.registerVirtualCluster(virtualCluster1).toCompletableFuture();
-        verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(null, 9192, false),
-                createTestNetworkBindRequest(null, 9193, false, CompletableFuture.failedFuture(new IOException("mocked port in use"))));
-        // it won't be done yet
-        assertThat(f.isDone()).isFalse();
-
-        // the port conflict on port 9193 should mean it tries to unbind 9192.
-        verifyAndProcessNetworkEventQueue(createTestNetworkUnbindRequest(9192, false));
-
-        assertThat(f.isDone()).isTrue();
-
-        // now the unbinds are done, the future should be done.
         var executionException = assertThrows(ExecutionException.class, f::get);
         assertThat(executionException).hasRootCauseInstanceOf(IOException.class);
 
@@ -245,22 +208,6 @@ class EndpointRegistryTest {
         var unbindFuture2 = endpointRegistry.deregisterVirtualCluster(virtualCluster2).toCompletableFuture();
         verifyAndProcessNetworkEventQueue(createTestNetworkUnbindRequest(9191, true));
         assertThat(unbindFuture2.isDone()).isTrue();
-    }
-
-    @Test
-    public void deregisterVirtualClusterWithBrokerAddress() throws Exception {
-        configureVirtualClusterMock(virtualCluster1, "localhost:9192", false);
-        when(virtualCluster1.getNumberOfBrokerEndpointsToPrebind()).thenReturn(1);
-        when(virtualCluster1.getBrokerAddress(0)).thenReturn(HostPort.parse("localhost:9193"));
-
-        var f = endpointRegistry.registerVirtualCluster(virtualCluster1).toCompletableFuture();
-        verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(null, 9192, false), createTestNetworkBindRequest(null, 9193, false));
-        assertThat(f.isDone()).isTrue();
-        assertThat(f.get()).isEqualTo(Endpoint.createEndpoint(null, 9192, false));
-
-        var unbindFuture = endpointRegistry.deregisterVirtualCluster(virtualCluster1).toCompletableFuture();
-        verifyAndProcessNetworkEventQueue(createTestNetworkUnbindRequest(9193, false), createTestNetworkUnbindRequest(9192, false));
-        assertThat(unbindFuture.isDone()).isTrue();
     }
 
     @Test
@@ -362,20 +309,6 @@ class EndpointRegistryTest {
     }
 
     @Test
-    public void resolveBrokerAddress() throws Exception {
-        configureVirtualClusterMock(virtualCluster1, "localhost:9192", false);
-        when(virtualCluster1.getNumberOfBrokerEndpointsToPrebind()).thenReturn(1);
-        when(virtualCluster1.getBrokerAddress(0)).thenReturn(HostPort.parse("localhost:9193"));
-
-        var f = endpointRegistry.registerVirtualCluster(virtualCluster1).toCompletableFuture();
-        verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(null, 9192, false), createTestNetworkBindRequest(null, 9193, false));
-        assertThat(f.isDone()).isTrue();
-
-        var binding = endpointRegistry.resolve(new Endpoint(null, 9193, false), null).toCompletableFuture().get();
-        assertThat(binding).isEqualTo(VirtualClusterBinding.createBinding(virtualCluster1, 0));
-    }
-
-    @Test
     public void bindingAddressEndpointSeparation() throws Exception {
         var bindingAddress1 = "127.0.0.1";
         configureVirtualClusterMock(virtualCluster1, "localhost:9192", false);
@@ -407,84 +340,122 @@ class EndpointRegistryTest {
     @Test
     public void reconcileAddsNewBrokerEndpoint() throws Exception {
         configureVirtualClusterMock(virtualCluster1, "localhost:9192", false);
-        when(virtualCluster1.getNumberOfBrokerEndpointsToPrebind()).thenReturn(1);
-        when(virtualCluster1.getBrokerAddress(0)).thenReturn(HostPort.parse("localhost:9193"));
 
         var rgf = endpointRegistry.registerVirtualCluster(virtualCluster1).toCompletableFuture();
-        verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(null, 9192, false),
-                createTestNetworkBindRequest(null, 9193, false));
+        verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(null, 9192, false));
         assertThat(rgf.isDone()).isTrue();
-        assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(2);
+        assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(1);
 
-        // Simulates a new node (1) being added to the cluster
-        when(virtualCluster1.getBrokerAddress(1)).thenReturn(HostPort.parse("localhost:9194"));
+        // Add a new node (1) to the cluster
+        when(virtualCluster1.getBrokerAddress(0)).thenReturn(HostPort.parse("localhost:9193"));
 
-        var rcf = endpointRegistry.reconcile(virtualCluster1, Set.of(0, 1)).toCompletableFuture();
-        verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(null, 9194, false));
+        var rcf = endpointRegistry.reconcile(virtualCluster1, Set.of(0)).toCompletableFuture();
+        verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(null, 9193, false));
         assertThat(rcf.isDone()).isTrue();
         assertThat(rcf.get()).isNull();
-        assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(3);
+        assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(2);
     }
 
     @Test
-    public void reconcileRemovesExistingBrokerEndpoint() throws Exception {
+    public void resolveReconciledBrokerAddress() throws Exception {
         configureVirtualClusterMock(virtualCluster1, "localhost:9192", false);
-        when(virtualCluster1.getNumberOfBrokerEndpointsToPrebind()).thenReturn(2);
-        when(virtualCluster1.getBrokerAddress(0)).thenReturn(HostPort.parse("localhost:9193"));
-        when(virtualCluster1.getBrokerAddress(1)).thenReturn(HostPort.parse("localhost:9194"));
 
         var rgf = endpointRegistry.registerVirtualCluster(virtualCluster1).toCompletableFuture();
-        verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(null, 9192, false),
-                createTestNetworkBindRequest(null, 9193, false),
-                createTestNetworkBindRequest(null, 9194, false));
+        verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(null, 9192, false));
         assertThat(rgf.isDone()).isTrue();
-        assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(3);
+        assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(1);
 
-        // Simulates the removal of node (0) from the cluster
+        // Add a new node (1) to the cluster
+        when(virtualCluster1.getBrokerAddress(0)).thenReturn(HostPort.parse("localhost:9193"));
 
-        var rcf = endpointRegistry.reconcile(virtualCluster1, Set.of(1)).toCompletableFuture();
-        verifyAndProcessNetworkEventQueue(createTestNetworkUnbindRequest(9193, false));
+        var rcf = endpointRegistry.reconcile(virtualCluster1, Set.of(0)).toCompletableFuture();
+        verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(null, 9193, false));
         assertThat(rcf.isDone()).isTrue();
         assertThat(rcf.get()).isNull();
+        assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(2);
+
+        var binding = endpointRegistry.resolve(new Endpoint(null, 9193, false), null).toCompletableFuture().get();
+        assertThat(binding).isEqualTo(VirtualClusterBinding.createBinding(virtualCluster1, 0));
+    }
+
+    @Test
+    public void reconcileRemovesBrokerEndpoint() throws Exception {
+        configureVirtualClusterMock(virtualCluster1, "localhost:9192", false);
+
+        var rgf = endpointRegistry.registerVirtualCluster(virtualCluster1).toCompletableFuture();
+        verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(null, 9192, false));
+        assertThat(rgf.isDone()).isTrue();
+
+        // Add brokers (0,1) to the cluster
+        when(virtualCluster1.getBrokerAddress(0)).thenReturn(HostPort.parse("localhost:9193"));
+
+        var rcf1 = endpointRegistry.reconcile(virtualCluster1, Set.of(0)).toCompletableFuture();
+        verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(null, 9193, false));
+        assertThat(rcf1.isDone()).isTrue();
+
+        when(virtualCluster1.getBrokerAddress(1)).thenReturn(HostPort.parse("localhost:9194"));
+        var rcf2 = endpointRegistry.reconcile(virtualCluster1, Set.of(0, 1)).toCompletableFuture();
+        verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(null, 9194, false));
+        assertThat(rcf2.isDone()).isTrue();
+        assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(3);
+
+        // Removal of node (0) from the cluster
+        var rcf3 = endpointRegistry.reconcile(virtualCluster1, Set.of(1)).toCompletableFuture();
+        verifyAndProcessNetworkEventQueue(createTestNetworkUnbindRequest(9193, false));
+        assertThat(rcf3.isDone()).isTrue();
+        assertThat(rcf3.get()).isNull();
         assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(2);
     }
 
     @Test
     public void reconcileNoOp() throws Exception {
         configureVirtualClusterMock(virtualCluster1, "localhost:9192", false);
-        when(virtualCluster1.getNumberOfBrokerEndpointsToPrebind()).thenReturn(2);
-        when(virtualCluster1.getBrokerAddress(0)).thenReturn(HostPort.parse("localhost:9193"));
-        when(virtualCluster1.getBrokerAddress(1)).thenReturn(HostPort.parse("localhost:9194"));
 
         var rgf = endpointRegistry.registerVirtualCluster(virtualCluster1).toCompletableFuture();
-        verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(null, 9192, false),
-                createTestNetworkBindRequest(null, 9193, false),
-                createTestNetworkBindRequest(null, 9194, false));
+        verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(null, 9192, false));
         assertThat(rgf.isDone()).isTrue();
+
+        // Add broker to the cluster
+        when(virtualCluster1.getBrokerAddress(0)).thenReturn(HostPort.parse("localhost:9193"));
+        var rcf1 = endpointRegistry.reconcile(virtualCluster1, Set.of(0)).toCompletableFuture();
+        verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(null, 9193, false));
+        assertThat(rcf1.isDone()).isTrue();
+
+        // Add 2nd broker to the cluster
+        when(virtualCluster1.getBrokerAddress(1)).thenReturn(HostPort.parse("localhost:9194"));
+        var rcf2 = endpointRegistry.reconcile(virtualCluster1, Set.of(0, 1)).toCompletableFuture();
+        verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(null, 9194, false));
+        assertThat(rcf2.isDone()).isTrue();
         assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(3);
 
-        var rcf = endpointRegistry.reconcile(virtualCluster1, Set.of(0, 1)).toCompletableFuture();
-        assertThat(rcf.isDone()).isTrue();
-        assertThat(rcf.get()).isNull();
+        var rcf3 = endpointRegistry.reconcile(virtualCluster1, Set.of(0, 1)).toCompletableFuture();
+        assertThat(rcf3.isDone()).isTrue();
+        assertThat(rcf3.get()).isNull();
         assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(3);
     }
 
     @Test
     public void reconcileDeleteWhilstPreviousAddInFlight() throws Exception {
         configureVirtualClusterMock(virtualCluster1, "localhost:9192", false);
-        when(virtualCluster1.getNumberOfBrokerEndpointsToPrebind()).thenReturn(1);
         when(virtualCluster1.getBrokerAddress(0)).thenReturn(HostPort.parse("localhost:9193"));
         when(virtualCluster1.getBrokerAddress(1)).thenReturn(HostPort.parse("localhost:9194"));
 
         var rgf = endpointRegistry.registerVirtualCluster(virtualCluster1).toCompletableFuture();
-        verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(null, 9192, false),
-                createTestNetworkBindRequest(null, 9193, false));
+        verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(null, 9192, false));
         assertThat(rgf.isDone()).isTrue();
+        assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(1);
+
+        // reconcile adds a node
+        when(virtualCluster1.getBrokerAddress(0)).thenReturn(HostPort.parse("localhost:9193"));
+        var add1 = endpointRegistry.reconcile(virtualCluster1, Set.of(0)).toCompletableFuture();
+        verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(null, 9193, false));
+        assertThat(add1.isDone()).isTrue();
         assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(2);
 
-        // reconcile adds a node, but the network event is not processed yet so the future won't complete
-        var add = endpointRegistry.reconcile(virtualCluster1, Set.of(0, 1)).toCompletableFuture();
-        assertThat(add.isDone()).isFalse();
+        // reconcile adds a node, but organise so the network event is not processed yet so the future won't complete
+        when(virtualCluster1.getBrokerAddress(1)).thenReturn(HostPort.parse("localhost:9194"));
+        var add2 = endpointRegistry.reconcile(virtualCluster1, Set.of(0, 1)).toCompletableFuture();
+        assertThat(add2.isDone()).isFalse();
         assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(3);
 
         // reconcile now removes a node, it cannot be process because it is behind the add
@@ -494,8 +465,8 @@ class EndpointRegistryTest {
 
         // process add event
         verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(null, 9194, false));
-        assertThat(add.isDone()).isTrue();
-        assertThat(add.get()).isNull();
+        assertThat(add2.isDone()).isTrue();
+        assertThat(add2.get()).isNull();
         assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(3);
         assertThat(remove.isDone()).isFalse();
 

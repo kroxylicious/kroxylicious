@@ -154,11 +154,6 @@ public class VirtualCluster implements ClusterEndpointConfigProvider, UpstreamEn
     }
 
     @Override
-    public int getNumberOfBrokerEndpointsToPrebind() {
-        return endpointProvider.getNumberOfBrokerEndpointsToPrebind();
-    }
-
-    @Override
     public Optional<String> getBindAddress() {
         return endpointProvider.getBindAddress();
     }
