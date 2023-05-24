@@ -115,7 +115,7 @@ public class PortPerBrokerClusterEndpointConfigProvider implements ClusterEndpoi
                 throw new IllegalArgumentException("brokerStartPort cannot be less than 1");
             }
             if (this.numberOfBrokerPorts < 1) {
-                throw new IllegalArgumentException("brokerStartPort cannot be less than 1");
+                throw new IllegalArgumentException("numberOfBrokerPorts cannot be less than 1");
             }
 
             IntStream.range(this.brokerStartPort, this.brokerStartPort + this.numberOfBrokerPorts).filter(i -> i == bootstrapAddress.port()).findFirst().ifPresent(i -> {
