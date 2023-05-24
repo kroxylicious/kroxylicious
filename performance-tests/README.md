@@ -14,14 +14,14 @@ mvn clean install -DskipTests
 
 ### 2. Run Benchmarks
 
-To run a benchmark like [io.kroxylicious.InvokerScalabilityBenchmark](src/main/java/io/kroxylicious/InvokerScalabilityBenchmark.java)
+To run a benchmark like [io.kroxylicious.benchmarks.InvokerScalabilityBenchmark](src/main/java/io/kroxylicious/benchmarks/InvokerScalabilityBenchmark.java)
 ```shell
-java -jar performance-tests/target/benchmarks.jar io.kroxylicious.InvokerScalabilityBenchmark
+java -jar performance-tests/target/benchmarks.jar io.kroxylicious.benchmarks.InvokerScalabilityBenchmark
 ```
 
 To run specific benchmark methods within a class you can use regex matching:
 ```shell
-java -jar performance-tests/target/benchmarks.jar io.kroxylicious.InvokerScalabilityBenchmark.methodNamePattern
+java -jar performance-tests/target/benchmarks.jar io.kroxylicious.benchmarks.InvokerScalabilityBenchmark.methodNamePattern
 ```
 
 You can control how many forks/warmup-iterations/iterations etc. are run using command line arguments, see 

@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious;
+package io.kroxylicious.proxy.filter;
 
 import org.apache.kafka.common.message.AddOffsetsToTxnRequestData;
 import org.apache.kafka.common.message.AddOffsetsToTxnResponseData;
@@ -147,155 +147,15 @@ import org.apache.kafka.common.message.WriteTxnMarkersResponseData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 
-import io.kroxylicious.proxy.filter.AddOffsetsToTxnRequestFilter;
-import io.kroxylicious.proxy.filter.AddOffsetsToTxnResponseFilter;
-import io.kroxylicious.proxy.filter.AddPartitionsToTxnRequestFilter;
-import io.kroxylicious.proxy.filter.AddPartitionsToTxnResponseFilter;
-import io.kroxylicious.proxy.filter.AllocateProducerIdsRequestFilter;
-import io.kroxylicious.proxy.filter.AllocateProducerIdsResponseFilter;
-import io.kroxylicious.proxy.filter.AlterClientQuotasRequestFilter;
-import io.kroxylicious.proxy.filter.AlterClientQuotasResponseFilter;
-import io.kroxylicious.proxy.filter.AlterConfigsRequestFilter;
-import io.kroxylicious.proxy.filter.AlterConfigsResponseFilter;
-import io.kroxylicious.proxy.filter.AlterPartitionReassignmentsRequestFilter;
-import io.kroxylicious.proxy.filter.AlterPartitionReassignmentsResponseFilter;
-import io.kroxylicious.proxy.filter.AlterPartitionRequestFilter;
-import io.kroxylicious.proxy.filter.AlterPartitionResponseFilter;
-import io.kroxylicious.proxy.filter.AlterReplicaLogDirsRequestFilter;
-import io.kroxylicious.proxy.filter.AlterReplicaLogDirsResponseFilter;
-import io.kroxylicious.proxy.filter.AlterUserScramCredentialsRequestFilter;
-import io.kroxylicious.proxy.filter.AlterUserScramCredentialsResponseFilter;
-import io.kroxylicious.proxy.filter.ApiVersionsRequestFilter;
-import io.kroxylicious.proxy.filter.ApiVersionsResponseFilter;
-import io.kroxylicious.proxy.filter.BeginQuorumEpochRequestFilter;
-import io.kroxylicious.proxy.filter.BeginQuorumEpochResponseFilter;
-import io.kroxylicious.proxy.filter.BrokerHeartbeatRequestFilter;
-import io.kroxylicious.proxy.filter.BrokerHeartbeatResponseFilter;
-import io.kroxylicious.proxy.filter.BrokerRegistrationRequestFilter;
-import io.kroxylicious.proxy.filter.BrokerRegistrationResponseFilter;
-import io.kroxylicious.proxy.filter.ControlledShutdownRequestFilter;
-import io.kroxylicious.proxy.filter.ControlledShutdownResponseFilter;
-import io.kroxylicious.proxy.filter.CreateAclsRequestFilter;
-import io.kroxylicious.proxy.filter.CreateAclsResponseFilter;
-import io.kroxylicious.proxy.filter.CreateDelegationTokenRequestFilter;
-import io.kroxylicious.proxy.filter.CreateDelegationTokenResponseFilter;
-import io.kroxylicious.proxy.filter.CreatePartitionsRequestFilter;
-import io.kroxylicious.proxy.filter.CreatePartitionsResponseFilter;
-import io.kroxylicious.proxy.filter.CreateTopicsRequestFilter;
-import io.kroxylicious.proxy.filter.CreateTopicsResponseFilter;
-import io.kroxylicious.proxy.filter.DeleteAclsRequestFilter;
-import io.kroxylicious.proxy.filter.DeleteAclsResponseFilter;
-import io.kroxylicious.proxy.filter.DeleteGroupsRequestFilter;
-import io.kroxylicious.proxy.filter.DeleteGroupsResponseFilter;
-import io.kroxylicious.proxy.filter.DeleteRecordsRequestFilter;
-import io.kroxylicious.proxy.filter.DeleteRecordsResponseFilter;
-import io.kroxylicious.proxy.filter.DeleteTopicsRequestFilter;
-import io.kroxylicious.proxy.filter.DeleteTopicsResponseFilter;
-import io.kroxylicious.proxy.filter.DescribeAclsRequestFilter;
-import io.kroxylicious.proxy.filter.DescribeAclsResponseFilter;
-import io.kroxylicious.proxy.filter.DescribeClientQuotasRequestFilter;
-import io.kroxylicious.proxy.filter.DescribeClientQuotasResponseFilter;
-import io.kroxylicious.proxy.filter.DescribeClusterRequestFilter;
-import io.kroxylicious.proxy.filter.DescribeClusterResponseFilter;
-import io.kroxylicious.proxy.filter.DescribeConfigsRequestFilter;
-import io.kroxylicious.proxy.filter.DescribeConfigsResponseFilter;
-import io.kroxylicious.proxy.filter.DescribeDelegationTokenRequestFilter;
-import io.kroxylicious.proxy.filter.DescribeDelegationTokenResponseFilter;
-import io.kroxylicious.proxy.filter.DescribeGroupsRequestFilter;
-import io.kroxylicious.proxy.filter.DescribeGroupsResponseFilter;
-import io.kroxylicious.proxy.filter.DescribeLogDirsRequestFilter;
-import io.kroxylicious.proxy.filter.DescribeLogDirsResponseFilter;
-import io.kroxylicious.proxy.filter.DescribeProducersRequestFilter;
-import io.kroxylicious.proxy.filter.DescribeProducersResponseFilter;
-import io.kroxylicious.proxy.filter.DescribeQuorumRequestFilter;
-import io.kroxylicious.proxy.filter.DescribeQuorumResponseFilter;
-import io.kroxylicious.proxy.filter.DescribeTransactionsRequestFilter;
-import io.kroxylicious.proxy.filter.DescribeTransactionsResponseFilter;
-import io.kroxylicious.proxy.filter.DescribeUserScramCredentialsRequestFilter;
-import io.kroxylicious.proxy.filter.DescribeUserScramCredentialsResponseFilter;
-import io.kroxylicious.proxy.filter.ElectLeadersRequestFilter;
-import io.kroxylicious.proxy.filter.ElectLeadersResponseFilter;
-import io.kroxylicious.proxy.filter.EndQuorumEpochRequestFilter;
-import io.kroxylicious.proxy.filter.EndQuorumEpochResponseFilter;
-import io.kroxylicious.proxy.filter.EndTxnRequestFilter;
-import io.kroxylicious.proxy.filter.EndTxnResponseFilter;
-import io.kroxylicious.proxy.filter.EnvelopeRequestFilter;
-import io.kroxylicious.proxy.filter.EnvelopeResponseFilter;
-import io.kroxylicious.proxy.filter.ExpireDelegationTokenRequestFilter;
-import io.kroxylicious.proxy.filter.ExpireDelegationTokenResponseFilter;
-import io.kroxylicious.proxy.filter.FetchRequestFilter;
-import io.kroxylicious.proxy.filter.FetchResponseFilter;
-import io.kroxylicious.proxy.filter.FetchSnapshotRequestFilter;
-import io.kroxylicious.proxy.filter.FetchSnapshotResponseFilter;
-import io.kroxylicious.proxy.filter.FilterInvoker;
-import io.kroxylicious.proxy.filter.FindCoordinatorRequestFilter;
-import io.kroxylicious.proxy.filter.FindCoordinatorResponseFilter;
-import io.kroxylicious.proxy.filter.HeartbeatRequestFilter;
-import io.kroxylicious.proxy.filter.HeartbeatResponseFilter;
-import io.kroxylicious.proxy.filter.IncrementalAlterConfigsRequestFilter;
-import io.kroxylicious.proxy.filter.IncrementalAlterConfigsResponseFilter;
-import io.kroxylicious.proxy.filter.InitProducerIdRequestFilter;
-import io.kroxylicious.proxy.filter.InitProducerIdResponseFilter;
-import io.kroxylicious.proxy.filter.JoinGroupRequestFilter;
-import io.kroxylicious.proxy.filter.JoinGroupResponseFilter;
-import io.kroxylicious.proxy.filter.KrpcFilter;
-import io.kroxylicious.proxy.filter.KrpcFilterContext;
-import io.kroxylicious.proxy.filter.LeaderAndIsrRequestFilter;
-import io.kroxylicious.proxy.filter.LeaderAndIsrResponseFilter;
-import io.kroxylicious.proxy.filter.LeaveGroupRequestFilter;
-import io.kroxylicious.proxy.filter.LeaveGroupResponseFilter;
-import io.kroxylicious.proxy.filter.ListGroupsRequestFilter;
-import io.kroxylicious.proxy.filter.ListGroupsResponseFilter;
-import io.kroxylicious.proxy.filter.ListOffsetsRequestFilter;
-import io.kroxylicious.proxy.filter.ListOffsetsResponseFilter;
-import io.kroxylicious.proxy.filter.ListPartitionReassignmentsRequestFilter;
-import io.kroxylicious.proxy.filter.ListPartitionReassignmentsResponseFilter;
-import io.kroxylicious.proxy.filter.ListTransactionsRequestFilter;
-import io.kroxylicious.proxy.filter.ListTransactionsResponseFilter;
-import io.kroxylicious.proxy.filter.MetadataRequestFilter;
-import io.kroxylicious.proxy.filter.MetadataResponseFilter;
-import io.kroxylicious.proxy.filter.OffsetCommitRequestFilter;
-import io.kroxylicious.proxy.filter.OffsetCommitResponseFilter;
-import io.kroxylicious.proxy.filter.OffsetDeleteRequestFilter;
-import io.kroxylicious.proxy.filter.OffsetDeleteResponseFilter;
-import io.kroxylicious.proxy.filter.OffsetFetchRequestFilter;
-import io.kroxylicious.proxy.filter.OffsetFetchResponseFilter;
-import io.kroxylicious.proxy.filter.OffsetForLeaderEpochRequestFilter;
-import io.kroxylicious.proxy.filter.OffsetForLeaderEpochResponseFilter;
-import io.kroxylicious.proxy.filter.ProduceRequestFilter;
-import io.kroxylicious.proxy.filter.ProduceResponseFilter;
-import io.kroxylicious.proxy.filter.RenewDelegationTokenRequestFilter;
-import io.kroxylicious.proxy.filter.RenewDelegationTokenResponseFilter;
-import io.kroxylicious.proxy.filter.SaslAuthenticateRequestFilter;
-import io.kroxylicious.proxy.filter.SaslAuthenticateResponseFilter;
-import io.kroxylicious.proxy.filter.SaslHandshakeRequestFilter;
-import io.kroxylicious.proxy.filter.SaslHandshakeResponseFilter;
-import io.kroxylicious.proxy.filter.StopReplicaRequestFilter;
-import io.kroxylicious.proxy.filter.StopReplicaResponseFilter;
-import io.kroxylicious.proxy.filter.SyncGroupRequestFilter;
-import io.kroxylicious.proxy.filter.SyncGroupResponseFilter;
-import io.kroxylicious.proxy.filter.TxnOffsetCommitRequestFilter;
-import io.kroxylicious.proxy.filter.TxnOffsetCommitResponseFilter;
-import io.kroxylicious.proxy.filter.UnregisterBrokerRequestFilter;
-import io.kroxylicious.proxy.filter.UnregisterBrokerResponseFilter;
-import io.kroxylicious.proxy.filter.UpdateFeaturesRequestFilter;
-import io.kroxylicious.proxy.filter.UpdateFeaturesResponseFilter;
-import io.kroxylicious.proxy.filter.UpdateMetadataRequestFilter;
-import io.kroxylicious.proxy.filter.UpdateMetadataResponseFilter;
-import io.kroxylicious.proxy.filter.VoteRequestFilter;
-import io.kroxylicious.proxy.filter.VoteResponseFilter;
-import io.kroxylicious.proxy.filter.WriteTxnMarkersRequestFilter;
-import io.kroxylicious.proxy.filter.WriteTxnMarkersResponseFilter;
-
 /**
  * Invoker for KrpcFilters that implement any number of Specific Message interfaces (for
  * example {@link io.kroxylicious.proxy.filter.AlterConfigsResponseFilter}.
  */
-class SpecificFilterInvoker implements FilterInvoker {
+public class SpecificFilterInvoker implements FilterInvoker {
 
     private final KrpcFilter filter;
 
-    SpecificFilterInvoker(KrpcFilter filter) {
+    public SpecificFilterInvoker(KrpcFilter filter) {
         this.filter = filter;
     }
 

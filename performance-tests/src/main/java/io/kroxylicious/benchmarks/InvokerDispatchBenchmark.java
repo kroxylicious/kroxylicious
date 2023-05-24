@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious;
+package io.kroxylicious.benchmarks;
 
 import java.util.concurrent.TimeUnit;
 
@@ -19,10 +19,15 @@ import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
 
+import io.kroxylicious.filters.FourInterfaceFilter0;
+import io.kroxylicious.filters.FourInterfaceFilter1;
+import io.kroxylicious.filters.TwoInterfaceFilter0;
+import io.kroxylicious.filters.TwoInterfaceFilter1;
+import io.kroxylicious.proxy.filter.ArrayFilterInvoker;
 import io.kroxylicious.proxy.filter.FilterInvoker;
 import io.kroxylicious.proxy.filter.FilterInvokers;
 import io.kroxylicious.proxy.filter.KrpcFilter;
-import io.kroxylicious.proxy.filter.SpecificFilterSwitchArrayInvoker;
+import io.kroxylicious.proxy.filter.SpecificFilterInvoker;
 
 // try hard to make shouldHandleXYZ to observe different receivers concrete types, saving unrolling to bias a specific call-site to a specific concrete type
 @Fork(value = 2, jvmArgsAppend = "-XX:LoopUnrollLimit=1")
@@ -34,7 +39,7 @@ public class InvokerDispatchBenchmark {
         array {
             @Override
             FilterInvoker invokerWith(KrpcFilter filter) {
-                return FilterInvokers.arrayInvoker(filter);
+                return new ArrayFilterInvoker(filter);
             }
         },
         specific {
@@ -46,7 +51,7 @@ public class InvokerDispatchBenchmark {
         switching {
             @Override
             FilterInvoker invokerWith(KrpcFilter filter) {
-                return new SpecificFilterSwitchArrayInvoker(filter);
+                return FilterInvokers.arrayInvoker(filter);
             }
         };
 
