@@ -86,12 +86,12 @@ public class InvokerDispatchBenchmark {
         invoke(blackhole, state.invokers, state.keys);
     }
 
-    private static void invoke(Blackhole blackhole, FilterInvoker[] filters, ApiKeys[] key) {
-        for (ApiKeys apiKeys : key) {
-            final short apiVersion = apiKeys.latestVersion();
+    private static void invoke(Blackhole blackhole, FilterInvoker[] filters, ApiKeys[] apiKeys) {
+        for (ApiKeys apiKey : apiKeys) {
+            final short apiVersion = apiKey.latestVersion();
             for (FilterInvoker invoker : filters) {
-                blackhole.consume(invoker.shouldHandleRequest(apiKeys, apiVersion));
-                blackhole.consume(invoker.shouldHandleResponse(apiKeys, apiVersion));
+                blackhole.consume(invoker.shouldHandleRequest(apiKey, apiVersion));
+                blackhole.consume(invoker.shouldHandleResponse(apiKey, apiVersion));
             }
         }
     }

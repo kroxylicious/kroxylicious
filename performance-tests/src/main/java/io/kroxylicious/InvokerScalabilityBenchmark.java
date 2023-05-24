@@ -22,6 +22,7 @@ import org.openjdk.jmh.infra.Blackhole;
 import io.kroxylicious.proxy.filter.FilterInvoker;
 import io.kroxylicious.proxy.filter.FilterInvokers;
 import io.kroxylicious.proxy.filter.KrpcFilter;
+import io.kroxylicious.proxy.filter.SpecificFilterSwitchArrayInvoker;
 
 // try hard to make shouldHandleXYZ to observe different receivers concrete types, saving unrolling to bias a specific call-site to a specific concrete type
 @Fork(value = 2, jvmArgsAppend = "-XX:LoopUnrollLimit=1")
@@ -41,6 +42,12 @@ public class InvokerScalabilityBenchmark {
             FilterInvoker invokerWith(KrpcFilter filter) {
                 return new SpecificFilterInvoker(filter);
             }
+        },
+        switching {
+            @Override
+            FilterInvoker invokerWith(KrpcFilter filter) {
+                return new SpecificFilterSwitchArrayInvoker(filter);
+            }
         };
 
         abstract FilterInvoker invokerWith(KrpcFilter filter);
@@ -52,7 +59,7 @@ public class InvokerScalabilityBenchmark {
 
         ApiKeys key;
 
-        @Param({ "array", "specific" })
+        @Param({ "array", "specific", "switching" })
         String invoker;
 
         @Setup
@@ -78,9 +85,10 @@ public class InvokerScalabilityBenchmark {
     }
 
     private static void invoke(Blackhole blackhole, FilterInvoker[] filters, ApiKeys key) {
+        final short apiVersion = key.latestVersion();
         for (FilterInvoker invoker : filters) {
-            blackhole.consume(invoker.shouldHandleRequest(key, key.latestVersion()));
-            blackhole.consume(invoker.shouldHandleResponse(key, key.latestVersion()));
+            blackhole.consume(invoker.shouldHandleRequest(key, apiVersion));
+            blackhole.consume(invoker.shouldHandleResponse(key, apiVersion));
         }
     }
 
