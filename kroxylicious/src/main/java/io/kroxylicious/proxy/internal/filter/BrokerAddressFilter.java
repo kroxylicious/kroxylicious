@@ -19,6 +19,7 @@ import org.apache.kafka.common.message.FindCoordinatorResponseData.Coordinator;
 import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.message.MetadataResponseData.MetadataResponseBroker;
 import org.apache.kafka.common.message.ResponseHeaderData;
+import org.apache.kafka.common.protocol.ApiMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,8 +55,7 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
             apply(context, broker, MetadataResponseBroker::nodeId, MetadataResponseBroker::host, MetadataResponseBroker::port, MetadataResponseBroker::setHost,
                     MetadataResponseBroker::setPort);
         }
-        updateVirtualClusterAndReconcile(nodeMap);
-        context.forwardResponse(header, data);
+        doReconcileThenForwardResponse(header, data, context, nodeMap);
     }
 
     @Override
@@ -66,8 +66,7 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
             apply(context, broker, DescribeClusterBroker::brokerId, DescribeClusterBroker::host, DescribeClusterBroker::port, DescribeClusterBroker::setHost,
                     DescribeClusterBroker::setPort);
         }
-        updateVirtualClusterAndReconcile(nodeMap);
-        context.forwardResponse(header, data);
+        doReconcileThenForwardResponse(header, data, context, nodeMap);
     }
 
     @Override
@@ -100,16 +99,16 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
         portSetter.accept(broker, downstreamAddress.port());
     }
 
-    private void updateVirtualClusterAndReconcile(Map<Integer, HostPort> nodeMap) {
-        if (virtualCluster.updateUpstreamClusterAddresses(nodeMap)) {
-            reconciler.reconcile(virtualCluster, nodeMap.keySet()).whenComplete((unused, t) -> {
-                if (t != null) {
-                    LOGGER.warn("Failed to reconcile endpoints for virtual cluster {}", virtualCluster, t);
-                }
-                else {
-                    LOGGER.debug("Endpoint reconciliation complete for  virtual cluster {}", virtualCluster);
-                }
-            });
-        }
+    private void doReconcileThenForwardResponse(ResponseHeaderData header, ApiMessage data, KrpcFilterContext context, Map<Integer, HostPort> nodeMap) {
+        var unused = reconciler.reconcile(virtualCluster, nodeMap).whenComplete((u, t) -> {
+            if (t != null) {
+                LOGGER.error("Failed to reconcile endpoints for virtual cluster {}", virtualCluster, t);
+                context.abortConnection(t);
+            }
+            else {
+                LOGGER.debug("Endpoint reconciliation complete for  virtual cluster {}", virtualCluster);
+                context.forwardResponse(header, data);
+            }
+        });
     }
 }

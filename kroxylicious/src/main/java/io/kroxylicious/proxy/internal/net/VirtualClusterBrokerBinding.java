@@ -8,9 +8,6 @@ package io.kroxylicious.proxy.internal.net;
 
 import java.util.Objects;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.service.HostPort;
 
@@ -20,17 +17,11 @@ import io.kroxylicious.proxy.service.HostPort;
  */
 public final class VirtualClusterBrokerBinding extends VirtualClusterBinding {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(VirtualClusterBrokerBinding.class);
-
     private final int nodeId;
 
-    public VirtualClusterBrokerBinding(VirtualCluster virtualCluster, int nodeId) {
-        super(virtualCluster);
+    public VirtualClusterBrokerBinding(VirtualCluster virtualCluster, HostPort upstreamTarget, int nodeId) {
+        super(virtualCluster, upstreamTarget);
         this.nodeId = nodeId;
-    }
-
-    public HostPort getTargetHostPort() {
-        return virtualCluster().getUpstreamClusterAddressForNode(nodeId);
     }
 
     public int nodeId() {

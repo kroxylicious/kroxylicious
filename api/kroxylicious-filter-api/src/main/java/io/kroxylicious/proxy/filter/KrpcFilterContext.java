@@ -83,5 +83,14 @@ public interface KrpcFilterContext {
      * determine what logically inconsistent means.
      */
     void forwardResponse(ApiMessage response);
+
+    /**
+     * Forces a connection to be closed.  May be called by a filter to
+     * signal the abnormal ending of processing for this connection.
+     *
+     * @param reason reason that the connection is to be closed.
+     */
+    void abortConnection(Throwable reason);
+
     // TODO an API to allow a filter to add/remove another filter from the pipeline
 }

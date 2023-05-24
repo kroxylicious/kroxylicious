@@ -8,6 +8,7 @@ package io.kroxylicious.proxy;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -155,7 +156,11 @@ public class KrpcFilterIT {
 
                 // check no topic created on the cluster
                 Set<String> names = admin.listTopics().names().get(10, TimeUnit.SECONDS);
+                // remove once https://github.com/kroxylicious/kroxylicious-junit5-extension/issues/114 is fixed.
+                names = new HashSet<>(names);
+                names.removeIf(n -> n.startsWith("__org_kroxylicious_testing"));
                 assertEquals(Set.of(), names);
+
             }
         }
     }

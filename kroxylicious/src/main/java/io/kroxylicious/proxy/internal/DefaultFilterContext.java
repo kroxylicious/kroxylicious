@@ -177,25 +177,33 @@ class DefaultFilterContext implements KrpcFilterContext {
     @Override
     public void forwardResponse(ResponseHeaderData header, ApiMessage response) {
         // check it's a response
-        String name = response.getClass().getName();
-        if (!name.endsWith("ResponseData")) {
-            throw new AssertionError("Attempt to use forwardResponse with a non-response: " + name);
+        try {
+            String name = response.getClass().getName();
+            if (!name.endsWith("ResponseData")) {
+                throw new AssertionError("Attempt to use forwardResponse with a non-response: " + name);
+            }
+            if (decodedFrame instanceof RequestFrame) {
+                forwardShortCircuitResponse(header, response);
+            }
+            else {
+                // TODO check we've not forwarded it already
+                if (decodedFrame.body() != response) {
+                    throw new AssertionError();
+                }
+                if (decodedFrame.header() != header) {
+                    throw new AssertionError();
+                }
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("{}: Forwarding response: {}", channelDescriptor(), decodedFrame);
+                }
+                channelContext.fireChannelRead(decodedFrame);
+            }
         }
-        if (decodedFrame instanceof RequestFrame) {
-            forwardShortCircuitResponse(header, response);
-        }
-        else {
-            // TODO check we've not forwarded it already
-            if (decodedFrame.body() != response) {
-                throw new AssertionError();
+        finally {
+            if (!channelContext.executor().inEventLoop()) {
+                // required to flush the message back to the client
+                channelContext.fireChannelReadComplete();
             }
-            if (decodedFrame.header() != header) {
-                throw new AssertionError();
-            }
-            if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug("{}: Forwarding response: {}", channelDescriptor(), decodedFrame);
-            }
-            channelContext.fireChannelRead(decodedFrame);
         }
     }
 
@@ -207,6 +215,14 @@ class DefaultFilterContext implements KrpcFilterContext {
         else {
             this.forwardResponse((ResponseHeaderData) decodedFrame.header(), response);
         }
+    }
+
+    @Override
+    public void abortConnection(Throwable t) {
+        // TODO increment an error metric.
+        LOGGER.warn("Channel {} closed by filter {}", this.channelContext.channel(), this.filter, t);
+        this.channelContext.fireExceptionCaught(t);
+
     }
 
     /**

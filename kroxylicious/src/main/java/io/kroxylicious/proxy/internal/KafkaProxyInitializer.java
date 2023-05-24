@@ -169,14 +169,13 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
             var filterChainFactory = new FilterChainFactory(config, virtualCluster);
 
             var filters = new ArrayList<>(filterChainFactory.createFilters());
+            // Add internal filters.
             filters.add(new BrokerAddressFilter(virtualCluster, endpointReconciler));
 
-            HostPort target = binding.getTargetHostPort();
+            HostPort target = binding.getUpstreamTarget();
             if (target == null) {
-                // TODO: this behaviour is sub-optimal as it means a client will proceed with a connection to the wrong broker.
-                // This will lead to difficult to diagnose failure cases later (produces going to the wrong broker, metadata refresh cycles, etc).
-                LOGGER.warn("An target address for binding {} is not yet known, connecting the client to bootstrap instead.", binding);
-                target = HostPort.parse(binding.virtualCluster().targetCluster().bootstrapServers().split(",")[0]);
+                // This condition should never happen.
+                throw new IllegalStateException("A target address for binding %s is not known.".formatted(binding));
             }
 
             context.initiateConnect(target, filters);

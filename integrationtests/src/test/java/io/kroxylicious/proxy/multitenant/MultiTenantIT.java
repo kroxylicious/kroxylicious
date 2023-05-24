@@ -97,7 +97,7 @@ public class MultiTenantIT {
     private static final NewTopic NEW_TOPIC_3 = new NewTopic(TOPIC_3, 1, (short) 1);
 
     private static final HostPort TENANT1_PROXY_ADDRESS = HostPort.parse(IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName("foo", 9192));
-    private static final HostPort TENANT2_PROXY_ADDRESS = HostPort.parse(IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName("bar", 9293));
+    private static final HostPort TENANT2_PROXY_ADDRESS = HostPort.parse(IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName("bar", 9292));
     private static final String MY_KEY = "my-key";
     private static final String MY_VALUE = "my-value";
     private static final long FUTURE_TIMEOUT_SECONDS = 5L;
@@ -157,10 +157,12 @@ public class MultiTenantIT {
             try (var admin = CloseableAdmin.create(commonConfig(TENANT1_PROXY_ADDRESS, Map.of()))) {
                 var created = createTopics(admin, List.of(NEW_TOPIC_1));
 
-                var describeTopicsResult = admin.describeTopics(TopicNameCollection.ofTopicNames(List.of(TOPIC_1)));
-                var topicMap = describeTopicsResult.allTopicNames().get();
-                assertThat(topicMap).hasEntrySatisfying(TOPIC_1,
-                        allOf(matches(TopicDescription::name, TOPIC_1), matches(TopicDescription::topicId, created.topicId(TOPIC_1).get())));
+                await().atMost(Duration.ofSeconds(5)).ignoreExceptions().untilAsserted(() -> {
+                    var describeTopicsResult = admin.describeTopics(TopicNameCollection.ofTopicNames(List.of(TOPIC_1)));
+                    var topicMap = describeTopicsResult.allTopicNames().get();
+                    assertThat(topicMap).hasEntrySatisfying(TOPIC_1,
+                            allOf(matches(TopicDescription::name, TOPIC_1), matches(TopicDescription::topicId, created.topicId(TOPIC_1).get())));
+                });
             }
         }
     }

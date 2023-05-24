@@ -12,25 +12,22 @@ import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
-import java.util.HashSet;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import javax.net.ssl.KeyManagerFactory;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 
-import io.kroxylicious.proxy.internal.net.UpstreamEndpointCache;
 import io.kroxylicious.proxy.service.ClusterEndpointConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 
-public class VirtualCluster implements ClusterEndpointConfigProvider, UpstreamEndpointCache {
+public class VirtualCluster implements ClusterEndpointConfigProvider {
 
     private final TargetCluster targetCluster;
 
@@ -41,10 +38,9 @@ public class VirtualCluster implements ClusterEndpointConfigProvider, UpstreamEn
 
     private final boolean logFrames;
     private final ClusterEndpointConfigProvider endpointProvider;
-    private final ConcurrentHashMap<Integer, HostPort> upstreamClusterCache = new ConcurrentHashMap<>();
 
-    public VirtualCluster(TargetCluster targetCluster,
-                          @JsonDeserialize(converter = ClusterEndpointConfigProviderConverter.class) ClusterEndpointConfigProvider clusterEndpointConfigProvider,
+    public VirtualCluster(@JsonProperty(required = true) TargetCluster targetCluster,
+                          @JsonProperty(required = true) @JsonDeserialize(converter = ClusterEndpointConfigProviderConverter.class) ClusterEndpointConfigProvider clusterEndpointConfigProvider,
                           Optional<String> keyStoreFile,
                           Optional<String> keyPassword,
                           boolean logNetwork, boolean logFrames) {
@@ -121,26 +117,6 @@ public class VirtualCluster implements ClusterEndpointConfigProvider, UpstreamEn
         sb.append(", logFrames=").append(logFrames);
         sb.append(']');
         return sb.toString();
-    }
-
-    @Override
-    public HostPort getUpstreamClusterAddressForNode(int nodeId) {
-        return upstreamClusterCache.get(nodeId);
-    }
-
-    @Override
-    public HostPort updateUpstreamClusterAddressForNode(int nodeId, HostPort replacement) {
-        return upstreamClusterCache.put(nodeId, replacement);
-    }
-
-    @Override
-    public boolean updateUpstreamClusterAddresses(Map<Integer, HostPort> nodeMap) {
-        var toRemove = new HashSet<>(upstreamClusterCache.keySet());
-        toRemove.removeAll(nodeMap.keySet());
-
-        boolean adds = upstreamClusterCache.entrySet().addAll(nodeMap.entrySet());
-        boolean deletes = upstreamClusterCache.keySet().removeAll(toRemove);
-        return adds || deletes;
     }
 
     @Override

@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -27,6 +28,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.flipkart.zjsonpatch.JsonDiff;
@@ -45,6 +47,7 @@ import static com.google.common.base.Preconditions.checkState;
 import static io.kroxylicious.test.requestresponsetestdef.KafkaApiMessageConverter.responseConverterFor;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -101,6 +104,9 @@ class BrokerAddressFilterTest {
         filter = new BrokerAddressFilter(virtualCluster, endpointReconciler);
         invoker = FilterInvokers.from(filter);
         when(virtualCluster.getBrokerAddress(0)).thenReturn(HostPort.parse("downstream:19199"));
+
+        var nodeMap = Map.of(0, HostPort.parse("upstream:9199"));
+        lenient().when(endpointReconciler.reconcile(Mockito.eq(virtualCluster), Mockito.eq(nodeMap))).thenReturn(CompletableFuture.completedStage(null));
     }
 
     @ParameterizedTest(name = "{0}")
@@ -112,10 +118,11 @@ class BrokerAddressFilterTest {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource(value = "completeClusterInfoCarryingResponses")
-    void virtualClusterUpstreamNodeCacheUpdated(@SuppressWarnings("unused") String testName, ApiMessageType apiMessageType, RequestHeaderData header,
-                                                ApiMessageTestDef responseTestDef) {
+    void reconcileCachesUpstreamAddress(@SuppressWarnings("unused") String testName, ApiMessageType apiMessageType, RequestHeaderData header,
+                                        ApiMessageTestDef responseTestDef) {
+
         filterResponseAndVerify(apiMessageType, header, responseTestDef);
-        verify(virtualCluster, times(1)).updateUpstreamClusterAddresses(Map.of(0, HostPort.parse("upstream:9199")));
+        verify(endpointReconciler, times(1)).reconcile(Mockito.eq(virtualCluster), Mockito.anyMap());
     }
 
     private void filterResponseAndVerify(ApiMessageType apiMessageType, RequestHeaderData header, ApiMessageTestDef responseTestDef) {

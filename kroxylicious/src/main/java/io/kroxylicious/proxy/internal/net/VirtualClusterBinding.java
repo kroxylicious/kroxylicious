@@ -7,11 +7,7 @@
 package io.kroxylicious.proxy.internal.net;
 
 import java.util.Objects;
-import java.util.Optional;
-import java.util.function.Function;
-import java.util.stream.Stream;
 
-import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.service.HostPort;
 
@@ -21,23 +17,21 @@ import io.kroxylicious.proxy.service.HostPort;
  */
 public class VirtualClusterBinding {
     private final VirtualCluster virtualCluster;
-    private final HostPort targetBootstrapServer;
+    private final HostPort upstreamTarget;
 
-    public VirtualClusterBinding(VirtualCluster virtualCluster) {
+    public VirtualClusterBinding(VirtualCluster virtualCluster, HostPort upstreamTarget) {
         Objects.requireNonNull(virtualCluster, "virtualCluster cannot be null");
+        Objects.requireNonNull(upstreamTarget, "upstreamTarget cannot be null");
         this.virtualCluster = virtualCluster;
-        this.targetBootstrapServer = Optional.ofNullable(virtualCluster.targetCluster())
-                .map(TargetCluster::bootstrapServers)
-                .map(s -> Stream.of(s.split(",")))
-                .stream().flatMap(Function.identity()).findFirst().map(HostPort::parse).orElse(null);
+        this.upstreamTarget = upstreamTarget;
     }
 
     public VirtualCluster virtualCluster() {
         return virtualCluster;
     }
 
-    public HostPort getTargetHostPort() {
-        return targetBootstrapServer;
+    public HostPort getUpstreamTarget() {
+        return upstreamTarget;
     }
 
     @Override
@@ -49,7 +43,7 @@ public class VirtualClusterBinding {
             return false;
         }
         var that = (VirtualClusterBinding) obj;
-        return Objects.equals(this.virtualCluster, that.virtualCluster);
+        return Objects.equals(this.virtualCluster, that.virtualCluster) && Objects.equals(upstreamTarget, upstreamTarget);
     }
 
     @Override
@@ -61,14 +55,6 @@ public class VirtualClusterBinding {
     public String toString() {
         return "VirtualClusterBinding[" +
                 "virtualCluster=" + virtualCluster + ']';
-    }
-
-    public static VirtualClusterBinding createBinding(VirtualCluster virtualCluster) {
-        return createBinding(virtualCluster, null);
-    }
-
-    public static VirtualClusterBinding createBinding(VirtualCluster virtualCluster, Integer nodeId) {
-        return nodeId == null ? new VirtualClusterBinding(virtualCluster) : new VirtualClusterBrokerBinding(virtualCluster, nodeId);
     }
 
 }

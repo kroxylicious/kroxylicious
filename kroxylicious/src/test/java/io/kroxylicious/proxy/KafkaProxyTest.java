@@ -24,12 +24,16 @@ class KafkaProxyTest {
         return Stream.of(Arguments.of("bootstrap port conflict", """
                 virtualClusters:
                   demo1:
+                    targetCluster:
+                      bootstrap_servers: kafka.example:1234
                     clusterEndpointConfigProvider:
                       type: PortPerBroker
                       config:
                         bootstrapAddress: localhost:9192
                         numberOfBrokerPorts: 1
                   demo2:
+                    targetCluster:
+                      bootstrap_servers: kafka.example:1234
                     clusterEndpointConfigProvider:
                       type: PortPerBroker
                       config:
@@ -39,6 +43,8 @@ class KafkaProxyTest {
                 Arguments.of("broker port conflict", """
                         virtualClusters:
                           demo1:
+                            targetCluster:
+                              bootstrap_servers: kafka.example:1234
                             clusterEndpointConfigProvider:
                               type: PortPerBroker
                               config:
@@ -46,6 +52,8 @@ class KafkaProxyTest {
                                 brokerStartPort: 9193
                                 numberOfBrokerPorts: 2
                           demo2:
+                            targetCluster:
+                              bootstrap_servers: kafka.example:1234
                             clusterEndpointConfigProvider:
                               type: PortPerBroker
                               config:
@@ -56,11 +64,15 @@ class KafkaProxyTest {
                 Arguments.of("Static/SniRouting bootstrap port conflict", """
                         virtualClusters:
                           demo1:
+                            targetCluster:
+                              bootstrap_servers: kafka.example:1234
                             clusterEndpointConfigProvider:
                               type: PortPerBroker
                               config:
                                 bootstrapAddress: localhost:9192
                           demo2:
+                            targetCluster:
+                              bootstrap_servers: kafka.example:1234
                             clusterEndpointConfigProvider:
                               type: SniRouting
                               config:
@@ -84,6 +96,8 @@ class KafkaProxyTest {
         return Stream.of(Arguments.of("tls mismatch", """
                 virtualClusters:
                   demo1:
+                    targetCluster:
+                      bootstrap_servers: kafka.example:1234
                     clusterEndpointConfigProvider:
                       type: SniRouting
                       config:
@@ -108,6 +122,8 @@ class KafkaProxyTest {
                 Arguments.of("two virtual clusters using binding same port", """
                         virtualClusters:
                           demo1:
+                            targetCluster:
+                              bootstrap_servers: kafka.invalid:1234
                             clusterEndpointConfigProvider:
                               type: SniRouting
                               config:
@@ -116,6 +132,8 @@ class KafkaProxyTest {
                             keyStoreFile: /tmo/notused
                             keystorePassword: apassword
                           demo2:
+                            targetCluster:
+                              bootstrap_servers: kafka.invalid:1234
                             clusterEndpointConfigProvider:
                               type: SniRouting
                               config:
