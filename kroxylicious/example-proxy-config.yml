@@ -20,7 +20,6 @@ virtualClusters:
     logFrames: false
 filters:
 - type: ApiVersions
-- type: BrokerAddress
 #- type: ProduceRequestTransformation
 #  config:
 #    transformation: io.kroxylicious.proxy.internal.filter.ProduceRequestTransformationFilter$UpperCasing

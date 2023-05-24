@@ -267,8 +267,7 @@ public class KrpcFilterIT {
                                 "brokerAddressPattern", "localhost:$(portNumber)"))
                         .endClusterEndpointConfigProvider()
                         .build())
-                .addNewFilter().withType("ApiVersions").endFilter()
-                .addNewFilter().withType("BrokerAddress").endFilter();
+                .addNewFilter().withType("ApiVersions").endFilter();
     }
 
 }

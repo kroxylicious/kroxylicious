@@ -5,6 +5,8 @@
  */
 package io.kroxylicious.proxy.internal.filter;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.ObjIntConsumer;
@@ -20,40 +22,51 @@ import org.apache.kafka.common.message.ResponseHeaderData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.filter.DescribeClusterResponseFilter;
 import io.kroxylicious.proxy.filter.FindCoordinatorResponseFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.proxy.filter.MetadataResponseFilter;
-import io.kroxylicious.proxy.service.ClusterEndpointConfigProvider;
+import io.kroxylicious.proxy.internal.net.EndpointReconciler;
+import io.kroxylicious.proxy.service.HostPort;
 
 /**
- * A filter that rewrites broker addresses in all relevant responses to the corresponding proxy address.
+ * An internal filter that rewrites broker addresses in all relevant responses to the corresponding proxy address. It also
+ * is responsible for updating the virtual cluster's cache of upstream broker endpoints.
  */
 public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordinatorResponseFilter, DescribeClusterResponseFilter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BrokerAddressFilter.class);
 
-    private final ClusterEndpointConfigProvider clusterEndpointConfigProvider;
+    private final VirtualCluster virtualCluster;
+    private final EndpointReconciler reconciler;
 
-    public BrokerAddressFilter(ClusterEndpointConfigProvider clusterEndpointConfigProvider) {
-        this.clusterEndpointConfigProvider = clusterEndpointConfigProvider;
+    public BrokerAddressFilter(VirtualCluster virtualCluster, EndpointReconciler reconciler) {
+        this.virtualCluster = virtualCluster;
+        this.reconciler = reconciler;
     }
 
     @Override
     public void onMetadataResponse(ResponseHeaderData header, MetadataResponseData data, KrpcFilterContext context) {
+        var nodeMap = new HashMap<Integer, HostPort>();
         for (MetadataResponseBroker broker : data.brokers()) {
+            nodeMap.put(broker.nodeId(), new HostPort(broker.host(), broker.port()));
             apply(context, broker, MetadataResponseBroker::nodeId, MetadataResponseBroker::host, MetadataResponseBroker::port, MetadataResponseBroker::setHost,
                     MetadataResponseBroker::setPort);
         }
+        updateVirtualClusterAndReconcile(nodeMap);
         context.forwardResponse(header, data);
     }
 
     @Override
     public void onDescribeClusterResponse(ResponseHeaderData header, DescribeClusterResponseData data, KrpcFilterContext context) {
+        var nodeMap = new HashMap<Integer, HostPort>();
         for (DescribeClusterBroker broker : data.brokers()) {
+            nodeMap.put(broker.brokerId(), new HostPort(broker.host(), broker.port()));
             apply(context, broker, DescribeClusterBroker::brokerId, DescribeClusterBroker::host, DescribeClusterBroker::port, DescribeClusterBroker::setHost,
                     DescribeClusterBroker::setPort);
         }
+        updateVirtualClusterAndReconcile(nodeMap);
         context.forwardResponse(header, data);
     }
 
@@ -80,10 +93,23 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
         String incomingHost = hostGetter.apply(broker);
         int incomingPort = portGetter.applyAsInt(broker);
 
-        var downstreamAddress = clusterEndpointConfigProvider.getBrokerAddress(nodeIdGetter.apply(broker));
+        var downstreamAddress = virtualCluster.getBrokerAddress(nodeIdGetter.apply(broker));
 
         LOGGER.trace("{}: Rewriting broker address in response {}:{} -> {}", context, incomingHost, incomingPort, downstreamAddress);
         hostSetter.accept(broker, downstreamAddress.host());
         portSetter.accept(broker, downstreamAddress.port());
+    }
+
+    private void updateVirtualClusterAndReconcile(Map<Integer, HostPort> nodeMap) {
+        if (virtualCluster.updateUpstreamClusterAddresses(nodeMap)) {
+            reconciler.reconcile(virtualCluster, nodeMap.keySet()).whenComplete((unused, t) -> {
+                if (t != null) {
+                    LOGGER.warn("Failed to reconcile endpoints for virtual cluster {}", virtualCluster, t);
+                }
+                else {
+                    LOGGER.debug("Endpoint reconciliation complete for  virtual cluster {}", virtualCluster);
+                }
+            });
+        }
     }
 }

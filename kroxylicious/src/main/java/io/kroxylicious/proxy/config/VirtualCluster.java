@@ -12,6 +12,8 @@ import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
+import java.util.HashSet;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -24,10 +26,11 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 
+import io.kroxylicious.proxy.internal.net.UpstreamEndpointCache;
 import io.kroxylicious.proxy.service.ClusterEndpointConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 
-public class VirtualCluster implements ClusterEndpointConfigProvider {
+public class VirtualCluster implements ClusterEndpointConfigProvider, UpstreamEndpointCache {
 
     private final TargetCluster targetCluster;
 
@@ -120,12 +123,24 @@ public class VirtualCluster implements ClusterEndpointConfigProvider {
         return sb.toString();
     }
 
+    @Override
     public HostPort getUpstreamClusterAddressForNode(int nodeId) {
         return upstreamClusterCache.get(nodeId);
     }
 
+    @Override
     public HostPort updateUpstreamClusterAddressForNode(int nodeId, HostPort replacement) {
         return upstreamClusterCache.put(nodeId, replacement);
+    }
+
+    @Override
+    public boolean updateUpstreamClusterAddresses(Map<Integer, HostPort> nodeMap) {
+        var toRemove = new HashSet<>(upstreamClusterCache.keySet());
+        toRemove.removeAll(nodeMap.keySet());
+
+        boolean adds = upstreamClusterCache.entrySet().addAll(nodeMap.entrySet());
+        boolean deletes = upstreamClusterCache.keySet().removeAll(toRemove);
+        return adds || deletes;
     }
 
     @Override

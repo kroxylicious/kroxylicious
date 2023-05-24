@@ -45,6 +45,7 @@ public class PortPerBrokerClusterEndpointConfigProvider implements ClusterEndpoi
     private final int brokerStartPort;
     private final int numberOfBrokerPorts;
     private final Set<Integer> exclusivePorts;
+    private final int brokerEndPortExclusive;
 
     /**
      * Creates the provider.
@@ -56,8 +57,9 @@ public class PortPerBrokerClusterEndpointConfigProvider implements ClusterEndpoi
         this.brokerAddressPattern = config.brokerAddressPattern;
         this.brokerStartPort = config.brokerStartPort;
         this.numberOfBrokerPorts = config.numberOfBrokerPorts;
+        this.brokerEndPortExclusive = brokerStartPort + numberOfBrokerPorts;
 
-        var exclusivePorts = IntStream.range(brokerStartPort, brokerStartPort + numberOfBrokerPorts).boxed().collect(Collectors.toCollection(HashSet::new));
+        var exclusivePorts = IntStream.range(brokerStartPort, brokerEndPortExclusive).boxed().collect(Collectors.toCollection(HashSet::new));
         exclusivePorts.add(bootstrapAddress.port());
         this.exclusivePorts = Collections.unmodifiableSet(exclusivePorts);
     }
@@ -68,11 +70,18 @@ public class PortPerBrokerClusterEndpointConfigProvider implements ClusterEndpoi
     }
 
     @Override
+
     public HostPort getBrokerAddress(int nodeId) throws IllegalArgumentException {
         int port = brokerStartPort + nodeId;
-        if (port >= brokerStartPort + numberOfBrokerPorts) {
+        if (port >= brokerEndPortExclusive) {
             throw new IllegalArgumentException(
-                    "Cannot generate broker address for node id %d port range (%d - %d)".formatted(nodeId, brokerStartPort, numberOfBrokerPorts));
+                    "Cannot generate broker address for node id %d as port %d would fall outside port range %d-%d that is defined for provider with downstream bootstrap %s)"
+                            .formatted(
+                                    nodeId,
+                                    port,
+                                    brokerStartPort,
+                                    brokerEndPortExclusive - 1,
+                                    bootstrapAddress));
         }
         return HostPort.parse(brokerAddressPattern.replace(LITERAL_PORT_NUMBER, Integer.toString(port)).replace(LITERAL_NODE_ID, Integer.toString(nodeId)));
     }

@@ -79,7 +79,7 @@ public class JsonSyntaxValidationIT {
                         .withConfig(Map.of("bootstrapAddress", proxyAddress.toString()))
                         .endClusterEndpointConfigProvider().build())
                 .addNewFilter()
-                .withType("ApiVersions").endFilter().addNewFilter().withType("BrokerAddress").endFilter();
+                .withType("ApiVersions").endFilter();
     }
 
     @Test

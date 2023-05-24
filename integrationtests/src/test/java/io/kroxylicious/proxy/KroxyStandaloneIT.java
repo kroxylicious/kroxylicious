@@ -100,8 +100,7 @@ public class KroxyStandaloneIT {
                         .withConfig(Map.of("bootstrapAddress", proxyAddress.toString()))
                         .endClusterEndpointConfigProvider()
                         .build())
-                .addNewFilter().withType("ApiVersions").endFilter()
-                .addNewFilter().withType("BrokerAddress").endFilter();
+                .addNewFilter().withType("ApiVersions").endFilter();
     }
 
     /**

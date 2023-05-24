@@ -8,6 +8,9 @@ package io.kroxylicious.proxy.internal.filter;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
@@ -33,14 +36,16 @@ import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.filter.FilterInvoker;
 import io.kroxylicious.proxy.filter.FilterInvokers;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
+import io.kroxylicious.proxy.internal.net.EndpointReconciler;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.test.requestresponsetestdef.ApiMessageTestDef;
 import io.kroxylicious.test.requestresponsetestdef.RequestResponseTestDef;
 
 import static com.google.common.base.Preconditions.checkState;
 import static io.kroxylicious.test.requestresponsetestdef.KafkaApiMessageConverter.responseConverterFor;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -66,6 +71,9 @@ class BrokerAddressFilterTest {
     private VirtualCluster virtualCluster;
 
     @Mock
+    private EndpointReconciler endpointReconciler;
+
+    @Mock
     private KrpcFilterContext context;
 
     @Captor
@@ -75,21 +83,42 @@ class BrokerAddressFilterTest {
 
     private FilterInvoker invoker;
 
-    public static Stream<Arguments> responses() throws Exception {
-        return RequestResponseTestDef.requestResponseTestDefinitions(getTestResources()).filter(td -> td.response() != null)
+    public static Stream<Arguments> nodeInfoCarryingResponses() throws Exception {
+        return responses(td -> td.response() != null);
+    }
+
+    public static Stream<Arguments> completeClusterInfoCarryingResponses() throws Exception {
+        return responses(td -> td.response() != null && Set.of(ApiMessageType.METADATA, ApiMessageType.DESCRIBE_CLUSTER).contains(td.apiKey()));
+    }
+
+    private static Stream<Arguments> responses(Predicate<RequestResponseTestDef> requestResponseTestDefPredicate) throws Exception {
+        return RequestResponseTestDef.requestResponseTestDefinitions(getTestResources()).filter(requestResponseTestDefPredicate)
                 .map(td -> Arguments.of(td.testName(), td.apiKey(), td.header(), td.response()));
     }
 
     @BeforeEach
     public void beforeEach() {
-        filter = new BrokerAddressFilter(virtualCluster);
+        filter = new BrokerAddressFilter(virtualCluster, endpointReconciler);
         invoker = FilterInvokers.from(filter);
         when(virtualCluster.getBrokerAddress(0)).thenReturn(HostPort.parse("downstream:19199"));
     }
 
     @ParameterizedTest(name = "{0}")
-    @MethodSource(value = "responses")
-    void responseTransformed(@SuppressWarnings("unused") String testName, ApiMessageType apiMessageType, RequestHeaderData header, ApiMessageTestDef responseTestDef) {
+    @MethodSource(value = "nodeInfoCarryingResponses")
+    void nodeInfoCarryingResponsesTransformed(@SuppressWarnings("unused") String testName, ApiMessageType apiMessageType, RequestHeaderData header,
+                                              ApiMessageTestDef responseTestDef) {
+        filterResponseAndVerify(apiMessageType, header, responseTestDef);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource(value = "completeClusterInfoCarryingResponses")
+    void virtualClusterUpstreamNodeCacheUpdated(@SuppressWarnings("unused") String testName, ApiMessageType apiMessageType, RequestHeaderData header,
+                                                ApiMessageTestDef responseTestDef) {
+        filterResponseAndVerify(apiMessageType, header, responseTestDef);
+        verify(virtualCluster, times(1)).updateUpstreamClusterAddresses(Map.of(0, HostPort.parse("upstream:9199")));
+    }
+
+    private void filterResponseAndVerify(ApiMessageType apiMessageType, RequestHeaderData header, ApiMessageTestDef responseTestDef) {
         var response = responseTestDef.message();
         // marshalled the response object back to json, this is used for comparison later.
         var responseWriter = responseConverterFor(apiMessageType).writer();
@@ -101,7 +130,7 @@ class BrokerAddressFilterTest {
         verify(context).forwardResponse(any(), apiMessageCaptor.capture());
 
         var filtered = responseWriter.apply(apiMessageCaptor.getValue(), header.requestApiVersion());
-        assertEquals(responseTestDef.expectedPatch(), JsonDiff.asJson(marshalled, filtered));
+        assertThat(JsonDiff.asJson(marshalled, filtered)).isEqualTo(responseTestDef.expectedPatch());
     }
 
 }

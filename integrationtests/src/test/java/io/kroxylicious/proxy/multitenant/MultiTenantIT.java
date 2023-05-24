@@ -474,7 +474,6 @@ public class MultiTenantIT {
                         .withKeyStoreFile(certificateGenerator.getKeyStoreLocation())
                         .build())
                 .addNewFilter().withType("ApiVersions").endFilter()
-                .addNewFilter().withType("BrokerAddress").endFilter()
                 .addNewFilter().withType("MultiTenant").endFilter()
                 .build().toYaml();
     }

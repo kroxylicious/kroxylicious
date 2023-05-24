@@ -84,8 +84,7 @@ public class ExpositionIT {
                         .withConfig(Map.of("bootstrapAddress", PROXY_ADDRESS.toString()))
                         .endClusterEndpointConfigProvider()
                         .build())
-                .addNewFilter().withType("ApiVersions").endFilter()
-                .addNewFilter().withType("BrokerAddress").endFilter();
+                .addNewFilter().withType("ApiVersions").endFilter();
 
         var demo = builder.getVirtualClusters().get("demo");
         demo = new VirtualClusterBuilder(demo)
@@ -117,8 +116,7 @@ public class ExpositionIT {
         var clusterProxyAddresses = Stream.of("localhost:9192", "localhost:9294").map(HostPort::parse).toList();
 
         var builder = KroxyConfig.builder()
-                .addNewFilter().withType("ApiVersions").endFilter()
-                .addNewFilter().withType("BrokerAddress").endFilter();
+                .addNewFilter().withType("ApiVersions").endFilter();
 
         var base = new VirtualClusterBuilder()
                 .withNewTargetCluster()
@@ -157,8 +155,7 @@ public class ExpositionIT {
         var virtualClusterBrokerAddressPattern = "broker-$(nodeId)" + virtualClusterCommonNamePattern;
 
         var builder = KroxyConfig.builder()
-                .addNewFilter().withType("ApiVersions").endFilter()
-                .addNewFilter().withType("BrokerAddress").endFilter();
+                .addNewFilter().withType("ApiVersions").endFilter();
 
         var base = new VirtualClusterBuilder()
                 .withNewTargetCluster()
@@ -220,8 +217,7 @@ public class ExpositionIT {
                         .withConfig(Map.of("bootstrapAddress", PROXY_ADDRESS.toString()))
                         .endClusterEndpointConfigProvider()
                         .build())
-                .addNewFilter().withType("ApiVersions").endFilter()
-                .addNewFilter().withType("BrokerAddress").endFilter();
+                .addNewFilter().withType("ApiVersions").endFilter();
         var config = builder.build().toYaml();
 
         var brokerEndpoints = Map.of(0, "localhost:9193", 1, "localhost:9194");
@@ -254,8 +250,7 @@ public class ExpositionIT {
                         .withConfig(Map.of("bootstrapAddress", PROXY_ADDRESS.toString()))
                         .endClusterEndpointConfigProvider()
                         .build())
-                .addNewFilter().withType("ApiVersions").endFilter()
-                .addNewFilter().withType("BrokerAddress").endFilter();
+                .addNewFilter().withType("ApiVersions").endFilter();
         var config = builder.build().toYaml();
 
         try (var proxy = startProxy(config)) {
@@ -290,8 +285,7 @@ public class ExpositionIT {
                         .withConfig(Map.of("bootstrapAddress", PROXY_ADDRESS.toString()))
                         .endClusterEndpointConfigProvider()
                         .build())
-                .addNewFilter().withType("ApiVersions").endFilter()
-                .addNewFilter().withType("BrokerAddress").endFilter();
+                .addNewFilter().withType("ApiVersions").endFilter();
         var config = builder.build().toYaml();
 
         try (var proxy = startProxy(config)) {
