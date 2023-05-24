@@ -71,8 +71,18 @@ class SpecificFilterArrayInvoker implements FilterInvoker {
                            RequestHeaderData header,
                            ApiMessage body,
                            KrpcFilterContext filterContext) {
-        FilterInvoker invoker = requestInvokers[apiKey.id];
-        invoker.onRequest(apiKey, apiVersion, header, body, filterContext);
+        // We wrap the array lookup in a switch based on the API Key as it supports JIT optimisations around method dispatch.
+        // See the InvokerDispatchBenchmark micro benchmark for a comparison
+        switch (apiKey) {
+<#list messageSpecs as messageSpec>
+    <#if messageSpec.type?lower_case == 'request'>
+            case ${retrieveApiKey(messageSpec)} ->
+                requestInvokers[apiKey.id].onRequest(apiKey, apiVersion, header, body, filterContext);
+    </#if>
+</#list>
+            default -> throw new IllegalStateException("Unsupported RPC " + apiKey);
+        }
+
     }
 
     /**
@@ -89,8 +99,18 @@ class SpecificFilterArrayInvoker implements FilterInvoker {
                             ResponseHeaderData header,
                             ApiMessage body,
                             KrpcFilterContext filterContext) {
-        FilterInvoker invoker = responseInvokers[apiKey.id];
-        invoker.onResponse(apiKey, apiVersion, header, body, filterContext);
+        // We wrap the array lookup in a switch based on the API Key as it supports JIT optimisations around method dispatch.
+        // See the InvokerDispatchBenchmark micro benchmark for a comparison
+        switch (apiKey) {
+<#list messageSpecs as messageSpec>
+    <#if messageSpec.type?lower_case == 'response'>
+            case ${retrieveApiKey(messageSpec)} ->
+                    responseInvokers[apiKey.id].onResponse(apiKey, apiVersion, header, body, filterContext);
+    </#if>
+</#list>
+            default -> throw new IllegalStateException("Unsupported RPC " + apiKey);
+        }
+
     }
 
     /**
@@ -111,8 +131,18 @@ class SpecificFilterArrayInvoker implements FilterInvoker {
      */
     @Override
     public boolean shouldHandleRequest(ApiKeys apiKey, short apiVersion) {
-        FilterInvoker invoker = requestInvokers[apiKey.id];
-        return invoker.shouldHandleRequest(apiKey, apiVersion);
+        // We wrap the array lookup in a switch based on the API Key as it supports JIT optimisations around method dispatch.
+        // See the InvokerDispatchBenchmark micro benchmark for a comparison
+        return switch (apiKey) {
+<#list messageSpecs as messageSpec>
+    <#if messageSpec.type?lower_case == 'request'>
+            case ${retrieveApiKey(messageSpec)} ->
+                    requestInvokers[apiKey.id].shouldHandleRequest(apiKey, apiVersion);
+    </#if>
+</#list>
+            default -> throw new IllegalStateException("Unsupported RPC " + apiKey);
+        };
+
     }
 
     /**
@@ -133,8 +163,18 @@ class SpecificFilterArrayInvoker implements FilterInvoker {
      */
     @Override
     public boolean shouldHandleResponse(ApiKeys apiKey, short apiVersion) {
-        FilterInvoker invoker = responseInvokers[apiKey.id];
-        return invoker.shouldHandleResponse(apiKey, apiVersion);
+        return switch (apiKey) {
+            // We wrap the array lookup in a switch based on the API Key as it supports JIT optimisations around method dispatch.
+            // See the InvokerDispatchBenchmark micro benchmark for a comparison
+<#list messageSpecs as messageSpec>
+    <#if messageSpec.type?lower_case == 'response'>
+            case ${retrieveApiKey(messageSpec)} ->
+                    responseInvokers[apiKey.id].shouldHandleResponse(apiKey, apiVersion);
+    </#if>
+</#list>
+            default -> throw new IllegalStateException("Unsupported RPC " + apiKey);
+        };
+
     }
 
     /**
