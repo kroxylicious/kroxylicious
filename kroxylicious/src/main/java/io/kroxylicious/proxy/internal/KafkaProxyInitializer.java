@@ -7,6 +7,7 @@ package io.kroxylicious.proxy.internal;
 
 import java.util.ArrayList;
 import java.util.Map;
+import java.util.Optional;
 
 import org.apache.kafka.common.security.auth.AuthenticateCallbackHandler;
 import org.slf4j.Logger;
@@ -65,12 +66,13 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
         ChannelPipeline pipeline = ch.pipeline();
 
         int targetPort = ch.localAddress().getPort();
-        var bindingAddress = ch.parent().localAddress().getAddress().isAnyLocalAddress() ? null : ch.localAddress().getAddress().getHostAddress();
+        var bindingAddress = ch.parent().localAddress().getAddress().isAnyLocalAddress() ? Optional.<String> empty()
+                : Optional.of(ch.localAddress().getAddress().getHostAddress());
         if (tls) {
             LOGGER.debug("Adding SSL/SNI handler");
             pipeline.addLast(new SniHandler((sniHostname, promise) -> {
                 try {
-                    var stage = virtualClusterBindingResolver.resolve(new Endpoint(bindingAddress, targetPort, tls), sniHostname);
+                    var stage = virtualClusterBindingResolver.resolve(Endpoint.createEndpoint(bindingAddress, targetPort, tls), sniHostname);
                     // completes the netty promise when then resolution completes (success/otherwise).
                     var unused = stage.handle((binding, t) -> {
                         try {
@@ -111,7 +113,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
             pipeline.addLast(new ChannelInboundHandlerAdapter() {
                 @Override
                 public void channelActive(ChannelHandlerContext ctx) {
-                    var stage = virtualClusterBindingResolver.resolve(new Endpoint(bindingAddress, targetPort, tls), null);
+                    var stage = virtualClusterBindingResolver.resolve(Endpoint.createEndpoint(bindingAddress, targetPort, tls), null);
                     var unused = stage.handle((binding, t) -> {
                         if (t != null) {
                             ctx.fireExceptionCaught(t);

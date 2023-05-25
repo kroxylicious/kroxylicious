@@ -152,7 +152,7 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
             return current.registrationStage();
         }
 
-        var key = Endpoint.createEndpoint(virtualCluster.getBindAddress().orElse(null), virtualCluster.getClusterBootstrapAddress().port(), virtualCluster.isUseTls());
+        var key = Endpoint.createEndpoint(virtualCluster.getBindAddress(), virtualCluster.getClusterBootstrapAddress().port(), virtualCluster.isUseTls());
         var upstreamBootstrap = virtualCluster.targetCluster().bootstrapServersList().get(0);
         var bootstrapEndpointFuture = registerBinding(key,
                 virtualCluster.getClusterBootstrapAddress().host(),
@@ -288,7 +288,7 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
     }
 
     private void doReconcile(VirtualCluster virtualCluster, Map<Integer, HostPort> upstreamNodes, CompletableFuture<Void> future) {
-        var bindingAddress = virtualCluster.getBindAddress().orElse(null);
+        var bindingAddress = virtualCluster.getBindAddress();
 
         var creations = upstreamNodes.entrySet().stream().map(e -> new VirtualClusterBrokerBinding(virtualCluster, e.getValue(), e.getKey()))
                 .collect(Collectors.toCollection(ConcurrentHashMap::newKeySet));
@@ -318,8 +318,7 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
         var unused = deregs.thenCompose(u1 -> allOfStage(creations.stream()
                 .map(vcbb -> {
                     var brokerAddress = virtualCluster.getBrokerAddress(vcbb.nodeId());
-                    var endpoint = new Endpoint(bindingAddress, brokerAddress.port(),
-                            virtualCluster.isUseTls());
+                    var endpoint = Endpoint.createEndpoint(bindingAddress, brokerAddress.port(), virtualCluster.isUseTls());
                     return registerBinding(endpoint, brokerAddress.host(), vcbb);
                 })))
                 .whenComplete((u2, t) -> {
@@ -360,7 +359,7 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
             }));
 
             bindingOperationProcessor
-                    .enqueueNetworkBindingEvent(new NetworkBindRequest(future, new Endpoint(key.bindingAddress(), key.port(), virtualCluster.isUseTls())));
+                    .enqueueNetworkBindingEvent(new NetworkBindRequest(future, Endpoint.createEndpoint(key.bindingAddress(), key.port(), virtualCluster.isUseTls())));
             return r;
         });
 
