@@ -38,6 +38,7 @@ import org.apache.kafka.common.protocol.ApiMessage;
  * Invoker for KrpcFilters that implement any number of Specific Message interfaces (for
  * example {@link io.kroxylicious.proxy.filter.AlterConfigsResponseFilter}.
  */
+@SuppressWarnings("SwitchStatementWithTooFewBranches")
 class SpecificFilterArrayInvoker implements FilterInvoker {
 
     private static final FilterInvoker[] HANDLE_NOTHING = createHandleNothing();
@@ -189,9 +190,7 @@ class SpecificFilterArrayInvoker implements FilterInvoker {
 
     private static FilterInvoker[] createHandleNothing() {
         FilterInvoker[] filterInvokers = emptyInvokerArraySizedForMessageTypes();
-        Arrays.stream(ApiMessageType.values()).mapToInt(ApiMessageType::apiKey).forEach(value -> {
-            filterInvokers[value] = FilterInvokers.handleNothingInvoker();
-        });
+        Arrays.stream(ApiMessageType.values()).mapToInt(ApiMessageType::apiKey).forEach(value -> filterInvokers[value] = FilterInvokers.handleNothingInvoker());
         return filterInvokers;
     }
 
@@ -200,9 +199,7 @@ class SpecificFilterArrayInvoker implements FilterInvoker {
             return HANDLE_NOTHING;
         }
         FilterInvoker[] filterInvokers = emptyInvokerArraySizedForMessageTypes();
-        Arrays.stream(ApiMessageType.values()).mapToInt(ApiMessageType::apiKey).forEach(value -> {
-            filterInvokers[value] = filterInvokersByApiMessageId.getOrDefault(value, FilterInvokers.handleNothingInvoker());
-        });
+        Arrays.stream(ApiMessageType.values()).mapToInt(ApiMessageType::apiKey).forEach(value -> filterInvokers[value] = filterInvokersByApiMessageId.getOrDefault(value, FilterInvokers.handleNothingInvoker()));
         return filterInvokers;
     }
 
