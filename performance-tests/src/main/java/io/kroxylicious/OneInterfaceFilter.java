@@ -15,6 +15,6 @@ import io.kroxylicious.proxy.filter.ProduceResponseFilter;
 public class OneInterfaceFilter implements ProduceResponseFilter {
 
     @Override
-    public void onProduceResponse(ResponseHeaderData header, ProduceResponseData response, KrpcFilterContext context) {
+    public void onProduceResponse(short apiVersion, ResponseHeaderData header, ProduceResponseData response, KrpcFilterContext context) {
     }
 }

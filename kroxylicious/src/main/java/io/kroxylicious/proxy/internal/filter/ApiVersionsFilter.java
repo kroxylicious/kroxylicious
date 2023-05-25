@@ -64,7 +64,7 @@ public class ApiVersionsFilter implements ApiVersionsResponseFilter {
     }
 
     @Override
-    public void onApiVersionsResponse(ResponseHeaderData header, ApiVersionsResponseData data, KrpcFilterContext context) {
+    public void onApiVersionsResponse(short apiVersion, ResponseHeaderData header, ApiVersionsResponseData data, KrpcFilterContext context) {
         intersectApiVersions(context.channelDescriptor(), data);
         context.forwardResponse(header, data);
     }

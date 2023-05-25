@@ -314,91 +314,109 @@ class SpecificFilterInvoker implements FilterInvoker {
                           ApiMessage body,
                           KrpcFilterContext filterContext) {
         switch (apiKey) {
-            case ADD_OFFSETS_TO_TXN -> ((AddOffsetsToTxnRequestFilter) filter).onAddOffsetsToTxnRequest(header, (AddOffsetsToTxnRequestData) body, filterContext);
+            case ADD_OFFSETS_TO_TXN ->
+                ((AddOffsetsToTxnRequestFilter) filter).onAddOffsetsToTxnRequest(apiVersion, header, (AddOffsetsToTxnRequestData) body, filterContext);
             case ADD_PARTITIONS_TO_TXN ->
-                ((AddPartitionsToTxnRequestFilter) filter).onAddPartitionsToTxnRequest(header, (AddPartitionsToTxnRequestData) body, filterContext);
+                ((AddPartitionsToTxnRequestFilter) filter).onAddPartitionsToTxnRequest(apiVersion, header, (AddPartitionsToTxnRequestData) body, filterContext);
             case ALLOCATE_PRODUCER_IDS ->
-                ((AllocateProducerIdsRequestFilter) filter).onAllocateProducerIdsRequest(header, (AllocateProducerIdsRequestData) body, filterContext);
-            case ALTER_CLIENT_QUOTAS -> ((AlterClientQuotasRequestFilter) filter).onAlterClientQuotasRequest(header, (AlterClientQuotasRequestData) body, filterContext);
-            case ALTER_CONFIGS -> ((AlterConfigsRequestFilter) filter).onAlterConfigsRequest(header, (AlterConfigsRequestData) body, filterContext);
-            case ALTER_PARTITION_REASSIGNMENTS -> ((AlterPartitionReassignmentsRequestFilter) filter).onAlterPartitionReassignmentsRequest(header,
+                ((AllocateProducerIdsRequestFilter) filter).onAllocateProducerIdsRequest(apiVersion, header, (AllocateProducerIdsRequestData) body, filterContext);
+            case ALTER_CLIENT_QUOTAS ->
+                ((AlterClientQuotasRequestFilter) filter).onAlterClientQuotasRequest(apiVersion, header, (AlterClientQuotasRequestData) body, filterContext);
+            case ALTER_CONFIGS -> ((AlterConfigsRequestFilter) filter).onAlterConfigsRequest(apiVersion, header, (AlterConfigsRequestData) body, filterContext);
+            case ALTER_PARTITION_REASSIGNMENTS -> ((AlterPartitionReassignmentsRequestFilter) filter).onAlterPartitionReassignmentsRequest(apiVersion, header,
                     (AlterPartitionReassignmentsRequestData) body, filterContext);
-            case ALTER_PARTITION -> ((AlterPartitionRequestFilter) filter).onAlterPartitionRequest(header, (AlterPartitionRequestData) body, filterContext);
+            case ALTER_PARTITION -> ((AlterPartitionRequestFilter) filter).onAlterPartitionRequest(apiVersion, header, (AlterPartitionRequestData) body, filterContext);
             case ALTER_REPLICA_LOG_DIRS ->
-                ((AlterReplicaLogDirsRequestFilter) filter).onAlterReplicaLogDirsRequest(header, (AlterReplicaLogDirsRequestData) body, filterContext);
+                ((AlterReplicaLogDirsRequestFilter) filter).onAlterReplicaLogDirsRequest(apiVersion, header, (AlterReplicaLogDirsRequestData) body, filterContext);
             case ALTER_USER_SCRAM_CREDENTIALS ->
-                ((AlterUserScramCredentialsRequestFilter) filter).onAlterUserScramCredentialsRequest(header, (AlterUserScramCredentialsRequestData) body, filterContext);
-            case API_VERSIONS -> ((ApiVersionsRequestFilter) filter).onApiVersionsRequest(header, (ApiVersionsRequestData) body, filterContext);
-            case BEGIN_QUORUM_EPOCH -> ((BeginQuorumEpochRequestFilter) filter).onBeginQuorumEpochRequest(header, (BeginQuorumEpochRequestData) body, filterContext);
-            case BROKER_HEARTBEAT -> ((BrokerHeartbeatRequestFilter) filter).onBrokerHeartbeatRequest(header, (BrokerHeartbeatRequestData) body, filterContext);
+                ((AlterUserScramCredentialsRequestFilter) filter).onAlterUserScramCredentialsRequest(apiVersion, header, (AlterUserScramCredentialsRequestData) body,
+                        filterContext);
+            case API_VERSIONS -> ((ApiVersionsRequestFilter) filter).onApiVersionsRequest(apiVersion, header, (ApiVersionsRequestData) body, filterContext);
+            case BEGIN_QUORUM_EPOCH ->
+                ((BeginQuorumEpochRequestFilter) filter).onBeginQuorumEpochRequest(apiVersion, header, (BeginQuorumEpochRequestData) body, filterContext);
+            case BROKER_HEARTBEAT ->
+                ((BrokerHeartbeatRequestFilter) filter).onBrokerHeartbeatRequest(apiVersion, header, (BrokerHeartbeatRequestData) body, filterContext);
             case BROKER_REGISTRATION ->
-                ((BrokerRegistrationRequestFilter) filter).onBrokerRegistrationRequest(header, (BrokerRegistrationRequestData) body, filterContext);
+                ((BrokerRegistrationRequestFilter) filter).onBrokerRegistrationRequest(apiVersion, header, (BrokerRegistrationRequestData) body, filterContext);
             case CONTROLLED_SHUTDOWN ->
-                ((ControlledShutdownRequestFilter) filter).onControlledShutdownRequest(header, (ControlledShutdownRequestData) body, filterContext);
-            case CREATE_ACLS -> ((CreateAclsRequestFilter) filter).onCreateAclsRequest(header, (CreateAclsRequestData) body, filterContext);
+                ((ControlledShutdownRequestFilter) filter).onControlledShutdownRequest(apiVersion, header, (ControlledShutdownRequestData) body, filterContext);
+            case CREATE_ACLS -> ((CreateAclsRequestFilter) filter).onCreateAclsRequest(apiVersion, header, (CreateAclsRequestData) body, filterContext);
             case CREATE_DELEGATION_TOKEN ->
-                ((CreateDelegationTokenRequestFilter) filter).onCreateDelegationTokenRequest(header, (CreateDelegationTokenRequestData) body, filterContext);
-            case CREATE_PARTITIONS -> ((CreatePartitionsRequestFilter) filter).onCreatePartitionsRequest(header, (CreatePartitionsRequestData) body, filterContext);
-            case CREATE_TOPICS -> ((CreateTopicsRequestFilter) filter).onCreateTopicsRequest(header, (CreateTopicsRequestData) body, filterContext);
-            case DELETE_ACLS -> ((DeleteAclsRequestFilter) filter).onDeleteAclsRequest(header, (DeleteAclsRequestData) body, filterContext);
-            case DELETE_GROUPS -> ((DeleteGroupsRequestFilter) filter).onDeleteGroupsRequest(header, (DeleteGroupsRequestData) body, filterContext);
-            case DELETE_RECORDS -> ((DeleteRecordsRequestFilter) filter).onDeleteRecordsRequest(header, (DeleteRecordsRequestData) body, filterContext);
-            case DELETE_TOPICS -> ((DeleteTopicsRequestFilter) filter).onDeleteTopicsRequest(header, (DeleteTopicsRequestData) body, filterContext);
-            case DESCRIBE_ACLS -> ((DescribeAclsRequestFilter) filter).onDescribeAclsRequest(header, (DescribeAclsRequestData) body, filterContext);
+                ((CreateDelegationTokenRequestFilter) filter).onCreateDelegationTokenRequest(apiVersion, header, (CreateDelegationTokenRequestData) body, filterContext);
+            case CREATE_PARTITIONS ->
+                ((CreatePartitionsRequestFilter) filter).onCreatePartitionsRequest(apiVersion, header, (CreatePartitionsRequestData) body, filterContext);
+            case CREATE_TOPICS -> ((CreateTopicsRequestFilter) filter).onCreateTopicsRequest(apiVersion, header, (CreateTopicsRequestData) body, filterContext);
+            case DELETE_ACLS -> ((DeleteAclsRequestFilter) filter).onDeleteAclsRequest(apiVersion, header, (DeleteAclsRequestData) body, filterContext);
+            case DELETE_GROUPS -> ((DeleteGroupsRequestFilter) filter).onDeleteGroupsRequest(apiVersion, header, (DeleteGroupsRequestData) body, filterContext);
+            case DELETE_RECORDS -> ((DeleteRecordsRequestFilter) filter).onDeleteRecordsRequest(apiVersion, header, (DeleteRecordsRequestData) body, filterContext);
+            case DELETE_TOPICS -> ((DeleteTopicsRequestFilter) filter).onDeleteTopicsRequest(apiVersion, header, (DeleteTopicsRequestData) body, filterContext);
+            case DESCRIBE_ACLS -> ((DescribeAclsRequestFilter) filter).onDescribeAclsRequest(apiVersion, header, (DescribeAclsRequestData) body, filterContext);
             case DESCRIBE_CLIENT_QUOTAS ->
-                ((DescribeClientQuotasRequestFilter) filter).onDescribeClientQuotasRequest(header, (DescribeClientQuotasRequestData) body, filterContext);
-            case DESCRIBE_CLUSTER -> ((DescribeClusterRequestFilter) filter).onDescribeClusterRequest(header, (DescribeClusterRequestData) body, filterContext);
-            case DESCRIBE_CONFIGS -> ((DescribeConfigsRequestFilter) filter).onDescribeConfigsRequest(header, (DescribeConfigsRequestData) body, filterContext);
+                ((DescribeClientQuotasRequestFilter) filter).onDescribeClientQuotasRequest(apiVersion, header, (DescribeClientQuotasRequestData) body, filterContext);
+            case DESCRIBE_CLUSTER ->
+                ((DescribeClusterRequestFilter) filter).onDescribeClusterRequest(apiVersion, header, (DescribeClusterRequestData) body, filterContext);
+            case DESCRIBE_CONFIGS ->
+                ((DescribeConfigsRequestFilter) filter).onDescribeConfigsRequest(apiVersion, header, (DescribeConfigsRequestData) body, filterContext);
             case DESCRIBE_DELEGATION_TOKEN ->
-                ((DescribeDelegationTokenRequestFilter) filter).onDescribeDelegationTokenRequest(header, (DescribeDelegationTokenRequestData) body, filterContext);
-            case DESCRIBE_GROUPS -> ((DescribeGroupsRequestFilter) filter).onDescribeGroupsRequest(header, (DescribeGroupsRequestData) body, filterContext);
-            case DESCRIBE_LOG_DIRS -> ((DescribeLogDirsRequestFilter) filter).onDescribeLogDirsRequest(header, (DescribeLogDirsRequestData) body, filterContext);
-            case DESCRIBE_PRODUCERS -> ((DescribeProducersRequestFilter) filter).onDescribeProducersRequest(header, (DescribeProducersRequestData) body, filterContext);
-            case DESCRIBE_QUORUM -> ((DescribeQuorumRequestFilter) filter).onDescribeQuorumRequest(header, (DescribeQuorumRequestData) body, filterContext);
+                ((DescribeDelegationTokenRequestFilter) filter).onDescribeDelegationTokenRequest(apiVersion, header, (DescribeDelegationTokenRequestData) body,
+                        filterContext);
+            case DESCRIBE_GROUPS -> ((DescribeGroupsRequestFilter) filter).onDescribeGroupsRequest(apiVersion, header, (DescribeGroupsRequestData) body, filterContext);
+            case DESCRIBE_LOG_DIRS ->
+                ((DescribeLogDirsRequestFilter) filter).onDescribeLogDirsRequest(apiVersion, header, (DescribeLogDirsRequestData) body, filterContext);
+            case DESCRIBE_PRODUCERS ->
+                ((DescribeProducersRequestFilter) filter).onDescribeProducersRequest(apiVersion, header, (DescribeProducersRequestData) body, filterContext);
+            case DESCRIBE_QUORUM -> ((DescribeQuorumRequestFilter) filter).onDescribeQuorumRequest(apiVersion, header, (DescribeQuorumRequestData) body, filterContext);
             case DESCRIBE_TRANSACTIONS ->
-                ((DescribeTransactionsRequestFilter) filter).onDescribeTransactionsRequest(header, (DescribeTransactionsRequestData) body, filterContext);
-            case DESCRIBE_USER_SCRAM_CREDENTIALS -> ((DescribeUserScramCredentialsRequestFilter) filter).onDescribeUserScramCredentialsRequest(header,
+                ((DescribeTransactionsRequestFilter) filter).onDescribeTransactionsRequest(apiVersion, header, (DescribeTransactionsRequestData) body, filterContext);
+            case DESCRIBE_USER_SCRAM_CREDENTIALS -> ((DescribeUserScramCredentialsRequestFilter) filter).onDescribeUserScramCredentialsRequest(apiVersion, header,
                     (DescribeUserScramCredentialsRequestData) body, filterContext);
-            case ELECT_LEADERS -> ((ElectLeadersRequestFilter) filter).onElectLeadersRequest(header, (ElectLeadersRequestData) body, filterContext);
-            case END_QUORUM_EPOCH -> ((EndQuorumEpochRequestFilter) filter).onEndQuorumEpochRequest(header, (EndQuorumEpochRequestData) body, filterContext);
-            case END_TXN -> ((EndTxnRequestFilter) filter).onEndTxnRequest(header, (EndTxnRequestData) body, filterContext);
-            case ENVELOPE -> ((EnvelopeRequestFilter) filter).onEnvelopeRequest(header, (EnvelopeRequestData) body, filterContext);
+            case ELECT_LEADERS -> ((ElectLeadersRequestFilter) filter).onElectLeadersRequest(apiVersion, header, (ElectLeadersRequestData) body, filterContext);
+            case END_QUORUM_EPOCH -> ((EndQuorumEpochRequestFilter) filter).onEndQuorumEpochRequest(apiVersion, header, (EndQuorumEpochRequestData) body, filterContext);
+            case END_TXN -> ((EndTxnRequestFilter) filter).onEndTxnRequest(apiVersion, header, (EndTxnRequestData) body, filterContext);
+            case ENVELOPE -> ((EnvelopeRequestFilter) filter).onEnvelopeRequest(apiVersion, header, (EnvelopeRequestData) body, filterContext);
             case EXPIRE_DELEGATION_TOKEN ->
-                ((ExpireDelegationTokenRequestFilter) filter).onExpireDelegationTokenRequest(header, (ExpireDelegationTokenRequestData) body, filterContext);
-            case FETCH -> ((FetchRequestFilter) filter).onFetchRequest(header, (FetchRequestData) body, filterContext);
-            case FETCH_SNAPSHOT -> ((FetchSnapshotRequestFilter) filter).onFetchSnapshotRequest(header, (FetchSnapshotRequestData) body, filterContext);
-            case FIND_COORDINATOR -> ((FindCoordinatorRequestFilter) filter).onFindCoordinatorRequest(header, (FindCoordinatorRequestData) body, filterContext);
-            case HEARTBEAT -> ((HeartbeatRequestFilter) filter).onHeartbeatRequest(header, (HeartbeatRequestData) body, filterContext);
+                ((ExpireDelegationTokenRequestFilter) filter).onExpireDelegationTokenRequest(apiVersion, header, (ExpireDelegationTokenRequestData) body, filterContext);
+            case FETCH -> ((FetchRequestFilter) filter).onFetchRequest(apiVersion, header, (FetchRequestData) body, filterContext);
+            case FETCH_SNAPSHOT -> ((FetchSnapshotRequestFilter) filter).onFetchSnapshotRequest(apiVersion, header, (FetchSnapshotRequestData) body, filterContext);
+            case FIND_COORDINATOR ->
+                ((FindCoordinatorRequestFilter) filter).onFindCoordinatorRequest(apiVersion, header, (FindCoordinatorRequestData) body, filterContext);
+            case HEARTBEAT -> ((HeartbeatRequestFilter) filter).onHeartbeatRequest(apiVersion, header, (HeartbeatRequestData) body, filterContext);
             case INCREMENTAL_ALTER_CONFIGS ->
-                ((IncrementalAlterConfigsRequestFilter) filter).onIncrementalAlterConfigsRequest(header, (IncrementalAlterConfigsRequestData) body, filterContext);
-            case INIT_PRODUCER_ID -> ((InitProducerIdRequestFilter) filter).onInitProducerIdRequest(header, (InitProducerIdRequestData) body, filterContext);
-            case JOIN_GROUP -> ((JoinGroupRequestFilter) filter).onJoinGroupRequest(header, (JoinGroupRequestData) body, filterContext);
-            case LEADER_AND_ISR -> ((LeaderAndIsrRequestFilter) filter).onLeaderAndIsrRequest(header, (LeaderAndIsrRequestData) body, filterContext);
-            case LEAVE_GROUP -> ((LeaveGroupRequestFilter) filter).onLeaveGroupRequest(header, (LeaveGroupRequestData) body, filterContext);
-            case LIST_GROUPS -> ((ListGroupsRequestFilter) filter).onListGroupsRequest(header, (ListGroupsRequestData) body, filterContext);
-            case LIST_OFFSETS -> ((ListOffsetsRequestFilter) filter).onListOffsetsRequest(header, (ListOffsetsRequestData) body, filterContext);
-            case LIST_PARTITION_REASSIGNMENTS -> ((ListPartitionReassignmentsRequestFilter) filter).onListPartitionReassignmentsRequest(header,
+                ((IncrementalAlterConfigsRequestFilter) filter).onIncrementalAlterConfigsRequest(apiVersion, header, (IncrementalAlterConfigsRequestData) body,
+                        filterContext);
+            case INIT_PRODUCER_ID -> ((InitProducerIdRequestFilter) filter).onInitProducerIdRequest(apiVersion, header, (InitProducerIdRequestData) body, filterContext);
+            case JOIN_GROUP -> ((JoinGroupRequestFilter) filter).onJoinGroupRequest(apiVersion, header, (JoinGroupRequestData) body, filterContext);
+            case LEADER_AND_ISR -> ((LeaderAndIsrRequestFilter) filter).onLeaderAndIsrRequest(apiVersion, header, (LeaderAndIsrRequestData) body, filterContext);
+            case LEAVE_GROUP -> ((LeaveGroupRequestFilter) filter).onLeaveGroupRequest(apiVersion, header, (LeaveGroupRequestData) body, filterContext);
+            case LIST_GROUPS -> ((ListGroupsRequestFilter) filter).onListGroupsRequest(apiVersion, header, (ListGroupsRequestData) body, filterContext);
+            case LIST_OFFSETS -> ((ListOffsetsRequestFilter) filter).onListOffsetsRequest(apiVersion, header, (ListOffsetsRequestData) body, filterContext);
+            case LIST_PARTITION_REASSIGNMENTS -> ((ListPartitionReassignmentsRequestFilter) filter).onListPartitionReassignmentsRequest(apiVersion, header,
                     (ListPartitionReassignmentsRequestData) body, filterContext);
-            case LIST_TRANSACTIONS -> ((ListTransactionsRequestFilter) filter).onListTransactionsRequest(header, (ListTransactionsRequestData) body, filterContext);
-            case METADATA -> ((MetadataRequestFilter) filter).onMetadataRequest(header, (MetadataRequestData) body, filterContext);
-            case OFFSET_COMMIT -> ((OffsetCommitRequestFilter) filter).onOffsetCommitRequest(header, (OffsetCommitRequestData) body, filterContext);
-            case OFFSET_DELETE -> ((OffsetDeleteRequestFilter) filter).onOffsetDeleteRequest(header, (OffsetDeleteRequestData) body, filterContext);
-            case OFFSET_FETCH -> ((OffsetFetchRequestFilter) filter).onOffsetFetchRequest(header, (OffsetFetchRequestData) body, filterContext);
+            case LIST_TRANSACTIONS ->
+                ((ListTransactionsRequestFilter) filter).onListTransactionsRequest(apiVersion, header, (ListTransactionsRequestData) body, filterContext);
+            case METADATA -> ((MetadataRequestFilter) filter).onMetadataRequest(apiVersion, header, (MetadataRequestData) body, filterContext);
+            case OFFSET_COMMIT -> ((OffsetCommitRequestFilter) filter).onOffsetCommitRequest(apiVersion, header, (OffsetCommitRequestData) body, filterContext);
+            case OFFSET_DELETE -> ((OffsetDeleteRequestFilter) filter).onOffsetDeleteRequest(apiVersion, header, (OffsetDeleteRequestData) body, filterContext);
+            case OFFSET_FETCH -> ((OffsetFetchRequestFilter) filter).onOffsetFetchRequest(apiVersion, header, (OffsetFetchRequestData) body, filterContext);
             case OFFSET_FOR_LEADER_EPOCH ->
-                ((OffsetForLeaderEpochRequestFilter) filter).onOffsetForLeaderEpochRequest(header, (OffsetForLeaderEpochRequestData) body, filterContext);
-            case PRODUCE -> ((ProduceRequestFilter) filter).onProduceRequest(header, (ProduceRequestData) body, filterContext);
+                ((OffsetForLeaderEpochRequestFilter) filter).onOffsetForLeaderEpochRequest(apiVersion, header, (OffsetForLeaderEpochRequestData) body, filterContext);
+            case PRODUCE -> ((ProduceRequestFilter) filter).onProduceRequest(apiVersion, header, (ProduceRequestData) body, filterContext);
             case RENEW_DELEGATION_TOKEN ->
-                ((RenewDelegationTokenRequestFilter) filter).onRenewDelegationTokenRequest(header, (RenewDelegationTokenRequestData) body, filterContext);
-            case SASL_AUTHENTICATE -> ((SaslAuthenticateRequestFilter) filter).onSaslAuthenticateRequest(header, (SaslAuthenticateRequestData) body, filterContext);
-            case SASL_HANDSHAKE -> ((SaslHandshakeRequestFilter) filter).onSaslHandshakeRequest(header, (SaslHandshakeRequestData) body, filterContext);
-            case STOP_REPLICA -> ((StopReplicaRequestFilter) filter).onStopReplicaRequest(header, (StopReplicaRequestData) body, filterContext);
-            case SYNC_GROUP -> ((SyncGroupRequestFilter) filter).onSyncGroupRequest(header, (SyncGroupRequestData) body, filterContext);
-            case TXN_OFFSET_COMMIT -> ((TxnOffsetCommitRequestFilter) filter).onTxnOffsetCommitRequest(header, (TxnOffsetCommitRequestData) body, filterContext);
-            case UNREGISTER_BROKER -> ((UnregisterBrokerRequestFilter) filter).onUnregisterBrokerRequest(header, (UnregisterBrokerRequestData) body, filterContext);
-            case UPDATE_FEATURES -> ((UpdateFeaturesRequestFilter) filter).onUpdateFeaturesRequest(header, (UpdateFeaturesRequestData) body, filterContext);
-            case UPDATE_METADATA -> ((UpdateMetadataRequestFilter) filter).onUpdateMetadataRequest(header, (UpdateMetadataRequestData) body, filterContext);
-            case VOTE -> ((VoteRequestFilter) filter).onVoteRequest(header, (VoteRequestData) body, filterContext);
-            case WRITE_TXN_MARKERS -> ((WriteTxnMarkersRequestFilter) filter).onWriteTxnMarkersRequest(header, (WriteTxnMarkersRequestData) body, filterContext);
+                ((RenewDelegationTokenRequestFilter) filter).onRenewDelegationTokenRequest(apiVersion, header, (RenewDelegationTokenRequestData) body, filterContext);
+            case SASL_AUTHENTICATE ->
+                ((SaslAuthenticateRequestFilter) filter).onSaslAuthenticateRequest(apiVersion, header, (SaslAuthenticateRequestData) body, filterContext);
+            case SASL_HANDSHAKE -> ((SaslHandshakeRequestFilter) filter).onSaslHandshakeRequest(apiVersion, header, (SaslHandshakeRequestData) body, filterContext);
+            case STOP_REPLICA -> ((StopReplicaRequestFilter) filter).onStopReplicaRequest(apiVersion, header, (StopReplicaRequestData) body, filterContext);
+            case SYNC_GROUP -> ((SyncGroupRequestFilter) filter).onSyncGroupRequest(apiVersion, header, (SyncGroupRequestData) body, filterContext);
+            case TXN_OFFSET_COMMIT ->
+                ((TxnOffsetCommitRequestFilter) filter).onTxnOffsetCommitRequest(apiVersion, header, (TxnOffsetCommitRequestData) body, filterContext);
+            case UNREGISTER_BROKER ->
+                ((UnregisterBrokerRequestFilter) filter).onUnregisterBrokerRequest(apiVersion, header, (UnregisterBrokerRequestData) body, filterContext);
+            case UPDATE_FEATURES -> ((UpdateFeaturesRequestFilter) filter).onUpdateFeaturesRequest(apiVersion, header, (UpdateFeaturesRequestData) body, filterContext);
+            case UPDATE_METADATA -> ((UpdateMetadataRequestFilter) filter).onUpdateMetadataRequest(apiVersion, header, (UpdateMetadataRequestData) body, filterContext);
+            case VOTE -> ((VoteRequestFilter) filter).onVoteRequest(apiVersion, header, (VoteRequestData) body, filterContext);
+            case WRITE_TXN_MARKERS ->
+                ((WriteTxnMarkersRequestFilter) filter).onWriteTxnMarkersRequest(apiVersion, header, (WriteTxnMarkersRequestData) body, filterContext);
             default -> throw new IllegalStateException("Unsupported RPC " + apiKey);
         }
     }
@@ -418,93 +436,117 @@ class SpecificFilterInvoker implements FilterInvoker {
                            ApiMessage body,
                            KrpcFilterContext filterContext) {
         switch (apiKey) {
-            case ADD_OFFSETS_TO_TXN -> ((AddOffsetsToTxnResponseFilter) filter).onAddOffsetsToTxnResponse(header, (AddOffsetsToTxnResponseData) body, filterContext);
+            case ADD_OFFSETS_TO_TXN ->
+                ((AddOffsetsToTxnResponseFilter) filter).onAddOffsetsToTxnResponse(apiVersion, header, (AddOffsetsToTxnResponseData) body, filterContext);
             case ADD_PARTITIONS_TO_TXN ->
-                ((AddPartitionsToTxnResponseFilter) filter).onAddPartitionsToTxnResponse(header, (AddPartitionsToTxnResponseData) body, filterContext);
+                ((AddPartitionsToTxnResponseFilter) filter).onAddPartitionsToTxnResponse(apiVersion, header, (AddPartitionsToTxnResponseData) body, filterContext);
             case ALLOCATE_PRODUCER_IDS ->
-                ((AllocateProducerIdsResponseFilter) filter).onAllocateProducerIdsResponse(header, (AllocateProducerIdsResponseData) body, filterContext);
+                ((AllocateProducerIdsResponseFilter) filter).onAllocateProducerIdsResponse(apiVersion, header, (AllocateProducerIdsResponseData) body, filterContext);
             case ALTER_CLIENT_QUOTAS ->
-                ((AlterClientQuotasResponseFilter) filter).onAlterClientQuotasResponse(header, (AlterClientQuotasResponseData) body, filterContext);
-            case ALTER_CONFIGS -> ((AlterConfigsResponseFilter) filter).onAlterConfigsResponse(header, (AlterConfigsResponseData) body, filterContext);
-            case ALTER_PARTITION_REASSIGNMENTS -> ((AlterPartitionReassignmentsResponseFilter) filter).onAlterPartitionReassignmentsResponse(header,
+                ((AlterClientQuotasResponseFilter) filter).onAlterClientQuotasResponse(apiVersion, header, (AlterClientQuotasResponseData) body, filterContext);
+            case ALTER_CONFIGS -> ((AlterConfigsResponseFilter) filter).onAlterConfigsResponse(apiVersion, header, (AlterConfigsResponseData) body, filterContext);
+            case ALTER_PARTITION_REASSIGNMENTS -> ((AlterPartitionReassignmentsResponseFilter) filter).onAlterPartitionReassignmentsResponse(apiVersion, header,
                     (AlterPartitionReassignmentsResponseData) body, filterContext);
-            case ALTER_PARTITION -> ((AlterPartitionResponseFilter) filter).onAlterPartitionResponse(header, (AlterPartitionResponseData) body, filterContext);
+            case ALTER_PARTITION ->
+                ((AlterPartitionResponseFilter) filter).onAlterPartitionResponse(apiVersion, header, (AlterPartitionResponseData) body, filterContext);
             case ALTER_REPLICA_LOG_DIRS ->
-                ((AlterReplicaLogDirsResponseFilter) filter).onAlterReplicaLogDirsResponse(header, (AlterReplicaLogDirsResponseData) body, filterContext);
-            case ALTER_USER_SCRAM_CREDENTIALS -> ((AlterUserScramCredentialsResponseFilter) filter).onAlterUserScramCredentialsResponse(header,
+                ((AlterReplicaLogDirsResponseFilter) filter).onAlterReplicaLogDirsResponse(apiVersion, header, (AlterReplicaLogDirsResponseData) body, filterContext);
+            case ALTER_USER_SCRAM_CREDENTIALS -> ((AlterUserScramCredentialsResponseFilter) filter).onAlterUserScramCredentialsResponse(apiVersion, header,
                     (AlterUserScramCredentialsResponseData) body, filterContext);
-            case API_VERSIONS -> ((ApiVersionsResponseFilter) filter).onApiVersionsResponse(header, (ApiVersionsResponseData) body, filterContext);
-            case BEGIN_QUORUM_EPOCH -> ((BeginQuorumEpochResponseFilter) filter).onBeginQuorumEpochResponse(header, (BeginQuorumEpochResponseData) body, filterContext);
-            case BROKER_HEARTBEAT -> ((BrokerHeartbeatResponseFilter) filter).onBrokerHeartbeatResponse(header, (BrokerHeartbeatResponseData) body, filterContext);
+            case API_VERSIONS -> ((ApiVersionsResponseFilter) filter).onApiVersionsResponse(apiVersion, header, (ApiVersionsResponseData) body, filterContext);
+            case BEGIN_QUORUM_EPOCH ->
+                ((BeginQuorumEpochResponseFilter) filter).onBeginQuorumEpochResponse(apiVersion, header, (BeginQuorumEpochResponseData) body, filterContext);
+            case BROKER_HEARTBEAT ->
+                ((BrokerHeartbeatResponseFilter) filter).onBrokerHeartbeatResponse(apiVersion, header, (BrokerHeartbeatResponseData) body, filterContext);
             case BROKER_REGISTRATION ->
-                ((BrokerRegistrationResponseFilter) filter).onBrokerRegistrationResponse(header, (BrokerRegistrationResponseData) body, filterContext);
+                ((BrokerRegistrationResponseFilter) filter).onBrokerRegistrationResponse(apiVersion, header, (BrokerRegistrationResponseData) body, filterContext);
             case CONTROLLED_SHUTDOWN ->
-                ((ControlledShutdownResponseFilter) filter).onControlledShutdownResponse(header, (ControlledShutdownResponseData) body, filterContext);
-            case CREATE_ACLS -> ((CreateAclsResponseFilter) filter).onCreateAclsResponse(header, (CreateAclsResponseData) body, filterContext);
+                ((ControlledShutdownResponseFilter) filter).onControlledShutdownResponse(apiVersion, header, (ControlledShutdownResponseData) body, filterContext);
+            case CREATE_ACLS -> ((CreateAclsResponseFilter) filter).onCreateAclsResponse(apiVersion, header, (CreateAclsResponseData) body, filterContext);
             case CREATE_DELEGATION_TOKEN ->
-                ((CreateDelegationTokenResponseFilter) filter).onCreateDelegationTokenResponse(header, (CreateDelegationTokenResponseData) body, filterContext);
-            case CREATE_PARTITIONS -> ((CreatePartitionsResponseFilter) filter).onCreatePartitionsResponse(header, (CreatePartitionsResponseData) body, filterContext);
-            case CREATE_TOPICS -> ((CreateTopicsResponseFilter) filter).onCreateTopicsResponse(header, (CreateTopicsResponseData) body, filterContext);
-            case DELETE_ACLS -> ((DeleteAclsResponseFilter) filter).onDeleteAclsResponse(header, (DeleteAclsResponseData) body, filterContext);
-            case DELETE_GROUPS -> ((DeleteGroupsResponseFilter) filter).onDeleteGroupsResponse(header, (DeleteGroupsResponseData) body, filterContext);
-            case DELETE_RECORDS -> ((DeleteRecordsResponseFilter) filter).onDeleteRecordsResponse(header, (DeleteRecordsResponseData) body, filterContext);
-            case DELETE_TOPICS -> ((DeleteTopicsResponseFilter) filter).onDeleteTopicsResponse(header, (DeleteTopicsResponseData) body, filterContext);
-            case DESCRIBE_ACLS -> ((DescribeAclsResponseFilter) filter).onDescribeAclsResponse(header, (DescribeAclsResponseData) body, filterContext);
+                ((CreateDelegationTokenResponseFilter) filter).onCreateDelegationTokenResponse(apiVersion, header, (CreateDelegationTokenResponseData) body,
+                        filterContext);
+            case CREATE_PARTITIONS ->
+                ((CreatePartitionsResponseFilter) filter).onCreatePartitionsResponse(apiVersion, header, (CreatePartitionsResponseData) body, filterContext);
+            case CREATE_TOPICS -> ((CreateTopicsResponseFilter) filter).onCreateTopicsResponse(apiVersion, header, (CreateTopicsResponseData) body, filterContext);
+            case DELETE_ACLS -> ((DeleteAclsResponseFilter) filter).onDeleteAclsResponse(apiVersion, header, (DeleteAclsResponseData) body, filterContext);
+            case DELETE_GROUPS -> ((DeleteGroupsResponseFilter) filter).onDeleteGroupsResponse(apiVersion, header, (DeleteGroupsResponseData) body, filterContext);
+            case DELETE_RECORDS -> ((DeleteRecordsResponseFilter) filter).onDeleteRecordsResponse(apiVersion, header, (DeleteRecordsResponseData) body, filterContext);
+            case DELETE_TOPICS -> ((DeleteTopicsResponseFilter) filter).onDeleteTopicsResponse(apiVersion, header, (DeleteTopicsResponseData) body, filterContext);
+            case DESCRIBE_ACLS -> ((DescribeAclsResponseFilter) filter).onDescribeAclsResponse(apiVersion, header, (DescribeAclsResponseData) body, filterContext);
             case DESCRIBE_CLIENT_QUOTAS ->
-                ((DescribeClientQuotasResponseFilter) filter).onDescribeClientQuotasResponse(header, (DescribeClientQuotasResponseData) body, filterContext);
-            case DESCRIBE_CLUSTER -> ((DescribeClusterResponseFilter) filter).onDescribeClusterResponse(header, (DescribeClusterResponseData) body, filterContext);
-            case DESCRIBE_CONFIGS -> ((DescribeConfigsResponseFilter) filter).onDescribeConfigsResponse(header, (DescribeConfigsResponseData) body, filterContext);
+                ((DescribeClientQuotasResponseFilter) filter).onDescribeClientQuotasResponse(apiVersion, header, (DescribeClientQuotasResponseData) body, filterContext);
+            case DESCRIBE_CLUSTER ->
+                ((DescribeClusterResponseFilter) filter).onDescribeClusterResponse(apiVersion, header, (DescribeClusterResponseData) body, filterContext);
+            case DESCRIBE_CONFIGS ->
+                ((DescribeConfigsResponseFilter) filter).onDescribeConfigsResponse(apiVersion, header, (DescribeConfigsResponseData) body, filterContext);
             case DESCRIBE_DELEGATION_TOKEN ->
-                ((DescribeDelegationTokenResponseFilter) filter).onDescribeDelegationTokenResponse(header, (DescribeDelegationTokenResponseData) body, filterContext);
-            case DESCRIBE_GROUPS -> ((DescribeGroupsResponseFilter) filter).onDescribeGroupsResponse(header, (DescribeGroupsResponseData) body, filterContext);
-            case DESCRIBE_LOG_DIRS -> ((DescribeLogDirsResponseFilter) filter).onDescribeLogDirsResponse(header, (DescribeLogDirsResponseData) body, filterContext);
+                ((DescribeDelegationTokenResponseFilter) filter).onDescribeDelegationTokenResponse(apiVersion, header, (DescribeDelegationTokenResponseData) body,
+                        filterContext);
+            case DESCRIBE_GROUPS ->
+                ((DescribeGroupsResponseFilter) filter).onDescribeGroupsResponse(apiVersion, header, (DescribeGroupsResponseData) body, filterContext);
+            case DESCRIBE_LOG_DIRS ->
+                ((DescribeLogDirsResponseFilter) filter).onDescribeLogDirsResponse(apiVersion, header, (DescribeLogDirsResponseData) body, filterContext);
             case DESCRIBE_PRODUCERS ->
-                ((DescribeProducersResponseFilter) filter).onDescribeProducersResponse(header, (DescribeProducersResponseData) body, filterContext);
-            case DESCRIBE_QUORUM -> ((DescribeQuorumResponseFilter) filter).onDescribeQuorumResponse(header, (DescribeQuorumResponseData) body, filterContext);
+                ((DescribeProducersResponseFilter) filter).onDescribeProducersResponse(apiVersion, header, (DescribeProducersResponseData) body, filterContext);
+            case DESCRIBE_QUORUM ->
+                ((DescribeQuorumResponseFilter) filter).onDescribeQuorumResponse(apiVersion, header, (DescribeQuorumResponseData) body, filterContext);
             case DESCRIBE_TRANSACTIONS ->
-                ((DescribeTransactionsResponseFilter) filter).onDescribeTransactionsResponse(header, (DescribeTransactionsResponseData) body, filterContext);
-            case DESCRIBE_USER_SCRAM_CREDENTIALS -> ((DescribeUserScramCredentialsResponseFilter) filter).onDescribeUserScramCredentialsResponse(header,
+                ((DescribeTransactionsResponseFilter) filter).onDescribeTransactionsResponse(apiVersion, header, (DescribeTransactionsResponseData) body, filterContext);
+            case DESCRIBE_USER_SCRAM_CREDENTIALS -> ((DescribeUserScramCredentialsResponseFilter) filter).onDescribeUserScramCredentialsResponse(apiVersion, header,
                     (DescribeUserScramCredentialsResponseData) body, filterContext);
-            case ELECT_LEADERS -> ((ElectLeadersResponseFilter) filter).onElectLeadersResponse(header, (ElectLeadersResponseData) body, filterContext);
-            case END_QUORUM_EPOCH -> ((EndQuorumEpochResponseFilter) filter).onEndQuorumEpochResponse(header, (EndQuorumEpochResponseData) body, filterContext);
-            case END_TXN -> ((EndTxnResponseFilter) filter).onEndTxnResponse(header, (EndTxnResponseData) body, filterContext);
-            case ENVELOPE -> ((EnvelopeResponseFilter) filter).onEnvelopeResponse(header, (EnvelopeResponseData) body, filterContext);
+            case ELECT_LEADERS -> ((ElectLeadersResponseFilter) filter).onElectLeadersResponse(apiVersion, header, (ElectLeadersResponseData) body, filterContext);
+            case END_QUORUM_EPOCH ->
+                ((EndQuorumEpochResponseFilter) filter).onEndQuorumEpochResponse(apiVersion, header, (EndQuorumEpochResponseData) body, filterContext);
+            case END_TXN -> ((EndTxnResponseFilter) filter).onEndTxnResponse(apiVersion, header, (EndTxnResponseData) body, filterContext);
+            case ENVELOPE -> ((EnvelopeResponseFilter) filter).onEnvelopeResponse(apiVersion, header, (EnvelopeResponseData) body, filterContext);
             case EXPIRE_DELEGATION_TOKEN ->
-                ((ExpireDelegationTokenResponseFilter) filter).onExpireDelegationTokenResponse(header, (ExpireDelegationTokenResponseData) body, filterContext);
-            case FETCH -> ((FetchResponseFilter) filter).onFetchResponse(header, (FetchResponseData) body, filterContext);
-            case FETCH_SNAPSHOT -> ((FetchSnapshotResponseFilter) filter).onFetchSnapshotResponse(header, (FetchSnapshotResponseData) body, filterContext);
-            case FIND_COORDINATOR -> ((FindCoordinatorResponseFilter) filter).onFindCoordinatorResponse(header, (FindCoordinatorResponseData) body, filterContext);
-            case HEARTBEAT -> ((HeartbeatResponseFilter) filter).onHeartbeatResponse(header, (HeartbeatResponseData) body, filterContext);
+                ((ExpireDelegationTokenResponseFilter) filter).onExpireDelegationTokenResponse(apiVersion, header, (ExpireDelegationTokenResponseData) body,
+                        filterContext);
+            case FETCH -> ((FetchResponseFilter) filter).onFetchResponse(apiVersion, header, (FetchResponseData) body, filterContext);
+            case FETCH_SNAPSHOT -> ((FetchSnapshotResponseFilter) filter).onFetchSnapshotResponse(apiVersion, header, (FetchSnapshotResponseData) body, filterContext);
+            case FIND_COORDINATOR ->
+                ((FindCoordinatorResponseFilter) filter).onFindCoordinatorResponse(apiVersion, header, (FindCoordinatorResponseData) body, filterContext);
+            case HEARTBEAT -> ((HeartbeatResponseFilter) filter).onHeartbeatResponse(apiVersion, header, (HeartbeatResponseData) body, filterContext);
             case INCREMENTAL_ALTER_CONFIGS ->
-                ((IncrementalAlterConfigsResponseFilter) filter).onIncrementalAlterConfigsResponse(header, (IncrementalAlterConfigsResponseData) body, filterContext);
-            case INIT_PRODUCER_ID -> ((InitProducerIdResponseFilter) filter).onInitProducerIdResponse(header, (InitProducerIdResponseData) body, filterContext);
-            case JOIN_GROUP -> ((JoinGroupResponseFilter) filter).onJoinGroupResponse(header, (JoinGroupResponseData) body, filterContext);
-            case LEADER_AND_ISR -> ((LeaderAndIsrResponseFilter) filter).onLeaderAndIsrResponse(header, (LeaderAndIsrResponseData) body, filterContext);
-            case LEAVE_GROUP -> ((LeaveGroupResponseFilter) filter).onLeaveGroupResponse(header, (LeaveGroupResponseData) body, filterContext);
-            case LIST_GROUPS -> ((ListGroupsResponseFilter) filter).onListGroupsResponse(header, (ListGroupsResponseData) body, filterContext);
-            case LIST_OFFSETS -> ((ListOffsetsResponseFilter) filter).onListOffsetsResponse(header, (ListOffsetsResponseData) body, filterContext);
-            case LIST_PARTITION_REASSIGNMENTS -> ((ListPartitionReassignmentsResponseFilter) filter).onListPartitionReassignmentsResponse(header,
+                ((IncrementalAlterConfigsResponseFilter) filter).onIncrementalAlterConfigsResponse(apiVersion, header, (IncrementalAlterConfigsResponseData) body,
+                        filterContext);
+            case INIT_PRODUCER_ID ->
+                ((InitProducerIdResponseFilter) filter).onInitProducerIdResponse(apiVersion, header, (InitProducerIdResponseData) body, filterContext);
+            case JOIN_GROUP -> ((JoinGroupResponseFilter) filter).onJoinGroupResponse(apiVersion, header, (JoinGroupResponseData) body, filterContext);
+            case LEADER_AND_ISR -> ((LeaderAndIsrResponseFilter) filter).onLeaderAndIsrResponse(apiVersion, header, (LeaderAndIsrResponseData) body, filterContext);
+            case LEAVE_GROUP -> ((LeaveGroupResponseFilter) filter).onLeaveGroupResponse(apiVersion, header, (LeaveGroupResponseData) body, filterContext);
+            case LIST_GROUPS -> ((ListGroupsResponseFilter) filter).onListGroupsResponse(apiVersion, header, (ListGroupsResponseData) body, filterContext);
+            case LIST_OFFSETS -> ((ListOffsetsResponseFilter) filter).onListOffsetsResponse(apiVersion, header, (ListOffsetsResponseData) body, filterContext);
+            case LIST_PARTITION_REASSIGNMENTS -> ((ListPartitionReassignmentsResponseFilter) filter).onListPartitionReassignmentsResponse(apiVersion, header,
                     (ListPartitionReassignmentsResponseData) body, filterContext);
-            case LIST_TRANSACTIONS -> ((ListTransactionsResponseFilter) filter).onListTransactionsResponse(header, (ListTransactionsResponseData) body, filterContext);
-            case METADATA -> ((MetadataResponseFilter) filter).onMetadataResponse(header, (MetadataResponseData) body, filterContext);
-            case OFFSET_COMMIT -> ((OffsetCommitResponseFilter) filter).onOffsetCommitResponse(header, (OffsetCommitResponseData) body, filterContext);
-            case OFFSET_DELETE -> ((OffsetDeleteResponseFilter) filter).onOffsetDeleteResponse(header, (OffsetDeleteResponseData) body, filterContext);
-            case OFFSET_FETCH -> ((OffsetFetchResponseFilter) filter).onOffsetFetchResponse(header, (OffsetFetchResponseData) body, filterContext);
+            case LIST_TRANSACTIONS ->
+                ((ListTransactionsResponseFilter) filter).onListTransactionsResponse(apiVersion, header, (ListTransactionsResponseData) body, filterContext);
+            case METADATA -> ((MetadataResponseFilter) filter).onMetadataResponse(apiVersion, header, (MetadataResponseData) body, filterContext);
+            case OFFSET_COMMIT -> ((OffsetCommitResponseFilter) filter).onOffsetCommitResponse(apiVersion, header, (OffsetCommitResponseData) body, filterContext);
+            case OFFSET_DELETE -> ((OffsetDeleteResponseFilter) filter).onOffsetDeleteResponse(apiVersion, header, (OffsetDeleteResponseData) body, filterContext);
+            case OFFSET_FETCH -> ((OffsetFetchResponseFilter) filter).onOffsetFetchResponse(apiVersion, header, (OffsetFetchResponseData) body, filterContext);
             case OFFSET_FOR_LEADER_EPOCH ->
-                ((OffsetForLeaderEpochResponseFilter) filter).onOffsetForLeaderEpochResponse(header, (OffsetForLeaderEpochResponseData) body, filterContext);
-            case PRODUCE -> ((ProduceResponseFilter) filter).onProduceResponse(header, (ProduceResponseData) body, filterContext);
+                ((OffsetForLeaderEpochResponseFilter) filter).onOffsetForLeaderEpochResponse(apiVersion, header, (OffsetForLeaderEpochResponseData) body, filterContext);
+            case PRODUCE -> ((ProduceResponseFilter) filter).onProduceResponse(apiVersion, header, (ProduceResponseData) body, filterContext);
             case RENEW_DELEGATION_TOKEN ->
-                ((RenewDelegationTokenResponseFilter) filter).onRenewDelegationTokenResponse(header, (RenewDelegationTokenResponseData) body, filterContext);
-            case SASL_AUTHENTICATE -> ((SaslAuthenticateResponseFilter) filter).onSaslAuthenticateResponse(header, (SaslAuthenticateResponseData) body, filterContext);
-            case SASL_HANDSHAKE -> ((SaslHandshakeResponseFilter) filter).onSaslHandshakeResponse(header, (SaslHandshakeResponseData) body, filterContext);
-            case STOP_REPLICA -> ((StopReplicaResponseFilter) filter).onStopReplicaResponse(header, (StopReplicaResponseData) body, filterContext);
-            case SYNC_GROUP -> ((SyncGroupResponseFilter) filter).onSyncGroupResponse(header, (SyncGroupResponseData) body, filterContext);
-            case TXN_OFFSET_COMMIT -> ((TxnOffsetCommitResponseFilter) filter).onTxnOffsetCommitResponse(header, (TxnOffsetCommitResponseData) body, filterContext);
-            case UNREGISTER_BROKER -> ((UnregisterBrokerResponseFilter) filter).onUnregisterBrokerResponse(header, (UnregisterBrokerResponseData) body, filterContext);
-            case UPDATE_FEATURES -> ((UpdateFeaturesResponseFilter) filter).onUpdateFeaturesResponse(header, (UpdateFeaturesResponseData) body, filterContext);
-            case UPDATE_METADATA -> ((UpdateMetadataResponseFilter) filter).onUpdateMetadataResponse(header, (UpdateMetadataResponseData) body, filterContext);
-            case VOTE -> ((VoteResponseFilter) filter).onVoteResponse(header, (VoteResponseData) body, filterContext);
-            case WRITE_TXN_MARKERS -> ((WriteTxnMarkersResponseFilter) filter).onWriteTxnMarkersResponse(header, (WriteTxnMarkersResponseData) body, filterContext);
+                ((RenewDelegationTokenResponseFilter) filter).onRenewDelegationTokenResponse(apiVersion, header, (RenewDelegationTokenResponseData) body, filterContext);
+            case SASL_AUTHENTICATE ->
+                ((SaslAuthenticateResponseFilter) filter).onSaslAuthenticateResponse(apiVersion, header, (SaslAuthenticateResponseData) body, filterContext);
+            case SASL_HANDSHAKE -> ((SaslHandshakeResponseFilter) filter).onSaslHandshakeResponse(apiVersion, header, (SaslHandshakeResponseData) body, filterContext);
+            case STOP_REPLICA -> ((StopReplicaResponseFilter) filter).onStopReplicaResponse(apiVersion, header, (StopReplicaResponseData) body, filterContext);
+            case SYNC_GROUP -> ((SyncGroupResponseFilter) filter).onSyncGroupResponse(apiVersion, header, (SyncGroupResponseData) body, filterContext);
+            case TXN_OFFSET_COMMIT ->
+                ((TxnOffsetCommitResponseFilter) filter).onTxnOffsetCommitResponse(apiVersion, header, (TxnOffsetCommitResponseData) body, filterContext);
+            case UNREGISTER_BROKER ->
+                ((UnregisterBrokerResponseFilter) filter).onUnregisterBrokerResponse(apiVersion, header, (UnregisterBrokerResponseData) body, filterContext);
+            case UPDATE_FEATURES ->
+                ((UpdateFeaturesResponseFilter) filter).onUpdateFeaturesResponse(apiVersion, header, (UpdateFeaturesResponseData) body, filterContext);
+            case UPDATE_METADATA ->
+                ((UpdateMetadataResponseFilter) filter).onUpdateMetadataResponse(apiVersion, header, (UpdateMetadataResponseData) body, filterContext);
+            case VOTE -> ((VoteResponseFilter) filter).onVoteResponse(apiVersion, header, (VoteResponseData) body, filterContext);
+            case WRITE_TXN_MARKERS ->
+                ((WriteTxnMarkersResponseFilter) filter).onWriteTxnMarkersResponse(apiVersion, header, (WriteTxnMarkersResponseData) body, filterContext);
             default -> throw new IllegalStateException("Unsupported RPC " + apiKey);
         }
     }

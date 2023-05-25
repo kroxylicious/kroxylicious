@@ -71,7 +71,7 @@ public class FetchResponseTransformationFilter implements FetchResponseFilter {
     }
 
     @Override
-    public void onFetchResponse(ResponseHeaderData header, FetchResponseData fetchResponse, KrpcFilterContext context) {
+    public void onFetchResponse(short apiVersion, ResponseHeaderData header, FetchResponseData fetchResponse, KrpcFilterContext context) {
         List<MetadataRequestData.MetadataRequestTopic> requestTopics = fetchResponse.responses().stream()
                 .filter(t -> t.topic().isEmpty())
                 .map(fetchableTopicResponse -> {

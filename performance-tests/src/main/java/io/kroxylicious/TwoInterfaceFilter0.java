@@ -18,10 +18,10 @@ import io.kroxylicious.proxy.filter.ProduceResponseFilter;
 public class TwoInterfaceFilter0 implements ProduceResponseFilter, ProduceRequestFilter {
 
     @Override
-    public void onProduceRequest(RequestHeaderData header, ProduceRequestData request, KrpcFilterContext context) {
+    public void onProduceRequest(short apiVersion, RequestHeaderData header, ProduceRequestData request, KrpcFilterContext context) {
     }
 
     @Override
-    public void onProduceResponse(ResponseHeaderData header, ProduceResponseData response, KrpcFilterContext context) {
+    public void onProduceResponse(short apiVersion, ResponseHeaderData header, ProduceResponseData response, KrpcFilterContext context) {
     }
 }
