@@ -272,49 +272,7 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
                 var cand = createReconcileEntry(upstreamNodes, new CompletableFuture<>());
                 if (vcr.reconciliationEntry().compareAndSet(rec, cand)) {
                     // reconcile - work out which bindings are to be registered and which are to be removed.
-                    var bindingAddress = virtualCluster.getBindAddress().orElse(null);
-
-                    var toCreate = upstreamNodes.entrySet().stream().map(e -> new VirtualClusterBrokerBinding(virtualCluster, e.getValue(), e.getKey()))
-                            .collect(Collectors.toCollection(ConcurrentHashMap::newKeySet));
-
-                    // first assemble the stream of de-registrations (and by side effect: update toCreate)
-                    var deregs = allOfStage(listeningChannels.values().stream()
-                            .filter(lcr -> lcr.unbindingStage.get() == null)
-                            .map(lcr -> lcr.bindingStage()
-                                    .thenCompose((acceptorChannel -> {
-                                        var bindings = acceptorChannel.attr(CHANNEL_BINDINGS);
-                                        if (bindings == null || bindings.get() == null) {
-                                            // nothing to do for this channel
-                                            return CompletableFuture.completedStage(null);
-                                        }
-                                        var bindingMap = bindings.get();
-
-                                        return allOfStage(bindingMap.values().stream()
-                                                .filter(vcb -> vcb.virtualCluster().equals(virtualCluster))
-                                                .filter(VirtualClusterBrokerBinding.class::isInstance)
-                                                .map(VirtualClusterBrokerBinding.class::cast)
-                                                .peek(toCreate::remove) // side effect
-                                                .filter(vcbb -> !upstreamNodes.containsKey(vcbb.nodeId()))
-                                                .map(vcbb -> deregisterBinding(virtualCluster, vcbb::equals)));
-                                    }))));
-
-                    // chain any binding registrations and organise for the reconciliations entry to complete
-                    var unused = deregs.thenCompose(u1 -> allOfStage(toCreate.stream()
-                            .map(vcbb -> {
-                                var brokerAddress = virtualCluster.getBrokerAddress(vcbb.nodeId());
-                                var endpoint = new Endpoint(bindingAddress, brokerAddress.port(),
-                                        virtualCluster.isUseTls());
-                                return registerBinding(endpoint, brokerAddress.host(), vcbb);
-                            })))
-                            .whenComplete((u2, t) -> {
-                                var f = cand.getValue().toCompletableFuture();
-                                if (t != null) {
-                                    f.completeExceptionally(t);
-                                }
-                                else {
-                                    f.complete(null);
-                                }
-                            });
+                    doReconcile(virtualCluster, upstreamNodes, cand.getValue().toCompletableFuture());
                     return cand.getValue();
                 }
                 else if ((updated = vcr.reconciliationEntry().get()).getKey().equals(upstreamNodes)) {
@@ -327,6 +285,51 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
                 }
             });
         }
+    }
+
+    private void doReconcile(VirtualCluster virtualCluster, Map<Integer, HostPort> upstreamNodes, CompletableFuture<Void> future) {
+        var bindingAddress = virtualCluster.getBindAddress().orElse(null);
+
+        var creations = upstreamNodes.entrySet().stream().map(e -> new VirtualClusterBrokerBinding(virtualCluster, e.getValue(), e.getKey()))
+                .collect(Collectors.toCollection(ConcurrentHashMap::newKeySet));
+
+        // first assemble the stream of de-registrations (and by side effect: update creations)
+        var deregs = allOfStage(listeningChannels.values().stream()
+                .filter(lcr -> lcr.unbindingStage.get() == null)
+                .map(lcr -> lcr.bindingStage()
+                        .thenCompose((acceptorChannel -> {
+                            var bindings = acceptorChannel.attr(CHANNEL_BINDINGS);
+                            if (bindings == null || bindings.get() == null) {
+                                // nothing to do for this channel
+                                return CompletableFuture.completedStage(null);
+                            }
+                            var bindingMap = bindings.get();
+
+                            return allOfStage(bindingMap.values().stream()
+                                    .filter(vcb -> vcb.virtualCluster().equals(virtualCluster))
+                                    .filter(VirtualClusterBrokerBinding.class::isInstance)
+                                    .map(VirtualClusterBrokerBinding.class::cast)
+                                    .peek(creations::remove) // side effect
+                                    .filter(vcbb -> !upstreamNodes.containsKey(vcbb.nodeId()))
+                                    .map(vcbb -> deregisterBinding(virtualCluster, vcbb::equals)));
+                        }))));
+
+        // chain any binding registrations and organise for the reconciliations entry to complete
+        var unused = deregs.thenCompose(u1 -> allOfStage(creations.stream()
+                .map(vcbb -> {
+                    var brokerAddress = virtualCluster.getBrokerAddress(vcbb.nodeId());
+                    var endpoint = new Endpoint(bindingAddress, brokerAddress.port(),
+                            virtualCluster.isUseTls());
+                    return registerBinding(endpoint, brokerAddress.host(), vcbb);
+                })))
+                .whenComplete((u2, t) -> {
+                    if (t != null) {
+                        future.completeExceptionally(t);
+                    }
+                    else {
+                        future.complete(null);
+                    }
+                });
     }
 
     /* test */ boolean isRegistered(VirtualCluster virtualCluster) {
