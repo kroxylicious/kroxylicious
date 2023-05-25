@@ -33,7 +33,6 @@ import io.kroxylicious.proxy.internal.net.Endpoint;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
 import io.kroxylicious.proxy.internal.net.VirtualClusterBinding;
 import io.kroxylicious.proxy.internal.net.VirtualClusterBindingResolver;
-import io.kroxylicious.proxy.service.HostPort;
 
 public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
 
@@ -172,7 +171,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
             // Add internal filters.
             filters.add(new BrokerAddressFilter(virtualCluster, endpointReconciler));
 
-            HostPort target = binding.getUpstreamTarget();
+            var target = binding.upstreamTarget();
             if (target == null) {
                 // This condition should never happen.
                 throw new IllegalStateException("A target address for binding %s is not known.".formatted(binding));

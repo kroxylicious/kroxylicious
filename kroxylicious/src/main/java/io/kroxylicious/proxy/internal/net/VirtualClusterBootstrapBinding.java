@@ -12,20 +12,20 @@ import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.service.HostPort;
 
 /**
- * A broker specific virtual cluster binding.
+ * A binding to a virtual cluster bootstrap.
  */
-public record VirtualClusterBrokerBinding(VirtualCluster virtualCluster, HostPort upstreamTarget, int nodeId) implements VirtualClusterBinding {
-    public VirtualClusterBrokerBinding {
-        Objects.requireNonNull(virtualCluster, "virtualCluster must not be null");
-        Objects.requireNonNull(upstreamTarget, "upstreamTarget must not be null");
+public record VirtualClusterBootstrapBinding(VirtualCluster virtualCluster, HostPort upstreamTarget) implements VirtualClusterBinding {
+
+    public VirtualClusterBootstrapBinding {
+        Objects.requireNonNull(virtualCluster, "virtualCluster cannot be null");
+        Objects.requireNonNull(upstreamTarget, "upstreamTarget cannot be null");
     }
 
     @Override
     public String toString() {
         return "VirtualClusterBrokerBinding[" +
                 "virtualCluster=" + this.virtualCluster() + ", " +
-                "upstreamTarget=" + this.upstreamTarget() + ", " +
-                "nodeId=" + nodeId + ']';
+                "upstreamTarget=" + this.upstreamTarget() + ']';
     }
 
 }

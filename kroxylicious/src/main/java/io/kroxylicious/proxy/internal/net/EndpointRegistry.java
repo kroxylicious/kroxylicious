@@ -53,7 +53,7 @@ import io.kroxylicious.proxy.service.HostPort;
  * operations to expose the virtual cluster to the network.  These API calls return futures that will complete once
  * the underlying network operations are completed.</li>
  *    <li>The registry provides an {@link VirtualClusterBindingResolver}.  The {@link VirtualClusterBindingResolver#resolve(Endpoint, String)} method accepts
- * connection metadata (port, SNI etc) and resolves this to a @{@link VirtualClusterBinding}.  This allows
+ * connection metadata (port, SNI etc) and resolves this to a @{@link VirtualClusterBootstrapBinding}.  This allows
  * Kroxylicious to determine the destination of any incoming connection.</li>
  * </ul>
  * The registry is thread safe for all operations.
@@ -156,7 +156,7 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
         var upstreamBootstrap = virtualCluster.targetCluster().bootstrapServersList().get(0);
         var bootstrapEndpointFuture = registerBinding(key,
                 virtualCluster.getClusterBootstrapAddress().host(),
-                new VirtualClusterBinding(virtualCluster, upstreamBootstrap)).toCompletableFuture();
+                new VirtualClusterBootstrapBinding(virtualCluster, upstreamBootstrap)).toCompletableFuture();
 
         vcr.reconciliationEntry().set(createReconcileEntry(Map.of(), CompletableFuture.completedFuture(null)));
 
@@ -274,7 +274,7 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
                     // reconcile - work out which bindings are to be registered and which are to be removed.
                     var bindingAddress = virtualCluster.getBindAddress().orElse(null);
 
-                    var toCreate = upstreamNodes.entrySet().stream().map(i -> new VirtualClusterBrokerBinding(virtualCluster, i.getValue(), i.getKey()))
+                    var toCreate = upstreamNodes.entrySet().stream().map(e -> new VirtualClusterBrokerBinding(virtualCluster, e.getValue(), e.getKey()))
                             .collect(Collectors.toCollection(ConcurrentHashMap::newKeySet));
 
                     // first assemble the stream of de-registrations (and by side effect: update toCreate)
@@ -379,7 +379,8 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
 
                 if (existing != null) {
                     throw new EndpointBindingException(
-                            "Endpoint %s cannot be bound with key %s, that key is already bound to %s".formatted(key, bindingKey, virtualClusterBinding));
+                            "Endpoint %s cannot be bound with key %s binding %s, that key is already bound to %s".formatted(key, bindingKey, virtualClusterBinding,
+                                    existing));
                 }
 
                 return key;
@@ -425,11 +426,11 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
     }
 
     /**
-     * Uses channel metadata (port, SNI name etc.) from the incoming connection to resolve a {@link VirtualClusterBinding}.
+     * Uses channel metadata (port, SNI name etc.) from the incoming connection to resolve a {@link VirtualClusterBootstrapBinding}.
      *
      * @param endpoint    endpoint being resolved
      * @param sniHostname SNI hostname, may be null.
-     * @return completion stage yielding the {@link VirtualClusterBinding} or exceptionally a EndpointResolutionException.
+     * @return completion stage yielding the {@link VirtualClusterBootstrapBinding} or exceptionally a EndpointResolutionException.
      */
     @Override
     public CompletionStage<VirtualClusterBinding> resolve(Endpoint endpoint, String sniHostname) {
