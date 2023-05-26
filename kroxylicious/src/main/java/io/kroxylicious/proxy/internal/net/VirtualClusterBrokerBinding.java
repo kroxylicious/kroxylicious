@@ -28,4 +28,9 @@ public record VirtualClusterBrokerBinding(VirtualCluster virtualCluster, HostPor
                 "nodeId=" + nodeId + ']';
     }
 
+
+    public boolean referToSameVirtualClusterNode(VirtualClusterBrokerBinding other) {
+        return other != null && Objects.equals(other.nodeId, this.nodeId) && Objects.equals(other.virtualCluster, this.virtualCluster);
+    }
+
 }

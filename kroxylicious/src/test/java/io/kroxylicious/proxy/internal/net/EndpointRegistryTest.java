@@ -392,7 +392,6 @@ class EndpointRegistryTest {
 
         var binding = endpointRegistry.resolve(Endpoint.createEndpoint(9193, false), null).toCompletableFuture().get();
         assertThat(binding).isEqualTo(new VirtualClusterBrokerBinding(virtualCluster1, upstreamBroker0, 0));
-        assertThat(binding.upstreamTarget()).isEqualTo(upstreamBroker0);
     }
 
     @Test
@@ -427,6 +426,38 @@ class EndpointRegistryTest {
         assertThat(rcf3.isDone()).isTrue();
         assertThat(rcf3.get()).isNull();
         assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(2);
+    }
+
+    @Test
+    public void reconcileChangesTargetClusterBrokerAddress() throws Exception {
+        var downstreamBroker0 = HostPort.parse("localhost:9193");
+        var upstreamBroker0 = HostPort.parse("upstream:19193");
+        var upstreamBrokerUpdated0 = HostPort.parse("upstreamupd:29193");
+
+        configureVirtualClusterMock(virtualCluster1, "localhost:9192", "upstream1:9192", false);
+
+        var rgf = endpointRegistry.registerVirtualCluster(virtualCluster1).toCompletableFuture();
+        verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(9192, false));
+        assertThat(rgf.isDone()).isTrue();
+
+        when(virtualCluster1.getBrokerAddress(0)).thenReturn(downstreamBroker0);
+        var rcf1 = endpointRegistry.reconcile(virtualCluster1, Map.of(0, upstreamBroker0)).toCompletableFuture();
+        verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(downstreamBroker0.port(), false));
+        assertThat(rcf1.isDone()).isTrue();
+        assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(2);
+
+        var resolvedBindingBeforeChange = endpointRegistry.resolve(Endpoint.createEndpoint(downstreamBroker0.port(), false), null).toCompletableFuture().get();
+        assertThat(resolvedBindingBeforeChange).isEqualTo(new VirtualClusterBrokerBinding(virtualCluster1, upstreamBroker0, 0));
+
+        // Target cluster updates the address for broker 0
+        var rcf3 = endpointRegistry.reconcile(virtualCluster1, Map.of(0, upstreamBrokerUpdated0)).toCompletableFuture();
+        verifyAndProcessNetworkEventQueue();
+        assertThat(rcf3.isDone()).isTrue();
+        assertThat(rcf3.get()).isNull();
+        assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(2);
+
+        var resolvedBindingAfterChange = endpointRegistry.resolve(Endpoint.createEndpoint(downstreamBroker0.port(), false), null).toCompletableFuture().get();
+        assertThat(resolvedBindingAfterChange).isEqualTo(new VirtualClusterBrokerBinding(virtualCluster1, upstreamBrokerUpdated0, 0));
     }
 
     @Test
@@ -490,7 +521,7 @@ class EndpointRegistryTest {
         assertThat(add2.isDone()).isFalse();
         assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(3);
 
-        // reconcile now removes a node, it cannot be process because it is behind the add
+        // reconcile now removes a node, it cannot be processed because it is behind the add
         var remove = endpointRegistry.reconcile(virtualCluster1, Map.of(1, upstreamBroker1)).toCompletableFuture();
         assertThat(remove.isDone()).isFalse();
         assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(3);

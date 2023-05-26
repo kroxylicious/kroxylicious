@@ -406,7 +406,12 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
                 // knows to tear down the acceptorChannel when the map becomes empty.
                 var existing = bindingMap.putIfAbsent(bindingKey, virtualClusterBinding);
 
-                if (existing != null) {
+                if (existing instanceof VirtualClusterBrokerBinding existingVcbb && virtualClusterBinding instanceof VirtualClusterBrokerBinding vcbb
+                        && existingVcbb.referToSameVirtualClusterNode(vcbb)) {
+                    // special case to support update of the upstream target
+                    bindingMap.put(bindingKey, virtualClusterBinding);
+                }
+                else if (existing != null) {
                     throw new EndpointBindingException(
                             "Endpoint %s cannot be bound with key %s binding %s, that key is already bound to %s".formatted(key, bindingKey, virtualClusterBinding,
                                     existing));
