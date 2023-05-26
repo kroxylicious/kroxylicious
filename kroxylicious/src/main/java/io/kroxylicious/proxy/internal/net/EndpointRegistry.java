@@ -97,16 +97,28 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
 
     protected static final AttributeKey<Map<RoutingKey, VirtualClusterBinding>> CHANNEL_BINDINGS = AttributeKey.newInstance("channelBindings");
 
-    private record VirtualClusterRecord(CompletionStage<Endpoint> registrationStage, AtomicReference<Map.Entry<Map<Integer, HostPort>, CompletionStage<Void>>> reconciliationEntry, AtomicReference<CompletionStage<Void>> deregistrationStage) {
+    private record ReconciliationRecord(Map<Integer, HostPort> upstreamNodeMap, CompletionStage<Void> reconciliationStage) {
+        private ReconciliationRecord {
+            Objects.requireNonNull(upstreamNodeMap);
+            Objects.requireNonNull(reconciliationStage);
+        }
+
+    private static ReconciliationRecord createReconcileRecord(Map<Integer, HostPort> upstreamNodeMap, CompletableFuture<Void> future) {
+            return new ReconciliationRecord(upstreamNodeMap, future);
+        }
+
+    }
+
+    private record VirtualClusterRecord(CompletionStage<Endpoint> registrationStage, AtomicReference<ReconciliationRecord> reconciliationRecord, AtomicReference<CompletionStage<Void>> deregistrationStage) {
         private VirtualClusterRecord {
             Objects.requireNonNull(registrationStage);
-            Objects.requireNonNull(reconciliationEntry);
+            Objects.requireNonNull(reconciliationRecord);
             Objects.requireNonNull(deregistrationStage);
         }
 
     private static VirtualClusterRecord create(CompletionStage<Endpoint> stage) {
-            return new VirtualClusterRecord(stage, new AtomicReference<>(), new AtomicReference<>());
-        }}
+        return new VirtualClusterRecord(stage, new AtomicReference<>(), new AtomicReference<>());
+    }}
 
     /** Registry of virtual clusters that have been registered */
     private final Map<VirtualCluster, VirtualClusterRecord> registeredVirtualClusters = new ConcurrentHashMap<>();
@@ -158,7 +170,7 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
                 virtualCluster.getClusterBootstrapAddress().host(),
                 new VirtualClusterBootstrapBinding(virtualCluster, upstreamBootstrap)).toCompletableFuture();
 
-        vcr.reconciliationEntry().set(createReconcileEntry(Map.of(), CompletableFuture.completedFuture(null)));
+        vcr.reconciliationRecord().set(ReconciliationRecord.createReconcileRecord(Map.of(), CompletableFuture.completedFuture(null)));
 
         var unused = bootstrapEndpointFuture.whenComplete((u, t) -> {
             var future = vcr.registrationStage.toCompletableFuture();
@@ -259,29 +271,29 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
 
         // TODO: consider composing all of this after registration has finished
 
-        var rec = vcr.reconciliationEntry().get();
+        var rec = vcr.reconciliationRecord().get();
         if (rec == null) {
             // Should never happen.
             return CompletableFuture.failedStage(new IllegalStateException("virtual cluster %s in unexpected state".formatted(virtualCluster)));
         }
 
-        if (rec.getKey().equals(upstreamNodes)) {
+        if (rec.upstreamNodeMap().equals(upstreamNodes)) {
             // set of nodeIds already reconciled.
-            return rec.getValue();
+            return rec.reconciliationStage();
         }
         else {
             // set of nodeIds differ
-            return rec.getValue().thenCompose(u -> {
-                Map.Entry<Map<Integer, HostPort>, CompletionStage<Void>> updated;
-                var cand = createReconcileEntry(upstreamNodes, new CompletableFuture<>());
-                if (vcr.reconciliationEntry().compareAndSet(rec, cand)) {
+            return rec.reconciliationStage().thenCompose(u -> {
+                ReconciliationRecord updated;
+                var cand = ReconciliationRecord.createReconcileRecord(upstreamNodes, new CompletableFuture<>());
+                if (vcr.reconciliationRecord().compareAndSet(rec, cand)) {
                     // reconcile - work out which bindings are to be registered and which are to be removed.
-                    doReconcile(virtualCluster, upstreamNodes, cand.getValue().toCompletableFuture());
-                    return cand.getValue();
+                    doReconcile(virtualCluster, upstreamNodes, cand.reconciliationStage().toCompletableFuture());
+                    return cand.reconciliationStage();
                 }
-                else if ((updated = vcr.reconciliationEntry().get()).getKey().equals(upstreamNodes)) {
+                else if ((updated = vcr.reconciliationRecord().get()).upstreamNodeMap().equals(upstreamNodes)) {
                     // another thread has since reconciled/started to reconcile the same set of nodes
-                    return updated.getValue();
+                    return updated.reconciliationStage();
                 }
                 else {
                     // another thread has since reconciled to a different set of nodes.
@@ -488,28 +500,6 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
 
     private static <T> CompletableFuture<Void> allOfFutures(Stream<CompletableFuture<T>> futureStream) {
         return CompletableFuture.allOf(futureStream.toArray(CompletableFuture[]::new));
-    }
-
-    private static Map.Entry<Map<Integer, HostPort>, CompletionStage<Void>> createReconcileEntry(final Map<Integer, HostPort> upstreamNodeMap,
-                                                                                                 final CompletableFuture<Void> future) {
-        Objects.requireNonNull(upstreamNodeMap);
-        Objects.requireNonNull(future);
-        return new Map.Entry<>() {
-            @Override
-            public Map<Integer, HostPort> getKey() {
-                return upstreamNodeMap;
-            }
-
-            @Override
-            public CompletionStage<Void> getValue() {
-                return future;
-            }
-
-            @Override
-            public CompletionStage<Void> setValue(CompletionStage<Void> value) {
-                throw new UnsupportedOperationException();
-            }
-        };
     }
 
 }
