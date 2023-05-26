@@ -407,7 +407,7 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
                 var existing = bindingMap.putIfAbsent(bindingKey, virtualClusterBinding);
 
                 if (existing instanceof VirtualClusterBrokerBinding existingVcbb && virtualClusterBinding instanceof VirtualClusterBrokerBinding vcbb
-                        && existingVcbb.referToSameVirtualClusterNode(vcbb)) {
+                        && existingVcbb.refersToSameVirtualClusterAndNode(vcbb)) {
                     // special case to support update of the upstream target
                     bindingMap.put(bindingKey, virtualClusterBinding);
                 }
