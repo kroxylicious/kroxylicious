@@ -248,9 +248,13 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
         Objects.requireNonNull(upstreamNodes, "upstreamNodes cannot be null");
 
         var vcr = registeredVirtualClusters.get(virtualCluster);
-        if (vcr == null || vcr.deregistrationStage().get() != null) {
+        if (vcr == null) {
             // cluster not currently registered
             return CompletableFuture.failedStage(new IllegalStateException("virtual cluster %s not registered or is being deregistered".formatted(virtualCluster)));
+        }
+        else if (vcr.deregistrationStage().get() != null) {
+            // cluster in process of being deregistered, ignore the reconciliation request
+            return CompletableFuture.completedStage(null);
         }
 
         // TODO: consider composing all of this after registration has finished
