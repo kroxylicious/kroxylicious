@@ -55,11 +55,15 @@ import io.kroxylicious.proxy.service.HostPort;
  *    <li>The registry provides an {@link VirtualClusterBindingResolver}.  The {@link VirtualClusterBindingResolver#resolve(Endpoint, String)} method accepts
  * connection metadata (port, SNI etc) and resolves this to a @{@link VirtualClusterBootstrapBinding}.  This allows
  * Kroxylicious to determine the destination of any incoming connection.</li>
+ *    <li>The registry provides a {@link EndpointReconciler}. The {@link EndpointReconciler#reconcile(VirtualCluster, Map)} method accepts a map describing
+ *    the target cluster's broker topology.  The job of the reconciler is to make adjustments to the network bindings (binding/unbinding ports) to
+ *    fully expose the brokers of the target cluster through the virtual cluster.</li>
  * </ul>
  * The registry is thread safe for all operations.
  * <ul>
  *    <li>virtual cluster registration uses java.util.concurrent features to ensure registration is single threaded.</li>
  *    <li>virtual cluster de-registration uses java.util.concurrent.atomic to ensure de-registration is single threaded.</li>
+ *    <li>virtual cluster reconciliation uses java.util.concurrent.atomic to ensure reconciliation is single threaded.</li>
  *    <li>updates to the binding mapping (attached to channel) are made only whilst holding an intrinsic lock on the {@link ListeningChannelRecord}.</li>
  *    <li>updates to the binding mapping are published safely to readers (i.e. threads calling {@link VirtualClusterBindingResolver#resolve(Endpoint, String)}).  This relies the
  *    fact that the binding map uses concurrency safe data structures ({@link ConcurrentHashMap} and the exclusive use of immutable objects within it.</li>
@@ -480,7 +484,7 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
     private EndpointResolutionException buildEndpointResolutionException(String prefix, Endpoint endpoint, String sniHostname) {
         return new EndpointResolutionException(
                 ("%s binding address: %s, port %d, sniHostname: %s, tls %s").formatted(prefix,
-                        endpoint.bindingAddress() == null ? "any" : endpoint.bindingAddress(),
+                        endpoint.bindingAddress().orElse("<any>"),
                         endpoint.port(),
                         sniHostname == null ? "<none>" : sniHostname,
                         endpoint.tls()));
