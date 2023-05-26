@@ -93,7 +93,7 @@ public class InvokerDispatchBenchmark {
             };
             final Map<ApiKeys, ApiMessage> messages = Map.of(ApiKeys.PRODUCE, new ProduceRequestData(), ApiKeys.API_VERSIONS, new ApiVersionsRequestData(), ApiKeys.FETCH,
                     new FetchRequestData());
-            apiMessages = messages.entrySet().toArray(new Map.Entry[0]); //Avoids iterator.next showing up in the benchmarks
+            apiMessages = messages.entrySet().toArray(new Map.Entry[0]); // Avoids iterator.next showing up in the benchmarks
             requestHeaders = new RequestHeaderData();
             filterContext = new StubFilterContext();
             keys = messages.keySet().toArray(new ApiKeys[0]);
@@ -112,8 +112,14 @@ public class InvokerDispatchBenchmark {
 
     @Benchmark
     @Threads(4)
-    public void test4ThreadsDispatch(BenchState state, Blackhole blackhole) {
+    public void test4ThreadsDispatchToShouldHandle(BenchState state, Blackhole blackhole) {
         invokeShouldHandle(blackhole, state.invokers, state.keys);
+    }
+
+    @Benchmark
+    @Threads(4)
+    public void test4ThreadsDispatchToHandleRequest(BenchState state) {
+        invokeHandleRequest(state.invokers, state.apiMessages, state.requestHeaders, state.filterContext);
     }
 
     private static void invokeShouldHandle(Blackhole blackhole, FilterInvoker[] filters, ApiKeys[] apiKeys) {
