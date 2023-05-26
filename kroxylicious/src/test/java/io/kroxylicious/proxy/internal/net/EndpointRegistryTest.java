@@ -507,7 +507,49 @@ class EndpointRegistryTest {
         assertThat(remove.isDone()).isTrue();
         assertThat(remove.get()).isNull();
         assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(2);
+    }
 
+    @Test
+    public void reconcileFailsDueToExternalPortConflict() {
+        var downstreamBroker0 = HostPort.parse("localhost:9193");
+        var upstreamBroker0 = HostPort.parse("upstream:19193");
+        doReconcileFailsDueToExternalPortConflict(downstreamBroker0, upstreamBroker0);
+    }
+
+    private VirtualCluster doReconcileFailsDueToExternalPortConflict(HostPort downstreamBroker0, HostPort upstreamBroker0) {
+        configureVirtualClusterMock(virtualCluster1, "localhost:9192", "upstream1:9192", false);
+
+        var rgf = endpointRegistry.registerVirtualCluster(virtualCluster1).toCompletableFuture();
+        verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(9192, false));
+        assertThat(rgf.isDone()).isTrue();
+        assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(1);
+
+        // Add a new node (1) to the cluster
+        when(virtualCluster1.getBrokerAddress(0)).thenReturn(downstreamBroker0);
+
+        var rcf = endpointRegistry.reconcile(virtualCluster1, Map.of(0, upstreamBroker0)).toCompletableFuture();
+        verifyAndProcessNetworkEventQueue(
+                createTestNetworkBindRequest(Optional.empty(), downstreamBroker0.port(), false, CompletableFuture.failedFuture(new IOException("mocked port in use"))));
+        assertThat(rcf.isDone()).isTrue();
+        var executionException = assertThrows(ExecutionException.class, rcf::get);
+        assertThat(executionException).hasRootCauseInstanceOf(IOException.class);
+        assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(1);
+
+        return virtualCluster1;
+    }
+
+    @Test
+    public void nextReconcileSucceedsAfterTransientPortConflict() throws Exception {
+        var downstreamBroker0 = HostPort.parse("localhost:9193");
+        var upstreamBroker0 = HostPort.parse("upstream:19193");
+        var virtualCluster = doReconcileFailsDueToExternalPortConflict(downstreamBroker0, upstreamBroker0);
+
+        var rcf = endpointRegistry.reconcile(virtualCluster, Map.of(0, upstreamBroker0)).toCompletableFuture();
+        verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(downstreamBroker0.port(), false));
+
+        assertThat(rcf.isDone()).isTrue();
+        assertThat(rcf.get()).isNull();
+        assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(2);
     }
 
     private Channel createMockNettyChannel(int port) {
@@ -559,8 +601,7 @@ class EndpointRegistryTest {
         when(cluster.targetCluster()).thenReturn(new TargetCluster(upstreamBootstrap));
     }
 
-    @SuppressWarnings("unchecked")
-    private void verifyAndProcessNetworkEventQueue(NetworkBindingOperation... expectedEvents) throws Exception {
+    private void verifyAndProcessNetworkEventQueue(NetworkBindingOperation<?>... expectedEvents) {
         bindingOperationProcessor.verifyAndProcessNetworkEvents(expectedEvents);
     }
 
