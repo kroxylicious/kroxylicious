@@ -30,8 +30,6 @@ import org.openjdk.jmh.infra.Blackhole;
 
 import io.kroxylicious.filters.FourInterfaceFilter0;
 import io.kroxylicious.filters.FourInterfaceFilter1;
-import io.kroxylicious.filters.TwoInterfaceFilter0;
-import io.kroxylicious.filters.TwoInterfaceFilter1;
 import io.kroxylicious.proxy.filter.ArrayFilterInvoker;
 import io.kroxylicious.proxy.filter.FilterInvoker;
 import io.kroxylicious.proxy.filter.FilterInvokers;
@@ -86,8 +84,12 @@ public class InvokerDispatchBenchmark {
         public void init() {
             Invoker invokerType = Invoker.valueOf(invoker);
             invokers = new FilterInvoker[]{
-                    invokerType.invokerWith(new TwoInterfaceFilter0()),
-                    invokerType.invokerWith(new TwoInterfaceFilter1()),
+                    invokerType.invokerWith(new FourInterfaceFilter0()),
+                    invokerType.invokerWith(new FourInterfaceFilter1()),
+                    invokerType.invokerWith(new FourInterfaceFilter0()),
+                    invokerType.invokerWith(new FourInterfaceFilter1()),
+                    invokerType.invokerWith(new FourInterfaceFilter0()),
+                    invokerType.invokerWith(new FourInterfaceFilter1()),
                     invokerType.invokerWith(new FourInterfaceFilter0()),
                     invokerType.invokerWith(new FourInterfaceFilter1())
             };
