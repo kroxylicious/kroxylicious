@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1685396652413,
+  "lastUpdate": 1685396654133,
   "repoUrl": "https://github.com/kroxylicious/kroxylicious",
   "entries": {
     "kafka producer perf test Benchmark": [
@@ -628,6 +628,43 @@ window.BENCHMARK_DATA = {
           {
             "name": "99th Latency",
             "value": 391,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]",
+            "email": "49699333+dependabot[bot]@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "fb3794b146c0f2004ce4a6653b1969c9c1e14e26",
+          "message": "Bump netty.version from 4.1.92.Final to 4.1.93.Final\n\nBumps `netty.version` from 4.1.92.Final to 4.1.93.Final.\n\nUpdates `netty-bom` from 4.1.92.Final to 4.1.93.Final\n- [Commits](https://github.com/netty/netty/compare/netty-4.1.92.Final...netty-4.1.93.Final)\n\nUpdates `netty-codec-http` from 4.1.92.Final to 4.1.93.Final\n- [Commits](https://github.com/netty/netty/compare/netty-4.1.92.Final...netty-4.1.93.Final)\n\nUpdates `netty-codec-haproxy` from 4.1.92.Final to 4.1.93.Final\n- [Commits](https://github.com/netty/netty/compare/netty-4.1.92.Final...netty-4.1.93.Final)\n\n---\nupdated-dependencies:\n- dependency-name: io.netty:netty-bom\n  dependency-type: direct:production\n  update-type: version-update:semver-patch\n- dependency-name: io.netty:netty-codec-http\n  dependency-type: direct:production\n  update-type: version-update:semver-patch\n- dependency-name: io.netty:netty-codec-haproxy\n  dependency-type: direct:production\n  update-type: version-update:semver-patch\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>",
+          "timestamp": "2023-05-29T04:03:26Z",
+          "url": "https://github.com/kroxylicious/kroxylicious/commit/fb3794b146c0f2004ce4a6653b1969c9c1e14e26"
+        },
+        "date": 1685396651431,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "AVG Latency",
+            "value": 11.33,
+            "unit": "ms"
+          },
+          {
+            "name": "95th Latency",
+            "value": 6,
+            "unit": "ms"
+          },
+          {
+            "name": "99th Latency",
+            "value": 245,
             "unit": "ms"
           }
         ]
