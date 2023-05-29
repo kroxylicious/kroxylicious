@@ -7,6 +7,7 @@
 package io.kroxylicious.test.client;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.kafka.common.message.RequestHeaderData;
@@ -41,10 +42,17 @@ import io.kroxylicious.test.codec.KafkaResponseDecoder;
  */
 public final class KafkaClient implements AutoCloseable {
 
+    private final String host;
+    private final int port;
+
     /**
      * create empty kafkaClient
+     * @param host host to connect to
+     * @param port port to connect to
      */
-    public KafkaClient() {
+    public KafkaClient(String host, int port) {
+        this.host = host;
+        this.port = port;
     }
 
     private final EventLoopGroup group = new NioEventLoopGroup();
@@ -65,12 +73,10 @@ public final class KafkaClient implements AutoCloseable {
      * Bootstrap and connect to a Kafka broker on a given host and port. Send
      * the request to it and inform the client when we have received a response.
      * The channel is closed after we have received the message.
-     * @param host kafka broker host
-     * @param port kafka broker port
      * @param request request to send to kafka
      * @return a future that will be completed with the response from the kafka broker (translated to JsonNode)
      */
-    public CompletableFuture<Response> get(String host, int port, Request request) {
+    public CompletableFuture<Response> get(Request request) {
         DecodedRequestFrame<?> decodedRequestFrame = toApiRequest(request);
         CorrelationManager correlationManager = new CorrelationManager();
         KafkaClientHandler kafkaClientHandler = new KafkaClientHandler(decodedRequestFrame);
@@ -91,6 +97,15 @@ public final class KafkaClient implements AutoCloseable {
         b.connect(host, port);
         CompletableFuture<DecodedResponseFrame<?>> onResponseFuture = kafkaClientHandler.getOnResponseFuture();
         return onResponseFuture.thenApply(KafkaClient::toResponse);
+    }
+
+    public Response getSync(Request request) {
+        try {
+            return get(request).get(10, TimeUnit.SECONDS);
+        }
+        catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private static Response toResponse(DecodedResponseFrame<?> decodedResponseFrame) {
