@@ -43,7 +43,7 @@
         <netty.epoll.classifier>linux-x86_64</netty.epoll.classifier>
         <netty.io_uring.classifier>linux-x86_64</netty.io_uring.classifier>
         <netty.kqueue.classifier>osx-x86_64</netty.kqueue.classifier>
-        <lombok.version>1.18.26</lombok.version>
+        <lombok.version>1.18.28</lombok.version>
         <assertj-core.version>3.24.2</assertj-core.version>
         <mockito.version>5.3.1</mockito.version>
         <slf4j.version>2.0.7</slf4j.version>
