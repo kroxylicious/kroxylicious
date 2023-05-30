@@ -16,15 +16,10 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.admin.NewTopic;
-import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
-import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.errors.InvalidTopicException;
-import org.apache.kafka.common.serialization.ByteArrayDeserializer;
-import org.apache.kafka.common.serialization.ByteArraySerializer;
-import org.apache.kafka.common.serialization.StringDeserializer;
-import org.apache.kafka.common.serialization.StringSerializer;
+import org.apache.kafka.common.serialization.Serdes;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -33,11 +28,15 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import io.kroxylicious.proxy.filter.CreateTopicRejectFilter;
 import io.kroxylicious.proxy.internal.filter.ByteBufferTransformation;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
-import io.kroxylicious.testing.kafka.clients.CloseableConsumer;
-import io.kroxylicious.testing.kafka.clients.CloseableProducer;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
-import static io.kroxylicious.proxy.Utils.startProxy;
+import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
+import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.withDefaultFilters;
+import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
+import static org.apache.kafka.clients.consumer.ConsumerConfig.AUTO_OFFSET_RESET_CONFIG;
+import static org.apache.kafka.clients.consumer.ConsumerConfig.GROUP_ID_CONFIG;
+import static org.apache.kafka.clients.producer.ProducerConfig.CLIENT_ID_CONFIG;
+import static org.apache.kafka.clients.producer.ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -104,99 +103,61 @@ public class KrpcFilterIT {
 
     @Test
     public void shouldPassThroughRecordUnchanged(KafkaCluster cluster, Admin admin) throws Exception {
-        String proxyAddress = "localhost:9192";
-
         admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1))).all().get();
 
-        var config = baseConfigBuilder(proxyAddress, cluster.getBootstrapServers()).build().toYaml();
-
-        try (var proxy = startProxy(config)) {
-            try (var producer = CloseableProducer.<String, String> create(Map.of(
-                    ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
-                    ProducerConfig.CLIENT_ID_CONFIG, "shouldPassThroughRecordUnchanged",
-                    ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
-                    ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
-                    ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000))) {
-                producer.send(new ProducerRecord<>(TOPIC_1, "my-key", "Hello, world!")).get();
-            }
-
-            try (var consumer = CloseableConsumer.<String, String> create(Map.of(
-                    ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
-                    ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
-                    ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
-                    ConsumerConfig.GROUP_ID_CONFIG, "my-group-id",
-                    ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
-                consumer.subscribe(Set.of(TOPIC_1));
-                var records = consumer.poll(Duration.ofSeconds(10));
-                consumer.close();
-                assertEquals(1, records.count());
-                assertEquals("Hello, world!", records.iterator().next().value());
-            }
+        try (var tester = kroxyliciousTester(withDefaultFilters(proxy(cluster)));
+                var producer = tester.producer(Map.of(CLIENT_ID_CONFIG, "shouldPassThroughRecordUnchanged", DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000));
+                var consumer = tester.consumer()) {
+            producer.send(new ProducerRecord<>(TOPIC_1, "my-key", "Hello, world!")).get();
+            consumer.subscribe(Set.of(TOPIC_1));
+            var records = consumer.poll(Duration.ofSeconds(10));
+            consumer.close();
+            assertEquals(1, records.count());
+            assertEquals("Hello, world!", records.iterator().next().value());
         }
     }
 
     @Test
     public void requestFiltersCanRespondWithoutProxying(KafkaCluster cluster, Admin admin) throws Exception {
-        String proxyAddress = "localhost:9192";
+        var config = withDefaultFilters(proxy(cluster)).addNewFilter().withType("CreateTopicRejectFilter").endFilter();
 
-        var config = baseConfigBuilder(proxyAddress, cluster.getBootstrapServers())
-                .addNewFilter().withType("CreateTopicRejectFilter").endFilter().build().toYaml();
+        try (var tester = kroxyliciousTester(config);
+                var proxyAdmin = tester.admin()) {
+            Assertions.assertThatExceptionOfType(ExecutionException.class)
+                    .isThrownBy(() -> proxyAdmin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1))).all().get())
+                    .withCauseInstanceOf(InvalidTopicException.class)
+                    .havingCause()
+                    .withMessage(CreateTopicRejectFilter.ERROR_MESSAGE);
 
-        try (var ignored = startProxy(config)) {
-            try (var proxyAdmin = Admin.create(Map.of(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress))) {
-                Assertions.assertThatExceptionOfType(ExecutionException.class)
-                        .isThrownBy(() -> {
-                            proxyAdmin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1))).all().get();
-                        })
-                        .withCauseInstanceOf(InvalidTopicException.class)
-                        .havingCause()
-                        .withMessage(CreateTopicRejectFilter.ERROR_MESSAGE);
-
-                // check no topic created on the cluster
-                Set<String> names = admin.listTopics().names().get(10, TimeUnit.SECONDS);
-                assertEquals(Set.of(), names);
-            }
+            // check no topic created on the cluster
+            Set<String> names = admin.listTopics().names().get(10, TimeUnit.SECONDS);
+            assertEquals(Set.of(), names);
         }
     }
 
     @Test
     public void shouldModifyProduceMessage(KafkaCluster cluster, Admin admin) throws Exception {
-        String proxyAddress = "localhost:9192";
-
         admin.createTopics(List.of(
                 new NewTopic(TOPIC_1, 1, (short) 1),
                 new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
 
-        var config = baseConfigBuilder(proxyAddress, cluster.getBootstrapServers())
-                .addNewFilter().withType("ProduceRequestTransformation").withConfig(Map.of("transformation", TestEncoder.class.getName())).endFilter()
-                .build()
-                .toYaml();
+        var config = withDefaultFilters(proxy(cluster)).addNewFilter().withType("ProduceRequestTransformation")
+                .withConfig(Map.of("transformation", TestEncoder.class.getName())).endFilter();
 
-        try (var proxy = startProxy(config)) {
-            try (var producer = CloseableProducer.create(Map.of(
-                    ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
-                    ProducerConfig.CLIENT_ID_CONFIG, "shouldModifyProduceMessage",
-                    ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
-                    ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
-                    ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000))) {
-                producer.send(new ProducerRecord<>(TOPIC_1, "my-key", PLAINTEXT)).get();
-                producer.send(new ProducerRecord<>(TOPIC_2, "my-key", PLAINTEXT)).get();
-                producer.flush();
-            }
+        try (var tester = kroxyliciousTester(config);
+                var producer = tester.producer(Map.of(CLIENT_ID_CONFIG, "shouldModifyProduceMessage", DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000));
+                var consumer = tester
+                        .consumer(Serdes.String(), Serdes.ByteArray(), Map.of(GROUP_ID_CONFIG, "my-group-id", AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
+            producer.send(new ProducerRecord<>(TOPIC_1, "my-key", PLAINTEXT)).get();
+            producer.send(new ProducerRecord<>(TOPIC_2, "my-key", PLAINTEXT)).get();
+            producer.flush();
 
             ConsumerRecords<String, byte[]> records1;
             ConsumerRecords<String, byte[]> records2;
-            try (var consumer = CloseableConsumer.<String, byte[]> create(Map.of(
-                    ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
-                    ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
-                    ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class,
-                    ConsumerConfig.GROUP_ID_CONFIG, "my-group-id",
-                    ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
-                consumer.subscribe(Set.of(TOPIC_1));
-                records1 = consumer.poll(Duration.ofSeconds(10));
-                consumer.subscribe(Set.of(TOPIC_2));
-                records2 = consumer.poll(Duration.ofSeconds(10));
-            }
+            consumer.subscribe(Set.of(TOPIC_1));
+            records1 = consumer.poll(Duration.ofSeconds(10));
+            consumer.subscribe(Set.of(TOPIC_2));
+            records2 = consumer.poll(Duration.ofSeconds(10));
 
             assertEquals(1, records1.count());
             assertArrayEquals(TOPIC_1_CIPHERTEXT, records1.iterator().next().value());
@@ -207,66 +168,35 @@ public class KrpcFilterIT {
 
     @Test
     public void shouldModifyFetchMessage(KafkaCluster cluster, Admin admin) throws Exception {
-        String proxyAddress = "localhost:9192";
-
         admin.createTopics(List.of(
                 new NewTopic(TOPIC_1, 1, (short) 1),
                 new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
 
-        var config = baseConfigBuilder(proxyAddress, cluster.getBootstrapServers())
-                .addNewFilter().withType("FetchResponseTransformation").withConfig(Map.of("transformation", TestDecoder.class.getName())).endFilter()
-                .build()
-                .toYaml();
+        var config = withDefaultFilters(proxy(cluster))
+                .addNewFilter().withType("FetchResponseTransformation").withConfig(Map.of("transformation", TestDecoder.class.getName())).endFilter();
 
-        try (var proxy = startProxy(config)) {
-            try (var producer = CloseableProducer.create(Map.of(
-                    ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
-                    ProducerConfig.CLIENT_ID_CONFIG, "shouldModifyFetchMessage",
-                    ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
-                    ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class,
-                    ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000))) {
+        try (var tester = kroxyliciousTester(config);
+                var producer = tester.producer(Serdes.String(), Serdes.ByteArray(),
+                        Map.of(CLIENT_ID_CONFIG, "shouldModifyFetchMessage", DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000));
+                var consumer = tester.consumer()) {
 
-                producer.send(new ProducerRecord<>(TOPIC_1, "my-key", TOPIC_1_CIPHERTEXT)).get();
-                producer.send(new ProducerRecord<>(TOPIC_2, "my-key", TOPIC_2_CIPHERTEXT)).get();
-            }
-
+            producer.send(new ProducerRecord<>(TOPIC_1, "my-key", TOPIC_1_CIPHERTEXT)).get();
+            producer.send(new ProducerRecord<>(TOPIC_2, "my-key", TOPIC_2_CIPHERTEXT)).get();
             ConsumerRecords<String, String> records1;
             ConsumerRecords<String, String> records2;
-            try (var consumer = CloseableConsumer.<String, String> create(Map.of(
-                    ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress,
-                    ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
-                    ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
-                    ConsumerConfig.GROUP_ID_CONFIG, "my-group-id",
-                    ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
-                consumer.subscribe(Set.of(TOPIC_1));
+            consumer.subscribe(Set.of(TOPIC_1));
 
-                records1 = consumer.poll(Duration.ofSeconds(100));
+            records1 = consumer.poll(Duration.ofSeconds(100));
 
-                consumer.subscribe(Set.of(TOPIC_2));
+            consumer.subscribe(Set.of(TOPIC_2));
 
-                records2 = consumer.poll(Duration.ofSeconds(100));
-            }
+            records2 = consumer.poll(Duration.ofSeconds(100));
             assertEquals(1, records1.count());
             assertEquals(1, records2.count());
             assertEquals(List.of(PLAINTEXT, PLAINTEXT),
                     List.of(records1.iterator().next().value(),
                             records2.iterator().next().value()));
         }
-    }
-
-    private static KroxyConfigBuilder baseConfigBuilder(String proxyAddress, String bootstrapServers) {
-        return KroxyConfig.builder()
-                .addToVirtualClusters("demo", new VirtualClusterBuilder()
-                        .withNewTargetCluster()
-                        .withBootstrapServers(bootstrapServers)
-                        .endTargetCluster()
-                        .withNewClusterEndpointConfigProvider()
-                        .withType("StaticCluster")
-                        .withConfig(Map.of("bootstrapAddress", proxyAddress))
-                        .endClusterEndpointConfigProvider()
-                        .build())
-                .addNewFilter().withType("ApiVersions").endFilter()
-                .addNewFilter().withType("BrokerAddress").endFilter();
     }
 
 }

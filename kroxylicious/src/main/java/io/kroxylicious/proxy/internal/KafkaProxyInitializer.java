@@ -166,7 +166,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
             var filters = new ArrayList<>(filterChainFactory.createFilters());
 
             // Add a filter to the *end of the chain* that gathers the true nodeId/upstream broker mapping.
-            filters.add((MetadataResponseFilter) (header, response, filterContext) -> {
+            filters.add((MetadataResponseFilter) (apiVersion, header, response, filterContext) -> {
                 response.brokers().forEach(b -> {
                     var replacement = new HostPort(b.host(), b.port());
                     var existing = virtualCluster.updateUpstreamClusterAddressForNode(b.nodeId(), replacement);

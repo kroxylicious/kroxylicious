@@ -21,7 +21,7 @@ public class TopicEncryption implements ProduceRequestFilter, FetchResponseFilte
     // but other filters will be interested in keeping track of metadata
 
     @Override
-    public void onProduceRequest(RequestHeaderData header, ProduceRequestData request, KrpcFilterContext context) {
+    public void onProduceRequest(short apiVersion, RequestHeaderData header, ProduceRequestData request, KrpcFilterContext context) {
         boolean fragmented = false;
         if (fragmented) {
             // TODO forward the fragments
@@ -35,7 +35,7 @@ public class TopicEncryption implements ProduceRequestFilter, FetchResponseFilte
     }
 
     @Override
-    public void onFetchResponse(ResponseHeaderData header, FetchResponseData response, KrpcFilterContext context) {
+    public void onFetchResponse(short apiVersion, ResponseHeaderData header, FetchResponseData response, KrpcFilterContext context) {
         for (var topicResponse : response.responses()) {
             String topicName = topicResponse.topic();
             if (topicName == null) {
