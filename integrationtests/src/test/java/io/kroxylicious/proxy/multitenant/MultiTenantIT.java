@@ -13,8 +13,10 @@ import java.util.Deque;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -33,8 +35,12 @@ import org.apache.kafka.clients.admin.ListTopicsResult;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.clients.admin.TopicListing;
+import org.apache.kafka.clients.admin.TransactionDescription;
+import org.apache.kafka.clients.admin.TransactionListing;
+import org.apache.kafka.clients.admin.TransactionState;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerGroupMetadata;
 import org.apache.kafka.clients.consumer.ConsumerRebalanceListener;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -44,6 +50,7 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.ConsumerGroupState;
+import org.apache.kafka.common.IsolationLevel;
 import org.apache.kafka.common.TopicCollection;
 import org.apache.kafka.common.TopicCollection.TopicNameCollection;
 import org.apache.kafka.common.TopicPartition;
@@ -171,7 +178,7 @@ public class MultiTenantIT {
     }
 
     @Test
-    public void publishOne(KafkaCluster cluster) throws Exception {
+    public void produceOne(KafkaCluster cluster) throws Exception {
         KroxyliciousConfigBuilder config = getConfig(cluster);
         try (var tester = kroxyliciousTester(config)) {
             createTopics(tester, TENANT_1_CLUSTER, List.of(NEW_TOPIC_1));
@@ -197,7 +204,7 @@ public class MultiTenantIT {
             var groupId = testInfo.getDisplayName();
             createTopics(tester, TENANT_1_CLUSTER, List.of(NEW_TOPIC_1));
             produceAndVerify(tester, TENANT_1_CLUSTER,
-                    Stream.of(new ProducerRecord<>(TOPIC_1, MY_KEY, "1"), new ProducerRecord<>(TOPIC_1, MY_KEY, "2"), inCaseOfFailure()));
+                    Stream.of(new ProducerRecord<>(TOPIC_1, MY_KEY, "1"), new ProducerRecord<>(TOPIC_1, MY_KEY, "2"), inCaseOfFailure()), Optional.empty());
             consumeAndVerify(tester, TENANT_1_CLUSTER, TOPIC_1, groupId, MY_KEY, "1", true);
             consumeAndVerify(tester, TENANT_1_CLUSTER, TOPIC_1, groupId, MY_KEY, "2", true);
         }
@@ -211,7 +218,7 @@ public class MultiTenantIT {
             var groupId = testInfo.getDisplayName();
             createTopics(tester, TENANT_1_CLUSTER, List.of(NEW_TOPIC_1));
             produceAndVerify(tester, TENANT_1_CLUSTER,
-                    Stream.of(new ProducerRecord<>(TOPIC_1, MY_KEY, "1"), new ProducerRecord<>(TOPIC_1, MY_KEY, "2"), inCaseOfFailure()));
+                    Stream.of(new ProducerRecord<>(TOPIC_1, MY_KEY, "1"), new ProducerRecord<>(TOPIC_1, MY_KEY, "2"), inCaseOfFailure()), Optional.empty());
             consumeAndVerify(tester, TENANT_1_CLUSTER, TOPIC_1, groupId, MY_KEY, "1", true);
             var rememberedOffsets = admin.listConsumerGroupOffsets(groupId).partitionsToOffsetAndMetadata().get();
             consumeAndVerify(tester, TENANT_1_CLUSTER, TOPIC_1, groupId, MY_KEY, "2", true);
@@ -228,7 +235,7 @@ public class MultiTenantIT {
                 var admin = tester.admin(TENANT_1_CLUSTER, commonConfig(Map.of()))) {
             var groupId = testInfo.getDisplayName();
             createTopics(tester, TENANT_1_CLUSTER, List.of(NEW_TOPIC_1));
-            produceAndVerify(tester, TENANT_1_CLUSTER, Stream.of(new ProducerRecord<>(TOPIC_1, MY_KEY, "1"), inCaseOfFailure()));
+            produceAndVerify(tester, TENANT_1_CLUSTER, Stream.of(new ProducerRecord<>(TOPIC_1, MY_KEY, "1"), inCaseOfFailure()), Optional.empty());
             consumeAndVerify(tester, TENANT_1_CLUSTER, TOPIC_1, groupId, MY_KEY, "1", true);
 
             admin.deleteConsumerGroupOffsets(groupId, Set.of(new TopicPartition(NEW_TOPIC_1.name(), 0))).all().get();
@@ -298,6 +305,114 @@ public class MultiTenantIT {
         }
     }
 
+    @Test
+    public void produceInTransaction(KafkaCluster cluster) throws Exception {
+        KroxyliciousConfigBuilder config = getConfig(cluster);
+        try (var tester = kroxyliciousTester(config)) {
+            createTopics(tester, TENANT_1_CLUSTER, List.of(NEW_TOPIC_1));
+            produceAndVerify(tester, TENANT_1_CLUSTER,
+                    Stream.of(new ProducerRecord<>(TOPIC_1, MY_KEY, "1")),
+                    Optional.of("12345"));
+        }
+    }
+
+    @Test
+    public void produceAndConsumeInTransaction(KafkaCluster cluster) throws Exception {
+        KroxyliciousConfigBuilder config = getConfig(cluster);
+        try (var tester = kroxyliciousTester(config)) {
+            // put some records in an input topic
+            var inputTopic = "input";
+            var outputTopic = "output";
+            createTopics(tester, TENANT_1_CLUSTER, List.of(new NewTopic(inputTopic, 1, (short) 1),
+                    new NewTopic(outputTopic, 1, (short) 1)));
+            produceAndVerify(tester, TENANT_1_CLUSTER,
+                    Stream.of(new ProducerRecord<>(inputTopic, MY_KEY, "1"),
+                            new ProducerRecord<>(inputTopic, MY_KEY, "2"),
+                            new ProducerRecord<>(inputTopic, MY_KEY, "3")),
+                    Optional.empty());
+
+            // now consume and from input and produce to output, using a transaction.
+            var groupId = testInfo.getDisplayName();
+            try (var consumer = tester.consumer(TENANT_1_CLUSTER, commonConfig(Map.of(
+                    ConsumerConfig.GROUP_ID_CONFIG, groupId,
+                    ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, Boolean.FALSE.toString(),
+                    ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, OffsetResetStrategy.EARLIEST.toString(),
+                    ConsumerConfig.ISOLATION_LEVEL_CONFIG, IsolationLevel.READ_UNCOMMITTED.toString().toLowerCase(Locale.ROOT))));
+                    var producer = tester.producer(TENANT_1_CLUSTER, commonConfig(Map.of(
+                            ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000,
+                            ProducerConfig.TRANSACTIONAL_ID_CONFIG, "12345")))) {
+                producer.initTransactions();
+
+                var topicPartitions = List.of(new TopicPartition(inputTopic, 0));
+                consumer.assign(topicPartitions);
+
+                String value = null;
+                do {
+                    var records = consumer.poll(Duration.ofSeconds(30));
+                    for (var r : records) {
+                        producer.beginTransaction();
+
+                        var key = r.key();
+                        value = r.value();
+                        var send = producer.send(new ProducerRecord<>(outputTopic, 0, key, value));
+                        send.get(FUTURE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+
+                        producer.sendOffsetsToTransaction(Map.of(new TopicPartition(r.topic(), r.partition()),
+                                new OffsetAndMetadata(r.offset() + 1)), new ConsumerGroupMetadata(groupId));
+                        producer.commitTransaction();
+                    }
+                } while (!"3".equals(value));
+            }
+
+            // now verify that output contains the expected values.
+            consumeAndVerify(tester, TENANT_1_CLUSTER, outputTopic, groupId, new LinkedList<>(
+                    List.of(matchesRecord(outputTopic, MY_KEY, "1"),
+                            matchesRecord(outputTopic, MY_KEY, "2"),
+                            matchesRecord(outputTopic, MY_KEY, "3"))),
+                    true);
+
+        }
+    }
+
+    @Test
+    public void describeTransaction(KafkaCluster cluster) throws Exception {
+        KroxyliciousConfigBuilder config = getConfig(cluster);
+        try (var tester = kroxyliciousTester(config)) {
+            try (var admin = tester.admin(TENANT_1_CLUSTER, commonConfig(Map.of()))) {
+                createTopics(tester, TENANT_1_CLUSTER, List.of(NEW_TOPIC_1));
+                var transactionalId = "12345";
+                produceAndVerify(tester, TENANT_1_CLUSTER,
+                        Stream.of(new ProducerRecord<>(TOPIC_1, MY_KEY, "1")),
+                        Optional.of(transactionalId));
+
+                var describeTransactionsResult = admin.describeTransactions(List.of(transactionalId));
+                var transactionMap = describeTransactionsResult.all().get();
+                assertThat(transactionMap).hasEntrySatisfying(transactionalId,
+                        allOf(matches(TransactionDescription::state, TransactionState.COMPLETE_COMMIT)));
+            }
+        }
+    }
+
+    @Test
+    public void tenantTransactionalIdIsolation(KafkaCluster cluster) throws Exception {
+        KroxyliciousConfigBuilder config = getConfig(cluster);
+        try (var tester = kroxyliciousTester(config)) {
+            createTopics(tester, TENANT_1_CLUSTER, List.of(NEW_TOPIC_1));
+            var tenant1TransactionId = "12345";
+            produceAndVerify(tester, TENANT_1_CLUSTER,
+                    Stream.of(new ProducerRecord<>(TOPIC_1, MY_KEY, "1")),
+                    Optional.of(tenant1TransactionId));
+            verifyTransactionsWithList(tester, TENANT_1_CLUSTER, Set.of(tenant1TransactionId));
+
+            createTopics(tester, TENANT_2_CLUSTER, List.of(NEW_TOPIC_2));
+            var tenant2TransactionId = "54321";
+            produceAndVerify(tester, TENANT_2_CLUSTER,
+                    Stream.of(new ProducerRecord<>(TOPIC_2, MY_KEY, "1")),
+                    Optional.of(tenant2TransactionId));
+            verifyTransactionsWithList(tester, TENANT_2_CLUSTER, Set.of(tenant2TransactionId));
+        }
+    }
+
     private void verifyConsumerGroupsWithDescribe(KroxyliciousTester tester, String virtualCluster, Set<String> expectedPresent, Set<String> expectedAbsent)
             throws Exception {
         try (var admin = tester.admin(virtualCluster, commonConfig(Map.of()))) {
@@ -324,7 +439,7 @@ public class MultiTenantIT {
         try (var consumer = tester.consumer(virtualCluster,
                 commonConfig(Map.of(ConsumerConfig.GROUP_ID_CONFIG, groupId, ConsumerConfig.ALLOW_AUTO_CREATE_TOPICS_CONFIG, Boolean.FALSE.toString(),
                         ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, Boolean.FALSE.toString(), ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
-                        OffsetResetStrategy.EARLIEST.toString())))) {
+                        OffsetResetStrategy.EARLIEST.toString(), ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed")))) {
 
             if (consumerStyle == ConsumerStyle.ASSIGN) {
                 consumer.assign(List.of(new TopicPartition(topic.name(), 0)));
@@ -344,6 +459,13 @@ public class MultiTenantIT {
         try (var admin = tester.admin(virtualCluster, commonConfig(Map.of()))) {
             var groups = admin.listConsumerGroups().all().get().stream().map(ConsumerGroupListing::groupId).toList();
             assertThat(groups).containsExactlyInAnyOrderElementsOf(expectedGroupIds);
+        }
+    }
+
+    private void verifyTransactionsWithList(KroxyliciousTester tester, String virtualCluster, Set<String> expectedTransactionalIds) throws Exception {
+        try (var admin = tester.admin(virtualCluster, commonConfig(Map.of()))) {
+            var transactionalIds = admin.listTransactions().all().get().stream().map(TransactionListing::transactionalId).toList();
+            assertThat(transactionalIds).containsExactlyInAnyOrderElementsOf(expectedTransactionalIds);
         }
     }
 
@@ -397,13 +519,22 @@ public class MultiTenantIT {
     }
 
     private void produceAndVerify(KroxyliciousTester tester, String virtualCluster, String topic, String key, String value) throws Exception {
-        produceAndVerify(tester, virtualCluster, Stream.of(new ProducerRecord<>(topic, key, value)));
+        produceAndVerify(tester, virtualCluster, Stream.of(new ProducerRecord<>(topic, key, value)), Optional.empty());
     }
 
-    private void produceAndVerify(KroxyliciousTester tester, String virtualCluster, Stream<ProducerRecord<String, String>> records) throws Exception {
+    private void produceAndVerify(KroxyliciousTester tester, String virtualCluster, Stream<ProducerRecord<String, String>> records, Optional<String> transactionalId)
+            throws Exception {
 
-        try (var producer = tester.producer(virtualCluster, commonConfig(Map.of(
-                ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000)))) {
+        Map<String, Object> config = new HashMap<>(Map.of(
+                ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000));
+        transactionalId.ifPresent(tid -> config.put(ProducerConfig.TRANSACTIONAL_ID_CONFIG, transactionalId.get()));
+
+        try (var producer = tester.producer(virtualCluster, commonConfig(config))) {
+            transactionalId.ifPresent(u -> {
+                producer.initTransactions();
+                producer.beginTransaction();
+            });
+
             records.forEach(rec -> {
                 RecordMetadata recordMetadata = null;
                 try {
@@ -414,6 +545,10 @@ public class MultiTenantIT {
                 }
                 assertNotNull(recordMetadata);
                 assertNotNull(rec.topic(), recordMetadata.topic());
+            });
+
+            transactionalId.ifPresent(u -> {
+                producer.commitTransaction();
             });
 
         }
