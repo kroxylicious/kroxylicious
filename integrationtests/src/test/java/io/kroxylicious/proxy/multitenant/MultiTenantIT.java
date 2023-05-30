@@ -101,9 +101,11 @@ public class MultiTenantIT {
     private static final NewTopic NEW_TOPIC_3 = new NewTopic(TOPIC_3, 1, (short) 1);
 
     public static final String TENANT_1_CLUSTER = "foo";
-    private static final HostPort TENANT_1_PROXY_ADDRESS = HostPort.parse(IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName(TENANT_1_CLUSTER, 9192));
+    private static final HostPort TENANT_1_PROXY_ADDRESS = HostPort
+            .parse(IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName(TENANT_1_CLUSTER, 9192));
     public static final String TENANT_2_CLUSTER = "bar";
-    private static final HostPort TENANT_2_PROXY_ADDRESS = HostPort.parse(IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName(TENANT_2_CLUSTER, 9292));
+    private static final HostPort TENANT_2_PROXY_ADDRESS = HostPort
+            .parse(IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName(TENANT_2_CLUSTER, 9292));
     private static final String MY_KEY = "my-key";
     private static final String MY_VALUE = "my-value";
     private static final long FUTURE_TIMEOUT_SECONDS = 5L;
@@ -170,7 +172,6 @@ public class MultiTenantIT {
             });
         }
     }
-
 
     private Map<String, Object> commonConfig(Map<String, Object> of) {
         var config = new HashMap<>(of);
@@ -417,7 +418,8 @@ public class MultiTenantIT {
         }
     }
 
-    private void verifyConsumerGroupsWithDescribe(KroxyliciousTester tester, String virtualCluster, Set<String> expectedPresent, Set<String> expectedAbsent) throws Exception {
+    private void verifyConsumerGroupsWithDescribe(KroxyliciousTester tester, String virtualCluster, Set<String> expectedPresent, Set<String> expectedAbsent)
+            throws Exception {
         try (var admin = tester.admin(virtualCluster, commonConfig(Map.of()))) {
             var describedGroups = admin.describeConsumerGroups(Stream.concat(expectedPresent.stream(), expectedAbsent.stream()).toList()).all().get();
             assertThat(describedGroups).hasSize(expectedAbsent.size() + expectedPresent.size());

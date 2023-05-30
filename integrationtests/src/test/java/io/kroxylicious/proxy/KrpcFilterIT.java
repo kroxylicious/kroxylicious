@@ -138,7 +138,7 @@ public class KrpcFilterIT {
             Set<String> names = admin.listTopics().names().get(10, TimeUnit.SECONDS);
             // remove once https://github.com/kroxylicious/kroxylicious-junit5-extension/issues/114 is fixed.
             names = new HashSet<>(names);
-            names.removeIf(n -> n.startsWith("__org_kroxylicious_testing"));            assertEquals(Set.of(), names);
+            names.removeIf(n -> n.startsWith("__org_kroxylicious_testing"));
             assertEquals(Set.of(), names);
         }
     }

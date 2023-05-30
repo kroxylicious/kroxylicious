@@ -309,8 +309,8 @@ public class ExpositionIT {
                 await().atMost(Duration.ofSeconds(10))
                         .ignoreExceptions()
                         .until(() -> admin.describeTopics(List.of(topic)).topicNameValues().get(topic).get()
-                                        .partitions().stream().map(TopicPartitionInfo::leader)
-                                        .collect(Collectors.toSet()),
+                                .partitions().stream().map(TopicPartitionInfo::leader)
+                                .collect(Collectors.toSet()),
                                 leaders -> leaders.size() == numberOfPartitions);
 
                 for (int partition = 0; partition < numberOfPartitions; partition++) {

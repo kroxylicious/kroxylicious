@@ -53,8 +53,8 @@ public class JsonSyntaxValidationIT {
         admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1))).all().get();
 
         KroxyliciousConfigBuilder config = withDefaultFilters(proxy(cluster)).addNewFilter().withType("ProduceValidator").withConfig(Map.of("rules",
-                        List.of(Map.of("topicNames", List.of(TOPIC_1), "valueRule",
-                                Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true))))))
+                List.of(Map.of("topicNames", List.of(TOPIC_1), "valueRule",
+                        Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true))))))
                 .endFilter();
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer(getProducerConfig(0, 16384))) {
@@ -69,8 +69,8 @@ public class JsonSyntaxValidationIT {
         admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1), new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
 
         var config = withDefaultFilters(proxy(cluster)).addNewFilter().withType("ProduceValidator").withConfig(Map.of("rules",
-                        List.of(Map.of("topicNames", List.of(TOPIC_1), "valueRule",
-                                Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true))))))
+                List.of(Map.of("topicNames", List.of(TOPIC_1), "valueRule",
+                        Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true))))))
                 .endFilter();
 
         try (var tester = kroxyliciousTester(config);
@@ -93,8 +93,8 @@ public class JsonSyntaxValidationIT {
         admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1), new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
 
         var config = withDefaultFilters(proxy(cluster)).addNewFilter().withType("ProduceValidator").withConfig(
-                        Map.of("forwardPartialRequests", true, "rules", List.of(Map.of("topicNames", List.of(TOPIC_1, TOPIC_2), "valueRule",
-                                Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true))))))
+                Map.of("forwardPartialRequests", true, "rules", List.of(Map.of("topicNames", List.of(TOPIC_1, TOPIC_2), "valueRule",
+                        Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true))))))
                 .endFilter();
 
         try (var tester = kroxyliciousTester(config);
@@ -118,8 +118,8 @@ public class JsonSyntaxValidationIT {
 
         boolean forwardPartialRequests = false;
         var config = withDefaultFilters(proxy(cluster)).addNewFilter().withType("ProduceValidator").withConfig(
-                        Map.of("forwardPartialRequests", forwardPartialRequests, "rules", List.of(Map.of("topicNames", List.of(TOPIC_1, TOPIC_2), "valueRule",
-                                Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true))))))
+                Map.of("forwardPartialRequests", forwardPartialRequests, "rules", List.of(Map.of("topicNames", List.of(TOPIC_1, TOPIC_2), "valueRule",
+                        Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true))))))
                 .endFilter();
 
         try (var tester = kroxyliciousTester(config);
@@ -139,8 +139,8 @@ public class JsonSyntaxValidationIT {
         admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1), new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
 
         var config = withDefaultFilters(proxy(cluster)).addNewFilter().withType("ProduceValidator").withConfig(
-                        Map.of("forwardPartialRequests", true, "rules", List.of(Map.of("topicNames", List.of(TOPIC_1, TOPIC_2), "valueRule",
-                                Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true))))))
+                Map.of("forwardPartialRequests", true, "rules", List.of(Map.of("topicNames", List.of(TOPIC_1, TOPIC_2), "valueRule",
+                        Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true))))))
                 .endFilter();
 
         try (var tester = kroxyliciousTester(config);
@@ -167,8 +167,8 @@ public class JsonSyntaxValidationIT {
         admin.createTopics(List.of(new NewTopic(TOPIC_1, 2, (short) 1))).all().get();
 
         var config = withDefaultFilters(proxy(cluster)).addNewFilter().withType("ProduceValidator").withConfig(
-                        Map.of("forwardPartialRequests", true, "rules", List.of(Map.of("topicNames", List.of(TOPIC_1), "valueRule",
-                                Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true))))))
+                Map.of("forwardPartialRequests", true, "rules", List.of(Map.of("topicNames", List.of(TOPIC_1), "valueRule",
+                        Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true))))))
                 .endFilter();
 
         try (var tester = kroxyliciousTester(config);
@@ -195,8 +195,8 @@ public class JsonSyntaxValidationIT {
         admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1))).all().get();
 
         var config = withDefaultFilters(proxy(cluster)).addNewFilter().withType("ProduceValidator").withConfig(
-                        Map.of("forwardPartialRequests", true, "rules", List.of(Map.of("topicNames", List.of(TOPIC_1), "valueRule",
-                                Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true))))))
+                Map.of("forwardPartialRequests", true, "rules", List.of(Map.of("topicNames", List.of(TOPIC_1), "valueRule",
+                        Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true))))))
                 .endFilter();
 
         try (var tester = kroxyliciousTester(config);
@@ -206,8 +206,8 @@ public class JsonSyntaxValidationIT {
             producer.flush();
             assertInvalidRecordExceptionThrown(invalid, "value was not syntactically correct JSON");
             Assertions.assertThatThrownBy(() -> {
-                        valid.get(10, TimeUnit.SECONDS);
-                    }).isInstanceOf(ExecutionException.class).hasCauseInstanceOf(KafkaException.class).cause()
+                valid.get(10, TimeUnit.SECONDS);
+            }).isInstanceOf(ExecutionException.class).hasCauseInstanceOf(KafkaException.class).cause()
                     .hasMessageContaining("Failed to append record because it was part of a batch which had one more more invalid records");
         }
     }
@@ -219,8 +219,8 @@ public class JsonSyntaxValidationIT {
         admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1))).all().get();
 
         var config = withDefaultFilters(proxy(cluster)).addNewFilter().withType("ProduceValidator").withConfig(Map.of("rules",
-                        List.of(Map.of("topicNames", List.of(TOPIC_1), "valueRule",
-                                Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true))))))
+                List.of(Map.of("topicNames", List.of(TOPIC_1), "valueRule",
+                        Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true))))))
                 .endFilter();
 
         try (var tester = kroxyliciousTester(config);
@@ -235,8 +235,8 @@ public class JsonSyntaxValidationIT {
 
     private static void assertInvalidRecordExceptionThrown(Future<RecordMetadata> invalid, String message) {
         Assertions.assertThatThrownBy(() -> {
-                    invalid.get(10, TimeUnit.SECONDS);
-                }).isInstanceOf(ExecutionException.class).hasCauseInstanceOf(InvalidRecordException.class).cause()
+            invalid.get(10, TimeUnit.SECONDS);
+        }).isInstanceOf(ExecutionException.class).hasCauseInstanceOf(InvalidRecordException.class).cause()
                 .hasMessageContaining(message);
     }
 
