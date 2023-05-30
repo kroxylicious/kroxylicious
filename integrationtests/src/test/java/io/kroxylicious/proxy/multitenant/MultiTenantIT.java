@@ -304,6 +304,7 @@ public class MultiTenantIT {
             verifyConsumerGroupsWithDescribe(tester, TENANT_2_CLUSTER, Set.of("Tenant2Group"), Set.of("Tenant1Group", "idontexist"));
         }
     }
+
     @Test
     public void produceInTransaction(KafkaCluster cluster) throws Exception {
         KroxyliciousConfigBuilder config = getConfig(cluster);
@@ -365,9 +366,9 @@ public class MultiTenantIT {
 
             // now verify that output contains the expected values.
             consumeAndVerify(tester, TENANT_1_CLUSTER, outputTopic, groupId, new LinkedList<>(
-                            List.of(matchesRecord(outputTopic, MY_KEY, "1"),
-                                    matchesRecord(outputTopic, MY_KEY, "2"),
-                                    matchesRecord(outputTopic, MY_KEY, "3"))),
+                    List.of(matchesRecord(outputTopic, MY_KEY, "1"),
+                            matchesRecord(outputTopic, MY_KEY, "2"),
+                            matchesRecord(outputTopic, MY_KEY, "3"))),
                     true);
 
         }
@@ -461,14 +462,12 @@ public class MultiTenantIT {
         }
     }
 
-
     private void verifyTransactionsWithList(KroxyliciousTester tester, String virtualCluster, Set<String> expectedTransactionalIds) throws Exception {
         try (var admin = tester.admin(virtualCluster, commonConfig(Map.of()))) {
             var transactionalIds = admin.listTransactions().all().get().stream().map(TransactionListing::transactionalId).toList();
             assertThat(transactionalIds).containsExactlyInAnyOrderElementsOf(expectedTransactionalIds);
         }
     }
-
 
     private void verifyTenant(KroxyliciousTester tester, String virtualCluster, String... expectedTopics) throws Exception {
         try (var admin = tester.admin(virtualCluster, commonConfig(Map.of()))) {
@@ -523,7 +522,8 @@ public class MultiTenantIT {
         produceAndVerify(tester, virtualCluster, Stream.of(new ProducerRecord<>(topic, key, value)), Optional.empty());
     }
 
-    private void produceAndVerify(KroxyliciousTester tester, String virtualCluster, Stream<ProducerRecord<String, String>> records,  Optional<String> transactionalId) throws Exception {
+    private void produceAndVerify(KroxyliciousTester tester, String virtualCluster, Stream<ProducerRecord<String, String>> records, Optional<String> transactionalId)
+            throws Exception {
 
         Map<String, Object> config = new HashMap<>(Map.of(
                 ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000));
