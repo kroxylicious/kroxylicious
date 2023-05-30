@@ -342,11 +342,7 @@ public class MultiTenantTransformationFilter
     @Override
     public void onAddPartitionsToTxnRequest(RequestHeaderData header, AddPartitionsToTxnRequestData request, KrpcFilterContext context) {
         request.topics().forEach(topic -> applyTenantPrefix(context, topic::name, topic::setName, false));
-        if (request.transactionalId() != null) {
-            // the producer is transactional.
-            var tenantPrefix = getTenantPrefix(context);
-            request.setTransactionalId(tenantPrefix + request.transactionalId());
-        }
+        applyTenantPrefix(context, request::transactionalId, request::setTransactionalId, true);
 
         context.forwardRequest(header, request);
     }
