@@ -175,11 +175,7 @@ public class MultiTenantTransformationFilter
 
     @Override
     public void onProduceRequest(RequestHeaderData header, ProduceRequestData request, KrpcFilterContext context) {
-        if (request.transactionalId() != null) {
-            // the producer is transactional.
-            var tenantPrefix = getTenantPrefix(context);
-            request.setTransactionalId(tenantPrefix + request.transactionalId());
-        }
+        applyTenantPrefix(context, request::transactionalId, request::setTransactionalId, true);
         request.topicData().forEach(topic -> applyTenantPrefix(context, topic::name, topic::setName, false));
         context.forwardRequest(header, request);
 
