@@ -55,8 +55,7 @@ public class RoutingHttpServer extends SimpleChannelInboundHandler<HttpObject> {
 
     @Override
     public void channelRead0(ChannelHandlerContext ctx, HttpObject msg) {
-        if (msg instanceof HttpRequest) {
-            HttpRequest req = (HttpRequest) msg;
+        if (msg instanceof HttpRequest req) {
             boolean keepAlive = HttpUtil.isKeepAlive(req);
 
             HttpResponse response = getResponse(req);

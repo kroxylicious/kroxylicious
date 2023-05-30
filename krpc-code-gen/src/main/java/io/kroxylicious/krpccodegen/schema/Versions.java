@@ -22,7 +22,7 @@ import java.util.stream.IntStream;
  * A single supported version V is represented as "V".
  * A bounded range from A to B is represented as "A-B".
  * All versions greater than A is represented as "A+".
- * The NONE range is represented as an the string "none".
+ * The NONE range is represented as the string "none".
  */
 public final class Versions {
     private final short lowest;
@@ -108,7 +108,7 @@ public final class Versions {
      * Return the intersection of two version ranges.
      *
      * @param other     The other version range.
-     * @return          A new version range.
+     * @return A new version range.
      */
     public Versions intersect(Versions other) {
         short newLowest = lowest > other.lowest ? lowest : other.lowest;
@@ -130,7 +130,7 @@ public final class Versions {
      * 1-5.trim(2-4) = null
      *
      * @param other                 The other version range.
-     * @return                      A new version range.
+     * @return A new version range.
      */
     public Versions subtract(Versions other) {
         if (other.lowest() <= lowest) {
@@ -190,10 +190,9 @@ public final class Versions {
 
     @Override
     public boolean equals(Object other) {
-        if (!(other instanceof Versions)) {
+        if (!(other instanceof Versions otherVersions)) {
             return false;
         }
-        Versions otherVersions = (Versions) other;
         return lowest == otherVersions.lowest &&
                 highest == otherVersions.highest;
     }
