@@ -30,6 +30,8 @@ import org.openjdk.jmh.infra.Blackhole;
 
 import io.kroxylicious.filters.FourInterfaceFilter0;
 import io.kroxylicious.filters.FourInterfaceFilter1;
+import io.kroxylicious.filters.FourInterfaceFilter2;
+import io.kroxylicious.filters.FourInterfaceFilter3;
 import io.kroxylicious.proxy.filter.ArrayFilterInvoker;
 import io.kroxylicious.proxy.filter.FilterInvoker;
 import io.kroxylicious.proxy.filter.FilterInvokers;
@@ -86,12 +88,12 @@ public class InvokerDispatchBenchmark {
             invokers = new FilterInvoker[]{
                     invokerType.invokerWith(new FourInterfaceFilter0()),
                     invokerType.invokerWith(new FourInterfaceFilter1()),
+                    invokerType.invokerWith(new FourInterfaceFilter2()),
+                    invokerType.invokerWith(new FourInterfaceFilter3()),
                     invokerType.invokerWith(new FourInterfaceFilter0()),
                     invokerType.invokerWith(new FourInterfaceFilter1()),
-                    invokerType.invokerWith(new FourInterfaceFilter0()),
-                    invokerType.invokerWith(new FourInterfaceFilter1()),
-                    invokerType.invokerWith(new FourInterfaceFilter0()),
-                    invokerType.invokerWith(new FourInterfaceFilter1())
+                    invokerType.invokerWith(new FourInterfaceFilter2()),
+                    invokerType.invokerWith(new FourInterfaceFilter3())
             };
             final Map<ApiKeys, ApiMessage> messages = Map.of(ApiKeys.PRODUCE, new ProduceRequestData(), ApiKeys.API_VERSIONS, new ApiVersionsRequestData(), ApiKeys.FETCH,
                     new FetchRequestData());
