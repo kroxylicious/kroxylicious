@@ -32,7 +32,6 @@ import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.jetbrains.annotations.NotNull;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -73,9 +72,6 @@ public class KroxyliciousTestersTest {
         }
     }
 
-    // TODO fix this, I believe that during the initial async reconciliation of metadata Kroxylicious is responding
-    // with a FindCoordinator response out-of-order.
-    @Disabled
     @Test
     public void testConsumerMethods(KafkaCluster cluster) throws Exception {
         KafkaProducer<String, String> producer = new KafkaProducer<>(cluster.getKafkaClientConfiguration(), new StringSerializer(), new StringSerializer());
