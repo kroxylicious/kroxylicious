@@ -15,11 +15,11 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 
-import static io.kroxylicious.proxy.KroxyConfig.builder;
+import static io.kroxylicious.proxy.KroxyliciousConfig.builder;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public class KroxyConfigTest {
+public class KroxyliciousConfigTest {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper(new YAMLFactory());
 
     @Test
@@ -78,7 +78,7 @@ public class KroxyConfigTest {
         assertTrue(prometheus.isEmpty(), "expect prometheus endpoint to have an empty object serialized");
     }
 
-    private static ObjectNode serializeAndDeserialize(KroxyConfig builder) throws Exception {
+    private static ObjectNode serializeAndDeserialize(KroxyliciousConfig builder) throws Exception {
         String config = builder.toYaml();
         return OBJECT_MAPPER.reader().readValue(config, ObjectNode.class);
     }

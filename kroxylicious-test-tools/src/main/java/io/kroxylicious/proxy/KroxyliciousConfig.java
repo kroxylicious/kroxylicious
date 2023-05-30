@@ -19,8 +19,7 @@ import io.sundr.builder.annotations.Buildable;
 import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL;
 
 @Buildable(editableEnabled = false)
-
-public class KroxyConfig {
+public class KroxyliciousConfig {
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper(new YAMLFactory().disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER));
 
@@ -34,11 +33,12 @@ public class KroxyConfig {
     private final List<MicrometerConfig> micrometer;
     private final boolean useIoUring;
 
-    public static KroxyConfigBuilder builder() {
-        return new KroxyConfigBuilder();
+    public static KroxyliciousConfigBuilder builder() {
+        return new KroxyliciousConfigBuilder();
     }
 
-    public KroxyConfig(Map<String, VirtualCluster> virtualClusters, List<Filter> filters, AdminHttp adminHttp, List<MicrometerConfig> micrometer, boolean useIoUring) {
+    public KroxyliciousConfig(Map<String, VirtualCluster> virtualClusters, List<Filter> filters, AdminHttp adminHttp, List<MicrometerConfig> micrometer,
+                              boolean useIoUring) {
         this.virtualClusters = virtualClusters;
         this.filters = filters;
         this.adminHttp = adminHttp;
