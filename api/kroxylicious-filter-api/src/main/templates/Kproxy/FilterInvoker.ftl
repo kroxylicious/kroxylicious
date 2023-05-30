@@ -59,6 +59,6 @@ class ${filterInvokerClass} implements FilterInvoker {
 
     @Override
     public void on<#if messageSpec.type?lower_case == 'response'>Response<#else>Request</#if>(ApiKeys apiKey, short apiVersion, <#if messageSpec.type?lower_case == 'response'>Response<#else>Request</#if>HeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
-        filter.on${messageSpec.name}(header, (${messageSpec.name}Data) body, filterContext);
+        filter.on${messageSpec.name}(apiVersion, header, (${messageSpec.name}Data) body, filterContext);
     }
 }

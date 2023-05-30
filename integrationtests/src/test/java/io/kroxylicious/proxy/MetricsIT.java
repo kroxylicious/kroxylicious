@@ -5,9 +5,6 @@
  */
 package io.kroxylicious.proxy;
 
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.Arrays;
 import java.util.List;
@@ -22,19 +19,17 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import io.micrometer.core.instrument.Metrics;
 import io.netty.handler.codec.http.HttpResponseStatus;
 
-import io.kroxylicious.proxy.service.HostPort;
+import io.kroxylicious.test.tester.AdminHttpClient;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
-import static io.kroxylicious.proxy.Utils.startProxy;
-import static java.net.http.HttpResponse.BodyHandlers.ofString;
+import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
+import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @ExtendWith(KafkaClusterExtension.class)
 public class MetricsIT {
-
-    public static final HostPort PROXY_ADDRESS = HostPort.parse("localhost:19192");
 
     @BeforeEach
     public void beforeEach() {
@@ -42,31 +37,27 @@ public class MetricsIT {
     }
 
     @Test
-    public void shouldOfferPrometheusMetricsScrapeEndpoint(KafkaCluster cluster) throws Exception {
-        String config = baseConfigBuilder(PROXY_ADDRESS, cluster.getBootstrapServers())
+    public void shouldOfferPrometheusMetricsScrapeEndpoint(KafkaCluster cluster) {
+        KroxyliciousConfigBuilder config = proxy(cluster)
                 .withNewAdminHttp()
                 .withNewEndpoints()
                 .withPrometheusEndpointConfig(Map.of())
                 .endEndpoints()
-                .endAdminHttp()
-                .build()
-                .toYaml();
+                .endAdminHttp();
 
-        try (var proxy = startProxy(config)) {
+        try (var tester = kroxyliciousTester(config)) {
             String counter_name = "test_metric_" + Math.abs(new Random().nextLong()) + "_total";
             Metrics.counter(counter_name).increment();
-            HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:9193/metrics")).GET().build();
-            HttpResponse<String> response = HttpClient.newHttpClient().send(request, ofString());
+            HttpResponse<String> response = AdminHttpClient.INSTANCE.getFromAdminEndpoint("metrics");
             assertResponseBodyContainsMeter(response, counter_name, "1.0");
-            HttpRequest notFoundReq = HttpRequest.newBuilder(URI.create("http://localhost:9193/nonexistant")).GET().build();
-            HttpResponse<String> notFoundResp = HttpClient.newHttpClient().send(notFoundReq, ofString());
+            HttpResponse<String> notFoundResp = AdminHttpClient.INSTANCE.getFromAdminEndpoint("nonexistant");
             assertEquals(notFoundResp.statusCode(), HttpResponseStatus.NOT_FOUND.code());
         }
     }
 
     @Test
-    public void shouldOfferPrometheusMetricsWithNamedBinder(KafkaCluster cluster) throws Exception {
-        String config = baseConfigBuilder(PROXY_ADDRESS, cluster.getBootstrapServers())
+    public void shouldOfferPrometheusMetricsWithNamedBinder(KafkaCluster cluster) {
+        KroxyliciousConfigBuilder config = proxy(cluster)
                 .addToMicrometer(new MicrometerConfigBuilder()
                         .withType("StandardBinders")
                         .withConfig(Map.of("binderNames", List.of("JvmGcMetrics")))
@@ -75,34 +66,28 @@ public class MetricsIT {
                 .withNewEndpoints()
                 .withPrometheusEndpointConfig(Map.of())
                 .endEndpoints()
-                .endAdminHttp()
-                .build()
-                .toYaml();
+                .endAdminHttp();
 
-        try (var proxy = startProxy(config)) {
-            HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:9193/metrics")).GET().build();
-            HttpResponse<String> response = HttpClient.newHttpClient().send(request, ofString());
+        try (var tester = kroxyliciousTester(config)) {
+            HttpResponse<String> response = AdminHttpClient.INSTANCE.getFromAdminEndpoint("metrics");
             assertResponseBodyContainsMeter(response, "jvm_gc_memory_allocated_bytes_total");
         }
     }
 
     @Test
-    public void shouldOfferPrometheusMetricsWithCommonTags(KafkaCluster cluster) throws Exception {
-        String config = baseConfigBuilder(PROXY_ADDRESS, cluster.getBootstrapServers())
+    public void shouldOfferPrometheusMetricsWithCommonTags(KafkaCluster cluster) {
+        KroxyliciousConfigBuilder config = proxy(cluster)
                 .addNewMicrometer().withType("CommonTags").withConfig(Map.of("commonTags", Map.of("a", "b"))).endMicrometer()
                 .withNewAdminHttp()
                 .withNewEndpoints()
                 .withPrometheusEndpointConfig(Map.of())
                 .endEndpoints()
-                .endAdminHttp()
-                .build()
-                .toYaml();
+                .endAdminHttp();
 
-        try (var proxy = startProxy(config)) {
+        try (var tester = kroxyliciousTester(config)) {
             String counter_name = "test_metric_" + Math.abs(new Random().nextLong()) + "_total";
             Metrics.counter(counter_name).increment();
-            HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:9193/metrics")).GET().build();
-            HttpResponse<String> response = HttpClient.newHttpClient().send(request, ofString());
+            HttpResponse<String> response = AdminHttpClient.INSTANCE.getFromAdminEndpoint("metrics");
             assertResponseBodyContainsMeterWithTag(response, counter_name, "a", "b");
         }
     }
@@ -123,16 +108,4 @@ public class MetricsIT {
         assertTrue(Arrays.stream(response.body().split("\n")).anyMatch(it -> it.matches(meterName + labelRegex + " " + valueRegex)));
     }
 
-    private static KroxyConfigBuilder baseConfigBuilder(HostPort proxyAddress, String bootstrapServers) {
-        return KroxyConfig.builder()
-                .addToVirtualClusters("demo", new VirtualClusterBuilder()
-                        .withNewTargetCluster()
-                        .withBootstrapServers(bootstrapServers)
-                        .endTargetCluster()
-                        .withNewClusterEndpointConfigProvider()
-                        .withType("PortPerBroker")
-                        .withConfig(Map.of("bootstrapAddress", proxyAddress.toString()))
-                        .endClusterEndpointConfigProvider()
-                        .build());
-    }
 }

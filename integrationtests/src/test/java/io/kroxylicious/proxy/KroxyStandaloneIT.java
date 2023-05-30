@@ -6,32 +6,30 @@
 package io.kroxylicious.proxy;
 
 import java.io.File;
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 
 import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.admin.NewTopic;
-import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.common.serialization.StringDeserializer;
-import org.apache.kafka.common.serialization.StringSerializer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
-import io.kroxylicious.testing.kafka.clients.CloseableConsumer;
-import io.kroxylicious.testing.kafka.clients.CloseableProducer;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
+import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
+import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.withDefaultFilters;
+import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
@@ -52,35 +50,19 @@ public class KroxyStandaloneIT {
                 new NewTopic(TOPIC_1, 1, (short) 1),
                 new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
 
-        var config = baseConfigBuilder(proxyAddress, cluster.getBootstrapServers())
-                .build()
-                .toYaml();
+        try (var tester = kroxyliciousTester(withDefaultFilters(proxy(cluster)), new SubprocessKroxyliciousFactory(tempDir));
+                var producer = tester.producer(Map.of(
+                        ProducerConfig.CLIENT_ID_CONFIG, "shouldModifyProduceMessage",
+                        ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000));
+                var consumer = tester.consumer()) {
+            producer.send(new ProducerRecord<>(TOPIC_1, "my-key", PLAINTEXT)).get();
+            producer.send(new ProducerRecord<>(TOPIC_2, "my-key", PLAINTEXT)).get();
+            producer.flush();
 
-        try (var ignored = startProxy(config, tempDir)) {
-            try (var producer = CloseableProducer.<String, String> create(Map.of(
-                    ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress.toString(),
-                    ProducerConfig.CLIENT_ID_CONFIG, "shouldModifyProduceMessage",
-                    ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
-                    ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
-                    ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000))) {
-                producer.send(new ProducerRecord<>(TOPIC_1, "my-key", PLAINTEXT)).get();
-                producer.send(new ProducerRecord<>(TOPIC_2, "my-key", PLAINTEXT)).get();
-                producer.flush();
-            }
-
-            ConsumerRecords<String, String> records1;
-            ConsumerRecords<String, String> records2;
-            try (var consumer = CloseableConsumer.<String, String> create(Map.of(
-                    ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress.toString(),
-                    ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
-                    ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
-                    ConsumerConfig.GROUP_ID_CONFIG, "my-group-id",
-                    ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
-                consumer.subscribe(Set.of(TOPIC_1));
-                records1 = consumer.poll(Duration.ofSeconds(10));
-                consumer.subscribe(Set.of(TOPIC_2));
-                records2 = consumer.poll(Duration.ofSeconds(10));
-            }
+            consumer.subscribe(Set.of(TOPIC_1));
+            ConsumerRecords<String, String> records1 = consumer.poll(Duration.ofSeconds(10));
+            consumer.subscribe(Set.of(TOPIC_2));
+            ConsumerRecords<String, String> records2 = consumer.poll(Duration.ofSeconds(10));
 
             assertEquals(1, records1.count());
             assertEquals(PLAINTEXT, records1.iterator().next().value());
@@ -89,38 +71,21 @@ public class KroxyStandaloneIT {
         }
     }
 
-    private static KroxyConfigBuilder baseConfigBuilder(HostPort proxyAddress, String bootstrapServers) {
-        return KroxyConfig.builder()
-                .addToVirtualClusters("demo", new VirtualClusterBuilder()
-                        .withNewTargetCluster()
-                        .withBootstrapServers(bootstrapServers)
-                        .endTargetCluster()
-                        .withNewClusterEndpointConfigProvider()
-                        .withType("PortPerBroker")
-                        .withConfig(Map.of("bootstrapAddress", proxyAddress.toString()))
-                        .endClusterEndpointConfigProvider()
-                        .build())
-                .addNewFilter().withType("ApiVersions").endFilter();
-    }
+    private record SubprocessKroxyliciousFactory(Path tempDir) implements Function<KroxyliciousConfig, AutoCloseable> {
 
-    /**
-     * Start proxy as a subprocess, so we have a way to signal it to shut down. If we instead run the
-     * main method in-process, when we terminate it, the backing netty services remain running and
-     * prevent the test from completing.
-     */
-    public static AutoCloseable startProxy(String config, Path tempDir) throws IOException {
-        Path configPath = tempDir.resolve("config.yaml");
-        Files.writeString(configPath, config);
-        String java = System.getProperty("java.home") + File.separator + "bin" + File.separator + "java";
-        String classpath = System.getProperty("java.class.path");
-        var processBuilder = new ProcessBuilder(java, "-cp", classpath, Kroxylicious.class.getName(), "-c", configPath.toString()).inheritIO();
+    @Override
+    public AutoCloseable apply(KroxyliciousConfig config) {
         try {
+            Path configPath = tempDir.resolve("config.yaml");
+            Files.writeString(configPath, config.toYaml());
+            String java = System.getProperty("java.home") + File.separator + "bin" + File.separator + "java";
+            String classpath = System.getProperty("java.class.path");
+            var processBuilder = new ProcessBuilder(java, "-cp", classpath, "io.kroxylicious.proxy.Kroxylicious", "-c", configPath.toString()).inheritIO();
             Process start = processBuilder.start();
             return start::destroy;
         }
-        catch (IOException e) {
+        catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
-
-}
+}}

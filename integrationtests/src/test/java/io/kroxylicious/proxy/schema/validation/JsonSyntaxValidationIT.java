@@ -9,36 +9,33 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.admin.NewTopic;
-import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.clients.consumer.KafkaConsumer;
-import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.InvalidRecordException;
 import org.apache.kafka.common.KafkaException;
-import org.apache.kafka.common.serialization.StringDeserializer;
-import org.apache.kafka.common.serialization.StringSerializer;
 import org.assertj.core.api.Assertions;
-import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
-import io.kroxylicious.proxy.KroxyConfig;
-import io.kroxylicious.proxy.KroxyConfigBuilder;
-import io.kroxylicious.proxy.VirtualClusterBuilder;
-import io.kroxylicious.proxy.service.HostPort;
+import io.kroxylicious.proxy.KroxyliciousConfigBuilder;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
-import static io.kroxylicious.proxy.Utils.startProxy;
+import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
+import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.withDefaultFilters;
+import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
+import static java.util.UUID.randomUUID;
+import static org.apache.kafka.clients.consumer.ConsumerConfig.AUTO_OFFSET_RESET_CONFIG;
+import static org.apache.kafka.clients.consumer.ConsumerConfig.GROUP_ID_CONFIG;
+import static org.apache.kafka.clients.producer.ProducerConfig.LINGER_MS_CONFIG;
+import static org.apache.kafka.clients.producer.ProducerConfig.TRANSACTIONAL_ID_CONFIG;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -52,249 +49,194 @@ public class JsonSyntaxValidationIT {
 
     @Test
     public void testInvalidJsonProduceRejected(KafkaCluster cluster, Admin admin) throws Exception {
-        var proxyAddress = HostPort.parse("localhost:9192");
-
+        assertEquals(1, cluster.getNumOfBrokers());
         admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1))).all().get();
 
-        var config = baseConfigBuilder(cluster, proxyAddress).addNewFilter().withType("ProduceValidator").withConfig(Map.of("rules",
-                List.of(Map.of("topicNames", List.of(TOPIC_1), "valueRule",
-                        Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true))))))
-                .endFilter()
-                .build().toYaml();
-
-        try (var ignored = startProxy(config)) {
-            try (var producer = getProducer(proxyAddress, 0, 16384)) {
-                Future<RecordMetadata> invalid = producer.send(new ProducerRecord<>(TOPIC_1, "my-key", SYNTACTICALLY_INCORRECT_JSON));
-                assertInvalidRecordExceptionThrown(invalid, "value was not syntactically correct JSON");
-            }
+        KroxyliciousConfigBuilder config = withDefaultFilters(proxy(cluster)).addNewFilter().withType("ProduceValidator").withConfig(Map.of("rules",
+                        List.of(Map.of("topicNames", List.of(TOPIC_1), "valueRule",
+                                Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true))))))
+                .endFilter();
+        try (var tester = kroxyliciousTester(config);
+                var producer = tester.producer(getProducerConfig(0, 16384))) {
+            Future<RecordMetadata> invalid = producer.send(new ProducerRecord<>(TOPIC_1, "my-key", SYNTACTICALLY_INCORRECT_JSON));
+            assertInvalidRecordExceptionThrown(invalid, "value was not syntactically correct JSON");
         }
-    }
-
-    private static KroxyConfigBuilder baseConfigBuilder(KafkaCluster cluster, HostPort proxyAddress) {
-        assertEquals(1, cluster.getNumOfBrokers());
-        String bootstrapServers = cluster.getBootstrapServers();
-        return KroxyConfig.builder().addToVirtualClusters("demo",
-                new VirtualClusterBuilder().withNewTargetCluster().withBootstrapServers(bootstrapServers).endTargetCluster().withNewClusterEndpointConfigProvider()
-                        .withType("PortPerBroker")
-                        .withConfig(Map.of("bootstrapAddress", proxyAddress.toString()))
-                        .endClusterEndpointConfigProvider().build())
-                .addNewFilter()
-                .withType("ApiVersions").endFilter();
     }
 
     @Test
     public void testInvalidJsonProduceRejectedUsingTopicNames(KafkaCluster cluster, Admin admin) throws Exception {
-        var proxyAddress = HostPort.parse("localhost:9192");
-
+        assertEquals(1, cluster.getNumOfBrokers());
         admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1), new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
 
-        var config = baseConfigBuilder(cluster, proxyAddress).addNewFilter().withType("ProduceValidator").withConfig(Map.of("rules",
-                List.of(Map.of("topicNames", List.of(TOPIC_1), "valueRule",
-                        Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true))))))
-                .endFilter()
-                .build().toYaml();
+        var config = withDefaultFilters(proxy(cluster)).addNewFilter().withType("ProduceValidator").withConfig(Map.of("rules",
+                        List.of(Map.of("topicNames", List.of(TOPIC_1), "valueRule",
+                                Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true))))))
+                .endFilter();
 
-        try (var ignored = startProxy(config)) {
-            try (var producer = getProducer(proxyAddress, 0, 16384)) {
-                Future<RecordMetadata> invalid = producer.send(new ProducerRecord<>(TOPIC_1, "my-key", SYNTACTICALLY_INCORRECT_JSON));
-                assertInvalidRecordExceptionThrown(invalid, "value was not syntactically correct JSON");
-
-                producer.send(new ProducerRecord<>(TOPIC_2, "my-key", SYNTACTICALLY_INCORRECT_JSON)).get();
-                try (var consumer = new KafkaConsumer<String, String>(
-                        Map.of(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress.toString(), ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
-                                ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class, ConsumerConfig.GROUP_ID_CONFIG, "my-group-id",
-                                ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
-                    consumer.subscribe(Set.of(TOPIC_2));
-                    var records = consumer.poll(Duration.ofSeconds(10));
-                    assertEquals(1, records.count());
-                    assertEquals(SYNTACTICALLY_INCORRECT_JSON, records.iterator().next().value());
-                }
-            }
+        try (var tester = kroxyliciousTester(config);
+                var producer = tester.producer(getProducerConfig(0, 16384));
+                var consumer = tester.consumer(Map.of(GROUP_ID_CONFIG, "my-group-id", AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
+            Future<RecordMetadata> invalid = producer.send(new ProducerRecord<>(TOPIC_1, "my-key", SYNTACTICALLY_INCORRECT_JSON));
+            assertInvalidRecordExceptionThrown(invalid, "value was not syntactically correct JSON");
+            producer.send(new ProducerRecord<>(TOPIC_2, "my-key", SYNTACTICALLY_INCORRECT_JSON)).get();
+            consumer.subscribe(Set.of(TOPIC_2));
+            var records = consumer.poll(Duration.ofSeconds(10));
+            assertEquals(1, records.count());
+            assertEquals(SYNTACTICALLY_INCORRECT_JSON, records.iterator().next().value());
         }
     }
 
     @Test
     public void testPartiallyInvalidJsonTransactionalAllRejected(KafkaCluster cluster, Admin admin) throws Exception {
-        var proxyAddress = HostPort.parse("localhost:9192");
+        assertEquals(1, cluster.getNumOfBrokers());
 
         admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1), new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
 
-        var config = baseConfigBuilder(cluster, proxyAddress).addNewFilter().withType("ProduceValidator").withConfig(
-                Map.of("forwardPartialRequests", true, "rules", List.of(Map.of("topicNames", List.of(TOPIC_1, TOPIC_2), "valueRule",
-                        Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true))))))
-                .endFilter()
-                .build().toYaml();
+        var config = withDefaultFilters(proxy(cluster)).addNewFilter().withType("ProduceValidator").withConfig(
+                        Map.of("forwardPartialRequests", true, "rules", List.of(Map.of("topicNames", List.of(TOPIC_1, TOPIC_2), "valueRule",
+                                Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true))))))
+                .endFilter();
 
-        try (var ignored = startProxy(config)) {
-            try (var producer = getProducer(proxyAddress,
-                    Map.of(ProducerConfig.LINGER_MS_CONFIG, 5000, ProducerConfig.TRANSACTIONAL_ID_CONFIG, UUID.randomUUID().toString()))) {
-                producer.initTransactions();
-                producer.beginTransaction();
-                Future<RecordMetadata> invalid = producer.send(new ProducerRecord<>(TOPIC_1, "my-key", SYNTACTICALLY_INCORRECT_JSON));
-                Future<RecordMetadata> valid = producer.send(new ProducerRecord<>(TOPIC_2, "my-key", SYNTACTICALLY_CORRECT_JSON));
-                producer.flush();
-                assertInvalidRecordExceptionThrown(invalid, "value was not syntactically correct JSON");
-                assertInvalidRecordExceptionThrown(valid, "Invalid record in another topic-partition caused whole ProduceRequest to be invalidated");
-                producer.abortTransaction();
-            }
+        try (var tester = kroxyliciousTester(config);
+                var producer = tester.producer(Map.of(LINGER_MS_CONFIG, 5000, TRANSACTIONAL_ID_CONFIG, randomUUID().toString()))) {
+            producer.initTransactions();
+            producer.beginTransaction();
+            Future<RecordMetadata> invalid = producer.send(new ProducerRecord<>(TOPIC_1, "my-key", SYNTACTICALLY_INCORRECT_JSON));
+            Future<RecordMetadata> valid = producer.send(new ProducerRecord<>(TOPIC_2, "my-key", SYNTACTICALLY_CORRECT_JSON));
+            producer.flush();
+            assertInvalidRecordExceptionThrown(invalid, "value was not syntactically correct JSON");
+            assertInvalidRecordExceptionThrown(valid, "Invalid record in another topic-partition caused whole ProduceRequest to be invalidated");
+            producer.abortTransaction();
         }
     }
 
     @Test
     public void testPartiallyInvalidJsonNotConfiguredToForwardAllRejected(KafkaCluster cluster, Admin admin) throws Exception {
-        var proxyAddress = HostPort.parse("localhost:9192");
+        assertEquals(1, cluster.getNumOfBrokers());
 
         admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1), new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
 
         boolean forwardPartialRequests = false;
-        var config = baseConfigBuilder(cluster, proxyAddress).addNewFilter().withType("ProduceValidator").withConfig(
-                Map.of("forwardPartialRequests", forwardPartialRequests, "rules", List.of(Map.of("topicNames", List.of(TOPIC_1, TOPIC_2), "valueRule",
-                        Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true))))))
-                .endFilter()
-                .build().toYaml();
+        var config = withDefaultFilters(proxy(cluster)).addNewFilter().withType("ProduceValidator").withConfig(
+                        Map.of("forwardPartialRequests", forwardPartialRequests, "rules", List.of(Map.of("topicNames", List.of(TOPIC_1, TOPIC_2), "valueRule",
+                                Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true))))))
+                .endFilter();
 
-        try (var ignored = startProxy(config)) {
-            try (var producer = getProducer(proxyAddress, 5000, 16384)) {
-                Future<RecordMetadata> invalid = producer.send(new ProducerRecord<>(TOPIC_1, "my-key", SYNTACTICALLY_INCORRECT_JSON));
-                Future<RecordMetadata> valid = producer.send(new ProducerRecord<>(TOPIC_2, "my-key", SYNTACTICALLY_CORRECT_JSON));
-                producer.flush();
-                assertInvalidRecordExceptionThrown(invalid, "value was not syntactically correct JSON");
-                assertInvalidRecordExceptionThrown(valid, "Invalid record in another topic-partition caused whole ProduceRequest to be invalidated");
-            }
+        try (var tester = kroxyliciousTester(config);
+                var producer = tester.producer(getProducerConfig(5000, 16384))) {
+            Future<RecordMetadata> invalid = producer.send(new ProducerRecord<>(TOPIC_1, "my-key", SYNTACTICALLY_INCORRECT_JSON));
+            Future<RecordMetadata> valid = producer.send(new ProducerRecord<>(TOPIC_2, "my-key", SYNTACTICALLY_CORRECT_JSON));
+            producer.flush();
+            assertInvalidRecordExceptionThrown(invalid, "value was not syntactically correct JSON");
+            assertInvalidRecordExceptionThrown(valid, "Invalid record in another topic-partition caused whole ProduceRequest to be invalidated");
         }
     }
 
     @Test
     public void testPartiallyInvalidJsonProduceRejected(KafkaCluster cluster, Admin admin) throws Exception {
-        var proxyAddress = HostPort.parse("localhost:9192");
+        assertEquals(1, cluster.getNumOfBrokers());
 
         admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1), new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
 
-        var config = baseConfigBuilder(cluster, proxyAddress).addNewFilter().withType("ProduceValidator").withConfig(
-                Map.of("forwardPartialRequests", true, "rules", List.of(Map.of("topicNames", List.of(TOPIC_1, TOPIC_2), "valueRule",
-                        Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true))))))
-                .endFilter()
-                .build().toYaml();
+        var config = withDefaultFilters(proxy(cluster)).addNewFilter().withType("ProduceValidator").withConfig(
+                        Map.of("forwardPartialRequests", true, "rules", List.of(Map.of("topicNames", List.of(TOPIC_1, TOPIC_2), "valueRule",
+                                Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true))))))
+                .endFilter();
 
-        try (var ignored = startProxy(config)) {
-            try (var producer = getProducer(proxyAddress, 5000, 16384)) {
-                Future<RecordMetadata> invalid = producer.send(new ProducerRecord<>(TOPIC_1, "my-key", SYNTACTICALLY_INCORRECT_JSON));
-                Future<RecordMetadata> valid = producer.send(new ProducerRecord<>(TOPIC_2, "my-key", SYNTACTICALLY_CORRECT_JSON));
-                producer.flush();
-                assertInvalidRecordExceptionThrown(invalid, "value was not syntactically correct JSON");
-                RecordMetadata metadata = valid.get(10, TimeUnit.SECONDS);
-                assertTrue(metadata.hasOffset());
-            }
+        try (var tester = kroxyliciousTester(config);
+                var producer = tester.producer(getProducerConfig(5000, 16384));
+                var consumer = tester.consumer(Map.of(GROUP_ID_CONFIG, "my-group-id", AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
+            Future<RecordMetadata> invalid = producer.send(new ProducerRecord<>(TOPIC_1, "my-key", SYNTACTICALLY_INCORRECT_JSON));
+            Future<RecordMetadata> valid = producer.send(new ProducerRecord<>(TOPIC_2, "my-key", SYNTACTICALLY_CORRECT_JSON));
+            producer.flush();
+            assertInvalidRecordExceptionThrown(invalid, "value was not syntactically correct JSON");
+            RecordMetadata metadata = valid.get(10, TimeUnit.SECONDS);
+            assertTrue(metadata.hasOffset());
 
-            try (var consumer = new KafkaConsumer<String, String>(
-                    Map.of(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress.toString(), ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
-                            ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class, ConsumerConfig.GROUP_ID_CONFIG, "my-group-id",
-                            ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
-                consumer.subscribe(Set.of(TOPIC_2));
-                var records = consumer.poll(Duration.ofSeconds(10));
-                assertEquals(1, records.count());
-                assertEquals(SYNTACTICALLY_CORRECT_JSON, records.iterator().next().value());
-            }
+            consumer.subscribe(Set.of(TOPIC_2));
+            var records = consumer.poll(Duration.ofSeconds(10));
+            assertEquals(1, records.count());
+            assertEquals(SYNTACTICALLY_CORRECT_JSON, records.iterator().next().value());
         }
     }
 
     @Test
     public void testPartiallyInvalidAcrossPartitionsOfSameTopic(KafkaCluster cluster, Admin admin) throws Exception {
-        var proxyAddress = HostPort.parse("localhost:9192");
+        assertEquals(1, cluster.getNumOfBrokers());
 
         admin.createTopics(List.of(new NewTopic(TOPIC_1, 2, (short) 1))).all().get();
 
-        var config = baseConfigBuilder(cluster, proxyAddress).addNewFilter().withType("ProduceValidator").withConfig(
-                Map.of("forwardPartialRequests", true, "rules", List.of(Map.of("topicNames", List.of(TOPIC_1), "valueRule",
-                        Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true))))))
-                .endFilter()
-                .build().toYaml();
+        var config = withDefaultFilters(proxy(cluster)).addNewFilter().withType("ProduceValidator").withConfig(
+                        Map.of("forwardPartialRequests", true, "rules", List.of(Map.of("topicNames", List.of(TOPIC_1), "valueRule",
+                                Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true))))))
+                .endFilter();
 
-        try (var ignored = startProxy(config)) {
-            try (var producer = getProducer(proxyAddress, 5000, 16384)) {
-                Future<RecordMetadata> invalid = producer.send(new ProducerRecord<>(TOPIC_1, 0, "my-key", SYNTACTICALLY_INCORRECT_JSON));
-                Future<RecordMetadata> valid = producer.send(new ProducerRecord<>(TOPIC_1, 1, "my-key", SYNTACTICALLY_CORRECT_JSON));
-                producer.flush();
-                assertInvalidRecordExceptionThrown(invalid, "value was not syntactically correct JSON");
-                RecordMetadata metadata = valid.get(10, TimeUnit.SECONDS);
-                assertTrue(metadata.hasOffset());
-            }
+        try (var tester = kroxyliciousTester(config);
+                var producer = tester.producer(getProducerConfig(5000, 16384));
+                var consumer = tester.consumer(Map.of(GROUP_ID_CONFIG, "my-group-id", AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
+            Future<RecordMetadata> invalid = producer.send(new ProducerRecord<>(TOPIC_1, 0, "my-key", SYNTACTICALLY_INCORRECT_JSON));
+            Future<RecordMetadata> valid = producer.send(new ProducerRecord<>(TOPIC_1, 1, "my-key", SYNTACTICALLY_CORRECT_JSON));
+            producer.flush();
+            assertInvalidRecordExceptionThrown(invalid, "value was not syntactically correct JSON");
+            RecordMetadata metadata = valid.get(10, TimeUnit.SECONDS);
+            assertTrue(metadata.hasOffset());
 
-            try (var consumer = new KafkaConsumer<String, String>(
-                    Map.of(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress.toString(), ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
-                            ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class, ConsumerConfig.GROUP_ID_CONFIG, "my-group-id",
-                            ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
-                consumer.subscribe(Set.of(TOPIC_1));
-                var records = consumer.poll(Duration.ofSeconds(10));
-                assertEquals(1, records.count());
-                assertEquals(SYNTACTICALLY_CORRECT_JSON, records.iterator().next().value());
-            }
+            consumer.subscribe(Set.of(TOPIC_1));
+            var records = consumer.poll(Duration.ofSeconds(10));
+            assertEquals(1, records.count());
+            assertEquals(SYNTACTICALLY_CORRECT_JSON, records.iterator().next().value());
         }
     }
 
     @Test
     public void testPartiallyInvalidWithinOnePartitionOfTopic(KafkaCluster cluster, Admin admin) throws Exception {
-        var proxyAddress = HostPort.parse("localhost:9192");
+        assertEquals(1, cluster.getNumOfBrokers());
 
         admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1))).all().get();
 
-        var config = baseConfigBuilder(cluster, proxyAddress).addNewFilter().withType("ProduceValidator").withConfig(
-                Map.of("forwardPartialRequests", true, "rules", List.of(Map.of("topicNames", List.of(TOPIC_1), "valueRule",
-                        Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true))))))
-                .endFilter()
-                .build().toYaml();
+        var config = withDefaultFilters(proxy(cluster)).addNewFilter().withType("ProduceValidator").withConfig(
+                        Map.of("forwardPartialRequests", true, "rules", List.of(Map.of("topicNames", List.of(TOPIC_1), "valueRule",
+                                Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true))))))
+                .endFilter();
 
-        try (var ignored = startProxy(config)) {
-            try (var producer = getProducer(proxyAddress, 5000, 16384)) {
-                Future<RecordMetadata> invalid = producer.send(new ProducerRecord<>(TOPIC_1, "my-key", SYNTACTICALLY_INCORRECT_JSON));
-                Future<RecordMetadata> valid = producer.send(new ProducerRecord<>(TOPIC_1, "my-key", SYNTACTICALLY_CORRECT_JSON));
-                producer.flush();
-                assertInvalidRecordExceptionThrown(invalid, "value was not syntactically correct JSON");
-                Assertions.assertThatThrownBy(() -> {
-                    valid.get(10, TimeUnit.SECONDS);
-                }).isInstanceOf(ExecutionException.class).hasCauseInstanceOf(KafkaException.class).cause()
-                        .hasMessageContaining("Failed to append record because it was part of a batch which had one more more invalid records");
-            }
+        try (var tester = kroxyliciousTester(config);
+                var producer = tester.producer(getProducerConfig(5000, 16384))) {
+            Future<RecordMetadata> invalid = producer.send(new ProducerRecord<>(TOPIC_1, "my-key", SYNTACTICALLY_INCORRECT_JSON));
+            Future<RecordMetadata> valid = producer.send(new ProducerRecord<>(TOPIC_1, "my-key", SYNTACTICALLY_CORRECT_JSON));
+            producer.flush();
+            assertInvalidRecordExceptionThrown(invalid, "value was not syntactically correct JSON");
+            Assertions.assertThatThrownBy(() -> {
+                        valid.get(10, TimeUnit.SECONDS);
+                    }).isInstanceOf(ExecutionException.class).hasCauseInstanceOf(KafkaException.class).cause()
+                    .hasMessageContaining("Failed to append record because it was part of a batch which had one more more invalid records");
         }
     }
 
     @Test
     public void testValidJsonProduceAccepted(KafkaCluster cluster, Admin admin) throws Exception {
-        var proxyAddress = HostPort.parse("localhost:9192");
+        assertEquals(1, cluster.getNumOfBrokers());
 
         admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1))).all().get();
 
-        var config = baseConfigBuilder(cluster, proxyAddress).addNewFilter().withType("ProduceValidator").withConfig(Map.of("rules",
-                List.of(Map.of("topicNames", List.of(TOPIC_1), "valueRule",
-                        Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true))))))
-                .endFilter()
-                .build().toYaml();
+        var config = withDefaultFilters(proxy(cluster)).addNewFilter().withType("ProduceValidator").withConfig(Map.of("rules",
+                        List.of(Map.of("topicNames", List.of(TOPIC_1), "valueRule",
+                                Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true))))))
+                .endFilter();
 
-        try (var ignored = startProxy(config)) {
-            try (var producer = getProducer(proxyAddress, 0, 16384)) {
-                producer.send(new ProducerRecord<>(TOPIC_1, "my-key", SYNTACTICALLY_CORRECT_JSON)).get();
-            }
+        try (var tester = kroxyliciousTester(config);
+                var producer = tester.producer(getProducerConfig(0, 16384))) {
+            producer.send(new ProducerRecord<>(TOPIC_1, "my-key", SYNTACTICALLY_CORRECT_JSON)).get();
         }
     }
 
-    @NotNull
-    private static KafkaProducer<String, String> getProducer(HostPort proxyAddress, int linger, int batchSize) {
-        return getProducer(proxyAddress, Map.of(ProducerConfig.LINGER_MS_CONFIG, linger, ProducerConfig.BATCH_SIZE_CONFIG, batchSize));
-    }
-
-    private static KafkaProducer<String, String> getProducer(HostPort proxyAddress, Map<String, Object> additionalProps) {
-        Map<String, Object> produceProps = new java.util.HashMap<>(Map.of(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress.toString(),
-                ProducerConfig.CLIENT_ID_CONFIG, "shouldModifyProduceMessage",
-                ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
-                ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class, ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000));
-        produceProps.putAll(additionalProps);
-        return new KafkaProducer<>(produceProps);
+    private static Map<String, Object> getProducerConfig(int linger, int batchSize) {
+        return Map.of(LINGER_MS_CONFIG, linger, ProducerConfig.BATCH_SIZE_CONFIG, batchSize);
     }
 
     private static void assertInvalidRecordExceptionThrown(Future<RecordMetadata> invalid, String message) {
         Assertions.assertThatThrownBy(() -> {
-            invalid.get(10, TimeUnit.SECONDS);
-        }).isInstanceOf(ExecutionException.class).hasCauseInstanceOf(InvalidRecordException.class).cause()
+                    invalid.get(10, TimeUnit.SECONDS);
+                }).isInstanceOf(ExecutionException.class).hasCauseInstanceOf(InvalidRecordException.class).cause()
                 .hasMessageContaining(message);
     }
 

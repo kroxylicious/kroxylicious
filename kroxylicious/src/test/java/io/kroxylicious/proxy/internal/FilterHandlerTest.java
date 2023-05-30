@@ -35,7 +35,7 @@ public class FilterHandlerTest extends FilterHarness {
 
     @Test
     public void testForwardRequest() {
-        ApiVersionsRequestFilter filter = (header, request, context) -> context.forwardRequest(header, request);
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> context.forwardRequest(header, request);
         buildChannel(filter);
         var frame = writeRequest(new ApiVersionsRequestData());
         var propagated = channel.readOutbound();
@@ -51,7 +51,7 @@ public class FilterHandlerTest extends FilterHarness {
             }
 
             @Override
-            public void onApiVersionsRequest(RequestHeaderData header, ApiVersionsRequestData request, KrpcFilterContext context) {
+            public void onApiVersionsRequest(short apiVersion, RequestHeaderData header, ApiVersionsRequestData request, KrpcFilterContext context) {
                 fail("Should not be called");
             }
         };
@@ -63,7 +63,7 @@ public class FilterHandlerTest extends FilterHarness {
 
     @Test
     public void testDropRequest() {
-        ApiVersionsRequestFilter filter = (header, request, context) -> {
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> {
             /* don't call forwardRequest => drop the request */
         };
         buildChannel(filter);
@@ -72,7 +72,7 @@ public class FilterHandlerTest extends FilterHarness {
 
     @Test
     public void testForwardResponse() {
-        ApiVersionsResponseFilter filter = (header, response, context) -> context.forwardResponse(header, response);
+        ApiVersionsResponseFilter filter = (apiVersion, header, response, context) -> context.forwardResponse(header, response);
         buildChannel(filter);
         var frame = writeResponse(new ApiVersionsResponseData());
         var propagated = channel.readInbound();
@@ -88,7 +88,7 @@ public class FilterHandlerTest extends FilterHarness {
             }
 
             @Override
-            public void onApiVersionsResponse(ResponseHeaderData header, ApiVersionsResponseData response, KrpcFilterContext context) {
+            public void onApiVersionsResponse(short apiVersion, ResponseHeaderData header, ApiVersionsResponseData response, KrpcFilterContext context) {
                 fail("Should not be called");
             }
         };
@@ -100,7 +100,7 @@ public class FilterHandlerTest extends FilterHarness {
 
     @Test
     public void testDropResponse() {
-        ApiVersionsResponseFilter filter = (header, response, context) -> {
+        ApiVersionsResponseFilter filter = (apiVersion, header, response, context) -> {
             /* don't call forwardRequest => drop the request */
         };
         buildChannel(filter);
@@ -111,7 +111,7 @@ public class FilterHandlerTest extends FilterHarness {
     public void testSendRequest() {
         FetchRequestData body = new FetchRequestData();
         InternalCompletionStage<ApiMessage>[] fut = new InternalCompletionStage[]{ null };
-        ApiVersionsRequestFilter filter = (header, request, context) -> {
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> {
             assertNull(fut[0],
                     "Expected to only be called once");
             fut[0] = (InternalCompletionStage<ApiMessage>) context.sendRequest((short) 3, body);
@@ -156,7 +156,7 @@ public class FilterHandlerTest extends FilterHarness {
     public void testSendRequestCompletionStageCannotBeConvertedToFuture() {
         FetchRequestData body = new FetchRequestData();
         CompletionStage<?>[] fut = { null };
-        ApiVersionsRequestFilter filter = (header, request, context) -> {
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> {
             assertNull(fut[0],
                     "Expected to only be called once");
             fut[0] = context.sendRequest((short) 3, body);
@@ -184,7 +184,7 @@ public class FilterHandlerTest extends FilterHarness {
     public void testSendAcklessProduceRequest() throws ExecutionException, InterruptedException {
         ProduceRequestData body = new ProduceRequestData().setAcks((short) 0);
         CompletionStage<ApiMessage>[] fut = new CompletionStage[]{ null };
-        ApiVersionsRequestFilter filter = (header, request, context) -> {
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> {
             assertNull(fut[0],
                     "Expected to only be called once");
             fut[0] = context.sendRequest((short) 3, body);
@@ -213,7 +213,7 @@ public class FilterHandlerTest extends FilterHarness {
     public void testSendRequestTimeout() throws InterruptedException {
         FetchRequestData body = new FetchRequestData();
         CompletionStage<ApiMessage>[] fut = new CompletionStage[]{ null };
-        ApiVersionsRequestFilter filter = (header, request, context) -> {
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> {
             assertNull(fut[0],
                     "Expected to only be called once");
             fut[0] = context.sendRequest((short) 3, body);

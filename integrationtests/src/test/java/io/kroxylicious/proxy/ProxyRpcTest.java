@@ -7,11 +7,8 @@
 package io.kroxylicious.proxy;
 
 import java.util.Arrays;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -21,33 +18,28 @@ import org.apache.kafka.common.protocol.ApiMessage;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.test.ApiMessageSampleGenerator;
 import io.kroxylicious.test.ApiMessageSampleGenerator.ApiAndVersion;
 import io.kroxylicious.test.Request;
 import io.kroxylicious.test.Response;
 import io.kroxylicious.test.client.KafkaClient;
-import io.kroxylicious.test.server.MockServer;
+import io.kroxylicious.test.tester.MockServerKroxyliciousTester;
 
-import static io.kroxylicious.proxy.Utils.startProxy;
+import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
+import static io.kroxylicious.test.tester.KroxyliciousTesters.mockKafkaKroxyliciousTester;
 import static org.apache.kafka.common.protocol.ApiKeys.API_VERSIONS;
 import static org.apache.kafka.common.protocol.ApiKeys.CONTROLLED_SHUTDOWN;
 import static org.apache.kafka.common.protocol.ApiKeys.DESCRIBE_CLUSTER;
 import static org.apache.kafka.common.protocol.ApiKeys.FIND_COORDINATOR;
 import static org.apache.kafka.common.protocol.ApiKeys.METADATA;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.fail;
 
 public class ProxyRpcTest {
-
-    public static final int PROXY_PORT = 9192;
-    public static final HostPort PROXY_ADDRESS = HostPort.parse("localhost:" + PROXY_PORT);
-    private static MockServer mockServer;
-    private static KafkaClient kafkaClient;
-    private static KafkaProxy kafkaProxy;
+    private static MockServerKroxyliciousTester mockTester;
 
     public record Scenario(String name, Response givenMockResponse, Request whenSendRequest, Request thenMockReceivesRequest, Response thenResponseReceived) {
     }
@@ -59,29 +51,30 @@ public class ProxyRpcTest {
     private static final Set<ApiKeys> SKIPPED_API_KEYS = Set.of(API_VERSIONS, FIND_COORDINATOR, METADATA, DESCRIBE_CLUSTER);
 
     @BeforeAll
-    public static void beforeAll() throws InterruptedException {
-        mockServer = MockServer.startOnRandomPort();
-        kafkaClient = new KafkaClient();
-        String config = configure(mockServer);
-        kafkaProxy = startProxy(config);
+    public static void beforeAll() {
+        mockTester = mockKafkaKroxyliciousTester((mockBootstrap) -> proxy(mockBootstrap).addNewFilter().withType("ApiVersions").endFilter()
+                .addNewFilter().withType("FixedClientId").withConfig(Map.of("clientId", "fixed")).endFilter());
+    }
+
+    @BeforeEach
+    public void setup() {
+        mockTester.clearMock();
+    }
+
+    @AfterAll
+    public static void afterAll() {
+        mockTester.close();
     }
 
     @MethodSource("scenarios")
     @ParameterizedTest
-    public void testKroxyliciousCanDecodeManipulateAndProxyRPC(Scenario scenario) throws Exception {
-        mockServer.clear();
-        mockServer.setResponse(scenario.givenMockResponse());
-        CompletableFuture<Response> future = kafkaClient.get("localhost", PROXY_PORT, scenario.whenSendRequest());
-        Response response = future.get(10, TimeUnit.SECONDS);
-        assertEquals(scenario.thenMockReceivesRequest(), onlyRequest(mockServer), "unexpected request received at mock for scenario: " + scenario.name());
-        assertEquals(scenario.thenResponseReceived(), response, "unexpected response received from kroxylicious for scenario: " + scenario.name());
-    }
-
-    @AfterAll
-    public static void afterAll() throws Exception {
-        kafkaProxy.close();
-        mockServer.close();
-        kafkaClient.close();
+    public void testKroxyliciousCanDecodeManipulateAndProxyRPC(Scenario scenario) {
+        mockTester.setMockResponse(scenario.givenMockResponse());
+        try (KafkaClient kafkaClient = mockTester.singleRequestClient()) {
+            Response response = kafkaClient.getSync(scenario.whenSendRequest());
+            assertEquals(scenario.thenMockReceivesRequest(), mockTester.onlyRequest(), "unexpected request received at mock for scenario: " + scenario.name());
+            assertEquals(scenario.thenResponseReceived(), response, "unexpected response received from kroxylicious for scenario: " + scenario.name());
+        }
     }
 
     @NotNull
@@ -123,30 +116,6 @@ public class ProxyRpcTest {
     @NotNull
     private static Request createRequestDefinition(ApiAndVersion apiKeys, String clientId, ApiMessage requestBody) {
         return new Request(apiKeys.keys(), apiKeys.apiVersion(), clientId, requestBody);
-    }
-
-    private static String configure(MockServer mockServer) {
-        return KroxyConfig.builder()
-                .addToVirtualClusters("demo", new VirtualClusterBuilder()
-                        .withNewTargetCluster()
-                        .withBootstrapServers("localhost:" + mockServer.port())
-                        .endTargetCluster()
-                        .withNewClusterEndpointConfigProvider()
-                        .withType("PortPerBroker")
-                        .withConfig(Map.of("bootstrapAddress", ProxyRpcTest.PROXY_ADDRESS.toString()))
-                        .endClusterEndpointConfigProvider()
-                        .build())
-                .addNewFilter().withType("ApiVersions").endFilter()
-                .addNewFilter().withType("FixedClientId").withConfig(Map.of("clientId", "fixed")).endFilter()
-                .build().toYaml();
-    }
-
-    private static Request onlyRequest(MockServer mockServer) {
-        List<Request> requests = mockServer.getReceivedRequests();
-        if (requests.size() != 1) {
-            fail("mock server does not have exactly one request recorded");
-        }
-        return requests.get(0);
     }
 
 }
