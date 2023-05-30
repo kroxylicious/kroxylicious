@@ -24,22 +24,22 @@ public class FourInterfaceFilter1 implements ProduceResponseFilter, ProduceReque
     private static final int CONSUME_TOKENS = 5;
 
     @Override
-    public void onProduceRequest(RequestHeaderData header, ProduceRequestData request, KrpcFilterContext context) {
+    public void onProduceRequest(short apiVersion, RequestHeaderData header, ProduceRequestData request, KrpcFilterContext context) {
         Blackhole.consumeCPU(CONSUME_TOKENS);
     }
 
     @Override
-    public void onProduceResponse(ResponseHeaderData header, ProduceResponseData response, KrpcFilterContext context) {
+    public void onProduceResponse(short apiVersion, ResponseHeaderData header, ProduceResponseData response, KrpcFilterContext context) {
         Blackhole.consumeCPU(CONSUME_TOKENS);
     }
 
     @Override
-    public void onApiVersionsRequest(RequestHeaderData header, ApiVersionsRequestData request, KrpcFilterContext context) {
+    public void onApiVersionsRequest(short apiVersion, RequestHeaderData header, ApiVersionsRequestData request, KrpcFilterContext context) {
         Blackhole.consumeCPU(CONSUME_TOKENS);
     }
 
     @Override
-    public void onApiVersionsResponse(ResponseHeaderData header, ApiVersionsResponseData response, KrpcFilterContext context) {
+    public void onApiVersionsResponse(short apiVersion, ResponseHeaderData header, ApiVersionsResponseData response, KrpcFilterContext context) {
         Blackhole.consumeCPU(CONSUME_TOKENS);
     }
 }
