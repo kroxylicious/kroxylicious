@@ -218,7 +218,7 @@ public class KrpcFilterIT {
     public void supportsRequestResponseForwardAsynchronicity(String delayType, KafkaCluster cluster) throws Exception {
 
         var config = withDefaultFilters(proxy(cluster)).addNewFilter().withType(delayType).endFilter();
-        // var config = withDefaultFilters(proxy(cluster));
+//         var config = withDefaultFilters(proxy(cluster));
 
         try (var tester = kroxyliciousTester(config);
                 var admin = tester.admin();

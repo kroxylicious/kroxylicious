@@ -16,6 +16,7 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
+import io.netty.util.AttributeKey;
 
 import io.kroxylicious.proxy.filter.FilterInvoker;
 import io.kroxylicious.proxy.filter.FilterInvokers;
@@ -34,6 +35,10 @@ public class FilterHandler
         extends ChannelDuplexHandler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(FilterHandler.class);
+
+//    public static final AttributeKey<Boolean> LAST_REQUEST_FILTER_FORWARDED = AttributeKey.newInstance("lastRequestFilterForwarded");
+//    public static final AttributeKey<Boolean> LAST_RESPONSE_FILTER_FORWARDED = AttributeKey.newInstance("lastResponseFilterForwarded");
+
     private final KrpcFilter filter;
     private final long timeoutMs;
     private final String sniHostname;
@@ -59,6 +64,13 @@ public class FilterHandler
                         ctx.channel(), decodedFrame.apiKey(), filterDescriptor(), msg);
             }
             invoker.onRequest(decodedFrame.apiKey(), decodedFrame.apiVersion(), decodedFrame.header(), decodedFrame.body(), filterContext);
+
+            if (!filterContext.isRequestForwarded()) {
+                LOGGER.warn("KWDEBUG {} filter {} has not forwarded request, channel read disabled until forwarding done. ", ctx.channel(), filter.getClass());
+                ctx.channel().config().setAutoRead(false);
+            }
+
+//            ctx.channel().attr(LAST_REQUEST_FILTER_FORWARDED).set(requestForwarded);
 
         }
         else {

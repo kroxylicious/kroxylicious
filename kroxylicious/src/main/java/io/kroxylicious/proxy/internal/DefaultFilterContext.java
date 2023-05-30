@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.internal;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.kafka.common.errors.TimeoutException;
 import org.apache.kafka.common.message.ProduceRequestData;
@@ -44,6 +45,9 @@ class DefaultFilterContext implements KrpcFilterContext {
     private final KrpcFilter filter;
     private final long timeoutMs;
     private final String sniHostname;
+    private final AtomicBoolean requestForwarded = new AtomicBoolean();
+    private final AtomicBoolean responseForwarded = new AtomicBoolean();
+
 
     DefaultFilterContext(KrpcFilter filter,
                          ChannelHandlerContext channelContext,
@@ -95,23 +99,38 @@ class DefaultFilterContext implements KrpcFilterContext {
      */
     @Override
     public void forwardRequest(RequestHeaderData header, ApiMessage message) {
-        if (decodedFrame.body() != message) {
-            throw new IllegalStateException();
-        }
-        if (decodedFrame.header() != header) {
-            throw new IllegalStateException();
-        }
-        // check it's a request
-        String name = message.getClass().getName();
-        if (!name.endsWith("RequestData")) {
-            throw new AssertionError("Attempt to use forwardRequest with a non-request: " + name);
-        }
+        try {
+            if (!requestForwarded.compareAndSet(false, true)) {
+                throw new IllegalStateException("Request already forwarded");
+            }
+            if (decodedFrame.body() != message) {
+                throw new IllegalStateException();
+            }
+            if (decodedFrame.header() != header) {
+                throw new IllegalStateException();
+            }
+            // check it's a request
+            String name = message.getClass().getName();
+            if (!name.endsWith("RequestData")) {
+                throw new AssertionError("Attempt to use forwardRequest with a non-request: " + name);
+            }
 
-        if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("{}: Forwarding request: {}", channelDescriptor(), decodedFrame);
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("{}: Forwarding request: {}", channelDescriptor(), decodedFrame);
+            }
+            channelContext.write(decodedFrame, promise);
         }
-        // TODO check we've not forwarded it already
-        channelContext.write(decodedFrame, promise);
+        finally {
+            if (!channelContext.executor().inEventLoop()) {
+                LOGGER.warn("KWDEBUG {} forwardRequest enabling auto-read {}", channelContext.channel(), channelContext.channel().config().isAutoRead());
+                channelContext.channel().config().setAutoRead(true);
+                channelContext.flush();
+            }
+        }
+    }
+
+    public boolean isRequestForwarded() {
+        return requestForwarded.get();
     }
 
     @Override
@@ -176,6 +195,10 @@ class DefaultFilterContext implements KrpcFilterContext {
      */
     @Override
     public void forwardResponse(ResponseHeaderData header, ApiMessage response) {
+        if (!responseForwarded.compareAndSet(false, true)) {
+            throw new IllegalStateException("Request already forwarded");
+        }
+
         // check it's a response
         try {
             String name = response.getClass().getName();
@@ -215,6 +238,10 @@ class DefaultFilterContext implements KrpcFilterContext {
         else {
             this.forwardResponse((ResponseHeaderData) decodedFrame.header(), response);
         }
+    }
+
+    public boolean isResponseForwarded() {
+        return responseForwarded.get();
     }
 
     /**

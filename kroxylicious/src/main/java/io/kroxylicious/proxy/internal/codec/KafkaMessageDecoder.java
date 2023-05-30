@@ -45,6 +45,10 @@ public abstract class KafkaMessageDecoder extends ByteToMessageDecoder {
                     if (in.readerIndex() - idx != frameSize) {
                         throw new RuntimeException("decodeHeaderAndBody did not read all of the buffer " + in);
                     }
+                    if (isSingleDecode()) {
+                        break;
+                    }
+
                 }
                 else {
                     in.readerIndex(sof);

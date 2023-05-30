@@ -154,6 +154,8 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
         // The decoder, this only cares about the filters
         // because it needs to know whether to decode requests
         KafkaRequestDecoder decoder = new KafkaRequestDecoder(dp);
+        decoder.setSingleDecode(true); // Experiment....
+
         pipeline.addLast("requestDecoder", decoder);
 
         pipeline.addLast("responseEncoder", new KafkaResponseEncoder());
