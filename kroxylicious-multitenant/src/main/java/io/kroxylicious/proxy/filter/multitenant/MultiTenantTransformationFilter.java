@@ -175,11 +175,7 @@ public class MultiTenantTransformationFilter
 
     @Override
     public void onProduceRequest(short apiVersion, RequestHeaderData header, ProduceRequestData request, KrpcFilterContext context) {
-        if (request.transactionalId() != null) {
-            // the producer is transactional.
-            var tenantPrefix = getTenantPrefix(context);
-            request.setTransactionalId(tenantPrefix + request.transactionalId());
-        }
+        applyTenantPrefix(context, request::transactionalId, request::setTransactionalId, true);
         request.topicData().forEach(topic -> applyTenantPrefix(context, topic::name, topic::setName, false));
         context.forwardRequest(header, request);
 
@@ -339,23 +335,14 @@ public class MultiTenantTransformationFilter
 
     @Override
     public void onInitProducerIdRequest(short apiVersion, RequestHeaderData header, InitProducerIdRequestData request, KrpcFilterContext context) {
-        if (request.transactionalId() != null && !request.transactionalId().isEmpty()) {
-            var tenantPrefix = getTenantPrefix(context);
-            request.setTransactionalId(tenantPrefix + request.transactionalId());
-
-        }
+        applyTenantPrefix(context, request::transactionalId, request::setTransactionalId, true);
         context.forwardRequest(header, request);
     }
 
     @Override
     public void onAddPartitionsToTxnRequest(short apiVersion, RequestHeaderData header, AddPartitionsToTxnRequestData request, KrpcFilterContext context) {
         request.topics().forEach(topic -> applyTenantPrefix(context, topic::name, topic::setName, false));
-        if (request.transactionalId() != null) {
-            // the producer is transactional.
-            var tenantPrefix = getTenantPrefix(context);
-            request.setTransactionalId(tenantPrefix + request.transactionalId());
-        }
-
+        applyTenantPrefix(context, request::transactionalId, request::setTransactionalId, true);
         context.forwardRequest(header, request);
     }
 
