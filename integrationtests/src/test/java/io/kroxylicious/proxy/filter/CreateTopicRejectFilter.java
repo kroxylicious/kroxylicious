@@ -16,7 +16,7 @@ public class CreateTopicRejectFilter implements CreateTopicsRequestFilter {
     public static final String ERROR_MESSAGE = "rejecting all topics";
 
     @Override
-    public void onCreateTopicsRequest(RequestHeaderData header, CreateTopicsRequestData request, KrpcFilterContext context) {
+    public void onCreateTopicsRequest(short apiVersion, RequestHeaderData header, CreateTopicsRequestData request, KrpcFilterContext context) {
         CreateTopicsResponseData response = new CreateTopicsResponseData();
         CreateTopicsResponseData.CreatableTopicResultCollection topics = new CreateTopicsResponseData.CreatableTopicResultCollection();
         request.topics().forEach(creatableTopic -> {

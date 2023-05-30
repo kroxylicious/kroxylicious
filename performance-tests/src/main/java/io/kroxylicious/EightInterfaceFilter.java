@@ -31,40 +31,40 @@ public class EightInterfaceFilter implements ProduceResponseFilter, ProduceReque
         DeleteTopicsRequestFilter, DeleteTopicsResponseFilter, DescribeGroupsRequestFilter, DescribeGroupsResponseFilter {
 
     @Override
-    public void onProduceRequest(RequestHeaderData header, ProduceRequestData request, KrpcFilterContext context) {
+    public void onProduceRequest(short apiVersion, RequestHeaderData header, ProduceRequestData request, KrpcFilterContext context) {
     }
 
     @Override
-    public void onProduceResponse(ResponseHeaderData header, ProduceResponseData response, KrpcFilterContext context) {
+    public void onProduceResponse(short apiVersion, ResponseHeaderData header, ProduceResponseData response, KrpcFilterContext context) {
     }
 
     @Override
-    public void onCreateTopicsRequest(RequestHeaderData header, CreateTopicsRequestData request, KrpcFilterContext context) {
-
-    }
-
-    @Override
-    public void onCreateTopicsResponse(ResponseHeaderData header, CreateTopicsResponseData response, KrpcFilterContext context) {
+    public void onCreateTopicsRequest(short apiVersion, RequestHeaderData header, CreateTopicsRequestData request, KrpcFilterContext context) {
 
     }
 
     @Override
-    public void onDeleteTopicsRequest(RequestHeaderData header, DeleteTopicsRequestData request, KrpcFilterContext context) {
+    public void onCreateTopicsResponse(short apiVersion, ResponseHeaderData header, CreateTopicsResponseData response, KrpcFilterContext context) {
 
     }
 
     @Override
-    public void onDeleteTopicsResponse(ResponseHeaderData header, DeleteTopicsResponseData response, KrpcFilterContext context) {
+    public void onDeleteTopicsRequest(short apiVersion, RequestHeaderData header, DeleteTopicsRequestData request, KrpcFilterContext context) {
 
     }
 
     @Override
-    public void onDescribeGroupsRequest(RequestHeaderData header, DescribeGroupsRequestData request, KrpcFilterContext context) {
+    public void onDeleteTopicsResponse(short apiVersion, ResponseHeaderData header, DeleteTopicsResponseData response, KrpcFilterContext context) {
 
     }
 
     @Override
-    public void onDescribeGroupsResponse(ResponseHeaderData header, DescribeGroupsResponseData response, KrpcFilterContext context) {
+    public void onDescribeGroupsRequest(short apiVersion, RequestHeaderData header, DescribeGroupsRequestData request, KrpcFilterContext context) {
+
+    }
+
+    @Override
+    public void onDescribeGroupsResponse(short apiVersion, ResponseHeaderData header, DescribeGroupsResponseData response, KrpcFilterContext context) {
 
     }
 }

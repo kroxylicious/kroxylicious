@@ -59,10 +59,11 @@ public interface ${filterClass} extends KrpcFilter {
      * The implementation may modify the given {@code data} in-place and return it,
      * or instantiate a new one.
      *
+     * @param apiVersion the apiVersion of the ${messageSpec.type?lower_case}
      * @param header <#if messageSpec.type?lower_case == 'response'>response<#else>request</#if> header.
      * @param ${msgType} The KRPC message to handle.
      * @param context The context.
      */
-    void on${messageSpec.name}(<#if messageSpec.type?lower_case == 'response'>ResponseHeaderData<#else>RequestHeaderData</#if> header, ${dataClass} ${msgType}, KrpcFilterContext context);
+    void on${messageSpec.name}(short apiVersion, <#if messageSpec.type?lower_case == 'response'>ResponseHeaderData<#else>RequestHeaderData</#if> header, ${dataClass} ${msgType}, KrpcFilterContext context);
 
 }

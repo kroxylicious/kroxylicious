@@ -48,7 +48,7 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
     }
 
     @Override
-    public void onMetadataResponse(ResponseHeaderData header, MetadataResponseData data, KrpcFilterContext context) {
+    public void onMetadataResponse(short apiVersion, ResponseHeaderData header, MetadataResponseData data, KrpcFilterContext context) {
         var nodeMap = new HashMap<Integer, HostPort>();
         for (MetadataResponseBroker broker : data.brokers()) {
             nodeMap.put(broker.nodeId(), new HostPort(broker.host(), broker.port()));
@@ -59,7 +59,7 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
     }
 
     @Override
-    public void onDescribeClusterResponse(ResponseHeaderData header, DescribeClusterResponseData data, KrpcFilterContext context) {
+    public void onDescribeClusterResponse(short apiVersion, ResponseHeaderData header, DescribeClusterResponseData data, KrpcFilterContext context) {
         var nodeMap = new HashMap<Integer, HostPort>();
         for (DescribeClusterBroker broker : data.brokers()) {
             nodeMap.put(broker.brokerId(), new HostPort(broker.host(), broker.port()));
@@ -70,7 +70,7 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
     }
 
     @Override
-    public void onFindCoordinatorResponse(ResponseHeaderData header, FindCoordinatorResponseData data, KrpcFilterContext context) {
+    public void onFindCoordinatorResponse(short apiVersion, ResponseHeaderData header, FindCoordinatorResponseData data, KrpcFilterContext context) {
         // Version 4+
         for (Coordinator coordinator : data.coordinators()) {
             // If the coordinator is not yet available, the server returns a nodeId of -1.

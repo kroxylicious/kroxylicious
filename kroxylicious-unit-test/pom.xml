@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+
+    Copyright Kroxylicious Authors.
+
+    Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/maven-v4_0_0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <packaging>jar</packaging>
+    <parent>
+        <groupId>io.kroxylicious</groupId>
+        <artifactId>kroxylicious-parent</artifactId>
+        <version>0.2.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+    <artifactId>kroxylicious-unit-test</artifactId>
+    <name>kroxylicious-unit-test</name>
+    <description>Classes to help unit test Filter implementations</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.apache.kafka</groupId>
+            <artifactId>kafka-clients</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.dataformat</groupId>
+            <artifactId>jackson-dataformat-yaml</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <scope>compile</scope>
+        </dependency>
+    </dependencies>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>unpack-message-specs</id>
+                        <goals>
+                            <goal>unpack</goal>
+                        </goals>
+                        <phase>generate-sources</phase>
+                        <configuration>
+                            <artifact>org.apache.kafka:kafka-clients:${kafka.version}</artifact>
+                            <includes>common/message/*.json</includes>
+                            <outputDirectory>${project.build.directory}/message-specs</outputDirectory>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>io.kroxylicious</groupId>
+                <artifactId>kroxylicious-krpc-plugin</artifactId>
+                <executions>
+
+                    <execution>
+                        <id>generate-converters</id>
+                        <goals>
+                            <goal>generate-multi</goal>
+                        </goals>
+                        <phase>generate-sources</phase>
+                        <configuration>
+                            <messageSpecDirectory>${project.build.directory}/message-specs/common/message
+                            </messageSpecDirectory>
+                            <messageSpecFilter>*{Request,Response}.json</messageSpecFilter>
+                            <templateDirectory>${project.basedir}/src/main/templates</templateDirectory>
+                            <templateNames>KafkaApiMessageConverter.ftl</templateNames>
+                            <!--suppress MavenModelInspection -->
+                            <outputFilePattern>${templateName}.java</outputFilePattern>
+                            <outputPackage>io.kroxylicious.test.requestresponsetestdef</outputPackage>
+                            <outputDirectory>${project.build.directory}/generated-sources/krpc</outputDirectory>
+                            <!--
+                            <addToProjectSourceRoots>testCompile</addToProjectSourceRoots>
+                            -->
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+

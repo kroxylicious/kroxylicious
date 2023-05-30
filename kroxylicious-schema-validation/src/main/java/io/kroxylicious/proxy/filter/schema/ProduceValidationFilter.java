@@ -62,7 +62,7 @@ public class ProduceValidationFilter implements ProduceRequestFilter, ProduceRes
     }
 
     @Override
-    public void onProduceRequest(RequestHeaderData header, ProduceRequestData request, KrpcFilterContext context) {
+    public void onProduceRequest(short apiVersion, RequestHeaderData header, ProduceRequestData request, KrpcFilterContext context) {
         ProduceRequestValidationResult result = validator.validateRequest(request);
         if (result.isAnyTopicPartitionInvalid()) {
             handleInvalidTopicPartitions(header, request, context, result);
@@ -145,7 +145,7 @@ public class ProduceValidationFilter implements ProduceRequestFilter, ProduceRes
     }
 
     @Override
-    public void onProduceResponse(ResponseHeaderData header, ProduceResponseData response, KrpcFilterContext context) {
+    public void onProduceResponse(short apiVersion, ResponseHeaderData header, ProduceResponseData response, KrpcFilterContext context) {
         ProduceRequestValidationResult produceRequestValidationResult = correlatedResults.remove(header.correlationId());
         if (produceRequestValidationResult != null) {
             LOGGER.debug("augmenting invalid topic-partition details into response: {}", produceRequestValidationResult);

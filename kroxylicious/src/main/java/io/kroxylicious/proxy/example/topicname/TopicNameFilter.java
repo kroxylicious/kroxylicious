@@ -28,7 +28,7 @@ public class TopicNameFilter
     private final Map<Uuid, String> topicNames = new HashMap<>();
 
     @Override
-    public void onMetadataResponse(ResponseHeaderData header, MetadataResponseData response, KrpcFilterContext context) {
+    public void onMetadataResponse(short apiVersion, ResponseHeaderData header, MetadataResponseData response, KrpcFilterContext context) {
         if (response.topics() != null) {
             for (var topic : response.topics()) {
                 topicNames.put(topic.topicId(), topic.name());
@@ -42,7 +42,7 @@ public class TopicNameFilter
     // We don't implement DeleteTopicsRequestFilter because we don't know whether
     // a delete topics request will succeed.
     @Override
-    public void onDeleteTopicsResponse(ResponseHeaderData header, DeleteTopicsResponseData response, KrpcFilterContext context) {
+    public void onDeleteTopicsResponse(short apiVersion, ResponseHeaderData header, DeleteTopicsResponseData response, KrpcFilterContext context) {
         for (var resp : response.responses()) {
             topicNames.remove(resp.topicId());
         }
@@ -50,7 +50,7 @@ public class TopicNameFilter
     }
 
     @Override
-    public void onCreateTopicsResponse(ResponseHeaderData header, CreateTopicsResponseData response, KrpcFilterContext context) {
+    public void onCreateTopicsResponse(short apiVersion, ResponseHeaderData header, CreateTopicsResponseData response, KrpcFilterContext context) {
         for (var topic : response.topics()) {
             topicNames.put(topic.topicId(), topic.name());
         }

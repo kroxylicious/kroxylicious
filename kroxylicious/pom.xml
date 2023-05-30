@@ -131,10 +131,15 @@
         <!-- Test dependencies -->
         <dependency>
             <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious-test-tools</artifactId>
+            <artifactId>kroxylicious-unit-test</artifactId>
+            <version>0.2.0-SNAPSHOT</version>
             <scope>test</scope>
         </dependency>
-
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
             <artifactId>log4j-slf4j2-impl</artifactId>

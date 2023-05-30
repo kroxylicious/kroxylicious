@@ -31,7 +31,8 @@ public class SaslAuthnObserver
     private long sessionLifetimeMs;
 
     @Override
-    public void onSaslHandshakeRequest(RequestHeaderData header,
+    public void onSaslHandshakeRequest(short apiVersion,
+                                       RequestHeaderData header,
                                        SaslHandshakeRequestData request,
                                        KrpcFilterContext context) {
         this.mechanism = request.mechanism();
@@ -39,7 +40,7 @@ public class SaslAuthnObserver
     }
 
     @Override
-    public void onSaslHandshakeResponse(ResponseHeaderData header, SaslHandshakeResponseData response,
+    public void onSaslHandshakeResponse(short apiVersion, ResponseHeaderData header, SaslHandshakeResponseData response,
                                         KrpcFilterContext context) {
         if (response.errorCode() != Errors.NONE.code()) {
             this.mechanism = null;
@@ -48,7 +49,8 @@ public class SaslAuthnObserver
     }
 
     @Override
-    public void onSaslAuthenticateRequest(RequestHeaderData header,
+    public void onSaslAuthenticateRequest(short apiVersion,
+                                          RequestHeaderData header,
                                           SaslAuthenticateRequestData request,
                                           KrpcFilterContext context) {
         byte[] bytes = request.authBytes();
@@ -67,7 +69,7 @@ public class SaslAuthnObserver
     }
 
     @Override
-    public void onSaslAuthenticateResponse(ResponseHeaderData header, SaslAuthenticateResponseData response,
+    public void onSaslAuthenticateResponse(short apiVersion, ResponseHeaderData header, SaslAuthenticateResponseData response,
                                            KrpcFilterContext context) {
         if (response.errorCode() == Errors.NONE.code()) {
             authenticated = true;
