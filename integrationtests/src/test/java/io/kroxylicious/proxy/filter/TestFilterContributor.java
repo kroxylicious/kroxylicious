@@ -11,7 +11,9 @@ public class TestFilterContributor extends BaseContributor<KrpcFilter> implement
 
     public static final BaseContributorBuilder<KrpcFilter> FILTERS = BaseContributor.<KrpcFilter> builder()
             .add("FixedClientId", FixedClientIdFilter.FixedClientIdFilterConfig.class, FixedClientIdFilter::new)
-            .add("CreateTopicRejectFilter", CreateTopicRejectFilter::new);
+            .add("CreateTopicRejectFilter", CreateTopicRejectFilter::new)
+            .add("RequestForwardDelaying", RequestForwardDelayingFilter::new)
+            .add("ResponseForwardDelaying", ResponseForwardDelayingFilter::new);
 
     public TestFilterContributor() {
         super(FILTERS);
