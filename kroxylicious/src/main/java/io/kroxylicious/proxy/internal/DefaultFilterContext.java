@@ -217,14 +217,6 @@ class DefaultFilterContext implements KrpcFilterContext {
         }
     }
 
-    @Override
-    public void abortConnection(Throwable t) {
-        // TODO increment an error metric.
-        LOGGER.warn("Channel {} closed by filter {}", this.channelContext.channel(), this.filter, t);
-        this.channelContext.fireExceptionCaught(t);
-
-    }
-
     /**
      * In this case we are not forwarding to the proxied broker but responding immediately.
      * We want to check that the ApiMessage is the correct type for the request. Ie if the

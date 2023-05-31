@@ -100,15 +100,10 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
     }
 
     private void doReconcileThenForwardResponse(ResponseHeaderData header, ApiMessage data, KrpcFilterContext context, Map<Integer, HostPort> nodeMap) {
-        var unused = reconciler.reconcile(virtualCluster, nodeMap).whenComplete((u, t) -> {
-            if (t != null) {
-                LOGGER.error("Failed to reconcile endpoints for virtual cluster {}", virtualCluster, t);
-                context.abortConnection(t);
-            }
-            else {
-                LOGGER.debug("Endpoint reconciliation complete for  virtual cluster {}", virtualCluster);
-                context.forwardResponse(header, data);
-            }
-        });
+        // https://github.com/kroxylicious/kroxylicious/issues/351
+        // Using synchronous approach for now
+        reconciler.reconcile(virtualCluster, nodeMap).toCompletableFuture().join();
+        context.forwardResponse(header, data);
+        LOGGER.debug("Endpoint reconciliation complete for  virtual cluster {}", virtualCluster);
     }
 }
