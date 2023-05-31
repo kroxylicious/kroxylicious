@@ -36,8 +36,7 @@ public enum EntityType {
         if (this == UNKNOWN) {
             return;
         }
-        if (type instanceof FieldType.ArrayType) {
-            FieldType.ArrayType arrayType = (FieldType.ArrayType) type;
+        if (type instanceof FieldType.ArrayType arrayType) {
             verifyTypeMatches(fieldName, arrayType.elementType());
         }
         else {

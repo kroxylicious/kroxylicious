@@ -396,8 +396,7 @@ public class KafkaProxyFrontendHandler
 
     @Override
     public void userEventTriggered(ChannelHandlerContext ctx, Object event) throws Exception {
-        if (event instanceof SniCompletionEvent) {
-            SniCompletionEvent sniCompletionEvent = (SniCompletionEvent) event;
+        if (event instanceof SniCompletionEvent sniCompletionEvent) {
             if (sniCompletionEvent.isSuccess()) {
                 this.sniHostname = sniCompletionEvent.hostname();
             }
