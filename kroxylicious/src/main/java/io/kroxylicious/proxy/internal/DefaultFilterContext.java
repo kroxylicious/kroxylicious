@@ -177,33 +177,25 @@ class DefaultFilterContext implements KrpcFilterContext {
     @Override
     public void forwardResponse(ResponseHeaderData header, ApiMessage response) {
         // check it's a response
-        try {
-            String name = response.getClass().getName();
-            if (!name.endsWith("ResponseData")) {
-                throw new AssertionError("Attempt to use forwardResponse with a non-response: " + name);
-            }
-            if (decodedFrame instanceof RequestFrame) {
-                forwardShortCircuitResponse(header, response);
-            }
-            else {
-                // TODO check we've not forwarded it already
-                if (decodedFrame.body() != response) {
-                    throw new AssertionError();
-                }
-                if (decodedFrame.header() != header) {
-                    throw new AssertionError();
-                }
-                if (LOGGER.isDebugEnabled()) {
-                    LOGGER.debug("{}: Forwarding response: {}", channelDescriptor(), decodedFrame);
-                }
-                channelContext.fireChannelRead(decodedFrame);
-            }
+        String name = response.getClass().getName();
+        if (!name.endsWith("ResponseData")) {
+            throw new AssertionError("Attempt to use forwardResponse with a non-response: " + name);
         }
-        finally {
-            if (!channelContext.executor().inEventLoop()) {
-                // required to flush the message back to the client
-                channelContext.fireChannelReadComplete();
+        if (decodedFrame instanceof RequestFrame) {
+            forwardShortCircuitResponse(header, response);
+        }
+        else {
+            // TODO check we've not forwarded it already
+            if (decodedFrame.body() != response) {
+                throw new AssertionError();
             }
+            if (decodedFrame.header() != header) {
+                throw new AssertionError();
+            }
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("{}: Forwarding response: {}", channelDescriptor(), decodedFrame);
+            }
+            channelContext.fireChannelRead(decodedFrame);
         }
     }
 
