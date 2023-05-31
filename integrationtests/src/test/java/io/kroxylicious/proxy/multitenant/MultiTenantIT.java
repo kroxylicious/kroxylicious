@@ -31,7 +31,6 @@ import org.apache.kafka.clients.admin.ConsumerGroupDescription;
 import org.apache.kafka.clients.admin.ConsumerGroupListing;
 import org.apache.kafka.clients.admin.CreateTopicsResult;
 import org.apache.kafka.clients.admin.DeleteTopicsResult;
-import org.apache.kafka.clients.admin.ListTopicsResult;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.clients.admin.TopicListing;
@@ -135,9 +134,9 @@ public class MultiTenantIT {
                 var admin = tester.admin(TENANT_1_CLUSTER, commonConfig(Map.of()))) {
             var created = createTopics(admin, List.of(NEW_TOPIC_1, NEW_TOPIC_2));
 
-            ListTopicsResult listTopicsResult = admin.listTopics();
-            var topicMap = listTopicsResult.namesToListings().get();
-            assertEquals(2, topicMap.size());
+            var topicMap = await().atMost(Duration.ofSeconds(5)).until(() -> admin.listTopics().namesToListings().get(),
+                    n -> n.size() == 2);
+
             assertThat(topicMap).hasSize(2);
             assertThat(topicMap).hasEntrySatisfying(TOPIC_1,
                     allOf(matches(TopicListing::name, TOPIC_1), matches(TopicListing::topicId, created.topicId(TOPIC_1).get())));
