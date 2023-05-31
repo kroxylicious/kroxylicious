@@ -36,7 +36,7 @@ public class MicrometerConfigurationHookContributorManager {
 
     public MicrometerConfigurationHook getHook(String shortName, BaseConfig filterConfig) {
         for (MicrometerConfigurationHookContributor contributor : contributors) {
-            MicrometerConfigurationHook hook = contributor.getInstance(shortName, null, filterConfig);
+            MicrometerConfigurationHook hook = contributor.getInstance(shortName, filterConfig);
             if (hook != null) {
                 return hook;
             }
