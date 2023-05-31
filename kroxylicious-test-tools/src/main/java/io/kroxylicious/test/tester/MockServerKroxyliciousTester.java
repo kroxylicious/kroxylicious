@@ -26,7 +26,7 @@ public class MockServerKroxyliciousTester extends DefaultKroxyliciousTester {
     private final MockServer mockServer;
 
     MockServerKroxyliciousTester(MockServer mockServer, Function<String, KroxyliciousConfigBuilder> configurationForMockBootstrap) {
-        super(configurationForMockBootstrap.apply(KroxyliciousConfigUtils.DEFAULT_PROXY_HOST + ":" + mockServer.port()));
+        super(configurationForMockBootstrap.apply("localhost:" + mockServer.port()));
         this.mockServer = mockServer;
     }
 

@@ -15,7 +15,6 @@ public class BuiltinFilterContributor extends BaseContributor<KrpcFilter> implem
 
     public static final BaseContributorBuilder<KrpcFilter> FILTERS = BaseContributor.<KrpcFilter> builder()
             .add("ApiVersions", ApiVersionsFilter::new)
-            .add("BrokerAddress", BrokerAddressFilter::new)
             .add("ProduceRequestTransformation", ProduceRequestTransformationConfig.class, ProduceRequestTransformationFilter::new)
             .add("FetchResponseTransformation", FetchResponseTransformationConfig.class, FetchResponseTransformationFilter::new);
 

@@ -13,6 +13,7 @@ import io.kroxylicious.proxy.KroxyliciousConfig;
 import io.kroxylicious.proxy.KroxyliciousConfigBuilder;
 import io.kroxylicious.proxy.VirtualCluster;
 import io.kroxylicious.proxy.VirtualClusterBuilder;
+import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 
 /**
@@ -21,9 +22,7 @@ import io.kroxylicious.testing.kafka.api.KafkaCluster;
 public class KroxyliciousConfigUtils {
 
     public static final String DEFAULT_VIRTUAL_CLUSTER = "demo";
-    public static final String DEFAULT_PROXY_HOST = "localhost";
-    public static final int DEFAULT_PROXY_PORT = 9192;
-    public static final String DEFAULT_PROXY_BOOTSTRAP = DEFAULT_PROXY_HOST + ":" + DEFAULT_PROXY_PORT;
+    private static final HostPort DEFAULT_PROXY_BOOTSTRAP = new HostPort("localhost", 9192);
 
     /**
      * Create a KroxyliciousConfigBuilder with a single virtual cluster configured to
@@ -37,8 +36,8 @@ public class KroxyliciousConfigUtils {
                 .withBootstrapServers(clusterBootstrapServers)
                 .endTargetCluster()
                 .withNewClusterEndpointConfigProvider()
-                .withType("StaticCluster")
-                .withConfig(Map.of("bootstrapAddress", DEFAULT_PROXY_BOOTSTRAP))
+                .withType("PortPerBroker")
+                .withConfig(Map.of("bootstrapAddress", DEFAULT_PROXY_BOOTSTRAP.toString()))
                 .endClusterEndpointConfigProvider()
                 .build());
     }
@@ -59,7 +58,7 @@ public class KroxyliciousConfigUtils {
      * @return builder
      */
     public static KroxyliciousConfigBuilder withDefaultFilters(KroxyliciousConfigBuilder builder) {
-        return builder.addNewFilter().withType("ApiVersions").endFilter().addNewFilter().withType("BrokerAddress").endFilter();
+        return builder.addNewFilter().withType("ApiVersions").endFilter();
     }
 
     /**
@@ -76,7 +75,7 @@ public class KroxyliciousConfigUtils {
             throw new IllegalArgumentException("virtualCluster " + virtualCluster + " not found in config: " + config);
         }
         ClusterEndpointConfigProvider provider = cluster.clusterEndpointConfigProvider();
-        if (provider.type().equals("StaticCluster") || provider.type().equals("SniRouting")) {
+        if (provider.type().equals("PortPerBroker") || provider.type().equals("SniRouting")) {
             Object bootstrapAddress = provider.config().get("bootstrapAddress");
             return (String) bootstrapAddress;
         }

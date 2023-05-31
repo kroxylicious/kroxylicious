@@ -6,7 +6,6 @@
 
 package io.kroxylicious.proxy.internal.net;
 
-import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
@@ -54,19 +53,23 @@ import io.kroxylicious.proxy.service.HostPort;
  * operations to expose the virtual cluster to the network.  These API calls return futures that will complete once
  * the underlying network operations are completed.</li>
  *    <li>The registry provides an {@link VirtualClusterBindingResolver}.  The {@link VirtualClusterBindingResolver#resolve(Endpoint, String)} method accepts
- * connection metadata (port, SNI etc) and resolves this to a @{@link VirtualClusterBinding}.  This allows
+ * connection metadata (port, SNI etc) and resolves this to a @{@link VirtualClusterBootstrapBinding}.  This allows
  * Kroxylicious to determine the destination of any incoming connection.</li>
+ *    <li>The registry provides a {@link EndpointReconciler}. The {@link EndpointReconciler#reconcile(VirtualCluster, Map)} method accepts a map describing
+ *    the target cluster's broker topology.  The job of the reconciler is to make adjustments to the network bindings (binding/unbinding ports) to
+ *    fully expose the brokers of the target cluster through the virtual cluster.</li>
  * </ul>
  * The registry is thread safe for all operations.
  * <ul>
  *    <li>virtual cluster registration uses java.util.concurrent features to ensure registration is single threaded.</li>
  *    <li>virtual cluster de-registration uses java.util.concurrent.atomic to ensure de-registration is single threaded.</li>
+ *    <li>virtual cluster reconciliation uses java.util.concurrent.atomic to ensure reconciliation is single threaded.</li>
  *    <li>updates to the binding mapping (attached to channel) are made only whilst holding an intrinsic lock on the {@link ListeningChannelRecord}.</li>
  *    <li>updates to the binding mapping are published safely to readers (i.e. threads calling {@link VirtualClusterBindingResolver#resolve(Endpoint, String)}).  This relies the
  *    fact that the binding map uses concurrency safe data structures ({@link ConcurrentHashMap} and the exclusive use of immutable objects within it.</li>
  * </ul>
  */
-public class EndpointRegistry implements AutoCloseable, VirtualClusterBindingResolver {
+public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindingResolver, AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger(EndpointRegistry.class);
     private final NetworkBindingOperationProcessor bindingOperationProcessor;
 
@@ -98,16 +101,41 @@ public class EndpointRegistry implements AutoCloseable, VirtualClusterBindingRes
 
     protected static final AttributeKey<Map<RoutingKey, VirtualClusterBinding>> CHANNEL_BINDINGS = AttributeKey.newInstance("channelBindings");
 
-    private record VirtualClusterRecord(CompletionStage<Endpoint> registrationStage, AtomicReference<CompletionStage<Void>> deregistrationStage) {
+    private record ReconciliationRecord(Map<Integer, HostPort> upstreamNodeMap, CompletionStage<Void> reconciliationStage) {
+        private ReconciliationRecord {
+            Objects.requireNonNull(upstreamNodeMap);
+            Objects.requireNonNull(reconciliationStage);
+        }
+
+    public static ReconciliationRecord createEmptyReconcileRecord() {
+            return ReconciliationRecord.createReconcileRecord(Map.of(), CompletableFuture.completedStage(null));
+        }
+
+    private static ReconciliationRecord createReconcileRecord(Map<Integer, HostPort> upstreamNodeMap, CompletionStage<Void> future) {
+            return new ReconciliationRecord(upstreamNodeMap, future);
+        }
+
+    }
+
+    private record VirtualClusterRecord(CompletionStage<Endpoint> registrationStage, AtomicReference<ReconciliationRecord> reconciliationRecord, AtomicReference<CompletionStage<Void>> deregistrationStage) {
+        private VirtualClusterRecord {
+            Objects.requireNonNull(registrationStage);
+            Objects.requireNonNull(reconciliationRecord);
+            Objects.requireNonNull(deregistrationStage);
+        }
 
     private static VirtualClusterRecord create(CompletionStage<Endpoint> stage) {
-            return new VirtualClusterRecord(stage, new AtomicReference<>());
-        }}
+        return new VirtualClusterRecord(stage, new AtomicReference<>(), new AtomicReference<>());
+    }}
 
     /** Registry of virtual clusters that have been registered */
     private final Map<VirtualCluster, VirtualClusterRecord> registeredVirtualClusters = new ConcurrentHashMap<>();
 
     private record ListeningChannelRecord(CompletionStage<Channel> bindingStage, AtomicReference<CompletionStage<Void>> unbindingStage) {
+        private ListeningChannelRecord {
+            Objects.requireNonNull(bindingStage);
+            Objects.requireNonNull(unbindingStage);
+        }
 
     public static ListeningChannelRecord create(CompletionStage<Channel> stage) {
             return new ListeningChannelRecord(stage, new AtomicReference<>());
@@ -133,7 +161,7 @@ public class EndpointRegistry implements AutoCloseable, VirtualClusterBindingRes
     public CompletionStage<Endpoint> registerVirtualCluster(VirtualCluster virtualCluster) {
         Objects.requireNonNull(virtualCluster, "virtualCluster cannot be null");
 
-        var vcr = VirtualClusterRecord.create(new CompletableFuture<Endpoint>());
+        var vcr = VirtualClusterRecord.create(new CompletableFuture<>());
         var current = registeredVirtualClusters.putIfAbsent(virtualCluster, vcr);
         if (current != null) {
             var deregistration = current.deregistrationStage().get();
@@ -144,19 +172,15 @@ public class EndpointRegistry implements AutoCloseable, VirtualClusterBindingRes
             return current.registrationStage();
         }
 
-        var bootstrapEndpointFuture = createEndpointAndBind(virtualCluster.getClusterBootstrapAddress(), null, virtualCluster);
+        var key = Endpoint.createEndpoint(virtualCluster.getBindAddress(), virtualCluster.getClusterBootstrapAddress().port(), virtualCluster.isUseTls());
+        var upstreamBootstrap = virtualCluster.targetCluster().bootstrapServersList().get(0);
+        var bootstrapEndpointFuture = registerBinding(key,
+                virtualCluster.getClusterBootstrapAddress().host(),
+                new VirtualClusterBootstrapBinding(virtualCluster, upstreamBootstrap)).toCompletableFuture();
 
-        var initialBindings = new LinkedHashMap<HostPort, Integer>();
-        for (int i = 0; i < virtualCluster.getNumberOfBrokerEndpointsToPrebind(); i++) {
-            if (!virtualCluster.getBrokerAddress(i).equals(virtualCluster.getClusterBootstrapAddress())) {
-                initialBindings.put(virtualCluster.getBrokerAddress(i), i);
-            }
-        }
+        vcr.reconciliationRecord().set(ReconciliationRecord.createEmptyReconcileRecord());
 
-        var brokerEndpointFutures = initialBindings.entrySet().stream().map(e -> createEndpointAndBind(e.getKey(), e.getValue(), virtualCluster)).toList();
-        var allBrokerEndpointFutures = allOfFutures(brokerEndpointFutures.stream());
-
-        var unused = CompletableFuture.allOf(bootstrapEndpointFuture, allBrokerEndpointFutures).whenComplete((u, t) -> {
+        var unused = bootstrapEndpointFuture.whenComplete((u, t) -> {
             var future = vcr.registrationStage.toCompletableFuture();
             if (t != null) {
                 // Try to roll back any bindings that were successfully made
@@ -182,13 +206,6 @@ public class EndpointRegistry implements AutoCloseable, VirtualClusterBindingRes
         });
 
         return vcr.registrationStage();
-    }
-
-    private CompletableFuture<Endpoint> createEndpointAndBind(HostPort hostPort, Integer nodeId, VirtualCluster virtualCluster) {
-        var key = Endpoint.createEndpoint(virtualCluster.getBindAddress().orElse(null), hostPort.port(), virtualCluster.isUseTls());
-        VirtualClusterBinding virtualClusterBinding = VirtualClusterBinding.createBinding(virtualCluster, nodeId);
-        return registerBinding(key, hostPort.host(), virtualClusterBinding).toCompletableFuture();
-        // TODO cache endpoints when future completes
     }
 
     /**
@@ -238,6 +255,109 @@ public class EndpointRegistry implements AutoCloseable, VirtualClusterBindingRes
         return deregisterFuture;
     }
 
+    /**
+     * Reconciles the current set of bindings for this virtual cluster against those required by the current set of nodes.
+     *
+     * @param virtualCluster virtual cluster
+     * @param upstreamNodes  current map of node id to upstream host ports
+     * @return CompletionStage yielding true if binding alterations were made, or false otherwise.
+     */
+    @Override
+    public CompletionStage<Void> reconcile(VirtualCluster virtualCluster, Map<Integer, HostPort> upstreamNodes) {
+        Objects.requireNonNull(virtualCluster, "virtualCluster cannot be null");
+        Objects.requireNonNull(upstreamNodes, "upstreamNodes cannot be null");
+
+        var vcr = registeredVirtualClusters.get(virtualCluster);
+        if (vcr == null) {
+            // cluster not currently registered
+            return CompletableFuture.failedStage(new IllegalStateException("virtual cluster %s not registered or is being deregistered".formatted(virtualCluster)));
+        }
+        else if (vcr.deregistrationStage().get() != null) {
+            // cluster in process of being deregistered, ignore the reconciliation request
+            return CompletableFuture.completedStage(null);
+        }
+
+        // TODO: consider composing all of this after registration has finished
+
+        var rec = vcr.reconciliationRecord().get();
+        if (rec == null) {
+            // Should never happen.
+            return CompletableFuture.failedStage(new IllegalStateException("virtual cluster %s in unexpected state".formatted(virtualCluster)));
+        }
+
+        if (rec.upstreamNodeMap().equals(upstreamNodes)) {
+            // set of nodeIds already reconciled or reconciliation of those nodes ids is already in progress.
+            return rec.reconciliationStage();
+        }
+        else {
+            // set of nodeIds differ
+            return rec.reconciliationStage().thenCompose(u -> {
+                ReconciliationRecord updated;
+                var cand = ReconciliationRecord.createReconcileRecord(upstreamNodes, new CompletableFuture<>());
+                if (vcr.reconciliationRecord().compareAndSet(rec, cand)) {
+                    // reconcile - work out which bindings are to be registered and which are to be removed.
+                    doReconcile(virtualCluster, upstreamNodes, cand.reconciliationStage().toCompletableFuture(), vcr);
+                    return cand.reconciliationStage();
+                }
+                else if ((updated = vcr.reconciliationRecord().get()).upstreamNodeMap().equals(upstreamNodes)) {
+                    // another thread has since reconciled/started to reconcile the same set of nodes
+                    return updated.reconciliationStage();
+                }
+                else {
+                    // another thread has since reconciled to a different set of nodes.
+                    return reconcile(virtualCluster, upstreamNodes);
+                }
+            });
+        }
+    }
+
+    private void doReconcile(VirtualCluster virtualCluster, Map<Integer, HostPort> upstreamNodes, CompletableFuture<Void> future, VirtualClusterRecord vcr) {
+        var bindingAddress = virtualCluster.getBindAddress();
+
+        var creations = upstreamNodes.entrySet().stream().map(e -> new VirtualClusterBrokerBinding(virtualCluster, e.getValue(), e.getKey()))
+                .collect(Collectors.toCollection(ConcurrentHashMap::newKeySet));
+
+        // first assemble the stream of de-registrations (and by side effect: update creations)
+        var deregs = allOfStage(listeningChannels.values().stream()
+                .filter(lcr -> lcr.unbindingStage.get() == null)
+                .map(lcr -> lcr.bindingStage()
+                        .thenCompose((acceptorChannel -> {
+                            var bindings = acceptorChannel.attr(CHANNEL_BINDINGS);
+                            if (bindings == null || bindings.get() == null) {
+                                // nothing to do for this channel
+                                return CompletableFuture.completedStage(null);
+                            }
+                            var bindingMap = bindings.get();
+
+                            return allOfStage(bindingMap.values().stream()
+                                    .filter(vcb -> vcb.virtualCluster().equals(virtualCluster))
+                                    .filter(VirtualClusterBrokerBinding.class::isInstance)
+                                    .map(VirtualClusterBrokerBinding.class::cast)
+                                    .peek(creations::remove) // side effect
+                                    .filter(vcbb -> !upstreamNodes.containsKey(vcbb.nodeId()))
+                                    .map(vcbb -> deregisterBinding(virtualCluster, vcbb::equals)));
+                        }))));
+
+        // chain any binding registrations and organise for the reconciliations entry to complete
+        var unused = deregs.thenCompose(u1 -> allOfStage(creations.stream()
+                .map(vcbb -> {
+                    var brokerAddress = virtualCluster.getBrokerAddress(vcbb.nodeId());
+                    var endpoint = Endpoint.createEndpoint(bindingAddress, brokerAddress.port(), virtualCluster.isUseTls());
+                    return registerBinding(endpoint, brokerAddress.host(), vcbb);
+                })))
+                .whenComplete((u2, t) -> {
+                    if (t != null) {
+                        // if the reconciliation fails, we want to retry the next time a caller reconciles the same set of brokers.
+                        vcr.reconciliationRecord().set(ReconciliationRecord.createEmptyReconcileRecord());
+                        future.completeExceptionally(t);
+
+                    }
+                    else {
+                        future.complete(null);
+                    }
+                });
+    }
+
     /* test */ boolean isRegistered(VirtualCluster virtualCluster) {
         return registeredVirtualClusters.containsKey(virtualCluster);
     }
@@ -266,12 +386,12 @@ public class EndpointRegistry implements AutoCloseable, VirtualClusterBindingRes
             }));
 
             bindingOperationProcessor
-                    .enqueueNetworkBindingEvent(new NetworkBindRequest(future, new Endpoint(key.bindingAddress(), key.port(), virtualCluster.isUseTls())));
+                    .enqueueNetworkBindingEvent(new NetworkBindRequest(future, Endpoint.createEndpoint(key.bindingAddress(), key.port(), virtualCluster.isUseTls())));
             return r;
         });
 
         if (lcr.unbindingStage().get() != null) {
-            // Listening channel already being unbound, chain this request to the unbind stage so it completes later.
+            // Listening channel already being unbound, chain this request to the unbind stage, so it completes later.
             return lcr.unbindingStage().get().thenCompose(u -> registerBinding(key, host, virtualClusterBinding));
         }
 
@@ -286,9 +406,15 @@ public class EndpointRegistry implements AutoCloseable, VirtualClusterBindingRes
                 // knows to tear down the acceptorChannel when the map becomes empty.
                 var existing = bindingMap.putIfAbsent(bindingKey, virtualClusterBinding);
 
-                if (existing != null) {
+                if (existing instanceof VirtualClusterBrokerBinding existingVcbb && virtualClusterBinding instanceof VirtualClusterBrokerBinding vcbb
+                        && existingVcbb.refersToSameVirtualClusterAndNode(vcbb)) {
+                    // special case to support update of the upstream target
+                    bindingMap.put(bindingKey, virtualClusterBinding);
+                }
+                else if (existing != null) {
                     throw new EndpointBindingException(
-                            "Endpoint %s cannot be bound with key %s, that key is already bound to %s".formatted(key, bindingKey, virtualClusterBinding));
+                            "Endpoint %s cannot be bound with key %s binding %s, that key is already bound to %s".formatted(key, bindingKey, virtualClusterBinding,
+                                    existing));
                 }
 
                 return key;
@@ -334,11 +460,11 @@ public class EndpointRegistry implements AutoCloseable, VirtualClusterBindingRes
     }
 
     /**
-     * Uses channel metadata (port, SNI name etc.) from the incoming connection to resolve a {@link VirtualClusterBinding}.
+     * Uses channel metadata (port, SNI name etc.) from the incoming connection to resolve a {@link VirtualClusterBootstrapBinding}.
      *
      * @param endpoint    endpoint being resolved
      * @param sniHostname SNI hostname, may be null.
-     * @return completion stage yielding the {@link VirtualClusterBinding} or exceptionally a EndpointResolutionException.
+     * @return completion stage yielding the {@link VirtualClusterBootstrapBinding} or exceptionally a EndpointResolutionException.
      */
     @Override
     public CompletionStage<VirtualClusterBinding> resolve(Endpoint endpoint, String sniHostname) {
@@ -363,7 +489,7 @@ public class EndpointRegistry implements AutoCloseable, VirtualClusterBindingRes
     private EndpointResolutionException buildEndpointResolutionException(String prefix, Endpoint endpoint, String sniHostname) {
         return new EndpointResolutionException(
                 ("%s binding address: %s, port %d, sniHostname: %s, tls %s").formatted(prefix,
-                        endpoint.bindingAddress() == null ? "any" : endpoint.bindingAddress(),
+                        endpoint.bindingAddress().orElse("<any>"),
                         endpoint.port(),
                         sniHostname == null ? "<none>" : sniHostname,
                         endpoint.tls()));
@@ -391,4 +517,5 @@ public class EndpointRegistry implements AutoCloseable, VirtualClusterBindingRes
     private static <T> CompletableFuture<Void> allOfFutures(Stream<CompletableFuture<T>> futureStream) {
         return CompletableFuture.allOf(futureStream.toArray(CompletableFuture[]::new));
     }
+
 }

@@ -7,6 +7,7 @@ package io.kroxylicious.proxy.internal;
 
 import java.util.ArrayList;
 import java.util.Map;
+import java.util.Optional;
 
 import org.apache.kafka.common.security.auth.AuthenticateCallbackHandler;
 import org.slf4j.Logger;
@@ -26,13 +27,13 @@ import io.netty.util.concurrent.Future;
 
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.config.Configuration;
-import io.kroxylicious.proxy.filter.MetadataResponseFilter;
 import io.kroxylicious.proxy.internal.codec.KafkaRequestDecoder;
 import io.kroxylicious.proxy.internal.codec.KafkaResponseEncoder;
+import io.kroxylicious.proxy.internal.filter.BrokerAddressFilter;
 import io.kroxylicious.proxy.internal.net.Endpoint;
+import io.kroxylicious.proxy.internal.net.EndpointReconciler;
 import io.kroxylicious.proxy.internal.net.VirtualClusterBinding;
 import io.kroxylicious.proxy.internal.net.VirtualClusterBindingResolver;
-import io.kroxylicious.proxy.service.HostPort;
 
 public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
 
@@ -42,10 +43,14 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
     private final Map<KafkaAuthnHandler.SaslMechanism, AuthenticateCallbackHandler> authnHandlers;
     private final boolean tls;
     private final VirtualClusterBindingResolver virtualClusterBindingResolver;
+    private final EndpointReconciler endpointReconciler;
     private final Configuration config;
 
-    public KafkaProxyInitializer(Configuration config, boolean tls, VirtualClusterBindingResolver virtualClusterBindingResolver, boolean haproxyProtocol,
+    public KafkaProxyInitializer(Configuration config, boolean tls,
+                                 VirtualClusterBindingResolver virtualClusterBindingResolver, EndpointReconciler endpointReconciler,
+                                 boolean haproxyProtocol,
                                  Map<KafkaAuthnHandler.SaslMechanism, AuthenticateCallbackHandler> authnMechanismHandlers) {
+        this.endpointReconciler = endpointReconciler;
         this.haproxyProtocol = haproxyProtocol;
         this.authnHandlers = authnMechanismHandlers != null ? authnMechanismHandlers : Map.of();
         this.tls = tls;
@@ -61,12 +66,13 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
         ChannelPipeline pipeline = ch.pipeline();
 
         int targetPort = ch.localAddress().getPort();
-        var bindingAddress = ch.parent().localAddress().getAddress().isAnyLocalAddress() ? null : ch.localAddress().getAddress().getHostAddress();
+        var bindingAddress = ch.parent().localAddress().getAddress().isAnyLocalAddress() ? Optional.<String> empty()
+                : Optional.of(ch.localAddress().getAddress().getHostAddress());
         if (tls) {
             LOGGER.debug("Adding SSL/SNI handler");
             pipeline.addLast(new SniHandler((sniHostname, promise) -> {
                 try {
-                    var stage = virtualClusterBindingResolver.resolve(new Endpoint(bindingAddress, targetPort, tls), sniHostname);
+                    var stage = virtualClusterBindingResolver.resolve(Endpoint.createEndpoint(bindingAddress, targetPort, tls), sniHostname);
                     // completes the netty promise when then resolution completes (success/otherwise).
                     var unused = stage.handle((binding, t) -> {
                         try {
@@ -107,7 +113,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
             pipeline.addLast(new ChannelInboundHandlerAdapter() {
                 @Override
                 public void channelActive(ChannelHandlerContext ctx) {
-                    var stage = virtualClusterBindingResolver.resolve(new Endpoint(bindingAddress, targetPort, tls), null);
+                    var stage = virtualClusterBindingResolver.resolve(Endpoint.createEndpoint(bindingAddress, targetPort, tls), null);
                     var unused = stage.handle((binding, t) -> {
                         if (t != null) {
                             ctx.fireExceptionCaught(t);
@@ -164,25 +170,13 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
             var filterChainFactory = new FilterChainFactory(config, virtualCluster);
 
             var filters = new ArrayList<>(filterChainFactory.createFilters());
+            // Add internal filters.
+            filters.add(new BrokerAddressFilter(virtualCluster, endpointReconciler));
 
-            // Add a filter to the *end of the chain* that gathers the true nodeId/upstream broker mapping.
-            filters.add((MetadataResponseFilter) (apiVersion, header, response, filterContext) -> {
-                response.brokers().forEach(b -> {
-                    var replacement = new HostPort(b.host(), b.port());
-                    var existing = virtualCluster.updateUpstreamClusterAddressForNode(b.nodeId(), replacement);
-                    if (!replacement.equals(existing)) {
-                        LOGGER.info("Got upstream for broker {} : {}", b.nodeId(), replacement);
-                    }
-                });
-                filterContext.forwardResponse(response);
-            });
-
-            HostPort target = binding.getTargetHostPort();
+            var target = binding.upstreamTarget();
             if (target == null) {
-                // TODO: this behaviour is sub-optimal as it means a client will proceed with a connection to the wrong broker.
-                // This will lead to difficult to diagnose failure cases later (produces going to the wrong broker, metadata refresh cycles, etc).
-                LOGGER.warn("An target address for binding {} is not yet known, connecting the client to bootstrap instead.", binding);
-                target = HostPort.parse(binding.virtualCluster().targetCluster().bootstrapServers().split(",")[0]);
+                // This condition should never happen.
+                throw new IllegalStateException("A target address for binding %s is not known.".formatted(binding));
             }
 
             context.initiateConnect(target, filters);

@@ -1,0 +1,27 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+- apiMessageType: METADATA
+  version: 12
+  response:
+    payload:
+      brokers:
+        - nodeId: 0
+          host: upstream
+          port: 9199
+          rack: a
+      topics: []
+      clusterId: zz
+      controllerId: 0
+      throttleTimeMs: 0
+    diff:
+      - op: replace
+        path: "/brokers/0/host"
+        value: downstream
+      - op: replace
+        path: "/brokers/0/port"
+        value: 19199
+  disabled: false

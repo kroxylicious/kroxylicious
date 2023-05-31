@@ -72,6 +72,7 @@ import io.kroxylicious.net.IntegrationTestInetAddressResolverProvider;
 import io.kroxylicious.proxy.KroxyliciousConfig;
 import io.kroxylicious.proxy.KroxyliciousConfigBuilder;
 import io.kroxylicious.proxy.VirtualClusterBuilder;
+import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.test.tester.KroxyliciousTester;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
@@ -100,9 +101,11 @@ public class MultiTenantIT {
     private static final NewTopic NEW_TOPIC_3 = new NewTopic(TOPIC_3, 1, (short) 1);
 
     public static final String TENANT_1_CLUSTER = "foo";
-    private static final String TENANT_1_PROXY_ADDRESS = IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName(TENANT_1_CLUSTER, 9192);
+    private static final HostPort TENANT_1_PROXY_ADDRESS = HostPort
+            .parse(IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName(TENANT_1_CLUSTER, 9192));
     public static final String TENANT_2_CLUSTER = "bar";
-    private static final String TENANT_2_PROXY_ADDRESS = IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName(TENANT_2_CLUSTER, 9193);
+    private static final HostPort TENANT_2_PROXY_ADDRESS = HostPort
+            .parse(IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName(TENANT_2_CLUSTER, 9292));
     private static final String MY_KEY = "my-key";
     private static final String MY_VALUE = "my-value";
     private static final long FUTURE_TIMEOUT_SECONDS = 5L;
@@ -161,10 +164,12 @@ public class MultiTenantIT {
                 var admin = tester.admin(TENANT_1_CLUSTER, commonConfig(Map.of()))) {
             var created = createTopics(admin, List.of(NEW_TOPIC_1));
 
-            var describeTopicsResult = admin.describeTopics(TopicNameCollection.ofTopicNames(List.of(TOPIC_1)));
-            var topicMap = describeTopicsResult.allTopicNames().get();
-            assertThat(topicMap).hasEntrySatisfying(TOPIC_1,
-                    allOf(matches(TopicDescription::name, TOPIC_1), matches(TopicDescription::topicId, created.topicId(TOPIC_1).get())));
+            await().atMost(Duration.ofSeconds(5)).ignoreExceptions().untilAsserted(() -> {
+                var describeTopicsResult = admin.describeTopics(TopicNameCollection.ofTopicNames(List.of(TOPIC_1)));
+                var topicMap = describeTopicsResult.allTopicNames().get();
+                assertThat(topicMap).hasEntrySatisfying(TOPIC_1,
+                        allOf(matches(TopicDescription::name, TOPIC_1), matches(TopicDescription::topicId, created.topicId(TOPIC_1).get())));
+            });
         }
     }
 
@@ -580,8 +585,8 @@ public class MultiTenantIT {
                         .withBootstrapServers(cluster.getBootstrapServers())
                         .endTargetCluster()
                         .withNewClusterEndpointConfigProvider()
-                        .withType("StaticCluster")
-                        .withConfig(Map.of("bootstrapAddress", TENANT_1_PROXY_ADDRESS))
+                        .withType("PortPerBroker")
+                        .withConfig(Map.of("bootstrapAddress", TENANT_1_PROXY_ADDRESS.toString()))
                         .endClusterEndpointConfigProvider()
                         .withKeyPassword(certificateGenerator.getPassword())
                         .withKeyStoreFile(certificateGenerator.getKeyStoreLocation())
@@ -591,14 +596,13 @@ public class MultiTenantIT {
                         .withBootstrapServers(cluster.getBootstrapServers())
                         .endTargetCluster()
                         .withNewClusterEndpointConfigProvider()
-                        .withType("StaticCluster")
-                        .withConfig(Map.of("bootstrapAddress", TENANT_2_PROXY_ADDRESS))
+                        .withType("PortPerBroker")
+                        .withConfig(Map.of("bootstrapAddress", TENANT_2_PROXY_ADDRESS.toString()))
                         .endClusterEndpointConfigProvider()
                         .withKeyPassword(certificateGenerator.getPassword())
                         .withKeyStoreFile(certificateGenerator.getKeyStoreLocation())
                         .build())
                 .addNewFilter().withType("ApiVersions").endFilter()
-                .addNewFilter().withType("BrokerAddress").endFilter()
                 .addNewFilter().withType("MultiTenant").endFilter();
     }
 
@@ -612,8 +616,8 @@ public class MultiTenantIT {
         return new Predicate<>() {
             @Override
             public boolean test(ConsumerRecord<K, V> item) {
-                var rec = ((ConsumerRecord<K, V>) item);
-                return Objects.equals(rec.topic(), expectedTopic) && Objects.equals(rec.key(), expectedKey) && Objects.equals(rec.value(), expectedValue);
+                return Objects.equals(item.topic(), expectedTopic) && Objects.equals(item.key(), expectedKey) && Objects.equals(
+                        item.value(), expectedValue);
             }
 
             @Override

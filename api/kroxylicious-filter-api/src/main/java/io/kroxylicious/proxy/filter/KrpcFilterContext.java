@@ -83,5 +83,6 @@ public interface KrpcFilterContext {
      * determine what logically inconsistent means.
      */
     void forwardResponse(ApiMessage response);
+
     // TODO an API to allow a filter to add/remove another filter from the pipeline
 }

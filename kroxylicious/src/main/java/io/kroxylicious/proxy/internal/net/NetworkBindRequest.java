@@ -6,6 +6,7 @@
 
 package io.kroxylicious.proxy.internal.net;
 
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 
@@ -32,7 +33,7 @@ public class NetworkBindRequest extends NetworkBindingOperation<Channel> {
         this.endpoint = endpoint;
     }
 
-    public String getBindingAddress() {
+    public Optional<String> getBindingAddress() {
         return endpoint.bindingAddress();
     }
 
@@ -52,9 +53,9 @@ public class NetworkBindRequest extends NetworkBindingOperation<Channel> {
             int port = port();
             var bindingAddress = endpoint.bindingAddress();
             ChannelFuture bind;
-            if (bindingAddress != null) {
-                LOGGER.info("Binding {}:{}", bindingAddress, port);
-                bind = serverBootstrap.bind(bindingAddress, port);
+            if (bindingAddress.isPresent()) {
+                LOGGER.info("Binding {}:{}", bindingAddress.get(), port);
+                bind = serverBootstrap.bind(bindingAddress.get(), port);
             }
             else {
                 LOGGER.info("Binding <any>:{}", port);

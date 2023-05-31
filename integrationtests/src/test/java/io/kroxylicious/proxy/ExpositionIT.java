@@ -10,6 +10,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -30,6 +31,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 
 import io.kroxylicious.net.IntegrationTestInetAddressResolverProvider;
+import io.kroxylicious.proxy.service.HostPort;
+import io.kroxylicious.test.tester.KroxyliciousTester;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.clients.CloseableAdmin;
 import io.kroxylicious.testing.kafka.common.BrokerCluster;
@@ -43,11 +46,14 @@ import static org.testcontainers.shaded.org.awaitility.Awaitility.await;
 
 /**
  * Integration tests that focus on how Kroxylicious presents itself to the network.
+ *
+ * TODO corner case test - verify kroxy's ability to recover for a temporary port already bound condition.
  */
 @ExtendWith(KafkaClusterExtension.class)
 public class ExpositionIT {
 
     private static final String TOPIC = "my-test-topic";
+    public static final HostPort PROXY_ADDRESS = HostPort.parse("localhost:9192");
 
     @TempDir
     private Path certsDirectory;
@@ -56,8 +62,7 @@ public class ExpositionIT {
     }
 
     @Test
-    public void exposesClusterOverTls(KafkaCluster cluster) throws Exception {
-        String proxyAddress = "localhost:9192";
+    public void exposesSingleUpstreamClusterOverTls(KafkaCluster cluster) throws Exception {
 
         var brokerCertificateGenerator = new KeytoolCertificateGenerator();
         brokerCertificateGenerator.generateSelfSignedCertificateEntry("test@redhat.com", "localhost", "KI", "RedHat", null, null, "US");
@@ -65,7 +70,20 @@ public class ExpositionIT {
         brokerCertificateGenerator.generateTrustStore(brokerCertificateGenerator.getCertFilePath(), "client",
                 clientTrustStore.toAbsolutePath().toString());
 
-        var builder = baseConfigBuilder(proxyAddress, cluster.getBootstrapServers());
+        String bootstrapServers = cluster.getBootstrapServers();
+
+        var builder = KroxyliciousConfig.builder()
+                .addToVirtualClusters("demo", new VirtualClusterBuilder()
+                        .withNewTargetCluster()
+                        .withBootstrapServers(bootstrapServers)
+                        .endTargetCluster()
+                        .withNewClusterEndpointConfigProvider()
+                        .withType("PortPerBroker")
+                        .withConfig(Map.of("bootstrapAddress", PROXY_ADDRESS.toString()))
+                        .endClusterEndpointConfigProvider()
+                        .build())
+                .addNewFilter().withType("ApiVersions").endFilter();
+
         var demo = builder.getVirtualClusters().get("demo");
         demo = new VirtualClusterBuilder(demo)
                 .withKeyPassword(brokerCertificateGenerator.getPassword())
@@ -90,11 +108,10 @@ public class ExpositionIT {
 
     @Test
     public void exposesTwoClusterOverPlainWithSeparatePorts(KafkaCluster cluster) {
-        List<String> clusterProxyAddresses = List.of("localhost:9192", "localhost:9193");
+        List<String> clusterProxyAddresses = List.of("localhost:9192", "localhost:9294");
 
         var builder = KroxyliciousConfig.builder()
-                .addNewFilter().withType("ApiVersions").endFilter()
-                .addNewFilter().withType("BrokerAddress").endFilter();
+                .addNewFilter().withType("ApiVersions").endFilter();
 
         var base = new VirtualClusterBuilder()
                 .withNewTargetCluster()
@@ -103,10 +120,11 @@ public class ExpositionIT {
                 .build();
 
         for (int i = 0; i < clusterProxyAddresses.size(); i++) {
+            var bootstrap = clusterProxyAddresses.get(i);
             var virtualCluster = new VirtualClusterBuilder(base)
                     .withNewClusterEndpointConfigProvider()
-                    .withType("StaticCluster")
-                    .withConfig(Map.of("bootstrapAddress", clusterProxyAddresses.get(i)))
+                    .withType("PortPerBroker")
+                    .withConfig(Map.of("bootstrapAddress", bootstrap))
                     .endClusterEndpointConfigProvider()
                     .build();
             builder.addToVirtualClusters("cluster" + i, virtualCluster);
@@ -124,15 +142,14 @@ public class ExpositionIT {
     }
 
     @Test
-    public void exposesTwoClusterOverTlsWithSharedPort(KafkaCluster cluster) throws Exception {
+    public void exposesTwoSeparateUpstreamClustersUsingSniRouting(KafkaCluster cluster) throws Exception {
         var clientTrust = new ArrayList<ClientTrust>();
         var virtualClusterCommonNamePattern = IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName(".virtualcluster%d");
         var virtualClusterBootstrapPattern = "bootstrap" + virtualClusterCommonNamePattern;
         var virtualClusterBrokerAddressPattern = "broker-$(nodeId)" + virtualClusterCommonNamePattern;
 
         var builder = KroxyliciousConfig.builder()
-                .addNewFilter().withType("ApiVersions").endFilter()
-                .addNewFilter().withType("BrokerAddress").endFilter();
+                .addNewFilter().withType("ApiVersions").endFilter();
 
         var base = new VirtualClusterBuilder()
                 .withNewTargetCluster()
@@ -182,45 +199,127 @@ public class ExpositionIT {
 
     @Test
     public void exposesClusterOfTwoBrokers(@BrokerCluster(numBrokers = 2) KafkaCluster cluster) throws Exception {
-        var proxyAddress = "localhost:9192";
-        var builder = baseConfigBuilder(proxyAddress, cluster.getBootstrapServers());
-        var demo = builder.getVirtualClusters().get("demo");
-        var brokerEndpoints = Map.of(0, "localhost:9193", 1, "localhost:9194");
-        demo = new VirtualClusterBuilder(demo)
-                .editClusterEndpointConfigProvider()
-                .withType("StaticCluster")
-                .withConfig(Map.of("bootstrapAddress", proxyAddress,
-                        "brokers", brokerEndpoints))
-                .endClusterEndpointConfigProvider()
-                .build();
-        builder.addToVirtualClusters("demo", demo);
+
+        var builder = KroxyliciousConfig.builder()
+                .addToVirtualClusters("demo", new VirtualClusterBuilder()
+                        .withNewTargetCluster()
+                        .withBootstrapServers(cluster.getBootstrapServers())
+                        .endTargetCluster()
+                        .withNewClusterEndpointConfigProvider()
+                        .withType("PortPerBroker")
+                        .withConfig(Map.of("bootstrapAddress", PROXY_ADDRESS.toString()))
+                        .endClusterEndpointConfigProvider()
+                        .build())
+                .addNewFilter().withType("ApiVersions").endFilter();
+
+        var brokerEndpoints = Map.of(0, "localhost:" + (PROXY_ADDRESS.port() + 1), 1, "localhost:" + (PROXY_ADDRESS.port() + 2));
 
         try (var tester = kroxyliciousTester(builder)) {
 
-            try (var admin = CloseableAdmin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, proxyAddress))) {
-                var nodes = admin.describeCluster().nodes().get();
-                assertThat(nodes).hasSize(2);
+            try (var admin = CloseableAdmin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, PROXY_ADDRESS.toString()))) {
+                var nodes = await().atMost(Duration.ofSeconds(5)).until(() -> admin.describeCluster().nodes().get(),
+                        n -> n.size() == cluster.getNumOfBrokers());
                 var unique = nodes.stream().collect(Collectors.toMap(Node::id, ExpositionIT::toAddress));
                 assertThat(unique).containsExactlyInAnyOrderEntriesOf(brokerEndpoints);
             }
 
-            // Create a topic with one partition on each broker and publish to all of them..
-            // As kafka client must connect to the partition leader, this verifies that kroxylicious is
-            // indeed connecting to all brokers.
-            int numPartitions = 2;
-            try (var admin = tester.admin("demo");
-                    var producer = tester.producer("demo", Map.of(ProducerConfig.CLIENT_ID_CONFIG, "myclient"))) {
-                // create topic and ensure that leaders are on different brokers.
-                createTopic(admin, TOPIC, numPartitions);
-                await().atMost(Duration.ofSeconds(5)).until(() -> admin.describeTopics(List.of(TOPIC)).topicNameValues().get(TOPIC).get()
-                        .partitions().stream().map(TopicPartitionInfo::leader)
-                        .collect(Collectors.toSet()),
-                        leaders -> leaders.size() == numPartitions);
+            verifyAllBrokersAvailableViaProxy(tester, cluster);
+        }
+    }
 
-                for (int partition = 0; partition < numPartitions; partition++) {
-                    var send = producer.send(new ProducerRecord<>(TOPIC, partition, "key", "value"));
+    @Test
+    public void exposedClusterAddsBroker(@BrokerCluster() KafkaCluster cluster) throws Exception {
+        var builder = KroxyliciousConfig.builder()
+                .addToVirtualClusters("demo", new VirtualClusterBuilder()
+                        .withNewTargetCluster()
+                        .withBootstrapServers(cluster.getBootstrapServers())
+                        .endTargetCluster()
+                        .withNewClusterEndpointConfigProvider()
+                        .withType("PortPerBroker")
+                        .withConfig(Map.of("bootstrapAddress", PROXY_ADDRESS.toString()))
+                        .endClusterEndpointConfigProvider()
+                        .build())
+                .addNewFilter().withType("ApiVersions").endFilter();
+
+        try (var tester = kroxyliciousTester(builder)) {
+
+            assertThat(cluster.getNumOfBrokers()).isEqualTo(1);
+            try (var admin = tester.admin()) {
+                await().atMost(Duration.ofSeconds(5)).until(() -> admin.describeCluster().nodes().get(),
+                        n -> n.size() == cluster.getNumOfBrokers());
+
+                int newNodeId = cluster.addBroker();
+                assertThat(cluster.getNumOfBrokers()).isEqualTo(2);
+
+                var updatedNodes = await().atMost(Duration.ofSeconds(5)).until(() -> admin.describeCluster().nodes().get(),
+                        n -> n.size() == cluster.getNumOfBrokers());
+
+                assertThat(updatedNodes).describedAs("new node should appear in the describeCluster response").anyMatch(n -> n.id() == newNodeId);
+            }
+
+            verifyAllBrokersAvailableViaProxy(tester, cluster);
+        }
+    }
+
+    @Test
+    public void exposedClusterRemovesBroker(@BrokerCluster(numBrokers = 2) KafkaCluster cluster) throws Exception {
+        var builder = KroxyliciousConfig.builder()
+                .addToVirtualClusters("demo", new VirtualClusterBuilder()
+                        .withNewTargetCluster()
+                        .withBootstrapServers(cluster.getBootstrapServers())
+                        .endTargetCluster()
+                        .withNewClusterEndpointConfigProvider()
+                        .withType("PortPerBroker")
+                        .withConfig(Map.of("bootstrapAddress", PROXY_ADDRESS.toString()))
+                        .endClusterEndpointConfigProvider()
+                        .build())
+                .addNewFilter().withType("ApiVersions").endFilter();
+
+        try (var tester = kroxyliciousTester(builder)) {
+
+            assertThat(cluster.getNumOfBrokers()).isEqualTo(2);
+            try (var admin = tester.admin()) {
+                await().atMost(Duration.ofSeconds(5)).until(() -> admin.describeCluster().nodes().get(),
+                        n -> n.size() == cluster.getNumOfBrokers());
+
+                var removedNodeId = 1;
+                cluster.removeBroker(removedNodeId);
+                assertThat(cluster.getNumOfBrokers()).isEqualTo(1);
+
+                var updatedNodes = await().atMost(Duration.ofSeconds(5)).until(() -> admin.describeCluster().nodes().get(),
+                        n -> n.size() == cluster.getNumOfBrokers());
+
+                assertThat(updatedNodes).describedAs("removed node must not appear in the describeCluster response")
+                        .allSatisfy(n -> assertThat(n.id()).isNotEqualTo(removedNodeId));
+            }
+
+            verifyAllBrokersAvailableViaProxy(tester, cluster);
+        }
+    }
+
+    private void verifyAllBrokersAvailableViaProxy(KroxyliciousTester tester, KafkaCluster cluster) throws Exception {
+        int numberOfPartitions = cluster.getNumOfBrokers();
+        var topic = TOPIC + UUID.randomUUID();
+
+        // create topic and ensure that leaders are on different brokers.
+        try (var admin = tester.admin();
+                var producer = tester.producer("demo", Map.of(ProducerConfig.CLIENT_ID_CONFIG, "myclient"))) {
+            createTopic(admin, topic, numberOfPartitions);
+            try {
+                await().atMost(Duration.ofSeconds(10))
+                        .ignoreExceptions()
+                        .until(() -> admin.describeTopics(List.of(topic)).topicNameValues().get(topic).get()
+                                .partitions().stream().map(TopicPartitionInfo::leader)
+                                .collect(Collectors.toSet()),
+                                leaders -> leaders.size() == numberOfPartitions);
+
+                for (int partition = 0; partition < numberOfPartitions; partition++) {
+                    var send = producer.send(new ProducerRecord<>(topic, partition, "key", "value"));
                     send.get(10, TimeUnit.SECONDS);
                 }
+            }
+            finally {
+                deleteTopic(admin, topic);
             }
         }
     }
@@ -237,23 +336,19 @@ public class ExpositionIT {
         }
     }
 
+    private void deleteTopic(Admin admin, String topic) {
+        try {
+            admin.deleteTopics(List.of(topic)).all().get(10, TimeUnit.SECONDS);
+        }
+        catch (ExecutionException e) {
+            throw new RuntimeException(e.getCause());
+        }
+        catch (InterruptedException | TimeoutException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     private static String toAddress(Node n) {
         return n.host() + ":" + n.port();
     }
-
-    private static KroxyliciousConfigBuilder baseConfigBuilder(String proxyAddress, String bootstrapServers) {
-        return KroxyliciousConfig.builder()
-                .addToVirtualClusters("demo", new VirtualClusterBuilder()
-                        .withNewTargetCluster()
-                        .withBootstrapServers(bootstrapServers)
-                        .endTargetCluster()
-                        .withNewClusterEndpointConfigProvider()
-                        .withType("StaticCluster")
-                        .withConfig(Map.of("bootstrapAddress", proxyAddress))
-                        .endClusterEndpointConfigProvider()
-                        .build())
-                .addNewFilter().withType("ApiVersions").endFilter()
-                .addNewFilter().withType("BrokerAddress").endFilter();
-    }
-
 }

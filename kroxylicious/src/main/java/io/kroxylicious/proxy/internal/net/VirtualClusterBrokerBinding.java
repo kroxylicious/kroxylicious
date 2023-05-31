@@ -8,57 +8,29 @@ package io.kroxylicious.proxy.internal.net;
 
 import java.util.Objects;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.service.HostPort;
 
 /**
- * Used to represent a binding from an @{@link Endpoint} to a @{@link VirtualCluster}.
- * This is a binding to specific broker (indicated by nodeId).
+ * A broker specific virtual cluster binding.
  */
-public final class VirtualClusterBrokerBinding extends VirtualClusterBinding {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(VirtualClusterBrokerBinding.class);
-
-    private final int nodeId;
-
-    public VirtualClusterBrokerBinding(VirtualCluster virtualCluster, int nodeId) {
-        super(virtualCluster);
-        this.nodeId = nodeId;
-    }
-
-    public HostPort getTargetHostPort() {
-        return virtualCluster().getUpstreamClusterAddressForNode(nodeId);
-    }
-
-    public int nodeId() {
-        return nodeId;
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-        if (obj == this) {
-            return true;
-        }
-        if (obj == null || obj.getClass() != this.getClass()) {
-            return false;
-        }
-        var that = (VirtualClusterBrokerBinding) obj;
-        return super.equals(obj) && this.nodeId == that.nodeId;
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(super.hashCode(), nodeId);
+public record VirtualClusterBrokerBinding(VirtualCluster virtualCluster, HostPort upstreamTarget, int nodeId) implements VirtualClusterBinding {
+    public VirtualClusterBrokerBinding {
+        Objects.requireNonNull(virtualCluster, "virtualCluster must not be null");
+        Objects.requireNonNull(upstreamTarget, "upstreamTarget must not be null");
     }
 
     @Override
     public String toString() {
         return "VirtualClusterBrokerBinding[" +
                 "virtualCluster=" + this.virtualCluster() + ", " +
+                "upstreamTarget=" + this.upstreamTarget() + ", " +
                 "nodeId=" + nodeId + ']';
+    }
+
+
+    public boolean refersToSameVirtualClusterAndNode(VirtualClusterBrokerBinding other) {
+        return other != null && other.nodeId == this.nodeId && Objects.equals(other.virtualCluster, this.virtualCluster);
     }
 
 }

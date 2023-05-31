@@ -8,6 +8,7 @@ package io.kroxylicious.proxy;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -27,6 +28,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 
 import io.kroxylicious.proxy.filter.CreateTopicRejectFilter;
 import io.kroxylicious.proxy.internal.filter.ByteBufferTransformation;
+import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
@@ -103,6 +105,8 @@ public class KrpcFilterIT {
 
     @Test
     public void shouldPassThroughRecordUnchanged(KafkaCluster cluster, Admin admin) throws Exception {
+        var proxyAddress = HostPort.parse("localhost:9192");
+
         admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1))).all().get();
 
         try (var tester = kroxyliciousTester(withDefaultFilters(proxy(cluster)));
@@ -119,6 +123,7 @@ public class KrpcFilterIT {
 
     @Test
     public void requestFiltersCanRespondWithoutProxying(KafkaCluster cluster, Admin admin) throws Exception {
+        var proxyAddress = HostPort.parse("localhost:9192");
         var config = withDefaultFilters(proxy(cluster)).addNewFilter().withType("CreateTopicRejectFilter").endFilter();
 
         try (var tester = kroxyliciousTester(config);
@@ -131,12 +136,17 @@ public class KrpcFilterIT {
 
             // check no topic created on the cluster
             Set<String> names = admin.listTopics().names().get(10, TimeUnit.SECONDS);
+            // remove once https://github.com/kroxylicious/kroxylicious-junit5-extension/issues/114 is fixed.
+            names = new HashSet<>(names);
+            names.removeIf(n -> n.startsWith("__org_kroxylicious_testing"));
             assertEquals(Set.of(), names);
         }
     }
 
     @Test
     public void shouldModifyProduceMessage(KafkaCluster cluster, Admin admin) throws Exception {
+        var proxyAddress = HostPort.parse("localhost:9192");
+
         admin.createTopics(List.of(
                 new NewTopic(TOPIC_1, 1, (short) 1),
                 new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
@@ -168,6 +178,8 @@ public class KrpcFilterIT {
 
     @Test
     public void shouldModifyFetchMessage(KafkaCluster cluster, Admin admin) throws Exception {
+        var proxyAddress = HostPort.parse("localhost:9192");
+
         admin.createTopics(List.of(
                 new NewTopic(TOPIC_1, 1, (short) 1),
                 new NewTopic(TOPIC_2, 1, (short) 1))).all().get();

@@ -1,0 +1,29 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+- apiMessageType: DESCRIBE_CLUSTER
+  version: 0
+  response:
+    payload:
+      brokers:
+        - brokerId: 0
+          host: upstream
+          port: 9199
+          rack: a
+      clusterId: zz
+      controllerId: 0
+      throttleTimeMs: 0
+      errorCode: 0
+      errorMessage:
+      clusterAuthorizedOperations: 0
+    diff:
+      - op: replace
+        path: "/brokers/0/host"
+        value: downstream
+      - op: replace
+        path: "/brokers/0/port"
+        value: 19199
+  disabled: false

@@ -5,7 +5,12 @@
  */
 package io.kroxylicious.proxy.config;
 
+import java.util.Arrays;
+import java.util.List;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
+
+import io.kroxylicious.proxy.service.HostPort;
 
 /**
  * Represents the target (upstream) kafka cluster.
@@ -14,7 +19,7 @@ public class TargetCluster {
 
     private final String bootstrapServers;
 
-    public TargetCluster(@JsonProperty(value = "bootstrap_servers") String bootstrapServers) {
+    public TargetCluster(@JsonProperty(value = "bootstrap_servers", required = true) String bootstrapServers) {
         this.bootstrapServers = bootstrapServers;
     }
 
@@ -26,6 +31,10 @@ public class TargetCluster {
      */
     public String bootstrapServers() {
         return bootstrapServers;
+    }
+
+    public List<HostPort> bootstrapServersList() {
+        return Arrays.stream(bootstrapServers.split(",")).map(HostPort::parse).toList();
     }
 
     @Override

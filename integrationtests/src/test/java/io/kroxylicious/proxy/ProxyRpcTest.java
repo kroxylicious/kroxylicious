@@ -33,6 +33,9 @@ import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.mockKafkaKroxyliciousTester;
 import static org.apache.kafka.common.protocol.ApiKeys.API_VERSIONS;
 import static org.apache.kafka.common.protocol.ApiKeys.CONTROLLED_SHUTDOWN;
+import static org.apache.kafka.common.protocol.ApiKeys.DESCRIBE_CLUSTER;
+import static org.apache.kafka.common.protocol.ApiKeys.FIND_COORDINATOR;
+import static org.apache.kafka.common.protocol.ApiKeys.METADATA;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class ProxyRpcTest {
@@ -42,9 +45,10 @@ public class ProxyRpcTest {
     }
 
     /**
-     * API_VERSIONS is not proxied, kroxy can respond to this itself
+     * API_VERSIONS is not proxied, kroxylicious can respond to this itself
+     * FIND_COORDINATOR, METADATA, DESCRIBE_CLUSTER, kroxylicious takes charged of rewriting these responses itself.
      */
-    private static final Set<ApiKeys> NOT_PROXIED = Set.of(API_VERSIONS);
+    private static final Set<ApiKeys> SKIPPED_API_KEYS = Set.of(API_VERSIONS, FIND_COORDINATOR, METADATA, DESCRIBE_CLUSTER);
 
     @BeforeAll
     public static void beforeAll() {
@@ -77,7 +81,8 @@ public class ProxyRpcTest {
     private static Stream<Scenario> scenarios() {
         Map<ApiAndVersion, ApiMessage> requestSamples = ApiMessageSampleGenerator.createRequestSamples();
         Map<ApiAndVersion, ApiMessage> responseSamples = ApiMessageSampleGenerator.createResponseSamples();
-        return Arrays.stream(ApiKeys.values()).filter(apiKeys -> !NOT_PROXIED.contains(apiKeys)).flatMap(apiKeys -> toScenario(requestSamples, responseSamples, apiKeys));
+        return Arrays.stream(ApiKeys.values()).filter(apiKeys -> !SKIPPED_API_KEYS.contains(apiKeys))
+                .flatMap(apiKeys -> toScenario(requestSamples, responseSamples, apiKeys));
     }
 
     private static final ApiAndVersion v0HeaderVersion = new ApiAndVersion(CONTROLLED_SHUTDOWN, (short) 0);

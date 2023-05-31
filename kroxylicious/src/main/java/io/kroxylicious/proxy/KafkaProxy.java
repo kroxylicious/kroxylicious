@@ -82,6 +82,8 @@ public final class KafkaProxy implements AutoCloseable {
      * @return This proxy.
      */
     public KafkaProxy startup() throws InterruptedException {
+        LOGGER.info("Kroxylicious starting");
+
         if (running.getAndSet(true)) {
             throw new IllegalStateException("This proxy is already running");
         }
@@ -97,8 +99,8 @@ public final class KafkaProxy implements AutoCloseable {
 
         maybeStartMetricsListener(adminEventGroup, meterRegistries);
 
-        var tlsServerBootstrap = buildServerBootstrap(serverEventGroup, new KafkaProxyInitializer(config, true, endpointRegistry, false, Map.of()));
-        var plainServerBootstrap = buildServerBootstrap(serverEventGroup, new KafkaProxyInitializer(config, false, endpointRegistry, false, Map.of()));
+        var tlsServerBootstrap = buildServerBootstrap(serverEventGroup, new KafkaProxyInitializer(config, true, endpointRegistry, endpointRegistry, false, Map.of()));
+        var plainServerBootstrap = buildServerBootstrap(serverEventGroup, new KafkaProxyInitializer(config, false, endpointRegistry, endpointRegistry, false, Map.of()));
 
         bindingOperationProcessor.start(plainServerBootstrap, tlsServerBootstrap);
 
@@ -190,6 +192,7 @@ public final class KafkaProxy implements AutoCloseable {
             throw new IllegalStateException("This proxy is not running");
         }
         try {
+            LOGGER.info("Shutting down");
             endpointRegistry.shutdown().handle((u, t) -> {
                 bindingOperationProcessor.close();
                 var closeFutures = new ArrayList<Future<?>>();
@@ -217,6 +220,8 @@ public final class KafkaProxy implements AutoCloseable {
             serverEventGroup = null;
             metricsChannel = null;
             shutdown.complete(null);
+            LOGGER.info("Shut down completed.");
+
         }
     }
 

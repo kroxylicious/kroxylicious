@@ -13,14 +13,13 @@ virtualClusters:
     targetCluster:
       bootstrap_servers: localhost:9092
     clusterEndpointConfigProvider:
-      type: StaticCluster
+      type: PortPerBroker
       config:
         bootstrapAddress: localhost:9192
     logNetwork: false
     logFrames: false
 filters:
 - type: ApiVersions
-- type: BrokerAddress
 #- type: ProduceRequestTransformation
 #  config:
 #    transformation: io.kroxylicious.proxy.internal.filter.ProduceRequestTransformationFilter$UpperCasing

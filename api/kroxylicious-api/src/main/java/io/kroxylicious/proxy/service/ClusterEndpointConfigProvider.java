@@ -32,19 +32,6 @@ public interface ClusterEndpointConfigProvider {
     HostPort getBrokerAddress(int nodeId) throws IllegalArgumentException;
 
     /**
-     * Provides the number of broker endpoints to pre-bind.
-     * Kroxylicious will pre-bind all the broker end-points between
-     * 0..{@code numberOfWarmStartBrokerEndpoints}-1 on startup, rather
-     * than waiting for the first bootstrap connection to allow their
-     * discovery.
-     *
-     * @return number of endpoints to pre-bind on startup.
-     */
-    default int getNumberOfBrokerEndpointsToPrebind() {
-        return 1;
-    }
-
-    /**
      * Gets the bind address used when binding socket.  Used to restrict
      * listening to particular network interfaces.
      * @return bind address such as "127.0.0.1" or {@code }Optional.empty()} if all address should be bound.

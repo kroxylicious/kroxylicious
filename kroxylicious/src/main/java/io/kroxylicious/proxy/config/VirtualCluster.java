@@ -14,11 +14,11 @@ import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import javax.net.ssl.KeyManagerFactory;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
 import io.netty.handler.ssl.SslContext;
@@ -38,10 +38,9 @@ public class VirtualCluster implements ClusterEndpointConfigProvider {
 
     private final boolean logFrames;
     private final ClusterEndpointConfigProvider endpointProvider;
-    private final ConcurrentHashMap<Integer, HostPort> upstreamClusterCache = new ConcurrentHashMap<>();
 
-    public VirtualCluster(TargetCluster targetCluster,
-                          @JsonDeserialize(converter = ClusterEndpointConfigProviderConverter.class) ClusterEndpointConfigProvider clusterEndpointConfigProvider,
+    public VirtualCluster(@JsonProperty(required = true) TargetCluster targetCluster,
+                          @JsonProperty(required = true) @JsonDeserialize(converter = ClusterEndpointConfigProviderConverter.class) ClusterEndpointConfigProvider clusterEndpointConfigProvider,
                           Optional<String> keyStoreFile,
                           Optional<String> keyPassword,
                           boolean logNetwork, boolean logFrames) {
@@ -120,14 +119,6 @@ public class VirtualCluster implements ClusterEndpointConfigProvider {
         return sb.toString();
     }
 
-    public HostPort getUpstreamClusterAddressForNode(int nodeId) {
-        return upstreamClusterCache.get(nodeId);
-    }
-
-    public HostPort updateUpstreamClusterAddressForNode(int nodeId, HostPort replacement) {
-        return upstreamClusterCache.put(nodeId, replacement);
-    }
-
     @Override
     public HostPort getClusterBootstrapAddress() {
         return endpointProvider.getClusterBootstrapAddress();
@@ -136,11 +127,6 @@ public class VirtualCluster implements ClusterEndpointConfigProvider {
     @Override
     public HostPort getBrokerAddress(int nodeId) throws IllegalArgumentException {
         return endpointProvider.getBrokerAddress(nodeId);
-    }
-
-    @Override
-    public int getNumberOfBrokerEndpointsToPrebind() {
-        return endpointProvider.getNumberOfBrokerEndpointsToPrebind();
     }
 
     @Override

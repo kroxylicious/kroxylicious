@@ -13,13 +13,23 @@ import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.service.ClusterEndpointConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 
+/**
+ * A ClusterEndpointConfigProvider implementation that uses a single port for bootstrap and
+ * all brokers.  SNI information is used to route the connection to the correct target.
+ *
+ */
 public class SniRoutingClusterEndpointConfigProvider implements ClusterEndpointConfigProvider {
 
-    private static final Pattern NODE_ID_TOKEN = Pattern.compile("\\$\\(nodeId\\)");
     public static final String LITERAL_NODE_ID = "$(nodeId)";
+    private static final Pattern NODE_ID_TOKEN_RE = Pattern.compile(Pattern.quote(LITERAL_NODE_ID));
     private final HostPort bootstrapAddress;
     private final String brokerAddressPattern;
 
+    /**
+     * Creates the provider.
+     *
+     * @param config configuration
+     */
     public SniRoutingClusterEndpointConfigProvider(SniRoutingClusterEndpointProviderConfig config) {
         this.bootstrapAddress = config.bootstrapAddress;
         this.brokerAddressPattern = config.brokerAddressPattern;
@@ -50,8 +60,10 @@ public class SniRoutingClusterEndpointConfigProvider implements ClusterEndpointC
         return true;
     }
 
+    /**
+     * Creates the configuration for this provider.
+     */
     public static class SniRoutingClusterEndpointProviderConfig extends BaseConfig {
-        private final Pattern brokerAddressPatternRegExp;
 
         private final HostPort bootstrapAddress;
         private final String brokerAddressPattern;
@@ -64,21 +76,19 @@ public class SniRoutingClusterEndpointConfigProvider implements ClusterEndpointC
                 throw new IllegalArgumentException("brokerAddressPattern cannot be null");
             }
 
-            var matcher = NODE_ID_TOKEN.matcher(brokerAddressPattern);
+            var matcher = NODE_ID_TOKEN_RE.matcher(brokerAddressPattern);
             if (!matcher.find()) {
                 throw new IllegalArgumentException("brokerAddressPattern must contain exactly one nodeId replacement pattern " + LITERAL_NODE_ID + ". Found none.");
             }
 
             var stripped = matcher.replaceFirst("");
-            matcher = NODE_ID_TOKEN.matcher(stripped);
+            matcher = NODE_ID_TOKEN_RE.matcher(stripped);
             if (matcher.find()) {
                 throw new IllegalArgumentException("brokerAddressPattern must contain exactly one nodeId replacement pattern " + LITERAL_NODE_ID + ". Found too many.");
             }
 
             this.bootstrapAddress = bootstrapAddress;
             this.brokerAddressPattern = brokerAddressPattern;
-            this.brokerAddressPatternRegExp = Pattern.compile("\\Q" + NODE_ID_TOKEN.matcher(brokerAddressPattern).replaceFirst("\\\\E(\\\\d+)\\\\Q") + "\\E",
-                    Pattern.CASE_INSENSITIVE);
         }
     }
 }

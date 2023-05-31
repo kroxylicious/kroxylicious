@@ -107,6 +107,15 @@
 
     <dependencyManagement>
         <dependencies>
+            <!-- project dependencies -->
+            <dependency>
+                <groupId>io.kroxylicious</groupId>
+                <artifactId>kroxylicious-test-tools</artifactId>
+                <version>${project.version}</version>
+                <scope>test</scope>
+            </dependency>
+
+            <!-- third party dependencies -->
             <dependency>
                 <groupId>com.fasterxml.jackson</groupId>
                 <artifactId>jackson-bom</artifactId>
@@ -214,6 +223,7 @@
         <module>kroxylicious-schema-validation</module>
         <module>krpc-code-gen</module>
         <module>kroxylicious-test-tools</module>
+        <module>kroxylicious-unit-test</module>
         <module>kroxylicious</module>
         <module>kroxylicious-multitenant</module>
         <module>integrationtests</module>
