@@ -29,7 +29,6 @@ import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.internal.codec.KafkaRequestDecoder;
 import io.kroxylicious.proxy.internal.codec.KafkaResponseEncoder;
-import io.kroxylicious.proxy.internal.codec.ResponseOrderingHandler;
 import io.kroxylicious.proxy.internal.filter.BrokerAddressFilter;
 import io.kroxylicious.proxy.internal.net.Endpoint;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
@@ -161,7 +160,6 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
         if (virtualCluster.isLogFrames()) {
             pipeline.addLast("frameLogger", new LoggingHandler("io.kroxylicious.proxy.internal.DownstreamFrameLogger", LogLevel.INFO));
         }
-        pipeline.addLast("responseOrderingHandler", new ResponseOrderingHandler());
 
         if (!authnHandlers.isEmpty()) {
             LOGGER.debug("Adding authn handler for handlers {}", authnHandlers);
