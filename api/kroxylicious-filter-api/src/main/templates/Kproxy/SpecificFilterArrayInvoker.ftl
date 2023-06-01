@@ -38,7 +38,6 @@ import org.apache.kafka.common.protocol.ApiMessage;
  * Invoker for KrpcFilters that implement any number of Specific Message interfaces (for
  * example {@link io.kroxylicious.proxy.filter.AlterConfigsResponseFilter}.
  */
-@SuppressWarnings("SwitchStatementWithTooFewBranches")
 class SpecificFilterArrayInvoker implements FilterInvoker {
 
     private static final FilterInvoker[] HANDLE_NOTHING = createHandleNothing();
@@ -67,6 +66,7 @@ class SpecificFilterArrayInvoker implements FilterInvoker {
      * @param filterContext The filter context.
      */
     @Override
+    @SuppressWarnings("SwitchStatementWithTooFewBranches")
     public void onRequest(ApiKeys apiKey,
                            short apiVersion,
                            RequestHeaderData header,
@@ -95,6 +95,7 @@ class SpecificFilterArrayInvoker implements FilterInvoker {
      * @param filterContext The filter context.
      */
     @Override
+    @SuppressWarnings("SwitchStatementWithTooFewBranches")
     public void onResponse(ApiKeys apiKey,
                             short apiVersion,
                             ResponseHeaderData header,
@@ -131,6 +132,7 @@ class SpecificFilterArrayInvoker implements FilterInvoker {
      * @return true if request should be deserialized
      */
     @Override
+    @SuppressWarnings("SwitchStatementWithTooFewBranches")
     public boolean shouldHandleRequest(ApiKeys apiKey, short apiVersion) {
         // We wrap the array lookup in a switch based on the API Key as it supports JIT optimisations around method dispatch.
         // See the InvokerDispatchBenchmark micro benchmark for a comparison
@@ -163,6 +165,7 @@ class SpecificFilterArrayInvoker implements FilterInvoker {
      * @return true if response should be deserialized
      */
     @Override
+    @SuppressWarnings("SwitchStatementWithTooFewBranches")
     public boolean shouldHandleResponse(ApiKeys apiKey, short apiVersion) {
         return switch (apiKey) {
             // We wrap the array lookup in a switch based on the API Key as it supports JIT optimisations around method dispatch.
