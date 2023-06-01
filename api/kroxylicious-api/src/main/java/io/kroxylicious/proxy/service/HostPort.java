@@ -25,7 +25,7 @@ public final class HostPort {
 
     /**
      * Creates a host port.
-     * @param host the host - symbolic hostnames, FQDNs, IPv4, and IPv6 forms are supported
+     * @param host Symbolic hostnames, FQDNs, IPv4, and IPv6 forms are supported
      * @param port port number
      */
     public HostPort(String host, int port) {
