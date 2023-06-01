@@ -42,7 +42,7 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
     private final ClusterNetworkAddressConfigProvider provider;
 
     public VirtualCluster(@JsonProperty(required = true) TargetCluster targetCluster,
-                          @JsonProperty(required = true) @JsonDeserialize(converter = ClusterEndpointConfigProviderConverter.class) ClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider,
+                          @JsonProperty(required = true) @JsonDeserialize(converter = ClusterNetworkAddressConfigProviderConverter.class) ClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider,
                           Optional<String> keyStoreFile,
                           Optional<String> keyPassword,
                           boolean logNetwork, boolean logFrames) {
@@ -112,7 +112,7 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
     public String toString() {
         final StringBuilder sb = new StringBuilder("VirtualCluster [");
         sb.append("targetCluster=").append(targetCluster);
-        sb.append(", clusterEndpointProvider=").append(provider);
+        sb.append(", clusterNetworkAddressConfigProvider=").append(provider);
         sb.append(", keyStoreFile=").append(keyStoreFile);
         sb.append(", keyPassword=").append(keyPassword);
         sb.append(", logNetwork=").append(logNetwork);

@@ -8,28 +8,28 @@ package io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider;
 import java.util.Iterator;
 import java.util.ServiceLoader;
 
-import io.kroxylicious.proxy.clusterendpointprovider.ClusterEndpointProviderContributor;
+import io.kroxylicious.proxy.clusternetworkaddressconfigprovider.ClusterNetworkAddressConfigProviderContributor;
 import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 
-public class ClusterEndpointConfigProviderContributorManager {
+public class ClusterNetworkAddressConfigProviderContributorManager {
 
-    private static final ClusterEndpointConfigProviderContributorManager INSTANCE = new ClusterEndpointConfigProviderContributorManager();
+    private static final ClusterNetworkAddressConfigProviderContributorManager INSTANCE = new ClusterNetworkAddressConfigProviderContributorManager();
 
-    private final ServiceLoader<ClusterEndpointProviderContributor> contributors;
+    private final ServiceLoader<ClusterNetworkAddressConfigProviderContributor> contributors;
 
-    private ClusterEndpointConfigProviderContributorManager() {
-        this.contributors = ServiceLoader.load(ClusterEndpointProviderContributor.class);
+    private ClusterNetworkAddressConfigProviderContributorManager() {
+        this.contributors = ServiceLoader.load(ClusterNetworkAddressConfigProviderContributor.class);
     }
 
-    public static ClusterEndpointConfigProviderContributorManager getInstance() {
+    public static ClusterNetworkAddressConfigProviderContributorManager getInstance() {
         return INSTANCE;
     }
 
     public Class<? extends BaseConfig> getConfigType(String shortName) {
-        Iterator<ClusterEndpointProviderContributor> it = contributors.iterator();
+        Iterator<ClusterNetworkAddressConfigProviderContributor> it = contributors.iterator();
         while (it.hasNext()) {
-            ClusterEndpointProviderContributor contributor = it.next();
+            ClusterNetworkAddressConfigProviderContributor contributor = it.next();
             Class<? extends BaseConfig> configType = contributor.getConfigType(shortName);
             if (configType != null) {
                 return configType;
@@ -40,7 +40,7 @@ public class ClusterEndpointConfigProviderContributorManager {
     }
 
     public ClusterNetworkAddressConfigProvider getClusterEndpointConfigProvider(String shortName, BaseConfig baseConfig) {
-        for (ClusterEndpointProviderContributor contributor : contributors) {
+        for (ClusterNetworkAddressConfigProviderContributor contributor : contributors) {
             var assigner = contributor.getInstance(shortName, baseConfig);
             if (assigner != null) {
                 return assigner;

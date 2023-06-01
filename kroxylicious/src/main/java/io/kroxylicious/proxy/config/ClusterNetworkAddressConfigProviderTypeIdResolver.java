@@ -12,9 +12,9 @@ import com.fasterxml.jackson.databind.DatabindContext;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.jsontype.impl.TypeIdResolverBase;
 
-import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.ClusterEndpointConfigProviderContributorManager;
+import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.ClusterNetworkAddressConfigProviderContributorManager;
 
-public class ClusterEndpointConfigProviderTypeIdResolver extends TypeIdResolverBase {
+public class ClusterNetworkAddressConfigProviderTypeIdResolver extends TypeIdResolverBase {
     private JavaType superType;
 
     @Override
@@ -39,7 +39,7 @@ public class ClusterEndpointConfigProviderTypeIdResolver extends TypeIdResolverB
 
     @Override
     public JavaType typeFromId(DatabindContext context, String id) throws IOException {
-        Class<?> subType = ClusterEndpointConfigProviderContributorManager.getInstance().getConfigType(id);
+        Class<?> subType = ClusterNetworkAddressConfigProviderContributorManager.getInstance().getConfigType(id);
         return context.constructSpecializedType(superType, subType);
     }
 }

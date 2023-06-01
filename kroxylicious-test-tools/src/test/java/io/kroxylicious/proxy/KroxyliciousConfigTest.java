@@ -34,7 +34,7 @@ public class KroxyliciousConfigTest {
     }
 
     @Test
-    public void testVirtualClusterConfigWithClusterEndpointProvider() throws Exception {
+    public void testVirtualClusterConfigWithClusterNetworkAddressConfigProvider() throws Exception {
         ObjectNode deserializedConfig = serializeAndDeserialize(
                 builder().addToVirtualClusters("demo", new VirtualClusterBuilder()
                         .withNewClusterNetworkAddressConfigProvider()
