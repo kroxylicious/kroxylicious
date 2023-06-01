@@ -12,7 +12,7 @@ virtualClusters:
   demo:
     targetCluster:
       bootstrap_servers: localhost:9092
-    clusterEndpointConfigProvider:
+    clusterNetworkAddressConfigProvider:
       type: PortPerBroker
       config:
         bootstrapAddress: localhost:9192
