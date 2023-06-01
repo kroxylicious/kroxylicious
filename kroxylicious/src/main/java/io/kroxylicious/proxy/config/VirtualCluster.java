@@ -37,7 +37,9 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
     private final boolean logNetwork;
 
     private final boolean logFrames;
-    private final ClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider;
+
+    // There appear to be a Jackson defect that is triggered if this field name matches the name of the ctor's parameter causing it to ignore the converter.
+    private final ClusterNetworkAddressConfigProvider provider;
 
     public VirtualCluster(@JsonProperty(required = true) TargetCluster targetCluster,
                           @JsonProperty(required = true) @JsonDeserialize(converter = ClusterEndpointConfigProviderConverter.class) ClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider,
@@ -58,15 +60,15 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
         this.logFrames = logFrames;
         this.keyStoreFile = keyStoreFile;
         this.keyPassword = keyPassword;
-        this.clusterNetworkAddressConfigProvider = clusterNetworkAddressConfigProvider;
+        this.provider = clusterNetworkAddressConfigProvider;
     }
 
     public TargetCluster targetCluster() {
         return targetCluster;
     }
 
-    public ClusterNetworkAddressConfigProvider getClusterEndpointProvider() {
-        return clusterNetworkAddressConfigProvider;
+    public ClusterNetworkAddressConfigProvider getClusterNetworkAddressConfigProvider() {
+        return provider;
     }
 
     public Optional<String> keyStoreFile() {
@@ -110,7 +112,7 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
     public String toString() {
         final StringBuilder sb = new StringBuilder("VirtualCluster [");
         sb.append("targetCluster=").append(targetCluster);
-        sb.append(", clusterEndpointProvider=").append(clusterNetworkAddressConfigProvider);
+        sb.append(", clusterEndpointProvider=").append(provider);
         sb.append(", keyStoreFile=").append(keyStoreFile);
         sb.append(", keyPassword=").append(keyPassword);
         sb.append(", logNetwork=").append(logNetwork);
@@ -121,31 +123,31 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
 
     @Override
     public HostPort getClusterBootstrapAddress() {
-        return clusterNetworkAddressConfigProvider.getClusterBootstrapAddress();
+        return provider.getClusterBootstrapAddress();
     }
 
     @Override
     public HostPort getBrokerAddress(int nodeId) throws IllegalArgumentException {
-        return clusterNetworkAddressConfigProvider.getBrokerAddress(nodeId);
+        return provider.getBrokerAddress(nodeId);
     }
 
     @Override
     public Optional<String> getBindAddress() {
-        return clusterNetworkAddressConfigProvider.getBindAddress();
+        return provider.getBindAddress();
     }
 
     @Override
     public boolean requiresTls() {
-        return clusterNetworkAddressConfigProvider.requiresTls();
+        return provider.requiresTls();
     }
 
     @Override
     public Set<Integer> getExclusivePorts() {
-        return clusterNetworkAddressConfigProvider.getExclusivePorts();
+        return provider.getExclusivePorts();
     }
 
     @Override
     public Set<Integer> getSharedPorts() {
-        return clusterNetworkAddressConfigProvider.getSharedPorts();
+        return provider.getSharedPorts();
     }
 }
