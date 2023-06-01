@@ -14,7 +14,6 @@ import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.openjdk.jmh.infra.Blackhole;
 
-import io.kroxylicious.benchmarks.InvokerDispatchBenchmark;
 import io.kroxylicious.proxy.filter.FetchRequestFilter;
 import io.kroxylicious.proxy.filter.FetchResponseFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;

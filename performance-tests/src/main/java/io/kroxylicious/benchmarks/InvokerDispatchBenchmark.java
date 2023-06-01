@@ -46,7 +46,7 @@ import io.kroxylicious.proxy.filter.SpecificFilterInvoker;
 @Measurement(iterations = 5, time = 500, timeUnit = TimeUnit.MILLISECONDS)
 public class InvokerDispatchBenchmark {
 
-    //A low and constant number of tokens allows us to balance the amount of work done in the benchmarks with still being able to observe the effects of the different dispatch mechanisms.
+    // A low and constant number of tokens allows us to balance the amount of work done in the benchmarks with still being able to observe the effects of the different dispatch mechanisms.
     public static final int CONSUME_TOKENS = 5;
 
     public enum Invoker {

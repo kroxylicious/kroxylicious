@@ -24,7 +24,6 @@ import static io.kroxylicious.benchmarks.InvokerDispatchBenchmark.CONSUME_TOKENS
 
 public class FourInterfaceFilter3 implements ProduceResponseFilter, ProduceRequestFilter, FetchRequestFilter, FetchResponseFilter {
 
-
     @Override
     public void onProduceRequest(short apiVersion, RequestHeaderData header, ProduceRequestData request, KrpcFilterContext context) {
         Blackhole.consumeCPU(CONSUME_TOKENS);
