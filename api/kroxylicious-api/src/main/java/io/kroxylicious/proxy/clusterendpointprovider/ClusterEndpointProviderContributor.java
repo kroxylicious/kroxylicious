@@ -5,12 +5,12 @@
  */
 package io.kroxylicious.proxy.clusterendpointprovider;
 
-import io.kroxylicious.proxy.service.ClusterEndpointConfigProvider;
+import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.Contributor;
 
 /**
  * ClusterEndpointConfigProvider is a pluggable source of Kroxylicious endpoint provider implementations.
  * @see Contributor
  */
-public interface ClusterEndpointProviderContributor extends Contributor<ClusterEndpointConfigProvider> {
+public interface ClusterEndpointProviderContributor extends Contributor<ClusterNetworkAddressConfigProvider> {
 }

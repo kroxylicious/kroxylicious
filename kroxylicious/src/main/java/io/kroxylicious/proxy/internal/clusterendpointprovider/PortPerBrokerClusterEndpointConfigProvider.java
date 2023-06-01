@@ -17,11 +17,11 @@ import java.util.stream.IntStream;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.kroxylicious.proxy.config.BaseConfig;
-import io.kroxylicious.proxy.service.ClusterEndpointConfigProvider;
+import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 
 /**
- * A ClusterEndpointConfigProvider implementation that uses a separate port per broker endpoint.
+ * A ClusterNetworkAddressConfigProvider implementation that uses a separate port per broker endpoint.
  * <br/>
  * The following configuration is supported:
  * <ul>
@@ -34,7 +34,7 @@ import io.kroxylicious.proxy.service.HostPort;
  *    <li>{@code numberOfBrokerPorts} (optional) defines the maximum number of broker ports that will be permitted. If omitted, it is defaulted to {$code 3}.</li>
  * </ul>
  */
-public class PortPerBrokerClusterEndpointConfigProvider implements ClusterEndpointConfigProvider {
+public class PortPerBrokerClusterEndpointConfigProvider implements ClusterNetworkAddressConfigProvider {
 
     private final HostPort bootstrapAddress;
 

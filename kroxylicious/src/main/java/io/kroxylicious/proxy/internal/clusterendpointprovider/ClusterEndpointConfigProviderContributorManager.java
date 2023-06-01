@@ -10,7 +10,7 @@ import java.util.ServiceLoader;
 
 import io.kroxylicious.proxy.clusterendpointprovider.ClusterEndpointProviderContributor;
 import io.kroxylicious.proxy.config.BaseConfig;
-import io.kroxylicious.proxy.service.ClusterEndpointConfigProvider;
+import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 
 public class ClusterEndpointConfigProviderContributorManager {
 
@@ -39,7 +39,7 @@ public class ClusterEndpointConfigProviderContributorManager {
         throw new IllegalArgumentException("No endpoint provider found for name '" + shortName + "'");
     }
 
-    public ClusterEndpointConfigProvider getClusterEndpointConfigProvider(String shortName, BaseConfig baseConfig) {
+    public ClusterNetworkAddressConfigProvider getClusterEndpointConfigProvider(String shortName, BaseConfig baseConfig) {
         for (ClusterEndpointProviderContributor contributor : contributors) {
             var assigner = contributor.getInstance(shortName, baseConfig);
             if (assigner != null) {

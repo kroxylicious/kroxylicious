@@ -19,7 +19,7 @@ import static io.kroxylicious.proxy.service.HostPort.parse;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-class PortPerBrokerClusterEndpointConfigProviderTest {
+class PortPerBrokerClusterNetworkAddressConfigProviderTest {
 
     @ParameterizedTest
     @CsvSource({ "0,1", "-1,1", "4,-1", "10,0" })

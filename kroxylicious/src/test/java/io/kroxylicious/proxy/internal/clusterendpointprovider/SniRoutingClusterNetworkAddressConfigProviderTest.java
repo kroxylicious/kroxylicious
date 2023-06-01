@@ -18,7 +18,7 @@ import static io.kroxylicious.proxy.service.HostPort.parse;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-class SniRoutingClusterEndpointConfigProviderTest {
+class SniRoutingClusterNetworkAddressConfigProviderTest {
 
     @Test
     void valid() {

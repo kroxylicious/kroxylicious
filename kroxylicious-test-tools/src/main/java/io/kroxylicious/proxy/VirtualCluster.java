@@ -9,5 +9,5 @@ package io.kroxylicious.proxy;
 import io.sundr.builder.annotations.Buildable;
 
 @Buildable(editableEnabled = false)
-public record VirtualCluster(TargetCluster targetCluster, ClusterEndpointConfigProvider clusterEndpointConfigProvider, String keyStoreFile, String keyPassword, boolean logNetwork, boolean logFrames) {
+public record VirtualCluster(TargetCluster targetCluster, ClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider, String keyStoreFile, String keyPassword, boolean logNetwork, boolean logFrames) {
 }

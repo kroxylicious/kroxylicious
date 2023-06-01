@@ -24,10 +24,10 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 
-import io.kroxylicious.proxy.service.ClusterEndpointConfigProvider;
+import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 
-public class VirtualCluster implements ClusterEndpointConfigProvider {
+public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
 
     private final TargetCluster targetCluster;
 
@@ -37,17 +37,17 @@ public class VirtualCluster implements ClusterEndpointConfigProvider {
     private final boolean logNetwork;
 
     private final boolean logFrames;
-    private final ClusterEndpointConfigProvider endpointProvider;
+    private final ClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider;
 
     public VirtualCluster(@JsonProperty(required = true) TargetCluster targetCluster,
-                          @JsonProperty(required = true) @JsonDeserialize(converter = ClusterEndpointConfigProviderConverter.class) ClusterEndpointConfigProvider clusterEndpointConfigProvider,
+                          @JsonProperty(required = true) @JsonDeserialize(converter = ClusterEndpointConfigProviderConverter.class) ClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider,
                           Optional<String> keyStoreFile,
                           Optional<String> keyPassword,
                           boolean logNetwork, boolean logFrames) {
-        if (clusterEndpointConfigProvider.requiresTls() && keyStoreFile.isEmpty()) {
+        if (clusterNetworkAddressConfigProvider.requiresTls() && keyStoreFile.isEmpty()) {
             throw new IllegalStateException("Cluster endpoint provider requires tls, but this virtual cluster does not define it");
         }
-        var conflicts = clusterEndpointConfigProvider.getExclusivePorts().stream().filter(p -> clusterEndpointConfigProvider.getSharedPorts().contains(p))
+        var conflicts = clusterNetworkAddressConfigProvider.getExclusivePorts().stream().filter(p -> clusterNetworkAddressConfigProvider.getSharedPorts().contains(p))
                 .collect(Collectors.toSet());
         if (!conflicts.isEmpty()) {
             throw new IllegalStateException(
@@ -58,15 +58,15 @@ public class VirtualCluster implements ClusterEndpointConfigProvider {
         this.logFrames = logFrames;
         this.keyStoreFile = keyStoreFile;
         this.keyPassword = keyPassword;
-        this.endpointProvider = clusterEndpointConfigProvider;
+        this.clusterNetworkAddressConfigProvider = clusterNetworkAddressConfigProvider;
     }
 
     public TargetCluster targetCluster() {
         return targetCluster;
     }
 
-    public ClusterEndpointConfigProvider getClusterEndpointProvider() {
-        return endpointProvider;
+    public ClusterNetworkAddressConfigProvider getClusterEndpointProvider() {
+        return clusterNetworkAddressConfigProvider;
     }
 
     public Optional<String> keyStoreFile() {
@@ -110,7 +110,7 @@ public class VirtualCluster implements ClusterEndpointConfigProvider {
     public String toString() {
         final StringBuilder sb = new StringBuilder("VirtualCluster [");
         sb.append("targetCluster=").append(targetCluster);
-        sb.append(", clusterEndpointProvider=").append(endpointProvider);
+        sb.append(", clusterEndpointProvider=").append(clusterNetworkAddressConfigProvider);
         sb.append(", keyStoreFile=").append(keyStoreFile);
         sb.append(", keyPassword=").append(keyPassword);
         sb.append(", logNetwork=").append(logNetwork);
@@ -121,31 +121,31 @@ public class VirtualCluster implements ClusterEndpointConfigProvider {
 
     @Override
     public HostPort getClusterBootstrapAddress() {
-        return endpointProvider.getClusterBootstrapAddress();
+        return clusterNetworkAddressConfigProvider.getClusterBootstrapAddress();
     }
 
     @Override
     public HostPort getBrokerAddress(int nodeId) throws IllegalArgumentException {
-        return endpointProvider.getBrokerAddress(nodeId);
+        return clusterNetworkAddressConfigProvider.getBrokerAddress(nodeId);
     }
 
     @Override
     public Optional<String> getBindAddress() {
-        return endpointProvider.getBindAddress();
+        return clusterNetworkAddressConfigProvider.getBindAddress();
     }
 
     @Override
     public boolean requiresTls() {
-        return endpointProvider.requiresTls();
+        return clusterNetworkAddressConfigProvider.requiresTls();
     }
 
     @Override
     public Set<Integer> getExclusivePorts() {
-        return endpointProvider.getExclusivePorts();
+        return clusterNetworkAddressConfigProvider.getExclusivePorts();
     }
 
     @Override
     public Set<Integer> getSharedPorts() {
-        return endpointProvider.getSharedPorts();
+        return clusterNetworkAddressConfigProvider.getSharedPorts();
     }
 }

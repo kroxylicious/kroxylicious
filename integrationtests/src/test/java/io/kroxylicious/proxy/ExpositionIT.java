@@ -77,10 +77,10 @@ public class ExpositionIT {
                         .withNewTargetCluster()
                         .withBootstrapServers(bootstrapServers)
                         .endTargetCluster()
-                        .withNewClusterEndpointConfigProvider()
+                        .withNewClusterNetworkAddressConfigProvider()
                         .withType("PortPerBroker")
                         .withConfig(Map.of("bootstrapAddress", PROXY_ADDRESS.toString()))
-                        .endClusterEndpointConfigProvider()
+                        .endClusterNetworkAddressConfigProvider()
                         .build())
                 .addNewFilter().withType("ApiVersions").endFilter();
 
@@ -122,10 +122,10 @@ public class ExpositionIT {
         for (int i = 0; i < clusterProxyAddresses.size(); i++) {
             var bootstrap = clusterProxyAddresses.get(i);
             var virtualCluster = new VirtualClusterBuilder(base)
-                    .withNewClusterEndpointConfigProvider()
+                    .withNewClusterNetworkAddressConfigProvider()
                     .withType("PortPerBroker")
                     .withConfig(Map.of("bootstrapAddress", bootstrap))
-                    .endClusterEndpointConfigProvider()
+                    .endClusterNetworkAddressConfigProvider()
                     .build();
             builder.addToVirtualClusters("cluster" + i, virtualCluster);
 
@@ -169,11 +169,11 @@ public class ExpositionIT {
             clientTrust.add(new ClientTrust(clientTrustStore, brokerCertificateGenerator.getPassword()));
 
             var virtualCluster = new VirtualClusterBuilder(base)
-                    .withNewClusterEndpointConfigProvider()
+                    .withNewClusterNetworkAddressConfigProvider()
                     .withType("SniRouting")
                     .withConfig(Map.of("bootstrapAddress", virtualClusterFQDN + ":9192",
                             "brokerAddressPattern", virtualClusterBrokerAddressPattern.formatted(i)))
-                    .endClusterEndpointConfigProvider()
+                    .endClusterNetworkAddressConfigProvider()
                     .withKeyPassword(brokerCertificateGenerator.getPassword())
                     .withKeyStoreFile(brokerCertificateGenerator.getKeyStoreLocation())
                     .withLogNetwork(true)
@@ -205,10 +205,10 @@ public class ExpositionIT {
                         .withNewTargetCluster()
                         .withBootstrapServers(cluster.getBootstrapServers())
                         .endTargetCluster()
-                        .withNewClusterEndpointConfigProvider()
+                        .withNewClusterNetworkAddressConfigProvider()
                         .withType("PortPerBroker")
                         .withConfig(Map.of("bootstrapAddress", PROXY_ADDRESS.toString()))
-                        .endClusterEndpointConfigProvider()
+                        .endClusterNetworkAddressConfigProvider()
                         .build())
                 .addNewFilter().withType("ApiVersions").endFilter();
 
@@ -234,10 +234,10 @@ public class ExpositionIT {
                         .withNewTargetCluster()
                         .withBootstrapServers(cluster.getBootstrapServers())
                         .endTargetCluster()
-                        .withNewClusterEndpointConfigProvider()
+                        .withNewClusterNetworkAddressConfigProvider()
                         .withType("PortPerBroker")
                         .withConfig(Map.of("bootstrapAddress", PROXY_ADDRESS.toString()))
-                        .endClusterEndpointConfigProvider()
+                        .endClusterNetworkAddressConfigProvider()
                         .build())
                 .addNewFilter().withType("ApiVersions").endFilter();
 
@@ -268,10 +268,10 @@ public class ExpositionIT {
                         .withNewTargetCluster()
                         .withBootstrapServers(cluster.getBootstrapServers())
                         .endTargetCluster()
-                        .withNewClusterEndpointConfigProvider()
+                        .withNewClusterNetworkAddressConfigProvider()
                         .withType("PortPerBroker")
                         .withConfig(Map.of("bootstrapAddress", PROXY_ADDRESS.toString()))
-                        .endClusterEndpointConfigProvider()
+                        .endClusterNetworkAddressConfigProvider()
                         .build())
                 .addNewFilter().withType("ApiVersions").endFilter();
 

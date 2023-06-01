@@ -10,15 +10,15 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 import io.kroxylicious.proxy.config.BaseConfig;
-import io.kroxylicious.proxy.service.ClusterEndpointConfigProvider;
+import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 
 /**
- * A ClusterEndpointConfigProvider implementation that uses a single port for bootstrap and
+ * A ClusterNetworkAddressConfigProvider implementation that uses a single port for bootstrap and
  * all brokers.  SNI information is used to route the connection to the correct target.
  *
  */
-public class SniRoutingClusterEndpointConfigProvider implements ClusterEndpointConfigProvider {
+public class SniRoutingClusterEndpointConfigProvider implements ClusterNetworkAddressConfigProvider {
 
     public static final String LITERAL_NODE_ID = "$(nodeId)";
     private static final Pattern NODE_ID_TOKEN_RE = Pattern.compile(Pattern.quote(LITERAL_NODE_ID));
