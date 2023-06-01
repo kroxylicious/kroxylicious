@@ -24,6 +24,7 @@ import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
+import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
@@ -41,9 +42,12 @@ import io.kroxylicious.proxy.filter.SpecificFilterInvoker;
 
 // try hard to make shouldHandleXYZ to observe different receivers concrete types, saving unrolling to bias a specific call-site to a specific concrete type
 @Fork(value = 2, jvmArgsAppend = "-XX:LoopUnrollLimit=1")
-@Warmup(iterations = 10, time = 1)
+@Warmup(iterations = 5, time = 1)
 @Measurement(iterations = 5, time = 500, timeUnit = TimeUnit.MILLISECONDS)
 public class InvokerDispatchBenchmark {
+
+    //A low and constant number of tokens allows us to balance the amount of work done in the benchmarks with still being able to observe the effects of the different dispatch mechanisms.
+    public static final int CONSUME_TOKENS = 5;
 
     public enum Invoker {
         array {
@@ -68,7 +72,7 @@ public class InvokerDispatchBenchmark {
         abstract FilterInvoker invokerWith(KrpcFilter filter);
     }
 
-    @org.openjdk.jmh.annotations.State(Scope.Benchmark)
+    @State(Scope.Benchmark)
     public static class BenchState {
         FilterInvoker[] invokers;
 

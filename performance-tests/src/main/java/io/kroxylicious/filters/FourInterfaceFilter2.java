@@ -14,15 +14,16 @@ import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.openjdk.jmh.infra.Blackhole;
 
+import io.kroxylicious.benchmarks.InvokerDispatchBenchmark;
 import io.kroxylicious.proxy.filter.FetchRequestFilter;
 import io.kroxylicious.proxy.filter.FetchResponseFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
 import io.kroxylicious.proxy.filter.ProduceResponseFilter;
 
-public class FourInterfaceFilter2 implements ProduceResponseFilter, ProduceRequestFilter, FetchRequestFilter, FetchResponseFilter {
+import static io.kroxylicious.benchmarks.InvokerDispatchBenchmark.CONSUME_TOKENS;
 
-    private static final int CONSUME_TOKENS = 5;
+public class FourInterfaceFilter2 implements ProduceResponseFilter, ProduceRequestFilter, FetchRequestFilter, FetchResponseFilter {
 
     @Override
     public void onProduceRequest(short apiVersion, RequestHeaderData header, ProduceRequestData request, KrpcFilterContext context) {

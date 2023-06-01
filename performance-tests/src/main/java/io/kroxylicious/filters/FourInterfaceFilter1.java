@@ -20,9 +20,9 @@ import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
 import io.kroxylicious.proxy.filter.ProduceResponseFilter;
 
-public class FourInterfaceFilter1 implements ProduceResponseFilter, ProduceRequestFilter, ApiVersionsRequestFilter, ApiVersionsResponseFilter {
-    private static final int CONSUME_TOKENS = 5;
+import static io.kroxylicious.benchmarks.InvokerDispatchBenchmark.CONSUME_TOKENS;
 
+public class FourInterfaceFilter1 implements ProduceResponseFilter, ProduceRequestFilter, ApiVersionsRequestFilter, ApiVersionsResponseFilter {
     @Override
     public void onProduceRequest(short apiVersion, RequestHeaderData header, ProduceRequestData request, KrpcFilterContext context) {
         Blackhole.consumeCPU(CONSUME_TOKENS);

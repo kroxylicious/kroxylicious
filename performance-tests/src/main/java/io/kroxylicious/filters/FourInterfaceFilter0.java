@@ -20,9 +20,9 @@ import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
 import io.kroxylicious.proxy.filter.ProduceResponseFilter;
 
-public class FourInterfaceFilter0 implements ProduceResponseFilter, ProduceRequestFilter, ApiVersionsRequestFilter, ApiVersionsResponseFilter {
+import static io.kroxylicious.benchmarks.InvokerDispatchBenchmark.CONSUME_TOKENS;
 
-    private static final int CONSUME_TOKENS = 5;
+public class FourInterfaceFilter0 implements ProduceResponseFilter, ProduceRequestFilter, ApiVersionsRequestFilter, ApiVersionsResponseFilter {
 
     @Override
     public void onProduceRequest(short apiVersion, RequestHeaderData header, ProduceRequestData request, KrpcFilterContext context) {
