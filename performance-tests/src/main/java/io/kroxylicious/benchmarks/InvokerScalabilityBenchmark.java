@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious;
+package io.kroxylicious.benchmarks;
 
 import java.util.concurrent.TimeUnit;
 
@@ -19,9 +19,13 @@ import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
 
+import io.kroxylicious.filters.TwoInterfaceFilter0;
+import io.kroxylicious.filters.TwoInterfaceFilter1;
+import io.kroxylicious.proxy.filter.ArrayFilterInvoker;
 import io.kroxylicious.proxy.filter.FilterInvoker;
 import io.kroxylicious.proxy.filter.FilterInvokers;
 import io.kroxylicious.proxy.filter.KrpcFilter;
+import io.kroxylicious.proxy.filter.SpecificFilterInvoker;
 
 // try hard to make shouldHandleXYZ to observe different receivers concrete types, saving unrolling to bias a specific call-site to a specific concrete type
 @Fork(value = 2, jvmArgsAppend = "-XX:LoopUnrollLimit=1")
@@ -33,13 +37,19 @@ public class InvokerScalabilityBenchmark {
         array {
             @Override
             FilterInvoker invokerWith(KrpcFilter filter) {
-                return FilterInvokers.arrayInvoker(filter);
+                return new ArrayFilterInvoker(filter);
             }
         },
         specific {
             @Override
             FilterInvoker invokerWith(KrpcFilter filter) {
                 return new SpecificFilterInvoker(filter);
+            }
+        },
+        switching {
+            @Override
+            FilterInvoker invokerWith(KrpcFilter filter) {
+                return FilterInvokers.arrayInvoker(filter);
             }
         };
 
@@ -52,7 +62,7 @@ public class InvokerScalabilityBenchmark {
 
         ApiKeys key;
 
-        @Param({ "array", "specific" })
+        @Param({ "array", "specific", "switching" })
         String invoker;
 
         @Setup
@@ -78,9 +88,10 @@ public class InvokerScalabilityBenchmark {
     }
 
     private static void invoke(Blackhole blackhole, FilterInvoker[] filters, ApiKeys key) {
+        final short apiVersion = key.latestVersion();
         for (FilterInvoker invoker : filters) {
-            blackhole.consume(invoker.shouldHandleRequest(key, key.latestVersion()));
-            blackhole.consume(invoker.shouldHandleResponse(key, key.latestVersion()));
+            blackhole.consume(invoker.shouldHandleRequest(key, apiVersion));
+            blackhole.consume(invoker.shouldHandleResponse(key, apiVersion));
         }
     }
 

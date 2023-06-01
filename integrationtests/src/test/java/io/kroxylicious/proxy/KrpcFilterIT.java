@@ -21,7 +21,6 @@ import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.errors.InvalidTopicException;
 import org.apache.kafka.common.serialization.Serdes;
-import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -39,6 +38,8 @@ import static org.apache.kafka.clients.consumer.ConsumerConfig.AUTO_OFFSET_RESET
 import static org.apache.kafka.clients.consumer.ConsumerConfig.GROUP_ID_CONFIG;
 import static org.apache.kafka.clients.producer.ProducerConfig.CLIENT_ID_CONFIG;
 import static org.apache.kafka.clients.producer.ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -128,7 +129,7 @@ public class KrpcFilterIT {
 
         try (var tester = kroxyliciousTester(config);
                 var proxyAdmin = tester.admin()) {
-            Assertions.assertThatExceptionOfType(ExecutionException.class)
+            assertThatExceptionOfType(ExecutionException.class)
                     .isThrownBy(() -> proxyAdmin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1))).all().get())
                     .withCauseInstanceOf(InvalidTopicException.class)
                     .havingCause()
@@ -139,7 +140,7 @@ public class KrpcFilterIT {
             // remove once https://github.com/kroxylicious/kroxylicious-junit5-extension/issues/114 is fixed.
             names = new HashSet<>(names);
             names.removeIf(n -> n.startsWith("__org_kroxylicious_testing"));
-            assertEquals(Set.of(), names);
+            assertThat(names).isEmpty();
         }
     }
 

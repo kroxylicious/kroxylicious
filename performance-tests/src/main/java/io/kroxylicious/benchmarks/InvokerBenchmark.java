@@ -4,13 +4,17 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious;
+package io.kroxylicious.benchmarks;
 
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.infra.Blackhole;
 
+import io.kroxylicious.filters.EightInterfaceFilter;
+import io.kroxylicious.filters.FourInterfaceFilter;
+import io.kroxylicious.filters.OneInterfaceFilter;
+import io.kroxylicious.filters.TwoInterfaceFilter;
 import io.kroxylicious.proxy.filter.FilterInvoker;
 import io.kroxylicious.proxy.filter.FilterInvokers;
 
