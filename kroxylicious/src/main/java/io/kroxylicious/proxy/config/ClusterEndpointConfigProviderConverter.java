@@ -10,7 +10,7 @@ import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.type.TypeFactory;
 import com.fasterxml.jackson.databind.util.StdConverter;
 
-import io.kroxylicious.proxy.internal.clusterendpointprovider.ClusterEndpointConfigProviderContributorManager;
+import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.ClusterEndpointConfigProviderContributorManager;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 
 public class ClusterEndpointConfigProviderConverter extends StdConverter<ClusterEndpointConfigProviderDefinition, ClusterNetworkAddressConfigProvider> {

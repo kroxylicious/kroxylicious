@@ -12,7 +12,7 @@ import com.fasterxml.jackson.databind.DatabindContext;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.jsontype.impl.TypeIdResolverBase;
 
-import io.kroxylicious.proxy.internal.clusterendpointprovider.ClusterEndpointConfigProviderContributorManager;
+import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.ClusterEndpointConfigProviderContributorManager;
 
 public class ClusterEndpointConfigProviderTypeIdResolver extends TypeIdResolverBase {
     private JavaType superType;

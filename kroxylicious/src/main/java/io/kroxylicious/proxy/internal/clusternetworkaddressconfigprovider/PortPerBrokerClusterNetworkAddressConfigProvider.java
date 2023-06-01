@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.proxy.internal.clusterendpointprovider;
+package io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider;
 
 import java.util.Collections;
 import java.util.HashSet;
@@ -34,7 +34,7 @@ import io.kroxylicious.proxy.service.HostPort;
  *    <li>{@code numberOfBrokerPorts} (optional) defines the maximum number of broker ports that will be permitted. If omitted, it is defaulted to {$code 3}.</li>
  * </ul>
  */
-public class PortPerBrokerClusterEndpointConfigProvider implements ClusterNetworkAddressConfigProvider {
+public class PortPerBrokerClusterNetworkAddressConfigProvider implements ClusterNetworkAddressConfigProvider {
 
     private final HostPort bootstrapAddress;
 
@@ -52,7 +52,7 @@ public class PortPerBrokerClusterEndpointConfigProvider implements ClusterNetwor
      *
      * @param config configuration
      */
-    public PortPerBrokerClusterEndpointConfigProvider(PortPerBrokerClusterEndpointProviderConfig config) {
+    public PortPerBrokerClusterNetworkAddressConfigProvider(PortPerBrokerClusterNetworkAddressConfigProviderConfig config) {
         this.bootstrapAddress = config.bootstrapAddress;
         this.brokerAddressPattern = config.brokerAddressPattern;
         this.brokerStartPort = config.brokerStartPort;
@@ -94,16 +94,16 @@ public class PortPerBrokerClusterEndpointConfigProvider implements ClusterNetwor
     /**
      * Creates the configuration for this provider.
      */
-    public static class PortPerBrokerClusterEndpointProviderConfig extends BaseConfig {
+    public static class PortPerBrokerClusterNetworkAddressConfigProviderConfig extends BaseConfig {
         private final HostPort bootstrapAddress;
         private final String brokerAddressPattern;
         private final int brokerStartPort;
         private final int numberOfBrokerPorts;
 
-        public PortPerBrokerClusterEndpointProviderConfig(@JsonProperty(required = true) HostPort bootstrapAddress,
-                                                          @JsonProperty(required = false) String brokerAddressPattern,
-                                                          @JsonProperty(required = false) Integer brokerStartPort,
-                                                          @JsonProperty(required = false, defaultValue = "3") Integer numberOfBrokerPorts) {
+        public PortPerBrokerClusterNetworkAddressConfigProviderConfig(@JsonProperty(required = true) HostPort bootstrapAddress,
+                                                                      @JsonProperty(required = false) String brokerAddressPattern,
+                                                                      @JsonProperty(required = false) Integer brokerStartPort,
+                                                                      @JsonProperty(required = false, defaultValue = "3") Integer numberOfBrokerPorts) {
             Objects.requireNonNull(bootstrapAddress, "bootstrapAddress cannot be null");
 
             this.bootstrapAddress = bootstrapAddress;
