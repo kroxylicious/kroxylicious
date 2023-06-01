@@ -7,7 +7,6 @@ package io.kroxylicious.proxy.service;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -37,28 +36,28 @@ public abstract class BaseContributor<T> implements Contributor<T> {
     }
 
     @Override
-    public T getInstance(String shortName, ClusterEndpointConfigProvider endpointConfigProvider, BaseConfig config) {
+    public T getInstance(String shortName, BaseConfig config) {
         InstanceBuilder<? extends BaseConfig, T> instanceBuilder = shortNameToInstanceBuilder.get(shortName);
-        return instanceBuilder == null ? null : instanceBuilder.construct(endpointConfigProvider, config);
+        return instanceBuilder == null ? null : instanceBuilder.construct(config);
     }
 
     private static class InstanceBuilder<T extends BaseConfig, L> {
 
         private final Class<T> configClass;
-        private final BiFunction<ClusterEndpointConfigProvider, T, L> instanceFunction;
+        private final Function<T, L> instanceFunction;
 
-        InstanceBuilder(Class<T> configClass, BiFunction<ClusterEndpointConfigProvider, T, L> instanceFunction) {
+        InstanceBuilder(Class<T> configClass, Function<T, L> instanceFunction) {
             this.configClass = configClass;
             this.instanceFunction = instanceFunction;
         }
 
-        L construct(ClusterEndpointConfigProvider endpointConfigProvider, BaseConfig config) {
+        L construct(BaseConfig config) {
             if (config == null) {
                 // tests pass in a null config, which some instance functions can tolerate
-                return instanceFunction.apply(endpointConfigProvider, null);
+                return instanceFunction.apply(null);
             }
             else if (configClass.isAssignableFrom(config.getClass())) {
-                return instanceFunction.apply(endpointConfigProvider, configClass.cast(config));
+                return instanceFunction.apply(configClass.cast(config));
             }
             else {
                 throw new IllegalArgumentException("config has the wrong type, expected "
@@ -80,37 +79,7 @@ public abstract class BaseContributor<T> implements Contributor<T> {
         private final Map<String, InstanceBuilder<?, L>> shortNameToInstanceBuilder = new HashMap<>();
 
         /**
-         * Registers registers a factory function for the construction of a service instance.
-         *
-         * @param shortName service short name
-         * @param configClass concrete type of configuration required by the service
-         * @param instanceFunction function that constructs the service instance
-         * @return this
-         * @param <T> the configuration concrete type
-         */
-        public <T extends BaseConfig> BaseContributorBuilder<L> add(String shortName, Class<T> configClass,
-                                                                    BiFunction<ClusterEndpointConfigProvider, T, L> instanceFunction) {
-            if (shortNameToInstanceBuilder.containsKey(shortName)) {
-                throw new IllegalArgumentException(shortName + " already registered");
-            }
-            shortNameToInstanceBuilder.put(shortName, new InstanceBuilder<>(configClass, instanceFunction));
-            return this;
-        }
-
-        /**
-         * Registers registers a factory function for the construction of a service instance.
-         *
-         * @param shortName service short name
-         * @param instanceFunction function that constructs the service instance
-         * @return this
-         */
-        public BaseContributorBuilder<L> add(String shortName, Function<ClusterEndpointConfigProvider, L> instanceFunction) {
-            add(shortName, BaseConfig.class, (proxyConfig, config) -> instanceFunction.apply(proxyConfig));
-            return this;
-        }
-
-        /**
-         * Registers registers a factory function for the construction of a service instance.
+         * Registers a factory function for the construction of a service instance.
          *
          * @param shortName service short name
          * @param configClass concrete type of configuration required by the service
@@ -119,20 +88,22 @@ public abstract class BaseContributor<T> implements Contributor<T> {
          * @param <T> the configuration concrete type
          */
         public <T extends BaseConfig> BaseContributorBuilder<L> add(String shortName, Class<T> configClass, Function<T, L> instanceFunction) {
-            add(shortName, configClass, (proxyConfig, config) -> instanceFunction.apply(config));
+            if (shortNameToInstanceBuilder.containsKey(shortName)) {
+                throw new IllegalArgumentException(shortName + " already registered");
+            }
+            shortNameToInstanceBuilder.put(shortName, new InstanceBuilder<>(configClass, instanceFunction));
             return this;
         }
 
         /**
-         * Registers registers a factory function for the construction of a service instance.
+         * Registers a factory function for the construction of a service instance.
          *
          * @param shortName service short name
          * @param instanceFunction function that constructs the service instance
          * @return this
          */
         public BaseContributorBuilder<L> add(String shortName, Supplier<L> instanceFunction) {
-            add(shortName, BaseConfig.class, (proxyConfig, config) -> instanceFunction.get());
-            return this;
+            return add(shortName, BaseConfig.class, (config) -> instanceFunction.get());
         }
 
         Map<String, InstanceBuilder<?, L>> build() {

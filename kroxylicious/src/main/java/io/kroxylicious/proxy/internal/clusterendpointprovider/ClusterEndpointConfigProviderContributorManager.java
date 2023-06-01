@@ -41,7 +41,7 @@ public class ClusterEndpointConfigProviderContributorManager {
 
     public ClusterEndpointConfigProvider getClusterEndpointConfigProvider(String shortName, BaseConfig baseConfig) {
         for (ClusterEndpointProviderContributor contributor : contributors) {
-            var assigner = contributor.getInstance(shortName, null, baseConfig);
+            var assigner = contributor.getInstance(shortName, baseConfig);
             if (assigner != null) {
                 return assigner;
             }
