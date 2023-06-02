@@ -24,7 +24,7 @@
 
     <modules>
         <module>kroxylicious-multitenant</module>
-        <module>../kroxylicious-schema-validation</module>
+        <module>kroxylicious-schema-validation</module>
     </modules>
 
     <build>
