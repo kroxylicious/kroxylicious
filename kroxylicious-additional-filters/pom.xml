@@ -23,7 +23,7 @@
     <packaging>pom</packaging>
 
     <modules>
-        <module>../kroxylicious-multitenant</module>
+        <module>kroxylicious-multitenant</module>
         <module>../kroxylicious-schema-validation</module>
     </modules>
 
