@@ -184,10 +184,10 @@ public class KroxyliciousTestersTest {
                 .withNewTargetCluster()
                 .withBootstrapServers(clusterBootstrapServers)
                 .endTargetCluster()
-                .withNewClusterEndpointConfigProvider()
+                .withNewClusterNetworkAddressConfigProvider()
                 .withType("PortPerBroker")
                 .withConfig(Map.of("bootstrapAddress", defaultProxyBootstrap))
-                .endClusterEndpointConfigProvider()
+                .endClusterNetworkAddressConfigProvider()
                 .build());
     }
 

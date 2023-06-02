@@ -34,17 +34,17 @@ public class KroxyliciousConfigTest {
     }
 
     @Test
-    public void testVirtualClusterConfigWithClusterEndpointProvider() throws Exception {
+    public void testVirtualClusterConfigWithClusterNetworkAddressConfigProvider() throws Exception {
         ObjectNode deserializedConfig = serializeAndDeserialize(
                 builder().addToVirtualClusters("demo", new VirtualClusterBuilder()
-                        .withNewClusterEndpointConfigProvider()
+                        .withNewClusterNetworkAddressConfigProvider()
                         .withType("providertype")
                         .withConfig(Map.of("a", "b"))
-                        .endClusterEndpointConfigProvider()
+                        .endClusterNetworkAddressConfigProvider()
                         .build()).build());
         ObjectNode clusterObj = assertObjectField(deserializedConfig, "virtualClusters");
         ObjectNode demoObj = assertObjectField(clusterObj, "demo");
-        ObjectNode endpointAssignerObj = assertObjectField(demoObj, "clusterEndpointConfigProvider");
+        ObjectNode endpointAssignerObj = assertObjectField(demoObj, "clusterNetworkAddressConfigProvider");
         assertTextField(endpointAssignerObj, "type", "providertype");
         ObjectNode endpointAssignerConfig = assertObjectField(endpointAssignerObj, "config");
         assertTextField(endpointAssignerConfig, "a", "b");

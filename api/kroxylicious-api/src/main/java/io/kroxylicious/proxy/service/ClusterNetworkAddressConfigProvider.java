@@ -11,7 +11,7 @@ import java.util.Set;
 /**
  * Provides the addresses of the network endpoints required by a virtual cluster.
  */
-public interface ClusterEndpointConfigProvider {
+public interface ClusterNetworkAddressConfigProvider {
 
     /**
      * Address of the cluster's bootstrap address.

@@ -26,7 +26,7 @@ class KafkaProxyTest {
                   demo1:
                     targetCluster:
                       bootstrap_servers: kafka.example:1234
-                    clusterEndpointConfigProvider:
+                    clusterNetworkAddressConfigProvider:
                       type: PortPerBroker
                       config:
                         bootstrapAddress: localhost:9192
@@ -34,7 +34,7 @@ class KafkaProxyTest {
                   demo2:
                     targetCluster:
                       bootstrap_servers: kafka.example:1234
-                    clusterEndpointConfigProvider:
+                    clusterNetworkAddressConfigProvider:
                       type: PortPerBroker
                       config:
                         bootstrapAddress: localhost:9192 # Conflict
@@ -45,7 +45,7 @@ class KafkaProxyTest {
                           demo1:
                             targetCluster:
                               bootstrap_servers: kafka.example:1234
-                            clusterEndpointConfigProvider:
+                            clusterNetworkAddressConfigProvider:
                               type: PortPerBroker
                               config:
                                 bootstrapAddress: localhost:9192
@@ -54,7 +54,7 @@ class KafkaProxyTest {
                           demo2:
                             targetCluster:
                               bootstrap_servers: kafka.example:1234
-                            clusterEndpointConfigProvider:
+                            clusterNetworkAddressConfigProvider:
                               type: PortPerBroker
                               config:
                                 bootstrapAddress: localhost:8192
@@ -66,14 +66,14 @@ class KafkaProxyTest {
                           demo1:
                             targetCluster:
                               bootstrap_servers: kafka.example:1234
-                            clusterEndpointConfigProvider:
+                            clusterNetworkAddressConfigProvider:
                               type: PortPerBroker
                               config:
                                 bootstrapAddress: localhost:9192
                           demo2:
                             targetCluster:
                               bootstrap_servers: kafka.example:1234
-                            clusterEndpointConfigProvider:
+                            clusterNetworkAddressConfigProvider:
                               type: SniRouting
                               config:
                                 bootstrapAddress: localhost:9192
@@ -96,13 +96,13 @@ class KafkaProxyTest {
         return Stream.of(Arguments.of("tls mismatch", """
                 virtualClusters:
                   demo1:
-                    targetCluster:
-                      bootstrap_servers: kafka.example:1234
-                    clusterEndpointConfigProvider:
+                    clusterNetworkAddressConfigProvider:
                       type: SniRouting
                       config:
                         bootstrapAddress: cluster1:9192
                         brokerAddressPattern:  broker-$(nodeId)
+                    targetCluster:
+                      bootstrap_servers: kafka.example:1234
                 """, "Cluster endpoint provider requires tls, but this virtual cluster does not define it"));
     }
 
@@ -124,7 +124,7 @@ class KafkaProxyTest {
                           demo1:
                             targetCluster:
                               bootstrap_servers: kafka.invalid:1234
-                            clusterEndpointConfigProvider:
+                            clusterNetworkAddressConfigProvider:
                               type: SniRouting
                               config:
                                 bootstrapAddress: cluster1:9192
@@ -134,7 +134,7 @@ class KafkaProxyTest {
                           demo2:
                             targetCluster:
                               bootstrap_servers: kafka.invalid:1234
-                            clusterEndpointConfigProvider:
+                            clusterNetworkAddressConfigProvider:
                               type: SniRouting
                               config:
                                 bootstrapAddress: cluster2:9192

@@ -8,7 +8,7 @@ package io.kroxylicious.test.tester;
 
 import java.util.Map;
 
-import io.kroxylicious.proxy.ClusterEndpointConfigProvider;
+import io.kroxylicious.proxy.ClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.KroxyliciousConfig;
 import io.kroxylicious.proxy.KroxyliciousConfigBuilder;
 import io.kroxylicious.proxy.VirtualCluster;
@@ -35,10 +35,10 @@ public class KroxyliciousConfigUtils {
                 .withNewTargetCluster()
                 .withBootstrapServers(clusterBootstrapServers)
                 .endTargetCluster()
-                .withNewClusterEndpointConfigProvider()
+                .withNewClusterNetworkAddressConfigProvider()
                 .withType("PortPerBroker")
                 .withConfig(Map.of("bootstrapAddress", DEFAULT_PROXY_BOOTSTRAP.toString()))
-                .endClusterEndpointConfigProvider()
+                .endClusterNetworkAddressConfigProvider()
                 .build());
     }
 
@@ -74,7 +74,7 @@ public class KroxyliciousConfigUtils {
         if (cluster == null) {
             throw new IllegalArgumentException("virtualCluster " + virtualCluster + " not found in config: " + config);
         }
-        ClusterEndpointConfigProvider provider = cluster.clusterEndpointConfigProvider();
+        ClusterNetworkAddressConfigProvider provider = cluster.clusterNetworkAddressConfigProvider();
         if (provider.type().equals("PortPerBroker") || provider.type().equals("SniRouting")) {
             Object bootstrapAddress = provider.config().get("bootstrapAddress");
             return (String) bootstrapAddress;
