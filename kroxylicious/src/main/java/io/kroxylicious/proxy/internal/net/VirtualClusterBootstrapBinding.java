@@ -8,7 +8,7 @@ package io.kroxylicious.proxy.internal.net;
 
 import java.util.Objects;
 
-import io.kroxylicious.proxy.config.VirtualCluster;
+import io.kroxylicious.proxy.model.VirtualCluster;
 import io.kroxylicious.proxy.service.HostPort;
 
 /**

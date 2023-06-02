@@ -23,7 +23,7 @@ import org.slf4j.LoggerFactory;
 import io.netty.channel.Channel;
 import io.netty.util.AttributeKey;
 
-import io.kroxylicious.proxy.config.VirtualCluster;
+import io.kroxylicious.proxy.model.VirtualCluster;
 import io.kroxylicious.proxy.service.HostPort;
 
 /**

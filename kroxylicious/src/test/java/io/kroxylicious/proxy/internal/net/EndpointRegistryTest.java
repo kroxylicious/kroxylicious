@@ -33,7 +33,7 @@ import io.netty.util.AttributeKey;
 
 import io.kroxylicious.proxy.HostPortConverter;
 import io.kroxylicious.proxy.config.TargetCluster;
-import io.kroxylicious.proxy.config.VirtualCluster;
+import io.kroxylicious.proxy.model.VirtualCluster;
 import io.kroxylicious.proxy.service.HostPort;
 
 import static org.assertj.core.api.Assertions.assertThat;

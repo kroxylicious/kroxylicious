@@ -9,6 +9,8 @@ package io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
@@ -68,7 +70,8 @@ public class SniRoutingClusterNetworkAddressConfigProvider implements ClusterNet
         private final HostPort bootstrapAddress;
         private final String brokerAddressPattern;
 
-        public SniRoutingClusterNetworkAddressConfigProviderConfig(HostPort bootstrapAddress, String brokerAddressPattern) {
+        public SniRoutingClusterNetworkAddressConfigProviderConfig(@JsonProperty(required = true) HostPort bootstrapAddress,
+                                                                   @JsonProperty(required = true) String brokerAddressPattern) {
             if (bootstrapAddress == null) {
                 throw new IllegalArgumentException("bootstrapAddress cannot be null");
             }
