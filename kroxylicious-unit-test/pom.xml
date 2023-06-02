@@ -19,7 +19,7 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>kroxylicious-unit-test</artifactId>
-    <name>kroxylicious-unit-test</name>
+    <name>Filter Unit Test tooling</name>
     <description>Classes to help unit test Filter implementations</description>
 
     <dependencies>

@@ -19,7 +19,7 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>kroxylicious-test-tools</artifactId>
-    <name>kroxylicious-test-tools</name>
+    <name>Testing tools</name>
 
     <dependencies>
         <dependency>
