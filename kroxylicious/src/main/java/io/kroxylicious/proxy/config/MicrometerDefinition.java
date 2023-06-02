@@ -9,23 +9,10 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.annotation.JsonTypeIdResolver;
 
-public class MicrometerDefinition {
-
-    private final String type;
-    private final BaseConfig config;
+public record MicrometerDefinition(String type,
+                                   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.EXTERNAL_PROPERTY, property = "type") @JsonTypeIdResolver(MicrometerHookConfigTypeIdResolver.class) BaseConfig config) {
 
     @JsonCreator
-    public MicrometerDefinition(String type,
-                                @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.EXTERNAL_PROPERTY, property = "type") @JsonTypeIdResolver(MicrometerHookConfigTypeIdResolver.class) BaseConfig config) {
-        this.type = type;
-        this.config = config;
-    }
-
-    public String type() {
-        return type;
-    }
-
-    public BaseConfig config() {
-        return config;
+    public MicrometerDefinition {
     }
 }

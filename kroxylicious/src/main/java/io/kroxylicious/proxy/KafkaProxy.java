@@ -166,12 +166,12 @@ public final class KafkaProxy implements AutoCloseable {
                                            MeterRegistries meterRegistries)
             throws InterruptedException {
         if (adminHttpConfig != null
-                && adminHttpConfig.getEndpoints().maybePrometheus().isPresent()) {
+                && adminHttpConfig.endpoints().maybePrometheus().isPresent()) {
             ServerBootstrap metricsBootstrap = new ServerBootstrap().group(eventGroupConfig.bossGroup(), eventGroupConfig.workerGroup())
                     .option(ChannelOption.SO_REUSEADDR, true)
                     .channel(eventGroupConfig.clazz())
                     .childHandler(new AdminHttpInitializer(meterRegistries, adminHttpConfig));
-            metricsChannel = metricsBootstrap.bind(adminHttpConfig.getHost(), adminHttpConfig.getPort()).sync().channel();
+            metricsChannel = metricsBootstrap.bind(adminHttpConfig.host(), adminHttpConfig.port()).sync().channel();
         }
     }
 

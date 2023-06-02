@@ -30,7 +30,7 @@ public class AdminHttpInitializer extends ChannelInitializer<SocketChannel> {
         p.addLast(new HttpServerCodec());
         p.addLast(new HttpServerExpectContinueHandler());
         RoutingHttpServer.RoutingHttpServerBuilder builder = RoutingHttpServer.builder();
-        adminHttpConfiguration.getEndpoints().maybePrometheus().ifPresent(prometheusMetricsConfig -> {
+        adminHttpConfiguration.endpoints().maybePrometheus().ifPresent(prometheusMetricsConfig -> {
             builder.withRoute(PrometheusMetricsEndpoint.PATH, new PrometheusMetricsEndpoint(registries));
         });
         p.addLast(builder.build());

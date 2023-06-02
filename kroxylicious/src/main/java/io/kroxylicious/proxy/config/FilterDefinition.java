@@ -9,23 +9,9 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.annotation.JsonTypeIdResolver;
 
-public class FilterDefinition {
-
-    private final String type;
-    private final BaseConfig config;
-
+public record FilterDefinition(String type,
+                               @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.EXTERNAL_PROPERTY, property = "type") @JsonTypeIdResolver(FilterConfigTypeIdResolver.class) BaseConfig config) {
     @JsonCreator
-    public FilterDefinition(String type,
-                            @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.EXTERNAL_PROPERTY, property = "type") @JsonTypeIdResolver(FilterConfigTypeIdResolver.class) BaseConfig config) {
-        this.type = type;
-        this.config = config;
-    }
-
-    public String type() {
-        return type;
-    }
-
-    public BaseConfig config() {
-        return config;
+    public FilterDefinition {
     }
 }

@@ -7,13 +7,7 @@ package io.kroxylicious.proxy.config.admin;
 
 import java.util.Optional;
 
-public class EndpointsConfiguration {
-    private final PrometheusMetricsConfig prometheus;
-
-    public EndpointsConfiguration(PrometheusMetricsConfig prometheus) {
-        this.prometheus = prometheus;
-    }
-
+public record EndpointsConfiguration(PrometheusMetricsConfig prometheus) {
     public Optional<PrometheusMetricsConfig> maybePrometheus() {
         return Optional.ofNullable(prometheus);
     }
