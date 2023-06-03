@@ -8,8 +8,8 @@ package io.kroxylicious.test.tester;
 
 import java.util.function.Function;
 
-import io.kroxylicious.proxy.KroxyliciousConfig;
-import io.kroxylicious.proxy.KroxyliciousConfigBuilder;
+import io.kroxylicious.proxy.config.Configuration;
+import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.test.server.MockServer;
 
 /**
@@ -24,7 +24,7 @@ public class KroxyliciousTesters {
      * @param builder configuration builder for the kroxylicious instance
      * @return KroxyliciousTester
      */
-    public static KroxyliciousTester kroxyliciousTester(KroxyliciousConfigBuilder builder) {
+    public static KroxyliciousTester kroxyliciousTester(ConfigurationBuilder builder) {
         return new DefaultKroxyliciousTester(builder);
     }
 
@@ -37,7 +37,7 @@ public class KroxyliciousTesters {
      * @param kroxyliciousFactory factory that takes a KroxyliciousConfig and is responsible for starting a Kroxylicious instance for that config
      * @return KroxyliciousTester
      */
-    public static KroxyliciousTester kroxyliciousTester(KroxyliciousConfigBuilder builder, Function<KroxyliciousConfig, AutoCloseable> kroxyliciousFactory) {
+    public static KroxyliciousTester kroxyliciousTester(ConfigurationBuilder builder, Function<Configuration, AutoCloseable> kroxyliciousFactory) {
         return new DefaultKroxyliciousTester(builder, kroxyliciousFactory);
     }
 
@@ -48,7 +48,7 @@ public class KroxyliciousTesters {
      * @param configurationForMockBootstrap a function that takes the mock broker's bootstrap server address and returns a KroxyliciousConfigBuilder used to configure an in-process Kroxylicious
      * @return KroxyliciousTester
      */
-    public static MockServerKroxyliciousTester mockKafkaKroxyliciousTester(Function<String, KroxyliciousConfigBuilder> configurationForMockBootstrap) {
+    public static MockServerKroxyliciousTester mockKafkaKroxyliciousTester(Function<String, ConfigurationBuilder> configurationForMockBootstrap) {
         return new MockServerKroxyliciousTester(MockServer.startOnRandomPort(), configurationForMockBootstrap);
     }
 }

@@ -23,6 +23,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 
+import io.kroxylicious.proxy.config.ConfigParser;
+import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
@@ -71,13 +73,13 @@ public class KroxyStandaloneIT {
         }
     }
 
-    private record SubprocessKroxyliciousFactory(Path tempDir) implements Function<KroxyliciousConfig, AutoCloseable> {
+    private record SubprocessKroxyliciousFactory(Path tempDir) implements Function<Configuration, AutoCloseable> {
 
     @Override
-    public AutoCloseable apply(KroxyliciousConfig config) {
+    public AutoCloseable apply(Configuration config) {
         try {
             Path configPath = tempDir.resolve("config.yaml");
-            Files.writeString(configPath, config.toYaml());
+            Files.writeString(configPath, new ConfigParser().toYaml(config));
             String java = System.getProperty("java.home") + File.separator + "bin" + File.separator + "java";
             String classpath = System.getProperty("java.class.path");
             var processBuilder = new ProcessBuilder(java, "-cp", classpath, "io.kroxylicious.proxy.Kroxylicious", "-c", configPath.toString()).inheritIO();

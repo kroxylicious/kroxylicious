@@ -25,25 +25,7 @@ import io.kroxylicious.proxy.service.HostPort;
 
 public class ConfigParser {
 
-    private final ObjectMapper mapper;
-
-    public ConfigParser() {
-
-        var module = new SimpleModule();
-        module.addSerializer(HostPort.class, new ToStringSerializer());
-
-        this.mapper = new ObjectMapper(new YAMLFactory())
-                .registerModule(new ParameterNamesModule())
-                .registerModule(new Jdk8Module())
-                .registerModule(module)
-                .setVisibility(PropertyAccessor.ALL, Visibility.NONE)
-                .setVisibility(PropertyAccessor.FIELD, Visibility.ANY)
-                .setVisibility(PropertyAccessor.CREATOR, Visibility.ANY)
-                .setConstructorDetector(ConstructorDetector.USE_PROPERTIES_BASED)
-                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-                .configure(DeserializationFeature.FAIL_ON_MISSING_EXTERNAL_TYPE_ID_PROPERTY, false)
-                .setSerializationInclusion(JsonInclude.Include.NON_DEFAULT);
-    }
+    private final ObjectMapper mapper = createObjectMapper();
 
     public Configuration parseConfiguration(String configuration) {
 
@@ -72,5 +54,19 @@ public class ConfigParser {
         catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public static ObjectMapper createObjectMapper() {
+        return new ObjectMapper(new YAMLFactory())
+                .registerModule(new ParameterNamesModule())
+                .registerModule(new Jdk8Module())
+                .registerModule(new SimpleModule().addSerializer(HostPort.class, new ToStringSerializer()))
+                .setVisibility(PropertyAccessor.ALL, Visibility.NONE)
+                .setVisibility(PropertyAccessor.FIELD, Visibility.ANY)
+                .setVisibility(PropertyAccessor.CREATOR, Visibility.ANY)
+                .setConstructorDetector(ConstructorDetector.USE_PROPERTIES_BASED)
+                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+                .configure(DeserializationFeature.FAIL_ON_MISSING_EXTERNAL_TYPE_ID_PROPERTY, false)
+                .setSerializationInclusion(JsonInclude.Include.NON_DEFAULT);
     }
 }

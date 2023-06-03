@@ -31,6 +31,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 
 import io.kroxylicious.net.IntegrationTestInetAddressResolverProvider;
+import io.kroxylicious.proxy.config.ClusterNetworkAddressConfigProviderDefinitionBuilder;
+import io.kroxylicious.proxy.config.ConfigurationBuilder;
+import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
+import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.test.tester.KroxyliciousTester;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
@@ -72,17 +76,16 @@ public class ExpositionIT {
 
         String bootstrapServers = cluster.getBootstrapServers();
 
-        var builder = KroxyliciousConfig.builder()
+        var builder = new ConfigurationBuilder()
                 .addToVirtualClusters("demo", new VirtualClusterBuilder()
                         .withNewTargetCluster()
                         .withBootstrapServers(bootstrapServers)
                         .endTargetCluster()
-                        .withNewClusterNetworkAddressConfigProvider()
-                        .withType("PortPerBroker")
-                        .withConfig(Map.of("bootstrapAddress", PROXY_ADDRESS.toString()))
-                        .endClusterNetworkAddressConfigProvider()
+                        .withClusterNetworkAddressConfigProvider(
+                                new ClusterNetworkAddressConfigProviderDefinitionBuilder("PortPerBroker").withConfig("bootstrapAddress", PROXY_ADDRESS)
+                                        .build())
                         .build())
-                .addNewFilter().withType("ApiVersions").endFilter();
+                .addToFilters(new FilterDefinitionBuilder("ApiVersions").build());
 
         var demo = builder.getVirtualClusters().get("demo");
         demo = new VirtualClusterBuilder(demo)
@@ -110,8 +113,8 @@ public class ExpositionIT {
     public void exposesTwoClusterOverPlainWithSeparatePorts(KafkaCluster cluster) {
         List<String> clusterProxyAddresses = List.of("localhost:9192", "localhost:9294");
 
-        var builder = KroxyliciousConfig.builder()
-                .addNewFilter().withType("ApiVersions").endFilter();
+        var builder = new ConfigurationBuilder()
+                .addToFilters(new FilterDefinitionBuilder("ApiVersions").build());
 
         var base = new VirtualClusterBuilder()
                 .withNewTargetCluster()
@@ -122,10 +125,9 @@ public class ExpositionIT {
         for (int i = 0; i < clusterProxyAddresses.size(); i++) {
             var bootstrap = clusterProxyAddresses.get(i);
             var virtualCluster = new VirtualClusterBuilder(base)
-                    .withNewClusterNetworkAddressConfigProvider()
-                    .withType("PortPerBroker")
-                    .withConfig(Map.of("bootstrapAddress", bootstrap))
-                    .endClusterNetworkAddressConfigProvider()
+                    .withClusterNetworkAddressConfigProvider(
+                            new ClusterNetworkAddressConfigProviderDefinitionBuilder("PortPerBroker").withConfig("bootstrapAddress", bootstrap)
+                                    .build())
                     .build();
             builder.addToVirtualClusters("cluster" + i, virtualCluster);
 
@@ -148,8 +150,8 @@ public class ExpositionIT {
         var virtualClusterBootstrapPattern = "bootstrap" + virtualClusterCommonNamePattern;
         var virtualClusterBrokerAddressPattern = "broker-$(nodeId)" + virtualClusterCommonNamePattern;
 
-        var builder = KroxyliciousConfig.builder()
-                .addNewFilter().withType("ApiVersions").endFilter();
+        var builder = new ConfigurationBuilder()
+                .addToFilters(new FilterDefinitionBuilder("ApiVersions").build());
 
         var base = new VirtualClusterBuilder()
                 .withNewTargetCluster()
@@ -169,11 +171,10 @@ public class ExpositionIT {
             clientTrust.add(new ClientTrust(clientTrustStore, brokerCertificateGenerator.getPassword()));
 
             var virtualCluster = new VirtualClusterBuilder(base)
-                    .withNewClusterNetworkAddressConfigProvider()
-                    .withType("SniRouting")
-                    .withConfig(Map.of("bootstrapAddress", virtualClusterFQDN + ":9192",
-                            "brokerAddressPattern", virtualClusterBrokerAddressPattern.formatted(i)))
-                    .endClusterNetworkAddressConfigProvider()
+                    .withClusterNetworkAddressConfigProvider(
+                            new ClusterNetworkAddressConfigProviderDefinitionBuilder("SniRouting").withConfig("bootstrapAddress", virtualClusterFQDN + ":9192",
+                                    "brokerAddressPattern", virtualClusterBrokerAddressPattern.formatted(i))
+                                    .build())
                     .withKeyPassword(brokerCertificateGenerator.getPassword())
                     .withKeyStoreFile(brokerCertificateGenerator.getKeyStoreLocation())
                     .withLogNetwork(true)
@@ -200,17 +201,16 @@ public class ExpositionIT {
     @Test
     public void exposesClusterOfTwoBrokers(@BrokerCluster(numBrokers = 2) KafkaCluster cluster) throws Exception {
 
-        var builder = KroxyliciousConfig.builder()
+        var builder = new ConfigurationBuilder()
                 .addToVirtualClusters("demo", new VirtualClusterBuilder()
                         .withNewTargetCluster()
                         .withBootstrapServers(cluster.getBootstrapServers())
                         .endTargetCluster()
-                        .withNewClusterNetworkAddressConfigProvider()
-                        .withType("PortPerBroker")
-                        .withConfig(Map.of("bootstrapAddress", PROXY_ADDRESS.toString()))
-                        .endClusterNetworkAddressConfigProvider()
+                        .withClusterNetworkAddressConfigProvider(
+                                new ClusterNetworkAddressConfigProviderDefinitionBuilder("PortPerBroker").withConfig("bootstrapAddress", PROXY_ADDRESS)
+                                        .build())
                         .build())
-                .addNewFilter().withType("ApiVersions").endFilter();
+                .addToFilters(new FilterDefinitionBuilder("ApiVersions").build());
 
         var brokerEndpoints = Map.of(0, "localhost:" + (PROXY_ADDRESS.port() + 1), 1, "localhost:" + (PROXY_ADDRESS.port() + 2));
 
@@ -229,17 +229,16 @@ public class ExpositionIT {
 
     @Test
     public void exposedClusterAddsBroker(@BrokerCluster() KafkaCluster cluster) throws Exception {
-        var builder = KroxyliciousConfig.builder()
+        var builder = new ConfigurationBuilder()
                 .addToVirtualClusters("demo", new VirtualClusterBuilder()
                         .withNewTargetCluster()
                         .withBootstrapServers(cluster.getBootstrapServers())
                         .endTargetCluster()
-                        .withNewClusterNetworkAddressConfigProvider()
-                        .withType("PortPerBroker")
-                        .withConfig(Map.of("bootstrapAddress", PROXY_ADDRESS.toString()))
-                        .endClusterNetworkAddressConfigProvider()
+                        .withClusterNetworkAddressConfigProvider(
+                                new ClusterNetworkAddressConfigProviderDefinitionBuilder("PortPerBroker").withConfig("bootstrapAddress", PROXY_ADDRESS)
+                                        .build())
                         .build())
-                .addNewFilter().withType("ApiVersions").endFilter();
+                .addToFilters(new FilterDefinitionBuilder("ApiVersions").build());
 
         try (var tester = kroxyliciousTester(builder)) {
 
@@ -263,17 +262,16 @@ public class ExpositionIT {
 
     @Test
     public void exposedClusterRemovesBroker(@BrokerCluster(numBrokers = 2) KafkaCluster cluster) throws Exception {
-        var builder = KroxyliciousConfig.builder()
+        var builder = new ConfigurationBuilder()
                 .addToVirtualClusters("demo", new VirtualClusterBuilder()
                         .withNewTargetCluster()
                         .withBootstrapServers(cluster.getBootstrapServers())
                         .endTargetCluster()
-                        .withNewClusterNetworkAddressConfigProvider()
-                        .withType("PortPerBroker")
-                        .withConfig(Map.of("bootstrapAddress", PROXY_ADDRESS.toString()))
-                        .endClusterNetworkAddressConfigProvider()
+                        .withClusterNetworkAddressConfigProvider(
+                                new ClusterNetworkAddressConfigProviderDefinitionBuilder("PortPerBroker").withConfig("bootstrapAddress", PROXY_ADDRESS)
+                                        .build())
                         .build())
-                .addNewFilter().withType("ApiVersions").endFilter();
+                .addToFilters(new FilterDefinitionBuilder("ApiVersions").build());
 
         try (var tester = kroxyliciousTester(builder)) {
 

@@ -22,7 +22,7 @@ import io.kroxylicious.proxy.service.HostPort;
  */
 public class SniRoutingClusterNetworkAddressConfigProvider implements ClusterNetworkAddressConfigProvider {
 
-    public static final String LITERAL_NODE_ID = "$(nodeId)";
+    private static final String LITERAL_NODE_ID = "$(nodeId)";
     private static final Pattern NODE_ID_TOKEN_RE = Pattern.compile(Pattern.quote(LITERAL_NODE_ID));
     private final HostPort bootstrapAddress;
     private final String brokerAddressPattern;
@@ -68,6 +68,7 @@ public class SniRoutingClusterNetworkAddressConfigProvider implements ClusterNet
     public static class SniRoutingClusterNetworkAddressConfigProviderConfig extends BaseConfig {
 
         private final HostPort bootstrapAddress;
+
         private final String brokerAddressPattern;
 
         public SniRoutingClusterNetworkAddressConfigProviderConfig(@JsonProperty(required = true) HostPort bootstrapAddress,
@@ -93,5 +94,10 @@ public class SniRoutingClusterNetworkAddressConfigProvider implements ClusterNet
             this.bootstrapAddress = bootstrapAddress;
             this.brokerAddressPattern = brokerAddressPattern;
         }
+
+        public HostPort getBootstrapAddress() {
+            return bootstrapAddress;
+        }
+
     }
 }

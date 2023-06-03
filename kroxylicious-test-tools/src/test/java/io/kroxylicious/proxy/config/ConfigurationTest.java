@@ -17,14 +17,16 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.flipkart.zjsonpatch.JsonDiff;
 
+import io.kroxylicious.proxy.internal.filter.ProduceRequestTransformationFilter;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 class ConfigurationTest {
 
     private static final ObjectMapper MAPPER = new ObjectMapper(new YAMLFactory());
-    private ConfigParser configParser = new ConfigParser();
+    private final ConfigParser configParser = new ConfigParser();
 
-    public static Stream<Arguments> roundTrip() {
+    public static Stream<Arguments> yamlDeserializeSerializeFidelity() {
         return Stream.of(Arguments.of("Top level flags", """
                 useIoUring: true
                 """),
@@ -72,21 +74,11 @@ class ConfigurationTest {
                               zone: "euc-1a"
                               owner: "becky"
                         """));
-
-        /*
-         *
-         *
-         * .withNewAdminHttp()
-         * .withNewEndpoints()
-         * .withPrometheusEndpointConfig(Map.of())
-         * .endEndpoints()
-         * .endAdminHttp();
-         */
     }
 
     @ParameterizedTest(name = "{0}")
     @MethodSource
-    public void roundTrip(String name, String config) throws Exception {
+    public void yamlDeserializeSerializeFidelity(String name, String config) throws Exception {
 
         var configuration = configParser.parseConfiguration(config);
         var roundTripped = configParser.toYaml(configuration);
@@ -98,4 +90,56 @@ class ConfigurationTest {
 
     }
 
+    public static Stream<Arguments> fluentApiConfigYamlFidelity() {
+        return Stream.of(Arguments.of("Top level",
+                new ConfigurationBuilder().withUseIoUring(true).build(),
+                """
+                        useIoUring: true"""),
+
+                Arguments.of("With filter",
+                        new ConfigurationBuilder()
+                                .addToFilters(new FilterDefinitionBuilder("ProduceRequestTransformation")
+                                        .withConfig("transformation", ProduceRequestTransformationFilter.UpperCasing.class.getName()).build())
+                                .build(),
+                        """
+                                filters:
+                                - type: ProduceRequestTransformation
+                                  config:
+                                    transformation: "io.kroxylicious.proxy.internal.filter.ProduceRequestTransformationFilter$UpperCasing"
+                                """),
+                Arguments.of("With Virtual Cluster",
+                        new ConfigurationBuilder()
+                                .addToVirtualClusters("demo", new VirtualClusterBuilder()
+                                        .withNewTargetCluster()
+                                        .withBootstrapServers("kafka.example:1234")
+                                        .endTargetCluster()
+                                        .withClusterNetworkAddressConfigProvider(
+                                                new ClusterNetworkAddressConfigProviderDefinitionBuilder("SniRouting")
+                                                        .withConfig("bootstrapAddress", "cluster1:9192", "brokerAddressPattern", "broker-$(nodeId):$(portNumber)")
+                                                        .build())
+                                        .build())
+                                .build(),
+                        """
+                                virtualClusters:
+                                  demo:
+                                    targetCluster:
+                                      bootstrap_servers: kafka.example:1234
+                                    clusterNetworkAddressConfigProvider:
+                                      type: SniRouting
+                                      config:
+                                        bootstrapAddress: cluster1:9192
+                                        brokerAddressPattern: broker-$(nodeId):$(portNumber)
+                                """));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource
+    public void fluentApiConfigYamlFidelity(String name, Configuration config, String expected) throws Exception {
+        var yaml = configParser.toYaml(config);
+        var actualJson = MAPPER.reader().readValue(yaml, JsonNode.class);
+        var expectedJson = MAPPER.reader().readValue(expected, JsonNode.class);
+        var diff = JsonDiff.asJson(actualJson, expectedJson);
+        assertThat(diff).isEmpty();
+
+    }
 }
