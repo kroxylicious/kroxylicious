@@ -35,15 +35,19 @@
                 <executions>
                     <execution>
                         <id>filters-use-public-api</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
                         <configuration>
                             <rules>
                                 <bannedDependencies>
                                     <excludes>
-                                        <exclude>io.kroxylicious:</exclude>
+                                        <exclude>io.kroxylicious</exclude>
                                     </excludes>
                                     <includes>
                                         <include>io.kroxylicious:kroxylicious-api</include>
                                         <include>io.kroxylicious:kroxylicious-filter-api</include>
+                                        <include>io.kroxylicious:kroxylicious-unit-test</include>
                                     </includes>
                                 </bannedDependencies>
                             </rules>
