@@ -18,7 +18,7 @@
     <artifactId>performance-tests</artifactId>
     <packaging>jar</packaging>
 
-    <name>performance-tests: microbenchmarks</name>
+    <name>Micro benchmarks</name>
 
     <dependencies>
         <dependency>

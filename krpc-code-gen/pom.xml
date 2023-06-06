@@ -19,6 +19,7 @@
     </parent>
 
     <artifactId>kroxylicious-krpc-plugin</artifactId>
+    <name>Code Generation plugin</name>
     <packaging>maven-plugin</packaging>
 
     <properties>

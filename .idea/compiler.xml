@@ -12,6 +12,7 @@
         <module name="integrationtests.main" />
         <module name="kroxylicious-test-tools" />
         <module name="kroxylicious-api" />
+        <module name="kroxylicious-unit-test" />
         <module name="kroxylicious" />
         <module name="integrationtests" />
         <module name="integrationtests.test" />
@@ -31,6 +32,7 @@
       <module name="integrationtests.main" options="-parameters" />
       <module name="integrationtests.test" options="-parameters" />
       <module name="kroxylicious" options="-parameters" />
+      <module name="kroxylicious-additional-filters" options="-parameters" />
       <module name="kroxylicious-api" options="-parameters" />
       <module name="kroxylicious-filter-api" options="-parameters" />
       <module name="kroxylicious-krpc-plugin" options="-parameters" />
@@ -40,6 +42,7 @@
       <module name="kroxylicious-parent" options="-parameters" />
       <module name="kroxylicious-schema-validation" options="-parameters" />
       <module name="kroxylicious-test-tools" options="-parameters" />
+      <module name="kroxylicious-unit-test" options="-parameters" />
       <module name="kroxylicious.main" options="-parameters" />
       <module name="kroxylicious.test" options="-parameters" />
       <module name="performance-tests" options="-parameters" />
