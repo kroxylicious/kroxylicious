@@ -68,7 +68,7 @@
             <!-- according to https://github.com/codehaus-plexus/plexus-build-api this replaces org.sonatype.plexus:plexus-build-api -->
             <groupId>org.codehaus.plexus</groupId>
             <artifactId>plexus-build-api</artifactId>
-            <version>1.0.0</version>
+            <version>1.2.0</version>
         </dependency>
 
         <dependency>
