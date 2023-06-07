@@ -225,11 +225,8 @@
         <module>kroxylicious-unit-test</module>
         <module>kroxylicious</module>
         <module>integrationtests</module>
-<<<<<<< Updated upstream
         <module>kroxylicious-additional-filters</module>
-=======
         <module>kroxylicious-sample</module>
->>>>>>> Stashed changes
     </modules>
 
 
