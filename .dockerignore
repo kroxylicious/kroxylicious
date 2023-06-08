@@ -1,0 +1,16 @@
+**/target
+**/out
+**/.idea
+**/*.iml
+**/*.iws
+**/*.ipr
+docs
+etc
+sample-install
+!etc/eclipse-formatter-config.xml
+scripts
+Dockerfile
+.dockerignore
+.git
+.github
+README.md
