@@ -3,6 +3,27 @@
 Kroxylicious is an exploration for building a Kafka protocol proxy,
 addressing use cases such as multi-tenancy, schema validation, or encryption.
 
+<!-- TOC -->
+* [Kroxylicious](#kroxylicious)
+  * [Quick Links](#quick-links)
+  * [Build](#build)
+    * [Formatting](#formatting)
+  * [Run](#run)
+    * [Run natively](#run-natively)
+      * [Debugging](#debugging)
+    * [Run on Minikube](#run-on-minikube)
+  * [Rendering documentation](#rendering-documentation)
+  * [Performance Testing](#performance-testing)
+    * [GitHub action for performance](#github-action-for-performance)
+  * [Architecture Monitoring](#architecture-monitoring)
+  * [IntelliJ setup](#intellij-setup)
+  * [License](#license)
+  * [Setting Up in Windows Using WSL](#setting-up-in-windows-using-wsl)
+    * [Installing WSL](#installing-wsl)
+    * [Ensure appropriate tooling available](#ensure-appropriate-tooling-available)
+  * [Releasing the project](#releasing-the-project)
+<!-- TOC -->
+
 ## Quick Links
 - [kroxylicious.io](https://www.kroxylicious.io)
 - [Documentation](https://www.kroxylicious.io/kroxylicious)
@@ -11,10 +32,10 @@ addressing use cases such as multi-tenancy, schema validation, or encryption.
 
 ## Build
 
-JDK version 19 or newer, and Apache Maven are required for building this project.
+JDK version 20 or newer, and Apache Maven are required for building this project.
 
 Kroxylicious targets language level 17, except for the `integrationtests` module
-which targets 19 to access some new language features.
+which targets 20 to access some new language features.
 
 Build the project like this:
 
@@ -75,6 +96,8 @@ No one likes to argue about code formatting in pull requests, as project we take
 
 ## Run
 
+### Run natively
+
 Build with the `dist` profile as shown above, then execute this:
 
 ```
@@ -89,12 +112,33 @@ Failed to load class org.slf4j.impl.StaticLoggerBinder
 
 Make sure to follow the [suggestions here](https://www.slf4j.org/codes.html#StaticLoggerBinder) to include one (and only one) of the suggested jars on the classpath.
 
-### Debugging
+#### Debugging
 Logging is turned off by default for better performance. In case you want to debug, logging should be turned on in the `example-proxy-config.yml` file:
 ```yaml
   logNetwork: true
   logFrames: true
 ```
+
+### Run on Minikube
+
+Kroxylicious can be containerised and run on Minikube against a [Strimzi](https://strimzi.io) managed Kafka cluster.
+
+**Prerequisites**
+* User must have a [quay.io](https://www.quay.io) account and create a public repository named `kroxylicious`
+* Minikube [installed](https://minikube.sigs.k8s.io/docs/start)
+* kubectl [installed](https://kubernetes.io/docs/tasks/tools)
+* OSX users must have `gsed` [installed](https://formulae.brew.sh/formula/gnu-sed)
+* Docker engine [installed](https://docs.docker.com/engine/install) ([podman](https://podman.io/docs/installation) may work too)
+
+Run `minikube delete && QUAY_ORG=$your_quay_username$ ./scripts/run-with-strimzi.sh`. This script:
+1. builds and pushes a kroxylicious image to quay.io
+2. starts minikube
+2. installs a 3-node Kafka cluster using Strimzi into minikube
+4. installs kroxylicious into minikube, configured to proxy the cluster
+
+If you want to only build and push an image to quay.io you can run `PUSH_IMAGE=y QUAY_ORG=$your_quay_username$ ./scripts/deploy-image.sh`
+
+To change the container engine to podman set `CONTAINER_ENGINE=podman`
 
 ## Rendering documentation
 
