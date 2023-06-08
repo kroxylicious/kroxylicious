@@ -30,9 +30,17 @@ import io.kroxylicious.proxy.filter.ProduceRequestFilter;
 
 /**
  * A sample ProduceRequestFilter implementation, intended to demonstrate how custom filters work with
- * Kroxylicious.<br />This filter transforms the partition data sent by a Kafka producer in a produce request by
- * replacing all occurrences of the String "foo" with the String "bar". These strings are configurable in the
- * config file, so you could substitute this with any text you want.
+ * Kroxylicious.<br />
+ * <br />
+ * This filter transforms the partition data sent by a Kafka producer in a produce request by replacing all
+ * occurrences of the String "foo" with the String "bar". These strings are configurable in the config file,
+ * so you could substitute this with any text you want.<br />
+ * <br />
+ * An example of a use case where this might be applicable is when producers are sending data to Kafka
+ * using different formats from what consumers are expecting. You could configure this filter to transform
+ * the data sent by producers to Kafka into the format consumers expect. In this example use case, the filter
+ * could be further modified to apply different transformations to different topics, or when sent by
+ * particular producers.
  */
 public class SampleProduceRequestFilter implements ProduceRequestFilter {
 
@@ -69,6 +77,14 @@ public class SampleProduceRequestFilter implements ProduceRequestFilter {
                 .register(Metrics.globalRegistry);
     }
 
+    /**
+     * Handle the given request, transforming the data in-place according to the configuration, and returning
+     * the ProduceRequestData instance to be passed to the next filter.
+     * @param apiVersion the apiVersion of the request
+     * @param header request header.
+     * @param request The KRPC message to handle.
+     * @param context The context.
+     */
     // TODO javadoc
     @Override
     public void onProduceRequest(short apiVersion, RequestHeaderData header, ProduceRequestData request, KrpcFilterContext context) {

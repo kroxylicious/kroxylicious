@@ -27,10 +27,19 @@ import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.filter.FetchResponseFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
 
-// TODO javadoc
-
 /**
- *
+ * A sample FetchResponseFilter implementation, intended to demonstrate how custom filters work with
+ * Kroxylicious.<br />
+ * <br/>
+ * This filter transforms the topic data sent by a Kafka broker in response to a fetch request sent by a
+ * Kafka consumer, by replacing all occurrences of the String "bar" with the String "baz". These strings are
+ * configurable in the config file, so you could substitute this with any text you want.<br/>
+ * <br/>
+ * An example of a use case where this might be applicable is when producers are sending data to Kafka
+ * using different formats from what consumers are expecting. You could configure this filter to transform
+ * the data sent by Kafka to the consumers into the format they expect. In this example use case, the filter
+ * could be further modified to apply different transformations to different topics, or when sending to
+ * particular consumers.
  */
 public class SampleFetchResponseFilter implements FetchResponseFilter {
 
@@ -67,7 +76,14 @@ public class SampleFetchResponseFilter implements FetchResponseFilter {
                 .register(Metrics.globalRegistry);
     }
 
-    // TODO javadoc
+    /**
+     * Handle the given response, transforming the data in-place according to the configuration, returning
+     * the FetchResponseData instance to be passed to the next filter.
+     * @param apiVersion the apiVersion of the response
+     * @param header response header.
+     * @param response The KRPC message to handle.
+     * @param context The context.
+     */
     @Override
     public void onFetchResponse(short apiVersion, ResponseHeaderData header, FetchResponseData response, KrpcFilterContext context) {
         this.timer.record(() ->
