@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,17 +35,18 @@ import io.netty.util.concurrent.Future;
 
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.MicrometerDefinition;
-import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.config.admin.AdminHttpConfiguration;
 import io.kroxylicious.proxy.internal.KafkaProxyInitializer;
 import io.kroxylicious.proxy.internal.MeterRegistries;
 import io.kroxylicious.proxy.internal.PortConflictDetector;
 import io.kroxylicious.proxy.internal.admin.AdminHttpInitializer;
+import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.ClusterNetworkAddressConfigProviderContributorManager;
 import io.kroxylicious.proxy.internal.net.DefaultNetworkBindingOperationProcessor;
 import io.kroxylicious.proxy.internal.net.Endpoint;
 import io.kroxylicious.proxy.internal.net.EndpointRegistry;
 import io.kroxylicious.proxy.internal.net.NetworkBindingOperationProcessor;
 import io.kroxylicious.proxy.internal.util.Metrics;
+import io.kroxylicious.proxy.model.VirtualCluster;
 
 public final class KafkaProxy implements AutoCloseable {
 
@@ -72,7 +74,9 @@ public final class KafkaProxy implements AutoCloseable {
 
     public KafkaProxy(Configuration config) {
         this.config = config;
-        this.virtualClusterMap = config.virtualClusters();
+        this.virtualClusterMap = config.virtualClusters().entrySet().stream()
+                .collect(Collectors.toMap(Map.Entry::getKey,
+                        e -> toVirtualClusterModel(e.getValue())));
         this.adminHttpConfig = config.adminHttpConfig();
         this.micrometerConfig = config.getMicrometer();
     }
@@ -162,12 +166,12 @@ public final class KafkaProxy implements AutoCloseable {
                                            MeterRegistries meterRegistries)
             throws InterruptedException {
         if (adminHttpConfig != null
-                && adminHttpConfig.getEndpoints().maybePrometheus().isPresent()) {
+                && adminHttpConfig.endpoints().maybePrometheus().isPresent()) {
             ServerBootstrap metricsBootstrap = new ServerBootstrap().group(eventGroupConfig.bossGroup(), eventGroupConfig.workerGroup())
                     .option(ChannelOption.SO_REUSEADDR, true)
                     .channel(eventGroupConfig.clazz())
                     .childHandler(new AdminHttpInitializer(meterRegistries, adminHttpConfig));
-            metricsChannel = metricsBootstrap.bind(adminHttpConfig.getHost(), adminHttpConfig.getPort()).sync().channel();
+            metricsChannel = metricsBootstrap.bind(adminHttpConfig.host(), adminHttpConfig.port()).sync().channel();
         }
     }
 
@@ -230,5 +234,14 @@ public final class KafkaProxy implements AutoCloseable {
         if (running.get()) {
             shutdown();
         }
+    }
+
+    private static VirtualCluster toVirtualClusterModel(io.kroxylicious.proxy.config.VirtualCluster configModel) {
+        return new VirtualCluster(configModel.targetCluster(),
+                ClusterNetworkAddressConfigProviderContributorManager.getInstance()
+                        .getClusterEndpointConfigProvider(configModel.clusterNetworkAddressConfigProvider().type(),
+                                configModel.clusterNetworkAddressConfigProvider().config()),
+                configModel.keyStoreFile(), configModel.keyPassword(),
+                configModel.logNetwork(), configModel.logFrames());
     }
 }

@@ -129,11 +129,14 @@ public class PortPerBrokerClusterNetworkAddressConfigProvider implements Cluster
             var stripped = matcher.replaceFirst("");
             matcher = ANCHORED_PORT_NUMBER_TOKEN_RE.matcher(stripped);
             if (matcher.find()) {
-                throw new IllegalArgumentException(
-                        "brokerAddressPattern must contain exactly one replacement pattern " + LITERAL_PORT_NUMBER + ". Found too many.");
+                throw new IllegalArgumentException("brokerAddressPattern must contain exactly one replacement pattern " + LITERAL_PORT_NUMBER + ". Found too many.");
             }
 
         }
-    }
 
+        public HostPort getBootstrapAddress() {
+            return bootstrapAddress;
+        }
+
+    }
 }

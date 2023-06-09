@@ -5,27 +5,17 @@
  */
 package io.kroxylicious.proxy.config;
 
+import java.util.Objects;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.annotation.JsonTypeIdResolver;
 
-public class FilterDefinition {
-
-    private final String type;
-    private final BaseConfig config;
-
+public record FilterDefinition(@JsonProperty(required = true) String type,
+                               @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.EXTERNAL_PROPERTY, property = "type") @JsonTypeIdResolver(FilterConfigTypeIdResolver.class) BaseConfig config) {
     @JsonCreator
-    public FilterDefinition(String type,
-                            @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.EXTERNAL_PROPERTY, property = "type") @JsonTypeIdResolver(FilterConfigTypeIdResolver.class) BaseConfig config) {
-        this.type = type;
-        this.config = config;
-    }
-
-    public String type() {
-        return type;
-    }
-
-    public BaseConfig config() {
-        return config;
+    public FilterDefinition {
+        Objects.requireNonNull(type);
     }
 }

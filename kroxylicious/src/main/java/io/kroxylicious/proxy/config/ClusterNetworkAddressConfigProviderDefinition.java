@@ -5,27 +5,18 @@
  */
 package io.kroxylicious.proxy.config;
 
+import java.util.Objects;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.annotation.JsonTypeIdResolver;
 
-public class ClusterNetworkAddressConfigProviderDefinition {
-
-    private final String type;
-    private final BaseConfig config;
+public record ClusterNetworkAddressConfigProviderDefinition(@JsonProperty(required = true) String type,
+                                                            @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.EXTERNAL_PROPERTY, property = "type") @JsonTypeIdResolver(ClusterNetworkAddressConfigProviderTypeIdResolver.class) BaseConfig config) {
 
     @JsonCreator
-    public ClusterNetworkAddressConfigProviderDefinition(String type,
-                                                         @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.EXTERNAL_PROPERTY, property = "type") @JsonTypeIdResolver(ClusterNetworkAddressConfigProviderTypeIdResolver.class) BaseConfig config) {
-        this.type = type;
-        this.config = config;
-    }
-
-    public String type() {
-        return type;
-    }
-
-    public BaseConfig config() {
-        return config;
+    public ClusterNetworkAddressConfigProviderDefinition {
+        Objects.requireNonNull(type);
     }
 }

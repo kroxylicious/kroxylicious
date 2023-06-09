@@ -68,9 +68,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.net.IntegrationTestInetAddressResolverProvider;
-import io.kroxylicious.proxy.KroxyliciousConfig;
-import io.kroxylicious.proxy.KroxyliciousConfigBuilder;
-import io.kroxylicious.proxy.VirtualClusterBuilder;
+import io.kroxylicious.proxy.config.ClusterNetworkAddressConfigProviderDefinitionBuilder;
+import io.kroxylicious.proxy.config.ConfigurationBuilder;
+import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
+import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.test.tester.KroxyliciousTester;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
@@ -128,7 +129,7 @@ public class MultiTenantIT {
 
     @Test
     public void createAndDeleteTopic(KafkaCluster cluster) throws Exception {
-        KroxyliciousConfigBuilder config = getConfig(cluster);
+        var config = getConfig(cluster);
 
         try (var tester = kroxyliciousTester(config);
                 var admin = tester.admin(TENANT_1_CLUSTER, commonConfig(Map.of()))) {
@@ -158,7 +159,7 @@ public class MultiTenantIT {
 
     @Test
     public void describeTopic(KafkaCluster cluster) throws Exception {
-        KroxyliciousConfigBuilder config = getConfig(cluster);
+        var config = getConfig(cluster);
         try (var tester = kroxyliciousTester(config);
                 var admin = tester.admin(TENANT_1_CLUSTER, commonConfig(Map.of()))) {
             var created = createTopics(admin, List.of(NEW_TOPIC_1));
@@ -183,7 +184,7 @@ public class MultiTenantIT {
 
     @Test
     public void produceOne(KafkaCluster cluster) throws Exception {
-        KroxyliciousConfigBuilder config = getConfig(cluster);
+        var config = getConfig(cluster);
         try (var tester = kroxyliciousTester(config)) {
             createTopics(tester, TENANT_1_CLUSTER, List.of(NEW_TOPIC_1));
             produceAndVerify(tester, TENANT_1_CLUSTER, TOPIC_1, MY_KEY, MY_VALUE);
@@ -192,7 +193,7 @@ public class MultiTenantIT {
 
     @Test
     public void consumeOne(KafkaCluster cluster) throws Exception {
-        KroxyliciousConfigBuilder config = getConfig(cluster);
+        var config = getConfig(cluster);
         try (var tester = kroxyliciousTester(config)) {
             var groupId = testInfo.getDisplayName();
             createTopics(tester, TENANT_1_CLUSTER, List.of(NEW_TOPIC_1));
@@ -203,7 +204,7 @@ public class MultiTenantIT {
 
     @Test
     public void consumeOneAndOffsetCommit(KafkaCluster cluster) throws Exception {
-        KroxyliciousConfigBuilder config = getConfig(cluster);
+        var config = getConfig(cluster);
         try (var tester = kroxyliciousTester(config)) {
             var groupId = testInfo.getDisplayName();
             createTopics(tester, TENANT_1_CLUSTER, List.of(NEW_TOPIC_1));
@@ -216,7 +217,7 @@ public class MultiTenantIT {
 
     @Test
     public void alterOffsetCommit(KafkaCluster cluster) throws Exception {
-        KroxyliciousConfigBuilder config = getConfig(cluster);
+        var config = getConfig(cluster);
         try (var tester = kroxyliciousTester(config);
                 var admin = tester.admin(TENANT_1_CLUSTER, commonConfig(Map.of()))) {
             var groupId = testInfo.getDisplayName();
@@ -234,7 +235,7 @@ public class MultiTenantIT {
 
     @Test
     public void deleteConsumerGroupOffsets(KafkaCluster cluster) throws Exception {
-        KroxyliciousConfigBuilder config = getConfig(cluster);
+        var config = getConfig(cluster);
         try (var tester = kroxyliciousTester(config);
                 var admin = tester.admin(TENANT_1_CLUSTER, commonConfig(Map.of()))) {
             var groupId = testInfo.getDisplayName();
@@ -254,7 +255,7 @@ public class MultiTenantIT {
 
     @Test
     public void tenantTopicIsolation(KafkaCluster cluster) throws Exception {
-        KroxyliciousConfigBuilder config = getConfig(cluster);
+        var config = getConfig(cluster);
         try (var tester = kroxyliciousTester(config)) {
             createTopics(tester, TENANT_1_CLUSTER, List.of(NEW_TOPIC_1));
             createTopics(tester, TENANT_2_CLUSTER, List.of(NEW_TOPIC_2, NEW_TOPIC_3));
@@ -272,7 +273,7 @@ public class MultiTenantIT {
     @ParameterizedTest
     @EnumSource
     public void tenantConsumeWithGroup(ConsumerStyle consumerStyle, KafkaCluster cluster) throws Exception {
-        KroxyliciousConfigBuilder config = getConfig(cluster);
+        var config = getConfig(cluster);
         try (var tester = kroxyliciousTester(config)) {
             createTopics(tester, TENANT_1_CLUSTER, List.of(NEW_TOPIC_1));
             runConsumerInOrderToCreateGroup(tester, TENANT_1_CLUSTER, "Tenant1Group", NEW_TOPIC_1, consumerStyle);
@@ -283,7 +284,7 @@ public class MultiTenantIT {
     @ParameterizedTest
     @EnumSource
     public void tenantGroupIsolation(ConsumerStyle consumerStyle, KafkaCluster cluster) throws Exception {
-        KroxyliciousConfigBuilder config = getConfig(cluster);
+        var config = getConfig(cluster);
         try (var tester = kroxyliciousTester(config)) {
             createTopics(tester, TENANT_1_CLUSTER, List.of(NEW_TOPIC_1));
             runConsumerInOrderToCreateGroup(tester, TENANT_1_CLUSTER, "Tenant1Group", NEW_TOPIC_1, consumerStyle);
@@ -296,7 +297,7 @@ public class MultiTenantIT {
 
     @Test
     public void describeGroup(KafkaCluster cluster) throws Exception {
-        KroxyliciousConfigBuilder config = getConfig(cluster);
+        var config = getConfig(cluster);
         try (var tester = kroxyliciousTester(config)) {
             createTopics(tester, TENANT_1_CLUSTER, List.of(NEW_TOPIC_1));
             runConsumerInOrderToCreateGroup(tester, TENANT_1_CLUSTER, "Tenant1Group", NEW_TOPIC_1, ConsumerStyle.ASSIGN);
@@ -311,7 +312,7 @@ public class MultiTenantIT {
 
     @Test
     public void produceInTransaction(KafkaCluster cluster) throws Exception {
-        KroxyliciousConfigBuilder config = getConfig(cluster);
+        var config = getConfig(cluster);
         try (var tester = kroxyliciousTester(config)) {
             createTopics(tester, TENANT_1_CLUSTER, List.of(NEW_TOPIC_1));
             produceAndVerify(tester, TENANT_1_CLUSTER,
@@ -322,7 +323,7 @@ public class MultiTenantIT {
 
     @Test
     public void produceAndConsumeInTransaction(KafkaCluster cluster) throws Exception {
-        KroxyliciousConfigBuilder config = getConfig(cluster);
+        var config = getConfig(cluster);
         try (var tester = kroxyliciousTester(config)) {
             // put some records in an input topic
             var inputTopic = "input";
@@ -380,7 +381,7 @@ public class MultiTenantIT {
 
     @Test
     public void describeTransaction(KafkaCluster cluster) throws Exception {
-        KroxyliciousConfigBuilder config = getConfig(cluster);
+        var config = getConfig(cluster);
         try (var tester = kroxyliciousTester(config)) {
             try (var admin = tester.admin(TENANT_1_CLUSTER, commonConfig(Map.of()))) {
                 createTopics(tester, TENANT_1_CLUSTER, List.of(NEW_TOPIC_1));
@@ -399,7 +400,7 @@ public class MultiTenantIT {
 
     @Test
     public void tenantTransactionalIdIsolation(KafkaCluster cluster) throws Exception {
-        KroxyliciousConfigBuilder config = getConfig(cluster);
+        var config = getConfig(cluster);
         try (var tester = kroxyliciousTester(config)) {
             createTopics(tester, TENANT_1_CLUSTER, List.of(NEW_TOPIC_1));
             var tenant1TransactionId = "12345";
@@ -577,16 +578,15 @@ public class MultiTenantIT {
         return deleted;
     }
 
-    private KroxyliciousConfigBuilder getConfig(KafkaCluster cluster) {
-        return KroxyliciousConfig.builder()
+    private ConfigurationBuilder getConfig(KafkaCluster cluster) {
+        return new ConfigurationBuilder()
                 .addToVirtualClusters(TENANT_1_CLUSTER, new VirtualClusterBuilder()
                         .withNewTargetCluster()
                         .withBootstrapServers(cluster.getBootstrapServers())
                         .endTargetCluster()
-                        .withNewClusterNetworkAddressConfigProvider()
-                        .withType("PortPerBroker")
-                        .withConfig(Map.of("bootstrapAddress", TENANT_1_PROXY_ADDRESS.toString()))
-                        .endClusterNetworkAddressConfigProvider()
+                        .withClusterNetworkAddressConfigProvider(
+                                new ClusterNetworkAddressConfigProviderDefinitionBuilder("PortPerBroker").withConfig("bootstrapAddress", TENANT_1_PROXY_ADDRESS)
+                                        .build())
                         .withKeyPassword(certificateGenerator.getPassword())
                         .withKeyStoreFile(certificateGenerator.getKeyStoreLocation())
                         .build())
@@ -594,15 +594,14 @@ public class MultiTenantIT {
                         .withNewTargetCluster()
                         .withBootstrapServers(cluster.getBootstrapServers())
                         .endTargetCluster()
-                        .withNewClusterNetworkAddressConfigProvider()
-                        .withType("PortPerBroker")
-                        .withConfig(Map.of("bootstrapAddress", TENANT_2_PROXY_ADDRESS.toString()))
-                        .endClusterNetworkAddressConfigProvider()
+                        .withClusterNetworkAddressConfigProvider(
+                                new ClusterNetworkAddressConfigProviderDefinitionBuilder("PortPerBroker").withConfig("bootstrapAddress", TENANT_2_PROXY_ADDRESS)
+                                        .build())
                         .withKeyPassword(certificateGenerator.getPassword())
                         .withKeyStoreFile(certificateGenerator.getKeyStoreLocation())
                         .build())
-                .addNewFilter().withType("ApiVersions").endFilter()
-                .addNewFilter().withType("MultiTenant").endFilter();
+                .addToFilters(new FilterDefinitionBuilder("ApiVersions").build())
+                .addToFilters(new FilterDefinitionBuilder("MultiTenant").build());
     }
 
     @NotNull

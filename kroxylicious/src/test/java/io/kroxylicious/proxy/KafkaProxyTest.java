@@ -110,7 +110,7 @@ class KafkaProxyTest {
     @MethodSource
     public void missingTls(String name, String config, String expectedMessage) throws Exception {
 
-        var illegalArgumentException = assertThrows(IllegalArgumentException.class, () -> {
+        var illegalArgumentException = assertThrows(IllegalStateException.class, () -> {
             try (var kafkaProxy = new KafkaProxy(new ConfigParser().parseConfiguration(config))) {
             }
         });
