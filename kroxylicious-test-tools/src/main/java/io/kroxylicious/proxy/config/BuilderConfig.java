@@ -11,7 +11,7 @@ import io.sundr.builder.annotations.ExternalBuildables;
 /**
  * This class exists to configure Sundrio so that builders are generated for the configuration model.
  */
-@ExternalBuildables(editableEnabled = false, generateBuilderPackage = true, builderPackage = BuilderConfig.IO_KROXYLICIOUS_PROXY_CONFIG, value = {
+@ExternalBuildables(editableEnabled = false, generateBuilderPackage = true, builderPackage = BuilderConfig.TARGET_CONFIG_PACKAGE, value = {
         "io.kroxylicious.proxy.config.Configuration",
         "io.kroxylicious.proxy.config.TargetCluster",
         "io.kroxylicious.proxy.config.VirtualCluster",
@@ -19,7 +19,7 @@ import io.sundr.builder.annotations.ExternalBuildables;
         "io.kroxylicious.proxy.config.admin.EndpointsConfiguration",
         "io.kroxylicious.proxy.config.admin.PrometheusMetricsConfig" })
 public final class BuilderConfig {
-    public static final String IO_KROXYLICIOUS_PROXY_CONFIG = "io.kroxylicious.proxy.config";
+    public static final String TARGET_CONFIG_PACKAGE = "io.kroxylicious.proxy.config";
 
     private BuilderConfig() {
         throw new IllegalStateException();
