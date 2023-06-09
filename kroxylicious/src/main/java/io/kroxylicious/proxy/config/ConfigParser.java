@@ -25,12 +25,12 @@ import io.kroxylicious.proxy.service.HostPort;
 
 public class ConfigParser {
 
-    private final ObjectMapper mapper = createObjectMapper();
+    private static final ObjectMapper MAPPER = createObjectMapper();
 
     public Configuration parseConfiguration(String configuration) {
 
         try {
-            return mapper.readValue(configuration, Configuration.class);
+            return MAPPER.readValue(configuration, Configuration.class);
         }
         catch (JsonProcessingException e) {
             throw new IllegalArgumentException("Couldn't parse configuration", e);
@@ -40,7 +40,7 @@ public class ConfigParser {
     public Configuration parseConfiguration(InputStream configuration) {
 
         try {
-            return mapper.readValue(configuration, Configuration.class);
+            return MAPPER.readValue(configuration, Configuration.class);
         }
         catch (IOException e) {
             throw new IllegalArgumentException("Couldn't parse configuration", e);
@@ -49,7 +49,7 @@ public class ConfigParser {
 
     public String toYaml(Configuration configuration) {
         try {
-            return mapper.writeValueAsString(configuration);
+            return MAPPER.writeValueAsString(configuration);
         }
         catch (JsonProcessingException e) {
             throw new RuntimeException(e);
