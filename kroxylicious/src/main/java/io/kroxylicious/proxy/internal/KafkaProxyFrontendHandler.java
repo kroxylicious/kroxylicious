@@ -43,6 +43,7 @@ import io.kroxylicious.proxy.internal.codec.CorrelationManager;
 import io.kroxylicious.proxy.internal.codec.DecodePredicate;
 import io.kroxylicious.proxy.internal.codec.KafkaRequestEncoder;
 import io.kroxylicious.proxy.internal.codec.KafkaResponseDecoder;
+import io.kroxylicious.proxy.model.VirtualCluster;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
@@ -66,6 +67,7 @@ public class KafkaProxyFrontendHandler
 
     private final boolean logNetwork;
     private final boolean logFrames;
+    private final VirtualCluster virtualCluster;
 
     private ChannelHandlerContext outboundCtx;
     private KafkaProxyBackendHandler backendHandler;
@@ -127,12 +129,12 @@ public class KafkaProxyFrontendHandler
 
     KafkaProxyFrontendHandler(NetFilter filter,
                               SaslDecodePredicate dp,
-                              boolean logNetwork,
-                              boolean logFrames) {
+                              VirtualCluster virtualCluster) {
         this.filter = filter;
         this.dp = dp;
-        this.logNetwork = logNetwork;
-        this.logFrames = logFrames;
+        this.virtualCluster = virtualCluster;
+        this.logNetwork = virtualCluster.isLogNetwork();
+        this.logFrames = virtualCluster.isLogFrames();
     }
 
     private IllegalStateException illegalState(String msg) {
@@ -257,6 +259,8 @@ public class KafkaProxyFrontendHandler
         if (logNetwork) {
             pipeline.addFirst("networkLogger", new LoggingHandler("io.kroxylicious.proxy.internal.UpstreamNetworkLogger"));
         }
+
+        virtualCluster.buildUpstreamSslContext().ifPresent(c -> pipeline.addFirst("ssl", c.newHandler(outboundChannel.alloc())));
 
         connectFuture.addListener(future -> {
             if (future.isSuccess()) {

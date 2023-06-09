@@ -1,0 +1,3 @@
+# https://help.sonatype.com/lift/configuring-lift/build-and-.toml-details
+# Ignore sundrio builder annotation generated code
+kroxylicious-test-tools/target/generated-sources/annotations/io/kroxylicious/proxy/config/

@@ -7,15 +7,18 @@ package io.kroxylicious.proxy.config;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.service.HostPort;
 
 /**
  * Represents the target (upstream) kafka cluster.
  */
-public record TargetCluster(@JsonProperty(value = "bootstrap_servers", required = true)  String bootstrapServers) {
+public record TargetCluster(@JsonProperty(value = "bootstrap_servers", required = true)  String bootstrapServers,
+                            @JsonProperty(value = "tls") Optional<Tls> tls) {
 
     /**
      * A list of host/port pairs to use for establishing the initial connection to the target (upstream) Kafka cluster.
@@ -34,6 +37,10 @@ public record TargetCluster(@JsonProperty(value = "bootstrap_servers", required 
 
     @Override
     public String toString() {
-        return "TargetCluster [bootstrapServers=" + bootstrapServers + "]";
+        final StringBuilder sb = new StringBuilder("TargetCluster[");
+        sb.append("bootstrapServers='").append(bootstrapServers).append('\'');
+        sb.append(", clientTls=").append(tls.map(Tls::toString).orElse(null));
+        sb.append(']');
+        return sb.toString();
     }
 }

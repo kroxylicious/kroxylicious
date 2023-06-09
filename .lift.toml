@@ -1,3 +1,5 @@
 setup = "scripts/setupLift.sh"
 build = "mvn install -pl !:integrationtests --also-make-dependents -Dquick"
 jdkVersion = "17"
+
+# see .lift/ignoreFile for files being ignored

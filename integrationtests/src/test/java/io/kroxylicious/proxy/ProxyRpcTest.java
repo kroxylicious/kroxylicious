@@ -47,7 +47,7 @@ public class ProxyRpcTest {
 
     /**
      * API_VERSIONS is not proxied, kroxylicious can respond to this itself
-     * FIND_COORDINATOR, METADATA, DESCRIBE_CLUSTER, kroxylicious takes charged of rewriting these responses itself.
+     * FIND_COORDINATOR, METADATA, DESCRIBE_CLUSTER, kroxylicious takes charge of rewriting these responses itself.
      */
     private static final Set<ApiKeys> SKIPPED_API_KEYS = Set.of(API_VERSIONS, FIND_COORDINATOR, METADATA, DESCRIBE_CLUSTER);
 

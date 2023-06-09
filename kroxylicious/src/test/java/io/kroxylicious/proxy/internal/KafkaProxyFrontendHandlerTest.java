@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.internal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.MetadataRequestData;
@@ -37,6 +38,7 @@ import io.netty.handler.ssl.SniCompletionEvent;
 import io.kroxylicious.proxy.filter.NetFilter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.internal.KafkaProxyFrontendHandler.State;
+import io.kroxylicious.proxy.model.VirtualCluster;
 import io.kroxylicious.proxy.service.HostPort;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -47,6 +49,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class KafkaProxyFrontendHandlerTest {
 
@@ -120,6 +123,9 @@ class KafkaProxyFrontendHandlerTest {
         var dp = new SaslDecodePredicate(saslOffloadConfigured);
         ArgumentCaptor<NetFilter.NetFilterContext> valueCapture = ArgumentCaptor.forClass(NetFilter.NetFilterContext.class);
         var filter = mock(NetFilter.class);
+        var virtualCluster = mock(VirtualCluster.class);
+        when(virtualCluster.buildUpstreamSslContext()).thenReturn(Optional.empty());
+
         doAnswer(i -> {
             NetFilter.NetFilterContext ctx = i.getArgument(0);
             if (sslConfigured) {
@@ -155,7 +161,7 @@ class KafkaProxyFrontendHandlerTest {
             return null;
         }).when(filter).selectServer(valueCapture.capture());
 
-        var handler = new KafkaProxyFrontendHandler(filter, dp, false, false) {
+        var handler = new KafkaProxyFrontendHandler(filter, dp, virtualCluster) {
             @Override
             ChannelFuture initConnection(String remoteHost, int remotePort, Bootstrap b) {
                 // This is ugly... basically the EmbeddedChannel doesn't seem to handle the case

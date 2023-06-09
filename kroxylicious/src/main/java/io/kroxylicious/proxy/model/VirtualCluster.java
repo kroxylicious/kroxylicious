@@ -5,23 +5,19 @@
  */
 package io.kroxylicious.proxy.model;
 
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.security.KeyStore;
-import java.security.KeyStoreException;
-import java.security.NoSuchAlgorithmException;
-import java.security.UnrecoverableKeyException;
-import java.security.cert.CertificateException;
+import java.io.UncheckedIOException;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLException;
 
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 
 import io.kroxylicious.proxy.config.TargetCluster;
+import io.kroxylicious.proxy.config.tls.KeyProvider;
+import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 
@@ -29,9 +25,7 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
 
     private final TargetCluster targetCluster;
 
-    private final Optional<String> keyStoreFile;
-    private final Optional<String> keyPassword;
-
+    private final Optional<Tls> tls;
     private final boolean logNetwork;
 
     private final boolean logFrames;
@@ -40,11 +34,11 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
 
     public VirtualCluster(TargetCluster targetCluster,
                           ClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider,
-                          Optional<String> keyStoreFile,
-                          Optional<String> keyPassword,
+                          Optional<Tls> tls,
                           boolean logNetwork, boolean logFrames) {
-        if (clusterNetworkAddressConfigProvider.requiresTls() && keyStoreFile.isEmpty()) {
-            throw new IllegalStateException("Cluster endpoint provider requires tls, but this virtual cluster does not define it");
+        this.tls = tls;
+        if (clusterNetworkAddressConfigProvider.requiresTls() && (tls.isEmpty() || !tls.get().definesKey())) {
+            throw new IllegalStateException("Cluster endpoint provider requires server TLS, but this virtual cluster does not define it.");
         }
         var conflicts = clusterNetworkAddressConfigProvider.getExclusivePorts().stream().filter(p -> clusterNetworkAddressConfigProvider.getSharedPorts().contains(p))
                 .collect(Collectors.toSet());
@@ -55,8 +49,6 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
         this.targetCluster = targetCluster;
         this.logNetwork = logNetwork;
         this.logFrames = logFrames;
-        this.keyStoreFile = keyStoreFile;
-        this.keyPassword = keyPassword;
         this.clusterNetworkAddressConfigProvider = clusterNetworkAddressConfigProvider;
     }
 
@@ -68,14 +60,6 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
         return clusterNetworkAddressConfigProvider;
     }
 
-    public Optional<String> keyStoreFile() {
-        return keyStoreFile;
-    }
-
-    public Optional<String> keyPassword() {
-        return keyPassword;
-    }
-
     public boolean isLogNetwork() {
         return logNetwork;
     }
@@ -85,22 +69,29 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
     }
 
     public boolean isUseTls() {
-        return keyStoreFile.isPresent();
+        return tls.isPresent();
     }
 
-    public Optional<SslContext> buildSslContext() {
-
-        return keyStoreFile.map(ksf -> {
-            try (var is = new FileInputStream(ksf)) {
-                var password = keyPassword.map(String::toCharArray).orElse(null);
-                var keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
-                keyStore.load(is, password);
-                var keyManagerFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
-                keyManagerFactory.init(keyStore, password);
-                return SslContextBuilder.forServer(keyManagerFactory).build();
+    public Optional<SslContext> buildDownstreamSslContext() {
+        return tls.map(tls -> {
+            try {
+                return Optional.of(tls.key()).map(KeyProvider::forServer).orElseThrow().build();
             }
-            catch (KeyStoreException | IOException | NoSuchAlgorithmException | CertificateException | UnrecoverableKeyException e) {
-                throw new RuntimeException(e);
+            catch (SSLException e) {
+                throw new UncheckedIOException(e);
+            }
+        });
+    }
+
+    public Optional<SslContext> buildUpstreamSslContext() {
+        return targetCluster.tls().map(tls -> {
+            try {
+                var sslContextBuilder = SslContextBuilder.forClient();
+                Optional.ofNullable(tls.trust()).ifPresent(tp -> tp.apply(sslContextBuilder));
+                return sslContextBuilder.build();
+            }
+            catch (SSLException e) {
+                throw new UncheckedIOException(e);
             }
         });
     }
@@ -110,8 +101,7 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
         final StringBuilder sb = new StringBuilder("VirtualCluster [");
         sb.append("targetCluster=").append(targetCluster);
         sb.append(", clusterNetworkAddressConfigProvider=").append(clusterNetworkAddressConfigProvider);
-        sb.append(", keyStoreFile=").append(keyStoreFile);
-        sb.append(", keyPassword=").append(keyPassword);
+        sb.append(", tls=").append(tls.map(Tls::toString).orElse(null));
         sb.append(", logNetwork=").append(logNetwork);
         sb.append(", logFrames=").append(logFrames);
         sb.append(']');

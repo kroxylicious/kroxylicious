@@ -49,6 +49,7 @@
         <micrometer.version>1.11.1</micrometer.version>
         <zjsonpatch.version>0.4.14</zjsonpatch.version>
         <sundr-builder-annotations.version>0.95.0</sundr-builder-annotations.version>
+        <findbugs.annotations.version>3.0.1</findbugs.annotations.version>
     </properties>
 
     <name>Kroxylicious Parent</name>
@@ -122,6 +123,12 @@
                 <version>${jackson.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.google.code.findbugs</groupId>
+                <artifactId>annotations</artifactId>
+                <version>${findbugs.annotations.version}</version>
+                <scope>provided</scope>
             </dependency>
             <dependency>
                 <groupId>io.netty</groupId>
@@ -264,12 +271,18 @@
                                 <!--suppress MavenModelInspection -->
                                 <header>${rootdir}/etc/license.txt</header>
                                 <excludes>
+                                    <exclude>.*</exclude>
                                     <exclude>LICENSE.txt</exclude>
                                     <exclude>**/.dontdelete</exclude>
                                     <exclude>docs/**</exclude>
                                     <!-- Need to keep original copyright for Vert.x classes -->
                                     <exclude>src/main/java/io/kroxylicious/proxy/future/**</exclude>
                                     <exclude>src/main/java/io/kroxylicious/proxy/internal/future/**</exclude>
+                                    <!-- Exclude test key material -->
+                                    <exclude>src/test/resources/io/kroxylicious/proxy/internal/tls/*.key</exclude>
+                                    <exclude>src/test/resources/io/kroxylicious/proxy/internal/tls/*.pem</exclude>
+                                    <exclude>src/test/resources/io/kroxylicious/proxy/internal/tls/*.crt</exclude>
+                                    <exclude>src/test/resources/io/kroxylicious/proxy/internal/tls/*.password</exclude>
                                 </excludes>
                             </licenseSet>
                         </licenseSets>

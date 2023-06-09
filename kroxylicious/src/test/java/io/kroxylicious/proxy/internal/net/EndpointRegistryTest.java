@@ -606,7 +606,7 @@ class EndpointRegistryTest {
         when(cluster.getClusterBootstrapAddress()).thenReturn(downstreamBootstrap);
         when(cluster.isUseTls()).thenReturn(tls);
         when(cluster.requiresTls()).thenReturn(sni);
-        when(cluster.targetCluster()).thenReturn(new TargetCluster(upstreamBootstrap.toString()));
+        when(cluster.targetCluster()).thenReturn(new TargetCluster(upstreamBootstrap.toString(), null));
     }
 
     private void verifyVirtualClusterRegisterFuture(int expectedPort, boolean expectedTls, CompletableFuture<Endpoint> future) throws Exception {

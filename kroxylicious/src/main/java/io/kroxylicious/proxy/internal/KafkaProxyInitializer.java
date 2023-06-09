@@ -81,7 +81,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
                                 return null;
                             }
                             var virtualCluster = binding.virtualCluster();
-                            var sslContext = virtualCluster.buildSslContext();
+                            var sslContext = virtualCluster.buildDownstreamSslContext();
                             if (sslContext.isEmpty()) {
                                 promise.setFailure(new IllegalStateException("Virtual cluster %s does not provide SSL context".formatted(virtualCluster)));
                             }
@@ -180,7 +180,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
             }
 
             context.initiateConnect(target, filters);
-        }, dp, virtualCluster.isLogNetwork(), virtualCluster.isLogFrames());
+        }, dp, virtualCluster);
 
         pipeline.addLast("netHandler", frontendHandler);
 

@@ -54,6 +54,29 @@ class ConfigurationTest {
                                 bootstrapAddress: cluster1:9192
                                 brokerAddressPattern: broker-$(nodeId):$(portNumber)
                         """),
+                Arguments.of("Downstream/Upstream TLS", """
+                        virtualClusters:
+                          demo1:
+                            tls:
+                                key:
+                                  storeFile: /tmp/foo.jks
+                                  storePassword:
+                                    password: password
+                                  storeType: JKS
+                            targetCluster:
+                              bootstrap_servers: kafka.example:1234
+                              tls:
+                                trust:
+                                 storeFile: /tmp/foo.jks
+                                 storePassword:
+                                   password: password
+                                 storeType: JKS
+                            clusterNetworkAddressConfigProvider:
+                              type: SniRouting
+                              config:
+                                bootstrapAddress: cluster1:9192
+                                brokerAddressPattern: broker-$(nodeId):$(portNumber)
+                        """),
                 Arguments.of("Filters", """
                         filters:
                         - type: ProduceRequestTransformation
@@ -129,7 +152,136 @@ class ConfigurationTest {
                                       config:
                                         bootstrapAddress: cluster1:9192
                                         brokerAddressPattern: broker-$(nodeId):$(portNumber)
-                                """));
+                                """),
+                Arguments.of("Downstream TLS",
+                        new ConfigurationBuilder()
+                                .addToVirtualClusters("demo", new VirtualClusterBuilder()
+                                        .withNewTargetCluster()
+                                        .withBootstrapServers("kafka.example:1234")
+                                        .endTargetCluster()
+                                        .withNewTls()
+                                        .withNewKeyPairKey()
+                                        .withCertificateFile("/tmp/cert")
+                                        .withPrivateKeyFile("/tmp/key")
+                                        .withNewInlinePasswordKey("keypassword")
+                                        .endKeyPairKey()
+                                        .endTls()
+                                        .withClusterNetworkAddressConfigProvider(
+                                                new ClusterNetworkAddressConfigProviderDefinitionBuilder("SniRouting")
+                                                        .withConfig("bootstrapAddress", "cluster1:9192", "brokerAddressPattern", "broker-$(nodeId):$(portNumber)")
+                                                        .build())
+                                        .build())
+                                .build(),
+                        """
+                                virtualClusters:
+                                  demo:
+                                    targetCluster:
+                                      bootstrap_servers: kafka.example:1234
+                                    tls:
+                                       key:
+                                         certificateFile: /tmp/cert
+                                         privateKeyFile: /tmp/key
+                                         keyPassword:
+                                           password: keypassword
+                                    clusterNetworkAddressConfigProvider:
+                                      type: SniRouting
+                                      config:
+                                        bootstrapAddress: cluster1:9192
+                                        brokerAddressPattern: broker-$(nodeId):$(portNumber)
+                                """),
+                Arguments.of("Upstream TLS - platform trust",
+                        new ConfigurationBuilder()
+                                .addToVirtualClusters("demo", new VirtualClusterBuilder()
+                                        .withNewTargetCluster()
+                                        .withBootstrapServers("kafka.example:1234")
+                                        .withNewTls()
+                                        .endTls()
+                                        .endTargetCluster()
+                                        .withClusterNetworkAddressConfigProvider(
+                                                new ClusterNetworkAddressConfigProviderDefinitionBuilder("SniRouting")
+                                                        .withConfig("bootstrapAddress", "cluster1:9192", "brokerAddressPattern", "broker-$(nodeId):$(portNumber)")
+                                                        .build())
+                                        .build())
+                                .build(),
+                        """
+                                virtualClusters:
+                                  demo:
+                                    targetCluster:
+                                      bootstrap_servers: kafka.example:1234
+                                      tls: {}
+                                    clusterNetworkAddressConfigProvider:
+                                      type: SniRouting
+                                      config:
+                                        bootstrapAddress: cluster1:9192
+                                        brokerAddressPattern: broker-$(nodeId):$(portNumber)
+                                """),
+                Arguments.of("Upstream TLS - trust from truststore",
+                        new ConfigurationBuilder()
+                                .addToVirtualClusters("demo", new VirtualClusterBuilder()
+                                        .withNewTargetCluster()
+                                        .withBootstrapServers("kafka.example:1234")
+                                        .withNewTls()
+                                        .withNewTrustStoreTrust()
+                                        .withStoreFile("/tmp/client.jks")
+                                        .withStoreType("JKS")
+                                        .withNewInlinePasswordStore("storepassword")
+                                        .endTrustStoreTrust()
+                                        .endTls()
+                                        .endTargetCluster()
+                                        .withClusterNetworkAddressConfigProvider(
+                                                new ClusterNetworkAddressConfigProviderDefinitionBuilder("SniRouting")
+                                                        .withConfig("bootstrapAddress", "cluster1:9192", "brokerAddressPattern", "broker-$(nodeId):$(portNumber)")
+                                                        .build())
+                                        .build())
+                                .build(),
+                        """
+                                virtualClusters:
+                                  demo:
+                                    targetCluster:
+                                      bootstrap_servers: kafka.example:1234
+                                      tls:
+                                         trust:
+                                            storeFile: /tmp/client.jks
+                                            storePassword:
+                                              password: storepassword
+                                            storeType: JKS
+                                    clusterNetworkAddressConfigProvider:
+                                      type: SniRouting
+                                      config:
+                                        bootstrapAddress: cluster1:9192
+                                        brokerAddressPattern: broker-$(nodeId):$(portNumber)
+                                """),
+                Arguments.of("Upstream TLS - insecure",
+                        new ConfigurationBuilder()
+                                .addToVirtualClusters("demo", new VirtualClusterBuilder()
+                                        .withNewTargetCluster()
+                                        .withBootstrapServers("kafka.example:1234")
+                                        .withNewTls()
+                                        .withNewInsecureTlsTrust(true)
+                                        .endTls()
+                                        .endTargetCluster()
+                                        .withClusterNetworkAddressConfigProvider(
+                                                new ClusterNetworkAddressConfigProviderDefinitionBuilder("SniRouting")
+                                                        .withConfig("bootstrapAddress", "cluster1:9192", "brokerAddressPattern", "broker-$(nodeId):$(portNumber)")
+                                                        .build())
+                                        .build())
+                                .build(),
+                        """
+                                virtualClusters:
+                                  demo:
+                                    targetCluster:
+                                      bootstrap_servers: kafka.example:1234
+                                      tls:
+                                         trust:
+                                            insecure: true
+                                    clusterNetworkAddressConfigProvider:
+                                      type: SniRouting
+                                      config:
+                                        bootstrapAddress: cluster1:9192
+                                        brokerAddressPattern: broker-$(nodeId):$(portNumber)
+                                """)
+
+        );
     }
 
     @ParameterizedTest(name = "{0}")

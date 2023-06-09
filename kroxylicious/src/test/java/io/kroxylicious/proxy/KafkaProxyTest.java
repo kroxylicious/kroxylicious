@@ -78,8 +78,10 @@ class KafkaProxyTest {
                               config:
                                 bootstrapAddress: localhost:9192
                                 brokerAddressPattern: broker-$(nodeId)
-                            keyStoreFile: /tmp/notused
-                            keystorePassword: apassword
+                            tls:
+                              key:
+                                storeFile: /tmp/notused
+                                storeFilePassword: apassword
                         """, "The shared bind of port(s) 9192 to <any> would conflict with existing exclusive port bindings on <any>."));
     }
 
@@ -103,7 +105,7 @@ class KafkaProxyTest {
                         brokerAddressPattern:  broker-$(nodeId)
                     targetCluster:
                       bootstrap_servers: kafka.example:1234
-                """, "Cluster endpoint provider requires tls, but this virtual cluster does not define it"));
+                """, "Cluster endpoint provider requires server TLS, but this virtual cluster does not define it"));
     }
 
     @ParameterizedTest(name = "{0}")
@@ -129,8 +131,11 @@ class KafkaProxyTest {
                               config:
                                 bootstrapAddress: cluster1:9192
                                 brokerAddressPattern:  broker-$(nodeId)-cluster1
-                            keyStoreFile: /tmo/notused
-                            keystorePassword: apassword
+                            tls:
+                              key:
+                                storeFile: /tmp/notused
+                                storePassword:
+                                  password: apassword
                           demo2:
                             targetCluster:
                               bootstrap_servers: kafka.invalid:1234
@@ -139,8 +144,11 @@ class KafkaProxyTest {
                               config:
                                 bootstrapAddress: cluster2:9192
                                 brokerAddressPattern:  broker-$(nodeId)-cluster2
-                            keyStoreFile: /tmo/notused
-                            keystorePassword: apassword
+                            tls:
+                              key:
+                                storeFile: /tmp/notused
+                                storePassword:
+                                  password: apassword
                         """));
     }
 
