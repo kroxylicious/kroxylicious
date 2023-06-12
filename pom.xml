@@ -31,7 +31,7 @@
         <skipUTs>${skipTests}</skipUTs>
 
         <freemarker.version>2.3.32</freemarker.version>
-        <guava.version>32.0.0-jre</guava.version>
+        <guava.version>32.0.1-jre</guava.version>
         <jackson.version>2.15.2</jackson.version>
         <junit.version>5.9.3</junit.version>
         <kafka.version>3.4.0</kafka.version>
