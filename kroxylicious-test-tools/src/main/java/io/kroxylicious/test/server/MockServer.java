@@ -15,12 +15,11 @@ import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.EventLoopGroup;
-import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
-import io.netty.channel.socket.nio.NioServerSocketChannel;
 
 import io.kroxylicious.test.Request;
 import io.kroxylicious.test.Response;
+import io.kroxylicious.test.client.EventGroupConfig;
 import io.kroxylicious.test.codec.DecodedRequestFrame;
 import io.kroxylicious.test.codec.KafkaRequestDecoder;
 import io.kroxylicious.test.codec.KafkaResponseEncoder;
@@ -88,12 +87,13 @@ public final class MockServer implements AutoCloseable {
      */
     public int start(int port, Response response) {
         // Configure the server.
-        bossGroup = new NioEventLoopGroup(1);
-        workerGroup = new NioEventLoopGroup();
+        final EventGroupConfig eventGroupConfig = EventGroupConfig.create();
+        bossGroup = eventGroupConfig.newBossGroup();
+        workerGroup = eventGroupConfig.newWorkerGroup();
         serverHandler = new MockHandler(response == null ? null : response.message());
         ServerBootstrap b = new ServerBootstrap();
         b.group(bossGroup, workerGroup)
-                .channel(NioServerSocketChannel.class)
+                .channel(eventGroupConfig.serverChannelClass())
                 .option(ChannelOption.SO_BACKLOG, 100)
                 .childHandler(new ChannelInitializer<SocketChannel>() {
                     @Override
