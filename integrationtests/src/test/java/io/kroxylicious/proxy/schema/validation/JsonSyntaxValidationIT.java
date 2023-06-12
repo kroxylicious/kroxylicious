@@ -24,7 +24,7 @@ import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
-import io.kroxylicious.proxy.KroxyliciousConfigBuilder;
+import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
@@ -52,10 +52,11 @@ public class JsonSyntaxValidationIT {
         assertEquals(1, cluster.getNumOfBrokers());
         admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1))).all().get();
 
-        KroxyliciousConfigBuilder config = withDefaultFilters(proxy(cluster)).addNewFilter().withType("ProduceValidator").withConfig(Map.of("rules",
-                List.of(Map.of("topicNames", List.of(TOPIC_1), "valueRule",
-                        Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true))))))
-                .endFilter();
+        var config = withDefaultFilters(proxy(cluster))
+                .addToFilters(new FilterDefinitionBuilder("ProduceValidator").withConfig("rules",
+                        List.of(Map.of("topicNames", List.of(TOPIC_1), "valueRule",
+                                Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true)))))
+                        .build());
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer(getProducerConfig(0, 16384))) {
             Future<RecordMetadata> invalid = producer.send(new ProducerRecord<>(TOPIC_1, "my-key", SYNTACTICALLY_INCORRECT_JSON));
@@ -68,11 +69,11 @@ public class JsonSyntaxValidationIT {
         assertEquals(1, cluster.getNumOfBrokers());
         admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1), new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
 
-        var config = withDefaultFilters(proxy(cluster)).addNewFilter().withType("ProduceValidator").withConfig(Map.of("rules",
-                List.of(Map.of("topicNames", List.of(TOPIC_1), "valueRule",
-                        Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true))))))
-                .endFilter();
-
+        var config = withDefaultFilters(proxy(cluster))
+                .addToFilters(new FilterDefinitionBuilder("ProduceValidator").withConfig("rules",
+                        List.of(Map.of("topicNames", List.of(TOPIC_1), "valueRule",
+                                Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true)))))
+                        .build());
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer(getProducerConfig(0, 16384));
                 var consumer = tester.consumer(Map.of(GROUP_ID_CONFIG, "my-group-id", AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
@@ -92,10 +93,11 @@ public class JsonSyntaxValidationIT {
 
         admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1), new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
 
-        var config = withDefaultFilters(proxy(cluster)).addNewFilter().withType("ProduceValidator").withConfig(
-                Map.of("forwardPartialRequests", true, "rules", List.of(Map.of("topicNames", List.of(TOPIC_1, TOPIC_2), "valueRule",
-                        Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true))))))
-                .endFilter();
+        var config = withDefaultFilters(proxy(cluster))
+                .addToFilters(new FilterDefinitionBuilder("ProduceValidator").withConfig("forwardPartialRequests", true, "rules",
+                        List.of(Map.of("topicNames", List.of(TOPIC_1, TOPIC_2), "valueRule",
+                                Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true)))))
+                        .build());
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer(Map.of(LINGER_MS_CONFIG, 5000, TRANSACTIONAL_ID_CONFIG, randomUUID().toString()))) {
@@ -117,10 +119,11 @@ public class JsonSyntaxValidationIT {
         admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1), new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
 
         boolean forwardPartialRequests = false;
-        var config = withDefaultFilters(proxy(cluster)).addNewFilter().withType("ProduceValidator").withConfig(
-                Map.of("forwardPartialRequests", forwardPartialRequests, "rules", List.of(Map.of("topicNames", List.of(TOPIC_1, TOPIC_2), "valueRule",
-                        Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true))))))
-                .endFilter();
+        var config = withDefaultFilters(proxy(cluster))
+                .addToFilters(new FilterDefinitionBuilder("ProduceValidator").withConfig("forwardPartialRequests", forwardPartialRequests, "rules",
+                        List.of(Map.of("topicNames", List.of(TOPIC_1, TOPIC_2), "valueRule",
+                                Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true)))))
+                        .build());
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer(getProducerConfig(5000, 16384))) {
@@ -138,10 +141,12 @@ public class JsonSyntaxValidationIT {
 
         admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1), new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
 
-        var config = withDefaultFilters(proxy(cluster)).addNewFilter().withType("ProduceValidator").withConfig(
-                Map.of("forwardPartialRequests", true, "rules", List.of(Map.of("topicNames", List.of(TOPIC_1, TOPIC_2), "valueRule",
-                        Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true))))))
-                .endFilter();
+        var config = withDefaultFilters(proxy(cluster))
+                .addToFilters(new FilterDefinitionBuilder("ProduceValidator")
+                        .withConfig("forwardPartialRequests", true,
+                                "rules", List.of(Map.of("topicNames", List.of(TOPIC_1, TOPIC_2), "valueRule",
+                                        Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true)))))
+                        .build());
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer(getProducerConfig(5000, 16384));
@@ -166,10 +171,12 @@ public class JsonSyntaxValidationIT {
 
         admin.createTopics(List.of(new NewTopic(TOPIC_1, 2, (short) 1))).all().get();
 
-        var config = withDefaultFilters(proxy(cluster)).addNewFilter().withType("ProduceValidator").withConfig(
-                Map.of("forwardPartialRequests", true, "rules", List.of(Map.of("topicNames", List.of(TOPIC_1), "valueRule",
-                        Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true))))))
-                .endFilter();
+        var config = withDefaultFilters(proxy(cluster))
+                .addToFilters(new FilterDefinitionBuilder("ProduceValidator")
+                        .withConfig("forwardPartialRequests", true,
+                                "rules", List.of(Map.of("topicNames", List.of(TOPIC_1), "valueRule",
+                                        Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true)))))
+                        .build());
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer(getProducerConfig(5000, 16384));
@@ -194,10 +201,11 @@ public class JsonSyntaxValidationIT {
 
         admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1))).all().get();
 
-        var config = withDefaultFilters(proxy(cluster)).addNewFilter().withType("ProduceValidator").withConfig(
-                Map.of("forwardPartialRequests", true, "rules", List.of(Map.of("topicNames", List.of(TOPIC_1), "valueRule",
-                        Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true))))))
-                .endFilter();
+        var config = withDefaultFilters(proxy(cluster))
+                .addToFilters(new FilterDefinitionBuilder("ProduceValidator").withConfig("forwardPartialRequests", true, "rules",
+                        List.of(Map.of("topicNames", List.of(TOPIC_1), "valueRule",
+                                Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true)))))
+                        .build());
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer(getProducerConfig(5000, 16384))) {
@@ -218,10 +226,11 @@ public class JsonSyntaxValidationIT {
 
         admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1))).all().get();
 
-        var config = withDefaultFilters(proxy(cluster)).addNewFilter().withType("ProduceValidator").withConfig(Map.of("rules",
-                List.of(Map.of("topicNames", List.of(TOPIC_1), "valueRule",
-                        Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true))))))
-                .endFilter();
+        var config = withDefaultFilters(proxy(cluster))
+                .addToFilters(new FilterDefinitionBuilder("ProduceValidator").withConfig("rules",
+                        List.of(Map.of("topicNames", List.of(TOPIC_1), "valueRule",
+                                Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true)))))
+                        .build());
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer(getProducerConfig(0, 16384))) {

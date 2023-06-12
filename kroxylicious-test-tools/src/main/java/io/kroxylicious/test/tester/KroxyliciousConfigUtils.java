@@ -6,15 +6,16 @@
 
 package io.kroxylicious.test.tester;
 
-import java.util.Map;
-
-import io.kroxylicious.proxy.ClusterNetworkAddressConfigProvider;
-import io.kroxylicious.proxy.KroxyliciousConfig;
-import io.kroxylicious.proxy.KroxyliciousConfigBuilder;
-import io.kroxylicious.proxy.VirtualCluster;
-import io.kroxylicious.proxy.VirtualClusterBuilder;
+import io.kroxylicious.proxy.config.ClusterNetworkAddressConfigProviderDefinitionBuilder;
+import io.kroxylicious.proxy.config.Configuration;
+import io.kroxylicious.proxy.config.ConfigurationBuilder;
+import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
+import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
+
+import static io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig;
+import static io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.SniRoutingClusterNetworkAddressConfigProvider.SniRoutingClusterNetworkAddressConfigProviderConfig;
 
 /**
  * Class for utilities related to manipulating KroxyliciousConfig and it's builder.
@@ -30,15 +31,14 @@ public class KroxyliciousConfigUtils {
      * @param clusterBootstrapServers external bootstrap server
      * @return builder
      */
-    public static KroxyliciousConfigBuilder proxy(String clusterBootstrapServers) {
-        return KroxyliciousConfig.builder().addToVirtualClusters(DEFAULT_VIRTUAL_CLUSTER, new VirtualClusterBuilder()
+    public static ConfigurationBuilder proxy(String clusterBootstrapServers) {
+        return new ConfigurationBuilder().addToVirtualClusters(DEFAULT_VIRTUAL_CLUSTER, new VirtualClusterBuilder()
                 .withNewTargetCluster()
                 .withBootstrapServers(clusterBootstrapServers)
                 .endTargetCluster()
-                .withNewClusterNetworkAddressConfigProvider()
-                .withType("PortPerBroker")
-                .withConfig(Map.of("bootstrapAddress", DEFAULT_PROXY_BOOTSTRAP.toString()))
-                .endClusterNetworkAddressConfigProvider()
+                .withClusterNetworkAddressConfigProvider(
+                        new ClusterNetworkAddressConfigProviderDefinitionBuilder("PortPerBroker").withConfig("bootstrapAddress", DEFAULT_PROXY_BOOTSTRAP)
+                                .build())
                 .build());
     }
 
@@ -48,7 +48,7 @@ public class KroxyliciousConfigUtils {
      * @param cluster kafka cluster to proxy
      * @return builder
      */
-    public static KroxyliciousConfigBuilder proxy(KafkaCluster cluster) {
+    public static ConfigurationBuilder proxy(KafkaCluster cluster) {
         return proxy(cluster.getBootstrapServers());
     }
 
@@ -57,8 +57,8 @@ public class KroxyliciousConfigUtils {
      * @param builder builder to add filters to
      * @return builder
      */
-    public static KroxyliciousConfigBuilder withDefaultFilters(KroxyliciousConfigBuilder builder) {
-        return builder.addNewFilter().withType("ApiVersions").endFilter();
+    public static ConfigurationBuilder withDefaultFilters(ConfigurationBuilder builder) {
+        return builder.addToFilters(new FilterDefinitionBuilder("ApiVersions").build());
     }
 
     /**
@@ -69,15 +69,20 @@ public class KroxyliciousConfigUtils {
      * @throws IllegalStateException if we encounter an unknown endpoint config provider type for the virtualcluster
      * @throws IllegalArgumentException if the virtualCluster is not in the kroxylicious config
      */
-    static String bootstrapServersFor(String virtualCluster, KroxyliciousConfig config) {
-        VirtualCluster cluster = config.getVirtualClusters().get(virtualCluster);
+    static String bootstrapServersFor(String virtualCluster, Configuration config) {
+        var cluster = config.virtualClusters().get(virtualCluster);
         if (cluster == null) {
             throw new IllegalArgumentException("virtualCluster " + virtualCluster + " not found in config: " + config);
         }
-        ClusterNetworkAddressConfigProvider provider = cluster.clusterNetworkAddressConfigProvider();
-        if (provider.type().equals("PortPerBroker") || provider.type().equals("SniRouting")) {
-            Object bootstrapAddress = provider.config().get("bootstrapAddress");
-            return (String) bootstrapAddress;
+        var provider = cluster.clusterNetworkAddressConfigProvider();
+        // Need proper way to do this for embedded use-cases. We should have a way to query kroxy for the virtual cluster's
+        // actual bootstrap after the proxy is started. The provider might support dynamic ports (port 0), so querying the
+        // config might not work.
+        if (provider.config() instanceof PortPerBrokerClusterNetworkAddressConfigProviderConfig c) {
+            return c.getBootstrapAddress().toString();
+        }
+        else if (provider.config() instanceof SniRoutingClusterNetworkAddressConfigProviderConfig c) {
+            return c.getBootstrapAddress().toString();
         }
         else {
             throw new IllegalStateException("I don't know how to handle ClusterEndpointConfigProvider type:" + provider.type());

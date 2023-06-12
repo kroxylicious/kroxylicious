@@ -36,9 +36,9 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
-import io.kroxylicious.proxy.KroxyliciousConfig;
-import io.kroxylicious.proxy.KroxyliciousConfigBuilder;
-import io.kroxylicious.proxy.VirtualClusterBuilder;
+import io.kroxylicious.proxy.config.ClusterNetworkAddressConfigProviderDefinitionBuilder;
+import io.kroxylicious.proxy.config.ConfigurationBuilder;
+import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.test.Request;
 import io.kroxylicious.test.Response;
 import io.kroxylicious.test.client.KafkaClient;
@@ -159,8 +159,8 @@ public class KroxyliciousTestersTest {
     @Test
     public void testIllegalToAskForDefaultClientsWhenVirtualClustersAmbiguous(KafkaCluster cluster) {
         String clusterBootstrapServers = cluster.getBootstrapServers();
-        KroxyliciousConfigBuilder builder = KroxyliciousConfig.builder();
-        KroxyliciousConfigBuilder proxy = addVirtualCluster(clusterBootstrapServers, addVirtualCluster(clusterBootstrapServers, builder, "foo",
+        ConfigurationBuilder builder = new ConfigurationBuilder();
+        ConfigurationBuilder proxy = addVirtualCluster(clusterBootstrapServers, addVirtualCluster(clusterBootstrapServers, builder, "foo",
                 "localhost:9192"), "bar", "localhost:9296");
         try (var tester = kroxyliciousTester(withDefaultFilters(proxy))) {
             assertThrows(AmbiguousVirtualClusterException.class, tester::singleRequestClient);
@@ -178,16 +178,15 @@ public class KroxyliciousTestersTest {
         }
     }
 
-    private static KroxyliciousConfigBuilder addVirtualCluster(String clusterBootstrapServers, KroxyliciousConfigBuilder builder, String clusterName,
-                                                               String defaultProxyBootstrap) {
+    private static ConfigurationBuilder addVirtualCluster(String clusterBootstrapServers, ConfigurationBuilder builder, String clusterName,
+                                                          String defaultProxyBootstrap) {
         return builder.addToVirtualClusters(clusterName, new VirtualClusterBuilder()
                 .withNewTargetCluster()
                 .withBootstrapServers(clusterBootstrapServers)
                 .endTargetCluster()
-                .withNewClusterNetworkAddressConfigProvider()
-                .withType("PortPerBroker")
-                .withConfig(Map.of("bootstrapAddress", defaultProxyBootstrap))
-                .endClusterNetworkAddressConfigProvider()
+                .withClusterNetworkAddressConfigProvider(
+                        new ClusterNetworkAddressConfigProviderDefinitionBuilder("PortPerBroker").withConfig("bootstrapAddress", defaultProxyBootstrap)
+                                .build())
                 .build());
     }
 

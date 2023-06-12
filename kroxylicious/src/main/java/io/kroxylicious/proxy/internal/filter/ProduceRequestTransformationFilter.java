@@ -21,6 +21,8 @@ import org.apache.kafka.common.record.MutableRecordBatch;
 import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.record.TimestampType;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
@@ -43,7 +45,7 @@ public class ProduceRequestTransformationFilter implements ProduceRequestFilter 
 
         private final String transformation;
 
-        public ProduceRequestTransformationConfig(String transformation) {
+        public ProduceRequestTransformationConfig(@JsonProperty(required = true) String transformation) {
             this.transformation = transformation;
         }
 

@@ -34,11 +34,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.flipkart.zjsonpatch.JsonDiff;
 import com.google.common.reflect.ClassPath;
 
-import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.filter.FilterInvoker;
 import io.kroxylicious.proxy.filter.FilterInvokers;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
+import io.kroxylicious.proxy.model.VirtualCluster;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.test.requestresponsetestdef.ApiMessageTestDef;
 import io.kroxylicious.test.requestresponsetestdef.RequestResponseTestDef;

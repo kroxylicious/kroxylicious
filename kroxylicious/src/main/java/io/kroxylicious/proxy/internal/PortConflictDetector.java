@@ -15,7 +15,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import io.kroxylicious.proxy.config.VirtualCluster;
+import io.kroxylicious.proxy.model.VirtualCluster;
 
 /**
  * Detects potential for port conflicts arising between virtual cluster configurations.

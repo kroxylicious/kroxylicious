@@ -15,20 +15,21 @@ import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.common.serialization.Serde;
 
 import io.kroxylicious.proxy.KafkaProxy;
-import io.kroxylicious.proxy.KroxyliciousConfig;
-import io.kroxylicious.proxy.KroxyliciousConfigBuilder;
 import io.kroxylicious.proxy.config.ConfigParser;
+import io.kroxylicious.proxy.config.Configuration;
+import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.test.client.KafkaClient;
 
 public class DefaultKroxyliciousTester implements KroxyliciousTester {
     private final AutoCloseable proxy;
-    private final KroxyliciousConfig kroxyliciousConfig;
+    private final Configuration kroxyliciousConfig;
 
     private final KroxyliciousClients defaultClients;
 
-    DefaultKroxyliciousTester(KroxyliciousConfigBuilder configurationBuilder) {
+    DefaultKroxyliciousTester(ConfigurationBuilder configurationBuilder) {
         this(configurationBuilder, config -> {
-            KafkaProxy kafkaProxy = new KafkaProxy(new ConfigParser().parseConfiguration(config.toYaml()));
+            var configParser = new ConfigParser();
+            KafkaProxy kafkaProxy = new KafkaProxy(config);
             try {
                 kafkaProxy.startup();
             }
@@ -39,12 +40,12 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
         });
     }
 
-    DefaultKroxyliciousTester(KroxyliciousConfigBuilder configuration, Function<KroxyliciousConfig, AutoCloseable> kroxyliciousFactory) {
+    DefaultKroxyliciousTester(ConfigurationBuilder configuration, Function<Configuration, AutoCloseable> kroxyliciousFactory) {
         kroxyliciousConfig = configuration.build();
         proxy = kroxyliciousFactory.apply(kroxyliciousConfig);
-        int numVirtualClusters = kroxyliciousConfig.getVirtualClusters().size();
+        int numVirtualClusters = kroxyliciousConfig.virtualClusters().size();
         if (numVirtualClusters == 1) {
-            String onlyCluster = kroxyliciousConfig.getVirtualClusters().keySet().stream().findFirst().orElseThrow();
+            String onlyCluster = kroxyliciousConfig.virtualClusters().keySet().stream().findFirst().orElseThrow();
             defaultClients = new KroxyliciousClients(KroxyliciousConfigUtils.bootstrapServersFor(onlyCluster, kroxyliciousConfig));
         }
         else {
@@ -53,9 +54,9 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     }
 
     private KroxyliciousClients clients() {
-        int numVirtualClusters = kroxyliciousConfig.getVirtualClusters().size();
+        int numVirtualClusters = kroxyliciousConfig.virtualClusters().size();
         if (numVirtualClusters == 1) {
-            String onlyCluster = kroxyliciousConfig.getVirtualClusters().keySet().stream().findFirst().orElseThrow();
+            String onlyCluster = kroxyliciousConfig.virtualClusters().keySet().stream().findFirst().orElseThrow();
             return new KroxyliciousClients(KroxyliciousConfigUtils.bootstrapServersFor(onlyCluster, kroxyliciousConfig));
         }
         else {

@@ -9,7 +9,7 @@ package io.kroxylicious.test.tester;
 import java.util.List;
 import java.util.function.Function;
 
-import io.kroxylicious.proxy.KroxyliciousConfigBuilder;
+import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.test.Request;
 import io.kroxylicious.test.Response;
 import io.kroxylicious.test.server.MockServer;
@@ -25,7 +25,7 @@ public class MockServerKroxyliciousTester extends DefaultKroxyliciousTester {
 
     private final MockServer mockServer;
 
-    MockServerKroxyliciousTester(MockServer mockServer, Function<String, KroxyliciousConfigBuilder> configurationForMockBootstrap) {
+    MockServerKroxyliciousTester(MockServer mockServer, Function<String, ConfigurationBuilder> configurationForMockBootstrap) {
         super(configurationForMockBootstrap.apply("localhost:" + mockServer.port()));
         this.mockServer = mockServer;
     }
