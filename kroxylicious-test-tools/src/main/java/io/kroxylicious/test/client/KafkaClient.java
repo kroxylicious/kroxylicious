@@ -55,7 +55,7 @@ public final class KafkaClient implements AutoCloseable {
         this.port = port;
     }
 
-    private final EventLoopGroup group = new NioEventLoopGroup();
+    private final EventLoopGroup group = new NioEventLoopGroup(1);
 
     private static final AtomicInteger correlationId = new AtomicInteger(1);
 
