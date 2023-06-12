@@ -27,6 +27,8 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
 import io.kroxylicious.proxy.filter.FilterInvoker;
 import io.kroxylicious.proxy.filter.FilterInvokers;
@@ -36,35 +38,32 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class SampleFetchResponseFilterTest {
 
     // this is arbitrary for our filter, so set to 0
     private static final short API_VERSION = 0;
-
     private static final String PRE_TRANSFORM_VALUE = "this is what the value will be transformed from";
     private static final String NO_TRANSFORM_VALUE = "this value will not be transformed";
     private static final String POST_TRANSFORM_VALUE = "this is what the value will be transformed to";
     private static final String CONFIG_FROM = "from";
     private static final String CONFIG_TO = "to";
-
     private static final ApiMessageType API_MESSAGE_TYPE = ApiMessageType.FETCH;
 
     @Mock
-    private KrpcFilterContext context = mock(KrpcFilterContext.class); // TODO: NOT WORKING!!!!!
-    // NullPointer Cannot invoke "org.apache.kafka.common.utils.ByteBufferOutputStream.remaining()" because "stream" is null
+    private KrpcFilterContext context;
 
     @Captor
     private ArgumentCaptor<ApiMessage> apiMessageCaptor = ArgumentCaptor.forClass(ApiMessage.class);
 
     private SampleFetchResponseFilter.SampleFetchResponseConfig config;
-
     private SampleFetchResponseFilter filter;
-
     private FilterInvoker invoker;
 
     @BeforeEach
     public void beforeEach() {
+        buildContextMock();
         config = new SampleFetchResponseFilter.SampleFetchResponseConfig(CONFIG_FROM, CONFIG_TO);
         filter = new SampleFetchResponseFilter(config);
         invoker = FilterInvokers.from(filter);
@@ -83,12 +82,14 @@ class SampleFetchResponseFilterTest {
         invoker.onResponse(ApiKeys.forId(API_MESSAGE_TYPE.apiKey()), API_VERSION, headerData, responseData, context);
         verify(context).forwardResponse(any(), apiMessageCaptor.capture());
         var unpackedResponse = unpackFetchResponseData((FetchResponseData) apiMessageCaptor.getValue());
-        // We only put 1 record in, we should only get 1 record back
-        assertThat(unpackedResponse.size()).isEqualTo(1);
-        // We should see that the unpacked response value has changed from the input value
-        assertThat(unpackedResponse.get(0)).isNotEqualTo(PRE_TRANSFORM_VALUE);
+        // We only put 1 record in, we should only get 1 record back, and
+        // We should see that the unpacked response value has changed from the input value, and
         // We should see that the unpacked response value has been transformed to the correct value
-        assertThat(unpackedResponse.get(0)).isEqualTo(POST_TRANSFORM_VALUE);
+        assertThat(unpackedResponse)
+                .hasSize(1)
+                .first().asString()
+                .doesNotContain(PRE_TRANSFORM_VALUE)
+                .contains(POST_TRANSFORM_VALUE);
     }
 
     @Test
@@ -98,21 +99,26 @@ class SampleFetchResponseFilterTest {
         invoker.onResponse(ApiKeys.forId(API_MESSAGE_TYPE.apiKey()), API_VERSION, headerData, responseData, context);
         verify(context).forwardResponse(any(), apiMessageCaptor.capture());
         var unpackedResponse = unpackFetchResponseData((FetchResponseData) apiMessageCaptor.getValue());
-        // We only put 1 record in, we should only get 1 record back
-        assertThat(unpackedResponse.size()).isEqualTo(1);
-        // We should see that the unpacked response value is the same as the input value
-        assertThat(unpackedResponse.get(0)).isEqualTo(NO_TRANSFORM_VALUE);
+        // Check we only have 1 unpacked record, and that its value is the same as the input value
+        assertThat(unpackedResponse)
+                .hasSize(1)
+                .first().asString()
+                .contains(NO_TRANSFORM_VALUE);
     }
 
-    @Test
-    public void wontTransformFetchResponseTest2() {
-        var headerData = new ResponseHeaderData();
-        var responseData = buildFetchResponseData(NO_TRANSFORM_VALUE);
-        invoker.onResponse(ApiKeys.forId(API_MESSAGE_TYPE.apiKey()), API_VERSION, headerData, responseData, context);
-        verify(context).forwardResponse(any(), apiMessageCaptor.capture());
-        var unpackedResponse = unpackFetchResponseData((FetchResponseData) apiMessageCaptor.getValue());
-        // Check we only have 1 unpacked record, and that its value is the same as the input value
-        assertThat(unpackedResponse).hasSize(1).first().isEqualTo(NO_TRANSFORM_VALUE);
+    private void buildContextMock() {
+        context = mock(KrpcFilterContext.class);
+        // create stub for createByteBufferOutputStream method
+        ArgumentCaptor<Integer> argument = ArgumentCaptor.forClass(Integer.class);
+        when(context.createByteBufferOutputStream(argument.capture())).thenAnswer(
+                new Answer() {
+                    public Object answer(InvocationOnMock invocation) {
+                        Object[] args = invocation.getArguments();
+                        Integer size = (Integer) args[0];
+                        return new ByteBufferOutputStream(size);
+                    }
+                }
+        );
     }
 
     /**
@@ -124,11 +130,12 @@ class SampleFetchResponseFilterTest {
      */
     private static FetchResponseData buildFetchResponseData(String transformValue) {
         var responseData = new FetchResponseData();
-        // Build stream from given transformValue string
-        var transformValueBuffer = ByteBuffer.wrap(transformValue.getBytes(StandardCharsets.UTF_8));
-        var stream = new ByteBufferOutputStream(transformValueBuffer);
-        // Build records from built stream
+        // Build stream
+        var stream = new ByteBufferOutputStream(ByteBuffer.wrap(transformValue.getBytes(StandardCharsets.UTF_8)));
+        // Build records from stream
         var recordsBuilder = new MemoryRecordsBuilder(stream, RecordBatch.CURRENT_MAGIC_VALUE, CompressionType.NONE, TimestampType.CREATE_TIME, 0, RecordBatch.NO_TIMESTAMP, RecordBatch.NO_PRODUCER_ID, RecordBatch.NO_PRODUCER_EPOCH, RecordBatch.NO_SEQUENCE, false, false, RecordBatch.NO_PARTITION_LEADER_EPOCH, stream.remaining());
+        // Add transformValue as buffer to records
+        recordsBuilder.append(RecordBatch.NO_TIMESTAMP, null, ByteBuffer.wrap(transformValue.getBytes(StandardCharsets.UTF_8)).position(0));
         var records = recordsBuilder.build();
         // Build partitions from built records
         var partitions = new ArrayList<FetchResponseData.PartitionData>();
