@@ -20,6 +20,8 @@ import org.apache.kafka.common.record.RecordBatch;
 import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.Timer;
 
@@ -48,7 +50,7 @@ public class SampleFetchResponseFilter implements FetchResponseFilter {
         private final String from;
         private final String to;
 
-        public SampleFetchResponseConfig(String from, String to) {
+        public SampleFetchResponseConfig(@JsonProperty(required = true) String from, @JsonProperty(required = true) String to) {
             this.from = from;
             this.to = to;
         }

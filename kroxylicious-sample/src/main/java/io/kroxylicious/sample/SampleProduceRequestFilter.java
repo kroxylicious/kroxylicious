@@ -21,6 +21,8 @@ import org.apache.kafka.common.record.RecordBatch;
 import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.Timer;
 
@@ -49,7 +51,7 @@ public class SampleProduceRequestFilter implements ProduceRequestFilter {
         private final String from;
         private final String to;
 
-        public SampleProduceRequestConfig(String from, String to) {
+        public SampleProduceRequestConfig(@JsonProperty(required = true) String from, @JsonProperty(required = true) String to) {
             this.from = from;
             this.to = to;
         }
