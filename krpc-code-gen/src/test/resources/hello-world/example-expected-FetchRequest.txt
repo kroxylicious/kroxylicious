@@ -1,0 +1,86 @@
+====
+    Copyright Kroxylicious Authors.
+
+    Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+====
+
+name: FetchRequest
+type: REQUEST
+apiKey: Optional[1]
+struct:
+  name: FetchRequest
+  hasKeys: no
+  versions: 0-15
+fields:
+    ClusterId
+    ReplicaId
+    ReplicaState
+    MaxWaitMs
+    MinBytes
+    MaxBytes
+    IsolationLevel
+    SessionId
+    SessionEpoch
+    Topics
+    ForgottenTopicsData
+    RackId
+validVersions: 0-15
+validVersionsString: 0-15
+flexibleVersions: 12+
+flexibleVersionsString: 12+
+dataClassName: FetchRequestData
+latestVersionUnstable: no
+fields:
+  name: ClusterId
+  versions: 12+
+  type: string
+  ignorable: yes
+  name: ReplicaId
+  versions: 0-14
+  type: int32
+  ignorable: no
+  name: ReplicaState
+  versions: 15+
+  type: ReplicaState
+  ignorable: no
+  name: MaxWaitMs
+  versions: 0+
+  type: int32
+  ignorable: no
+  name: MinBytes
+  versions: 0+
+  type: int32
+  ignorable: no
+  name: MaxBytes
+  versions: 3+
+  type: int32
+  ignorable: yes
+  name: IsolationLevel
+  versions: 4+
+  type: int8
+  ignorable: yes
+  name: SessionId
+  versions: 7+
+  type: int32
+  ignorable: yes
+  name: SessionEpoch
+  versions: 7+
+  type: int32
+  ignorable: yes
+  name: Topics
+  versions: 0+
+  type: []FetchTopic
+  ignorable: no
+  name: ForgottenTopicsData
+  versions: 7+
+  type: []ForgottenTopic
+  ignorable: no
+  name: RackId
+  versions: 11+
+  type: string
+  ignorable: yes
+commonStructs:
+listeners:
+  name: ZK_BROKER
+  name: BROKER
+  name: CONTROLLER

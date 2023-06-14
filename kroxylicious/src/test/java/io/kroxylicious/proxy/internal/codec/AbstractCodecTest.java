@@ -57,7 +57,7 @@ public abstract class AbstractCodecTest {
     }
 
     public static Stream<Short> requestApiVersions(ApiMessageType type) {
-        return IntStream.rangeClosed(type.lowestSupportedVersion(), type.highestSupportedVersion())
+        return IntStream.rangeClosed(type.lowestSupportedVersion(), type.highestSupportedVersion(true))
                 .mapToObj(version -> (short) version);
     }
 
@@ -73,7 +73,7 @@ public abstract class AbstractCodecTest {
             ak.add(new ApiVersionsResponseData.ApiVersion()
                     .setApiKey(apiKey.id)
                     .setMinVersion(apiKey.messageType.lowestSupportedVersion())
-                    .setMaxVersion(apiKey.messageType.highestSupportedVersion()));
+                    .setMaxVersion(apiKey.messageType.highestSupportedVersion(true)));
         }
 
         return new ApiVersionsResponseData()

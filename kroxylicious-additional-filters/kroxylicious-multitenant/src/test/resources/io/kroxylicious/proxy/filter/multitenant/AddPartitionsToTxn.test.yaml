@@ -8,29 +8,29 @@
   version: 3
   request:
     payload:
-      transactionalId: "12345"
-      producerId: 0
-      producerEpoch: 0
-      topics:
+      v3AndBelowTransactionalId: "12345"
+      v3AndBelowProducerId: 0
+      v3AndBelowProducerEpoch: 0
+      v3AndBelowTopics:
         - name: foo
           partitions: [0]
     diff:
       - op: replace
-        path: "/transactionalId"
+        path: "/v3AndBelowTransactionalId"
         value: tenant1-12345
       - op: replace
-        path: "/topics/0/name"
+        path: "/v3AndBelowTopics/0/name"
         value: tenant1-foo
   response:
     payload:
-      results:
+      resultsByTopicV3AndBelow:
         - name: tenant1-foo
-          results:
+          resultsByPartition:
             - partitionIndex: 0
-              errorCode: 0
+              partitionErrorCode: 0
       throttleTimeMs: 0
     diff:
       - op: replace
-        path: "/results/0/name"
+        path: "/resultsByTopicV3AndBelow/0/name"
         value: foo
   disabled: false

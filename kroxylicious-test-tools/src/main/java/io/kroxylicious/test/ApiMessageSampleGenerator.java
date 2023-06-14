@@ -85,7 +85,7 @@ public class ApiMessageSampleGenerator {
     private static Stream<AbstractMap.SimpleEntry<ApiAndVersion, Class<? extends ApiMessage>>> getSupportedVersions(
                                                                                                                     Map.Entry<ApiKeys, Class<? extends ApiMessage>> apiKeysClassEntry) {
         short lowestSupportedVersion = apiKeysClassEntry.getKey().messageType.lowestSupportedVersion();
-        short highestSupportedVersion = apiKeysClassEntry.getKey().messageType.highestSupportedVersion();
+        short highestSupportedVersion = apiKeysClassEntry.getKey().messageType.highestSupportedVersion(true);
         return IntStream.range(lowestSupportedVersion, highestSupportedVersion + 1).mapToObj(version -> new AbstractMap.SimpleEntry<>(
                 new ApiAndVersion(apiKeysClassEntry.getKey(), (short) version), apiKeysClassEntry.getValue()));
     }

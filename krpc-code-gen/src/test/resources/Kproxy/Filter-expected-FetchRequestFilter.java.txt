@@ -1,0 +1,29 @@
+====
+    Copyright Kroxylicious Authors.
+
+    Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+====
+
+package com.foo;
+
+import org.apache.kafka.common.message.FetchRequestData;
+
+/**
+ * A stateless filter for FetchRequests.
+ * The same instance may be invoked on multiple channels.
+ */
+public interface FetchRequestFilter extends KrpcRequestFilter {
+    /**
+     * Handle the given {@code request},
+     * returning the {@code FetchRequestData} instance to be passed to the next filter.
+     * The implementation may modify the given {@code data} in-place and return it,
+     * or instantiate a new one.
+     *
+     * @param request The KRPC message to handle.
+     * @param context The context.
+     * @return the {@code request} to be passed to the next filter.
+     * If null is returned then the given {@code request} will be used.
+     */
+    public KrpcFilterState onFetchRequest(FetchRequestData request, KrpcFilterContext context);
+
+}
