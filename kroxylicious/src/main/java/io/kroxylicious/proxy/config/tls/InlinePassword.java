@@ -6,8 +6,6 @@
 
 package io.kroxylicious.proxy.config.tls;
 
-import java.util.StringJoiner;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
 
 public record InlinePassword(String password) implements PasswordProvider {
@@ -22,8 +20,8 @@ public record InlinePassword(String password) implements PasswordProvider {
 
     @Override
     public String toString() {
-        return new StringJoiner(", ", InlinePassword.class.getSimpleName() + "[", "]")
-                .add("password='" + (password == null ? null : "**********") + "'")
-                .toString();
+        return "InlinePassword[" +
+                "password=" + (password == null ? null : "*******") + ']';
     }
+
 }
