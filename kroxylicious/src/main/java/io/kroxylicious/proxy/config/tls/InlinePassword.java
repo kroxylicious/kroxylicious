@@ -17,7 +17,7 @@ public record InlinePassword(String password) implements PasswordProvider {
 
     @Override
     public String getProvidedPassword() {
-        return password == null ? null : password;
+        return password;
     }
 
     @Override
