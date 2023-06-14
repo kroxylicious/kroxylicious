@@ -14,6 +14,13 @@ import java.nio.charset.StandardCharsets;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 
+/**
+ * A reference to the file containing a plain text password in UTF-8 encoding.  If the password file
+ * contains more than one line, only the characters of the first line are taken to be the password,
+ * excluding the line ending.  Subsequent lines are ignored.
+ *
+ * @param passwordFile file containing the password,
+ */
 public record FilePassword(String passwordFile) implements PasswordProvider {
     @JsonCreator
     public FilePassword {

@@ -8,6 +8,11 @@ package io.kroxylicious.proxy.config.tls;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 
+/**
+ * A password expressed directly in the model, in plain text.
+ * <strong>Not recommended for production use.</strong>
+ * @param password the password
+ */
 public record InlinePassword(String password) implements PasswordProvider {
     @JsonCreator
     public InlinePassword {
