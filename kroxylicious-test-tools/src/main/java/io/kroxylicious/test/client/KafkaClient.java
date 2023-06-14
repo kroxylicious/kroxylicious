@@ -17,9 +17,7 @@ import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.EventLoopGroup;
-import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
-import io.netty.channel.socket.nio.NioSocketChannel;
 
 import io.kroxylicious.test.Request;
 import io.kroxylicious.test.Response;
@@ -45,6 +43,9 @@ public final class KafkaClient implements AutoCloseable {
     private final String host;
     private final int port;
 
+    private final EventGroupConfig eventGroupConfig;
+    private final EventLoopGroup bossGroup;
+
     /**
      * create empty kafkaClient
      * @param host host to connect to
@@ -53,9 +54,9 @@ public final class KafkaClient implements AutoCloseable {
     public KafkaClient(String host, int port) {
         this.host = host;
         this.port = port;
+        this.eventGroupConfig = EventGroupConfig.create();
+        bossGroup = eventGroupConfig.newBossGroup();
     }
-
-    private final EventLoopGroup group = new NioEventLoopGroup();
 
     private static final AtomicInteger correlationId = new AtomicInteger(1);
 
@@ -81,8 +82,8 @@ public final class KafkaClient implements AutoCloseable {
         CorrelationManager correlationManager = new CorrelationManager();
         KafkaClientHandler kafkaClientHandler = new KafkaClientHandler(decodedRequestFrame);
         Bootstrap b = new Bootstrap();
-        b.group(group)
-                .channel(NioSocketChannel.class)
+        b.group(bossGroup)
+                .channel(eventGroupConfig.clientChannelClass())
                 .option(ChannelOption.TCP_NODELAY, true)
                 .handler(new ChannelInitializer<SocketChannel>() {
                     @Override
@@ -114,6 +115,6 @@ public final class KafkaClient implements AutoCloseable {
 
     @Override
     public void close() {
-        group.shutdownGracefully();
+        bossGroup.shutdownGracefully();
     }
 }
