@@ -227,6 +227,11 @@ public interface FieldType {
             return true;
         }
 
+        @Override
+        public boolean canBeNullable() {
+            return true;
+        }
+
         public String typeName() {
             return type;
         }

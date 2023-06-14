@@ -27,17 +27,21 @@ public final class MessageSpec {
 
     private final List<RequestListenerType> listeners;
 
+    private final Optional<Boolean> latestVersionUnstable;
+
     @JsonCreator
     public MessageSpec(@JsonProperty("name") String name,
                        @JsonProperty("validVersions") String validVersions,
                        @JsonProperty("fields") List<FieldSpec> fields,
                        @JsonProperty("apiKey") Short apiKey,
+                       @JsonProperty("latestVersionUnstable") Boolean latestVersionUnstable,
                        @JsonProperty("type") MessageSpecType type,
                        @JsonProperty("commonStructs") List<StructSpec> commonStructs,
                        @JsonProperty("flexibleVersions") String flexibleVersions,
                        @JsonProperty("listeners") List<RequestListenerType> listeners) {
         this.struct = new StructSpec(name, validVersions, fields);
         this.apiKey = apiKey == null ? Optional.empty() : Optional.of(apiKey);
+        this.latestVersionUnstable = latestVersionUnstable == null ? Optional.empty() : Optional.of(latestVersionUnstable);
         this.type = Objects.requireNonNull(type);
         this.commonStructs = commonStructs == null ? Collections.emptyList() : Collections.unmodifiableList(new ArrayList<>(commonStructs));
         if (flexibleVersions == null) {
@@ -85,6 +89,11 @@ public final class MessageSpec {
     @JsonProperty("apiKey")
     public Optional<Short> apiKey() {
         return apiKey;
+    }
+
+    @JsonProperty("latestVersionUnstable")
+    public Optional<Boolean> latestVersionUnstable() {
+        return latestVersionUnstable;
     }
 
     @JsonProperty("type")

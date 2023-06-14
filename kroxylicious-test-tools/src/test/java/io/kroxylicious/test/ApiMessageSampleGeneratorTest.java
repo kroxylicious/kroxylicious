@@ -56,7 +56,7 @@ class ApiMessageSampleGeneratorTest {
     public static Stream<ApiMessageSampleGenerator.ApiAndVersion> allSupportedApiVersions() {
         return DataClasses.getRequestClasses().keySet().stream().flatMap(apiKeys -> {
             ApiMessageType messageType = apiKeys.messageType;
-            IntStream supported = IntStream.range(messageType.lowestSupportedVersion(), apiKeys.messageType.highestSupportedVersion() + 1);
+            IntStream supported = IntStream.range(messageType.lowestSupportedVersion(), apiKeys.messageType.highestSupportedVersion(true) + 1);
             return supported.mapToObj(version -> new ApiMessageSampleGenerator.ApiAndVersion(apiKeys, (short) version));
         });
     }

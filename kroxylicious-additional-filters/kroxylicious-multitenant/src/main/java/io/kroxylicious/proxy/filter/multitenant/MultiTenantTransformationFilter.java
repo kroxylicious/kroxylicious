@@ -341,14 +341,20 @@ public class MultiTenantTransformationFilter
 
     @Override
     public void onAddPartitionsToTxnRequest(short apiVersion, RequestHeaderData header, AddPartitionsToTxnRequestData request, KrpcFilterContext context) {
-        request.topics().forEach(topic -> applyTenantPrefix(context, topic::name, topic::setName, false));
-        applyTenantPrefix(context, request::transactionalId, request::setTransactionalId, true);
+        if (apiVersion <= 3) {
+            request.v3AndBelowTopics().forEach(topic -> applyTenantPrefix(context, topic::name, topic::setName, false));
+            applyTenantPrefix(context, request::v3AndBelowTransactionalId, request::setV3AndBelowTransactionalId, true);
+        }
+        // TODO implement apiVersion >3
         context.forwardRequest(header, request);
     }
 
     @Override
     public void onAddPartitionsToTxnResponse(short apiVersion, ResponseHeaderData header, AddPartitionsToTxnResponseData response, KrpcFilterContext context) {
-        response.results().forEach(results -> removeTenantPrefix(context, results::name, results::setName, false));
+        if (apiVersion <= 3) {
+            response.resultsByTopicV3AndBelow().forEach(results -> removeTenantPrefix(context, results::name, results::setName, false));
+        }
+        // TODO implement apiVersion >3
         context.forwardResponse(header, response);
     }
 

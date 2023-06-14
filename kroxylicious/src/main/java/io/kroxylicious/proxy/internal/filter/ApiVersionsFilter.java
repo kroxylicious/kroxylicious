@@ -53,7 +53,7 @@ public class ApiVersionsFilter implements ApiVersionsResponseFilter {
 
         short mutualMax = (short) Math.min(
                 key.maxVersion(),
-                apiKey.messageType.highestSupportedVersion());
+                apiKey.messageType.highestSupportedVersion(true));
         if (mutualMax != key.maxVersion()) {
             LOGGER.trace("{}: {} max version changed to {} (was: {})", channel, apiKey, mutualMin, key.maxVersion());
             key.setMaxVersion(mutualMax);

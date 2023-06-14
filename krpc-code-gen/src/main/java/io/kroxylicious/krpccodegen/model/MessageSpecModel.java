@@ -42,6 +42,8 @@ public class MessageSpecModel implements TemplateHashModel, AdapterTemplateModel
                 return wrapper.wrap(spec.flexibleVersionsString());
             case "apiKey":
                 return wrapper.wrap(spec.apiKey());
+            case "latestVersionUnstable":
+                return wrapper.wrap(spec.latestVersionUnstable());
             case "type":
                 return wrapper.wrap(spec.type());
             case "listeners":
