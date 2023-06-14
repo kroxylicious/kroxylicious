@@ -14,7 +14,7 @@ import io.netty.handler.ssl.SslContextBuilder;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
- * A {@link KeyProvider} backed by a private-key/certificate pair.
+ * A {@link KeyProvider} backed by a private-key/certificate pair expressed in PEM format.
  *
  * @param privateKeyFile  location of a file containing the private key. cannot be used if storeFile is specified
  * @param certificateFile location of a file containing the certificate and intermediates.
