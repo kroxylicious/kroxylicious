@@ -25,7 +25,7 @@ public class SampleFilterConfig extends BaseConfig {
     private final String replaceValue;
 
     /**
-     * @param findValue the value replaceValue be replaced
+     * @param findValue the value to be replaced
      * @param replaceValue the replacement value
      */
     public SampleFilterConfig(@JsonProperty(required = true) String findValue, @JsonProperty(required = true) String replaceValue) {

@@ -80,7 +80,12 @@ public class SampleFilterTransformer {
         return ByteBuffer.wrap(new String(StandardCharsets.UTF_8.decode(in).array()).replaceAll(findValue, replaceValue).getBytes(StandardCharsets.UTF_8));
     }
 
-    // Reinventing the wheel a bit here to avoid importing from io.kroxylicious.proxy.internal and to improve readability
+    /**
+     * Instantiates a MemoryRecordsBuilder object using the given stream. This duplicates some of the
+     * functionality in io.kroxylicious.proxy.internal, but we aren't supposed to import from there.
+     * @param stream
+     * @return
+     */
     private static MemoryRecordsBuilder createMemoryRecordsBuilder(ByteBufferOutputStream stream) {
         return new MemoryRecordsBuilder(stream, RecordBatch.CURRENT_MAGIC_VALUE, CompressionType.NONE, TimestampType.CREATE_TIME, 0, RecordBatch.NO_TIMESTAMP,
                 RecordBatch.NO_PRODUCER_ID, RecordBatch.NO_PRODUCER_EPOCH, RecordBatch.NO_SEQUENCE, false, false, RecordBatch.NO_PARTITION_LEADER_EPOCH,

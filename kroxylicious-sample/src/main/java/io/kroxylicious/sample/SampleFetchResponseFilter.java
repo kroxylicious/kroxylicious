@@ -59,6 +59,11 @@ public class SampleFetchResponseFilter implements FetchResponseFilter {
         context.forwardResponse(header, response);
     }
 
+    /**
+     * Applies the transformation to the response data.
+     * @param response the response to be transformed
+     * @param context the context
+     */
     private void applyTransformation(FetchResponseData response, KrpcFilterContext context) {
         response.responses().forEach(responseData -> {
             for (FetchResponseData.PartitionData partitionData : responseData.partitions()) {

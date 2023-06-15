@@ -60,6 +60,11 @@ public class SampleProduceRequestFilter implements ProduceRequestFilter {
         context.forwardRequest(header, request);
     }
 
+    /**
+     * Applies the transformation to the request data.
+     * @param request the request to be transformed
+     * @param context the context
+     */
     private void applyTransformation(ProduceRequestData request, KrpcFilterContext context) {
         request.topicData().forEach(topicData -> {
             for (PartitionProduceData partitionData : topicData.partitionData()) {
