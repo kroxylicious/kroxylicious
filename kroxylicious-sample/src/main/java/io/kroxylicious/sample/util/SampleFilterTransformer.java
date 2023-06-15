@@ -1,0 +1,89 @@
+/*
+ * Copyright Kroxylicious Authors.
+ *
+ * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+ */
+
+package io.kroxylicious.sample.util;
+
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+
+import org.apache.kafka.common.message.FetchResponseData;
+import org.apache.kafka.common.message.ProduceRequestData;
+import org.apache.kafka.common.record.CompressionType;
+import org.apache.kafka.common.record.MemoryRecords;
+import org.apache.kafka.common.record.MemoryRecordsBuilder;
+import org.apache.kafka.common.record.MutableRecordBatch;
+import org.apache.kafka.common.record.Record;
+import org.apache.kafka.common.record.RecordBatch;
+import org.apache.kafka.common.record.TimestampType;
+import org.apache.kafka.common.utils.ByteBufferOutputStream;
+
+import io.kroxylicious.proxy.filter.KrpcFilterContext;
+import io.kroxylicious.sample.config.SampleFilterConfig;
+
+/**
+ * Transformer class for the sample filters. Provides static transform functions for find-and-replace
+ * transformation of data in ProduceRequests and FetchResponses.
+ */
+public class SampleFilterTransformer {
+
+    /**
+     * Transforms the given partition data according to the provided configuration.
+     * @param partitionData the partition data to be transformed
+     * @param context the context
+     * @param config the transform configuration
+     */
+    public static void transform(ProduceRequestData.PartitionProduceData partitionData, KrpcFilterContext context, SampleFilterConfig config) {
+        partitionData.setRecords(transformPartitionRecords((MemoryRecords) partitionData.records(), context, config.getFindValue(), config.getReplaceValue()));
+    }
+
+    /**
+     * Transforms the given partition data according to the provided configuration.
+     * @param partitionData the partition data to be transformed
+     * @param context the context
+     * @param config the transform configuration
+     */
+    public static void transform(FetchResponseData.PartitionData partitionData, KrpcFilterContext context, SampleFilterConfig config) {
+        partitionData.setRecords(transformPartitionRecords((MemoryRecords) partitionData.records(), context, config.getFindValue(), config.getReplaceValue()));
+    }
+
+    /**
+     * Performs find-and-replace transformations on the given partition records.
+     * @param records the partition records to be transformed
+     * @param context the context
+     * @param findValue the value to be replaced
+     * @param replaceValue the replacement value
+     * @return the transformed partition records
+     */
+    private static MemoryRecords transformPartitionRecords(MemoryRecords records, KrpcFilterContext context, String findValue, String replaceValue) {
+        ByteBufferOutputStream stream = context.createByteBufferOutputStream(records.sizeInBytes());
+        MemoryRecordsBuilder newRecords = createMemoryRecordsBuilder(stream);
+
+        for (MutableRecordBatch batch : records.batches()) {
+            for (Record batchRecord : batch) {
+                newRecords.append(batchRecord.timestamp(), batchRecord.key(), transformRecord(batchRecord.value(), findValue, replaceValue));
+            }
+        }
+        return newRecords.build();
+    }
+
+    /**
+     * Performs a find-and-replace transformation of a given record value.
+     * @param in the record value to be transformed
+     * @param findValue the value to be replaced
+     * @param replaceValue the replacement value
+     * @return the transformed record value
+     */
+    private static ByteBuffer transformRecord(ByteBuffer in, String findValue, String replaceValue) {
+        return ByteBuffer.wrap(new String(StandardCharsets.UTF_8.decode(in).array()).replaceAll(findValue, replaceValue).getBytes(StandardCharsets.UTF_8));
+    }
+
+    // Reinventing the wheel a bit here to avoid importing from io.kroxylicious.proxy.internal and to improve readability
+    private static MemoryRecordsBuilder createMemoryRecordsBuilder(ByteBufferOutputStream stream) {
+        return new MemoryRecordsBuilder(stream, RecordBatch.CURRENT_MAGIC_VALUE, CompressionType.NONE, TimestampType.CREATE_TIME, 0, RecordBatch.NO_TIMESTAMP,
+                RecordBatch.NO_PRODUCER_ID, RecordBatch.NO_PRODUCER_EPOCH, RecordBatch.NO_SEQUENCE, false, false, RecordBatch.NO_PARTITION_LEADER_EPOCH,
+                stream.remaining());
+    }
+}

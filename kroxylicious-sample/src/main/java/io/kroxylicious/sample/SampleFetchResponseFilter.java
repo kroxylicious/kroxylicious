@@ -6,19 +6,8 @@
 
 package io.kroxylicious.sample;
 
-import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
-
 import org.apache.kafka.common.message.FetchResponseData;
 import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.record.CompressionType;
-import org.apache.kafka.common.record.MemoryRecords;
-import org.apache.kafka.common.record.MemoryRecordsBuilder;
-import org.apache.kafka.common.record.MutableRecordBatch;
-import org.apache.kafka.common.record.Record;
-import org.apache.kafka.common.record.RecordBatch;
-import org.apache.kafka.common.record.TimestampType;
-import org.apache.kafka.common.utils.ByteBufferOutputStream;
 
 import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.Timer;
@@ -26,6 +15,7 @@ import io.micrometer.core.instrument.Timer;
 import io.kroxylicious.proxy.filter.FetchResponseFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.sample.config.SampleFilterConfig;
+import io.kroxylicious.sample.util.SampleFilterTransformer;
 
 /**
  * A sample FetchResponseFilter implementation, intended to demonstrate how custom filters work with
@@ -43,13 +33,11 @@ import io.kroxylicious.sample.config.SampleFilterConfig;
  */
 public class SampleFetchResponseFilter implements FetchResponseFilter {
 
-    private final String findValue;
-    private final String replaceValue;
+    private final SampleFilterConfig config;
     private final Timer timer;
 
     public SampleFetchResponseFilter(SampleFilterConfig config) {
-        this.findValue = config.getFindValue();
-        this.replaceValue = config.getReplaceValue();
+        this.config = config;
         this.timer = Timer
                 .builder("sample_fetch_response_filter_transform")
                 .description("Time taken for the SampleFetchResponseFilter to transform the produce data.")
@@ -67,38 +55,15 @@ public class SampleFetchResponseFilter implements FetchResponseFilter {
      */
     @Override
     public void onFetchResponse(short apiVersion, ResponseHeaderData header, FetchResponseData response, KrpcFilterContext context) {
-        this.timer.record(() ->
-        // We're timing this to report how long it takes through Micrometer
-        applyTransformation(response, context));
+        this.timer.record(() -> applyTransformation(response, context)); // We're timing this to report how long it takes through Micrometer
         context.forwardResponse(header, response);
     }
 
     private void applyTransformation(FetchResponseData response, KrpcFilterContext context) {
         response.responses().forEach(responseData -> {
             for (FetchResponseData.PartitionData partitionData : responseData.partitions()) {
-                MemoryRecords records = (MemoryRecords) partitionData.records();
-                ByteBufferOutputStream stream = context.createByteBufferOutputStream(records.sizeInBytes());
-                MemoryRecordsBuilder newRecords = createMemoryRecordsBuilder(stream);
-
-                for (MutableRecordBatch batch : records.batches()) {
-                    for (Record batchRecord : batch) {
-                        newRecords.append(batchRecord.timestamp(), batchRecord.key(), transform(batchRecord.value()));
-                    }
-                }
-
-                partitionData.setRecords(newRecords.build());
+                SampleFilterTransformer.transform(partitionData, context, this.config);
             }
         });
-    }
-
-    private ByteBuffer transform(ByteBuffer in) {
-        return ByteBuffer.wrap(new String(StandardCharsets.UTF_8.decode(in).array()).replaceAll(this.findValue, this.replaceValue).getBytes(StandardCharsets.UTF_8));
-    }
-
-    // Reinventing the wheel a bit here to avoid importing from io.kroxylicious.proxy.internal and to improve readability
-    private static MemoryRecordsBuilder createMemoryRecordsBuilder(ByteBufferOutputStream stream) {
-        return new MemoryRecordsBuilder(stream, RecordBatch.CURRENT_MAGIC_VALUE, CompressionType.NONE, TimestampType.CREATE_TIME, 0, RecordBatch.NO_TIMESTAMP,
-                RecordBatch.NO_PRODUCER_ID, RecordBatch.NO_PRODUCER_EPOCH, RecordBatch.NO_SEQUENCE, false, false, RecordBatch.NO_PARTITION_LEADER_EPOCH,
-                stream.remaining());
     }
 }
