@@ -21,7 +21,6 @@ import org.apache.kafka.common.record.RecordBatch;
 import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 
-
 import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.Timer;
 
@@ -45,13 +44,13 @@ import io.kroxylicious.sample.config.SampleFilterConfig;
  */
 public class SampleProduceRequestFilter implements ProduceRequestFilter {
 
-    private final String from;
-    private final String to;
+    private final String findValue;
+    private final String replaceValue;
     private final Timer timer;
 
     public SampleProduceRequestFilter(SampleFilterConfig config) {
-        this.from = config.getFrom();
-        this.to = config.getTo();
+        this.findValue = config.getFindValue();
+        this.replaceValue = config.getReplaceValue();
         this.timer = Timer
                 .builder("sample_produce_request_filter_transform")
                 .description("Time taken for the SampleProduceRequestFilter to transform the produce data.")
@@ -95,7 +94,7 @@ public class SampleProduceRequestFilter implements ProduceRequestFilter {
     }
 
     private ByteBuffer transform(ByteBuffer in) {
-        return ByteBuffer.wrap(new String(StandardCharsets.UTF_8.decode(in).array()).replaceAll(this.from, this.to).getBytes(StandardCharsets.UTF_8));
+        return ByteBuffer.wrap(new String(StandardCharsets.UTF_8.decode(in).array()).replaceAll(this.findValue, this.replaceValue).getBytes(StandardCharsets.UTF_8));
     }
 
     // Reinventing the wheel a bit here to avoid importing from io.kroxylicious.proxy.internal and to improve readability

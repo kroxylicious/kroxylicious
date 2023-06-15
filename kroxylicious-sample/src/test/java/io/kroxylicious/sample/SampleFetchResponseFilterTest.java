@@ -48,8 +48,8 @@ class SampleFetchResponseFilterTest {
     private static final String PRE_TRANSFORM_VALUE = "this is what the value will be transformed from";
     private static final String NO_TRANSFORM_VALUE = "this value will not be transformed";
     private static final String POST_TRANSFORM_VALUE = "this is what the value will be transformed to";
-    private static final String CONFIG_FROM = "from";
-    private static final String CONFIG_TO = "to";
+    private static final String CONFIG_FIND_VALUE = "from";
+    private static final String CONFIG_REPLACE_VALUE = "to";
     private static final ApiMessageType API_MESSAGE_TYPE = ApiMessageType.FETCH;
 
     @Mock
@@ -65,15 +65,15 @@ class SampleFetchResponseFilterTest {
     @BeforeEach
     public void beforeEach() {
         buildContextMock();
-        config = new SampleFilterConfig(CONFIG_FROM, CONFIG_TO);
+        config = new SampleFilterConfig(CONFIG_FIND_VALUE, CONFIG_REPLACE_VALUE);
         filter = new SampleFetchResponseFilter(config);
         invoker = FilterInvokers.from(filter);
     }
 
     @Test
     public void validateSampleFetchResponseConfigTest() {
-        assertThat(config.getFrom()).isEqualTo(CONFIG_FROM);
-        assertThat(config.getTo()).isEqualTo(CONFIG_TO);
+        assertThat(config.getFindValue()).isEqualTo(CONFIG_FIND_VALUE);
+        assertThat(config.getReplaceValue()).isEqualTo(CONFIG_REPLACE_VALUE);
     }
 
     @Test

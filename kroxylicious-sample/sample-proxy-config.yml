@@ -22,9 +22,9 @@ filters:
   - type: ApiVersions
   - type: SampleProduceRequest
     config:
-      from: foo
-      to: bar
+      findValue: foo
+      replaceValue: bar
   - type: SampleFetchResponse
     config:
-      from: bar
-      to: baz
+      findValue: bar
+      replaceValue: baz
