@@ -20,14 +20,13 @@ import org.apache.kafka.common.record.RecordBatch;
 import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.Timer;
 
-import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.filter.FetchResponseFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
+import io.kroxylicious.sample.config.SampleFilterConfig;
 
 /**
  * A sample FetchResponseFilter implementation, intended to demonstrate how custom filters work with
@@ -45,43 +44,11 @@ import io.kroxylicious.proxy.filter.KrpcFilterContext;
  */
 public class SampleFetchResponseFilter implements FetchResponseFilter {
 
-    /**
-     * The Jackson configuration object for SampleFetchResponseFilter.
-     */
-    public static class SampleFetchResponseConfig extends BaseConfig {
-
-        private final String from;
-        private final String to;
-
-        /**
-         * @param from the value to be replaced
-         * @param to the replacement value
-         */
-        public SampleFetchResponseConfig(@JsonProperty(required = true) String from, @JsonProperty(required = true) String to) {
-            this.from = from;
-            this.to = to;
-        }
-
-        /**
-         * @return the configured value to be replaced
-         */
-        public String getFrom() {
-            return from;
-        }
-
-        /**
-         * @return the configured replacement value
-         */
-        public String getTo() {
-            return to;
-        }
-    }
-
     private final String from;
     private final String to;
     private final Timer timer;
 
-    public SampleFetchResponseFilter(SampleFetchResponseConfig config) {
+    public SampleFetchResponseFilter(SampleFilterConfig config) {
         this.from = config.getFrom();
         this.to = config.getTo();
         this.timer = Timer

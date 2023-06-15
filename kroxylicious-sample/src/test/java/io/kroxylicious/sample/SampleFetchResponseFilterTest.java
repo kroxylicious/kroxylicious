@@ -33,6 +33,7 @@ import org.mockito.stubbing.Answer;
 import io.kroxylicious.proxy.filter.FilterInvoker;
 import io.kroxylicious.proxy.filter.FilterInvokers;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
+import io.kroxylicious.sample.config.SampleFilterConfig;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -57,14 +58,14 @@ class SampleFetchResponseFilterTest {
     @Captor
     private ArgumentCaptor<ApiMessage> apiMessageCaptor = ArgumentCaptor.forClass(ApiMessage.class);
 
-    private SampleFetchResponseFilter.SampleFetchResponseConfig config;
+    private SampleFilterConfig config;
     private SampleFetchResponseFilter filter;
     private FilterInvoker invoker;
 
     @BeforeEach
     public void beforeEach() {
         buildContextMock();
-        config = new SampleFetchResponseFilter.SampleFetchResponseConfig(CONFIG_FROM, CONFIG_TO);
+        config = new SampleFilterConfig(CONFIG_FROM, CONFIG_TO);
         filter = new SampleFetchResponseFilter(config);
         invoker = FilterInvokers.from(filter);
     }
