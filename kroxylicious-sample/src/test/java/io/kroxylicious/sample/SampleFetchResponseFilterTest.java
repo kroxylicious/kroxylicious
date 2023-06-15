@@ -27,7 +27,6 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
-import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import io.kroxylicious.proxy.filter.FilterInvoker;
@@ -58,15 +57,13 @@ class SampleFetchResponseFilterTest {
     @Captor
     private ArgumentCaptor<ApiMessage> apiMessageCaptor = ArgumentCaptor.forClass(ApiMessage.class);
 
-    private SampleFilterConfig config;
-    private SampleFetchResponseFilter filter;
     private FilterInvoker invoker;
 
     @BeforeEach
     public void beforeEach() {
         buildContextMock();
-        config = new SampleFilterConfig(CONFIG_FIND_VALUE, CONFIG_REPLACE_VALUE);
-        filter = new SampleFetchResponseFilter(config);
+        SampleFilterConfig config = new SampleFilterConfig(CONFIG_FIND_VALUE, CONFIG_REPLACE_VALUE);
+        SampleFetchResponseFilter filter = new SampleFetchResponseFilter(config);
         invoker = FilterInvokers.from(filter);
     }
 
@@ -106,12 +103,10 @@ class SampleFetchResponseFilterTest {
         // create stub for createByteBufferOutputStream method
         ArgumentCaptor<Integer> argument = ArgumentCaptor.forClass(Integer.class);
         when(context.createByteBufferOutputStream(argument.capture())).thenAnswer(
-                new Answer() {
-                    public Object answer(InvocationOnMock invocation) {
-                        Object[] args = invocation.getArguments();
-                        Integer size = (Integer) args[0];
-                        return new ByteBufferOutputStream(size);
-                    }
+                (Answer<ByteBufferOutputStream>) invocation -> {
+                    Object[] args = invocation.getArguments();
+                    Integer size = (Integer) args[0];
+                    return new ByteBufferOutputStream(size);
                 }
         );
     }
