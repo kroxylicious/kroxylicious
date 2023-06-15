@@ -66,7 +66,6 @@ public class SampleProduceRequestFilter implements ProduceRequestFilter {
      * @param request The KRPC message to handle.
      * @param context The context.
      */
-    // TODO javadoc
     @Override
     public void onProduceRequest(short apiVersion, RequestHeaderData header, ProduceRequestData request, KrpcFilterContext context) {
         this.timer.record(() ->
