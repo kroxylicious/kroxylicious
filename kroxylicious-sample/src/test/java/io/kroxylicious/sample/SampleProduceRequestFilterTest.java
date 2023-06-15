@@ -42,8 +42,7 @@ import static org.mockito.Mockito.when;
 
 class SampleProduceRequestFilterTest {
 
-    // this is arbitrary for our filter, so set to 0
-    private static final short API_VERSION = 0;
+    private static final short API_VERSION = 0; // this is arbitrary for our filter, so set to 0
     private static final String PRE_TRANSFORM_VALUE = "this is what the value will be transformed from";
     private static final String NO_TRANSFORM_VALUE = "this value will not be transformed";
     private static final String POST_TRANSFORM_VALUE = "this is what the value will be transformed to";
@@ -91,7 +90,8 @@ class SampleProduceRequestFilterTest {
         invoker.onRequest(ApiKeys.forId(API_MESSAGE_TYPE.apiKey()), API_VERSION, headerData, requestData, context);
         verify(context).forwardRequest(any(), apiMessageCaptor.capture());
         var unpackedRequest = unpackProduceRequestData((ProduceRequestData) apiMessageCaptor.getValue());
-        // Check we only have 1 unpacked record, and that its value is the same as the input value
+        // We only put 1 record in, we should only get 1 record back, and
+        // We should see that the unpacked request value has not changed from the input value
         assertThat(unpackedRequest)
                 .hasSize(1)
                 .first().asString()
