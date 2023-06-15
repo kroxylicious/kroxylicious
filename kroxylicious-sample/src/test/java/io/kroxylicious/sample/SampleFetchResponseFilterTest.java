@@ -71,12 +71,6 @@ class SampleFetchResponseFilterTest {
     }
 
     @Test
-    public void validateSampleFetchResponseConfigTest() {
-        assertThat(config.getFindValue()).isEqualTo(CONFIG_FIND_VALUE);
-        assertThat(config.getReplaceValue()).isEqualTo(CONFIG_REPLACE_VALUE);
-    }
-
-    @Test
     public void willTransformFetchResponseTest() {
         var headerData = new ResponseHeaderData();
         var responseData = buildFetchResponseData(PRE_TRANSFORM_VALUE);

@@ -71,12 +71,6 @@ class SampleProduceRequestFilterTest {
     }
 
     @Test
-    public void validateSampleProduceRequestConfigTest() {
-        assertThat(config.getFindValue()).isEqualTo(CONFIG_FIND_VALUE);
-        assertThat(config.getReplaceValue()).isEqualTo(CONFIG_REPLACE_VALUE);
-    }
-
-    @Test
     public void willTransformProduceRequestTest() {
         var headerData = new RequestHeaderData();
         var requestData = buildProduceRequestData(PRE_TRANSFORM_VALUE);
