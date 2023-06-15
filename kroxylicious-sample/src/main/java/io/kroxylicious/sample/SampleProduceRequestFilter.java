@@ -46,20 +46,33 @@ import io.kroxylicious.proxy.filter.ProduceRequestFilter;
  */
 public class SampleProduceRequestFilter implements ProduceRequestFilter {
 
+    /**
+     * The Jackson configuration object for SampleFetchResponseFilter.
+     */
     public static class SampleProduceRequestConfig extends BaseConfig {
 
         private final String from;
         private final String to;
 
+        /**
+         * @param from the value to be replaced
+         * @param to the replacement value
+         */
         public SampleProduceRequestConfig(@JsonProperty(required = true) String from, @JsonProperty(required = true) String to) {
             this.from = from;
             this.to = to;
         }
 
+        /**
+         * @return the configured value to be replaced
+         */
         public String getFrom() {
             return from;
         }
 
+        /**
+         * @return the configured replacement value
+         */
         public String getTo() {
             return to;
         }
