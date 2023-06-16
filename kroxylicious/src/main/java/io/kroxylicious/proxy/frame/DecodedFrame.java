@@ -74,7 +74,7 @@ public abstract class DecodedFrame<H extends ApiMessage>
         if (body == null) {
             throw new IllegalArgumentException("body was null");
         }
-        else if (body.apiKey() != body.apiKey()) {
+        else if (body.apiKey() != this.body.apiKey()) {
             throw new IllegalArgumentException("attempting to set a body with a different apiKey than the original");
         }
         else {
