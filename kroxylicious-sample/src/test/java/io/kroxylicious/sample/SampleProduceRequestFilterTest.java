@@ -66,6 +66,9 @@ class SampleProduceRequestFilterTest {
         invoker = FilterInvokers.from(filter);
     }
 
+    /**
+     * Unit Test: Checks that transformation is applied when request data contains configured value.
+     */
     @Test
     public void willTransformProduceRequestTest() {
         var headerData = new RequestHeaderData();
@@ -83,6 +86,10 @@ class SampleProduceRequestFilterTest {
                 .contains(POST_TRANSFORM_VALUE);
     }
 
+    /**
+     * Unit Test: Checks that transformation is not applied when request data does not contain configured
+     * value.
+     */
     @Test
     public void wontTransformProduceRequestTest() {
         var headerData = new RequestHeaderData();

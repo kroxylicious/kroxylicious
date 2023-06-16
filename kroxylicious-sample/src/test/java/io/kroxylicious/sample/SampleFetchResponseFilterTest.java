@@ -66,6 +66,9 @@ class SampleFetchResponseFilterTest {
         invoker = FilterInvokers.from(filter);
     }
 
+    /**
+     * Unit Test: Checks that transformation is applied when response data contains configured value.
+     */
     @Test
     public void willTransformFetchResponseTest() {
         var headerData = new ResponseHeaderData();
@@ -83,6 +86,10 @@ class SampleFetchResponseFilterTest {
                 .contains(POST_TRANSFORM_VALUE);
     }
 
+    /**
+     * Unit Test: Checks that transformation is not applied when response data does not contain configured
+     * value.
+     */
     @Test
     public void wontTransformFetchResponseTest() {
         var headerData = new ResponseHeaderData();
