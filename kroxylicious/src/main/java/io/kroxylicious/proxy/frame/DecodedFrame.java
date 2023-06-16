@@ -23,10 +23,9 @@ import io.netty.util.ReferenceCounted;
  * A frame that has been decoded (as opposed to an {@link OpaqueFrame}).
  *
  * @param <H> The header type
- * @param <B> The body type
  *
  */
-public abstract class DecodedFrame<H extends ApiMessage, B extends ApiMessage>
+public abstract class DecodedFrame<H extends ApiMessage>
         extends AbstractReferenceCounted
         implements Frame {
 
@@ -40,15 +39,17 @@ public abstract class DecodedFrame<H extends ApiMessage, B extends ApiMessage>
     protected final short apiVersion;
     protected final int correlationId;
     protected H header;
-    protected B body;
+    private final Class<H> headerType;
+    protected ApiMessage body;
     private final List<ByteBuf> buffers;
     private int headerAndBodyEncodedLength;
     private ObjectSerializationCache serializationCache;
 
-    DecodedFrame(short apiVersion, int correlationId, H header, B body) {
+    DecodedFrame(short apiVersion, int correlationId, H header, Class<H> headerType, ApiMessage body) {
         this.apiVersion = apiVersion;
         this.correlationId = correlationId;
         this.header = header;
+        this.headerType = headerType;
         this.body = body;
         this.buffers = new ArrayList<>();
         this.headerAndBodyEncodedLength = -1;
@@ -65,16 +66,32 @@ public abstract class DecodedFrame<H extends ApiMessage, B extends ApiMessage>
         return header;
     }
 
-    public B body() {
+    public ApiMessage body() {
         return body;
     }
 
     public void setBody(ApiMessage body) {
-        this.body = (B) body;
+        if (body == null) {
+            throw new IllegalArgumentException("body was null");
+        }
+        else if (body.apiKey() != body.apiKey()) {
+            throw new IllegalArgumentException("attempting to set a body with a different apiKey than the original");
+        }
+        else {
+            this.body = body;
+        }
     }
 
     public void setHeader(ApiMessage header) {
-        this.header = (H) header;
+        if (header == null) {
+            throw new IllegalArgumentException("header was null");
+        }
+        else if (!headerType.isInstance(header)) {
+            throw new IllegalArgumentException("header expected to be instanceOf " + headerType.getSimpleName() + " but was " + header.getClass().getSimpleName());
+        }
+        else {
+            this.header = headerType.cast(header);
+        }
     }
 
     public ApiKeys apiKey() {

@@ -135,8 +135,7 @@ public class KrpcFilterIT {
     public void testFilterCanInstantiateNewKafkaMessages() {
         try (MockServerKroxyliciousTester tester = mockKafkaKroxyliciousTester((mockBootstrap) -> proxy(mockBootstrap)
                 .addToFilters(new FilterDefinitionBuilder("NewInstanceMetadataFilter").build()));
-                var singleRequestClient = tester.singleRequestClient()
-        ) {
+                var singleRequestClient = tester.singleRequestClient()) {
             tester.setMockResponse(new Response(METADATA, METADATA.latestVersion(), new MetadataResponseData()));
             Response response = singleRequestClient.getSync(new Request(METADATA, METADATA.latestVersion(), "client", new MetadataRequestData()));
             assertEquals(NewInstanceMetadataFilter.FIXED_THROTTLE_TIME, ((MetadataResponseData) response.message()).throttleTimeMs());

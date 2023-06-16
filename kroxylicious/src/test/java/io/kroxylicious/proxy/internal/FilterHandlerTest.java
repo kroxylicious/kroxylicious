@@ -122,7 +122,7 @@ public class FilterHandlerTest extends FilterHarness {
         var frame = writeRequest(new ApiVersionsRequestData());
         var propagated = channel.readOutbound();
         assertTrue(propagated instanceof InternalRequestFrame);
-        assertEquals(body, ((InternalRequestFrame<?>) propagated).body(),
+        assertEquals(body, ((InternalRequestFrame) propagated).body(),
                 "Expect the body to be the Fetch request");
 
         InternalCompletionStage<ApiMessage> completionStage = fut[0];
@@ -167,7 +167,7 @@ public class FilterHandlerTest extends FilterHarness {
         var frame = writeRequest(new ApiVersionsRequestData());
         var propagated = channel.readOutbound();
         assertTrue(propagated instanceof InternalRequestFrame);
-        assertEquals(body, ((InternalRequestFrame<?>) propagated).body(),
+        assertEquals(body, ((InternalRequestFrame) propagated).body(),
                 "Expect the body to be the Fetch request");
 
         assertThrows(UnsupportedOperationException.class, () -> {
@@ -195,7 +195,7 @@ public class FilterHandlerTest extends FilterHarness {
         var frame = writeRequest(new ApiVersionsRequestData());
         var propagated = channel.readOutbound();
         assertTrue(propagated instanceof InternalRequestFrame);
-        assertEquals(body, ((InternalRequestFrame<?>) propagated).body(),
+        assertEquals(body, ((InternalRequestFrame) propagated).body(),
                 "Expect the body to be the Fetch request");
 
         CompletableFuture<ApiMessage> future = toCompletableFuture(fut[0]);
@@ -224,7 +224,7 @@ public class FilterHandlerTest extends FilterHarness {
         var frame = writeRequest(new ApiVersionsRequestData());
         var propagated = channel.readOutbound();
         assertTrue(propagated instanceof InternalRequestFrame);
-        assertEquals(body, ((InternalRequestFrame<?>) propagated).body(),
+        assertEquals(body, ((InternalRequestFrame) propagated).body(),
                 "Expect the body to be the Fetch request");
 
         CompletionStage<ApiMessage> p = fut[0];

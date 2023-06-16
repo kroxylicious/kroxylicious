@@ -189,9 +189,9 @@ public class KafkaProxyFrontendHandler
             else if ((state == State.START
                     || state == State.HA_PROXY)
                     && msg instanceof DecodedRequestFrame
-                    && ((DecodedRequestFrame<?>) msg).apiKey() == ApiKeys.API_VERSIONS) {
+                    && ((DecodedRequestFrame) msg).apiKey() == ApiKeys.API_VERSIONS) {
                 // This handler can respond to ApiVersions itself
-                writeApiVersionsResponse(ctx, (DecodedRequestFrame<ApiVersionsRequestData>) msg);
+                writeApiVersionsResponse(ctx, (DecodedRequestFrame) msg);
                 // Request to read the following request
                 ctx.channel().read();
                 state = State.API_VERSIONS;
@@ -316,19 +316,20 @@ public class KafkaProxyFrontendHandler
      * Sends an ApiVersions response from this handler to the client
      * (i.e. prior to having backend connection)
      */
-    private void writeApiVersionsResponse(ChannelHandlerContext ctx, DecodedRequestFrame<ApiVersionsRequestData> frame) {
+    private void writeApiVersionsResponse(ChannelHandlerContext ctx, DecodedRequestFrame frame) {
         // TODO check the format of the strings using a regex
         // Needed to reproduce the exact behaviour for how a broker handles this
         // see org.apache.kafka.common.requests.ApiVersionsRequest#isValid()
-        this.clientSoftwareName = frame.body().clientSoftwareName();
-        this.clientSoftwareVersion = frame.body().clientSoftwareVersion();
+        ApiVersionsRequestData request = (ApiVersionsRequestData) frame.body();
+        this.clientSoftwareName = request.clientSoftwareName();
+        this.clientSoftwareVersion = request.clientSoftwareVersion();
 
         short apiVersion = frame.apiVersion();
         int correlationId = frame.correlationId();
         ResponseHeaderData header = new ResponseHeaderData()
                 .setCorrelationId(correlationId);
         LOGGER.debug("{}: Writing ApiVersions response", ctx.channel());
-        ctx.writeAndFlush(new DecodedResponseFrame<>(
+        ctx.writeAndFlush(new DecodedResponseFrame(
                 apiVersion, correlationId, header, API_VERSIONS_RESPONSE));
     }
 

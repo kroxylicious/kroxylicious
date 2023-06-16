@@ -14,13 +14,13 @@ import org.apache.kafka.common.protocol.ApiMessage;
 import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 
-public class InternalResponseFrame<B extends ApiMessage> extends DecodedResponseFrame<B> {
+public class InternalResponseFrame extends DecodedResponseFrame {
 
     private final KrpcFilter recipient;
 
     private final CompletableFuture<?> future;
 
-    public InternalResponseFrame(KrpcFilter recipient, short apiVersion, int correlationId, ResponseHeaderData header, B body, CompletableFuture<?> future) {
+    public InternalResponseFrame(KrpcFilter recipient, short apiVersion, int correlationId, ResponseHeaderData header, ApiMessage body, CompletableFuture<?> future) {
         super(apiVersion, correlationId, header, body);
         this.recipient = Objects.requireNonNull(recipient);
         this.future = future;

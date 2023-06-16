@@ -14,7 +14,7 @@ import org.apache.kafka.common.protocol.ApiMessage;
 import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 
-public class InternalRequestFrame<B extends ApiMessage> extends DecodedRequestFrame<B> {
+public class InternalRequestFrame extends DecodedRequestFrame {
 
     private final CompletableFuture<?> promise;
     private final KrpcFilter recipient;
@@ -25,7 +25,7 @@ public class InternalRequestFrame<B extends ApiMessage> extends DecodedRequestFr
                                 KrpcFilter recipient,
                                 CompletableFuture<?> promise,
                                 RequestHeaderData header,
-                                B body) {
+                                ApiMessage body) {
         super(apiVersion, correlationId, decodeResponse, header, body);
         this.promise = promise;
         this.recipient = Objects.requireNonNull(recipient);

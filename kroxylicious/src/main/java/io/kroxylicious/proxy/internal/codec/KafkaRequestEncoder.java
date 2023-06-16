@@ -52,8 +52,8 @@ public class KafkaRequestEncoder extends KafkaMessageEncoder<RequestFrame> {
                 apiVersion,
                 downstreamCorrelationId,
                 hasResponse,
-                frame instanceof InternalRequestFrame ? ((InternalRequestFrame<?>) frame).recipient() : null,
-                frame instanceof InternalRequestFrame ? ((InternalRequestFrame<?>) frame).promise() : null, decodeResponse);
+                frame instanceof InternalRequestFrame ? ((InternalRequestFrame) frame).recipient() : null,
+                frame instanceof InternalRequestFrame ? ((InternalRequestFrame) frame).promise() : null, decodeResponse);
         out.writerIndex(LENGTH + API_KEY + API_VERSION);
         out.writeInt(upstreamCorrelationId);
         if (LOGGER.isDebugEnabled()) {
@@ -73,7 +73,7 @@ public class KafkaRequestEncoder extends KafkaMessageEncoder<RequestFrame> {
     private boolean hasResponse(RequestFrame frame, ByteBuf out, int ri, short apiKey, short apiVersion) {
         if (frame instanceof DecodedRequestFrame) {
             return apiKey != ApiKeys.PRODUCE.id
-                    || ((ProduceRequestData) ((DecodedRequestFrame<?>) frame).body()).acks() != 0;
+                    || ((ProduceRequestData) ((DecodedRequestFrame) frame).body()).acks() != 0;
         }
         else {
             return apiKey != ApiKeys.PRODUCE.id

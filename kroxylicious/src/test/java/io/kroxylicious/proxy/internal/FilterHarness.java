@@ -55,9 +55,8 @@ public abstract class FilterHarness {
      * Write a client request to the pipeline.
      * @param data The request body.
      * @return The frame that was sent.
-     * @param <B> The type of the request.
      */
-    protected <B extends ApiMessage> DecodedRequestFrame<B> writeRequest(B data) {
+    protected DecodedRequestFrame writeRequest(ApiMessage data) {
         var apiKey = ApiKeys.forId(data.apiKey());
         var header = new RequestHeaderData();
         int correlationId = 42;
@@ -65,7 +64,7 @@ public abstract class FilterHarness {
         header.setRequestApiKey(apiKey.id);
         header.setRequestApiVersion(apiKey.latestVersion());
         header.setClientId(TEST_CLIENT);
-        var frame = new DecodedRequestFrame<>(apiKey.latestVersion(), correlationId, false, header, data);
+        var frame = new DecodedRequestFrame(apiKey.latestVersion(), correlationId, false, header, data);
         channel.writeOutbound(frame);
         return frame;
     }
@@ -74,14 +73,13 @@ public abstract class FilterHarness {
      * Write a normal client response, as if from the broker.
      * @param data The body of the response.
      * @return The frame that was written.
-     * @param <B> The type of the response body.
      */
-    protected <B extends ApiMessage> DecodedResponseFrame<B> writeResponse(B data) {
+    protected DecodedResponseFrame writeResponse(ApiMessage data) {
         var apiKey = ApiKeys.forId(data.apiKey());
         var header = new ResponseHeaderData();
         int correlationId = 42;
         header.setCorrelationId(correlationId);
-        var frame = new DecodedResponseFrame<>(apiKey.latestVersion(), correlationId, header, data);
+        var frame = new DecodedResponseFrame(apiKey.latestVersion(), correlationId, header, data);
         channel.writeInbound(frame);
         return frame;
     }
@@ -91,14 +89,13 @@ public abstract class FilterHarness {
      * @param data The body of the response.
      * @param future
      * @return The frame that was written.
-     * @param <B> The type of the response body.
      */
-    protected <B extends ApiMessage> DecodedResponseFrame<B> writeInternalResponse(B data, CompletableFuture<?> future) {
+    protected DecodedResponseFrame writeInternalResponse(ApiMessage data, CompletableFuture<?> future) {
         var apiKey = ApiKeys.forId(data.apiKey());
         var header = new ResponseHeaderData();
         int correlationId = 42;
         header.setCorrelationId(correlationId);
-        var frame = new InternalResponseFrame<>(filter, apiKey.latestVersion(), correlationId, header, data, future);
+        var frame = new InternalResponseFrame(filter, apiKey.latestVersion(), correlationId, header, data, future);
         channel.writeInbound(frame);
         return frame;
     }

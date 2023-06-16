@@ -391,14 +391,14 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
             handleBareRequest(ctx, (BareSaslRequest) msg);
         }
         else if (msg instanceof DecodedRequestFrame) {
-            handleFramedRequest(ctx, (DecodedRequestFrame<?>) msg);
+            handleFramedRequest(ctx, (DecodedRequestFrame) msg);
         }
         else {
             throw new IllegalStateException("Unexpected message " + msg.getClass());
         }
     }
 
-    private void handleFramedRequest(ChannelHandlerContext ctx, DecodedRequestFrame<?> frame) throws SaslException {
+    private void handleFramedRequest(ChannelHandlerContext ctx, DecodedRequestFrame frame) throws SaslException {
         switch (frame.apiKey()) {
             case API_VERSIONS:
                 doTransition(ctx.channel(), State.API_VERSIONS);
@@ -406,11 +406,11 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
                 return;
             case SASL_HANDSHAKE:
                 doTransition(ctx.channel(), frame.apiVersion() == 0 ? State.SASL_HANDSHAKE_v0 : State.SASL_HANDSHAKE_v1_PLUS);
-                onSaslHandshakeRequest(ctx, (DecodedRequestFrame<SaslHandshakeRequestData>) frame);
+                onSaslHandshakeRequest(ctx, frame);
                 return;
             case SASL_AUTHENTICATE:
                 doTransition(ctx.channel(), State.FRAMED_SASL_AUTHENTICATE);
-                onSaslAuthenticateRequest(ctx, (DecodedRequestFrame<SaslAuthenticateRequestData>) frame);
+                onSaslAuthenticateRequest(ctx, frame);
                 return;
             default:
                 if (lastSeen == State.AUTHN_SUCCESS) {
@@ -444,7 +444,7 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
         ctx.writeAndFlush(new BareSaslResponse(bytes));
     }
 
-    private ApiMessage errorResponse(DecodedRequestFrame<?> frame, Throwable error) {
+    private ApiMessage errorResponse(DecodedRequestFrame frame, Throwable error) {
         /*
          * This monstrosity is needed because there isn't any _nicely_ abstracted code we can borrow from Kafka
          * which creates and response with error codes set appropriately.
@@ -763,9 +763,9 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
     }
 
     private void onSaslHandshakeRequest(ChannelHandlerContext ctx,
-                                        DecodedRequestFrame<SaslHandshakeRequestData> data)
+                                        DecodedRequestFrame data)
             throws SaslException {
-        String mechanism = data.body().mechanism();
+        String mechanism = ((SaslHandshakeRequestData) data.body()).mechanism();
         Errors error;
         if (lastSeen == State.AUTHN_SUCCESS) {
             error = Errors.ILLEGAL_SASL_STATE;
@@ -793,13 +793,13 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
     }
 
     private void onSaslAuthenticateRequest(ChannelHandlerContext ctx,
-                                           DecodedRequestFrame<SaslAuthenticateRequestData> data) {
+                                           DecodedRequestFrame data) {
         byte[] bytes = new byte[0];
         Errors error;
         String errorMessage;
 
         try {
-            bytes = doEvaluateResponse(ctx, data.body().authBytes());
+            bytes = doEvaluateResponse(ctx, ((SaslAuthenticateRequestData) data.body()).authBytes());
             error = Errors.NONE;
             errorMessage = null;
         }
@@ -821,9 +821,9 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
     }
 
     private static void writeFramedResponse(ChannelHandlerContext ctx,
-                                            DecodedRequestFrame<?> data, ApiMessage body) {
+                                            DecodedRequestFrame data, ApiMessage body) {
         ctx.writeAndFlush(
-                new DecodedResponseFrame<>(
+                new DecodedResponseFrame(
                         data.apiVersion(),
                         data.correlationId(),
                         new ResponseHeaderData().setCorrelationId(data.correlationId()),

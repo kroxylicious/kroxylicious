@@ -52,7 +52,7 @@ public class FilterHandler
 
     @Override
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
-        if (msg instanceof DecodedRequestFrame<?> decodedFrame) {
+        if (msg instanceof DecodedRequestFrame decodedFrame) {
             var filterContext = new DefaultFilterContext(filter, ctx, decodedFrame, promise, timeoutMs, sniHostname);
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug("{}: Dispatching downstream {} request to filter{}: {}",
@@ -74,8 +74,8 @@ public class FilterHandler
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-        if (msg instanceof DecodedResponseFrame<?> decodedFrame) {
-            if (decodedFrame instanceof InternalResponseFrame<?> frame) {
+        if (msg instanceof DecodedResponseFrame decodedFrame) {
+            if (decodedFrame instanceof InternalResponseFrame frame) {
                 if (frame.isRecipient(filter)) {
                     if (LOGGER.isDebugEnabled()) {
                         LOGGER.debug("{}: Completing {} response for request sent by this filter{}: {}",

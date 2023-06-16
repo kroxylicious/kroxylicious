@@ -72,10 +72,10 @@ public class KafkaResponseDecoder extends KafkaMessageDecoder {
             KrpcFilter recipient = correlation.recipient();
             Metrics.payloadSizeBytesDownstreamSummary(apiKey, apiVersion).record(length);
             if (recipient == null) {
-                frame = new DecodedResponseFrame<>(apiVersion, correlationId, header, body);
+                frame = new DecodedResponseFrame(apiVersion, correlationId, header, body);
             }
             else {
-                frame = new InternalResponseFrame<>(recipient, apiVersion, correlationId, header, body, correlation.promise());
+                frame = new InternalResponseFrame(recipient, apiVersion, correlationId, header, body, correlation.promise());
             }
         }
         else {

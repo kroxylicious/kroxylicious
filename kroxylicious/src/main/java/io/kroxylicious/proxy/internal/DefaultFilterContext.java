@@ -38,7 +38,7 @@ class DefaultFilterContext implements KrpcFilterContext {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DefaultFilterContext.class);
 
-    private final DecodedFrame<?, ?> decodedFrame;
+    private final DecodedFrame<?> decodedFrame;
     private final ChannelHandlerContext channelContext;
     private final ChannelPromise promise;
     private final KrpcFilter filter;
@@ -47,7 +47,7 @@ class DefaultFilterContext implements KrpcFilterContext {
 
     DefaultFilterContext(KrpcFilter filter,
                          ChannelHandlerContext channelContext,
-                         DecodedFrame<?, ?> decodedFrame,
+                         DecodedFrame<?> decodedFrame,
                          ChannelPromise promise,
                          long timeoutMs,
                          String sniHostname) {
@@ -134,7 +134,7 @@ class DefaultFilterContext implements KrpcFilterContext {
                 || ((ProduceRequestData) message).acks() != 0;
         var filterPromise = new CompletableFuture<T>();
         var filterStage = new InternalCompletionStage<>(filterPromise);
-        var frame = new InternalRequestFrame<>(
+        var frame = new InternalRequestFrame(
                 apiVersion, -1, hasResponse,
                 filter, filterPromise, header, message);
 
@@ -224,7 +224,7 @@ class DefaultFilterContext implements KrpcFilterContext {
      * @param response the response body
      */
     private void forwardShortCircuitResponse(ResponseHeaderData header, ApiMessage response) {
-        DecodedResponseFrame<?> responseFrame = new DecodedResponseFrame<>(decodedFrame.apiVersion(), decodedFrame.correlationId(), header, response);
+        DecodedResponseFrame responseFrame = new DecodedResponseFrame(decodedFrame.apiVersion(), decodedFrame.correlationId(), header, response);
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("{}: Forwarding response: {}", channelDescriptor(), decodedFrame);
         }

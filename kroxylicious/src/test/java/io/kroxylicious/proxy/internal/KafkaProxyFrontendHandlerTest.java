@@ -70,7 +70,7 @@ class KafkaProxyFrontendHandlerTest {
                 .setClientId("client-id")
                 .setCorrelationId(downstreamCorrelationId);
 
-        inboundChannel.writeInbound(new DecodedRequestFrame<>(apiVersion, corrId, true, header, body));
+        inboundChannel.writeInbound(new DecodedRequestFrame(apiVersion, corrId, true, header, body));
     }
 
     @BeforeEach

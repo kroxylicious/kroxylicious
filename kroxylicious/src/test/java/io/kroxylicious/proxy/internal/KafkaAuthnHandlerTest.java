@@ -213,11 +213,11 @@ public class KafkaAuthnHandlerTest {
             }
         }, new CompletableFuture<>(), true);
 
-        channel.writeInbound(new DecodedRequestFrame<>(apiVersion, corrId, true, header, body));
+        channel.writeInbound(new DecodedRequestFrame(apiVersion, corrId, true, header, body));
     }
 
     private <T extends ApiMessage> T readResponse(Class<T> cls) {
-        DecodedResponseFrame<?> authenticateResponseFrame = assertInstanceOf(DecodedResponseFrame.class, channel.readOutbound());
+        DecodedResponseFrame authenticateResponseFrame = assertInstanceOf(DecodedResponseFrame.class, channel.readOutbound());
         return assertInstanceOf(cls, authenticateResponseFrame.body());
     }
 
