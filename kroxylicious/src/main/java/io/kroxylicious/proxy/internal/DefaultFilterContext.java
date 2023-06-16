@@ -92,14 +92,18 @@ class DefaultFilterContext implements KrpcFilterContext {
      *
      * @param header The header
      * @param message The message
+     * @throws IllegalStateException if the message apiKey is different from the request apiKey
      */
     @Override
     public void forwardRequest(RequestHeaderData header, ApiMessage message) {
+        if (message.apiKey() != decodedFrame.apiKey().id) {
+            throw new IllegalStateException("Attempting to forward a message with apiKey different from request apiKey");
+        }
         if (decodedFrame.body() != message) {
-            throw new IllegalStateException();
+            decodedFrame.setBody(message);
         }
         if (decodedFrame.header() != header) {
-            throw new IllegalStateException();
+            decodedFrame.setHeader(header);
         }
         // check it's a request
         String name = message.getClass().getName();
@@ -173,6 +177,7 @@ class DefaultFilterContext implements KrpcFilterContext {
      *
      * @param header The header
      * @param response The message
+     * @throws IllegalStateException if the response apiKey is different from the request apiKey
      */
     @Override
     public void forwardResponse(ResponseHeaderData header, ApiMessage response) {
@@ -181,16 +186,19 @@ class DefaultFilterContext implements KrpcFilterContext {
         if (!name.endsWith("ResponseData")) {
             throw new AssertionError("Attempt to use forwardResponse with a non-response: " + name);
         }
+        if (response.apiKey() != decodedFrame.apiKey().id) {
+            throw new IllegalStateException("Attempting to forward a response message with apiKey different from request apiKey");
+        }
         if (decodedFrame instanceof RequestFrame) {
             forwardShortCircuitResponse(header, response);
         }
         else {
             // TODO check we've not forwarded it already
             if (decodedFrame.body() != response) {
-                throw new AssertionError();
+                decodedFrame.setBody(response);
             }
             if (decodedFrame.header() != header) {
-                throw new AssertionError();
+                decodedFrame.setHeader(header);
             }
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug("{}: Forwarding response: {}", channelDescriptor(), decodedFrame);
@@ -211,17 +219,11 @@ class DefaultFilterContext implements KrpcFilterContext {
 
     /**
      * In this case we are not forwarding to the proxied broker but responding immediately.
-     * We want to check that the ApiMessage is the correct type for the request. Ie if the
-     * request was a Produce Request we want the response to be a Produce Response.
      *
      * @param header the response header
      * @param response the response body
      */
     private void forwardShortCircuitResponse(ResponseHeaderData header, ApiMessage response) {
-        if (response.apiKey() != decodedFrame.apiKey().id) {
-            throw new AssertionError(
-                    "Attempt to respond with ApiMessage of type " + ApiKeys.forId(response.apiKey()) + " but request is of type " + decodedFrame.apiKey());
-        }
         DecodedResponseFrame<?> responseFrame = new DecodedResponseFrame<>(decodedFrame.apiVersion(), decodedFrame.correlationId(), header, response);
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("{}: Forwarding response: {}", channelDescriptor(), decodedFrame);

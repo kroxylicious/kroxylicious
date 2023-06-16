@@ -39,9 +39,8 @@ public abstract class DecodedFrame<H extends ApiMessage, B extends ApiMessage>
 
     protected final short apiVersion;
     protected final int correlationId;
-    protected final H header;
-    protected final B body;
-
+    protected H header;
+    protected B body;
     private final List<ByteBuf> buffers;
     private int headerAndBodyEncodedLength;
     private ObjectSerializationCache serializationCache;
@@ -68,6 +67,14 @@ public abstract class DecodedFrame<H extends ApiMessage, B extends ApiMessage>
 
     public B body() {
         return body;
+    }
+
+    public void setBody(ApiMessage body) {
+        this.body = (B) body;
+    }
+
+    public void setHeader(ApiMessage header) {
+        this.header = (H) header;
     }
 
     public ApiKeys apiKey() {

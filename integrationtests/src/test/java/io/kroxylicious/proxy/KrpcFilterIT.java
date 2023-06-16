@@ -20,6 +20,8 @@ import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.errors.InvalidTopicException;
+import org.apache.kafka.common.message.MetadataRequestData;
+import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.serialization.Serdes;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -27,18 +29,24 @@ import org.junit.jupiter.api.extension.ExtendWith;
 
 import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
 import io.kroxylicious.proxy.filter.CreateTopicRejectFilter;
+import io.kroxylicious.proxy.filter.NewInstanceMetadataFilter;
 import io.kroxylicious.proxy.internal.filter.ByteBufferTransformation;
 import io.kroxylicious.proxy.service.HostPort;
+import io.kroxylicious.test.Request;
+import io.kroxylicious.test.Response;
+import io.kroxylicious.test.tester.MockServerKroxyliciousTester;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.withDefaultFilters;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
+import static io.kroxylicious.test.tester.KroxyliciousTesters.mockKafkaKroxyliciousTester;
 import static org.apache.kafka.clients.consumer.ConsumerConfig.AUTO_OFFSET_RESET_CONFIG;
 import static org.apache.kafka.clients.consumer.ConsumerConfig.GROUP_ID_CONFIG;
 import static org.apache.kafka.clients.producer.ProducerConfig.CLIENT_ID_CONFIG;
 import static org.apache.kafka.clients.producer.ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG;
+import static org.apache.kafka.common.protocol.ApiKeys.METADATA;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
@@ -120,6 +128,19 @@ public class KrpcFilterIT {
             consumer.close();
             assertEquals(1, records.count());
             assertEquals("Hello, world!", records.iterator().next().value());
+        }
+    }
+
+    @Test
+    public void testFilterCanInstantiateNewKafkaMessages() {
+        try (MockServerKroxyliciousTester tester = mockKafkaKroxyliciousTester((mockBootstrap) -> proxy(mockBootstrap)
+                .addToFilters(new FilterDefinitionBuilder("NewInstanceMetadataFilter").build()));
+                var singleRequestClient = tester.singleRequestClient()
+        ) {
+            tester.setMockResponse(new Response(METADATA, METADATA.latestVersion(), new MetadataResponseData()));
+            Response response = singleRequestClient.getSync(new Request(METADATA, METADATA.latestVersion(), "client", new MetadataRequestData()));
+            assertEquals(NewInstanceMetadataFilter.FIXED_THROTTLE_TIME, ((MetadataResponseData) response.message()).throttleTimeMs());
+            assertEquals(NewInstanceMetadataFilter.FIXED_CLIENT_ID, tester.onlyRequest().clientIdHeader());
         }
     }
 
