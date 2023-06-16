@@ -5,7 +5,7 @@
  */
 package io.kroxylicious.proxy.internal.filter;
 
-import java.util.Iterator;
+import java.util.List;
 import java.util.ServiceLoader;
 
 import io.kroxylicious.proxy.config.BaseConfig;
@@ -27,28 +27,24 @@ public class FilterContributorManager {
     }
 
     public Class<? extends BaseConfig> getConfigType(String shortName) {
-        Iterator<FilterContributor> it = contributors.iterator();
-        while (it.hasNext()) {
-            FilterContributor contributor = it.next();
+        for (FilterContributor contributor : contributors) {
             Class<? extends BaseConfig> configType = contributor.getConfigType(shortName);
             if (configType != null) {
                 return configType;
             }
         }
 
-        throw new IllegalArgumentException("No filter found for name '" + shortName + "'");
+        throw new IllegalArgumentException("No filters found for name '" + shortName + "'");
     }
 
-    public KrpcFilter getFilter(String shortName, BaseConfig filterConfig) {
-        Iterator<FilterContributor> it = contributors.iterator();
-        while (it.hasNext()) {
-            FilterContributor contributor = it.next();
-            KrpcFilter filter = contributor.getInstance(shortName, filterConfig);
-            if (filter != null) {
-                return filter;
+    public List<KrpcFilter> getFilters(String shortName, BaseConfig filterConfig) {
+        for (FilterContributor contributor : contributors) {
+            List<KrpcFilter> filters = contributor.getInstance(shortName, filterConfig);
+            if (filters != null) {
+                return filters;
             }
         }
 
-        throw new IllegalArgumentException("No filter found for name '" + shortName + "'");
+        throw new IllegalArgumentException("No filters found for name '" + shortName + "'");
     }
 }

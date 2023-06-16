@@ -5,14 +5,16 @@
  */
 package io.kroxylicious.proxy.filter.multitenant;
 
+import java.util.List;
+
 import io.kroxylicious.proxy.filter.FilterContributor;
 import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.service.BaseContributor;
 
-public class MultiTenantFilterContributor extends BaseContributor<KrpcFilter> implements FilterContributor {
+public class MultiTenantFilterContributor extends BaseContributor<List<KrpcFilter>> implements FilterContributor {
 
-    public static final BaseContributorBuilder<KrpcFilter> FILTERS = BaseContributor.<KrpcFilter> builder()
-            .add("MultiTenant", MultiTenantTransformationFilter::new);
+    public static final BaseContributorBuilder<List<KrpcFilter>> FILTERS = BaseContributor.<List<KrpcFilter>> builder()
+            .add("MultiTenant", () -> List.of(new MultiTenantTransformationFilter()));
 
     public MultiTenantFilterContributor() {
         super(FILTERS);

@@ -34,7 +34,7 @@ public class FilterChainFactory {
 
         return config.filters()
                 .stream()
-                .map(f -> filterContributorManager.getFilter(f.type(), f.config()))
+                .flatMap(f -> filterContributorManager.getFilters(f.type(), f.config()).stream())
                 .toList();
     }
 }
