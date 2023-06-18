@@ -34,8 +34,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.flipkart.zjsonpatch.JsonDiff;
 import com.google.common.reflect.ClassPath;
 
+import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.FilterInvoker;
-import io.kroxylicious.proxy.filter.FilterInvokers;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
 import io.kroxylicious.proxy.model.VirtualCluster;
@@ -44,6 +44,7 @@ import io.kroxylicious.test.requestresponsetestdef.ApiMessageTestDef;
 import io.kroxylicious.test.requestresponsetestdef.RequestResponseTestDef;
 
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.kroxylicious.test.requestresponsetestdef.KafkaApiMessageConverter.responseConverterFor;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -102,7 +103,7 @@ class BrokerAddressFilterTest {
     @BeforeEach
     public void beforeEach() {
         filter = new BrokerAddressFilter(virtualCluster, endpointReconciler);
-        invoker = FilterInvokers.from(filter);
+        invoker = getOnlyElement(FilterAndInvoker.build(filter)).invoker();
         when(virtualCluster.getBrokerAddress(0)).thenReturn(HostPort.parse("downstream:19199"));
 
         var nodeMap = Map.of(0, HostPort.parse("upstream:9199"));
