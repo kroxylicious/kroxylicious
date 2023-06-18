@@ -27,6 +27,7 @@ import io.netty.util.concurrent.Future;
 
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.config.Configuration;
+import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.internal.codec.KafkaRequestDecoder;
 import io.kroxylicious.proxy.internal.codec.KafkaResponseEncoder;
 import io.kroxylicious.proxy.internal.filter.BrokerAddressFilter;
@@ -171,7 +172,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
 
             var filters = new ArrayList<>(filterChainFactory.createFilters());
             // Add internal filters.
-            filters.add(new BrokerAddressFilter(virtualCluster, endpointReconciler));
+            filters.add(FilterAndInvoker.build(new BrokerAddressFilter(virtualCluster, endpointReconciler)));
 
             var target = binding.upstreamTarget();
             if (target == null) {
