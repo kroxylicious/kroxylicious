@@ -15,6 +15,8 @@ import java.util.stream.Stream;
  */
 public class FilterInvokers {
 
+    public static final int RECURSION_DEPTH_LIMIT = 2;
+
     private FilterInvokers() {
 
     }
@@ -26,25 +28,41 @@ public class FilterInvokers {
      *     <li>A KrpcFilter implementing {@link RequestFilter}</li>
      *     <li>A KrpcFilter implementing both {@link ResponseFilter} and {@link RequestFilter} </li>
      *     <li>A KrpcFilter implementing any number of Specific Message Filter interfaces</li>
+     *     <li>A KrpcFilter implementing {@link CompositeFilter}</li>
      * </ol>
-     * @throws IllegalArgumentException if specific Message Filter interfaces are mixed with {@link RequestFilter} or  {@link ResponseFilter}
+     * Examples of unsupported cases are:
+     * <ol>
+     *     <li>A KrpcFilter implementing {@link ResponseFilter} and any number of Specific Message Filter interfaces</li>
+     *     <li>A KrpcFilter implementing {@link CompositeFilter} and any number of Specific Message Filter interfaces</li>
+     *     <li>A KrpcFilter implementing {@link ResponseFilter} and {@link CompositeFilter}</li>
+     *     <li>A KrpcFilter implementing {@link RequestFilter} and {@link CompositeFilter}</li>
+     * </ol>
+     * @throws IllegalArgumentException if there is an invalid combination of Filter interfaces
      * @throws IllegalArgumentException if none of the supported interfaces are implemented
      * @param filter the Filter to create an invoker for
      * @return the invoker
      */
     static List<FilterAndInvoker> from(KrpcFilter filter) {
-        List<FilterAndInvoker> filterInvokers = invokersForFilter(filter);
+        List<FilterAndInvoker> filterInvokers = invokersForFilter(filter, 0);
         // all invokers are wrapped in safe invoker so that clients can safely call onRequest/onResponse
         // even if the invoker isn't interested in that message.
         return wrapAllInSafeInvoker(filterInvokers).toList();
     }
 
-    private static List<FilterAndInvoker> invokersForFilter(KrpcFilter filter) {
+    private static List<FilterAndInvoker> invokersForFilter(KrpcFilter filter, int depth) {
+        boolean isCompositeFilter = filter instanceof CompositeFilter;
         boolean isResponseFilter = filter instanceof ResponseFilter;
         boolean isRequestFilter = filter instanceof RequestFilter;
         boolean isAnySpecificFilterInterface = SpecificFilterArrayInvoker.implementsAnySpecificFilterInterface(filter);
-        validateFilter(filter, isResponseFilter, isRequestFilter, isAnySpecificFilterInterface);
-        if (isResponseFilter && isRequestFilter) {
+        validateFilter(filter, isResponseFilter, isRequestFilter, isAnySpecificFilterInterface, isCompositeFilter);
+        if (isCompositeFilter) {
+            List<KrpcFilter> composedFilters = ((CompositeFilter) filter).getFilters();
+            if (depth >= RECURSION_DEPTH_LIMIT) {
+                throw new IllegalArgumentException("CompositeFilter's were nested too deeply, exceeded recursion depth limit of " + RECURSION_DEPTH_LIMIT);
+            }
+            return composedFilters.stream().flatMap(composedFilter -> invokersForFilter(composedFilter, depth + 1).stream()).toList();
+        }
+        else if (isResponseFilter && isRequestFilter) {
             return singleFilterAndInvoker(filter, new RequestResponseInvoker((RequestFilter) filter, (ResponseFilter) filter));
         }
         else if (isRequestFilter) {
@@ -62,13 +80,20 @@ public class FilterInvokers {
         return filterInvokers.stream().map(filterAndInvoker -> new FilterAndInvoker(filterAndInvoker.filter(), new SafeInvoker(filterAndInvoker.invoker())));
     }
 
-    private static void validateFilter(KrpcFilter filter, boolean isResponseFilter, boolean isRequestFilter, boolean isAnySpecificFilterInterface) {
+    private static void validateFilter(KrpcFilter filter, boolean isResponseFilter, boolean isRequestFilter, boolean isAnySpecificFilterInterface,
+                                       boolean isCompositeFilter) {
+        if (isAnySpecificFilterInterface && isCompositeFilter) {
+            throw unsupportedFilterInstance(filter, "Cannot mix specific message filter interfaces and CompositeFilter interfaces");
+        }
+        if ((isRequestFilter || isResponseFilter) && isCompositeFilter) {
+            throw unsupportedFilterInstance(filter, "Cannot mix [RequestFilter|ResponseFilter] interfaces and CompositeFilter interfaces");
+        }
         if (isAnySpecificFilterInterface && (isRequestFilter || isResponseFilter)) {
             throw unsupportedFilterInstance(filter, "Cannot mix specific message filter interfaces and [RequestFilter|ResponseFilter] interfaces");
         }
-        if (!isRequestFilter && !isResponseFilter && !isAnySpecificFilterInterface) {
+        if (!isRequestFilter && !isResponseFilter && !isAnySpecificFilterInterface && !isCompositeFilter) {
             throw unsupportedFilterInstance(filter,
-                    "KrpcFilter must implement ResponseFilter, RequestFilter or any combination of specific message Filter interfaces");
+                    "KrpcFilter must implement ResponseFilter, RequestFilter, CompositeFilter or any combination of specific message Filter interfaces");
         }
     }
 

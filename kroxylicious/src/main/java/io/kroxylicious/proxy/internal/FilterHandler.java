@@ -39,9 +39,9 @@ public class FilterHandler
     private final String sniHostname;
     private final FilterInvoker invoker;
 
-    public FilterHandler(FilterAndInvoker filter, long timeoutMs, String sniHostname) {
-        this.filter = Objects.requireNonNull(filter.filter());
-        this.invoker = filter.invoker();
+    public FilterHandler(FilterAndInvoker filterAndInvoker, long timeoutMs, String sniHostname) {
+        this.filter = Objects.requireNonNull(filterAndInvoker).filter();
+        this.invoker = filterAndInvoker.invoker();
         this.timeoutMs = Assertions.requireStrictlyPositive(timeoutMs, "timeout");
         this.sniHostname = sniHostname;
     }

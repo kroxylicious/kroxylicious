@@ -6,6 +6,7 @@ Please enumerate **all user-facing** changes using format `<githib issue/pr numb
 
 ## 0.3.0
 
+* [#392](https://github.com/kroxylicious/kroxylicious/pull/392): Introduce CompositeFilters
 * [#401](https://github.com/kroxylicious/kroxylicious/pull/401): Fix netty buffer leak when doing a short-circuit response
 * [#409](https://github.com/kroxylicious/kroxylicious/pull/409): Bump netty.version from 4.1.93.Final to 4.1.94.Final #409 
 * [#374](https://github.com/kroxylicious/kroxylicious/issues/374) Upstream TLS support
@@ -19,3 +20,7 @@ Please enumerate **all user-facing** changes using format `<githib issue/pr numb
 
 The default metrics port has changed from 9193 to 9190 to prevent port collisions
 
+Filter Authors can now implement CompositeFilter if they want a single configuration block to contribute multiple Filters
+to the Filter chain. This enables them to write smaller, more focused Filter implementations but deliver them as a whole
+behaviour with a single block of configuration in the Kroxylicious configuration yaml. This interface is mutually exclusive
+with RequestFilter, ResponseFilter or any specific message Filter interfaces.

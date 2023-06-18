@@ -21,9 +21,9 @@ import io.kroxylicious.proxy.filter.FilterInvoker;
  * who the authorized user or, or which back-end cluster they're connected to.
  */
 public interface DecodePredicate {
-    static DecodePredicate forFilters(List<FilterAndInvoker> filters) {
+    static DecodePredicate forFilters(List<FilterAndInvoker> filterAndInvokers) {
 
-        List<FilterInvoker> invokers = filters.stream().map(FilterAndInvoker::invoker).toList();
+        List<FilterInvoker> invokers = filterAndInvokers.stream().map(FilterAndInvoker::invoker).toList();
         return new DecodePredicate() {
             @Override
             public boolean shouldDecodeResponse(ApiKeys apiKey, short apiVersion) {
@@ -47,7 +47,7 @@ public interface DecodePredicate {
 
             @Override
             public String toString() {
-                return "DecodePredicate$forFilters{" + filters + "}";
+                return "DecodePredicate$forFilters{" + filterAndInvokers + "}";
             }
         };
     }
