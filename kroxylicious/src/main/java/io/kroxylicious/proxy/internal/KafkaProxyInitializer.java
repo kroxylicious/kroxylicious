@@ -172,7 +172,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
 
             var filters = new ArrayList<>(filterChainFactory.createFilters());
             // Add internal filters.
-            filters.add(FilterAndInvoker.build(new BrokerAddressFilter(virtualCluster, endpointReconciler)));
+            filters.addAll(FilterAndInvoker.build(new BrokerAddressFilter(virtualCluster, endpointReconciler)));
 
             var target = binding.upstreamTarget();
             if (target == null) {
