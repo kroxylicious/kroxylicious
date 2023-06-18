@@ -6,6 +6,8 @@
 
 package io.kroxylicious.proxy.filter;
 
+import java.util.List;
+
 /**
  * A Filter and it's respective invoker
  * @param filter filter
@@ -14,11 +16,11 @@ package io.kroxylicious.proxy.filter;
 public record FilterAndInvoker(KrpcFilter filter, FilterInvoker invoker) {
 
     /**
-     * Builds an invoker for a filter
+     * Builds a list of invokers for a filter
      * @param filter filter
      * @return a filter and it's respective invoker
      */
-    public static FilterAndInvoker build(KrpcFilter filter) {
-        return new FilterAndInvoker(filter, FilterInvokers.from(filter));
+    public static List<FilterAndInvoker> build(KrpcFilter filter) {
+        return List.of(new FilterAndInvoker(filter, FilterInvokers.from(filter)));
     }
 }

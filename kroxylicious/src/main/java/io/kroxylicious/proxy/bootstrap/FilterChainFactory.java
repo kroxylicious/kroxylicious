@@ -35,7 +35,7 @@ public class FilterChainFactory {
         return config.filters()
                 .stream()
                 .map(f -> filterContributorManager.getFilter(f.type(), f.config()))
-                .map(FilterAndInvoker::build)
+                .flatMap(filter -> FilterAndInvoker.build(filter).stream())
                 .toList();
     }
 }
