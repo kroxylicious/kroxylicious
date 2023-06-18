@@ -9,9 +9,8 @@ import java.util.List;
 
 import org.apache.kafka.common.protocol.ApiKeys;
 
+import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.FilterInvoker;
-import io.kroxylicious.proxy.filter.FilterInvokers;
-import io.kroxylicious.proxy.filter.KrpcFilter;
 
 /**
  * Encapsulates decisions about whether requests and responses should be
@@ -22,9 +21,9 @@ import io.kroxylicious.proxy.filter.KrpcFilter;
  * who the authorized user or, or which back-end cluster they're connected to.
  */
 public interface DecodePredicate {
-    static DecodePredicate forFilters(List<KrpcFilter> filters) {
+    static DecodePredicate forFilters(List<FilterAndInvoker> filters) {
 
-        List<FilterInvoker> invokers = filters.stream().map(FilterInvokers::from).toList();
+        List<FilterInvoker> invokers = filters.stream().map(FilterAndInvoker::invoker).toList();
         return new DecodePredicate() {
             @Override
             public boolean shouldDecodeResponse(ApiKeys apiKey, short apiVersion) {

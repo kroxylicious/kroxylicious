@@ -15,6 +15,7 @@ import org.junit.jupiter.api.AfterEach;
 
 import io.netty.channel.embedded.EmbeddedChannel;
 
+import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
@@ -47,7 +48,7 @@ public abstract class FilterHarness {
      */
     protected void buildChannel(KrpcFilter filter, long timeoutMs) {
         this.filter = filter;
-        filterHandler = new FilterHandler(filter, timeoutMs, null);
+        filterHandler = new FilterHandler(FilterAndInvoker.build(filter), timeoutMs, null);
         channel = new EmbeddedChannel(filterHandler);
     }
 

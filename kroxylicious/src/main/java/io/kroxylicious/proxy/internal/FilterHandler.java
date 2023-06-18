@@ -17,8 +17,8 @@ import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 
+import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.FilterInvoker;
-import io.kroxylicious.proxy.filter.FilterInvokers;
 import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
@@ -39,9 +39,9 @@ public class FilterHandler
     private final String sniHostname;
     private final FilterInvoker invoker;
 
-    public FilterHandler(KrpcFilter filter, long timeoutMs, String sniHostname) {
-        this.filter = Objects.requireNonNull(filter);
-        this.invoker = FilterInvokers.from(filter);
+    public FilterHandler(FilterAndInvoker filter, long timeoutMs, String sniHostname) {
+        this.filter = Objects.requireNonNull(filter.filter());
+        this.invoker = filter.invoker();
         this.timeoutMs = Assertions.requireStrictlyPositive(timeoutMs, "timeout");
         this.sniHostname = sniHostname;
     }

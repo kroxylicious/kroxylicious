@@ -80,7 +80,7 @@ public interface NetFilter {
          * @param target upstream broker target
          * @param filters The filters
          */
-        void initiateConnect(HostPort target, List<KrpcFilter> filters);
+        void initiateConnect(HostPort target, List<FilterAndInvoker> filters);
 
         // TODO add API for delayed responses
     }

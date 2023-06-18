@@ -34,7 +34,7 @@ import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SniCompletionEvent;
 
-import io.kroxylicious.proxy.filter.KrpcFilter;
+import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.NetFilter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
@@ -224,7 +224,7 @@ public class KafkaProxyFrontendHandler
     }
 
     @Override
-    public void initiateConnect(HostPort remote, List<KrpcFilter> filters) {
+    public void initiateConnect(HostPort remote, List<FilterAndInvoker> filters) {
         if (backendHandler != null) {
             throw new IllegalStateException();
         }
@@ -284,7 +284,7 @@ public class KafkaProxyFrontendHandler
         return b.connect(remoteHost, remotePort);
     }
 
-    private void addFiltersToPipeline(List<KrpcFilter> filters, ChannelPipeline pipeline) {
+    private void addFiltersToPipeline(List<FilterAndInvoker> filters, ChannelPipeline pipeline) {
         for (var filter : filters) {
             // TODO configurable timeout
             pipeline.addFirst(filter.toString(), new FilterHandler(filter, 20000, sniHostname));
