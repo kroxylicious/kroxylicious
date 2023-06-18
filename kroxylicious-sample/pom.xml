@@ -25,6 +25,7 @@
     <properties>
         <libs.dir>libs</libs.dir>
         <log4j.version>2.20.0</log4j.version>
+        <sundr.version>0.94.0</sundr.version>
     </properties>
 
     <name>Kroxylicious Sample</name>
@@ -34,11 +35,23 @@
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-api</artifactId>
             <version>${kroxyliciousApi.version}</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-filter-api</artifactId>
             <version>${kroxyliciousApi.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.kroxylicious.testing</groupId>
+            <artifactId>testing-junit5-extension</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-test-tools</artifactId>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
@@ -54,6 +67,22 @@
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
             <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.sundr</groupId>
+            <artifactId>sundr-core</artifactId>
+            <version>${sundr.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.sundr</groupId>
+            <artifactId>sundr-core</artifactId>
+            <version>1.14.0</version>
+        </dependency>
+        <dependency>
+            <groupId>io.sundr</groupId>
+            <artifactId>sundr-core</artifactId>
+            <version>0.94.0</version>
         </dependency>
     </dependencies>
 
