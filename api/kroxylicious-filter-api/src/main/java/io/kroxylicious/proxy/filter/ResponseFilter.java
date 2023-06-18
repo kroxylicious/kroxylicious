@@ -12,7 +12,10 @@ import org.apache.kafka.common.protocol.ApiMessage;
 
 /**
  * A KrpcFilter implementation intended to simplify cases where we want to handle all or
- * most response types, for example to modify the response headers.
+ * most response types, for example to modify the response headers. If a Filter implements
+ * ResponseFilter, it cannot also implement {@link CompositeFilter} or any of the specific
+ * message Filter interfaces like {@link ApiVersionsRequestFilter}. If a Filter implements
+ * ResponseFilter, it may also implement {@link RequestFilter}.
  */
 public interface ResponseFilter extends KrpcFilter {
 
