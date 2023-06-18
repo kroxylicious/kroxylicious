@@ -6,6 +6,9 @@
 
 package io.kroxylicious.proxy.filter;
 
+import java.util.List;
+import java.util.stream.Stream;
+
 /**
  * Factory for FilterInvokers. The intention is to keep the Invoker implementations
  * as private as we can, so that invocation is a framework concern.
@@ -29,34 +32,48 @@ public class FilterInvokers {
      * @param filter the Filter to create an invoker for
      * @return the invoker
      */
-    static FilterInvoker from(KrpcFilter filter) {
+    static List<FilterAndInvoker> from(KrpcFilter filter) {
+        List<FilterAndInvoker> filterInvokers = invokersForFilter(filter);
         // all invokers are wrapped in safe invoker so that clients can safely call onRequest/onResponse
         // even if the invoker isn't interested in that message.
-        return new SafeInvoker(invokerForFilter(filter));
+        return wrapAllInSafeInvoker(filterInvokers).toList();
     }
 
-    private static FilterInvoker invokerForFilter(KrpcFilter filter) {
+    private static List<FilterAndInvoker> invokersForFilter(KrpcFilter filter) {
         boolean isResponseFilter = filter instanceof ResponseFilter;
         boolean isRequestFilter = filter instanceof RequestFilter;
         boolean isAnySpecificFilterInterface = SpecificFilterArrayInvoker.implementsAnySpecificFilterInterface(filter);
+        validateFilter(filter, isResponseFilter, isRequestFilter, isAnySpecificFilterInterface);
+        if (isResponseFilter && isRequestFilter) {
+            return singleFilterAndInvoker(filter, new RequestResponseInvoker((RequestFilter) filter, (ResponseFilter) filter));
+        }
+        else if (isRequestFilter) {
+            return singleFilterAndInvoker(filter, new RequestFilterInvoker((RequestFilter) filter));
+        }
+        else if (isResponseFilter) {
+            return singleFilterAndInvoker(filter, new ResponseFilterInvoker((ResponseFilter) filter));
+        }
+        else {
+            return singleFilterAndInvoker(filter, arrayInvoker(filter));
+        }
+    }
+
+    private static Stream<FilterAndInvoker> wrapAllInSafeInvoker(List<FilterAndInvoker> filterInvokers) {
+        return filterInvokers.stream().map(filterAndInvoker -> new FilterAndInvoker(filterAndInvoker.filter(), new SafeInvoker(filterAndInvoker.invoker())));
+    }
+
+    private static void validateFilter(KrpcFilter filter, boolean isResponseFilter, boolean isRequestFilter, boolean isAnySpecificFilterInterface) {
         if (isAnySpecificFilterInterface && (isRequestFilter || isResponseFilter)) {
             throw unsupportedFilterInstance(filter, "Cannot mix specific message filter interfaces and [RequestFilter|ResponseFilter] interfaces");
         }
         if (!isRequestFilter && !isResponseFilter && !isAnySpecificFilterInterface) {
-            throw unsupportedFilterInstance(filter, "KrpcFilter must implement ResponseFilter, RequestFilter or any combination of specific message Filter interfaces");
+            throw unsupportedFilterInstance(filter,
+                    "KrpcFilter must implement ResponseFilter, RequestFilter or any combination of specific message Filter interfaces");
         }
-        if (isResponseFilter && isRequestFilter) {
-            return new RequestResponseInvoker((RequestFilter) filter, (ResponseFilter) filter);
-        }
-        else if (isRequestFilter) {
-            return new RequestFilterInvoker((RequestFilter) filter);
-        }
-        else if (isResponseFilter) {
-            return new ResponseFilterInvoker((ResponseFilter) filter);
-        }
-        else {
-            return arrayInvoker(filter);
-        }
+    }
+
+    private static List<FilterAndInvoker> singleFilterAndInvoker(KrpcFilter filter, FilterInvoker invoker) {
+        return List.of(new FilterAndInvoker(filter, invoker));
     }
 
     /**

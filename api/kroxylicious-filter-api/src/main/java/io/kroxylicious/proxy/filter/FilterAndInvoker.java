@@ -21,6 +21,6 @@ public record FilterAndInvoker(KrpcFilter filter, FilterInvoker invoker) {
      * @return a filter and it's respective invoker
      */
     public static List<FilterAndInvoker> build(KrpcFilter filter) {
-        return List.of(new FilterAndInvoker(filter, FilterInvokers.from(filter)));
+        return FilterInvokers.from(filter);
     }
 }
