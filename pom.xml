@@ -44,7 +44,7 @@
         <netty.io_uring.classifier>linux-x86_64</netty.io_uring.classifier>
         <netty.kqueue.classifier>osx-x86_64</netty.kqueue.classifier>
         <assertj-core.version>3.24.2</assertj-core.version>
-        <mockito.version>5.3.1</mockito.version>
+        <mockito.version>5.4.0</mockito.version>
         <slf4j.version>2.0.7</slf4j.version>
         <micrometer.version>1.11.0</micrometer.version>
         <zjsonpatch.version>0.4.14</zjsonpatch.version>
