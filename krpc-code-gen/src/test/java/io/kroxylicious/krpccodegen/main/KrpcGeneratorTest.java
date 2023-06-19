@@ -60,7 +60,7 @@ class KrpcGeneratorTest {
 
         gen.generate();
 
-        File file = new File(tempDir, new StringJoiner(File.separator).add("com").add("foo").add("FetchRequest.txt").toString());
+        File file = join(tempDir, "com", "foo", "FetchRequest.txt");
         assertFileHasExpectedContents(file, "hello-world/example-expected-FetchRequest.txt");
     }
 
@@ -78,7 +78,7 @@ class KrpcGeneratorTest {
 
         gen.generate();
 
-        File file = new File(tempDir, new StringJoiner(File.separator).add("com").add("foo").add("FetchRequest.java").toString());
+        File file = join(tempDir, "com", "foo", "FetchRequest.java");
         assertFileHasExpectedContents(file, "Data/example-expected-FetchRequest.java.txt");
     }
 
@@ -96,7 +96,7 @@ class KrpcGeneratorTest {
 
         gen.generate();
 
-        File file = new File(tempDir, new StringJoiner(File.separator).add("com").add("foo").add("FetchRequestFilter.java").toString());
+        File file = join(tempDir, "com", "foo", "FetchRequestFilter.java");
         assertFileHasExpectedContents(file, "Kproxy/Filter-expected-FetchRequestFilter.java.txt");
     }
 
@@ -114,7 +114,7 @@ class KrpcGeneratorTest {
 
         gen.generate();
 
-        File file = new File(tempDir, new StringJoiner(File.separator).add("com").add("foo").add("KrpcRequestFilter.java").toString());
+        File file = join(tempDir, "com", "foo", "KrpcRequestFilter.java");
         assertFileHasExpectedContents(file, "Kproxy/KrpcRequestFilter-expected.txt");
     }
 
@@ -145,8 +145,16 @@ class KrpcGeneratorTest {
                 .withOutputFilePattern(outputFile)
                 .build();
         gen.generate();
-        File file = new File(tempDir, new StringJoiner(File.separator).add("com").add("foo").add(outputFile).toString());
+        File file = join(tempDir, "com", "foo", outputFile);
         assertThat(file).hasContent(expectedContents);
+    }
+
+    private static File join(File dir, String... pathElements) {
+        StringJoiner stringJoiner = new StringJoiner(File.separator);
+        for (String pathElement : pathElements) {
+            stringJoiner.add(pathElement);
+        }
+        return new File(dir, stringJoiner.toString());
     }
 
     private static File getMessageSpecDir() {
