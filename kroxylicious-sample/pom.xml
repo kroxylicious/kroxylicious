@@ -23,8 +23,6 @@
     <packaging>jar</packaging>
 
     <properties>
-        <libs.dir>libs</libs.dir>
-        <log4j.version>2.20.0</log4j.version>
         <sundr.version>0.94.0</sundr.version>
     </properties>
 
