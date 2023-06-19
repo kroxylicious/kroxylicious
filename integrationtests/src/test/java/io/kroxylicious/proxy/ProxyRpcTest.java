@@ -93,7 +93,7 @@ public class ProxyRpcTest {
 
     private static @NotNull Stream<Scenario> toScenario(Map<ApiAndVersion, ApiMessage> requestSamples, Map<ApiAndVersion, ApiMessage> responseSample, ApiKeys apiKeys) {
         ApiMessageType messageType = apiKeys.messageType;
-        IntStream supported = IntStream.range(messageType.lowestSupportedVersion(), apiKeys.messageType.highestSupportedVersion() + 1);
+        IntStream supported = IntStream.range(messageType.lowestSupportedVersion(), apiKeys.messageType.highestSupportedVersion(true) + 1);
         return supported.mapToObj(version -> new ApiAndVersion(apiKeys, (short) version)).map(apiAndVersion -> {
             ApiMessage request = requestSamples.get(apiAndVersion);
             ApiMessage response = responseSample.get(apiAndVersion);

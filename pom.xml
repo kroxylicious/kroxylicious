@@ -34,8 +34,8 @@
         <guava.version>32.0.1-jre</guava.version>
         <jackson.version>2.15.2</jackson.version>
         <junit.version>5.9.3</junit.version>
-        <kafka.version>3.4.0</kafka.version>
-        <kroxy.extension.version>0.3.0</kroxy.extension.version>
+        <kafka.version>3.5.0</kafka.version>
+        <kroxy.extension.version>0.4.0</kroxy.extension.version>
         <log4j.version>2.20.0</log4j.version>
         <picocli.version>4.7.4</picocli.version>
         <netty.version>4.1.93.Final</netty.version>
@@ -44,7 +44,7 @@
         <netty.io_uring.classifier>linux-x86_64</netty.io_uring.classifier>
         <netty.kqueue.classifier>osx-x86_64</netty.kqueue.classifier>
         <assertj-core.version>3.24.2</assertj-core.version>
-        <mockito.version>5.3.1</mockito.version>
+        <mockito.version>5.4.0</mockito.version>
         <slf4j.version>2.0.7</slf4j.version>
         <micrometer.version>1.11.0</micrometer.version>
         <zjsonpatch.version>0.4.14</zjsonpatch.version>

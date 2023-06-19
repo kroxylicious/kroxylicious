@@ -1,0 +1,500 @@
+====
+    Copyright Kroxylicious Authors.
+
+    Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+====
+
+package com.foo;
+
+import org.apache.kafka.common.message.AddOffsetsToTxnRequestData;
+import org.apache.kafka.common.message.AddPartitionsToTxnRequestData;
+import org.apache.kafka.common.message.AllocateProducerIdsRequestData;
+import org.apache.kafka.common.message.AlterClientQuotasRequestData;
+import org.apache.kafka.common.message.AlterConfigsRequestData;
+import org.apache.kafka.common.message.AlterPartitionReassignmentsRequestData;
+import org.apache.kafka.common.message.AlterPartitionRequestData;
+import org.apache.kafka.common.message.AlterReplicaLogDirsRequestData;
+import org.apache.kafka.common.message.AlterUserScramCredentialsRequestData;
+import org.apache.kafka.common.message.ApiVersionsRequestData;
+import org.apache.kafka.common.message.BeginQuorumEpochRequestData;
+import org.apache.kafka.common.message.BrokerHeartbeatRequestData;
+import org.apache.kafka.common.message.BrokerRegistrationRequestData;
+import org.apache.kafka.common.message.ConsumerGroupHeartbeatRequestData;
+import org.apache.kafka.common.message.ControlledShutdownRequestData;
+import org.apache.kafka.common.message.CreateAclsRequestData;
+import org.apache.kafka.common.message.CreateDelegationTokenRequestData;
+import org.apache.kafka.common.message.CreatePartitionsRequestData;
+import org.apache.kafka.common.message.CreateTopicsRequestData;
+import org.apache.kafka.common.message.DeleteAclsRequestData;
+import org.apache.kafka.common.message.DeleteGroupsRequestData;
+import org.apache.kafka.common.message.DeleteRecordsRequestData;
+import org.apache.kafka.common.message.DeleteTopicsRequestData;
+import org.apache.kafka.common.message.DescribeAclsRequestData;
+import org.apache.kafka.common.message.DescribeClientQuotasRequestData;
+import org.apache.kafka.common.message.DescribeClusterRequestData;
+import org.apache.kafka.common.message.DescribeConfigsRequestData;
+import org.apache.kafka.common.message.DescribeDelegationTokenRequestData;
+import org.apache.kafka.common.message.DescribeGroupsRequestData;
+import org.apache.kafka.common.message.DescribeLogDirsRequestData;
+import org.apache.kafka.common.message.DescribeProducersRequestData;
+import org.apache.kafka.common.message.DescribeQuorumRequestData;
+import org.apache.kafka.common.message.DescribeTransactionsRequestData;
+import org.apache.kafka.common.message.DescribeUserScramCredentialsRequestData;
+import org.apache.kafka.common.message.ElectLeadersRequestData;
+import org.apache.kafka.common.message.EndQuorumEpochRequestData;
+import org.apache.kafka.common.message.EndTxnRequestData;
+import org.apache.kafka.common.message.EnvelopeRequestData;
+import org.apache.kafka.common.message.ExpireDelegationTokenRequestData;
+import org.apache.kafka.common.message.FetchRequestData;
+import org.apache.kafka.common.message.FetchSnapshotRequestData;
+import org.apache.kafka.common.message.FindCoordinatorRequestData;
+import org.apache.kafka.common.message.HeartbeatRequestData;
+import org.apache.kafka.common.message.IncrementalAlterConfigsRequestData;
+import org.apache.kafka.common.message.InitProducerIdRequestData;
+import org.apache.kafka.common.message.JoinGroupRequestData;
+import org.apache.kafka.common.message.LeaderAndIsrRequestData;
+import org.apache.kafka.common.message.LeaveGroupRequestData;
+import org.apache.kafka.common.message.ListGroupsRequestData;
+import org.apache.kafka.common.message.ListOffsetsRequestData;
+import org.apache.kafka.common.message.ListPartitionReassignmentsRequestData;
+import org.apache.kafka.common.message.ListTransactionsRequestData;
+import org.apache.kafka.common.message.MetadataRequestData;
+import org.apache.kafka.common.message.OffsetCommitRequestData;
+import org.apache.kafka.common.message.OffsetDeleteRequestData;
+import org.apache.kafka.common.message.OffsetFetchRequestData;
+import org.apache.kafka.common.message.OffsetForLeaderEpochRequestData;
+import org.apache.kafka.common.message.ProduceRequestData;
+import org.apache.kafka.common.message.RenewDelegationTokenRequestData;
+import org.apache.kafka.common.message.SaslAuthenticateRequestData;
+import org.apache.kafka.common.message.SaslHandshakeRequestData;
+import org.apache.kafka.common.message.StopReplicaRequestData;
+import org.apache.kafka.common.message.SyncGroupRequestData;
+import org.apache.kafka.common.message.TxnOffsetCommitRequestData;
+import org.apache.kafka.common.message.UnregisterBrokerRequestData;
+import org.apache.kafka.common.message.UpdateFeaturesRequestData;
+import org.apache.kafka.common.message.UpdateMetadataRequestData;
+import org.apache.kafka.common.message.VoteRequestData;
+import org.apache.kafka.common.message.WriteTxnMarkersRequestData;
+import org.apache.kafka.common.protocol.ApiKeys;
+
+import io.kroxylicious.proxy.codec.DecodedRequestFrame;
+
+/**
+ * <p>Interface for {@code *RequestFilter}s.
+ * This interface can be implemented in two ways:
+ * <ul>
+ *     <li>filter classes can (multiply) implement one of the RPC-specific subinterfaces such as {@link ProduceRequestFilter} for a type-safe API</li>
+ *     <li>filter classes can extend {@link KrpcGenericRequestFilter}</li>
+ * </ul>
+ *
+ * <p>When implementing one or more of the {@code *RequestFilter} subinterfaces you need only implement
+ * the {@code on*Request} method(s), unless your filter can avoid deserialization in which case
+ * you can override {@link #shouldDeserializeRequest(ApiKeys, short)} as well.</p>
+ *
+ * <p>When extending {@link KrpcGenericRequestFilter} you need to override {@link #apply(DecodedRequestFrame, KrpcFilterContext)},
+ * and may override {@link #shouldDeserializeRequest(ApiKeys, short)} as well.</p>
+ *
+ * <h2>Guarantees</h2>
+ * <p>Implementors of this API may assume the following:</p>
+ * <ol>
+ *     <li>That each instance of the filter is associated with a single channel</li>
+ *     <li>That {@link #shouldDeserializeRequest(ApiKeys, short)} and
+ *     {@link #apply(DecodedRequestFrame, KrpcFilterContext)} (or {@code on*Request} as appropriate)
+ *     will always be invoked on the same thread.</li>
+ *     <li>That filters are applied in the order they were configured.</li>
+ * </ol>
+ * <p>From 1. and 2. it follows that you can use member variables in your filter to
+ * store channel-local state.</p>
+ *
+ * <p>Implementors should <strong>not</strong> assume:</p>
+ * <ol>
+ *     <li>That filters in the same chain execute on the same thread. Thus inter-filter communication/state
+ *     transfer needs to be thread-safe</li>
+ * </ol>
+ */
+public /* sealed */ interface KrpcRequestFilter extends KrpcFilter /* TODO permits ... */ {
+
+    /**
+     * Apply the filter to the given {@code decodedFrame} using the given {@code filterContext}.
+     * @param decodedFrame The request frame.
+     * @param filterContext The filter context.
+     * @return The state of the filter.
+     */
+    public default KrpcFilterState apply(DecodedRequestFrame<?> decodedFrame,
+                                         KrpcFilterContext filterContext) {
+        KrpcFilterState state;
+        switch (decodedFrame.apiKey()) {
+            case ADD_OFFSETS_TO_TXN:
+                state = ((AddOffsetsToTxnRequestFilter) this).onAddOffsetsToTxnRequest((AddOffsetsToTxnRequestData) decodedFrame.body(), filterContext);
+                break;
+            case ADD_PARTITIONS_TO_TXN:
+                state = ((AddPartitionsToTxnRequestFilter) this).onAddPartitionsToTxnRequest((AddPartitionsToTxnRequestData) decodedFrame.body(), filterContext);
+                break;
+            case ALLOCATE_PRODUCER_IDS:
+                state = ((AllocateProducerIdsRequestFilter) this).onAllocateProducerIdsRequest((AllocateProducerIdsRequestData) decodedFrame.body(), filterContext);
+                break;
+            case ALTER_CLIENT_QUOTAS:
+                state = ((AlterClientQuotasRequestFilter) this).onAlterClientQuotasRequest((AlterClientQuotasRequestData) decodedFrame.body(), filterContext);
+                break;
+            case ALTER_CONFIGS:
+                state = ((AlterConfigsRequestFilter) this).onAlterConfigsRequest((AlterConfigsRequestData) decodedFrame.body(), filterContext);
+                break;
+            case ALTER_PARTITION_REASSIGNMENTS:
+                state = ((AlterPartitionReassignmentsRequestFilter) this).onAlterPartitionReassignmentsRequest((AlterPartitionReassignmentsRequestData) decodedFrame.body(), filterContext);
+                break;
+            case ALTER_PARTITION:
+                state = ((AlterPartitionRequestFilter) this).onAlterPartitionRequest((AlterPartitionRequestData) decodedFrame.body(), filterContext);
+                break;
+            case ALTER_REPLICA_LOG_DIRS:
+                state = ((AlterReplicaLogDirsRequestFilter) this).onAlterReplicaLogDirsRequest((AlterReplicaLogDirsRequestData) decodedFrame.body(), filterContext);
+                break;
+            case ALTER_USER_SCRAM_CREDENTIALS:
+                state = ((AlterUserScramCredentialsRequestFilter) this).onAlterUserScramCredentialsRequest((AlterUserScramCredentialsRequestData) decodedFrame.body(), filterContext);
+                break;
+            case API_VERSIONS:
+                state = ((ApiVersionsRequestFilter) this).onApiVersionsRequest((ApiVersionsRequestData) decodedFrame.body(), filterContext);
+                break;
+            case BEGIN_QUORUM_EPOCH:
+                state = ((BeginQuorumEpochRequestFilter) this).onBeginQuorumEpochRequest((BeginQuorumEpochRequestData) decodedFrame.body(), filterContext);
+                break;
+            case BROKER_HEARTBEAT:
+                state = ((BrokerHeartbeatRequestFilter) this).onBrokerHeartbeatRequest((BrokerHeartbeatRequestData) decodedFrame.body(), filterContext);
+                break;
+            case BROKER_REGISTRATION:
+                state = ((BrokerRegistrationRequestFilter) this).onBrokerRegistrationRequest((BrokerRegistrationRequestData) decodedFrame.body(), filterContext);
+                break;
+            case CONSUMER_GROUP_HEARTBEAT:
+                state = ((ConsumerGroupHeartbeatRequestFilter) this).onConsumerGroupHeartbeatRequest((ConsumerGroupHeartbeatRequestData) decodedFrame.body(), filterContext);
+                break;
+            case CONTROLLED_SHUTDOWN:
+                state = ((ControlledShutdownRequestFilter) this).onControlledShutdownRequest((ControlledShutdownRequestData) decodedFrame.body(), filterContext);
+                break;
+            case CREATE_ACLS:
+                state = ((CreateAclsRequestFilter) this).onCreateAclsRequest((CreateAclsRequestData) decodedFrame.body(), filterContext);
+                break;
+            case CREATE_DELEGATION_TOKEN:
+                state = ((CreateDelegationTokenRequestFilter) this).onCreateDelegationTokenRequest((CreateDelegationTokenRequestData) decodedFrame.body(), filterContext);
+                break;
+            case CREATE_PARTITIONS:
+                state = ((CreatePartitionsRequestFilter) this).onCreatePartitionsRequest((CreatePartitionsRequestData) decodedFrame.body(), filterContext);
+                break;
+            case CREATE_TOPICS:
+                state = ((CreateTopicsRequestFilter) this).onCreateTopicsRequest((CreateTopicsRequestData) decodedFrame.body(), filterContext);
+                break;
+            case DELETE_ACLS:
+                state = ((DeleteAclsRequestFilter) this).onDeleteAclsRequest((DeleteAclsRequestData) decodedFrame.body(), filterContext);
+                break;
+            case DELETE_GROUPS:
+                state = ((DeleteGroupsRequestFilter) this).onDeleteGroupsRequest((DeleteGroupsRequestData) decodedFrame.body(), filterContext);
+                break;
+            case DELETE_RECORDS:
+                state = ((DeleteRecordsRequestFilter) this).onDeleteRecordsRequest((DeleteRecordsRequestData) decodedFrame.body(), filterContext);
+                break;
+            case DELETE_TOPICS:
+                state = ((DeleteTopicsRequestFilter) this).onDeleteTopicsRequest((DeleteTopicsRequestData) decodedFrame.body(), filterContext);
+                break;
+            case DESCRIBE_ACLS:
+                state = ((DescribeAclsRequestFilter) this).onDescribeAclsRequest((DescribeAclsRequestData) decodedFrame.body(), filterContext);
+                break;
+            case DESCRIBE_CLIENT_QUOTAS:
+                state = ((DescribeClientQuotasRequestFilter) this).onDescribeClientQuotasRequest((DescribeClientQuotasRequestData) decodedFrame.body(), filterContext);
+                break;
+            case DESCRIBE_CLUSTER:
+                state = ((DescribeClusterRequestFilter) this).onDescribeClusterRequest((DescribeClusterRequestData) decodedFrame.body(), filterContext);
+                break;
+            case DESCRIBE_CONFIGS:
+                state = ((DescribeConfigsRequestFilter) this).onDescribeConfigsRequest((DescribeConfigsRequestData) decodedFrame.body(), filterContext);
+                break;
+            case DESCRIBE_DELEGATION_TOKEN:
+                state = ((DescribeDelegationTokenRequestFilter) this).onDescribeDelegationTokenRequest((DescribeDelegationTokenRequestData) decodedFrame.body(), filterContext);
+                break;
+            case DESCRIBE_GROUPS:
+                state = ((DescribeGroupsRequestFilter) this).onDescribeGroupsRequest((DescribeGroupsRequestData) decodedFrame.body(), filterContext);
+                break;
+            case DESCRIBE_LOG_DIRS:
+                state = ((DescribeLogDirsRequestFilter) this).onDescribeLogDirsRequest((DescribeLogDirsRequestData) decodedFrame.body(), filterContext);
+                break;
+            case DESCRIBE_PRODUCERS:
+                state = ((DescribeProducersRequestFilter) this).onDescribeProducersRequest((DescribeProducersRequestData) decodedFrame.body(), filterContext);
+                break;
+            case DESCRIBE_QUORUM:
+                state = ((DescribeQuorumRequestFilter) this).onDescribeQuorumRequest((DescribeQuorumRequestData) decodedFrame.body(), filterContext);
+                break;
+            case DESCRIBE_TRANSACTIONS:
+                state = ((DescribeTransactionsRequestFilter) this).onDescribeTransactionsRequest((DescribeTransactionsRequestData) decodedFrame.body(), filterContext);
+                break;
+            case DESCRIBE_USER_SCRAM_CREDENTIALS:
+                state = ((DescribeUserScramCredentialsRequestFilter) this).onDescribeUserScramCredentialsRequest((DescribeUserScramCredentialsRequestData) decodedFrame.body(), filterContext);
+                break;
+            case ELECT_LEADERS:
+                state = ((ElectLeadersRequestFilter) this).onElectLeadersRequest((ElectLeadersRequestData) decodedFrame.body(), filterContext);
+                break;
+            case END_QUORUM_EPOCH:
+                state = ((EndQuorumEpochRequestFilter) this).onEndQuorumEpochRequest((EndQuorumEpochRequestData) decodedFrame.body(), filterContext);
+                break;
+            case END_TXN:
+                state = ((EndTxnRequestFilter) this).onEndTxnRequest((EndTxnRequestData) decodedFrame.body(), filterContext);
+                break;
+            case ENVELOPE:
+                state = ((EnvelopeRequestFilter) this).onEnvelopeRequest((EnvelopeRequestData) decodedFrame.body(), filterContext);
+                break;
+            case EXPIRE_DELEGATION_TOKEN:
+                state = ((ExpireDelegationTokenRequestFilter) this).onExpireDelegationTokenRequest((ExpireDelegationTokenRequestData) decodedFrame.body(), filterContext);
+                break;
+            case FETCH:
+                state = ((FetchRequestFilter) this).onFetchRequest((FetchRequestData) decodedFrame.body(), filterContext);
+                break;
+            case FETCH_SNAPSHOT:
+                state = ((FetchSnapshotRequestFilter) this).onFetchSnapshotRequest((FetchSnapshotRequestData) decodedFrame.body(), filterContext);
+                break;
+            case FIND_COORDINATOR:
+                state = ((FindCoordinatorRequestFilter) this).onFindCoordinatorRequest((FindCoordinatorRequestData) decodedFrame.body(), filterContext);
+                break;
+            case HEARTBEAT:
+                state = ((HeartbeatRequestFilter) this).onHeartbeatRequest((HeartbeatRequestData) decodedFrame.body(), filterContext);
+                break;
+            case INCREMENTAL_ALTER_CONFIGS:
+                state = ((IncrementalAlterConfigsRequestFilter) this).onIncrementalAlterConfigsRequest((IncrementalAlterConfigsRequestData) decodedFrame.body(), filterContext);
+                break;
+            case INIT_PRODUCER_ID:
+                state = ((InitProducerIdRequestFilter) this).onInitProducerIdRequest((InitProducerIdRequestData) decodedFrame.body(), filterContext);
+                break;
+            case JOIN_GROUP:
+                state = ((JoinGroupRequestFilter) this).onJoinGroupRequest((JoinGroupRequestData) decodedFrame.body(), filterContext);
+                break;
+            case LEADER_AND_ISR:
+                state = ((LeaderAndIsrRequestFilter) this).onLeaderAndIsrRequest((LeaderAndIsrRequestData) decodedFrame.body(), filterContext);
+                break;
+            case LEAVE_GROUP:
+                state = ((LeaveGroupRequestFilter) this).onLeaveGroupRequest((LeaveGroupRequestData) decodedFrame.body(), filterContext);
+                break;
+            case LIST_GROUPS:
+                state = ((ListGroupsRequestFilter) this).onListGroupsRequest((ListGroupsRequestData) decodedFrame.body(), filterContext);
+                break;
+            case LIST_OFFSETS:
+                state = ((ListOffsetsRequestFilter) this).onListOffsetsRequest((ListOffsetsRequestData) decodedFrame.body(), filterContext);
+                break;
+            case LIST_PARTITION_REASSIGNMENTS:
+                state = ((ListPartitionReassignmentsRequestFilter) this).onListPartitionReassignmentsRequest((ListPartitionReassignmentsRequestData) decodedFrame.body(), filterContext);
+                break;
+            case LIST_TRANSACTIONS:
+                state = ((ListTransactionsRequestFilter) this).onListTransactionsRequest((ListTransactionsRequestData) decodedFrame.body(), filterContext);
+                break;
+            case METADATA:
+                state = ((MetadataRequestFilter) this).onMetadataRequest((MetadataRequestData) decodedFrame.body(), filterContext);
+                break;
+            case OFFSET_COMMIT:
+                state = ((OffsetCommitRequestFilter) this).onOffsetCommitRequest((OffsetCommitRequestData) decodedFrame.body(), filterContext);
+                break;
+            case OFFSET_DELETE:
+                state = ((OffsetDeleteRequestFilter) this).onOffsetDeleteRequest((OffsetDeleteRequestData) decodedFrame.body(), filterContext);
+                break;
+            case OFFSET_FETCH:
+                state = ((OffsetFetchRequestFilter) this).onOffsetFetchRequest((OffsetFetchRequestData) decodedFrame.body(), filterContext);
+                break;
+            case OFFSET_FOR_LEADER_EPOCH:
+                state = ((OffsetForLeaderEpochRequestFilter) this).onOffsetForLeaderEpochRequest((OffsetForLeaderEpochRequestData) decodedFrame.body(), filterContext);
+                break;
+            case PRODUCE:
+                state = ((ProduceRequestFilter) this).onProduceRequest((ProduceRequestData) decodedFrame.body(), filterContext);
+                break;
+            case RENEW_DELEGATION_TOKEN:
+                state = ((RenewDelegationTokenRequestFilter) this).onRenewDelegationTokenRequest((RenewDelegationTokenRequestData) decodedFrame.body(), filterContext);
+                break;
+            case SASL_AUTHENTICATE:
+                state = ((SaslAuthenticateRequestFilter) this).onSaslAuthenticateRequest((SaslAuthenticateRequestData) decodedFrame.body(), filterContext);
+                break;
+            case SASL_HANDSHAKE:
+                state = ((SaslHandshakeRequestFilter) this).onSaslHandshakeRequest((SaslHandshakeRequestData) decodedFrame.body(), filterContext);
+                break;
+            case STOP_REPLICA:
+                state = ((StopReplicaRequestFilter) this).onStopReplicaRequest((StopReplicaRequestData) decodedFrame.body(), filterContext);
+                break;
+            case SYNC_GROUP:
+                state = ((SyncGroupRequestFilter) this).onSyncGroupRequest((SyncGroupRequestData) decodedFrame.body(), filterContext);
+                break;
+            case TXN_OFFSET_COMMIT:
+                state = ((TxnOffsetCommitRequestFilter) this).onTxnOffsetCommitRequest((TxnOffsetCommitRequestData) decodedFrame.body(), filterContext);
+                break;
+            case UNREGISTER_BROKER:
+                state = ((UnregisterBrokerRequestFilter) this).onUnregisterBrokerRequest((UnregisterBrokerRequestData) decodedFrame.body(), filterContext);
+                break;
+            case UPDATE_FEATURES:
+                state = ((UpdateFeaturesRequestFilter) this).onUpdateFeaturesRequest((UpdateFeaturesRequestData) decodedFrame.body(), filterContext);
+                break;
+            case UPDATE_METADATA:
+                state = ((UpdateMetadataRequestFilter) this).onUpdateMetadataRequest((UpdateMetadataRequestData) decodedFrame.body(), filterContext);
+                break;
+            case VOTE:
+                state = ((VoteRequestFilter) this).onVoteRequest((VoteRequestData) decodedFrame.body(), filterContext);
+                break;
+            case WRITE_TXN_MARKERS:
+                state = ((WriteTxnMarkersRequestFilter) this).onWriteTxnMarkersRequest((WriteTxnMarkersRequestData) decodedFrame.body(), filterContext);
+                break;
+            default:
+                throw new IllegalStateException("Unsupported RPC " + decodedFrame.apiKey());
+        }
+        return state;
+    }
+
+    /**
+     * <p>Determines whether a request with the given {@code apiKey} and {@code apiVersion} should be deserialized.
+     * Note that it is not guaranteed that this method will be called once per request,
+     * or that two consecutive calls refer to the same request.
+     * That is, the sequences of invocations like the following are allowed:</p>
+     * <ol>
+     *     <li>{@code shouldDeserializeRequest} on request A</li>
+     *     <li>{@code shouldDeserializeRequest} on request B</li>
+     *     <li>{@code shouldDeserializeRequest} on request A</li>
+     *     <li>{@code apply} on request A</li>
+     *     <li>{@code apply} on request B</li>
+     * </ol>
+     * @param apiKey The API key
+     * @param apiVersion The API version
+     * @return
+     */
+    default boolean shouldDeserializeRequest(ApiKeys apiKey, short apiVersion) {
+        switch (apiKey) {
+            case ADD_OFFSETS_TO_TXN:
+                return this instanceof AddOffsetsToTxnRequestFilter;
+            case ADD_PARTITIONS_TO_TXN:
+                return this instanceof AddPartitionsToTxnRequestFilter;
+            case ALLOCATE_PRODUCER_IDS:
+                return this instanceof AllocateProducerIdsRequestFilter;
+            case ALTER_CLIENT_QUOTAS:
+                return this instanceof AlterClientQuotasRequestFilter;
+            case ALTER_CONFIGS:
+                return this instanceof AlterConfigsRequestFilter;
+            case ALTER_PARTITION_REASSIGNMENTS:
+                return this instanceof AlterPartitionReassignmentsRequestFilter;
+            case ALTER_PARTITION:
+                return this instanceof AlterPartitionRequestFilter;
+            case ALTER_REPLICA_LOG_DIRS:
+                return this instanceof AlterReplicaLogDirsRequestFilter;
+            case ALTER_USER_SCRAM_CREDENTIALS:
+                return this instanceof AlterUserScramCredentialsRequestFilter;
+            case API_VERSIONS:
+                return this instanceof ApiVersionsRequestFilter;
+            case BEGIN_QUORUM_EPOCH:
+                return this instanceof BeginQuorumEpochRequestFilter;
+            case BROKER_HEARTBEAT:
+                return this instanceof BrokerHeartbeatRequestFilter;
+            case BROKER_REGISTRATION:
+                return this instanceof BrokerRegistrationRequestFilter;
+            case CONSUMER_GROUP_HEARTBEAT:
+                return this instanceof ConsumerGroupHeartbeatRequestFilter;
+            case CONTROLLED_SHUTDOWN:
+                return this instanceof ControlledShutdownRequestFilter;
+            case CREATE_ACLS:
+                return this instanceof CreateAclsRequestFilter;
+            case CREATE_DELEGATION_TOKEN:
+                return this instanceof CreateDelegationTokenRequestFilter;
+            case CREATE_PARTITIONS:
+                return this instanceof CreatePartitionsRequestFilter;
+            case CREATE_TOPICS:
+                return this instanceof CreateTopicsRequestFilter;
+            case DELETE_ACLS:
+                return this instanceof DeleteAclsRequestFilter;
+            case DELETE_GROUPS:
+                return this instanceof DeleteGroupsRequestFilter;
+            case DELETE_RECORDS:
+                return this instanceof DeleteRecordsRequestFilter;
+            case DELETE_TOPICS:
+                return this instanceof DeleteTopicsRequestFilter;
+            case DESCRIBE_ACLS:
+                return this instanceof DescribeAclsRequestFilter;
+            case DESCRIBE_CLIENT_QUOTAS:
+                return this instanceof DescribeClientQuotasRequestFilter;
+            case DESCRIBE_CLUSTER:
+                return this instanceof DescribeClusterRequestFilter;
+            case DESCRIBE_CONFIGS:
+                return this instanceof DescribeConfigsRequestFilter;
+            case DESCRIBE_DELEGATION_TOKEN:
+                return this instanceof DescribeDelegationTokenRequestFilter;
+            case DESCRIBE_GROUPS:
+                return this instanceof DescribeGroupsRequestFilter;
+            case DESCRIBE_LOG_DIRS:
+                return this instanceof DescribeLogDirsRequestFilter;
+            case DESCRIBE_PRODUCERS:
+                return this instanceof DescribeProducersRequestFilter;
+            case DESCRIBE_QUORUM:
+                return this instanceof DescribeQuorumRequestFilter;
+            case DESCRIBE_TRANSACTIONS:
+                return this instanceof DescribeTransactionsRequestFilter;
+            case DESCRIBE_USER_SCRAM_CREDENTIALS:
+                return this instanceof DescribeUserScramCredentialsRequestFilter;
+            case ELECT_LEADERS:
+                return this instanceof ElectLeadersRequestFilter;
+            case END_QUORUM_EPOCH:
+                return this instanceof EndQuorumEpochRequestFilter;
+            case END_TXN:
+                return this instanceof EndTxnRequestFilter;
+            case ENVELOPE:
+                return this instanceof EnvelopeRequestFilter;
+            case EXPIRE_DELEGATION_TOKEN:
+                return this instanceof ExpireDelegationTokenRequestFilter;
+            case FETCH:
+                return this instanceof FetchRequestFilter;
+            case FETCH_SNAPSHOT:
+                return this instanceof FetchSnapshotRequestFilter;
+            case FIND_COORDINATOR:
+                return this instanceof FindCoordinatorRequestFilter;
+            case HEARTBEAT:
+                return this instanceof HeartbeatRequestFilter;
+            case INCREMENTAL_ALTER_CONFIGS:
+                return this instanceof IncrementalAlterConfigsRequestFilter;
+            case INIT_PRODUCER_ID:
+                return this instanceof InitProducerIdRequestFilter;
+            case JOIN_GROUP:
+                return this instanceof JoinGroupRequestFilter;
+            case LEADER_AND_ISR:
+                return this instanceof LeaderAndIsrRequestFilter;
+            case LEAVE_GROUP:
+                return this instanceof LeaveGroupRequestFilter;
+            case LIST_GROUPS:
+                return this instanceof ListGroupsRequestFilter;
+            case LIST_OFFSETS:
+                return this instanceof ListOffsetsRequestFilter;
+            case LIST_PARTITION_REASSIGNMENTS:
+                return this instanceof ListPartitionReassignmentsRequestFilter;
+            case LIST_TRANSACTIONS:
+                return this instanceof ListTransactionsRequestFilter;
+            case METADATA:
+                return this instanceof MetadataRequestFilter;
+            case OFFSET_COMMIT:
+                return this instanceof OffsetCommitRequestFilter;
+            case OFFSET_DELETE:
+                return this instanceof OffsetDeleteRequestFilter;
+            case OFFSET_FETCH:
+                return this instanceof OffsetFetchRequestFilter;
+            case OFFSET_FOR_LEADER_EPOCH:
+                return this instanceof OffsetForLeaderEpochRequestFilter;
+            case PRODUCE:
+                return this instanceof ProduceRequestFilter;
+            case RENEW_DELEGATION_TOKEN:
+                return this instanceof RenewDelegationTokenRequestFilter;
+            case SASL_AUTHENTICATE:
+                return this instanceof SaslAuthenticateRequestFilter;
+            case SASL_HANDSHAKE:
+                return this instanceof SaslHandshakeRequestFilter;
+            case STOP_REPLICA:
+                return this instanceof StopReplicaRequestFilter;
+            case SYNC_GROUP:
+                return this instanceof SyncGroupRequestFilter;
+            case TXN_OFFSET_COMMIT:
+                return this instanceof TxnOffsetCommitRequestFilter;
+            case UNREGISTER_BROKER:
+                return this instanceof UnregisterBrokerRequestFilter;
+            case UPDATE_FEATURES:
+                return this instanceof UpdateFeaturesRequestFilter;
+            case UPDATE_METADATA:
+                return this instanceof UpdateMetadataRequestFilter;
+            case VOTE:
+                return this instanceof VoteRequestFilter;
+            case WRITE_TXN_MARKERS:
+                return this instanceof WriteTxnMarkersRequestFilter;
+            default:
+                throw new IllegalStateException("Unsupported API key " + apiKey);
+        }
+    }
+}

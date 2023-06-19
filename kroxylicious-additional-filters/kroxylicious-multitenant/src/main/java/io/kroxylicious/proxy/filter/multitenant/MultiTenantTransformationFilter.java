@@ -341,14 +341,28 @@ public class MultiTenantTransformationFilter
 
     @Override
     public void onAddPartitionsToTxnRequest(short apiVersion, RequestHeaderData header, AddPartitionsToTxnRequestData request, KrpcFilterContext context) {
-        request.topics().forEach(topic -> applyTenantPrefix(context, topic::name, topic::setName, false));
-        applyTenantPrefix(context, request::transactionalId, request::setTransactionalId, true);
+        request.v3AndBelowTopics().forEach(topic -> applyTenantPrefix(context, topic::name, topic::setName, false));
+        applyTenantPrefix(context, request::v3AndBelowTransactionalId, request::setV3AndBelowTransactionalId, true);
+
+        request.transactions().forEach(addPartitionsToTxnTransaction -> {
+            applyTenantPrefix(context, addPartitionsToTxnTransaction::transactionalId, addPartitionsToTxnTransaction::setTransactionalId, true);
+            addPartitionsToTxnTransaction.topics().forEach(addPartitionsToTxnTopic -> {
+                applyTenantPrefix(context, addPartitionsToTxnTopic::name, addPartitionsToTxnTopic::setName, true);
+            });
+        });
         context.forwardRequest(header, request);
     }
 
     @Override
     public void onAddPartitionsToTxnResponse(short apiVersion, ResponseHeaderData header, AddPartitionsToTxnResponseData response, KrpcFilterContext context) {
-        response.results().forEach(results -> removeTenantPrefix(context, results::name, results::setName, false));
+        response.resultsByTopicV3AndBelow().forEach(results -> removeTenantPrefix(context, results::name, results::setName, false));
+
+        response.resultsByTransaction().forEach(addPartitionsToTxnResult -> {
+            removeTenantPrefix(context, addPartitionsToTxnResult::transactionalId, addPartitionsToTxnResult::setTransactionalId, false);
+            for (AddPartitionsToTxnResponseData.AddPartitionsToTxnTopicResult topicResult : addPartitionsToTxnResult.topicResults()) {
+                removeTenantPrefix(context, topicResult::name, topicResult::setName, true);
+            }
+        });
         context.forwardResponse(header, response);
     }
 

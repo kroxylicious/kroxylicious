@@ -6,12 +6,24 @@
 package io.kroxylicious.krpccodegen.main;
 
 import java.io.File;
+import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.Objects;
+import java.util.StringJoiner;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+
+import com.google.common.io.Files;
+import com.google.common.io.Resources;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -32,75 +44,121 @@ import org.junit.jupiter.api.Test;
 class KrpcGeneratorTest {
 
     private static final String MESSAGE_SPECS_PATH = "message-specs/common/message";
-    private static final String OUTPUT_DIR = "krpc-test-sources/krpc";
     private static final String TEST_CLASSES_DIR = "test-classes";
 
     @Test
-    public void testHelloWorld() throws Exception {
+    public void testHelloWorld(@TempDir File tempDir) throws Exception {
         KrpcGenerator gen = KrpcGenerator.single()
                 .withMessageSpecDir(getMessageSpecDir())
                 .withMessageSpecFilter("*.json")
                 .withTemplateDir(getTemplateDir())
                 .withTemplateNames(List.of("hello-world/example.ftl"))
                 .withOutputPackage("com.foo")
-                .withOutputDir(getOutputDir())
+                .withOutputDir(tempDir)
                 .withOutputFilePattern("${messageSpecName}.txt")
                 .build();
 
         gen.generate();
+
+        File file = join(tempDir, "com", "foo", "FetchRequest.txt");
+        assertFileHasExpectedContents(file, "hello-world/example-expected-FetchRequest.txt");
     }
 
     @Test
-    public void testKrpcData() throws Exception {
+    public void testKrpcData(@TempDir File tempDir) throws Exception {
         KrpcGenerator gen = KrpcGenerator.single()
                 .withMessageSpecDir(getMessageSpecDir())
                 .withMessageSpecFilter("*.json")
                 .withTemplateDir(getTemplateDir())
                 .withTemplateNames(List.of("Data/example.ftl"))
                 .withOutputPackage("com.foo")
-                .withOutputDir(getOutputDir())
+                .withOutputDir(tempDir)
                 .withOutputFilePattern("${messageSpecName}.java")
                 .build();
 
         gen.generate();
+
+        File file = join(tempDir, "com", "foo", "FetchRequest.java");
+        assertFileHasExpectedContents(file, "Data/example-expected-FetchRequest.java.txt");
     }
 
     @Test
-    public void testKproxyFilter() throws Exception {
+    public void testKproxyFilter(@TempDir File tempDir) throws Exception {
         KrpcGenerator gen = KrpcGenerator.single()
                 .withMessageSpecDir(getMessageSpecDir())
                 .withMessageSpecFilter("*.json")
                 .withTemplateDir(getTemplateDir())
                 .withTemplateNames(List.of("Kproxy/Filter.ftl"))
                 .withOutputPackage("com.foo")
-                .withOutputDir(getOutputDir())
+                .withOutputDir(tempDir)
                 .withOutputFilePattern("${messageSpecName}Filter.java")
                 .build();
 
         gen.generate();
+
+        File file = join(tempDir, "com", "foo", "FetchRequestFilter.java");
+        assertFileHasExpectedContents(file, "Kproxy/Filter-expected-FetchRequestFilter.java.txt");
     }
 
     @Test
-    public void testKproxyRequestFilter() throws Exception {
+    public void testKproxyRequestFilter(@TempDir File tempDir) throws Exception {
         KrpcGenerator gen = KrpcGenerator.multi()
                 .withMessageSpecDir(getMessageSpecDir())
                 .withMessageSpecFilter("*{Request}.json")
                 .withTemplateDir(getTemplateDir())
                 .withTemplateNames(List.of("Kproxy/KrpcRequestFilter.ftl"))
                 .withOutputPackage("com.foo")
-                .withOutputDir(getOutputDir())
+                .withOutputDir(tempDir)
                 .withOutputFilePattern("${templateName}.java")
                 .build();
 
         gen.generate();
+
+        File file = join(tempDir, "com", "foo", "KrpcRequestFilter.java");
+        assertFileHasExpectedContents(file, "Kproxy/KrpcRequestFilter-expected.txt");
+    }
+
+    @ParameterizedTest
+    @CsvSource(value = { "AddPartitionsToTxnRequest.json,yes", "FetchRequest.json,no" })
+    public void testLatestVersionUnstable(String messageSpec, String expectedContents, @TempDir File tempDir) throws Exception {
+        testSingleGeneration(tempDir, messageSpec, "${messageSpec.latestVersionUnstable.isPresent()?string('yes', 'no')}", expectedContents);
+        testSingleGeneration(tempDir, messageSpec, "${messageSpec.latestVersionUnstable.orElse(false)?string('yes', 'no')}", expectedContents);
+    }
+
+    private void assertFileHasExpectedContents(File file, String expectedFile) throws IOException {
+        String expected = Resources.asCharSource(
+                Objects.requireNonNull(getClass().getClassLoader().getResource(expectedFile)), UTF_8).read();
+        assertThat(file).content().isEqualTo(expected);
+    }
+
+    private static void testSingleGeneration(File tempDir, String messageSpec, String template, String expectedContents) throws Exception {
+        String templateFile = "template.ftl";
+        String outputFile = "output.txt";
+        Files.asCharSink(new File(tempDir, templateFile), UTF_8).write(template);
+        KrpcGenerator gen = KrpcGenerator.single()
+                .withMessageSpecDir(getMessageSpecDir())
+                .withMessageSpecFilter(messageSpec)
+                .withTemplateDir(tempDir)
+                .withTemplateNames(List.of(templateFile))
+                .withOutputPackage("com.foo")
+                .withOutputDir(tempDir)
+                .withOutputFilePattern(outputFile)
+                .build();
+        gen.generate();
+        File file = join(tempDir, "com", "foo", outputFile);
+        assertThat(file).hasContent(expectedContents);
+    }
+
+    private static File join(File dir, String... pathElements) {
+        StringJoiner stringJoiner = new StringJoiner(File.separator);
+        for (String pathElement : pathElements) {
+            stringJoiner.add(pathElement);
+        }
+        return new File(dir, stringJoiner.toString());
     }
 
     private static File getMessageSpecDir() {
         return getBuildDir().resolve(MESSAGE_SPECS_PATH).toFile();
-    }
-
-    private static File getOutputDir() {
-        return getBuildDir().resolve(OUTPUT_DIR).toFile();
     }
 
     private static File getTemplateDir() {

@@ -5,6 +5,12 @@
     Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 
 -->
+====
+    Copyright Kroxylicious Authors.
+
+    Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+====
+
 name: ${messageSpec.name}
 type: ${messageSpec.type}
 apiKey: ${messageSpec.apiKey}
@@ -21,6 +27,7 @@ validVersionsString: ${messageSpec.validVersionsString}
 flexibleVersions: ${messageSpec.flexibleVersions}
 flexibleVersionsString: ${messageSpec.flexibleVersionsString}
 dataClassName: ${messageSpec.dataClassName}
+latestVersionUnstable: ${messageSpec.latestVersionUnstable.isPresent()?string('yes', 'no')}
 fields:
 <#list messageSpec.fields as field>
   name: ${field.name}
