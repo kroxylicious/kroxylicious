@@ -64,8 +64,7 @@ public class SampleFilterIT {
     public void beforeEach() {
         tester = kroxyliciousTester(withDefaultFilters(proxy(cluster))
                 .addNewFilter().withType(SampleContributor.SAMPLE_PRODUCE).addToConfig(PRODUCE_CONFIG).endFilter()
-                .addNewFilter().withType(SampleContributor.SAMPLE_FETCH).addToConfig(FETCH_CONFIG).endFilter()
-        );
+                .addNewFilter().withType(SampleContributor.SAMPLE_FETCH).addToConfig(FETCH_CONFIG).endFilter());
     }
 
     @AfterEach
@@ -76,9 +75,11 @@ public class SampleFilterIT {
     @Test
     public void sampleFilterWillTransformRoundTripTest(Admin admin) {
         try (Producer<String, String> producer = tester.producer();
-                Consumer<String, byte[]> kafkaClusterConsumer = new KafkaConsumer<>(mergeMaps(cluster.getKafkaClientConfiguration(), Map.of(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class, ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class, ConsumerConfig.GROUP_ID_CONFIG, "group-id-0", ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")));
-                Consumer<String, byte[]> proxyConsumer = tester.consumer(Serdes.String(), Serdes.ByteArray(), Map.of(ConsumerConfig.GROUP_ID_CONFIG, "group-id-1", ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"))
-        ) {
+                Consumer<String, byte[]> kafkaClusterConsumer = new KafkaConsumer<>(mergeMaps(cluster.getKafkaClientConfiguration(),
+                        Map.of(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class, ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
+                                ByteArrayDeserializer.class, ConsumerConfig.GROUP_ID_CONFIG, "group-id-0", ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")));
+                Consumer<String, byte[]> proxyConsumer = tester.consumer(Serdes.String(), Serdes.ByteArray(),
+                        Map.of(ConsumerConfig.GROUP_ID_CONFIG, "group-id-1", ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
             admin.createTopics(List.of(new NewTopic(TOPIC_NAME, TOPIC_PARTITIONS, TOPIC_REPLICATION))).all().get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
             producer.send(new ProducerRecord<>(TOPIC_NAME, PRE_TRANSFORM_VALUE)).get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
             // get from cluster
@@ -108,9 +109,11 @@ public class SampleFilterIT {
     @Test
     public void sampleFilterWontTransformRoundTripTest(Admin admin) {
         try (Producer<String, String> producer = tester.producer();
-                Consumer<String, byte[]> kafkaClusterConsumer = new KafkaConsumer<>(mergeMaps(cluster.getKafkaClientConfiguration(), Map.of(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class, ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class, ConsumerConfig.GROUP_ID_CONFIG, "group-id-0", ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")));
-                Consumer<String, byte[]> proxyConsumer = tester.consumer(Serdes.String(), Serdes.ByteArray(), Map.of(ConsumerConfig.GROUP_ID_CONFIG, "group-id-1", ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"))
-        ) {
+                Consumer<String, byte[]> kafkaClusterConsumer = new KafkaConsumer<>(mergeMaps(cluster.getKafkaClientConfiguration(),
+                        Map.of(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class, ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
+                                ByteArrayDeserializer.class, ConsumerConfig.GROUP_ID_CONFIG, "group-id-0", ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")));
+                Consumer<String, byte[]> proxyConsumer = tester.consumer(Serdes.String(), Serdes.ByteArray(),
+                        Map.of(ConsumerConfig.GROUP_ID_CONFIG, "group-id-1", ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
             admin.createTopics(List.of(new NewTopic(TOPIC_NAME, TOPIC_PARTITIONS, TOPIC_REPLICATION))).all().get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
             producer.send(new ProducerRecord<>(TOPIC_NAME, NO_TRANSFORM_VALUE)).get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
             // get from cluster

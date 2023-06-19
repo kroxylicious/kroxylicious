@@ -114,8 +114,7 @@ class SampleFetchResponseFilterTest {
                     Object[] args = invocation.getArguments();
                     Integer size = (Integer) args[0];
                     return new ByteBufferOutputStream(size);
-                }
-        );
+                });
     }
 
     /**
@@ -130,7 +129,9 @@ class SampleFetchResponseFilterTest {
         // Build stream
         var stream = new ByteBufferOutputStream(ByteBuffer.wrap(transformValue.getBytes(StandardCharsets.UTF_8)));
         // Build records from stream
-        var recordsBuilder = new MemoryRecordsBuilder(stream, RecordBatch.CURRENT_MAGIC_VALUE, CompressionType.NONE, TimestampType.CREATE_TIME, 0, RecordBatch.NO_TIMESTAMP, RecordBatch.NO_PRODUCER_ID, RecordBatch.NO_PRODUCER_EPOCH, RecordBatch.NO_SEQUENCE, false, false, RecordBatch.NO_PARTITION_LEADER_EPOCH, stream.remaining());
+        var recordsBuilder = new MemoryRecordsBuilder(stream, RecordBatch.CURRENT_MAGIC_VALUE, CompressionType.NONE, TimestampType.CREATE_TIME, 0,
+                RecordBatch.NO_TIMESTAMP, RecordBatch.NO_PRODUCER_ID, RecordBatch.NO_PRODUCER_EPOCH, RecordBatch.NO_SEQUENCE, false, false,
+                RecordBatch.NO_PARTITION_LEADER_EPOCH, stream.remaining());
         // Add transformValue as buffer to records
         recordsBuilder.append(RecordBatch.NO_TIMESTAMP, null, ByteBuffer.wrap(transformValue.getBytes(StandardCharsets.UTF_8)).position(0));
         var records = recordsBuilder.build();
