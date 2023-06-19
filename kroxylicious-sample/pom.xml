@@ -74,16 +74,6 @@
             <version>${sundr.version}</version>
             <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>io.sundr</groupId>
-            <artifactId>sundr-core</artifactId>
-            <version>1.14.0</version>
-        </dependency>
-        <dependency>
-            <groupId>io.sundr</groupId>
-            <artifactId>sundr-core</artifactId>
-            <version>0.94.0</version>
-        </dependency>
     </dependencies>
 
 </project>
