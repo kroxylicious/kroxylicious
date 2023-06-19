@@ -30,6 +30,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
+import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
 import io.kroxylicious.test.tester.KroxyliciousTester;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
@@ -63,8 +64,8 @@ public class SampleFilterIT {
     @BeforeEach
     public void beforeEach() {
         tester = kroxyliciousTester(withDefaultFilters(proxy(cluster))
-                .addNewFilter().withType(SampleContributor.SAMPLE_PRODUCE).addToConfig(PRODUCE_CONFIG).endFilter()
-                .addNewFilter().withType(SampleContributor.SAMPLE_FETCH).addToConfig(FETCH_CONFIG).endFilter());
+                .addToFilters(new FilterDefinitionBuilder(SampleContributor.SAMPLE_PRODUCE).withConfig(PRODUCE_CONFIG).build())
+                .addToFilters(new FilterDefinitionBuilder(SampleContributor.SAMPLE_FETCH).withConfig(FETCH_CONFIG).build()));
     }
 
     @AfterEach
