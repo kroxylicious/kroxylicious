@@ -104,6 +104,12 @@ Build with the `dist` profile as shown above, then execute this:
 $ java -jar kroxylicious/target/kroxylicious-*-SNAPSHOT.jar --config {path-to-kroxylicious-config}
 ```
 
+Or, to run with your own class path, run this instead:
+
+```
+$ java -cp {path-to-your-class-path}:kroxylicious/target/kroxylicious-*-SNAPSHOT.jar io.kroxylicious.proxy.Kroxylicious --config {path-to-kroxylicious-config}
+```
+
 To prevent the [following error](https://www.slf4j.org/codes.html#StaticLoggerBinder):
 
 ```
