@@ -101,7 +101,7 @@ No one likes to argue about code formatting in pull requests, as project we take
 Build with the `dist` profile as shown above, then execute this:
 
 ```
-$ java -jar kroxylicious/target/kroxylicious-*-SNAPSHOT.jar -cp {path-to-your-class-path} --config {path-to-kroxylicious-config}
+$ java -cp {path-to-your-class-path} -jar kroxylicious/target/kroxylicious-*-SNAPSHOT.jar --config {path-to-kroxylicious-config}
 ```
 
 To prevent the [following error](https://www.slf4j.org/codes.html#StaticLoggerBinder):
