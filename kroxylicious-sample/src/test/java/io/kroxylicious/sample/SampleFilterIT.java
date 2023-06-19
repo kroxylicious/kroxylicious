@@ -85,16 +85,16 @@ public class SampleFilterIT {
             kafkaClusterConsumer.subscribe(List.of(TOPIC_NAME));
             ConsumerRecords<String, byte[]> kafkaClusterPoll = kafkaClusterConsumer.poll(Duration.ofSeconds(TIMEOUT_SECONDS));
             if (kafkaClusterPoll.count() != 1) {
-                fail(String.format("Sent only 1 record but received %d records from Kafka Cluster Consumer.", kafkaClusterPoll.count()));
+                fail(String.format("Sent 1 record but received %d records from Kafka Cluster Consumer.", kafkaClusterPoll.count()));
             }
             ConsumerRecord<String, byte[]> clusterRecord = kafkaClusterPoll.records(TOPIC_NAME).iterator().next();
             // check cluster record value is correct
             assertEquals(PRODUCE_TRANSFORM_VALUE, new String(clusterRecord.value(), StandardCharsets.UTF_8));
             // get from proxy
             proxyConsumer.subscribe(List.of(TOPIC_NAME));
-            ConsumerRecords<String, byte[]> proxyPoll = kafkaClusterConsumer.poll(Duration.ofSeconds(TIMEOUT_SECONDS));
+            ConsumerRecords<String, byte[]> proxyPoll = proxyConsumer.poll(Duration.ofSeconds(TIMEOUT_SECONDS));
             if (proxyPoll.count() != 1) {
-                fail(String.format("Sent only 1 record but received %d records from Proxy Consumer.", proxyPoll.count()));
+                fail(String.format("Sent 1 record but received %d records from Proxy Consumer.", proxyPoll.count()));
             }
             ConsumerRecord<String, byte[]> proxyRecord = proxyPoll.records(TOPIC_NAME).iterator().next();
             // check proxy record is correct
@@ -117,16 +117,16 @@ public class SampleFilterIT {
             kafkaClusterConsumer.subscribe(List.of(TOPIC_NAME));
             ConsumerRecords<String, byte[]> kafkaClusterPoll = kafkaClusterConsumer.poll(Duration.ofSeconds(TIMEOUT_SECONDS));
             if (kafkaClusterPoll.count() != 1) {
-                fail(String.format("Sent only 1 record but received %d records from Kafka Cluster Consumer.", kafkaClusterPoll.count()));
+                fail(String.format("Sent 1 record but received %d records from Kafka Cluster Consumer.", kafkaClusterPoll.count()));
             }
             ConsumerRecord<String, byte[]> clusterRecord = kafkaClusterPoll.records(TOPIC_NAME).iterator().next();
             // check cluster record value is correct
             assertEquals(NO_TRANSFORM_VALUE, new String(clusterRecord.value(), StandardCharsets.UTF_8));
             // get from proxy
             proxyConsumer.subscribe(List.of(TOPIC_NAME));
-            ConsumerRecords<String, byte[]> proxyPoll = kafkaClusterConsumer.poll(Duration.ofSeconds(TIMEOUT_SECONDS));
+            ConsumerRecords<String, byte[]> proxyPoll = proxyConsumer.poll(Duration.ofSeconds(TIMEOUT_SECONDS));
             if (proxyPoll.count() != 1) {
-                fail(String.format("Sent only 1 record but received %d records from Proxy Consumer.", proxyPoll.count()));
+                fail(String.format("Sent 1 record but received %d records from Proxy Consumer.", proxyPoll.count()));
             }
             ConsumerRecord<String, byte[]> proxyRecord = proxyPoll.records(TOPIC_NAME).iterator().next();
             // check proxy record is correct
