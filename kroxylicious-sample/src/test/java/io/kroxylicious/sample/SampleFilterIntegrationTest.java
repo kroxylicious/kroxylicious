@@ -43,7 +43,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.fail;
 
 @ExtendWith(KafkaClusterExtension.class)
-public class SampleFilterIT {
+public class SampleFilterIntegrationTest {
 
     private static final String PRE_TRANSFORM_VALUE = "foo";
     private static final String NO_TRANSFORM_VALUE = "sample";
