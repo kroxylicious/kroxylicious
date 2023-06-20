@@ -19,19 +19,19 @@ import com.fasterxml.jackson.annotation.JsonCreator;
  * contains more than one line, only the characters of the first line are taken to be the password,
  * excluding the line ending.  Subsequent lines are ignored.
  *
- * @param passwordFile file containing the password,
+ * @param filePath file containing the password,
  */
-public record FilePassword(String passwordFile) implements PasswordProvider {
+public record FilePassword(String filePath) implements PasswordProvider {
     @JsonCreator
     public FilePassword {
     }
 
     @Override
     public String getProvidedPassword() {
-        if (passwordFile == null) {
+        if (filePath == null) {
             return null;
         }
-        try (var fr = new BufferedReader(new FileReader(passwordFile, StandardCharsets.UTF_8))) {
+        try (var fr = new BufferedReader(new FileReader(filePath, StandardCharsets.UTF_8))) {
             return fr.readLine();
         }
         catch (IOException e) {
@@ -42,7 +42,7 @@ public record FilePassword(String passwordFile) implements PasswordProvider {
     @Override
     public String toString() {
         return "FilePassword[" +
-                "passwordFile=" + passwordFile + ']';
+                "filePath=" + filePath + ']';
     }
 
 }
