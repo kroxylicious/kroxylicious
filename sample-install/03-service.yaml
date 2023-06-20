@@ -13,10 +13,10 @@ spec:
   selector:
     app: kroxylicious
   ports:
-  - name: port-9193
+  - name: port-9190
     protocol: TCP
-    port: 9193
-    targetPort: 9193
+    port: 9190
+    targetPort: 9190
   - name: port-9292
     protocol: TCP
     port: 9292

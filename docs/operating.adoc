@@ -23,7 +23,7 @@ adminHttp:
   endpoints:
     prometheus: {}
 ----
-Defaults to binding to `0.0.0.0:9193`. If no endpoints are configured the admin http server
+Defaults to binding to `0.0.0.0:9190`. If no endpoints are configured the admin http server
 is not created.
 
 #### complete configuration example
