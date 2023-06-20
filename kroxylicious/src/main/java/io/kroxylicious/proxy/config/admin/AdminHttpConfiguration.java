@@ -10,7 +10,7 @@ package io.kroxylicious.proxy.config.admin;
 public record AdminHttpConfiguration(String host, Integer port, EndpointsConfiguration endpoints) {
     public AdminHttpConfiguration(String host, Integer port, EndpointsConfiguration endpoints) {
         this.host = host == null ? "0.0.0.0" : host;
-        this.port = port == null ? 9193 : port;
+        this.port = port == null ? 9190 : port;
         this.endpoints = endpoints == null ? new EndpointsConfiguration(null) : endpoints;
     }
 }

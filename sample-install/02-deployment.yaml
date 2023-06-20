@@ -27,7 +27,7 @@ spec:
         imagePullPolicy: Always
         args: ["--config", "/opt/kroxylicious/config/config.yaml"]
         ports:
-        - containerPort: 9193
+        - containerPort: 9190
         - containerPort: 9292
         - containerPort: 9293
         - containerPort: 9294

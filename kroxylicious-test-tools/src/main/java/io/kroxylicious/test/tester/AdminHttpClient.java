@@ -31,7 +31,7 @@ public class AdminHttpClient {
 
     public HttpResponse<String> getFromAdminEndpoint(String endpoint) {
         try {
-            HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:9193/" + endpoint)).GET().build();
+            HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:9190/" + endpoint)).GET().build();
             return httpClient.send(request, ofString());
         }
         catch (Exception e) {
