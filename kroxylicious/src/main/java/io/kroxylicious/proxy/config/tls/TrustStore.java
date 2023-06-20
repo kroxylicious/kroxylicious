@@ -27,7 +27,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
  * @param storeType     specifies the server key type. Legal values are those types supported by the platform {@link KeyStore},
  *                      and PEM (for X-509 certificates express in PEM format).
  */
-@SuppressFBWarnings(value = "PATH_TRAVERSAL_IN", justification = "Requires ability to consume file resources from arbitrary, user-specified, locations on the file-system.")
+@SuppressFBWarnings(value = "PATH_TRAVERSAL_IN", justification = "The paths provide the location for key material which may exist anywhere on the file-system. Paths are provided by the user in the administrator role via Kroxylicious configuration. ")
 public record TrustStore(String storeFile,
                          PasswordProvider storePassword,
                          String storeType) implements TrustProvider {
