@@ -43,10 +43,10 @@ class Kroxylicious implements Callable<Integer> {
 
         try (InputStream stream = Files.newInputStream(configFile.toPath())) {
             Configuration config = new ConfigParser().parseConfiguration(stream);
-
-            KafkaProxy kafkaProxy = new KafkaProxy(config);
-            kafkaProxy.startup();
-            kafkaProxy.block();
+            try (KafkaProxy kafkaProxy = new KafkaProxy(config)) {
+                kafkaProxy.startup();
+                kafkaProxy.block();
+            }
         }
         catch (Exception e) {
             LOGGER.error("Exception on startup", e);
