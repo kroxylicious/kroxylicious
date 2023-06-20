@@ -16,6 +16,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import io.kroxylicious.proxy.model.VirtualCluster;
+import io.kroxylicious.proxy.service.HostPort;
 
 /**
  * Detects potential for port conflicts arising between virtual cluster configurations.
@@ -34,8 +35,9 @@ public class PortConflictDetector {
      * Validates the configuration throwing an exception if a conflict is detected.
      *
      * @param virtualClusterMap map of virtual clusters.
+     * @param otherExclusivePort an optional exclusive port that should conflict with virtual cluster ports
      */
-    public void validate(Map<String, VirtualCluster> virtualClusterMap) {
+    public void validate(Map<String, VirtualCluster> virtualClusterMap, Optional<HostPort> otherExclusivePort) {
 
         Set<String> seenVirtualClusters = new HashSet<>();
 
@@ -47,6 +49,15 @@ public class PortConflictDetector {
             var cluster = e.getValue();
             var proposedSharedPorts = cluster.getSharedPorts();
             var proposedExclusivePorts = cluster.getExclusivePorts();
+
+            if (otherExclusivePort.isPresent()) {
+                Optional<String> otherInterface = otherExclusivePort.map(hostPort -> hostPort.host().equals("0.0.0.0") ? null : hostPort.host());
+                var checkPorts = cluster.getBindAddress().isEmpty() || otherInterface.isEmpty() || cluster.getBindAddress().equals(otherInterface);
+                if (checkPorts) {
+                    checkForConflictsWithOtherExclusivePort(otherExclusivePort.get(), name, cluster, proposedExclusivePorts, BindingScope.EXCLUSIVE);
+                    checkForConflictsWithOtherExclusivePort(otherExclusivePort.get(), name, cluster, proposedSharedPorts, BindingScope.SHARED);
+                }
+            }
 
             // if this virtual cluster is binding to <any>, we need to check for conflicts on the <any> interface and *all* specific interfaces,
             // otherwise we just check for conflicts on <any> and the specified specific interface
@@ -130,6 +141,22 @@ public class PortConflictDetector {
             proposedSharedPorts.forEach(p -> sharedMap.put(p, cluster.isUseTls()));
 
         });
+    }
+
+    private void checkForConflictsWithOtherExclusivePort(HostPort otherHostPort, String name, VirtualCluster cluster, Set<Integer> proposedExclusivePorts,
+                                                         BindingScope scope) {
+        var ports = Set.of(otherHostPort.port());
+        var conflicts = getSortedPortConflicts(ports, proposedExclusivePorts);
+        if (!conflicts.isEmpty()) {
+            Optional<String> proposedBindingInterface = cluster.getBindAddress();
+            var portConflicts = conflicts.stream().map(String::valueOf).collect(Collectors.joining(","));
+
+            throw new IllegalStateException(("The %s bind of port(s) %s for virtual cluster '%s' to %s would conflict with another (non-cluster) port binding").formatted(
+                    scope.name().toLowerCase(Locale.ROOT),
+                    portConflicts,
+                    name,
+                    proposedBindingInterface.orElse(ANY_STRING)));
+        }
     }
 
     private List<Integer> getSortedPortConflicts(Set<Integer> ports, Set<Integer> candidates) {

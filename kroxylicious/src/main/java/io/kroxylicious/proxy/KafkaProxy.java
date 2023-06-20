@@ -8,6 +8,7 @@ package io.kroxylicious.proxy;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
@@ -47,6 +48,7 @@ import io.kroxylicious.proxy.internal.net.EndpointRegistry;
 import io.kroxylicious.proxy.internal.net.NetworkBindingOperationProcessor;
 import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.model.VirtualCluster;
+import io.kroxylicious.proxy.service.HostPort;
 
 public final class KafkaProxy implements AutoCloseable {
 
@@ -60,7 +62,7 @@ public final class KafkaProxy implements AutoCloseable {
         public List<Future<?>> shutdownGracefully() {
             return List.of(bossGroup.shutdownGracefully(), workerGroup.shutdownGracefully());
         }
-    };
+    }
 
     private final Configuration config;
     private final AdminHttpConfiguration adminHttpConfig;
@@ -93,7 +95,8 @@ public final class KafkaProxy implements AutoCloseable {
         }
 
         var portConflictDefector = new PortConflictDetector();
-        portConflictDefector.validate(virtualClusterMap);
+        Optional<HostPort> adminHttpHostPort = Optional.ofNullable(shouldBindAdminEndpoint() ? new HostPort(adminHttpConfig.host(), adminHttpConfig.port()) : null);
+        portConflictDefector.validate(virtualClusterMap, adminHttpHostPort);
 
         var availableCores = Runtime.getRuntime().availableProcessors();
         var meterRegistries = new MeterRegistries(micrometerConfig);
@@ -165,14 +168,18 @@ public final class KafkaProxy implements AutoCloseable {
     private void maybeStartMetricsListener(EventGroupConfig eventGroupConfig,
                                            MeterRegistries meterRegistries)
             throws InterruptedException {
-        if (adminHttpConfig != null
-                && adminHttpConfig.endpoints().maybePrometheus().isPresent()) {
+        if (shouldBindAdminEndpoint()) {
             ServerBootstrap metricsBootstrap = new ServerBootstrap().group(eventGroupConfig.bossGroup(), eventGroupConfig.workerGroup())
                     .option(ChannelOption.SO_REUSEADDR, true)
                     .channel(eventGroupConfig.clazz())
                     .childHandler(new AdminHttpInitializer(meterRegistries, adminHttpConfig));
             metricsChannel = metricsBootstrap.bind(adminHttpConfig.host(), adminHttpConfig.port()).sync().channel();
         }
+    }
+
+    private boolean shouldBindAdminEndpoint() {
+        return adminHttpConfig != null
+                && adminHttpConfig.endpoints().maybePrometheus().isPresent();
     }
 
     /**
