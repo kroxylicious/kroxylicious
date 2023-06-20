@@ -7,7 +7,6 @@
 package io.kroxylicious.proxy;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -49,12 +48,14 @@ import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * TODO add integration tests covering kroylicious's ability to use JKS and PEM material. Needs https://github.com/kroxylicious/kroxylicious-junit5-extension/issues/120
+ */
 @ExtendWith(KafkaClusterExtension.class)
 public class TlsIT {
     private static final HostPort PROXY_ADDRESS = HostPort.parse("localhost:9192");
     private static final ClusterNetworkAddressConfigProviderDefinition CONFIG_PROVIDER_DEFINITION = new ClusterNetworkAddressConfigProviderDefinitionBuilder(
-            "PortPerBroker").withConfig(
-                    "bootstrapAddress", PROXY_ADDRESS)
+            "PortPerBroker").withConfig("bootstrapAddress", PROXY_ADDRESS)
             .build();
     private static final String TOPIC = "my-test-topic";
     @TempDir
@@ -64,6 +65,7 @@ public class TlsIT {
 
     @BeforeEach
     public void beforeEach() throws Exception {
+        // Note that the KeytoolCertificateGenerator generates key stores that are PKCS12 format.
         this.downstreamCertificateGenerator = new KeytoolCertificateGenerator();
         this.downstreamCertificateGenerator.generateSelfSignedCertificateEntry("test@redhat.com", "localhost", "KI", "RedHat", null, null, "US");
         this.clientTrustStore = certsDirectory.resolve("kafka.truststore.jks");
@@ -72,10 +74,7 @@ public class TlsIT {
     }
 
     @Test
-    public void upstreamUsesTlsSpecifiedTrustStore(@Tls KafkaCluster cluster) {
-        // TODO test the ability to configure kroxy with PKCS12 and PEM material.
-        // Needs https://github.com/kroxylicious/kroxylicious-junit5-extension/issues/120
-
+    public void upstreamUsesSelfSignedTls_TrustStore(@Tls KafkaCluster cluster) {
         var bootstrapServers = cluster.getBootstrapServers();
         var brokerTruststore = (String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG);
         var brokerTruststorePassword = (String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG);
@@ -104,27 +103,22 @@ public class TlsIT {
     }
 
     @Test
-    public void upstreamUsesTlsSpecifiedWithPems(@Tls KafkaCluster cluster) throws Exception {
-        // TODO test the ability to configure kroxy with PKCS12 and PEM material.
-        // Needs https://github.com/kroxylicious/kroxylicious-junit5-extension/issues/120
-
+    public void upstreamUsesSelfSignedTls_TrustX509(@Tls KafkaCluster cluster) throws Exception {
         var bootstrapServers = cluster.getBootstrapServers();
         var brokerTruststore = (String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG);
         var brokerTruststorePassword = (String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG);
         assertThat(brokerTruststore).isNotEmpty();
         assertThat(brokerTruststorePassword).isNotEmpty();
 
-        // FIXME: don't assume the keystore type
-        var keyStore = KeyStore.getInstance("JKS");
-        keyStore.load(new FileInputStream(brokerTruststore), brokerTruststorePassword.toCharArray());
-        var params = new PKIXParameters(keyStore);
+        var trustStore = KeyStore.getInstance(new File(brokerTruststore), brokerTruststorePassword.toCharArray());
+        var params = new PKIXParameters(trustStore);
 
         var trustAnchors = params.getTrustAnchors();
         var certificates = trustAnchors.stream().map(TrustAnchor::getTrustedCert).toList();
         assertThat(certificates).isNotNull();
         assertThat(certificates).hasSizeGreaterThan(0);
 
-        File file = writePemToTemporaryFile(certificates);
+        var file = writeTrustToTemporaryFile(certificates);
 
         var builder = new ConfigurationBuilder()
                 .addToVirtualClusters("demo", new VirtualClusterBuilder()
@@ -220,8 +214,8 @@ public class TlsIT {
         }
     }
 
-    private File writePemToTemporaryFile(List<X509Certificate> certificates) throws IOException {
-        var file = File.createTempFile("trust", "pem");
+    private File writeTrustToTemporaryFile(List<X509Certificate> certificates) throws IOException {
+        var file = File.createTempFile("trust", ".pem");
         var mimeLineEnding = new byte[]{ '\r', '\n' };
 
         try (var out = new FileOutputStream(file)) {
