@@ -34,14 +34,14 @@ public class SampleFilterConfig extends BaseConfig {
     }
 
     /**
-     * @return the configured value to be replaced
+     * Returns the configured value to be replaced
      */
     public String getFindValue() {
         return findValue;
     }
 
     /**
-     * @return the configured replacement value
+     * Returns the configured replacement value
      */
     public String getReplaceValue() {
         return replaceValue;

@@ -83,8 +83,6 @@ public class SampleFilterTransformer {
     /**
      * Instantiates a MemoryRecordsBuilder object using the given stream. This duplicates some of the
      * functionality in io.kroxylicious.proxy.internal, but we aren't supposed to import from there.
-     * @param stream
-     * @return
      */
     private static MemoryRecordsBuilder createMemoryRecordsBuilder(ByteBufferOutputStream stream) {
         return new MemoryRecordsBuilder(stream, RecordBatch.CURRENT_MAGIC_VALUE, CompressionType.NONE, TimestampType.CREATE_TIME, 0, RecordBatch.NO_TIMESTAMP,
