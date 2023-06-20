@@ -9,10 +9,7 @@ package io.kroxylicious.proxy.config.tls;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.security.KeyStoreException;
-import java.security.NoSuchAlgorithmException;
-import java.security.UnrecoverableKeyException;
-import java.security.cert.CertificateException;
+import java.security.GeneralSecurityException;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -63,8 +60,8 @@ public record KeyStore(String storeFile,
                         Optional.ofNullable(this.keyPassword()).map(PasswordProvider::getProvidedPassword).map(String::toCharArray).orElse(password));
                 return SslContextBuilder.forServer(keyManagerFactory);
             }
-            catch (KeyStoreException | IOException | NoSuchAlgorithmException | CertificateException | UnrecoverableKeyException e) {
-                throw new RuntimeException(e);
+            catch (GeneralSecurityException | IOException e) {
+                throw new RuntimeException("Error building SSLContext from : " + keyStoreFile, e);
             }
         }
 

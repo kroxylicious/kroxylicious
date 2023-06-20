@@ -8,7 +8,8 @@ package io.kroxylicious.proxy.config.tls;
 
 import java.security.KeyException;
 import java.security.cert.CertificateException;
-import java.security.spec.InvalidKeySpecException;
+
+import javax.crypto.BadPaddingException;
 
 import org.assertj.core.api.AbstractThrowableAssert;
 import org.junit.jupiter.api.Test;
@@ -40,25 +41,31 @@ class KeyPairTest {
 
     @Test
     public void serverKeyPairIncorrectKeyPassword() {
-        var keyPair = new KeyPair(TlsTestConstants.getResourceLocationOnFilesystem("server_encrypted.key"),
-                TlsTestConstants.getResourceLocationOnFilesystem("server.crt"), BADPASS);
-        assertThatCode(keyPair::forServer).hasCauseInstanceOf(InvalidKeySpecException.class);
+        doFailingKeyPairTest(TlsTestConstants.getResourceLocationOnFilesystem("server_encrypted.key"),
+                TlsTestConstants.getResourceLocationOnFilesystem("server.crt"), BADPASS)
+                .hasRootCauseInstanceOf(BadPaddingException.class)
+                .hasMessageContaining("server.crt")
+                .hasMessageContaining("server_encrypted.key");
     }
 
     @Test
     public void serverKeyPairCertificateNotFound() {
-        serverKeyPairNotFound(TlsTestConstants.getResourceLocationOnFilesystem("server.key"), NOT_EXIST).hasCauseInstanceOf(CertificateException.class)
-                .hasStackTraceContaining(NOT_EXIST);
+        doFailingKeyPairTest(TlsTestConstants.getResourceLocationOnFilesystem("server.key"), NOT_EXIST, null)
+                .hasRootCauseInstanceOf(CertificateException.class)
+                .hasMessageContaining(NOT_EXIST);
     }
 
     @Test
     public void serverKeyPairKeyNotFound() {
-        serverKeyPairNotFound(NOT_EXIST, TlsTestConstants.getResourceLocationOnFilesystem("server.crt")).hasCauseInstanceOf(KeyException.class)
-                .hasStackTraceContaining(NOT_EXIST);
+        doFailingKeyPairTest(NOT_EXIST, TlsTestConstants.getResourceLocationOnFilesystem("server.crt"), null)
+                .hasRootCauseInstanceOf(KeyException.class)
+                .hasMessageContaining(NOT_EXIST);
     }
 
-    private AbstractThrowableAssert<?, ? extends Throwable> serverKeyPairNotFound(String serverPrivateKeyFile, String serverCertificateFile) {
-        var keyPair = new KeyPair(serverPrivateKeyFile, serverCertificateFile, null);
-        return assertThatCode(keyPair::forServer);
+    private AbstractThrowableAssert<?, ? extends Throwable> doFailingKeyPairTest(String serverPrivateKeyFile, String serverCertificateFile,
+                                                                                 PasswordProvider keyPassword) {
+        var keyPair = new KeyPair(serverPrivateKeyFile, serverCertificateFile, keyPassword);
+        return assertThatCode(keyPair::forServer)
+                .hasMessageContaining("Error building SSLContext");
     }
 }

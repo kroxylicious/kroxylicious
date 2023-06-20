@@ -15,8 +15,11 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * A {@link KeyProvider} backed by a private-key/certificate pair expressed in PEM format.
+ * <br/>
+ * Note that support for PKCS-8 private keys is derived from the JDK.  PKCS-1 private keys are only supported if Bouncy Castle
+ * is available on the classpath.
  *
- * @param privateKeyFile  location of a file containing the private key. cannot be used if storeFile is specified
+ * @param privateKeyFile  location of a file containing the private key.
  * @param certificateFile location of a file containing the certificate and intermediates.
  * @param keyPassword     password used to protect the key within the storeFile or privateKeyFile
  */
@@ -28,8 +31,15 @@ public record KeyPair(String privateKeyFile,
 
     @Override
     public SslContextBuilder forServer() {
-        return SslContextBuilder.forServer(new File(certificateFile),
-                new File(privateKeyFile),
-                Optional.ofNullable(keyPassword).map(PasswordProvider::getProvidedPassword).orElse(null));
+        try {
+            return SslContextBuilder.forServer(new File(certificateFile),
+                    new File(privateKeyFile),
+                    Optional.ofNullable(keyPassword).map(PasswordProvider::getProvidedPassword).orElse(null));
+        }
+        catch (Exception e) {
+            throw new RuntimeException(
+                    "Error building SSLContext. certificateFile : " + certificateFile + ", privateKeyFile: " + privateKeyFile + ", password present: " + (keyPassword != null),
+                    e);
+        }
     }
 }

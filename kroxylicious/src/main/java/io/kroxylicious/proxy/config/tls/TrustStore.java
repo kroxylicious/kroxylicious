@@ -8,8 +8,6 @@ package io.kroxylicious.proxy.config.tls;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.IOException;
-import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.util.Objects;
 import java.util.Optional;
@@ -45,22 +43,24 @@ public record TrustStore(String storeFile,
     @Override
     public void apply(SslContextBuilder sslContextBuilder) {
         var trustStore = new File(storeFile());
-        if (isPemType()) {
-            sslContextBuilder.trustManager(trustStore);
-        }
-        else {
-            try (var is = new FileInputStream(trustStore)) {
-                var password = Optional.ofNullable(this.storePassword()).map(PasswordProvider::getProvidedPassword).map(String::toCharArray).orElse(null);
-                var keyStore = KeyStore.getInstance(this.getType());
-                keyStore.load(is, password);
+        try {
+            if (isPemType()) {
+                sslContextBuilder.trustManager(trustStore);
+            }
+            else {
+                try (var is = new FileInputStream(trustStore)) {
+                    var password = Optional.ofNullable(this.storePassword()).map(PasswordProvider::getProvidedPassword).map(String::toCharArray).orElse(null);
+                    var keyStore = KeyStore.getInstance(this.getType());
+                    keyStore.load(is, password);
 
-                var trustManagerFactory = TrustManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
-                trustManagerFactory.init(keyStore);
-                sslContextBuilder.trustManager(trustManagerFactory);
+                    var trustManagerFactory = TrustManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+                    trustManagerFactory.init(keyStore);
+                    sslContextBuilder.trustManager(trustManagerFactory);
+                }
             }
-            catch (GeneralSecurityException | IOException e) {
-                throw new RuntimeException(e);
-            }
+        }
+        catch (Exception e) {
+            throw new RuntimeException("Error building SSLContext from : " + trustStore, e);
         }
     }
 }

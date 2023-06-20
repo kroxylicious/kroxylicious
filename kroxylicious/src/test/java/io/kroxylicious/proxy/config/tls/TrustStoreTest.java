@@ -48,13 +48,17 @@ class TrustStoreTest {
     @Test
     public void trustStoreIncorrectPassword() {
         var trustStore = new TrustStore(TlsTestConstants.getResourceLocationOnFilesystem("client.jks"), TlsTestConstants.BADPASS, null);
-        assertThatCode(() -> trustStore.apply(sslContextBuilder)).hasRootCauseInstanceOf(UnrecoverableKeyException.class);
+        assertThatCode(() -> trustStore.apply(sslContextBuilder))
+                .hasMessageContaining("Error building SSLContext")
+                .hasRootCauseInstanceOf(UnrecoverableKeyException.class);
     }
 
     @Test
     public void trustStoreNotFound() {
         var trustStore = new TrustStore(TlsTestConstants.NOT_EXIST, TlsTestConstants.STOREPASS, null);
-        assertThatCode(() -> trustStore.apply(sslContextBuilder)).hasRootCauseInstanceOf(FileNotFoundException.class);
+        assertThatCode(() -> trustStore.apply(sslContextBuilder))
+                .hasMessageContaining("Error building SSLContext")
+                .hasRootCauseInstanceOf(FileNotFoundException.class);
     }
 
 }
