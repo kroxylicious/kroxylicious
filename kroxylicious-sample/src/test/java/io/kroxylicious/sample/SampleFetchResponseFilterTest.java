@@ -18,6 +18,7 @@ import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.record.CompressionType;
 import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.record.MemoryRecordsBuilder;
+import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.record.RecordBatch;
 import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
@@ -74,10 +75,8 @@ class SampleFetchResponseFilterTest {
         // We should see that the unpacked response value has changed from the input value, and
         // We should see that the unpacked response value has been transformed to the correct value
         assertThat(unpackedResponse)
-                .hasSize(1)
-                .first().asString()
                 .doesNotContain(PRE_TRANSFORM_VALUE)
-                .contains(POST_TRANSFORM_VALUE);
+                .containsExactly(POST_TRANSFORM_VALUE);
     }
 
     /**
@@ -92,10 +91,7 @@ class SampleFetchResponseFilterTest {
         var unpackedResponse = unpackFetchResponseData((FetchResponseData) apiMessageCaptor.getValue());
         // We only put 1 record in, we should only get 1 record back, and
         // We should see that the unpacked response value has not changed from the input value
-        assertThat(unpackedResponse)
-                .hasSize(1)
-                .first().asString()
-                .contains(NO_TRANSFORM_VALUE);
+        assertThat(unpackedResponse).containsExactly(NO_TRANSFORM_VALUE);
     }
 
     private void setupContextMock() {
@@ -148,8 +144,9 @@ class SampleFetchResponseFilterTest {
         var values = new ArrayList<String>();
         for (FetchResponseData.FetchableTopicResponse response : responses) {
             for (FetchResponseData.PartitionData partitionData : response.partitions()) {
-                var records = (MemoryRecords) partitionData.records();
-                values.add(new String(StandardCharsets.UTF_8.decode(records.buffer()).array()));
+                for (Record record : ((MemoryRecords) partitionData.records()).records()) {
+                    values.add(new String(StandardCharsets.UTF_8.decode(record.value()).array()));
+                }
             }
         }
         return values;

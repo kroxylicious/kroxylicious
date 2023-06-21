@@ -18,6 +18,7 @@ import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.record.CompressionType;
 import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.record.MemoryRecordsBuilder;
+import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.record.RecordBatch;
 import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
@@ -70,14 +71,11 @@ class SampleProduceRequestFilterTest {
         filter.onProduceRequest(API_VERSION, headerData, requestData, context);
         verify(context).forwardRequest(any(), apiMessageCaptor.capture());
         var unpackedRequest = unpackProduceRequestData((ProduceRequestData) apiMessageCaptor.getValue());
-        // We only put 1 record in, we should only get 1 record back, and
         // We should see that the unpacked request value has changed from the input value, and
         // We should see that the unpacked request value has been transformed to the correct value
         assertThat(unpackedRequest)
-                .hasSize(1)
-                .first().asString()
                 .doesNotContain(PRE_TRANSFORM_VALUE)
-                .contains(POST_TRANSFORM_VALUE);
+                .containsExactly(POST_TRANSFORM_VALUE);
     }
 
     /**
@@ -90,12 +88,9 @@ class SampleProduceRequestFilterTest {
         filter.onProduceRequest(API_VERSION, headerData, requestData, context);
         verify(context).forwardRequest(any(), apiMessageCaptor.capture());
         var unpackedRequest = unpackProduceRequestData((ProduceRequestData) apiMessageCaptor.getValue());
-        // We only put 1 record in, we should only get 1 record back, and
         // We should see that the unpacked request value has not changed from the input value
         assertThat(unpackedRequest)
-                .hasSize(1)
-                .first().asString()
-                .contains(NO_TRANSFORM_VALUE);
+                .containsExactly(NO_TRANSFORM_VALUE);
     }
 
     private void setupContextMock() {
@@ -141,8 +136,9 @@ class SampleProduceRequestFilterTest {
         var values = new ArrayList<String>();
         for (ProduceRequestData.TopicProduceData topicData : topics) {
             for (ProduceRequestData.PartitionProduceData partitionData : topicData.partitionData()) {
-                var records = (MemoryRecords) partitionData.records();
-                values.add(new String(StandardCharsets.UTF_8.decode(records.buffer()).array()));
+                for (Record record : ((MemoryRecords) partitionData.records()).records()) {
+                    values.add(new String(StandardCharsets.UTF_8.decode(record.value()).array()));
+                }
             }
         }
         return values;
