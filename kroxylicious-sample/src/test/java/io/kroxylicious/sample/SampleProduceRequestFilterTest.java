@@ -14,7 +14,6 @@ import java.util.List;
 import org.apache.kafka.common.message.ApiMessageType;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.record.CompressionType;
 import org.apache.kafka.common.record.MemoryRecords;
@@ -29,8 +28,6 @@ import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.stubbing.Answer;
 
-import io.kroxylicious.proxy.filter.FilterInvoker;
-import io.kroxylicious.proxy.filter.FilterInvokers;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.sample.config.SampleFilterConfig;
 
@@ -56,14 +53,13 @@ class SampleProduceRequestFilterTest {
     @Captor
     private ArgumentCaptor<ApiMessage> apiMessageCaptor = ArgumentCaptor.forClass(ApiMessage.class);
 
-    private FilterInvoker invoker;
+    private SampleProduceRequestFilter filter;
 
     @BeforeEach
     public void beforeEach() {
         buildContextMock();
         SampleFilterConfig config = new SampleFilterConfig(CONFIG_FIND_VALUE, CONFIG_REPLACE_VALUE);
-        SampleProduceRequestFilter filter = new SampleProduceRequestFilter(config);
-        invoker = FilterInvokers.from(filter);
+        this.filter = new SampleProduceRequestFilter(config);
     }
 
     /**
@@ -73,7 +69,7 @@ class SampleProduceRequestFilterTest {
     public void willTransformProduceRequestTest() {
         var headerData = new RequestHeaderData();
         var requestData = buildProduceRequestData(PRE_TRANSFORM_VALUE);
-        invoker.onRequest(ApiKeys.forId(API_MESSAGE_TYPE.apiKey()), API_VERSION, headerData, requestData, context);
+        filter.onProduceRequest(API_VERSION, headerData, requestData, context);
         verify(context).forwardRequest(any(), apiMessageCaptor.capture());
         var unpackedRequest = unpackProduceRequestData((ProduceRequestData) apiMessageCaptor.getValue());
         // We only put 1 record in, we should only get 1 record back, and
@@ -94,7 +90,7 @@ class SampleProduceRequestFilterTest {
     public void wontTransformProduceRequestTest() {
         var headerData = new RequestHeaderData();
         var requestData = buildProduceRequestData(NO_TRANSFORM_VALUE);
-        invoker.onRequest(ApiKeys.forId(API_MESSAGE_TYPE.apiKey()), API_VERSION, headerData, requestData, context);
+        filter.onProduceRequest(API_VERSION, headerData, requestData, context);
         verify(context).forwardRequest(any(), apiMessageCaptor.capture());
         var unpackedRequest = unpackProduceRequestData((ProduceRequestData) apiMessageCaptor.getValue());
         // We only put 1 record in, we should only get 1 record back, and

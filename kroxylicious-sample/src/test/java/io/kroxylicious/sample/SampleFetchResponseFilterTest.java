@@ -14,7 +14,6 @@ import java.util.List;
 import org.apache.kafka.common.message.ApiMessageType;
 import org.apache.kafka.common.message.FetchResponseData;
 import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.record.CompressionType;
 import org.apache.kafka.common.record.MemoryRecords;
@@ -29,8 +28,6 @@ import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.stubbing.Answer;
 
-import io.kroxylicious.proxy.filter.FilterInvoker;
-import io.kroxylicious.proxy.filter.FilterInvokers;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.sample.config.SampleFilterConfig;
 
@@ -56,14 +53,13 @@ class SampleFetchResponseFilterTest {
     @Captor
     private ArgumentCaptor<ApiMessage> apiMessageCaptor = ArgumentCaptor.forClass(ApiMessage.class);
 
-    private FilterInvoker invoker;
+    private SampleFetchResponseFilter filter;
 
     @BeforeEach
     public void beforeEach() {
         buildContextMock();
         SampleFilterConfig config = new SampleFilterConfig(CONFIG_FIND_VALUE, CONFIG_REPLACE_VALUE);
-        SampleFetchResponseFilter filter = new SampleFetchResponseFilter(config);
-        invoker = FilterInvokers.from(filter);
+        this.filter = new SampleFetchResponseFilter(config);
     }
 
     /**
@@ -73,7 +69,7 @@ class SampleFetchResponseFilterTest {
     public void willTransformFetchResponseTest() {
         var headerData = new ResponseHeaderData();
         var responseData = buildFetchResponseData(PRE_TRANSFORM_VALUE);
-        invoker.onResponse(ApiKeys.forId(API_MESSAGE_TYPE.apiKey()), API_VERSION, headerData, responseData, context);
+        filter.onFetchResponse(API_VERSION, headerData, responseData, context);
         verify(context).forwardResponse(any(), apiMessageCaptor.capture());
         var unpackedResponse = unpackFetchResponseData((FetchResponseData) apiMessageCaptor.getValue());
         // We only put 1 record in, we should only get 1 record back, and
@@ -94,7 +90,7 @@ class SampleFetchResponseFilterTest {
     public void wontTransformFetchResponseTest() {
         var headerData = new ResponseHeaderData();
         var responseData = buildFetchResponseData(NO_TRANSFORM_VALUE);
-        invoker.onResponse(ApiKeys.forId(API_MESSAGE_TYPE.apiKey()), API_VERSION, headerData, responseData, context);
+        filter.onFetchResponse(API_VERSION, headerData, responseData, context);
         verify(context).forwardResponse(any(), apiMessageCaptor.capture());
         var unpackedResponse = unpackFetchResponseData((FetchResponseData) apiMessageCaptor.getValue());
         // We only put 1 record in, we should only get 1 record back, and
