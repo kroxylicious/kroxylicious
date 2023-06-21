@@ -46,8 +46,8 @@ public class SampleFetchResponseFilter implements FetchResponseFilter {
     }
 
     /**
-     * Handle the given response, transforming the data in-place according to the configuration, returning
-     * the FetchResponseData instance to be passed to the next filter.
+     * Handle the given response, transforming the data in-place according to the configuration, forwarding
+     * the FetchResponseData instance onward.
      * @param apiVersion the apiVersion of the response
      * @param header response header.
      * @param response The KRPC message to handle.
