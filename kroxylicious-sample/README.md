@@ -41,7 +41,7 @@ Filters can be added and removed by altering the `filters` list in the `sample-p
 The **SampleFetchResponseFilter** and **SampleProduceRequestFilter** each have two configuration values that must be specified for them to work:
 
  - `findValue` - the string the filter will search for in the produce/fetch data
- - `replaceValue` - the string the filter will replace the value above with
+ - `replacementValue` - the string the filter will replace the value above with
 
 #### Default Configuration
 
@@ -53,7 +53,7 @@ filters:
   - type: SampleProduceRequest
     config:
       findValue: foo
-      replaceValue: bar
+      replacementValue: bar
 ```
 
 This means that it will search for the string `foo` in the produce data and replace all occurrences with the string `bar`. For example, if a Kafka Producer sent a produce request with data `{"myValue":"foo"}`, the filter would transform this into `{"myValue":"bar"}` and Kroxylicious would send that to the Kafka Broker instead. 
@@ -65,7 +65,7 @@ filters:
   - type: SampleFetchResponse
     config:
       findValue: bar
-      replaceValue: baz
+      replacementValue: baz
 ```
 
 This means that it will search for the string `bar` in the fetch data and replace all occurrences with the string `baz`. For example, if a Kafka Broker sent a fetch response with data `{"myValue":"bar"}`, the filter would transform this into `{"myValue":"baz"}` and Kroxylicious would send that to the Kafka Consumer instead.

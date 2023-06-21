@@ -22,15 +22,15 @@ import io.kroxylicious.proxy.config.BaseConfig;
 public class SampleFilterConfig extends BaseConfig {
 
     private final String findValue;
-    private final String replaceValue;
+    private final String replacementValue;
 
     /**
      * @param findValue the value to be replaced
-     * @param replaceValue the replacement value
+     * @param replacementValue the replacement value
      */
-    public SampleFilterConfig(@JsonProperty(required = true) String findValue, @JsonProperty(required = true) String replaceValue) {
+    public SampleFilterConfig(@JsonProperty(required = true) String findValue, @JsonProperty(required = true) String replacementValue) {
         this.findValue = findValue;
-        this.replaceValue = replaceValue;
+        this.replacementValue = replacementValue;
     }
 
     /**
@@ -43,7 +43,7 @@ public class SampleFilterConfig extends BaseConfig {
     /**
      * Returns the configured replacement value
      */
-    public String getReplaceValue() {
-        return replaceValue;
+    public String getReplacementValue() {
+        return replacementValue;
     }
 }

@@ -50,7 +50,7 @@ public class SampleFilterIntegrationTest {
     private static final String PRODUCE_TRANSFORM_VALUE = "bar";
     private static final String FETCH_TRANSFORM_VALUE = "baz";
     private static final String FIND_CONFIG_FIELD = "findValue";
-    private static final String REPLACE_CONFIG_FIELD = "replaceValue";
+    private static final String REPLACE_CONFIG_FIELD = "replacementValue";
     private static final Map<String, Object> PRODUCE_CONFIG = Map.of(FIND_CONFIG_FIELD, "foo", REPLACE_CONFIG_FIELD, "bar");
     private static final Map<String, Object> FETCH_CONFIG = Map.of(FIND_CONFIG_FIELD, "bar", REPLACE_CONFIG_FIELD, "baz");
     private static final Integer TIMEOUT_SECONDS = 10;

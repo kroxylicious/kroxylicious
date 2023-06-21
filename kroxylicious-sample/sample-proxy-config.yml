@@ -23,8 +23,8 @@ filters:
   - type: SampleProduceRequest
     config:
       findValue: foo
-      replaceValue: bar
+      replacementValue: bar
   - type: SampleFetchResponse
     config:
       findValue: bar
-      replaceValue: baz
+      replacementValue: baz

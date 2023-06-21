@@ -19,6 +19,6 @@ public class SampleFilterConfigTest {
     public void validateSampleFetchResponseConfigTest() {
         SampleFilterConfig config = new SampleFilterConfig(CONFIG_FIND_VALUE, CONFIG_REPLACE_VALUE);
         assertThat(config.getFindValue()).isEqualTo(CONFIG_FIND_VALUE);
-        assertThat(config.getReplaceValue()).isEqualTo(CONFIG_REPLACE_VALUE);
+        assertThat(config.getReplacementValue()).isEqualTo(CONFIG_REPLACE_VALUE);
     }
 }

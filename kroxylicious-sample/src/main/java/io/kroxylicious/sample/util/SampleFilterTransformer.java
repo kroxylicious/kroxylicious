@@ -36,7 +36,7 @@ public class SampleFilterTransformer {
      * @param config the transform configuration
      */
     public static void transform(ProduceRequestData.PartitionProduceData partitionData, KrpcFilterContext context, SampleFilterConfig config) {
-        partitionData.setRecords(transformPartitionRecords((MemoryRecords) partitionData.records(), context, config.getFindValue(), config.getReplaceValue()));
+        partitionData.setRecords(transformPartitionRecords((MemoryRecords) partitionData.records(), context, config.getFindValue(), config.getReplacementValue()));
     }
 
     /**
@@ -46,7 +46,7 @@ public class SampleFilterTransformer {
      * @param config the transform configuration
      */
     public static void transform(FetchResponseData.PartitionData partitionData, KrpcFilterContext context, SampleFilterConfig config) {
-        partitionData.setRecords(transformPartitionRecords((MemoryRecords) partitionData.records(), context, config.getFindValue(), config.getReplaceValue()));
+        partitionData.setRecords(transformPartitionRecords((MemoryRecords) partitionData.records(), context, config.getFindValue(), config.getReplacementValue()));
     }
 
     /**
@@ -54,16 +54,16 @@ public class SampleFilterTransformer {
      * @param records the partition records to be transformed
      * @param context the context
      * @param findValue the value to be replaced
-     * @param replaceValue the replacement value
+     * @param replacementValue the replacement value
      * @return the transformed partition records
      */
-    private static MemoryRecords transformPartitionRecords(MemoryRecords records, KrpcFilterContext context, String findValue, String replaceValue) {
+    private static MemoryRecords transformPartitionRecords(MemoryRecords records, KrpcFilterContext context, String findValue, String replacementValue) {
         ByteBufferOutputStream stream = context.createByteBufferOutputStream(records.sizeInBytes());
         MemoryRecordsBuilder newRecords = createMemoryRecordsBuilder(stream);
 
         for (MutableRecordBatch batch : records.batches()) {
             for (Record batchRecord : batch) {
-                newRecords.append(batchRecord.timestamp(), batchRecord.key(), transformRecord(batchRecord.value(), findValue, replaceValue));
+                newRecords.append(batchRecord.timestamp(), batchRecord.key(), transformRecord(batchRecord.value(), findValue, replacementValue));
             }
         }
         return newRecords.build();
@@ -73,11 +73,11 @@ public class SampleFilterTransformer {
      * Performs a find-and-replace transformation of a given record value.
      * @param in the record value to be transformed
      * @param findValue the value to be replaced
-     * @param replaceValue the replacement value
+     * @param replacementValue the replacement value
      * @return the transformed record value
      */
-    private static ByteBuffer transformRecord(ByteBuffer in, String findValue, String replaceValue) {
-        return ByteBuffer.wrap(new String(StandardCharsets.UTF_8.decode(in).array()).replaceAll(findValue, replaceValue).getBytes(StandardCharsets.UTF_8));
+    private static ByteBuffer transformRecord(ByteBuffer in, String findValue, String replacementValue) {
+        return ByteBuffer.wrap(new String(StandardCharsets.UTF_8.decode(in).array()).replaceAll(findValue, replacementValue).getBytes(StandardCharsets.UTF_8));
     }
 
     /**
