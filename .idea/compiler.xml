@@ -29,22 +29,16 @@
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
       <module name="integrationtests" options="-parameters" />
-      <module name="integrationtests.main" options="-parameters" />
-      <module name="integrationtests.test" options="-parameters" />
       <module name="kroxylicious" options="-parameters" />
       <module name="kroxylicious-additional-filters" options="-parameters" />
       <module name="kroxylicious-api" options="-parameters" />
       <module name="kroxylicious-filter-api" options="-parameters" />
       <module name="kroxylicious-krpc-plugin" options="-parameters" />
-      <module name="kroxylicious-krpc-plugin.main" options="-parameters" />
-      <module name="kroxylicious-krpc-plugin.test" options="-parameters" />
       <module name="kroxylicious-multitenant" options="-parameters" />
       <module name="kroxylicious-parent" options="-parameters" />
       <module name="kroxylicious-schema-validation" options="-parameters" />
       <module name="kroxylicious-test-tools" options="-parameters" />
       <module name="kroxylicious-unit-test" options="-parameters" />
-      <module name="kroxylicious.main" options="-parameters" />
-      <module name="kroxylicious.test" options="-parameters" />
       <module name="performance-tests" options="-parameters" />
     </option>
   </component>

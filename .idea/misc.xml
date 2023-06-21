@@ -11,5 +11,5 @@
   <component name="PDMPlugin">
     <option name="skipTestSources" value="false" />
   </component>
-  <component name="ProjectRootManager" version="2" languageLevel="JDK_20" default="true" project-jdk-name="temurin-20" project-jdk-type="JavaSDK" />
+  <component name="ProjectRootManager" version="2" languageLevel="JDK_20" project-jdk-name="openjdk-20" project-jdk-type="JavaSDK" />
 </project>

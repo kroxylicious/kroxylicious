@@ -40,6 +40,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 @ExtendWith(KafkaClusterExtension.class)
 public class KroxyStandaloneIT {
 
+
     private static final String TOPIC_1 = "my-test-topic";
     private static final String TOPIC_2 = "other-test-topic";
     private static final String PLAINTEXT = "Hello, world!";
