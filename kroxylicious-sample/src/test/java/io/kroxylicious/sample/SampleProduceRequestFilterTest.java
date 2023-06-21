@@ -25,7 +25,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
-import org.mockito.Mock;
 import org.mockito.stubbing.Answer;
 
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
@@ -39,27 +38,27 @@ import static org.mockito.Mockito.when;
 
 class SampleProduceRequestFilterTest {
 
-    private static final short API_VERSION = 0; // this is arbitrary for our filter, so set to 0
+    private static final short API_VERSION = ApiMessageType.PRODUCE.highestSupportedVersion(true); // this is arbitrary for our filter
     private static final String PRE_TRANSFORM_VALUE = "this is what the value will be transformed from";
     private static final String NO_TRANSFORM_VALUE = "this value will not be transformed";
     private static final String POST_TRANSFORM_VALUE = "this is what the value will be transformed to";
     private static final String CONFIG_FIND_VALUE = "from";
     private static final String CONFIG_REPLACE_VALUE = "to";
-    private static final ApiMessageType API_MESSAGE_TYPE = ApiMessageType.PRODUCE;
 
-    @Mock
     private KrpcFilterContext context;
 
     @Captor
     private ArgumentCaptor<ApiMessage> apiMessageCaptor = ArgumentCaptor.forClass(ApiMessage.class);
 
     private SampleProduceRequestFilter filter;
+    private RequestHeaderData headerData;
 
     @BeforeEach
     public void beforeEach() {
-        buildContextMock();
+        setupContextMock();
         SampleFilterConfig config = new SampleFilterConfig(CONFIG_FIND_VALUE, CONFIG_REPLACE_VALUE);
         this.filter = new SampleProduceRequestFilter(config);
+        this.headerData = new RequestHeaderData();
     }
 
     /**
@@ -67,7 +66,6 @@ class SampleProduceRequestFilterTest {
      */
     @Test
     public void willTransformProduceRequestTest() {
-        var headerData = new RequestHeaderData();
         var requestData = buildProduceRequestData(PRE_TRANSFORM_VALUE);
         filter.onProduceRequest(API_VERSION, headerData, requestData, context);
         verify(context).forwardRequest(any(), apiMessageCaptor.capture());
@@ -88,7 +86,6 @@ class SampleProduceRequestFilterTest {
      */
     @Test
     public void wontTransformProduceRequestTest() {
-        var headerData = new RequestHeaderData();
         var requestData = buildProduceRequestData(NO_TRANSFORM_VALUE);
         filter.onProduceRequest(API_VERSION, headerData, requestData, context);
         verify(context).forwardRequest(any(), apiMessageCaptor.capture());
@@ -101,7 +98,7 @@ class SampleProduceRequestFilterTest {
                 .contains(NO_TRANSFORM_VALUE);
     }
 
-    private void buildContextMock() {
+    private void setupContextMock() {
         context = mock(KrpcFilterContext.class);
         // create stub for createByteBufferOutputStream method
         ArgumentCaptor<Integer> argument = ArgumentCaptor.forClass(Integer.class);
