@@ -92,6 +92,7 @@
                         <TESTCONTAINERS_RYUK_DISABLED>true</TESTCONTAINERS_RYUK_DISABLED>
                     </environmentVariables>
                     <systemPropertyVariables>
+                        <io.netty.leakDetection.level>paranoid</io.netty.leakDetection.level>
                         <container.logs.dir>${project.build.directory}/container-logs/</container.logs.dir>
                     </systemPropertyVariables>
                     <runOrder>random</runOrder>

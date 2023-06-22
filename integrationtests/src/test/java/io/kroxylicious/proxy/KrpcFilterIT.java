@@ -21,7 +21,12 @@ import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.errors.InvalidTopicException;
 import org.apache.kafka.common.serialization.Serdes;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.LoggerContext;
+import org.apache.logging.log4j.core.config.Configuration;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -54,6 +59,7 @@ public class KrpcFilterIT {
             (byte) 0x64, (byte) 0x67, (byte) 0x61, (byte) 0x59, (byte) 0x16 };
     private static final byte[] TOPIC_2_CIPHERTEXT = { (byte) 0xffffffa7, (byte) 0xffffffc4, (byte) 0xffffffcb, (byte) 0xffffffcb, (byte) 0xffffffce, (byte) 0xffffff8b,
             (byte) 0x7f, (byte) 0xffffffd6, (byte) 0xffffffce, (byte) 0xffffffd1, (byte) 0xffffffcb, (byte) 0xffffffc3, (byte) 0xffffff80 };
+    private static NettyLeakLogAppender appender;
 
     @BeforeAll
     public static void checkReversibleEncryption() {
@@ -64,6 +70,20 @@ public class KrpcFilterIT {
         assertEquals(PLAINTEXT, new String(decode(TOPIC_1, ByteBuffer.wrap(TOPIC_1_CIPHERTEXT)).array(), StandardCharsets.UTF_8));
         assertArrayEquals(TOPIC_2_CIPHERTEXT, encode(TOPIC_2, ByteBuffer.wrap(PLAINTEXT.getBytes(StandardCharsets.UTF_8))).array());
         assertEquals(PLAINTEXT, new String(decode(TOPIC_2, ByteBuffer.wrap(TOPIC_2_CIPHERTEXT)).array(), StandardCharsets.UTF_8));
+
+        final LoggerContext ctx = (LoggerContext) LogManager.getContext(false);
+        final Configuration config = ctx.getConfiguration();
+        appender = (NettyLeakLogAppender) config.getAppenders().get("NettyLeakLogAppender");
+    }
+
+    @BeforeEach
+    public void clearLeaks() {
+        appender.clear();
+    }
+
+    @AfterEach
+    public void checkNoNettyLeaks() {
+        appender.verifyNoLeaks();
     }
 
     public static class TestEncoder implements ByteBufferTransformation {
@@ -130,16 +150,45 @@ public class KrpcFilterIT {
 
         try (var tester = kroxyliciousTester(config);
                 var proxyAdmin = tester.admin()) {
-            assertThatExceptionOfType(ExecutionException.class)
-                    .isThrownBy(() -> proxyAdmin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1))).all().get())
-                    .withCauseInstanceOf(InvalidTopicException.class)
-                    .havingCause()
-                    .withMessage(CreateTopicRejectFilter.ERROR_MESSAGE);
+            assertCreatingTopicThrowsExpectedException(proxyAdmin);
 
             // check no topic created on the cluster
             Set<String> names = admin.listTopics().names().get(10, TimeUnit.SECONDS);
             assertThat(names).isEmpty();
         }
+    }
+
+    @Test
+    public void requestFiltersCanRespondWithoutProxyingDoesntLeakBuffers(KafkaCluster cluster, Admin admin) throws Exception {
+        var config = withDefaultFilters(proxy(cluster))
+                .addToFilters(new FilterDefinitionBuilder("CreateTopicRejectFilter").build());
+
+        try (var tester = kroxyliciousTester(config);
+                var proxyAdmin = tester.admin()) {
+            // loop because System.gc doesn't make any guarantees that the buffer will be collected
+            for (int i = 0; i < 20; i++) {
+                // CreateTopicRejectFilter allocates a buffer and then short-circuit responds
+                assertCreatingTopicThrowsExpectedException(proxyAdmin);
+                // buffers must be garbage collected before it causes leak detection during
+                // a subsequent buffer allocation
+                System.gc();
+            }
+
+            // check no topic created on the cluster
+            Set<String> names = admin.listTopics().names().get(10, TimeUnit.SECONDS);
+            // remove once https://github.com/kroxylicious/kroxylicious-junit5-extension/issues/114 is fixed.
+            names = new HashSet<>(names);
+            names.removeIf(n -> n.startsWith("__org_kroxylicious_testing"));
+            assertThat(names).isEmpty();
+        }
+    }
+
+    private static void assertCreatingTopicThrowsExpectedException(Admin proxyAdmin) {
+        assertThatExceptionOfType(ExecutionException.class)
+                .isThrownBy(() -> proxyAdmin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1))).all().get())
+                .withCauseInstanceOf(InvalidTopicException.class)
+                .havingCause()
+                .withMessage(CreateTopicRejectFilter.ERROR_MESSAGE);
     }
 
     @Test
