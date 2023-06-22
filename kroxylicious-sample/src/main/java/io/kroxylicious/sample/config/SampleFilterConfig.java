@@ -28,9 +28,9 @@ public class SampleFilterConfig extends BaseConfig {
      * @param findValue the value to be replaced
      * @param replacementValue the replacement value
      */
-    public SampleFilterConfig(@JsonProperty(required = true) String findValue, @JsonProperty(required = true) String replacementValue) {
+    public SampleFilterConfig(@JsonProperty(required = true) String findValue, @JsonProperty(required = false) String replacementValue) {
         this.findValue = findValue;
-        this.replacementValue = replacementValue;
+        this.replacementValue = replacementValue == null ? "" : replacementValue;
     }
 
     /**
