@@ -19,6 +19,7 @@ public class CreateTopicRejectFilter implements CreateTopicsRequestFilter {
     public void onCreateTopicsRequest(short apiVersion, RequestHeaderData header, CreateTopicsRequestData request, KrpcFilterContext context) {
         CreateTopicsResponseData response = new CreateTopicsResponseData();
         CreateTopicsResponseData.CreatableTopicResultCollection topics = new CreateTopicsResponseData.CreatableTopicResultCollection();
+        allocateByteBufToTestKroxyliciousReleasesIt(context);
         request.topics().forEach(creatableTopic -> {
             CreateTopicsResponseData.CreatableTopicResult result = new CreateTopicsResponseData.CreatableTopicResult();
             result.setErrorCode(Errors.INVALID_TOPIC_EXCEPTION.code()).setErrorMessage(ERROR_MESSAGE);
@@ -27,5 +28,9 @@ public class CreateTopicRejectFilter implements CreateTopicsRequestFilter {
         });
         response.setTopics(topics);
         context.forwardResponse(response);
+    }
+
+    private static void allocateByteBufToTestKroxyliciousReleasesIt(KrpcFilterContext context) {
+        context.createByteBufferOutputStream(4000);
     }
 }
