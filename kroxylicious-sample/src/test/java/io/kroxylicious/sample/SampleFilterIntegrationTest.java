@@ -42,12 +42,13 @@ import static org.junit.jupiter.api.Assertions.fail;
 @ExtendWith(KafkaClusterExtension.class)
 public class SampleFilterIntegrationTest {
 
-
     // Configure filters here
     private static final String FIND_CONFIG_FIELD = "findValue";
     private static final String REPLACE_CONFIG_FIELD = "replacementValue";
-    private static final TestFilter SAMPLE_PRODUCE_REQUEST_FILTER = new TestFilter(SampleContributor.SAMPLE_PRODUCE, Map.of(FIND_CONFIG_FIELD, "foo", REPLACE_CONFIG_FIELD, "bar"));
-    private static final TestFilter SAMPLE_FETCH_RESPONSE_FILTER = new TestFilter(SampleContributor.SAMPLE_FETCH, Map.of(FIND_CONFIG_FIELD, "bar", REPLACE_CONFIG_FIELD, "baz"));
+    private static final TestFilter SAMPLE_PRODUCE_REQUEST_FILTER = new TestFilter(SampleContributor.SAMPLE_PRODUCE,
+            Map.of(FIND_CONFIG_FIELD, "foo", REPLACE_CONFIG_FIELD, "bar"));
+    private static final TestFilter SAMPLE_FETCH_RESPONSE_FILTER = new TestFilter(SampleContributor.SAMPLE_FETCH,
+            Map.of(FIND_CONFIG_FIELD, "bar", REPLACE_CONFIG_FIELD, "baz"));
 
     // Configure test input/expected values here
     private static final String NO_TRANSFORM_VALUE = "sample";
@@ -140,7 +141,8 @@ public class SampleFilterIntegrationTest {
             }
             tester = kroxyliciousTester(builder);
             producer = tester.producer();
-            consumer = tester.consumer(Serdes.String(), Serdes.ByteArray(), Map.of(ConsumerConfig.GROUP_ID_CONFIG, "group-id-0", ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"));
+            consumer = tester.consumer(Serdes.String(), Serdes.ByteArray(),
+                    Map.of(ConsumerConfig.GROUP_ID_CONFIG, "group-id-0", ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"));
             admin = tester.admin();
         }
 
