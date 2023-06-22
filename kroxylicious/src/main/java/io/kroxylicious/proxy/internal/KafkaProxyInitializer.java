@@ -81,7 +81,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
                                 return null;
                             }
                             var virtualCluster = binding.virtualCluster();
-                            var sslContext = virtualCluster.buildDownstreamSslContext();
+                            var sslContext = virtualCluster.getDownstreamSslContext();
                             if (sslContext.isEmpty()) {
                                 promise.setFailure(new IllegalStateException("Virtual cluster %s does not provide SSL context".formatted(virtualCluster)));
                             }

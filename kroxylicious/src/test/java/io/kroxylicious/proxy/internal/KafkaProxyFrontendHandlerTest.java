@@ -124,7 +124,7 @@ class KafkaProxyFrontendHandlerTest {
         ArgumentCaptor<NetFilter.NetFilterContext> valueCapture = ArgumentCaptor.forClass(NetFilter.NetFilterContext.class);
         var filter = mock(NetFilter.class);
         var virtualCluster = mock(VirtualCluster.class);
-        when(virtualCluster.buildUpstreamSslContext()).thenReturn(Optional.empty());
+        when(virtualCluster.getUpstreamSslContext()).thenReturn(Optional.empty());
 
         doAnswer(i -> {
             NetFilter.NetFilterContext ctx = i.getArgument(0);

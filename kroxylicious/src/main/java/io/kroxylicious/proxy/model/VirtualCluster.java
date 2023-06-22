@@ -31,6 +31,8 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
     private final boolean logFrames;
 
     private final ClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider;
+    private final Optional<SslContext> upstreamSslContext;
+    private final Optional<SslContext> downstreamSslContext;
 
     public VirtualCluster(TargetCluster targetCluster,
                           ClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider,
@@ -50,6 +52,10 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
         this.logNetwork = logNetwork;
         this.logFrames = logFrames;
         this.clusterNetworkAddressConfigProvider = clusterNetworkAddressConfigProvider;
+
+        // TODO: https://github.com/kroxylicious/kroxylicious/issues/104 be prepared to reload the SslContext at runtime.
+        this.upstreamSslContext = buildUpstreamSslContext();
+        this.downstreamSslContext = buildDownstreamSslContext();
     }
 
     public TargetCluster targetCluster() {
@@ -72,7 +78,7 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
         return tls.isPresent();
     }
 
-    public Optional<SslContext> buildDownstreamSslContext() {
+    private Optional<SslContext> buildDownstreamSslContext() {
         return tls.map(tls -> {
             try {
                 return Optional.of(tls.key()).map(KeyProvider::forServer).orElseThrow().build();
@@ -83,7 +89,7 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
         });
     }
 
-    public Optional<SslContext> buildUpstreamSslContext() {
+    private Optional<SslContext> buildUpstreamSslContext() {
         return targetCluster.tls().map(tls -> {
             try {
                 var sslContextBuilder = SslContextBuilder.forClient();
@@ -136,5 +142,13 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
     @Override
     public Set<Integer> getSharedPorts() {
         return clusterNetworkAddressConfigProvider.getSharedPorts();
+    }
+
+    public Optional<SslContext> getDownstreamSslContext() {
+        return downstreamSslContext;
+    }
+
+    public Optional<SslContext> getUpstreamSslContext() {
+        return upstreamSslContext;
     }
 }
