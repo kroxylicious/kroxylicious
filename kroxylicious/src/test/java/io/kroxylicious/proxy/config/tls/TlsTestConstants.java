@@ -7,7 +7,6 @@
 package io.kroxylicious.proxy.config.tls;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assumptions.assumeThatCode;
 
 public class TlsTestConstants {
     public static final String JKS = "JKS";
@@ -27,9 +26,4 @@ public class TlsTestConstants {
         return url.getFile();
     }
 
-    public static void checkPlatformSupportForStoreType(String keyStoreType) {
-        if (keyStoreType != null && !PEM.equals(keyStoreType)) {
-            assumeThatCode(() -> java.security.KeyStore.getInstance(keyStoreType)).doesNotThrowAnyException();
-        }
-    }
 }

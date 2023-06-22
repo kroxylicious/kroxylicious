@@ -24,7 +24,6 @@ import static io.kroxylicious.proxy.config.tls.TlsTestConstants.NOT_EXIST;
 import static io.kroxylicious.proxy.config.tls.TlsTestConstants.PEM;
 import static io.kroxylicious.proxy.config.tls.TlsTestConstants.PKCS_12;
 import static io.kroxylicious.proxy.config.tls.TlsTestConstants.STOREPASS;
-import static io.kroxylicious.proxy.config.tls.TlsTestConstants.checkPlatformSupportForStoreType;
 import static io.kroxylicious.proxy.config.tls.TlsTestConstants.getResourceLocationOnFilesystem;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -49,8 +48,6 @@ class KeyStoreTest {
                                    String storeType,
                                    String storeFile, PasswordProvider storePassword, PasswordProvider keyPassword)
             throws Exception {
-        checkPlatformSupportForStoreType(storeType);
-
         var keyStore = new KeyStore(getResourceLocationOnFilesystem(storeFile), storePassword, keyPassword, storeType);
 
         var sslContext = keyStore.forServer().build();
