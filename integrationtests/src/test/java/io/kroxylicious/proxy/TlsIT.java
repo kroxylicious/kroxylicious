@@ -49,6 +49,8 @@ import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
+ * Integration tests focused on Kroxylicious ability to use TLS for both the upstream and downstream.
+ *
  * TODO add integration tests covering kroylicious's ability to use JKS and PEM material. Needs https://github.com/kroxylicious/kroxylicious-junit5-extension/issues/120
  */
 @ExtendWith(KafkaClusterExtension.class)
@@ -88,7 +90,7 @@ public class TlsIT {
                         .withNewTls()
                         .withNewTrustStoreTrust()
                         .withStoreFile(brokerTruststore)
-                        .withNewInlinePasswordStore(brokerTruststorePassword)
+                        .withNewInlinePasswordStoreProvider(brokerTruststorePassword)
                         .endTrustStoreTrust()
                         .endTls()
                         .endTargetCluster()
@@ -178,14 +180,14 @@ public class TlsIT {
                         .withNewTls()
                         .withNewTrustStoreTrust()
                         .withStoreFile(brokerTruststore)
-                        .withNewInlinePasswordStore(brokerTruststorePassword)
+                        .withNewInlinePasswordStoreProvider(brokerTruststorePassword)
                         .endTrustStoreTrust()
                         .endTls()
                         .endTargetCluster()
                         .withNewTls()
                         .withNewKeyStoreKey()
                         .withStoreFile(downstreamCertificateGenerator.getKeyStoreLocation())
-                        .withNewInlinePasswordStore(downstreamCertificateGenerator.getPassword())
+                        .withNewInlinePasswordStoreProvider(downstreamCertificateGenerator.getPassword())
                         .endKeyStoreKey()
                         .endTls()
                         .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)

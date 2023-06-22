@@ -15,6 +15,8 @@ import java.util.Optional;
 
 import javax.net.ssl.KeyManagerFactory;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import io.netty.handler.ssl.SslContextBuilder;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -22,16 +24,16 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 /**
  * A {@link KeyProvider} backed by a Java Truststore.
  *
- * @param storeFile     location of a key store, or reference to a PEM file containing both private-key/certificate/intermediates.
- * @param storePassword password used to protect the key store. cannot be used if trustType is PEM.
- * @param keyPassword      password used to protect the key within the storeFile or privateKeyFile
- * @param storeType       specifies the server key type. Legal values are those types supported by the platform {@link java.security.KeyStore},
- *                         and PEM (for X-509 certificates express in PEM format).
+ * @param storeFile             location of a key store, or reference to a PEM file containing both private-key/certificate/intermediates.
+ * @param storePasswordProvider password used to protect the key store. cannot be used if trustType is PEM.
+ * @param keyPasswordProvider   password used to protect the key within the storeFile
+ * @param storeType             specifies the server key type. Legal values are those types supported by the platform {@link java.security.KeyStore},
+ *                              and PEM (for X-509 certificates express in PEM format).
  */
 @SuppressFBWarnings(value = "PATH_TRAVERSAL_IN", justification = "The paths provide the location for key material which may exist anywhere on the file-system. Paths are provided by the user in the administrator role via Kroxylicious configuration. ")
 public record KeyStore(String storeFile,
-                       PasswordProvider storePassword,
-                       PasswordProvider keyPassword,
+                       @JsonProperty(value="storePassword") PasswordProvider storePasswordProvider,
+                       @JsonProperty(value="keyPassword") PasswordProvider keyPasswordProvider,
                        String storeType) implements KeyProvider {
 
     public String getType() {
@@ -48,16 +50,16 @@ public record KeyStore(String storeFile,
         var keyStoreFile = new File(storeFile);
         if (isPemType()) {
             return SslContextBuilder.forServer(keyStoreFile, keyStoreFile,
-                    Optional.ofNullable(keyPassword()).map(PasswordProvider::getProvidedPassword).orElse(null));
+                    Optional.ofNullable(keyPasswordProvider()).map(PasswordProvider::getProvidedPassword).orElse(null));
         }
         else {
             try (var is = new FileInputStream(keyStoreFile)) {
-                var password = Optional.ofNullable(this.storePassword()).map(PasswordProvider::getProvidedPassword).map(String::toCharArray).orElse(null);
+                var password = Optional.ofNullable(this.storePasswordProvider()).map(PasswordProvider::getProvidedPassword).map(String::toCharArray).orElse(null);
                 var keyStore = java.security.KeyStore.getInstance(this.getType());
                 keyStore.load(is, password);
                 var keyManagerFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
                 keyManagerFactory.init(keyStore,
-                        Optional.ofNullable(this.keyPassword()).map(PasswordProvider::getProvidedPassword).map(String::toCharArray).orElse(password));
+                        Optional.ofNullable(this.keyPasswordProvider()).map(PasswordProvider::getProvidedPassword).map(String::toCharArray).orElse(password));
                 return SslContextBuilder.forServer(keyManagerFactory);
             }
             catch (GeneralSecurityException | IOException e) {

@@ -9,6 +9,8 @@ package io.kroxylicious.proxy.config.tls;
 import java.io.File;
 import java.util.Optional;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import io.netty.handler.ssl.SslContextBuilder;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -19,14 +21,14 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
  * Note that support for PKCS-8 private keys is derived from the JDK.  PKCS-1 private keys are only supported if Bouncy Castle
  * is available on the classpath.
  *
- * @param privateKeyFile  location of a file containing the private key.
- * @param certificateFile location of a file containing the certificate and intermediates.
- * @param keyPassword     password used to protect the key within the storeFile or privateKeyFile
+ * @param privateKeyFile      location of a file containing the private key.
+ * @param certificateFile     location of a file containing the certificate and intermediates.
+ * @param keyPasswordProvider password used to protect the key within the privateKeyFile
  */
 @SuppressFBWarnings(value = "PATH_TRAVERSAL_IN", justification = "The paths provide the location for key material which may exist anywhere on the file-system. Paths are provided by the user in the administrator role via Kroxylicious configuration. ")
 public record KeyPair(String privateKeyFile,
                       String certificateFile,
-                      PasswordProvider keyPassword
+                      @JsonProperty(value="keyPassword") PasswordProvider keyPasswordProvider
 ) implements KeyProvider {
 
     @Override
@@ -34,11 +36,11 @@ public record KeyPair(String privateKeyFile,
         try {
             return SslContextBuilder.forServer(new File(certificateFile),
                     new File(privateKeyFile),
-                    Optional.ofNullable(keyPassword).map(PasswordProvider::getProvidedPassword).orElse(null));
+                    Optional.ofNullable(keyPasswordProvider).map(PasswordProvider::getProvidedPassword).orElse(null));
         }
         catch (Exception e) {
             throw new RuntimeException(
-                    "Error building SSLContext. certificateFile : " + certificateFile + ", privateKeyFile: " + privateKeyFile + ", password present: " + (keyPassword != null),
+                    "Error building SSLContext. certificateFile : " + certificateFile + ", privateKeyFile: " + privateKeyFile + ", password present: " + (keyPasswordProvider != null),
                     e);
         }
     }

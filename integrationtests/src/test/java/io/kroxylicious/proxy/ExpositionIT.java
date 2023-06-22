@@ -49,7 +49,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.testcontainers.shaded.org.awaitility.Awaitility.await;
 
 /**
- * Integration tests that focus on how Kroxylicious presents itself to the network.
+ * Integration tests that focus on the ability to present virtual clusters, with various numbers of brokers)
+ * to the kafka clients
  *
  * TODO corner case test - verify kroxy's ability to recover for a temporary port already bound condition.
  */
@@ -92,7 +93,7 @@ public class ExpositionIT {
                 .withNewTls()
                 .withNewKeyStoreKey()
                 .withStoreFile(brokerCertificateGenerator.getKeyStoreLocation())
-                .withNewInlinePasswordStore(brokerCertificateGenerator.getPassword())
+                .withNewInlinePasswordStoreProvider(brokerCertificateGenerator.getPassword())
                 .endKeyStoreKey()
                 .endTls()
                 .build();
@@ -182,7 +183,7 @@ public class ExpositionIT {
                     .withNewTls()
                     .withNewKeyStoreKey()
                     .withStoreFile(brokerCertificateGenerator.getKeyStoreLocation())
-                    .withNewInlinePasswordStore(brokerCertificateGenerator.getPassword())
+                    .withNewInlinePasswordStoreProvider(brokerCertificateGenerator.getPassword())
                     .endKeyStoreKey()
                     .endTls()
                     .withLogNetwork(true)
