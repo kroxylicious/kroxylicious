@@ -9,11 +9,199 @@ Put the filter jars in some directory
 
 
 
-== Configuring the proxy networking
+== Configuring virtual clusters
+
+As described earlier, the _Virtual Cluster_ is the downstream representation of a Kafka Cluster.  Kafka Client connect
+to the Virtual Cluster.
+
+You must define at least one Virtual Cluster.
+
+Let's look at simple definition first.  After we will look at more advanced options including TLS.
+
+[source, yaml]
+----
+virtualClusters:
+  demo:                                         # <1>
+    clusterNetworkAddressConfigProvider:
+      type: PortPerBroker                       # <2>
+      config:
+        bootstrapAddress: mypublickroxy:9192    # <3>
+    targetCluster:
+      bootstrap_servers: myprivatecluster:9092  # <4>
+----
+<1> The name of the virtual cluster.
+<2> The name of a cluster network address config provider. The built-in types are `PortPerBroker` and `SniRouting`.
+<3> The hostname and port of the bootstrap that will be used by the Kafka Clients.  The hostname must be resolved
+by the clients.
+<4> The bootstrap of the (physical) Kafka Cluster.  This is the Kafka Cluster being proxied.
+
+This configuration defines a virtual cluster using the `PortPerBroker` scheme.  Under this schema, Kroxylicious will
+open a port for each broker of the target cluster with port numbers beginning at `9192` +1.  So, if the target cluster
+has three brokers, Kroxylicious will bind 9192 for bootstrap and 9193-9195 inclusive to allow the clients to connect
+to each broker.
+
+=== Cluster Network Address Config Providers
+
+==== PortPerBroker scheme
+
+The `PortPerBroker` scheme accepts richer configuration than illustrated above.  Let's look at all the options:
+
+[source, yaml]
+----
+clusterNetworkAddressConfigProvider:
+  type: PortPerBroker
+  config:
+    bootstrapAddress: mycluster.kafka.com:9192                                 # <1>
+    brokerAddressPattern: mybroker-$(nodeId).mycluster.kafka.com:$(portNumber) # <2>
+    brokerStartPort: 9193                                                      # <3>
+    numberOfBrokerPorts: 3                                                     # <4>
+    bindAddress: 192.168.0.1                                                   # <5>
+----
+<1> The hostname and port of the bootstrap that will be used by the Kafka Clients.
+<2> (Optional) The broker address pattern used to form the broker addresses.  If not defined it defaults to the
+hostname part of the `bootstrapAddress` and the port number allocated to the broker.
+<3> (Optional) The starting number for broker port range. Defaults to the port of the `bootstrapAddress` plus 1.
+<4> (Optional) The maximum number of brokers of ports that will be defined from the range.  Defaults to 3.
+<5> (Optional) The bind address used when binding the ports. If undefined, all network interfaces will be bound.
+
+The `brokerAddressPattern` configuration parameters understands two patterns.  `$(nodeId)` stands for the `node.id`
+assigned to the broker at target cluster.  If present in the pattern, it will be replaced by the node id.  Similarly,
+`$(portNumber)` is replaced by the port number computed for this broker.
+
+For example if your configuration looks like the above and your cluster has three brokers, your Kafka Client will receive
+broker address information like this:
+
+0.  `mybroker-0.mycluster.kafka.com:9193`
+1.  `mybroker-1.mycluster.kafka.com:9194`
+2.  `mybroker-2.mycluster.kafka.com:9194`
+
+Note that it is a responsible for the deployer of Kroxylicious to ensure that these DNS names are resolvable and
+routable by the Kafka Client.
+
+==== SniRouting scheme
+
+TODO: add analogous section for SniRouting
+
+=== Transport Layer Security (TLS)
+
+In this section we look at how to enable TLS for both of the downstream and upstream.
+
+=== Downstream
+
+Here's how to enable TLS for the downstream side, that is, so the client connects to Kroxylicious over TLS).  For this,
+you will need to obtain a TLS certificate for your Virtual Cluster from your Certificate Authority.
+
+NOTE: When requesting the certificate ensure that the certificate will match the names virtual cluster's bootstrap and
+broker addresses.  This may mean making use of wildcard certificates and/or Subject Alternative Names (SANs).
+
+Kroxylicious accepts key material in PKCS12 or JKS keystore format, or PEM formatted file(s).  The following configuration
+illustrates configuration with PKCS12 keystore.
+
+[source, yaml]
+----
+virtualClusters:
+  demo:
+    tls:
+        key:
+          storeFile: /opt/cert/server.p12               # <1>
+          storePassword:
+            passwordFile: /opt/cert/store.password      # <2>
+          keyPassword:
+            passwordFile: /opt/cert/key.password        # <3>
+          storeType: PKCS12                             # <4>
+    clusterNetworkAddressConfigProvider:
+      ...
+----
+<1> File system location of a keystore (or in the case of `PEM` format a text file containing the concatenation of the
+private key, certificate, and intermediates).
+<2> File system location of a file containing the key store's password.
+<3> (Optional) File system location of a file containing the key's password. If omitted the key store's password is
+used to decrypt the key too.
+<4> (Optional) Store type. Supported types are: `PKCS12`, `JKS` and `PEM`.  Defaults to Java default key store type (PKCS12).
+
+Alternatively, if your key material is in separate PEM files (private key, and certificate/intermediates), the following
+configuration may be used:
+
+[source, yaml]
+----
+virtualClusters:
+  demo:
+    tls:
+        key:
+          privateKeyFile: /opt/cert/server.key          # <1>
+          certificateFile: /opt/cert/server.crt         # <2>
+          keyPassword:
+            passwordFile: /opt/cert/key.password        # <3>
+    clusterNetworkAddressConfigProvider:
+      ...
+----
+<1> File system location of the server private key.
+<2> File system location of the server certificate and intermediate(s).
+<3> (Optional) File system location of a file containing the key's password.
+
+=== Upstream
+
+Here's how to enable TLS for the upstream side, that is, so Kroxylicious connects to (physical) Kafka Cluster) over
+TLS.  For this, your Kafka Cluster must have already been configured to use TLS.
+
+By default, Kroxylicious uses the trust of the platform to decide whether the Kafka Cluster is trust or not.  To
+support cases where trust must be overridden (e.g. use of private CAs or self-signed certificates), Kroxylicious accepts
+trust material in PKCS12 or JKS keystore format, or PEM formatted certificates.
+
+The following illustrates enabling TKS using platform trust:
+
+[source, yaml]
+----
+virtualClusters:
+  demo:
+    targetCluster:
+      bootstrap_servers: myprivatecluster:9092
+      tls: {}                                         <1>
+      ...
+----
+<1> Use an empty object to enable TLS using platform trust.
+
+In case where the trust need to be overridden, use configuration like this:
+
+[source, yaml]
+----
+virtualClusters:
+  demo:
+    targetCluster:
+      bootstrap_servers: myprivatecluster:9092
+      tls:
+        trust:
+          storeFile: /opt/cert/trust.p12                # <1>
+          storePassword:
+            passwordFile: /opt/cert/store.password      # <2>
+          storeType: PKCS12                             # <3>
+      ...
+----
+<1> File system location of a truststore (or in the case of `PEM` format a text file containing the certificates).
+<2> File system location of a file containing the trust store's password.
+<3> (Optional) Trust store type. Supported types are: `PKCS12`, `JKS` and `PEM`.  Defaults to Java default key store type (PKCS12).
+
+It is also possible to disable trust so that Kroxylicious will connect to any Kafka Cluster regardless of its certificate
+validity.
+
+WARNING: This option is not recommended for production use
+
+[source, yaml]
+----
+virtualClusters:
+  demo:
+    targetCluster:
+      bootstrap_servers: myprivatecluster:9092
+      tls:
+        trust:
+          insecure: true                                # <1>
+      ...
+----
+<1> Enables insecure TLS.
+
 
 YAML
 Proxy level configuration
-SSL
 
 == Configuring proxy plugins
 Filter level configuration
