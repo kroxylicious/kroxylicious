@@ -226,6 +226,7 @@
         <module>kroxylicious</module>
         <module>integrationtests</module>
         <module>kroxylicious-additional-filters</module>
+        <module>kroxylicious-sample</module>
     </modules>
 
 
