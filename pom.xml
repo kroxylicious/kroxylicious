@@ -529,7 +529,7 @@
                         <artifactId>formatter-maven-plugin</artifactId>
                         <executions>
                             <execution>
-                                <id>format</id>
+                                <id>format-sources</id>
                                 <goals>
                                     <goal>format</goal>
                                 </goals>
@@ -537,6 +537,18 @@
                                 <configuration>
                                     <directories>
                                         <directory>${project.build.sourceDirectory}</directory>
+                                    </directories>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>format-test-sources</id>
+                                <goals>
+                                    <goal>format</goal>
+                                </goals>
+                                <phase>process-test-sources</phase>
+                                <configuration>
+                                    <directories>
+                                        <directory>${project.build.testSourceDirectory}</directory>
                                     </directories>
                                 </configuration>
                             </execution>
@@ -626,14 +638,35 @@
                         <artifactId>formatter-maven-plugin</artifactId>
                         <executions>
                             <execution>
-                                <id>validate-formatting</id>
+                                <id>validate-sources</id>
                                 <goals>
                                     <goal>validate</goal>
                                 </goals>
                                 <phase>process-sources</phase>
+                                <configuration>
+                                    <directories>
+                                        <directory>${project.build.sourceDirectory}</directory>
+                                    </directories>
+                                </configuration>
                             </execution>
                             <execution>
-                                <id>format</id>
+                                <id>validate-test-sources</id>
+                                <goals>
+                                    <goal>validate</goal>
+                                </goals>
+                                <phase>process-test-sources</phase>
+                                <configuration>
+                                    <directories>
+                                        <directory>${project.build.testSourceDirectory}</directory>
+                                    </directories>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>format-sources</id>
+                                <phase>none</phase>
+                            </execution>
+                            <execution>
+                                <id>format-test-sources</id>
                                 <phase>none</phase>
                             </execution>
                         </executions>
