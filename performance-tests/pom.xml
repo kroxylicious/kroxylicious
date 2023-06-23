@@ -20,17 +20,24 @@
 
     <name>Micro benchmarks</name>
 
+    <properties>
+        <jmh.version>1.36</jmh.version>
+        <uberjar.name>benchmarks</uberjar.name>
+    </properties>
+
     <dependencies>
+
+        <!-- project dependencies - runtime and compile -->
         <dependency>
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-filter-api</artifactId>
-            <version>${kroxyliciousApi.version}</version>
         </dependency>
         <dependency>
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-test-tools</artifactId>
-            <version>0.3.0-SNAPSHOT</version>
         </dependency>
+
+        <!-- third party dependencies - runtime and compile -->
         <dependency>
             <groupId>org.openjdk.jmh</groupId>
             <artifactId>jmh-core</artifactId>
@@ -43,11 +50,6 @@
             <scope>provided</scope>
         </dependency>
     </dependencies>
-
-    <properties>
-        <jmh.version>1.36</jmh.version>
-        <uberjar.name>benchmarks</uberjar.name>
-    </properties>
 
     <build>
         <plugins>
