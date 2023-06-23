@@ -49,7 +49,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.testcontainers.shaded.org.awaitility.Awaitility.await;
 
 /**
- * Integration tests that focus on how Kroxylicious presents itself to the network.
+ * Integration tests that focus on the ability to present virtual clusters, with various numbers of brokers)
+ * to the kafka clients
  *
  * TODO corner case test - verify kroxy's ability to recover for a temporary port already bound condition.
  */
@@ -89,8 +90,12 @@ public class ExpositionIT {
 
         var demo = builder.getVirtualClusters().get("demo");
         demo = new VirtualClusterBuilder(demo)
-                .withKeyPassword(brokerCertificateGenerator.getPassword())
-                .withKeyStoreFile(brokerCertificateGenerator.getKeyStoreLocation())
+                .withNewTls()
+                .withNewKeyStoreKey()
+                .withStoreFile(brokerCertificateGenerator.getKeyStoreLocation())
+                .withNewInlinePasswordStoreProvider(brokerCertificateGenerator.getPassword())
+                .endKeyStoreKey()
+                .endTls()
                 .build();
         builder.addToVirtualClusters("demo", demo);
 
@@ -175,8 +180,12 @@ public class ExpositionIT {
                             new ClusterNetworkAddressConfigProviderDefinitionBuilder("SniRouting").withConfig("bootstrapAddress", virtualClusterFQDN + ":9192",
                                     "brokerAddressPattern", virtualClusterBrokerAddressPattern.formatted(i))
                                     .build())
-                    .withKeyPassword(brokerCertificateGenerator.getPassword())
-                    .withKeyStoreFile(brokerCertificateGenerator.getKeyStoreLocation())
+                    .withNewTls()
+                    .withNewKeyStoreKey()
+                    .withStoreFile(brokerCertificateGenerator.getKeyStoreLocation())
+                    .withNewInlinePasswordStoreProvider(brokerCertificateGenerator.getPassword())
+                    .endKeyStoreKey()
+                    .endTls()
                     .withLogNetwork(true)
                     .withLogFrames(true)
                     .build();

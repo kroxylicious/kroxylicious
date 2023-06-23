@@ -9,9 +9,13 @@ import java.util.Optional;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import io.kroxylicious.proxy.config.tls.Tls;
+
 public record VirtualCluster(TargetCluster targetCluster,
                              @JsonProperty(required = true) ClusterNetworkAddressConfigProviderDefinition clusterNetworkAddressConfigProvider,
-                             Optional<String> keyStoreFile,
-                             Optional<String> keyPassword,
-                             boolean logNetwork, boolean logFrames) {
+
+                             @JsonProperty(required = false) Optional<Tls> tls,
+                             boolean logNetwork,
+                             boolean logFrames
+) {
 }

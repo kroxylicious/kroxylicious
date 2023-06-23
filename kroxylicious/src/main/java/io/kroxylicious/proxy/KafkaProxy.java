@@ -248,7 +248,8 @@ public final class KafkaProxy implements AutoCloseable {
                 ClusterNetworkAddressConfigProviderContributorManager.getInstance()
                         .getClusterEndpointConfigProvider(configModel.clusterNetworkAddressConfigProvider().type(),
                                 configModel.clusterNetworkAddressConfigProvider().config()),
-                configModel.keyStoreFile(), configModel.keyPassword(),
+                configModel.tls(),
                 configModel.logNetwork(), configModel.logFrames());
     }
+
 }
