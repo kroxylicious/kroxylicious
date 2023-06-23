@@ -25,7 +25,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
  * A {@link TrustProvider} backed by a Java Truststore.
  *
  * @param storeFile             location of a key store, or reference to a PEM file containing both private-key/certificate/intermediates.
- * @param storePasswordProvider password used to protect the key store.
+ * @param storePasswordProvider provider for the store password or null if store does not require a password.
  * @param storeType             specifies the server key type. Legal values are those types supported by the platform {@link KeyStore},
  *                              and PEM (for X-509 certificates express in PEM format).
  */

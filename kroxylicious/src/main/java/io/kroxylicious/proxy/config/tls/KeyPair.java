@@ -23,7 +23,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
  *
  * @param privateKeyFile      location of a file containing the private key.
  * @param certificateFile     location of a file containing the certificate and intermediates.
- * @param keyPasswordProvider password used to protect the key within the privateKeyFile
+ * @param keyPasswordProvider provider for the privateKeyFile password or null if key does not require a password
  */
 @SuppressFBWarnings(value = "PATH_TRAVERSAL_IN", justification = "The paths provide the location for key material which may exist anywhere on the file-system. Paths are provided by the user in the administrator role via Kroxylicious configuration. ")
 public record KeyPair(String privateKeyFile,
