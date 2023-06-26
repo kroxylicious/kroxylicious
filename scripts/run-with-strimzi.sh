@@ -7,14 +7,30 @@
 
 set -eo pipefail
 
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+. "${SCRIPT_DIR}/common.sh"
+cd "${SCRIPT_DIR}/.."
+
+if [[ $# -ne 1 ]]; then
+  echo "Usage: $0 <SAMPLE_DIR>"
+  exit 1
+elif [[ ! -d "${1}"  ]]; then
+  echo "$0: Sample directory ${1} does not exist."
+  exit 1
+fi
+
+SAMPLE_DIR=${1}
+
+KUSTOMIZE_TMP=`mktemp -d`
+function cleanTmpDir {
+  rm -rf ${KUSTOMIZE_TMP}
+}
+trap cleanTmpDir EXIT
+
 if [[ -z $QUAY_ORG ]]; then
   echo "Please set QUAY_ORG, exiting"
   exit 1
 fi
-
-SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-. "${SCRIPT_DIR}/common.sh"
-cd "${SCRIPT_DIR}/.."
 
 if [[ "${QUAY_ORG}" != 'kroxylicious' ]]; then
   echo "building and pushing image to quay.io"
@@ -22,6 +38,7 @@ if [[ "${QUAY_ORG}" != 'kroxylicious' ]]; then
 else
   echo "QUAY_ORG is kroxylicious, not building/deploying image"
 fi
+
 set +e
 MINIKUBE_MEM=$(${MINIKUBE} config get memory)
 MINIKUBE_MEM_EXIT=$?
@@ -37,17 +54,52 @@ if [ $MINIKUBE_MEM_EXIT -eq 0 ]; then
 else
   echo "no minikube memory configuration, defaulting to 4096M"
 fi
-INSTALL_DIR="sample-install"
 ${MINIKUBE} start "${MINIKUBE_CONF}"
+
+NAMESPACE=kafka
+
+# Copy kustomize root (so we can override the image)
+cp -r ${SAMPLE_DIR} ${KUSTOMIZE_TMP}
+OVERLAY_DIR=$(find ${KUSTOMIZE_TMP} -type d -name minikube)
+
+if [[ ! -d "${OVERLAY_DIR}" ]]; then
+     echo "$0: Cannot find minikube overlay within sample."
+     exit 1
+fi
+
+pushd ${OVERLAY_DIR}
+${KUSTOMIZE} edit set namespace ${NAMESPACE}
+if [[ "${QUAY_ORG}" != 'kroxylicious' ]]; then
+  ${KUSTOMIZE} edit set image quay.io/kroxylicious/kroxylicious=quay.io/${QUAY_ORG}/kroxylicious
+fi
+popd
+
+# Install certmanager
+${KUBECTL} apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.12.0/cert-manager.yaml
+${KUBECTL} wait deployment/cert-manager-webhook --for=condition=Available=True --timeout=300s -n cert-manager
+
+# Install strimzi
 ${KUBECTL} create namespace kafka || true
 ${KUBECTL} apply -f 'https://strimzi.io/install/latest?namespace=kafka' -n kafka
-${KUBECTL} apply -f "${INSTALL_DIR}/kafka-persistent.yaml" -n kafka
-${KUBECTL} wait kafka/my-cluster --for=condition=Ready --timeout=300s -n kafka 
-${SED} -i "s/quay\.io\/kroxylicious/quay\.io\/${QUAY_ORG}/g" "${INSTALL_DIR}"/*
-${KUBECTL} apply -f "${INSTALL_DIR}" -n kafka
-${KUBECTL} wait deployment/kroxylicious-proxy --for=condition=Available=True --timeout=300s -n kafka 
 
-echo "To produce to kroxylicious:"
-echo "kubectl -n kafka run kafka-producer -ti --image=quay.io/strimzi/kafka:0.35.0-kafka-3.4.0 --rm=true --restart=Never -- bin/kafka-console-producer.sh --bootstrap-server kroxylicious-service:9292 --topic my-topic"
-echo "To consume from kroxylicious:"
-echo "kubectl -n kafka run kafka-consumer -ti --image=quay.io/strimzi/kafka:0.35.0-kafka-3.4.0 --rm=true --restart=Never -- bin/kafka-console-consumer.sh --bootstrap-server kroxylicious-service:9292 --topic my-topic --from-beginning"
+# Apply sample using Kustomize
+COUNTER=0
+while ! ${KUBECTL} apply -k ${OVERLAY_DIR}; do
+  echo "Retrying ${KUBECTL} apply -k ${OVERLAY_DIR} .. probably a transient webhook issue."
+  # Sometimes the certmgr's muting webhook is not ready, so retry
+  let COUNTER=COUNTER+1
+  sleep 5
+  if [[ "${COUNTER}" -gt 5 ]]; then
+    echo "$0: Cannot apply sample."
+    exit 1
+  fi
+done
+echo "Config successfully applied."
+
+${KUBECTL} wait kafka/my-cluster --for=condition=Ready --timeout=300s -n ${NAMESPACE}
+${KUBECTL} wait deployment/kroxylicious-proxy --for=condition=Available=True --timeout=300s -n ${NAMESPACE}
+
+if [[ -f ${SAMPLE_DIR}/postinstall.sh ]]; then
+   ${SAMPLE_DIR}/postinstall.sh
+fi
+

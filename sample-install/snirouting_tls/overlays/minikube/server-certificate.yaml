@@ -1,0 +1,27 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: server-certificate
+  namespace: kafka
+spec:
+  isCA: true
+  commonName: kroxy-server-cert
+  secretName: kroxy-server-tls
+  privateKey:
+    algorithm: RSA
+    size: 4096
+    encoding: PKCS8
+  dnsNames:
+    - mycluster.kafka
+    - broker0.mycluster.kafka
+    - broker1.mycluster.kafka
+    - broker2.mycluster.kafka
+  issuerRef:
+    name: selfsigned-issuer
+    kind: Issuer
+    group: cert-manager.io

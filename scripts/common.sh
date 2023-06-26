@@ -16,6 +16,8 @@ KUBECTL=$(which kubectl)
 export KUBECTL
 MINIKUBE=$(which minikube)
 export MINIKUBE
+KUSTOMIZE=$(which kustomize)
+export KUSTOMIZE
 
 if [ "$OS" = 'Darwin' ]; then
   # for MacOS
