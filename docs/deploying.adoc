@@ -16,35 +16,45 @@ to the Virtual Cluster.
 
 You must define at least one Virtual Cluster.
 
-Let's look at simple definition first.  After we will look at more advanced options including TLS.
+Let's look at how that is done by considering first a simple example.  After we will look at more advanced options
+including TLS.
 
 [source, yaml]
 ----
 virtualClusters:
   demo:                                         # <1>
-    clusterNetworkAddressConfigProvider:
-      type: PortPerBroker                       # <2>
-      config:
-        bootstrapAddress: mypublickroxy:9192    # <3>
     targetCluster:
-      bootstrap_servers: myprivatecluster:9092  # <4>
+      bootstrap_servers: myprivatecluster:9092  # <2>
+    clusterNetworkAddressConfigProvider:
+      type: PortPerBroker                       # <3>
+      config:
+        bootstrapAddress: mypublickroxylicious:9192    # <4>
 ----
 <1> The name of the virtual cluster.
-<2> The name of a cluster network address config provider. The built-in types are `PortPerBroker` and `SniRouting`.
-<3> The hostname and port of the bootstrap that will be used by the Kafka Clients.  The hostname must be resolved
+<2> The bootstrap of the (physical) Kafka Cluster.  This is the Kafka Cluster being proxied.
+<3> The name of a cluster network address config provider. The built-in types are `PortPerBroker` and `SniRouting`.
+<4> The hostname and port of the bootstrap that will be used by the Kafka Clients.  The hostname must be resolved
 by the clients.
-<4> The bootstrap of the (physical) Kafka Cluster.  This is the Kafka Cluster being proxied.
 
-This configuration defines a virtual cluster using the `PortPerBroker` scheme.  Under this schema, Kroxylicious will
-open a port for each broker of the target cluster with port numbers beginning at `9192` +1.  So, if the target cluster
-has three brokers, Kroxylicious will bind 9192 for bootstrap and 9193-9195 inclusive to allow the clients to connect
-to each broker.
+This configuration declares a virtual cluster called `demo`.  The physical Kafka Cluster being proxied is the defined
+by the `targetCluster` element.  In this example, the `PortPerBroker` scheme is used by Kroxlicious to present the
+virtual cluster to the clients.  Under this schema, Kroxylicious will open a port for each broker of the target cluster
+with port numbers beginning at `9192` +1.  So, if the target cluster has three brokers, Kroxylicious will bind 9192 for
+bootstrap and 9193-9195 inclusive to allow the clients to connect to each broker.
 
 === Cluster Network Address Config Providers
 
+The Cluster Network Address Config Provider controls how the virtual cluster is presented oo the network. Two
+alternatives are supported: `PortPerBroker` and `SniRouting` which have different characteristics which make each
+suitable for different use-cases. They are described next.
+
 ==== PortPerBroker scheme
 
-The `PortPerBroker` scheme accepts richer configuration than illustrated above.  Let's look at all the options:
+In the `PortPerBroker` scheme, Kroxylicious automatically opens port for each virtual cluster's bootstrap and
+one port per broker of each target cluster.  So, if you have two virtual clusters, each targeting a Kafka Cluster
+of three brokers, Kroxylicious will bind eight ports in total.
+
+The `PortPerBroker` scheme can be used with either upstream plain or upstream TLS connections.
 
 [source, yaml]
 ----
@@ -58,15 +68,18 @@ clusterNetworkAddressConfigProvider:
     bindAddress: 192.168.0.1                                                   # <5>
 ----
 <1> The hostname and port of the bootstrap that will be used by the Kafka Clients.
-<2> (Optional) The broker address pattern used to form the broker addresses.  If not defined it defaults to the
+<2> (Optional) The broker address pattern used to form the broker addresses.  If not defined, it defaults to the
 hostname part of the `bootstrapAddress` and the port number allocated to the broker.
 <3> (Optional) The starting number for broker port range. Defaults to the port of the `bootstrapAddress` plus 1.
 <4> (Optional) The maximum number of brokers of ports that will be defined from the range.  Defaults to 3.
 <5> (Optional) The bind address used when binding the ports. If undefined, all network interfaces will be bound.
 
-The `brokerAddressPattern` configuration parameters understands two patterns.  `$(nodeId)` stands for the `node.id`
-assigned to the broker at target cluster.  If present in the pattern, it will be replaced by the node id.  Similarly,
-`$(portNumber)` is replaced by the port number computed for this broker.
+The `brokerAddressPattern` configuration parameters understands two replacement tokens.
+
+* this `$(portNumber)` is mandatory.  It is replaced by the port number computed for this broker.
+* the `$(nodeId)` token is optional.  If present, it will be replaced by the
+https://kafka.apache.org/documentation/#brokerconfigs_node.id[`node.id`] (or `broker.id`) assigned to the broker
+of the target cluster.
 
 For example if your configuration looks like the above and your cluster has three brokers, your Kafka Client will receive
 broker address information like this:
@@ -75,24 +88,54 @@ broker address information like this:
 1.  `mybroker-1.mycluster.kafka.com:9194`
 2.  `mybroker-2.mycluster.kafka.com:9194`
 
-Note that it is a responsible for the deployer of Kroxylicious to ensure that these DNS names are resolvable and
-routable by the Kafka Client.
+NOTE: It is a responsible for the deployer of Kroxylicious to ensure that the bootstrap and generated broker
+DNS names are resolvable and routable by the Kafka Client.
 
 ==== SniRouting scheme
 
-TODO: add analogous section for SniRouting
+In the `SniRouting` scheme, Kroxylicious uses SNI information to route traffic to either the boostrap or individual
+brokers.   As this relies on SNI, the use of upstream TLS is *required*.
+
+With this scheme, you have the choice to share a single port across all virtual clusters, or you can assign a different
+port to each.  Single port operation may have cost advantages when using load balances of public clouds, as it allows
+a single cloud provider load balancer to be shared across all virtual clusters.
+
+[source, yaml]
+----
+clusterNetworkAddressConfigProvider:
+  type: SniRouting
+  config:
+    bootstrapAddress: mycluster.kafka.com:9192                    # <1>
+    brokerAddressPattern: mybroker-$(nodeId).mycluster.kafka.com  # <2>
+    bindAddress: 192.168.0.1                                      # <3>
+----
+<1> The hostname and port of the bootstrap that will be used by the Kafka Clients.
+<2> The broker address pattern used to form the broker addresses. The `$(nodeId)` token must be present.
+<3> (Optional) The bind address used when binding the port. If undefined, all network interfaces will be bound.
+
+The `brokerAddressPattern` configuration parameters requires that the `$(nodeId)` token is present within it.
+This is replaced by the https://kafka.apache.org/documentation/#brokerconfigs_node.id[`node.id`] (or `broker.id)
+assigned to the broker of the target cluster.  This allows Kroxylicious to generate separate routes for each broker.
+
+NOTE: It is a responsible for the deployer of Kroxylicious to ensure that the bootstrap and generated broker
+DNS names are resolvable and routable by the Kafka Client.
 
 === Transport Layer Security (TLS)
 
-In this section we look at how to enable TLS for both of the downstream and upstream.
+In this section we look at how to enable TLS for either the downstream and/or upstream.   Note, there is no
+interdependency; it is supported to have TLS configured for the downstream and use plain communications for the
+upstream, or vice-versa.
+
+NOTE: TLS is recommended for both upstream and downstream for production configurations.
 
 === Downstream
 
-Here's how to enable TLS for the downstream side, that is, so the client connects to Kroxylicious over TLS).  For this,
-you will need to obtain a TLS certificate for your Virtual Cluster from your Certificate Authority.
+Here's how to enable TLS for the downstream side. This means the Kafka Client will connect to the virtual cluster over
+TLS rather than plain.  For this, you will need to obtain a TLS certificate for the virtual cluster from your
+Certificate Authority.
 
-NOTE: When requesting the certificate ensure that the certificate will match the names virtual cluster's bootstrap and
-broker addresses.  This may mean making use of wildcard certificates and/or Subject Alternative Names (SANs).
+NOTE: When requesting the certificate ensure that the certificate will match the names of the virtual cluster's
+bootstrap and broker addresses.  This may mean making use of wildcard certificates and/or Subject Alternative Names (SANs).
 
 Kroxylicious accepts key material in PKCS12 or JKS keystore format, or PEM formatted file(s).  The following configuration
 illustrates configuration with PKCS12 keystore.
@@ -117,7 +160,8 @@ private key, certificate, and intermediates).
 <2> File system location of a file containing the key store's password.
 <3> (Optional) File system location of a file containing the key's password. If omitted the key store's password is
 used to decrypt the key too.
-<4> (Optional) Store type. Supported types are: `PKCS12`, `JKS` and `PEM`.  Defaults to Java default key store type (PKCS12).
+<4> (Optional) Store type. Supported types are: `PKCS12`, `JKS` and `PEM`.  Defaults to Java default key store type
+which is usually `PKCS12`.
 
 Alternatively, if your key material is in separate PEM files (private key, and certificate/intermediates), the following
 configuration may be used:
@@ -141,12 +185,12 @@ virtualClusters:
 
 === Upstream
 
-Here's how to enable TLS for the upstream side, that is, so Kroxylicious connects to (physical) Kafka Cluster) over
-TLS.  For this, your Kafka Cluster must have already been configured to use TLS.
+Here's how to enable TLS for the upstream side.  This means that Kroxylicious connects to the (physical) Kafka Cluster)
+over TLS.  For this, your Kafka Cluster must have already been configured to use TLS.
 
-By default, Kroxylicious uses the trust of the platform to decide whether the Kafka Cluster is trust or not.  To
-support cases where trust must be overridden (e.g. use of private CAs or self-signed certificates), Kroxylicious accepts
-trust material in PKCS12 or JKS keystore format, or PEM formatted certificates.
+By default, Kroxylicious uses the trust of the platform to decide whether the Kafka Cluster is trusted or not.  To
+support cases where trust must be overridden (such as use-cases involving the use of private CAs or self-signed
+certificates), Kroxylicious accepts override trust material in PKCS12 or JKS keystore format, or PEM formatted certificates.
 
 The following illustrates enabling TKS using platform trust:
 
@@ -157,11 +201,11 @@ virtualClusters:
     targetCluster:
       bootstrap_servers: myprivatecluster:9092
       tls: {}                                         <1>
-      ...
+      #...
 ----
 <1> Use an empty object to enable TLS using platform trust.
 
-In case where the trust need to be overridden, use configuration like this:
+In case where the trust needs to be overridden, use configuration like this:
 
 [source, yaml]
 ----
@@ -175,7 +219,7 @@ virtualClusters:
           storePassword:
             passwordFile: /opt/cert/store.password      # <2>
           storeType: PKCS12                             # <3>
-      ...
+      #...
 ----
 <1> File system location of a truststore (or in the case of `PEM` format a text file containing the certificates).
 <2> File system location of a file containing the trust store's password.
@@ -184,7 +228,7 @@ virtualClusters:
 It is also possible to disable trust so that Kroxylicious will connect to any Kafka Cluster regardless of its certificate
 validity.
 
-WARNING: This option is not recommended for production use
+WARNING: This option is not recommended for production use.
 
 [source, yaml]
 ----
@@ -195,10 +239,9 @@ virtualClusters:
       tls:
         trust:
           insecure: true                                # <1>
-      ...
+      #...
 ----
 <1> Enables insecure TLS.
-
 
 YAML
 Proxy level configuration

@@ -19,7 +19,7 @@ For example using Kroxylicious proxy it's easier to experiment with alternative 
 
 == How it works
 
-First let's define the concepts in the landscape surrounding Kroylicious.
+First let's define the concepts in the landscape surrounding Kroxylicious.
 
 . _Kafka Client_, or _Client_ refers to any client application using a Kafka Client library to talk to a *Kafka Cluster*.
 . _Kafka Cluster_ or _Cluster_ refers to a cluster comprising one or more Kafka Brokers.
@@ -140,7 +140,7 @@ returned to the client.
 |  |             |  W   |   |   | f(X)-->W |  X  | f(Y)-->X |  Y  | f(Z)-->Y |   |      |      | Z  |            |  |  |
 |  '-------------'      |   |   '----------'     '----------'     '----------'   |      |      |    '------------'  |  |
 |                       |   |                                                    |      |      '--------------------'  |
-|                       |   '-------------------------------------------------=--'      |                              |
+|                       |   '----------------------------------------------------'      |                              |
 |                       |                                                               |                              |
 |                       '---------------------------------------------------------------'                              |
 |                                                                                                                      |
@@ -148,11 +148,12 @@ returned to the client.
 [0,0]: {"fill":"#99d","a2s:delref":1}
 ....
 
-
 As mentioned above, Kroxylicious takes the responsibility to rewrite the Kafka RPC responses that carry broker address
-information so that they reflect the broker addresses exposed by the Virtual Cluster. These are the `Metadata`,
-`DescribeCluster` and `FindCoordinator` responses. _Filter authors_ are free to write their own filters that
-intercept these responses too.
+information so that they reflect the broker addresses exposed by the Virtual Cluster. These are the
+https://kafka.apache.org/protocol.html#The_Messages_Metadata[`Metadata`],
+https://kafka.apache.org/protocol.html#The_Messages_DescribeCluster[`DescribeCluster`] and
+https://kafka.apache.org/protocol.html#The_Messages_FindCoordinator[`FindCoordinator`] responses. _Filter authors_ are
+free to write their own filters that intercept these responses too.
 
 === Filter composition
 
