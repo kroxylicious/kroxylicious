@@ -17,7 +17,7 @@ if [ "$OS" = 'Darwin'  ]; then
   fi
 fi
 
-echo 'Please start `minikube tunnel` in another terminal.'
+echo 'Please start "minikube tunnel" in another terminal.'
 
 while true
 do
@@ -46,16 +46,16 @@ consumer_args+=('--from-beginning')
 
 props=('ssl.truststore.type=PEM' 'security.protocol=SSL' 'ssl.truststore.location=<(kubectl get secret -n kafka kroxy-server-tls -o json | jq -r ".data.\"tls.crt\" | @base64d")')
 
-for p in "${props[@]}"
+for prop in "${props[@]}"
 do
-    producer_args+=("--producer-property" ${p})
-    consumer_args+=("--consumer-property" ${p})
+    producer_args+=("--producer-property" "${prop}")
+    consumer_args+=("--consumer-property" ""${prop}"")
 done
 
 echo "Now run kafka commands like this:"
 cat << EOF
-kafka-console-producer${suffix} ${producer_args[@]}
-kafka-console-consumer${suffix} ${consumer_args[@]}
+kafka-console-producer${KAFKA_TOOL_SUFFIX} ${producer_args[@]}
+kafka-console-consumer${KAFKA_TOOL_SUFFIX} ${consumer_args[@]}
 EOF
 
 

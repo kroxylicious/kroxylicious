@@ -88,7 +88,7 @@ COUNTER=0
 while ! ${KUBECTL} apply -k "${OVERLAY_DIR}"; do
   echo "Retrying ${KUBECTL} apply -k ${OVERLAY_DIR} .. probably a transient webhook issue."
   # Sometimes the certmgr's muting webhook is not ready, so retry
-  let COUNTER=COUNTER+1
+  (( COUNTER++ )) || true
   sleep 5
   if [[ "${COUNTER}" -gt 10 ]]; then
     echo "$0: Cannot apply sample."
