@@ -44,7 +44,7 @@ bootstrap and 9193-9195 inclusive to allow the clients to connect to each broker
 
 === Cluster Network Address Config Providers
 
-The Cluster Network Address Config Provider controls how the virtual cluster is presented oo the network. Two
+The Cluster Network Address Config Provider controls how the virtual cluster is presented to the network. Two
 alternatives are supported: `PortPerBroker` and `SniRouting` which have different characteristics which make each
 suitable for different use-cases. They are described next.
 
