@@ -54,7 +54,12 @@ In the `PortPerBroker` scheme, Kroxylicious automatically opens a port for each 
 one port per broker of each target cluster.  So, if you have two virtual clusters, each targeting a Kafka Cluster
 of three brokers, Kroxylicious will bind eight ports in total.
 
-The `PortPerBroker` scheme can be used with either upstream plain or upstream TLS connections.
+Kroxylicious monitors the broker topology of the target cluster at runtime. It will adjust the number of open ports
+dynamically.  If another broker is added to the Kafka Cluster, Kroxylicious will automatically open a port for it.
+Similarly, if a broker is removed from the Kafka Cluster, Kroxylicious will automatically close the port that was
+assigned to it.
+
+The `PortPerBroker` scheme can be used with either plain or TLS downstream connections.
 
 [source, yaml]
 ----
@@ -71,7 +76,7 @@ clusterNetworkAddressConfigProvider:
 <2> (Optional) The broker address pattern used to form the broker addresses.  If not defined, it defaults to the
 hostname part of the `bootstrapAddress` and the port number allocated to the broker.
 <3> (Optional) The starting number for broker port range. Defaults to the port of the `bootstrapAddress` plus 1.
-<4> (Optional) The maximum number of brokers of ports that will be defined from the range.  Defaults to 3.
+<4> (Optional) The _maximum_ number of brokers of ports that are permitted.  Defaults to 3.
 <5> (Optional) The bind address used when binding the ports. If undefined, all network interfaces will be bound.
 
 The `brokerAddressPattern` configuration parameters understands two replacement tokens.
@@ -90,6 +95,9 @@ broker address information like this:
 
 NOTE: It is a responsible for the deployer of Kroxylicious to ensure that the bootstrap and generated broker
 DNS names are resolvable and routable by the Kafka Client.
+
+The `numberOfBrokerPorts` imposes a maximum on the number of brokers that a Kafka Cluster can have. Set this value
+to be as high as the maximum number of brokers that your operational rules allow for a Kafka Cluster.
 
 ==== SniRouting scheme
 
