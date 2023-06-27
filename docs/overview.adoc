@@ -119,7 +119,7 @@ Kafka protocol requests (such as `Produce` requests) pass sequentially through e
 before being forwarded to the broker.
 
 When the broker returns a response (such as a `Produce` response) the protocol filters in the chain are invoked in the
-reverse order, each having the opportunity to inspecting and/or manipulating the response. Eventually a response is
+reverse order, each having the opportunity to inspect and/or manipulating the response. Eventually a response is
 returned to the client.
 
 [a2s, format="svg"]
