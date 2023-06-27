@@ -21,13 +21,13 @@ fi
 
 SAMPLE_DIR=${1}
 
-KUSTOMIZE_TMP=`mktemp -d`
+KUSTOMIZE_TMP=$(mktemp -d)
 function cleanTmpDir {
-  rm -rf ${KUSTOMIZE_TMP}
+  rm -rf "${KUSTOMIZE_TMP}"
 }
 trap cleanTmpDir EXIT
 
-if [[ -z $QUAY_ORG ]]; then
+if [[ -z "${QUAY_ORG}" ]]; then
   echo "Please set QUAY_ORG, exiting"
   exit 1
 fi
@@ -58,16 +58,16 @@ ${MINIKUBE} start "${MINIKUBE_CONF}"
 
 NAMESPACE=kafka
 
-# Copy kustomize root (so we can override the image)
-cp -r ${SAMPLE_DIR} ${KUSTOMIZE_TMP}
-OVERLAY_DIR=$(find ${KUSTOMIZE_TMP} -type d -name minikube)
+# Prepare kustomize overlay
+cp -r "${SAMPLE_DIR}" "${KUSTOMIZE_TMP}"
+OVERLAY_DIR=$(find "${KUSTOMIZE_TMP}" -type d -name minikube)
 
 if [[ ! -d "${OVERLAY_DIR}" ]]; then
      echo "$0: Cannot find minikube overlay within sample."
      exit 1
 fi
 
-pushd ${OVERLAY_DIR}
+pushd "${OVERLAY_DIR}"
 ${KUSTOMIZE} edit set namespace ${NAMESPACE}
 if [[ "${QUAY_ORG}" != 'kroxylicious' ]]; then
   ${KUSTOMIZE} edit set image quay.io/kroxylicious/kroxylicious=quay.io/${QUAY_ORG}/kroxylicious
@@ -81,15 +81,16 @@ ${KUBECTL} wait deployment/cert-manager-webhook --for=condition=Available=True -
 # Install strimzi
 ${KUBECTL} create namespace kafka || true
 ${KUBECTL} apply -f 'https://strimzi.io/install/latest?namespace=kafka' -n kafka
+${KUBECTL} wait deployment strimzi-cluster-operator --for=condition=Available=True --timeout=300s -n kafka
 
 # Apply sample using Kustomize
 COUNTER=0
-while ! ${KUBECTL} apply -k ${OVERLAY_DIR}; do
+while ! ${KUBECTL} apply -k "${OVERLAY_DIR}"; do
   echo "Retrying ${KUBECTL} apply -k ${OVERLAY_DIR} .. probably a transient webhook issue."
   # Sometimes the certmgr's muting webhook is not ready, so retry
   let COUNTER=COUNTER+1
   sleep 5
-  if [[ "${COUNTER}" -gt 5 ]]; then
+  if [[ "${COUNTER}" -gt 10 ]]; then
     echo "$0: Cannot apply sample."
     exit 1
   fi
@@ -98,8 +99,9 @@ echo "Config successfully applied."
 
 ${KUBECTL} wait kafka/my-cluster --for=condition=Ready --timeout=300s -n ${NAMESPACE}
 ${KUBECTL} wait deployment/kroxylicious-proxy --for=condition=Available=True --timeout=300s -n ${NAMESPACE}
+echo "Deployments ready."
 
-if [[ -f ${SAMPLE_DIR}/postinstall.sh ]]; then
-   ${SAMPLE_DIR}/postinstall.sh
+if [[ -f "${SAMPLE_DIR}"/postinstall.sh ]]; then
+   "${SAMPLE_DIR}"/postinstall.sh
 fi
 

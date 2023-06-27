@@ -12,7 +12,7 @@ SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 KAFKA_TOOL_SUFFIX=".sh"
 if [ "$OS" = 'Darwin'  ]; then
-  if brew --prefix kafka 2>/dev/null; then
+  if brew --prefix kafka 1>/dev/null 2>/dev/null; then
      KAFKA_TOOL_SUFFIX=""
   fi
 fi
