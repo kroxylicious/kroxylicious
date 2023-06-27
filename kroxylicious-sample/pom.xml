@@ -25,36 +25,40 @@
     <name>Kroxylicious Sample</name>
 
     <dependencies>
+        <!-- project dependencies - runtime and compile -->
         <dependency>
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-api</artifactId>
-            <version>${kroxyliciousApi.version}</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-filter-api</artifactId>
-            <version>${kroxyliciousApi.version}</version>
             <scope>provided</scope>
         </dependency>
-        <dependency>
-            <groupId>io.kroxylicious.testing</groupId>
-            <artifactId>testing-junit5-extension</artifactId>
-            <scope>test</scope>
-        </dependency>
+
+        <!-- project dependencies - test -->
         <dependency>
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-test-tools</artifactId>
             <scope>test</scope>
         </dependency>
+
         <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-api</artifactId>
+            <groupId>io.kroxylicious.testing</groupId>
+            <artifactId>testing-junit5-extension</artifactId>
             <scope>test</scope>
         </dependency>
+
+        <!-- third party dependencies - test -->
         <dependency>
             <groupId>org.assertj</groupId>
             <artifactId>assertj-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
