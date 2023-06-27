@@ -97,7 +97,7 @@ In the `SniRouting` scheme, Kroxylicious uses SNI information to route traffic t
 brokers.   As this relies on SNI, the use of upstream TLS is *required*.
 
 With this scheme, you have the choice to share a single port across all virtual clusters, or you can assign a different
-port to each.  Single port operation may have cost advantages when using load balances of public clouds, as it allows
+port to each.  Single port operation may have cost advantages when using load balancers of public clouds, as it allows
 a single cloud provider load balancer to be shared across all virtual clusters.
 
 [source, yaml]
