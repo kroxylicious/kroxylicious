@@ -94,7 +94,7 @@ DNS names are resolvable and routable by the Kafka Client.
 ==== SniRouting scheme
 
 In the `SniRouting` scheme, Kroxylicious uses SNI information to route traffic to either the boostrap or individual
-brokers.   As this relies on SNI, the use of upstream TLS is *required*.
+brokers.   As this relies on SNI, the use of <<Downstream TLS>> is *required*.
 
 With this scheme, you have the choice to share a single port across all virtual clusters, or you can assign a different
 port to each.  Single port operation may have cost advantages when using load balancers of public clouds, as it allows
@@ -128,7 +128,7 @@ upstream, or vice-versa.
 
 NOTE: TLS is recommended for both upstream and downstream for production configurations.
 
-=== Downstream
+=== Downstream TLS
 
 Here's how to enable TLS for the downstream side. This means the Kafka Client will connect to the virtual cluster over
 TLS rather than plain.  For this, you will need to obtain a TLS certificate for the virtual cluster from your
@@ -183,7 +183,7 @@ virtualClusters:
 <2> File system location of the server certificate and intermediate(s).
 <3> (Optional) File system location of a file containing the key's password.
 
-=== Upstream
+=== Upstream TLS
 
 Here's how to enable TLS for the upstream side.  This means that Kroxylicious connects to the (physical) Kafka Cluster)
 over TLS.  For this, your Kafka Cluster must have already been configured to use TLS.
