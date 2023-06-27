@@ -50,7 +50,7 @@ suitable for different use-cases. They are described next.
 
 ==== PortPerBroker scheme
 
-In the `PortPerBroker` scheme, Kroxylicious automatically opens port for each virtual cluster's bootstrap and
+In the `PortPerBroker` scheme, Kroxylicious automatically opens a port for each virtual cluster's bootstrap and
 one port per broker of each target cluster.  So, if you have two virtual clusters, each targeting a Kafka Cluster
 of three brokers, Kroxylicious will bind eight ports in total.
 
