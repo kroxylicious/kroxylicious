@@ -70,7 +70,7 @@ fi
 pushd "${OVERLAY_DIR}"
 ${KUSTOMIZE} edit set namespace ${NAMESPACE}
 if [[ "${QUAY_ORG}" != 'kroxylicious' ]]; then
-  ${KUSTOMIZE} edit set image quay.io/kroxylicious/kroxylicious=quay.io/${QUAY_ORG}/kroxylicious
+  ${KUSTOMIZE} edit set image "quay.io/kroxylicious/kroxylicious=quay.io/${QUAY_ORG}/kroxylicious"
 fi
 popd
 
