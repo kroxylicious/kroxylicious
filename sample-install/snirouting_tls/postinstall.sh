@@ -49,7 +49,7 @@ props=('ssl.truststore.type=PEM' 'security.protocol=SSL' 'ssl.truststore.locatio
 for prop in "${props[@]}"
 do
     producer_args+=("--producer-property" "${prop}")
-    consumer_args+=("--consumer-property" ""${prop}"")
+    consumer_args+=("--consumer-property" "${prop}")
 done
 
 echo "Now run kafka commands like this:"
