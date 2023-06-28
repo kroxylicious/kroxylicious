@@ -151,4 +151,8 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
     public Optional<SslContext> getUpstreamSslContext() {
         return upstreamSslContext;
     }
+
+    public Set<Integer> prebindBrokerIds() {
+        return clusterNetworkAddressConfigProvider.prebindBrokerIds();
+    }
 }

@@ -67,4 +67,5 @@ public interface ClusterNetworkAddressConfigProvider {
         return Set.of();
     }
 
+    Set<Integer> prebindBrokerIds();
 }

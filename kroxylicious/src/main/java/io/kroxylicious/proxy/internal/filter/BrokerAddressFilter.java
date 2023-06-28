@@ -102,7 +102,7 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
     private void doReconcileThenForwardResponse(ResponseHeaderData header, ApiMessage data, KrpcFilterContext context, Map<Integer, HostPort> nodeMap) {
         // https://github.com/kroxylicious/kroxylicious/issues/351
         // Using synchronous approach for now
-        reconciler.reconcile(virtualCluster, nodeMap).toCompletableFuture().join();
+        reconciler.reconcile(virtualCluster, nodeMap, false).toCompletableFuture().join();
         context.forwardResponse(header, data);
         LOGGER.debug("Endpoint reconciliation complete for  virtual cluster {}", virtualCluster);
     }

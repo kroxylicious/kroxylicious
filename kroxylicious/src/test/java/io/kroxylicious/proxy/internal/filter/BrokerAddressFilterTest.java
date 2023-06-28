@@ -107,7 +107,8 @@ class BrokerAddressFilterTest {
         when(virtualCluster.getBrokerAddress(0)).thenReturn(HostPort.parse("downstream:19199"));
 
         var nodeMap = Map.of(0, HostPort.parse("upstream:9199"));
-        lenient().when(endpointReconciler.reconcile(Mockito.eq(virtualCluster), Mockito.eq(nodeMap))).thenReturn(CompletableFuture.completedStage(null));
+        lenient().when(endpointReconciler.reconcile(Mockito.eq(virtualCluster), Mockito.eq(nodeMap), Mockito.anyBoolean()))
+                .thenReturn(CompletableFuture.completedStage(null));
     }
 
     @ParameterizedTest(name = "{0}")
@@ -123,7 +124,7 @@ class BrokerAddressFilterTest {
                                         ApiMessageTestDef responseTestDef) {
 
         filterResponseAndVerify(apiMessageType, header, responseTestDef);
-        verify(endpointReconciler, times(1)).reconcile(Mockito.eq(virtualCluster), Mockito.anyMap());
+        verify(endpointReconciler, times(1)).reconcile(Mockito.eq(virtualCluster), Mockito.anyMap(), Mockito.anyBoolean());
     }
 
     private void filterResponseAndVerify(ApiMessageType apiMessageType, RequestHeaderData header, ApiMessageTestDef responseTestDef) {

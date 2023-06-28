@@ -14,7 +14,7 @@ import io.kroxylicious.proxy.service.HostPort;
 /**
  * A broker specific virtual cluster binding.
  */
-public record VirtualClusterBrokerBinding(VirtualCluster virtualCluster, HostPort upstreamTarget, int nodeId) implements VirtualClusterBinding {
+public record VirtualClusterBrokerBinding(VirtualCluster virtualCluster, HostPort upstreamTarget, int nodeId, boolean uninitializedBrokers) implements VirtualClusterBinding {
     public VirtualClusterBrokerBinding {
         Objects.requireNonNull(virtualCluster, "virtualCluster must not be null");
         Objects.requireNonNull(upstreamTarget, "upstreamTarget must not be null");

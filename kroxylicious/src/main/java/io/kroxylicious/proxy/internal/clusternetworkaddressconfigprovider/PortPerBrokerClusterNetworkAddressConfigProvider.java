@@ -22,6 +22,7 @@ import io.kroxylicious.proxy.service.HostPort;
 import static io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.BrokerAddressPatternUtils.EXPECTED_TOKEN_SET;
 import static io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.BrokerAddressPatternUtils.validatePortSpecifier;
 import static io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.BrokerAddressPatternUtils.validateStringContainsOnlyExpectedTokens;
+import static java.util.stream.Collectors.toSet;
 
 /**
  * A ClusterNetworkAddressConfigProvider implementation that uses a separate port per broker endpoint.
@@ -44,6 +45,7 @@ public class PortPerBrokerClusterNetworkAddressConfigProvider implements Cluster
     private final int brokerStartPort;
     private final Set<Integer> exclusivePorts;
     private final int brokerEndPortExclusive;
+    private final int numberOfBrokerPorts;
 
     /**
      * Creates the provider.
@@ -54,7 +56,7 @@ public class PortPerBrokerClusterNetworkAddressConfigProvider implements Cluster
         this.bootstrapAddress = config.bootstrapAddress;
         this.brokerAddressPattern = config.brokerAddressPattern;
         this.brokerStartPort = config.brokerStartPort;
-        int numberOfBrokerPorts = config.numberOfBrokerPorts;
+        this.numberOfBrokerPorts = config.numberOfBrokerPorts;
         this.brokerEndPortExclusive = brokerStartPort + numberOfBrokerPorts;
 
         var exclusivePorts = IntStream.range(brokerStartPort, brokerEndPortExclusive).boxed().collect(Collectors.toCollection(HashSet::new));
@@ -88,6 +90,11 @@ public class PortPerBrokerClusterNetworkAddressConfigProvider implements Cluster
     @Override
     public Set<Integer> getExclusivePorts() {
         return this.exclusivePorts;
+    }
+
+    @Override
+    public Set<Integer> prebindBrokerIds() {
+        return IntStream.range(0, numberOfBrokerPorts).boxed().collect(toSet());
     }
 
     /**

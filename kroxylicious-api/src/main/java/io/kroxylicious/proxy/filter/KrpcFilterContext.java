@@ -84,5 +84,7 @@ public interface KrpcFilterContext {
      */
     void forwardResponse(ApiMessage response);
 
+    void closeChannel();
+
     // TODO an API to allow a filter to add/remove another filter from the pipeline
 }

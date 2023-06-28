@@ -188,5 +188,10 @@ public class InvokerDispatchBenchmark {
         public void forwardResponse(ApiMessage response) {
 
         }
+
+        @Override
+        public void closeChannel() {
+
+        }
     }
 }

@@ -66,6 +66,11 @@ public class SniRoutingClusterNetworkAddressConfigProvider implements ClusterNet
     }
 
     @Override
+    public Set<Integer> prebindBrokerIds() {
+        return Set.of();
+    }
+
+    @Override
     public boolean requiresTls() {
         return true;
     }
