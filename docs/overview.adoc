@@ -150,15 +150,23 @@ is not a supported use-case.
 
 === Filter Chain
 
-A _Filter Chain_ consists of one or more pluggable _protocol filters_.
+A _Filter Chain_ consists of an *ordered list* of pluggable _protocol filters_.
+
 A  _protocol filter_ implements some logic for intercepting, inspecting and/or manipulating Kafka protocol messages.
-Kafka protocol requests (such as `Produce` requests) pass sequentially through each of the protocol filters in the chain
-before being forwarded to the broker.
+Kafka protocol requests (such as `Produce` requests) pass sequentially through each of the protocol filters in the
+chain, beginning with the 1st filter in the chain and then following with the subsequent filters, before being
+forwarded to the broker.
 
 When the broker returns a response (such as a `Produce` response) the protocol filters in the chain are invoked in the
-reverse order, each having the opportunity to inspect and/or manipulating the response. Eventually a response is
-returned to the client.
+reverse order (that is, beginning with the nth filter in the chain, then the n-1th and so on) with each having the
+opportunity to inspect and/or manipulating the response. Eventually a response is returned to the client.
 
+The description above describes only the basic capabilities of the protocol filter. Richer features of filters
+are described later.
+
+// TODO document additional filter behaviours https://github.com/kroxylicious/kroxylicious/issues/420
+
+.Illustration of a request and response being manipulated by filters in a chain
 [a2s, format="svg"]
 ....
 .----------------------------------------------------------------------------------------------------------------------.
@@ -189,8 +197,9 @@ As mentioned above, Kroxylicious takes the responsibility to rewrite the Kafka R
 information so that they reflect the broker addresses exposed by the Virtual Cluster. These are the
 https://kafka.apache.org/protocol.html#The_Messages_Metadata[`Metadata`],
 https://kafka.apache.org/protocol.html#The_Messages_DescribeCluster[`DescribeCluster`] and
-https://kafka.apache.org/protocol.html#The_Messages_FindCoordinator[`FindCoordinator`] responses. _Filter authors_ are
-free to write their own filters that intercept these responses too.
+https://kafka.apache.org/protocol.html#The_Messages_FindCoordinator[`FindCoordinator`] responses. This processing is
+entirely transparent to the work of the protocol filters.  _Filter authors_ are free to write their own filters that
+intercept these responses too.
 
 === Filter composition
 
