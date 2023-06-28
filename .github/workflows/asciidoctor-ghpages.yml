@@ -7,6 +7,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+      
+      # Install ASCIIToSVG (a2s) https://docs.asciidoctor.org/diagram-extension/latest/diagram_types/a2s/
+      - uses: actions/setup-go@v4
+        with:
+          go-version: '1.20'
+      - run: go version
+      - run: go install github.com/asciitosvg/asciitosvg@latest
+      - run: which a2s
+
       - name: asciidoctor-ghpages
         uses: manoelcampos/asciidoctor-ghpages-action@v2
         with:
