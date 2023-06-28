@@ -6,6 +6,7 @@
 #
 
 set -eo pipefail
+DEFAULT_QUAY_ORG='kroxylicious-developer'
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 . "${SCRIPT_DIR}/common.sh"
@@ -32,15 +33,15 @@ if [[ -z "${QUAY_ORG}" ]]; then
   exit 1
 fi
 
-if [[ "${QUAY_ORG}" != 'kroxylicious' ]]; then
+if [[ "${QUAY_ORG}" != ${DEFAULT_QUAY_ORG} ]]; then
   echo "building and pushing image to quay.io"
   PUSH_IMAGE=y "${SCRIPT_DIR}/deploy-image.sh"
 else
-  echo "QUAY_ORG is kroxylicious, not building/deploying image"
+  echo "QUAY_ORG is ${QUAY_ORG}, not building/deploying image"
 fi
 
 set +e
-MINIKUBE_MEM=$(${MINIKUBE} config get memory)
+MINIKUBE_MEM=$(${MINIKUBE} config get memory 2>/dev/null)
 MINIKUBE_MEM_EXIT=$?
 set -e
 MINIKUBE_CONF='--memory=4096'
@@ -69,8 +70,8 @@ fi
 
 pushd "${OVERLAY_DIR}"
 ${KUSTOMIZE} edit set namespace ${NAMESPACE}
-if [[ "${QUAY_ORG}" != 'kroxylicious' ]]; then
-  ${KUSTOMIZE} edit set image "quay.io/kroxylicious/kroxylicious=quay.io/${QUAY_ORG}/kroxylicious"
+if [[ "${QUAY_ORG}" != ${DEFAULT_QUAY_ORG} ]]; then
+  ${KUSTOMIZE} edit set image "quay.io/kroxylicious/${DEFAULT_QUAY_ORG}=quay.io/${QUAY_ORG}/kroxylicious"
 fi
 popd
 
@@ -79,7 +80,7 @@ ${KUBECTL} apply -f https://github.com/cert-manager/cert-manager/releases/downlo
 ${KUBECTL} wait deployment/cert-manager-webhook --for=condition=Available=True --timeout=300s -n cert-manager
 
 # Install strimzi
-${KUBECTL} create namespace kafka || true
+${KUBECTL} create namespace kafka 2>/dev/null || true
 ${KUBECTL} apply -f 'https://strimzi.io/install/latest?namespace=kafka' -n kafka
 ${KUBECTL} wait deployment strimzi-cluster-operator --for=condition=Available=True --timeout=300s -n kafka
 
