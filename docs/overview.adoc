@@ -88,6 +88,9 @@ A _Virtual Cluster_ has exactly one _Target Cluster_.
 There can be a one to one between Virtual Clusters and Target Clusters.
 The other possibility is many to one, where many Virtual Clusters point to the same Target Cluster.
 
+A one to many pattern, where one Virtual Cluster points to many Target Clusters (in other words, amalgamation),
+is not a supported use-case.
+
 [a2s, format="svg"]
 ....
 .-------------------------------------------------------------------------------------.
