@@ -13,11 +13,17 @@ metadata:
 spec:
   isCA: true
   commonName: kroxy-server-cert
-  secretName: kroxy-server-tls
+  secretName: kroxy-server-key-material
   privateKey:
     algorithm: RSA
     size: 4096
     encoding: PKCS8
+  keystores:
+   pkcs12:
+     create: true
+     passwordSecretRef:
+       name: kroxy-server-keystore-password
+       key: storePassword
   dnsNames:
     - mycluster.kafka
     - broker0.mycluster.kafka

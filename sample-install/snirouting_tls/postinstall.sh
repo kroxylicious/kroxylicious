@@ -44,7 +44,7 @@ producer_args=("${common_args[@]}")
 consumer_args=("${common_args[@]}")
 consumer_args+=('--from-beginning')
 
-props=('ssl.truststore.type=PEM' 'security.protocol=SSL' 'ssl.truststore.location=<(kubectl get secret -n kafka kroxy-server-tls -o json | jq -r ".data.\"tls.crt\" | @base64d")')
+props=('ssl.truststore.type=PEM' 'security.protocol=SSL' 'ssl.truststore.location=<(kubectl get secret -n kafka kroxy-server-key-material -o json | jq -r ".data.\"tls.crt\" | @base64d")')
 
 for prop in "${props[@]}"
 do

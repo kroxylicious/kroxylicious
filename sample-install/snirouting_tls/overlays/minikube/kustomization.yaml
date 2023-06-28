@@ -11,3 +11,4 @@ resources:
 - ../../base
 - self-signed-issuer.yaml
 - server-certificate.yaml
+- kroxy-server-keystore-password.yaml

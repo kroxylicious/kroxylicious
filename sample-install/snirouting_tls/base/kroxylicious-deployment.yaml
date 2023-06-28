@@ -32,19 +32,25 @@ spec:
         - name: config-volume
           mountPath: /opt/kroxylicious/config/config.yaml
           subPath: config.yaml
-        - name: server-tls-secret-volume
-          readOnly: true
-          mountPath: /opt/kroxylicious/server-tls
         - name: kafka-cluster-ca-cert
           readOnly: true
           mountPath: /opt/kroxylicious/trust
+        - name: kroxy-server-key-material-volume
+          readOnly: true
+          mountPath: /opt/kroxylicious/server/key-material
+        - name: kroxy-server-keystore-password-volume
+          readOnly: true
+          mountPath: /opt/kroxylicious/server/keystore-password
       volumes:
       - name: config-volume
         configMap:
           name: kroxylicious-config
-      - name: server-tls-secret-volume
-        secret:
-          secretName: kroxy-server-tls
       - name: kafka-cluster-ca-cert
         secret:
           secretName: my-cluster-cluster-ca-cert
+      - name: kroxy-server-key-material-volume
+        secret:
+          secretName: kroxy-server-key-material
+      - name: kroxy-server-keystore-password-volume
+        secret:
+          secretName: kroxy-server-keystore-password

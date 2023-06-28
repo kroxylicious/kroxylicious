@@ -32,7 +32,8 @@ data:
         logFrames: false
         tls:
           key:
-            certificateFile: /opt/kroxylicious/server-tls/tls.crt
-            privateKeyFile: /opt/kroxylicious/server-tls/tls.key
+            storeFile: /opt/kroxylicious/server/key-material/keystore.p12
+            storePassword:
+              filePath: /opt/kroxylicious/server/keystore-password/storePassword
     filters:
     - type: ApiVersions
