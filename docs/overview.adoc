@@ -26,6 +26,7 @@ First let's define the concepts in the landscape surrounding Kroxylicious.
 . _Downstream_ refers to the area between Kafka Client and Kroxylicious.
 . _Upstream_ refers to the area between Kroxylicious and a Kafka Cluster.
 
+.Kroxylious landscape
 [a2s, format="svg"]
 ....
 .---------------------------------------------------------------------------.
@@ -85,12 +86,12 @@ The _Target Cluster_ is the definition of physical Kafka Cluster within the Krox
 
 A _Virtual Cluster_ has exactly one _Target Cluster_.
 
-There can be a one to one between Virtual Clusters and Target Clusters.
-The other possibility is many to one, where many Virtual Clusters point to the same Target Cluster.
+There can be a _one-to-one_ relationship between Virtual Clusters and Target Clusters.
+The other possibility is _many-to-one_, where many Virtual Clusters point to the same Target Cluster.  The
+many-to-one pattern is exploited by filters such as the xref:available-filters.adoc#_multi_tenancy[Multi-tenancy]
+filter.
 
-A one to many pattern, where one Virtual Cluster points to many Target Clusters (in other words, amalgamation),
-is not a supported use-case.
-
+.One-to-One relationship between Virtual Cluster and Target Cluster
 [a2s, format="svg"]
 ....
 .-------------------------------------------------------------------------------------.
@@ -99,7 +100,7 @@ is not a supported use-case.
 | '---------'     |[Kroxylicious]                       |    :[Cluster]           :   |
 | |[Client] |=+   |                                     |    :                    :   |
 | '---------' :   |    '----------------------------'   |    :      '---------'   :   |
-|             :   |    |[Virtual Cluster]           |===+====|==+==>|[Broker] |   :   |
+|             :   |    |[Virtual Cluster]           |===+====|=====>|[Broker] |   :   |
 |             +===|===>|                            |   |    :      |         |   :   |
 |             :   |    |                            |   |    :      '---------'   :   |
 |             +===|===>|                            |   |    :                    :   |
@@ -107,12 +108,45 @@ is not a supported use-case.
 |                 |    |                            |===+====:==+==>|[Broker] |   :   |
 |                 |    '----------------------------'   |    :      |         |   :   |
 |                 |                                     |    :      '---------'   :   |
-|                 |                                     |    :                    :   |
 |                 '-------------------------------------'    '===================='   |
-|                                                                                     |
 .-------------------------------------------------------------------------------------.
 [0,0]: {"fill":"#99d","a2s:delref":1}
 ....
+
+.Many-to-one between Virtual Cluster and Target Cluster
+[a2s, format="svg"]
+....
+.-------------------------------------------------------------------------------------.
+|                                                                                     |
+|                 '-------------------------------------'    '===================='   |
+| '---------'     |[Kroxylicious]                       |    :[Cluster]           :   |
+| |[Client] |=+   |                                     |    :                    :   |
+| '---------' :   |    '----------------------------'   |    :      '---------'   :   |
+|             :   |    |[Virtual Cluster A]         |===+=+==|==+==>|[Broker] |   :   |
+|             +===|===>|                            |   | :  :      |         |   :   |
+|             :   |    |                            |   | :  :      '---------'   :   |
+|             +===|===>|                            |   | :  :                    :   |
+|                 |    |                            |   | :  :      '---------'   :   |
+|                 |    |                            |===+====:==+==>|[Broker] |   :   |
+|                 |    '----------------------------'   | :  :  :   |         |   :   |
+| '---------'     |                                     | :  :  :   '---------'   :   |
+| |[Client] |=+   |    '----------------------------'   | :  :  :                 :   |
+| '---------' :   |    |[Virtual Cluster B]         |===+=+  '===================='   |
+|             +===|===>|                            |   |       :                     |
+|             :   |    |                            |   |       :                     |
+|             +===|===>|                            |   |       :                     |
+|                 |    |                            |   |       :                     |
+|                 |    |                            |===+=======+                     |
+|                 |    '----------------------------'   |                             |
+|                 '-------------------------------------'                             |
+.-------------------------------------------------------------------------------------.
+[0,0]: {"fill":"#99d","a2s:delref":1}
+....
+
+A one-to-many pattern, where one Virtual Cluster points to many Target Clusters (providing amalgamation),
+is not a supported use-case.
+
+
 
 === Filter Chain
 
