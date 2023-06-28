@@ -16,9 +16,3 @@ resources:
 - kroxylicious-service.yaml
 - kafka-persistent.yaml
 
-#secretGenerator:
-#- files:
-#  - secrets/tls.crt
-#  - secrets/tls.key
-#  name: kroxy-server-tls
-#  type: kubernetes.io/tls
