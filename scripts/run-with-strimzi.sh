@@ -33,7 +33,7 @@ if [[ -z "${QUAY_ORG}" ]]; then
   exit 1
 fi
 
-if [[ "${QUAY_ORG}" != ${DEFAULT_QUAY_ORG} ]]; then
+if [[ "${QUAY_ORG}" != "${DEFAULT_QUAY_ORG}" ]]; then
   echo "building and pushing image to quay.io"
   PUSH_IMAGE=y "${SCRIPT_DIR}/deploy-image.sh"
 else
@@ -70,7 +70,7 @@ fi
 
 pushd "${OVERLAY_DIR}"
 ${KUSTOMIZE} edit set namespace ${NAMESPACE}
-if [[ "${QUAY_ORG}" != ${DEFAULT_QUAY_ORG} ]]; then
+if [[ "${QUAY_ORG}" != "${DEFAULT_QUAY_ORG}" ]]; then
   ${KUSTOMIZE} edit set image "quay.io/kroxylicious/${DEFAULT_QUAY_ORG}=quay.io/${QUAY_ORG}/kroxylicious"
 fi
 popd
