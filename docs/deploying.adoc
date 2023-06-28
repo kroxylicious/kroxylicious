@@ -196,11 +196,14 @@ virtualClusters:
 Here's how to enable TLS for the upstream side.  This means that Kroxylicious connects to the (physical) Kafka Cluster)
 over TLS.  For this, your Kafka Cluster must have already been configured to use TLS.
 
-By default, Kroxylicious uses the trust of the platform to decide whether the Kafka Cluster is trusted or not.  To
-support cases where trust must be overridden (such as use-cases involving the use of private CAs or self-signed
-certificates), Kroxylicious accepts override trust material in PKCS12 or JKS keystore format, or PEM formatted certificates.
+By default, Kroxylicious inherits what it trusts from the platform it is running on and uses this to determine whether
+the Kafka Cluster is trusted or not.
 
-The following illustrates enabling TLS using platform trust:
+To support cases where trust must be overridden (such as use-cases involving the use of private CAs or self-signed
+certificates), Kroxylicious accepts override trust material in PKCS12 or JKS keystore format, or PEM formatted
+certificates.
+
+The following illustrates enabling TLS, inheriting platform trust:
 
 [source, yaml]
 ----
@@ -211,9 +214,9 @@ virtualClusters:
       tls: {}                                         <1>
       #...
 ----
-<1> Use an empty object to enable TLS using platform trust.
+<1> Use an empty object to enable TLS inheriting trust from the platform.
 
-In case where the trust needs to be overridden, use configuration like this:
+The following illustrates enabling TLS but with trust coming from a PKCS12 trust store instead of the platform:
 
 [source, yaml]
 ----
