@@ -59,7 +59,7 @@ dynamically.  If another broker is added to the Kafka Cluster, Kroxylicious will
 Similarly, if a broker is removed from the Kafka Cluster, Kroxylicious will automatically close the port that was
 assigned to it.
 
-The `PortPerBroker` scheme can be used with either plain or TLS downstream connections.
+The `PortPerBroker` scheme can be used with either clear text or TLS downstream connections.
 
 [source, yaml]
 ----
@@ -93,7 +93,7 @@ broker address information like this:
 1.  `mybroker-1.mycluster.kafka.com:9194`
 2.  `mybroker-2.mycluster.kafka.com:9194`
 
-NOTE: It is a responsible for the deployer of Kroxylicious to ensure that the bootstrap and generated broker
+NOTE: It is a responsibility for the deployer of Kroxylicious to ensure that the bootstrap and generated broker
 DNS names are resolvable and routable by the Kafka Client.
 
 The `numberOfBrokerPorts` imposes a maximum on the number of brokers that a Kafka Cluster can have. Set this value
@@ -102,7 +102,7 @@ to be as high as the maximum number of brokers that your operational rules allow
 ==== SniRouting scheme
 
 In the `SniRouting` scheme, Kroxylicious uses SNI information to route traffic to either the boostrap or individual
-brokers.   As this relies on SNI, the use of <<Downstream TLS>> is *required*.
+brokers.   As this relies on SNI (Server Name Indication), the use of <<Downstream TLS>> is *required*.
 
 With this scheme, you have the choice to share a single port across all virtual clusters, or you can assign a different
 port to each.  Single port operation may have cost advantages when using load balancers of public clouds, as it allows
@@ -125,13 +125,13 @@ The `brokerAddressPattern` configuration parameters requires that the `$(nodeId)
 This is replaced by the https://kafka.apache.org/documentation/#brokerconfigs_node.id[`node.id`] (or `broker.id)
 assigned to the broker of the target cluster.  This allows Kroxylicious to generate separate routes for each broker.
 
-NOTE: It is a responsible for the deployer of Kroxylicious to ensure that the bootstrap and generated broker
+NOTE: It is a responsibility for the deployer of Kroxylicious to ensure that the bootstrap and generated broker
 DNS names are resolvable and routable by the Kafka Client.
 
 === Transport Layer Security (TLS)
 
 In this section we look at how to enable TLS for either the downstream and/or upstream.   Note, there is no
-interdependency; it is supported to have TLS configured for the downstream and use plain communications for the
+interdependency; it is supported to have TLS configured for the downstream and use clear text communications for the
 upstream, or vice-versa.
 
 NOTE: TLS is recommended for both upstream and downstream for production configurations.
@@ -139,7 +139,7 @@ NOTE: TLS is recommended for both upstream and downstream for production configu
 === Downstream TLS
 
 Here's how to enable TLS for the downstream side. This means the Kafka Client will connect to the virtual cluster over
-TLS rather than plain.  For this, you will need to obtain a TLS certificate for the virtual cluster from your
+TLS rather than clear text.  For this, you will need to obtain a TLS certificate for the virtual cluster from your
 Certificate Authority.
 
 NOTE: When requesting the certificate ensure that the certificate will match the names of the virtual cluster's
@@ -190,6 +190,10 @@ virtualClusters:
 <1> File system location of the server private key.
 <2> File system location of the server certificate and intermediate(s).
 <3> (Optional) File system location of a file containing the key's password.
+
+NOTE: For the private-key, https://datatracker.ietf.org/doc/html/rfc5208[PKCS-8 keys] are supported by default.
+For https://datatracker.ietf.org/doc/html/rfc8017[PKCS-1 keys], https://www.bouncycastle.org/[Bouncycastle] libraries
+must be added to the Kroxylicious classpath. See https://github.com/netty/netty/issues/7323 for more details.
 
 === Upstream TLS
 
