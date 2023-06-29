@@ -8,15 +8,10 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       
-      # Install ASCIIToSVG (a2s) https://docs.asciidoctor.org/diagram-extension/latest/diagram_types/a2s/
-      - uses: actions/setup-go@v4
-        with:
-          go-version: '1.20'
-      - run: go version
-      - run: go install github.com/asciitosvg/asciitosvg@latest
-      - run: which a2s
-
       - name: asciidoctor-ghpages
         uses: manoelcampos/asciidoctor-ghpages-action@v2
         with:
           source_dir: docs/
+          pre_build: "apk add go && go install github.com/asciitosvg/asciitosvg/cmd/a2s@latest && cp ~/go/bin/a2s /usr/local/bin/"
+          asciidoctor_params: "-r asciidoctor-diagram"
+          post_build: 'find . -name "*.svg" -exec git add -f {} \;'
