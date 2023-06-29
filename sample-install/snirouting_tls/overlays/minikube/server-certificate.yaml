@@ -29,6 +29,8 @@ spec:
     - broker0.mycluster-proxy.kafka
     - broker1.mycluster-proxy.kafka
     - broker2.mycluster-proxy.kafka
+  usages:
+    - server auth
   issuerRef:
     name: selfsigned-issuer
     kind: Issuer
