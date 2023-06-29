@@ -6,7 +6,7 @@
 **/*.ipr
 docs
 etc
-sample-install
+kubernetes-examples
 !etc/eclipse-formatter-config.xml
 scripts
 Dockerfile

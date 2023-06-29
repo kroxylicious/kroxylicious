@@ -140,9 +140,9 @@ Kroxylicious can be containerised and run on Minikube against a [Strimzi](https:
 Running:
 
 ```bash
-minikube delete && QUAY_ORG=$your_quay_username$ ./scripts/run-with-strimzi.sh $sample directory$
+minikube delete && QUAY_ORG=$your_quay_username$ ./scripts/run-with-strimzi.sh $kubernetes example directory$
 ```
-where `$sample directory$` is replaced by a path to a sample directory e.g. `./sample-install/portperbroker_plain`.
+where `$kubernetes example directory$` is replaced by a path to an example directory e.g. `./kubernetes-examples/portperbroker_plain`.
 
 This `run-with-strimzi.sh` script does the following:
 1. builds and pushes a kroxylicious image to quay.io
