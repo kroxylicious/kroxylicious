@@ -26,8 +26,8 @@ data:
         clusterNetworkAddressConfigProvider:
           type: SniRouting
           config:
-            bootstrapAddress: mycluster.kafka:9092
-            brokerAddressPattern: broker$(nodeId).mycluster.kafka
+            bootstrapAddress: mycluster-proxy.kafka:9092
+            brokerAddressPattern: broker$(nodeId).mycluster-proxy.kafka
         logNetwork: false
         logFrames: false
         tls:

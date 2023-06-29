@@ -26,7 +26,7 @@ do
       echo
       echo "Found external IP ${EXTERNAL_IP} of load balancer service."
       echo "Please add following link to your '/etc/hosts'."
-      echo "${EXTERNAL_IP} mycluster.kafka broker0.mycluster.kafka broker1.mycluster.kafka broker2.mycluster.kafka"
+      echo "${EXTERNAL_IP} mycluster-proxy.kafka broker0.mycluster-proxy.kafka broker1.mycluster-proxy.kafka broker2.mycluster-proxy.kafka"
       break
    else
      if [[ -z "${FIRST_LOOP}" ]]; then
@@ -39,7 +39,7 @@ do
    echo -n .
 done
 
-common_args=('--bootstrap-server' 'mycluster.kafka:9092' '--topic' 'my-topic')
+common_args=('--bootstrap-server' 'mycluster-proxy.kafka:9092' '--topic' 'my-topic')
 producer_args=("${common_args[@]}")
 consumer_args=("${common_args[@]}")
 consumer_args+=('--from-beginning')

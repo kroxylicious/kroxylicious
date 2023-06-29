@@ -12,7 +12,7 @@ metadata:
   namespace: kafka
 spec:
   isCA: true
-  commonName: kroxy-server-cert
+  commonName: mycluster-proxy.kafka
   secretName: kroxy-server-key-material
   privateKey:
     algorithm: RSA
@@ -25,10 +25,10 @@ spec:
        name: kroxy-server-keystore-password
        key: storePassword
   dnsNames:
-    - mycluster.kafka
-    - broker0.mycluster.kafka
-    - broker1.mycluster.kafka
-    - broker2.mycluster.kafka
+    - mycluster-proxy.kafka
+    - broker0.mycluster-proxy.kafka
+    - broker1.mycluster-proxy.kafka
+    - broker2.mycluster-proxy.kafka
   issuerRef:
     name: selfsigned-issuer
     kind: Issuer
