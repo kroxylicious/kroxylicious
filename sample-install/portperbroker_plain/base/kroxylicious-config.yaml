@@ -23,7 +23,7 @@ data:
           config:
             bootstrapAddress: localhost:9292
             brokerAddressPattern: kroxylicious-service:$(portNumber)
-        logNetwork: true
+        logNetwork: false
         logFrames: false
     filters:
     - type: ApiVersions

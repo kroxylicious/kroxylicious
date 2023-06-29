@@ -137,8 +137,12 @@ Kroxylicious can be containerised and run on Minikube against a [Strimzi](https:
 * OSX users must have `gsed` [installed](https://formulae.brew.sh/formula/gnu-sed)
 * Docker engine [installed](https://docs.docker.com/engine/install) or [podman](https://podman.io/docs/installation) 
 
-Run `minikube delete && QUAY_ORG=$your_quay_username$ ./scripts/run-with-strimzi.sh $sample directory$` where
-`$sample directory$` is replaced by a reference to a directory beneath `sample-install`.
+Running:
+
+```bash
+minikube delete && QUAY_ORG=$your_quay_username$ ./scripts/run-with-strimzi.sh $sample directory$
+```
+where `$sample directory$` is replaced by a path to a sample directory e.g. `./sample-install/portperbroker_plain`.
 
 This `run-with-strimzi.sh` script does the following:
 1. builds and pushes a kroxylicious image to quay.io
