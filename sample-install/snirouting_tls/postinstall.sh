@@ -17,6 +17,9 @@ if [ "$OS" = 'Darwin'  ]; then
   fi
 fi
 
+DNS_NAMES=$(${KUBECTL} get certificate -n kafka server-certificate -o json | jq -r '.spec.dnsNames | join(" ")')
+BOOTSTRAP=$(${KUBECTL} get certificate -n kafka server-certificate -o json | jq -r '.spec.dnsNames[0]')
+
 echo 'Please start "minikube tunnel" in another terminal.'
 
 while true
@@ -26,7 +29,7 @@ do
       echo
       echo "Found external IP ${EXTERNAL_IP} of load balancer service."
       echo "Please add following link to your '/etc/hosts'."
-      echo "${EXTERNAL_IP} mycluster-proxy.kafka broker0.mycluster-proxy.kafka broker1.mycluster-proxy.kafka broker2.mycluster-proxy.kafka"
+      echo "${EXTERNAL_IP} ${DNS_NAMES}"
       break
    else
      if [[ -z "${FIRST_LOOP}" ]]; then
@@ -39,12 +42,12 @@ do
    echo -n .
 done
 
-common_args=('--bootstrap-server' 'mycluster-proxy.kafka:9092' '--topic' 'my-topic')
+common_args=("--bootstrap-server" "${BOOTSTRAP}:9092" "--topic" "my-topic")
 producer_args=("${common_args[@]}")
 consumer_args=("${common_args[@]}")
-consumer_args+=('--from-beginning')
+consumer_args+=("--from-beginning")
 
-props=('ssl.truststore.type=PEM' 'security.protocol=SSL' 'ssl.truststore.location=<(kubectl get secret -n kafka kroxy-server-key-material -o json | jq -r ".data.\"tls.crt\" | @base64d")')
+props=("ssl.truststore.type=PEM" "security.protocol=SSL" 'ssl.truststore.location=<(kubectl get secret -n kafka kroxy-server-key-material -o json | jq -r ".data.\"tls.crt\" | @base64d")')
 
 for prop in "${props[@]}"
 do
