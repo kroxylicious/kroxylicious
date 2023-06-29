@@ -23,8 +23,8 @@
         <module name="kroxylicious-krpc-plugin.main" />
         <module name="kroxylicious-schema-validation" />
         <module name="kroxylicious.test" />
-        <module name="kroxylicious-filter-api" />
         <module name="kroxylicious-krpc-plugin" />
+        <module name="kroxylicious-filter-api" />
         <module name="performance-tests" />
         <module name="kroxylicious-krpc-plugin.test" />
       </profile>

@@ -3,6 +3,8 @@
   <component name="Encoding">
     <file url="file://$PROJECT_DIR$/api/kroxylicious-api/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/api/kroxylicious-api/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/api/kroxylicious-filter-api-bom/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/api/kroxylicious-filter-api-bom/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/api/kroxylicious-filter-api/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/api/kroxylicious-filter-api/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/api/kroxylicious-filter-api/target/generated-sources/krpc" charset="UTF-8" />
@@ -32,5 +34,6 @@
     <file url="file://$PROJECT_DIR$/performance-tests/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/src/main/templates" charset="UTF-8" />
   </component>
 </project>
