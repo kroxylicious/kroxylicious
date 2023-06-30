@@ -320,6 +320,7 @@
                                 <header>${rootdir}/etc/license.txt</header>
                                 <excludes>
                                     <exclude>.*</exclude>
+                                    <exclude>.lift/ignoreFiles</exclude>
                                     <exclude>LICENSE.txt</exclude>
                                     <exclude>**/.dontdelete</exclude>
                                     <exclude>docs/**</exclude>
@@ -327,10 +328,10 @@
                                     <exclude>src/main/java/io/kroxylicious/proxy/future/**</exclude>
                                     <exclude>src/main/java/io/kroxylicious/proxy/internal/future/**</exclude>
                                     <!-- Exclude test key material -->
-                                    <exclude>src/test/resources/io/kroxylicious/proxy/internal/tls/*.key</exclude>
-                                    <exclude>src/test/resources/io/kroxylicious/proxy/internal/tls/*.pem</exclude>
-                                    <exclude>src/test/resources/io/kroxylicious/proxy/internal/tls/*.crt</exclude>
-                                    <exclude>src/test/resources/io/kroxylicious/proxy/internal/tls/*.password</exclude>
+                                    <exclude>src/test/resources/io/kroxylicious/proxy/config/tls/*.key</exclude>
+                                    <exclude>src/test/resources/io/kroxylicious/proxy/config/tls/*.pem</exclude>
+                                    <exclude>src/test/resources/io/kroxylicious/proxy/config/tls/*.crt</exclude>
+                                    <exclude>src/test/resources/io/kroxylicious/proxy/config/tls/*.password</exclude>
                                 </excludes>
                             </licenseSet>
                         </licenseSets>
