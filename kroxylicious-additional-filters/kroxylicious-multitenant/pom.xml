@@ -30,10 +30,17 @@
         <dependency>
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-api</artifactId>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-filter-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <scope>provided</scope>
         </dependency>
 
         <!-- project dependencies - test -->
