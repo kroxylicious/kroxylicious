@@ -31,7 +31,6 @@
 
         <freemarker.version>2.3.32</freemarker.version>
         <guava.version>32.1.1-jre</guava.version>
-        <jackson.version>2.15.2</jackson.version>
         <junit.version>5.9.3</junit.version>
         <kafka.version>3.5.0</kafka.version>
         <log4j.version>2.20.0</log4j.version>
@@ -115,14 +114,6 @@
                 <scope>import</scope>
             </dependency>
 
-            <!-- third party dependencies - runtime and compile -->
-            <dependency>
-                <groupId>com.fasterxml.jackson</groupId>
-                <artifactId>jackson-bom</artifactId>
-                <version>${jackson.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
             <dependency>
                 <groupId>com.google.code.findbugs</groupId>
                 <artifactId>annotations</artifactId>
@@ -133,13 +124,6 @@
                 <groupId>info.picocli</groupId>
                 <artifactId>picocli</artifactId>
                 <version>${picocli.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.micrometer</groupId>
-                <artifactId>micrometer-bom</artifactId>
-                <version>${micrometer.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
             </dependency>
             <dependency>
                 <groupId>io.netty</groupId>
@@ -159,11 +143,6 @@
                 <artifactId>builder-annotations</artifactId>
                 <version>${sundr-builder-annotations.version}</version>
                 <scope>provided</scope>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.kafka</groupId>
-                <artifactId>kafka-clients</artifactId>
-                <version>${kafka.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.logging.log4j</groupId>
