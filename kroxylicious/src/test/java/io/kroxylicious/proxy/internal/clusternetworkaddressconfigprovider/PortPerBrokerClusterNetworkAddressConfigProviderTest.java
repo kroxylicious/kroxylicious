@@ -25,7 +25,7 @@ class PortPerBrokerClusterNetworkAddressConfigProviderTest {
     void badBrokerPortDefinition(int brokerStartPort, int numberOfBrokerPorts) {
         Assertions.assertThrows(IllegalArgumentException.class, () -> {
             new PortPerBrokerClusterNetworkAddressConfigProviderConfig(parse("localhost:1235"),
-                    "localhost:$(portNumber)", brokerStartPort, numberOfBrokerPorts);
+                    "localhost", brokerStartPort, numberOfBrokerPorts);
         });
     }
 
@@ -34,24 +34,32 @@ class PortPerBrokerClusterNetworkAddressConfigProviderTest {
     void bootstrapBrokerAddressCollision(int brokerStartPort, int numberOfBrokerPorts) {
         Assertions.assertThrows(IllegalArgumentException.class, () -> {
             new PortPerBrokerClusterNetworkAddressConfigProviderConfig(parse("localhost:1235"),
-                    "localhost:$(portNumber)", brokerStartPort, numberOfBrokerPorts);
+                    "localhost", brokerStartPort, numberOfBrokerPorts);
         });
     }
 
     @ParameterizedTest
-    @ValueSource(strings = { "notgood:$(foo)", "toomany$(portNumber)$(portNumber)", "toomanyrecursive$(portNumber(portNumber))", "shouty$(PORTNUMBER)badtoo",
-            "not.at.$(portNumber).end:1234" })
+    @ValueSource(strings = { "portnotallowedinbrokerpattern:1234", "unrecognizedpattern$(foo)", "badpatterncapitalisedbadtoo$(NODEID)" })
     @EmptySource
-    void invalidBrokerPattern(String input) {
+    void invalidBrokerAddressPatterns(String input) {
         assertThrows(IllegalArgumentException.class,
                 () -> new PortPerBrokerClusterNetworkAddressConfigProviderConfig(parse("good:1235"), input, 1, 5));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = { "localhost", "127.0.0.1", "[2001:db8::1]", "kafka.example.com", "mybroker$(nodeId)", "mybroker$(nodeId).example.com",
+            "twice$(nodeId)allowed$(nodeId)too" })
+    void validBrokerAddressPatterns(String input) {
+        var config = new PortPerBrokerClusterNetworkAddressConfigProviderConfig(parse("good:1235"), input, 1, 5);
+        assertThat(config).isNotNull();
+
     }
 
     @Test
     void portsExhausted() {
         var provider = new PortPerBrokerClusterNetworkAddressConfigProvider(
                 new PortPerBrokerClusterNetworkAddressConfigProviderConfig(parse("localhost:1235"),
-                        "localhost:$(portNumber)", 1236, 1));
+                        "localhost", 1236, 1));
         assertThat(provider.getBrokerAddress(0)).isEqualTo(parse("localhost:1236"));
         Assertions.assertThrows(IllegalArgumentException.class, () -> {
             provider.getBrokerAddress(1);
@@ -91,7 +99,7 @@ class PortPerBrokerClusterNetworkAddressConfigProviderTest {
     void definesExclusiveAndSharedCorrectly() {
         var provider = new PortPerBrokerClusterNetworkAddressConfigProvider(
                 new PortPerBrokerClusterNetworkAddressConfigProviderConfig(parse("localhost:1235"),
-                        "localhost:$(portNumber)", 1236, 2));
+                        "localhost", 1236, 2));
         assertThat(provider.getExclusivePorts()).containsExactlyInAnyOrder(1235, 1236, 1237);
         assertThat(provider.getSharedPorts()).isEmpty();
     }
@@ -100,7 +108,7 @@ class PortPerBrokerClusterNetworkAddressConfigProviderTest {
     void generatesBrokerAddresses() {
         var provider = new PortPerBrokerClusterNetworkAddressConfigProvider(
                 new PortPerBrokerClusterNetworkAddressConfigProviderConfig(parse("localhost:1235"),
-                        "localhost:$(portNumber)", 1236, 3));
+                        "localhost", 1236, 3));
         assertThat(provider.getClusterBootstrapAddress()).isEqualTo(parse("localhost:1235"));
         assertThat(provider.getBrokerAddress(0)).isEqualTo(parse("localhost:1236"));
         assertThat(provider.getBrokerAddress(1)).isEqualTo(parse("localhost:1237"));
@@ -110,7 +118,7 @@ class PortPerBrokerClusterNetworkAddressConfigProviderTest {
     void fullyQualifiedHostNames() {
         var provider = new PortPerBrokerClusterNetworkAddressConfigProvider(
                 new PortPerBrokerClusterNetworkAddressConfigProviderConfig(parse("cluster.kafka.example.com:1235"),
-                        "broker.kafka.example.com:$(portNumber)", 1236,
+                        "broker.kafka.example.com", 1236,
                         1238));
         assertThat(provider.getClusterBootstrapAddress()).isEqualTo(parse("cluster.kafka.example.com:1235"));
         assertThat(provider.getBrokerAddress(0)).isEqualTo(parse("broker.kafka.example.com:1236"));
@@ -121,7 +129,7 @@ class PortPerBrokerClusterNetworkAddressConfigProviderTest {
     void fullyQualifiedHostNamesWithNodeInterpolation() {
         var provider = new PortPerBrokerClusterNetworkAddressConfigProvider(
                 new PortPerBrokerClusterNetworkAddressConfigProviderConfig(parse("cluster.kafka.example.com:1235"),
-                        "broker$(nodeId).kafka.example.com:$(portNumber)",
+                        "broker$(nodeId).kafka.example.com",
                         1236, 1238));
         assertThat(provider.getClusterBootstrapAddress()).isEqualTo(parse("cluster.kafka.example.com:1235"));
         assertThat(provider.getBrokerAddress(0)).isEqualTo(parse("broker0.kafka.example.com:1236"));

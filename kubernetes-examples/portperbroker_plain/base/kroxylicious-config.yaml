@@ -22,7 +22,7 @@ data:
           type: PortPerBroker
           config:
             bootstrapAddress: localhost:9292
-            brokerAddressPattern: kroxylicious-service:$(portNumber)
+            brokerAddressPattern: kroxylicious-service
         logNetwork: false
         logFrames: false
     filters:
