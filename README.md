@@ -12,6 +12,7 @@ addressing use cases such as multi-tenancy, schema validation, or encryption.
     * [Run natively](#run-natively)
       * [Debugging](#debugging)
     * [Run on Minikube](#run-on-minikube)
+  * [Samples](#samples)
   * [Rendering documentation](#rendering-documentation)
   * [Performance Testing](#performance-testing)
     * [GitHub action for performance](#github-action-for-performance)
@@ -145,6 +146,10 @@ Run `minikube delete && QUAY_ORG=$your_quay_username$ ./scripts/run-with-strimzi
 If you want to only build and push an image to quay.io you can run `PUSH_IMAGE=y QUAY_ORG=$your_quay_username$ ./scripts/deploy-image.sh`
 
 To change the container engine to podman set `CONTAINER_ENGINE=podman`
+
+## Samples
+
+See [kroxylicious-sample](kroxylicious-sample) to learn more about sample filters. Try them out and customise them for a hands-on introduction to custom filters in Kroxylicious.
 
 ## Rendering documentation
 
