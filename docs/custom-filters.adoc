@@ -60,3 +60,8 @@ Therefore there is no need to use synchronization when accessing such fields.
 Filters are packaged as standard `.jar` files.
 
 // TODO
+
+== Sample filters
+
+A collection of sample filters is available within the Kroxylicious repository for you to download, try out, and customise.
+You can find them https://github.com/kroxylicious/kroxylicious/tree/main/kroxylicious-sample[here] for a hands-on introduction to creating your own custom filters.
