@@ -134,14 +134,23 @@ Kroxylicious can be containerised and run on Minikube against a [Strimzi](https:
 * User must have a [quay.io](https://www.quay.io) account and create a public repository named `kroxylicious`
 * Minikube [installed](https://minikube.sigs.k8s.io/docs/start)
 * kubectl [installed](https://kubernetes.io/docs/tasks/tools)
+* kustomize [installed](https://kubectl.docs.kubernetes.io/installation/kustomize/)
 * OSX users must have `gsed` [installed](https://formulae.brew.sh/formula/gnu-sed)
-* Docker engine [installed](https://docs.docker.com/engine/install) ([podman](https://podman.io/docs/installation) may work too)
+* Docker engine [installed](https://docs.docker.com/engine/install) or [podman](https://podman.io/docs/installation) 
 
-Run `minikube delete && QUAY_ORG=$your_quay_username$ ./scripts/run-with-strimzi.sh`. This script:
+Running:
+
+```bash
+minikube delete && QUAY_ORG=$your_quay_username$ ./scripts/run-with-strimzi.sh $kubernetes example directory$
+```
+where `$kubernetes example directory$` is replaced by a path to an example directory e.g. `./kubernetes-examples/portperbroker_plain`.
+
+This `run-with-strimzi.sh` script does the following:
 1. builds and pushes a kroxylicious image to quay.io
 2. starts minikube
-2. installs a 3-node Kafka cluster using Strimzi into minikube
-4. installs kroxylicious into minikube, configured to proxy the cluster
+3. installs cert manager and strimzi
+4. installs a 3-node Kafka cluster using Strimzi into minikube
+5. installs kroxylicious into minikube, configured to proxy the cluster
 
 If you want to only build and push an image to quay.io you can run `PUSH_IMAGE=y QUAY_ORG=$your_quay_username$ ./scripts/deploy-image.sh`
 
