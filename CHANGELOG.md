@@ -28,6 +28,6 @@ behaviour with a single block of configuration in the Kroxylicious configuration
 with RequestFilter, ResponseFilter or any specific message Filter interfaces.
 
 In the kroxylicious config, the brokerAddressPattern parameter for the PortPerBroker scheme no longer accepts or requires
-:$(portNumber) suffix.  In addition, for the SnIRouting scheme the config now enforces that there is no port specifier
-present on the brokerAddressPattern paraemeter. Previously, it was accepted but would lead to a failure later.
+:$(portNumber) suffix.  In addition, for the SniRouting scheme the config now enforces that there is no port specifier
+present on the brokerAddressPattern parameter. Previously, it was accepted but would lead to a failure later.
 
