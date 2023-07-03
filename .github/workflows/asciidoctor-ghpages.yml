@@ -11,3 +11,6 @@ jobs:
         uses: manoelcampos/asciidoctor-ghpages-action@v2
         with:
           source_dir: docs/
+          pre_build: "apk add go && go install github.com/asciitosvg/asciitosvg/cmd/a2s@latest && cp ~/go/bin/a2s /usr/local/bin/"
+          asciidoctor_params: "-r asciidoctor-diagram"
+          post_build: 'find . -name "*.svg" -exec git add -f {} \;'
