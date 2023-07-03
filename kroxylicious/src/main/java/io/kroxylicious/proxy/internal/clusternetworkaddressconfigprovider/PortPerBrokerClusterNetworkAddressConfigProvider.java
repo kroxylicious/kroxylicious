@@ -19,9 +19,9 @@ import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 
-import static io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.BrokerAddressPatternUtils.LITERAL_NODE_ID;
+import static io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.BrokerAddressPatternUtils.EXPECTED_TOKEN_SET;
 import static io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.BrokerAddressPatternUtils.validatePortSpecifier;
-import static io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.BrokerAddressPatternUtils.validateTokens;
+import static io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.BrokerAddressPatternUtils.validateStringContainsOnlyExpectedTokens;
 
 /**
  * A ClusterNetworkAddressConfigProvider implementation that uses a separate port per broker endpoint.
@@ -129,10 +129,9 @@ public class PortPerBrokerClusterNetworkAddressConfigProvider implements Cluster
                 throw new IllegalArgumentException("the port used by the bootstrap address (%d) collides with the broker port range".formatted(bootstrapAddress.port()));
             });
 
-            validateTokens(this.brokerAddressPattern, Set.of(LITERAL_NODE_ID), (token) -> {
+            validateStringContainsOnlyExpectedTokens(this.brokerAddressPattern, EXPECTED_TOKEN_SET, (token) -> {
                 throw new IllegalArgumentException("brokerAddressPattern contains an unexpected replacement token '" + token + "'");
-            }, Set.of(),
-                    null);
+            });
         }
 
         public HostPort getBootstrapAddress() {

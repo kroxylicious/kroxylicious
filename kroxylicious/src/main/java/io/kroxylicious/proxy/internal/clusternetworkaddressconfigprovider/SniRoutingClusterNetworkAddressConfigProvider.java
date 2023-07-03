@@ -14,9 +14,10 @@ import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 
-import static io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.BrokerAddressPatternUtils.LITERAL_NODE_ID;
+import static io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.BrokerAddressPatternUtils.EXPECTED_TOKEN_SET;
 import static io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.BrokerAddressPatternUtils.validatePortSpecifier;
-import static io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.BrokerAddressPatternUtils.validateTokens;
+import static io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.BrokerAddressPatternUtils.validateStringContainsOnlyExpectedTokens;
+import static io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.BrokerAddressPatternUtils.validateStringContainsRequiredTokens;
 
 /**
  * A ClusterNetworkAddressConfigProvider implementation that uses a single, shared, port for bootstrap and
@@ -91,13 +92,13 @@ public class SniRoutingClusterNetworkAddressConfigProvider implements ClusterNet
                 throw new IllegalArgumentException("brokerAddressPattern cannot have port specifier.  Found port : " + s + " within " + brokerAddressPattern);
             });
 
-            validateTokens(brokerAddressPattern,
-                    Set.of(LITERAL_NODE_ID), (token) -> {
-                        throw new IllegalArgumentException("brokerAddressPattern contains an unexpected replacement token '" + token + "'");
-                    },
-                    Set.of(LITERAL_NODE_ID), (u) -> {
-                        throw new IllegalArgumentException("brokerAddressPattern must contain at least one nodeId replacement pattern '" + LITERAL_NODE_ID + "'");
-                    });
+            validateStringContainsOnlyExpectedTokens(brokerAddressPattern, EXPECTED_TOKEN_SET, (tok) -> {
+                throw new IllegalArgumentException("brokerAddressPattern contains an unexpected replacement token '" + tok + "'");
+            });
+
+            validateStringContainsRequiredTokens(brokerAddressPattern, EXPECTED_TOKEN_SET, (tok) -> {
+                throw new IllegalArgumentException("brokerAddressPattern must contain at least one nodeId replacement pattern '" + tok + "'");
+            });
 
             this.bootstrapAddress = bootstrapAddress;
             this.brokerAddressPattern = brokerAddressPattern;

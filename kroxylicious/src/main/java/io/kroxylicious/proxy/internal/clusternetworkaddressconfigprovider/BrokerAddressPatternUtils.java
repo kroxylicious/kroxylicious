@@ -6,31 +6,57 @@
 
 package io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider;
 
-import java.util.HashSet;
+import java.util.Objects;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
 
-class BrokerAddressPatternUtils {
-    public static final String LITERAL_NODE_ID = "$(nodeId)";
-    public static final Pattern LITERAL_NODE_ID_PATTERN = Pattern.compile(Pattern.quote(LITERAL_NODE_ID));
-    public static final Pattern PORT_SPECIFIER_RE = Pattern.compile(":([0-9]+)$");
-    public static final Pattern TOKEN_RE = Pattern.compile("(\\$\\([^)]+\\))");
+final class BrokerAddressPatternUtils {
+    private static final String LITERAL_NODE_ID = "$(nodeId)";
+    private static final Pattern LITERAL_NODE_ID_PATTERN = Pattern.compile(Pattern.quote(LITERAL_NODE_ID));
+    private static final Pattern PORT_SPECIFIER_RE = Pattern.compile(":([0-9]+)$");
+    private static final Pattern TOKEN_RE = Pattern.compile("(\\$\\([^)]+\\))");
+    public static Set<String> EXPECTED_TOKEN_SET = Set.of(LITERAL_NODE_ID);
 
-    static void validateTokens(String stringWithTokens,
-                               Set<String> allowedTokens, Consumer<String> disallowedTokenFound,
-                               Set<String> requiredTokens, Consumer<String> requiredTokenAbsent) {
+    private BrokerAddressPatternUtils() {
+    }
+
+    private static Set<String> extractTokens(String stringWithTokens) {
         var tokenMatcher = TOKEN_RE.matcher(stringWithTokens);
-        var requiredTokensCopy = new HashSet<>(requiredTokens == null ? Set.of() : requiredTokens);
+        var tokens = new TreeSet<String>();
         while (tokenMatcher.find()) {
             var token = tokenMatcher.group(1);
-            if (!(allowedTokens.contains(token) || (requiredTokens != null && requiredTokens.contains(token)))) {
-                disallowedTokenFound.accept(token);
-            }
-            requiredTokensCopy.remove(token);
+            tokens.add(token);
         }
-        if (!requiredTokensCopy.isEmpty() && requiredTokenAbsent != null) {
-            requiredTokensCopy.forEach(requiredTokenAbsent);
+        return tokens;
+
+    }
+
+    static void validateStringContainsOnlyExpectedTokens(String stringWithPossibleTokens,
+                                                         Set<String> allowedTokens,
+                                                         Consumer<String> disallowedTokenConsumer) {
+        Objects.requireNonNull(stringWithPossibleTokens);
+        Objects.requireNonNull(allowedTokens);
+        Objects.requireNonNull(disallowedTokenConsumer);
+        var tokens = extractTokens(stringWithPossibleTokens);
+        tokens.removeAll(allowedTokens);
+        tokens.forEach(disallowedTokenConsumer);
+    }
+
+    static void validateStringContainsRequiredTokens(String stringWithTokens,
+                                                     Set<String> requiredTokens,
+                                                     Consumer<String> requiredTokenAbsentConsumer) {
+        Objects.requireNonNull(stringWithTokens);
+        Objects.requireNonNull(requiredTokens);
+        Objects.requireNonNull(requiredTokenAbsentConsumer);
+
+        var tokens = extractTokens(stringWithTokens);
+        var requiredTokensCopy = new TreeSet<>(requiredTokens);
+        requiredTokensCopy.removeAll(tokens);
+
+        if (!requiredTokensCopy.isEmpty()) {
+            requiredTokensCopy.forEach(requiredTokenAbsentConsumer);
         }
     }
 
