@@ -27,9 +27,9 @@ do
    EXTERNAL_IP=$(${KUBECTL} get service/kroxylicious-service -n kafka -o json | jq -r '.status.loadBalancer.ingress[0].ip // empty')
    if [[ "${EXTERNAL_IP}" ]]; then
       echo
-      echo "Found external IP ${EXTERNAL_IP} of load balancer service."
-      echo "Please add following link to your '/etc/hosts'."
-      echo "${EXTERNAL_IP} ${DNS_NAMES}"
+      echo -e  "\e[1;33mFound external IP ${EXTERNAL_IP} of load balancer service.\e[0m"
+      echo -e  "\e[1;33mPlease add following link to your '/etc/hosts'.\e[0m"
+      echo -e  "\e[1;33m${EXTERNAL_IP} ${DNS_NAMES}\e[0m"
       break
    else
      if [[ -z "${FIRST_LOOP}" ]]; then
