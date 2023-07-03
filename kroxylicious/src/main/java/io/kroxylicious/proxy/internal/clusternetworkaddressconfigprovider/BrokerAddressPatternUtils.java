@@ -40,4 +40,8 @@ class BrokerAddressPatternUtils {
             portNumber.accept(portMatcher.group(1));
         }
     }
+
+    static String replaceLiteralNodeId(String brokerAddressPattern, int nodeId) {
+        return LITERAL_NODE_ID_PATTERN.matcher(brokerAddressPattern).replaceAll(Integer.toString(nodeId));
+    }
 }
