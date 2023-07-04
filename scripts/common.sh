@@ -9,21 +9,21 @@ OS=$(uname)
 
 if [[ -z $CONTAINER_ENGINE ]]; then
   echo "Setting CONTAINER_ENGINE to default: docker"
-  CONTAINER_ENGINE=$(which docker)
+  CONTAINER_ENGINE=$(command -v docker)
   export CONTAINER_ENGINE
 fi
-KUBECTL=$(which kubectl)
+KUBECTL=$(command -v kubectl)
 export KUBECTL
-MINIKUBE=$(which minikube)
+MINIKUBE=$(command -v minikube)
 export MINIKUBE
-KUSTOMIZE=$(which kustomize)
+KUSTOMIZE=$(command -v kustomize)
 export KUSTOMIZE
 
 if [ "$OS" = 'Darwin' ]; then
   # for MacOS
-  SED=$(which gsed)
+  SED=$(command -v gsed)
 else
   # for Linux and Windows
-  SED=$(which sed)
+  SED=$(command -v sed)
 fi
 export SED
