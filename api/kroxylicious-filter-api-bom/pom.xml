@@ -9,7 +9,6 @@
 
     <packaging>pom</packaging>
     <properties>
-        <jackson.version>2.15.2</jackson.version>
         <kafka.version>3.5.0</kafka.version>
         <micrometer.version>1.11.1</micrometer.version>
         <slf4j.version>2.0.7</slf4j.version>
@@ -47,13 +46,6 @@
                 <groupId>io.micrometer</groupId>
                 <artifactId>micrometer-bom</artifactId>
                 <version>${micrometer.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-            <dependency>
-                <groupId>com.fasterxml.jackson</groupId>
-                <artifactId>jackson-bom</artifactId>
-                <version>${jackson.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>

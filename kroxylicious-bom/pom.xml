@@ -17,6 +17,7 @@
     <properties>
         <kroxyliciousApi.version>0.3.0-SNAPSHOT</kroxyliciousApi.version>
         <kroxy.extension.version>0.4.0</kroxy.extension.version>
+        <jackson.version>2.15.2</jackson.version>
     </properties>
 
     <dependencyManagement>
@@ -74,6 +75,15 @@
                 <artifactId>testing-api</artifactId>
                 <version>${kroxy.extension.version}</version>
                 <scope>test</scope>
+            </dependency>
+
+            <!-- Third party -->
+            <dependency>
+                <groupId>com.fasterxml.jackson</groupId>
+                <artifactId>jackson-bom</artifactId>
+                <version>${jackson.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
             </dependency>
         </dependencies>
     </dependencyManagement>
