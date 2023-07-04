@@ -1,18 +1,33 @@
+:github: https://github.com/kroxylicious/kroxylicious
+:api-javadoc: https://javadoc.io/doc/io.kroxylicious/kroxylicious-api/latest
+:filter-api-javadoc: https://javadoc.io/doc/io.kroxylicious/kroxylicious-filter-api/latest
+:source-highlighter: pygments
+:java-17-javadoc: https://docs.oracle.com/en/java/javase/17/docs/api
+
 = Custom filters
 
 Custom filters can be written in the Java programming language.
-Knowledge of the Kafka protocol is generally required to write a protocol filter.
+Knowledge of the https://kafka.apache.org/protocol.html[Kafka protocol] is generally required to write a protocol filter.
 
 As explained in the overview, there are two kinds of filter:
 
-Net filters:: Allow customisation over how Kafka client connections are handled.
+<<Net filters>>:: Allow customisation over how Kafka client connections are handled.
 
-Protocol filters:: Allow customisation of how protocol messages are handled on their way to, or from, the Kafka cluster.
+<<Protocol filters>>:: Allow customisation of how protocol messages are handled on their way to, or from, the Cluster.
 
 The following sections explain in more detail how to write your own filters.
 
+== Sample Custom Filter Project
+
+A collection of sample filters is available within the Kroxylicious repository for you to download, try out, and customise.
+You can find them {github}/tree/main/kroxylicious-sample[here] for a hands-on introduction to creating your own custom filters.
+
 == API docs
-// TODO Link to the API docs
+
+Custom Protocol Filters are built by implementing interfaces supplied by the
+{github}/tree/main/api/kroxylicious-filter-api[kroxylicious-filter-api] module
+(https://mvnrepository.com/artifact/io.kroxylicious/kroxylicious-filter-api[io.kroxylicious:kroxylicious-filter-api] on
+maven central). You can view the javadoc {filter-api-javadoc}/io/kroxylicious/proxy/filter/package-summary.html[here].
 
 == Dependencies
 
@@ -36,7 +51,178 @@ For common things like logging and metric facade APIs it is recommended to use t
 == Protocol filters
 
 A protocol filter is a `public` top-level, concrete class with a particular public constructor and which implements
-one or more protocol filter interfaces.
+one or more protocol filter interfaces. You can implement two distinct types of Custom Protocol Filter:
+
+- <<Specific Message Protocol Filters>>
+- <<Request/Response Protocol Filters>>
+
+Note that these types are mutually exclusive, for example a Filter is not allowed to implement both `RequestFilter` and
+`MetadataRequestFilter`. This is to prevent ambiguity. If we received a `MetadataRequest`, would it be dispatched to
+the `onMetadataRequest(..)` method of `MetadataRequestFilter` or the `onRequest` method of `RequestFilter`, or both?
+Instead, we disallow these combinations, throwing an exception at runtime if your Filter implements incompatible interfaces.
+
+You can also implement a convenience interface to deliver multiple Protocol Filters to the filter chain using <<Composite Filters>>.
+
+=== Specific Message Protocol Filters
+
+A filter may wish to intercept specific types of Kafka messages. For example, intercept all Produce Requests, or
+intercept all Fetch Responses. To support this case Kroxylicious provides an interfaces for all request types and
+response types supported by Kafka (at the version of Kafka Kroxylicious depends on). A filter implementation can
+implement any combination of these interfaces.
+
+There is no requirement that a Filter handles both the request and response halves of an RPC. A Filter can choose to
+intercept only the request, or only the response, or both the request and response.
+
+==== Examples
+
+To intercept all Fetch Requests your class would implement
+{filter-api-javadoc}/io/kroxylicious/proxy/filter/FetchRequestFilter.html[FetchRequestFilter]:
+
+[source,java]
+----
+public class FetchRequestClientIdFilter implements FetchRequestFilter {
+
+    @Override
+    public void onFetchRequest(short apiVersion,
+                               RequestHeaderData header,
+                               FetchRequestData request,
+                               KrpcFilterContext context) {
+        header.setClientId("fetch-client!");
+        context.forwardRequest(header, request);
+    }
+}
+----
+
+To intercept all Fetch Responses your class would implement
+{filter-api-javadoc}/io/kroxylicious/proxy/filter/FetchResponseFilter.html[FetchResponseFilter]:
+
+[source,java]
+----
+public class FetchRequestClientIdFilter implements FetchResponseFilter {
+
+    @Override
+    public void onFetchResponse(short apiVersion,
+                                ResponseHeaderData header,
+                                FetchResponseData response,
+                                KrpcFilterContext context) {
+        mutateResponse(response),
+        context.forwardResponse(header, response);
+    }
+    ...
+}
+----
+
+To intercept all Fetch Requests and all Fetch Responses your class would implement
+{filter-api-javadoc}/io/kroxylicious/proxy/filter/FetchRequestFilter.html[FetchRequestFilter] and
+{filter-api-javadoc}/io/kroxylicious/proxy/filter/FetchResponseFilter.html[FetchResponseFilter]:
+
+[source,java]
+----
+public class FetchRequestClientIdFilter implements FetchRequestFilter, FetchResponseFilter {
+
+    @Override
+    public void onFetchRequest(short apiVersion,
+                               RequestHeaderData header,
+                               FetchRequestData request,
+                               KrpcFilterContext context) {
+        header.setClientId("fetch-client!");
+        context.forwardRequest(header, request);
+    }
+
+    @Override
+    public void onFetchResponse(short apiVersion,
+                                ResponseHeaderData header,
+                                FetchResponseData response,
+                                KrpcFilterContext context) {
+        mutateResponse(response),
+        context.forwardResponse(header, response);
+    }
+}
+----
+Specific Message Filter interfaces are mutually exclusive with <<Request/Response Protocol Filters, Request/Response>> and
+<<Composite Filters,CompositeFilter>> interfaces. Kroxylicious will reject invalid combinations of
+interfaces.
+
+=== Request/Response Protocol Filters
+
+A filter may wish to intercept every message being sent from the Client to the Cluster or from the Cluster
+to the Client. To do this your custom filter will implement:
+
+- {filter-api-javadoc}/io/kroxylicious/proxy/filter/RequestFilter.html[RequestFilter]
+to intercept all requests.
+- {filter-api-javadoc}/io/kroxylicious/proxy/filter/ResponseFilter.html[ResponseFilter]
+to intercept all responses.
+
+Custom filters are free to implement either interface or both interfaces to intercept all messages.
+
+For example:
+
+[source,java]
+----
+public class FixedClientIdFilter implements RequestFilter {
+
+    @Override
+    public void onRequest(ApiKeys apiKey,
+                          RequestHeaderData header,
+                          ApiMessage body,
+                          KrpcFilterContext filterContext) {
+        header.setClientId("example!");
+        filterContext.forwardRequest(header, body);
+    }
+
+}
+----
+
+Request/Response Filter interfaces are mutually exclusive with <<Specific Message Protocol Filters, Specific Message>> and
+<<Composite Filters,CompositeFilter>> interfaces. Kroxylicious will reject invalid combinations of
+interfaces.
+
+=== Composite Filters
+
+Sometimes we want to present a chain of multiple Filters as a single cohesive unit with just one entry in the `filters`
+configuration of Kroxylicious. The {github}/blob/main/api/kroxylicious-filter-api/src/main/java/io/kroxylicious/proxy/filter/CompositeFilter.java[CompositeFilter]
+interface enables you to do this.
+
+An example might look like this:
+
+[source,java]
+----
+class ExampleCompositeFilter implements CompositeFilter {
+
+        private final ExampleConfiguration configuration;
+
+        public ExampleCompositeFilter(ExampleConfiguration configuration){
+            this.configuration = configuration;
+        }
+
+        @Override
+        public List<KrpcFilter> getFilters() {
+            return List.of(
+                new OverrideAllClientIdHeadersFilter(configuration.clientId()),
+                new PrefixProduceRequestFilter(configuration.prefix())
+            );
+        }
+}
+----
+
+Which could have corresponding configuration:
+[source,yaml]
+----
+filters:
+- type: Example
+  config:
+    clientId: fixed-id
+    prefix: abcde
+----
+
+This enables you to break a complex behaviour into logical chunks, implemented with multiple Filters, but they can be
+installed with a single block of configuration in the Kroxylicious configuration. For example if you wanted to intercept
+some specific RPCs but also change the `clientId` header of all requests, instead of requiring the user to
+configure two filters you could provide a CompositeFilter that provides both Filters.
+
+The CompositeFilter interface is mutually exclusive with <<Specific Message Protocol Filters, Specific Message>> and
+<<Request/Response Protocol Filters,Request/Response>> interfaces. Kroxylicious will reject invalid combinations of
+interfaces.
 
 === The protocol filter lifecycle
 
@@ -48,20 +234,218 @@ It exists while the client remains connected.
 === Handling state
 
 The simplest way of managing per-client state is to use member fields.
-The proxy guarantees that all methods of a given filter instance will always be invoked on the same thread.
-Therefore there is no need to use synchronization when accessing such fields.
+The proxy guarantees that all methods of a given filter instance will always be invoked on the same thread (also true of
+the CompletionStage completion in the case of <<Sending out-of-band requests to the Cluster>>).
+Therefore, there is no need to use synchronization when accessing such fields.
 
-=== An example protocol filter
+=== Filter Patterns
 
-// TODO
+Kroxylicious Protocol Filters support several patterns:
+
+1. <<Intercepting Requests and Responses>>
+2. <<Sending Response messages from a Request Filter towards the Client>>
+3. <<Sending out-of-band requests to the Cluster>>
+4. <<Filtering specific API Versions>>
+
+==== Intercepting Requests and Responses
+
+This is a common pattern, we want to inspect or modify a message. For example:
+
+[source,java]
+----
+public class SampleFetchResponseFilter implements FetchResponseFilter {
+    @Override
+    public void onFetchResponse(short apiVersion,
+                                ResponseHeaderData header,
+                                FetchResponseData response,
+                                KrpcFilterContext context) {
+        mutateResponse(response, context); //<1>
+        context.forwardResponse(header, response); //<2>
+    }
+}
+----
+<1> We mutate the response object. For example, you could alter the records that have been fetched.
+<2> We forward the response, sending it towards the client, invoking Filters downstream of this one. Note that we can
+only forward the response and header objects passed into the `onFetchResponse`. New instances are not supported.
+Also, `forwardResponse` must be called during the invocation of the `onFetchResponse` method.
+
+==== Sending Response messages from a Request Filter towards the Client
+
+In some cases we may wish to not forward a request from the client to the Cluster. Instead, we want to intercept that
+request and generate a response message in a Kroxylicious Protocol Filter and send it towards the client.
+
+.Illustration of responding without proxying
+[a2s, format="svg"]
+....
+.----------------------------------------------------------------------------------------------------------------------.
+|                                                                                                                      |
+|                       '---------------------------------------------------------------'                              |
+|                       |[Kroxylicious]                                                 |                              |
+|                       |                                                               |                              |
+|                       |   '----------------------------------------------------'      |      '--------------------'  |
+|                       |   |[Virtual Cluster]                                   |      |      |[Cluster]           |  |
+|  '-------------'      |   |   '----------'     '----------'     '----------'   |      |      |    '------------'  |  |
+|  |[Client]     |      |   |   |[Filter1] |     |[Filter2] |     |[Filter3] |   |      |      |    |[Broker]    |  |  |
+|  |             |======|===|==>|          |====>|          |     |          |   |      |      |    |            |  |  |
+|  |             |  A   |   |   | F(A)-->B |  B  | F(B)-->C |     |          |   |      |      |    |            |  |  |
+|  |             |      |   |   |          |     |        : |     |          |   |      |      |    |            |  |  |
+|  |             |<=====|===|===|          |<====|        : |     |          |   |      |      |    |            |  |  |
+|  |             |  W   |   |   | f(C)-->W |  C  | <======+ |     |          |   |      |      |    |            |  |  |
+|  '-------------'      |   |   '----------'     '----------'     '----------'   |      |      |    '------------'  |  |
+|                       |   |                                                    |      |      '--------------------'  |
+|                       |   '----------------------------------------------------'      |                              |
+|                       |                                                               |                              |
+|                       '---------------------------------------------------------------'                              |
+|                                                                                                                      |
+.----------------------------------------------------------------------------------------------------------------------.
+[0,0]: {"fill":"#99d","a2s:delref":1}
+....
+
+For example:
+
+[source,java]
+----
+public class ApiVersionsErrorFilter implements ApiVersionsRequestFilter {
+
+    @Override
+    public void onApiVersionsRequest(short apiVersion,
+                                     RequestHeaderData header,
+                                     ApiVersionsRequestData request,
+                                     KrpcFilterContext context) {
+        ApiVersionsResponseData response = new ApiVersionsResponseData(); //<1>
+        response.setErrorCode(Errors.UNKNOWN_SERVER_ERROR.code());
+        context.forwardResponse(response);//<2>
+    }
+}
+----
+<1> Create a new instance of the corresponding response data and populate it. Note you may need to use the `apiVersion`
+to check which fields can be set at this request's API version.
+<2> We forward the response, sending it towards the client, invoking Filters downstream of this one. Again, `forwardResponse`
+must be called during the invocation of the `onApiVersionsRequest` method.
+
+This will respond to all Api Versions requests with an error response without forwarding any of those requests to the Cluster.
+
+==== Sending out-of-band requests to the Cluster
+
+Filters can also send arbitrary new messages towards the Cluster that will be invisible to the Client. For example, we could send a
+request towards the Cluster for topic metadata while handling a FetchRequest.
+
+For example:
+
+[source,java]
+----
+public class FetchFilter implements FetchRequestFilter{
+    public static final short METADATA_VERSION_SUPPORTING_TOPIC_IDS = (short) 12;
+
+    @Override
+    public void onFetchRequest(short apiVersion,
+                               RequestHeaderData header,
+                               FetchRequestData request,
+                               KrpcFilterContext context) {
+        MetadataRequestData metadataRequest = new MetadataRequestData(); //<1>
+        var topic = new MetadataRequestData.MetadataRequestTopic();
+        topic.setTopicId(Uuid.randomUuid());
+        metadataRequest.topics().add(topic);
+        short version = METADATA_VERSION_SUPPORTING_TOPIC_IDS;
+        CompletionStage<MetadataResponseData> stage = context.sendRequest(version, request);//<2>
+        stage.thenAccept(response -> doSomethingWithMetadata(response, version));//<3>
+        context.forwardRequest(header, request);//<4>
+    }
+}
+----
+<1> We construct a new request object
+<2> We send the request towards the Cluster, specifying the api version to use and obtaining a CompletionStage for the
+response.
+<3> When the CompletionStage is completed, we do something with the metadata (populate a cache for example). Note that this
+stage is completed on the same thread as the rest of the Filter work, so we can safely mutate Filter members without
+synchronising.
+<4> We also forward the original request. This will flow to the Cluster and back through Kroxylicious to the Client.
+
+As you can see, we need to know the API version we want our message to be encoded at. This must be done carefully as we
+currently do not have a mechanism for your Filter to know the supported API versions of the Cluster. If
+you use a hardcoded API version as shown, your Filter will only work with upstream brokers that support that api version
+for that RPC (see issue {github}/issues/438[#438]).
+
+The out-of-band Request/Response are eligible to be intercepted by Filters upstream of this Filter.
+
+Note you should not attempt to call `forward` methods on the `KrpcFilterContext` using the CompletionStage, they still
+must be called synchronously during the invocation of the `onXyz[Request|Response]` method.
+
+==== Filtering specific API Versions
+
+> Kafka has a "bidirectional" client compatibility policy. In other words, new clients can talk to old servers, and old clients can talk to new servers. This allows users to upgrade either clients or servers without experiencing any downtime.
+>
+> Since the Kafka protocol has changed over time, clients and servers need to agree on the schema of the message that they are sending over the wire. This is done through API versioning.
+>
+> Before each request is sent, the client sends the API key and the API version. These two 16-bit numbers, when taken together, uniquely identify the schema of the message to follow.
+> -- https://kafka.apache.org/protocol.html#protocol_compatibility
+
+You may wish to restrict your Filter to only apply to specific versions of an API. For example, "intercept all FetchRequest
+messages greater than api version 7". To do this you can override a method named `shouldHandleXyz[Request|Response]` on your filter like:
+
+[source,java]
+----
+public class FetchFilter implements FetchRequestFilter{
+
+    @Override
+    public boolean shouldHandleFetchRequest(short apiVersion) {
+        return apiVersion > 7;
+    }
+
+    @Override
+    public void onFetchRequest(short apiVersion,
+                               RequestHeaderData header,
+                               FetchRequestData request,
+                               KrpcFilterContext context) {
+        context.forwardRequest(header, request);
+    }
+}
+----
+
+=== Filter Construction and Configuration
+:github-sample-contributor: {github}/blob/main/kroxylicious-sample/src/main/java/io/kroxylicious/sample/SampleContributor.java
+
+For Kroxylicious to instantiate and configure your custom filter we use Java's {java-17-javadoc}/java.base/java/util/ServiceLoader.html[ServiceLoader] API.
+A Custom Filter JAR should provide a {filter-api-javadoc}/io/kroxylicious/proxy/filter/FilterContributor.html[FilterContributor] implementation that can contribute an instance of your custom Filter and
+optionally declare a configuration class that Kroxylicious will populate (using Jackson) when loading your custom Filter.
+The module must package a `META-INF/services/io.kroxylicious.proxy.filter.FilterContributor` file containing the
+classname of the contributor into the JAR file.
+
+A convenience is provided to simplify building FilterContributors, the {api-javadoc}/io/kroxylicious/proxy/service/BaseContributor.html[BaseContributor]. See the {github-sample-contributor}[SampleContributor] for
+an example implementation (and corresponding {github}/blob/main/kroxylicious-sample/src/main/resources/META-INF/services/io.kroxylicious.proxy.filter.FilterContributor[service metadata]).
+
+For simple integration with the BaseContributor a Custom Protocol Filter may have:
+
+1. No Constructor
+2. A no-arguments Constructor
+3. A Constructor where the only parameter is a class that extends {api-javadoc}/io/kroxylicious/proxy/config/BaseConfig.html[BaseConfig].
+
+If you use style 3, you will supply a custom configuration class. This class must be deserializable using https://github.com/FasterXML/jackson[FasterXML/Jackson]
+we use this to load filter configuration from the Kroxylicious configuration file into your custom class.
+
+For example in the kroxylicious-samples we have the {github}/blob/main/kroxylicious-sample/src/main/java/io/kroxylicious/sample/config/SampleFilterConfig.java[SampleFilterConfig] class.
+This is used in the {github-sample-contributor}[SampleContributor] when building up the mappings and then again in the
+constructors of the Filters (see {github}/blob/main/kroxylicious-sample/src/main/java/io/kroxylicious/sample/SampleFetchResponseFilter.java[SampleFetchResponseFilter]).
+
+Then, when we configure a filter in Kroxylicious configuration like:
+
+[source,yaml]
+----
+filters:
+- type: SampleFetchResponse
+  config:
+    findValue: a
+    replacementValue: b
+----
+Kroxylicious will deserialize the `config` object into a `SampleFilterConfig` and use it to construct a
+`SampleFetchResponseFilter` passing the `SampleFilterConfig` instance as a constructor argument.
+
+Note that we have the <<Composite Filters, CompositeFilter>> interface available if you wish to use a single configuration
+block in YAML to install multiple Filters into the Filter chain.
 
 == Packaging filters
 
-Filters are packaged as standard `.jar` files.
+Filters are packaged as standard `.jar` files. A typical Custom Filter jar contains:
 
-// TODO
-
-== Sample filters
-
-A collection of sample filters is available within the Kroxylicious repository for you to download, try out, and customise.
-You can find them https://github.com/kroxylicious/kroxylicious/tree/main/kroxylicious-sample[here] for a hands-on introduction to creating your own custom filters.
+1. Filter implementation classes
+2. A FilterContributor implementation and service metadata (see <<Filter Construction and Configuration>>)
