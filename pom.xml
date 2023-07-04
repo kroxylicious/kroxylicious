@@ -29,6 +29,9 @@
         <skipITs>${skipTests}</skipITs>
         <skipUTs>${skipTests}</skipUTs>
 
+        <kafka.version>3.5.0</kafka.version>
+        <micrometer.version>1.11.1</micrometer.version>
+        <slf4j.version>2.0.7</slf4j.version>
         <freemarker.version>2.3.32</freemarker.version>
         <guava.version>32.0.1-jre</guava.version>
         <jackson.version>2.15.2</jackson.version>
@@ -123,6 +126,7 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+
             <dependency>
                 <groupId>com.google.code.findbugs</groupId>
                 <artifactId>annotations</artifactId>

@@ -8,11 +8,6 @@
     <name>Kroxylicious Filter API BOM</name>
 
     <packaging>pom</packaging>
-    <properties>
-        <kafka.version>3.5.0</kafka.version>
-        <micrometer.version>1.11.1</micrometer.version>
-        <slf4j.version>2.0.7</slf4j.version>
-    </properties>
 
     <dependencyManagement>
         <dependencies>
@@ -25,29 +20,6 @@
                 <groupId>io.kroxylicious</groupId>
                 <artifactId>kroxylicious-filter-api</artifactId>
                 <version>${project.version}</version>
-            </dependency>
-
-            <!-- third party dependencies - runtime and compile -->
-            <dependency>
-                <groupId>org.apache.kafka</groupId>
-                <artifactId>kafka-clients</artifactId>
-                <version>${kafka.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.slf4j</groupId>
-                <artifactId>slf4j-api</artifactId>
-                <version>${slf4j.version}</version>
-            </dependency>
-
-            <!-- third party dependency boms - import scope-->
-            <!-- We do this as the filter API depends on specific third party modules (usually just their API jars -->
-            <!-- however to avoid that leading to version conflicts we import the entire bom to provide a standard version-->
-            <dependency>
-                <groupId>io.micrometer</groupId>
-                <artifactId>micrometer-bom</artifactId>
-                <version>${micrometer.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
             </dependency>
         </dependencies>
     </dependencyManagement>
