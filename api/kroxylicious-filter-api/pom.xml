@@ -34,15 +34,10 @@
         <dependency>
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-api</artifactId>
-            <scope>provided</scope>
+            <optional>true</optional>
         </dependency>
 
-        <!-- third party dependencies - runtime and compile -->
-        <dependency>
-            <groupId>io.micrometer</groupId>
-            <artifactId>micrometer-core</artifactId>
-            <scope>provided</scope>
-        </dependency>
+        <!-- required third party dependencies - runtime and compile -->
         <dependency>
             <groupId>org.apache.kafka</groupId>
             <artifactId>kafka-clients</artifactId>
@@ -50,7 +45,14 @@
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
+        </dependency>
+
+        <!-- optional third party dependencies - runtime and compile -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-core</artifactId>
             <scope>provided</scope>
+            <optional>true</optional>
         </dependency>
 
         <!-- third party dependencies - test -->
