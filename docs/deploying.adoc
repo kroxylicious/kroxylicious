@@ -66,11 +66,11 @@ The `PortPerBroker` scheme can be used with either clear text or TLS downstream 
 clusterNetworkAddressConfigProvider:
   type: PortPerBroker
   config:
-    bootstrapAddress: mycluster.kafka.com:9192                                 # <1>
-    brokerAddressPattern: mybroker-$(nodeId).mycluster.kafka.com:$(portNumber) # <2>
-    brokerStartPort: 9193                                                      # <3>
-    numberOfBrokerPorts: 3                                                     # <4>
-    bindAddress: 192.168.0.1                                                   # <5>
+    bootstrapAddress: mycluster.kafka.com:9192                   # <1>
+    brokerAddressPattern: mybroker-$(nodeId).mycluster.kafka.com # <2>
+    brokerStartPort: 9193                                        # <3>
+    numberOfBrokerPorts: 3                                       # <4>
+    bindAddress: 192.168.0.1                                     # <5>
 ----
 <1> The hostname and port of the bootstrap that will be used by the Kafka Clients.
 <2> (Optional) The broker address pattern used to form the broker addresses.  If not defined, it defaults to the
@@ -79,12 +79,9 @@ hostname part of the `bootstrapAddress` and the port number allocated to the bro
 <4> (Optional) The _maximum_ number of brokers of ports that are permitted.  Defaults to 3.
 <5> (Optional) The bind address used when binding the ports. If undefined, all network interfaces will be bound.
 
-The `brokerAddressPattern` configuration parameters understands two replacement tokens.
-
-* this `$(portNumber)` is mandatory.  It is replaced by the port number computed for this broker.
-* the `$(nodeId)` token is optional.  If present, it will be replaced by the
-https://kafka.apache.org/documentation/#brokerconfigs_node.id[`node.id`] (or `broker.id`) assigned to the broker
-of the target cluster.
+The `brokerAddressPattern` configuration parameter understands the replacement token `$(nodeId)`. It is optional.
+If present, it will be replaced by the https://kafka.apache.org/documentation/#brokerconfigs_node.id[`node.id`] (or
+`broker.id`) assigned to the broker of the target cluster.
 
 For example if your configuration looks like the above and your cluster has three brokers, your Kafka Client will receive
 broker address information like this:

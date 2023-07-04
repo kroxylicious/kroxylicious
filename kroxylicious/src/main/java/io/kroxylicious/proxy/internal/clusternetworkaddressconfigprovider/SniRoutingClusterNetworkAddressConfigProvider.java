@@ -7,7 +7,6 @@
 package io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider;
 
 import java.util.Set;
-import java.util.regex.Pattern;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -15,15 +14,24 @@ import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 
+import static io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.BrokerAddressPatternUtils.EXPECTED_TOKEN_SET;
+import static io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.BrokerAddressPatternUtils.validatePortSpecifier;
+import static io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.BrokerAddressPatternUtils.validateStringContainsOnlyExpectedTokens;
+import static io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.BrokerAddressPatternUtils.validateStringContainsRequiredTokens;
+
 /**
- * A ClusterNetworkAddressConfigProvider implementation that uses a single port for bootstrap and
+ * A ClusterNetworkAddressConfigProvider implementation that uses a single, shared, port for bootstrap and
  * all brokers.  SNI information is used to route the connection to the correct target.
- *
+ * <br/>
+ * The following configuration is required:
+ * <ul>
+ *    <li>{@code bootstrapAddress} a {@link HostPort} defining the host and port of the bootstrap address.</li>
+ *    <li>{@code brokerAddressPattern} an address pattern used to form broker addresses.  It is addresses made from this pattern that are returned to the kafka
+ *  *    client in the Metadata response so must be resolvable by the client.  One pattern is supported: {@code $(nodeId)} which interpolates the node id into the address.
+ * </ul>
  */
 public class SniRoutingClusterNetworkAddressConfigProvider implements ClusterNetworkAddressConfigProvider {
 
-    private static final String LITERAL_NODE_ID = "$(nodeId)";
-    private static final Pattern NODE_ID_TOKEN_RE = Pattern.compile(Pattern.quote(LITERAL_NODE_ID));
     private final HostPort bootstrapAddress;
     private final String brokerAddressPattern;
 
@@ -49,7 +57,7 @@ public class SniRoutingClusterNetworkAddressConfigProvider implements ClusterNet
             throw new IllegalArgumentException("nodeId cannot be less than zero");
         }
         // TODO: consider introducing an cache (LRU?)
-        return new HostPort(brokerAddressPattern.replace(LITERAL_NODE_ID, Integer.toString(nodeId)), bootstrapAddress.port());
+        return new HostPort(BrokerAddressPatternUtils.replaceLiteralNodeId(brokerAddressPattern, nodeId), bootstrapAddress.port());
     }
 
     @Override
@@ -80,16 +88,17 @@ public class SniRoutingClusterNetworkAddressConfigProvider implements ClusterNet
                 throw new IllegalArgumentException("brokerAddressPattern cannot be null");
             }
 
-            var matcher = NODE_ID_TOKEN_RE.matcher(brokerAddressPattern);
-            if (!matcher.find()) {
-                throw new IllegalArgumentException("brokerAddressPattern must contain exactly one nodeId replacement pattern " + LITERAL_NODE_ID + ". Found none.");
-            }
+            validatePortSpecifier(brokerAddressPattern, s -> {
+                throw new IllegalArgumentException("brokerAddressPattern cannot have port specifier.  Found port : " + s + " within " + brokerAddressPattern);
+            });
 
-            var stripped = matcher.replaceFirst("");
-            matcher = NODE_ID_TOKEN_RE.matcher(stripped);
-            if (matcher.find()) {
-                throw new IllegalArgumentException("brokerAddressPattern must contain exactly one nodeId replacement pattern " + LITERAL_NODE_ID + ". Found too many.");
-            }
+            validateStringContainsOnlyExpectedTokens(brokerAddressPattern, EXPECTED_TOKEN_SET, (tok) -> {
+                throw new IllegalArgumentException("brokerAddressPattern contains an unexpected replacement token '" + tok + "'");
+            });
+
+            validateStringContainsRequiredTokens(brokerAddressPattern, EXPECTED_TOKEN_SET, (tok) -> {
+                throw new IllegalArgumentException("brokerAddressPattern must contain at least one nodeId replacement pattern '" + tok + "'");
+            });
 
             this.bootstrapAddress = bootstrapAddress;
             this.brokerAddressPattern = brokerAddressPattern;

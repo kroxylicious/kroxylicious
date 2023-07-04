@@ -28,11 +28,18 @@ class SniRoutingClusterNetworkAddressConfigProviderTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = { "notgood", "toomany$(nodeId)$(nodeId)", "toomanyrecursive$(nodeId$(nodeId))", "shouty$(NODEID)badtoo" })
+    @ValueSource(strings = { "nonodetoken", "recursive$(nodeId$(nodeId))", "capitalisedrejected$(NODEID)", "noportalloweed$(nodeId):1234" })
     @NullAndEmptySource
-    void invalidBrokerPattern(String input) {
+    void invalidBrokerAddressPattern(String input) {
         assertThrows(IllegalArgumentException.class,
                 () -> new SniRoutingClusterNetworkAddressConfigProviderConfig(parse("good:1235"), input));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = { "broker$(nodeId)", "twice$(nodeId)allowed$(nodeId)too", "broker$(nodeId).kafka.com" })
+    void validBrokerAddressPatterns(String input) {
+        var config = new SniRoutingClusterNetworkAddressConfigProviderConfig(parse("good:1235"), input);
+        assertThat(config).isNotNull();
     }
 
     @Test

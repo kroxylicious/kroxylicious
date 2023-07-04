@@ -6,7 +6,8 @@ Please enumerate **all user-facing** changes using format `<githib issue/pr numb
 
 ## 0.3.0
 
-* [#414](https://github.com/kroxylicious/kroxylicious/pull/414): Add kubernetes sample illustrating SNI based routing, downstream/upstream TLS and the use of certificates from cert-manager. 
+* [#412](https://github.com/kroxylicious/kroxylicious/issues/412): Remove $(portNumber) pattern from brokerAddressPattern for SniRouting and PortPerBroker schemes
+* [#414](https://github.com/kroxylicious/kroxylicious/pull/414): Add kubernetes sample illustrating SNI based routing, downstream/upstream TLS and the use of certificates from cert-manager.
 * [#392](https://github.com/kroxylicious/kroxylicious/pull/392): Introduce CompositeFilters
 * [#401](https://github.com/kroxylicious/kroxylicious/pull/401): Fix netty buffer leak when doing a short-circuit response
 * [#409](https://github.com/kroxylicious/kroxylicious/pull/409): Bump netty.version from 4.1.93.Final to 4.1.94.Final #409 
@@ -25,3 +26,8 @@ Filter Authors can now implement CompositeFilter if they want a single configura
 to the Filter chain. This enables them to write smaller, more focused Filter implementations but deliver them as a whole
 behaviour with a single block of configuration in the Kroxylicious configuration yaml. This interface is mutually exclusive
 with RequestFilter, ResponseFilter or any specific message Filter interfaces.
+
+In the kroxylicious config, the brokerAddressPattern parameter for the PortPerBroker scheme no longer accepts or requires
+:$(portNumber) suffix.  In addition, for the SniRouting scheme the config now enforces that there is no port specifier
+present on the brokerAddressPattern parameter. Previously, it was accepted but would lead to a failure later.
+

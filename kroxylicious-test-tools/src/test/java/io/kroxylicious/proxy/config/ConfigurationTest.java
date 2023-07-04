@@ -40,7 +40,7 @@ class ConfigurationTest {
                               config:
                                 bootstrapAddress: cluster1:9192
                                 numberOfBrokerPorts: 1
-                                brokerAddressPattern: localhost:$(portNumber)
+                                brokerAddressPattern: localhost
                                 brokerStartPort: 9193
                         """),
                 Arguments.of("Virtual cluster (SniRouting)", """
@@ -52,7 +52,7 @@ class ConfigurationTest {
                               type: SniRouting
                               config:
                                 bootstrapAddress: cluster1:9192
-                                brokerAddressPattern: broker-$(nodeId):$(portNumber)
+                                brokerAddressPattern: broker-$(nodeId)
                         """),
                 Arguments.of("Downstream/Upstream TLS", """
                         virtualClusters:
@@ -75,7 +75,7 @@ class ConfigurationTest {
                               type: SniRouting
                               config:
                                 bootstrapAddress: cluster1:9192
-                                brokerAddressPattern: broker-$(nodeId):$(portNumber)
+                                brokerAddressPattern: broker-$(nodeId)
                         """),
                 Arguments.of("Filters", """
                         filters:
@@ -138,7 +138,7 @@ class ConfigurationTest {
                                         .endTargetCluster()
                                         .withClusterNetworkAddressConfigProvider(
                                                 new ClusterNetworkAddressConfigProviderDefinitionBuilder("SniRouting")
-                                                        .withConfig("bootstrapAddress", "cluster1:9192", "brokerAddressPattern", "broker-$(nodeId):$(portNumber)")
+                                                        .withConfig("bootstrapAddress", "cluster1:9192", "brokerAddressPattern", "broker-$(nodeId)")
                                                         .build())
                                         .build())
                                 .build(),
@@ -151,7 +151,7 @@ class ConfigurationTest {
                                       type: SniRouting
                                       config:
                                         bootstrapAddress: cluster1:9192
-                                        brokerAddressPattern: broker-$(nodeId):$(portNumber)
+                                        brokerAddressPattern: broker-$(nodeId)
                                 """),
                 Arguments.of("Downstream TLS",
                         new ConfigurationBuilder()
@@ -168,7 +168,7 @@ class ConfigurationTest {
                                         .endTls()
                                         .withClusterNetworkAddressConfigProvider(
                                                 new ClusterNetworkAddressConfigProviderDefinitionBuilder("SniRouting")
-                                                        .withConfig("bootstrapAddress", "cluster1:9192", "brokerAddressPattern", "broker-$(nodeId):$(portNumber)")
+                                                        .withConfig("bootstrapAddress", "cluster1:9192", "brokerAddressPattern", "broker-$(nodeId)")
                                                         .build())
                                         .build())
                                 .build(),
@@ -187,7 +187,7 @@ class ConfigurationTest {
                                       type: SniRouting
                                       config:
                                         bootstrapAddress: cluster1:9192
-                                        brokerAddressPattern: broker-$(nodeId):$(portNumber)
+                                        brokerAddressPattern: broker-$(nodeId)
                                 """),
                 Arguments.of("Upstream TLS - platform trust",
                         new ConfigurationBuilder()
@@ -199,7 +199,7 @@ class ConfigurationTest {
                                         .endTargetCluster()
                                         .withClusterNetworkAddressConfigProvider(
                                                 new ClusterNetworkAddressConfigProviderDefinitionBuilder("SniRouting")
-                                                        .withConfig("bootstrapAddress", "cluster1:9192", "brokerAddressPattern", "broker-$(nodeId):$(portNumber)")
+                                                        .withConfig("bootstrapAddress", "cluster1:9192", "brokerAddressPattern", "broker-$(nodeId)")
                                                         .build())
                                         .build())
                                 .build(),
@@ -213,7 +213,7 @@ class ConfigurationTest {
                                       type: SniRouting
                                       config:
                                         bootstrapAddress: cluster1:9192
-                                        brokerAddressPattern: broker-$(nodeId):$(portNumber)
+                                        brokerAddressPattern: broker-$(nodeId)
                                 """),
                 Arguments.of("Upstream TLS - trust from truststore",
                         new ConfigurationBuilder()
@@ -230,7 +230,7 @@ class ConfigurationTest {
                                         .endTargetCluster()
                                         .withClusterNetworkAddressConfigProvider(
                                                 new ClusterNetworkAddressConfigProviderDefinitionBuilder("SniRouting")
-                                                        .withConfig("bootstrapAddress", "cluster1:9192", "brokerAddressPattern", "broker-$(nodeId):$(portNumber)")
+                                                        .withConfig("bootstrapAddress", "cluster1:9192", "brokerAddressPattern", "broker-$(nodeId)")
                                                         .build())
                                         .build())
                                 .build(),
@@ -249,7 +249,7 @@ class ConfigurationTest {
                                       type: SniRouting
                                       config:
                                         bootstrapAddress: cluster1:9192
-                                        brokerAddressPattern: broker-$(nodeId):$(portNumber)
+                                        brokerAddressPattern: broker-$(nodeId)
                                 """),
                 Arguments.of("Upstream TLS - insecure",
                         new ConfigurationBuilder()
@@ -262,7 +262,7 @@ class ConfigurationTest {
                                         .endTargetCluster()
                                         .withClusterNetworkAddressConfigProvider(
                                                 new ClusterNetworkAddressConfigProviderDefinitionBuilder("SniRouting")
-                                                        .withConfig("bootstrapAddress", "cluster1:9192", "brokerAddressPattern", "broker-$(nodeId):$(portNumber)")
+                                                        .withConfig("bootstrapAddress", "cluster1:9192", "brokerAddressPattern", "broker-$(nodeId)")
                                                         .build())
                                         .build())
                                 .build(),
@@ -278,7 +278,7 @@ class ConfigurationTest {
                                       type: SniRouting
                                       config:
                                         bootstrapAddress: cluster1:9192
-                                        brokerAddressPattern: broker-$(nodeId):$(portNumber)
+                                        brokerAddressPattern: broker-$(nodeId)
                                 """)
 
         );

@@ -10,7 +10,6 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -20,15 +19,19 @@ import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 
+import static io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.BrokerAddressPatternUtils.EXPECTED_TOKEN_SET;
+import static io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.BrokerAddressPatternUtils.validatePortSpecifier;
+import static io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.BrokerAddressPatternUtils.validateStringContainsOnlyExpectedTokens;
+
 /**
  * A ClusterNetworkAddressConfigProvider implementation that uses a separate port per broker endpoint.
  * <br/>
  * The following configuration is supported:
  * <ul>
  *    <li>{@code bootstrapAddress} (required) a {@link HostPort} defining the host and port of the bootstrap address.</li>
- *    <li>{@code brokerAddressPattern} (optional) an address pattern used to form broker addresses.  It is these address that are returned to the kafka client
- *    in the Metadata response so must be resolvable by the client.  Two patterns are supported: {@code $(portNumber)} (mandatory) and {@code $(nodeId)}
- *    which provide the port number and node id respectively.  If brokerAddressPattern is omitted, it defaulted it based on the host name of {@code bootstrapAddress}.</li>
+ *    <li>{@code brokerAddressPattern} (optional) an address pattern used to form broker addresses.  It is addresses made from this pattern that are returned to the kafka
+ *    client in the Metadata response so must be resolvable by the client.  One pattern is supported: {@code $(nodeId)} which interpolates the node id into the address.
+ *    If brokerAddressPattern is omitted, it defaulted it based on the host name of {@code bootstrapAddress}.</li>
  *    <li>{@code brokerStartPort} (optional) defines the starting range of port number that will be assigned to the brokers.  If omitted, it is defaulted to
  *    the port number of {@code bootstrapAddress + 1}.</li>
  *    <li>{@code numberOfBrokerPorts} (optional) defines the maximum number of broker ports that will be permitted. If omitted, it is defaulted to {$code 3}.</li>
@@ -37,13 +40,8 @@ import io.kroxylicious.proxy.service.HostPort;
 public class PortPerBrokerClusterNetworkAddressConfigProvider implements ClusterNetworkAddressConfigProvider {
 
     private final HostPort bootstrapAddress;
-
-    private static final String LITERAL_PORT_NUMBER = "$(portNumber)";
-    private static final String LITERAL_NODE_ID = "$(nodeId)";
-    private static final Pattern ANCHORED_PORT_NUMBER_TOKEN_RE = Pattern.compile(":" + Pattern.quote(LITERAL_PORT_NUMBER) + "$");
     private final String brokerAddressPattern;
     private final int brokerStartPort;
-    private final int numberOfBrokerPorts;
     private final Set<Integer> exclusivePorts;
     private final int brokerEndPortExclusive;
 
@@ -56,7 +54,7 @@ public class PortPerBrokerClusterNetworkAddressConfigProvider implements Cluster
         this.bootstrapAddress = config.bootstrapAddress;
         this.brokerAddressPattern = config.brokerAddressPattern;
         this.brokerStartPort = config.brokerStartPort;
-        this.numberOfBrokerPorts = config.numberOfBrokerPorts;
+        int numberOfBrokerPorts = config.numberOfBrokerPorts;
         this.brokerEndPortExclusive = brokerStartPort + numberOfBrokerPorts;
 
         var exclusivePorts = IntStream.range(brokerStartPort, brokerEndPortExclusive).boxed().collect(Collectors.toCollection(HashSet::new));
@@ -83,7 +81,8 @@ public class PortPerBrokerClusterNetworkAddressConfigProvider implements Cluster
                                     brokerEndPortExclusive - 1,
                                     bootstrapAddress));
         }
-        return HostPort.parse(brokerAddressPattern.replace(LITERAL_PORT_NUMBER, Integer.toString(port)).replace(LITERAL_NODE_ID, Integer.toString(nodeId)));
+
+        return new HostPort(BrokerAddressPatternUtils.replaceLiteralNodeId(brokerAddressPattern, nodeId), port);
     }
 
     @Override
@@ -107,9 +106,17 @@ public class PortPerBrokerClusterNetworkAddressConfigProvider implements Cluster
             Objects.requireNonNull(bootstrapAddress, "bootstrapAddress cannot be null");
 
             this.bootstrapAddress = bootstrapAddress;
-            this.brokerAddressPattern = brokerAddressPattern != null ? brokerAddressPattern : (bootstrapAddress.host() + ":" + LITERAL_PORT_NUMBER);
+            this.brokerAddressPattern = brokerAddressPattern != null ? brokerAddressPattern : bootstrapAddress.host();
             this.brokerStartPort = brokerStartPort != null ? brokerStartPort : (bootstrapAddress.port() + 1);
             this.numberOfBrokerPorts = numberOfBrokerPorts != null ? numberOfBrokerPorts : 3;
+
+            if (this.brokerAddressPattern.isBlank()) {
+                throw new IllegalArgumentException("brokerAddressPattern cannot be blank");
+            }
+
+            validatePortSpecifier(this.brokerAddressPattern, s -> {
+                throw new IllegalArgumentException("brokerAddressPattern cannot have port specifier.  Found port : " + s + " within " + this.brokerAddressPattern);
+            });
 
             if (this.brokerStartPort < 1) {
                 throw new IllegalArgumentException("brokerStartPort cannot be less than 1");
@@ -122,16 +129,9 @@ public class PortPerBrokerClusterNetworkAddressConfigProvider implements Cluster
                 throw new IllegalArgumentException("the port used by the bootstrap address (%d) collides with the broker port range".formatted(bootstrapAddress.port()));
             });
 
-            var matcher = ANCHORED_PORT_NUMBER_TOKEN_RE.matcher(this.brokerAddressPattern);
-            if (!matcher.find()) {
-                throw new IllegalArgumentException("brokerAddressPattern must contain exactly one replacement pattern " + LITERAL_PORT_NUMBER + ". Found none.");
-            }
-            var stripped = matcher.replaceFirst("");
-            matcher = ANCHORED_PORT_NUMBER_TOKEN_RE.matcher(stripped);
-            if (matcher.find()) {
-                throw new IllegalArgumentException("brokerAddressPattern must contain exactly one replacement pattern " + LITERAL_PORT_NUMBER + ". Found too many.");
-            }
-
+            validateStringContainsOnlyExpectedTokens(this.brokerAddressPattern, EXPECTED_TOKEN_SET, (token) -> {
+                throw new IllegalArgumentException("brokerAddressPattern contains an unexpected replacement token '" + token + "'");
+            });
         }
 
         public HostPort getBootstrapAddress() {
