@@ -10,7 +10,7 @@ OS=$(uname)
 resolveCommand () {
   local targetCommand=${1}
   local resolvedCommand
-  resolvedCommand=$(command -v ${targetCommand})
+  resolvedCommand=$(command -v "${targetCommand}")
   if [[ -z ${resolvedCommand} ]]; then
     >&2 echo -e "\033[0;31m Unable to resolve path to ${targetCommand}\n\033[0m"
     exit 127
