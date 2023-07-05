@@ -7,23 +7,36 @@
 
 OS=$(uname)
 
+resolveCommand () {
+  local targetCommand=${1}
+  local resolvedCommand
+  resolvedCommand=$(command -v ${targetCommand})
+  if [[ -z ${resolvedCommand} ]]; then
+    >&2 echo -e "\033[0;31m Unable to resolve path to ${targetCommand}\n\033[0m"
+    exit 127
+  else
+    echo "${resolvedCommand}"
+  fi
+}
+
 if [[ -z $CONTAINER_ENGINE ]]; then
   echo "Setting CONTAINER_ENGINE to default: docker"
-  CONTAINER_ENGINE=$(command -v docker)
+  CONTAINER_ENGINE=$(resolvedCommand docker)
   export CONTAINER_ENGINE
 fi
-KUBECTL=$(command -v kubectl)
+
+KUBECTL=$(resolveCommand kubectl)
 export KUBECTL
-MINIKUBE=$(command -v minikube)
+MINIKUBE=$(resolveCommand minikube)
 export MINIKUBE
-KUSTOMIZE=$(command -v kustomize)
+KUSTOMIZE=$(resolveCommand kustomize)
 export KUSTOMIZE
 
 if [ "$OS" = 'Darwin' ]; then
   # for MacOS
-  SED=$(command -v gsed)
+  SED=$(resolveCommand gsed)
 else
   # for Linux and Windows
-  SED=$(command -v sed)
+  SED=$(resolveCommand sed)
 fi
 export SED
