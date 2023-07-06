@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="CompilerConfiguration">
+    <excludeFromCompile>
+      <directory url="file://$PROJECT_DIR$/api/kroxylicious-filter-api-bom/src/main/resources/archetype-resources" includeSubdirectories="true" />
+    </excludeFromCompile>
     <annotationProcessing>
       <profile default="true" name="Default" enabled="true" />
       <profile name="Maven default annotation processors profile" enabled="true">
@@ -15,6 +18,7 @@
         <module name="kroxylicious-unit-test" />
         <module name="kroxylicious" />
         <module name="integrationtests" />
+        <module name="kroxylicious-sample" />
         <module name="integrationtests.test" />
         <module name="kroxylicious-krpc-plugin.main" />
         <module name="kroxylicious-schema-validation" />
@@ -25,6 +29,10 @@
         <module name="kroxylicious-krpc-plugin.test" />
       </profile>
     </annotationProcessing>
+    <bytecodeTargetLevel>
+      <module name="kroxylicious-bom" target="1.5" />
+      <module name="kroxylicious-filter-api-bom" target="1.5" />
+    </bytecodeTargetLevel>
   </component>
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
@@ -40,6 +48,7 @@
       <module name="kroxylicious-krpc-plugin.test" options="-parameters" />
       <module name="kroxylicious-multitenant" options="-parameters" />
       <module name="kroxylicious-parent" options="-parameters" />
+      <module name="kroxylicious-sample" options="-parameters" />
       <module name="kroxylicious-schema-validation" options="-parameters" />
       <module name="kroxylicious-test-tools" options="-parameters" />
       <module name="kroxylicious-unit-test" options="-parameters" />
