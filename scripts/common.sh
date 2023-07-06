@@ -1,10 +1,10 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Copyright Kroxylicious Authors.
 #
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
-
+set -eu
 OS=$(uname)
 
 resolveCommand () {
@@ -12,7 +12,7 @@ resolveCommand () {
   local resolvedCommand
   resolvedCommand=$(command -v "${targetCommand}")
   if [[ -z ${resolvedCommand} ]]; then
-    >&2 echo -e "\033[0;31m Unable to resolve path to ${targetCommand}\n\033[0m"
+    >&2 echo -e "\033[0;31m Unable to resolve path to ${targetCommand}\033[0m"
     exit 127
   else
     echo "${resolvedCommand}"
