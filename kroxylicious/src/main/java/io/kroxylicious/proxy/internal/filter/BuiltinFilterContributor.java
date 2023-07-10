@@ -14,7 +14,6 @@ import io.kroxylicious.proxy.service.BaseContributor;
 public class BuiltinFilterContributor extends BaseContributor<KrpcFilter> implements FilterContributor {
 
     public static final BaseContributorBuilder<KrpcFilter> FILTERS = BaseContributor.<KrpcFilter> builder()
-            .add("ApiVersions", ApiVersionsFilter::new)
             .add("ProduceRequestTransformation", ProduceRequestTransformationConfig.class, ProduceRequestTransformationFilter::new)
             .add("FetchResponseTransformation", FetchResponseTransformationConfig.class, FetchResponseTransformationFilter::new);
 
