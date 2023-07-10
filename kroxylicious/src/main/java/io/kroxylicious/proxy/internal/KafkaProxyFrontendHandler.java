@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.kafka.common.message.ApiVersionsRequestData;
@@ -43,6 +44,7 @@ import io.kroxylicious.proxy.internal.codec.CorrelationManager;
 import io.kroxylicious.proxy.internal.codec.DecodePredicate;
 import io.kroxylicious.proxy.internal.codec.KafkaRequestEncoder;
 import io.kroxylicious.proxy.internal.codec.KafkaResponseDecoder;
+import io.kroxylicious.proxy.internal.filter.ApiVersionsFilter;
 import io.kroxylicious.proxy.model.VirtualCluster;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
@@ -193,35 +195,46 @@ public class KafkaProxyFrontendHandler
                     || state == State.HA_PROXY)
                     && msg instanceof DecodedRequestFrame
                     && ((DecodedRequestFrame<?>) msg).apiKey() == ApiKeys.API_VERSIONS) {
-                // This handler can respond to ApiVersions itself
-                writeApiVersionsResponse(ctx, (DecodedRequestFrame<ApiVersionsRequestData>) msg);
-                // Request to read the following request
-                ctx.channel().read();
                 state = State.API_VERSIONS;
+                DecodedRequestFrame<ApiVersionsRequestData> apiVersionsFrame = (DecodedRequestFrame<ApiVersionsRequestData>) msg;
+                storeApiVersionsFeatures(apiVersionsFrame);
+                if (dp.isAuthenticationOffloadEnabled()) {
+                    // This handler can respond to ApiVersions itself
+                    writeApiVersionsResponse(ctx, apiVersionsFrame);
+                    // Request to read the following request
+                    ctx.channel().read();
+                }
+                else {
+                    bufferMsgAndSelectServer(msg);
+                }
             }
             else if ((state == State.START
                     || state == State.HA_PROXY
                     || state == State.API_VERSIONS)
                     && msg instanceof RequestFrame) {
-                if (bufferedMsg != null) {
-                    // Single buffered message assertion failed
-                    throw illegalState("Already have buffered msg");
-                }
-                state = State.CONNECTING;
-                // But for any other request we'll need a backend connection
-                // (for which we need to ask the filter which cluster to connect to
-                // and with what filters)
-                this.bufferedMsg = msg;
-                // TODO ensure that the filter makes exactly one upstream connection?
-                // Or not for the topic routing case
-
-                // Note filter.upstreamBroker will call back on the connect() method below
-                filter.selectServer(this);
+                bufferMsgAndSelectServer(msg);
             }
             else {
                 throw illegalState("Unexpected channelRead() message of " + msg.getClass());
             }
         }
+    }
+
+    private void bufferMsgAndSelectServer(Object msg) {
+        if (bufferedMsg != null) {
+            // Single buffered message assertion failed
+            throw illegalState("Already have buffered msg");
+        }
+        state = State.CONNECTING;
+        // But for any other request we'll need a backend connection
+        // (for which we need to ask the filter which cluster to connect to
+        // and with what filters)
+        this.bufferedMsg = msg;
+        // TODO ensure that the filter makes exactly one upstream connection?
+        // Or not for the topic routing case
+
+        // Note filter.upstreamBroker will call back on the connect() method below
+        filter.selectServer(this);
     }
 
     @Override
@@ -259,7 +272,12 @@ public class KafkaProxyFrontendHandler
         if (logFrames) {
             pipeline.addFirst("frameLogger", new LoggingHandler("io.kroxylicious.proxy.internal.UpstreamFrameLogger"));
         }
-        addFiltersToPipeline(filters, pipeline);
+        final List<FilterAndInvoker> filterAndInvokers = new ArrayList<>();
+        if (!dp.isAuthenticationOffloadEnabled()) {
+            filterAndInvokers.addAll(FilterAndInvoker.build(new ApiVersionsFilter()));
+        }
+        filterAndInvokers.addAll(filters);
+        addFiltersToPipeline(filterAndInvokers, pipeline);
         pipeline.addFirst("responseDecoder", new KafkaResponseDecoder(correlationManager));
         pipeline.addFirst("requestEncoder", new KafkaRequestEncoder(correlationManager));
         if (logNetwork) {
@@ -274,7 +292,7 @@ public class KafkaProxyFrontendHandler
                 LOGGER.trace("{}: Outbound connected", inboundCtx.channel().id());
                 // Now we know which filters are to be used we need to update the DecodePredicate
                 // so that the decoder starts decoding the messages that the filters want to intercept
-                dp.setDelegate(DecodePredicate.forFilters(filters));
+                dp.setDelegate(DecodePredicate.forFilters(filterAndInvokers));
             }
             else {
                 state = State.FAILED;
@@ -327,11 +345,6 @@ public class KafkaProxyFrontendHandler
      * (i.e. prior to having backend connection)
      */
     private void writeApiVersionsResponse(ChannelHandlerContext ctx, DecodedRequestFrame<ApiVersionsRequestData> frame) {
-        // TODO check the format of the strings using a regex
-        // Needed to reproduce the exact behaviour for how a broker handles this
-        // see org.apache.kafka.common.requests.ApiVersionsRequest#isValid()
-        this.clientSoftwareName = frame.body().clientSoftwareName();
-        this.clientSoftwareVersion = frame.body().clientSoftwareVersion();
 
         short apiVersion = frame.apiVersion();
         int correlationId = frame.correlationId();
@@ -340,6 +353,14 @@ public class KafkaProxyFrontendHandler
         LOGGER.debug("{}: Writing ApiVersions response", ctx.channel());
         ctx.writeAndFlush(new DecodedResponseFrame<>(
                 apiVersion, correlationId, header, API_VERSIONS_RESPONSE));
+    }
+
+    private void storeApiVersionsFeatures(DecodedRequestFrame<ApiVersionsRequestData> frame) {
+        // TODO check the format of the strings using a regex
+        // Needed to reproduce the exact behaviour for how a broker handles this
+        // see org.apache.kafka.common.requests.ApiVersionsRequest#isValid()
+        this.clientSoftwareName = frame.body().clientSoftwareName();
+        this.clientSoftwareVersion = frame.body().clientSoftwareVersion();
     }
 
     public void outboundWritabilityChanged(ChannelHandlerContext outboundCtx) {

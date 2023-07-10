@@ -34,7 +34,6 @@ import io.kroxylicious.testing.kafka.common.BrokerCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
-import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.withDefaultFilters;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -135,7 +134,8 @@ public class SampleFilterIntegrationTest {
          * @param filters the filters to be used in the test
          */
         FilterIntegrationTest(TestFilter... filters) {
-            ConfigurationBuilder builder = withDefaultFilters(proxy(cluster));
+            ConfigurationBuilder builder1 = proxy(cluster);
+            ConfigurationBuilder builder = builder1;
             for (TestFilter filter : filters) {
                 builder.addToFilters(new FilterDefinitionBuilder(filter.name()).withConfig(filter.config()).build());
             }

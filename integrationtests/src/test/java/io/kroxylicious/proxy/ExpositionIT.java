@@ -33,7 +33,6 @@ import org.junit.jupiter.api.io.TempDir;
 import io.kroxylicious.net.IntegrationTestInetAddressResolverProvider;
 import io.kroxylicious.proxy.config.ClusterNetworkAddressConfigProviderDefinitionBuilder;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
-import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.test.tester.KroxyliciousTester;
@@ -85,8 +84,7 @@ public class ExpositionIT {
                         .withClusterNetworkAddressConfigProvider(
                                 new ClusterNetworkAddressConfigProviderDefinitionBuilder("PortPerBroker").withConfig("bootstrapAddress", PROXY_ADDRESS)
                                         .build())
-                        .build())
-                .addToFilters(new FilterDefinitionBuilder("ApiVersions").build());
+                        .build());
 
         var demo = builder.getVirtualClusters().get("demo");
         demo = new VirtualClusterBuilder(demo)
@@ -118,8 +116,7 @@ public class ExpositionIT {
     public void exposesTwoClusterOverPlainWithSeparatePorts(KafkaCluster cluster) {
         List<String> clusterProxyAddresses = List.of("localhost:9192", "localhost:9294");
 
-        var builder = new ConfigurationBuilder()
-                .addToFilters(new FilterDefinitionBuilder("ApiVersions").build());
+        var builder = new ConfigurationBuilder();
 
         var base = new VirtualClusterBuilder()
                 .withNewTargetCluster()
@@ -155,8 +152,7 @@ public class ExpositionIT {
         var virtualClusterBootstrapPattern = "bootstrap" + virtualClusterCommonNamePattern;
         var virtualClusterBrokerAddressPattern = "broker-$(nodeId)" + virtualClusterCommonNamePattern;
 
-        var builder = new ConfigurationBuilder()
-                .addToFilters(new FilterDefinitionBuilder("ApiVersions").build());
+        var builder = new ConfigurationBuilder();
 
         var base = new VirtualClusterBuilder()
                 .withNewTargetCluster()
@@ -218,8 +214,7 @@ public class ExpositionIT {
                         .withClusterNetworkAddressConfigProvider(
                                 new ClusterNetworkAddressConfigProviderDefinitionBuilder("PortPerBroker").withConfig("bootstrapAddress", PROXY_ADDRESS)
                                         .build())
-                        .build())
-                .addToFilters(new FilterDefinitionBuilder("ApiVersions").build());
+                        .build());
 
         var brokerEndpoints = Map.of(0, "localhost:" + (PROXY_ADDRESS.port() + 1), 1, "localhost:" + (PROXY_ADDRESS.port() + 2));
 
@@ -246,8 +241,7 @@ public class ExpositionIT {
                         .withClusterNetworkAddressConfigProvider(
                                 new ClusterNetworkAddressConfigProviderDefinitionBuilder("PortPerBroker").withConfig("bootstrapAddress", PROXY_ADDRESS)
                                         .build())
-                        .build())
-                .addToFilters(new FilterDefinitionBuilder("ApiVersions").build());
+                        .build());
 
         try (var tester = kroxyliciousTester(builder)) {
 
@@ -279,8 +273,7 @@ public class ExpositionIT {
                         .withClusterNetworkAddressConfigProvider(
                                 new ClusterNetworkAddressConfigProviderDefinitionBuilder("PortPerBroker").withConfig("bootstrapAddress", PROXY_ADDRESS)
                                         .build())
-                        .build())
-                .addToFilters(new FilterDefinitionBuilder("ApiVersions").build());
+                        .build());
 
         try (var tester = kroxyliciousTester(builder)) {
 

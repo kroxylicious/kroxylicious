@@ -193,13 +193,19 @@ class KafkaProxyFrontendHandlerTest {
             // Simulate the client doing ApiVersions
             writeRequest(ApiVersionsRequestData.HIGHEST_SUPPORTED_VERSION, new ApiVersionsRequestData()
                     .setClientSoftwareName("foo").setClientSoftwareVersion("1.0.0"));
-            assertEquals(State.API_VERSIONS, handler.state());
-            verify(filter, never()).selectServer(handler);
+            if (saslOffloadConfigured) {
+                assertEquals(State.API_VERSIONS, handler.state());
+                // when offloading SASL, we do not connect to a backend server until after SASL auth. The ApiVersions response is generated in the proxy.
+                verify(filter, never()).selectServer(handler);
+            }
+            else {
+                // should cause connection to the backend cluster when not offloading SASL
+                handleConnect(filter, handler);
+            }
         }
 
         if (sendSasl) {
             if (saslOffloadConfigured) {
-
                 // Simulate the KafkaAuthnHandler having done SASL offload
                 inboundChannel.pipeline().fireUserEventTriggered(new AuthenticationEvent("alice", Map.of()));
 
@@ -211,9 +217,10 @@ class KafkaProxyFrontendHandlerTest {
             else {
                 // Simulate the client doing SaslHandshake and SaslAuthentication,
                 writeRequest(SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION, new SaslHandshakeRequestData());
-
-                // these should cause connection to the backend cluster
-                handleConnect(filter, handler);
+                if (!sendApiVersions) {
+                    // client doesn't send api versions, so the next frame drives selectServer
+                    handleConnect(filter, handler);
+                }
                 writeRequest(SaslAuthenticateRequestData.HIGHEST_SUPPORTED_VERSION, new SaslAuthenticateRequestData());
             }
         }

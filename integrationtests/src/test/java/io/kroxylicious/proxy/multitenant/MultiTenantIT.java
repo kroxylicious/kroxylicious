@@ -608,7 +608,6 @@ public class MultiTenantIT {
                         .endKeyStoreKey()
                         .endTls()
                         .build())
-                .addToFilters(new FilterDefinitionBuilder("ApiVersions").build())
                 .addToFilters(new FilterDefinitionBuilder("MultiTenant").build());
     }
 
