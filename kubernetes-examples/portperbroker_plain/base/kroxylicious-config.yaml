@@ -25,5 +25,3 @@ data:
             brokerAddressPattern: kroxylicious-service
         logNetwork: false
         logFrames: false
-    filters:
-    - type: ApiVersions

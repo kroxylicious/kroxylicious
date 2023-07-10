@@ -19,7 +19,6 @@ virtualClusters:
     logNetwork: false
     logFrames: false
 filters:
-  - type: ApiVersions
   - type: SampleProduceRequest
     config:
       findValue: foo
