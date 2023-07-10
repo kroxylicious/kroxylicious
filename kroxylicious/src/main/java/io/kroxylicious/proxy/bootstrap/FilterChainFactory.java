@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.bootstrap;
 import java.util.List;
 
 import io.kroxylicious.proxy.config.Configuration;
+import io.kroxylicious.proxy.config.FilterDefinition;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.internal.filter.FilterContributorManager;
 
@@ -32,7 +33,11 @@ public class FilterChainFactory {
     public List<FilterAndInvoker> createFilters() {
         FilterContributorManager filterContributorManager = FilterContributorManager.getInstance();
 
-        return config.filters()
+        List<FilterDefinition> filters = config.filters();
+        if (filters == null || filters.isEmpty()) {
+            return List.of();
+        }
+        return filters
                 .stream()
                 .map(f -> filterContributorManager.getFilter(f.type(), f.config()))
                 .flatMap(filter -> FilterAndInvoker.build(filter).stream())
