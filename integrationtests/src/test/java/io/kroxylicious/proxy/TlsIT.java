@@ -37,7 +37,6 @@ import org.junit.jupiter.api.io.TempDir;
 import io.kroxylicious.proxy.config.ClusterNetworkAddressConfigProviderDefinition;
 import io.kroxylicious.proxy.config.ClusterNetworkAddressConfigProviderDefinitionBuilder;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
-import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
@@ -95,8 +94,7 @@ public class TlsIT {
                         .endTls()
                         .endTargetCluster()
                         .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
-                        .build())
-                .addToFilters(new FilterDefinitionBuilder("ApiVersions").build());
+                        .build());
 
         try (var tester = kroxyliciousTester(builder); var admin = tester.admin("demo")) {
             // do some work to ensure connection is opened
@@ -134,8 +132,7 @@ public class TlsIT {
                         .endTls()
                         .endTargetCluster()
                         .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
-                        .build())
-                .addToFilters(new FilterDefinitionBuilder("ApiVersions").build());
+                        .build());
 
         try (var tester = kroxyliciousTester(builder); var admin = tester.admin("demo")) {
             // do some work to ensure connection is opened
@@ -156,8 +153,7 @@ public class TlsIT {
                         .endTls()
                         .endTargetCluster()
                         .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
-                        .build())
-                .addToFilters(new FilterDefinitionBuilder("ApiVersions").build());
+                        .build());
 
         try (var tester = kroxyliciousTester(builder); var admin = tester.admin("demo")) {
             // do some work to ensure connection is opened
@@ -191,8 +187,7 @@ public class TlsIT {
                         .endKeyStoreKey()
                         .endTls()
                         .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
-                        .build())
-                .addToFilters(new FilterDefinitionBuilder("ApiVersions").build());
+                        .build());
 
         try (var tester = kroxyliciousTester(builder);
                 var admin = tester.admin("demo",

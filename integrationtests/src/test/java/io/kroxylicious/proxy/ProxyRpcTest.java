@@ -54,7 +54,6 @@ public class ProxyRpcTest {
     @BeforeAll
     public static void beforeAll() {
         mockTester = mockKafkaKroxyliciousTester((mockBootstrap) -> proxy(mockBootstrap)
-                .addToFilters(new FilterDefinitionBuilder("ApiVersions").build())
                 .addToFilters(new FilterDefinitionBuilder("FixedClientId").withConfig("clientId", "fixed").build()));
     }
 

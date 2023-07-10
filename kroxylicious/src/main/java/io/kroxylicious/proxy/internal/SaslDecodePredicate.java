@@ -58,7 +58,11 @@ class SaslDecodePredicate implements DecodePredicate {
     }
 
     private boolean isAuthenticationOffloaded(ApiKeys apiKey) {
-        return handleSasl && (apiKey == ApiKeys.SASL_HANDSHAKE || apiKey == ApiKeys.SASL_AUTHENTICATE);
+        return isAuthenticationOffloadEnabled() && (apiKey == ApiKeys.SASL_HANDSHAKE || apiKey == ApiKeys.SASL_AUTHENTICATE);
+    }
+
+    public boolean isAuthenticationOffloadEnabled() {
+        return handleSasl;
     }
 
     @Override

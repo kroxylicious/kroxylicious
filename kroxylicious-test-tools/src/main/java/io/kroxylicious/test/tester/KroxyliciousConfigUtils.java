@@ -9,7 +9,6 @@ package io.kroxylicious.test.tester;
 import io.kroxylicious.proxy.config.ClusterNetworkAddressConfigProviderDefinitionBuilder;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
-import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
@@ -50,15 +49,6 @@ public class KroxyliciousConfigUtils {
      */
     public static ConfigurationBuilder proxy(KafkaCluster cluster) {
         return proxy(cluster.getBootstrapServers());
-    }
-
-    /**
-     * Augments a KroxyliciousConfigBuilder with standard filters required to proxy a Kafka broker
-     * @param builder builder to add filters to
-     * @return builder
-     */
-    public static ConfigurationBuilder withDefaultFilters(ConfigurationBuilder builder) {
-        return builder.addToFilters(new FilterDefinitionBuilder("ApiVersions").build());
     }
 
     /**

@@ -47,7 +47,6 @@ import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.DEFAULT_VIRTUAL_CLUSTER;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
-import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.withDefaultFilters;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.mockKafkaKroxyliciousTester;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -63,10 +62,13 @@ public class KroxyliciousTestersTest {
 
     @Test
     public void testAdminMethods(KafkaCluster cluster) {
-        try (var tester = kroxyliciousTester(withDefaultFilters(proxy(cluster)))) {
-            assertNotNull(tester.admin().describeCluster().clusterId().get(10, TimeUnit.SECONDS));
-            assertNotNull(tester.admin(Map.of()).describeCluster().clusterId().get(10, TimeUnit.SECONDS));
-            assertNotNull(tester.admin(DEFAULT_VIRTUAL_CLUSTER, Map.of()).describeCluster().clusterId().get(10, TimeUnit.SECONDS));
+        try {
+            ConfigurationBuilder builder = proxy(cluster);
+            try (var tester = kroxyliciousTester(builder)) {
+                assertNotNull(tester.admin().describeCluster().clusterId().get(10, TimeUnit.SECONDS));
+                assertNotNull(tester.admin(Map.of()).describeCluster().clusterId().get(10, TimeUnit.SECONDS));
+                assertNotNull(tester.admin(DEFAULT_VIRTUAL_CLUSTER, Map.of()).describeCluster().clusterId().get(10, TimeUnit.SECONDS));
+            }
         }
         catch (Exception e) {
             fail("unexpected exception", e);
@@ -80,14 +82,17 @@ public class KroxyliciousTestersTest {
     public void testConsumerMethods(KafkaCluster cluster) throws Exception {
         KafkaProducer<String, String> producer = new KafkaProducer<>(cluster.getKafkaClientConfiguration(), new StringSerializer(), new StringSerializer());
         producer.send(new ProducerRecord<>(TOPIC, "key", "value")).get(10, TimeUnit.SECONDS);
-        try (var tester = kroxyliciousTester(withDefaultFilters(proxy(cluster)))) {
-            assertOneRecordConsumedFrom(tester.consumer());
-            assertOneRecordConsumedFrom(tester.consumer(randomGroupIdAndEarliestReset()));
-            assertOneRecordConsumedFrom(tester.consumer(Serdes.String(), Serdes.String(), randomGroupIdAndEarliestReset()));
+        try {
+            ConfigurationBuilder builder = proxy(cluster);
+            try (var tester = kroxyliciousTester(builder)) {
+                assertOneRecordConsumedFrom(tester.consumer());
+                assertOneRecordConsumedFrom(tester.consumer(randomGroupIdAndEarliestReset()));
+                assertOneRecordConsumedFrom(tester.consumer(Serdes.String(), Serdes.String(), randomGroupIdAndEarliestReset()));
 
-            assertOneRecordConsumedFrom(tester.consumer(DEFAULT_VIRTUAL_CLUSTER));
-            assertOneRecordConsumedFrom(tester.consumer(DEFAULT_VIRTUAL_CLUSTER, randomGroupIdAndEarliestReset()));
-            assertOneRecordConsumedFrom(tester.consumer(DEFAULT_VIRTUAL_CLUSTER, Serdes.String(), Serdes.String(), randomGroupIdAndEarliestReset()));
+                assertOneRecordConsumedFrom(tester.consumer(DEFAULT_VIRTUAL_CLUSTER));
+                assertOneRecordConsumedFrom(tester.consumer(DEFAULT_VIRTUAL_CLUSTER, randomGroupIdAndEarliestReset()));
+                assertOneRecordConsumedFrom(tester.consumer(DEFAULT_VIRTUAL_CLUSTER, Serdes.String(), Serdes.String(), randomGroupIdAndEarliestReset()));
+            }
         }
         catch (Exception e) {
             fail("unexpected exception", e);
@@ -96,20 +101,23 @@ public class KroxyliciousTestersTest {
 
     @Test
     public void testProducerMethods(KafkaCluster cluster) {
-        try (var tester = kroxyliciousTester(withDefaultFilters(proxy(cluster)))) {
-            send(tester.producer());
-            send(tester.producer(Map.of()));
-            send(tester.producer(Serdes.String(), Serdes.String(), Map.of()));
-            send(tester.producer(DEFAULT_VIRTUAL_CLUSTER));
-            send(tester.producer(DEFAULT_VIRTUAL_CLUSTER, Map.of()));
-            send(tester.producer(DEFAULT_VIRTUAL_CLUSTER, Serdes.String(), Serdes.String(), Map.of()));
+        try {
+            ConfigurationBuilder builder = proxy(cluster);
+            try (var tester = kroxyliciousTester(builder)) {
+                send(tester.producer());
+                send(tester.producer(Map.of()));
+                send(tester.producer(Serdes.String(), Serdes.String(), Map.of()));
+                send(tester.producer(DEFAULT_VIRTUAL_CLUSTER));
+                send(tester.producer(DEFAULT_VIRTUAL_CLUSTER, Map.of()));
+                send(tester.producer(DEFAULT_VIRTUAL_CLUSTER, Serdes.String(), Serdes.String(), Map.of()));
 
-            HashMap<String, Object> config = new HashMap<>(cluster.getKafkaClientConfiguration());
-            config.putAll(randomGroupIdAndEarliestReset());
-            KafkaConsumer<String, String> consumer = new KafkaConsumer<>(config, new StringDeserializer(), new StringDeserializer());
-            consumer.subscribe(List.of(TOPIC));
-            int recordCount = consumer.poll(Duration.ofSeconds(10)).count();
-            assertEquals(6, recordCount);
+                HashMap<String, Object> config = new HashMap<>(cluster.getKafkaClientConfiguration());
+                config.putAll(randomGroupIdAndEarliestReset());
+                KafkaConsumer<String, String> consumer = new KafkaConsumer<>(config, new StringDeserializer(), new StringDeserializer());
+                consumer.subscribe(List.of(TOPIC));
+                int recordCount = consumer.poll(Duration.ofSeconds(10)).count();
+                assertEquals(6, recordCount);
+            }
         }
         catch (Exception e) {
             fail("unexpected exception", e);
@@ -118,9 +126,12 @@ public class KroxyliciousTestersTest {
 
     @Test
     public void testSingleRequestClient(KafkaCluster cluster) {
-        try (var tester = kroxyliciousTester(withDefaultFilters(proxy(cluster)))) {
-            assertCanSendSingleRequestAndGetResponse(tester.singleRequestClient());
-            assertCanSendSingleRequestAndGetResponse(tester.singleRequestClient(DEFAULT_VIRTUAL_CLUSTER));
+        try {
+            ConfigurationBuilder builder = proxy(cluster);
+            try (var tester = kroxyliciousTester(builder)) {
+                assertCanSendSingleRequestAndGetResponse(tester.singleRequestClient());
+                assertCanSendSingleRequestAndGetResponse(tester.singleRequestClient(DEFAULT_VIRTUAL_CLUSTER));
+            }
         }
         catch (Exception e) {
             fail("unexpected exception", e);
@@ -129,7 +140,7 @@ public class KroxyliciousTestersTest {
 
     @Test
     public void testMockTester() {
-        try (var tester = mockKafkaKroxyliciousTester(clusterBootstrapServers -> withDefaultFilters(proxy(clusterBootstrapServers)))) {
+        try (var tester = mockKafkaKroxyliciousTester(clusterBootstrapServers -> proxy(clusterBootstrapServers))) {
             assertCanSendSingleRequestAndReceiveMockMessage(tester, tester.singleRequestClient());
             assertCanSendSingleRequestAndReceiveMockMessage(tester, tester.singleRequestClient(DEFAULT_VIRTUAL_CLUSTER));
         }
@@ -140,16 +151,19 @@ public class KroxyliciousTestersTest {
 
     @Test
     public void testIllegalToAskForNonExistantVirtualCluster(KafkaCluster cluster) {
-        try (var tester = kroxyliciousTester(withDefaultFilters(proxy(cluster)))) {
-            assertThrows(IllegalArgumentException.class, () -> tester.singleRequestClient("NON_EXIST"));
-            assertThrows(IllegalArgumentException.class, () -> tester.consumer("NON_EXIST"));
-            assertThrows(IllegalArgumentException.class, () -> tester.consumer("NON_EXIST", Map.of()));
-            assertThrows(IllegalArgumentException.class, () -> tester.consumer("NON_EXIST", Serdes.String(), Serdes.String(), Map.of()));
-            assertThrows(IllegalArgumentException.class, () -> tester.producer("NON_EXIST"));
-            assertThrows(IllegalArgumentException.class, () -> tester.producer("NON_EXIST", Map.of()));
-            assertThrows(IllegalArgumentException.class, () -> tester.producer("NON_EXIST", Serdes.String(), Serdes.String(), Map.of()));
-            assertThrows(IllegalArgumentException.class, () -> tester.admin("NON_EXIST"));
-            assertThrows(IllegalArgumentException.class, () -> tester.admin("NON_EXIST", Map.of()));
+        try {
+            ConfigurationBuilder builder = proxy(cluster);
+            try (var tester = kroxyliciousTester(builder)) {
+                assertThrows(IllegalArgumentException.class, () -> tester.singleRequestClient("NON_EXIST"));
+                assertThrows(IllegalArgumentException.class, () -> tester.consumer("NON_EXIST"));
+                assertThrows(IllegalArgumentException.class, () -> tester.consumer("NON_EXIST", Map.of()));
+                assertThrows(IllegalArgumentException.class, () -> tester.consumer("NON_EXIST", Serdes.String(), Serdes.String(), Map.of()));
+                assertThrows(IllegalArgumentException.class, () -> tester.producer("NON_EXIST"));
+                assertThrows(IllegalArgumentException.class, () -> tester.producer("NON_EXIST", Map.of()));
+                assertThrows(IllegalArgumentException.class, () -> tester.producer("NON_EXIST", Serdes.String(), Serdes.String(), Map.of()));
+                assertThrows(IllegalArgumentException.class, () -> tester.admin("NON_EXIST"));
+                assertThrows(IllegalArgumentException.class, () -> tester.admin("NON_EXIST", Map.of()));
+            }
         }
         catch (Exception e) {
             fail("unexpected exception", e);
@@ -162,16 +176,18 @@ public class KroxyliciousTestersTest {
         ConfigurationBuilder builder = new ConfigurationBuilder();
         ConfigurationBuilder proxy = addVirtualCluster(clusterBootstrapServers, addVirtualCluster(clusterBootstrapServers, builder, "foo",
                 "localhost:9192"), "bar", "localhost:9296");
-        try (var tester = kroxyliciousTester(withDefaultFilters(proxy))) {
-            assertThrows(AmbiguousVirtualClusterException.class, tester::singleRequestClient);
-            assertThrows(AmbiguousVirtualClusterException.class, tester::consumer);
-            assertThrows(AmbiguousVirtualClusterException.class, () -> tester.consumer(Map.of()));
-            assertThrows(AmbiguousVirtualClusterException.class, () -> tester.consumer(Serdes.String(), Serdes.String(), Map.of()));
-            assertThrows(AmbiguousVirtualClusterException.class, tester::producer);
-            assertThrows(AmbiguousVirtualClusterException.class, () -> tester.producer(Map.of()));
-            assertThrows(AmbiguousVirtualClusterException.class, () -> tester.producer(Serdes.String(), Serdes.String(), Map.of()));
-            assertThrows(AmbiguousVirtualClusterException.class, tester::admin);
-            assertThrows(AmbiguousVirtualClusterException.class, () -> tester.admin(Map.of()));
+        try {
+            try (var tester = kroxyliciousTester(proxy)) {
+                assertThrows(AmbiguousVirtualClusterException.class, tester::singleRequestClient);
+                assertThrows(AmbiguousVirtualClusterException.class, tester::consumer);
+                assertThrows(AmbiguousVirtualClusterException.class, () -> tester.consumer(Map.of()));
+                assertThrows(AmbiguousVirtualClusterException.class, () -> tester.consumer(Serdes.String(), Serdes.String(), Map.of()));
+                assertThrows(AmbiguousVirtualClusterException.class, tester::producer);
+                assertThrows(AmbiguousVirtualClusterException.class, () -> tester.producer(Map.of()));
+                assertThrows(AmbiguousVirtualClusterException.class, () -> tester.producer(Serdes.String(), Serdes.String(), Map.of()));
+                assertThrows(AmbiguousVirtualClusterException.class, tester::admin);
+                assertThrows(AmbiguousVirtualClusterException.class, () -> tester.admin(Map.of()));
+            }
         }
         catch (Exception e) {
             fail("unexpected exception", e);
