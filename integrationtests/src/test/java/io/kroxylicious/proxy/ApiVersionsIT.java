@@ -75,6 +75,28 @@ public class ApiVersionsIT {
         }
     }
 
+    // TODO we think this is a bug but will come back to it
+    @Test
+    public void shouldOfferBrokerApisThatAreUnknownToKroxy() {
+        try (var tester = mockKafkaKroxyliciousTester(KroxyliciousConfigUtils::proxy);
+                var client = tester.singleRequestClient()) {
+            ApiVersionsResponseData mockResponse = new ApiVersionsResponseData();
+            ApiVersionsResponseData.ApiVersion version = new ApiVersionsResponseData.ApiVersion();
+            version.setApiKey((short) 9999).setMinVersion((short) 3).setMaxVersion((short) 4);
+            mockResponse.apiKeys().add(version);
+            tester.setMockResponse(new Response(ApiKeys.API_VERSIONS, (short) 3, mockResponse));
+            Response response = whenGetApiVersionsFromKroxylicious(client);
+            assertEquals(ApiKeys.API_VERSIONS, response.apiKeys());
+            assertEquals((short) 3, response.apiVersion());
+            ApiVersionsResponseData message = (ApiVersionsResponseData) response.message();
+            assertEquals(1, message.apiKeys().size());
+            ApiVersionsResponseData.ApiVersion singletonVersion = message.apiKeys().iterator().next();
+            assertEquals((short) 9999, singletonVersion.apiKey());
+            assertEquals((short) 3, singletonVersion.minVersion());
+            assertEquals((short) 4, singletonVersion.maxVersion());
+        }
+    }
+
     private static void givenMockRespondsWithApiVersionsForApiKey(MockServerKroxyliciousTester tester, ApiKeys keys, short minVersion, short maxVersion) {
         ApiVersionsResponseData mockResponse = new ApiVersionsResponseData();
         ApiVersionsResponseData.ApiVersion version = new ApiVersionsResponseData.ApiVersion();
