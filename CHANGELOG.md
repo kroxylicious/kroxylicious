@@ -6,6 +6,7 @@ Please enumerate **all user-facing** changes using format `<githib issue/pr numb
 
 ## 0.3.0
 
+* [#443](https://github.com/kroxylicious/kroxylicious/pull/443): Obtain upstream ApiVersions when proxy is not SASL offloading
 * [#412](https://github.com/kroxylicious/kroxylicious/issues/412): Remove $(portNumber) pattern from brokerAddressPattern for SniRouting and PortPerBroker schemes
 * [#414](https://github.com/kroxylicious/kroxylicious/pull/414): Add kubernetes sample illustrating SNI based routing, downstream/upstream TLS and the use of certificates from cert-manager.
 * [#392](https://github.com/kroxylicious/kroxylicious/pull/392): Introduce CompositeFilters
@@ -31,3 +32,5 @@ In the kroxylicious config, the brokerAddressPattern parameter for the PortPerBr
 :$(portNumber) suffix.  In addition, for the SniRouting scheme the config now enforces that there is no port specifier
 present on the brokerAddressPattern parameter. Previously, it was accepted but would lead to a failure later.
 
+Kroxylicious configuration no longer requires a non empty `filters` list, users can leave it unset or configure in an empty
+list of filters and Kroxylicious will proxy to the cluster successfully.
