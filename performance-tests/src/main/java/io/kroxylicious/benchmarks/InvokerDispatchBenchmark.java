@@ -190,7 +190,7 @@ public class InvokerDispatchBenchmark {
         }
 
         @Override
-        public void closeChannel() {
+        public void closeConnection() {
 
         }
     }

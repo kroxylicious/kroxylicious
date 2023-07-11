@@ -7,7 +7,9 @@
 package io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider;
 
 import java.util.Set;
+import java.util.regex.Pattern;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.kroxylicious.proxy.config.BaseConfig;
@@ -34,6 +36,7 @@ public class SniRoutingClusterNetworkAddressConfigProvider implements ClusterNet
 
     private final HostPort bootstrapAddress;
     private final String brokerAddressPattern;
+    private final Pattern brokerAddressNodeIdCapturingRegex;
 
     /**
      * Creates the provider.
@@ -43,6 +46,7 @@ public class SniRoutingClusterNetworkAddressConfigProvider implements ClusterNet
     public SniRoutingClusterNetworkAddressConfigProvider(SniRoutingClusterNetworkAddressConfigProviderConfig config) {
         this.bootstrapAddress = config.bootstrapAddress;
         this.brokerAddressPattern = config.brokerAddressPattern;
+        this.brokerAddressNodeIdCapturingRegex = config.brokerAddressNodeIdCapturingRegex;
     }
 
     @Override
@@ -61,13 +65,25 @@ public class SniRoutingClusterNetworkAddressConfigProvider implements ClusterNet
     }
 
     @Override
-    public Set<Integer> getSharedPorts() {
-        return Set.of(bootstrapAddress.port());
+    public Integer getBrokerIdFromBrokerAddress(HostPort brokerAddress) {
+        if (brokerAddress.port() != bootstrapAddress.port()) {
+            return null;
+        }
+        var matcher = brokerAddressNodeIdCapturingRegex.matcher(brokerAddress.host());
+        if (matcher.matches()) {
+            try {
+                return Integer.valueOf(matcher.group(1));
+            }
+            catch (NumberFormatException e) {
+                return null;
+            }
+        }
+        return null;
     }
 
     @Override
-    public Set<Integer> prebindBrokerIds() {
-        return Set.of();
+    public Set<Integer> getSharedPorts() {
+        return Set.of(bootstrapAddress.port());
     }
 
     @Override
@@ -83,6 +99,8 @@ public class SniRoutingClusterNetworkAddressConfigProvider implements ClusterNet
         private final HostPort bootstrapAddress;
 
         private final String brokerAddressPattern;
+        @JsonIgnore
+        private final Pattern brokerAddressNodeIdCapturingRegex;
 
         public SniRoutingClusterNetworkAddressConfigProviderConfig(@JsonProperty(required = true) HostPort bootstrapAddress,
                                                                    @JsonProperty(required = true) String brokerAddressPattern) {
@@ -107,6 +125,8 @@ public class SniRoutingClusterNetworkAddressConfigProvider implements ClusterNet
 
             this.bootstrapAddress = bootstrapAddress;
             this.brokerAddressPattern = brokerAddressPattern;
+            this.brokerAddressNodeIdCapturingRegex = BrokerAddressPatternUtils.createNodeIdCapturingRegex(brokerAddressPattern);
+
         }
 
         public HostPort getBootstrapAddress() {

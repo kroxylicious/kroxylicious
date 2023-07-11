@@ -22,14 +22,29 @@ public interface ClusterNetworkAddressConfigProvider {
 
     /**
      * Address of broker with the given node id, includes the port. Note that
-     * {@code nodeId} are generally expected to be consecutively numbered and starting from zero. However, gaps in the sequence can potentially emerge as
-     * the target cluster topology evolves.
+     * {@code nodeId} are generally expected to be consecutively numbered and starting from zero. However,
+     * gaps in the sequence can potentially emerge as the target cluster topology evolves.
      *
      * @param nodeId node identifier
      * @return broker address
      * @throws IllegalArgumentException if this provider cannot produce a broker address for the given nodeId.
      */
     HostPort getBrokerAddress(int nodeId) throws IllegalArgumentException;
+
+    /**
+     * Generates the node id implied by the given broker address. This method make sense only for
+     * implementation that embed node id information into the broker address.  This information is
+     * used at startup time to allow a client that already in possession of a broker address
+     * to reconnect to the cluster via Kroxylicious using only that address.
+     * <br/>
+     * This is an optional method. An implementation can return null.
+     *
+     * @param brokerAddress broker address
+     * @return a broker id or null if the broker id cannot be
+     */
+    default Integer getBrokerIdFromBrokerAddress(HostPort brokerAddress) {
+        return null;
+    }
 
     /**
      * Gets the bind address used when binding socket.  Used to restrict
@@ -67,5 +82,13 @@ public interface ClusterNetworkAddressConfigProvider {
         return Set.of();
     }
 
-    Set<Integer> prebindBrokerIds();
+    /**
+     * Set of pre-bindings to be made by the virtual cluster on startup,
+     * (before the broker topology of the target cluster is known).
+     *
+     * @return set of broker ids for which pre-bindings must be made.
+     */
+    default Set<Integer> prebindBrokerIds() {
+        return Set.of();
+    }
 }

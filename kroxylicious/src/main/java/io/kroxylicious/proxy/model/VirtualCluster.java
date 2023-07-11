@@ -144,6 +144,16 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
         return clusterNetworkAddressConfigProvider.getSharedPorts();
     }
 
+    @Override
+    public Set<Integer> prebindBrokerIds() {
+        return clusterNetworkAddressConfigProvider.prebindBrokerIds();
+    }
+
+    @Override
+    public Integer getBrokerIdFromBrokerAddress(HostPort brokerAddress) {
+        return clusterNetworkAddressConfigProvider.getBrokerIdFromBrokerAddress(brokerAddress);
+    }
+
     public Optional<SslContext> getDownstreamSslContext() {
         return downstreamSslContext;
     }
@@ -152,7 +162,4 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
         return upstreamSslContext;
     }
 
-    public Set<Integer> prebindBrokerIds() {
-        return clusterNetworkAddressConfigProvider.prebindBrokerIds();
-    }
 }

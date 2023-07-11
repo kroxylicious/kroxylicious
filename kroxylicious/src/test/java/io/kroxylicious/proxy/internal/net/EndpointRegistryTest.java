@@ -12,6 +12,7 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -39,6 +40,7 @@ import io.kroxylicious.proxy.service.HostPort;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mock.Strictness.LENIENT;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
@@ -51,6 +53,10 @@ class EndpointRegistryTest {
     private static final HostPort DOWNSTREAM_BOOTSTRAP_DIFF_PORT = new HostPort(DOWNSTREAM_BOOTSTRAP.host(), DOWNSTREAM_BOOTSTRAP.port() + 1);
     private static final HostPort DOWNSTREAM_BROKER_0 = HostPort.parse("downstream-broker0:9193");
     private static final HostPort DOWNSTREAM_BROKER_1 = HostPort.parse("downstream-broker1:9194");
+    private static final String SNI_DOMAIN_SUFFIX = ".cluster.kafka.com";
+    private static final HostPort SNI_DOWNSTREAM_BOOTSTRAP = new HostPort("bootstrap" + SNI_DOMAIN_SUFFIX, 9192);
+    private static final HostPort SNI_DOWNSTREAM_BROKER_0 = new HostPort("broker-0" + SNI_DOMAIN_SUFFIX, SNI_DOWNSTREAM_BOOTSTRAP.port());
+    private static final HostPort SNI_DOWNSTREAM_BROKER_1 = new HostPort("broker-1" + SNI_DOMAIN_SUFFIX, SNI_DOWNSTREAM_BOOTSTRAP.port());
     private static final HostPort UPSTREAM_BOOTSTRAP = HostPort.parse("upstream-bootstrap:19192");
     private static final HostPort UPSTREAM_BROKER_0 = HostPort.parse("upstream-broker0:19193");
     private static final HostPort UPSTREAM_BROKER_1 = HostPort.parse("upstream-broker1:19194");
@@ -71,6 +77,24 @@ class EndpointRegistryTest {
 
         assertThat(endpointRegistry.isRegistered(virtualCluster1)).isTrue();
         assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(1);
+    }
+
+    @Test
+    public void registerVirtualClusterWithPreboundPorts() throws Exception {
+        configureVirtualClusterMock(virtualCluster1, DOWNSTREAM_BOOTSTRAP, UPSTREAM_BOOTSTRAP, false, false, Set.of(0, 1));
+        when(virtualCluster1.getBrokerAddress(0)).thenReturn(DOWNSTREAM_BROKER_0);
+        when(virtualCluster1.getBrokerAddress(1)).thenReturn(DOWNSTREAM_BROKER_1);
+
+        var rf = endpointRegistry.registerVirtualCluster(virtualCluster1).toCompletableFuture();
+        verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(DOWNSTREAM_BOOTSTRAP.port(), false),
+                createTestNetworkBindRequest(DOWNSTREAM_BROKER_0.port(), false),
+                createTestNetworkBindRequest(DOWNSTREAM_BROKER_1.port(), false));
+        assertThat(rf).isDone();
+
+        verifyVirtualClusterRegisterFuture(DOWNSTREAM_BOOTSTRAP.port(), false, rf);
+
+        assertThat(endpointRegistry.isRegistered(virtualCluster1)).isTrue();
+        assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(3);
     }
 
     @Test
@@ -276,7 +300,7 @@ class EndpointRegistryTest {
     public void resolveBootstrap(@ConvertWith(HostPortConverter.class) HostPort downstreamBootstrap, @ConvertWith(HostPortConverter.class) HostPort upstreamBootstrap,
                                  boolean tls, boolean sni)
             throws Exception {
-        configureVirtualClusterMock(virtualCluster1, HostPort.parse(downstreamBootstrap.toString()), HostPort.parse(upstreamBootstrap.toString()), tls, sni);
+        configureVirtualClusterMock(virtualCluster1, HostPort.parse(downstreamBootstrap.toString()), HostPort.parse(upstreamBootstrap.toString()), tls, sni, null);
 
         var f = endpointRegistry.registerVirtualCluster(virtualCluster1).toCompletableFuture();
         verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(downstreamBootstrap.port(), tls));
@@ -292,8 +316,7 @@ class EndpointRegistryTest {
     public void resolveBootstrapResolutionFailures(String name,
                                                    @ConvertWith(HostPortConverter.class) HostPort downstreamBootstrap,
                                                    @ConvertWith(HostPortConverter.class) HostPort upstreamBootstrap,
-                                                   @ConvertWith(HostPortConverter.class) HostPort resolveAddress)
-            throws Exception {
+                                                   @ConvertWith(HostPortConverter.class) HostPort resolveAddress) {
         configureVirtualClusterMock(virtualCluster1, HostPort.parse(downstreamBootstrap.toString()), HostPort.parse(upstreamBootstrap.toString()), true);
 
         var f = endpointRegistry.registerVirtualCluster(virtualCluster1).toCompletableFuture();
@@ -320,6 +343,60 @@ class EndpointRegistryTest {
 
         var binding = endpointRegistry.resolve(Endpoint.createEndpoint(resolveAddress.port(), true), resolveAddress.host()).toCompletableFuture().get();
         assertThat(binding).isEqualTo(new VirtualClusterBootstrapBinding(virtualCluster1, upstreamBootstrap));
+    }
+
+    @Test
+    public void resolveUsingEphemeralSniMatch() throws Exception {
+        configureVirtualClusterMock(virtualCluster1, SNI_DOWNSTREAM_BOOTSTRAP, UPSTREAM_BOOTSTRAP, true, true, null);
+
+        var regf = endpointRegistry.registerVirtualCluster(virtualCluster1).toCompletableFuture();
+        verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(SNI_DOWNSTREAM_BOOTSTRAP.port(), true));
+        assertThat(regf).isCompleted();
+
+        when(virtualCluster1.getBrokerIdFromBrokerAddress(SNI_DOWNSTREAM_BROKER_0)).thenReturn(0);
+        var sniFallbackBinding = endpointRegistry.resolve(Endpoint.createEndpoint(SNI_DOWNSTREAM_BROKER_0.port(), true), SNI_DOWNSTREAM_BROKER_0.host())
+                .toCompletableFuture().get();
+        assertThat(sniFallbackBinding).isEqualTo(new VirtualClusterBrokerBinding(virtualCluster1, UPSTREAM_BOOTSTRAP, 0, false));
+    }
+
+    @Test
+    public void resolveUsingEphemeralSniFailsDueToMismatch() {
+        configureVirtualClusterMock(virtualCluster1, SNI_DOWNSTREAM_BOOTSTRAP, UPSTREAM_BOOTSTRAP, true, true, null);
+
+        var regf = endpointRegistry.registerVirtualCluster(virtualCluster1).toCompletableFuture();
+        verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(SNI_DOWNSTREAM_BOOTSTRAP.port(), true));
+        assertThat(regf).isCompleted();
+
+        when(virtualCluster1.getBrokerIdFromBrokerAddress(SNI_DOWNSTREAM_BROKER_0)).thenReturn(null);
+        var executionException = assertThrows(ExecutionException.class,
+                () -> endpointRegistry.resolve(Endpoint.createEndpoint(SNI_DOWNSTREAM_BROKER_0.port(), true), SNI_DOWNSTREAM_BROKER_0.host()).toCompletableFuture()
+                        .get());
+        assertThat(executionException).hasCauseInstanceOf(EndpointResolutionException.class);
+    }
+
+    @Test
+    public void resolveIgnoresEphemeralSniMatchAfterReconcile() throws Exception {
+        configureVirtualClusterMock(virtualCluster1, SNI_DOWNSTREAM_BOOTSTRAP, UPSTREAM_BOOTSTRAP, true, true, null);
+
+        var regf = endpointRegistry.registerVirtualCluster(virtualCluster1).toCompletableFuture();
+        verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(SNI_DOWNSTREAM_BOOTSTRAP.port(), true));
+        assertThat(regf).isCompleted();
+
+        when(virtualCluster1.getBrokerAddress(0)).thenReturn(SNI_DOWNSTREAM_BROKER_0);
+        var recf = endpointRegistry.reconcile(virtualCluster1, Map.of(0, UPSTREAM_BROKER_0)).toCompletableFuture();
+        verifyAndProcessNetworkEventQueue();
+        assertThat(recf).isCompleted();
+
+        when(virtualCluster1.getBrokerIdFromBrokerAddress(SNI_DOWNSTREAM_BROKER_0)).thenReturn(0);
+        var brokerBinding = endpointRegistry.resolve(Endpoint.createEndpoint(SNI_DOWNSTREAM_BROKER_0.port(), true), SNI_DOWNSTREAM_BROKER_0.host()).toCompletableFuture()
+                .get();
+        assertThat(brokerBinding).isEqualTo(new VirtualClusterBrokerBinding(virtualCluster1, UPSTREAM_BROKER_0, 0, true));
+
+        // Now try to resolve another broker address. This will fail because the there's already at least one broker binding already.
+        var executionException = assertThrows(ExecutionException.class,
+                () -> endpointRegistry.resolve(Endpoint.createEndpoint(SNI_DOWNSTREAM_BROKER_1.port(), true), SNI_DOWNSTREAM_BROKER_1.host()).toCompletableFuture()
+                        .get());
+        assertThat(executionException).hasCauseInstanceOf(EndpointResolutionException.class);
     }
 
     @Test
@@ -363,7 +440,7 @@ class EndpointRegistryTest {
         // Add a new node (1) to the cluster
         when(virtualCluster1.getBrokerAddress(0)).thenReturn(DOWNSTREAM_BROKER_0);
 
-        var recf = endpointRegistry.reconcile(virtualCluster1, Map.of(0, UPSTREAM_BROKER_0), false).toCompletableFuture();
+        var recf = endpointRegistry.reconcile(virtualCluster1, Map.of(0, UPSTREAM_BROKER_0)).toCompletableFuture();
         verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(DOWNSTREAM_BROKER_0.port(), false));
         assertThat(recf.isDone()).isTrue();
         assertThat(recf.get()).isNull();
@@ -382,14 +459,29 @@ class EndpointRegistryTest {
         // Add a new node (1) to the cluster
         when(virtualCluster1.getBrokerAddress(0)).thenReturn(DOWNSTREAM_BROKER_0);
 
-        var recf = endpointRegistry.reconcile(virtualCluster1, Map.of(0, UPSTREAM_BROKER_0), false).toCompletableFuture();
+        var recf = endpointRegistry.reconcile(virtualCluster1, Map.of(0, UPSTREAM_BROKER_0)).toCompletableFuture();
         verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(DOWNSTREAM_BROKER_0.port(), false));
         assertThat(recf.isDone()).isTrue();
         assertThat(recf.get()).isNull();
         assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(2);
 
         var binding = endpointRegistry.resolve(Endpoint.createEndpoint(DOWNSTREAM_BROKER_0.port(), false), null).toCompletableFuture().get();
-        assertThat(binding).isEqualTo(new VirtualClusterBrokerBinding(virtualCluster1, UPSTREAM_BROKER_0, 0, false));
+        assertThat(binding).isEqualTo(new VirtualClusterBrokerBinding(virtualCluster1, UPSTREAM_BROKER_0, 0, true));
+    }
+
+    @Test
+    public void resolvePreboundBrokerAddress() throws Exception {
+        configureVirtualClusterMock(virtualCluster1, DOWNSTREAM_BOOTSTRAP, UPSTREAM_BOOTSTRAP, false, false, Set.of(0));
+        when(virtualCluster1.getBrokerAddress(0)).thenReturn(DOWNSTREAM_BROKER_0);
+
+        var regf = endpointRegistry.registerVirtualCluster(virtualCluster1).toCompletableFuture();
+        verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(DOWNSTREAM_BOOTSTRAP.port(), false),
+                createTestNetworkBindRequest(DOWNSTREAM_BROKER_0.port(), false));
+        assertThat(regf).isCompleted();
+        assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(2);
+
+        var binding = endpointRegistry.resolve(Endpoint.createEndpoint(DOWNSTREAM_BROKER_0.port(), false), null).toCompletableFuture().get();
+        assertThat(binding).isEqualTo(new VirtualClusterBrokerBinding(virtualCluster1, UPSTREAM_BOOTSTRAP, 0, false));
     }
 
     @Test
@@ -403,18 +495,18 @@ class EndpointRegistryTest {
         // Add brokers (0,1) to the cluster
         when(virtualCluster1.getBrokerAddress(0)).thenReturn(DOWNSTREAM_BROKER_0);
 
-        var recf1 = endpointRegistry.reconcile(virtualCluster1, Map.of(0, UPSTREAM_BROKER_0), false).toCompletableFuture();
+        var recf1 = endpointRegistry.reconcile(virtualCluster1, Map.of(0, UPSTREAM_BROKER_0)).toCompletableFuture();
         verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(DOWNSTREAM_BROKER_0.port(), false));
         assertThat(recf1.isDone()).isTrue();
 
         when(virtualCluster1.getBrokerAddress(1)).thenReturn(DOWNSTREAM_BROKER_1);
-        var recf2 = endpointRegistry.reconcile(virtualCluster1, Map.of(0, UPSTREAM_BROKER_0, 1, UPSTREAM_BROKER_1), false).toCompletableFuture();
+        var recf2 = endpointRegistry.reconcile(virtualCluster1, Map.of(0, UPSTREAM_BROKER_0, 1, UPSTREAM_BROKER_1)).toCompletableFuture();
         verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(DOWNSTREAM_BROKER_1.port(), false));
         assertThat(recf2.isDone()).isTrue();
         assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(3);
 
         // Removal of node (0) from the cluster
-        var recf3 = endpointRegistry.reconcile(virtualCluster1, Map.of(1, UPSTREAM_BROKER_1), false).toCompletableFuture();
+        var recf3 = endpointRegistry.reconcile(virtualCluster1, Map.of(1, UPSTREAM_BROKER_1)).toCompletableFuture();
         verifyAndProcessNetworkEventQueue(createTestNetworkUnbindRequest(DOWNSTREAM_BROKER_0.port(), false));
         assertThat(recf3.isDone()).isTrue();
         assertThat(recf3.get()).isNull();
@@ -432,23 +524,55 @@ class EndpointRegistryTest {
         assertThat(regf.isDone()).isTrue();
 
         when(virtualCluster1.getBrokerAddress(0)).thenReturn(DOWNSTREAM_BROKER_0);
-        var recf1 = endpointRegistry.reconcile(virtualCluster1, Map.of(0, UPSTREAM_BROKER_0), false).toCompletableFuture();
+        var recf1 = endpointRegistry.reconcile(virtualCluster1, Map.of(0, UPSTREAM_BROKER_0)).toCompletableFuture();
         verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(DOWNSTREAM_BROKER_0.port(), false));
         assertThat(recf1.isDone()).isTrue();
         assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(2);
 
         var resolvedBindingBeforeChange = endpointRegistry.resolve(Endpoint.createEndpoint(DOWNSTREAM_BROKER_0.port(), false), null).toCompletableFuture().get();
-        assertThat(resolvedBindingBeforeChange).isEqualTo(new VirtualClusterBrokerBinding(virtualCluster1, UPSTREAM_BROKER_0, 0, false));
+        assertThat(resolvedBindingBeforeChange).isEqualTo(new VirtualClusterBrokerBinding(virtualCluster1, UPSTREAM_BROKER_0, 0, true));
 
         // Target cluster updates the address for broker 0
-        var recf2 = endpointRegistry.reconcile(virtualCluster1, Map.of(0, upstreamBrokerUpdated0), false).toCompletableFuture();
+        var recf2 = endpointRegistry.reconcile(virtualCluster1, Map.of(0, upstreamBrokerUpdated0)).toCompletableFuture();
         verifyAndProcessNetworkEventQueue();
         assertThat(recf2.isDone()).isTrue();
         assertThat(recf2.get()).isNull();
         assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(2);
 
         var resolvedBindingAfterChange = endpointRegistry.resolve(Endpoint.createEndpoint(DOWNSTREAM_BROKER_0.port(), false), null).toCompletableFuture().get();
-        assertThat(resolvedBindingAfterChange).isEqualTo(new VirtualClusterBrokerBinding(virtualCluster1, upstreamBrokerUpdated0, 0, false));
+        assertThat(resolvedBindingAfterChange).isEqualTo(new VirtualClusterBrokerBinding(virtualCluster1, upstreamBrokerUpdated0, 0, true));
+    }
+
+    @Test
+    public void reconcileReplacesPrebindings() throws Exception {
+        configureVirtualClusterMock(virtualCluster1, DOWNSTREAM_BOOTSTRAP, UPSTREAM_BOOTSTRAP, false, false, Set.of(0, 1));
+        when(virtualCluster1.getBrokerAddress(0)).thenReturn(DOWNSTREAM_BROKER_0);
+        when(virtualCluster1.getBrokerAddress(1)).thenReturn(DOWNSTREAM_BROKER_1);
+
+        var regf = endpointRegistry.registerVirtualCluster(virtualCluster1).toCompletableFuture();
+        verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(DOWNSTREAM_BOOTSTRAP.port(), false),
+                createTestNetworkBindRequest(DOWNSTREAM_BROKER_0.port(), false),
+                createTestNetworkBindRequest(DOWNSTREAM_BROKER_1.port(), false));
+        assertThat(regf).isDone();
+
+        //
+        var resolvedBindingBeforeChange = endpointRegistry.resolve(Endpoint.createEndpoint(DOWNSTREAM_BROKER_0.port(), false), null).toCompletableFuture().get();
+        assertThat(resolvedBindingBeforeChange)
+                .describedAs("Resolving pre-bound broker 0 should yield the upstream address for bootstrrap")
+                .isEqualTo(new VirtualClusterBrokerBinding(virtualCluster1, UPSTREAM_BOOTSTRAP, 0, false));
+
+        // Reconcile learns that upstream broker topology actually has only one broker
+        // Port for DOWNSTREAM_BROKER_1 has to close, DOWNSTREAM_BROKER_0 binding has to be updated
+        var reconcileFuture = endpointRegistry.reconcile(virtualCluster1, Map.of(0, UPSTREAM_BROKER_0)).toCompletableFuture();
+        verifyAndProcessNetworkEventQueue(createTestNetworkUnbindRequest(DOWNSTREAM_BROKER_1.port(), false));
+        assertThat(reconcileFuture).isCompleted();
+        assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(2);
+
+        // Now resolving broker 0 yields the upstream address for broker 0
+        var resolvedBindingAfterChange = endpointRegistry.resolve(Endpoint.createEndpoint(DOWNSTREAM_BROKER_0.port(), false), null).toCompletableFuture().get();
+        assertThat(resolvedBindingAfterChange)
+                .describedAs("Resolving reconciled broker 0 should yield the actual upstream address for broker0")
+                .isEqualTo(new VirtualClusterBrokerBinding(virtualCluster1, UPSTREAM_BROKER_0, 0, true));
     }
 
     @Test
@@ -461,18 +585,18 @@ class EndpointRegistryTest {
 
         // Add broker to the cluster
         when(virtualCluster1.getBrokerAddress(0)).thenReturn(DOWNSTREAM_BROKER_0);
-        var recf1 = endpointRegistry.reconcile(virtualCluster1, Map.of(0, UPSTREAM_BROKER_0), false).toCompletableFuture();
+        var recf1 = endpointRegistry.reconcile(virtualCluster1, Map.of(0, UPSTREAM_BROKER_0)).toCompletableFuture();
         verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(DOWNSTREAM_BROKER_0.port(), false));
         assertThat(recf1.isDone()).isTrue();
 
         // Add 2nd broker to the cluster
         when(virtualCluster1.getBrokerAddress(1)).thenReturn(DOWNSTREAM_BROKER_1);
-        var recf2 = endpointRegistry.reconcile(virtualCluster1, Map.of(0, UPSTREAM_BROKER_0, 1, UPSTREAM_BROKER_1), false).toCompletableFuture();
+        var recf2 = endpointRegistry.reconcile(virtualCluster1, Map.of(0, UPSTREAM_BROKER_0, 1, UPSTREAM_BROKER_1)).toCompletableFuture();
         verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(DOWNSTREAM_BROKER_1.port(), false));
         assertThat(recf2.isDone()).isTrue();
         assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(3);
 
-        var rcf3 = endpointRegistry.reconcile(virtualCluster1, Map.of(0, UPSTREAM_BROKER_0, 1, UPSTREAM_BROKER_1), false).toCompletableFuture();
+        var rcf3 = endpointRegistry.reconcile(virtualCluster1, Map.of(0, UPSTREAM_BROKER_0, 1, UPSTREAM_BROKER_1)).toCompletableFuture();
         assertThat(rcf3.isDone()).isTrue();
         assertThat(rcf3.get()).isNull();
         assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(3);
@@ -491,19 +615,19 @@ class EndpointRegistryTest {
 
         // reconcile adds a node
         when(virtualCluster1.getBrokerAddress(0)).thenReturn(DOWNSTREAM_BROKER_0);
-        var add1 = endpointRegistry.reconcile(virtualCluster1, Map.of(0, UPSTREAM_BROKER_0), false).toCompletableFuture();
+        var add1 = endpointRegistry.reconcile(virtualCluster1, Map.of(0, UPSTREAM_BROKER_0)).toCompletableFuture();
         verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(DOWNSTREAM_BROKER_0.port(), false));
         assertThat(add1.isDone()).isTrue();
         assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(2);
 
         // reconcile adds a node, but organise so the network event is not processed yet so the future won't complete
         when(virtualCluster1.getBrokerAddress(1)).thenReturn(DOWNSTREAM_BROKER_1);
-        var add2 = endpointRegistry.reconcile(virtualCluster1, Map.of(0, UPSTREAM_BROKER_0, 1, UPSTREAM_BROKER_1), false).toCompletableFuture();
+        var add2 = endpointRegistry.reconcile(virtualCluster1, Map.of(0, UPSTREAM_BROKER_0, 1, UPSTREAM_BROKER_1)).toCompletableFuture();
         assertThat(add2.isDone()).isFalse();
         assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(3);
 
         // reconcile now removes a node, it cannot be processed because it is behind the add
-        var remove = endpointRegistry.reconcile(virtualCluster1, Map.of(1, UPSTREAM_BROKER_1), false).toCompletableFuture();
+        var remove = endpointRegistry.reconcile(virtualCluster1, Map.of(1, UPSTREAM_BROKER_1)).toCompletableFuture();
         assertThat(remove.isDone()).isFalse();
         assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(3);
 
@@ -537,7 +661,7 @@ class EndpointRegistryTest {
         // Add a new node (1) to the cluster
         when(virtualCluster1.getBrokerAddress(0)).thenReturn(downstreamBroker0);
 
-        var rcf = endpointRegistry.reconcile(virtualCluster1, Map.of(0, upstreamBroker0), false).toCompletableFuture();
+        var rcf = endpointRegistry.reconcile(virtualCluster1, Map.of(0, upstreamBroker0)).toCompletableFuture();
         verifyAndProcessNetworkEventQueue(
                 createTestNetworkBindRequest(Optional.empty(), downstreamBroker0.port(), false, CompletableFuture.failedFuture(new IOException("mocked port in use"))));
         assertThat(rcf.isDone()).isTrue();
@@ -552,7 +676,7 @@ class EndpointRegistryTest {
     public void nextReconcileSucceedsAfterTransientPortConflict() throws Exception {
         var virtualCluster = doReconcileFailsDueToExternalPortConflict(DOWNSTREAM_BROKER_0, UPSTREAM_BROKER_0);
 
-        var rcf = endpointRegistry.reconcile(virtualCluster, Map.of(0, UPSTREAM_BROKER_0), false).toCompletableFuture();
+        var rcf = endpointRegistry.reconcile(virtualCluster, Map.of(0, UPSTREAM_BROKER_0)).toCompletableFuture();
         verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(DOWNSTREAM_BROKER_0.port(), false));
 
         assertThat(rcf.isDone()).isTrue();
@@ -599,14 +723,17 @@ class EndpointRegistryTest {
     }
 
     private void configureVirtualClusterMock(VirtualCluster cluster, HostPort downstreamBootstrap, HostPort upstreamBootstrap, boolean tls) {
-        configureVirtualClusterMock(cluster, downstreamBootstrap, upstreamBootstrap, tls, tls);
+        configureVirtualClusterMock(cluster, downstreamBootstrap, upstreamBootstrap, tls, tls, null);
     }
 
-    private void configureVirtualClusterMock(VirtualCluster cluster, HostPort downstreamBootstrap, HostPort upstreamBootstrap, boolean tls, boolean sni) {
+    private void configureVirtualClusterMock(VirtualCluster cluster, HostPort downstreamBootstrap, HostPort upstreamBootstrap, boolean tls, boolean sni,
+                                             Set<Integer> prebindBrokerId) {
         when(cluster.getClusterBootstrapAddress()).thenReturn(downstreamBootstrap);
         when(cluster.isUseTls()).thenReturn(tls);
         when(cluster.requiresTls()).thenReturn(sni);
+        when(cluster.prebindBrokerIds()).thenReturn(prebindBrokerId);
         when(cluster.targetCluster()).thenReturn(new TargetCluster(upstreamBootstrap.toString(), null));
+        when(cluster.getBrokerIdFromBrokerAddress(any(HostPort.class))).thenReturn(null);
     }
 
     private void verifyVirtualClusterRegisterFuture(int expectedPort, boolean expectedTls, CompletableFuture<Endpoint> future) throws Exception {

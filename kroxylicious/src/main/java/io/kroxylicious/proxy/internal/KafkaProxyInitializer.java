@@ -33,7 +33,7 @@ import io.kroxylicious.proxy.internal.codec.KafkaRequestDecoder;
 import io.kroxylicious.proxy.internal.codec.KafkaResponseEncoder;
 import io.kroxylicious.proxy.internal.filter.ApiVersionsFilter;
 import io.kroxylicious.proxy.internal.filter.BrokerAddressFilter;
-import io.kroxylicious.proxy.internal.filter.MetadataAndCloseFilter;
+import io.kroxylicious.proxy.internal.filter.EagerMetadataLearner;
 import io.kroxylicious.proxy.internal.net.Endpoint;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
 import io.kroxylicious.proxy.internal.net.VirtualClusterBinding;
@@ -178,8 +178,8 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
             List<FilterAndInvoker> brokerAddressFilters = FilterAndInvoker.build(new BrokerAddressFilter(virtualCluster, endpointReconciler));
             var filters = new ArrayList<>(apiVersionFilters);
             filters.addAll(customProtocolFilters);
-            if (binding instanceof VirtualClusterBrokerBinding vcbb && vcbb.uninitializedBrokers()) {
-                filters.addAll(FilterAndInvoker.build(new MetadataAndCloseFilter(virtualCluster, endpointReconciler)));
+            if (binding instanceof VirtualClusterBrokerBinding vcbb && !vcbb.upstreamBound()) {
+                filters.addAll(FilterAndInvoker.build(new EagerMetadataLearner(virtualCluster, endpointReconciler)));
             }
             filters.addAll(brokerAddressFilters);
 

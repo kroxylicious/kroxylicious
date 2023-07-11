@@ -13,8 +13,13 @@ import io.kroxylicious.proxy.service.HostPort;
 
 /**
  * A broker specific virtual cluster binding.
+ *
+ * @param virtualCluster the virtual cluster
+ * @param upstreamTarget the upstream target of this binding
+ * @param nodeId         Kafka nodeId of the target broker
+ * @param upstreamBound  true if the upstreamTarget corresponds to a broker, false if it points at a bootstrap.
  */
-public record VirtualClusterBrokerBinding(VirtualCluster virtualCluster, HostPort upstreamTarget, int nodeId, boolean uninitializedBrokers) implements VirtualClusterBinding {
+public record VirtualClusterBrokerBinding(VirtualCluster virtualCluster, HostPort upstreamTarget, int nodeId, boolean upstreamBound) implements VirtualClusterBinding {
     public VirtualClusterBrokerBinding {
         Objects.requireNonNull(virtualCluster, "virtualCluster must not be null");
         Objects.requireNonNull(upstreamTarget, "upstreamTarget must not be null");
@@ -25,6 +30,7 @@ public record VirtualClusterBrokerBinding(VirtualCluster virtualCluster, HostPor
         return "VirtualClusterBrokerBinding[" +
                 "virtualCluster=" + this.virtualCluster() + ", " +
                 "upstreamTarget=" + this.upstreamTarget() + ", " +
+                "upstreamBound=" + this.upstreamBound() + ", " +
                 "nodeId=" + nodeId + ']';
     }
 

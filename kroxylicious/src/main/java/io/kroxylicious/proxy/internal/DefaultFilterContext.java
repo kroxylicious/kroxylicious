@@ -210,8 +210,10 @@ class DefaultFilterContext implements KrpcFilterContext {
     }
 
     @Override
-    public void closeChannel() {
-        this.channelContext.close();
+    public void closeConnection() {
+        this.channelContext.close().addListener(future -> {
+            LOGGER.debug("{} closed.", channelDescriptor());
+        });
     }
 
     /**

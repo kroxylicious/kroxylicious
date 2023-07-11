@@ -84,7 +84,11 @@ public interface KrpcFilterContext {
      */
     void forwardResponse(ApiMessage response);
 
-    void closeChannel();
+    /**
+     * Allows a filter to decide to close the connection. The client will be disconnected.  The client is free
+     * to retry the connection.  The client will receive no indication why the connection was closed.
+     */
+    void closeConnection();
 
     // TODO an API to allow a filter to add/remove another filter from the pipeline
 }
