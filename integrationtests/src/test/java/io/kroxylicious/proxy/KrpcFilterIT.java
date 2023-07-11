@@ -31,7 +31,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
-import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
 import io.kroxylicious.proxy.filter.CreateTopicRejectFilter;
 import io.kroxylicious.proxy.internal.filter.ByteBufferTransformation;
@@ -137,8 +136,7 @@ public class KrpcFilterIT {
 
         admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1))).all().get();
 
-        ConfigurationBuilder builder = proxy(cluster);
-        try (var tester = kroxyliciousTester(builder);
+        try (var tester = kroxyliciousTester(proxy(cluster));
                 var producer = tester.producer(Map.of(CLIENT_ID_CONFIG, "shouldPassThroughRecordUnchanged", DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000));
                 var consumer = tester.consumer()) {
             producer.send(new ProducerRecord<>(TOPIC_1, "my-key", "Hello, world!")).get();
@@ -152,8 +150,7 @@ public class KrpcFilterIT {
 
     @Test
     public void requestFiltersCanRespondWithoutProxying(KafkaCluster cluster, Admin admin) throws Exception {
-        ConfigurationBuilder builder = proxy(cluster);
-        var config = builder
+        var config = proxy(cluster)
                 .addToFilters(new FilterDefinitionBuilder("CreateTopicRejectFilter").build());
 
         try (var tester = kroxyliciousTester(config);
@@ -168,8 +165,7 @@ public class KrpcFilterIT {
 
     @Test
     public void requestFiltersCanRespondWithoutProxyingDoesntLeakBuffers(KafkaCluster cluster, Admin admin) throws Exception {
-        ConfigurationBuilder builder = proxy(cluster);
-        var config = builder
+        var config = proxy(cluster)
                 .addToFilters(new FilterDefinitionBuilder("CreateTopicRejectFilter").build());
 
         try (var tester = kroxyliciousTester(config);
@@ -217,8 +213,7 @@ public class KrpcFilterIT {
                 new NewTopic(TOPIC_1, 1, (short) 1),
                 new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
 
-        ConfigurationBuilder builder = proxy(cluster);
-        var config = builder
+        var config = proxy(cluster)
                 .addToFilters(new FilterDefinitionBuilder("ProduceRequestTransformation").withConfig("transformation", TestEncoder.class.getName()).build());
 
         try (var tester = kroxyliciousTester(config);
@@ -251,8 +246,7 @@ public class KrpcFilterIT {
                 new NewTopic(TOPIC_1, 1, (short) 1),
                 new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
 
-        ConfigurationBuilder builder = proxy(cluster);
-        var config = builder
+        var config = proxy(cluster)
                 .addToFilters(new FilterDefinitionBuilder("FetchResponseTransformation").withConfig("transformation", TestDecoder.class.getName()).build());
 
         try (var tester = kroxyliciousTester(config);
