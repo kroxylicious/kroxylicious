@@ -63,8 +63,7 @@ public class KroxyliciousTestersTest {
     @Test
     public void testAdminMethods(KafkaCluster cluster) {
         try {
-            ConfigurationBuilder builder = proxy(cluster);
-            try (var tester = kroxyliciousTester(builder)) {
+            try (var tester = kroxyliciousTester(proxy(cluster))) {
                 assertNotNull(tester.admin().describeCluster().clusterId().get(10, TimeUnit.SECONDS));
                 assertNotNull(tester.admin(Map.of()).describeCluster().clusterId().get(10, TimeUnit.SECONDS));
                 assertNotNull(tester.admin(DEFAULT_VIRTUAL_CLUSTER, Map.of()).describeCluster().clusterId().get(10, TimeUnit.SECONDS));
@@ -83,8 +82,7 @@ public class KroxyliciousTestersTest {
         KafkaProducer<String, String> producer = new KafkaProducer<>(cluster.getKafkaClientConfiguration(), new StringSerializer(), new StringSerializer());
         producer.send(new ProducerRecord<>(TOPIC, "key", "value")).get(10, TimeUnit.SECONDS);
         try {
-            ConfigurationBuilder builder = proxy(cluster);
-            try (var tester = kroxyliciousTester(builder)) {
+            try (var tester = kroxyliciousTester(proxy(cluster))) {
                 assertOneRecordConsumedFrom(tester.consumer());
                 assertOneRecordConsumedFrom(tester.consumer(randomGroupIdAndEarliestReset()));
                 assertOneRecordConsumedFrom(tester.consumer(Serdes.String(), Serdes.String(), randomGroupIdAndEarliestReset()));
@@ -102,8 +100,7 @@ public class KroxyliciousTestersTest {
     @Test
     public void testProducerMethods(KafkaCluster cluster) {
         try {
-            ConfigurationBuilder builder = proxy(cluster);
-            try (var tester = kroxyliciousTester(builder)) {
+            try (var tester = kroxyliciousTester(proxy(cluster))) {
                 send(tester.producer());
                 send(tester.producer(Map.of()));
                 send(tester.producer(Serdes.String(), Serdes.String(), Map.of()));
@@ -127,8 +124,7 @@ public class KroxyliciousTestersTest {
     @Test
     public void testSingleRequestClient(KafkaCluster cluster) {
         try {
-            ConfigurationBuilder builder = proxy(cluster);
-            try (var tester = kroxyliciousTester(builder)) {
+            try (var tester = kroxyliciousTester(proxy(cluster))) {
                 assertCanSendSingleRequestAndGetResponse(tester.singleRequestClient());
                 assertCanSendSingleRequestAndGetResponse(tester.singleRequestClient(DEFAULT_VIRTUAL_CLUSTER));
             }
@@ -140,7 +136,7 @@ public class KroxyliciousTestersTest {
 
     @Test
     public void testMockTester() {
-        try (var tester = mockKafkaKroxyliciousTester(clusterBootstrapServers -> proxy(clusterBootstrapServers))) {
+        try (var tester = mockKafkaKroxyliciousTester(KroxyliciousConfigUtils::proxy)) {
             assertCanSendSingleRequestAndReceiveMockMessage(tester, tester.singleRequestClient());
             assertCanSendSingleRequestAndReceiveMockMessage(tester, tester.singleRequestClient(DEFAULT_VIRTUAL_CLUSTER));
         }

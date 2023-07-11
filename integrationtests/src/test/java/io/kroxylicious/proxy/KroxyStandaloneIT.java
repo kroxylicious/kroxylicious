@@ -26,7 +26,6 @@ import org.junit.jupiter.api.io.TempDir;
 
 import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.config.Configuration;
-import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
@@ -53,8 +52,7 @@ public class KroxyStandaloneIT {
                 new NewTopic(TOPIC_1, 1, (short) 1),
                 new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
 
-        ConfigurationBuilder builder = proxy(cluster);
-        try (var tester = kroxyliciousTester(builder, new SubprocessKroxyliciousFactory(tempDir));
+        try (var tester = kroxyliciousTester(proxy(cluster), new SubprocessKroxyliciousFactory(tempDir));
                 var producer = tester.producer(Map.of(
                         ProducerConfig.CLIENT_ID_CONFIG, "shouldModifyProduceMessage",
                         ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000));

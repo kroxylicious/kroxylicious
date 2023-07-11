@@ -24,7 +24,6 @@ import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
-import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
@@ -52,8 +51,7 @@ public class JsonSyntaxValidationIT {
         assertEquals(1, cluster.getNumOfBrokers());
         admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1))).all().get();
 
-        ConfigurationBuilder builder = proxy(cluster);
-        var config = builder
+        var config = proxy(cluster)
                 .addToFilters(new FilterDefinitionBuilder("ProduceValidator").withConfig("rules",
                         List.of(Map.of("topicNames", List.of(TOPIC_1), "valueRule",
                                 Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true)))))
@@ -70,8 +68,7 @@ public class JsonSyntaxValidationIT {
         assertEquals(1, cluster.getNumOfBrokers());
         admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1), new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
 
-        ConfigurationBuilder builder = proxy(cluster);
-        var config = builder
+        var config = proxy(cluster)
                 .addToFilters(new FilterDefinitionBuilder("ProduceValidator").withConfig("rules",
                         List.of(Map.of("topicNames", List.of(TOPIC_1), "valueRule",
                                 Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true)))))
@@ -95,8 +92,7 @@ public class JsonSyntaxValidationIT {
 
         admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1), new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
 
-        ConfigurationBuilder builder = proxy(cluster);
-        var config = builder
+        var config = proxy(cluster)
                 .addToFilters(new FilterDefinitionBuilder("ProduceValidator").withConfig("forwardPartialRequests", true, "rules",
                         List.of(Map.of("topicNames", List.of(TOPIC_1, TOPIC_2), "valueRule",
                                 Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true)))))
@@ -122,8 +118,7 @@ public class JsonSyntaxValidationIT {
         admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1), new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
 
         boolean forwardPartialRequests = false;
-        ConfigurationBuilder builder = proxy(cluster);
-        var config = builder
+        var config = proxy(cluster)
                 .addToFilters(new FilterDefinitionBuilder("ProduceValidator").withConfig("forwardPartialRequests", forwardPartialRequests, "rules",
                         List.of(Map.of("topicNames", List.of(TOPIC_1, TOPIC_2), "valueRule",
                                 Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true)))))
@@ -145,8 +140,7 @@ public class JsonSyntaxValidationIT {
 
         admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1), new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
 
-        ConfigurationBuilder builder = proxy(cluster);
-        var config = builder
+        var config = proxy(cluster)
                 .addToFilters(new FilterDefinitionBuilder("ProduceValidator")
                         .withConfig("forwardPartialRequests", true,
                                 "rules", List.of(Map.of("topicNames", List.of(TOPIC_1, TOPIC_2), "valueRule",
@@ -176,8 +170,7 @@ public class JsonSyntaxValidationIT {
 
         admin.createTopics(List.of(new NewTopic(TOPIC_1, 2, (short) 1))).all().get();
 
-        ConfigurationBuilder builder = proxy(cluster);
-        var config = builder
+        var config = proxy(cluster)
                 .addToFilters(new FilterDefinitionBuilder("ProduceValidator")
                         .withConfig("forwardPartialRequests", true,
                                 "rules", List.of(Map.of("topicNames", List.of(TOPIC_1), "valueRule",
@@ -207,8 +200,7 @@ public class JsonSyntaxValidationIT {
 
         admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1))).all().get();
 
-        ConfigurationBuilder builder = proxy(cluster);
-        var config = builder
+        var config = proxy(cluster)
                 .addToFilters(new FilterDefinitionBuilder("ProduceValidator").withConfig("forwardPartialRequests", true, "rules",
                         List.of(Map.of("topicNames", List.of(TOPIC_1), "valueRule",
                                 Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true)))))
@@ -233,8 +225,7 @@ public class JsonSyntaxValidationIT {
 
         admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1))).all().get();
 
-        ConfigurationBuilder builder = proxy(cluster);
-        var config = builder
+        var config = proxy(cluster)
                 .addToFilters(new FilterDefinitionBuilder("ProduceValidator").withConfig("rules",
                         List.of(Map.of("topicNames", List.of(TOPIC_1), "valueRule",
                                 Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true)))))
