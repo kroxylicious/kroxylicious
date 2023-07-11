@@ -3,6 +3,7 @@
 :toc:
 :icons: font
 :url-quickref: https://docs.asciidoctor.org/asciidoc/latest/syntax-quick-reference/
+:source-highlighter: pygments
 
 include::overview.adoc[leveloffset=1]
 
