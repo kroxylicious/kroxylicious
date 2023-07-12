@@ -366,7 +366,7 @@ currently do not have a mechanism for your Filter to know the supported API vers
 you use a hardcoded API version as shown, your Filter will only work with upstream brokers that support that api version
 for that RPC (see issue {github}/issues/438[#438]).
 
-The out-of-band Request/Response are eligible to be intercepted by Filters upstream of this Filter.
+The out-of-band Request/Response will be intercepted by Filters upstream of this Filter.
 
 Note you should not attempt to call `forward` methods on the `KrpcFilterContext` using the CompletionStage, they still
 must be called synchronously during the invocation of the `onXyz[Request|Response]` method.

@@ -75,22 +75,13 @@ public class FilterHandler
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         if (msg instanceof DecodedResponseFrame<?> decodedFrame) {
-            if (decodedFrame instanceof InternalResponseFrame<?> frame) {
-                if (frame.isRecipient(filter)) {
-                    if (LOGGER.isDebugEnabled()) {
-                        LOGGER.debug("{}: Completing {} response for request sent by this filter{}: {}",
-                                ctx.channel(), decodedFrame.apiKey(), filterDescriptor(), msg);
-                    }
-                    CompletableFuture<ApiMessage> p = frame.promise();
-                    p.complete(decodedFrame.body());
+            if (decodedFrame instanceof InternalResponseFrame<?> frame && frame.isRecipient(filter)) {
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("{}: Completing {} response for request sent by this filter{}: {}",
+                            ctx.channel(), decodedFrame.apiKey(), filterDescriptor(), msg);
                 }
-                else {
-                    if (LOGGER.isDebugEnabled()) {
-                        LOGGER.debug("{}: Not completing {} response for request sent by another filter {}",
-                                ctx.channel(), decodedFrame.apiKey(), frame.recipient());
-                    }
-                    ctx.fireChannelRead(msg);
-                }
+                CompletableFuture<ApiMessage> p = frame.promise();
+                p.complete(decodedFrame.body());
             }
             else {
                 var filterContext = new DefaultFilterContext(filter, ctx, decodedFrame, null, timeoutMs, sniHostname);

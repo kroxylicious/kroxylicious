@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.internal;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
@@ -17,13 +18,17 @@ import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
+import org.apache.kafka.common.protocol.types.RawTaggedField;
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.proxy.filter.ApiVersionsRequestFilter;
 import io.kroxylicious.proxy.filter.ApiVersionsResponseFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
+import io.kroxylicious.proxy.frame.DecodedRequestFrame;
+import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.future.InternalCompletionStage;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -32,6 +37,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 public class FilterHandlerTest extends FilterHarness {
+
+    public static final int ARBITRARY_TAG = 500;
 
     @Test
     public void testForwardRequest() {
@@ -77,6 +84,34 @@ public class FilterHandlerTest extends FilterHarness {
         var frame = writeResponse(new ApiVersionsResponseData());
         var propagated = channel.readInbound();
         assertEquals(frame, propagated, "Expect it to be the frame that was sent");
+    }
+
+    @Test
+    public void testOtherFiltersInChainCanFilterOutOfBandResponse() {
+        ApiVersionsResponseFilter recipientFilter = taggingApiVersionsResponseFilter("recipient");
+        String filterName = "other-interested-filter";
+        ApiVersionsResponseFilter filterUnderTest = taggingApiVersionsResponseFilter(filterName);
+        buildChannel(filterUnderTest);
+        CompletableFuture<Object> future = new CompletableFuture<>();
+        var frame = writeInternalResponse(new ApiVersionsResponseData(), future, recipientFilter);
+        var propagated = channel.readInbound();
+        assertEquals(frame, propagated, "Expect it to be the frame that was sent");
+        assertResponseMessageTaggedWith(filterName, (InternalResponseFrame<?>) propagated);
+        assertFalse(future.isDone());
+    }
+
+    @Test
+    public void testOtherFiltersInChainCanFilterOutOfBandRequest() {
+        ApiVersionsRequestFilter recipientFilter = taggingApiVersionsRequestFilter("recipient");
+        String filterName = "other-interested-filter";
+        ApiVersionsRequestFilter filterUnderTest = taggingApiVersionsRequestFilter(filterName);
+        buildChannel(filterUnderTest);
+        CompletableFuture<Object> future = new CompletableFuture<>();
+        var frame = writeInternalRequest(new ApiVersionsRequestData(), future, recipientFilter);
+        var propagated = channel.readOutbound();
+        assertEquals(frame, propagated, "Expect it to be the frame that was sent");
+        assertRequestMessageTaggedWith(filterName, (DecodedRequestFrame<?>) propagated);
+        assertFalse(future.isDone());
     }
 
     @Test
@@ -241,6 +276,35 @@ public class FilterHandlerTest extends FilterHarness {
         assertTrue(q.isCompletedExceptionally(),
                 "Future should be finished yet");
         assertThrows(ExecutionException.class, q::get);
+    }
+
+    private static void assertResponseMessageTaggedWith(String filterName, DecodedResponseFrame<?> propagated) {
+        String tag = collectTagsToStrings(propagated.body(), ARBITRARY_TAG);
+        assertEquals(tag, filterName);
+    }
+
+    private static void assertRequestMessageTaggedWith(String filterName, DecodedRequestFrame<?> propagated) {
+        String tag = collectTagsToStrings(propagated.body(), ARBITRARY_TAG);
+        assertEquals(tag, filterName);
+    }
+
+    private static ApiVersionsResponseFilter taggingApiVersionsResponseFilter(String tag) {
+        return (apiVersion, header, response, context) -> {
+            response.unknownTaggedFields().add(new RawTaggedField(ARBITRARY_TAG, tag.getBytes(UTF_8)));
+            context.forwardResponse(header, response);
+        };
+    }
+
+    private static String collectTagsToStrings(ApiMessage body, int tag) {
+        return body.unknownTaggedFields().stream().filter(f -> f.tag() == tag)
+                .map(RawTaggedField::data).map(f -> new String(f, UTF_8)).collect(Collectors.joining(","));
+    }
+
+    private static ApiVersionsRequestFilter taggingApiVersionsRequestFilter(String tag) {
+        return (apiVersion, header, request, context) -> {
+            request.unknownTaggedFields().add(new RawTaggedField(ARBITRARY_TAG, tag.getBytes(UTF_8)));
+            context.forwardRequest(header, request);
+        };
     }
 
 }
