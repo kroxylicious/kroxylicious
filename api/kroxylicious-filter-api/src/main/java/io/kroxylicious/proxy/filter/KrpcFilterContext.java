@@ -48,7 +48,7 @@ public interface KrpcFilterContext {
     /**
      * Send a message from a filter towards the broker, invoking upstream filters
      * and being informed of the response via TODO.
-     * The response will pass through upstream filters prior to the handler being invoked.
+     * The response will pass through upstream filters, invoking them, prior to the handler being invoked.
      * Response propagation will stop once the handler has completed,
      * i.e. the downstream filters will not receive the response.
      *

@@ -96,12 +96,42 @@ public abstract class FilterHarness {
      * @param <B> The type of the response body.
      */
     protected <B extends ApiMessage> DecodedResponseFrame<B> writeInternalResponse(B data, CompletableFuture<?> future) {
+        return writeInternalResponse(data, future, filter);
+    }
+
+    /**
+     * Write a response for a filter-originated request, as if from the broker.
+     * @param data The body of the response.
+     * @param future
+     * @param recipient the Filter that wants to receive the internal response
+     * @return The frame that was written.
+     * @param <B> The type of the response body.
+     */
+    protected <B extends ApiMessage> DecodedResponseFrame<B> writeInternalResponse(B data, CompletableFuture<?> future, KrpcFilter recipient) {
         var apiKey = ApiKeys.forId(data.apiKey());
         var header = new ResponseHeaderData();
         int correlationId = 42;
         header.setCorrelationId(correlationId);
-        var frame = new InternalResponseFrame<>(filter, apiKey.latestVersion(), correlationId, header, data, future);
+        var frame = new InternalResponseFrame<>(recipient, apiKey.latestVersion(), correlationId, header, data, future);
         channel.writeInbound(frame);
+        return frame;
+    }
+
+    /**
+     * Write a response for a filter-originated request, as if from the broker.
+     * @param data The body of the response.
+     * @param future
+     * @param recipient the Filter that wants to receive the internal response
+     * @return The frame that was written.
+     * @param <B> The type of the response body.
+     */
+    protected <B extends ApiMessage> DecodedRequestFrame<B> writeInternalRequest(B data, CompletableFuture<?> future, KrpcFilter recipient) {
+        var apiKey = ApiKeys.forId(data.apiKey());
+        var header = new RequestHeaderData();
+        int correlationId = 42;
+        header.setCorrelationId(correlationId);
+        var frame = new InternalRequestFrame<>(apiKey.latestVersion(), correlationId, true, recipient, future, header, data);
+        channel.writeOutbound(frame);
         return frame;
     }
 
