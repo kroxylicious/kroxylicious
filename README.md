@@ -182,9 +182,9 @@ When a PR is created and the performance tests are needed, the following comment
 @strimzi-ci run perf
 ```
 
-It will launch the [kroxylicious-performance-tests-pr](https://master-jenkins-csb-amq-streams.apps.ocp-c1.prod.psi.redhat.com/job/kroxylicious/job/kroxylicious-performance-tests-pr/) build, that will insert a comment with a summary into the PR comparing the results with the previous execution.
+It will launch the `kroxylicious-performance-tests-pr` build, that will insert a comment with a summary into the PR comparing the results with the previous execution.
 
-In case a manual execution needs to be done, this job is ready for that [kroxylicious-performance-tests](https://master-jenkins-csb-amq-streams.apps.ocp-c1.prod.psi.redhat.com/job/kroxylicious/job/kroxylicious-performance-tests/), where
+In case a manual execution needs to be done, this job is ready for that `kroxylicious-performance-tests`, where
 some parameters can be configurable (NUMBER_OF_MESSAGES, MESSAGE_SIZE, PRODUCER_PROPERTIES)
 
 ## Architecture Monitoring
