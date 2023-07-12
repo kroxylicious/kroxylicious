@@ -184,6 +184,9 @@ When a PR is created and the performance tests are needed, the following comment
 
 It will launch the `kroxylicious-performance-tests-pr` build, that will insert a comment with a summary into the PR comparing the results with the previous execution.
 
+> **Warning**\
+> The comparison with the previous version has to be checked manually as currently there is no pass/fail criteria in the pipeline
+
 In case a manual execution needs to be done, this job is ready for that `kroxylicious-performance-tests`, where
 some parameters can be configurable (NUMBER_OF_MESSAGES, MESSAGE_SIZE, PRODUCER_PROPERTIES)
 
