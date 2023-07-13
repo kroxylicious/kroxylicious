@@ -21,6 +21,7 @@ _Please go through this checklist and make sure all applicable tasks have been d
 
 - [ ] Write tests
 - [ ] Make sure all tests pass
+- [ ] Review performance test results. Ensure that any degradations to performance numbers are understood and justified.
 - [ ] Make sure all Sonar-Lint warnings are addressed or are justifiably ignored.
 - [ ] Update documentation
 - [ ] Reference relevant issue(s) and close them after merging
