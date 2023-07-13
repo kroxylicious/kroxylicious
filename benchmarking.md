@@ -7,14 +7,14 @@ This document describes how to run some basic performance tests for the proxy.
 Download Apache Kafka:
 
 ```
-$ wget https://downloads.apache.org/kafka/3.4.0/kafka_2.13-3.4.0.tgz
-$ tar xvf kafka_2.13-3.4.0.tgz
+$ wget https://downloads.apache.org/kafka/3.4.1/kafka_2.13-3.4.1.tgz
+$ tar xvf kafka_2.13-3.4.1.tgz
 ```
 
 Start up ZooKeeper and Kafka:
 
 ```
-$ cd kafka_2.13-3.4.0
+$ cd kafka_2.13-3.4.1
 $ bin/zookeeper-server-start.sh config/zookeeper.properties
 $ bin/kafka-server-start.sh config/server.properties
 ```
