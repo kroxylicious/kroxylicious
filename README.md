@@ -176,19 +176,17 @@ The output will be in `target/html/master.html`.
 
 See [benchmarking.md](benchmarking.md) for information on running basic performance tests for this proxy.
 
-### GitHub action for performance
+### Jenkins pipeline for performance
 When a PR is created and the performance tests are needed, the following comment shall be added into the PR:
 
 ```
-/perf
+@strimzi-ci run perf
 ```
 
-It will launch the `Performance` build, compare the results with the previous execution and store the results in the gh-pages repo under the `.benchmark` directory.
+It will launch the `kroxylicious-performance-tests-pr` build, that will insert a comment with a summary into the PR comparing the results with the previous execution.
 
-In case the results are worse than expected (150% threshold) and alert will be shown into the commit and an email will be sent to the kroxylicious developers
-to inform them.
-
-**NOTE**: The alert cannot be currently shown in the PR, but the [upstream project](https://github.com/benchmark-action/github-action-benchmark) is working on adding this functionality.
+In case a manual execution needs to be done, this job is ready for that `kroxylicious-performance-tests`, where
+some parameters can be configurable (NUMBER_OF_MESSAGES, MESSAGE_SIZE, PRODUCER_PROPERTIES)
 
 ## Architecture Monitoring
 
