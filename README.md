@@ -15,7 +15,7 @@ addressing use cases such as multi-tenancy, schema validation, or encryption.
   * [Samples](#samples)
   * [Rendering documentation](#rendering-documentation)
   * [Performance Testing](#performance-testing)
-    * [GitHub action for performance](#github-action-for-performance)
+    * [Jenkins pipeline for performance](#jenkins-pipeline-for-performance)
   * [Architecture Monitoring](#architecture-monitoring)
   * [IntelliJ setup](#intellij-setup)
   * [License](#license)
