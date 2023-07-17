@@ -9,7 +9,6 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
-import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.kafka.common.message.ApiVersionsRequestData;
@@ -44,7 +43,6 @@ import io.kroxylicious.proxy.internal.codec.CorrelationManager;
 import io.kroxylicious.proxy.internal.codec.DecodePredicate;
 import io.kroxylicious.proxy.internal.codec.KafkaRequestEncoder;
 import io.kroxylicious.proxy.internal.codec.KafkaResponseDecoder;
-import io.kroxylicious.proxy.internal.filter.ApiVersionsFilter;
 import io.kroxylicious.proxy.model.VirtualCluster;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
@@ -272,12 +270,7 @@ public class KafkaProxyFrontendHandler
         if (logFrames) {
             pipeline.addFirst("frameLogger", new LoggingHandler("io.kroxylicious.proxy.internal.UpstreamFrameLogger"));
         }
-        final List<FilterAndInvoker> filterAndInvokers = new ArrayList<>();
-        if (!dp.isAuthenticationOffloadEnabled()) {
-            filterAndInvokers.addAll(FilterAndInvoker.build(new ApiVersionsFilter()));
-        }
-        filterAndInvokers.addAll(filters);
-        addFiltersToPipeline(filterAndInvokers, pipeline);
+        addFiltersToPipeline(filters, pipeline);
         pipeline.addFirst("responseDecoder", new KafkaResponseDecoder(correlationManager));
         pipeline.addFirst("requestEncoder", new KafkaRequestEncoder(correlationManager));
         if (logNetwork) {
@@ -292,7 +285,7 @@ public class KafkaProxyFrontendHandler
                 LOGGER.trace("{}: Outbound connected", inboundCtx.channel().id());
                 // Now we know which filters are to be used we need to update the DecodePredicate
                 // so that the decoder starts decoding the messages that the filters want to intercept
-                dp.setDelegate(DecodePredicate.forFilters(filterAndInvokers));
+                dp.setDelegate(DecodePredicate.forFilters(filters));
             }
             else {
                 state = State.FAILED;
