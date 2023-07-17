@@ -6,6 +6,7 @@
 package io.kroxylicious.proxy.internal;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -30,6 +31,7 @@ import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.internal.codec.KafkaRequestDecoder;
 import io.kroxylicious.proxy.internal.codec.KafkaResponseEncoder;
+import io.kroxylicious.proxy.internal.filter.ApiVersionsFilter;
 import io.kroxylicious.proxy.internal.filter.BrokerAddressFilter;
 import io.kroxylicious.proxy.internal.net.Endpoint;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
@@ -169,10 +171,12 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
 
         var frontendHandler = new KafkaProxyFrontendHandler(context -> {
             var filterChainFactory = new FilterChainFactory(config);
-
-            var filters = new ArrayList<>(filterChainFactory.createFilters());
-            // Add internal filters.
-            filters.addAll(FilterAndInvoker.build(new BrokerAddressFilter(virtualCluster, endpointReconciler)));
+            List<FilterAndInvoker> apiVersionFilters = dp.isAuthenticationOffloadEnabled() ? List.of() : FilterAndInvoker.build(new ApiVersionsFilter());
+            List<FilterAndInvoker> customProtocolFilters = filterChainFactory.createFilters();
+            List<FilterAndInvoker> brokerAddressFilters = FilterAndInvoker.build(new BrokerAddressFilter(virtualCluster, endpointReconciler));
+            var filters = new ArrayList<>(apiVersionFilters);
+            filters.addAll(customProtocolFilters);
+            filters.addAll(brokerAddressFilters);
 
             var target = binding.upstreamTarget();
             if (target == null) {
