@@ -12,6 +12,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
 import org.apache.kafka.clients.admin.Admin;
@@ -84,7 +85,10 @@ public class KroxyStandaloneIT {
             String classpath = System.getProperty("java.class.path");
             var processBuilder = new ProcessBuilder(java, "-cp", classpath, "io.kroxylicious.proxy.Kroxylicious", "-c", configPath.toString()).inheritIO();
             Process start = processBuilder.start();
-            return start::destroy;
+            return () -> {
+                start.destroy();
+                start.onExit().get(10, TimeUnit.SECONDS);
+            };
         }
         catch (Exception e) {
             throw new RuntimeException(e);
