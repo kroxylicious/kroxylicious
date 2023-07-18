@@ -6,7 +6,7 @@
 #
 
 set -eo pipefail
-DEFAULT_QUAY_ORG='kroxylicious-developer'
+DEFAULT_QUAY_ORG='kroxylicious'
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 . "${SCRIPT_DIR}/common.sh"
