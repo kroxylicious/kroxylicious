@@ -85,8 +85,9 @@ public class MeterRegistries implements AutoCloseable {
     @Override
     public void close() {
         hooks.forEach(MicrometerConfigurationHook::close);
+        // remove the meters we contributed to the global registry.
         var copy = List.copyOf(prometheusMeterRegistry.getMeters());
-        copy.forEach(prometheusMeterRegistry::remove);
+        copy.forEach(Metrics.globalRegistry::remove);
         Metrics.removeRegistry(prometheusMeterRegistry);
     }
 }

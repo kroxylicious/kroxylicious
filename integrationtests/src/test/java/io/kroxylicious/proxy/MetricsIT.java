@@ -12,7 +12,6 @@ import java.util.Map;
 import java.util.Random;
 import java.util.regex.Pattern;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -31,11 +30,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @ExtendWith(KafkaClusterExtension.class)
 public class MetricsIT {
-
-    @BeforeEach
-    public void beforeEach() {
-        Metrics.globalRegistry.clear();
-    }
 
     @Test
     public void shouldOfferPrometheusMetricsScrapeEndpoint(KafkaCluster cluster) {
