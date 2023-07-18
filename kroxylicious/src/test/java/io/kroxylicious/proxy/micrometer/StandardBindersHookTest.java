@@ -8,15 +8,25 @@ package io.kroxylicious.proxy.micrometer;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.micrometer.core.instrument.Meter;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.binder.MeterBinder;
 import io.micrometer.core.instrument.composite.CompositeMeterRegistry;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.verify;
 
+@ExtendWith(MockitoExtension.class)
 class StandardBindersHookTest {
+
+    private static final String AUTO_CLOSEABLE_BINDER = "AutoCloseableBinder";
+    @Mock(extraInterfaces = AutoCloseable.class)
+    MeterBinder closeableBinder;
 
     @Test
     public void testNullHookConfigThrows() {
@@ -52,6 +62,24 @@ class StandardBindersHookTest {
         try (StandardBindersHook hook = new StandardBindersHook(new StandardBindersHook.StandardBindersHookConfig(List.of("SadClown")))) {
             assertThatThrownBy(() -> whenRegistryConfiguredWith(hook)).isInstanceOf(IllegalArgumentException.class);
         }
+    }
+
+    @Test
+    public void testAutoCloseableBindingClosed() throws Exception {
+        var hook = new StandardBindersHook(new StandardBindersHook.StandardBindersHookConfig(List.of(AUTO_CLOSEABLE_BINDER))) {
+            @Override
+            protected MeterBinder getBinder(String binderName) {
+                if (binderName.equals(AUTO_CLOSEABLE_BINDER)) {
+                    return closeableBinder;
+                }
+                throw new IllegalArgumentException();
+            }
+        };
+        var registry = whenRegistryConfiguredWith(hook);
+        verify(closeableBinder).bindTo(registry);
+
+        hook.close();
+        verify(((AutoCloseable) closeableBinder)).close();
     }
 
     private static void thenUptimeMeterRegistered(MeterRegistry registry) {
