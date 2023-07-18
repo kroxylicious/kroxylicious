@@ -61,7 +61,7 @@ import static org.testcontainers.shaded.org.awaitility.Awaitility.await;
 /**
  * Integration tests that focus on the ability to present virtual clusters, with various numbers of brokers)
  * to the kafka clients
- *
+ * <br/>
  * TODO corner case test - verify kroxy's ability to recover for a temporary port already bound condition.
  */
 @ExtendWith(KafkaClusterExtension.class)
@@ -324,8 +324,7 @@ public class ExpositionIT {
         virtualClusterBuilder.editOrNewTargetCluster().withBootstrapServers(cluster.getBootstrapServers()).endTargetCluster();
 
         var builder = new ConfigurationBuilder()
-                .addToVirtualClusters("demo", virtualClusterBuilder.build())
-                .addToFilters(new FilterDefinitionBuilder("ApiVersions").build());
+                .addToVirtualClusters("demo", virtualClusterBuilder.build());
 
         // First, learn the broker endpoints.
 

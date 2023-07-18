@@ -179,7 +179,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
             var filters = new ArrayList<>(apiVersionFilters);
             filters.addAll(customProtocolFilters);
             if (binding instanceof VirtualClusterBrokerBinding vcbb && !vcbb.upstreamBound()) {
-                filters.addAll(FilterAndInvoker.build(new EagerMetadataLearner(virtualCluster, endpointReconciler)));
+                filters.addAll(FilterAndInvoker.build(new EagerMetadataLearner()));
             }
             filters.addAll(brokerAddressFilters);
 

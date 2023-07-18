@@ -5,12 +5,10 @@
  */
 package io.kroxylicious.proxy.internal.filter;
 
-import java.util.HashMap;
 import java.util.Set;
 
 import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.MetadataResponseData;
-import org.apache.kafka.common.message.MetadataResponseData.MetadataResponseBroker;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
@@ -19,9 +17,6 @@ import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.proxy.filter.RequestFilter;
-import io.kroxylicious.proxy.internal.net.EndpointReconciler;
-import io.kroxylicious.proxy.model.VirtualCluster;
-import io.kroxylicious.proxy.service.HostPort;
 
 /**
  * An internal filter that causes the system to eagerly learn the cluster's topology by spontaneously emitting
@@ -43,12 +38,7 @@ public class EagerMetadataLearner implements RequestFilter {
      */
     private final static Set<ApiKeys> KAFKA_PRELUDE = Set.of(ApiKeys.API_VERSIONS, ApiKeys.SASL_HANDSHAKE, ApiKeys.SASL_AUTHENTICATE);
 
-    private final VirtualCluster virtualCluster;
-    private final EndpointReconciler reconciler;
-
-    public EagerMetadataLearner(VirtualCluster virtualCluster, EndpointReconciler reconciler) {
-        this.virtualCluster = virtualCluster;
-        this.reconciler = reconciler;
+    public EagerMetadataLearner() {
     }
 
     @Override
@@ -58,22 +48,22 @@ public class EagerMetadataLearner implements RequestFilter {
         }
         else {
             final short apiVersion = determineMetadataApiVersion(header);
+            // Send an out-of-band Metadata request. The response will be intercepted by the in-built BrokerAddressFilter.
+            // By the time control returns to the handler, the upstream addresses will have been reconciled.
             var unused = filterContext.sendRequest(apiVersion, new MetadataRequestData()).thenAccept(apiMessage -> {
-                // Once https://github.com/kroxylicious/kroxylicious/issues/445 lands, we will be able to
-                // rely on BrokerAddressFilter to do the reconciliation, removing the repetitious
-                // code we have here. All this filter needs to do is return forward the response to the
-                // downstream (if the request was indeed for metadata), then close the connection.
-
-                if (!(apiMessage instanceof MetadataResponseData data)) {
+                if (!(apiMessage instanceof MetadataResponseData metadataResponseData)) {
                     throw new IllegalStateException("Unexpected response " + apiMessage.getClass() + " to out-of-band request.");
                 }
-                var nodeMap = new HashMap<Integer, HostPort>();
-                for (MetadataResponseBroker broker : data.brokers()) {
-                    nodeMap.put(broker.nodeId(), new HostPort(broker.host(), broker.port()));
+                if (apiKey.equals(ApiKeys.METADATA) && apiVersion == header.requestApiVersion()) {
+                    // The client's requested matched our out-of-band request, so we may as well return the
+                    // response.
+                    filterContext.forwardResponse(metadataResponseData);
                 }
-                reconciler.reconcile(virtualCluster, nodeMap).toCompletableFuture().join();
-                LOGGER.info("Closing upstream bootstrap connection {} now that endpoint reconciliation is complete.", filterContext.channelDescriptor());
+                // closing the connection is important. This client connection is connected to bootstrap (it could
+                // be any broker or maybe not something else). we must close the connection to force the client to
+                // connect again.
                 filterContext.closeConnection();
+                LOGGER.info("Closing upstream bootstrap connection {} now that endpoint reconciliation is complete.", filterContext.channelDescriptor());
             });
         }
     }

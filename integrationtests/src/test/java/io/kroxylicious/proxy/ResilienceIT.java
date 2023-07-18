@@ -31,7 +31,6 @@ import io.kroxylicious.testing.kafka.common.BrokerCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
-import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.withDefaultFilters;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.apache.kafka.clients.producer.ProducerConfig.CLIENT_ID_CONFIG;
 import static org.apache.kafka.clients.producer.ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG;
@@ -54,14 +53,14 @@ public class ResilienceIT {
     public void kafkaProducerShouldTolerateKroxyliciousRestarting(Admin admin) throws Exception {
         String randomTopic = UUID.randomUUID().toString();
         admin.createTopics(List.of(new NewTopic(randomTopic, 1, (short) 1))).all().get();
-        testProducerCanSurviveARestart(withDefaultFilters(proxy(cluster)), randomTopic);
+        testProducerCanSurviveARestart(proxy(cluster), randomTopic);
     }
 
     @Test
     public void kafkaConsumerShouldTolerateKroxyliciousRestarting(Admin admin) throws Exception {
         String randomTopic = UUID.randomUUID().toString();
         admin.createTopics(List.of(new NewTopic(randomTopic, 1, (short) 1))).all().get();
-        testConsumerCanSurviveKroxyliciousRestart(withDefaultFilters(proxy(cluster)), randomTopic);
+        testConsumerCanSurviveKroxyliciousRestart(proxy(cluster), randomTopic);
     }
 
     private static void testConsumerCanSurviveKroxyliciousRestart(ConfigurationBuilder builder, String topic)
@@ -108,28 +107,43 @@ public class ResilienceIT {
                 ConsumerConfig.GROUP_ID_CONFIG, "mygroup",
                 ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"));
 
-        Producer<String, String> producer;
-        Consumer<String, String> consumer;
+        Producer<String, String> producer = null;
+        Consumer<String, String> consumer = null;
 
-        try (var tester = kroxyliciousTester(builder)) {
-            producer = tester.producer(producerConfig);
-            consumer = tester.consumer(consumerConfig);
-            consumer.subscribe(Set.of(topic));
-            var response = producer.send(new ProducerRecord<>(topic, "my-key", "Hello, world!")).get(10, TimeUnit.SECONDS);
-            LOGGER.warn("response {}", response);
+        try {
+            try (var tester = kroxyliciousTester(builder)) {
+                producer = tester.producer(producerConfig);
+                consumer = tester.consumer(consumerConfig);
+                consumer.subscribe(Set.of(topic));
+                var response = producer.send(new ProducerRecord<>(topic, "my-key", "Hello, world!")).get(10, TimeUnit.SECONDS);
+                LOGGER.warn("response {}", response);
+            }
+
+            LOGGER.debug("Restarting proxy");
+
+            try (var ignored = kroxyliciousTester(builder)) {
+                // re-use the existing producer and consumer (made through Kroxylicious's first incarnation). This provides us the assurance
+                // that they were able to reconnect successfully.
+                producer.send(new ProducerRecord<>(topic, "my-key", "Hello, again!")).get(10, TimeUnit.SECONDS);
+                producer.close();
+                var records = consumer.poll(Duration.ofSeconds(20));
+                consumer.close();
+                assertThat(records).hasSize(2);
+                assertThat(records.iterator()).toIterable().map(ConsumerRecord::value).containsExactly("Hello, world!", "Hello, again!");
+            }
         }
+        finally {
+            try {
+                if (producer != null) {
+                    producer.close();
+                }
+            }
+            finally {
+                if (consumer != null) {
+                    consumer.close();
+                }
+            }
 
-        LOGGER.debug("Restarting proxy");
-
-        try (var ignored = kroxyliciousTester(builder)) {
-            // re-use the existing producer and consumer (made through Kroxylicious's first incarnation). This provides us the assurance
-            // that they were able to reconnect successfully.
-            producer.send(new ProducerRecord<>(topic, "my-key", "Hello, again!")).get(10, TimeUnit.SECONDS);
-            producer.close();
-            var records = consumer.poll(Duration.ofSeconds(20));
-            consumer.close();
-            assertThat(records).hasSize(2);
-            assertThat(records.iterator()).toIterable().map(ConsumerRecord::value).containsExactly("Hello, world!", "Hello, again!");
         }
     }
 

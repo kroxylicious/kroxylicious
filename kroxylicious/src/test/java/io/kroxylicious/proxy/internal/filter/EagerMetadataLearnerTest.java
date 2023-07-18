@@ -6,7 +6,6 @@
 
 package io.kroxylicious.proxy.internal.filter;
 
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 
@@ -34,15 +33,11 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
-import io.kroxylicious.proxy.internal.net.EndpointReconciler;
-import io.kroxylicious.proxy.model.VirtualCluster;
-import io.kroxylicious.proxy.service.HostPort;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyShort;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isA;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -50,21 +45,15 @@ import static org.mockito.Mockito.when;
 class EagerMetadataLearnerTest {
 
     @Mock
-    VirtualCluster virtualCluster;
-
-    @Mock
-    EndpointReconciler endpointReconciler;
-
-    @Mock
     KrpcFilterContext context;
     private EagerMetadataLearner learner;
 
     @BeforeEach
     void setUp() {
-        learner = new EagerMetadataLearner(virtualCluster, endpointReconciler);
+        learner = new EagerMetadataLearner();
     }
 
-    public static Stream<Arguments> kafkaPrelude() {
+    public static Stream<Arguments> preludeRequests() {
         return Stream.of(
                 toArgs(new ApiVersionsRequest(new ApiVersionsRequestData(), ApiVersionsRequestData.HIGHEST_SUPPORTED_VERSION)),
                 toArgs(new SaslHandshakeRequest(new SaslHandshakeRequestData(), SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION)),
@@ -72,7 +61,7 @@ class EagerMetadataLearnerTest {
     }
 
     @ParameterizedTest
-    @MethodSource("kafkaPrelude")
+    @MethodSource("preludeRequests")
     public void forwardsRequestsOfKafkaPrelude(ApiKeys apiKey, RequestHeaderData header, ApiMessage request) {
         learner.onRequest(apiKey, header, request, context);
         verify(context).forwardRequest(header, request);
@@ -81,7 +70,8 @@ class EagerMetadataLearnerTest {
     public static Stream<Arguments> postPreludeRequests() {
         return Stream.of(
                 toArgs(new ProduceRequest(new ProduceRequestData(), ProduceRequestData.HIGHEST_SUPPORTED_VERSION)),
-                toArgs(new MetadataRequest(new MetadataRequestData(), MetadataRequestData.HIGHEST_SUPPORTED_VERSION)));
+                toArgs(new MetadataRequest(new MetadataRequestData(), MetadataRequestData.HIGHEST_SUPPORTED_VERSION)),
+                toArgs(new MetadataRequest(new MetadataRequestData(), MetadataRequestData.LOWEST_SUPPORTED_VERSION)));
     }
 
     @ParameterizedTest
@@ -91,10 +81,9 @@ class EagerMetadataLearnerTest {
         metadataResponse.brokers().add(new MetadataResponseData.MetadataResponseBroker().setNodeId(1).setHost("localhost").setPort(1234));
 
         when(context.sendRequest(anyShort(), isA(MetadataRequestData.class))).thenReturn(CompletableFuture.completedStage(metadataResponse));
-        when(endpointReconciler.reconcile(any(VirtualCluster.class), anyMap())).thenReturn(CompletableFuture.completedStage(null));
         learner.onRequest(apiKey, header, request, context);
 
-        verify(endpointReconciler).reconcile(eq(virtualCluster), eq(Map.of(1, new HostPort("localhost", 1234))));
+        verify(context, apiKey.equals(ApiKeys.METADATA) ? times(1) : never()).forwardResponse(metadataResponse);
         verify(context).closeConnection();
     }
 
