@@ -6,6 +6,7 @@
 package io.kroxylicious.proxy.micrometer;
 
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,6 +31,7 @@ import io.kroxylicious.proxy.config.BaseConfig;
 public class StandardBindersHook implements MicrometerConfigurationHook {
     private static final Logger log = LoggerFactory.getLogger(StandardBindersHook.class);
     private final StandardBindersHookConfig config;
+    private final List<AutoCloseable> closeableBinders = new CopyOnWriteArrayList<>();
 
     public static class StandardBindersHookConfig extends BaseConfig {
         private final List<String> binderNames;
@@ -52,9 +54,23 @@ public class StandardBindersHook implements MicrometerConfigurationHook {
         for (String binderName : this.config.binderNames) {
             MeterBinder binder = getBinder(binderName);
             binder.bindTo(targetRegistry);
-            log.info("bound " + binderName + " to micrometer registry");
+            if (binder instanceof AutoCloseable closeable) {
+                this.closeableBinders.add(closeable);
+            }
+            log.info("bound {} to micrometer registry", binderName);
         }
 
+    }
+
+    @Override
+    public void close() {
+        closeableBinders.forEach(closeable -> {
+            try {
+                closeable.close();
+            }
+            catch (Exception ignore) {
+            }
+        });
     }
 
     private MeterBinder getBinder(String binderName) {

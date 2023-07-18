@@ -22,27 +22,28 @@ import io.micrometer.prometheus.PrometheusConfig;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
 
 import io.kroxylicious.proxy.config.MicrometerDefinition;
+import io.kroxylicious.proxy.micrometer.MicrometerConfigurationHook;
 import io.kroxylicious.proxy.micrometer.MicrometerConfigurationHookContributorManager;
 
-public class MeterRegistries {
+public class MeterRegistries implements AutoCloseable {
     private final PrometheusMeterRegistry prometheusMeterRegistry;
 
     private static final Logger logger = LoggerFactory.getLogger(MeterRegistries.class);
+    private final List<MicrometerConfigurationHook> hooks;
 
     public MeterRegistries(List<MicrometerDefinition> micrometerConfig) {
-        configureMicrometer(micrometerConfig);
+        this.hooks = registerHooks(micrometerConfig);
         this.prometheusMeterRegistry = new PrometheusMeterRegistry(PrometheusConfig.DEFAULT);
         Metrics.addRegistry(prometheusMeterRegistry);
     }
 
-    private void configureMicrometer(List<MicrometerDefinition> micrometerConfig) {
+    private List<MicrometerConfigurationHook> registerHooks(List<MicrometerDefinition> micrometerConfig) {
         CompositeMeterRegistry globalRegistry = Metrics.globalRegistry;
         preventDifferentTagNameRegistration(globalRegistry);
         MicrometerConfigurationHookContributorManager manager = MicrometerConfigurationHookContributorManager.getInstance();
-        micrometerConfig
-                .stream()
-                .map(f -> manager.getHook(f.type(), f.config()))
-                .forEach(micrometerConfigurationHook -> micrometerConfigurationHook.configure(globalRegistry));
+        var hooks = micrometerConfig.stream().map(f -> manager.getHook(f.type(), f.config())).toList();
+        hooks.forEach(micrometerConfigurationHook -> micrometerConfigurationHook.configure(globalRegistry));
+        return hooks;
     }
 
     /**
@@ -79,5 +80,13 @@ public class MeterRegistries {
      */
     public Optional<PrometheusMeterRegistry> maybePrometheusMeterRegistry() {
         return Optional.ofNullable(prometheusMeterRegistry);
+    }
+
+    @Override
+    public void close() {
+        hooks.forEach(MicrometerConfigurationHook::close);
+        var copy = List.copyOf(prometheusMeterRegistry.getMeters());
+        copy.forEach(prometheusMeterRegistry::remove);
+        Metrics.removeRegistry(prometheusMeterRegistry);
     }
 }

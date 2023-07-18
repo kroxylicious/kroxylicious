@@ -25,29 +25,33 @@ class StandardBindersHookTest {
 
     @Test
     public void testNullBinderNames() {
-        StandardBindersHook hook = new StandardBindersHook(new StandardBindersHook.StandardBindersHookConfig(null));
-        MeterRegistry registry = whenRegistryConfiguredWith(hook);
-        thenNoMetersRegistered(registry);
+        try (StandardBindersHook hook = new StandardBindersHook(new StandardBindersHook.StandardBindersHookConfig(null))) {
+            MeterRegistry registry = whenRegistryConfiguredWith(hook);
+            thenNoMetersRegistered(registry);
+        }
     }
 
     @Test
     public void testEmptyBinderNames() {
-        StandardBindersHook hook = new StandardBindersHook(new StandardBindersHook.StandardBindersHookConfig(List.of()));
-        MeterRegistry registry = whenRegistryConfiguredWith(hook);
-        thenNoMetersRegistered(registry);
+        try (StandardBindersHook hook = new StandardBindersHook(new StandardBindersHook.StandardBindersHookConfig(List.of()))) {
+            MeterRegistry registry = whenRegistryConfiguredWith(hook);
+            thenNoMetersRegistered(registry);
+        }
     }
 
     @Test
     public void testKnownBinder() {
-        StandardBindersHook hook = new StandardBindersHook(new StandardBindersHook.StandardBindersHookConfig(List.of("UptimeMetrics")));
-        MeterRegistry registry = whenRegistryConfiguredWith(hook);
-        thenUptimeMeterRegistered(registry);
+        try (StandardBindersHook hook = new StandardBindersHook(new StandardBindersHook.StandardBindersHookConfig(List.of("UptimeMetrics")))) {
+            MeterRegistry registry = whenRegistryConfiguredWith(hook);
+            thenUptimeMeterRegistered(registry);
+        }
     }
 
     @Test
     public void testUnknownBinder() {
-        StandardBindersHook hook = new StandardBindersHook(new StandardBindersHook.StandardBindersHookConfig(List.of("SadClown")));
-        assertThatThrownBy(() -> whenRegistryConfiguredWith(hook)).isInstanceOf(IllegalArgumentException.class);
+        try (StandardBindersHook hook = new StandardBindersHook(new StandardBindersHook.StandardBindersHookConfig(List.of("SadClown")))) {
+            assertThatThrownBy(() -> whenRegistryConfiguredWith(hook)).isInstanceOf(IllegalArgumentException.class);
+        }
     }
 
     private static void thenUptimeMeterRegistered(MeterRegistry registry) {
