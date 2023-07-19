@@ -71,11 +71,12 @@ public class SniRoutingClusterNetworkAddressConfigProvider implements ClusterNet
         }
         var matcher = brokerAddressNodeIdCapturingRegex.matcher(brokerAddress.host());
         if (matcher.matches()) {
+            var nodeId = matcher.group(1);
             try {
-                return Integer.valueOf(matcher.group(1));
+                return Integer.valueOf(nodeId);
             }
             catch (NumberFormatException e) {
-                return null;
+                throw new IllegalStateException("unexpected exception parsing : '%s'".formatted(nodeId), e);
             }
         }
         return null;
