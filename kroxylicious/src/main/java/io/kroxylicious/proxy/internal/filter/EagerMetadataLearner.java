@@ -21,7 +21,7 @@ import io.kroxylicious.proxy.filter.RequestFilter;
 /**
  * An internal filter that causes the system to eagerly learn the cluster's topology by spontaneously emitting
  * an out-of-band Metadata request at the earliest legal point in the Kafka conversation.  The response to allows
- * the Endpoint reconciliation to take place so that ephemeral upstream bindings are replaced by true bindings to
+ * the Endpoint reconciliation to take place so that restricted upstream bindings are replaced by true bindings to
  * the actual upstream brokers.
  * <br/>
  * Once the bindings are made, the filter causes the client's connection to close.   This is done

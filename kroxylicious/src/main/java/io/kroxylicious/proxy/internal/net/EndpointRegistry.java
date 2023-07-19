@@ -193,7 +193,7 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
                     var bhp = virtualCluster.getBrokerAddress(nodeId);
 
                     return registerBinding(new Endpoint(virtualCluster.getBindAddress(), bhp.port(), virtualCluster.isUseTls()), bhp.host(),
-                            new VirtualClusterBrokerBinding(virtualCluster, upstreamBootstrap, nodeId, false));
+                            new VirtualClusterBrokerBinding(virtualCluster, upstreamBootstrap, nodeId, true));
                 }));
 
         var unused = bootstrapEndpointFuture.thenCombine(brokerPrebindingStage, (bef, bps) -> bef)
@@ -331,7 +331,7 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
     private void doReconcile(VirtualCluster virtualCluster, Map<Integer, HostPort> upstreamNodes, CompletableFuture<Void> future, VirtualClusterRecord vcr) {
         var bindingAddress = virtualCluster.getBindAddress();
 
-        var creations = upstreamNodes.entrySet().stream().map(e -> new VirtualClusterBrokerBinding(virtualCluster, e.getValue(), e.getKey(), true))
+        var creations = upstreamNodes.entrySet().stream().map(e -> new VirtualClusterBrokerBinding(virtualCluster, e.getValue(), e.getKey(), false))
                 .collect(Collectors.toCollection(ConcurrentHashMap::newKeySet));
 
         // first assemble the stream of de-registrations (and by side effect: update creations)
@@ -499,7 +499,7 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
             var binding = bindings.get().getOrDefault(RoutingKey.createBindingKey(sniHostname), bindings.get().get(RoutingKey.NULL_ROUTING_KEY));
             if (binding == null) {
                 // If there is an SNI name that matches against the virtual cluster broker address pattern, we generate
-                // an ephemeral broker binding that points at the virtual cluster's bootstrap.
+                // a restricted broker binding that points at the virtual cluster's bootstrap.
                 if (sniHostname != null) {
                     var allBindingsForPort = bindings.get().values();
                     var brokerAddress = new HostPort(sniHostname, endpoint.port());
@@ -525,7 +525,7 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
                         var e = bootstrapToBrokerId.entrySet().iterator().next();
                         var bootstrapBinding = e.getKey();
                         var nodeId = e.getValue();
-                        return new VirtualClusterBrokerBinding(bootstrapBinding.virtualCluster(), bootstrapBinding.upstreamTarget(), nodeId, false);
+                        return new VirtualClusterBrokerBinding(bootstrapBinding.virtualCluster(), bootstrapBinding.upstreamTarget(), nodeId, true);
                     }
                 }
                 throw noChannelBindingsFound;
