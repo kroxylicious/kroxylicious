@@ -50,21 +50,19 @@ public class EagerMetadataLearner implements RequestFilter {
             final short apiVersion = determineMetadataApiVersion(header);
             // Send an out-of-band Metadata request. The response will be intercepted by the in-built BrokerAddressFilter.
             // By the time control returns to the handler, the upstream addresses will have been reconciled.
-            var unused = filterContext.sendRequest(apiVersion, new MetadataRequestData()).thenAccept(apiMessage -> {
-                if (!(apiMessage instanceof MetadataResponseData metadataResponseData)) {
-                    throw new IllegalStateException("Unexpected response " + apiMessage.getClass() + " to out-of-band request.");
-                }
-                if (apiKey.equals(ApiKeys.METADATA) && apiVersion == header.requestApiVersion()) {
-                    // The client's requested matched our out-of-band request, so we may as well return the
-                    // response.
-                    filterContext.forwardResponse(metadataResponseData);
-                }
-                // closing the connection is important. This client connection is connected to bootstrap (it could
-                // be any broker or maybe not something else). we must close the connection to force the client to
-                // connect again.
-                filterContext.closeConnection();
-                LOGGER.info("Closing upstream bootstrap connection {} now that endpoint reconciliation is complete.", filterContext.channelDescriptor());
-            });
+            var unused = filterContext.<MetadataResponseData> sendRequest(apiVersion, new MetadataRequestData())
+                    .thenAccept(metadataResponseData -> {
+                        if (apiKey.equals(ApiKeys.METADATA) && apiVersion == header.requestApiVersion()) {
+                            // The client's requested matched our out-of-band request, so we may as well return the
+                            // response.
+                            filterContext.forwardResponse(metadataResponseData);
+                        }
+                        // closing the connection is important. This client connection is connected to bootstrap (it could
+                        // be any broker or maybe not something else). we must close the connection to force the client to
+                        // connect again.
+                        filterContext.closeConnection();
+                        LOGGER.info("Closing upstream bootstrap connection {} now that endpoint reconciliation is complete.", filterContext.channelDescriptor());
+                    });
         }
     }
 
