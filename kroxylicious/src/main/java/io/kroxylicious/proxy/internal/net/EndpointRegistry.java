@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.internal.net;
 
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
@@ -503,12 +504,8 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
                 if (sniHostname != null) {
                     var allBindingsForPort = bindings.get().values();
                     var brokerAddress = new HostPort(sniHostname, endpoint.port());
-                    var allVirtualClusterBootstrapBindingsOnPort = allBindingsForPort.stream()
-                            .filter(VirtualClusterBootstrapBinding.class::isInstance)
-                            .filter(bootBinding -> hasNoBrokerBindings(bootBinding.virtualCluster(), allBindingsForPort))
-                            .map(VirtualClusterBootstrapBinding.class::cast)
-                            .toList();
-                    var bootstrapToBrokerId = allVirtualClusterBootstrapBindingsOnPort.stream()
+                    var allSolitaryBootstrapBindings = getAllSolitaryBootstrapBindings(allBindingsForPort);
+                    var bootstrapToBrokerId = allSolitaryBootstrapBindings.stream()
                             .collect(HashMap<VirtualClusterBootstrapBinding, Integer>::new, (m, b) -> {
                                 var nodeId = b.virtualCluster().getBrokerIdFromBrokerAddress(brokerAddress);
                                 if (nodeId != null) {
@@ -532,6 +529,14 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
             }
             return binding;
         });
+    }
+
+    private List<VirtualClusterBootstrapBinding> getAllSolitaryBootstrapBindings(Collection<VirtualClusterBinding> allBindingsForPort) {
+        return allBindingsForPort.stream()
+                .filter(VirtualClusterBootstrapBinding.class::isInstance)
+                .filter(bootBinding -> hasNoBrokerBindings(bootBinding.virtualCluster(), allBindingsForPort))
+                .map(VirtualClusterBootstrapBinding.class::cast)
+                .toList();
     }
 
     private boolean hasNoBrokerBindings(VirtualCluster virtualCluster, Collection<VirtualClusterBinding> values) {
