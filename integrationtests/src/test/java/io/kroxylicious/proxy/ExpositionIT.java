@@ -30,6 +30,7 @@ import org.apache.kafka.common.TopicPartitionInfo;
 import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.config.SslConfigs;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
+import org.apache.kafka.common.security.plain.PlainLoginModule;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -81,36 +82,18 @@ public class ExpositionIT {
     @TempDir
     private static Path certsDirectory;
 
-    @Test
-    public void exposesSingleUpstreamClusterOverTls(KafkaCluster cluster) throws Exception {
-        var keystoreTrustStorePair = buildKeystoreTrustStorePair("localhost");
-        var bootstrapServers = cluster.getBootstrapServers();
-
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("virtualClusterConfigurations")
+    public void exposesSingleUpstreamClusterOverTls(String name,
+                                                    VirtualClusterBuilder virtualClusterBuilder,
+                                                    Map<String, Object> clientSecurityProtocolConfig,
+                                                    @BrokerCluster(numBrokers = 2) KafkaCluster cluster) {
+        virtualClusterBuilder.editOrNewTargetCluster().withBootstrapServers(cluster.getBootstrapServers()).endTargetCluster();
         var builder = new ConfigurationBuilder()
-                .addToVirtualClusters("demo", new VirtualClusterBuilder()
-                        .withNewTargetCluster()
-                        .withBootstrapServers(bootstrapServers)
-                        .endTargetCluster()
-                        .withClusterNetworkAddressConfigProvider(
-                                new ClusterNetworkAddressConfigProviderDefinitionBuilder("PortPerBroker").withConfig("bootstrapAddress", PROXY_ADDRESS)
-                                        .build())
-                        .build());
-
-        var demo = builder.getVirtualClusters().get("demo");
-        demo = new VirtualClusterBuilder(demo)
-                .withNewTls()
-                .withNewKeyStoreKey()
-                .withStoreFile(keystoreTrustStorePair.brokerKeyStore())
-                .withNewInlinePasswordStoreProvider(keystoreTrustStorePair.password())
-                .endKeyStoreKey()
-                .endTls()
-                .build();
-        builder.addToVirtualClusters("demo", demo);
+                .addToVirtualClusters("demo", virtualClusterBuilder.build());
 
         try (var tester = kroxyliciousTester(builder);
-                var admin = tester.admin("demo", Map.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name,
-                        SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, keystoreTrustStorePair.clientTrustStore(),
-                        SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, keystoreTrustStorePair.password()))) {
+                var admin = tester.admin("demo", clientSecurityProtocolConfig)) {
             // do some work to ensure connection is opened
             createTopic(admin, TOPIC, 1);
 
@@ -234,19 +217,28 @@ public class ExpositionIT {
         }
     }
 
-    private static Stream<Arguments> directConnectToExposedBrokerEndpointsAfterKroxyliciousRestart() throws Exception {
+    private static Stream<Arguments> virtualClusterConfigurations() throws Exception {
+        var portPerBrokerKeystoreTrustStorePair = buildKeystoreTrustStorePair("localhost");
         var sniKeystoreTrustStorePair = buildKeystoreTrustStorePair("*." + SNI_BASE_ADDRESS);
 
         return Stream.of(
                 Arguments.of("PortPerBroker",
                         new VirtualClusterBuilder()
+                                .withNewTls()
+                                .withNewKeyStoreKey()
+                                .withStoreFile(portPerBrokerKeystoreTrustStorePair.brokerKeyStore())
+                                .withNewInlinePasswordStoreProvider(portPerBrokerKeystoreTrustStorePair.password())
+                                .endKeyStoreKey()
+                                .endTls()
                                 .withNewTargetCluster()
                                 .endTargetCluster()
                                 .withClusterNetworkAddressConfigProvider(
                                         new ClusterNetworkAddressConfigProviderDefinitionBuilder("PortPerBroker")
                                                 .withConfig("bootstrapAddress", PROXY_ADDRESS)
                                                 .build()),
-                        Map.of()),
+                        Map.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name,
+                                SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, portPerBrokerKeystoreTrustStorePair.clientTrustStore(),
+                                SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, portPerBrokerKeystoreTrustStorePair.password())),
                 Arguments.of("SniRouting",
                         new VirtualClusterBuilder()
                                 .withNewTls()
@@ -268,44 +260,45 @@ public class ExpositionIT {
     }
 
     /**
-     * @see #directConnectToExposedBrokerEndpointsAfterKroxyliciousRestart(VirtualClusterBuilder, Map, KafkaCluster)
+     * @see #connectToExposedBrokerEndpointsDirectlyAfterKroxyliciousRestart(VirtualClusterBuilder, Map, KafkaCluster)
      * @param name test name
      * @param virtualClusterBuilder the virtual cluster builder
      * @param clientSecurityProtocolConfig addition client configuration
      * @param cluster kafka cluster
      */
     @ParameterizedTest(name = "{0}")
-    @MethodSource(value = "directConnectToExposedBrokerEndpointsAfterKroxyliciousRestart")
-    public void directConnectToExposedBrokerEndpointsAfterKroxyliciousRestart(String name,
-                                                                              VirtualClusterBuilder virtualClusterBuilder,
-                                                                              Map<String, Object> clientSecurityProtocolConfig,
-                                                                              @BrokerCluster(numBrokers = 2) KafkaCluster cluster) {
-        directConnectToExposedBrokerEndpointsAfterKroxyliciousRestart(virtualClusterBuilder, clientSecurityProtocolConfig, cluster);
+    @MethodSource(value = "virtualClusterConfigurations")
+    public void connectToExposedBrokerEndpointsDirectlyAfterKroxyliciousRestart(String name,
+                                                                                VirtualClusterBuilder virtualClusterBuilder,
+                                                                                Map<String, Object> clientSecurityProtocolConfig,
+                                                                                @BrokerCluster(numBrokers = 2) KafkaCluster cluster) {
+        connectToExposedBrokerEndpointsDirectlyAfterKroxyliciousRestart(virtualClusterBuilder, clientSecurityProtocolConfig, cluster);
     }
 
     /**
-     * @see #directConnectToExposedBrokerEndpointsAfterKroxyliciousRestart(VirtualClusterBuilder, Map, KafkaCluster)
+     * @see #connectToExposedBrokerEndpointsDirectlyAfterKroxyliciousRestart(VirtualClusterBuilder, Map, KafkaCluster)
      * @param name test name
      * @param virtualClusterBuilder the virtual cluster builder
      * @param clientSecurityProtocolConfig addition client configuration
      * @param cluster kafka cluster
      */
     @ParameterizedTest(name = "{0}")
-    @MethodSource(value = "directConnectToExposedBrokerEndpointsAfterKroxyliciousRestart")
-    public void directConnectToExposedBrokerEndpointsAfterKroxyliciousRestart_Sasl(String name,
-                                                                                   VirtualClusterBuilder virtualClusterBuilder,
-                                                                                   Map<String, Object> clientSecurityProtocolConfig,
-                                                                                   @BrokerCluster(numBrokers = 2) @SaslPlainAuth(user = SASL_USER, password = SASL_PASSWORD) KafkaCluster cluster) {
+    @MethodSource(value = "virtualClusterConfigurations")
+    public void connectToExposedBrokerEndpointsDirectlyAfterKroxyliciousRestart_Sasl(String name,
+                                                                                     VirtualClusterBuilder virtualClusterBuilder,
+                                                                                     Map<String, Object> clientSecurityProtocolConfig,
+                                                                                     @BrokerCluster(numBrokers = 2) @SaslPlainAuth(user = SASL_USER, password = SASL_PASSWORD) KafkaCluster cluster) {
 
         var securityProtocol = virtualClusterBuilder.hasTls() ? SecurityProtocol.SASL_SSL : SecurityProtocol.SASL_PLAINTEXT;
         clientSecurityProtocolConfig = new HashMap<>(clientSecurityProtocolConfig);
         clientSecurityProtocolConfig.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, securityProtocol.name);
         clientSecurityProtocolConfig.put(SaslConfigs.SASL_JAAS_CONFIG,
-                String.format("org.apache.kafka.common.security.plain.PlainLoginModule required username=\"%s\" password=\"%s\";",
-                        SASL_USER, SASL_PASSWORD));
+                String.format("""
+                        %s required username="%s" password="%s";""",
+                        PlainLoginModule.class.getName(), SASL_USER, SASL_PASSWORD));
         clientSecurityProtocolConfig.put(SaslConfigs.SASL_MECHANISM, "PLAIN");
 
-        directConnectToExposedBrokerEndpointsAfterKroxyliciousRestart(virtualClusterBuilder, clientSecurityProtocolConfig, cluster);
+        connectToExposedBrokerEndpointsDirectlyAfterKroxyliciousRestart(virtualClusterBuilder, clientSecurityProtocolConfig, cluster);
     }
 
     /**
@@ -318,9 +311,9 @@ public class ExpositionIT {
      * @param clientSecurityProtocolConfig addition client configuration
      * @param cluster kafka cluster
      */
-    private void directConnectToExposedBrokerEndpointsAfterKroxyliciousRestart(VirtualClusterBuilder virtualClusterBuilder,
-                                                                               Map<String, Object> clientSecurityProtocolConfig,
-                                                                               KafkaCluster cluster) {
+    private void connectToExposedBrokerEndpointsDirectlyAfterKroxyliciousRestart(VirtualClusterBuilder virtualClusterBuilder,
+                                                                                 Map<String, Object> clientSecurityProtocolConfig,
+                                                                                 KafkaCluster cluster) {
         virtualClusterBuilder.editOrNewTargetCluster().withBootstrapServers(cluster.getBootstrapServers()).endTargetCluster();
 
         var builder = new ConfigurationBuilder()
@@ -355,8 +348,63 @@ public class ExpositionIT {
         });
     }
 
+    @ParameterizedTest(name = "{0}")
+    @MethodSource(value = "virtualClusterConfigurations")
+    public void connectToPreboundBrokerEndpoint(String name,
+                                                VirtualClusterBuilder virtualClusterBuilder,
+                                                Map<String, Object> clientSecurityProtocolConfig,
+                                                @BrokerCluster KafkaCluster cluster) {
+        virtualClusterBuilder.editOrNewTargetCluster().withBootstrapServers(cluster.getBootstrapServers()).endTargetCluster();
+        var builder = new ConfigurationBuilder()
+                .addToVirtualClusters("demo", virtualClusterBuilder.build());
+
+        final HostPort preboundBrokerAddressToProbe;
+        var provider = virtualClusterBuilder.getClusterNetworkAddressConfigProvider();
+        if (provider.type().equals("SniRouting")) {
+            preboundBrokerAddressToProbe = new HostPort(SNI_BROKER_ADDRESS_PATTERN.replace("$(nodeId)", Integer.toString(cluster.getNumOfBrokers())),
+                    SNI_BOOTSTRAP.port());
+        }
+        else {
+            preboundBrokerAddressToProbe = new HostPort(PROXY_ADDRESS.host(), PROXY_ADDRESS.port() + cluster.getNumOfBrokers() + 1);
+        }
+
+        // precondition: verify that preboundBrokerAddressToProbe isn't actually a broker address
+        Collection<Node> originalNodes;
+        try (var tester = kroxyliciousTester(builder)) {
+            try (var admin = tester.admin(clientSecurityProtocolConfig)) {
+                originalNodes = await().atMost(Duration.ofSeconds(5)).until(() -> admin.describeCluster().nodes().get(),
+                        n -> n.size() == cluster.getNumOfBrokers());
+                var hostPorts = originalNodes.stream().map(n -> new HostPort(n.host(), n.port())).collect(Collectors.toSet());
+                assertThat(hostPorts)
+                        .describedAs("test precondition broken - fail to properly deduce a pre-bound broker address. deduced %s, cluster's nodes %s",
+                                preboundBrokerAddressToProbe,
+                                originalNodes)
+                        .doesNotContain(preboundBrokerAddressToProbe);
+            }
+        }
+
+        try (var tester = kroxyliciousTester(builder)) {
+            var brokerConfig = new HashMap<String, Object>(Map.of(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, preboundBrokerAddressToProbe.toString()));
+            brokerConfig.putAll(clientSecurityProtocolConfig);
+
+            try (var admin = tester.admin(brokerConfig)) {
+                var rediscoveredNodes = await().atMost(Duration.ofSeconds(5)).until(() -> admin.describeCluster().nodes().get(),
+                        n -> n.size() == cluster.getNumOfBrokers());
+                assertThat(rediscoveredNodes).containsExactlyElementsOf(originalNodes);
+            }
+
+            // Now dial in a second time on the same pre-bound address, this confirms that kroxylicious continues to listen, even though
+            // it has reconciled.
+            try (var admin = tester.admin(brokerConfig)) {
+                var rediscoveredNodes = await().atMost(Duration.ofSeconds(5)).until(() -> admin.describeCluster().nodes().get(),
+                        n -> n.size() == cluster.getNumOfBrokers());
+                assertThat(rediscoveredNodes).containsExactlyElementsOf(originalNodes);
+            }
+        }
+    }
+
     @Test
-    public void exposedClusterDynamicallyAddsBroker(@BrokerCluster() KafkaCluster cluster) throws Exception {
+    public void targetClusterDynamicallyAddsBroker(@BrokerCluster KafkaCluster cluster) throws Exception {
         var builder = new ConfigurationBuilder()
                 .addToVirtualClusters("demo", new VirtualClusterBuilder()
                         .withNewTargetCluster()
@@ -388,7 +436,7 @@ public class ExpositionIT {
     }
 
     @Test
-    public void exposedClusterDynamicallyRemovesBroker(@BrokerCluster(numBrokers = 2) KafkaCluster cluster) throws Exception {
+    public void targetClusterDynamicallyRemovesBroker(@BrokerCluster(numBrokers = 2) KafkaCluster cluster) throws Exception {
         var builder = new ConfigurationBuilder()
                 .addToVirtualClusters("demo", new VirtualClusterBuilder()
                         .withNewTargetCluster()
