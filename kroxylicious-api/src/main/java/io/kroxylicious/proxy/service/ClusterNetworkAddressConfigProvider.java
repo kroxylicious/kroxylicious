@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.proxy.service;
 
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -83,12 +84,13 @@ public interface ClusterNetworkAddressConfigProvider {
     }
 
     /**
-     * Set of pre-bindings to be made by the virtual cluster on startup,
-     * (before the broker topology of the target cluster is known).
+     * Map of pre-bindings to be made by the virtual cluster (nodeId to
+     * broker address) that are made prior to the first reconciliation.
      *
      * @return set of broker ids for which pre-bindings must be made.
      */
-    default Set<Integer> prebindBrokerIds() {
-        return Set.of();
+    default Map<Integer, HostPort> prebindBrokerIds() {
+        return Map.of();
     }
+
 }

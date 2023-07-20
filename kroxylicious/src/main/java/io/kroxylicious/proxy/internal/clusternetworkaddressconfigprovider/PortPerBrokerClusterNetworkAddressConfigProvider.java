@@ -8,8 +8,10 @@ package io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider;
 
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -22,7 +24,6 @@ import io.kroxylicious.proxy.service.HostPort;
 import static io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.BrokerAddressPatternUtils.EXPECTED_TOKEN_SET;
 import static io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.BrokerAddressPatternUtils.validatePortSpecifier;
 import static io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.BrokerAddressPatternUtils.validateStringContainsOnlyExpectedTokens;
-import static java.util.stream.Collectors.toSet;
 
 /**
  * A ClusterNetworkAddressConfigProvider implementation that uses a separate port per broker endpoint.
@@ -93,8 +94,8 @@ public class PortPerBrokerClusterNetworkAddressConfigProvider implements Cluster
     }
 
     @Override
-    public Set<Integer> prebindBrokerIds() {
-        return IntStream.range(0, numberOfBrokerPorts).boxed().collect(toSet());
+    public Map<Integer, HostPort> prebindBrokerIds() {
+        return IntStream.range(0, numberOfBrokerPorts).boxed().collect(Collectors.toMap(Function.identity(), this::getBrokerAddress));
     }
 
     /**

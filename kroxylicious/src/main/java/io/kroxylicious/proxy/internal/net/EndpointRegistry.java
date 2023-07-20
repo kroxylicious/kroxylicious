@@ -187,12 +187,13 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
         vcr.reconciliationRecord().set(ReconciliationRecord.createEmptyReconcileRecord());
 
         // pre-bind any broker ids to the bootstrap address
-        var brokerPrebindingStage = allOfStage(Optional.ofNullable(virtualCluster.prebindBrokerIds()).orElse(Set.of())
+        var brokerPrebindingStage = allOfStage(Optional.ofNullable(virtualCluster.prebindBrokerIds()).orElse(Map.of())
+                .entrySet()
                 .stream()
-                .sorted() // ordering not functionality important, but simplifies the unit testing
-                .map(nodeId -> {
-                    var bhp = virtualCluster.getBrokerAddress(nodeId);
-
+                .sorted(Map.Entry.comparingByKey()) // ordering not functionality important, but simplifies the unit testing
+                .map(e -> {
+                    var nodeId = e.getKey();
+                    var bhp = e.getValue();
                     return registerBinding(new Endpoint(virtualCluster.getBindAddress(), bhp.port(), virtualCluster.isUseTls()), bhp.host(),
                             new VirtualClusterBrokerBinding(virtualCluster, upstreamBootstrap, nodeId, true));
                 }));
@@ -332,7 +333,7 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
     private void doReconcile(VirtualCluster virtualCluster, Map<Integer, HostPort> upstreamNodes, CompletableFuture<Void> future, VirtualClusterRecord vcr) {
         var bindingAddress = virtualCluster.getBindAddress();
 
-        var preBindingBrokerIds = Optional.ofNullable(virtualCluster.prebindBrokerIds()).orElse(Set.of());
+        var preBindingBrokerIds = Optional.ofNullable(virtualCluster.prebindBrokerIds()).map(Map::keySet).orElse(Set.of());
         var allBrokerIds = Stream.concat(preBindingBrokerIds.stream(), upstreamNodes.keySet().stream()).collect(Collectors.toUnmodifiableSet());
 
         var creations = constructPossibleBindingsToCreate(virtualCluster, upstreamNodes);
@@ -381,7 +382,7 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
     private Set<VirtualClusterBrokerBinding> constructPossibleBindingsToCreate(VirtualCluster virtualCluster,
                                                                                Map<Integer, HostPort> upstreamNodes) {
         var upstreamBootstrap = virtualCluster.targetCluster().bootstrapServersList().get(0);
-        var preBindingBrokerIds = Optional.ofNullable(virtualCluster.prebindBrokerIds()).orElse(Set.of());
+        var preBindingBrokerIds = Optional.ofNullable(virtualCluster.prebindBrokerIds()).orElse(Map.of());
         // create possible set of bindings to create
         var creations = upstreamNodes.entrySet()
                 .stream()
@@ -389,6 +390,7 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
                 .collect(Collectors.toCollection(ConcurrentHashMap::newKeySet));
         // add bindings corresponding to any pre-bindings. There are marked as restricted and point to bootstrap.
         creations.addAll(preBindingBrokerIds
+                .keySet()
                 .stream()
                 .filter(Predicate.not(upstreamNodes::containsKey))
                 .map(nodeId -> new VirtualClusterBrokerBinding(virtualCluster, upstreamBootstrap, nodeId, true)).toList());
