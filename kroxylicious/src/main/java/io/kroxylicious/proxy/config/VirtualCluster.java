@@ -11,10 +11,11 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.kroxylicious.proxy.config.tls.Tls;
 
-public record VirtualCluster(TargetCluster targetCluster,
+public record VirtualCluster(@JsonProperty() Optional<String> clusterName,
+                             TargetCluster targetCluster,
                              @JsonProperty(required = true) ClusterNetworkAddressConfigProviderDefinition clusterNetworkAddressConfigProvider,
 
-                             @JsonProperty(required = false) Optional<Tls> tls,
+                             @JsonProperty() Optional<Tls> tls,
                              boolean logNetwork,
                              boolean logFrames
 ) {
