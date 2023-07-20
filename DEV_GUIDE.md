@@ -2,6 +2,29 @@
 
 This document gives a detailed breakdown of the various build processes and options for building the Kroxylicious from source.
 
+<!-- TOC -->
+* [Development Guide for Kroxylicious](#development-guide-for-kroxylicious)
+  * [Build Prerequisites](#build-prerequisites)
+  * [Prerequistes to run the kubernetes-examples](#prerequistes-to-run-the-kubernetes-examples)
+  * [Build](#build)
+    * [Formatting the Code](#formatting-the-code)
+  * [Run](#run)
+    * [Debugging](#debugging)
+  * [Running the kubernetes-examples](#running-the-kubernetes-examples)
+  * [IDE setup](#ide-setup)
+    * [Intellij](#intellij)
+  * [Setting Up in Windows Using WSL](#setting-up-in-windows-using-wsl)
+    * [Installing WSL](#installing-wsl)
+    * [Ensure appropriate tooling available](#ensure-appropriate-tooling-available)
+  * [Running Integration Tests on Podman](#running-integration-tests-on-podman)
+    * [DOCKER_HOST environment variable](#dockerhost-environment-variable)
+    * [Podman/Testcontainers incompatibility](#podmantestcontainers-incompatibility)
+    * [MacOS X](#macos-x)
+    * [Linux](#linux)
+    * [Verify that the fix is effective](#verify-that-the-fix-is-effective)
+  * [Rendering documentation](#rendering-documentation)
+<!-- TOC -->
+
 ## Build Prerequisites
 
 - [JDK](https://openjdk.org/projects/jdk/17/) (version 17 and above) - Maven CLI
@@ -76,7 +99,7 @@ Run the following to add missing license headers e.g. when adding new source fil
 $ mvn org.commonjava.maven.plugins:directory-maven-plugin:highest-basedir@resolve-rootdir license:format
 ```
 
-### Formatting
+### Formatting the Code
 No one likes to argue about code formatting in pull requests, as project we take the stance that if we can't automate the formatting we are not going to argue about it either. Having said that we don't want a mishmash of conflicting styles! So we attack this from multiple angles.
 
 1. Shared Code formatter settings. Included in the repo are code formatter settings for `Eclipse`, `InjtellJ` and `.editorconfig`.
@@ -86,8 +109,6 @@ No one likes to argue about code formatting in pull requests, as project we take
 5. We also have [formatter-maven-plugin](https://code.revelc.net/formatter-maven-plugin/) which will apply the project code style rules, this is driven from the Eclipse code formatter, as part of the maven build cycle.
 
 ## Run
-
-### Run natively
 
 Build with the `dist` profile as shown above, then execute this:
 
@@ -109,7 +130,7 @@ Failed to load class org.slf4j.impl.StaticLoggerBinder
 
 Make sure to follow the [suggestions here](https://www.slf4j.org/codes.html#StaticLoggerBinder) to include one (and only one) of the suggested jars on the classpath.
 
-#### Debugging
+### Debugging
 Logging is turned off by default for better performance. In case you want to debug, logging should be turned on in the `example-proxy-config.yml` file:
 ```yaml
   logNetwork: true
@@ -255,4 +276,16 @@ Host: www.example.com
 You'll see an API response.  If the service_timeout change is effective, the socat
 will continue indefinitely.  If `socat` terminates after about 10 seconds, the workaround
 has been applied ineffectively.
+
+
+## Rendering documentation
+
+The `docs` directory has some user documentation written in [AsciiDoc](https://docs.asciidoctor.org/asciidoc/latest/) format.
+You can render it to HTML using:
+
+```bash
+mvn org.asciidoctor:asciidoctor-maven-plugin:process-asciidoc@convert-to-html
+```
+
+The output will be in `target/html/master.html`. 
 

@@ -146,3 +146,15 @@ new ProduceRecordTransformationFilter(
 10000000 records sent, 60679.611650 records/sec (59.26 MB/sec), 25.00 ms avg latency, 1080.00 ms max latency, 1 ms 50th, 170 ms 95th, 601 ms 99th, 992 ms 99.9th.
 
 ```
+
+### Jenkins pipeline for performance
+When a PR is created and the performance tests are needed, the following comment shall be added into the PR:
+
+```
+@strimzi-ci run perf
+```
+
+It will launch the `kroxylicious-performance-tests-pr` build, that will insert a comment with a summary into the PR comparing the results with the previous execution.
+
+In case a manual execution needs to be done, this job is ready for that `kroxylicious-performance-tests`, where
+some parameters can be configurable (NUMBER_OF_MESSAGES, MESSAGE_SIZE, PRODUCER_PROPERTIES)
