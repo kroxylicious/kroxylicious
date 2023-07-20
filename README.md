@@ -30,11 +30,11 @@ See the [Developer Guide](DEV_GUIDE.md).
 
 ## Releasing this project
 
-See the [release guide](docs/Releasing.adoc)
+See the [Release Guide](RELEASING.md)
 
 ## Performance Testing
 
-See the [performance guide](PERFORMANCE.md) for information on running basic performance tests for this proxy.
+See the [Performance Guide](PERFORMANCE.md) for information on running basic performance tests for this proxy.
 
 ## Kroxylicious Samples
 
