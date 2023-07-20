@@ -8,7 +8,7 @@
 set -o nounset -e
 
 RELEASE_API_VERSION=${1}
-API_MODULES=':kroxylicious-api,:kroxylicious-filter-api'
+API_MODULES=':kroxylicious-api'
 
 #if [[ -z "${GPG_KEY}" ]]; then
 #    echo "GPG_KEY not set unable to sign the release. Please export GPG_KEY" 1>&2
@@ -21,8 +21,7 @@ if [[ -z ${RELEASE_API_VERSION} ]]; then
 fi
 
 echo "Setting API version to ${RELEASE_API_VERSION}"
-mvn -q versions:set -DnewVersion="${RELEASE_API_VERSION}" -DprocessAllModules=true -pl ":kroxylicious-api" -DgenerateBackupPoms=false
-mvn -q versions:set -DnewVersion="${RELEASE_API_VERSION}" -DprocessAllModules=true -pl ":kroxylicious-filter-api" -DgenerateBackupPoms=false
+mvn -q versions:set -DnewVersion="${RELEASE_API_VERSION}" -DprocessAllModules=true -pl ${API_MODULES} -DgenerateBackupPoms=false
 mvn -q clean install -Pquick -pl ${API_MODULES}  #quick sanity check to ensure the API modules still build
 mvn -q versions:set-property -Dproperty=kroxyliciousApi.version -DnewVersion="${RELEASE_API_VERSION}" -DgenerateBackupPoms=false
 

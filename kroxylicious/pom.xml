@@ -33,10 +33,6 @@
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-api</artifactId>
         </dependency>
-        <dependency>
-            <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious-filter-api</artifactId>
-        </dependency>
 
         <!-- project dependencies - test -->
         <dependency>
