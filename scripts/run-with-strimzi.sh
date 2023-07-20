@@ -28,12 +28,10 @@ function cleanTmpDir {
 }
 trap cleanTmpDir EXIT
 
-set +u
-if [[ -z "${QUAY_ORG}" ]]; then
+if [[ -z "${QUAY_ORG:-}" ]]; then
   echo "Please set QUAY_ORG, exiting"
   exit 1
 fi
-set -u
 
 if [[ "${QUAY_ORG}" != "${DEFAULT_QUAY_ORG}" ]]; then
   echo "building and pushing image to quay.io"
