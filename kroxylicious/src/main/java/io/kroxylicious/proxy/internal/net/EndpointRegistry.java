@@ -511,11 +511,11 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
         if (lcr == null || lcr.unbindingStage().get() != null) {
             return CompletableFuture.failedStage(buildEndpointResolutionException("Failed to find channel matching", endpoint, sniHostname));
         }
-        var noChannelBindingsFound = buildEndpointResolutionException("No channel bindings found for", endpoint, sniHostname);
+
         return lcr.bindingStage().thenApply(acceptorChannel -> {
             var bindings = acceptorChannel.attr(CHANNEL_BINDINGS);
             if (bindings == null || bindings.get() == null) {
-                throw noChannelBindingsFound;
+                throw buildEndpointResolutionException("No channel bindings found for", endpoint, sniHostname);
             }
             // We first look for a binding matching by SNI name, then fallback to a null match.
             var binding = bindings.get().getOrDefault(RoutingKey.createBindingKey(sniHostname), bindings.get().get(RoutingKey.NULL_ROUTING_KEY));
@@ -537,7 +537,7 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
                     if (size > 1) {
                         throw new EndpointResolutionException("Failed to generate an unbound broker binding from SNI " +
                                 "as it matches the broker address pattern of more than one virtual cluster",
-                                noChannelBindingsFound);
+                                buildEndpointResolutionException("No channel bindings found for", endpoint, sniHostname));
                     }
                     else if (size == 1) {
                         var e = bootstrapToBrokerId.entrySet().iterator().next();
@@ -546,7 +546,7 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
                         return new VirtualClusterBrokerBinding(bootstrapBinding.virtualCluster(), bootstrapBinding.upstreamTarget(), nodeId, true);
                     }
                 }
-                throw noChannelBindingsFound;
+                throw buildEndpointResolutionException("No channel bindings found for", endpoint, sniHostname);
             }
             return binding;
         });
