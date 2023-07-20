@@ -21,7 +21,7 @@ resolveCommand () {
   fi
 }
 
-CONTAINER_ENGINE=$(resolveCommand ${CONTAINER_ENGINE:-docker})
+CONTAINER_ENGINE=$(resolveCommand "${CONTAINER_ENGINE:-docker}")
 export CONTAINER_ENGINE
 
 KUBECTL=$(resolveCommand kubectl)
