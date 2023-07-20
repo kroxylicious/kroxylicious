@@ -32,6 +32,7 @@ public class KroxyliciousConfigUtils {
      */
     public static ConfigurationBuilder proxy(String clusterBootstrapServers) {
         return new ConfigurationBuilder().addToVirtualClusters(DEFAULT_VIRTUAL_CLUSTER, new VirtualClusterBuilder()
+                .withClusterName(DEFAULT_VIRTUAL_CLUSTER)
                 .withNewTargetCluster()
                 .withBootstrapServers(clusterBootstrapServers)
                 .endTargetCluster()
