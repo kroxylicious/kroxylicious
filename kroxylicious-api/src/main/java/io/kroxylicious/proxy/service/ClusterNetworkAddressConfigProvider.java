@@ -84,12 +84,16 @@ public interface ClusterNetworkAddressConfigProvider {
     }
 
     /**
-     * Map of pre-bindings to be made by the virtual cluster (nodeId to
-     * broker address) that are made prior to the first reconciliation.
+     * Map of discovery addresses that will be bound by the virtual cluster on start-up
+     * (before the first reconcile has taken place).  Discovery bindings always
+     * point to a target cluster's bootstrap and are used for purposes of metadata
+     * discovery only.
+     * <br/>
+     * Discovery bindings are replaced by bindings to upstream brokers on reconciliation.
      *
-     * @return set of broker ids for which pre-bindings must be made.
+     * @return discovery address map
      */
-    default Map<Integer, HostPort> prebindBrokerIds() {
+    default Map<Integer, HostPort> discoveryAddressMap() {
         return Map.of();
     }
 

@@ -146,8 +146,8 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
     }
 
     @Override
-    public Map<Integer, HostPort> prebindBrokerIds() {
-        return clusterNetworkAddressConfigProvider.prebindBrokerIds();
+    public Map<Integer, HostPort> discoveryAddressMap() {
+        return clusterNetworkAddressConfigProvider.discoveryAddressMap();
     }
 
     @Override

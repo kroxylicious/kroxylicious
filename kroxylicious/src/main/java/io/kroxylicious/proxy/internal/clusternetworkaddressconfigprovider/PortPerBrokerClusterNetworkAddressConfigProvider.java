@@ -94,7 +94,7 @@ public class PortPerBrokerClusterNetworkAddressConfigProvider implements Cluster
     }
 
     @Override
-    public Map<Integer, HostPort> prebindBrokerIds() {
+    public Map<Integer, HostPort> discoveryAddressMap() {
         return IntStream.range(0, numberOfBrokerPorts).boxed().collect(Collectors.toMap(Function.identity(), this::getBrokerAddress));
     }
 

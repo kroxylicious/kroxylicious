@@ -79,7 +79,7 @@ class EndpointRegistryTest {
     }
 
     @Test
-    public void registerVirtualClusterWithPreboundPorts() throws Exception {
+    public void registerVirtualClusterWithDiscoveryAddresses() throws Exception {
         configureVirtualClusterMock(virtualCluster1, DOWNSTREAM_BOOTSTRAP, UPSTREAM_BOOTSTRAP, false, false,
                 Map.of(0, DOWNSTREAM_BROKER_0, 1, DOWNSTREAM_BROKER_1));
 
@@ -469,7 +469,7 @@ class EndpointRegistryTest {
     }
 
     @Test
-    public void resolvePreboundBrokerAddress() throws Exception {
+    public void resolveDiscoveryBrokerAddress() throws Exception {
         configureVirtualClusterMock(virtualCluster1, DOWNSTREAM_BOOTSTRAP, UPSTREAM_BOOTSTRAP, false, false, Map.of(0, DOWNSTREAM_BROKER_0));
 
         var regf = endpointRegistry.registerVirtualCluster(virtualCluster1).toCompletableFuture();
@@ -542,7 +542,7 @@ class EndpointRegistryTest {
     }
 
     @Test
-    public void reconcileReplacesPrebinding() throws Exception {
+    public void reconcileReplacesDiscoveryAddress() throws Exception {
         configureVirtualClusterMock(virtualCluster1, DOWNSTREAM_BOOTSTRAP, UPSTREAM_BOOTSTRAP, false, false,
                 Map.of(0, DOWNSTREAM_BROKER_0, 1, DOWNSTREAM_BROKER_1));
 
@@ -731,11 +731,11 @@ class EndpointRegistryTest {
     }
 
     private void configureVirtualClusterMock(VirtualCluster cluster, HostPort downstreamBootstrap, HostPort upstreamBootstrap, boolean tls, boolean sni,
-                                             Map<Integer, HostPort> prebindBrokerId) {
+                                             Map<Integer, HostPort> discoveryAddressMap) {
         when(cluster.getClusterBootstrapAddress()).thenReturn(downstreamBootstrap);
         when(cluster.isUseTls()).thenReturn(tls);
         when(cluster.requiresTls()).thenReturn(sni);
-        when(cluster.prebindBrokerIds()).thenReturn(prebindBrokerId);
+        when(cluster.discoveryAddressMap()).thenReturn(discoveryAddressMap);
         when(cluster.targetCluster()).thenReturn(new TargetCluster(upstreamBootstrap.toString(), null));
         when(cluster.getBrokerIdFromBrokerAddress(any(HostPort.class))).thenReturn(null);
     }

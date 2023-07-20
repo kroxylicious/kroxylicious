@@ -350,25 +350,25 @@ public class ExpositionIT {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource(value = "virtualClusterConfigurations")
-    public void connectToPreboundBrokerEndpoint(String name,
-                                                VirtualClusterBuilder virtualClusterBuilder,
-                                                Map<String, Object> clientSecurityProtocolConfig,
-                                                @BrokerCluster KafkaCluster cluster) {
+    public void connectToDiscoveryAddress(String name,
+                                          VirtualClusterBuilder virtualClusterBuilder,
+                                          Map<String, Object> clientSecurityProtocolConfig,
+                                          @BrokerCluster KafkaCluster cluster) {
         virtualClusterBuilder.editOrNewTargetCluster().withBootstrapServers(cluster.getBootstrapServers()).endTargetCluster();
         var builder = new ConfigurationBuilder()
                 .addToVirtualClusters("demo", virtualClusterBuilder.build());
 
-        final HostPort preboundBrokerAddressToProbe;
+        final HostPort discoveryBrokerAddressToProbe;
         var provider = virtualClusterBuilder.getClusterNetworkAddressConfigProvider();
         if (provider.type().equals("SniRouting")) {
-            preboundBrokerAddressToProbe = new HostPort(SNI_BROKER_ADDRESS_PATTERN.replace("$(nodeId)", Integer.toString(cluster.getNumOfBrokers())),
+            discoveryBrokerAddressToProbe = new HostPort(SNI_BROKER_ADDRESS_PATTERN.replace("$(nodeId)", Integer.toString(cluster.getNumOfBrokers())),
                     SNI_BOOTSTRAP.port());
         }
         else {
-            preboundBrokerAddressToProbe = new HostPort(PROXY_ADDRESS.host(), PROXY_ADDRESS.port() + cluster.getNumOfBrokers() + 1);
+            discoveryBrokerAddressToProbe = new HostPort(PROXY_ADDRESS.host(), PROXY_ADDRESS.port() + cluster.getNumOfBrokers() + 1);
         }
 
-        // precondition: verify that preboundBrokerAddressToProbe isn't actually a broker address
+        // precondition: verify that discoveryBrokerAddressToProbe isn't actually a broker address
         Collection<Node> originalNodes;
         try (var tester = kroxyliciousTester(builder)) {
             try (var admin = tester.admin(clientSecurityProtocolConfig)) {
@@ -377,14 +377,14 @@ public class ExpositionIT {
                 var hostPorts = originalNodes.stream().map(n -> new HostPort(n.host(), n.port())).collect(Collectors.toSet());
                 assertThat(hostPorts)
                         .describedAs("test precondition broken - fail to properly deduce a pre-bound broker address. deduced %s, cluster's nodes %s",
-                                preboundBrokerAddressToProbe,
+                                discoveryBrokerAddressToProbe,
                                 originalNodes)
-                        .doesNotContain(preboundBrokerAddressToProbe);
+                        .doesNotContain(discoveryBrokerAddressToProbe);
             }
         }
 
         try (var tester = kroxyliciousTester(builder)) {
-            var brokerConfig = new HashMap<String, Object>(Map.of(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, preboundBrokerAddressToProbe.toString()));
+            var brokerConfig = new HashMap<String, Object>(Map.of(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, discoveryBrokerAddressToProbe.toString()));
             brokerConfig.putAll(clientSecurityProtocolConfig);
 
             try (var admin = tester.admin(brokerConfig)) {
