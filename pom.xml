@@ -267,7 +267,7 @@
     </dependencyManagement>
 
     <modules>
-        <module>api/kroxylicious-api</module>
+        <module>kroxylicious-api</module>
         <module>krpc-code-gen</module>
         <module>kroxylicious-test-tools</module>
         <module>kroxylicious-unit-test</module>
