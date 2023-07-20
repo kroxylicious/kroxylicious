@@ -21,13 +21,8 @@ resolveCommand () {
   fi
 }
 
-set +u
-if [[ -z $CONTAINER_ENGINE ]]; then
-  echo "Setting CONTAINER_ENGINE to default: docker"
-  CONTAINER_ENGINE=$(resolveCommand docker)
-  export CONTAINER_ENGINE
-fi
-set -u
+CONTAINER_ENGINE=$(resolveCommand ${CONTAINER_ENGINE:-docker})
+export CONTAINER_ENGINE
 
 KUBECTL=$(resolveCommand kubectl)
 export KUBECTL
