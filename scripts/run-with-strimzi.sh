@@ -5,8 +5,8 @@
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
 
-set -eo pipefail
-DEFAULT_QUAY_ORG='kroxylicious-developer'
+set -euo pipefail
+DEFAULT_QUAY_ORG='kroxylicious'
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 . "${SCRIPT_DIR}/common.sh"
@@ -28,7 +28,7 @@ function cleanTmpDir {
 }
 trap cleanTmpDir EXIT
 
-if [[ -z "${QUAY_ORG}" ]]; then
+if [[ -z "${QUAY_ORG:-}" ]]; then
   echo "Please set QUAY_ORG, exiting"
   exit 1
 fi
