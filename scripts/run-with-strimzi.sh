@@ -5,7 +5,7 @@
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
 
-set -eo pipefail
+set -euo pipefail
 DEFAULT_QUAY_ORG='kroxylicious'
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
@@ -28,10 +28,12 @@ function cleanTmpDir {
 }
 trap cleanTmpDir EXIT
 
+set +u
 if [[ -z "${QUAY_ORG}" ]]; then
   echo "Please set QUAY_ORG, exiting"
   exit 1
 fi
+set -u
 
 if [[ "${QUAY_ORG}" != "${DEFAULT_QUAY_ORG}" ]]; then
   echo "building and pushing image to quay.io"
