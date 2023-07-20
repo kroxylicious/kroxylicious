@@ -12,6 +12,9 @@ import java.util.Map;
 import java.util.Random;
 import java.util.regex.Pattern;
 
+import org.assertj.core.api.Assertions;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -30,6 +33,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @ExtendWith(KafkaClusterExtension.class)
 public class MetricsIT {
+
+    @BeforeEach
+    public void beforeEach() {
+        Assertions.assertThat(Metrics.globalRegistry.getMeters()).isEmpty();
+    }
+
+    @AfterEach
+    public void afterEach() throws Exception {
+        Assertions.assertThat(Metrics.globalRegistry.getMeters()).isEmpty();
+    }
 
     @Test
     public void shouldOfferPrometheusMetricsScrapeEndpoint(KafkaCluster cluster) {
