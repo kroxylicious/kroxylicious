@@ -1,9 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="CompilerConfiguration">
-    <excludeFromCompile>
-      <directory url="file://$PROJECT_DIR$/api/kroxylicious-filter-api-bom/src/main/resources/archetype-resources" includeSubdirectories="true" />
-    </excludeFromCompile>
     <annotationProcessing>
       <profile default="true" name="Default" enabled="true" />
       <profile name="Maven default annotation processors profile" enabled="true">
@@ -23,7 +20,6 @@
         <module name="kroxylicious-krpc-plugin.main" />
         <module name="kroxylicious-schema-validation" />
         <module name="kroxylicious.test" />
-        <module name="kroxylicious-filter-api" />
         <module name="kroxylicious-krpc-plugin" />
         <module name="performance-tests" />
         <module name="kroxylicious-krpc-plugin.test" />
@@ -42,7 +38,6 @@
       <module name="kroxylicious" options="-parameters" />
       <module name="kroxylicious-additional-filters" options="-parameters" />
       <module name="kroxylicious-api" options="-parameters" />
-      <module name="kroxylicious-filter-api" options="-parameters" />
       <module name="kroxylicious-krpc-plugin" options="-parameters" />
       <module name="kroxylicious-krpc-plugin.main" options="-parameters" />
       <module name="kroxylicious-krpc-plugin.test" options="-parameters" />
