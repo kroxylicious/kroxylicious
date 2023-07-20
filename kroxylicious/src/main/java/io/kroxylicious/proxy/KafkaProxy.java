@@ -56,6 +56,7 @@ public final class KafkaProxy implements AutoCloseable {
 
     private final NetworkBindingOperationProcessor bindingOperationProcessor = new DefaultNetworkBindingOperationProcessor();
     private final EndpointRegistry endpointRegistry = new EndpointRegistry(bindingOperationProcessor);
+    private MeterRegistries meterRegistries;
 
     private record EventGroupConfig(String name, EventLoopGroup bossGroup, EventLoopGroup workerGroup, Class<? extends ServerChannel> clazz) {
 
@@ -99,7 +100,7 @@ public final class KafkaProxy implements AutoCloseable {
         portConflictDefector.validate(virtualClusterMap, adminHttpHostPort);
 
         var availableCores = Runtime.getRuntime().availableProcessors();
-        var meterRegistries = new MeterRegistries(micrometerConfig);
+        meterRegistries = new MeterRegistries(micrometerConfig);
 
         this.adminEventGroup = buildNettyEventGroups("admin", availableCores, config.isUseIoUring());
         this.serverEventGroup = buildNettyEventGroups("server", availableCores, config.isUseIoUring());
@@ -225,11 +226,15 @@ public final class KafkaProxy implements AutoCloseable {
                 }
                 return null;
             }).toCompletableFuture().join();
+            if (meterRegistries != null) {
+                meterRegistries.close();
+            }
         }
         finally {
             adminEventGroup = null;
             serverEventGroup = null;
             metricsChannel = null;
+            meterRegistries = null;
             shutdown.complete(null);
             LOGGER.info("Shut down completed.");
 

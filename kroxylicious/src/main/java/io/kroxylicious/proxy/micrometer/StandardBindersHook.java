@@ -6,6 +6,7 @@
 package io.kroxylicious.proxy.micrometer;
 
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,6 +31,7 @@ import io.kroxylicious.proxy.config.BaseConfig;
 public class StandardBindersHook implements MicrometerConfigurationHook {
     private static final Logger log = LoggerFactory.getLogger(StandardBindersHook.class);
     private final StandardBindersHookConfig config;
+    private final List<AutoCloseable> closeableBinders = new CopyOnWriteArrayList<>();
 
     public static class StandardBindersHookConfig extends BaseConfig {
         private final List<String> binderNames;
@@ -52,35 +54,39 @@ public class StandardBindersHook implements MicrometerConfigurationHook {
         for (String binderName : this.config.binderNames) {
             MeterBinder binder = getBinder(binderName);
             binder.bindTo(targetRegistry);
-            log.info("bound " + binderName + " to micrometer registry");
+            if (binder instanceof AutoCloseable closeable) {
+                this.closeableBinders.add(closeable);
+            }
+            log.info("bound {} to micrometer registry", binderName);
         }
 
     }
 
-    private MeterBinder getBinder(String binderName) {
-        switch (binderName) {
-            case "UptimeMetrics":
-                return new UptimeMetrics();
-            case "ProcessorMetrics":
-                return new ProcessorMetrics();
-            case "FileDescriptorMetrics":
-                return new FileDescriptorMetrics();
-            case "ClassLoaderMetrics":
-                return new ClassLoaderMetrics();
-            case "JvmCompilationMetrics":
-                return new JvmCompilationMetrics();
-            case "JvmGcMetrics":
-                return new JvmGcMetrics();
-            case "JvmHeapPressureMetrics":
-                return new JvmHeapPressureMetrics();
-            case "JvmInfoMetrics":
-                return new JvmInfoMetrics();
-            case "JvmMemoryMetrics":
-                return new JvmMemoryMetrics();
-            case "JvmThreadMetrics":
-                return new JvmThreadMetrics();
-            default:
-                throw new IllegalArgumentException("no binder available for " + binderName);
-        }
+    @Override
+    public void close() {
+        closeableBinders.forEach(closeable -> {
+            try {
+                closeable.close();
+            }
+            catch (Exception e) {
+                log.warn("Ignoring exception whilst closing standard binder {}", closeable.getClass(), e);
+            }
+        });
+    }
+
+    /* testing */ protected MeterBinder getBinder(String binderName) {
+        return switch (binderName) {
+            case "UptimeMetrics" -> new UptimeMetrics();
+            case "ProcessorMetrics" -> new ProcessorMetrics();
+            case "FileDescriptorMetrics" -> new FileDescriptorMetrics();
+            case "ClassLoaderMetrics" -> new ClassLoaderMetrics();
+            case "JvmCompilationMetrics" -> new JvmCompilationMetrics();
+            case "JvmGcMetrics" -> new JvmGcMetrics();
+            case "JvmHeapPressureMetrics" -> new JvmHeapPressureMetrics();
+            case "JvmInfoMetrics" -> new JvmInfoMetrics();
+            case "JvmMemoryMetrics" -> new JvmMemoryMetrics();
+            case "JvmThreadMetrics" -> new JvmThreadMetrics();
+            default -> throw new IllegalArgumentException("no binder available for " + binderName);
+        };
     }
 }
