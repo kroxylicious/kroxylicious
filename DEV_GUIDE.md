@@ -31,7 +31,7 @@ This document gives a detailed breakdown of the various build processes and opti
 - [`mvn`](https://maven.apache.org/index.html) (version 3.5 and above) - Maven CLI
 - [`docker`](https://docs.docker.com/install/) or [`podman`](https://podman.io/docs/installation) - Docker or Podman
 
-> :warning: **If you are using Podman please see the notes below**
+> :warning: **If you are using Podman please see [these notes](#running-integration-tests-on-podman) below**
 
 ## Prerequistes to run the kubernetes-examples
 
