@@ -26,4 +26,13 @@ public interface VirtualClusterBinding {
      * @return upstream target.
      */
     HostPort upstreamTarget();
+
+    /**
+     * If set true, the upstream target must only be used for metadata discovery.
+     *
+     * @return true if the target must be restricted to metadata discovery.
+     */
+    default boolean restrictUpstreamToMetadataDiscovery() {
+        return false;
+    }
 }

@@ -6,11 +6,17 @@
 
 package io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider;
 
+import java.util.stream.Stream;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.converter.ConvertWith;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import io.kroxylicious.proxy.HostPortConverter;
 import io.kroxylicious.proxy.service.HostPort;
 
 import static io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.SniRoutingClusterNetworkAddressConfigProvider.SniRoutingClusterNetworkAddressConfigProviderConfig;
@@ -48,6 +54,28 @@ class SniRoutingClusterNetworkAddressConfigProviderTest {
                 new SniRoutingClusterNetworkAddressConfigProviderConfig(parse("boot.kafka:1234"),
                         "broker-$(nodeId).kafka"));
         assertThat(provider.getBrokerAddress(0)).isEqualTo(HostPort.parse("broker-0.kafka:1234"));
+    }
+
+    public static Stream<Arguments> getBrokerIdFromBrokerAddress() {
+        return Stream.of(
+                Arguments.of("broker 0", "broker-0.kafka:1234", 0),
+                Arguments.of("broker 99", "broker-99.kafka:1234", 99),
+                Arguments.of("RFC 4343 case insensitive", "BROKER-0.KAFKA:1234", 0),
+                Arguments.of("port mismatch", "broker-0.kafka:1235", null),
+                Arguments.of("host mismatch", "broker-0.another:1234", null),
+                Arguments.of("RE anchoring", "0.kafka:1234", null),
+                Arguments.of("RE anchoring", "start.broker-0.kafka.end:1234", null),
+                Arguments.of("RE metacharacters in brokerAddressPattern escaped", "broker-0xkafka:1234", null));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource
+    void getBrokerIdFromBrokerAddress(String name, @ConvertWith(HostPortConverter.class) HostPort address, Integer expected) {
+        var provider = new SniRoutingClusterNetworkAddressConfigProvider(
+                new SniRoutingClusterNetworkAddressConfigProviderConfig(parse("boot.kafka:1234"),
+                        "broker-$(nodeId).kafka"));
+
+        assertThat(provider.getBrokerIdFromBrokerAddress(address)).isEqualTo(expected);
     }
 
     @Test

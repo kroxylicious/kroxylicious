@@ -209,6 +209,13 @@ class DefaultFilterContext implements KrpcFilterContext {
         }
     }
 
+    @Override
+    public void closeConnection() {
+        this.channelContext.close().addListener(future -> {
+            LOGGER.debug("{} closed.", channelDescriptor());
+        });
+    }
+
     /**
      * In this case we are not forwarding to the proxied broker but responding immediately.
      * We want to check that the ApiMessage is the correct type for the request. Ie if the

@@ -6,11 +6,13 @@
 
 package io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider;
 
+import java.util.Arrays;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 final class BrokerAddressPatternUtils {
     private static final String LITERAL_NODE_ID = "$(nodeId)";
@@ -69,5 +71,10 @@ final class BrokerAddressPatternUtils {
 
     static String replaceLiteralNodeId(String brokerAddressPattern, int nodeId) {
         return LITERAL_NODE_ID_PATTERN.matcher(brokerAddressPattern).replaceAll(Integer.toString(nodeId));
+    }
+
+    static Pattern createNodeIdCapturingRegex(String brokerAddressPattern) {
+        var partsQuoted = Arrays.stream(brokerAddressPattern.split(Pattern.quote(LITERAL_NODE_ID))).map(Pattern::quote);
+        return Pattern.compile(partsQuoted.collect(Collectors.joining("(\\d+)")), Pattern.CASE_INSENSITIVE);
     }
 }

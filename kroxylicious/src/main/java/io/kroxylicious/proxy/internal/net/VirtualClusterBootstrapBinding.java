@@ -13,6 +13,9 @@ import io.kroxylicious.proxy.service.HostPort;
 
 /**
  * A binding to a virtual cluster bootstrap.
+ *
+ * @param virtualCluster the virtual cluster
+ * @param upstreamTarget the upstream bootstrap target
  */
 public record VirtualClusterBootstrapBinding(VirtualCluster virtualCluster, HostPort upstreamTarget) implements VirtualClusterBinding {
 

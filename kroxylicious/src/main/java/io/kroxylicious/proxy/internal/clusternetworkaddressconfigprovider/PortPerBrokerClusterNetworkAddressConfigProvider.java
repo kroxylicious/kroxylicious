@@ -8,8 +8,10 @@ package io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider;
 
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -44,6 +46,7 @@ public class PortPerBrokerClusterNetworkAddressConfigProvider implements Cluster
     private final int brokerStartPort;
     private final Set<Integer> exclusivePorts;
     private final int brokerEndPortExclusive;
+    private final int numberOfBrokerPorts;
 
     /**
      * Creates the provider.
@@ -54,7 +57,7 @@ public class PortPerBrokerClusterNetworkAddressConfigProvider implements Cluster
         this.bootstrapAddress = config.bootstrapAddress;
         this.brokerAddressPattern = config.brokerAddressPattern;
         this.brokerStartPort = config.brokerStartPort;
-        int numberOfBrokerPorts = config.numberOfBrokerPorts;
+        this.numberOfBrokerPorts = config.numberOfBrokerPorts;
         this.brokerEndPortExclusive = brokerStartPort + numberOfBrokerPorts;
 
         var exclusivePorts = IntStream.range(brokerStartPort, brokerEndPortExclusive).boxed().collect(Collectors.toCollection(HashSet::new));
@@ -88,6 +91,11 @@ public class PortPerBrokerClusterNetworkAddressConfigProvider implements Cluster
     @Override
     public Set<Integer> getExclusivePorts() {
         return this.exclusivePorts;
+    }
+
+    @Override
+    public Map<Integer, HostPort> discoveryAddressMap() {
+        return IntStream.range(0, numberOfBrokerPorts).boxed().collect(Collectors.toMap(Function.identity(), this::getBrokerAddress));
     }
 
     /**
