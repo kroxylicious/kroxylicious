@@ -148,7 +148,9 @@ new ProduceRecordTransformationFilter(
 ```
 
 ### Jenkins pipeline for performance
-When a PR is created and the performance tests are needed, the following comment shall be added into the PR:
+
+When a PR is created and the performance tests are needed, if you are a member of
+[Developers](https://github.com/orgs/kroxylicious/teams/developers), you may add the following comment into the PR to trigger the run.
 
 ```
 @strimzi-ci run perf
