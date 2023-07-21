@@ -229,7 +229,7 @@ export DOCKER_HOST
 There is an incompatibility between HTTP connection timeout expectations of 
 [testcontainers-java](https://github.com/testcontainers/testcontainers-java) and the Podman API. This
 can result in sporadic test failures when running the Integration Tests under Podman.  It manifests as
-failed or hanging REST API calls that lead to test failures and test hangs.
+failed or hanging REST API calls that leads to test failures and test hangs.
 
 It affects Linux and Mac OS X.
 On Linux it manifests as Http calls failing with a `Broken Pipe` exception. 
