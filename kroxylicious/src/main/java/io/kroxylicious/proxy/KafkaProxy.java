@@ -48,6 +48,7 @@ import io.kroxylicious.proxy.internal.net.EndpointRegistry;
 import io.kroxylicious.proxy.internal.net.NetworkBindingOperationProcessor;
 import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.model.VirtualCluster;
+import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 
 public final class KafkaProxy implements AutoCloseable {
@@ -80,7 +81,7 @@ public final class KafkaProxy implements AutoCloseable {
         this.config = config;
         this.virtualClusterMap = config.virtualClusters().entrySet().stream()
                 .collect(Collectors.toMap(Map.Entry::getKey,
-                        e -> toVirtualClusterModel(e.getValue())));
+                        e -> toVirtualClusterModel(e.getValue(), e.getKey())));
         this.adminHttpConfig = config.adminHttpConfig();
         this.micrometerConfig = config.getMicrometer();
     }
@@ -253,13 +254,18 @@ public final class KafkaProxy implements AutoCloseable {
         }
     }
 
-    private static VirtualCluster toVirtualClusterModel(io.kroxylicious.proxy.config.VirtualCluster configModel) {
-        return new VirtualCluster(configModel.targetCluster(),
-                ClusterNetworkAddressConfigProviderContributorManager.getInstance()
-                        .getClusterEndpointConfigProvider(configModel.clusterNetworkAddressConfigProvider().type(),
-                                configModel.clusterNetworkAddressConfigProvider().config()),
+    private static VirtualCluster toVirtualClusterModel(io.kroxylicious.proxy.config.VirtualCluster configModel, String virtualClusterNodeName) {
+        return new VirtualCluster(configModel.clusterName().orElse(virtualClusterNodeName),
+                configModel.targetCluster(),
+                toClusterNetworkAddressConfigProviderModel(configModel),
                 configModel.tls(),
                 configModel.logNetwork(), configModel.logFrames());
+    }
+
+    private static ClusterNetworkAddressConfigProvider toClusterNetworkAddressConfigProviderModel(io.kroxylicious.proxy.config.VirtualCluster configModel) {
+        return ClusterNetworkAddressConfigProviderContributorManager.getInstance()
+                .getClusterEndpointConfigProvider(configModel.clusterNetworkAddressConfigProvider().type(),
+                        configModel.clusterNetworkAddressConfigProvider().config());
     }
 
 }
