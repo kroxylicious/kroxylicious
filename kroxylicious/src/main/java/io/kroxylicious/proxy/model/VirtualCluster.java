@@ -10,7 +10,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
-
 import javax.net.ssl.SSLException;
 
 import io.netty.handler.ssl.SslContext;
@@ -22,7 +21,9 @@ import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 
+@SuppressWarnings("OptionalUsedAsFieldOrParameterType")
 public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
+    private final String clusterName;
 
     private final TargetCluster targetCluster;
 
@@ -32,13 +33,18 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
     private final boolean logFrames;
 
     private final ClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider;
+
     private final Optional<SslContext> upstreamSslContext;
+
     private final Optional<SslContext> downstreamSslContext;
 
-    public VirtualCluster(TargetCluster targetCluster,
+    public VirtualCluster(String clusterName,
+                          TargetCluster targetCluster,
                           ClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider,
                           Optional<Tls> tls,
-                          boolean logNetwork, boolean logFrames) {
+                          boolean logNetwork,
+                          boolean logFrames) {
+        this.clusterName = clusterName;
         this.tls = tls;
         if (clusterNetworkAddressConfigProvider.requiresTls() && (tls.isEmpty() || !tls.get().definesKey())) {
             throw new IllegalStateException("Cluster endpoint provider requires server TLS, but this virtual cluster does not define it.");
@@ -57,6 +63,10 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
         // TODO: https://github.com/kroxylicious/kroxylicious/issues/104 be prepared to reload the SslContext at runtime.
         this.upstreamSslContext = buildUpstreamSslContext();
         this.downstreamSslContext = buildDownstreamSslContext();
+    }
+
+    public String getClusterName() {
+        return clusterName;
     }
 
     public TargetCluster targetCluster() {
@@ -105,14 +115,16 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
 
     @Override
     public String toString() {
-        final StringBuilder sb = new StringBuilder("VirtualCluster [");
-        sb.append("targetCluster=").append(targetCluster);
-        sb.append(", clusterNetworkAddressConfigProvider=").append(clusterNetworkAddressConfigProvider);
-        sb.append(", tls=").append(tls.map(Tls::toString).orElse(null));
-        sb.append(", logNetwork=").append(logNetwork);
-        sb.append(", logFrames=").append(logFrames);
-        sb.append(']');
-        return sb.toString();
+        return "VirtualCluster{" +
+                "clusterName='" + clusterName + '\'' +
+                ", targetCluster=" + targetCluster +
+                ", tls=" + tls +
+                ", logNetwork=" + logNetwork +
+                ", logFrames=" + logFrames +
+                ", clusterNetworkAddressConfigProvider=" + clusterNetworkAddressConfigProvider +
+                ", upstreamSslContext=" + upstreamSslContext +
+                ", downstreamSslContext=" + downstreamSslContext +
+                '}';
     }
 
     @Override
