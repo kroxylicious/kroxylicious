@@ -90,5 +90,10 @@ public interface KrpcFilterContext {
      */
     void closeConnection();
 
+    /**
+     * Allows the filter to identify which cluster it is processing a request for
+     * @return virtual cluster name
+     */
+    String getVirtualClusterName();
     // TODO an API to allow a filter to add/remove another filter from the pipeline
 }

@@ -191,7 +191,11 @@ public class InvokerDispatchBenchmark {
 
         @Override
         public void closeConnection() {
+        }
 
+        @Override
+        public String getVirtualClusterName() {
+            return null;
         }
     }
 }

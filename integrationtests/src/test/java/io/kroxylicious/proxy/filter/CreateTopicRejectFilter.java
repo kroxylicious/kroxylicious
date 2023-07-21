@@ -10,13 +10,17 @@ import org.apache.kafka.common.message.CreateTopicsRequestData;
 import org.apache.kafka.common.message.CreateTopicsResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.Errors;
+import org.slf4j.Logger;
+
+import static org.slf4j.LoggerFactory.getLogger;
 
 public class CreateTopicRejectFilter implements CreateTopicsRequestFilter {
-
+    private final Logger log = getLogger(CreateTopicRejectFilter.class);
     public static final String ERROR_MESSAGE = "rejecting all topics";
 
     @Override
     public void onCreateTopicsRequest(short apiVersion, RequestHeaderData header, CreateTopicsRequestData request, KrpcFilterContext context) {
+        log.info("Rejecting create topic request");
         CreateTopicsResponseData response = new CreateTopicsResponseData();
         CreateTopicsResponseData.CreatableTopicResultCollection topics = new CreateTopicsResponseData.CreatableTopicResultCollection();
         allocateByteBufToTestKroxyliciousReleasesIt(context);

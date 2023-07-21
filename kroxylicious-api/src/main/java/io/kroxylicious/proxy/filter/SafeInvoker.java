@@ -10,6 +10,7 @@ import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
+import org.slf4j.MDC;
 
 /**
  * Wraps a delegate invoker so that onRequest and onResponse can be safely called even if this
@@ -21,22 +22,26 @@ record SafeInvoker(FilterInvoker invoker) implements FilterInvoker {
 
     @Override
     public void onRequest(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
+        MDC.put("VIRTUAL_CLUSTER", filterContext.getVirtualClusterName());
         if (invoker.shouldHandleRequest(apiKey, apiVersion)) {
             invoker.onRequest(apiKey, apiVersion, header, body, filterContext);
         }
         else {
             filterContext.forwardRequest(header, body);
         }
+        MDC.remove("VIRTUAL_CLUSTER");
     }
 
     @Override
     public void onResponse(ApiKeys apiKey, short apiVersion, ResponseHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
+        MDC.put("VIRTUAL_CLUSTER", filterContext.getVirtualClusterName());
         if (invoker.shouldHandleResponse(apiKey, apiVersion)) {
             invoker.onResponse(apiKey, apiVersion, header, body, filterContext);
         }
         else {
             filterContext.forwardResponse(header, body);
         }
+        MDC.remove("VIRTUAL_CLUSTER");
     }
 
     @Override
