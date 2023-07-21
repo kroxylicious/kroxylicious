@@ -50,9 +50,12 @@ public class EagerMetadataLearner implements RequestFilter {
             final short apiVersion = determineMetadataApiVersion(header);
             // Send an out-of-band Metadata request. The response will be intercepted by the in-built BrokerAddressFilter.
             // By the time control returns to the handler, the upstream addresses will have been reconciled.
-            var unused = filterContext.<MetadataResponseData> sendRequest(apiVersion, new MetadataRequestData())
+            boolean useClientRequest = apiKey.equals(ApiKeys.METADATA) && apiVersion == header.requestApiVersion();
+            var request = useClientRequest ? (MetadataRequestData) body : new MetadataRequestData();
+
+            var unused = filterContext.<MetadataResponseData> sendRequest(apiVersion, request)
                     .thenAccept(metadataResponseData -> {
-                        if (apiKey.equals(ApiKeys.METADATA) && apiVersion == header.requestApiVersion()) {
+                        if (useClientRequest) {
                             // The client's requested matched our out-of-band request, so we may as well return the
                             // response.
                             filterContext.forwardResponse(metadataResponseData);
