@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+
 import javax.net.ssl.SSLException;
 
 import io.netty.handler.ssl.SslContext;
@@ -46,19 +47,13 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
                           boolean logFrames) {
         this.clusterName = clusterName;
         this.tls = tls;
-        if (clusterNetworkAddressConfigProvider.requiresTls() && (tls.isEmpty() || !tls.get().definesKey())) {
-            throw new IllegalStateException("Cluster endpoint provider requires server TLS, but this virtual cluster does not define it.");
-        }
-        var conflicts = clusterNetworkAddressConfigProvider.getExclusivePorts().stream().filter(p -> clusterNetworkAddressConfigProvider.getSharedPorts().contains(p))
-                .collect(Collectors.toSet());
-        if (!conflicts.isEmpty()) {
-            throw new IllegalStateException(
-                    "The set of exclusive ports described by the cluster endpoint provider must be distinct from those described as shared. Intersection: " + conflicts);
-        }
         this.targetCluster = targetCluster;
         this.logNetwork = logNetwork;
         this.logFrames = logFrames;
         this.clusterNetworkAddressConfigProvider = clusterNetworkAddressConfigProvider;
+
+        validateTLsSettings(clusterNetworkAddressConfigProvider, tls);
+        validatePortUsage(clusterNetworkAddressConfigProvider);
 
         // TODO: https://github.com/kroxylicious/kroxylicious/issues/104 be prepared to reload the SslContext at runtime.
         this.upstreamSslContext = buildUpstreamSslContext();
@@ -87,30 +82,6 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
 
     public boolean isUseTls() {
         return tls.isPresent();
-    }
-
-    private Optional<SslContext> buildDownstreamSslContext() {
-        return tls.map(tls -> {
-            try {
-                return Optional.of(tls.key()).map(KeyProvider::forServer).orElseThrow().build();
-            }
-            catch (SSLException e) {
-                throw new UncheckedIOException(e);
-            }
-        });
-    }
-
-    private Optional<SslContext> buildUpstreamSslContext() {
-        return targetCluster.tls().map(tls -> {
-            try {
-                var sslContextBuilder = SslContextBuilder.forClient();
-                Optional.ofNullable(tls.trust()).ifPresent(tp -> tp.apply(sslContextBuilder));
-                return sslContextBuilder.build();
-            }
-            catch (SSLException e) {
-                throw new UncheckedIOException(e);
-            }
-        });
     }
 
     @Override
@@ -175,4 +146,42 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
         return upstreamSslContext;
     }
 
+    private Optional<SslContext> buildDownstreamSslContext() {
+        return tls.map(tls -> {
+            try {
+                return Optional.of(tls.key()).map(KeyProvider::forServer).orElseThrow().build();
+            }
+            catch (SSLException e) {
+                throw new UncheckedIOException(e);
+            }
+        });
+    }
+
+    private Optional<SslContext> buildUpstreamSslContext() {
+        return targetCluster.tls().map(tls -> {
+            try {
+                var sslContextBuilder = SslContextBuilder.forClient();
+                Optional.ofNullable(tls.trust()).ifPresent(tp -> tp.apply(sslContextBuilder));
+                return sslContextBuilder.build();
+            }
+            catch (SSLException e) {
+                throw new UncheckedIOException(e);
+            }
+        });
+    }
+
+    private static void validatePortUsage(ClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider) {
+        var conflicts = clusterNetworkAddressConfigProvider.getExclusivePorts().stream().filter(p -> clusterNetworkAddressConfigProvider.getSharedPorts().contains(p))
+                .collect(Collectors.toSet());
+        if (!conflicts.isEmpty()) {
+            throw new IllegalStateException(
+                    "The set of exclusive ports described by the cluster endpoint provider must be distinct from those described as shared. Intersection: " + conflicts);
+        }
+    }
+
+    private static void validateTLsSettings(ClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider, Optional<Tls> tls) {
+        if (clusterNetworkAddressConfigProvider.requiresTls() && (tls.isEmpty() || !tls.get().definesKey())) {
+            throw new IllegalStateException("Cluster endpoint provider requires server TLS, but this virtual cluster does not define it.");
+        }
+    }
 }
