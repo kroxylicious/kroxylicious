@@ -274,7 +274,7 @@ Host: www.example.com
 ```
 
 You'll see an API response.  If the service_timeout change is effective, the socat
-will continue indefinitely.  If `socat` terminates after about 10 seconds, the workaround
+will continue for 3 mins.  If `socat` terminates after about 10 seconds, the workaround
 has been applied ineffectively.
 
 
