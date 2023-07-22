@@ -13,14 +13,17 @@ import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.junit.jupiter.api.AfterEach;
+import org.mockito.Mockito;
 
 import io.netty.channel.embedded.EmbeddedChannel;
 
+import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.model.VirtualCluster;
+import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -51,7 +54,9 @@ public abstract class FilterHarness {
      */
     protected void buildChannel(KrpcFilter filter, long timeoutMs) {
         this.filter = filter;
-        filterHandler = new FilterHandler(getOnlyElement(FilterAndInvoker.build(filter)), timeoutMs, null, new VirtualCluster("TestVirtualCluster", null, null, Optional.empty(), false, false));
+        filterHandler = new FilterHandler(getOnlyElement(FilterAndInvoker.build(filter)), timeoutMs, null,
+                new VirtualCluster("TestVirtualCluster", Mockito.mock(TargetCluster.class), Mockito.mock(ClusterNetworkAddressConfigProvider.class), Optional.empty(),
+                        false, false));
         channel = new EmbeddedChannel(filterHandler);
     }
 
