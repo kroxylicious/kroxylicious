@@ -581,6 +581,7 @@ public class MultiTenantIT {
     private ConfigurationBuilder getConfig(KafkaCluster cluster) {
         return new ConfigurationBuilder()
                 .addToVirtualClusters(TENANT_1_CLUSTER, new VirtualClusterBuilder()
+                        .withClusterName(TENANT_1_CLUSTER)
                         .withNewTargetCluster()
                         .withBootstrapServers(cluster.getBootstrapServers())
                         .endTargetCluster()
@@ -595,6 +596,7 @@ public class MultiTenantIT {
                         .endTls()
                         .build())
                 .addToVirtualClusters(TENANT_2_CLUSTER, new VirtualClusterBuilder()
+                        .withClusterName(TENANT_2_CLUSTER)
                         .withNewTargetCluster()
                         .withBootstrapServers(cluster.getBootstrapServers())
                         .endTargetCluster()

@@ -68,7 +68,7 @@ class MultiTenantTransformationFilterTest {
 
     @BeforeEach
     public void beforeEach() {
-        when(context.sniHostname()).thenReturn("tenant1.kafka.example.com");
+        when(context.getVirtualClusterName()).thenReturn("tenant1");
     }
 
     public static Stream<Arguments> requests() throws Exception {
