@@ -6,11 +6,13 @@
 
 package io.kroxylicious.proxy.internal.filter;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.MetadataRequestData;
+import org.apache.kafka.common.message.MetadataRequestData.MetadataRequestTopic;
 import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
@@ -35,6 +37,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
 
 import static org.mockito.ArgumentMatchers.anyShort;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -55,43 +58,52 @@ class EagerMetadataLearnerTest {
 
     public static Stream<Arguments> preludeRequests() {
         return Stream.of(
-                toArgs(new ApiVersionsRequest(new ApiVersionsRequestData(), ApiVersionsRequestData.HIGHEST_SUPPORTED_VERSION)),
-                toArgs(new SaslHandshakeRequest(new SaslHandshakeRequestData(), SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION)),
-                toArgs(new SaslAuthenticateRequest(new SaslAuthenticateRequestData(), SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION)));
+                toArgs("ApiVersionsRequest", new ApiVersionsRequest(new ApiVersionsRequestData(), ApiVersionsRequestData.HIGHEST_SUPPORTED_VERSION)),
+                toArgs("SaslHandshakeRequest", new SaslHandshakeRequest(new SaslHandshakeRequestData(), SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION)),
+                toArgs("SaslAuthenticateRequest", new SaslAuthenticateRequest(new SaslAuthenticateRequestData(), SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION)));
     }
 
-    @ParameterizedTest
+    @ParameterizedTest(name = "{0}")
     @MethodSource("preludeRequests")
-    public void forwardsRequestsOfKafkaPrelude(ApiKeys apiKey, RequestHeaderData header, ApiMessage request) {
+    public void forwardsRequestsOfKafkaPrelude(String name, ApiKeys apiKey, RequestHeaderData header, ApiMessage request) {
         learner.onRequest(apiKey, header, request, context);
         verify(context).forwardRequest(header, request);
     }
 
     public static Stream<Arguments> postPreludeRequests() {
         return Stream.of(
-                toArgs(new ProduceRequest(new ProduceRequestData(), ProduceRequestData.HIGHEST_SUPPORTED_VERSION)),
-                toArgs(new MetadataRequest(new MetadataRequestData(), MetadataRequestData.HIGHEST_SUPPORTED_VERSION)),
-                toArgs(new MetadataRequest(new MetadataRequestData(), MetadataRequestData.LOWEST_SUPPORTED_VERSION)));
+                toArgs("ProduceRequest replaced by MetadataRequest", new ProduceRequest(new ProduceRequestData(), ProduceRequestData.HIGHEST_SUPPORTED_VERSION)),
+                toArgs("MetadataRequest (highest supported)", new MetadataRequest(new MetadataRequestData(), MetadataRequestData.HIGHEST_SUPPORTED_VERSION)),
+                toArgs("MetadataRequest (lowest supported)", new MetadataRequest(new MetadataRequestData(), MetadataRequestData.LOWEST_SUPPORTED_VERSION)),
+                toArgs("MetadataRequest (payload fidelity)", new MetadataRequest(new MetadataRequestData().setTopics(List.of(new MetadataRequestTopic().setName("foo"))),
+                        MetadataRequestData.LOWEST_SUPPORTED_VERSION)));
     }
 
-    @ParameterizedTest
+    @ParameterizedTest(name = "{0}")
     @MethodSource("postPreludeRequests")
-    public void spontaneouslyEmitsMetadataRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage request) {
+    public void spontaneouslyEmitsMetadataRequest(String name, ApiKeys apiKey, RequestHeaderData header, ApiMessage request) {
         var metadataResponse = new MetadataResponseData();
         metadataResponse.brokers().add(new MetadataResponseData.MetadataResponseBroker().setNodeId(1).setHost("localhost").setPort(1234));
 
         when(context.sendRequest(anyShort(), isA(MetadataRequestData.class))).thenReturn(CompletableFuture.completedStage(metadataResponse));
         learner.onRequest(apiKey, header, request, context);
 
+        if (apiKey == ApiKeys.METADATA) {
+            // if caller's request is a metadata request, then the filter must forward it with fidelity
+            verify(context).sendRequest(eq(header.requestApiVersion()), eq(request));
+        }
+        else {
+            verify(context).sendRequest(anyShort(), isA(MetadataRequestData.class));
+        }
         verify(context, apiKey.equals(ApiKeys.METADATA) ? times(1) : never()).forwardResponse(metadataResponse);
         verify(context).closeConnection();
     }
 
-    private static Arguments toArgs(AbstractRequest request) {
+    private static Arguments toArgs(String name, AbstractRequest request) {
         var header = new RequestHeaderData().setRequestApiKey(request.apiKey().id).setRequestApiVersion(request.version());
         var apiKey = request.apiKey();
         var request1 = request.data();
-        return Arguments.of(apiKey, header, request1);
+        return Arguments.of(name, apiKey, header, request1);
     }
 
 }
