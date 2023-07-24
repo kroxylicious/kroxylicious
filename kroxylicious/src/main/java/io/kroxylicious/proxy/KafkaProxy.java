@@ -90,11 +90,11 @@ public final class KafkaProxy implements AutoCloseable {
      * @return This proxy.
      */
     public KafkaProxy startup() throws InterruptedException {
-        STARTUP_SHUTDOWN_LOGGER.info("Kroxylicious starting");
-
         if (running.getAndSet(true)) {
             throw new IllegalStateException("This proxy is already running");
         }
+
+        logStartup();
 
         var portConflictDefector = new PortConflictDetector();
         Optional<HostPort> adminHttpHostPort = Optional.ofNullable(shouldBindAdminEndpoint() ? new HostPort(adminHttpConfig.host(), adminHttpConfig.port()) : null);
@@ -126,6 +126,10 @@ public final class KafkaProxy implements AutoCloseable {
         Metrics.inboundDownstreamMessagesCounter();
         Metrics.inboundDownstreamDecodedMessagesCounter();
         return this;
+    }
+
+    private static void logStartup() {
+        new BannerLogger().log();
     }
 
     private ServerBootstrap buildServerBootstrap(EventGroupConfig virtualHostEventGroup, KafkaProxyInitializer kafkaProxyInitializer) {
