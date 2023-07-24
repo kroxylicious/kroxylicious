@@ -57,3 +57,30 @@
         path: "/groups/0/groupId"
         value: tenant1-mygroup
   disabled: false
+- apiMessageType: OFFSET_FETCH
+  description: offset fetch group without topic
+  version: 2
+  request:
+    payload:
+      groupId: mygroup
+      topics: null
+      requireStable: false
+    diff:
+      - op: replace
+        path: "/groupId"
+        value: tenant1-mygroup
+  response:
+    payload:
+      topics:
+        - name: tenant1-foo
+          partitions:
+            - partitionIndex: 0
+              committedOffset: 0
+              metadata: null
+              errorCode: 0
+      errorCode: 0
+    diff:
+      - op: replace
+        path: "/topics/0/name"
+        value: foo
+  disabled: false

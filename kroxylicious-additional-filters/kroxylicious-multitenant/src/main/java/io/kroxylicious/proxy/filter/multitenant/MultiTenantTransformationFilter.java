@@ -145,6 +145,8 @@ public class MultiTenantTransformationFilter
 
     @Override
     public void onDeleteTopicsRequest(short apiVersion, RequestHeaderData header, DeleteTopicsRequestData request, KrpcFilterContext context) {
+        // the topicName field was present up to and including version 5
+        request.setTopicNames(request.topicNames().stream().map(topic -> applyTenantPrefix(context, topic)).toList());
         request.topics().forEach(topic -> applyTenantPrefix(context, topic::name, topic::setName, topic.topicId() != null));
         context.forwardRequest(header, request);
     }
@@ -202,7 +204,9 @@ public class MultiTenantTransformationFilter
 
     @Override
     public void onOffsetFetchRequest(short apiVersion, RequestHeaderData header, OffsetFetchRequestData request, KrpcFilterContext context) {
-        request.topics().forEach(topic -> applyTenantPrefix(context, topic::name, topic::setName, false));
+        // the groupId and top-level topic fields were present up to and including version 7
+        Optional.ofNullable(request.groupId()).ifPresent(groupId -> applyTenantPrefix(context, request::groupId, request::setGroupId, true));
+        Optional.ofNullable(request.topics()).ifPresent(topics -> topics.forEach(topic -> applyTenantPrefix(context, topic::name, topic::setName, false)));
         request.groups().forEach(requestGroup -> {
             applyTenantPrefix(context, requestGroup::groupId, requestGroup::setGroupId, false);
             Optional.ofNullable(requestGroup.topics())
@@ -274,6 +278,8 @@ public class MultiTenantTransformationFilter
 
     @Override
     public void onFindCoordinatorRequest(short apiVersion, RequestHeaderData header, FindCoordinatorRequestData request, KrpcFilterContext context) {
+        // the key fields was present up to and including version 4
+        Optional.ofNullable(request.key()).ifPresent(unused -> applyTenantPrefix(context, request::key, request::setKey, true));
         request.setCoordinatorKeys(request.coordinatorKeys().stream().map(key -> applyTenantPrefix(context, key)).toList());
         context.forwardRequest(header, request);
     }
