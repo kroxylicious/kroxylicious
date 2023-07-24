@@ -178,14 +178,12 @@ public class MultiTenantTransformationFilter
         applyTenantPrefix(context, request::transactionalId, request::setTransactionalId, true);
         request.topicData().forEach(topic -> applyTenantPrefix(context, topic::name, topic::setName, false));
         context.forwardRequest(header, request);
-
     }
 
     @Override
     public void onProduceResponse(short apiVersion, ResponseHeaderData header, ProduceResponseData response, KrpcFilterContext context) {
         response.responses().forEach(topic -> removeTenantPrefix(context, topic::name, topic::setName, false));
         context.forwardResponse(header, response);
-
     }
 
     @Override

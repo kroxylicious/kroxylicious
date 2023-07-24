@@ -191,7 +191,10 @@ public class InvokerDispatchBenchmark {
 
         @Override
         public void closeConnection() {
+        }
 
+        @Override
+        public void discard() {
         }
     }
 }

@@ -30,6 +30,8 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
 import io.kroxylicious.proxy.filter.CreateTopicRejectFilter;
@@ -270,6 +272,29 @@ public class KrpcFilterIT {
             assertEquals(List.of(PLAINTEXT, PLAINTEXT),
                     List.of(records1.iterator().next().value(),
                             records2.iterator().next().value()));
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = { "RequestForwardDelaying", "ResponseForwardDelaying" })
+    public void supportsRequestResponseForwardAsynchronicity(String delayType, KafkaCluster cluster) throws Exception {
+
+        var config = proxy(cluster).addToFilters(new FilterDefinitionBuilder(delayType).build());
+
+        try (var tester = kroxyliciousTester(config);
+                var admin = tester.admin();
+                var producer = tester.producer(Map.of(CLIENT_ID_CONFIG, "supportsRequestResponseForwardAsynchronicity", DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000));
+                var consumer = tester.consumer()) {
+
+            admin.createTopics(List.of(
+                    new NewTopic(TOPIC_1, 1, (short) 1))).all().get(10, TimeUnit.SECONDS);
+
+            producer.send(new ProducerRecord<>(TOPIC_1, "my-key", "Hello, world!")).get(10, TimeUnit.SECONDS);
+            consumer.subscribe(Set.of(TOPIC_1));
+            var records = consumer.poll(Duration.ofSeconds(10));
+            consumer.close();
+            assertEquals(1, records.count());
+            assertEquals("Hello, world!", records.iterator().next().value());
         }
     }
 

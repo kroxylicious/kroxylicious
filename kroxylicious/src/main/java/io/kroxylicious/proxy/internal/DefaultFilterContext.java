@@ -37,6 +37,7 @@ import io.kroxylicious.proxy.internal.util.ByteBufOutputStream;
 class DefaultFilterContext implements KrpcFilterContext {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DefaultFilterContext.class);
+    public static final CompletableFuture<Void> COMPLETED_FUTURE = CompletableFuture.completedFuture(null);
 
     private final DecodedFrame<?, ?> decodedFrame;
     private final ChannelHandlerContext channelContext;
@@ -44,6 +45,7 @@ class DefaultFilterContext implements KrpcFilterContext {
     private final KrpcFilter filter;
     private final long timeoutMs;
     private final String sniHostname;
+    private CompletableFuture<Void> closeFuture = new CompletableFuture<>();
 
     DefaultFilterContext(KrpcFilter filter,
                          ChannelHandlerContext channelContext,
@@ -96,22 +98,42 @@ class DefaultFilterContext implements KrpcFilterContext {
     @Override
     public void forwardRequest(RequestHeaderData header, ApiMessage message) {
         if (decodedFrame.body() != message) {
-            throw new IllegalStateException();
+            IllegalStateException illegalStateException = new IllegalStateException();
+            closeFuture.completeExceptionally(illegalStateException);
+            throw illegalStateException;
         }
         if (decodedFrame.header() != header) {
-            throw new IllegalStateException();
+            IllegalStateException illegalStateException = new IllegalStateException();
+            closeFuture.completeExceptionally(illegalStateException);
+            throw illegalStateException;
         }
         // check it's a request
         String name = message.getClass().getName();
         if (!name.endsWith("RequestData")) {
-            throw new AssertionError("Attempt to use forwardRequest with a non-request: " + name);
+            AssertionError error = new AssertionError("Attempt to use forwardRequest with a non-request: " + name);
+            closeFuture.completeExceptionally(error);
+            throw error;
         }
 
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("{}: Forwarding request: {}", channelDescriptor(), decodedFrame);
         }
         // TODO check we've not forwarded it already
-        channelContext.write(decodedFrame, promise);
+        if (!channelContext.executor().inEventLoop()) {
+            channelContext.executor().execute(() -> {
+                try {
+                    channelContext.writeAndFlush(decodedFrame, promise);
+                    closeFuture.complete(null);
+                }
+                catch (Exception e) {
+                    closeFuture.completeExceptionally(e);
+                }
+            });
+        }
+        else {
+            channelContext.write(decodedFrame, promise);
+            closeFuture.complete(null);
+        }
     }
 
     @Override
@@ -171,31 +193,60 @@ class DefaultFilterContext implements KrpcFilterContext {
      * Forward a request to the next filter in the chain
      * (or to the downstream client).
      *
-     * @param header The header
+     * @param header   The header
      * @param response The message
      */
     @Override
     public void forwardResponse(ResponseHeaderData header, ApiMessage response) {
         // check it's a response
+        CompletionStage<Void> future = forwardResponseAsync(header, response);
+        future.whenComplete((unused, throwable) -> {
+            if (throwable != null) {
+                closeFuture.completeExceptionally(throwable);
+            }
+            else {
+                closeFuture.complete(null);
+            }
+        });
+    }
+
+    private CompletionStage<Void> forwardResponseAsync(ResponseHeaderData header, ApiMessage response) {
         String name = response.getClass().getName();
         if (!name.endsWith("ResponseData")) {
-            throw new AssertionError("Attempt to use forwardResponse with a non-response: " + name);
+            return CompletableFuture.failedFuture(new AssertionError("Attempt to use forwardResponse with a non-response: " + name));
         }
         if (decodedFrame instanceof RequestFrame) {
-            forwardShortCircuitResponse(header, response);
+            return forwardShortCircuitResponse(header, response);
         }
         else {
             // TODO check we've not forwarded it already
             if (decodedFrame.body() != response) {
-                throw new AssertionError();
+                return CompletableFuture.failedFuture(new AssertionError());
             }
             if (decodedFrame.header() != header) {
-                throw new AssertionError();
+                return CompletableFuture.failedFuture(new AssertionError());
             }
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug("{}: Forwarding response: {}", channelDescriptor(), decodedFrame);
             }
-            channelContext.fireChannelRead(decodedFrame);
+            if (!channelContext.executor().inEventLoop()) {
+                CompletableFuture<Void> future = new CompletableFuture<>();
+                channelContext.executor().execute(() -> {
+                    try {
+                        channelContext.fireChannelRead(decodedFrame);
+                        channelContext.fireChannelReadComplete();
+                        future.complete(null);
+                    }
+                    catch (Exception e) {
+                        future.completeExceptionally(e);
+                    }
+                });
+                return future;
+            }
+            else {
+                channelContext.fireChannelRead(decodedFrame);
+                return COMPLETED_FUTURE;
+            }
         }
     }
 
@@ -213,7 +264,12 @@ class DefaultFilterContext implements KrpcFilterContext {
     public void closeConnection() {
         this.channelContext.close().addListener(future -> {
             LOGGER.debug("{} closed.", channelDescriptor());
+            closeFuture.complete(null);
         });
+    }
+
+    public void discard() {
+        closeFuture.complete(null);
     }
 
     /**
@@ -224,19 +280,42 @@ class DefaultFilterContext implements KrpcFilterContext {
      * @param header the response header
      * @param response the response body
      */
-    private void forwardShortCircuitResponse(ResponseHeaderData header, ApiMessage response) {
+    private CompletionStage<Void> forwardShortCircuitResponse(ResponseHeaderData header, ApiMessage response) {
         if (response.apiKey() != decodedFrame.apiKey().id) {
-            throw new AssertionError(
-                    "Attempt to respond with ApiMessage of type " + ApiKeys.forId(response.apiKey()) + " but request is of type " + decodedFrame.apiKey());
+            return CompletableFuture.failedFuture(new AssertionError(
+                    "Attempt to respond with ApiMessage of type " + ApiKeys.forId(response.apiKey()) + " but request is of type " + decodedFrame.apiKey()));
         }
         DecodedResponseFrame<?> responseFrame = new DecodedResponseFrame<>(decodedFrame.apiVersion(), decodedFrame.correlationId(), header, response);
         decodedFrame.transferBuffersTo(responseFrame);
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("{}: Forwarding response: {}", channelDescriptor(), decodedFrame);
         }
-        channelContext.fireChannelRead(responseFrame);
-        // required to flush the message back to the client
-        channelContext.fireChannelReadComplete();
+        if (!channelContext.executor().inEventLoop()) {
+            CompletableFuture<Void> future = new CompletableFuture<>();
+            channelContext.executor().execute(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        channelContext.fireChannelRead(responseFrame);
+                        channelContext.fireChannelReadComplete();
+                        future.complete(null);
+                    }
+                    catch (Exception e) {
+                        future.completeExceptionally(e);
+                    }
+                }
+            });
+            return future;
+        }
+        else {
+            // required to flush the message back to the client
+            channelContext.fireChannelRead(responseFrame);
+            channelContext.fireChannelReadComplete();
+            return COMPLETED_FUTURE;
+        }
     }
 
+    public CompletableFuture<Void> onClose() {
+        return closeFuture;
+    }
 }

@@ -58,13 +58,14 @@ public class OutOfBandSendFilter implements DescribeClusterRequestFilter {
         ApiMessage message = createApiMessage(apiKeyToSend);
         context.sendRequest(apiKeyToSend.latestVersion(), message).thenAccept(apiMessage -> {
             String values = unknownTaggedFieldsToStrings(apiMessage, config.tagIdToCollect).collect(Collectors.joining(","));
-            // WARNING: forwarding from within the completion is not generally supported yet, this only works because the test is strictly controlling
-            // requests being sent to Kroxylicious. If used in a proxy between a real Kafka client and broker, this could cause out-of-order responses to
-            // the client, causing client side errors. We use it here so that we can see the outcome of the sendRequest call with a single request to Kroxylicious.
+            // still need to think about this, we already "closed" this context by discarding. maybe we need another context here
+            // particular to the out-of-band response.
             context.forwardResponse(
                     new DescribeClusterResponseData().setErrorCode(Errors.UNKNOWN_SERVER_ERROR.code())
                             .setErrorMessage("filterNameTaggedFieldsFromOutOfBandResponse: " + values));
         });
+        // discard the request to let event loop process further requests
+        context.discard();
     }
 
     private static ApiMessage createApiMessage(ApiKeys apiKeyToSend) {
