@@ -34,10 +34,14 @@ public class FilterHandler
         extends ChannelDuplexHandler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(FilterHandler.class);
+    public static final CompletableFuture<Void> COMPLETED_FUTURE = CompletableFuture.completedFuture(null);
     private final KrpcFilter filter;
     private final long timeoutMs;
     private final String sniHostname;
     private final FilterInvoker invoker;
+
+    private CompletableFuture<Void> writeFuture = COMPLETED_FUTURE;
+    private CompletableFuture<Void> readFuture = COMPLETED_FUTURE;
 
     public FilterHandler(FilterAndInvoker filterAndInvoker, long timeoutMs, String sniHostname) {
         this.filter = Objects.requireNonNull(filterAndInvoker).filter();
@@ -52,6 +56,17 @@ public class FilterHandler
 
     @Override
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
+        if (writeFuture.isDone()) {
+            writeFuture = handleWrite(ctx, msg, promise);
+        }
+        else {
+            writeFuture = writeFuture.whenComplete((unused, throwable) -> {
+                handleWrite(ctx, msg, promise);
+            });
+        }
+    }
+
+    private CompletableFuture<Void> handleWrite(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) {
         if (msg instanceof DecodedRequestFrame<?> decodedFrame) {
             var filterContext = new DefaultFilterContext(filter, ctx, decodedFrame, promise, timeoutMs, sniHostname);
             if (LOGGER.isDebugEnabled()) {
@@ -59,7 +74,7 @@ public class FilterHandler
                         ctx.channel(), decodedFrame.apiKey(), filterDescriptor(), msg);
             }
             invoker.onRequest(decodedFrame.apiKey(), decodedFrame.apiVersion(), decodedFrame.header(), decodedFrame.body(), filterContext);
-
+            return filterContext.onClose();
         }
         else {
             if (!(msg instanceof OpaqueRequestFrame)
@@ -69,11 +84,23 @@ public class FilterHandler
                 LOGGER.warn("Unexpected message writing to upstream: {}", msg, new IllegalStateException());
             }
             ctx.write(msg, promise);
+            return COMPLETED_FUTURE;
         }
     }
 
     @Override
-    public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+    public void channelRead(ChannelHandlerContext ctx, Object msg) {
+        if (readFuture.isDone()) {
+            readFuture = handleRead(ctx, msg);
+        }
+        else {
+            readFuture = readFuture.whenComplete((unused, throwable) -> {
+                handleRead(ctx, msg);
+            });
+        }
+    }
+
+    private CompletableFuture<Void> handleRead(ChannelHandlerContext ctx, Object msg) {
         if (msg instanceof DecodedResponseFrame<?> decodedFrame) {
             if (decodedFrame instanceof InternalResponseFrame<?> frame && frame.isRecipient(filter)) {
                 if (LOGGER.isDebugEnabled()) {
@@ -82,6 +109,7 @@ public class FilterHandler
                 }
                 CompletableFuture<ApiMessage> p = frame.promise();
                 p.complete(decodedFrame.body());
+                return COMPLETED_FUTURE;
             }
             else {
                 var filterContext = new DefaultFilterContext(filter, ctx, decodedFrame, null, timeoutMs, sniHostname);
@@ -90,6 +118,7 @@ public class FilterHandler
                             ctx.channel(), decodedFrame.apiKey(), filterDescriptor(), msg);
                 }
                 invoker.onResponse(decodedFrame.apiKey(), decodedFrame.apiVersion(), decodedFrame.header(), decodedFrame.body(), filterContext);
+                return filterContext.onClose();
             }
         }
         else {
@@ -97,6 +126,7 @@ public class FilterHandler
                 LOGGER.warn("Unexpected message reading from upstream: {}", msg, new IllegalStateException());
             }
             ctx.fireChannelRead(msg);
+            return COMPLETED_FUTURE;
         }
     }
 

@@ -96,6 +96,7 @@ public class FetchResponseTransformationFilter implements FetchResponseFilter {
                         LOGGER.debug("Forwarding original Fetch response");
                         context.forwardResponse(header, fetchResponse);
                     });
+            context.discard();
         }
         else {
             applyTransformation(context, fetchResponse);
