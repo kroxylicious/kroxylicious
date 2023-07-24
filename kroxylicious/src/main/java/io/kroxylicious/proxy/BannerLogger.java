@@ -7,8 +7,10 @@
 package io.kroxylicious.proxy;
 
 import java.io.BufferedReader;
-import java.io.InputStream;
+import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.UncheckedIOException;
+import java.nio.charset.Charset;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Predicate;
@@ -72,13 +74,17 @@ public class BannerLogger {
 
         @Override
         public Stream<String> get() {
-            final InputStream resourceStream = getClass().getClassLoader().getResourceAsStream(resourceName);
-            if (Objects.isNull(resourceStream)) {
-                return Stream.empty();
+            try (var resourceStream = getClass().getClassLoader().getResourceAsStream(resourceName)) {
+                if (Objects.isNull(resourceStream)) {
+                    return Stream.empty();
+                }
+                else {
+                    final BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(resourceStream, Charset.defaultCharset()));
+                    return bufferedReader.lines();
+                }
             }
-            else {
-                final BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(resourceStream));
-                return bufferedReader.lines();
+            catch (IOException e) {
+                throw new UncheckedIOException(e);
             }
         }
     }
