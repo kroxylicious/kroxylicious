@@ -74,17 +74,20 @@ public class BannerLogger {
 
         @Override
         public Stream<String> get() {
-            try (var resourceStream = getClass().getClassLoader().getResourceAsStream(resourceName)) {
-                if (Objects.isNull(resourceStream)) {
-                    return Stream.empty();
-                }
-                else {
-                    final BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(resourceStream, Charset.defaultCharset()));
-                    return bufferedReader.lines();
-                }
+            var resourceStream = getClass().getClassLoader().getResourceAsStream(resourceName);
+            if (Objects.isNull(resourceStream)) {
+                return Stream.empty();
             }
-            catch (IOException e) {
-                throw new UncheckedIOException(e);
+            else {
+                var bufferedReader = new BufferedReader(new InputStreamReader(resourceStream, Charset.defaultCharset()));
+                return bufferedReader.lines().onClose(() -> {
+                    try {
+                        resourceStream.close();
+                    }
+                    catch (IOException e) {
+                        throw new UncheckedIOException(e);
+                    }
+                });
             }
         }
     }
