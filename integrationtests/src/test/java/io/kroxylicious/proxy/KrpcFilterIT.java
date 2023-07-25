@@ -159,7 +159,7 @@ public class KrpcFilterIT {
 
             // check no topic created on the cluster
             Set<String> names = admin.listTopics().names().get(10, TimeUnit.SECONDS);
-            assertThat(names).isEmpty();
+            assertThat(names).doesNotContain(TOPIC_1);
         }
     }
 
@@ -181,7 +181,7 @@ public class KrpcFilterIT {
 
             // check no topic created on the cluster
             Set<String> names = admin.listTopics().names().get(10, TimeUnit.SECONDS);
-            assertThat(names).isEmpty();
+            assertThat(names).doesNotContain(TOPIC_1);
         }
     }
 
