@@ -14,23 +14,21 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.stream.Stream;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 /**
  * An {@link InetAddressResolverProvider} that resolves all names ending {@code int.kroxylicious.test} to localhost.
  * All other names are resolved by the platform's built in resolver.
- *
+ * <p>
  * This exists in order to test functionality that depends on SNI without requiring real DNS names and/or modifications
  * to platform {@code /etc/hosts} etc.
  */
 public class IntegrationTestInetAddressResolverProvider extends InetAddressResolverProvider {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(IntegrationTestInetAddressResolverProvider.class);
+    // Note there is no deliberately no logger in this class.
+    // Logging frameworks have a habit of trying to resolve hostnames as part of initialisation
+    // and thus break if they are initialised by this class.
     public static final String TEST_DOMAIN = ".int.kroxylicious.test";
 
     public IntegrationTestInetAddressResolverProvider() {
-        LOGGER.info("Creating IntegrationTestInetAddressResolverProvider");
+
     }
 
     @Override
