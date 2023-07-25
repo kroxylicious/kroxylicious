@@ -30,7 +30,7 @@ public class CreateTopicRejectFilter implements CreateTopicsRequestFilter {
         context.forwardResponse(response);
     }
 
-    private static void allocateByteBufToTestKroxyliciousReleasesIt(KrpcFilterContext context) {
+    private static void allocateByteBufToTestKroxyliciousReleasesIt(BaseKrpcFilterContext context) {
         context.createByteBufferOutputStream(4000);
     }
 }

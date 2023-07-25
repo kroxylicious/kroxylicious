@@ -38,6 +38,9 @@ import io.kroxylicious.proxy.filter.FilterInvoker;
 import io.kroxylicious.proxy.filter.FilterInvokers;
 import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
+import io.kroxylicious.proxy.filter.ReplacementResponseContext;
+import io.kroxylicious.proxy.filter.RequestForwardingContext;
+import io.kroxylicious.proxy.filter.ResponseForwardingContext;
 import io.kroxylicious.proxy.filter.SpecificFilterInvoker;
 
 // try hard to make shouldHandleXYZ to observe different receivers concrete types, saving unrolling to bias a specific call-site to a specific concrete type
@@ -103,7 +106,7 @@ public class InvokerDispatchBenchmark {
                     new FetchRequestData());
             apiMessages = messages.entrySet().toArray(new Map.Entry[0]); // Avoids iterator.next showing up in the benchmarks
             requestHeaders = new RequestHeaderData();
-            filterContext = new StubFilterContext();
+            filterContext = new StubFilter();
             keys = messages.keySet().toArray(new ApiKeys[0]);
         }
     }
@@ -153,7 +156,7 @@ public class InvokerDispatchBenchmark {
         }
     }
 
-    private static class StubFilterContext implements KrpcFilterContext {
+    private static class StubFilter implements KrpcFilterContext {
         @Override
         public String channelDescriptor() {
             return null;
@@ -180,6 +183,11 @@ public class InvokerDispatchBenchmark {
         }
 
         @Override
+        public <T extends ApiMessage> CompletionStage<ReplacementResponseContext<T>> replaceRequest(short apiVersion, ApiMessage request) {
+            return null;
+        }
+
+        @Override
         public void forwardResponse(ResponseHeaderData header, ApiMessage response) {
 
         }
@@ -195,6 +203,16 @@ public class InvokerDispatchBenchmark {
 
         @Override
         public void discard() {
+        }
+
+        @Override
+        public RequestForwardingContext deferredForwardRequest() {
+            return null;
+        }
+
+        @Override
+        public ResponseForwardingContext deferredForwardResponse() {
+            return null;
         }
     }
 }

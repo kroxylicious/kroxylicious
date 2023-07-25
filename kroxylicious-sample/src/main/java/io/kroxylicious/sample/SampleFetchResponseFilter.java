@@ -12,6 +12,7 @@ import org.apache.kafka.common.message.ResponseHeaderData;
 import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.Timer;
 
+import io.kroxylicious.proxy.filter.BaseKrpcFilterContext;
 import io.kroxylicious.proxy.filter.FetchResponseFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.sample.config.SampleFilterConfig;
@@ -64,7 +65,7 @@ public class SampleFetchResponseFilter implements FetchResponseFilter {
      * @param response the response to be transformed
      * @param context the context
      */
-    private void applyTransformation(FetchResponseData response, KrpcFilterContext context) {
+    private void applyTransformation(FetchResponseData response, BaseKrpcFilterContext context) {
         response.responses().forEach(responseData -> {
             for (FetchResponseData.PartitionData partitionData : responseData.partitions()) {
                 SampleFilterTransformer.transform(partitionData, context, this.config);

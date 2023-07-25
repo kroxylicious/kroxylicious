@@ -17,10 +17,11 @@ public class ResponseForwardDelayingFilter implements ResponseFilter {
 
     @Override
     public void onResponse(ApiKeys apiKey, ResponseHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
+        ResponseForwardingContext forwardingContext = filterContext.deferredForwardResponse();
         try (var executor = Executors.newScheduledThreadPool(1)) {
             var delay = (long) (Math.random() * 200);
             executor.schedule(() -> {
-                filterContext.forwardResponse(header, body);
+                forwardingContext.forwardResponse(header, body);
             }, delay, TimeUnit.MILLISECONDS);
         }
 

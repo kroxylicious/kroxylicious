@@ -13,6 +13,7 @@ import org.apache.kafka.common.message.RequestHeaderData;
 import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.Timer;
 
+import io.kroxylicious.proxy.filter.BaseKrpcFilterContext;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
 import io.kroxylicious.sample.config.SampleFilterConfig;
@@ -65,7 +66,7 @@ public class SampleProduceRequestFilter implements ProduceRequestFilter {
      * @param request the request to be transformed
      * @param context the context
      */
-    private void applyTransformation(ProduceRequestData request, KrpcFilterContext context) {
+    private void applyTransformation(ProduceRequestData request, BaseKrpcFilterContext context) {
         request.topicData().forEach(topicData -> {
             for (PartitionProduceData partitionData : topicData.partitionData()) {
                 SampleFilterTransformer.transform(partitionData, context, this.config);

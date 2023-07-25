@@ -37,6 +37,7 @@ import com.google.common.reflect.ClassPath;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.FilterInvoker;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
+import io.kroxylicious.proxy.filter.ResponseForwardingContext;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
 import io.kroxylicious.proxy.model.VirtualCluster;
 import io.kroxylicious.proxy.service.HostPort;
@@ -77,8 +78,11 @@ class BrokerAddressFilterTest {
     @Mock
     private EndpointReconciler endpointReconciler;
 
-    @Mock
+    @Mock(strictness = Mock.Strictness.LENIENT)
     private KrpcFilterContext context;
+
+    @Mock
+    private ResponseForwardingContext deferredContext;
 
     @Captor
     private ArgumentCaptor<ApiMessage> apiMessageCaptor;
@@ -86,6 +90,8 @@ class BrokerAddressFilterTest {
     private BrokerAddressFilter filter;
 
     private FilterInvoker invoker;
+
+    private Set<ApiMessageType> keysThatTriggerReconciliation = Set.of(ApiMessageType.DESCRIBE_CLUSTER, ApiMessageType.METADATA);
 
     public static Stream<Arguments> nodeInfoCarryingResponses() throws Exception {
         return responses(td -> td.response() != null);
@@ -105,7 +111,7 @@ class BrokerAddressFilterTest {
         filter = new BrokerAddressFilter(virtualCluster, endpointReconciler);
         invoker = getOnlyElement(FilterAndInvoker.build(filter)).invoker();
         when(virtualCluster.getBrokerAddress(0)).thenReturn(HostPort.parse("downstream:19199"));
-
+        when(context.deferredForwardResponse()).thenReturn(deferredContext);
         var nodeMap = Map.of(0, HostPort.parse("upstream:9199"));
         lenient().when(endpointReconciler.reconcile(Mockito.eq(virtualCluster), Mockito.eq(nodeMap)))
                 .thenReturn(CompletableFuture.completedStage(null));
@@ -136,7 +142,9 @@ class BrokerAddressFilterTest {
 
         ResponseHeaderData headerData = new ResponseHeaderData();
         invoker.onResponse(ApiKeys.forId(apiMessageType.apiKey()), header.requestApiVersion(), headerData, response, context);
-        verify(context).forwardResponse(any(), apiMessageCaptor.capture());
+
+        ResponseForwardingContext forwardingContext = keysThatTriggerReconciliation.contains(apiMessageType) ? deferredContext : context;
+        verify(forwardingContext).forwardResponse(any(), apiMessageCaptor.capture());
 
         var filtered = responseWriter.apply(apiMessageCaptor.getValue(), header.requestApiVersion());
         assertThat(JsonDiff.asJson(marshalled, filtered)).isEqualTo(responseTestDef.expectedPatch());

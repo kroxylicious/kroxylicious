@@ -68,12 +68,17 @@ public class FilterHandler
 
     private CompletableFuture<Void> handleWrite(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) {
         if (msg instanceof DecodedRequestFrame<?> decodedFrame) {
-            var filterContext = new DefaultFilterContext(filter, ctx, decodedFrame, promise, timeoutMs, sniHostname);
+            var filterContext = new DefaultFilter(filter, ctx, decodedFrame, promise, timeoutMs, sniHostname);
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug("{}: Dispatching downstream {} request to filter{}: {}",
                         ctx.channel(), decodedFrame.apiKey(), filterDescriptor(), msg);
             }
             invoker.onRequest(decodedFrame.apiKey(), decodedFrame.apiVersion(), decodedFrame.header(), decodedFrame.body(), filterContext);
+            if (!filterContext.isClosedOrDeferred()) {
+                LOGGER.warn("{}: {} context for filter {} was not completed or deferred!",
+                        ctx.channel(), decodedFrame.apiKey(), filterDescriptor());
+                throw new IllegalStateException("FilterContext was not completed or deferred");
+            }
             return filterContext.onClose();
         }
         else {
@@ -112,7 +117,7 @@ public class FilterHandler
                 return COMPLETED_FUTURE;
             }
             else {
-                var filterContext = new DefaultFilterContext(filter, ctx, decodedFrame, null, timeoutMs, sniHostname);
+                var filterContext = new DefaultFilter(filter, ctx, decodedFrame, null, timeoutMs, sniHostname);
                 if (LOGGER.isDebugEnabled()) {
                     LOGGER.debug("{}: Dispatching upstream {} response to filter {}: {}",
                             ctx.channel(), decodedFrame.apiKey(), filterDescriptor(), msg);

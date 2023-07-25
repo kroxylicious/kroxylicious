@@ -24,6 +24,7 @@ import org.apache.kafka.common.record.TimestampType;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.kroxylicious.proxy.config.BaseConfig;
+import io.kroxylicious.proxy.filter.BaseKrpcFilterContext;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
 import io.kroxylicious.proxy.internal.util.MemoryRecordsHelper;
@@ -77,7 +78,7 @@ public class ProduceRequestTransformationFilter implements ProduceRequestFilter 
         context.forwardRequest(header, data);
     }
 
-    private void applyTransformation(KrpcFilterContext ctx, ProduceRequestData req) {
+    private void applyTransformation(BaseKrpcFilterContext ctx, ProduceRequestData req) {
         req.topicData().forEach(topicData -> {
             for (PartitionProduceData partitionData : topicData.partitionData()) {
                 MemoryRecords records = (MemoryRecords) partitionData.records();

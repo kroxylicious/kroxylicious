@@ -56,6 +56,7 @@ import org.slf4j.LoggerFactory;
 import io.kroxylicious.proxy.filter.AddOffsetsToTxnRequestFilter;
 import io.kroxylicious.proxy.filter.AddPartitionsToTxnRequestFilter;
 import io.kroxylicious.proxy.filter.AddPartitionsToTxnResponseFilter;
+import io.kroxylicious.proxy.filter.BaseKrpcFilterContext;
 import io.kroxylicious.proxy.filter.CreateTopicsRequestFilter;
 import io.kroxylicious.proxy.filter.CreateTopicsResponseFilter;
 import io.kroxylicious.proxy.filter.DeleteTopicsRequestFilter;
@@ -418,7 +419,7 @@ public class MultiTenantTransformationFilter
         context.forwardRequest(header, request);
     }
 
-    private void applyTenantPrefix(KrpcFilterContext context, Supplier<String> getter, Consumer<String> setter, boolean ignoreEmpty) {
+    private void applyTenantPrefix(BaseKrpcFilterContext context, Supplier<String> getter, Consumer<String> setter, boolean ignoreEmpty) {
         String clientSideName = getter.get();
         if (ignoreEmpty && (clientSideName == null || clientSideName.isEmpty())) {
             return;
@@ -426,12 +427,12 @@ public class MultiTenantTransformationFilter
         setter.accept(applyTenantPrefix(context, clientSideName));
     }
 
-    private String applyTenantPrefix(KrpcFilterContext context, String clientSideName) {
+    private String applyTenantPrefix(BaseKrpcFilterContext context, String clientSideName) {
         var tenantPrefix = getTenantPrefix(context);
         return tenantPrefix + clientSideName;
     }
 
-    private void removeTenantPrefix(KrpcFilterContext context, Supplier<String> getter, Consumer<String> setter, boolean ignoreEmpty) {
+    private void removeTenantPrefix(BaseKrpcFilterContext context, Supplier<String> getter, Consumer<String> setter, boolean ignoreEmpty) {
         var brokerSideName = getter.get();
         if (ignoreEmpty && (brokerSideName == null || brokerSideName.isEmpty())) {
             return;
@@ -440,12 +441,12 @@ public class MultiTenantTransformationFilter
         setter.accept(removeTenantPrefix(context, brokerSideName));
     }
 
-    private String removeTenantPrefix(KrpcFilterContext context, String brokerSideName) {
+    private String removeTenantPrefix(BaseKrpcFilterContext context, String brokerSideName) {
         var tenantPrefix = getTenantPrefix(context);
         return brokerSideName.substring(tenantPrefix.length());
     }
 
-    private static String getTenantPrefix(KrpcFilterContext context) {
+    private static String getTenantPrefix(BaseKrpcFilterContext context) {
         // TODO naive - POC implementation uses the first component of a FQDN as the multi-tenant prefix.
         var sniHostname = context.sniHostname();
         if (sniHostname == null) {

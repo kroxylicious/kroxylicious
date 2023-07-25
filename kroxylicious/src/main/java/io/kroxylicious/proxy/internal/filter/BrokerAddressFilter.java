@@ -23,10 +23,12 @@ import org.apache.kafka.common.protocol.ApiMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.kroxylicious.proxy.filter.BaseKrpcFilterContext;
 import io.kroxylicious.proxy.filter.DescribeClusterResponseFilter;
 import io.kroxylicious.proxy.filter.FindCoordinatorResponseFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.proxy.filter.MetadataResponseFilter;
+import io.kroxylicious.proxy.filter.ResponseForwardingContext;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
 import io.kroxylicious.proxy.model.VirtualCluster;
 import io.kroxylicious.proxy.service.HostPort;
@@ -86,7 +88,7 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
         context.forwardResponse(header, data);
     }
 
-    private <T> void apply(KrpcFilterContext context, T broker, Function<T, Integer> nodeIdGetter, Function<T, String> hostGetter, ToIntFunction<T> portGetter,
+    private <T> void apply(BaseKrpcFilterContext context, T broker, Function<T, Integer> nodeIdGetter, Function<T, String> hostGetter, ToIntFunction<T> portGetter,
                            BiConsumer<T, String> hostSetter,
                            ObjIntConsumer<T> portSetter) {
         String incomingHost = hostGetter.apply(broker);
@@ -101,8 +103,9 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
 
     private void doReconcileThenForwardResponse(ResponseHeaderData header, ApiMessage data, KrpcFilterContext context, Map<Integer, HostPort> nodeMap) {
         // https://github.com/kroxylicious/kroxylicious/issues/351
+        ResponseForwardingContext responseForwardingContext = context.deferredForwardResponse();
         reconciler.reconcile(virtualCluster, nodeMap).toCompletableFuture().thenAccept(unused -> {
-            context.forwardResponse(header, data);
+            responseForwardingContext.forwardResponse(header, data);
             LOGGER.debug("Endpoint reconciliation complete for  virtual cluster {}", virtualCluster);
         });
     }

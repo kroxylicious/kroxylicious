@@ -53,17 +53,17 @@ public class EagerMetadataLearner implements RequestFilter {
             boolean useClientRequest = apiKey.equals(ApiKeys.METADATA) && apiVersion == header.requestApiVersion();
             var request = useClientRequest ? (MetadataRequestData) body : new MetadataRequestData();
 
-            var unused = filterContext.<MetadataResponseData> sendRequest(apiVersion, request)
-                    .thenAccept(metadataResponseData -> {
+            var unused = filterContext.<MetadataResponseData> replaceRequest(apiVersion, request)
+                    .thenAccept(metadataResponseContext -> {
                         if (useClientRequest) {
                             // The client's requested matched our out-of-band request, so we may as well return the
                             // response.
-                            filterContext.forwardResponse(metadataResponseData);
+                            metadataResponseContext.context().forwardResponse(metadataResponseContext.apiMessage());
                         }
                         // closing the connection is important. This client connection is connected to bootstrap (it could
                         // be any broker or maybe not something else). we must close the connection to force the client to
                         // connect again.
-                        filterContext.closeConnection();
+                        metadataResponseContext.context().closeConnection();
                         LOGGER.info("Closing upstream bootstrap connection {} now that endpoint reconciliation is complete.", filterContext.channelDescriptor());
                     });
         }

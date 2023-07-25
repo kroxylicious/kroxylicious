@@ -17,6 +17,7 @@ import io.netty.channel.embedded.EmbeddedChannel;
 
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.KrpcFilter;
+import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 
@@ -45,7 +46,7 @@ public abstract class FilterHarness {
      * Build a {@link #channel} containing a single {@link FilterHandler} for the given
      * {@code filter}.
      * @param filter The filter in the pipeline.
-     * @param timeoutMs The timeout for {@link io.kroxylicious.proxy.filter.KrpcFilterContext#sendRequest(short, ApiMessage)}.
+     * @param timeoutMs The timeout for {@link KrpcFilterContext#sendRequest(short, ApiMessage)}.
      */
     protected void buildChannel(KrpcFilter filter, long timeoutMs) {
         this.filter = filter;

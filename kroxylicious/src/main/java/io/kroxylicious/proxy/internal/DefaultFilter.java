@@ -25,18 +25,22 @@ import io.netty.channel.ChannelPromise;
 
 import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
+import io.kroxylicious.proxy.filter.ReplacementResponseContext;
+import io.kroxylicious.proxy.filter.RequestForwardingContext;
+import io.kroxylicious.proxy.filter.ResponseForwardingContext;
 import io.kroxylicious.proxy.frame.DecodedFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.RequestFrame;
+import io.kroxylicious.proxy.frame.ResponseFrame;
 import io.kroxylicious.proxy.future.InternalCompletionStage;
 import io.kroxylicious.proxy.internal.util.ByteBufOutputStream;
 
 /**
  * Implementation of {@link KrpcFilterContext}.
  */
-class DefaultFilterContext implements KrpcFilterContext {
+class DefaultFilter implements KrpcFilterContext {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(DefaultFilterContext.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(DefaultFilter.class);
     public static final CompletableFuture<Void> COMPLETED_FUTURE = CompletableFuture.completedFuture(null);
 
     private final DecodedFrame<?, ?> decodedFrame;
@@ -45,14 +49,28 @@ class DefaultFilterContext implements KrpcFilterContext {
     private final KrpcFilter filter;
     private final long timeoutMs;
     private final String sniHostname;
-    private CompletableFuture<Void> closeFuture = new CompletableFuture<>();
 
-    DefaultFilterContext(KrpcFilter filter,
-                         ChannelHandlerContext channelContext,
-                         DecodedFrame<?, ?> decodedFrame,
-                         ChannelPromise promise,
-                         long timeoutMs,
-                         String sniHostname) {
+    private State state = State.INIITIAL;
+
+    public boolean isClosedOrDeferred() {
+        return state != State.INIITIAL;
+    }
+
+    private enum State {
+        INIITIAL,
+        DEFERRED_REQUEST,
+        DEFERRED_RESPONSE,
+        COMPLETE
+    }
+
+    private CompletableFuture<Void> completionFuture = new CompletableFuture<>();
+
+    DefaultFilter(KrpcFilter filter,
+                  ChannelHandlerContext channelContext,
+                  DecodedFrame<?, ?> decodedFrame,
+                  ChannelPromise promise,
+                  long timeoutMs,
+                  String sniHostname) {
         this.filter = filter;
         this.channelContext = channelContext;
         this.decodedFrame = decodedFrame;
@@ -97,21 +115,31 @@ class DefaultFilterContext implements KrpcFilterContext {
      */
     @Override
     public void forwardRequest(RequestHeaderData header, ApiMessage message) {
+        if (state == State.COMPLETE || state == State.DEFERRED_RESPONSE) {
+            RuntimeException illegalStateException = new IllegalStateException("cannot forward request when in state: " + state);
+            completeExceptionally(illegalStateException);
+            throw illegalStateException;
+        }
+        if (!channelContext.executor().inEventLoop() && state != State.DEFERRED_REQUEST) {
+            IllegalStateException illegalStateException = new IllegalStateException("We can only forward from another thread if we deferred the forward");
+            completeExceptionally(illegalStateException);
+            throw illegalStateException;
+        }
         if (decodedFrame.body() != message) {
             IllegalStateException illegalStateException = new IllegalStateException();
-            closeFuture.completeExceptionally(illegalStateException);
+            completeExceptionally(illegalStateException);
             throw illegalStateException;
         }
         if (decodedFrame.header() != header) {
             IllegalStateException illegalStateException = new IllegalStateException();
-            closeFuture.completeExceptionally(illegalStateException);
+            completeExceptionally(illegalStateException);
             throw illegalStateException;
         }
         // check it's a request
         String name = message.getClass().getName();
         if (!name.endsWith("RequestData")) {
             AssertionError error = new AssertionError("Attempt to use forwardRequest with a non-request: " + name);
-            closeFuture.completeExceptionally(error);
+            completeExceptionally(error);
             throw error;
         }
 
@@ -123,17 +151,22 @@ class DefaultFilterContext implements KrpcFilterContext {
             channelContext.executor().execute(() -> {
                 try {
                     channelContext.writeAndFlush(decodedFrame, promise);
-                    closeFuture.complete(null);
+                    completeSuccessfully();
                 }
                 catch (Exception e) {
-                    closeFuture.completeExceptionally(e);
+                    completeExceptionally(e);
                 }
             });
         }
         else {
             channelContext.write(decodedFrame, promise);
-            closeFuture.complete(null);
+            completeSuccessfully();
         }
+    }
+
+    private void completeExceptionally(Throwable throwable) {
+        state = State.COMPLETE;
+        completionFuture.completeExceptionally(throwable);
     }
 
     @Override
@@ -189,6 +222,24 @@ class DefaultFilterContext implements KrpcFilterContext {
         return filterStage;
     }
 
+    @Override
+    public <T extends ApiMessage> CompletionStage<ReplacementResponseContext<T>> replaceRequest(short apiVersion, ApiMessage request) {
+        CompletionStage<ReplacementResponseContext<T>> future = sendRequest(apiVersion, request).thenApply(
+                apiMessage -> new ReplacementResponseContext<T>() {
+                    @Override
+                    public ResponseForwardingContext context() {
+                        return new DefaultFilter(filter, channelContext, decodedFrame, null, timeoutMs, sniHostname);
+                    }
+
+                    @Override
+                    public T apiMessage() {
+                        return (T) apiMessage;
+                    }
+                });
+        completeSuccessfully();
+        return future;
+    }
+
     /**
      * Forward a request to the next filter in the chain
      * (or to the downstream client).
@@ -198,14 +249,24 @@ class DefaultFilterContext implements KrpcFilterContext {
      */
     @Override
     public void forwardResponse(ResponseHeaderData header, ApiMessage response) {
+        if (state == State.COMPLETE || state == State.DEFERRED_REQUEST) {
+            IllegalStateException exception = new IllegalStateException("cannot forward response when in state: " + state);
+            completeExceptionally(exception);
+            throw exception;
+        }
+        if (!channelContext.executor().inEventLoop() && state != State.DEFERRED_RESPONSE) {
+            IllegalArgumentException exception = new IllegalArgumentException("We can only forward from another thread if we deferred the forward");
+            completeExceptionally(exception);
+            throw exception;
+        }
         // check it's a response
         CompletionStage<Void> future = forwardResponseAsync(header, response);
         future.whenComplete((unused, throwable) -> {
             if (throwable != null) {
-                closeFuture.completeExceptionally(throwable);
+                completeExceptionally(throwable);
             }
             else {
-                closeFuture.complete(null);
+                completeSuccessfully();
             }
         });
     }
@@ -252,6 +313,12 @@ class DefaultFilterContext implements KrpcFilterContext {
 
     @Override
     public void forwardResponse(ApiMessage response) {
+        if (state == State.COMPLETE || state == State.DEFERRED_REQUEST) {
+            throw new IllegalStateException("cannot forward response when in state: " + state);
+        }
+        if (!channelContext.executor().inEventLoop() && state != State.DEFERRED_RESPONSE) {
+            throw new IllegalArgumentException("We can only forward from another thread if we deferred the forward");
+        }
         if (decodedFrame instanceof RequestFrame) {
             this.forwardResponse(new ResponseHeaderData().setCorrelationId(decodedFrame.correlationId()), response);
         }
@@ -264,12 +331,20 @@ class DefaultFilterContext implements KrpcFilterContext {
     public void closeConnection() {
         this.channelContext.close().addListener(future -> {
             LOGGER.debug("{} closed.", channelDescriptor());
-            closeFuture.complete(null);
         });
+        completeSuccessfully();
     }
 
     public void discard() {
-        closeFuture.complete(null);
+        if (state == State.COMPLETE) {
+            throw new IllegalStateException("cannot discard message when in state: " + state);
+        }
+        completeSuccessfully();
+    }
+
+    private void completeSuccessfully() {
+        state = State.COMPLETE;
+        completionFuture.complete(null);
     }
 
     /**
@@ -316,6 +391,38 @@ class DefaultFilterContext implements KrpcFilterContext {
     }
 
     public CompletableFuture<Void> onClose() {
-        return closeFuture;
+        return completionFuture;
+    }
+
+    @Override
+    public RequestForwardingContext deferredForwardRequest() {
+        if (!(decodedFrame instanceof RequestFrame)) {
+            AssertionError error = new AssertionError("Attempt to defer forwardRequest but frame is not a RequestFrame");
+            completeExceptionally(error);
+            throw error;
+        }
+        this.state = State.DEFERRED_REQUEST;
+        channelContext.executor().schedule(() -> {
+            LOGGER.error("{}: Timing out deferring request for {} with correlationId {} after {}ms", channelContext, decodedFrame.apiKey(), decodedFrame.correlationId(),
+                    timeoutMs);
+            completeExceptionally(new TimeoutException());
+        }, timeoutMs, TimeUnit.MILLISECONDS);
+        return this;
+    }
+
+    @Override
+    public ResponseForwardingContext deferredForwardResponse() {
+        if (!(decodedFrame instanceof ResponseFrame)) {
+            AssertionError error = new AssertionError("Attempt to defer forwardResponse but frame is not a ResponseFrame");
+            completeExceptionally(error);
+            throw error;
+        }
+        this.state = State.DEFERRED_RESPONSE;
+        channelContext.executor().schedule(() -> {
+            LOGGER.error("{}: Timing out deferring response for {} with correlationId {} after {}ms", channelContext, decodedFrame.apiKey(), decodedFrame.correlationId(),
+                    timeoutMs);
+            completeExceptionally(new TimeoutException());
+        }, timeoutMs, TimeUnit.MILLISECONDS);
+        return this;
     }
 }

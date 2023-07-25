@@ -72,6 +72,7 @@ public class FilterHandlerTest extends FilterHarness {
     public void testDropRequest() {
         ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> {
             /* don't call forwardRequest => drop the request */
+            context.discard();
         };
         buildChannel(filter);
         var frame = writeRequest(new ApiVersionsRequestData());
@@ -150,6 +151,7 @@ public class FilterHandlerTest extends FilterHarness {
             assertNull(fut[0],
                     "Expected to only be called once");
             fut[0] = (InternalCompletionStage<ApiMessage>) context.sendRequest((short) 3, body);
+            context.discard();
         };
 
         buildChannel(filter);
@@ -195,6 +197,7 @@ public class FilterHandlerTest extends FilterHarness {
             assertNull(fut[0],
                     "Expected to only be called once");
             fut[0] = context.sendRequest((short) 3, body);
+            context.discard();
         };
 
         buildChannel(filter);
@@ -212,7 +215,7 @@ public class FilterHandlerTest extends FilterHarness {
 
     /**
      * Test the special case within {@link FilterHandler} for
-     * {@link io.kroxylicious.proxy.filter.KrpcFilterContext#sendRequest(short, ApiMessage)}
+     * {@link KrpcFilterContext#sendRequest(short, ApiMessage)}
      * with acks=0 Produce requests.
      */
     @Test
@@ -223,6 +226,7 @@ public class FilterHandlerTest extends FilterHarness {
             assertNull(fut[0],
                     "Expected to only be called once");
             fut[0] = context.sendRequest((short) 3, body);
+            context.discard();
         };
 
         buildChannel(filter);
@@ -252,6 +256,7 @@ public class FilterHandlerTest extends FilterHarness {
             assertNull(fut[0],
                     "Expected to only be called once");
             fut[0] = context.sendRequest((short) 3, body);
+            context.discard();
         };
 
         buildChannel(filter, 50L);

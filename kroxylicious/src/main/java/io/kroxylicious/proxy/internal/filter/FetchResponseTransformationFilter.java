@@ -29,6 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.config.BaseConfig;
+import io.kroxylicious.proxy.filter.BaseKrpcFilterContext;
 import io.kroxylicious.proxy.filter.FetchResponseFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.proxy.internal.util.MemoryRecordsHelper;
@@ -83,20 +84,20 @@ public class FetchResponseTransformationFilter implements FetchResponseFilter {
         if (!requestTopics.isEmpty()) {
             LOGGER.debug("Fetch response contains {} unknown topic ids, lookup via Metadata request: {}", requestTopics.size(), requestTopics);
             // TODO Can't necessarily use HIGHEST_SUPPORTED_VERSION, must use highest supported version
-            context.<MetadataResponseData> sendRequest(MetadataRequestData.HIGHEST_SUPPORTED_VERSION,
+            context.<MetadataResponseData> replaceRequest(MetadataRequestData.HIGHEST_SUPPORTED_VERSION,
                     new MetadataRequestData()
                             .setTopics(requestTopics))
-                    .thenAccept(metadataResponse -> {
-                        Map<Uuid, String> uidToName = metadataResponse.topics().stream().collect(Collectors.toMap(ti -> ti.topicId(), ti -> ti.name()));
+                    .thenAccept(metadataResponseContext -> {
+                        Map<Uuid, String> uidToName = metadataResponseContext.apiMessage().topics().stream()
+                                .collect(Collectors.toMap(ti -> ti.topicId(), ti -> ti.name()));
                         LOGGER.debug("Metadata response yields {}, updating original Fetch response", uidToName);
                         for (var fetchableTopicResponse : fetchResponse.responses()) {
                             fetchableTopicResponse.setTopic(uidToName.get(fetchableTopicResponse.topicId()));
                         }
-                        applyTransformation(context, fetchResponse);
+                        applyTransformation(metadataResponseContext.context(), fetchResponse);
                         LOGGER.debug("Forwarding original Fetch response");
-                        context.forwardResponse(header, fetchResponse);
+                        metadataResponseContext.context().forwardResponse(header, fetchResponse);
                     });
-            context.discard();
         }
         else {
             applyTransformation(context, fetchResponse);
@@ -104,7 +105,7 @@ public class FetchResponseTransformationFilter implements FetchResponseFilter {
         }
     }
 
-    private void applyTransformation(KrpcFilterContext context, FetchResponseData responseData) {
+    private void applyTransformation(BaseKrpcFilterContext context, FetchResponseData responseData) {
         for (FetchableTopicResponse topicData : responseData.responses()) {
             for (PartitionData partitionData : topicData.partitions()) {
                 MemoryRecords records = (MemoryRecords) partitionData.records();

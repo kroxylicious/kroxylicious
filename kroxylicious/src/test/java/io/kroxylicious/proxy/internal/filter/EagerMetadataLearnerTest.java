@@ -35,6 +35,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
+import io.kroxylicious.proxy.filter.ReplacementResponseContext;
+import io.kroxylicious.proxy.filter.ResponseForwardingContext;
 
 import static org.mockito.ArgumentMatchers.anyShort;
 import static org.mockito.ArgumentMatchers.eq;
@@ -49,6 +51,10 @@ class EagerMetadataLearnerTest {
 
     @Mock
     KrpcFilterContext context;
+
+    @Mock
+    ResponseForwardingContext forwardingContext;
+
     private EagerMetadataLearner learner;
 
     @BeforeEach
@@ -85,18 +91,29 @@ class EagerMetadataLearnerTest {
         var metadataResponse = new MetadataResponseData();
         metadataResponse.brokers().add(new MetadataResponseData.MetadataResponseBroker().setNodeId(1).setHost("localhost").setPort(1234));
 
-        when(context.sendRequest(anyShort(), isA(MetadataRequestData.class))).thenReturn(CompletableFuture.completedStage(metadataResponse));
+        when(context.replaceRequest(anyShort(), isA(MetadataRequestData.class))).thenReturn(CompletableFuture.completedStage(
+                new ReplacementResponseContext<ApiMessage>() {
+                    @Override
+                    public ResponseForwardingContext context() {
+                        return forwardingContext;
+                    }
+
+                    @Override
+                    public MetadataResponseData apiMessage() {
+                        return metadataResponse;
+                    }
+                }));
         learner.onRequest(apiKey, header, request, context);
 
         if (apiKey == ApiKeys.METADATA) {
             // if caller's request is a metadata request, then the filter must forward it with fidelity
-            verify(context).sendRequest(eq(header.requestApiVersion()), eq(request));
+            verify(context).replaceRequest(eq(header.requestApiVersion()), eq(request));
         }
         else {
-            verify(context).sendRequest(anyShort(), isA(MetadataRequestData.class));
+            verify(context).replaceRequest(anyShort(), isA(MetadataRequestData.class));
         }
-        verify(context, apiKey.equals(ApiKeys.METADATA) ? times(1) : never()).forwardResponse(metadataResponse);
-        verify(context).closeConnection();
+        verify(forwardingContext, apiKey.equals(ApiKeys.METADATA) ? times(1) : never()).forwardResponse(metadataResponse);
+        verify(forwardingContext).closeConnection();
     }
 
     private static Arguments toArgs(String name, AbstractRequest request) {
