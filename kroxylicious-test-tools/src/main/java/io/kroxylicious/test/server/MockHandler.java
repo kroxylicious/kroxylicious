@@ -8,14 +8,22 @@ package io.kroxylicious.test.server;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 
 import org.apache.kafka.common.message.ResponseHeaderData;
+import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
+import org.hamcrest.Description;
+import org.hamcrest.Matcher;
+import org.hamcrest.StringDescription;
+import org.hamcrest.TypeSafeMatcher;
 
 import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 
+import io.kroxylicious.test.Request;
 import io.kroxylicious.test.codec.DecodedRequestFrame;
 import io.kroxylicious.test.codec.DecodedResponseFrame;
 
@@ -31,7 +39,11 @@ import io.kroxylicious.test.codec.DecodedResponseFrame;
 @Sharable
 public class MockHandler extends ChannelInboundHandlerAdapter {
 
-    private ApiMessage message;
+    private record ConditionalMockResponse(Matcher<Request> matcher, ApiMessage message, AtomicLong invocations) {
+
+    }
+
+    private List<ConditionalMockResponse> conditionalMockResponses = new ArrayList<>();
 
     private final List<DecodedRequestFrame<?>> requests = new ArrayList<>();
 
@@ -40,7 +52,9 @@ public class MockHandler extends ChannelInboundHandlerAdapter {
      * @param message message to respond with, nullable
      */
     public MockHandler(ApiMessage message) {
-        this.message = message;
+        if (message != null) {
+            setMockResponseForApiKey(ApiKeys.forId(message.apiKey()), message);
+        }
     }
 
     @Override
@@ -51,13 +65,10 @@ public class MockHandler extends ChannelInboundHandlerAdapter {
 
     private void respond(ChannelHandlerContext ctx, DecodedRequestFrame<?> frame) {
         requests.add(frame);
-        if (message == null) {
-            // we allow a null message to enable tests to start the mock server
-            // before they set the expectation.
-            throw new RuntimeException("response message not set");
-        }
+        ConditionalMockResponse message = conditionalMockResponses.stream().filter(r -> r.matcher.matches(MockServer.toRequest(frame))).findFirst().orElseThrow();
         DecodedResponseFrame<?> responseFrame = new DecodedResponseFrame<>(frame.apiVersion(),
-                frame.correlationId(), new ResponseHeaderData().setCorrelationId(frame.correlationId()), message);
+                frame.correlationId(), new ResponseHeaderData().setCorrelationId(frame.correlationId()), message.message());
+        message.invocations.incrementAndGet();
         ctx.write(responseFrame);
     }
 
@@ -77,8 +88,22 @@ public class MockHandler extends ChannelInboundHandlerAdapter {
      * Set the response
      * @param response response
      */
-    public void setResponse(ApiMessage response) {
-        message = response;
+    public void setMockResponseForApiKey(ApiKeys keys, ApiMessage response) {
+        addMockResponse(new TypeSafeMatcher<>() {
+            @Override
+            protected boolean matchesSafely(Request request) {
+                return request.apiKeys() == keys;
+            }
+
+            @Override
+            public void describeTo(Description description) {
+                description.appendText("has key " + keys);
+            }
+        }, response);
+    }
+
+    public void addMockResponse(Matcher<Request> matcher, ApiMessage response) {
+        conditionalMockResponses.add(new ConditionalMockResponse(matcher, response, new AtomicLong(0)));
     }
 
     /**
@@ -89,10 +114,23 @@ public class MockHandler extends ChannelInboundHandlerAdapter {
         return Collections.unmodifiableList(requests);
     }
 
+    public void assertAllMockInteractionsInvoked() {
+        List<ConditionalMockResponse> anyUninvoked = conditionalMockResponses.stream().filter(r -> r.invocations.get() <= 0).toList();
+        if (!anyUninvoked.isEmpty()) {
+            String collect = anyUninvoked.stream().map(conditionalMockResponse -> {
+                StringDescription stringDescription = new StringDescription();
+                conditionalMockResponse.matcher.describeTo(stringDescription);
+                return "mock response was never invoked: " + stringDescription;
+            }).collect(Collectors.joining(","));
+            throw new AssertionError(collect);
+        }
+    }
+
     /**
      * Clear recorded requests
      */
     public void clear() {
         requests.clear();
+        conditionalMockResponses.clear();
     }
 }

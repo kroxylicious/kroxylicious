@@ -7,6 +7,9 @@ package io.kroxylicious.test.server;
 
 import java.net.InetSocketAddress;
 import java.util.List;
+import java.util.Objects;
+
+import org.hamcrest.Matcher;
 
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
@@ -42,11 +45,22 @@ public final class MockServer implements AutoCloseable {
     }
 
     /**
-     * Set the response to be served by the MockServer
+     * Adds a response to be served by the MockServer if the request api key matches the response api key
      * @param response the response (nullable)
      */
-    public void setResponse(Response response) {
-        serverHandler.setResponse(response == null ? null : response.message());
+    public void addMockResponseForApiKey(Response response) {
+        Objects.requireNonNull(response);
+        serverHandler.setMockResponseForApiKey(response.apiKeys(), response.message());
+    }
+
+    /**
+     * Set the response to be served by the MockServer if the request matches.
+     * @param response the response (nullable)
+     */
+    public void addMockResponse(Matcher<Request> requestMatcher, Response response) {
+        Objects.requireNonNull(response);
+        Objects.requireNonNull(requestMatcher);
+        serverHandler.addMockResponse(requestMatcher, response.message());
     }
 
     /**
@@ -57,7 +71,7 @@ public final class MockServer implements AutoCloseable {
         return serverHandler.getRequests().stream().map(MockServer::toRequest).toList();
     }
 
-    private static Request toRequest(DecodedRequestFrame<?> decodedRequestFrame) {
+    static Request toRequest(DecodedRequestFrame<?> decodedRequestFrame) {
         return new Request(decodedRequestFrame.apiKey(), decodedRequestFrame.apiVersion(), decodedRequestFrame.header().clientId(), decodedRequestFrame.body());
     }
 
@@ -145,7 +159,10 @@ public final class MockServer implements AutoCloseable {
      * Clear the response and tell the serverHandler to clear its collection of received requests.
      */
     public void clear() {
-        setResponse(null);
         serverHandler.clear();
+    }
+
+    public void assertAllMockInteractionsInvoked() {
+        this.serverHandler.assertAllMockInteractionsInvoked();
     }
 }

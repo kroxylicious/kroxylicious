@@ -199,9 +199,9 @@ public class KrpcFilterIT {
                 .addToFilters(new FilterDefinitionBuilder("CompositePrefixingFixedClientId")
                         .withConfig("clientId", "banana", "prefix", "123").build()));
                 var singleRequestClient = tester.singleRequestClient()) {
-            tester.setMockResponse(new Response(METADATA, METADATA.latestVersion(), new MetadataResponseData()));
+            tester.addMockResponseForApiKey(new Response(METADATA, METADATA.latestVersion(), new MetadataResponseData()));
             singleRequestClient.getSync(new Request(METADATA, METADATA.latestVersion(), "client", new MetadataRequestData()));
-            assertEquals("123banana", tester.onlyRequest().clientIdHeader());
+            assertEquals("123banana", tester.getOnlyRequest().clientIdHeader());
         }
     }
 

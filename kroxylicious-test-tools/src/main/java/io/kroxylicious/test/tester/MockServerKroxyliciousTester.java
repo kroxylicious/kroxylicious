@@ -9,6 +9,9 @@ package io.kroxylicious.test.tester;
 import java.util.List;
 import java.util.function.Function;
 
+import org.apache.kafka.common.protocol.ApiKeys;
+import org.hamcrest.Matcher;
+
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.test.Request;
 import io.kroxylicious.test.Response;
@@ -31,11 +34,20 @@ public class MockServerKroxyliciousTester extends DefaultKroxyliciousTester {
     }
 
     /**
-     * Set the response to be served by the MockServer
-     * @param response the response (nullable)
+     * Add a response to be served by the MockServer for the ApiKey in the response
+     * @param response the response
      */
-    public void setMockResponse(Response response) {
-        mockServer.setResponse(response);
+    public void addMockResponseForApiKey(Response response) {
+        mockServer.addMockResponseForApiKey(response);
+    }
+
+    /**
+     * Add a response to be served by the MockServer for the ApiKey in the response
+     * @param requestMatcher the matcher
+     * @param response the response
+     */
+    public void addMockResponse(Matcher<Request> requestMatcher, Response response) {
+        mockServer.addMockResponse(requestMatcher, response);
     }
 
     /**
@@ -50,8 +62,29 @@ public class MockServerKroxyliciousTester extends DefaultKroxyliciousTester {
      * @return the only request
      * @throws IllegalStateException if the mock server has recorded more than one request received
      */
-    public Request onlyRequest() {
+    public Request getOnlyRequest() {
         List<Request> requests = mockServer.getReceivedRequests();
+        if (requests.size() != 1) {
+            throw new IllegalStateException("mock server has recorded " + requests.size() + " requests, expected one");
+        }
+        return requests.get(0);
+    }
+
+    /**
+     * Assert that all configured interactions has at least one interaction.
+     * @throws AssertionError if any mocked interaction has not been invoked
+     */
+    public void assertAllMockInteractionsInvoked() {
+        this.mockServer.assertAllMockInteractionsInvoked();
+    }
+
+    /**
+     * Get the only request recorded by the MockServer for a given ApiKey
+     * @return the only request
+     * @throws IllegalStateException if the mock server has recorded more than one request received for that key
+     */
+    public Request getOnlyRequestForApiKey(ApiKeys apiKeys) {
+        List<Request> requests = mockServer.getReceivedRequests().stream().filter(request -> request.apiKeys() == apiKeys).toList();
         if (requests.size() != 1) {
             throw new IllegalStateException("mock server has recorded " + requests.size() + " requests, expected one");
         }
@@ -66,5 +99,4 @@ public class MockServerKroxyliciousTester extends DefaultKroxyliciousTester {
         mockServer.close();
         super.close();
     }
-
 }

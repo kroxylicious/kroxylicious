@@ -84,7 +84,7 @@ public class ApiVersionsIT {
             ApiVersionsResponseData.ApiVersion version = new ApiVersionsResponseData.ApiVersion();
             version.setApiKey((short) 9999).setMinVersion((short) 3).setMaxVersion((short) 4);
             mockResponse.apiKeys().add(version);
-            tester.setMockResponse(new Response(ApiKeys.API_VERSIONS, (short) 3, mockResponse));
+            tester.addMockResponseForApiKey(new Response(ApiKeys.API_VERSIONS, (short) 3, mockResponse));
             Response response = whenGetApiVersionsFromKroxylicious(client);
             assertEquals(ApiKeys.API_VERSIONS, response.apiKeys());
             assertEquals((short) 3, response.apiVersion());
@@ -102,7 +102,7 @@ public class ApiVersionsIT {
         ApiVersionsResponseData.ApiVersion version = new ApiVersionsResponseData.ApiVersion();
         version.setApiKey(keys.id).setMinVersion(minVersion).setMaxVersion(maxVersion);
         mockResponse.apiKeys().add(version);
-        tester.setMockResponse(new Response(ApiKeys.API_VERSIONS, (short) 3, mockResponse));
+        tester.addMockResponseForApiKey(new Response(ApiKeys.API_VERSIONS, (short) 3, mockResponse));
     }
 
     private static Response whenGetApiVersionsFromKroxylicious(KafkaClient client) {
