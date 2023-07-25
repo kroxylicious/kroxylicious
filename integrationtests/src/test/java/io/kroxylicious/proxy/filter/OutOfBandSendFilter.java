@@ -13,6 +13,7 @@ import org.apache.kafka.common.message.CreateTopicsRequestData;
 import org.apache.kafka.common.message.DescribeClusterRequestData;
 import org.apache.kafka.common.message.DescribeClusterResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
+import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.Errors;
@@ -31,9 +32,10 @@ import static io.kroxylicious.UnknownTaggedFields.unknownTaggedFieldsToStrings;
  * a DescribeClusterResponse. This exposes what unknown tagged fields were added to the out-of-band response by other
  * filters like {@link RequestResponseMarkingFilter}.
  */
-public class OutOfBandSendFilter implements DescribeClusterRequestFilter {
+public class OutOfBandSendFilter implements DescribeClusterRequestFilter, DescribeClusterResponseFilter {
 
     private final OutOfBandSendFilterConfig config;
+    private String values = "<initial>";
 
     public OutOfBandSendFilter(OutOfBandSendFilterConfig config) {
         this.config = config;
@@ -57,14 +59,17 @@ public class OutOfBandSendFilter implements DescribeClusterRequestFilter {
         ApiKeys apiKeyToSend = config.apiKeyToSend;
         ApiMessage message = createApiMessage(apiKeyToSend);
         context.sendRequest(apiKeyToSend.latestVersion(), message).thenAccept(apiMessage -> {
-            String values = unknownTaggedFieldsToStrings(apiMessage, config.tagIdToCollect).collect(Collectors.joining(","));
-            // WARNING: forwarding from within the completion is not generally supported yet, this only works because the test is strictly controlling
-            // requests being sent to Kroxylicious. If used in a proxy between a real Kafka client and broker, this could cause out-of-order responses to
-            // the client, causing client side errors. We use it here so that we can see the outcome of the sendRequest call with a single request to Kroxylicious.
-            context.forwardResponse(
-                    new DescribeClusterResponseData().setErrorCode(Errors.UNKNOWN_SERVER_ERROR.code())
-                            .setErrorMessage("filterNameTaggedFieldsFromOutOfBandResponse: " + values));
+            // expected to execute before onDescribeClusterResponse becase sendRequest called before forwardRequest
+            values = unknownTaggedFieldsToStrings(apiMessage, config.tagIdToCollect).collect(Collectors.joining(","));
         });
+        context.forwardRequest(header, request);
+    }
+
+    @Override
+    public void onDescribeClusterResponse(short apiVersion, ResponseHeaderData header, DescribeClusterResponseData response, KrpcFilterContext context) {
+        response.setErrorCode(Errors.UNKNOWN_SERVER_ERROR.code())
+                .setErrorMessage("filterNameTaggedFieldsFromOutOfBandResponse: " + values);
+        context.forwardResponse(response);
     }
 
     private static ApiMessage createApiMessage(ApiKeys apiKeyToSend) {

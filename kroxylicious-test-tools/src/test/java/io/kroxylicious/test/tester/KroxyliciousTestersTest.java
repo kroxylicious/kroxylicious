@@ -193,7 +193,7 @@ public class KroxyliciousTestersTest {
         DescribeAclsResponseData data = new DescribeAclsResponseData();
         data.setErrorMessage("helllo");
         data.setErrorCode(Errors.UNKNOWN_SERVER_ERROR.code());
-        tester.setMockResponse(new Response(ApiKeys.DESCRIBE_ACLS, ApiKeys.DESCRIBE_ACLS.latestVersion(), data));
+        tester.addMockResponseForApiKey(new Response(ApiKeys.DESCRIBE_ACLS, ApiKeys.DESCRIBE_ACLS.latestVersion(), data));
         Response response = kafkaClient
                 .getSync(new Request(ApiKeys.DESCRIBE_ACLS, ApiKeys.DESCRIBE_ACLS.latestVersion(), "client", new DescribeAclsRequestData()));
         assertInstanceOf(DescribeAclsResponseData.class, response.message());

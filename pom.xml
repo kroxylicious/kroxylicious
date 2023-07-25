@@ -50,6 +50,7 @@
         <zjsonpatch.version>0.4.14</zjsonpatch.version>
         <sundr-builder-annotations.version>0.100.1</sundr-builder-annotations.version>
         <findbugs.annotations.version>3.0.1u2</findbugs.annotations.version>
+        <hamcrest.version>2.2</hamcrest.version>
     </properties>
 
     <name>Kroxylicious Parent</name>
@@ -228,6 +229,11 @@
                 <groupId>org.slf4j</groupId>
                 <artifactId>slf4j-simple</artifactId>
                 <version>${slf4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.hamcrest</groupId>
+                <artifactId>hamcrest</artifactId>
+                <version>${hamcrest.version}</version>
             </dependency>
 
             <!-- third party dependencies - test -->

@@ -16,6 +16,7 @@ import org.apache.kafka.common.message.CreateTopicsResponseData;
 import org.apache.kafka.common.message.DescribeClusterRequestData;
 import org.apache.kafka.common.message.DescribeClusterResponseData;
 import org.apache.kafka.common.protocol.ApiKeys;
+import org.apache.kafka.common.protocol.Errors;
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.proxy.config.FilterDefinition;
@@ -30,6 +31,7 @@ import io.kroxylicious.test.tester.MockServerKroxyliciousTester;
 import static io.kroxylicious.UnknownTaggedFields.unknownTaggedFieldsToStrings;
 import static io.kroxylicious.proxy.filter.RequestResponseMarkingFilter.FILTER_NAME_TAG;
 import static org.apache.kafka.common.protocol.ApiKeys.CREATE_TOPICS;
+import static org.apache.kafka.common.protocol.ApiKeys.DESCRIBE_CLUSTER;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
@@ -54,10 +56,19 @@ public class OutOfBandRequestIT {
                 upstreamFilter);
                 var client = tester.singleRequestClient()) {
             givenMockReturnsArbitraryCreateTopicResponse(tester);
+            givenMockReturnsArbitraryDescribeClusterResponse(tester);
             DescribeClusterResponseData responseData = whenDescribeCluster(client);
             thenResponseContainsTagsAugmentedInByUpstreamFilterOnly(responseData);
             andMessageFromOutOfBandRequestToMockHadTagAddedByUpstreamFilterOnly(tester);
+            tester.assertAllMockInteractionsInvoked();
         }
+    }
+
+    private static void givenMockReturnsArbitraryDescribeClusterResponse(MockServerKroxyliciousTester tester) {
+        DescribeClusterResponseData message = new DescribeClusterResponseData();
+        message.setErrorMessage("arbitrary");
+        message.setErrorCode(Errors.UNSUPPORTED_VERSION.code());
+        tester.addMockResponseForApiKey(new Response(DESCRIBE_CLUSTER, DESCRIBE_CLUSTER.latestVersion(), message));
     }
 
     private static MockServerKroxyliciousTester createMockTesterWithFilters(FilterDefinition... definitions) {
@@ -74,7 +85,7 @@ public class OutOfBandRequestIT {
     }
 
     private static void andMessageFromOutOfBandRequestToMockHadTagAddedByUpstreamFilterOnly(MockServerKroxyliciousTester tester) {
-        Request request = tester.onlyRequest();
+        Request request = tester.getOnlyRequestForApiKey(CREATE_TOPICS);
         String tags = unknownTaggedFieldsToStrings(request.message(), FILTER_NAME_TAG)
                 .collect(Collectors.joining(","));
         assertEquals("RequestResponseMarkingFilter-upstreamOfOutOfBandFilter-request", tags);
@@ -97,6 +108,6 @@ public class OutOfBandRequestIT {
         topic.setReplicationFactor((short) 3);
         topic.setNumPartitions(3);
         message.topics().add(topic);
-        tester.setMockResponse(new Response(CREATE_TOPICS, CREATE_TOPICS.latestVersion(), message));
+        tester.addMockResponseForApiKey(new Response(CREATE_TOPICS, CREATE_TOPICS.latestVersion(), message));
     }
 }
