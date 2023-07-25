@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.schema.validation;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -15,6 +16,8 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.clients.consumer.Consumer;
+import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
@@ -24,7 +27,9 @@ import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
+import io.kroxylicious.proxy.BaseIT;
 import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
+import io.kroxylicious.test.tester.KroxyliciousTester;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
@@ -39,7 +44,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @ExtendWith(KafkaClusterExtension.class)
-public class JsonSyntaxValidationIT {
+public class JsonSyntaxValidationIT extends BaseIT {
 
     public static final String SYNTACTICALLY_CORRECT_JSON = "{\"value\":\"json\"}";
     public static final String SYNTACTICALLY_INCORRECT_JSON = "Not Json";
@@ -49,7 +54,7 @@ public class JsonSyntaxValidationIT {
     @Test
     public void testInvalidJsonProduceRejected(KafkaCluster cluster, Admin admin) throws Exception {
         assertEquals(1, cluster.getNumOfBrokers());
-        admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1))).all().get();
+        createTopics(admin, List.of(new NewTopic(TOPIC_1, 1, (short) 1)));
 
         var config = proxy(cluster)
                 .addToFilters(new FilterDefinitionBuilder("ProduceValidator").withConfig("rules",
@@ -57,7 +62,7 @@ public class JsonSyntaxValidationIT {
                                 Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true)))))
                         .build());
         try (var tester = kroxyliciousTester(config);
-                var producer = tester.producer(getProducerConfig(0, 16384))) {
+                var producer = getProducer(tester, 0, 16384)) {
             Future<RecordMetadata> invalid = producer.send(new ProducerRecord<>(TOPIC_1, "my-key", SYNTACTICALLY_INCORRECT_JSON));
             assertInvalidRecordExceptionThrown(invalid, "value was not syntactically correct JSON");
         }
@@ -66,7 +71,7 @@ public class JsonSyntaxValidationIT {
     @Test
     public void testInvalidJsonProduceRejectedUsingTopicNames(KafkaCluster cluster, Admin admin) throws Exception {
         assertEquals(1, cluster.getNumOfBrokers());
-        admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1), new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
+        createTopics(admin, List.of(new NewTopic(TOPIC_1, 1, (short) 1), new NewTopic(TOPIC_2, 1, (short) 1)));
 
         var config = proxy(cluster)
                 .addToFilters(new FilterDefinitionBuilder("ProduceValidator").withConfig("rules",
@@ -74,8 +79,8 @@ public class JsonSyntaxValidationIT {
                                 Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true)))))
                         .build());
         try (var tester = kroxyliciousTester(config);
-                var producer = tester.producer(getProducerConfig(0, 16384));
-                var consumer = tester.consumer(Map.of(GROUP_ID_CONFIG, "my-group-id", AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
+                var producer = getProducer(tester, 0, 16384);
+                var consumer = getConsumer(tester)) {
             Future<RecordMetadata> invalid = producer.send(new ProducerRecord<>(TOPIC_1, "my-key", SYNTACTICALLY_INCORRECT_JSON));
             assertInvalidRecordExceptionThrown(invalid, "value was not syntactically correct JSON");
             producer.send(new ProducerRecord<>(TOPIC_2, "my-key", SYNTACTICALLY_INCORRECT_JSON)).get();
@@ -89,8 +94,7 @@ public class JsonSyntaxValidationIT {
     @Test
     public void testPartiallyInvalidJsonTransactionalAllRejected(KafkaCluster cluster, Admin admin) throws Exception {
         assertEquals(1, cluster.getNumOfBrokers());
-
-        admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1), new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
+        createTopics(admin, List.of(new NewTopic(TOPIC_1, 1, (short) 1), new NewTopic(TOPIC_2, 1, (short) 1)));
 
         var config = proxy(cluster)
                 .addToFilters(new FilterDefinitionBuilder("ProduceValidator").withConfig("forwardPartialRequests", true, "rules",
@@ -114,8 +118,7 @@ public class JsonSyntaxValidationIT {
     @Test
     public void testPartiallyInvalidJsonNotConfiguredToForwardAllRejected(KafkaCluster cluster, Admin admin) throws Exception {
         assertEquals(1, cluster.getNumOfBrokers());
-
-        admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1), new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
+        createTopics(admin, List.of(new NewTopic(TOPIC_1, 1, (short) 1), new NewTopic(TOPIC_2, 1, (short) 1)));
 
         boolean forwardPartialRequests = false;
         var config = proxy(cluster)
@@ -125,7 +128,7 @@ public class JsonSyntaxValidationIT {
                         .build());
 
         try (var tester = kroxyliciousTester(config);
-                var producer = tester.producer(getProducerConfig(5000, 16384))) {
+                var producer = getProducer(tester, 5000, 16384)) {
             Future<RecordMetadata> invalid = producer.send(new ProducerRecord<>(TOPIC_1, "my-key", SYNTACTICALLY_INCORRECT_JSON));
             Future<RecordMetadata> valid = producer.send(new ProducerRecord<>(TOPIC_2, "my-key", SYNTACTICALLY_CORRECT_JSON));
             producer.flush();
@@ -137,8 +140,7 @@ public class JsonSyntaxValidationIT {
     @Test
     public void testPartiallyInvalidJsonProduceRejected(KafkaCluster cluster, Admin admin) throws Exception {
         assertEquals(1, cluster.getNumOfBrokers());
-
-        admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1), new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
+        createTopics(admin, List.of(new NewTopic(TOPIC_1, 1, (short) 1), new NewTopic(TOPIC_2, 1, (short) 1)));
 
         var config = proxy(cluster)
                 .addToFilters(new FilterDefinitionBuilder("ProduceValidator")
@@ -148,8 +150,8 @@ public class JsonSyntaxValidationIT {
                         .build());
 
         try (var tester = kroxyliciousTester(config);
-                var producer = tester.producer(getProducerConfig(5000, 16384));
-                var consumer = tester.consumer(Map.of(GROUP_ID_CONFIG, "my-group-id", AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
+                var producer = getProducer(tester, 5000, 16384);
+                var consumer = getConsumer(tester)) {
             Future<RecordMetadata> invalid = producer.send(new ProducerRecord<>(TOPIC_1, "my-key", SYNTACTICALLY_INCORRECT_JSON));
             Future<RecordMetadata> valid = producer.send(new ProducerRecord<>(TOPIC_2, "my-key", SYNTACTICALLY_CORRECT_JSON));
             producer.flush();
@@ -167,8 +169,7 @@ public class JsonSyntaxValidationIT {
     @Test
     public void testPartiallyInvalidAcrossPartitionsOfSameTopic(KafkaCluster cluster, Admin admin) throws Exception {
         assertEquals(1, cluster.getNumOfBrokers());
-
-        admin.createTopics(List.of(new NewTopic(TOPIC_1, 2, (short) 1))).all().get();
+        createTopics(admin, List.of(new NewTopic(TOPIC_1, 2, (short) 1)));
 
         var config = proxy(cluster)
                 .addToFilters(new FilterDefinitionBuilder("ProduceValidator")
@@ -178,8 +179,8 @@ public class JsonSyntaxValidationIT {
                         .build());
 
         try (var tester = kroxyliciousTester(config);
-                var producer = tester.producer(getProducerConfig(5000, 16384));
-                var consumer = tester.consumer(Map.of(GROUP_ID_CONFIG, "my-group-id", AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
+                var producer = getProducer(tester, 5000, 16384);
+                var consumer = getConsumer(tester)) {
             Future<RecordMetadata> invalid = producer.send(new ProducerRecord<>(TOPIC_1, 0, "my-key", SYNTACTICALLY_INCORRECT_JSON));
             Future<RecordMetadata> valid = producer.send(new ProducerRecord<>(TOPIC_1, 1, "my-key", SYNTACTICALLY_CORRECT_JSON));
             producer.flush();
@@ -197,8 +198,7 @@ public class JsonSyntaxValidationIT {
     @Test
     public void testPartiallyInvalidWithinOnePartitionOfTopic(KafkaCluster cluster, Admin admin) throws Exception {
         assertEquals(1, cluster.getNumOfBrokers());
-
-        admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1))).all().get();
+        createTopics(admin, List.of(new NewTopic(TOPIC_1, 1, (short) 1)));
 
         var config = proxy(cluster)
                 .addToFilters(new FilterDefinitionBuilder("ProduceValidator").withConfig("forwardPartialRequests", true, "rules",
@@ -207,7 +207,7 @@ public class JsonSyntaxValidationIT {
                         .build());
 
         try (var tester = kroxyliciousTester(config);
-                var producer = tester.producer(getProducerConfig(5000, 16384))) {
+                var producer = getProducer(tester, 5000, 16384)) {
             Future<RecordMetadata> invalid = producer.send(new ProducerRecord<>(TOPIC_1, "my-key", SYNTACTICALLY_INCORRECT_JSON));
             Future<RecordMetadata> valid = producer.send(new ProducerRecord<>(TOPIC_1, "my-key", SYNTACTICALLY_CORRECT_JSON));
             producer.flush();
@@ -222,8 +222,7 @@ public class JsonSyntaxValidationIT {
     @Test
     public void testValidJsonProduceAccepted(KafkaCluster cluster, Admin admin) throws Exception {
         assertEquals(1, cluster.getNumOfBrokers());
-
-        admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1))).all().get();
+        createTopics(admin, List.of(new NewTopic(TOPIC_1, 1, (short) 1)));
 
         var config = proxy(cluster)
                 .addToFilters(new FilterDefinitionBuilder("ProduceValidator").withConfig("rules",
@@ -232,13 +231,17 @@ public class JsonSyntaxValidationIT {
                         .build());
 
         try (var tester = kroxyliciousTester(config);
-                var producer = tester.producer(getProducerConfig(0, 16384))) {
+                var producer = getProducer(tester, 0, 16384)) {
             producer.send(new ProducerRecord<>(TOPIC_1, "my-key", SYNTACTICALLY_CORRECT_JSON)).get();
         }
     }
 
-    private static Map<String, Object> getProducerConfig(int linger, int batchSize) {
-        return Map.of(LINGER_MS_CONFIG, linger, ProducerConfig.BATCH_SIZE_CONFIG, batchSize);
+    private static Producer<String, String> getProducer(KroxyliciousTester tester, int linger, int batchSize) {
+        return getProducerWithConfig(tester, Optional.empty(), Map.of(LINGER_MS_CONFIG, linger, ProducerConfig.BATCH_SIZE_CONFIG, batchSize));
+    }
+
+    private static Consumer<String, String> getConsumer(KroxyliciousTester tester) {
+        return getConsumerWithConfig(tester, Optional.empty(), Map.of(GROUP_ID_CONFIG, "my-group-id", AUTO_OFFSET_RESET_CONFIG, "earliest"));
     }
 
     private static void assertInvalidRecordExceptionThrown(Future<RecordMetadata> invalid, String message) {

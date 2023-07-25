@@ -44,7 +44,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  * Tests with the aim of demonstrating that system survives a Kroxylicious restart.
  */
 @ExtendWith(KafkaClusterExtension.class)
-public class ResilienceIT {
+public class ResilienceIT extends BaseIT {
     private static final Logger LOGGER = LoggerFactory.getLogger(ResilienceIT.class);
 
     static @BrokerCluster(numBrokers = 3) KafkaCluster cluster;
@@ -52,14 +52,14 @@ public class ResilienceIT {
     @Test
     public void kafkaProducerShouldTolerateKroxyliciousRestarting(Admin admin) throws Exception {
         String randomTopic = UUID.randomUUID().toString();
-        admin.createTopics(List.of(new NewTopic(randomTopic, 1, (short) 1))).all().get();
+        createTopics(admin, List.of(new NewTopic(randomTopic, 1, (short) 1)));
         testProducerCanSurviveARestart(proxy(cluster), randomTopic);
     }
 
     @Test
     public void kafkaConsumerShouldTolerateKroxyliciousRestarting(Admin admin) throws Exception {
         String randomTopic = UUID.randomUUID().toString();
-        admin.createTopics(List.of(new NewTopic(randomTopic, 1, (short) 1))).all().get();
+        createTopics(admin, List.of(new NewTopic(randomTopic, 1, (short) 1)));
         testConsumerCanSurviveKroxyliciousRestart(proxy(cluster), randomTopic);
     }
 
@@ -71,9 +71,10 @@ public class ResilienceIT {
                 ConsumerConfig.GROUP_ID_CONFIG, "mygroup",
                 ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"));
 
+        Producer<String, String> producer;
         Consumer<String, String> consumer;
-        try (var tester = kroxyliciousTester(builder);
-                var producer = tester.producer(producerConfig)) {
+        try (var tester = kroxyliciousTester(builder)) {
+            producer = tester.producer(producerConfig);
             consumer = tester.consumer(consumerConfig);
             producer.send(new ProducerRecord<>(topic, "my-key", "Hello, world!")).get(10, TimeUnit.SECONDS);
             consumer.subscribe(Set.of(topic));

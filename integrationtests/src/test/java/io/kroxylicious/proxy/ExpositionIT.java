@@ -13,19 +13,17 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.kafka.clients.CommonClientConfigs;
-import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.Node;
+import org.apache.kafka.common.TopicCollection.TopicNameCollection;
 import org.apache.kafka.common.TopicPartitionInfo;
 import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.config.SslConfigs;
@@ -66,7 +64,7 @@ import static org.testcontainers.shaded.org.awaitility.Awaitility.await;
  * TODO corner case test - verify kroxy's ability to recover for a temporary port already bound condition.
  */
 @ExtendWith(KafkaClusterExtension.class)
-public class ExpositionIT {
+public class ExpositionIT extends BaseIT {
     private static final Logger LOGGER = LoggerFactory.getLogger(ExpositionIT.class);
 
     private static final String TOPIC = "my-test-topic";
@@ -95,7 +93,7 @@ public class ExpositionIT {
         try (var tester = kroxyliciousTester(builder);
                 var admin = tester.admin("demo", clientSecurityProtocolConfig)) {
             // do some work to ensure connection is opened
-            createTopic(admin, TOPIC, 1);
+            createTopics(admin, List.of(new NewTopic(TOPIC, 1, (short) 1)));
 
             var connectionsMetric = admin.metrics().entrySet().stream().filter(metricNameEntry -> "connections".equals(metricNameEntry.getKey().name()))
                     .findFirst();
@@ -132,7 +130,7 @@ public class ExpositionIT {
             for (int i = 0; i < clusterProxyAddresses.size(); i++) {
                 try (var admin = tester.admin("cluster" + i)) {
                     // do some work to ensure virtual cluster is operational
-                    createTopic(admin, TOPIC + i, 1);
+                    createTopics(admin, List.of(new NewTopic(TOPIC + i, 1, (short) 1)));
                 }
             }
         }
@@ -184,7 +182,7 @@ public class ExpositionIT {
                         SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, trust.clientTrustStore(),
                         SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, trust.password()))) {
                     // do some work to ensure virtual cluster is operational
-                    createTopic(admin, TOPIC + i, 1);
+                    createTopics(admin, List.of(new NewTopic(TOPIC + i, 1, (short) 1)));
                 }
             }
         }
@@ -478,7 +476,7 @@ public class ExpositionIT {
         // create topic and ensure that leaders are on different brokers.
         try (var admin = tester.admin();
                 var producer = tester.producer("demo", Map.of(ProducerConfig.CLIENT_ID_CONFIG, "myclient"))) {
-            createTopic(admin, topic, numberOfPartitions);
+            createTopics(admin, List.of(new NewTopic(topic, numberOfPartitions, (short) 1)));
             try {
                 await().atMost(Duration.ofSeconds(10))
                         .ignoreExceptions()
@@ -493,32 +491,8 @@ public class ExpositionIT {
                 }
             }
             finally {
-                deleteTopic(admin, topic);
+                deleteTopics(admin, TopicNameCollection.ofTopicNames(List.of(topic)));
             }
-        }
-    }
-
-    private void createTopic(Admin admin, String topic, int numPartitions) {
-        try {
-            admin.createTopics(List.of(new NewTopic(topic, numPartitions, (short) 1))).all().get(10, TimeUnit.SECONDS);
-        }
-        catch (ExecutionException e) {
-            throw new RuntimeException(e.getCause());
-        }
-        catch (InterruptedException | TimeoutException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private void deleteTopic(Admin admin, String topic) {
-        try {
-            admin.deleteTopics(List.of(topic)).all().get(10, TimeUnit.SECONDS);
-        }
-        catch (ExecutionException e) {
-            throw new RuntimeException(e.getCause());
-        }
-        catch (InterruptedException | TimeoutException e) {
-            throw new RuntimeException(e);
         }
     }
 

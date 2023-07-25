@@ -20,12 +20,8 @@ import java.security.cert.X509Certificate;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 import org.apache.kafka.clients.CommonClientConfigs;
-import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.common.config.SslConfigs;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
@@ -53,7 +49,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * TODO add integration tests covering kroylicious's ability to use JKS and PEM material. Needs https://github.com/kroxylicious/kroxylicious-junit5-extension/issues/120
  */
 @ExtendWith(KafkaClusterExtension.class)
-public class TlsIT {
+public class TlsIT extends BaseIT {
     private static final HostPort PROXY_ADDRESS = HostPort.parse("localhost:9192");
     private static final ClusterNetworkAddressConfigProviderDefinition CONFIG_PROVIDER_DEFINITION = new ClusterNetworkAddressConfigProviderDefinitionBuilder(
             "PortPerBroker").withConfig("bootstrapAddress", PROXY_ADDRESS)
@@ -98,7 +94,7 @@ public class TlsIT {
 
         try (var tester = kroxyliciousTester(builder); var admin = tester.admin("demo")) {
             // do some work to ensure connection is opened
-            createTopic(admin, TOPIC, 1);
+            createTopics(admin, List.of(new NewTopic(TOPIC, 1, (short) 1)));
         }
     }
 
@@ -136,7 +132,7 @@ public class TlsIT {
 
         try (var tester = kroxyliciousTester(builder); var admin = tester.admin("demo")) {
             // do some work to ensure connection is opened
-            createTopic(admin, TOPIC, 1);
+            createTopics(admin, List.of(new NewTopic(TOPIC, 1, (short) 1)));
         }
     }
 
@@ -157,7 +153,7 @@ public class TlsIT {
 
         try (var tester = kroxyliciousTester(builder); var admin = tester.admin("demo")) {
             // do some work to ensure connection is opened
-            createTopic(admin, TOPIC, 1);
+            createTopics(admin, List.of(new NewTopic(TOPIC, 1, (short) 1)));
         }
     }
 
@@ -195,19 +191,7 @@ public class TlsIT {
                                 SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
                                 SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, downstreamCertificateGenerator.getPassword()))) {
             // do some work to ensure connection is opened
-            createTopic(admin, TOPIC, 1);
-        }
-    }
-
-    private void createTopic(Admin admin, String topic, int numPartitions) {
-        try {
-            admin.createTopics(List.of(new NewTopic(topic, numPartitions, (short) 1))).all().get(10, TimeUnit.SECONDS);
-        }
-        catch (ExecutionException e) {
-            throw new RuntimeException(e.getCause());
-        }
-        catch (InterruptedException | TimeoutException e) {
-            throw new RuntimeException(e);
+            createTopics(admin, List.of(new NewTopic(TOPIC, 1, (short) 1)));
         }
     }
 
