@@ -5,6 +5,9 @@
  */
 package io.kroxylicious.proxy.internal.filter;
 
+import java.util.HashSet;
+import java.util.Set;
+
 import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
@@ -23,13 +26,18 @@ public class ApiVersionsFilter implements ApiVersionsResponseFilter {
     private static final Logger LOGGER = LoggerFactory.getLogger(ApiVersionsFilter.class);
 
     private static void intersectApiVersions(String channel, ApiVersionsResponseData resp) {
+        Set<ApiVersionsResponseData.ApiVersion> unknownApis = new HashSet<>();
         for (var key : resp.apiKeys()) {
             short apiId = key.apiKey();
             if (ApiKeys.hasId(apiId)) {
                 ApiKeys apiKey = ApiKeys.forId(apiId);
                 intersectApiVersion(channel, key, apiKey);
             }
+            else {
+                unknownApis.add(key);
+            }
         }
+        resp.apiKeys().removeAll(unknownApis);
     }
 
     /**

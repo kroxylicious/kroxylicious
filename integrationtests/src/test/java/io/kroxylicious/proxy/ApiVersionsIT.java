@@ -5,6 +5,9 @@
  */
 package io.kroxylicious.proxy;
 
+import java.util.Map;
+import java.util.stream.Collectors;
+
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.protocol.ApiKeys;
@@ -18,6 +21,7 @@ import io.kroxylicious.test.tester.MockServerKroxyliciousTester;
 
 import static io.kroxylicious.test.tester.KroxyliciousTesters.mockKafkaKroxyliciousTester;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * For the kafka RPCs that Kroxylicious can intercept, Kroxylicious should only offer API versions
@@ -75,9 +79,8 @@ public class ApiVersionsIT {
         }
     }
 
-    // TODO we think this is a bug but will come back to it
     @Test
-    public void shouldOfferBrokerApisThatAreUnknownToKroxy() {
+    public void shouldNotOfferBrokerApisThatAreUnknownToKroxy() {
         try (var tester = mockKafkaKroxyliciousTester(KroxyliciousConfigUtils::proxy);
                 var client = tester.singleRequestClient()) {
             ApiVersionsResponseData mockResponse = new ApiVersionsResponseData();
@@ -89,11 +92,32 @@ public class ApiVersionsIT {
             assertEquals(ApiKeys.API_VERSIONS, response.apiKeys());
             assertEquals((short) 3, response.apiVersion());
             ApiVersionsResponseData message = (ApiVersionsResponseData) response.message();
-            assertEquals(1, message.apiKeys().size());
-            ApiVersionsResponseData.ApiVersion singletonVersion = message.apiKeys().iterator().next();
-            assertEquals((short) 9999, singletonVersion.apiKey());
-            assertEquals((short) 3, singletonVersion.minVersion());
-            assertEquals((short) 4, singletonVersion.maxVersion());
+            assertTrue(message.apiKeys().isEmpty());
+        }
+    }
+
+    @Test
+    public void shouldOfferBrokerApisThatAreKnownToKroxy() {
+        try (var tester = mockKafkaKroxyliciousTester(KroxyliciousConfigUtils::proxy);
+                var client = tester.singleRequestClient()) {
+            ApiVersionsResponseData mockResponse = new ApiVersionsResponseData();
+            for (ApiKeys knownValue : ApiKeys.values()) {
+                ApiVersionsResponseData.ApiVersion version = new ApiVersionsResponseData.ApiVersion();
+                version.setApiKey(knownValue.id).setMinVersion(knownValue.oldestVersion()).setMaxVersion(knownValue.latestVersion());
+                mockResponse.apiKeys().add(version);
+            }
+            tester.addMockResponseForApiKey(new Response(ApiKeys.API_VERSIONS, (short) 3, mockResponse));
+            Response response = whenGetApiVersionsFromKroxylicious(client);
+            assertEquals(ApiKeys.API_VERSIONS, response.apiKeys());
+            assertEquals((short) 3, response.apiVersion());
+            ApiVersionsResponseData message = (ApiVersionsResponseData) response.message();
+            Map<ApiKeys, ApiVersionsResponseData.ApiVersion> responseVersions = message.apiKeys().stream()
+                    .collect(Collectors.toMap(k -> ApiKeys.forId(k.apiKey()), k -> k));
+            for (ApiKeys knownValue : ApiKeys.values()) {
+                assertTrue(responseVersions.containsKey(knownValue));
+                assertEquals(knownValue.oldestVersion(), responseVersions.get(knownValue).minVersion());
+                assertEquals(knownValue.latestVersion(), responseVersions.get(knownValue).maxVersion());
+            }
         }
     }
 
