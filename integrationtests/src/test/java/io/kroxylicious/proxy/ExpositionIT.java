@@ -379,6 +379,7 @@ public class ExpositionIT {
                         .describedAs("test precondition broken - fail to properly deduce a pre-bound broker address. deduced %s, cluster's nodes %s",
                                 discoveryBrokerAddressToProbe,
                                 originalNodes)
+                        .isNotEmpty()
                         .doesNotContain(discoveryBrokerAddressToProbe);
             }
         }
