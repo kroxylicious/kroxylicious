@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.internal;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 import org.apache.kafka.common.message.ApiVersionsRequestData;
@@ -21,13 +22,17 @@ import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.types.RawTaggedField;
 import org.junit.jupiter.api.Test;
 
+import io.netty.channel.embedded.EmbeddedChannel;
+
 import io.kroxylicious.proxy.filter.ApiVersionsRequestFilter;
 import io.kroxylicious.proxy.filter.ApiVersionsResponseFilter;
+import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.future.InternalCompletionStage;
 
+import static com.google.common.collect.Iterables.getOnlyElement;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -47,6 +52,47 @@ public class FilterHandlerTest extends FilterHarness {
         var frame = writeRequest(new ApiVersionsRequestData());
         var propagated = channel.readOutbound();
         assertEquals(frame, propagated, "Expect it to be the frame that was sent");
+    }
+
+    @Test
+    public void testFilterNotifiedWhenChannelClosed() {
+        AtomicBoolean removed = new AtomicBoolean(false);
+        ApiVersionsRequestFilter filter = new ApiVersionsRequestFilter() {
+            @Override
+            public void onApiVersionsRequest(short apiVersion, RequestHeaderData header, ApiVersionsRequestData request, KrpcFilterContext context) {
+                context.forwardRequest(header, request);
+            }
+
+            @Override
+            public void onFilterRemoved() {
+                removed.set(true);
+            }
+        };
+        buildChannel(filter);
+        assertFalse(removed.get());
+        channel.close();
+        assertTrue(removed.get());
+    }
+
+    @Test
+    public void testFilterNotifiedWhenRemovedFromChannel() {
+        AtomicBoolean removed = new AtomicBoolean(false);
+        ApiVersionsRequestFilter filter = new ApiVersionsRequestFilter() {
+            @Override
+            public void onApiVersionsRequest(short apiVersion, RequestHeaderData header, ApiVersionsRequestData request, KrpcFilterContext context) {
+                context.forwardRequest(header, request);
+            }
+
+            @Override
+            public void onFilterRemoved() {
+                removed.set(true);
+            }
+        };
+        FilterHandler filterHandler = new FilterHandler(getOnlyElement(FilterAndInvoker.build(filter)), 1000L, null);
+        channel = new EmbeddedChannel(filterHandler);
+        assertFalse(removed.get());
+        channel.pipeline().remove(filterHandler);
+        assertTrue(removed.get());
     }
 
     @Test

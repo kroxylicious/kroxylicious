@@ -100,4 +100,9 @@ public class FilterHandler
         }
     }
 
+    @Override
+    public void handlerRemoved(ChannelHandlerContext ctx) throws Exception {
+        filter.onFilterRemoved();
+        super.handlerRemoved(ctx);
+    }
 }

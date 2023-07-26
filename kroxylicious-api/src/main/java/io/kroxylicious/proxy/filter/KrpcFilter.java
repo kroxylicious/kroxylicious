@@ -11,4 +11,11 @@ package io.kroxylicious.proxy.filter;
  */
 public /* sealed */ interface KrpcFilter {
 
+    /**
+     * Called when the Filter is removed, for instance when the client connection is closed
+     */
+    default void onFilterRemoved() {
+
+    }
+
 }
