@@ -149,6 +149,7 @@ public class KrpcFilterIT {
     }
 
     @Test
+    @SuppressWarnings("java:S5841") // java:S5841 warns that doesNotContain passes for the empty case. Which is what we want here.
     public void requestFiltersCanRespondWithoutProxying(KafkaCluster cluster, Admin admin) throws Exception {
         var config = proxy(cluster)
                 .addToFilters(new FilterDefinitionBuilder("CreateTopicRejectFilter").build());
@@ -164,6 +165,7 @@ public class KrpcFilterIT {
     }
 
     @Test
+    @SuppressWarnings("java:S5841") // java:S5841 warns that doesNotContain passes for the empty case. Which is what we want here.
     public void requestFiltersCanRespondWithoutProxyingDoesntLeakBuffers(KafkaCluster cluster, Admin admin) throws Exception {
         var config = proxy(cluster)
                 .addToFilters(new FilterDefinitionBuilder("CreateTopicRejectFilter").build());

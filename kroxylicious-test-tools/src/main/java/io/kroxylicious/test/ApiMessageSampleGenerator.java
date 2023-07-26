@@ -242,7 +242,7 @@ public class ApiMessageSampleGenerator {
             ParameterizedType paramClass1 = (ParameterizedType) genericType.getGenericSuperclass();
             Type actualTypeArgument = paramClass1.getActualTypeArguments()[0];
             Class<?> typeArgument = (Class<?>) actualTypeArgument;
-            Object o = instantiateArg(typeArgument, actualTypeArgument, random, field.arrayElementType().get());
+            Object o = instantiateArg(typeArgument, actualTypeArgument, random, field.arrayElementType().orElseThrow());
             collection.add((ImplicitLinkedHashCollection.Element) o);
             return collection;
         }
@@ -256,7 +256,7 @@ public class ApiMessageSampleGenerator {
         ParameterizedType paramClass1 = (ParameterizedType) paramClass;
         Type actualTypeArgument = paramClass1.getActualTypeArguments()[0];
         Class<?> typeArgument = (Class<?>) actualTypeArgument;
-        objects.add(instantiateArg(typeArgument, actualTypeArgument, random, type.arrayElementType().get()));
+        objects.add(instantiateArg(typeArgument, actualTypeArgument, random, type.arrayElementType().orElseThrow()));
         return objects;
     }
 
