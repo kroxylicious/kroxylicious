@@ -52,7 +52,7 @@ git fetch -q "${REPOSITORY}"
 RELEASE_DATE=$(date -u '+%Y-%m-%d')
 git checkout -b "prepare-release-${RELEASE_DATE}" "${REPOSITORY}/${BRANCH_FROM}"
 
-if [[ -z "${SKIP_VALIDATION:-}" ]]; then
+if [[ "${SKIP_VALIDATION:-false}" != true ]]; then
   #Disable the shell check as the colour codes only work with interpolation.
   # shellcheck disable=SC2059
   printf "Validating the build is ${GREEN}green${NC}"
