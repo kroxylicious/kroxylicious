@@ -52,10 +52,12 @@ git fetch -q "${REPOSITORY}"
 RELEASE_DATE=$(date -u '+%Y-%m-%d')
 git checkout -b "prepare-release-${RELEASE_DATE}" "${REPOSITORY}/${BRANCH_FROM}"
 
-#Disable the shell check as the colour codes only work with interpolation.
-# shellcheck disable=SC2059
-printf "Validating the build is ${GREEN}green${NC}"
-mvn -q clean verify
+if [[ -z "${SKIP_VALIDATION:-}" ]]; then
+  #Disable the shell check as the colour codes only work with interpolation.
+  # shellcheck disable=SC2059
+  printf "Validating the build is ${GREEN}green${NC}"
+  mvn -q clean verify
+fi
 
 if [[ -n ${RELEASE_API_VERSION} ]]; then
   echo "Versioning Public APIs as ${RELEASE_API_VERSION}"
