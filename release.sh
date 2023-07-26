@@ -20,6 +20,10 @@ while getopts ":a:f:b:r:k:" opt; do
     r) REPOSITORY="${OPTARG}"
     ;;
     k) GPG_KEY="${OPTARG}"
+      if [[ -z "${GPG_KEY}" ]]; then
+          echo "GPG_KEY not set unable to sign the release. Please specify -k <YOUR_GPG_KEY>" 1>&2
+          exit 1
+      fi
     ;;
 
     \?) echo "Invalid option -${OPTARG}" >&2
@@ -33,11 +37,6 @@ while getopts ":a:f:b:r:k:" opt; do
     ;;
   esac
 done
-
-if [[ -z "${GPG_KEY}" ]]; then
-    echo "GPG_KEY not set unable to sign the release. Please specify -k <YOUR_GPG_KEY>" 1>&2
-    exit 1
-fi
 
 if [[ -z ${RELEASE_API_VERSION} && -z ${RELEASE_VERSION} ]]; then
   echo "No versions specified aborting"
