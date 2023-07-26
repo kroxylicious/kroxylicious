@@ -29,6 +29,8 @@
  */
 package io.kroxylicious.proxy.filter;
 
+import java.util.concurrent.CompletionStage;
+
 import org.apache.kafka.common.message.${messageSpec.name}Data;
 
 <#if messageSpec.type?lower_case == 'response'>
@@ -58,7 +60,7 @@ class ${filterInvokerClass} implements FilterInvoker {
     }
 
     @Override
-    public void on<#if messageSpec.type?lower_case == 'response'>Response<#else>Request</#if>(ApiKeys apiKey, short apiVersion, <#if messageSpec.type?lower_case == 'response'>Response<#else>Request</#if>HeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
-        filter.on${messageSpec.name}(apiVersion, header, (${messageSpec.name}Data) body, filterContext);
+    public CompletionStage<<#if messageSpec.type?lower_case == 'response'>ResponseFilterResult<#else>? extends FilterResult</#if>> on<#if messageSpec.type?lower_case == 'response'>Response<#else>Request</#if>(ApiKeys apiKey, short apiVersion, <#if messageSpec.type?lower_case == 'response'>Response<#else>Request</#if>HeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
+        return filter.on${messageSpec.name}(apiVersion, header, (${messageSpec.name}Data) body, filterContext);
     }
 }

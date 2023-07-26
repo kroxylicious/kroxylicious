@@ -6,6 +6,8 @@
 
 package io.kroxylicious.proxy.filter;
 
+import java.util.concurrent.CompletionStage;
+
 import org.apache.kafka.common.message.AddOffsetsToTxnRequestData;
 import org.apache.kafka.common.message.AddOffsetsToTxnResponseData;
 import org.apache.kafka.common.message.AddPartitionsToTxnRequestData;
@@ -159,21 +161,23 @@ public class SpecificFilterInvoker implements FilterInvoker {
         this.filter = filter;
     }
 
-    /**
+    /**X
      * Apply the filter to the given {@code header} and {@code body} using the given {@code filterContext}.
-     * @param apiKey The request api key.
-     * @param apiVersion The request api version.
-     * @param header The request header.
-     * @param body The request body.
+     *
+     * @param apiKey        The request api key.
+     * @param apiVersion    The request api version.
+     * @param header        The request header.
+     * @param body          The request body.
      * @param filterContext The filter context.
+     * @return
      */
     @Override
-    public void onRequest(ApiKeys apiKey,
-                          short apiVersion,
-                          RequestHeaderData header,
-                          ApiMessage body,
-                          KrpcFilterContext filterContext) {
-        switch (apiKey) {
+    public CompletionStage<? extends FilterResult> onRequest(ApiKeys apiKey,
+                                                             short apiVersion,
+                                                             RequestHeaderData header,
+                                                             ApiMessage body,
+                                                             KrpcFilterContext filterContext) {
+        return switch (apiKey) {
             case ADD_OFFSETS_TO_TXN ->
                 ((AddOffsetsToTxnRequestFilter) filter).onAddOffsetsToTxnRequest(apiVersion, header, (AddOffsetsToTxnRequestData) body, filterContext);
             case ADD_PARTITIONS_TO_TXN ->
@@ -278,24 +282,26 @@ public class SpecificFilterInvoker implements FilterInvoker {
             case WRITE_TXN_MARKERS ->
                 ((WriteTxnMarkersRequestFilter) filter).onWriteTxnMarkersRequest(apiVersion, header, (WriteTxnMarkersRequestData) body, filterContext);
             default -> throw new IllegalStateException("Unsupported RPC " + apiKey);
-        }
+        };
     }
 
     /**
      * Apply the filter to the given {@code header} and {@code body} using the given {@code filterContext}.
-     * @param apiKey The request api key.
-     * @param apiVersion The api version.
-     * @param header The request header.
-     * @param body The request body.
+     *
+     * @param apiKey        The request api key.
+     * @param apiVersion    The api version.
+     * @param header        The request header.
+     * @param body          The request body.
      * @param filterContext The filter context.
+     * @return
      */
     @Override
-    public void onResponse(ApiKeys apiKey,
-                           short apiVersion,
-                           ResponseHeaderData header,
-                           ApiMessage body,
-                           KrpcFilterContext filterContext) {
-        switch (apiKey) {
+    public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey,
+                                                            short apiVersion,
+                                                            ResponseHeaderData header,
+                                                            ApiMessage body,
+                                                            KrpcFilterContext filterContext) {
+        return switch (apiKey) {
             case ADD_OFFSETS_TO_TXN ->
                 ((AddOffsetsToTxnResponseFilter) filter).onAddOffsetsToTxnResponse(apiVersion, header, (AddOffsetsToTxnResponseData) body, filterContext);
             case ADD_PARTITIONS_TO_TXN ->
@@ -408,7 +414,7 @@ public class SpecificFilterInvoker implements FilterInvoker {
             case WRITE_TXN_MARKERS ->
                 ((WriteTxnMarkersResponseFilter) filter).onWriteTxnMarkersResponse(apiVersion, header, (WriteTxnMarkersResponseData) body, filterContext);
             default -> throw new IllegalStateException("Unsupported RPC " + apiKey);
-        }
+        };
     }
 
     /**

@@ -6,6 +6,8 @@
 
 package io.kroxylicious.sample;
 
+import java.util.concurrent.CompletionStage;
+
 import org.apache.kafka.common.message.FetchResponseData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 
@@ -14,6 +16,7 @@ import io.micrometer.core.instrument.Timer;
 
 import io.kroxylicious.proxy.filter.FetchResponseFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
+import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.sample.config.SampleFilterConfig;
 import io.kroxylicious.sample.util.SampleFilterTransformer;
 
@@ -48,15 +51,17 @@ public class SampleFetchResponseFilter implements FetchResponseFilter {
     /**
      * Handle the given response, transforming the data in-place according to the configuration, forwarding
      * the FetchResponseData instance onward.
+     *
      * @param apiVersion the apiVersion of the response
-     * @param header response header.
-     * @param response The KRPC message to handle.
-     * @param context The context.
+     * @param header     response header.
+     * @param response   The KRPC message to handle.
+     * @param context    The context.
+     * @return
      */
     @Override
-    public void onFetchResponse(short apiVersion, ResponseHeaderData header, FetchResponseData response, KrpcFilterContext context) {
+    public CompletionStage<ResponseFilterResult> onFetchResponse(short apiVersion, ResponseHeaderData header, FetchResponseData response, KrpcFilterContext context) {
         this.timer.record(() -> applyTransformation(response, context)); // We're timing this to report how long it takes through Micrometer
-        context.forwardResponse(header, response);
+        return context.completedForwardResponse(header, response);
     }
 
     /**

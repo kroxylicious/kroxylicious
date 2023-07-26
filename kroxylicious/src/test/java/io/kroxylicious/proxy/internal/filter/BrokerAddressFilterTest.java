@@ -37,6 +37,7 @@ import com.google.common.reflect.ClassPath;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.FilterInvoker;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
+import io.kroxylicious.proxy.filter.ResponseFilterResultImpl;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
 import io.kroxylicious.proxy.model.VirtualCluster;
 import io.kroxylicious.proxy.service.HostPort;
@@ -47,7 +48,6 @@ import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.kroxylicious.test.requestresponsetestdef.KafkaApiMessageConverter.responseConverterFor;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -83,6 +83,9 @@ class BrokerAddressFilterTest {
     @Captor
     private ArgumentCaptor<ApiMessage> apiMessageCaptor;
 
+    @Captor
+    private ArgumentCaptor<ResponseHeaderData> responseHeaderDataCaptor;
+
     private BrokerAddressFilter filter;
 
     private FilterInvoker invoker;
@@ -114,31 +117,38 @@ class BrokerAddressFilterTest {
     @ParameterizedTest(name = "{0}")
     @MethodSource(value = "nodeInfoCarryingResponses")
     void nodeInfoCarryingResponsesTransformed(@SuppressWarnings("unused") String testName, ApiMessageType apiMessageType, RequestHeaderData header,
-                                              ApiMessageTestDef responseTestDef) {
+                                              ApiMessageTestDef responseTestDef)
+            throws Exception {
         filterResponseAndVerify(apiMessageType, header, responseTestDef);
     }
 
     @ParameterizedTest(name = "{0}")
     @MethodSource(value = "completeClusterInfoCarryingResponses")
     void reconcileCachesUpstreamAddress(@SuppressWarnings("unused") String testName, ApiMessageType apiMessageType, RequestHeaderData header,
-                                        ApiMessageTestDef responseTestDef) {
+                                        ApiMessageTestDef responseTestDef)
+            throws Exception {
 
         filterResponseAndVerify(apiMessageType, header, responseTestDef);
         verify(endpointReconciler, times(1)).reconcile(Mockito.eq(virtualCluster), Mockito.anyMap());
     }
 
-    private void filterResponseAndVerify(ApiMessageType apiMessageType, RequestHeaderData header, ApiMessageTestDef responseTestDef) {
+    private void filterResponseAndVerify(ApiMessageType apiMessageType, RequestHeaderData header, ApiMessageTestDef responseTestDef) throws Exception {
         var response = responseTestDef.message();
         // marshalled the response object back to json, this is used for comparison later.
         var responseWriter = responseConverterFor(apiMessageType).writer();
 
         var marshalled = responseWriter.apply(response, header.requestApiVersion());
 
-        ResponseHeaderData headerData = new ResponseHeaderData();
-        invoker.onResponse(ApiKeys.forId(apiMessageType.apiKey()), header.requestApiVersion(), headerData, response, context);
-        verify(context).forwardResponse(any(), apiMessageCaptor.capture());
+        when(context.completedForwardResponse(responseHeaderDataCaptor.capture(), apiMessageCaptor.capture()))
+                .thenAnswer(invocation -> CompletableFuture
+                        .completedFuture(new ResponseFilterResultImpl(responseHeaderDataCaptor.getValue(), apiMessageCaptor.getValue(), false)));
 
-        var filtered = responseWriter.apply(apiMessageCaptor.getValue(), header.requestApiVersion());
+        ResponseHeaderData headerData = new ResponseHeaderData();
+        var stage = invoker.onResponse(ApiKeys.forId(apiMessageType.apiKey()), header.requestApiVersion(), headerData, response, context);
+        assertThat(stage).isCompleted();
+        var value = stage.toCompletableFuture().get().response();
+
+        var filtered = responseWriter.apply(value, header.requestApiVersion());
         assertThat(JsonDiff.asJson(marshalled, filtered)).isEqualTo(responseTestDef.expectedPatch());
     }
 

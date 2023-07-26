@@ -6,6 +6,8 @@
 
 package io.kroxylicious.proxy.filter;
 
+import java.util.concurrent.CompletionStage;
+
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
@@ -13,8 +15,8 @@ import org.apache.kafka.common.protocol.ApiMessage;
 record ResponseFilterInvoker(ResponseFilter filter) implements FilterInvoker {
 
     @Override
-    public void onResponse(ApiKeys apiKey, short apiVersion, ResponseHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
-        filter.onResponse(apiKey, header, body, filterContext);
+    public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, short apiVersion, ResponseHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
+        return filter.onResponse(apiKey, header, body, filterContext);
     }
 
     @Override

@@ -29,12 +29,11 @@ import org.mockito.Captor;
 import org.mockito.stubbing.Answer;
 
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
+import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.sample.config.SampleFilterConfig;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class SampleProduceRequestFilterTest {
@@ -66,11 +65,12 @@ class SampleProduceRequestFilterTest {
      * Unit Test: Checks that transformation is applied when request data contains configured value.
      */
     @Test
-    public void willTransformProduceRequestTest() {
+    public void willTransformProduceRequestTest() throws Exception {
         var requestData = buildProduceRequestData(PRE_TRANSFORM_VALUE);
-        filter.onProduceRequest(API_VERSION, headerData, requestData, context);
-        verify(context).forwardRequest(any(), apiMessageCaptor.capture());
-        var unpackedRequest = unpackProduceRequestData((ProduceRequestData) apiMessageCaptor.getValue());
+        var stage = filter.onProduceRequest(API_VERSION, headerData, requestData, context);
+        assertThat(stage).isCompleted();
+        var forwardedRequest = ((ResponseFilterResult) stage.toCompletableFuture().get()).response();
+        var unpackedRequest = unpackProduceRequestData((ProduceRequestData) forwardedRequest);
         // We should see that the unpacked request value has changed from the input value, and
         // We should see that the unpacked request value has been transformed to the correct value
         assertThat(unpackedRequest)
@@ -83,11 +83,12 @@ class SampleProduceRequestFilterTest {
      * value.
      */
     @Test
-    public void wontTransformProduceRequestTest() {
+    public void wontTransformProduceRequestTest() throws Exception {
         var requestData = buildProduceRequestData(NO_TRANSFORM_VALUE);
-        filter.onProduceRequest(API_VERSION, headerData, requestData, context);
-        verify(context).forwardRequest(any(), apiMessageCaptor.capture());
-        var unpackedRequest = unpackProduceRequestData((ProduceRequestData) apiMessageCaptor.getValue());
+        var stage = filter.onProduceRequest(API_VERSION, headerData, requestData, context);
+        assertThat(stage).isCompleted();
+        var forwardedRequest = ((ResponseFilterResult) stage.toCompletableFuture().get()).response();
+        var unpackedRequest = unpackProduceRequestData((ProduceRequestData) forwardedRequest);
         // We should see that the unpacked request value has not changed from the input value
         assertThat(unpackedRequest)
                 .containsExactly(NO_TRANSFORM_VALUE);

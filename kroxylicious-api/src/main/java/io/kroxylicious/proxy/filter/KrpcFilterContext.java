@@ -37,13 +37,19 @@ public interface KrpcFilterContext {
      */
     String sniHostname();
 
-    /**
-     * Send a request towards the broker, invoking upstream filters.
-     *
-     * @param header The header to forward to the broker.
-     * @param request The request to forward to the broker.
-     */
-    void forwardRequest(RequestHeaderData header, ApiMessage request);
+    // /**
+    // * Send a request towards the broker, invoking upstream filters.
+    // *
+    // * @param header The header to forward to the broker.
+    // * @param request The request to forward to the broker.
+    // */
+    // void forwardRequest(RequestHeaderData header, ApiMessage request);
+
+    default CompletionStage<RequestFilterResult> completedForwardRequest(ApiMessage request) {
+        return completedForwardRequest(null, request);
+    }
+
+    CompletionStage<RequestFilterResult> completedForwardRequest(RequestHeaderData header, ApiMessage request);
 
     /**
      * Send a message from a filter towards the broker, invoking upstream filters
@@ -59,36 +65,42 @@ public interface KrpcFilterContext {
      */
     <T extends ApiMessage> CompletionStage<T> sendRequest(short apiVersion, ApiMessage request);
 
-    /**
-     * Send a response towards the client, invoking downstream filters.
-     * <p>If this is invoked while the message is flowing downstream towards the broker, then
-     * it will not be sent to the broker. So this method can be used to generate responses in
-     * the proxy.</p>
-     * @param header The header to forward to the client.
-     * @param response The response to forward to the client.
-     * @throws AssertionError if response is logically inconsistent, for example responding with request data
-     * or responding with a produce response to a fetch request. It is up to specific implementations to
-     * determine what logically inconsistent means.
-     */
-    void forwardResponse(ResponseHeaderData header, ApiMessage response);
+    // /**
+    // * Send a response towards the client, invoking downstream filters.
+    // * <p>If this is invoked while the message is flowing downstream towards the broker, then
+    // * it will not be sent to the broker. So this method can be used to generate responses in
+    // * the proxy.</p>
+    // * @param header The header to forward to the client.
+    // * @param response The response to forward to the client.
+    // * @throws AssertionError if response is logically inconsistent, for example responding with request data
+    // * or responding with a produce response to a fetch request. It is up to specific implementations to
+    // * determine what logically inconsistent means.
+    // */
+    // void forwardResponse(ResponseHeaderData header, ApiMessage response);
 
-    /**
-     * Send a response towards the client, invoking downstream filters.
-     * <p>If this is invoked while the message is flowing downstream towards the broker, then
-     * it will not be sent to the broker. So this method can be used to generate responses in
-     * the proxy. In this case response headers will be created with a correlationId matching the request</p>
-     * @param response The response to forward to the client.
-     * @throws AssertionError if response is logically inconsistent, for example responding with request data
-     * or responding with a produce response to a fetch request. It is up to specific implementations to
-     * determine what logically inconsistent means.
-     */
-    void forwardResponse(ApiMessage response);
+    // /**
+    // * Send a response towards the client, invoking downstream filters.
+    // * <p>If this is invoked while the message is flowing downstream towards the broker, then
+    // * it will not be sent to the broker. So this method can be used to generate responses in
+    // * the proxy. In this case response headers will be created with a correlationId matching the request</p>
+    // * @param response The response to forward to the client.
+    // * @throws AssertionError if response is logically inconsistent, for example responding with request data
+    // * or responding with a produce response to a fetch request. It is up to specific implementations to
+    // * determine what logically inconsistent means.
+    // */
+    // void forwardResponse(ApiMessage response);
 
-    /**
-     * Allows a filter to decide to close the connection. The client will be disconnected.  The client is free
-     * to retry the connection.  The client will receive no indication why the connection was closed.
-     */
-    void closeConnection();
+    default CompletionStage<ResponseFilterResult> completedForwardResponse(ApiMessage response) {
+        return completedForwardResponse(null, response);
+    }
+
+    CompletionStage<ResponseFilterResult> completedForwardResponse(ResponseHeaderData header, ApiMessage response);
+
+    // /**
+    // * Allows a filter to decide to close the connection. The client will be disconnected. The client is free
+    // * to retry the connection. The client will receive no indication why the connection was closed.
+    // */
+    // void closeConnection();
 
     // TODO an API to allow a filter to add/remove another filter from the pipeline
 }

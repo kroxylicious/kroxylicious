@@ -28,6 +28,8 @@
  */
 package io.kroxylicious.proxy.filter;
 
+import java.util.concurrent.CompletionStage;
+
 import org.apache.kafka.common.message.${messageSpec.name}Data;
 <#if messageSpec.type?lower_case == 'response'>
 import org.apache.kafka.common.message.ResponseHeaderData;
@@ -63,7 +65,9 @@ public interface ${filterClass} extends KrpcFilter {
      * @param header <#if messageSpec.type?lower_case == 'response'>response<#else>request</#if> header.
      * @param ${msgType} The KRPC message to handle.
      * @param context The context.
+     * @return CompletionStage that will yield a <#if messageSpec.type?lower_case == 'response'>{@link ResponseFilterResult}<#else>{@link FilterResult}</#if>
+     *         containing the ${messageSpec.type?lower_case} to be forwarded.
      */
-    void on${messageSpec.name}(short apiVersion, <#if messageSpec.type?lower_case == 'response'>ResponseHeaderData<#else>RequestHeaderData</#if> header, ${dataClass} ${msgType}, KrpcFilterContext context);
+    CompletionStage<<#if messageSpec.type?lower_case == 'response'>ResponseFilterResult<#else>? extends FilterResult</#if>> on${messageSpec.name}(short apiVersion, <#if messageSpec.type?lower_case == 'response'>ResponseHeaderData<#else>RequestHeaderData</#if> header, ${dataClass} ${msgType}, KrpcFilterContext context);
 
 }

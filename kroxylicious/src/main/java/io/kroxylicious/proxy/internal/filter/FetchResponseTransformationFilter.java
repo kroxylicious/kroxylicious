@@ -9,6 +9,8 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
 
 import org.apache.kafka.common.Uuid;
@@ -31,6 +33,8 @@ import org.slf4j.LoggerFactory;
 import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.filter.FetchResponseFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
+import io.kroxylicious.proxy.filter.ResponseFilterResult;
+import io.kroxylicious.proxy.filter.ResponseFilterResultImpl;
 import io.kroxylicious.proxy.internal.util.MemoryRecordsHelper;
 
 /**
@@ -71,7 +75,8 @@ public class FetchResponseTransformationFilter implements FetchResponseFilter {
     }
 
     @Override
-    public void onFetchResponse(short apiVersion, ResponseHeaderData header, FetchResponseData fetchResponse, KrpcFilterContext context) {
+    public CompletionStage<ResponseFilterResult> onFetchResponse(short apiVersion, ResponseHeaderData header, FetchResponseData fetchResponse,
+                                                                 KrpcFilterContext context) {
         List<MetadataRequestData.MetadataRequestTopic> requestTopics = fetchResponse.responses().stream()
                 .filter(t -> t.topic().isEmpty())
                 .map(fetchableTopicResponse -> {
@@ -82,6 +87,7 @@ public class FetchResponseTransformationFilter implements FetchResponseFilter {
                 .collect(Collectors.toList());
         if (!requestTopics.isEmpty()) {
             LOGGER.debug("Fetch response contains {} unknown topic ids, lookup via Metadata request: {}", requestTopics.size(), requestTopics);
+            var future = new CompletableFuture<ResponseFilterResult>();
             // TODO Can't necessarily use HIGHEST_SUPPORTED_VERSION, must use highest supported version
             context.<MetadataResponseData> sendRequest(MetadataRequestData.HIGHEST_SUPPORTED_VERSION,
                     new MetadataRequestData()
@@ -94,12 +100,13 @@ public class FetchResponseTransformationFilter implements FetchResponseFilter {
                         }
                         applyTransformation(context, fetchResponse);
                         LOGGER.debug("Forwarding original Fetch response");
-                        context.forwardResponse(header, fetchResponse);
+                        future.complete(new ResponseFilterResultImpl(header, fetchResponse, false));
                     });
+            return future;
         }
         else {
             applyTransformation(context, fetchResponse);
-            context.forwardResponse(header, fetchResponse);
+            return context.completedForwardResponse(header, fetchResponse);
         }
     }
 

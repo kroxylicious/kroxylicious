@@ -242,7 +242,6 @@ public class KrpcFilterIT {
 
     @Test
     public void shouldModifyFetchMessage(KafkaCluster cluster, Admin admin) throws Exception {
-        var proxyAddress = HostPort.parse("localhost:9192");
 
         admin.createTopics(List.of(
                 new NewTopic(TOPIC_1, 1, (short) 1),

@@ -25,6 +25,10 @@ import io.netty.channel.ChannelPromise;
 
 import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
+import io.kroxylicious.proxy.filter.RequestFilterResult;
+import io.kroxylicious.proxy.filter.RequestFilterResultImpl;
+import io.kroxylicious.proxy.filter.ResponseFilterResult;
+import io.kroxylicious.proxy.filter.ResponseFilterResultImpl;
 import io.kroxylicious.proxy.frame.DecodedFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.RequestFrame;
@@ -93,8 +97,7 @@ class DefaultFilterContext implements KrpcFilterContext {
      * @param header The header
      * @param message The message
      */
-    @Override
-    public void forwardRequest(RequestHeaderData header, ApiMessage message) {
+    protected void forwardRequest(RequestHeaderData header, ApiMessage message) {
         if (decodedFrame.body() != message) {
             throw new IllegalStateException();
         }
@@ -112,6 +115,11 @@ class DefaultFilterContext implements KrpcFilterContext {
         }
         // TODO check we've not forwarded it already
         channelContext.write(decodedFrame, promise);
+    }
+
+    @Override
+    public CompletionStage<RequestFilterResult> completedForwardRequest(RequestHeaderData header, ApiMessage request) {
+        return CompletableFuture.completedStage(new RequestFilterResultImpl(header, request));
     }
 
     @Override
@@ -174,8 +182,7 @@ class DefaultFilterContext implements KrpcFilterContext {
      * @param header The header
      * @param response The message
      */
-    @Override
-    public void forwardResponse(ResponseHeaderData header, ApiMessage response) {
+    protected void forwardResponse(ResponseHeaderData header, ApiMessage response) {
         // check it's a response
         String name = response.getClass().getName();
         if (!name.endsWith("ResponseData")) {
@@ -199,8 +206,7 @@ class DefaultFilterContext implements KrpcFilterContext {
         }
     }
 
-    @Override
-    public void forwardResponse(ApiMessage response) {
+    protected void forwardResponse(ApiMessage response) {
         if (decodedFrame instanceof RequestFrame) {
             this.forwardResponse(new ResponseHeaderData().setCorrelationId(decodedFrame.correlationId()), response);
         }
@@ -210,7 +216,11 @@ class DefaultFilterContext implements KrpcFilterContext {
     }
 
     @Override
-    public void closeConnection() {
+    public CompletionStage<ResponseFilterResult> completedForwardResponse(ResponseHeaderData header, ApiMessage response) {
+        return CompletableFuture.completedStage(new ResponseFilterResultImpl(header, response, false));
+    }
+
+    protected void closeConnection() {
         this.channelContext.close().addListener(future -> {
             LOGGER.debug("{} closed.", channelDescriptor());
         });

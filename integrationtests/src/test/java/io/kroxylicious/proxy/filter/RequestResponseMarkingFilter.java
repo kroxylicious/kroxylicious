@@ -7,6 +7,7 @@
 package io.kroxylicious.proxy.filter;
 
 import java.util.Set;
+import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
@@ -41,19 +42,19 @@ public class RequestResponseMarkingFilter implements RequestFilter, ResponseFilt
     }
 
     @Override
-    public void onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
+    public CompletionStage<? extends FilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
         if (keysToMark.contains(apiKey)) {
             body.unknownTaggedFields().add(createTaggedField("request"));
         }
-        filterContext.forwardRequest(header, body);
+        return filterContext.completedForwardRequest(header, body);
     }
 
     @Override
-    public void onResponse(ApiKeys apiKey, ResponseHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
+    public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, ResponseHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
         if (keysToMark.contains(apiKey)) {
             body.unknownTaggedFields().add(createTaggedField("response"));
         }
-        filterContext.forwardResponse(header, body);
+        return filterContext.completedForwardResponse(header, body);
     }
 
     private RawTaggedField createTaggedField(String type) {

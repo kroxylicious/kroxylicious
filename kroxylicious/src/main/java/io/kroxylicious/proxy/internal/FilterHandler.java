@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.internal;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
+import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,6 +21,8 @@ import io.netty.channel.ChannelPromise;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.FilterInvoker;
 import io.kroxylicious.proxy.filter.KrpcFilter;
+import io.kroxylicious.proxy.filter.RequestFilterResult;
+import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
@@ -58,7 +61,34 @@ public class FilterHandler
                 LOGGER.debug("{}: Dispatching downstream {} request to filter{}: {}",
                         ctx.channel(), decodedFrame.apiKey(), filterDescriptor(), msg);
             }
-            invoker.onRequest(decodedFrame.apiKey(), decodedFrame.apiVersion(), decodedFrame.header(), decodedFrame.body(), filterContext);
+
+            var stage = invoker.onRequest(decodedFrame.apiKey(), decodedFrame.apiVersion(), decodedFrame.header(),
+                    decodedFrame.body(), filterContext);
+            stage.whenComplete((filterResult, t) -> {
+                // should run on netty thread?
+
+                if (t != null) {
+                    filterContext.closeConnection();
+                    return;
+                }
+
+                if (filterResult instanceof RequestFilterResult rfr) {
+                    var header = rfr.header() == null ? decodedFrame.header() : rfr.header();
+                    filterContext.forwardRequest(header, rfr.request());
+                }
+                else if (filterResult instanceof ResponseFilterResult rfr) {
+                    // short circuit path
+                    if (rfr.response() != null) {
+                        var header = rfr.header() == null ? new ResponseHeaderData().setCorrelationId(decodedFrame.correlationId()) : rfr.header();
+                        filterContext.forwardResponse(header, rfr.response());
+                    }
+
+                    if (rfr.closeConnection()) {
+                        filterContext.closeConnection();
+                    }
+                }
+
+            });
 
         }
         else {
@@ -89,7 +119,23 @@ public class FilterHandler
                     LOGGER.debug("{}: Dispatching upstream {} response to filter {}: {}",
                             ctx.channel(), decodedFrame.apiKey(), filterDescriptor(), msg);
                 }
-                invoker.onResponse(decodedFrame.apiKey(), decodedFrame.apiVersion(), decodedFrame.header(), decodedFrame.body(), filterContext);
+                var stage = invoker.onResponse(decodedFrame.apiKey(), decodedFrame.apiVersion(),
+                        decodedFrame.header(), decodedFrame.body(), filterContext);
+
+                stage.whenComplete((rfr, t) -> {
+                    if (t != null) {
+                        filterContext.closeConnection();
+                        return;
+                    }
+                    if (rfr.response() != null) {
+                        filterContext.forwardResponse(rfr.header(), rfr.response());
+                    }
+                    if (rfr.closeConnection()) {
+                        filterContext.closeConnection();
+                    }
+
+                });
+
             }
         }
         else {

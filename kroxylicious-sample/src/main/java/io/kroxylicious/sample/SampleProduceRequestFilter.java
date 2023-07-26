@@ -6,6 +6,8 @@
 
 package io.kroxylicious.sample;
 
+import java.util.concurrent.CompletionStage;
+
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.ProduceRequestData.PartitionProduceData;
 import org.apache.kafka.common.message.RequestHeaderData;
@@ -13,6 +15,7 @@ import org.apache.kafka.common.message.RequestHeaderData;
 import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.Timer;
 
+import io.kroxylicious.proxy.filter.FilterResult;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
 import io.kroxylicious.sample.config.SampleFilterConfig;
@@ -49,15 +52,18 @@ public class SampleProduceRequestFilter implements ProduceRequestFilter {
     /**
      * Handle the given request, transforming the data in-place according to the configuration, and returning
      * the ProduceRequestData instance to be passed to the next filter.
+     *
      * @param apiVersion the apiVersion of the request
-     * @param header request header.
-     * @param request The KRPC message to handle.
-     * @param context The context.
+     * @param header     request header.
+     * @param request    The KRPC message to handle.
+     * @param context    The context.
+     * @return
      */
     @Override
-    public void onProduceRequest(short apiVersion, RequestHeaderData header, ProduceRequestData request, KrpcFilterContext context) {
+    public CompletionStage<? extends FilterResult> onProduceRequest(short apiVersion, RequestHeaderData header, ProduceRequestData request, KrpcFilterContext context) {
         this.timer.record(() -> applyTransformation(request, context)); // We're timing this to report how long it takes through Micrometer
-        context.forwardRequest(header, request);
+
+        return context.completedForwardRequest(header, request);
     }
 
     /**

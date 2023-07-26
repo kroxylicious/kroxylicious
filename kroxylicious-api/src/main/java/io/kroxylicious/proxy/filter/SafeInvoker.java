@@ -6,6 +6,8 @@
 
 package io.kroxylicious.proxy.filter;
 
+import java.util.concurrent.CompletionStage;
+
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
@@ -20,22 +22,22 @@ import org.apache.kafka.common.protocol.ApiMessage;
 record SafeInvoker(FilterInvoker invoker) implements FilterInvoker {
 
     @Override
-    public void onRequest(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
+    public CompletionStage<? extends FilterResult> onRequest(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
         if (invoker.shouldHandleRequest(apiKey, apiVersion)) {
-            invoker.onRequest(apiKey, apiVersion, header, body, filterContext);
+            return invoker.onRequest(apiKey, apiVersion, header, body, filterContext);
         }
         else {
-            filterContext.forwardRequest(header, body);
+            return filterContext.completedForwardRequest(header, body);
         }
     }
 
     @Override
-    public void onResponse(ApiKeys apiKey, short apiVersion, ResponseHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
+    public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, short apiVersion, ResponseHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
         if (invoker.shouldHandleResponse(apiKey, apiVersion)) {
-            invoker.onResponse(apiKey, apiVersion, header, body, filterContext);
+            return invoker.onResponse(apiKey, apiVersion, header, body, filterContext);
         }
         else {
-            filterContext.forwardResponse(header, body);
+            return filterContext.completedForwardResponse(header, body);
         }
     }
 

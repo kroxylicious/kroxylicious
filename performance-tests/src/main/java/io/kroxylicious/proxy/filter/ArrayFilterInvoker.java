@@ -9,6 +9,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.OptionalInt;
+import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.message.ApiMessageType;
 import org.apache.kafka.common.message.RequestHeaderData;
@@ -444,38 +445,42 @@ public class ArrayFilterInvoker implements FilterInvoker {
 
     /**
      * Apply the filter to the given {@code header} and {@code body} using the given {@code filterContext}.
-     * @param apiKey The request api key.
-     * @param apiVersion The request api version.
-     * @param header The request header.
-     * @param body The request body.
+     *
+     * @param apiKey        The request api key.
+     * @param apiVersion    The request api version.
+     * @param header        The request header.
+     * @param body          The request body.
      * @param filterContext The filter context.
+     * @return
      */
     @Override
-    public void onRequest(ApiKeys apiKey,
-                          short apiVersion,
-                          RequestHeaderData header,
-                          ApiMessage body,
-                          KrpcFilterContext filterContext) {
+    public CompletionStage<? extends FilterResult> onRequest(ApiKeys apiKey,
+                                                             short apiVersion,
+                                                             RequestHeaderData header,
+                                                             ApiMessage body,
+                                                             KrpcFilterContext filterContext) {
         FilterInvoker invoker = requestInvokers[apiKey.id];
-        invoker.onRequest(apiKey, apiVersion, header, body, filterContext);
+        return invoker.onRequest(apiKey, apiVersion, header, body, filterContext);
     }
 
     /**
      * Apply the filter to the given {@code header} and {@code body} using the given {@code filterContext}.
-     * @param apiKey The request api key.
-     * @param apiVersion The api version.
-     * @param header The request header.
-     * @param body The request body.
+     *
+     * @param apiKey        The request api key.
+     * @param apiVersion    The api version.
+     * @param header        The request header.
+     * @param body          The request body.
      * @param filterContext The filter context.
+     * @return
      */
     @Override
-    public void onResponse(ApiKeys apiKey,
-                           short apiVersion,
-                           ResponseHeaderData header,
-                           ApiMessage body,
-                           KrpcFilterContext filterContext) {
+    public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey,
+                                                            short apiVersion,
+                                                            ResponseHeaderData header,
+                                                            ApiMessage body,
+                                                            KrpcFilterContext filterContext) {
         FilterInvoker invoker = responseInvokers[apiKey.id];
-        invoker.onResponse(apiKey, apiVersion, header, body, filterContext);
+        return invoker.onResponse(apiKey, apiVersion, header, body, filterContext);
     }
 
     /**

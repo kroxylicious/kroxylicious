@@ -32,9 +32,7 @@ import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.sample.config.SampleFilterConfig;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class SampleFetchResponseFilterTest {
@@ -66,10 +64,11 @@ class SampleFetchResponseFilterTest {
      * Unit Test: Checks that transformation is applied when response data contains configured value.
      */
     @Test
-    public void willTransformFetchResponseTest() {
+    public void willTransformFetchResponseTest() throws Exception {
         var responseData = buildFetchResponseData(PRE_TRANSFORM_VALUE);
-        filter.onFetchResponse(API_VERSION, headerData, responseData, context);
-        verify(context).forwardResponse(any(), apiMessageCaptor.capture());
+        var stage = filter.onFetchResponse(API_VERSION, headerData, responseData, context);
+        var response = stage.toCompletableFuture().get().response();
+
         var unpackedResponse = unpackFetchResponseData((FetchResponseData) apiMessageCaptor.getValue());
         // We only put 1 record in, we should only get 1 record back, and
         // We should see that the unpacked response value has changed from the input value, and
@@ -84,10 +83,11 @@ class SampleFetchResponseFilterTest {
      * value.
      */
     @Test
-    public void wontTransformFetchResponseTest() {
+    public void wontTransformFetchResponseTest() throws Exception {
         var responseData = buildFetchResponseData(NO_TRANSFORM_VALUE);
-        filter.onFetchResponse(API_VERSION, headerData, responseData, context);
-        verify(context).forwardResponse(any(), apiMessageCaptor.capture());
+        var stage = filter.onFetchResponse(API_VERSION, headerData, responseData, context);
+
+        var response = stage.toCompletableFuture().get().response();
         var unpackedResponse = unpackFetchResponseData((FetchResponseData) apiMessageCaptor.getValue());
         // We only put 1 record in, we should only get 1 record back, and
         // We should see that the unpacked response value has not changed from the input value

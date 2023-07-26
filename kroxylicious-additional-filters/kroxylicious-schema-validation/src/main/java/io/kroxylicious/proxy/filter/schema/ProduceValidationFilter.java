@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.filter.schema;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.ProduceResponseData;
@@ -17,9 +18,11 @@ import org.apache.kafka.common.protocol.Errors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.kroxylicious.proxy.filter.FilterResult;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
 import io.kroxylicious.proxy.filter.ProduceResponseFilter;
+import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.filter.schema.validation.request.ProduceRequestValidationResult;
 import io.kroxylicious.proxy.filter.schema.validation.request.ProduceRequestValidator;
 import io.kroxylicious.proxy.filter.schema.validation.topic.PartitionValidationResult;
@@ -62,21 +65,22 @@ public class ProduceValidationFilter implements ProduceRequestFilter, ProduceRes
     }
 
     @Override
-    public void onProduceRequest(short apiVersion, RequestHeaderData header, ProduceRequestData request, KrpcFilterContext context) {
+    public CompletionStage<? extends FilterResult> onProduceRequest(short apiVersion, RequestHeaderData header, ProduceRequestData request, KrpcFilterContext context) {
         ProduceRequestValidationResult result = validator.validateRequest(request);
         if (result.isAnyTopicPartitionInvalid()) {
-            handleInvalidTopicPartitions(header, request, context, result);
+            return handleInvalidTopicPartitions(header, request, context, result);
         }
         else {
-            context.forwardRequest(header, request);
+            return context.completedForwardRequest(header, request);
         }
     }
 
-    private void handleInvalidTopicPartitions(RequestHeaderData header, ProduceRequestData request, KrpcFilterContext context, ProduceRequestValidationResult result) {
+    private CompletionStage<? extends FilterResult> handleInvalidTopicPartitions(RequestHeaderData header, ProduceRequestData request, KrpcFilterContext context,
+                                                                                 ProduceRequestValidationResult result) {
         if (result.isAllTopicPartitionsInvalid()) {
             LOGGER.debug("all topic-partitions for request contained invalid data: {}", result);
             ProduceResponseData response = invalidateEntireRequest(request, result);
-            context.forwardResponse(response);
+            return context.completedForwardResponse(response);
         }
         // do not forward partial produce data if request is transactional because the whole produce must eventually succeed or fail together
         else if (request.transactionalId() == null && forwardPartialRequests) {
@@ -86,13 +90,13 @@ public class ProduceValidationFilter implements ProduceRequestFilter, ProduceRes
                 topicDatum.partitionData().removeIf(partitionProduceData -> !result.isPartitionValid(topicDatum.name(), partitionProduceData.index()));
             }
             correlatedResults.put(header.correlationId(), result);
-            context.forwardRequest(header, request);
+            return context.completedForwardRequest(header, request);
         }
         else {
             LOGGER.debug("some topic-partitions for transactional request with id: {}, contained invalid data: {}, invalidation entire request",
                     request.transactionalId(), result);
             ProduceResponseData response = invalidateEntireRequest(request, result);
-            context.forwardResponse(response);
+            return context.completedForwardResponse(response);
         }
     }
 
@@ -145,15 +149,16 @@ public class ProduceValidationFilter implements ProduceRequestFilter, ProduceRes
     }
 
     @Override
-    public void onProduceResponse(short apiVersion, ResponseHeaderData header, ProduceResponseData response, KrpcFilterContext context) {
+    public CompletionStage<ResponseFilterResult> onProduceResponse(short apiVersion, ResponseHeaderData header, ProduceResponseData response,
+                                                                   KrpcFilterContext context) {
         ProduceRequestValidationResult produceRequestValidationResult = correlatedResults.remove(header.correlationId());
         if (produceRequestValidationResult != null) {
             LOGGER.debug("augmenting invalid topic-partition details into response: {}", produceRequestValidationResult);
             augmentResponseWithInvalidTopicPartitions(response, produceRequestValidationResult);
-            context.forwardResponse(response);
+            return context.completedForwardResponse(response);
         }
         else {
-            context.forwardResponse(response);
+            return context.completedForwardResponse(response);
         }
     }
 
