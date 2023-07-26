@@ -13,7 +13,7 @@ mvn clean install -DskipTests=true
 
 for COUNT in {1..10} ; do
     echo "=============== RUN ${COUNT} STARTING =============== " | tee --append "${logFile}"
-    mvn verify -Dit.test=${targetTest} -pl :integrationtests >> "${logFile}"
+    mvn verify -Dit.test="${targetTest}" -pl :integrationtests >> "${logFile}"
     EC=$?
     echo "=============== RUN ${COUNT} FINISHED =============== " | tee --append "${logFile}"
     if [[ ${EC} -ne 0 ]]; then
