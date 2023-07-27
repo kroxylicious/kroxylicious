@@ -49,7 +49,7 @@ public abstract class FilterHarness {
      */
     protected void buildChannel(KrpcFilter filter, long timeoutMs) {
         this.filter = filter;
-        filterHandler = new FilterHandler(getOnlyElement(FilterAndInvoker.build(filter)), timeoutMs, null);
+        filterHandler = new FilterHandler(getOnlyElement(FilterAndInvoker.build(filter)), timeoutMs, null, new EmbeddedChannel());
         channel = new EmbeddedChannel(filterHandler);
     }
 

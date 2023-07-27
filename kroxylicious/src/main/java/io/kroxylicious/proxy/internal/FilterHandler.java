@@ -17,12 +17,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.netty.buffer.Unpooled;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.FilterInvoker;
+import io.kroxylicious.proxy.filter.FilterResult;
 import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
@@ -40,15 +42,17 @@ public class FilterHandler extends ChannelDuplexHandler {
     private final KrpcFilter filter;
     private final long timeoutMs;
     private final String sniHostname;
+    private final Channel inboundChannel;
     private final FilterInvoker invoker;
     private CompletableFuture<Void> writeFuture = CompletableFuture.completedFuture(null);
     private CompletableFuture<Void> readFuture = CompletableFuture.completedFuture(null);
 
-    public FilterHandler(FilterAndInvoker filterAndInvoker, long timeoutMs, String sniHostname) {
+    public FilterHandler(FilterAndInvoker filterAndInvoker, long timeoutMs, String sniHostname, Channel inboundChannel) {
         this.filter = Objects.requireNonNull(filterAndInvoker).filter();
         this.invoker = filterAndInvoker.invoker();
         this.timeoutMs = Assertions.requireStrictlyPositive(timeoutMs, "timeout");
         this.sniHostname = sniHostname;
+        this.inboundChannel = inboundChannel;
     }
 
     String filterDescriptor() {
@@ -86,12 +90,8 @@ public class FilterHandler extends ChannelDuplexHandler {
                 return CompletableFuture.completedFuture(null);
             }
             var future = stage.toCompletableFuture();
-            if (!future.isDone()) {
-                ctx.executor().schedule(() -> {
-                    future.completeExceptionally(new TimeoutException());
-                }, timeoutMs, TimeUnit.MILLISECONDS);
-            }
-            return future.whenComplete((requestFilterResult, t) -> {
+            var withTimeout = handleDeferredStage(ctx, future);
+            return withTimeout.whenComplete((requestFilterResult, t) -> {
                 // maybe better to run the whole thing on the netty thread.
 
                 if (t != null) {
@@ -138,6 +138,22 @@ public class FilterHandler extends ChannelDuplexHandler {
         }
     }
 
+    private <T extends FilterResult> CompletableFuture<T> handleDeferredStage(ChannelHandlerContext ctx, CompletableFuture<T> stage) {
+        if (!stage.isDone()) {
+            inboundChannel.config().setAutoRead(false);
+            ctx.executor().schedule(() -> {
+                stage.completeExceptionally(new TimeoutException());
+            }, timeoutMs, TimeUnit.MILLISECONDS);
+            return stage.thenApply(filterResult -> {
+                inboundChannel.config().setAutoRead(true);
+                return filterResult;
+            });
+        }
+        else {
+            return stage;
+        }
+    }
+
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         if (msg instanceof InternalResponseFrame<?> decodedFrame) {
@@ -178,12 +194,8 @@ public class FilterHandler extends ChannelDuplexHandler {
                 return CompletableFuture.completedFuture(null);
             }
             var future = stage.toCompletableFuture();
-            if (!future.isDone()) {
-                ctx.executor().schedule(() -> {
-                    future.completeExceptionally(new TimeoutException());
-                }, timeoutMs, TimeUnit.MILLISECONDS);
-            }
-            return future.whenComplete((responseFilterResult, t) -> {
+            var withTimeout = handleDeferredStage(ctx, future);
+            return withTimeout.whenComplete((responseFilterResult, t) -> {
                 if (t != null) {
                     LOGGER.warn("{}: Filter{} for {} response ended exceptionally - closing connection",
                             ctx.channel(), filterDescriptor(), decodedFrame.apiKey(), t);
