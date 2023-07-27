@@ -71,10 +71,9 @@ public class ResilienceIT extends BaseIT {
                 ConsumerConfig.GROUP_ID_CONFIG, "mygroup",
                 ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"));
 
-        Producer<String, String> producer;
         Consumer<String, String> consumer;
-        try (var tester = kroxyliciousTester(builder)) {
-            producer = tester.producer(producerConfig);
+        try (var tester = kroxyliciousTester(builder);
+                var producer = tester.producer(producerConfig)) {
             consumer = tester.consumer(consumerConfig);
             producer.send(new ProducerRecord<>(topic, "my-key", "Hello, world!")).get(10, TimeUnit.SECONDS);
             consumer.subscribe(Set.of(topic));
