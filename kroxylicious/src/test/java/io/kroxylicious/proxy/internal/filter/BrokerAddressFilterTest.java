@@ -37,7 +37,6 @@ import com.google.common.reflect.ClassPath;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.FilterInvoker;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
-import io.kroxylicious.proxy.filter.ResponseFilterResultImpl;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
 import io.kroxylicious.proxy.model.VirtualCluster;
 import io.kroxylicious.proxy.service.HostPort;
@@ -46,6 +45,7 @@ import io.kroxylicious.test.requestresponsetestdef.RequestResponseTestDef;
 
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.Iterables.getOnlyElement;
+import static io.kroxylicious.proxy.filter.FilterResultBuilder.responseFilterResultBuilder;
 import static io.kroxylicious.test.requestresponsetestdef.KafkaApiMessageConverter.responseConverterFor;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.lenient;
@@ -141,12 +141,16 @@ class BrokerAddressFilterTest {
 
         when(context.completedForwardResponse(responseHeaderDataCaptor.capture(), apiMessageCaptor.capture()))
                 .thenAnswer(invocation -> CompletableFuture
-                        .completedFuture(new ResponseFilterResultImpl(responseHeaderDataCaptor.getValue(), apiMessageCaptor.getValue(), false)));
+                        .completedFuture(
+                                responseFilterResultBuilder()
+                                        .withHeader(responseHeaderDataCaptor.getValue())
+                                        .withMessage(apiMessageCaptor.getValue())
+                                        .build()));
 
         ResponseHeaderData headerData = new ResponseHeaderData();
         var stage = invoker.onResponse(ApiKeys.forId(apiMessageType.apiKey()), header.requestApiVersion(), headerData, response, context);
         assertThat(stage).isCompleted();
-        var value = stage.toCompletableFuture().get().response();
+        var value = stage.toCompletableFuture().get().message();
 
         var filtered = responseWriter.apply(value, header.requestApiVersion());
         assertThat(JsonDiff.asJson(marshalled, filtered)).isEqualTo(responseTestDef.expectedPatch());

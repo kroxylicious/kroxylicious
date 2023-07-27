@@ -23,12 +23,11 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 
+import io.kroxylicious.proxy.filter.FilterResultBuilder;
 import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
-import io.kroxylicious.proxy.filter.RequestFilterResultImpl;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
-import io.kroxylicious.proxy.filter.ResponseFilterResultImpl;
 import io.kroxylicious.proxy.frame.DecodedFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.RequestFrame;
@@ -119,7 +118,7 @@ class DefaultFilterContext implements KrpcFilterContext {
 
     @Override
     public CompletionStage<RequestFilterResult> completedForwardRequest(RequestHeaderData header, ApiMessage request) {
-        return CompletableFuture.completedStage(new RequestFilterResultImpl(header, request));
+        return CompletableFuture.completedStage(requestFilterResultBuilder().withMessage(request).withHeader(header).build());
     }
 
     @Override
@@ -216,8 +215,18 @@ class DefaultFilterContext implements KrpcFilterContext {
     }
 
     @Override
+    public FilterResultBuilder<ResponseFilterResult, ResponseHeaderData> responseFilterResultBuilder() {
+        return FilterResultBuilder.responseFilterResultBuilder();
+    }
+
+    @Override
+    public FilterResultBuilder<RequestFilterResult, RequestHeaderData> requestFilterResultBuilder() {
+        return FilterResultBuilder.requestFilterResultBuilder();
+    }
+
+    @Override
     public CompletionStage<ResponseFilterResult> completedForwardResponse(ResponseHeaderData header, ApiMessage response) {
-        return CompletableFuture.completedStage(new ResponseFilterResultImpl(header, response, false));
+        return CompletableFuture.completedStage(responseFilterResultBuilder().withHeader(header).withMessage(response).build());
     }
 
     protected void closeConnection() {

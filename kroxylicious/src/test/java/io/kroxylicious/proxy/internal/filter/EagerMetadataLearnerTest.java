@@ -34,6 +34,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import io.kroxylicious.proxy.filter.FilterResultBuilder;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 
@@ -86,6 +87,7 @@ class EagerMetadataLearnerTest {
         var metadataResponse = new MetadataResponseData();
         metadataResponse.brokers().add(new MetadataResponseData.MetadataResponseBroker().setNodeId(1).setHost("localhost").setPort(1234));
 
+        when(context.responseFilterResultBuilder()).thenReturn(FilterResultBuilder.responseFilterResultBuilder());
         when(context.sendRequest(anyShort(), isA(MetadataRequestData.class))).thenReturn(CompletableFuture.completedStage(metadataResponse));
         var stage = learner.onRequest(apiKey, header, request, context);
         assertThat(stage).isCompleted();
@@ -94,7 +96,7 @@ class EagerMetadataLearnerTest {
         if (apiKey == ApiKeys.METADATA) {
             // if caller's request is a metadata request, then the filter must forward it with fidelity
             verify(context).sendRequest(eq(header.requestApiVersion()), eq(request));
-            assertThat(result.response()).isEqualTo(metadataResponse);
+            assertThat(result.message()).isEqualTo(metadataResponse);
         }
         else {
             verify(context).sendRequest(anyShort(), isA(MetadataRequestData.class));

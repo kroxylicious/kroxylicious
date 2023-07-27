@@ -33,14 +33,13 @@ import com.google.common.reflect.ClassPath.ResourceInfo;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.FilterInvoker;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
-import io.kroxylicious.proxy.filter.RequestFilterResult;
-import io.kroxylicious.proxy.filter.RequestFilterResultImpl;
-import io.kroxylicious.proxy.filter.ResponseFilterResultImpl;
 import io.kroxylicious.test.requestresponsetestdef.ApiMessageTestDef;
 import io.kroxylicious.test.requestresponsetestdef.RequestResponseTestDef;
 
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.Iterables.getOnlyElement;
+import static io.kroxylicious.proxy.filter.FilterResultBuilder.requestFilterResultBuilder;
+import static io.kroxylicious.proxy.filter.FilterResultBuilder.responseFilterResultBuilder;
 import static io.kroxylicious.test.requestresponsetestdef.KafkaApiMessageConverter.requestConverterFor;
 import static io.kroxylicious.test.requestresponsetestdef.KafkaApiMessageConverter.responseConverterFor;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -98,11 +97,11 @@ class MultiTenantTransformationFilterTest {
 
         when(context.completedForwardRequest(apiMessageCaptor.capture()))
                 .thenAnswer(invocation -> CompletableFuture
-                        .completedFuture(new RequestFilterResultImpl(null, apiMessageCaptor.getValue())));
+                        .completedFuture(requestFilterResultBuilder().withMessage(apiMessageCaptor.getValue()).build()));
 
         var stage = invoker.onRequest(ApiKeys.forId(apiMessageType.apiKey()), header.requestApiVersion(), header, request, context);
         assertThat(stage).isCompleted();
-        var forward = ((RequestFilterResult) stage.toCompletableFuture().get()).request();
+        var forward = stage.toCompletableFuture().get().message();
 
         var filtered = requestWriter.apply(forward, header.requestApiVersion());
         assertEquals(requestTestDef.expectedPatch(), JsonDiff.asJson(marshalled, filtered));
@@ -125,12 +124,12 @@ class MultiTenantTransformationFilterTest {
 
         when(context.completedForwardResponse(apiMessageCaptor.capture()))
                 .thenAnswer(invocation -> CompletableFuture
-                        .completedFuture(new ResponseFilterResultImpl(null, apiMessageCaptor.getValue(), false)));
+                        .completedFuture(responseFilterResultBuilder().withMessage(apiMessageCaptor.getValue()).build()));
 
         ResponseHeaderData headerData = new ResponseHeaderData();
         var stage = invoker.onResponse(ApiKeys.forId(apiMessageType.apiKey()), header.requestApiVersion(), headerData, response, context);
         assertThat(stage).isCompleted();
-        var forward = stage.toCompletableFuture().get().response();
+        var forward = stage.toCompletableFuture().get().message();
 
         var filtered = responseWriter.apply(forward, header.requestApiVersion());
         assertEquals(responseTestDef.expectedPatch(), JsonDiff.asJson(marshalled, filtered));

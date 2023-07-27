@@ -21,7 +21,6 @@ import io.kroxylicious.proxy.filter.FilterResult;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.proxy.filter.RequestFilter;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
-import io.kroxylicious.proxy.filter.ResponseFilterResultImpl;
 
 /**
  * An internal filter that causes the system to eagerly learn the cluster's topology by spontaneously emitting
@@ -61,17 +60,16 @@ public class EagerMetadataLearner implements RequestFilter {
             var future = new CompletableFuture<ResponseFilterResult>();
             var unused = filterContext.<MetadataResponseData> sendRequest(apiVersion, request)
                     .thenAccept(metadataResponseData -> {
+                        // closing the connection is important. This client connection is connected to bootstrap (it could
+                        // be any broker or maybe not something else). we must close the connection to force the client to
+                        // connect again.
+                        var builder = filterContext.responseFilterResultBuilder().withCloseConnection(true);
                         if (useClientRequest) {
                             // The client's requested matched our out-of-band request, so we may as well return the
                             // response.
-                            future.complete(new ResponseFilterResultImpl(null, metadataResponseData, true));
+                            builder.withMessage(metadataResponseData);
                         }
-                        else {
-                            // closing the connection is important. This client connection is connected to bootstrap (it could
-                            // be any broker or maybe not something else). we must close the connection to force the client to
-                            // connect again.
-                            future.complete(new ResponseFilterResultImpl(null, null, true));
-                        }
+                        future.complete(builder.build());
                         LOGGER.info("Closing upstream bootstrap connection {} now that endpoint reconciliation is complete.", filterContext.channelDescriptor());
                     });
             return future;

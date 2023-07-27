@@ -94,6 +94,10 @@ public interface KrpcFilterContext {
         return completedForwardResponse(null, response);
     }
 
+    FilterResultBuilder<ResponseFilterResult, ResponseHeaderData> responseFilterResultBuilder();
+
+    FilterResultBuilder<RequestFilterResult, RequestHeaderData> requestFilterResultBuilder();
+
     CompletionStage<ResponseFilterResult> completedForwardResponse(ResponseHeaderData header, ApiMessage response);
 
     // /**

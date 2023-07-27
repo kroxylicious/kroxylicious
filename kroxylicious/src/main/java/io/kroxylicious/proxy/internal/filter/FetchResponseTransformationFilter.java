@@ -34,7 +34,6 @@ import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.filter.FetchResponseFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
-import io.kroxylicious.proxy.filter.ResponseFilterResultImpl;
 import io.kroxylicious.proxy.internal.util.MemoryRecordsHelper;
 
 /**
@@ -93,14 +92,17 @@ public class FetchResponseTransformationFilter implements FetchResponseFilter {
                     new MetadataRequestData()
                             .setTopics(requestTopics))
                     .thenAccept(metadataResponse -> {
-                        Map<Uuid, String> uidToName = metadataResponse.topics().stream().collect(Collectors.toMap(ti -> ti.topicId(), ti -> ti.name()));
+                        Map<Uuid, String> uidToName = metadataResponse.topics().stream().collect(Collectors.toMap(MetadataResponseData.MetadataResponseTopic::topicId,
+                                MetadataResponseData.MetadataResponseTopic::name));
                         LOGGER.debug("Metadata response yields {}, updating original Fetch response", uidToName);
                         for (var fetchableTopicResponse : fetchResponse.responses()) {
                             fetchableTopicResponse.setTopic(uidToName.get(fetchableTopicResponse.topicId()));
                         }
                         applyTransformation(context, fetchResponse);
                         LOGGER.debug("Forwarding original Fetch response");
-                        future.complete(new ResponseFilterResultImpl(header, fetchResponse, false));
+
+                        var value = context.responseFilterResultBuilder().withMessage(fetchResponse).withHeader(header).build();
+                        future.complete(value);
                     });
             return future;
         }

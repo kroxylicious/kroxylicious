@@ -7,10 +7,10 @@
 package io.kroxylicious.proxy.filter;
 
 import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.protocol.ApiMessage;
 
 public interface RequestFilterResult extends FilterResult {
-    ApiMessage request();
 
-    RequestHeaderData header();
+    default RequestHeaderData header() {
+        return null;
+    }
 }

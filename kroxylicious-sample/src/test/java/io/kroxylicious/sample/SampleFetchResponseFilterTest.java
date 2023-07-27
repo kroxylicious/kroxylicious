@@ -10,6 +10,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import org.apache.kafka.common.message.ApiMessageType;
 import org.apache.kafka.common.message.FetchResponseData;
@@ -25,12 +26,12 @@ import org.apache.kafka.common.utils.ByteBufferOutputStream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
-import org.mockito.Captor;
 import org.mockito.stubbing.Answer;
 
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.sample.config.SampleFilterConfig;
 
+import static io.kroxylicious.proxy.filter.FilterResultBuilder.responseFilterResultBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -45,9 +46,6 @@ class SampleFetchResponseFilterTest {
     private static final String CONFIG_REPLACE_VALUE = "to";
 
     private KrpcFilterContext context;
-
-    @Captor
-    private ArgumentCaptor<ApiMessage> apiMessageCaptor = ArgumentCaptor.forClass(ApiMessage.class);
 
     private SampleFetchResponseFilter filter;
     private ResponseHeaderData headerData;
@@ -67,9 +65,9 @@ class SampleFetchResponseFilterTest {
     public void willTransformFetchResponseTest() throws Exception {
         var responseData = buildFetchResponseData(PRE_TRANSFORM_VALUE);
         var stage = filter.onFetchResponse(API_VERSION, headerData, responseData, context);
-        var response = stage.toCompletableFuture().get().response();
 
-        var unpackedResponse = unpackFetchResponseData((FetchResponseData) apiMessageCaptor.getValue());
+        var response = stage.toCompletableFuture().get().message();
+        var unpackedResponse = unpackFetchResponseData(((FetchResponseData) response));
         // We only put 1 record in, we should only get 1 record back, and
         // We should see that the unpacked response value has changed from the input value, and
         // We should see that the unpacked response value has been transformed to the correct value
@@ -87,8 +85,8 @@ class SampleFetchResponseFilterTest {
         var responseData = buildFetchResponseData(NO_TRANSFORM_VALUE);
         var stage = filter.onFetchResponse(API_VERSION, headerData, responseData, context);
 
-        var response = stage.toCompletableFuture().get().response();
-        var unpackedResponse = unpackFetchResponseData((FetchResponseData) apiMessageCaptor.getValue());
+        var response = stage.toCompletableFuture().get().message();
+        var unpackedResponse = unpackFetchResponseData((FetchResponseData) response);
         // We only put 1 record in, we should only get 1 record back, and
         // We should see that the unpacked response value has not changed from the input value
         assertThat(unpackedResponse).containsExactly(NO_TRANSFORM_VALUE);
@@ -96,6 +94,18 @@ class SampleFetchResponseFilterTest {
 
     private void setupContextMock() {
         context = mock(KrpcFilterContext.class);
+
+        var apiMessageCaptor = ArgumentCaptor.forClass(ApiMessage.class);
+        var responseHeaderDataCaptor = ArgumentCaptor.forClass(ResponseHeaderData.class);
+
+        when(context.completedForwardResponse(responseHeaderDataCaptor.capture(), apiMessageCaptor.capture()))
+                .thenAnswer(invocation -> CompletableFuture
+                        .completedFuture(
+                                responseFilterResultBuilder()
+                                        .withHeader(responseHeaderDataCaptor.getValue())
+                                        .withMessage(apiMessageCaptor.getValue())
+                                        .build()));
+
         // create stub for createByteBufferOutputStream method
         ArgumentCaptor<Integer> argument = ArgumentCaptor.forClass(Integer.class);
         when(context.createByteBufferOutputStream(argument.capture())).thenAnswer(

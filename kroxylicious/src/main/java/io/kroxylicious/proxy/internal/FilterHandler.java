@@ -33,8 +33,7 @@ import io.kroxylicious.proxy.internal.util.Assertions;
  * A {@code ChannelInboundHandler} (for handling requests from downstream)
  * that applies a single {@link KrpcFilter}.
  */
-public class FilterHandler
-        extends ChannelDuplexHandler {
+public class FilterHandler extends ChannelDuplexHandler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(FilterHandler.class);
     private final KrpcFilter filter;
@@ -65,7 +64,7 @@ public class FilterHandler
             var stage = invoker.onRequest(decodedFrame.apiKey(), decodedFrame.apiVersion(), decodedFrame.header(),
                     decodedFrame.body(), filterContext);
             stage.whenComplete((filterResult, t) -> {
-                // should run on netty thread?
+                // maybe better to run the whole thing on the netty thread.
 
                 if (t != null) {
                     filterContext.closeConnection();
@@ -74,18 +73,17 @@ public class FilterHandler
 
                 if (filterResult instanceof RequestFilterResult rfr) {
                     var header = rfr.header() == null ? decodedFrame.header() : rfr.header();
-                    filterContext.forwardRequest(header, rfr.request());
+                    filterContext.forwardRequest(header, rfr.message());
                 }
                 else if (filterResult instanceof ResponseFilterResult rfr) {
-                    // short circuit path
-                    if (rfr.response() != null) {
+                    // this is the short circuit path
+                    if (rfr.message() != null) {
                         var header = rfr.header() == null ? new ResponseHeaderData().setCorrelationId(decodedFrame.correlationId()) : rfr.header();
-                        filterContext.forwardResponse(header, rfr.response());
+                        filterContext.forwardResponse(header, rfr.message());
                     }
-
-                    if (rfr.closeConnection()) {
-                        filterContext.closeConnection();
-                    }
+                }
+                if (filterResult.closeConnection()) {
+                    filterContext.closeConnection();
                 }
 
             });
@@ -127,9 +125,9 @@ public class FilterHandler
                         filterContext.closeConnection();
                         return;
                     }
-                    if (rfr.response() != null) {
+                    if (rfr.message() != null) {
                         ResponseHeaderData header = rfr.header() == null ? decodedFrame.header() : rfr.header();
-                        filterContext.forwardResponse(header, rfr.response());
+                        filterContext.forwardResponse(header, rfr.message());
                     }
                     if (rfr.closeConnection()) {
                         filterContext.closeConnection();
