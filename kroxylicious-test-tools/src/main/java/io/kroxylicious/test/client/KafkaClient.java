@@ -104,6 +104,10 @@ public final class KafkaClient implements AutoCloseable {
         try {
             return get(request).get(10, TimeUnit.SECONDS);
         }
+        catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException(ie);
+        }
         catch (Exception e) {
             throw new RuntimeException(e);
         }

@@ -218,6 +218,10 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
                         try {
                             future.complete(bootstrapEndpointFuture.get());
                         }
+                        catch (InterruptedException ie) {
+                            Thread.currentThread().interrupt();
+                            future.completeExceptionally(ie);
+                        }
                         catch (Throwable t1) {
                             future.completeExceptionally(t1);
                         }
