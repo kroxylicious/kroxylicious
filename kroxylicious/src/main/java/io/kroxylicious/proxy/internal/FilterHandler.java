@@ -128,7 +128,8 @@ public class FilterHandler
                         return;
                     }
                     if (rfr.response() != null) {
-                        filterContext.forwardResponse(rfr.header(), rfr.response());
+                        ResponseHeaderData header = rfr.header() == null ? decodedFrame.header() : rfr.header();
+                        filterContext.forwardResponse(header, rfr.response());
                     }
                     if (rfr.closeConnection()) {
                         filterContext.closeConnection();

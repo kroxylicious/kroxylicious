@@ -67,9 +67,9 @@ public class OutOfBandSendFilter implements DescribeClusterRequestFilter, Descri
         return context.completedForwardRequest(header, request);
     }
 
-
     @Override
-    public CompletionStage<ResponseFilterResult> onDescribeClusterResponse(short apiVersion, ResponseHeaderData header, DescribeClusterResponseData response, KrpcFilterContext context) {
+    public CompletionStage<ResponseFilterResult> onDescribeClusterResponse(short apiVersion, ResponseHeaderData header, DescribeClusterResponseData response,
+                                                                           KrpcFilterContext context) {
         response.setErrorCode(Errors.UNKNOWN_SERVER_ERROR.code())
                 .setErrorMessage("filterNameTaggedFieldsFromOutOfBandResponse: " + values);
         return context.completedForwardResponse(response);
