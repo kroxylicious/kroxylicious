@@ -30,3 +30,26 @@
         path: "/responses/0/name"
         value: foo
   disabled: false
+- apiMessageType: DELETE_TOPICS
+  version: 1
+  request:
+    payload:
+      topicNames: [foo]
+      topics: []
+      timeoutMs: 0
+      validateOnly: false
+    diff:
+      - op: replace
+        path: "/topicNames/0"
+        value: tenant1-foo
+  response:
+    payload:
+      responses:
+        - name: tenant1-foo
+          errorCode: 0
+      throttleTimeMs: 0
+    diff:
+      - op: replace
+        path: "/responses/0/name"
+        value: foo
+  disabled: false

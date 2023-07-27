@@ -32,3 +32,15 @@
         path: "/coordinators/0/key"
         value: mygroup
   disabled: false
+- apiMessageType: FIND_COORDINATOR
+  version: 1
+  request:
+    payload:
+      key: mygroup
+      keyType: 0
+      coordinatorKeys: []
+    diff:
+      - op: replace
+        path: /key
+        value: tenant1-mygroup
+  disabled: false
