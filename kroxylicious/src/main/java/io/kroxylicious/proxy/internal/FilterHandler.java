@@ -75,7 +75,7 @@ public class FilterHandler
             }
             invoker.onRequest(decodedFrame.apiKey(), decodedFrame.apiVersion(), decodedFrame.header(), decodedFrame.body(), filterContext);
             if (!filterContext.isClosedOrDeferred()) {
-                LOGGER.warn("{}: {} context for filter {} was not completed or deferred!",
+                LOGGER.warn("{}: {} write context for filter {} was not completed or deferred!",
                         ctx.channel(), decodedFrame.apiKey(), filterDescriptor());
                 throw new IllegalStateException("FilterContext was not completed or deferred");
             }
@@ -123,6 +123,11 @@ public class FilterHandler
                             ctx.channel(), decodedFrame.apiKey(), filterDescriptor(), msg);
                 }
                 invoker.onResponse(decodedFrame.apiKey(), decodedFrame.apiVersion(), decodedFrame.header(), decodedFrame.body(), filterContext);
+                if (!filterContext.isClosedOrDeferred()) {
+                    LOGGER.warn("{}: {} read context for filter {} was not completed or deferred!",
+                            ctx.channel(), decodedFrame.apiKey(), filterDescriptor());
+                    throw new IllegalStateException("FilterContext was not completed or deferred");
+                }
                 return filterContext.onClose();
             }
         }

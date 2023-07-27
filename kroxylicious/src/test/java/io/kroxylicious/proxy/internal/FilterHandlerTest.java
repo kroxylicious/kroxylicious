@@ -138,6 +138,7 @@ public class FilterHandlerTest extends FilterHarness {
     public void testDropResponse() {
         ApiVersionsResponseFilter filter = (apiVersion, header, response, context) -> {
             /* don't call forwardRequest => drop the request */
+            context.discard();
         };
         buildChannel(filter);
         var frame = writeResponse(new ApiVersionsResponseData());
