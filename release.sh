@@ -20,6 +20,10 @@ while getopts ":a:f:b:r:k:" opt; do
     r) REPOSITORY="${OPTARG}"
     ;;
     k) GPG_KEY="${OPTARG}"
+      if [[ -z "${GPG_KEY}" ]]; then
+          echo "GPG_KEY not set unable to sign the release. Please specify -k <YOUR_GPG_KEY>" 1>&2
+          exit 1
+      fi
     ;;
 
     \?) echo "Invalid option -${OPTARG}" >&2
@@ -33,11 +37,6 @@ while getopts ":a:f:b:r:k:" opt; do
     ;;
   esac
 done
-
-if [[ -z "${GPG_KEY}" ]]; then
-    echo "GPG_KEY not set unable to sign the release. Please specify -k <YOUR_GPG_KEY>" 1>&2
-    exit 1
-fi
 
 if [[ -z ${RELEASE_API_VERSION} && -z ${RELEASE_VERSION} ]]; then
   echo "No versions specified aborting"
@@ -53,10 +52,12 @@ git fetch -q "${REPOSITORY}"
 RELEASE_DATE=$(date -u '+%Y-%m-%d')
 git checkout -b "prepare-release-${RELEASE_DATE}" "${REPOSITORY}/${BRANCH_FROM}"
 
-#Disable the shell check as the colour codes only work with interpolation.
-# shellcheck disable=SC2059
-printf "Validating the build is ${GREEN}green${NC}"
-mvn -q clean verify
+if [[ "${SKIP_VALIDATION:-false}" != true ]]; then
+  #Disable the shell check as the colour codes only work with interpolation.
+  # shellcheck disable=SC2059
+  printf "Validating the build is ${GREEN}green${NC}"
+  mvn -q clean verify
+fi
 
 if [[ -n ${RELEASE_API_VERSION} ]]; then
   echo "Versioning Public APIs as ${RELEASE_API_VERSION}"
