@@ -7,7 +7,9 @@ package io.kroxylicious.proxy.internal;
 
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
+import org.apache.kafka.common.errors.TimeoutException;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
@@ -83,7 +85,13 @@ public class FilterHandler extends ChannelDuplexHandler {
                 filterContext.closeConnection();
                 return CompletableFuture.completedFuture(null);
             }
-            return stage.whenComplete((requestFilterResult, t) -> {
+            var future = stage.toCompletableFuture();
+            if (!future.isDone()) {
+                ctx.executor().schedule(() -> {
+                    future.completeExceptionally(new TimeoutException());
+                }, timeoutMs, TimeUnit.MILLISECONDS);
+            }
+            return future.whenComplete((requestFilterResult, t) -> {
                 // maybe better to run the whole thing on the netty thread.
 
                 if (t != null) {
@@ -115,7 +123,6 @@ public class FilterHandler extends ChannelDuplexHandler {
                 if (requestFilterResult.closeConnection()) {
                     filterContext.closeConnection();
                 }
-
             }).toCompletableFuture().thenApply(filterResult -> null);
 
         }
@@ -170,7 +177,13 @@ public class FilterHandler extends ChannelDuplexHandler {
                 filterContext.closeConnection();
                 return CompletableFuture.completedFuture(null);
             }
-            return stage.whenComplete((responseFilterResult, t) -> {
+            var future = stage.toCompletableFuture();
+            if (!future.isDone()) {
+                ctx.executor().schedule(() -> {
+                    future.completeExceptionally(new TimeoutException());
+                }, timeoutMs, TimeUnit.MILLISECONDS);
+            }
+            return future.whenComplete((responseFilterResult, t) -> {
                 if (t != null) {
                     LOGGER.warn("{}: Filter{} for {} response ended exceptionally - closing connection",
                             ctx.channel(), filterDescriptor(), decodedFrame.apiKey(), t);
@@ -191,7 +204,7 @@ public class FilterHandler extends ChannelDuplexHandler {
                     filterContext.closeConnection();
                 }
 
-            }).toCompletableFuture().thenApply(responseFilterResult -> null);
+            }).thenApply(responseFilterResult -> null);
         }
         else {
             if (!(msg instanceof OpaqueResponseFrame)) {

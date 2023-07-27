@@ -53,6 +53,48 @@ public class FilterHandlerTest extends FilterHarness {
     }
 
     @Test
+    public void testDeferredRequestTimeout() throws InterruptedException {
+        CompletableFuture<RequestFilterResult>[] fut = new CompletableFuture[]{ null };
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> {
+            CompletableFuture<RequestFilterResult> future = new CompletableFuture<>();
+            fut[0] = future;
+            return future;
+        };
+        buildChannel(filter, 50L);
+        writeRequest(new ApiVersionsRequestData());
+        Thread.sleep(60L);
+        channel.runPendingTasks();
+        CompletableFuture<RequestFilterResult> future = fut[0];
+        assertTrue(future.isDone(),
+                "Future should be finished yet");
+        assertTrue(future.isCompletedExceptionally(),
+                "Future should be finished yet");
+        assertThrows(ExecutionException.class, future::get);
+        assertFalse(channel.isOpen());
+    }
+
+    @Test
+    public void testDeferredResponseTimeout() throws InterruptedException {
+        CompletableFuture<ResponseFilterResult>[] fut = new CompletableFuture[]{ null };
+        ApiVersionsResponseFilter filter = (apiVersion, header, request, context) -> {
+            CompletableFuture<ResponseFilterResult> future = new CompletableFuture<>();
+            fut[0] = future;
+            return future;
+        };
+        buildChannel(filter, 50L);
+        writeResponse(new ApiVersionsResponseData());
+        Thread.sleep(60L);
+        channel.runPendingTasks();
+        CompletableFuture<ResponseFilterResult> future = fut[0];
+        assertTrue(future.isDone(),
+                "Future should be finished yet");
+        assertTrue(future.isCompletedExceptionally(),
+                "Future should be finished yet");
+        assertThrows(ExecutionException.class, future::get);
+        assertFalse(channel.isOpen());
+    }
+
+    @Test
     public void testShouldNotDeserialiseRequest() {
         ApiVersionsRequestFilter filter = new ApiVersionsRequestFilter() {
             @Override
