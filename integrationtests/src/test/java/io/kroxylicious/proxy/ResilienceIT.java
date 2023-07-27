@@ -7,14 +7,12 @@ package io.kroxylicious.proxy;
 
 import java.time.Duration;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.kafka.clients.admin.Admin;
-import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -38,7 +36,6 @@ import static org.apache.kafka.clients.producer.ProducerConfig.RECONNECT_BACKOFF
 import static org.apache.kafka.clients.producer.ProducerConfig.RECONNECT_BACKOFF_MS_CONFIG;
 import static org.apache.kafka.clients.producer.ProducerConfig.RETRY_BACKOFF_MS_CONFIG;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * Tests with the aim of demonstrating that system survives a Kroxylicious restart.
@@ -52,14 +49,14 @@ public class ResilienceIT extends BaseIT {
     @Test
     public void kafkaProducerShouldTolerateKroxyliciousRestarting(Admin admin) throws Exception {
         String randomTopic = UUID.randomUUID().toString();
-        createTopics(admin, List.of(new NewTopic(randomTopic, 1, (short) 1)));
+        createTopic(admin, randomTopic, 1);
         testProducerCanSurviveARestart(proxy(cluster), randomTopic);
     }
 
     @Test
     public void kafkaConsumerShouldTolerateKroxyliciousRestarting(Admin admin) throws Exception {
         String randomTopic = UUID.randomUUID().toString();
-        createTopics(admin, List.of(new NewTopic(randomTopic, 1, (short) 1)));
+        createTopic(admin, randomTopic, 1);
         testConsumerCanSurviveKroxyliciousRestart(proxy(cluster), randomTopic);
     }
 
@@ -81,8 +78,8 @@ public class ResilienceIT extends BaseIT {
             assertThat(records).hasSize(1);
             assertThat(records.iterator()).toIterable().map(ConsumerRecord::value).containsExactly("Hello, world!");
 
-            assertEquals(1, records.count());
-            assertEquals("Hello, world!", records.iterator().next().value());
+            assertThat(records.count()).isEqualTo(1);
+            assertThat(records.iterator().next().value()).isEqualTo("Hello, world!");
             producer.send(new ProducerRecord<>(topic, "my-key", "Hello, again!")).get(10, TimeUnit.SECONDS);
         }
 

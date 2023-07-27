@@ -19,7 +19,6 @@ import java.util.stream.Stream;
 
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.admin.AdminClientConfig;
-import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.Node;
@@ -54,7 +53,6 @@ import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.testcontainers.shaded.org.awaitility.Awaitility.await;
 
 /**
@@ -93,11 +91,11 @@ public class ExpositionIT extends BaseIT {
         try (var tester = kroxyliciousTester(builder);
                 var admin = tester.admin("demo", clientSecurityProtocolConfig)) {
             // do some work to ensure connection is opened
-            createTopics(admin, List.of(new NewTopic(TOPIC, 1, (short) 1)));
+            createTopic(admin, TOPIC, 1);
 
             var connectionsMetric = admin.metrics().entrySet().stream().filter(metricNameEntry -> "connections".equals(metricNameEntry.getKey().name()))
                     .findFirst();
-            assertTrue(connectionsMetric.isPresent());
+            assertThat(connectionsMetric.isPresent()).isTrue();
             var protocol = connectionsMetric.get().getKey().tags().get("protocol");
             assertThat(protocol).startsWith("TLS");
         }
@@ -130,7 +128,7 @@ public class ExpositionIT extends BaseIT {
             for (int i = 0; i < clusterProxyAddresses.size(); i++) {
                 try (var admin = tester.admin("cluster" + i)) {
                     // do some work to ensure virtual cluster is operational
-                    createTopics(admin, List.of(new NewTopic(TOPIC + i, 1, (short) 1)));
+                    createTopic(admin, TOPIC + i, 1);
                 }
             }
         }
@@ -182,7 +180,7 @@ public class ExpositionIT extends BaseIT {
                         SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, trust.clientTrustStore(),
                         SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, trust.password()))) {
                     // do some work to ensure virtual cluster is operational
-                    createTopics(admin, List.of(new NewTopic(TOPIC + i, 1, (short) 1)));
+                    createTopic(admin, TOPIC + i, 1);
                 }
             }
         }
@@ -476,7 +474,7 @@ public class ExpositionIT extends BaseIT {
         // create topic and ensure that leaders are on different brokers.
         try (var admin = tester.admin();
                 var producer = tester.producer("demo", Map.of(ProducerConfig.CLIENT_ID_CONFIG, "myclient"))) {
-            createTopics(admin, List.of(new NewTopic(topic, numberOfPartitions, (short) 1)));
+            createTopic(admin, topic, numberOfPartitions);
             try {
                 await().atMost(Duration.ofSeconds(10))
                         .ignoreExceptions()

@@ -6,6 +6,8 @@
 
 package io.kroxylicious.proxy;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,15 +28,17 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import io.kroxylicious.test.tester.KroxyliciousTester;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 @ExtendWith(KafkaClusterExtension.class)
 public abstract class BaseIT {
 
-    protected static CreateTopicsResult createTopics(Admin admin, List<NewTopic> topics) {
+    protected CreateTopicsResult createTopics(Admin admin, NewTopic... topics) {
         try {
-            var created = admin.createTopics(topics);
-            assertEquals(topics.size(), created.values().size());
+            List<NewTopic> topicsList = new ArrayList<>();
+            Collections.addAll(topicsList, topics);
+            var created = admin.createTopics(topicsList);
+            assertThat(created.values()).hasSizeGreaterThanOrEqualTo(topicsList.size());
             created.all().get(10, TimeUnit.SECONDS);
             return created;
         }
@@ -46,7 +50,11 @@ public abstract class BaseIT {
         }
     }
 
-    protected static DeleteTopicsResult deleteTopics(Admin admin, TopicCollection topics) {
+    protected CreateTopicsResult createTopic(Admin admin, String topic, int numPartitions) {
+        return createTopics(admin, new NewTopic(topic, numPartitions, (short) 1));
+    }
+
+    protected DeleteTopicsResult deleteTopics(Admin admin, TopicCollection topics) {
         try {
             var deleted = admin.deleteTopics(topics);
             deleted.all().get(10, TimeUnit.SECONDS);
@@ -60,7 +68,7 @@ public abstract class BaseIT {
         }
     }
 
-    protected static Map<String, Object> buildClientConfig(Map<String, Object>... configs) {
+    protected Map<String, Object> buildClientConfig(Map<String, Object>... configs) {
         Map<String, Object> clientConfig = new HashMap<>();
         for (var config : configs) {
             clientConfig.putAll(config);
@@ -68,7 +76,7 @@ public abstract class BaseIT {
         return clientConfig;
     }
 
-    protected static Consumer<String, String> getConsumerWithConfig(KroxyliciousTester tester, Optional<String> virtualCluster, Map<String, Object>... configs) {
+    protected Consumer<String, String> getConsumerWithConfig(KroxyliciousTester tester, Optional<String> virtualCluster, Map<String, Object>... configs) {
         var consumerConfig = buildClientConfig(configs);
         if (virtualCluster.isPresent()) {
             return tester.consumer(virtualCluster.get(), consumerConfig);
@@ -76,7 +84,7 @@ public abstract class BaseIT {
         return tester.consumer(consumerConfig);
     }
 
-    protected static Producer<String, String> getProducerWithConfig(KroxyliciousTester tester, Optional<String> virtualCluster, Map<String, Object>... configs) {
+    protected Producer<String, String> getProducerWithConfig(KroxyliciousTester tester, Optional<String> virtualCluster, Map<String, Object>... configs) {
         var producerConfig = buildClientConfig(configs);
         if (virtualCluster.isPresent()) {
             return tester.producer(virtualCluster.get(), producerConfig);

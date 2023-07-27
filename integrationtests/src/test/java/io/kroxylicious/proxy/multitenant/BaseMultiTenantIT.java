@@ -33,6 +33,7 @@ import org.apache.kafka.common.config.SslConfigs;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.assertj.core.api.Condition;
 import org.jetbrains.annotations.NotNull;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
@@ -51,8 +52,6 @@ import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 @ExtendWith(KafkaClusterExtension.class)
 public abstract class BaseMultiTenantIT extends BaseIT {
@@ -72,7 +71,8 @@ public abstract class BaseMultiTenantIT extends BaseIT {
     @TempDir
     Path certsDirectory;
 
-    void setup(TestInfo testInfo) throws Exception {
+    @BeforeEach
+    void beforeEach(TestInfo testInfo) throws Exception {
         this.testInfo = testInfo;
         // TODO: use a per-tenant server certificate.
         this.certificateGenerator = new KeytoolCertificateGenerator();
@@ -119,8 +119,8 @@ public abstract class BaseMultiTenantIT extends BaseIT {
                 .addToFilters(new FilterDefinitionBuilder("MultiTenant").build());
     }
 
-    static Consumer<String, String> getConsumerWithConfig(KroxyliciousTester tester, String virtualCluster, String groupId, Map<String, Object> baseConfig,
-                                                          Map<String, Object> additionalConfig) {
+    Consumer<String, String> getConsumerWithConfig(KroxyliciousTester tester, String virtualCluster, String groupId, Map<String, Object> baseConfig,
+                                                   Map<String, Object> additionalConfig) {
         Map<String, Object> standardConfig = Map.of(ConsumerConfig.GROUP_ID_CONFIG, groupId,
                 ConsumerConfig.ALLOW_AUTO_CREATE_TOPICS_CONFIG, Boolean.FALSE.toString(),
                 ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, Boolean.FALSE.toString(),
@@ -128,8 +128,8 @@ public abstract class BaseMultiTenantIT extends BaseIT {
         return getConsumerWithConfig(tester, Optional.of(virtualCluster), baseConfig, standardConfig, additionalConfig);
     }
 
-    static void consumeAndVerify(KroxyliciousTester tester, Map<String, Object> clientConfig, String virtualCluster, String topicName, String groupId,
-                                 Deque<Predicate<ConsumerRecord<String, String>>> expected, boolean offsetCommit) {
+    void consumeAndVerify(KroxyliciousTester tester, Map<String, Object> clientConfig, String virtualCluster, String topicName, String groupId,
+                          Deque<Predicate<ConsumerRecord<String, String>>> expected, boolean offsetCommit) {
         try (var consumer = getConsumerWithConfig(tester, virtualCluster, groupId, clientConfig, Map.of(
                 ConsumerConfig.MAX_POLL_RECORDS_CONFIG, String.format("%d", expected.size())))) {
 
@@ -140,7 +140,7 @@ public abstract class BaseMultiTenantIT extends BaseIT {
                 ConsumerRecords<String, String> records = consumer.poll(Duration.ofSeconds(30));
                 assertThat(records.partitions()).hasSizeGreaterThanOrEqualTo(1);
                 records.forEach(r -> {
-                    assertFalse(expected.isEmpty(), String.format("received unexpected record %s", r));
+                    assertThat(expected.isEmpty()).withFailMessage("received unexpected record %s", r).isFalse();
                     var predicate = expected.pop();
                     assertThat(r).matches(predicate, predicate.toString());
                 });
@@ -152,8 +152,8 @@ public abstract class BaseMultiTenantIT extends BaseIT {
         }
     }
 
-    static void produceAndVerify(KroxyliciousTester tester, Map<String, Object> clientConfig, String virtualCluster,
-                                 Stream<ProducerRecord<String, String>> records, Optional<String> transactionalId) {
+    void produceAndVerify(KroxyliciousTester tester, Map<String, Object> clientConfig, String virtualCluster,
+                          Stream<ProducerRecord<String, String>> records, Optional<String> transactionalId) {
 
         Map<String, Object> config = new HashMap<>();
         config.put(ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000);
@@ -172,8 +172,9 @@ public abstract class BaseMultiTenantIT extends BaseIT {
                 catch (Exception e) {
                     fail("Caught: %s producing to %s", e.getMessage(), rec.topic());
                 }
-                assertNotNull(recordMetadata);
-                assertNotNull(rec.topic(), recordMetadata.topic());
+                assertThat(recordMetadata).isNotNull();
+                assertThat(rec.topic()).isNotNull();
+                assertThat(recordMetadata.topic()).isNotNull();
             });
 
             transactionalId.ifPresent(u -> {

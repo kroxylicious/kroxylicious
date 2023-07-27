@@ -43,9 +43,7 @@ import org.apache.kafka.common.TopicCollection;
 import org.apache.kafka.common.TopicCollection.TopicNameCollection;
 import org.apache.kafka.common.TopicPartition;
 import org.jetbrains.annotations.NotNull;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
@@ -59,7 +57,6 @@ import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.assertj.core.api.Assertions.allOf;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.testcontainers.shaded.org.awaitility.Awaitility.await;
 
 @ExtendWith(KafkaClusterExtension.class)
@@ -77,18 +74,13 @@ public class MultiTenantIT extends BaseMultiTenantIT {
     private static final String MY_KEY = "my-key";
     private static final String MY_VALUE = "my-value";
 
-    @BeforeEach
-    public void beforeEach(TestInfo testInfo) throws Exception {
-        setup(testInfo);
-    }
-
     @Test
     public void createAndDeleteTopic(KafkaCluster cluster) throws Exception {
         var config = getConfig(cluster, this.certificateGenerator);
 
         try (var tester = kroxyliciousTester(config);
                 var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
-            var created = createTopics(admin, List.of(NEW_TOPIC_1, NEW_TOPIC_2));
+            var created = createTopics(admin, NEW_TOPIC_1, NEW_TOPIC_2);
 
             var topicMap = await().atMost(Duration.ofSeconds(5)).until(() -> admin.listTopics().namesToListings().get(),
                     n -> n.size() == 2);
@@ -117,7 +109,7 @@ public class MultiTenantIT extends BaseMultiTenantIT {
         var config = getConfig(cluster, this.certificateGenerator);
         try (var tester = kroxyliciousTester(config);
                 var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
-            var created = createTopics(admin, List.of(NEW_TOPIC_1));
+            var created = createTopics(admin, NEW_TOPIC_1);
 
             await().atMost(Duration.ofSeconds(5)).ignoreExceptions().untilAsserted(() -> {
                 var describeTopicsResult = admin.describeTopics(TopicNameCollection.ofTopicNames(List.of(TOPIC_1)));
@@ -133,7 +125,7 @@ public class MultiTenantIT extends BaseMultiTenantIT {
         var config = getConfig(cluster, this.certificateGenerator);
         try (var tester = kroxyliciousTester(config);
                 var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
-            createTopics(admin, List.of(NEW_TOPIC_1));
+            createTopics(admin, NEW_TOPIC_1);
             produceAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER, Stream.of(new ProducerRecord<>(TOPIC_1, MY_KEY, MY_VALUE)), Optional.empty());
         }
     }
@@ -144,7 +136,7 @@ public class MultiTenantIT extends BaseMultiTenantIT {
         try (var tester = kroxyliciousTester(config);
                 var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
             var groupId = testInfo.getDisplayName();
-            createTopics(admin, List.of(NEW_TOPIC_1));
+            createTopics(admin, NEW_TOPIC_1);
             produceAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER, Stream.of(new ProducerRecord<>(TOPIC_1, MY_KEY, MY_VALUE)), Optional.empty());
             consumeAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER, TOPIC_1, groupId, new LinkedList<>(List.of(matchesRecord(TOPIC_1, MY_KEY, MY_VALUE))), false);
         }
@@ -156,7 +148,7 @@ public class MultiTenantIT extends BaseMultiTenantIT {
         try (var tester = kroxyliciousTester(config);
                 var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
             var groupId = testInfo.getDisplayName();
-            createTopics(admin, List.of(NEW_TOPIC_1));
+            createTopics(admin, NEW_TOPIC_1);
             produceAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER,
                     Stream.of(new ProducerRecord<>(TOPIC_1, MY_KEY, "1"), new ProducerRecord<>(TOPIC_1, MY_KEY, "2"), inCaseOfFailure()), Optional.empty());
             consumeAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER, TOPIC_1, groupId, new LinkedList<>(List.of(matchesRecord(TOPIC_1, MY_KEY, "1"))), true);
@@ -170,7 +162,7 @@ public class MultiTenantIT extends BaseMultiTenantIT {
         try (var tester = kroxyliciousTester(config);
                 var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
             var groupId = testInfo.getDisplayName();
-            createTopics(admin, List.of(NEW_TOPIC_1));
+            createTopics(admin, NEW_TOPIC_1);
             produceAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER,
                     Stream.of(new ProducerRecord<>(TOPIC_1, MY_KEY, "1"), new ProducerRecord<>(TOPIC_1, MY_KEY, "2"), inCaseOfFailure()), Optional.empty());
             consumeAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER, TOPIC_1, groupId, new LinkedList<>(List.of(matchesRecord(TOPIC_1, MY_KEY, "1"))), true);
@@ -188,7 +180,7 @@ public class MultiTenantIT extends BaseMultiTenantIT {
         try (var tester = kroxyliciousTester(config);
                 var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
             var groupId = testInfo.getDisplayName();
-            createTopics(admin, List.of(NEW_TOPIC_1));
+            createTopics(admin, NEW_TOPIC_1);
             produceAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER, Stream.of(new ProducerRecord<>(TOPIC_1, MY_KEY, "1"), inCaseOfFailure()), Optional.empty());
             consumeAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER, TOPIC_1, groupId, new LinkedList<>(List.of(matchesRecord(TOPIC_1, MY_KEY, "1"))), true);
 
@@ -203,8 +195,8 @@ public class MultiTenantIT extends BaseMultiTenantIT {
         try (var tester = kroxyliciousTester(config);
                 var adminTenant1 = tester.admin(TENANT_1_CLUSTER, this.clientConfig);
                 var adminTenant2 = tester.admin(TENANT_2_CLUSTER, this.clientConfig)) {
-            createTopics(adminTenant1, List.of(NEW_TOPIC_1));
-            createTopics(adminTenant2, List.of(NEW_TOPIC_2, NEW_TOPIC_3));
+            createTopics(adminTenant1, NEW_TOPIC_1);
+            createTopics(adminTenant2, NEW_TOPIC_2, NEW_TOPIC_3);
 
             verifyTenant(adminTenant1, TOPIC_1);
             verifyTenant(adminTenant2, TOPIC_2, TOPIC_3);
@@ -217,7 +209,7 @@ public class MultiTenantIT extends BaseMultiTenantIT {
         var config = getConfig(cluster, this.certificateGenerator);
         try (var tester = kroxyliciousTester(config);
                 var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
-            createTopics(admin, List.of(NEW_TOPIC_1));
+            createTopics(admin, NEW_TOPIC_1);
             runConsumerInOrderToCreateGroup(tester, TENANT_1_CLUSTER, "Tenant1Group", NEW_TOPIC_1, consumerStyle, this.clientConfig);
             verifyConsumerGroupsWithList(admin, Set.of("Tenant1Group"));
         }
@@ -230,10 +222,10 @@ public class MultiTenantIT extends BaseMultiTenantIT {
         try (var tester = kroxyliciousTester(config);
                 var adminTenant1 = tester.admin(TENANT_1_CLUSTER, this.clientConfig);
                 var adminTenant2 = tester.admin(TENANT_2_CLUSTER, this.clientConfig)) {
-            createTopics(adminTenant1, List.of(NEW_TOPIC_1));
+            createTopics(adminTenant1, NEW_TOPIC_1);
             runConsumerInOrderToCreateGroup(tester, TENANT_1_CLUSTER, "Tenant1Group", NEW_TOPIC_1, consumerStyle, this.clientConfig);
 
-            createTopics(adminTenant2, List.of(NEW_TOPIC_1));
+            createTopics(adminTenant2, NEW_TOPIC_1);
             runConsumerInOrderToCreateGroup(tester, TENANT_2_CLUSTER, "Tenant2Group", NEW_TOPIC_1, consumerStyle, this.clientConfig);
             verifyConsumerGroupsWithList(adminTenant2, Set.of("Tenant2Group"));
         }
@@ -245,10 +237,10 @@ public class MultiTenantIT extends BaseMultiTenantIT {
         try (var tester = kroxyliciousTester(config);
                 var adminTenant1 = tester.admin(TENANT_1_CLUSTER, this.clientConfig);
                 var adminTenant2 = tester.admin(TENANT_2_CLUSTER, this.clientConfig)) {
-            createTopics(adminTenant1, List.of(NEW_TOPIC_1));
+            createTopics(adminTenant1, NEW_TOPIC_1);
             runConsumerInOrderToCreateGroup(tester, TENANT_1_CLUSTER, "Tenant1Group", NEW_TOPIC_1, ConsumerStyle.ASSIGN, this.clientConfig);
 
-            createTopics(adminTenant2, List.of(NEW_TOPIC_1));
+            createTopics(adminTenant2, NEW_TOPIC_1);
             runConsumerInOrderToCreateGroup(tester, TENANT_2_CLUSTER, "Tenant2Group", NEW_TOPIC_1, ConsumerStyle.ASSIGN, this.clientConfig);
 
             verifyConsumerGroupsWithDescribe(adminTenant1, Set.of("Tenant1Group"), Set.of("Tenant2Group", "idontexist"));
@@ -261,7 +253,7 @@ public class MultiTenantIT extends BaseMultiTenantIT {
         var config = getConfig(cluster, this.certificateGenerator);
         try (var tester = kroxyliciousTester(config);
                 var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
-            createTopics(admin, List.of(NEW_TOPIC_1));
+            createTopics(admin, NEW_TOPIC_1);
             produceAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER,
                     Stream.of(new ProducerRecord<>(TOPIC_1, MY_KEY, "1")),
                     Optional.of("12345"));
@@ -276,8 +268,8 @@ public class MultiTenantIT extends BaseMultiTenantIT {
             // put some records in an input topic
             var inputTopic = "input";
             var outputTopic = "output";
-            createTopics(admin, List.of(new NewTopic(inputTopic, 1, (short) 1),
-                    new NewTopic(outputTopic, 1, (short) 1)));
+            createTopics(admin, new NewTopic(inputTopic, 1, (short) 1),
+                    new NewTopic(outputTopic, 1, (short) 1));
             produceAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER,
                     Stream.of(new ProducerRecord<>(inputTopic, MY_KEY, "1"),
                             new ProducerRecord<>(inputTopic, MY_KEY, "2"),
@@ -328,7 +320,7 @@ public class MultiTenantIT extends BaseMultiTenantIT {
         var config = getConfig(cluster, this.certificateGenerator);
         try (var tester = kroxyliciousTester(config)) {
             try (var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
-                createTopics(admin, List.of(NEW_TOPIC_1));
+                createTopics(admin, NEW_TOPIC_1);
                 var transactionalId = "12345";
                 produceAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER,
                         Stream.of(new ProducerRecord<>(TOPIC_1, MY_KEY, "1")),
@@ -348,14 +340,14 @@ public class MultiTenantIT extends BaseMultiTenantIT {
         try (var tester = kroxyliciousTester(config);
                 var adminTenant1 = tester.admin(TENANT_1_CLUSTER, this.clientConfig);
                 var adminTenant2 = tester.admin(TENANT_2_CLUSTER, this.clientConfig)) {
-            createTopics(adminTenant1, List.of(NEW_TOPIC_1));
+            createTopics(adminTenant1, NEW_TOPIC_1);
             var tenant1TransactionId = "12345";
             produceAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER,
                     Stream.of(new ProducerRecord<>(TOPIC_1, MY_KEY, "1")),
                     Optional.of(tenant1TransactionId));
             verifyTransactionsWithList(adminTenant1, Set.of(tenant1TransactionId));
 
-            createTopics(adminTenant2, List.of(NEW_TOPIC_2));
+            createTopics(adminTenant2, NEW_TOPIC_2);
             var tenant2TransactionId = "54321";
             produceAndVerify(tester, this.clientConfig, TENANT_2_CLUSTER,
                     Stream.of(new ProducerRecord<>(TOPIC_2, MY_KEY, "1")),
@@ -373,11 +365,11 @@ public class MultiTenantIT extends BaseMultiTenantIT {
     }
 
     @NotNull
-    private static ProducerRecord<String, String> inCaseOfFailure() {
+    private ProducerRecord<String, String> inCaseOfFailure() {
         return new ProducerRecord<>(TOPIC_1, MY_KEY, "unexpected - should never be consumed");
     }
 
-    private static void verifyConsumerGroupsWithDescribe(Admin admin, Set<String> expectedPresent, Set<String> expectedAbsent) throws Exception {
+    private void verifyConsumerGroupsWithDescribe(Admin admin, Set<String> expectedPresent, Set<String> expectedAbsent) throws Exception {
         var describedGroups = admin.describeConsumerGroups(Stream.concat(expectedPresent.stream(), expectedAbsent.stream()).toList()).all().get();
         assertThat(describedGroups).hasSize(expectedAbsent.size() + expectedPresent.size());
 
@@ -390,14 +382,14 @@ public class MultiTenantIT extends BaseMultiTenantIT {
     }
 
     @NotNull
-    private static Map<String, ConsumerGroupDescription> retainKeySubset(Map<String, ConsumerGroupDescription> groups, Set<String> retainedKeys) {
+    private Map<String, ConsumerGroupDescription> retainKeySubset(Map<String, ConsumerGroupDescription> groups, Set<String> retainedKeys) {
         var copy = new HashMap<>(groups);
         copy.keySet().retainAll(retainedKeys);
         return copy;
     }
 
-    private static void runConsumerInOrderToCreateGroup(KroxyliciousTester tester, String virtualCluster, String groupId, NewTopic topic, ConsumerStyle consumerStyle,
-                                                        Map<String, Object> clientConfig) {
+    private void runConsumerInOrderToCreateGroup(KroxyliciousTester tester, String virtualCluster, String groupId, NewTopic topic, ConsumerStyle consumerStyle,
+                                                 Map<String, Object> clientConfig) {
         try (var consumer = getConsumerWithConfig(tester, virtualCluster, groupId, clientConfig, Map.of(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed"))) {
 
             if (consumerStyle == ConsumerStyle.ASSIGN) {
@@ -414,27 +406,27 @@ public class MultiTenantIT extends BaseMultiTenantIT {
         }
     }
 
-    private static void verifyConsumerGroupsWithList(Admin admin, Set<String> expectedGroupIds) throws Exception {
+    private void verifyConsumerGroupsWithList(Admin admin, Set<String> expectedGroupIds) throws Exception {
         var groups = admin.listConsumerGroups().all().get().stream().map(ConsumerGroupListing::groupId).toList();
         assertThat(groups).containsExactlyInAnyOrderElementsOf(expectedGroupIds);
     }
 
-    private static void verifyTransactionsWithList(Admin admin, Set<String> expectedTransactionalIds) throws Exception {
+    private void verifyTransactionsWithList(Admin admin, Set<String> expectedTransactionalIds) throws Exception {
         var transactionalIds = admin.listTransactions().all().get().stream().map(TransactionListing::transactionalId).toList();
         assertThat(transactionalIds).containsExactlyInAnyOrderElementsOf(expectedTransactionalIds);
     }
 
-    private static void verifyTenant(Admin admin, String... expectedTopics) throws Exception {
+    private void verifyTenant(Admin admin, String... expectedTopics) throws Exception {
         var listTopicsResult = admin.listTopics();
 
         var topicListMap = listTopicsResult.namesToListings().get();
-        assertEquals(expectedTopics.length, topicListMap.size());
+        assertThat(expectedTopics.length).isEqualTo(topicListMap.size());
         Arrays.stream(expectedTopics)
                 .forEach(expectedTopic -> assertThat(topicListMap).hasEntrySatisfying(expectedTopic, allOf(matches(TopicListing::name, expectedTopic))));
 
         var describeTopicsResult = admin.describeTopics(TopicNameCollection.ofTopicNames(Arrays.stream(expectedTopics).toList()));
         var topicDescribeMap = describeTopicsResult.allTopicNames().get();
-        assertEquals(expectedTopics.length, topicDescribeMap.size());
+        assertThat(expectedTopics.length).isEqualTo(topicDescribeMap.size());
         Arrays.stream(expectedTopics)
                 .forEach(expectedTopic -> assertThat(topicDescribeMap).hasEntrySatisfying(expectedTopic, allOf(matches(TopicDescription::name, expectedTopic))));
     }

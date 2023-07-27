@@ -22,7 +22,6 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.kafka.clients.CommonClientConfigs;
-import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.common.config.SslConfigs;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.junit.jupiter.api.BeforeEach;
@@ -94,7 +93,7 @@ public class TlsIT extends BaseIT {
 
         try (var tester = kroxyliciousTester(builder); var admin = tester.admin("demo")) {
             // do some work to ensure connection is opened
-            createTopics(admin, List.of(new NewTopic(TOPIC, 1, (short) 1)));
+            createTopic(admin, TOPIC, 1);
         }
     }
 
@@ -132,7 +131,7 @@ public class TlsIT extends BaseIT {
 
         try (var tester = kroxyliciousTester(builder); var admin = tester.admin("demo")) {
             // do some work to ensure connection is opened
-            createTopics(admin, List.of(new NewTopic(TOPIC, 1, (short) 1)));
+            createTopic(admin, TOPIC, 1);
         }
     }
 
@@ -153,7 +152,7 @@ public class TlsIT extends BaseIT {
 
         try (var tester = kroxyliciousTester(builder); var admin = tester.admin("demo")) {
             // do some work to ensure connection is opened
-            createTopics(admin, List.of(new NewTopic(TOPIC, 1, (short) 1)));
+            createTopic(admin, TOPIC, 1);
         }
     }
 
@@ -191,7 +190,7 @@ public class TlsIT extends BaseIT {
                                 SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
                                 SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, downstreamCertificateGenerator.getPassword()))) {
             // do some work to ensure connection is opened
-            createTopics(admin, List.of(new NewTopic(TOPIC, 1, (short) 1)));
+            createTopic(admin, TOPIC, 1);
         }
     }
 
