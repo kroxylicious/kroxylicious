@@ -56,6 +56,10 @@ class DefaultFilter implements KrpcFilterContext {
         return state != State.INIITIAL;
     }
 
+    public boolean isDeferred() {
+        return state == State.DEFERRED_REQUEST || state == State.DEFERRED_RESPONSE;
+    }
+
     private enum State {
         INIITIAL,
         DEFERRED_REQUEST,

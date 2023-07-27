@@ -13,6 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.netty.buffer.Unpooled;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
@@ -38,16 +39,18 @@ public class FilterHandler
     private final KrpcFilter filter;
     private final long timeoutMs;
     private final String sniHostname;
+    private final Channel inboundChannel;
     private final FilterInvoker invoker;
 
     private CompletableFuture<Void> writeFuture = COMPLETED_FUTURE;
     private CompletableFuture<Void> readFuture = COMPLETED_FUTURE;
 
-    public FilterHandler(FilterAndInvoker filterAndInvoker, long timeoutMs, String sniHostname) {
+    public FilterHandler(FilterAndInvoker filterAndInvoker, long timeoutMs, String sniHostname, Channel inboundChannel) {
         this.filter = Objects.requireNonNull(filterAndInvoker).filter();
         this.invoker = filterAndInvoker.invoker();
         this.timeoutMs = Assertions.requireStrictlyPositive(timeoutMs, "timeout");
         this.sniHostname = sniHostname;
+        this.inboundChannel = inboundChannel;
     }
 
     String filterDescriptor() {
@@ -79,7 +82,7 @@ public class FilterHandler
                         ctx.channel(), decodedFrame.apiKey(), filterDescriptor());
                 throw new IllegalStateException("FilterContext was not completed or deferred");
             }
-            return filterContext.onClose();
+            return suspendReads(filterContext, ctx.channel());
         }
         else {
             if (!(msg instanceof OpaqueRequestFrame)
@@ -91,6 +94,19 @@ public class FilterHandler
             ctx.write(msg, promise);
             return COMPLETED_FUTURE;
         }
+    }
+
+    private CompletableFuture<Void> suspendReads(DefaultFilter filterContext, Channel channelToSuspend) {
+        CompletableFuture<Void> future = filterContext.onClose();
+        if (filterContext.isDeferred() && !future.isDone()) {
+            channelToSuspend.config().setAutoRead(false);
+            inboundChannel.config().setAutoRead(false);
+            future = future.whenComplete((a, e) -> {
+                channelToSuspend.config().setAutoRead(true);
+                inboundChannel.config().setAutoRead(true);
+            });
+        }
+        return future;
     }
 
     @Override
@@ -128,7 +144,7 @@ public class FilterHandler
                             ctx.channel(), decodedFrame.apiKey(), filterDescriptor());
                     throw new IllegalStateException("FilterContext was not completed or deferred");
                 }
-                return filterContext.onClose();
+                return suspendReads(filterContext, ctx.channel());
             }
         }
         else {
