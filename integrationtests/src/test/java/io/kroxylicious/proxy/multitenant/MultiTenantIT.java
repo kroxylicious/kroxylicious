@@ -420,13 +420,13 @@ public class MultiTenantIT extends BaseMultiTenantIT {
         var listTopicsResult = admin.listTopics();
 
         var topicListMap = listTopicsResult.namesToListings().get();
-        assertThat(expectedTopics.length).isEqualTo(topicListMap.size());
+        assertThat(expectedTopics).hasSize(topicListMap.size());
         Arrays.stream(expectedTopics)
                 .forEach(expectedTopic -> assertThat(topicListMap).hasEntrySatisfying(expectedTopic, allOf(matches(TopicListing::name, expectedTopic))));
 
         var describeTopicsResult = admin.describeTopics(TopicNameCollection.ofTopicNames(Arrays.stream(expectedTopics).toList()));
         var topicDescribeMap = describeTopicsResult.allTopicNames().get();
-        assertThat(expectedTopics.length).isEqualTo(topicDescribeMap.size());
+        assertThat(expectedTopics).hasSize(topicDescribeMap.size());
         Arrays.stream(expectedTopics)
                 .forEach(expectedTopic -> assertThat(topicDescribeMap).hasEntrySatisfying(expectedTopic, allOf(matches(TopicDescription::name, expectedTopic))));
     }

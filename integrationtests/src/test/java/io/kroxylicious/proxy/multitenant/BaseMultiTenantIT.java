@@ -140,7 +140,7 @@ public abstract class BaseMultiTenantIT extends BaseIT {
                 ConsumerRecords<String, String> records = consumer.poll(Duration.ofSeconds(30));
                 assertThat(records.partitions()).hasSizeGreaterThanOrEqualTo(1);
                 records.forEach(r -> {
-                    assertThat(expected.isEmpty()).withFailMessage("received unexpected record %s", r).isFalse();
+                    assertThat(expected).withFailMessage("received unexpected record %s", r).isNotEmpty();
                     var predicate = expected.pop();
                     assertThat(r).matches(predicate, predicate.toString());
                 });
