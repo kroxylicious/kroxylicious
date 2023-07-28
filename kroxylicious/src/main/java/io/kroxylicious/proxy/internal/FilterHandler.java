@@ -91,7 +91,8 @@ public class FilterHandler extends ChannelDuplexHandler {
             }
             var future = stage.toCompletableFuture();
             var withTimeout = handleDeferredStage(ctx, future);
-            return withTimeout.whenComplete((requestFilterResult, t) -> {
+            var onNettyThread = switchBackToNettyIfRequired(ctx, withTimeout);
+            return onNettyThread.whenComplete((requestFilterResult, t) -> {
                 // maybe better to run the whole thing on the netty thread.
 
                 if (t != null) {
@@ -135,6 +136,30 @@ public class FilterHandler extends ChannelDuplexHandler {
             }
             ctx.write(msg, promise);
             return CompletableFuture.completedFuture(null);
+        }
+    }
+
+    private <T> CompletableFuture<T> switchBackToNettyIfRequired(ChannelHandlerContext ctx, CompletableFuture<T> future) {
+        CompletableFuture<T> nettyDrivenFuture = new CompletableFuture<>();
+        future.whenComplete((t, throwable) -> {
+            if (ctx.executor().inEventLoop()) {
+                complete(nettyDrivenFuture, t, throwable);
+            }
+            else {
+                ctx.executor().execute(() -> {
+                    complete(nettyDrivenFuture, t, throwable);
+                });
+            }
+        });
+        return nettyDrivenFuture;
+    }
+
+    private static <T> void complete(CompletableFuture<T> nettyDrivenFuture, T t, Throwable throwable) {
+        if (throwable != null) {
+            nettyDrivenFuture.completeExceptionally(throwable);
+        }
+        else {
+            nettyDrivenFuture.complete(t);
         }
     }
 
@@ -195,7 +220,8 @@ public class FilterHandler extends ChannelDuplexHandler {
             }
             var future = stage.toCompletableFuture();
             var withTimeout = handleDeferredStage(ctx, future);
-            return withTimeout.whenComplete((responseFilterResult, t) -> {
+            var onNettyThread = switchBackToNettyIfRequired(ctx, withTimeout);
+            return onNettyThread.whenComplete((responseFilterResult, t) -> {
                 if (t != null) {
                     LOGGER.warn("{}: Filter{} for {} response ended exceptionally - closing connection",
                             ctx.channel(), filterDescriptor(), decodedFrame.apiKey(), t);
