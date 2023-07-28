@@ -52,7 +52,7 @@ public class JsonSyntaxValidationIT extends BaseIT {
 
     @Test
     public void testInvalidJsonProduceRejected(KafkaCluster cluster, Admin admin) throws Exception {
-        assertThat(cluster.getNumOfBrokers()).isEqualTo(1);
+        assertThat(cluster.getNumOfBrokers()).isOne();
         createTopic(admin, TOPIC_1, 1);
 
         var config = proxy(cluster)
@@ -69,7 +69,7 @@ public class JsonSyntaxValidationIT extends BaseIT {
 
     @Test
     public void testInvalidJsonProduceRejectedUsingTopicNames(KafkaCluster cluster, Admin admin) throws Exception {
-        assertThat(cluster.getNumOfBrokers()).isEqualTo(1);
+        assertThat(cluster.getNumOfBrokers()).isOne();
         createTopics(admin, new NewTopic(TOPIC_1, 1, (short) 1), new NewTopic(TOPIC_2, 1, (short) 1));
 
         var config = proxy(cluster)
@@ -85,14 +85,14 @@ public class JsonSyntaxValidationIT extends BaseIT {
             producer.send(new ProducerRecord<>(TOPIC_2, "my-key", SYNTACTICALLY_INCORRECT_JSON)).get();
             consumer.subscribe(Set.of(TOPIC_2));
             var records = consumer.poll(Duration.ofSeconds(10));
-            assertThat(records.count()).isEqualTo(1);
+            assertThat(records.count()).isOne();
             assertThat(records.iterator().next().value()).isEqualTo(SYNTACTICALLY_INCORRECT_JSON);
         }
     }
 
     @Test
     public void testPartiallyInvalidJsonTransactionalAllRejected(KafkaCluster cluster, Admin admin) throws Exception {
-        assertThat(cluster.getNumOfBrokers()).isEqualTo(1);
+        assertThat(cluster.getNumOfBrokers()).isOne();
         createTopics(admin, new NewTopic(TOPIC_1, 1, (short) 1), new NewTopic(TOPIC_2, 1, (short) 1));
 
         var config = proxy(cluster)
@@ -116,7 +116,7 @@ public class JsonSyntaxValidationIT extends BaseIT {
 
     @Test
     public void testPartiallyInvalidJsonNotConfiguredToForwardAllRejected(KafkaCluster cluster, Admin admin) throws Exception {
-        assertThat(cluster.getNumOfBrokers()).isEqualTo(1);
+        assertThat(cluster.getNumOfBrokers()).isOne();
         createTopics(admin, new NewTopic(TOPIC_1, 1, (short) 1), new NewTopic(TOPIC_2, 1, (short) 1));
 
         boolean forwardPartialRequests = false;
@@ -138,7 +138,7 @@ public class JsonSyntaxValidationIT extends BaseIT {
 
     @Test
     public void testPartiallyInvalidJsonProduceRejected(KafkaCluster cluster, Admin admin) throws Exception {
-        assertThat(cluster.getNumOfBrokers()).isEqualTo(1);
+        assertThat(cluster.getNumOfBrokers()).isOne();
         createTopics(admin, new NewTopic(TOPIC_1, 1, (short) 1), new NewTopic(TOPIC_2, 1, (short) 1));
 
         var config = proxy(cluster)
@@ -160,14 +160,14 @@ public class JsonSyntaxValidationIT extends BaseIT {
 
             consumer.subscribe(Set.of(TOPIC_2));
             var records = consumer.poll(Duration.ofSeconds(10));
-            assertThat(records.count()).isEqualTo(1);
+            assertThat(records.count()).isOne();
             assertThat(records.iterator().next().value()).isEqualTo(SYNTACTICALLY_CORRECT_JSON);
         }
     }
 
     @Test
     public void testPartiallyInvalidAcrossPartitionsOfSameTopic(KafkaCluster cluster, Admin admin) throws Exception {
-        assertThat(cluster.getNumOfBrokers()).isEqualTo(1);
+        assertThat(cluster.getNumOfBrokers()).isOne();
         createTopic(admin, TOPIC_1, 2);
 
         var config = proxy(cluster)
@@ -189,14 +189,14 @@ public class JsonSyntaxValidationIT extends BaseIT {
 
             consumer.subscribe(Set.of(TOPIC_1));
             var records = consumer.poll(Duration.ofSeconds(10));
-            assertThat(records.count()).isEqualTo(1);
+            assertThat(records.count()).isOne();
             assertThat(records.iterator().next().value()).isEqualTo(SYNTACTICALLY_CORRECT_JSON);
         }
     }
 
     @Test
     public void testPartiallyInvalidWithinOnePartitionOfTopic(KafkaCluster cluster, Admin admin) throws Exception {
-        assertThat(cluster.getNumOfBrokers()).isEqualTo(1);
+        assertThat(cluster.getNumOfBrokers()).isOne();
         createTopic(admin, TOPIC_1, 1);
 
         var config = proxy(cluster)
@@ -220,7 +220,7 @@ public class JsonSyntaxValidationIT extends BaseIT {
 
     @Test
     public void testValidJsonProduceAccepted(KafkaCluster cluster, Admin admin) throws Exception {
-        assertThat(cluster.getNumOfBrokers()).isEqualTo(1);
+        assertThat(cluster.getNumOfBrokers()).isOne();
         createTopic(admin, TOPIC_1, 1);
 
         var config = proxy(cluster)

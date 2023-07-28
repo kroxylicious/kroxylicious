@@ -78,7 +78,7 @@ public class ResilienceIT extends BaseIT {
             assertThat(records).hasSize(1);
             assertThat(records.iterator()).toIterable().map(ConsumerRecord::value).containsExactly("Hello, world!");
 
-            assertThat(records.count()).isEqualTo(1);
+            assertThat(records.count()).isOne();
             assertThat(records.iterator().next().value()).isEqualTo("Hello, world!");
             producer.send(new ProducerRecord<>(topic, "my-key", "Hello, again!")).get(10, TimeUnit.SECONDS);
         }

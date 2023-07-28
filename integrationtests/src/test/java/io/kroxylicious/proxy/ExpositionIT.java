@@ -414,7 +414,7 @@ public class ExpositionIT extends BaseIT {
 
         try (var tester = kroxyliciousTester(builder)) {
 
-            assertThat(cluster.getNumOfBrokers()).isEqualTo(1);
+            assertThat(cluster.getNumOfBrokers()).isOne();
             try (var admin = tester.admin()) {
                 await().atMost(Duration.ofSeconds(5)).until(() -> admin.describeCluster().nodes().get(),
                         n -> n.size() == cluster.getNumOfBrokers());
@@ -453,7 +453,7 @@ public class ExpositionIT extends BaseIT {
 
                 var removedNodeId = 1;
                 cluster.removeBroker(removedNodeId);
-                assertThat(cluster.getNumOfBrokers()).isEqualTo(1);
+                assertThat(cluster.getNumOfBrokers()).isOne();
 
                 var updatedNodes = await().atMost(Duration.ofSeconds(5)).until(() -> admin.describeCluster().nodes().get(),
                         n -> n.size() == cluster.getNumOfBrokers());
