@@ -7,7 +7,7 @@
 
 targetTest=${1:-ExpositionIT}
 
-logFile=/tmp/mvn-${targetTest}-$(date +"%d-%m-%Y_%H:%M").log
+logFile=/tmp/mvn-${targetTest}-$(date +"%Y%m%dT%H%M%S").log
 
 mvn clean install -DskipTests=true
 
