@@ -109,40 +109,12 @@
 
     <dependencyManagement>
         <dependencies>
-            <!-- project dependencies - runtime and compile -->
             <dependency>
                 <groupId>io.kroxylicious</groupId>
-                <artifactId>kroxylicious</artifactId>
+                <artifactId>kroxylicious-bom</artifactId>
                 <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.kroxylicious</groupId>
-                <artifactId>kroxylicious-api</artifactId>
-                <version>${kroxyliciousApi.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.kroxylicious</groupId>
-                <artifactId>kroxylicious-multitenant</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.kroxylicious</groupId>
-                <artifactId>kroxylicious-schema-validation</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-
-            <!-- project dependencies - test -->
-            <dependency>
-                <groupId>io.kroxylicious</groupId>
-                <artifactId>kroxylicious-test-tools</artifactId>
-                <version>${project.version}</version>
-                <scope>test</scope>
-            </dependency>
-            <dependency>
-                <groupId>io.kroxylicious</groupId>
-                <artifactId>kroxylicious-unit-test</artifactId>
-                <version>${project.version}</version>
-                <scope>test</scope>
+                <scope>import</scope>
+                <type>pom</type>
             </dependency>
 
             <dependency>
@@ -273,6 +245,7 @@
     </dependencyManagement>
 
     <modules>
+        <module>kroxylicious-bom</module>
         <module>kroxylicious-api</module>
         <module>krpc-code-gen</module>
         <module>kroxylicious-test-tools</module>
@@ -320,7 +293,6 @@
                                 <header>${rootdir}/etc/license.txt</header>
                                 <excludes>
                                     <exclude>.*</exclude>
-                                    <exclude>.lift/ignoreFiles</exclude>
                                     <exclude>LICENSE.txt</exclude>
                                     <exclude>**/.dontdelete</exclude>
                                     <exclude>docs/**</exclude>
@@ -431,7 +403,8 @@
                     <configuration>
                         <skipTests>${skipUTs}</skipTests>
                         <runOrder>random</runOrder>
-                        <statelessTestsetReporter implementation="org.apache.maven.plugin.surefire.extensions.junit5.JUnit5Xml30StatelessReporter">
+                        <statelessTestsetReporter
+                                implementation="org.apache.maven.plugin.surefire.extensions.junit5.JUnit5Xml30StatelessReporter">
                             <usePhrasedTestCaseMethodName>true</usePhrasedTestCaseMethodName>
                         </statelessTestsetReporter>
                     </configuration>
@@ -653,7 +626,8 @@
                                     <!--suppress MavenModelInspection -->
                                     <configLocation>${rootdir}/etc/checkstyle-custom_checks.xml</configLocation>
                                     <!--suppress MavenModelInspection -->
-                                    <suppressionsLocation>${rootdir}/etc/checkstyle-suppressions.xml</suppressionsLocation>
+                                    <suppressionsLocation>${rootdir}/etc/checkstyle-suppressions.xml
+                                    </suppressionsLocation>
                                 </configuration>
                             </execution>
                         </executions>
@@ -673,10 +647,10 @@
                                             <version>[${java.version},)</version>
                                         </requireJavaVersion>
                                         <requirePluginVersions>
-                                             <banLatest>true</banLatest>
-                                             <banRelease>true</banRelease>
-                                             <banSnapshots>false</banSnapshots>
-                                             <phases>clean,deploy,site</phases>
+                                            <banLatest>true</banLatest>
+                                            <banRelease>true</banRelease>
+                                            <banSnapshots>false</banSnapshots>
+                                            <phases>clean,deploy,site</phases>
                                         </requirePluginVersions>
                                     </rules>
                                 </configuration>
