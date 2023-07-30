@@ -17,6 +17,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -26,6 +27,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.netty.channel.Channel;
+import io.netty.util.Attribute;
 import io.netty.util.AttributeKey;
 
 import io.kroxylicious.proxy.model.VirtualCluster;
@@ -76,6 +78,8 @@ import io.kroxylicious.proxy.service.HostPort;
  */
 public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindingResolver, AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger(EndpointRegistry.class);
+    public static final String NO_CHANNEL_BINDGINS_MESSAGE = "No channel bindings found for";
+    public static final String VIRTUAL_CLUSTER_CANNOT_BE_NULL_MESSAGE = "virtualCluster cannot be null";
     private final NetworkBindingOperationProcessor bindingOperationProcessor;
 
     interface RoutingKey {
@@ -165,7 +169,7 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
      * @return completion stage that will complete after registration is finished.
      */
     public CompletionStage<Endpoint> registerVirtualCluster(VirtualCluster virtualCluster) {
-        Objects.requireNonNull(virtualCluster, "virtualCluster cannot be null");
+        Objects.requireNonNull(virtualCluster, VIRTUAL_CLUSTER_CANNOT_BE_NULL_MESSAGE);
 
         var vcr = VirtualClusterRecord.create(new CompletableFuture<>());
         var current = registeredVirtualClusters.putIfAbsent(virtualCluster, vcr);
@@ -198,37 +202,50 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
                             new VirtualClusterBrokerBinding(virtualCluster, upstreamBootstrap, nodeId, true));
                 }));
 
-        var unused = bootstrapEndpointFuture.thenCombine(discoveryAddressesMapStage, (bef, bps) -> bef)
+        bootstrapEndpointFuture.thenCombine(discoveryAddressesMapStage, (bef, bps) -> bef)
                 .whenComplete((u, t) -> {
                     var future = vcr.registrationStage.toCompletableFuture();
                     if (t != null) {
-                        // Try to roll back any bindings that were successfully made
-                        deregisterBinding(virtualCluster, (vcb) -> vcb.virtualCluster().equals(virtualCluster))
-                                .handle((u1, t1) -> {
-                                    if (t1 != null) {
-                                        LOGGER.warn("Registration error", t);
-                                        LOGGER.warn("Secondary error occurred whilst handling a previous registration error: {}", t.getMessage(), t1);
-                                    }
-                                    registeredVirtualClusters.remove(virtualCluster);
-                                    future.completeExceptionally(t);
-                                    return null;
-                                });
+                        rollbackRelatedBindings(virtualCluster, t, future);
                     }
                     else {
-                        try {
-                            future.complete(bootstrapEndpointFuture.get());
-                        }
-                        catch (InterruptedException ie) {
-                            Thread.currentThread().interrupt();
-                            future.completeExceptionally(ie);
-                        }
-                        catch (Throwable t1) {
-                            future.completeExceptionally(t1);
-                        }
+                        handleSuccessfulBinding(bootstrapEndpointFuture, future);
                     }
                 });
 
         return vcr.registrationStage();
+    }
+
+    private static void handleSuccessfulBinding(CompletableFuture<Endpoint> bootstrapEndpointFuture, CompletableFuture<Endpoint> future) {
+        try {
+            future.complete(bootstrapEndpointFuture.get());
+        }
+        catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            future.completeExceptionally(ie);
+        }
+        catch (ExecutionException ee) {
+            future.completeExceptionally(ee.getCause());
+        }
+        catch (RuntimeException runtimeException) {
+            future.completeExceptionally(runtimeException);
+        }
+    }
+
+    /**
+     * Try to roll back any bindings that were successfully made
+     */
+    private void rollbackRelatedBindings(VirtualCluster virtualCluster, Throwable originalFailure, CompletableFuture<Endpoint> future) {
+        LOGGER.warn("Registration error", originalFailure);
+        deregisterBinding(virtualCluster, vcb -> vcb.virtualCluster().equals(virtualCluster))
+                .handle((result, throwable) -> {
+                    if (throwable != null) {
+                        LOGGER.warn("Secondary error occurred whilst handling a previous registration error: {}", originalFailure.getMessage(), throwable);
+                    }
+                    registeredVirtualClusters.remove(virtualCluster);
+                    future.completeExceptionally(originalFailure);
+                    return null;
+                });
     }
 
     /**
@@ -240,7 +257,7 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
      * @return completion stage that will complete after registration is finished.
      */
     public CompletionStage<Void> deregisterVirtualCluster(VirtualCluster virtualCluster) {
-        Objects.requireNonNull(virtualCluster, "virtualCluster cannot be null");
+        Objects.requireNonNull(virtualCluster, VIRTUAL_CLUSTER_CANNOT_BE_NULL_MESSAGE);
 
         var vcr = registeredVirtualClusters.get(virtualCluster);
         if (vcr == null) {
@@ -263,8 +280,8 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
             return deregisterFuture;
         }
 
-        var unused = vcr.registrationStage()
-                .thenCompose((u) -> deregisterBinding(virtualCluster, binding -> binding.virtualCluster().equals(virtualCluster))
+        vcr.registrationStage()
+                .thenCompose(u -> deregisterBinding(virtualCluster, binding -> binding.virtualCluster().equals(virtualCluster))
                         .handle((unused1, t) -> {
                             registeredVirtualClusters.remove(virtualCluster);
                             if (t != null) {
@@ -287,7 +304,7 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
      */
     @Override
     public CompletionStage<Void> reconcile(VirtualCluster virtualCluster, Map<Integer, HostPort> upstreamNodes) {
-        Objects.requireNonNull(virtualCluster, "virtualCluster cannot be null");
+        Objects.requireNonNull(virtualCluster, VIRTUAL_CLUSTER_CANNOT_BE_NULL_MESSAGE);
         Objects.requireNonNull(upstreamNodes, "upstreamNodes cannot be null");
 
         var vcr = registeredVirtualClusters.get(virtualCluster);
@@ -364,7 +381,7 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
                         }))));
 
         // chain any binding registrations and organise for the reconciliations entry to complete
-        var unused = deregs.thenCompose(u1 -> allOfStage(creations.stream()
+        deregs.thenCompose(u1 -> allOfStage(creations.stream()
                 .map(vcbb -> {
                     var brokerAddress = virtualCluster.getBrokerAddress(vcbb.nodeId());
                     var endpoint = Endpoint.createEndpoint(bindingAddress, brokerAddress.port(), virtualCluster.isUseTls());
@@ -466,12 +483,12 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
     }
 
     private CompletionStage<Void> deregisterBinding(VirtualCluster virtualCluster, Predicate<VirtualClusterBinding> predicate) {
-        Objects.requireNonNull(virtualCluster, "virtualCluster cannot be null");
+        Objects.requireNonNull(virtualCluster, VIRTUAL_CLUSTER_CANNOT_BE_NULL_MESSAGE);
         Objects.requireNonNull(predicate, "predicate cannot be null");
 
         // Search the listening channels for bindings matching the predicate. We could cache more information on the vcr to optimise.
         var unbindStages = listeningChannels.entrySet().stream()
-                .map((e) -> {
+                .map(e -> {
                     var endpoint = e.getKey();
                     var lcr = e.getValue();
                     return lcr.bindingStage().thenCompose(acceptorChannel -> {
@@ -519,7 +536,7 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
         return lcr.bindingStage().thenApply(acceptorChannel -> {
             var bindings = acceptorChannel.attr(CHANNEL_BINDINGS);
             if (bindings == null || bindings.get() == null) {
-                throw buildEndpointResolutionException("No channel bindings found for", endpoint, sniHostname);
+                throw buildEndpointResolutionException(NO_CHANNEL_BINDGINS_MESSAGE, endpoint, sniHostname);
             }
             // We first look for a binding matching by SNI name, then fallback to a null match.
             var binding = bindings.get().getOrDefault(RoutingKey.createBindingKey(sniHostname), bindings.get().get(RoutingKey.NULL_ROUTING_KEY));
@@ -527,33 +544,43 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
                 // If there is an SNI name that matches against the virtual cluster broker address pattern, we generate
                 // a restricted broker binding that points at the virtual cluster's bootstrap.
                 if (sniHostname != null) {
-                    var allBindingsForPort = bindings.get().values();
-                    var brokerAddress = new HostPort(sniHostname, endpoint.port());
-                    var allBootstrapBindings = getAllBootstrapBindings(allBindingsForPort);
-                    var bootstrapToBrokerId = allBootstrapBindings.stream()
-                            .collect(HashMap<VirtualClusterBootstrapBinding, Integer>::new, (m, b) -> {
-                                var nodeId = b.virtualCluster().getBrokerIdFromBrokerAddress(brokerAddress);
-                                if (nodeId != null) {
-                                    m.put(b, nodeId);
-                                }
-                            }, HashMap::putAll);
+                    Map<VirtualClusterBootstrapBinding, Integer> bootstrapToBrokerId = mapSniHostnameToBindings(endpoint, sniHostname, bindings);
                     var size = bootstrapToBrokerId.size();
                     if (size > 1) {
                         throw new EndpointResolutionException("Failed to generate an unbound broker binding from SNI " +
                                 "as it matches the broker address pattern of more than one virtual cluster",
-                                buildEndpointResolutionException("No channel bindings found for", endpoint, sniHostname));
+                                buildEndpointResolutionException(NO_CHANNEL_BINDGINS_MESSAGE, endpoint, sniHostname));
                     }
                     else if (size == 1) {
-                        var e = bootstrapToBrokerId.entrySet().iterator().next();
-                        var bootstrapBinding = e.getKey();
-                        var nodeId = e.getValue();
-                        return new VirtualClusterBrokerBinding(bootstrapBinding.virtualCluster(), bootstrapBinding.upstreamTarget(), nodeId, true);
+                        return buildBootstrapBinding(bootstrapToBrokerId);
                     }
                 }
-                throw buildEndpointResolutionException("No channel bindings found for", endpoint, sniHostname);
+                throw buildEndpointResolutionException(NO_CHANNEL_BINDGINS_MESSAGE, endpoint, sniHostname);
             }
             return binding;
         });
+    }
+
+    private static VirtualClusterBrokerBinding buildBootstrapBinding(Map<VirtualClusterBootstrapBinding, Integer> bootstrapToBrokerId) {
+        var e = bootstrapToBrokerId.entrySet().iterator().next();
+        var bootstrapBinding = e.getKey();
+        var nodeId = e.getValue();
+        return new VirtualClusterBrokerBinding(bootstrapBinding.virtualCluster(), bootstrapBinding.upstreamTarget(), nodeId, true);
+    }
+
+    private HashMap<VirtualClusterBootstrapBinding, Integer> mapSniHostnameToBindings(Endpoint endpoint,
+                                                                                      String sniHostname,
+                                                                                      Attribute<Map<RoutingKey, VirtualClusterBinding>> bindings) {
+        var allBindingsForPort = bindings.get().values();
+        var brokerAddress = new HostPort(sniHostname, endpoint.port());
+        var allBootstrapBindings = getAllBootstrapBindings(allBindingsForPort);
+        return allBootstrapBindings.stream()
+                .collect(HashMap::new, (m, b) -> {
+                    var nodeId = b.virtualCluster().getBrokerIdFromBrokerAddress(brokerAddress);
+                    if (nodeId != null) {
+                        m.put(b, nodeId);
+                    }
+                }, HashMap::putAll);
     }
 
     private List<VirtualClusterBootstrapBinding> getAllBootstrapBindings(Collection<VirtualClusterBinding> allBindingsForPort) {
