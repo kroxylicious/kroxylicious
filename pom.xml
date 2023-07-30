@@ -293,7 +293,6 @@
                                 <header>${rootdir}/etc/license.txt</header>
                                 <excludes>
                                     <exclude>.*</exclude>
-                                    <exclude>.lift/ignoreFiles</exclude>
                                     <exclude>LICENSE.txt</exclude>
                                     <exclude>**/.dontdelete</exclude>
                                     <exclude>docs/**</exclude>
