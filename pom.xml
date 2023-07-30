@@ -403,7 +403,8 @@
                     <configuration>
                         <skipTests>${skipUTs}</skipTests>
                         <runOrder>random</runOrder>
-                        <statelessTestsetReporter implementation="org.apache.maven.plugin.surefire.extensions.junit5.JUnit5Xml30StatelessReporter">
+                        <statelessTestsetReporter
+                                implementation="org.apache.maven.plugin.surefire.extensions.junit5.JUnit5Xml30StatelessReporter">
                             <usePhrasedTestCaseMethodName>true</usePhrasedTestCaseMethodName>
                         </statelessTestsetReporter>
                     </configuration>
@@ -625,7 +626,8 @@
                                     <!--suppress MavenModelInspection -->
                                     <configLocation>${rootdir}/etc/checkstyle-custom_checks.xml</configLocation>
                                     <!--suppress MavenModelInspection -->
-                                    <suppressionsLocation>${rootdir}/etc/checkstyle-suppressions.xml</suppressionsLocation>
+                                    <suppressionsLocation>${rootdir}/etc/checkstyle-suppressions.xml
+                                    </suppressionsLocation>
                                 </configuration>
                             </execution>
                         </executions>
@@ -645,10 +647,10 @@
                                             <version>[${java.version},)</version>
                                         </requireJavaVersion>
                                         <requirePluginVersions>
-                                             <banLatest>true</banLatest>
-                                             <banRelease>true</banRelease>
-                                             <banSnapshots>false</banSnapshots>
-                                             <phases>clean,deploy,site</phases>
+                                            <banLatest>true</banLatest>
+                                            <banRelease>true</banRelease>
+                                            <banSnapshots>false</banSnapshots>
+                                            <phases>clean,deploy,site</phases>
                                         </requirePluginVersions>
                                     </rules>
                                 </configuration>
