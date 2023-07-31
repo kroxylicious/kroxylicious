@@ -10,6 +10,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -38,13 +39,14 @@ public final class StructSpec {
             // Each field should have a unique tag ID (if the field has a tag ID).
             HashSet<Integer> tags = new HashSet<>();
             for (FieldSpec field : fields) {
-                if (field.tag().isPresent()) {
-                    if (tags.contains(field.tag().get())) {
+                final Optional<Integer> fieldTag = field.tag();
+                if (fieldTag.isPresent()) {
+                    if (tags.contains(fieldTag.get())) {
                         throw new RuntimeException("In " + name + ", field " + field.name() +
-                                " has a duplicate tag ID " + field.tag().get() + ".  All tags IDs " +
+                                " has a duplicate tag ID " + fieldTag.get() + ".  All tags IDs " +
                                 "must be unique.");
                     }
-                    tags.add(field.tag().get());
+                    tags.add(fieldTag.get());
                 }
                 newFields.add(field);
             }

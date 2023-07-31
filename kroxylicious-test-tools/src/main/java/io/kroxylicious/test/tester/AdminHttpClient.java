@@ -34,6 +34,10 @@ public class AdminHttpClient {
             HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:9190/" + endpoint)).GET().build();
             return httpClient.send(request, ofString());
         }
+        catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException(ie);
+        }
         catch (Exception e) {
             throw new RuntimeException(e);
         }

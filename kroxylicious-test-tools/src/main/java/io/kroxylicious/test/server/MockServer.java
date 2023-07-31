@@ -125,6 +125,7 @@ public final class MockServer implements AutoCloseable {
             f = b.bind(port).sync();
         }
         catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             throw new RuntimeException(e);
         }
 
@@ -141,6 +142,10 @@ public final class MockServer implements AutoCloseable {
             channelFuture.sync();
             bossGroup.shutdownGracefully();
             workerGroup.shutdownGracefully();
+        }
+        catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException(ie);
         }
         catch (Exception e) {
             throw new RuntimeException(e);
