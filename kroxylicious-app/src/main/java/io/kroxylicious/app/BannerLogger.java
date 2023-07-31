@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.proxy;
+package io.kroxylicious.app;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -30,7 +30,7 @@ public class BannerLogger {
     private final Level targetLevel;
 
     public BannerLogger() {
-        this(LoggerFactory.getLogger("io.kroxylicious.proxy.internal.StartupShutdownLogger"),
+        this(LoggerFactory.getLogger("io.kroxylicious.proxy.StartupShutdownLogger"),
                 new BannerSupplier(DEFAULT_BANNER_LOCATION));
     }
 

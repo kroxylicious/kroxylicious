@@ -3,17 +3,19 @@
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
-package io.kroxylicious.proxy;
+package io.kroxylicious.app;
 
 import java.io.File;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.util.Properties;
 import java.util.concurrent.Callable;
+import java.util.function.Function;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.kroxylicious.proxy.KafkaProxy;
 import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.config.Configuration;
 
@@ -24,10 +26,23 @@ import picocli.CommandLine.Option;
 import picocli.CommandLine.ParameterException;
 import picocli.CommandLine.Spec;
 
-@Command(name = "kroxilicious", mixinStandardHelpOptions = true, versionProvider = Kroxylicious.VersionProvider.class, description = "A customizeable wire protocol proxy for Apache Kafka")
-class Kroxylicious implements Callable<Integer> {
+/**
+ * Kroxylicious application entrypoint
+ */
+@Command(name = "kroxylicious", mixinStandardHelpOptions = true, versionProvider = Kroxylicious.VersionProvider.class, description = "A customizeable wire protocol proxy for Apache Kafka")
+public class Kroxylicious implements Callable<Integer> {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(Kroxylicious.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger("io.kroxylicious.proxy.StartupShutdownLogger");
+    private static final String UNKNOWN = "unknown";
+    private final Function<Configuration, KafkaProxy> proxyBuilder;
+
+    Kroxylicious() {
+        this(KafkaProxy::new);
+    }
+
+    Kroxylicious(Function<Configuration, KafkaProxy> proxyBuilder) {
+        this.proxyBuilder = proxyBuilder;
+    }
 
     @Spec
     private CommandSpec spec;
@@ -43,8 +58,9 @@ class Kroxylicious implements Callable<Integer> {
 
         try (InputStream stream = Files.newInputStream(configFile.toPath())) {
             Configuration config = new ConfigParser().parseConfiguration(stream);
-            try (KafkaProxy kafkaProxy = new KafkaProxy(config)) {
+            try (KafkaProxy kafkaProxy = proxyBuilder.apply(config)) {
                 kafkaProxy.startup();
+                printBannerAndVersions();
                 kafkaProxy.block();
             }
         }
@@ -56,6 +72,18 @@ class Kroxylicious implements Callable<Integer> {
         return 0;
     }
 
+    private static void printBannerAndVersions() throws Exception {
+        new BannerLogger().log();
+        String[] versions = new VersionProvider().getVersion();
+        for (String version : versions) {
+            LOGGER.info(version);
+        }
+    }
+
+    /**
+     * Kroxylicious entry point
+     * @param args args
+     */
     public static void main(String... args) {
         int exitCode = new CommandLine(new Kroxylicious()).execute(args);
         System.exit(exitCode);
@@ -68,12 +96,12 @@ class Kroxylicious implements Callable<Integer> {
                 if (resource != null) {
                     Properties properties = new Properties();
                     properties.load(resource);
-                    String version = properties.getProperty("kroxylicious.version", "unknown");
-                    String apiVersion = properties.getProperty("kroxylicious.api.version", "unknown");
-                    return new String[]{ "kroxylicious: " + version, "kroxylicous apis: " + apiVersion };
+                    String version = properties.getProperty("kroxylicious.version", UNKNOWN);
+                    String apiVersion = properties.getProperty("kroxylicious.api.version", UNKNOWN);
+                    return new String[]{ "kroxylicious: " + version, "kroxylicious apis: " + apiVersion };
                 }
             }
-            return new String[]{ "unknown" };
+            return new String[]{ UNKNOWN };
         }
     }
 }

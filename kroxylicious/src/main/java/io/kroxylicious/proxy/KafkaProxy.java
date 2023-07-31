@@ -50,7 +50,7 @@ import io.kroxylicious.proxy.service.HostPort;
 public final class KafkaProxy implements AutoCloseable {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxy.class);
-    private static final Logger STARTUP_SHUTDOWN_LOGGER = LoggerFactory.getLogger("io.kroxylicious.proxy.internal.StartupShutdownLogger");
+    private static final Logger STARTUP_SHUTDOWN_LOGGER = LoggerFactory.getLogger("io.kroxylicious.proxy.StartupShutdownLogger");
 
     private final NetworkBindingOperationProcessor bindingOperationProcessor = new DefaultNetworkBindingOperationProcessor();
     private final EndpointRegistry endpointRegistry = new EndpointRegistry(bindingOperationProcessor);
@@ -89,8 +89,6 @@ public final class KafkaProxy implements AutoCloseable {
             throw new IllegalStateException("This proxy is already running");
         }
 
-        logStartup();
-
         var portConflictDefector = new PortConflictDetector();
         Optional<HostPort> adminHttpHostPort = Optional.ofNullable(shouldBindAdminEndpoint() ? new HostPort(adminHttpConfig.host(), adminHttpConfig.port()) : null);
         portConflictDefector.validate(virtualClusters, adminHttpHostPort);
@@ -117,10 +115,6 @@ public final class KafkaProxy implements AutoCloseable {
         Metrics.inboundDownstreamMessagesCounter();
         Metrics.inboundDownstreamDecodedMessagesCounter();
         return this;
-    }
-
-    private static void logStartup() {
-        new BannerLogger().log();
     }
 
     private ServerBootstrap buildServerBootstrap(EventGroupConfig virtualHostEventGroup, KafkaProxyInitializer kafkaProxyInitializer) {
