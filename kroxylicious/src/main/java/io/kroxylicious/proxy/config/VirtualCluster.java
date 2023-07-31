@@ -13,8 +13,7 @@ import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.ClusterNetworkAddressConfigProviderContributorManager;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 
-public record VirtualCluster(@JsonProperty() Optional<String> clusterName,
-                             TargetCluster targetCluster,
+public record VirtualCluster(TargetCluster targetCluster,
                              @JsonProperty(required = true) ClusterNetworkAddressConfigProviderDefinition clusterNetworkAddressConfigProvider,
 
                              @JsonProperty() Optional<Tls> tls,
@@ -22,7 +21,7 @@ public record VirtualCluster(@JsonProperty() Optional<String> clusterName,
                              boolean logFrames
 ) {
     public io.kroxylicious.proxy.model.VirtualCluster toVirtualClusterModel(String virtualClusterNodeName) {
-        return new io.kroxylicious.proxy.model.VirtualCluster(clusterName().orElse(virtualClusterNodeName),
+        return new io.kroxylicious.proxy.model.VirtualCluster(virtualClusterNodeName,
                 targetCluster(),
                 toClusterNetworkAddressConfigProviderModel(),
                 tls(),

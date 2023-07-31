@@ -224,7 +224,6 @@ public class ExpositionIT {
         return Stream.of(
                 Arguments.of("PortPerBroker",
                         new VirtualClusterBuilder()
-                                .withClusterName("PortPerBroker")
                                 .withNewTls()
                                 .withNewKeyStoreKey()
                                 .withStoreFile(portPerBrokerKeystoreTrustStorePair.brokerKeyStore())
@@ -242,7 +241,6 @@ public class ExpositionIT {
                                 SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, portPerBrokerKeystoreTrustStorePair.password())),
                 Arguments.of("SniRouting",
                         new VirtualClusterBuilder()
-                                .withClusterName("SniRouting")
                                 .withNewTls()
                                 .withNewKeyStoreKey()
                                 .withStoreFile(sniKeystoreTrustStorePair.brokerKeyStore())

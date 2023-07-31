@@ -5,10 +5,8 @@
  */
 package io.kroxylicious.proxy.config;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Predicate;
 
 import io.kroxylicious.proxy.config.admin.AdminHttpConfiguration;
 
@@ -30,21 +28,8 @@ public record Configuration(AdminHttpConfiguration adminHttp,
     }
 
     public List<io.kroxylicious.proxy.model.VirtualCluster> validClusters() {
-
-        final List<io.kroxylicious.proxy.model.VirtualCluster> modelClusters = virtualClusters.entrySet().stream()
+        return virtualClusters.entrySet().stream()
                 .map(entry -> entry.getValue().toVirtualClusterModel(entry.getKey()))
                 .toList();
-        final Map<String, Integer> clusterNameCounts = new HashMap<>();
-        modelClusters.stream().map(io.kroxylicious.proxy.model.VirtualCluster::getClusterName).forEach(clusterName -> {
-            final Integer appearanceCount = clusterNameCounts.computeIfAbsent(clusterName, ignored -> 0) + 1;
-            clusterNameCounts.put(clusterName, appearanceCount);
-        });
-
-        if (clusterNameCounts.entrySet().stream().anyMatch(entry -> entry.getValue() >= 2)) {
-            return modelClusters.stream().filter(Predicate.not(virtualCluster -> clusterNameCounts.get(virtualCluster.getClusterName()) >= 2)).toList();
-        }
-        else {
-            return modelClusters;
-        }
     }
 }
