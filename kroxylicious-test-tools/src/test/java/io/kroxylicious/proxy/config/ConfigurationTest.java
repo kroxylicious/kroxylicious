@@ -9,12 +9,13 @@ package io.kroxylicious.proxy.config;
 import java.util.List;
 import java.util.stream.Stream;
 
-import org.junit.jupiter.api.Disabled;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
@@ -23,6 +24,7 @@ import com.flipkart.zjsonpatch.JsonDiff;
 import io.kroxylicious.proxy.internal.filter.ProduceRequestTransformationFilter;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ConfigurationTest {
 
@@ -31,8 +33,8 @@ class ConfigurationTest {
 
     public static Stream<Arguments> yamlDeserializeSerializeFidelity() {
         return Stream.of(Arguments.of("Top level flags", """
-                useIoUring: true
-                """),
+                        useIoUring: true
+                        """),
                 Arguments.of("Virtual cluster (PortPerBroker)", """
                         virtualClusters:
                           demo1:
@@ -118,9 +120,9 @@ class ConfigurationTest {
 
     public static Stream<Arguments> fluentApiConfigYamlFidelity() {
         return Stream.of(Arguments.of("Top level",
-                new ConfigurationBuilder().withUseIoUring(true).build(),
-                """
-                        useIoUring: true"""),
+                        new ConfigurationBuilder().withUseIoUring(true).build(),
+                        """
+                                useIoUring: true"""),
 
                 Arguments.of("With filter",
                         new ConfigurationBuilder()
@@ -334,31 +336,39 @@ class ConfigurationTest {
     }
 
     @Test
-    @Disabled("This should be a test but jackson only makes one cluster available.")
     void shouldDetectDuplicateClusterNodeNames() {
-        assertNoValidClusters("""
-                virtualClusters:
-                  demo1:
-                    targetCluster:
-                      bootstrap_servers: kafka.example:1234
-                    clusterNetworkAddressConfigProvider:
-                      type: PortPerBroker
-                      config:
-                        bootstrapAddress: cluster1:9192
-                        numberOfBrokerPorts: 1
-                        brokerAddressPattern: localhost
-                        brokerStartPort: 9193
-                  demo1:
-                    targetCluster:
-                      bootstrap_servers: magic-kafka.example:1234
-                    clusterNetworkAddressConfigProvider:
-                      type: PortPerBroker
-                      config:
-                        bootstrapAddress: cluster2:9193
-                        numberOfBrokerPorts: 1
-                        brokerAddressPattern: localhost
-                        brokerStartPort: 10193
-                """);
+        // Given
+
+        // When
+        assertThatThrownBy(() ->
+                configParser.parseConfiguration("""
+                        virtualClusters:
+                          demo1:
+                            targetCluster:
+                              bootstrap_servers: kafka.example:1234
+                            clusterNetworkAddressConfigProvider:
+                              type: PortPerBroker
+                              config:
+                                bootstrapAddress: cluster1:9192
+                                numberOfBrokerPorts: 1
+                                brokerAddressPattern: localhost
+                                brokerStartPort: 9193
+                          demo1:
+                            targetCluster:
+                              bootstrap_servers: magic-kafka.example:1234
+                            clusterNetworkAddressConfigProvider:
+                              type: PortPerBroker
+                              config:
+                                bootstrapAddress: cluster2:9193
+                                numberOfBrokerPorts: 1
+                                brokerAddressPattern: localhost
+                                brokerStartPort: 10193
+                        """))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasCauseInstanceOf(JsonMappingException.class) // Debatable to enforce the wrapped JsonMappingException
+                .cause()
+                .hasMessageStartingWith("Duplicate field 'demo1'");
+
     }
 
     @Test
