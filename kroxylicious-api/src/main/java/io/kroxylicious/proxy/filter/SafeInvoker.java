@@ -22,12 +22,12 @@ import org.apache.kafka.common.protocol.ApiMessage;
 record SafeInvoker(FilterInvoker invoker) implements FilterInvoker {
 
     @Override
-    public CompletionStage<? extends FilterResult> onRequest(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
+    public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
         if (invoker.shouldHandleRequest(apiKey, apiVersion)) {
             return invoker.onRequest(apiKey, apiVersion, header, body, filterContext);
         }
         else {
-            return filterContext.completedForwardRequest(header, body);
+            return filterContext.requestFilterResultBuilder().withHeader(header).withMessage(body).completedFilterResult();
         }
     }
 
@@ -37,7 +37,7 @@ record SafeInvoker(FilterInvoker invoker) implements FilterInvoker {
             return invoker.onResponse(apiKey, apiVersion, header, body, filterContext);
         }
         else {
-            return filterContext.completedForwardResponse(header, body);
+            return filterContext.responseFilterResultBuilder().withHeader(header).withMessage(body).completedFilterResult();
         }
     }
 

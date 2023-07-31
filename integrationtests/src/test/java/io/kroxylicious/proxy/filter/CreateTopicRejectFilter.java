@@ -6,6 +6,7 @@
 
 package io.kroxylicious.proxy.filter;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.message.CreateTopicsRequestData;
@@ -18,8 +19,8 @@ public class CreateTopicRejectFilter implements CreateTopicsRequestFilter {
     public static final String ERROR_MESSAGE = "rejecting all topics";
 
     @Override
-    public CompletionStage<? extends FilterResult> onCreateTopicsRequest(short apiVersion, RequestHeaderData header, CreateTopicsRequestData request,
-                                                                         KrpcFilterContext context) {
+    public CompletionStage<RequestFilterResult> onCreateTopicsRequest(short apiVersion, RequestHeaderData header, CreateTopicsRequestData request,
+                                                                      KrpcFilterContext context) {
         CreateTopicsResponseData response = new CreateTopicsResponseData();
         CreateTopicsResponseData.CreatableTopicResultCollection topics = new CreateTopicsResponseData.CreatableTopicResultCollection();
         allocateByteBufToTestKroxyliciousReleasesIt(context);
@@ -30,7 +31,7 @@ public class CreateTopicRejectFilter implements CreateTopicsRequestFilter {
             topics.add(result);
         });
         response.setTopics(topics);
-        return context.completedForwardResponse(response);
+        return CompletableFuture.completedStage(context.requestFilterResultBuilder().asRequestShortCircuitResponse().withMessage(response).build());
     }
 
     private static void allocateByteBufToTestKroxyliciousReleasesIt(KrpcFilterContext context) {

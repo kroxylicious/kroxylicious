@@ -42,11 +42,11 @@ public class RequestResponseMarkingFilter implements RequestFilter, ResponseFilt
     }
 
     @Override
-    public CompletionStage<? extends FilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
+    public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
         if (keysToMark.contains(apiKey)) {
             body.unknownTaggedFields().add(createTaggedField("request"));
         }
-        return filterContext.completedForwardRequest(header, body);
+        return filterContext.requestFilterResultBuilder().withMessage(body).withHeader(header).completedFilterResult();
     }
 
     @Override
@@ -54,7 +54,7 @@ public class RequestResponseMarkingFilter implements RequestFilter, ResponseFilt
         if (keysToMark.contains(apiKey)) {
             body.unknownTaggedFields().add(createTaggedField("response"));
         }
-        return filterContext.completedForwardResponse(header, body);
+        return filterContext.responseFilterResultBuilder().withHeader(header).withMessage(body).completedFilterResult();
     }
 
     private RawTaggedField createTaggedField(String type) {

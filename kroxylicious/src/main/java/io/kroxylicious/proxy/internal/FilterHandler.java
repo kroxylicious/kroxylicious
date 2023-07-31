@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.internal;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
+import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.slf4j.Logger;
@@ -21,8 +22,6 @@ import io.netty.channel.ChannelPromise;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.FilterInvoker;
 import io.kroxylicious.proxy.filter.KrpcFilter;
-import io.kroxylicious.proxy.filter.RequestFilterResult;
-import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
@@ -63,7 +62,7 @@ public class FilterHandler extends ChannelDuplexHandler {
 
             var stage = invoker.onRequest(decodedFrame.apiKey(), decodedFrame.apiVersion(), decodedFrame.header(),
                     decodedFrame.body(), filterContext);
-            stage.whenComplete((filterResult, t) -> {
+            stage.whenComplete((requestFilterResult, t) -> {
                 // maybe better to run the whole thing on the netty thread.
 
                 if (t != null) {
@@ -71,18 +70,20 @@ public class FilterHandler extends ChannelDuplexHandler {
                     return;
                 }
 
-                if (filterResult instanceof RequestFilterResult rfr) {
-                    var header = rfr.header() == null ? decodedFrame.header() : rfr.header();
-                    filterContext.forwardRequest(header, rfr.message());
-                }
-                else if (filterResult instanceof ResponseFilterResult rfr) {
-                    // this is the short circuit path
-                    if (rfr.message() != null) {
-                        var header = rfr.header() == null ? new ResponseHeaderData().setCorrelationId(decodedFrame.correlationId()) : rfr.header();
-                        filterContext.forwardResponse(header, rfr.message());
+                if (requestFilterResult.message() != null) {
+                    if (requestFilterResult.shortCircuitResponse()) {
+                        // this is the short circuit path
+                        var header = requestFilterResult.header() == null ? new ResponseHeaderData() : ((ResponseHeaderData) requestFilterResult.header());
+                        header.setCorrelationId(decodedFrame.correlationId());
+                        filterContext.forwardResponse(header, requestFilterResult.message());
+                    }
+                    else {
+                        var header = requestFilterResult.header() == null ? decodedFrame.header() : requestFilterResult.header();
+                        filterContext.forwardRequest((RequestHeaderData) header, requestFilterResult.message());
                     }
                 }
-                if (filterResult.closeConnection()) {
+
+                if (requestFilterResult.closeConnection()) {
                     filterContext.closeConnection();
                 }
 
@@ -120,16 +121,16 @@ public class FilterHandler extends ChannelDuplexHandler {
                 var stage = invoker.onResponse(decodedFrame.apiKey(), decodedFrame.apiVersion(),
                         decodedFrame.header(), decodedFrame.body(), filterContext);
 
-                stage.whenComplete((rfr, t) -> {
+                stage.whenComplete((responseFilterResult, t) -> {
                     if (t != null) {
                         filterContext.closeConnection();
                         return;
                     }
-                    if (rfr.message() != null) {
-                        ResponseHeaderData header = rfr.header() == null ? decodedFrame.header() : rfr.header();
-                        filterContext.forwardResponse(header, rfr.message());
+                    if (responseFilterResult.message() != null) {
+                        ResponseHeaderData header = responseFilterResult.header() == null ? decodedFrame.header() : (ResponseHeaderData) responseFilterResult.header();
+                        filterContext.forwardResponse(header, responseFilterResult.message());
                     }
-                    if (rfr.closeConnection()) {
+                    if (responseFilterResult.closeConnection()) {
                         filterContext.closeConnection();
                     }
 

@@ -31,12 +31,12 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.mockito.Answers;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import io.kroxylicious.proxy.filter.FilterResultBuilder;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
-import io.kroxylicious.proxy.filter.ResponseFilterResult;
+import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyShort;
@@ -50,6 +50,8 @@ class EagerMetadataLearnerTest {
 
     @Mock
     KrpcFilterContext context;
+    @Mock(answer = Answers.RETURNS_SELF)
+    RequestFilterResultBuilder builder;
     private EagerMetadataLearner learner;
 
     @BeforeEach
@@ -67,7 +69,7 @@ class EagerMetadataLearnerTest {
     @ParameterizedTest(name = "{0}")
     @MethodSource("preludeRequests")
     public void forwardsRequestsOfKafkaPrelude(String name, ApiKeys apiKey, RequestHeaderData header, ApiMessage request) {
-        when(context.completedForwardRequest(header, request)).thenReturn(CompletableFuture.completedStage(null));
+        when(context.requestFilterResultBuilder()).thenReturn(new RequestFilterResultBuilderImpl());
         var stage = learner.onRequest(apiKey, header, request, context);
         assertThat(stage).isCompleted();
     }
@@ -87,14 +89,14 @@ class EagerMetadataLearnerTest {
         var metadataResponse = new MetadataResponseData();
         metadataResponse.brokers().add(new MetadataResponseData.MetadataResponseBroker().setNodeId(1).setHost("localhost").setPort(1234));
 
-        when(context.responseFilterResultBuilder()).thenReturn(FilterResultBuilder.responseFilterResultBuilder());
+        when(context.requestFilterResultBuilder()).thenReturn(new RequestFilterResultBuilderImpl());
         when(context.sendRequest(anyShort(), isA(MetadataRequestData.class))).thenReturn(CompletableFuture.completedStage(metadataResponse));
         var stage = learner.onRequest(apiKey, header, request, context);
         assertThat(stage).isCompleted();
-        var result = ((ResponseFilterResult) stage.toCompletableFuture().get());
+        var result = stage.toCompletableFuture().get();
 
         if (apiKey == ApiKeys.METADATA) {
-            // if caller's request is a metadata request, then the filter must forward it with fidelity
+            // if caller's message is a metadata message, then the filter must forward it with fidelity
             verify(context).sendRequest(eq(header.requestApiVersion()), eq(request));
             assertThat(result.message()).isEqualTo(metadataResponse);
         }

@@ -23,15 +23,17 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 
-import io.kroxylicious.proxy.filter.FilterResultBuilder;
 import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
-import io.kroxylicious.proxy.filter.RequestFilterResult;
+import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
+import io.kroxylicious.proxy.filter.ResponseFilterResultBuilder;
 import io.kroxylicious.proxy.frame.DecodedFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.future.InternalCompletionStage;
+import io.kroxylicious.proxy.internal.filter.RequestFilterResultBuilderImpl;
+import io.kroxylicious.proxy.internal.filter.ResponseFilterResultBuilderImpl;
 import io.kroxylicious.proxy.internal.util.ByteBufOutputStream;
 
 /**
@@ -114,11 +116,6 @@ class DefaultFilterContext implements KrpcFilterContext {
         }
         // TODO check we've not forwarded it already
         channelContext.write(decodedFrame, promise);
-    }
-
-    @Override
-    public CompletionStage<RequestFilterResult> completedForwardRequest(RequestHeaderData header, ApiMessage request) {
-        return CompletableFuture.completedStage(requestFilterResultBuilder().withMessage(request).withHeader(header).build());
     }
 
     @Override
@@ -215,17 +212,16 @@ class DefaultFilterContext implements KrpcFilterContext {
     }
 
     @Override
-    public FilterResultBuilder<ResponseFilterResult, ResponseHeaderData> responseFilterResultBuilder() {
-        return FilterResultBuilder.responseFilterResultBuilder();
+    public ResponseFilterResultBuilder responseFilterResultBuilder() {
+        return new ResponseFilterResultBuilderImpl();
     }
 
     @Override
-    public FilterResultBuilder<RequestFilterResult, RequestHeaderData> requestFilterResultBuilder() {
-        return FilterResultBuilder.requestFilterResultBuilder();
+    public RequestFilterResultBuilder requestFilterResultBuilder() {
+        return new RequestFilterResultBuilderImpl();
     }
 
-    @Override
-    public CompletionStage<ResponseFilterResult> completedForwardResponse(ResponseHeaderData header, ApiMessage response) {
+    public CompletionStage<ResponseFilterResult> completedResponseFilterResult(ResponseHeaderData header, ApiMessage response) {
         return CompletableFuture.completedStage(responseFilterResultBuilder().withHeader(header).withMessage(response).build());
     }
 
@@ -246,7 +242,7 @@ class DefaultFilterContext implements KrpcFilterContext {
     private void forwardShortCircuitResponse(ResponseHeaderData header, ApiMessage response) {
         if (response.apiKey() != decodedFrame.apiKey().id) {
             throw new AssertionError(
-                    "Attempt to respond with ApiMessage of type " + ApiKeys.forId(response.apiKey()) + " but request is of type " + decodedFrame.apiKey());
+                    "Attempt to respond with ApiMessage of type " + ApiKeys.forId(response.apiKey()) + " but message is of type " + decodedFrame.apiKey());
         }
         DecodedResponseFrame<?> responseFrame = new DecodedResponseFrame<>(decodedFrame.apiVersion(), decodedFrame.correlationId(), header, response);
         decodedFrame.transferBuffersTo(responseFrame);

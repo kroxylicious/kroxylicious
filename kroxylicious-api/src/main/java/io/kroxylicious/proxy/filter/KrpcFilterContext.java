@@ -7,8 +7,6 @@ package io.kroxylicious.proxy.filter;
 
 import java.util.concurrent.CompletionStage;
 
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 
@@ -45,11 +43,7 @@ public interface KrpcFilterContext {
     // */
     // void forwardRequest(RequestHeaderData header, ApiMessage request);
 
-    default CompletionStage<RequestFilterResult> completedForwardRequest(ApiMessage request) {
-        return completedForwardRequest(null, request);
-    }
-
-    CompletionStage<RequestFilterResult> completedForwardRequest(RequestHeaderData header, ApiMessage request);
+    RequestFilterResultBuilder requestFilterResultBuilder();
 
     /**
      * Send a message from a filter towards the broker, invoking upstream filters
@@ -90,15 +84,7 @@ public interface KrpcFilterContext {
     // */
     // void forwardResponse(ApiMessage response);
 
-    default CompletionStage<ResponseFilterResult> completedForwardResponse(ApiMessage response) {
-        return completedForwardResponse(null, response);
-    }
-
-    FilterResultBuilder<ResponseFilterResult, ResponseHeaderData> responseFilterResultBuilder();
-
-    FilterResultBuilder<RequestFilterResult, RequestHeaderData> requestFilterResultBuilder();
-
-    CompletionStage<ResponseFilterResult> completedForwardResponse(ResponseHeaderData header, ApiMessage response);
+    ResponseFilterResultBuilder responseFilterResultBuilder();
 
     // /**
     // * Allows a filter to decide to close the connection. The client will be disconnected. The client is free

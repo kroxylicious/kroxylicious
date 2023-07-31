@@ -87,7 +87,7 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
             apply(context, data, FindCoordinatorResponseData::nodeId, FindCoordinatorResponseData::host, FindCoordinatorResponseData::port,
                     FindCoordinatorResponseData::setHost, FindCoordinatorResponseData::setPort);
         }
-        return context.completedForwardResponse(header, data);
+        return context.responseFilterResultBuilder().withHeader(header).withMessage(data).completedFilterResult();
     }
 
     private <T> void apply(KrpcFilterContext context, T broker, Function<T, Integer> nodeIdGetter, Function<T, String> hostGetter, ToIntFunction<T> portGetter,
@@ -109,6 +109,6 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
         // Using synchronous approach for now
         reconciler.reconcile(virtualCluster, nodeMap).toCompletableFuture().join();
         LOGGER.debug("Endpoint reconciliation complete for virtual cluster {}", virtualCluster);
-        return context.completedForwardResponse(header, data);
+        return context.responseFilterResultBuilder().withHeader(header).withMessage(data).completedFilterResult();
     }
 }

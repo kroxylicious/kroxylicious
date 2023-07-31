@@ -14,7 +14,7 @@ import io.netty.handler.codec.MessageToByteEncoder;
 import io.kroxylicious.proxy.frame.Frame;
 
 /**
- * Abstraction for request and response encoders.
+ * Abstraction for message and response encoders.
  */
 public abstract class KafkaMessageEncoder<F extends Frame> extends MessageToByteEncoder<F> {
 

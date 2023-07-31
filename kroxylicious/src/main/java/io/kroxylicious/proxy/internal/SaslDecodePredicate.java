@@ -50,7 +50,7 @@ class SaslDecodePredicate implements DecodePredicate {
             return true;
         }
         if (delegate == null) {
-            // on the first request, before the delegate is set decode everything in case a filter wants
+            // on the first message, before the delegate is set decode everything in case a filter wants
             // to intercept it
             return true;
         }

@@ -58,12 +58,12 @@ public interface NetFilter {
         String authorizedId();
 
         /**
-         * @return The name of the client software, if known via ApiVersions request. Otherwise null.
+         * @return The name of the client software, if known via ApiVersions request. Otherwise, null.
          */
         String clientSoftwareName();
 
         /**
-         * @return The version of the client software, if known via ApiVersions request. Otherwise null.
+         * @return The version of the client software, if known via ApiVersions request. Otherwise, null.
          */
         String clientSoftwareVersion();
 

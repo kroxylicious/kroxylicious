@@ -24,8 +24,8 @@ import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.proxy.filter.ApiVersionsRequestFilter;
 import io.kroxylicious.proxy.filter.ApiVersionsResponseFilter;
-import io.kroxylicious.proxy.filter.FilterResult;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
+import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
@@ -45,7 +45,8 @@ public class FilterHandlerTest extends FilterHarness {
 
     @Test
     public void testForwardRequest() {
-        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> context.completedForwardRequest(header, request);
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> context.requestFilterResultBuilder().withMessage(request).withHeader(header)
+                .completedFilterResult();
         buildChannel(filter);
         var frame = writeRequest(new ApiVersionsRequestData());
         var propagated = channel.readOutbound();
@@ -61,8 +62,8 @@ public class FilterHandlerTest extends FilterHarness {
             }
 
             @Override
-            public CompletionStage<FilterResult> onApiVersionsRequest(short apiVersion, RequestHeaderData header, ApiVersionsRequestData request,
-                                                                      KrpcFilterContext context) {
+            public CompletionStage<RequestFilterResult> onApiVersionsRequest(short apiVersion, RequestHeaderData header, ApiVersionsRequestData request,
+                                                                             KrpcFilterContext context) {
                 fail("Should not be called");
                 return null;
             }
@@ -89,7 +90,8 @@ public class FilterHandlerTest extends FilterHarness {
 
     @Test
     public void testForwardResponse() {
-        ApiVersionsResponseFilter filter = (apiVersion, header, response, context) -> context.completedForwardResponse(header, response);
+        ApiVersionsResponseFilter filter = (apiVersion, header, response, context) -> context.responseFilterResultBuilder().withHeader(header).withMessage(response)
+                .completedFilterResult();
         buildChannel(filter);
         var frame = writeResponse(new ApiVersionsResponseData());
         var propagated = channel.readInbound();
@@ -289,7 +291,7 @@ public class FilterHandlerTest extends FilterHarness {
         assertFalse(q.isDone(),
                 "Future should not be finished yet");
 
-        // timeout the request
+        // timeout the message
         Thread.sleep(60L);
         channel.runPendingTasks();
 
@@ -313,7 +315,7 @@ public class FilterHandlerTest extends FilterHarness {
     private static ApiVersionsResponseFilter taggingApiVersionsResponseFilter(String tag) {
         return (apiVersion, header, response, context) -> {
             response.unknownTaggedFields().add(new RawTaggedField(ARBITRARY_TAG, tag.getBytes(UTF_8)));
-            return context.completedForwardResponse(header, response);
+            return context.responseFilterResultBuilder().withHeader(header).withMessage(response).completedFilterResult();
         };
     }
 
@@ -325,7 +327,7 @@ public class FilterHandlerTest extends FilterHarness {
     private static ApiVersionsRequestFilter taggingApiVersionsRequestFilter(String tag) {
         return (apiVersion, header, request, context) -> {
             request.unknownTaggedFields().add(new RawTaggedField(ARBITRARY_TAG, tag.getBytes(UTF_8)));
-            return context.completedForwardRequest(header, request);
+            return context.requestFilterResultBuilder().withMessage(request).withHeader(header).completedFilterResult();
         };
     }
 

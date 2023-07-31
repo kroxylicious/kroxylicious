@@ -6,6 +6,8 @@
 
 package io.kroxylicious.proxy.filter;
 
-public interface ResponseFilterResult extends FilterResult {
+public interface RequestFilterResultBuilder extends FilterResultBuilder<RequestFilterResultBuilder, RequestFilterResult> {
+
+    RequestFilterResultBuilder asRequestShortCircuitResponse();
 
 }

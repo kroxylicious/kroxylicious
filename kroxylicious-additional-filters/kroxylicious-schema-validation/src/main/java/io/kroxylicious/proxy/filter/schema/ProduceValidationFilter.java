@@ -18,10 +18,10 @@ import org.apache.kafka.common.protocol.Errors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.kroxylicious.proxy.filter.FilterResult;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
 import io.kroxylicious.proxy.filter.ProduceResponseFilter;
+import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.filter.schema.validation.request.ProduceRequestValidationResult;
 import io.kroxylicious.proxy.filter.schema.validation.request.ProduceRequestValidator;
@@ -65,22 +65,22 @@ public class ProduceValidationFilter implements ProduceRequestFilter, ProduceRes
     }
 
     @Override
-    public CompletionStage<? extends FilterResult> onProduceRequest(short apiVersion, RequestHeaderData header, ProduceRequestData request, KrpcFilterContext context) {
+    public CompletionStage<RequestFilterResult> onProduceRequest(short apiVersion, RequestHeaderData header, ProduceRequestData request, KrpcFilterContext context) {
         ProduceRequestValidationResult result = validator.validateRequest(request);
         if (result.isAnyTopicPartitionInvalid()) {
             return handleInvalidTopicPartitions(header, request, context, result);
         }
         else {
-            return context.completedForwardRequest(header, request);
+            return context.requestFilterResultBuilder().withHeader(header).withMessage(request).completedFilterResult();
         }
     }
 
-    private CompletionStage<? extends FilterResult> handleInvalidTopicPartitions(RequestHeaderData header, ProduceRequestData request, KrpcFilterContext context,
-                                                                                 ProduceRequestValidationResult result) {
+    private CompletionStage<RequestFilterResult> handleInvalidTopicPartitions(RequestHeaderData header, ProduceRequestData request, KrpcFilterContext context,
+                                                                              ProduceRequestValidationResult result) {
         if (result.isAllTopicPartitionsInvalid()) {
             LOGGER.debug("all topic-partitions for request contained invalid data: {}", result);
             ProduceResponseData response = invalidateEntireRequest(request, result);
-            return context.completedForwardResponse(response);
+            return context.requestFilterResultBuilder().asRequestShortCircuitResponse().withMessage(response).completedFilterResult();
         }
         // do not forward partial produce data if request is transactional because the whole produce must eventually succeed or fail together
         else if (request.transactionalId() == null && forwardPartialRequests) {
@@ -90,13 +90,13 @@ public class ProduceValidationFilter implements ProduceRequestFilter, ProduceRes
                 topicDatum.partitionData().removeIf(partitionProduceData -> !result.isPartitionValid(topicDatum.name(), partitionProduceData.index()));
             }
             correlatedResults.put(header.correlationId(), result);
-            return context.completedForwardRequest(header, request);
+            return context.requestFilterResultBuilder().withHeader(header).withMessage(request).completedFilterResult();
         }
         else {
             LOGGER.debug("some topic-partitions for transactional request with id: {}, contained invalid data: {}, invalidation entire request",
                     request.transactionalId(), result);
             ProduceResponseData response = invalidateEntireRequest(request, result);
-            return context.completedForwardResponse(response);
+            return context.requestFilterResultBuilder().asRequestShortCircuitResponse().withMessage(response).completedFilterResult();
         }
     }
 
@@ -155,10 +155,10 @@ public class ProduceValidationFilter implements ProduceRequestFilter, ProduceRes
         if (produceRequestValidationResult != null) {
             LOGGER.debug("augmenting invalid topic-partition details into response: {}", produceRequestValidationResult);
             augmentResponseWithInvalidTopicPartitions(response, produceRequestValidationResult);
-            return context.completedForwardResponse(response);
+            return context.responseFilterResultBuilder().withHeader(null).withMessage(response).completedFilterResult();
         }
         else {
-            return context.completedForwardResponse(response);
+            return context.responseFilterResultBuilder().withHeader(null).withMessage(response).completedFilterResult();
         }
     }
 

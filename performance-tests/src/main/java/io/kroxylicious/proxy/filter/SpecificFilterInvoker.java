@@ -172,11 +172,11 @@ public class SpecificFilterInvoker implements FilterInvoker {
      * @return
      */
     @Override
-    public CompletionStage<? extends FilterResult> onRequest(ApiKeys apiKey,
-                                                             short apiVersion,
-                                                             RequestHeaderData header,
-                                                             ApiMessage body,
-                                                             KrpcFilterContext filterContext) {
+    public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey,
+                                                          short apiVersion,
+                                                          RequestHeaderData header,
+                                                          ApiMessage body,
+                                                          KrpcFilterContext filterContext) {
         return switch (apiKey) {
             case ADD_OFFSETS_TO_TXN ->
                 ((AddOffsetsToTxnRequestFilter) filter).onAddOffsetsToTxnRequest(apiVersion, header, (AddOffsetsToTxnRequestData) body, filterContext);

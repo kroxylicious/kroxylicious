@@ -454,11 +454,11 @@ public class ArrayFilterInvoker implements FilterInvoker {
      * @return
      */
     @Override
-    public CompletionStage<? extends FilterResult> onRequest(ApiKeys apiKey,
-                                                             short apiVersion,
-                                                             RequestHeaderData header,
-                                                             ApiMessage body,
-                                                             KrpcFilterContext filterContext) {
+    public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey,
+                                                          short apiVersion,
+                                                          RequestHeaderData header,
+                                                          ApiMessage body,
+                                                          KrpcFilterContext filterContext) {
         FilterInvoker invoker = requestInvokers[apiKey.id];
         return invoker.onRequest(apiKey, apiVersion, header, body, filterContext);
     }

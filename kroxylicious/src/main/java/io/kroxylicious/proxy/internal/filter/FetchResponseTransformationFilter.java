@@ -108,7 +108,7 @@ public class FetchResponseTransformationFilter implements FetchResponseFilter {
         }
         else {
             applyTransformation(context, fetchResponse);
-            return context.completedForwardResponse(header, fetchResponse);
+            return context.responseFilterResultBuilder().withHeader(header).withMessage(fetchResponse).completedFilterResult();
         }
     }
 

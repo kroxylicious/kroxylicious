@@ -36,11 +36,12 @@ import io.kroxylicious.filters.FourInterfaceFilter3;
 import io.kroxylicious.proxy.filter.ArrayFilterInvoker;
 import io.kroxylicious.proxy.filter.FilterInvoker;
 import io.kroxylicious.proxy.filter.FilterInvokers;
-import io.kroxylicious.proxy.filter.FilterResultBuilder;
 import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
+import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
+import io.kroxylicious.proxy.filter.ResponseFilterResultBuilder;
 import io.kroxylicious.proxy.filter.SpecificFilterInvoker;
 
 // try hard to make shouldHandleXYZ to observe different receivers concrete types, saving unrolling to bias a specific call-site to a specific concrete type
@@ -178,22 +179,20 @@ public class InvokerDispatchBenchmark {
         }
 
         @Override
-        public FilterResultBuilder<ResponseFilterResult, ResponseHeaderData> responseFilterResultBuilder() {
+        public ResponseFilterResultBuilder responseFilterResultBuilder() {
             return null;
         }
 
         @Override
-        public FilterResultBuilder<RequestFilterResult, RequestHeaderData> requestFilterResultBuilder() {
+        public RequestFilterResultBuilder requestFilterResultBuilder() {
             return null;
         }
 
-        @Override
-        public CompletionStage<RequestFilterResult> completedForwardRequest(RequestHeaderData header, ApiMessage request) {
+        public CompletionStage<RequestFilterResult> completedRequestFilterResult(RequestHeaderData header, ApiMessage request) {
             return null;
         }
 
-        @Override
-        public CompletionStage<ResponseFilterResult> completedForwardResponse(ResponseHeaderData header, ApiMessage response) {
+        public CompletionStage<ResponseFilterResult> completedResponseFilterResult(ResponseHeaderData header, ApiMessage response) {
             return null;
         }
     }

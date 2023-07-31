@@ -15,9 +15,9 @@ import org.apache.kafka.common.message.RequestHeaderData;
 import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.Timer;
 
-import io.kroxylicious.proxy.filter.FilterResult;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
+import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.sample.config.SampleFilterConfig;
 import io.kroxylicious.sample.util.SampleFilterTransformer;
 
@@ -60,10 +60,10 @@ public class SampleProduceRequestFilter implements ProduceRequestFilter {
      * @return
      */
     @Override
-    public CompletionStage<? extends FilterResult> onProduceRequest(short apiVersion, RequestHeaderData header, ProduceRequestData request, KrpcFilterContext context) {
+    public CompletionStage<RequestFilterResult> onProduceRequest(short apiVersion, RequestHeaderData header, ProduceRequestData request, KrpcFilterContext context) {
         this.timer.record(() -> applyTransformation(request, context)); // We're timing this to report how long it takes through Micrometer
 
-        return context.completedForwardRequest(header, request);
+        return context.requestFilterResultBuilder().withMessage(request).withHeader(header).completedFilterResult();
     }
 
     /**

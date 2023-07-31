@@ -19,14 +19,11 @@ import org.apache.kafka.common.message.ApiMessageType;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -45,7 +42,6 @@ import io.kroxylicious.test.requestresponsetestdef.RequestResponseTestDef;
 
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.Iterables.getOnlyElement;
-import static io.kroxylicious.proxy.filter.FilterResultBuilder.responseFilterResultBuilder;
 import static io.kroxylicious.test.requestresponsetestdef.KafkaApiMessageConverter.responseConverterFor;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.lenient;
@@ -79,12 +75,6 @@ class BrokerAddressFilterTest {
 
     @Mock
     private KrpcFilterContext context;
-
-    @Captor
-    private ArgumentCaptor<ApiMessage> apiMessageCaptor;
-
-    @Captor
-    private ArgumentCaptor<ResponseHeaderData> responseHeaderDataCaptor;
 
     private BrokerAddressFilter filter;
 
@@ -139,13 +129,7 @@ class BrokerAddressFilterTest {
 
         var marshalled = responseWriter.apply(response, header.requestApiVersion());
 
-        when(context.completedForwardResponse(responseHeaderDataCaptor.capture(), apiMessageCaptor.capture()))
-                .thenAnswer(invocation -> CompletableFuture
-                        .completedFuture(
-                                responseFilterResultBuilder()
-                                        .withHeader(responseHeaderDataCaptor.getValue())
-                                        .withMessage(apiMessageCaptor.getValue())
-                                        .build()));
+        when(context.responseFilterResultBuilder()).thenReturn(new ResponseFilterResultBuilderImpl());
 
         ResponseHeaderData headerData = new ResponseHeaderData();
         var stage = invoker.onResponse(ApiKeys.forId(apiMessageType.apiKey()), header.requestApiVersion(), headerData, response, context);

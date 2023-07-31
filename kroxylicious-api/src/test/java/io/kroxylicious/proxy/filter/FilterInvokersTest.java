@@ -79,7 +79,7 @@ class FilterInvokersTest {
     static class RequestResponseFilter implements RequestFilter, ResponseFilter {
 
         @Override
-        public CompletionStage<? extends FilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
+        public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
             return null;
         }
 
@@ -108,8 +108,8 @@ class FilterInvokersTest {
     static class MultipleSpecificFilter implements ApiVersionsRequestFilter, ApiVersionsResponseFilter {
 
         @Override
-        public CompletionStage<FilterResult> onApiVersionsRequest(short apiVersion, RequestHeaderData header, ApiVersionsRequestData request,
-                                                                  KrpcFilterContext context) {
+        public CompletionStage<RequestFilterResult> onApiVersionsRequest(short apiVersion, RequestHeaderData header, ApiVersionsRequestData request,
+                                                                         KrpcFilterContext context) {
 
             return null;
         }
@@ -129,7 +129,7 @@ class FilterInvokersTest {
         }
 
         @Override
-        public CompletionStage<? extends FilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
+        public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
 
             return null;
         }
@@ -168,8 +168,8 @@ class FilterInvokersTest {
     static class SpecificAndCompositeFilter implements ApiVersionsRequestFilter, CompositeFilter {
 
         @Override
-        public CompletionStage<FilterResult> onApiVersionsRequest(short apiVersion, RequestHeaderData header, ApiVersionsRequestData request,
-                                                                  KrpcFilterContext context) {
+        public CompletionStage<RequestFilterResult> onApiVersionsRequest(short apiVersion, RequestHeaderData header, ApiVersionsRequestData request,
+                                                                         KrpcFilterContext context) {
 
             return null;
         }
@@ -183,8 +183,8 @@ class FilterInvokersTest {
     static class SpecificAndResponseFilter implements ApiVersionsRequestFilter, ResponseFilter {
 
         @Override
-        public CompletionStage<FilterResult> onApiVersionsRequest(short apiVersion, RequestHeaderData header, ApiVersionsRequestData request,
-                                                                  KrpcFilterContext context) {
+        public CompletionStage<RequestFilterResult> onApiVersionsRequest(short apiVersion, RequestHeaderData header, ApiVersionsRequestData request,
+                                                                         KrpcFilterContext context) {
 
             return null;
         }
@@ -199,14 +199,14 @@ class FilterInvokersTest {
     static class SpecificAndRequestFilter implements ApiVersionsRequestFilter, RequestFilter {
 
         @Override
-        public CompletionStage<? extends FilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
+        public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
 
             return null;
         }
 
         @Override
-        public CompletionStage<FilterResult> onApiVersionsRequest(short apiVersion, RequestHeaderData header, ApiVersionsRequestData request,
-                                                                  KrpcFilterContext context) {
+        public CompletionStage<RequestFilterResult> onApiVersionsRequest(short apiVersion, RequestHeaderData header, ApiVersionsRequestData request,
+                                                                         KrpcFilterContext context) {
 
             return null;
         }

@@ -14,6 +14,7 @@ import org.apache.kafka.common.protocol.ApiMessage;
 public interface FilterResult {
     /**
      * the header to be forwarded to the next filter in the chain.
+     *
      * @return header.
      */
     ApiMessage header();

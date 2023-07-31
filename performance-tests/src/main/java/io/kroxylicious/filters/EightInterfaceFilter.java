@@ -25,17 +25,17 @@ import io.kroxylicious.proxy.filter.DeleteTopicsRequestFilter;
 import io.kroxylicious.proxy.filter.DeleteTopicsResponseFilter;
 import io.kroxylicious.proxy.filter.DescribeGroupsRequestFilter;
 import io.kroxylicious.proxy.filter.DescribeGroupsResponseFilter;
-import io.kroxylicious.proxy.filter.FilterResult;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
 import io.kroxylicious.proxy.filter.ProduceResponseFilter;
+import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 
 public class EightInterfaceFilter implements ProduceResponseFilter, ProduceRequestFilter, CreateTopicsRequestFilter, CreateTopicsResponseFilter,
         DeleteTopicsRequestFilter, DeleteTopicsResponseFilter, DescribeGroupsRequestFilter, DescribeGroupsResponseFilter {
 
     @Override
-    public CompletionStage<FilterResult> onProduceRequest(short apiVersion, RequestHeaderData header, ProduceRequestData request, KrpcFilterContext context) {
+    public CompletionStage<RequestFilterResult> onProduceRequest(short apiVersion, RequestHeaderData header, ProduceRequestData request, KrpcFilterContext context) {
         return null;
     }
 
@@ -46,7 +46,8 @@ public class EightInterfaceFilter implements ProduceResponseFilter, ProduceReque
     }
 
     @Override
-    public CompletionStage<FilterResult> onCreateTopicsRequest(short apiVersion, RequestHeaderData header, CreateTopicsRequestData request, KrpcFilterContext context) {
+    public CompletionStage<RequestFilterResult> onCreateTopicsRequest(short apiVersion, RequestHeaderData header, CreateTopicsRequestData request,
+                                                                      KrpcFilterContext context) {
 
         return null;
     }
@@ -59,7 +60,8 @@ public class EightInterfaceFilter implements ProduceResponseFilter, ProduceReque
     }
 
     @Override
-    public CompletionStage<FilterResult> onDeleteTopicsRequest(short apiVersion, RequestHeaderData header, DeleteTopicsRequestData request, KrpcFilterContext context) {
+    public CompletionStage<RequestFilterResult> onDeleteTopicsRequest(short apiVersion, RequestHeaderData header, DeleteTopicsRequestData request,
+                                                                      KrpcFilterContext context) {
 
         return null;
     }
@@ -72,8 +74,8 @@ public class EightInterfaceFilter implements ProduceResponseFilter, ProduceReque
     }
 
     @Override
-    public CompletionStage<FilterResult> onDescribeGroupsRequest(short apiVersion, RequestHeaderData header, DescribeGroupsRequestData request,
-                                                                 KrpcFilterContext context) {
+    public CompletionStage<RequestFilterResult> onDescribeGroupsRequest(short apiVersion, RequestHeaderData header, DescribeGroupsRequestData request,
+                                                                        KrpcFilterContext context) {
 
         return null;
     }

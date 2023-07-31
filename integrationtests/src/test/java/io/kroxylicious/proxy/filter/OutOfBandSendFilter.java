@@ -56,15 +56,15 @@ public class OutOfBandSendFilter implements DescribeClusterRequestFilter, Descri
     }
 
     @Override
-    public CompletionStage<? extends FilterResult> onDescribeClusterRequest(short apiVersion, RequestHeaderData header, DescribeClusterRequestData request,
-                                                                            KrpcFilterContext context) {
+    public CompletionStage<RequestFilterResult> onDescribeClusterRequest(short apiVersion, RequestHeaderData header, DescribeClusterRequestData request,
+                                                                         KrpcFilterContext context) {
         ApiKeys apiKeyToSend = config.apiKeyToSend;
         ApiMessage message = createApiMessage(apiKeyToSend);
         context.sendRequest(apiKeyToSend.latestVersion(), message).thenAccept(apiMessage -> {
             // expected to execute before onDescribeClusterResponse becase sendRequest called before forwardRequest
             values = unknownTaggedFieldsToStrings(apiMessage, config.tagIdToCollect).collect(Collectors.joining(","));
         });
-        return context.completedForwardRequest(header, request);
+        return context.requestFilterResultBuilder().withMessage(request).withHeader(header).completedFilterResult();
     }
 
     @Override
@@ -72,7 +72,7 @@ public class OutOfBandSendFilter implements DescribeClusterRequestFilter, Descri
                                                                            KrpcFilterContext context) {
         response.setErrorCode(Errors.UNKNOWN_SERVER_ERROR.code())
                 .setErrorMessage("filterNameTaggedFieldsFromOutOfBandResponse: " + values);
-        return context.completedForwardResponse(response);
+        return context.responseFilterResultBuilder().withHeader(null).withMessage(response).completedFilterResult();
     }
 
     private static ApiMessage createApiMessage(ApiKeys apiKeyToSend) {

@@ -25,17 +25,23 @@ import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Answers;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.stubbing.Answer;
 
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
+import io.kroxylicious.proxy.filter.ResponseFilterResult;
+import io.kroxylicious.proxy.filter.ResponseFilterResultBuilder;
 import io.kroxylicious.sample.config.SampleFilterConfig;
 
-import static io.kroxylicious.proxy.filter.FilterResultBuilder.responseFilterResultBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+@ExtendWith(MockitoExtension.class)
 class SampleFetchResponseFilterTest {
 
     private static final short API_VERSION = ApiMessageType.FETCH.highestSupportedVersion(true); // this is arbitrary for our filter
@@ -44,9 +50,19 @@ class SampleFetchResponseFilterTest {
     private static final String POST_TRANSFORM_VALUE = "this is what the value will be transformed to";
     private static final String CONFIG_FIND_VALUE = "from";
     private static final String CONFIG_REPLACE_VALUE = "to";
-
+    @Mock
     private KrpcFilterContext context;
 
+    @Mock(answer = Answers.RETURNS_SELF)
+    private ResponseFilterResultBuilder responseFilterResultBuilder;
+
+    @Mock
+    private ResponseFilterResult responseFilterResult;
+    @Captor
+    private ArgumentCaptor<Integer> bufferInitialCapacity;
+
+    @Captor
+    private ArgumentCaptor<ApiMessage> apiMessageCaptor;
     private SampleFetchResponseFilter filter;
     private ResponseHeaderData headerData;
 
@@ -93,22 +109,12 @@ class SampleFetchResponseFilterTest {
     }
 
     private void setupContextMock() {
-        context = mock(KrpcFilterContext.class);
+        when(context.responseFilterResultBuilder()).thenReturn(responseFilterResultBuilder);
+        when(responseFilterResultBuilder.withMessage(apiMessageCaptor.capture())).thenReturn(responseFilterResultBuilder);
+        when(responseFilterResult.message()).thenAnswer(invocation -> apiMessageCaptor.getValue());
+        when(responseFilterResultBuilder.completedFilterResult()).thenAnswer(invocation -> CompletableFuture.completedStage(responseFilterResult));
 
-        var apiMessageCaptor = ArgumentCaptor.forClass(ApiMessage.class);
-        var responseHeaderDataCaptor = ArgumentCaptor.forClass(ResponseHeaderData.class);
-
-        when(context.completedForwardResponse(responseHeaderDataCaptor.capture(), apiMessageCaptor.capture()))
-                .thenAnswer(invocation -> CompletableFuture
-                        .completedFuture(
-                                responseFilterResultBuilder()
-                                        .withHeader(responseHeaderDataCaptor.getValue())
-                                        .withMessage(apiMessageCaptor.getValue())
-                                        .build()));
-
-        // create stub for createByteBufferOutputStream method
-        ArgumentCaptor<Integer> argument = ArgumentCaptor.forClass(Integer.class);
-        when(context.createByteBufferOutputStream(argument.capture())).thenAnswer(
+        when(context.createByteBufferOutputStream(bufferInitialCapacity.capture())).thenAnswer(
                 (Answer<ByteBufferOutputStream>) invocation -> {
                     Object[] args = invocation.getArguments();
                     Integer size = (Integer) args[0];

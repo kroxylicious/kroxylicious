@@ -69,11 +69,11 @@ class SpecificFilterArrayInvoker implements FilterInvoker {
      */
     @Override
     @SuppressWarnings("SwitchStatementWithTooFewBranches")
-    public CompletionStage<? extends FilterResult> onRequest(ApiKeys apiKey,
-                                                             short apiVersion,
-                                                             RequestHeaderData header,
-                                                             ApiMessage body,
-                                                             KrpcFilterContext filterContext) {
+    public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey,
+                                                          short apiVersion,
+                                                          RequestHeaderData header,
+                                                          ApiMessage body,
+                                                          KrpcFilterContext filterContext) {
         // We wrap the array lookup in a switch based on the API Key as it supports JIT optimisations around method dispatch.
         // See the InvokerDispatchBenchmark micro benchmark for a comparison
         return switch (apiKey) {

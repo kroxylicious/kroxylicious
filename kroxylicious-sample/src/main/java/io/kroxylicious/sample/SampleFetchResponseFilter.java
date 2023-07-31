@@ -61,7 +61,7 @@ public class SampleFetchResponseFilter implements FetchResponseFilter {
     @Override
     public CompletionStage<ResponseFilterResult> onFetchResponse(short apiVersion, ResponseHeaderData header, FetchResponseData response, KrpcFilterContext context) {
         this.timer.record(() -> applyTransformation(response, context)); // We're timing this to report how long it takes through Micrometer
-        return context.completedForwardResponse(header, response);
+        return context.responseFilterResultBuilder().withHeader(header).withMessage(response).completedFilterResult();
     }
 
     /**
