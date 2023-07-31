@@ -10,6 +10,8 @@ import java.util.Optional;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.kroxylicious.proxy.config.tls.Tls;
+import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.ClusterNetworkAddressConfigProviderContributorManager;
+import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 
 public record VirtualCluster(@JsonProperty() Optional<String> clusterName,
                              TargetCluster targetCluster,
@@ -19,4 +21,16 @@ public record VirtualCluster(@JsonProperty() Optional<String> clusterName,
                              boolean logNetwork,
                              boolean logFrames
 ) {
+    public io.kroxylicious.proxy.model.VirtualCluster toVirtualClusterModel(String virtualClusterNodeName) {
+        return new io.kroxylicious.proxy.model.VirtualCluster(clusterName().orElse(virtualClusterNodeName),
+                targetCluster(),
+                toClusterNetworkAddressConfigProviderModel(),
+                tls(),
+                logNetwork(), logFrames());
+    }
+
+    private ClusterNetworkAddressConfigProvider toClusterNetworkAddressConfigProviderModel() {
+        return ClusterNetworkAddressConfigProviderContributorManager.getInstance()
+                .getClusterEndpointConfigProvider(clusterNetworkAddressConfigProvider().type(), clusterNetworkAddressConfigProvider().config());
+    }
 }
