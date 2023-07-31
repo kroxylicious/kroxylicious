@@ -544,7 +544,7 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
                 // If there is an SNI name that matches against the virtual cluster broker address pattern, we generate
                 // a restricted broker binding that points at the virtual cluster's bootstrap.
                 if (sniHostname != null) {
-                    Map<VirtualClusterBootstrapBinding, Integer> bootstrapToBrokerId = mapSniHostnameToBindings(endpoint, sniHostname, bindings);
+                    Map<VirtualClusterBootstrapBinding, Integer> bootstrapToBrokerId = findBootstrapBindings(endpoint, sniHostname, bindings);
                     var size = bootstrapToBrokerId.size();
                     if (size > 1) {
                         throw new EndpointResolutionException("Failed to generate an unbound broker binding from SNI " +
@@ -568,9 +568,9 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
         return new VirtualClusterBrokerBinding(bootstrapBinding.virtualCluster(), bootstrapBinding.upstreamTarget(), nodeId, true);
     }
 
-    private HashMap<VirtualClusterBootstrapBinding, Integer> mapSniHostnameToBindings(Endpoint endpoint,
-                                                                                      String sniHostname,
-                                                                                      Attribute<Map<RoutingKey, VirtualClusterBinding>> bindings) {
+    private HashMap<VirtualClusterBootstrapBinding, Integer> findBootstrapBindings(Endpoint endpoint,
+                                                                                   String sniHostname,
+                                                                                   Attribute<Map<RoutingKey, VirtualClusterBinding>> bindings) {
         var allBindingsForPort = bindings.get().values();
         var brokerAddress = new HostPort(sniHostname, endpoint.port());
         var allBootstrapBindings = getAllBootstrapBindings(allBindingsForPort);
