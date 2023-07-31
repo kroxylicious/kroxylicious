@@ -11,7 +11,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,7 +41,6 @@ import io.kroxylicious.proxy.internal.MeterRegistries;
 import io.kroxylicious.proxy.internal.PortConflictDetector;
 import io.kroxylicious.proxy.internal.admin.AdminHttpInitializer;
 import io.kroxylicious.proxy.internal.net.DefaultNetworkBindingOperationProcessor;
-import io.kroxylicious.proxy.internal.net.Endpoint;
 import io.kroxylicious.proxy.internal.net.EndpointRegistry;
 import io.kroxylicious.proxy.internal.net.NetworkBindingOperationProcessor;
 import io.kroxylicious.proxy.internal.util.Metrics;
@@ -68,7 +66,7 @@ public final class KafkaProxy implements AutoCloseable {
     private final Configuration config;
     private final AdminHttpConfiguration adminHttpConfig;
     private final List<MicrometerDefinition> micrometerConfig;
-    private final Map<String, VirtualCluster> virtualClusterMap;
+    private final List<VirtualCluster> virtualClusters;
     private final AtomicBoolean running = new AtomicBoolean();
     private final CompletableFuture<Void> shutdown = new CompletableFuture<>();
     private EventGroupConfig adminEventGroup;
@@ -77,9 +75,7 @@ public final class KafkaProxy implements AutoCloseable {
 
     public KafkaProxy(Configuration config) {
         this.config = config;
-        this.virtualClusterMap = config.virtualClusters().entrySet().stream()
-                .collect(Collectors.toMap(Map.Entry::getKey,
-                        e -> e.getValue().toVirtualClusterModel(e.getKey())));
+        this.virtualClusters = config.validClusters();
         this.adminHttpConfig = config.adminHttpConfig();
         this.micrometerConfig = config.getMicrometer();
     }
@@ -97,7 +93,7 @@ public final class KafkaProxy implements AutoCloseable {
 
         var portConflictDefector = new PortConflictDetector();
         Optional<HostPort> adminHttpHostPort = Optional.ofNullable(shouldBindAdminEndpoint() ? new HostPort(adminHttpConfig.host(), adminHttpConfig.port()) : null);
-        portConflictDefector.validate(virtualClusterMap, adminHttpHostPort);
+        portConflictDefector.validate(virtualClusters, adminHttpHostPort);
 
         var availableCores = Runtime.getRuntime().availableProcessors();
         meterRegistries = new MeterRegistries(micrometerConfig);
@@ -113,12 +109,8 @@ public final class KafkaProxy implements AutoCloseable {
         bindingOperationProcessor.start(plainServerBootstrap, tlsServerBootstrap);
 
         // TODO: startup/shutdown should return a completionstage
-        List<CompletableFuture<Endpoint>> futures = new ArrayList<>();
-        virtualClusterMap.forEach((n, vc) -> {
-            futures.add(endpointRegistry.registerVirtualCluster(vc).toCompletableFuture());
-        });
-
-        CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new)).join();
+        CompletableFuture.allOf(virtualClusters.stream().map(vc -> endpointRegistry.registerVirtualCluster(vc).toCompletableFuture()).toArray(CompletableFuture[]::new))
+                .join();
 
         // Pre-register counters/summaries to avoid creating them on first request and thus skewing the request latency
         // TODO add a virtual host tag to metrics
