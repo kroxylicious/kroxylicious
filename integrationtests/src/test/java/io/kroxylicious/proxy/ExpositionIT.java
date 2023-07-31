@@ -162,7 +162,7 @@ public class ExpositionIT {
             var virtualCluster = new VirtualClusterBuilder(base)
                     .withClusterNetworkAddressConfigProvider(
                             new ClusterNetworkAddressConfigProviderDefinitionBuilder("SniRouting").withConfig("bootstrapAddress", virtualClusterFQDN + ":9192",
-                                            "brokerAddressPattern", virtualClusterBrokerAddressPattern.formatted(i))
+                                    "brokerAddressPattern", virtualClusterBrokerAddressPattern.formatted(i))
                                     .build())
                     .withNewTls()
                     .withNewKeyStoreKey()
@@ -294,7 +294,7 @@ public class ExpositionIT {
         clientSecurityProtocolConfig.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, securityProtocol.name);
         clientSecurityProtocolConfig.put(SaslConfigs.SASL_JAAS_CONFIG,
                 String.format("""
-                                %s required username="%s" password="%s";""",
+                        %s required username="%s" password="%s";""",
                         PlainLoginModule.class.getName(), SASL_USER, SASL_PASSWORD));
         clientSecurityProtocolConfig.put(SaslConfigs.SASL_MECHANISM, "PLAIN");
 
@@ -483,8 +483,8 @@ public class ExpositionIT {
                 await().atMost(Duration.ofSeconds(10))
                         .ignoreExceptions()
                         .until(() -> admin.describeTopics(List.of(topic)).topicNameValues().get(topic).get()
-                                        .partitions().stream().map(TopicPartitionInfo::leader)
-                                        .collect(Collectors.toSet()),
+                                .partitions().stream().map(TopicPartitionInfo::leader)
+                                .collect(Collectors.toSet()),
                                 leaders -> leaders.size() == numberOfPartitions);
 
                 for (int partition = 0; partition < numberOfPartitions; partition++) {

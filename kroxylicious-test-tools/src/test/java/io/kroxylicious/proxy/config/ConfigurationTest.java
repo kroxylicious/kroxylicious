@@ -32,8 +32,8 @@ class ConfigurationTest {
 
     public static Stream<Arguments> yamlDeserializeSerializeFidelity() {
         return Stream.of(Arguments.of("Top level flags", """
-                        useIoUring: true
-                        """),
+                useIoUring: true
+                """),
                 Arguments.of("Virtual cluster (PortPerBroker)", """
                         virtualClusters:
                           demo1:
@@ -119,9 +119,9 @@ class ConfigurationTest {
 
     public static Stream<Arguments> fluentApiConfigYamlFidelity() {
         return Stream.of(Arguments.of("Top level",
-                        new ConfigurationBuilder().withUseIoUring(true).build(),
-                        """
-                                useIoUring: true"""),
+                new ConfigurationBuilder().withUseIoUring(true).build(),
+                """
+                        useIoUring: true"""),
 
                 Arguments.of("With filter",
                         new ConfigurationBuilder()
@@ -326,30 +326,30 @@ class ConfigurationTest {
     void shouldDetectDuplicateClusterNodeNames() {
         // Given
         assertThatThrownBy(() ->
-                // When
-                configParser.parseConfiguration("""
-                        virtualClusters:
-                          demo1:
-                            targetCluster:
-                              bootstrap_servers: kafka.example:1234
-                            clusterNetworkAddressConfigProvider:
-                              type: PortPerBroker
-                              config:
-                                bootstrapAddress: cluster1:9192
-                                numberOfBrokerPorts: 1
-                                brokerAddressPattern: localhost
-                                brokerStartPort: 9193
-                          demo1:
-                            targetCluster:
-                              bootstrap_servers: magic-kafka.example:1234
-                            clusterNetworkAddressConfigProvider:
-                              type: PortPerBroker
-                              config:
-                                bootstrapAddress: cluster2:9193
-                                numberOfBrokerPorts: 1
-                                brokerAddressPattern: localhost
-                                brokerStartPort: 10193
-                        """))
+        // When
+        configParser.parseConfiguration("""
+                virtualClusters:
+                  demo1:
+                    targetCluster:
+                      bootstrap_servers: kafka.example:1234
+                    clusterNetworkAddressConfigProvider:
+                      type: PortPerBroker
+                      config:
+                        bootstrapAddress: cluster1:9192
+                        numberOfBrokerPorts: 1
+                        brokerAddressPattern: localhost
+                        brokerStartPort: 9193
+                  demo1:
+                    targetCluster:
+                      bootstrap_servers: magic-kafka.example:1234
+                    clusterNetworkAddressConfigProvider:
+                      type: PortPerBroker
+                      config:
+                        bootstrapAddress: cluster2:9193
+                        numberOfBrokerPorts: 1
+                        brokerAddressPattern: localhost
+                        brokerStartPort: 10193
+                """))
                 // Then
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasCauseInstanceOf(JsonMappingException.class) // Debatable to enforce the wrapped JsonMappingException
