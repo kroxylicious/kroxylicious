@@ -6,8 +6,11 @@
 
 package io.kroxylicious.proxy.config;
 
+import java.util.List;
 import java.util.stream.Stream;
 
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -101,7 +104,7 @@ class ConfigurationTest {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource
-    public void yamlDeserializeSerializeFidelity(String name, String config) throws Exception {
+    void yamlDeserializeSerializeFidelity(String name, String config) throws Exception {
 
         var configuration = configParser.parseConfiguration(config);
         var roundTripped = configParser.toYaml(configuration);
@@ -286,12 +289,192 @@ class ConfigurationTest {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource
-    public void fluentApiConfigYamlFidelity(String name, Configuration config, String expected) throws Exception {
+    void fluentApiConfigYamlFidelity(String name, Configuration config, String expected) throws Exception {
         var yaml = configParser.toYaml(config);
         var actualJson = MAPPER.reader().readValue(yaml, JsonNode.class);
         var expectedJson = MAPPER.reader().readValue(expected, JsonNode.class);
         var diff = JsonDiff.asJson(actualJson, expectedJson);
         assertThat(diff).isEmpty();
 
+    }
+
+    @Test
+    void shouldDefaultClusterNameToNodeName() {
+        assertSingleValidClusterWithName("""
+                virtualClusters:
+                  demo1:
+                    targetCluster:
+                      bootstrap_servers: kafka.example:1234
+                    clusterNetworkAddressConfigProvider:
+                      type: PortPerBroker
+                      config:
+                        bootstrapAddress: cluster1:9192
+                        numberOfBrokerPorts: 1
+                        brokerAddressPattern: localhost
+                        brokerStartPort: 9193
+                """, "demo1");
+    }
+
+    @Test
+    void shouldClusterNameNodeTakesPrecedenceOverNodeName() {
+        assertSingleValidClusterWithName("""
+                virtualClusters:
+                  demo1:
+                    clusterName: MyAwesomeCluster
+                    targetCluster:
+                      bootstrap_servers: kafka.example:1234
+                    clusterNetworkAddressConfigProvider:
+                      type: PortPerBroker
+                      config:
+                        bootstrapAddress: cluster1:9192
+                        numberOfBrokerPorts: 1
+                        brokerAddressPattern: localhost
+                        brokerStartPort: 9193
+                """, "MyAwesomeCluster");
+    }
+
+    @Test
+    @Disabled("This should be a test but jackson only makes one cluster available.")
+    void shouldDetectDuplicateClusterNodeNames() {
+        assertNoValidClusters("""
+                virtualClusters:
+                  demo1:
+                    targetCluster:
+                      bootstrap_servers: kafka.example:1234
+                    clusterNetworkAddressConfigProvider:
+                      type: PortPerBroker
+                      config:
+                        bootstrapAddress: cluster1:9192
+                        numberOfBrokerPorts: 1
+                        brokerAddressPattern: localhost
+                        brokerStartPort: 9193
+                  demo1:
+                    targetCluster:
+                      bootstrap_servers: magic-kafka.example:1234
+                    clusterNetworkAddressConfigProvider:
+                      type: PortPerBroker
+                      config:
+                        bootstrapAddress: cluster2:9193
+                        numberOfBrokerPorts: 1
+                        brokerAddressPattern: localhost
+                        brokerStartPort: 10193
+                """);
+    }
+
+    @Test
+    void shouldDetectDuplicateClusterNameNodes() {
+        assertNoValidClusters("""
+                virtualClusters:
+                  demo1:
+                    clusterName: demo1
+                    targetCluster:
+                      bootstrap_servers: kafka.example:1234
+                    clusterNetworkAddressConfigProvider:
+                      type: PortPerBroker
+                      config:
+                        bootstrapAddress: cluster1:9192
+                        numberOfBrokerPorts: 1
+                        brokerAddressPattern: localhost
+                        brokerStartPort: 9193
+                  demo2:
+                    clusterName: demo1
+                    targetCluster:
+                      bootstrap_servers: magic-kafka.example:1234
+                    clusterNetworkAddressConfigProvider:
+                      type: PortPerBroker
+                      config:
+                        bootstrapAddress: cluster2:9193
+                        numberOfBrokerPorts: 1
+                        brokerAddressPattern: localhost
+                        brokerStartPort: 10193
+                """);
+    }
+
+    @Test
+    void shouldDetectDuplicateClusterNamesBetweenNodeNameAndClusterNameNode() {
+        assertNoValidClusters("""
+                virtualClusters:
+                  demo1:
+                    clusterName: demo2
+                    targetCluster:
+                      bootstrap_servers: kafka.example:1234
+                    clusterNetworkAddressConfigProvider:
+                      type: PortPerBroker
+                      config:
+                        bootstrapAddress: cluster1:9192
+                        numberOfBrokerPorts: 1
+                        brokerAddressPattern: localhost
+                        brokerStartPort: 9193
+                  demo2:
+                    targetCluster:
+                      bootstrap_servers: magic-kafka.example:1234
+                    clusterNetworkAddressConfigProvider:
+                      type: PortPerBroker
+                      config:
+                        bootstrapAddress: cluster2:9193
+                        numberOfBrokerPorts: 1
+                        brokerAddressPattern: localhost
+                        brokerStartPort: 10193
+                """);
+    }
+
+    @Test
+    void shouldPreserveNonConflictingClusters() {
+        // Given
+        assertSingleValidClusterWithName("""
+                virtualClusters:
+                  valid1:
+                    targetCluster:
+                      bootstrap_servers: kafka.example:1234
+                    clusterNetworkAddressConfigProvider:
+                      type: PortPerBroker
+                      config:
+                        bootstrapAddress: cluster1:9192
+                        numberOfBrokerPorts: 1
+                        brokerAddressPattern: localhost
+                        brokerStartPort: 9193
+                  duplicateName1:
+                    clusterName: duplicateName1
+                    targetCluster:
+                      bootstrap_servers: magic-kafka.example:1234
+                    clusterNetworkAddressConfigProvider:
+                      type: PortPerBroker
+                      config:
+                        bootstrapAddress: cluster2:9193
+                        numberOfBrokerPorts: 1
+                        brokerAddressPattern: localhost
+                        brokerStartPort: 10193
+                  duplicateName2:
+                    clusterName: duplicateName1
+                    targetCluster:
+                      bootstrap_servers: magic-kafka.example:1234
+                    clusterNetworkAddressConfigProvider:
+                      type: PortPerBroker
+                      config:
+                        bootstrapAddress: cluster2:9193
+                        numberOfBrokerPorts: 1
+                        brokerAddressPattern: localhost
+                        brokerStartPort: 10193
+                """, "valid1");
+    }
+
+    private void assertNoValidClusters(String configuration) {
+        // Given
+        final Configuration configurationModel = configParser.parseConfiguration(configuration);
+        // When
+        final List<io.kroxylicious.proxy.model.VirtualCluster> actualValidClusters = configurationModel.validClusters();
+
+        // Then
+        assertThat(actualValidClusters).isEmpty();
+    }
+
+    private void assertSingleValidClusterWithName(String configuration, String expectedName) {
+        // Given
+        final Configuration configurationModel = configParser.parseConfiguration(configuration);
+        // When
+        final List<io.kroxylicious.proxy.model.VirtualCluster> actualValidClusters = configurationModel.validClusters();
+
+        // Then
+        assertThat(actualValidClusters).singleElement().extracting("clusterName").isEqualTo(expectedName);
     }
 }
