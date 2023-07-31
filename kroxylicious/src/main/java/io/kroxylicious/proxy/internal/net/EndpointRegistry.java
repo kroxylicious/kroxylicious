@@ -536,7 +536,7 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
         return lcr.bindingStage().thenApply(acceptorChannel -> {
             var bindings = acceptorChannel.attr(CHANNEL_BINDINGS);
             if (bindings == null || bindings.get() == null) {
-                throw buildEndpointResolutionException(NO_CHANNEL_BINDGINS_MESSAGE, endpoint, sniHostname);
+                throw buildEndpointResolutionException(NO_CHANNEL_BINDINGS_MESSAGE, endpoint, sniHostname);
             }
             // We first look for a binding matching by SNI name, then fallback to a null match.
             var binding = bindings.get().getOrDefault(RoutingKey.createBindingKey(sniHostname), bindings.get().get(RoutingKey.NULL_ROUTING_KEY));
@@ -549,13 +549,13 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
                     if (size > 1) {
                         throw new EndpointResolutionException("Failed to generate an unbound broker binding from SNI " +
                                 "as it matches the broker address pattern of more than one virtual cluster",
-                                buildEndpointResolutionException(NO_CHANNEL_BINDGINS_MESSAGE, endpoint, sniHostname));
+                                buildEndpointResolutionException(NO_CHANNEL_BINDINGS_MESSAGE, endpoint, sniHostname));
                     }
                     else if (size == 1) {
                         return buildBootstrapBinding(bootstrapToBrokerId);
                     }
                 }
-                throw buildEndpointResolutionException(NO_CHANNEL_BINDGINS_MESSAGE, endpoint, sniHostname);
+                throw buildEndpointResolutionException(NO_CHANNEL_BINDINGS_MESSAGE, endpoint, sniHostname);
             }
             return binding;
         });
