@@ -53,7 +53,7 @@ public class ConfigParser {
             return MAPPER.writeValueAsString(configuration);
         }
         catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
+            throw new IllegalArgumentException("Failed to encode configuration as YAML", e);
         }
     }
 
