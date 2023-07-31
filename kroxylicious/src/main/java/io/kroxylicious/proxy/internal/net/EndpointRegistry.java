@@ -78,7 +78,7 @@ import io.kroxylicious.proxy.service.HostPort;
  */
 public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindingResolver, AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger(EndpointRegistry.class);
-    public static final String NO_CHANNEL_BINDGINS_MESSAGE = "No channel bindings found for";
+    public static final String NO_CHANNEL_BINDINGS_MESSAGE = "No channel bindings found for";
     public static final String VIRTUAL_CLUSTER_CANNOT_BE_NULL_MESSAGE = "virtualCluster cannot be null";
     private final NetworkBindingOperationProcessor bindingOperationProcessor;
 
