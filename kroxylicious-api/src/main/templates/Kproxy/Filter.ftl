@@ -67,7 +67,7 @@ public interface ${filterClass} extends KrpcFilter {
      * @param header <#if messageSpec.type?lower_case == 'response'>response<#else>request</#if> header.
      * @param ${msgType} The KRPC message to handle.
      * @param context The context.
-     * @return CompletionStage that will yield a <#if messageSpec.type?lower_case == 'response'>{@link ResponseFilterResult}<#else>{@link FilterResult}</#if>
+     * @return CompletionStage that will yield a <#if messageSpec.type?lower_case == 'response'>{@link ResponseFilterResult}<#else>{@link RequestFilterResult}</#if>
      *         containing the ${messageSpec.type?lower_case} to be forwarded.
      */
      ${filterResultClass} on${messageSpec.name}(short apiVersion, ${headerClass} header, ${dataClass} ${msgType}, KrpcFilterContext context);

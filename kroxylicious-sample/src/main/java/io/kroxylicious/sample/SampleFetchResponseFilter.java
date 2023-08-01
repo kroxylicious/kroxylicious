@@ -56,7 +56,7 @@ public class SampleFetchResponseFilter implements FetchResponseFilter {
      * @param header     response header.
      * @param response   The KRPC message to handle.
      * @param context    The context.
-     * @return
+     * @return CompletionStage that will yield a {@link ResponseFilterResult} containing the response to be forwarded.
      */
     @Override
     public CompletionStage<ResponseFilterResult> onFetchResponse(short apiVersion, ResponseHeaderData header, FetchResponseData response, KrpcFilterContext context) {

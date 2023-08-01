@@ -57,7 +57,7 @@ public class SampleProduceRequestFilter implements ProduceRequestFilter {
      * @param header     request header.
      * @param request    The KRPC message to handle.
      * @param context    The context.
-     * @return
+     * @return CompletionStage that will yield a {@link RequestFilterResult} containing the request to be forwarded.
      */
     @Override
     public CompletionStage<RequestFilterResult> onProduceRequest(short apiVersion, RequestHeaderData header, ProduceRequestData request, KrpcFilterContext context) {
