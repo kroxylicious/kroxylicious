@@ -18,14 +18,13 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ResponseFilterResultBuilderTest {
 
-    private ResponseFilterResultBuilder builder = new ResponseFilterResultBuilderImpl();
+    private final ResponseFilterResultBuilder builder = new ResponseFilterResultBuilderImpl();
 
     @Test
     void forwardResponse() {
         var res = new FetchResponseData();
         var head = new ResponseHeaderData();
-        builder.forward(head, res);
-        var result = builder.build();
+        var result = builder.forward(head, res).build();
         assertThat(result.message()).isEqualTo(res);
         assertThat(result.header()).isEqualTo(head);
         assertThat(result.closeConnection()).isFalse();
@@ -41,8 +40,7 @@ class ResponseFilterResultBuilderTest {
 
     @Test
     void bareCloseConnection() {
-        builder.withCloseConnection2(true);
-        var result = builder.build();
+        var result = builder.withCloseConnection2(true).build();
         assertThat(result.closeConnection()).isTrue();
     }
 
@@ -50,8 +48,7 @@ class ResponseFilterResultBuilderTest {
     void forwardResponseWithCloseConnection() {
         var res = new FetchResponseData();
         var head = new ResponseHeaderData();
-        builder.forward(head, res).withCloseConnection2(true);
-        var result = builder.build();
+        var result = builder.forward(head, res).withCloseConnection2(true).build();
         assertThat(result.message()).isEqualTo(res);
         assertThat(result.header()).isEqualTo(head);
         assertThat(result.closeConnection()).isTrue();

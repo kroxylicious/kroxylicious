@@ -75,18 +75,6 @@ public class RequestFilterResultBuilderImpl extends FilterResultBuilderImpl<Requ
     }
 
     @Override
-    public RequestFilterResultBuilder asRequestShortCircuitResponse() {
-        if (this.message() != null) {
-            throw new IllegalStateException("cannot call asRequestShortCircuitResponse after message has been assigned");
-        }
-        if (this.header() != null) {
-            throw new IllegalStateException("cannot call asRequestShortCircuitResponse after header has been assigned");
-        }
-        this.shortCircuitResponse = true;
-        return this;
-    }
-
-    @Override
     public RequestFilterResult build() {
 
         return new RequestFilterResult() {

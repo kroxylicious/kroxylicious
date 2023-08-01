@@ -31,7 +31,7 @@ public class CreateTopicRejectFilter implements CreateTopicsRequestFilter {
             topics.add(result);
         });
         response.setTopics(topics);
-        return CompletableFuture.completedStage(context.requestFilterResultBuilder().asRequestShortCircuitResponse().withMessage(response).build());
+        return CompletableFuture.completedStage(context.requestFilterResultBuilder().shortCircuitResponse(response).build());
     }
 
     private static void allocateByteBufToTestKroxyliciousReleasesIt(KrpcFilterContext context) {

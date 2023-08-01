@@ -62,13 +62,16 @@ public class EagerMetadataLearner implements RequestFilter {
                         // closing the connection is important. This client connection is connected to bootstrap (it could
                         // be any broker or maybe not something else). we must close the connection to force the client to
                         // connect again.
-                        var builder = filterContext.requestFilterResultBuilder().asRequestShortCircuitResponse().withCloseConnection(true);
+                        var builder = filterContext.requestFilterResultBuilder();
                         if (useClientRequest) {
                             // The client's requested matched our out-of-band message, so we may as well return the
                             // response.
-                            builder.withMessage(metadataResponseData);
+                            future.complete(builder.shortCircuitResponse(metadataResponseData).withCloseConnection2(true).build());
                         }
-                        future.complete(builder.build());
+                        else {
+                            future.complete(builder.withCloseConnection2(true).build());
+
+                        }
                         LOGGER.info("Closing upstream bootstrap connection {} now that endpoint reconciliation is complete.", filterContext.channelDescriptor());
                     });
             return future;

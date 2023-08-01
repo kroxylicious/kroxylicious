@@ -16,6 +16,4 @@ public interface RequestFilterResultBuilder extends FilterResultBuilder<RequestH
 
     CloseStage<RequestFilterResult> shortCircuitResponse(ApiMessage message);
 
-    RequestFilterResultBuilder asRequestShortCircuitResponse();
-
 }

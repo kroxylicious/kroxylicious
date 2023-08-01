@@ -80,7 +80,7 @@ public class ProduceValidationFilter implements ProduceRequestFilter, ProduceRes
         if (result.isAllTopicPartitionsInvalid()) {
             LOGGER.debug("all topic-partitions for request contained invalid data: {}", result);
             ProduceResponseData response = invalidateEntireRequest(request, result);
-            return context.requestFilterResultBuilder().asRequestShortCircuitResponse().withMessage(response).completedFilterResult();
+            return context.requestFilterResultBuilder().shortCircuitResponse(response).completedFilterResult();
         }
         // do not forward partial produce data if request is transactional because the whole produce must eventually succeed or fail together
         else if (request.transactionalId() == null && forwardPartialRequests) {
@@ -96,7 +96,7 @@ public class ProduceValidationFilter implements ProduceRequestFilter, ProduceRes
             LOGGER.debug("some topic-partitions for transactional request with id: {}, contained invalid data: {}, invalidation entire request",
                     request.transactionalId(), result);
             ProduceResponseData response = invalidateEntireRequest(request, result);
-            return context.requestFilterResultBuilder().asRequestShortCircuitResponse().withMessage(response).completedFilterResult();
+            return context.requestFilterResultBuilder().shortCircuitResponse(response).completedFilterResult();
         }
     }
 

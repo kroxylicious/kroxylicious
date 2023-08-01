@@ -6,7 +6,10 @@
 
 package io.kroxylicious.proxy.filter;
 
+import java.util.concurrent.CompletionStage;
+
 public interface TerminalStage<FR extends FilterResult> {
     FR build();
 
+    CompletionStage<FR> completedFilterResult();
 }
