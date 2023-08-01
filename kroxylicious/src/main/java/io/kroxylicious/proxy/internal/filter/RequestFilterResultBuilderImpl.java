@@ -13,7 +13,7 @@ import org.apache.kafka.common.protocol.ApiMessage;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
 
-public class RequestFilterResultBuilderImpl extends FilterResultBuilderImpl<RequestFilterResultBuilder, RequestFilterResult>
+public class RequestFilterResultBuilderImpl extends FilterResultBuilderImpl<RequestHeaderData, RequestFilterResultBuilder, RequestFilterResult>
         implements RequestFilterResultBuilder {
 
     private static final String REQUEST_DATA_NAME_SUFFIX = "RequestData";

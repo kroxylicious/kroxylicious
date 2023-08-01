@@ -14,8 +14,8 @@ import org.apache.kafka.common.protocol.ApiMessage;
 import io.kroxylicious.proxy.filter.FilterResult;
 import io.kroxylicious.proxy.filter.FilterResultBuilder;
 
-public abstract class FilterResultBuilderImpl<FRB extends FilterResultBuilder<FRB, FR>, FR extends FilterResult>
-        implements FilterResultBuilder<FRB, FR> {
+public abstract class FilterResultBuilderImpl<H extends ApiMessage, FRB extends FilterResultBuilder<H, FRB, FR>, FR extends FilterResult>
+        implements FilterResultBuilder<H, FRB, FR> {
     private ApiMessage message;
     private ApiMessage header;
     private boolean closeConnection;
