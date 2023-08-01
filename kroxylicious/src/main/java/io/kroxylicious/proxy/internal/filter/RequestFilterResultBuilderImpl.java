@@ -49,7 +49,10 @@ public class RequestFilterResultBuilderImpl extends FilterResultBuilderImpl<Requ
     }
 
     private void validateShortCircuitResponse(ResponseHeaderData header, ApiMessage message) {
-        if (message != null && !message.getClass().getSimpleName().endsWith(RESPONSE_DATA_NAME_SUFFIX)) {
+        if (message == null) {
+            throw new IllegalArgumentException("message may not be null");
+        }
+        if (!message.getClass().getSimpleName().endsWith(RESPONSE_DATA_NAME_SUFFIX)) {
             throw new IllegalArgumentException("class name " + message.getClass().getName() + " does not have expected suffix " + RESPONSE_DATA_NAME_SUFFIX);
         }
     }

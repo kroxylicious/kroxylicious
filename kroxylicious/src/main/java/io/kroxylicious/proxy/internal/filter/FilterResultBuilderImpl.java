@@ -11,6 +11,8 @@ import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.protocol.ApiMessage;
 
+import io.micrometer.common.lang.NonNull;
+
 import io.kroxylicious.proxy.filter.FilterResult;
 import io.kroxylicious.proxy.filter.FilterResultBuilder;
 import io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage;
@@ -27,7 +29,7 @@ public abstract class FilterResultBuilderImpl<H extends ApiMessage, FR extends F
     }
 
     @Override
-    public CloseOrTerminalStage<FR> forward(H header, ApiMessage message) {
+    public CloseOrTerminalStage<FR> forward(@NonNull H header, @NonNull ApiMessage message) {
         validateForward(header, message);
         this.header = header;
         this.message = message;
@@ -36,6 +38,12 @@ public abstract class FilterResultBuilderImpl<H extends ApiMessage, FR extends F
     }
 
     protected void validateForward(H header, ApiMessage message) {
+        if (header == null) {
+            throw new IllegalArgumentException("header may not be null");
+        }
+        if (message == null) {
+            throw new IllegalArgumentException("message may not be null");
+        }
     }
 
     ApiMessage header() {

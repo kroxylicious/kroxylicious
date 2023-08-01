@@ -39,6 +39,12 @@ class ResponseFilterResultBuilderTest {
     }
 
     @Test
+    void forwardRejectsNullRequestData() {
+        var header = new ResponseHeaderData();
+        assertThatThrownBy(() -> builder.forward(header, null)).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
     void bareCloseConnection() {
         var result = builder.withCloseConnection().build();
         assertThat(result.closeConnection()).isTrue();

@@ -155,10 +155,10 @@ public class ProduceValidationFilter implements ProduceRequestFilter, ProduceRes
         if (produceRequestValidationResult != null) {
             LOGGER.debug("augmenting invalid topic-partition details into response: {}", produceRequestValidationResult);
             augmentResponseWithInvalidTopicPartitions(response, produceRequestValidationResult);
-            return context.responseFilterResultBuilder().forward(null, response).completed();
+            return context.forwardResponse(header, response);
         }
         else {
-            return context.responseFilterResultBuilder().forward(null, response).completed();
+            return context.forwardResponse(header, response);
         }
     }
 

@@ -21,13 +21,16 @@ import io.kroxylicious.proxy.filter.filterresultbuilder.TerminalStage;
 public interface FilterResultBuilder<H extends ApiMessage, FR extends FilterResult> extends CloseStage<FR> {
 
     /**
-     * A forward of a request or response to the next filter in the chain.
+     * A forward of a request or response message to the next filter in the chain.
      *
-     * @param header message header
-     * @param message api message
+     * @param header message header. May not be null.
+     * @param message api message. May not be null.  for request messages the class must have a name
+     *                that that ends with RequestData. for response messages the class must have one
+     *                that ends with ResponseData.
      * @return next stage in the fluent builder API
+     * @throws IllegalArgumentException header or message do not meet criteria described above.
      */
-    CloseOrTerminalStage<FR> forward(H header, ApiMessage message);
+    CloseOrTerminalStage<FR> forward(H header, ApiMessage message) throws IllegalArgumentException;
 
     /**
      * Signals the desire of the filter that the connection is closed.

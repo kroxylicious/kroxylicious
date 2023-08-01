@@ -72,7 +72,7 @@ public class OutOfBandSendFilter implements DescribeClusterRequestFilter, Descri
                                                                            KrpcFilterContext context) {
         response.setErrorCode(Errors.UNKNOWN_SERVER_ERROR.code())
                 .setErrorMessage("filterNameTaggedFieldsFromOutOfBandResponse: " + values);
-        return context.responseFilterResultBuilder().forward(null, response).completed();
+        return context.forwardResponse(header, response);
     }
 
     private static ApiMessage createApiMessage(ApiKeys apiKeyToSend) {

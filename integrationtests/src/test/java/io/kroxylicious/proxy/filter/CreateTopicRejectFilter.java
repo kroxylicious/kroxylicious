@@ -6,7 +6,6 @@
 
 package io.kroxylicious.proxy.filter;
 
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.message.CreateTopicsRequestData;
@@ -31,7 +30,7 @@ public class CreateTopicRejectFilter implements CreateTopicsRequestFilter {
             topics.add(result);
         });
         response.setTopics(topics);
-        return CompletableFuture.completedStage(context.requestFilterResultBuilder().shortCircuitResponse(response).build());
+        return context.requestFilterResultBuilder().shortCircuitResponse(response).completed();
     }
 
     private static void allocateByteBufToTestKroxyliciousReleasesIt(KrpcFilterContext context) {

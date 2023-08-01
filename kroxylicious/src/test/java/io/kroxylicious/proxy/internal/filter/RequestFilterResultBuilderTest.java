@@ -30,7 +30,6 @@ class RequestFilterResultBuilderTest {
         assertThat(result.header()).isEqualTo(header);
         assertThat(result.closeConnection()).isFalse();
         assertThat(result.drop()).isFalse();
-
     }
 
     @Test
@@ -38,6 +37,18 @@ class RequestFilterResultBuilderTest {
         var res = new FetchResponseData();
         var header = new RequestHeaderData();
         assertThatThrownBy(() -> builder.forward(header, res)).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void forwardRejectNullResponseData() {
+        var header = new RequestHeaderData();
+        assertThatThrownBy(() -> builder.forward(header, null)).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void forwardRejectsNullHeader() {
+        var req = new FetchRequestData();
+        assertThatThrownBy(() -> builder.forward(null, req)).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -89,6 +100,11 @@ class RequestFilterResultBuilderTest {
     void shortCircuitRejectsRequestData() {
         var req = new FetchRequestData();
         assertThatThrownBy(() -> builder.shortCircuitResponse(req)).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void shortCircuitRejectsNullRequestData() {
+        assertThatThrownBy(() -> builder.shortCircuitResponse(null)).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

@@ -22,18 +22,22 @@ public interface RequestFilterResultBuilder extends FilterResultBuilder<RequestH
     /**
      * A short-circuit response towards the client.
      *
-     * @param header response header
-     * @param message response message
+     * @param header response header. May be null.
+     * @param message response message. May not be null.  the response messages the class must have one
+     *                that ends with ResponseData.
      * @return next stage in the fluent builder API
+     * @throws IllegalArgumentException header or message do not meet criteria described above.
      */
-    CloseOrTerminalStage<RequestFilterResult> shortCircuitResponse(ResponseHeaderData header, ApiMessage message);
+    CloseOrTerminalStage<RequestFilterResult> shortCircuitResponse(ResponseHeaderData header, ApiMessage message) throws IllegalArgumentException;
 
     /**
      * A short-circuit response towards the client.
      *
-     * @param message response message
+     * @param message response message. May not be null.  the response messages the class must have one
+     *                that ends with ResponseData.
      * @return next stage in the fluent builder API
+     * @throws IllegalArgumentException header or message do not meet criteria described above.
      */
-    CloseOrTerminalStage<RequestFilterResult> shortCircuitResponse(ApiMessage message);
+    CloseOrTerminalStage<RequestFilterResult> shortCircuitResponse(ApiMessage message) throws IllegalArgumentException;
 
 }
