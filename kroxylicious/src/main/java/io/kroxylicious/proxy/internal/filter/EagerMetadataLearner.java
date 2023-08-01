@@ -47,7 +47,7 @@ public class EagerMetadataLearner implements RequestFilter {
     @Override
     public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
         if (KAFKA_PRELUDE.contains(apiKey)) {
-            return filterContext.requestFilterResultBuilder().withHeader(header).withMessage(body).completedFilterResult();
+            return filterContext.requestFilterResultBuilder().forward(header, body).completedFilterResult();
         }
         else {
             final short apiVersion = determineMetadataApiVersion(header);

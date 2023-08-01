@@ -101,14 +101,14 @@ public class FetchResponseTransformationFilter implements FetchResponseFilter {
                         applyTransformation(context, fetchResponse);
                         LOGGER.debug("Forwarding original Fetch response");
 
-                        var value = context.responseFilterResultBuilder().withMessage(fetchResponse).withHeader(header).build();
+                        var value = context.responseFilterResultBuilder().forward(header, fetchResponse).build();
                         future.complete(value);
                     });
             return future;
         }
         else {
             applyTransformation(context, fetchResponse);
-            return context.responseFilterResultBuilder().withHeader(header).withMessage(fetchResponse).completedFilterResult();
+            return context.responseFilterResultBuilder().forward(header, fetchResponse).completedFilterResult();
         }
     }
 

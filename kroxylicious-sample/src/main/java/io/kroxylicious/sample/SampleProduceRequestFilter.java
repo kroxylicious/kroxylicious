@@ -63,7 +63,7 @@ public class SampleProduceRequestFilter implements ProduceRequestFilter {
     public CompletionStage<RequestFilterResult> onProduceRequest(short apiVersion, RequestHeaderData header, ProduceRequestData request, KrpcFilterContext context) {
         this.timer.record(() -> applyTransformation(request, context)); // We're timing this to report how long it takes through Micrometer
 
-        return context.requestFilterResultBuilder().withMessage(request).withHeader(header).completedFilterResult();
+        return context.requestFilterResultBuilder().forward(header, request).completedFilterResult();
     }
 
     /**

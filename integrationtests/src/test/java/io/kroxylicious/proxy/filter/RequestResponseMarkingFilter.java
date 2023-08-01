@@ -46,7 +46,7 @@ public class RequestResponseMarkingFilter implements RequestFilter, ResponseFilt
         if (keysToMark.contains(apiKey)) {
             body.unknownTaggedFields().add(createTaggedField("request"));
         }
-        return filterContext.requestFilterResultBuilder().withMessage(body).withHeader(header).completedFilterResult();
+        return filterContext.requestFilterResultBuilder().forward(header, body).completedFilterResult();
     }
 
     @Override
@@ -54,7 +54,7 @@ public class RequestResponseMarkingFilter implements RequestFilter, ResponseFilt
         if (keysToMark.contains(apiKey)) {
             body.unknownTaggedFields().add(createTaggedField("response"));
         }
-        return filterContext.responseFilterResultBuilder().withHeader(header).withMessage(body).completedFilterResult();
+        return filterContext.responseFilterResultBuilder().forward(header, body).completedFilterResult();
     }
 
     private RawTaggedField createTaggedField(String type) {

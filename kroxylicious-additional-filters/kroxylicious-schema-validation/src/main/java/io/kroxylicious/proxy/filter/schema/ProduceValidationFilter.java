@@ -71,7 +71,7 @@ public class ProduceValidationFilter implements ProduceRequestFilter, ProduceRes
             return handleInvalidTopicPartitions(header, request, context, result);
         }
         else {
-            return context.requestFilterResultBuilder().withHeader(header).withMessage(request).completedFilterResult();
+            return context.requestFilterResultBuilder().forward(header, request).completedFilterResult();
         }
     }
 
@@ -90,7 +90,7 @@ public class ProduceValidationFilter implements ProduceRequestFilter, ProduceRes
                 topicDatum.partitionData().removeIf(partitionProduceData -> !result.isPartitionValid(topicDatum.name(), partitionProduceData.index()));
             }
             correlatedResults.put(header.correlationId(), result);
-            return context.requestFilterResultBuilder().withHeader(header).withMessage(request).completedFilterResult();
+            return context.requestFilterResultBuilder().forward(header, request).completedFilterResult();
         }
         else {
             LOGGER.debug("some topic-partitions for transactional request with id: {}, contained invalid data: {}, invalidation entire request",
@@ -155,10 +155,10 @@ public class ProduceValidationFilter implements ProduceRequestFilter, ProduceRes
         if (produceRequestValidationResult != null) {
             LOGGER.debug("augmenting invalid topic-partition details into response: {}", produceRequestValidationResult);
             augmentResponseWithInvalidTopicPartitions(response, produceRequestValidationResult);
-            return context.responseFilterResultBuilder().withHeader(null).withMessage(response).completedFilterResult();
+            return context.responseFilterResultBuilder().forward(null, response).completedFilterResult();
         }
         else {
-            return context.responseFilterResultBuilder().withHeader(null).withMessage(response).completedFilterResult();
+            return context.responseFilterResultBuilder().forward(null, response).completedFilterResult();
         }
     }
 

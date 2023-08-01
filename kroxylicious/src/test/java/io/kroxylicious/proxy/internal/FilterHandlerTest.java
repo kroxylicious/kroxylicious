@@ -45,7 +45,7 @@ public class FilterHandlerTest extends FilterHarness {
 
     @Test
     public void testForwardRequest() {
-        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> context.requestFilterResultBuilder().withMessage(request).withHeader(header)
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> context.requestFilterResultBuilder().forward(header, request)
                 .completedFilterResult();
         buildChannel(filter);
         var frame = writeRequest(new ApiVersionsRequestData());
@@ -90,7 +90,7 @@ public class FilterHandlerTest extends FilterHarness {
 
     @Test
     public void testForwardResponse() {
-        ApiVersionsResponseFilter filter = (apiVersion, header, response, context) -> context.responseFilterResultBuilder().withHeader(header).withMessage(response)
+        ApiVersionsResponseFilter filter = (apiVersion, header, response, context) -> context.responseFilterResultBuilder().forward(header, response)
                 .completedFilterResult();
         buildChannel(filter);
         var frame = writeResponse(new ApiVersionsResponseData());
@@ -315,7 +315,7 @@ public class FilterHandlerTest extends FilterHarness {
     private static ApiVersionsResponseFilter taggingApiVersionsResponseFilter(String tag) {
         return (apiVersion, header, response, context) -> {
             response.unknownTaggedFields().add(new RawTaggedField(ARBITRARY_TAG, tag.getBytes(UTF_8)));
-            return context.responseFilterResultBuilder().withHeader(header).withMessage(response).completedFilterResult();
+            return context.responseFilterResultBuilder().forward(header, response).completedFilterResult();
         };
     }
 
@@ -327,7 +327,7 @@ public class FilterHandlerTest extends FilterHarness {
     private static ApiVersionsRequestFilter taggingApiVersionsRequestFilter(String tag) {
         return (apiVersion, header, request, context) -> {
             request.unknownTaggedFields().add(new RawTaggedField(ARBITRARY_TAG, tag.getBytes(UTF_8)));
-            return context.requestFilterResultBuilder().withMessage(request).withHeader(header).completedFilterResult();
+            return context.requestFilterResultBuilder().forward(header, request).completedFilterResult();
         };
     }
 

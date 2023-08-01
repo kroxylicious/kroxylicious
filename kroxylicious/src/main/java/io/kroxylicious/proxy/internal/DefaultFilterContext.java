@@ -222,7 +222,7 @@ class DefaultFilterContext implements KrpcFilterContext {
     }
 
     public CompletionStage<ResponseFilterResult> completedResponseFilterResult(ResponseHeaderData header, ApiMessage response) {
-        return CompletableFuture.completedStage(responseFilterResultBuilder().withHeader(header).withMessage(response).build());
+        return CompletableFuture.completedStage(responseFilterResultBuilder().forward(header, response).build());
     }
 
     protected void closeConnection() {

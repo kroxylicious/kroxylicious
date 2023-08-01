@@ -87,7 +87,7 @@ public interface FilterInvoker {
      */
     default CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage body,
                                                            KrpcFilterContext filterContext) {
-        return filterContext.requestFilterResultBuilder().withHeader(header).withMessage(body).completedFilterResult();
+        return filterContext.requestFilterResultBuilder().forward(header, body).completedFilterResult();
     }
 
     /**
@@ -107,7 +107,7 @@ public interface FilterInvoker {
      */
     default CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, short apiVersion, ResponseHeaderData header, ApiMessage body,
                                                              KrpcFilterContext filterContext) {
-        return filterContext.responseFilterResultBuilder().withHeader(header).withMessage(body).completedFilterResult();
+        return filterContext.responseFilterResultBuilder().forward(header, body).completedFilterResult();
     }
 
 }
