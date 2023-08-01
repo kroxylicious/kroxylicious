@@ -6,8 +6,6 @@
 
 package io.kroxylicious.proxy;
 
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,8 +33,7 @@ public abstract class BaseIT {
 
     protected CreateTopicsResult createTopics(Admin admin, NewTopic... topics) {
         try {
-            List<NewTopic> topicsList = new ArrayList<>();
-            Collections.addAll(topicsList, topics);
+            List<NewTopic> topicsList = List.of(topics);
             var created = admin.createTopics(topicsList);
             assertThat(created.values()).hasSizeGreaterThanOrEqualTo(topicsList.size());
             created.all().get(10, TimeUnit.SECONDS);
