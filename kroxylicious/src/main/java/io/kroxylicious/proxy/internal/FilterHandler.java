@@ -70,7 +70,13 @@ public class FilterHandler extends ChannelDuplexHandler {
                     return;
                 }
 
-                if (requestFilterResult.message() != null) {
+                if (requestFilterResult.drop()) {
+                    if (LOGGER.isDebugEnabled()) {
+                        LOGGER.debug("{}: Filter{} drops request {}",
+                                ctx.channel(), filterDescriptor(), decodedFrame.apiKey());
+                    }
+                }
+                else if (requestFilterResult.message() != null) {
                     if (requestFilterResult.shortCircuitResponse()) {
                         // this is the short circuit path
                         var header = requestFilterResult.header() == null ? new ResponseHeaderData() : ((ResponseHeaderData) requestFilterResult.header());
@@ -126,7 +132,13 @@ public class FilterHandler extends ChannelDuplexHandler {
                         filterContext.closeConnection();
                         return;
                     }
-                    if (responseFilterResult.message() != null) {
+                    if (responseFilterResult.drop()) {
+                        if (LOGGER.isDebugEnabled()) {
+                            LOGGER.debug("{}: Filter{} drops response {}",
+                                    ctx.channel(), filterDescriptor(), decodedFrame.apiKey());
+                        }
+                    }
+                    else if (responseFilterResult.message() != null) {
                         ResponseHeaderData header = responseFilterResult.header() == null ? decodedFrame.header() : (ResponseHeaderData) responseFilterResult.header();
                         filterContext.forwardResponse(header, responseFilterResult.message());
                     }

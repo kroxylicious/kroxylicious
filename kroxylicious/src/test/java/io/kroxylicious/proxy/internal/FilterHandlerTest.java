@@ -19,7 +19,6 @@ import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.types.RawTaggedField;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.proxy.filter.ApiVersionsRequestFilter;
@@ -75,17 +74,16 @@ public class FilterHandlerTest extends FilterHarness {
     }
 
     @Test
-    @Disabled
     public void testDropRequest() {
-        // FIXME - it only make sense to drop an publish requests where ack=0
-        // need to think about how because to single that
-        // RequestFilterResult.dropRequest(true) perhaps
         ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> {
             /* don't call forwardRequest => drop the request */
-            return null;
+            return context.requestFilterResultBuilder().drop().completedFilterResult();
         };
         buildChannel(filter);
         var frame = writeRequest(new ApiVersionsRequestData());
+        var propagated = channel.readOutbound();
+        assertNull(propagated);
+
     }
 
     @Test
@@ -148,18 +146,15 @@ public class FilterHandlerTest extends FilterHarness {
     }
 
     @Test
-    @Disabled
     public void testDropResponse() {
-        // Can't think of a case where dropping a response is every actually
-        // legal. I suppose if the filter rewrote a publishrequest (ack 0=>1).
-        // then the response filter would need to drop it.
-
         ApiVersionsResponseFilter filter = (apiVersion, header, response, context) -> {
-            /* don't call forwardRequest => drop the request */
-            return null;
+            return context.responseFilterResultBuilder().drop().completedFilterResult();
         };
         buildChannel(filter);
         var frame = writeResponse(new ApiVersionsResponseData());
+        var propagated = channel.readInbound();
+        assertNull(propagated);
+
     }
 
     @Test
