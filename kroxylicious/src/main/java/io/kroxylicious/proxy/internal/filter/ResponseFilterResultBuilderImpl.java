@@ -6,14 +6,13 @@
 
 package io.kroxylicious.proxy.internal.filter;
 
-import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
 
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResultBuilder;
 
-public class ResponseFilterResultBuilderImpl extends FilterResultBuilderImpl<ResponseHeaderData, ResponseFilterResultBuilder, ResponseFilterResult>
+public class ResponseFilterResultBuilderImpl extends FilterResultBuilderImpl<ResponseHeaderData, ResponseFilterResult>
         implements ResponseFilterResultBuilder {
 
     private static final String RESPONSE_DATA_NAME_SUFFIX = "ResponseData";
@@ -23,22 +22,6 @@ public class ResponseFilterResultBuilderImpl extends FilterResultBuilderImpl<Res
         super.validateForward(header, message);
         if (message != null && !message.getClass().getSimpleName().endsWith(RESPONSE_DATA_NAME_SUFFIX)) {
             throw new IllegalArgumentException("class name " + message.getClass().getName() + " does not have expected suffix " + RESPONSE_DATA_NAME_SUFFIX);
-        }
-    }
-
-    @Override
-    protected void validateMessage(ApiMessage message) {
-        super.validateMessage(message);
-        if (message != null && !message.getClass().getSimpleName().endsWith(RESPONSE_DATA_NAME_SUFFIX)) {
-            throw new IllegalArgumentException("class name " + message.getClass().getName() + " does not have expected suffix " + RESPONSE_DATA_NAME_SUFFIX);
-        }
-    }
-
-    @Override
-    protected void validateHeader(ApiMessage header) {
-        super.validateHeader(header);
-        if (header != null && !(header instanceof ResponseHeaderData)) {
-            throw new IllegalArgumentException("header " + header.getClass().getName() + " does not implement expected class " + RequestHeaderData.class.getName());
         }
     }
 

@@ -27,7 +27,7 @@ record SafeInvoker(FilterInvoker invoker) implements FilterInvoker {
             return invoker.onRequest(apiKey, apiVersion, header, body, filterContext);
         }
         else {
-            return filterContext.requestFilterResultBuilder().forward(header, body).completedFilterResult();
+            return filterContext.requestFilterResultBuilder().forward(header, body).completed();
         }
     }
 
@@ -37,7 +37,7 @@ record SafeInvoker(FilterInvoker invoker) implements FilterInvoker {
             return invoker.onResponse(apiKey, apiVersion, header, body, filterContext);
         }
         else {
-            return filterContext.responseFilterResultBuilder().forward(header, body).completedFilterResult();
+            return filterContext.responseFilterResultBuilder().forward(header, body).completed();
         }
     }
 

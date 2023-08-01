@@ -43,7 +43,8 @@ public class RequestDecoderTest extends AbstractCodecTest {
                         new KafkaRequestDecoder(
                                 DecodePredicate
                                         .forFilters(FilterAndInvoker.build(
-                                                (ApiVersionsRequestFilter) (version, header, request, context) -> context.requestFilterResultBuilder().forward(header, request).completedFilterResult()))),
+                                                (ApiVersionsRequestFilter) (version, header, request, context) -> context.requestFilterResultBuilder()
+                                                        .forward(header, request).completed()))),
                         DecodedRequestFrame.class,
                         (RequestHeaderData header) -> header),
                 "Unexpected correlation id");
@@ -69,7 +70,7 @@ public class RequestDecoderTest extends AbstractCodecTest {
                                     public CompletionStage<RequestFilterResult> onApiVersionsRequest(short apiVersion, RequestHeaderData header,
                                                                                                      ApiVersionsRequestData request,
                                                                                                      KrpcFilterContext context) {
-                                        return context.requestFilterResultBuilder().forward(header, request).completedFilterResult();
+                                        return context.requestFilterResultBuilder().forward(header, request).completed();
                                     }
                                 }))),
                         OpaqueRequestFrame.class),
@@ -91,7 +92,7 @@ public class RequestDecoderTest extends AbstractCodecTest {
         new KafkaRequestDecoder(
                 DecodePredicate.forFilters(
                         FilterAndInvoker.build((ApiVersionsRequestFilter) (version, header, request, context) -> {
-                            return context.requestFilterResultBuilder().forward(header, request).completedFilterResult();
+                            return context.requestFilterResultBuilder().forward(header, request).completed();
                         })))
                 .decode(null, byteBuf, messages);
 
@@ -113,7 +114,7 @@ public class RequestDecoderTest extends AbstractCodecTest {
                 DecodePredicate.forFilters(
                         FilterAndInvoker
                                 .build((ApiVersionsRequestFilter) (version, header, request, context) -> context.requestFilterResultBuilder().forward(header, request)
-                                        .completedFilterResult())))
+                                        .completed())))
                 .decode(null, byteBuf, messages);
 
         assertEquals(List.of(), messageClasses(messages));
@@ -158,7 +159,7 @@ public class RequestDecoderTest extends AbstractCodecTest {
                 DecodePredicate.forFilters(
                         FilterAndInvoker
                                 .build((ApiVersionsRequestFilter) (version, head, request, context) -> context.requestFilterResultBuilder().forward(header, request)
-                                        .completedFilterResult())))
+                                        .completed())))
                 .decode(null, byteBuf, messages);
 
         assertEquals(List.of(DecodedRequestFrame.class, DecodedRequestFrame.class), messageClasses(messages));

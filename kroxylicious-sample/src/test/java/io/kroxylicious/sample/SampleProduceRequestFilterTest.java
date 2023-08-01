@@ -117,7 +117,7 @@ class SampleProduceRequestFilterTest {
         when(requestFilterResultBuilder.forward(requestHeaderDataCaptor.capture(), apiMessageCaptor.capture())).thenReturn(requestFilterResultBuilder);
         when(requestFilterResult.message()).thenAnswer(invocation -> apiMessageCaptor.getValue());
         when(requestFilterResult.header()).thenAnswer(invocation -> requestHeaderDataCaptor.getValue());
-        when(requestFilterResultBuilder.completedFilterResult()).thenAnswer(invocation -> CompletableFuture.completedStage(requestFilterResult));
+        when(requestFilterResultBuilder.completed()).thenAnswer(invocation -> CompletableFuture.completedStage(requestFilterResult));
 
         when(context.createByteBufferOutputStream(bufferInitialCapacity.capture())).thenAnswer(
                 (Answer<ByteBufferOutputStream>) invocation -> {

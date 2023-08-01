@@ -71,7 +71,7 @@ public class ProduceValidationFilter implements ProduceRequestFilter, ProduceRes
             return handleInvalidTopicPartitions(header, request, context, result);
         }
         else {
-            return context.requestFilterResultBuilder().forward(header, request).completedFilterResult();
+            return context.requestFilterResultBuilder().forward(header, request).completed();
         }
     }
 
@@ -80,7 +80,7 @@ public class ProduceValidationFilter implements ProduceRequestFilter, ProduceRes
         if (result.isAllTopicPartitionsInvalid()) {
             LOGGER.debug("all topic-partitions for request contained invalid data: {}", result);
             ProduceResponseData response = invalidateEntireRequest(request, result);
-            return context.requestFilterResultBuilder().shortCircuitResponse(response).completedFilterResult();
+            return context.requestFilterResultBuilder().shortCircuitResponse(response).completed();
         }
         // do not forward partial produce data if request is transactional because the whole produce must eventually succeed or fail together
         else if (request.transactionalId() == null && forwardPartialRequests) {
@@ -90,13 +90,13 @@ public class ProduceValidationFilter implements ProduceRequestFilter, ProduceRes
                 topicDatum.partitionData().removeIf(partitionProduceData -> !result.isPartitionValid(topicDatum.name(), partitionProduceData.index()));
             }
             correlatedResults.put(header.correlationId(), result);
-            return context.requestFilterResultBuilder().forward(header, request).completedFilterResult();
+            return context.requestFilterResultBuilder().forward(header, request).completed();
         }
         else {
             LOGGER.debug("some topic-partitions for transactional request with id: {}, contained invalid data: {}, invalidation entire request",
                     request.transactionalId(), result);
             ProduceResponseData response = invalidateEntireRequest(request, result);
-            return context.requestFilterResultBuilder().shortCircuitResponse(response).completedFilterResult();
+            return context.requestFilterResultBuilder().shortCircuitResponse(response).completed();
         }
     }
 
@@ -155,10 +155,10 @@ public class ProduceValidationFilter implements ProduceRequestFilter, ProduceRes
         if (produceRequestValidationResult != null) {
             LOGGER.debug("augmenting invalid topic-partition details into response: {}", produceRequestValidationResult);
             augmentResponseWithInvalidTopicPartitions(response, produceRequestValidationResult);
-            return context.responseFilterResultBuilder().forward(null, response).completedFilterResult();
+            return context.responseFilterResultBuilder().forward(null, response).completed();
         }
         else {
-            return context.responseFilterResultBuilder().forward(null, response).completedFilterResult();
+            return context.responseFilterResultBuilder().forward(null, response).completed();
         }
     }
 

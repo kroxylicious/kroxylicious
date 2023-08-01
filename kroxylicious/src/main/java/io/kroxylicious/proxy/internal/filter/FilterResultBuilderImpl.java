@@ -11,13 +11,13 @@ import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.protocol.ApiMessage;
 
-import io.kroxylicious.proxy.filter.CloseStage;
+import io.kroxylicious.proxy.filter.filterresultbuilder.CloseStage;
 import io.kroxylicious.proxy.filter.FilterResult;
 import io.kroxylicious.proxy.filter.FilterResultBuilder;
-import io.kroxylicious.proxy.filter.TerminalStage;
+import io.kroxylicious.proxy.filter.filterresultbuilder.TerminalStage;
 
-public abstract class FilterResultBuilderImpl<H extends ApiMessage, FRB extends FilterResultBuilder<H, FRB, FR>, FR extends FilterResult>
-        implements FilterResultBuilder<H, FRB, FR>, CloseStage<FR> {
+public abstract class FilterResultBuilderImpl<H extends ApiMessage, FR extends FilterResult>
+        implements FilterResultBuilder<H, FR>, CloseStage<FR> {
     private ApiMessage message;
     private ApiMessage header;
     private boolean closeConnection;
@@ -38,28 +38,8 @@ public abstract class FilterResultBuilderImpl<H extends ApiMessage, FRB extends 
     protected void validateForward(H header, ApiMessage message) {
     }
 
-    @Override
-    public FRB withHeader(ApiMessage header) {
-        validateHeader(header);
-        this.header = header;
-        return (FRB) this;
-    }
-
-    protected void validateHeader(ApiMessage header) {
-    }
-
     ApiMessage header() {
         return header;
-    }
-
-    @Override
-    public FRB withMessage(ApiMessage message) {
-        validateMessage(message);
-        this.message = message;
-        return (FRB) this;
-    }
-
-    protected void validateMessage(ApiMessage message) {
     }
 
     ApiMessage message() {
@@ -87,7 +67,7 @@ public abstract class FilterResultBuilderImpl<H extends ApiMessage, FRB extends 
     }
 
     @Override
-    public CompletionStage<FR> completedFilterResult() {
+    public CompletionStage<FR> completed() {
         return CompletableFuture.completedStage(build());
     }
 }

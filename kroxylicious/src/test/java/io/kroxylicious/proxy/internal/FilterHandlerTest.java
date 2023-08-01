@@ -45,7 +45,7 @@ public class FilterHandlerTest extends FilterHarness {
     @Test
     public void testForwardRequest() {
         ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> context.requestFilterResultBuilder().forward(header, request)
-                .completedFilterResult();
+                .completed();
         buildChannel(filter);
         var frame = writeRequest(new ApiVersionsRequestData());
         var propagated = channel.readOutbound();
@@ -77,7 +77,7 @@ public class FilterHandlerTest extends FilterHarness {
     public void testDropRequest() {
         ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> {
             /* don't call forwardRequest => drop the request */
-            return context.requestFilterResultBuilder().drop().completedFilterResult();
+            return context.requestFilterResultBuilder().drop().completed();
         };
         buildChannel(filter);
         var frame = writeRequest(new ApiVersionsRequestData());
@@ -89,7 +89,7 @@ public class FilterHandlerTest extends FilterHarness {
     @Test
     public void testForwardResponse() {
         ApiVersionsResponseFilter filter = (apiVersion, header, response, context) -> context.responseFilterResultBuilder().forward(header, response)
-                .completedFilterResult();
+                .completed();
         buildChannel(filter);
         var frame = writeResponse(new ApiVersionsResponseData());
         var propagated = channel.readInbound();
@@ -148,7 +148,7 @@ public class FilterHandlerTest extends FilterHarness {
     @Test
     public void testDropResponse() {
         ApiVersionsResponseFilter filter = (apiVersion, header, response, context) -> {
-            return context.responseFilterResultBuilder().drop().completedFilterResult();
+            return context.responseFilterResultBuilder().drop().completed();
         };
         buildChannel(filter);
         var frame = writeResponse(new ApiVersionsResponseData());
@@ -310,7 +310,7 @@ public class FilterHandlerTest extends FilterHarness {
     private static ApiVersionsResponseFilter taggingApiVersionsResponseFilter(String tag) {
         return (apiVersion, header, response, context) -> {
             response.unknownTaggedFields().add(new RawTaggedField(ARBITRARY_TAG, tag.getBytes(UTF_8)));
-            return context.responseFilterResultBuilder().forward(header, response).completedFilterResult();
+            return context.responseFilterResultBuilder().forward(header, response).completed();
         };
     }
 
@@ -322,7 +322,7 @@ public class FilterHandlerTest extends FilterHarness {
     private static ApiVersionsRequestFilter taggingApiVersionsRequestFilter(String tag) {
         return (apiVersion, header, request, context) -> {
             request.unknownTaggedFields().add(new RawTaggedField(ARBITRARY_TAG, tag.getBytes(UTF_8)));
-            return context.requestFilterResultBuilder().forward(header, request).completedFilterResult();
+            return context.requestFilterResultBuilder().forward(header, request).completed();
         };
     }
 

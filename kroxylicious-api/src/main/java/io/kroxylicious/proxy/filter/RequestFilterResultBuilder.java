@@ -10,7 +10,9 @@ import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
 
-public interface RequestFilterResultBuilder extends FilterResultBuilder<RequestHeaderData, RequestFilterResultBuilder, RequestFilterResult> {
+import io.kroxylicious.proxy.filter.filterresultbuilder.CloseStage;
+
+public interface RequestFilterResultBuilder extends FilterResultBuilder<RequestHeaderData, RequestFilterResult> {
 
     CloseStage<RequestFilterResult> shortCircuitResponse(ResponseHeaderData header, ApiMessage message);
 

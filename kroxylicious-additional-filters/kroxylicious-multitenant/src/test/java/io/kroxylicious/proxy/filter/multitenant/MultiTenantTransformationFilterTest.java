@@ -111,7 +111,7 @@ class MultiTenantTransformationFilterTest {
         when(requestFilterResultBuilder.forward(requestHeaderDataCaptor.capture(), apiMessageCaptor.capture())).thenReturn(requestFilterResultBuilder);
         when(requestFilterResult.message()).thenAnswer(invocation -> apiMessageCaptor.getValue());
         when(requestFilterResult.header()).thenAnswer(invocation -> requestHeaderDataCaptor.getValue());
-        when(requestFilterResultBuilder.completedFilterResult()).thenAnswer(invocation -> CompletableFuture.completedStage(requestFilterResult));
+        when(requestFilterResultBuilder.completed()).thenAnswer(invocation -> CompletableFuture.completedStage(requestFilterResult));
 
         var stage = invoker.onRequest(ApiKeys.forId(apiMessageType.apiKey()), header.requestApiVersion(), header, request, context);
         assertThat(stage).isCompleted();
@@ -141,7 +141,7 @@ class MultiTenantTransformationFilterTest {
         when(responseFilterResultBuilder.forward(responseHeaderDataArgumentCaptor.capture(), apiMessageCaptor.capture())).thenReturn(responseFilterResultBuilder);
         when(responseFilterResult.message()).thenAnswer(invocation -> apiMessageCaptor.getValue());
         when(responseFilterResult.header()).thenAnswer(invocation -> responseHeaderDataArgumentCaptor.getValue());
-        when(responseFilterResultBuilder.completedFilterResult()).thenAnswer(invocation -> CompletableFuture.completedStage(responseFilterResult));
+        when(responseFilterResultBuilder.completed()).thenAnswer(invocation -> CompletableFuture.completedStage(responseFilterResult));
 
         ResponseHeaderData headerData = new ResponseHeaderData();
         var stage = invoker.onResponse(ApiKeys.forId(apiMessageType.apiKey()), header.requestApiVersion(), headerData, response, context);

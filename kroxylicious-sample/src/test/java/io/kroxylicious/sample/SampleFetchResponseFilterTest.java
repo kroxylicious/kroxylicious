@@ -115,7 +115,7 @@ class SampleFetchResponseFilterTest {
         when(responseFilterResultBuilder.forward(responseHeaderDataCaptor.capture(), apiMessageCaptor.capture())).thenReturn(responseFilterResultBuilder);
         when(responseFilterResult.message()).thenAnswer(invocation -> apiMessageCaptor.getValue());
         when(responseFilterResult.header()).thenAnswer(invocation -> responseHeaderDataCaptor.getValue());
-        when(responseFilterResultBuilder.completedFilterResult()).thenAnswer(invocation -> CompletableFuture.completedStage(responseFilterResult));
+        when(responseFilterResultBuilder.completed()).thenAnswer(invocation -> CompletableFuture.completedStage(responseFilterResult));
 
         when(context.createByteBufferOutputStream(bufferInitialCapacity.capture())).thenAnswer(
                 (Answer<ByteBufferOutputStream>) invocation -> {

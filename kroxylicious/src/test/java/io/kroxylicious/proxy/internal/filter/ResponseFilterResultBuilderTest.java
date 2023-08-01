@@ -66,7 +66,7 @@ class ResponseFilterResultBuilderTest {
     void completedApi() throws Exception {
         var res = new FetchResponseData();
         var header = new ResponseHeaderData();
-        var future = builder.forward(header, res).completedFilterResult();
+        var future = builder.forward(header, res).completed();
         assertThat(future).isCompleted();
         var result = future.toCompletableFuture().get();
         assertThat(result.message()).isEqualTo(res);
