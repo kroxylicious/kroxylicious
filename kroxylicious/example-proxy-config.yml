@@ -10,7 +10,6 @@ adminHttp:
     prometheus: {}
 virtualClusters:
   demo:
-    name: "Demo Cluster"
     targetCluster:
       bootstrap_servers: localhost:9092
     clusterNetworkAddressConfigProvider:
