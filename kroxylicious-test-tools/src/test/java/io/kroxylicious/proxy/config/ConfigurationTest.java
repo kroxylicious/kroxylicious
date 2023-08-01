@@ -6,12 +6,15 @@
 
 package io.kroxylicious.proxy.config;
 
+import java.util.List;
 import java.util.stream.Stream;
 
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
@@ -20,6 +23,7 @@ import com.flipkart.zjsonpatch.JsonDiff;
 import io.kroxylicious.proxy.internal.filter.ProduceRequestTransformationFilter;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ConfigurationTest {
 
@@ -101,7 +105,7 @@ class ConfigurationTest {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource
-    public void yamlDeserializeSerializeFidelity(String name, String config) throws Exception {
+    void yamlDeserializeSerializeFidelity(String name, String config) throws Exception {
 
         var configuration = configParser.parseConfiguration(config);
         var roundTripped = configParser.toYaml(configuration);
@@ -286,12 +290,71 @@ class ConfigurationTest {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource
-    public void fluentApiConfigYamlFidelity(String name, Configuration config, String expected) throws Exception {
+    void fluentApiConfigYamlFidelity(String name, Configuration config, String expected) throws Exception {
         var yaml = configParser.toYaml(config);
         var actualJson = MAPPER.reader().readValue(yaml, JsonNode.class);
         var expectedJson = MAPPER.reader().readValue(expected, JsonNode.class);
         var diff = JsonDiff.asJson(actualJson, expectedJson);
         assertThat(diff).isEmpty();
+
+    }
+
+    @Test
+    void shouldConfigureClusterNameFromNodeName() {
+        // Given
+        final Configuration configurationModel = configParser.parseConfiguration("""
+                virtualClusters:
+                  myAwesomeCluster:
+                    targetCluster:
+                      bootstrap_servers: kafka.example:1234
+                    clusterNetworkAddressConfigProvider:
+                      type: PortPerBroker
+                      config:
+                        bootstrapAddress: cluster1:9192
+                        numberOfBrokerPorts: 1
+                        brokerAddressPattern: localhost
+                        brokerStartPort: 9193
+                """);
+        // When
+        final List<io.kroxylicious.proxy.model.VirtualCluster> actualValidClusters = configurationModel.virtualClusterModel();
+
+        // Then
+        assertThat(actualValidClusters).singleElement().extracting("clusterName").isEqualTo("myAwesomeCluster");
+    }
+
+    @Test
+    void shouldDetectDuplicateClusterNodeNames() {
+        // Given
+        assertThatThrownBy(() ->
+        // When
+        configParser.parseConfiguration("""
+                virtualClusters:
+                  demo1:
+                    targetCluster:
+                      bootstrap_servers: kafka.example:1234
+                    clusterNetworkAddressConfigProvider:
+                      type: PortPerBroker
+                      config:
+                        bootstrapAddress: cluster1:9192
+                        numberOfBrokerPorts: 1
+                        brokerAddressPattern: localhost
+                        brokerStartPort: 9193
+                  demo1:
+                    targetCluster:
+                      bootstrap_servers: magic-kafka.example:1234
+                    clusterNetworkAddressConfigProvider:
+                      type: PortPerBroker
+                      config:
+                        bootstrapAddress: cluster2:9193
+                        numberOfBrokerPorts: 1
+                        brokerAddressPattern: localhost
+                        brokerStartPort: 10193
+                """))
+                // Then
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasCauseInstanceOf(JsonMappingException.class) // Debatable to enforce the wrapped JsonMappingException
+                .cause()
+                .hasMessageStartingWith("Duplicate field 'demo1'");
 
     }
 }

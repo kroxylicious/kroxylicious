@@ -84,10 +84,10 @@ public class ExpositionIT {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("virtualClusterConfigurations")
-    public void exposesSingleUpstreamClusterOverTls(String name,
-                                                    VirtualClusterBuilder virtualClusterBuilder,
-                                                    Map<String, Object> clientSecurityProtocolConfig,
-                                                    @BrokerCluster(numBrokers = 2) KafkaCluster cluster) {
+    void exposesSingleUpstreamClusterOverTls(String name,
+                                             VirtualClusterBuilder virtualClusterBuilder,
+                                             Map<String, Object> clientSecurityProtocolConfig,
+                                             @BrokerCluster(numBrokers = 2) KafkaCluster cluster) {
         virtualClusterBuilder.editOrNewTargetCluster().withBootstrapServers(cluster.getBootstrapServers()).endTargetCluster();
         var builder = new ConfigurationBuilder()
                 .addToVirtualClusters("demo", virtualClusterBuilder.build());
@@ -106,7 +106,7 @@ public class ExpositionIT {
     }
 
     @Test
-    public void exposesTwoClusterOverPlainWithSeparatePorts(KafkaCluster cluster) {
+    void exposesTwoClusterOverPlainWithSeparatePorts(KafkaCluster cluster) {
         List<String> clusterProxyAddresses = List.of("localhost:9192", "localhost:9294");
 
         var builder = new ConfigurationBuilder();
@@ -139,7 +139,7 @@ public class ExpositionIT {
     }
 
     @Test
-    public void exposesTwoSeparateUpstreamClustersUsingSniRouting(KafkaCluster cluster) throws Exception {
+    void exposesTwoSeparateUpstreamClustersUsingSniRouting(KafkaCluster cluster) throws Exception {
         var keystoreTrustStoreList = new ArrayList<KeystoreTrustStorePair>();
         var virtualClusterCommonNamePattern = IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName(".virtualcluster%d");
         var virtualClusterBootstrapPattern = "bootstrap" + virtualClusterCommonNamePattern;
@@ -191,7 +191,7 @@ public class ExpositionIT {
     }
 
     @Test
-    public void exposesClusterOfTwoBrokers(@BrokerCluster(numBrokers = 2) KafkaCluster cluster) throws Exception {
+    void exposesClusterOfTwoBrokers(@BrokerCluster(numBrokers = 2) KafkaCluster cluster) throws Exception {
         var builder = new ConfigurationBuilder()
                 .addToVirtualClusters("demo", new VirtualClusterBuilder()
                         .withNewTargetCluster()
@@ -268,10 +268,10 @@ public class ExpositionIT {
      */
     @ParameterizedTest(name = "{0}")
     @MethodSource(value = "virtualClusterConfigurations")
-    public void connectToExposedBrokerEndpointsDirectlyAfterKroxyliciousRestart(String name,
-                                                                                VirtualClusterBuilder virtualClusterBuilder,
-                                                                                Map<String, Object> clientSecurityProtocolConfig,
-                                                                                @BrokerCluster(numBrokers = 2) KafkaCluster cluster) {
+    void connectToExposedBrokerEndpointsDirectlyAfterKroxyliciousRestart(String name,
+                                                                         VirtualClusterBuilder virtualClusterBuilder,
+                                                                         Map<String, Object> clientSecurityProtocolConfig,
+                                                                         @BrokerCluster(numBrokers = 2) KafkaCluster cluster) {
         connectToExposedBrokerEndpointsDirectlyAfterKroxyliciousRestart(virtualClusterBuilder, clientSecurityProtocolConfig, cluster);
     }
 
@@ -284,10 +284,10 @@ public class ExpositionIT {
      */
     @ParameterizedTest(name = "{0}")
     @MethodSource(value = "virtualClusterConfigurations")
-    public void connectToExposedBrokerEndpointsDirectlyAfterKroxyliciousRestart_Sasl(String name,
-                                                                                     VirtualClusterBuilder virtualClusterBuilder,
-                                                                                     Map<String, Object> clientSecurityProtocolConfig,
-                                                                                     @BrokerCluster(numBrokers = 2) @SaslPlainAuth(user = SASL_USER, password = SASL_PASSWORD) KafkaCluster cluster) {
+    void connectToExposedBrokerEndpointsDirectlyAfterKroxyliciousRestart_Sasl(String name,
+                                                                              VirtualClusterBuilder virtualClusterBuilder,
+                                                                              Map<String, Object> clientSecurityProtocolConfig,
+                                                                              @BrokerCluster(numBrokers = 2) @SaslPlainAuth(user = SASL_USER, password = SASL_PASSWORD) KafkaCluster cluster) {
 
         var securityProtocol = virtualClusterBuilder.hasTls() ? SecurityProtocol.SASL_SSL : SecurityProtocol.SASL_PLAINTEXT;
         clientSecurityProtocolConfig = new HashMap<>(clientSecurityProtocolConfig);
@@ -350,10 +350,10 @@ public class ExpositionIT {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource(value = "virtualClusterConfigurations")
-    public void connectToDiscoveryAddress(String name,
-                                          VirtualClusterBuilder virtualClusterBuilder,
-                                          Map<String, Object> clientSecurityProtocolConfig,
-                                          @BrokerCluster KafkaCluster cluster) {
+    void connectToDiscoveryAddress(String name,
+                                   VirtualClusterBuilder virtualClusterBuilder,
+                                   Map<String, Object> clientSecurityProtocolConfig,
+                                   @BrokerCluster KafkaCluster cluster) {
         virtualClusterBuilder.editOrNewTargetCluster().withBootstrapServers(cluster.getBootstrapServers()).endTargetCluster();
         var builder = new ConfigurationBuilder()
                 .addToVirtualClusters("demo", virtualClusterBuilder.build());
@@ -405,7 +405,7 @@ public class ExpositionIT {
     }
 
     @Test
-    public void targetClusterDynamicallyAddsBroker(@BrokerCluster KafkaCluster cluster) throws Exception {
+    void targetClusterDynamicallyAddsBroker(@BrokerCluster KafkaCluster cluster) throws Exception {
         var builder = new ConfigurationBuilder()
                 .addToVirtualClusters("demo", new VirtualClusterBuilder()
                         .withNewTargetCluster()
@@ -437,7 +437,7 @@ public class ExpositionIT {
     }
 
     @Test
-    public void targetClusterDynamicallyRemovesBroker(@BrokerCluster(numBrokers = 2) KafkaCluster cluster) throws Exception {
+    void targetClusterDynamicallyRemovesBroker(@BrokerCluster(numBrokers = 2) KafkaCluster cluster) throws Exception {
         var builder = new ConfigurationBuilder()
                 .addToVirtualClusters("demo", new VirtualClusterBuilder()
                         .withNewTargetCluster()
@@ -463,6 +463,7 @@ public class ExpositionIT {
                         n -> n.size() == cluster.getNumOfBrokers());
 
                 assertThat(updatedNodes).describedAs("removed node must not appear in the describeCluster response")
+                        .isNotEmpty()
                         .allSatisfy(n -> assertThat(n.id()).isNotEqualTo(removedNodeId));
             }
 

@@ -11,6 +11,7 @@ import java.io.InputStream;
 import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.PropertyAccessor;
+import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -52,7 +53,7 @@ public class ConfigParser {
             return MAPPER.writeValueAsString(configuration);
         }
         catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
+            throw new IllegalArgumentException("Failed to encode configuration as YAML", e);
         }
     }
 
@@ -67,6 +68,7 @@ public class ConfigParser {
                 .setConstructorDetector(ConstructorDetector.USE_PROPERTIES_BASED)
                 .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
                 .configure(DeserializationFeature.FAIL_ON_MISSING_EXTERNAL_TYPE_ID_PROPERTY, false)
+                .configure(JsonParser.Feature.STRICT_DUPLICATE_DETECTION, true)
                 .setSerializationInclusion(JsonInclude.Include.NON_DEFAULT);
     }
 }

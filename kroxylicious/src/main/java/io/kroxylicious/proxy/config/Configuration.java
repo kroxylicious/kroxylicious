@@ -26,4 +26,10 @@ public record Configuration(AdminHttpConfiguration adminHttp,
     public boolean isUseIoUring() {
         return useIoUring();
     }
+
+    public List<io.kroxylicious.proxy.model.VirtualCluster> virtualClusterModel() {
+        return virtualClusters.entrySet().stream()
+                .map(entry -> entry.getValue().toVirtualClusterModel(entry.getKey()))
+                .toList();
+    }
 }
