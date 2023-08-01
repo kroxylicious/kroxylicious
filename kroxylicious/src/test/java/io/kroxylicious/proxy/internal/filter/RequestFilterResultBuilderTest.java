@@ -99,4 +99,15 @@ class RequestFilterResultBuilderTest {
         assertThat(result.header()).isNull();
     }
 
+    @Test
+    void completedApi() throws Exception {
+        var request = new FetchRequestData();
+        var header = new RequestHeaderData();
+        var future = builder.forward(header, request).completedFilterResult();
+        assertThat(future).isCompleted();
+        var result = future.toCompletableFuture().get();
+        assertThat(result.message()).isEqualTo(request);
+        assertThat(result.header()).isEqualTo(header);
+    }
+
 }

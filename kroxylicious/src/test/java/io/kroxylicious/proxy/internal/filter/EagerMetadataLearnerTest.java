@@ -31,12 +31,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.mockito.Answers;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
-import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyShort;
@@ -50,8 +48,6 @@ class EagerMetadataLearnerTest {
 
     @Mock
     KrpcFilterContext context;
-    @Mock(answer = Answers.RETURNS_SELF)
-    RequestFilterResultBuilder builder;
     private EagerMetadataLearner learner;
 
     @BeforeEach

@@ -43,8 +43,7 @@ public class RequestDecoderTest extends AbstractCodecTest {
                         new KafkaRequestDecoder(
                                 DecodePredicate
                                         .forFilters(FilterAndInvoker.build(
-                                                (ApiVersionsRequestFilter) (version, header, request, context) -> context.requestFilterResultBuilder().withMessage(
-                                                        request).withHeader(header).completedFilterResult()))),
+                                                (ApiVersionsRequestFilter) (version, header, request, context) -> context.requestFilterResultBuilder().forward(header, request).completedFilterResult()))),
                         DecodedRequestFrame.class,
                         (RequestHeaderData header) -> header),
                 "Unexpected correlation id");

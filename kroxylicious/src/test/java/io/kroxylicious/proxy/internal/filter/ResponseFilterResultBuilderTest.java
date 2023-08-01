@@ -23,10 +23,10 @@ class ResponseFilterResultBuilderTest {
     @Test
     void forwardResponse() {
         var res = new FetchResponseData();
-        var head = new ResponseHeaderData();
-        var result = builder.forward(head, res).build();
+        var header = new ResponseHeaderData();
+        var result = builder.forward(header, res).build();
         assertThat(result.message()).isEqualTo(res);
-        assertThat(result.header()).isEqualTo(head);
+        assertThat(result.header()).isEqualTo(header);
         assertThat(result.closeConnection()).isFalse();
         assertThat(result.drop()).isFalse();
     }
@@ -34,8 +34,8 @@ class ResponseFilterResultBuilderTest {
     @Test
     void forwardRejectsRequestData() {
         var req = new FetchRequestData();
-        var head = new ResponseHeaderData();
-        assertThatThrownBy(() -> builder.forward(head, req)).isInstanceOf(IllegalArgumentException.class);
+        var header = new ResponseHeaderData();
+        assertThatThrownBy(() -> builder.forward(header, req)).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -47,10 +47,10 @@ class ResponseFilterResultBuilderTest {
     @Test
     void forwardResponseWithCloseConnection() {
         var res = new FetchResponseData();
-        var head = new ResponseHeaderData();
-        var result = builder.forward(head, res).withCloseConnection().build();
+        var header = new ResponseHeaderData();
+        var result = builder.forward(header, res).withCloseConnection().build();
         assertThat(result.message()).isEqualTo(res);
-        assertThat(result.header()).isEqualTo(head);
+        assertThat(result.header()).isEqualTo(header);
         assertThat(result.closeConnection()).isTrue();
     }
 
@@ -62,4 +62,14 @@ class ResponseFilterResultBuilderTest {
         assertThat(result.header()).isNull();
     }
 
+    @Test
+    void completedApi() throws Exception {
+        var res = new FetchResponseData();
+        var header = new ResponseHeaderData();
+        var future = builder.forward(header, res).completedFilterResult();
+        assertThat(future).isCompleted();
+        var result = future.toCompletableFuture().get();
+        assertThat(result.message()).isEqualTo(res);
+        assertThat(result.header()).isEqualTo(header);
+    }
 }

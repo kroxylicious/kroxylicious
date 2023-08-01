@@ -57,13 +57,15 @@ class SampleProduceRequestFilterTest {
     @Mock(answer = Answers.RETURNS_SELF)
     private RequestFilterResultBuilder requestFilterResultBuilder;
 
-    @Mock
+    @Mock(strictness = Mock.Strictness.LENIENT)
     private RequestFilterResult requestFilterResult;
     @Captor
     private ArgumentCaptor<Integer> bufferInitialCapacity;
 
     @Captor
     private ArgumentCaptor<ApiMessage> apiMessageCaptor;
+    @Captor
+    private ArgumentCaptor<RequestHeaderData> requestHeaderDataCaptor;
 
     private SampleProduceRequestFilter filter;
     private RequestHeaderData headerData;
@@ -112,8 +114,9 @@ class SampleProduceRequestFilterTest {
 
     private void setupContextMock() {
         when(context.requestFilterResultBuilder()).thenReturn(requestFilterResultBuilder);
-        when(requestFilterResultBuilder.withMessage(apiMessageCaptor.capture())).thenReturn(requestFilterResultBuilder);
+        when(requestFilterResultBuilder.forward(requestHeaderDataCaptor.capture(), apiMessageCaptor.capture())).thenReturn(requestFilterResultBuilder);
         when(requestFilterResult.message()).thenAnswer(invocation -> apiMessageCaptor.getValue());
+        when(requestFilterResult.header()).thenAnswer(invocation -> requestHeaderDataCaptor.getValue());
         when(requestFilterResultBuilder.completedFilterResult()).thenAnswer(invocation -> CompletableFuture.completedStage(requestFilterResult));
 
         when(context.createByteBufferOutputStream(bufferInitialCapacity.capture())).thenAnswer(

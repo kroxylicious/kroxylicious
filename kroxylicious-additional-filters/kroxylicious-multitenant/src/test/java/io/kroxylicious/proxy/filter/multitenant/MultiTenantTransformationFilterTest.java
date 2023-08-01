@@ -75,19 +75,22 @@ class MultiTenantTransformationFilterTest {
     @Mock(strictness = LENIENT)
     private KrpcFilterContext context;
 
-    @Captor
-    private ArgumentCaptor<ApiMessage> apiMessageCaptor;
-
     @Mock(answer = Answers.RETURNS_SELF)
     private RequestFilterResultBuilder requestFilterResultBuilder;
+    @Captor
+    private ArgumentCaptor<RequestHeaderData> requestHeaderDataCaptor;
 
+    @Mock(strictness = LENIENT)
+    private RequestFilterResult requestFilterResult;
     @Mock(answer = Answers.RETURNS_SELF)
     private ResponseFilterResultBuilder responseFilterResultBuilder;
-
-    @Mock
-    private RequestFilterResult requestFilterResult;
-    @Mock
+    @Captor
+    private ArgumentCaptor<ResponseHeaderData> responseHeaderDataArgumentCaptor;
+    @Mock(strictness = LENIENT)
     private ResponseFilterResult responseFilterResult;
+
+    @Captor
+    private ArgumentCaptor<ApiMessage> apiMessageCaptor;
 
     public static Stream<Arguments> requests() throws Exception {
         return RequestResponseTestDef.requestResponseTestDefinitions(getTestResources()).filter(td -> td.request() != null)
@@ -105,8 +108,9 @@ class MultiTenantTransformationFilterTest {
 
         when(context.requestFilterResultBuilder()).thenReturn(requestFilterResultBuilder);
         when(context.sniHostname()).thenReturn(TENANT_1);
-        when(requestFilterResultBuilder.withMessage(apiMessageCaptor.capture())).thenReturn(requestFilterResultBuilder);
+        when(requestFilterResultBuilder.forward(requestHeaderDataCaptor.capture(), apiMessageCaptor.capture())).thenReturn(requestFilterResultBuilder);
         when(requestFilterResult.message()).thenAnswer(invocation -> apiMessageCaptor.getValue());
+        when(requestFilterResult.header()).thenAnswer(invocation -> requestHeaderDataCaptor.getValue());
         when(requestFilterResultBuilder.completedFilterResult()).thenAnswer(invocation -> CompletableFuture.completedStage(requestFilterResult));
 
         var stage = invoker.onRequest(ApiKeys.forId(apiMessageType.apiKey()), header.requestApiVersion(), header, request, context);
@@ -134,8 +138,9 @@ class MultiTenantTransformationFilterTest {
 
         when(context.responseFilterResultBuilder()).thenReturn(responseFilterResultBuilder);
         when(context.sniHostname()).thenReturn(TENANT_1);
-        when(responseFilterResultBuilder.withMessage(apiMessageCaptor.capture())).thenReturn(responseFilterResultBuilder);
+        when(responseFilterResultBuilder.forward(responseHeaderDataArgumentCaptor.capture(), apiMessageCaptor.capture())).thenReturn(responseFilterResultBuilder);
         when(responseFilterResult.message()).thenAnswer(invocation -> apiMessageCaptor.getValue());
+        when(responseFilterResult.header()).thenAnswer(invocation -> responseHeaderDataArgumentCaptor.getValue());
         when(responseFilterResultBuilder.completedFilterResult()).thenAnswer(invocation -> CompletableFuture.completedStage(responseFilterResult));
 
         ResponseHeaderData headerData = new ResponseHeaderData();
