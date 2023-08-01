@@ -316,7 +316,7 @@ class ConfigurationTest {
                         brokerStartPort: 9193
                 """);
         // When
-        final List<io.kroxylicious.proxy.model.VirtualCluster> actualValidClusters = configurationModel.validClusters();
+        final List<io.kroxylicious.proxy.model.VirtualCluster> actualValidClusters = configurationModel.virtualClusterModel();
 
         // Then
         assertThat(actualValidClusters).singleElement().extracting("clusterName").isEqualTo("myAwesomeCluster");

@@ -75,7 +75,7 @@ public final class KafkaProxy implements AutoCloseable {
 
     public KafkaProxy(Configuration config) {
         this.config = config;
-        this.virtualClusters = config.validClusters();
+        this.virtualClusters = config.virtualClusterModel();
         this.adminHttpConfig = config.adminHttpConfig();
         this.micrometerConfig = config.getMicrometer();
     }
