@@ -19,6 +19,14 @@ public class ResponseFilterResultBuilderImpl extends FilterResultBuilderImpl<Res
     private static final String RESPONSE_DATA_NAME_SUFFIX = "ResponseData";
 
     @Override
+    protected void validateForward(ResponseHeaderData header, ApiMessage message) {
+        super.validateForward(header, message);
+        if (message != null && !message.getClass().getSimpleName().endsWith(RESPONSE_DATA_NAME_SUFFIX)) {
+            throw new IllegalArgumentException("class name " + message.getClass().getName() + " does not have expected suffix " + RESPONSE_DATA_NAME_SUFFIX);
+        }
+    }
+
+    @Override
     protected void validateMessage(ApiMessage message) {
         super.validateMessage(message);
         if (message != null && !message.getClass().getSimpleName().endsWith(RESPONSE_DATA_NAME_SUFFIX)) {
@@ -50,6 +58,11 @@ public class ResponseFilterResultBuilderImpl extends FilterResultBuilderImpl<Res
             @Override
             public boolean closeConnection() {
                 return ResponseFilterResultBuilderImpl.this.closeConnection();
+            }
+
+            @Override
+            public boolean drop() {
+                return ResponseFilterResultBuilderImpl.this.isDrop();
             }
         };
     }

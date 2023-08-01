@@ -26,11 +26,16 @@ public interface FilterResult {
     ApiMessage message();
 
     /**
-     * signals the filter's wish that the connection will be closed.
-     * <br/>
-     *  if the case of a {@link ResponseFilterResult}, the connection will be closed after forwarding
-     *  any response in the direction of the downstream.
-     * @return header.
+     * signals the filter's wish that the connection will be closed. if the filter provides a
+     * message it will be forwarded before the connection is closed.
+     * @return true if the connection is to be closed.
      */
     boolean closeConnection();
+
+    /**
+     * signals the filter's wish that message is dropped i.e. not forward to the next filter
+     * in the chain.
+     * @return true if message is to be dropped.
+     */
+    boolean drop();
 }

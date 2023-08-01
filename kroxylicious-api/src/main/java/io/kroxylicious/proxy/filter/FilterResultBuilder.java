@@ -16,7 +16,11 @@ import org.apache.kafka.common.protocol.ApiMessage;
  * @param <FRB> concrete filter result builder
  * @param <FR> concrete filter result
  */
-public interface FilterResultBuilder<H extends ApiMessage, FRB extends FilterResultBuilder<H, FRB, FR>, FR extends FilterResult> {
+public interface FilterResultBuilder<H extends ApiMessage, FRB extends FilterResultBuilder<H, FRB, FR>, FR extends FilterResult> extends CloseStage<FR> {
+
+    CloseStage<FR> forward(H header, ApiMessage message);
+
+    TerminalStage<FR> drop();
 
     FRB withHeader(ApiMessage header);
 

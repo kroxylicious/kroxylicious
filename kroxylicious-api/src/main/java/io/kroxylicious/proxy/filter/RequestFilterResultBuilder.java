@@ -7,8 +7,14 @@
 package io.kroxylicious.proxy.filter;
 
 import org.apache.kafka.common.message.RequestHeaderData;
+import org.apache.kafka.common.message.ResponseHeaderData;
+import org.apache.kafka.common.protocol.ApiMessage;
 
 public interface RequestFilterResultBuilder extends FilterResultBuilder<RequestHeaderData, RequestFilterResultBuilder, RequestFilterResult> {
+
+    CloseStage<RequestFilterResult> shortCircuitResponse(ResponseHeaderData header, ApiMessage message);
+
+    CloseStage<RequestFilterResult> shortCircuitResponse(ApiMessage message);
 
     RequestFilterResultBuilder asRequestShortCircuitResponse();
 

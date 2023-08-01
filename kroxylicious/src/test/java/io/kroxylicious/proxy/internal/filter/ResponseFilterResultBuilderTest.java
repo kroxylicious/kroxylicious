@@ -16,42 +16,53 @@ import io.kroxylicious.proxy.filter.ResponseFilterResultBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-public class ResponseFilterResultBuilderTest {
+class ResponseFilterResultBuilderTest {
 
     private ResponseFilterResultBuilder builder = new ResponseFilterResultBuilderImpl();
 
     @Test
-    public void responseResult() {
-        var res = new FetchResponseData();
-        builder.withMessage(res);
-        var result = builder.build();
-        assertThat(result.message()).isEqualTo(res);
-        assertThat(result.header()).isNull();
-        assertThat(result.closeConnection()).isFalse();
-    }
-
-    @Test
-    public void responseResultWithHeader() {
+    void forwardResponse() {
         var res = new FetchResponseData();
         var head = new ResponseHeaderData();
-        builder.withMessage(res);
-        builder.withHeader(head);
+        builder.forward(head, res);
         var result = builder.build();
         assertThat(result.message()).isEqualTo(res);
         assertThat(result.header()).isEqualTo(head);
+        assertThat(result.closeConnection()).isFalse();
+        assertThat(result.drop()).isFalse();
     }
 
     @Test
-    public void rejectsRequestData() {
+    void forwardRejectsRequestData() {
         var req = new FetchRequestData();
-        assertThatThrownBy(() -> builder.withMessage(req)).isInstanceOf(IllegalArgumentException.class);
+        var head = new ResponseHeaderData();
+        assertThatThrownBy(() -> builder.forward(head, req)).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
-    public void closeConnection() {
-        builder.withCloseConnection(true);
+    void bareCloseConnection() {
+        builder.withCloseConnection2(true);
         var result = builder.build();
         assertThat(result.closeConnection()).isTrue();
+    }
+
+    @Test
+    void forwardResponseWithCloseConnection() {
+        var res = new FetchResponseData();
+        var head = new ResponseHeaderData();
+        builder.forward(head, res).withCloseConnection2(true);
+        var result = builder.build();
+        assertThat(result.message()).isEqualTo(res);
+        assertThat(result.header()).isEqualTo(head);
+        assertThat(result.closeConnection()).isTrue();
+    }
+
+    @Test
+    void drop() {
+        var result = builder.drop().build();
+        assertThat(result.drop()).isTrue();
+        assertThat(result.message()).isNull();
+        assertThat(result.header()).isNull();
     }
 
 }

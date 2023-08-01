@@ -11,16 +11,31 @@ import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.protocol.ApiMessage;
 
+import io.kroxylicious.proxy.filter.CloseStage;
 import io.kroxylicious.proxy.filter.FilterResult;
 import io.kroxylicious.proxy.filter.FilterResultBuilder;
+import io.kroxylicious.proxy.filter.TerminalStage;
 
 public abstract class FilterResultBuilderImpl<H extends ApiMessage, FRB extends FilterResultBuilder<H, FRB, FR>, FR extends FilterResult>
-        implements FilterResultBuilder<H, FRB, FR> {
+        implements FilterResultBuilder<H, FRB, FR>, CloseStage<FR> {
     private ApiMessage message;
     private ApiMessage header;
     private boolean closeConnection;
+    private boolean drop;
 
     protected FilterResultBuilderImpl() {
+    }
+
+    @Override
+    public CloseStage<FR> forward(H header, ApiMessage message) {
+        validateForward(header, message);
+        this.header = header;
+        this.message = message;
+
+        return this;
+    }
+
+    protected void validateForward(H header, ApiMessage message) {
     }
 
     @Override
@@ -57,8 +72,24 @@ public abstract class FilterResultBuilderImpl<H extends ApiMessage, FRB extends 
         return (FRB) this;
     }
 
+    @Override
+    public TerminalStage<FR> withCloseConnection2(boolean closeConnection) {
+        this.closeConnection = closeConnection;
+        return this;
+    }
+
     boolean closeConnection() {
         return closeConnection;
+    }
+
+    @Override
+    public TerminalStage<FR> drop() {
+        this.drop = true;
+        return this;
+    }
+
+    public boolean isDrop() {
+        return drop;
     }
 
     @Override

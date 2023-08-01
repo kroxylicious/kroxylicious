@@ -12,7 +12,6 @@ import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.junit.jupiter.api.Test;
 
-import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -20,69 +19,87 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class RequestFilterResultBuilderTest {
 
-    private RequestFilterResultBuilder builder = new RequestFilterResultBuilderImpl();
+    private final RequestFilterResultBuilder builder = new RequestFilterResultBuilderImpl();
 
     @Test
-    public void requestResult() {
-        var req = new FetchRequestData();
-        builder.withMessage(req);
+    void forwardRequest() {
+        var request = new FetchRequestData();
+        var header = new RequestHeaderData();
+        builder.forward(header, request);
         var result = builder.build();
-        assertThat(result.message()).isEqualTo(req);
-        assertThat(result.header()).isNull();
+        assertThat(result.message()).isEqualTo(request);
+        assertThat(result.header()).isEqualTo(header);
         assertThat(result.closeConnection()).isFalse();
+        assertThat(result.drop()).isFalse();
+
     }
 
     @Test
-    public void requestResultWithHeader() {
-        var req = new FetchRequestData();
-        var head = new RequestHeaderData();
-        builder.withMessage(req);
-        builder.withHeader(head);
-        var result = builder.build();
-        assertThat(result.message()).isEqualTo(req);
-        assertThat(result.header()).isEqualTo(head);
-    }
-
-    @Test
-    public void rejectsResponseData() {
+    void forwardRejectResponseData() {
         var res = new FetchResponseData();
-        assertThatThrownBy(() -> builder.withMessage(res)).isInstanceOf(IllegalArgumentException.class);
+        var header = new RequestHeaderData();
+        assertThatThrownBy(() -> builder.forward(header, res)).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
-    public void rejectsResponseHeaderData() {
-        var head = new ResponseHeaderData();
-        assertThatThrownBy(() -> builder.withHeader(head)).isInstanceOf(IllegalArgumentException.class);
-    }
-
-    @Test
-    public void closeConnection() {
-        builder.withCloseConnection(true);
+    void bareCloseConnection() {
+        builder.withCloseConnection2(true);
         var result = builder.build();
         assertThat(result.closeConnection()).isTrue();
     }
 
     @Test
-    public void shortCircuitResult() {
-        var res = new FetchResponseData();
-        builder.asRequestShortCircuitResponse().withMessage(res);
+    void forwardWithCloseConnection() {
+        var request = new FetchRequestData();
+        var header = new RequestHeaderData();
+
+        builder.forward(header, request).withCloseConnection2(true);
         var result = builder.build();
-        assertThat(result).isInstanceOf(RequestFilterResult.class);
+        assertThat(result.message()).isEqualTo(request);
+        assertThat(result.header()).isEqualTo(header);
+        assertThat(result.closeConnection()).isTrue();
+    }
+
+    @Test
+    void shortCircuit() {
+        var res = new FetchResponseData();
+        var result = builder.shortCircuitResponse(res).build();
         assertThat(result.message()).isEqualTo(res);
         assertThat(result.header()).isNull();
         assertThat(result.closeConnection()).isFalse();
     }
 
     @Test
-    public void shortCircuitRejectsRequestData() {
-        var req = new FetchRequestData();
-        assertThatThrownBy(() -> builder.asRequestShortCircuitResponse().withMessage(req)).isInstanceOf(IllegalArgumentException.class);
+    void shortCircuitResultWithCloseConnection() {
+        var res = new FetchResponseData();
+        var result = builder.shortCircuitResponse(res).withCloseConnection2(true).build();
+        assertThat(result.message()).isEqualTo(res);
+        assertThat(result.header()).isNull();
+        assertThat(result.closeConnection()).isTrue();
     }
 
     @Test
-    public void shortCircuitRejectsRequestHeaderData() {
-        var header = new RequestHeaderData();
-        assertThatThrownBy(() -> builder.asRequestShortCircuitResponse().withHeader(header)).isInstanceOf(IllegalArgumentException.class);
+    void shortCircuitHeaderAndResponseData() {
+        var res = new FetchResponseData();
+        var header = new ResponseHeaderData();
+        var result = builder.shortCircuitResponse(header, res).build();
+        assertThat(result.message()).isEqualTo(res);
+        assertThat(result.header()).isEqualTo(header);
+        assertThat(result.closeConnection()).isFalse();
+    }
+
+    @Test
+    void shortCircuitRejectsRequestData() {
+        var req = new FetchRequestData();
+        assertThatThrownBy(() -> builder.shortCircuitResponse(req)).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void drop() {
+        var result = builder.drop().build();
+        assertThat(result.drop()).isTrue();
+        assertThat(result.message()).isNull();
+        assertThat(result.header()).isNull();
     }
 
 }
