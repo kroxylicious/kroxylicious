@@ -9,7 +9,11 @@ package io.kroxylicious.proxy.filter;
 import org.apache.kafka.common.protocol.ApiMessage;
 
 /**
- * The result of a filter request or response.
+ * The result of a filter request or response operation that encapsulates the request or response
+ * to be forwarded to the next filter in the chain.  Optionally it carries orders for actions such
+ * as close the connection or drop the message.
+ *
+ * @see FilterResultBuilder
  */
 public interface FilterResult {
     /**

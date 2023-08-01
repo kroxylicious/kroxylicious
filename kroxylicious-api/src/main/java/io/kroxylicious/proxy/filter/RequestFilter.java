@@ -42,6 +42,8 @@ public interface RequestFilter extends KrpcFilter {
      * @param header        header of the request
      * @param body          body of the request
      * @param filterContext context containing methods to continue the filter chain and other contextual data
+     * @return CompletionStage that, when complete, will yield a RequestFilterResult containing the
+     *         request to be forwarded.
      */
     CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey,
                                                    RequestHeaderData header,

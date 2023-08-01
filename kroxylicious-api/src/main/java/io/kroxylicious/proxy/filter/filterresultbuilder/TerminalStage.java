@@ -10,16 +10,21 @@ import java.util.concurrent.CompletionStage;
 
 import io.kroxylicious.proxy.filter.FilterResult;
 
+/**
+ * Interface supporting the {@link io.kroxylicious.proxy.filter.FilterResultBuilder} fluent API.
+ *
+ * @param <FR> filter result
+ */
 public interface TerminalStage<FR extends FilterResult> {
     /**
-     * Produces the filter result.
+     * Constructs the filter result.
      *
      * @return filter result
      */
     FR build();
 
     /**
-     * Produces the filter result contained with a completed {@link CompletionStage}.
+     * Produces the filter result contained within a completed {@link CompletionStage}.
      * @return completion stage contain the filter result.
      */
     CompletionStage<FR> completed();
