@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.filter;
 
 import org.apache.kafka.common.protocol.ApiMessage;
 
+import io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage;
 import io.kroxylicious.proxy.filter.filterresultbuilder.CloseStage;
 import io.kroxylicious.proxy.filter.filterresultbuilder.TerminalStage;
 
@@ -19,7 +20,7 @@ import io.kroxylicious.proxy.filter.filterresultbuilder.TerminalStage;
  */
 public interface FilterResultBuilder<H extends ApiMessage, FR extends FilterResult> extends CloseStage<FR> {
 
-    CloseStage<FR> forward(H header, ApiMessage message);
+    CloseOrTerminalStage<FR> forward(H header, ApiMessage message);
 
     TerminalStage<FR> drop();
 

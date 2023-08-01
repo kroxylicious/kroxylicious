@@ -21,7 +21,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.mockito.Answers;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
@@ -35,9 +34,7 @@ import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.FilterInvoker;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
-import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
-import io.kroxylicious.proxy.filter.ResponseFilterResultBuilder;
 import io.kroxylicious.test.requestresponsetestdef.ApiMessageTestDef;
 import io.kroxylicious.test.requestresponsetestdef.RequestResponseTestDef;
 
@@ -54,7 +51,7 @@ import static org.mockito.Mockito.when;
 class MultiTenantTransformationFilterTest {
     private static final Pattern TEST_RESOURCE_FILTER = Pattern.compile(
             String.format("%s/.*\\.yaml", MultiTenantTransformationFilterTest.class.getPackageName().replace(".", "/")));
-    public static final String TENANT_1 = "tenant1.kafka.example.com";
+    private static final String TENANT_1 = "tenant1.kafka.example.com";
 
     private static List<ResourceInfo> getTestResources() throws IOException {
         var resources = ClassPath.from(MultiTenantTransformationFilterTest.class.getClassLoader()).getResources().stream()
@@ -75,15 +72,11 @@ class MultiTenantTransformationFilterTest {
     @Mock(strictness = LENIENT)
     private KrpcFilterContext context;
 
-    @Mock(answer = Answers.RETURNS_SELF)
-    private RequestFilterResultBuilder requestFilterResultBuilder;
     @Captor
     private ArgumentCaptor<RequestHeaderData> requestHeaderDataCaptor;
 
     @Mock(strictness = LENIENT)
     private RequestFilterResult requestFilterResult;
-    @Mock(answer = Answers.RETURNS_SELF)
-    private ResponseFilterResultBuilder responseFilterResultBuilder;
     @Captor
     private ArgumentCaptor<ResponseHeaderData> responseHeaderDataArgumentCaptor;
     @Mock(strictness = LENIENT)
@@ -106,12 +99,11 @@ class MultiTenantTransformationFilterTest {
         var requestWriter = requestConverterFor(apiMessageType).writer();
         var marshalled = requestWriter.apply(request, header.requestApiVersion());
 
-        when(context.requestFilterResultBuilder()).thenReturn(requestFilterResultBuilder);
         when(context.sniHostname()).thenReturn(TENANT_1);
-        when(requestFilterResultBuilder.forward(requestHeaderDataCaptor.capture(), apiMessageCaptor.capture())).thenReturn(requestFilterResultBuilder);
         when(requestFilterResult.message()).thenAnswer(invocation -> apiMessageCaptor.getValue());
         when(requestFilterResult.header()).thenAnswer(invocation -> requestHeaderDataCaptor.getValue());
-        when(requestFilterResultBuilder.completed()).thenAnswer(invocation -> CompletableFuture.completedStage(requestFilterResult));
+        when(context.forwardRequest(requestHeaderDataCaptor.capture(), apiMessageCaptor.capture())).thenAnswer(
+                invocation -> CompletableFuture.completedStage(requestFilterResult));
 
         var stage = invoker.onRequest(ApiKeys.forId(apiMessageType.apiKey()), header.requestApiVersion(), header, request, context);
         assertThat(stage).isCompleted();
@@ -136,12 +128,11 @@ class MultiTenantTransformationFilterTest {
 
         var marshalled = responseWriter.apply(response, header.requestApiVersion());
 
-        when(context.responseFilterResultBuilder()).thenReturn(responseFilterResultBuilder);
         when(context.sniHostname()).thenReturn(TENANT_1);
-        when(responseFilterResultBuilder.forward(responseHeaderDataArgumentCaptor.capture(), apiMessageCaptor.capture())).thenReturn(responseFilterResultBuilder);
         when(responseFilterResult.message()).thenAnswer(invocation -> apiMessageCaptor.getValue());
         when(responseFilterResult.header()).thenAnswer(invocation -> responseHeaderDataArgumentCaptor.getValue());
-        when(responseFilterResultBuilder.completed()).thenAnswer(invocation -> CompletableFuture.completedStage(responseFilterResult));
+        when(context.forwardResponse(responseHeaderDataArgumentCaptor.capture(), apiMessageCaptor.capture())).thenAnswer(
+                invocation -> CompletableFuture.completedStage(responseFilterResult));
 
         ResponseHeaderData headerData = new ResponseHeaderData();
         var stage = invoker.onResponse(ApiKeys.forId(apiMessageType.apiKey()), header.requestApiVersion(), headerData, response, context);

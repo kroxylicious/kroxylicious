@@ -7,6 +7,8 @@ package io.kroxylicious.proxy.filter;
 
 import java.util.concurrent.CompletionStage;
 
+import org.apache.kafka.common.message.RequestHeaderData;
+import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 
@@ -35,15 +37,33 @@ public interface KrpcFilterContext {
      */
     String sniHostname();
 
-    // /**
-    // * Send a request towards the broker, invoking upstream filters.
-    // *
-    // * @param header The header to forward to the broker.
-    // * @param request The request to forward to the broker.
-    // */
-    // void forwardRequest(RequestHeaderData header, ApiMessage request);
-
+    /**
+     * Creates a builder for a request filter result objects.  This object encapsulates
+     * the request to forward and optionally orders for actions such as closing
+     * the connection or dropping the request.
+     * <br/>
+     * The builder returns either {@link CompletionStage<RequestFilterResult>} object
+     * ready to be returned by the request filter, or a {@link ResponseFilterResult} object.
+     * The latter facilitates asynchronous programming patterns where requests must be
+     * forwarded after other work has completed.
+     *
+     * @return builder
+     */
     RequestFilterResultBuilder requestFilterResultBuilder();
+
+    /**
+     * Generates a completed filter results containing the given header and request.  When
+     * request filters implementations return this result, the request will be sent towards
+     * the broker, invoking upstream filters.
+     * <br/>
+     * Invoking this method is identical to invoking:
+     * {@code requestFilterResultBuilder.forward(header, request).complete()}
+     *
+     * @param header The header to forward to the broker.
+     * @param request The request to forward to the broker.
+     * @return completed filter results.
+     */
+    CompletionStage<RequestFilterResult> forwardRequest(RequestHeaderData header, ApiMessage request);
 
     /**
      * Send a message from a filter towards the broker, invoking upstream filters
@@ -59,38 +79,33 @@ public interface KrpcFilterContext {
      */
     <T extends ApiMessage> CompletionStage<T> sendRequest(short apiVersion, ApiMessage request);
 
-    // /**
-    // * Send a response towards the client, invoking downstream filters.
-    // * <p>If this is invoked while the message is flowing downstream towards the broker, then
-    // * it will not be sent to the broker. So this method can be used to generate responses in
-    // * the proxy.</p>
-    // * @param header The header to forward to the client.
-    // * @param response The response to forward to the client.
-    // * @throws AssertionError if response is logically inconsistent, for example responding with request data
-    // * or responding with a produce response to a fetch request. It is up to specific implementations to
-    // * determine what logically inconsistent means.
-    // */
-    // void forwardResponse(ResponseHeaderData header, ApiMessage response);
+    /**
+     * Generates a completed filter results containing the given header and response.  When
+     * response filters implementations return this result, the response will be sent towards
+     * the client, invoking downstream filters.
+     * <br/>
+     * Invoking this method is identical to invoking:
+     * {@code responseFilterResultBuilder.forward(header, response).complete()}
+     *
+     * @param header The header to forward to the broker.
+     * @param response The request to forward to the broker.
+     * @return completed filter results.
+     */
+    CompletionStage<ResponseFilterResult> forwardResponse(ResponseHeaderData header, ApiMessage response);
 
-    // /**
-    // * Send a response towards the client, invoking downstream filters.
-    // * <p>If this is invoked while the message is flowing downstream towards the broker, then
-    // * it will not be sent to the broker. So this method can be used to generate responses in
-    // * the proxy. In this case response headers will be created with a correlationId matching the request</p>
-    // * @param response The response to forward to the client.
-    // * @throws AssertionError if response is logically inconsistent, for example responding with request data
-    // * or responding with a produce response to a fetch request. It is up to specific implementations to
-    // * determine what logically inconsistent means.
-    // */
-    // void forwardResponse(ApiMessage response);
-
+    /**
+     * Creates a builder for a request filter result objects.  This object encapsulates
+     * the response to forward and optionally orders for actions such as closing
+     * the connection or dropping the response.
+     * <br/>
+     * The builder returns either {@link CompletionStage<ResponseFilterResult>} object
+     * ready to be returned by the response filter, or a {@link ResponseFilterResult} object.
+     * The latter facilitates asynchronous programming patterns where responses must be
+     * forwarded after other work has completed.
+     *
+     * @return builder
+     */
     ResponseFilterResultBuilder responseFilterResultBuilder();
-
-    // /**
-    // * Allows a filter to decide to close the connection. The client will be disconnected. The client is free
-    // * to retry the connection. The client will receive no indication why the connection was closed.
-    // */
-    // void closeConnection();
 
     // TODO an API to allow a filter to add/remove another filter from the pipeline
 }

@@ -25,6 +25,7 @@ import io.netty.channel.ChannelPromise;
 
 import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
+import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResultBuilder;
@@ -98,7 +99,7 @@ class DefaultFilterContext implements KrpcFilterContext {
      * @param header The header
      * @param message The message
      */
-    protected void forwardRequest(RequestHeaderData header, ApiMessage message) {
+    protected void forwardRequestInternal(RequestHeaderData header, ApiMessage message) {
         if (decodedFrame.body() != message) {
             throw new IllegalStateException();
         }
@@ -171,6 +172,11 @@ class DefaultFilterContext implements KrpcFilterContext {
         return filterStage;
     }
 
+    @Override
+    public CompletionStage<ResponseFilterResult> forwardResponse(ResponseHeaderData header, ApiMessage response) {
+        return responseFilterResultBuilder().forward(header, response).completed();
+    }
+
     /**
      * Forward a request to the next filter in the chain
      * (or to the downstream client).
@@ -178,7 +184,7 @@ class DefaultFilterContext implements KrpcFilterContext {
      * @param header The header
      * @param response The message
      */
-    protected void forwardResponse(ResponseHeaderData header, ApiMessage response) {
+    protected void forwardResponseInternal(ResponseHeaderData header, ApiMessage response) {
         // check it's a response
         String name = response.getClass().getName();
         if (!name.endsWith("ResponseData")) {
@@ -202,27 +208,19 @@ class DefaultFilterContext implements KrpcFilterContext {
         }
     }
 
-    protected void forwardResponse(ApiMessage response) {
-        if (decodedFrame instanceof RequestFrame) {
-            this.forwardResponse(new ResponseHeaderData().setCorrelationId(decodedFrame.correlationId()), response);
-        }
-        else {
-            this.forwardResponse((ResponseHeaderData) decodedFrame.header(), response);
-        }
-    }
-
     @Override
     public ResponseFilterResultBuilder responseFilterResultBuilder() {
         return new ResponseFilterResultBuilderImpl();
     }
 
     @Override
-    public RequestFilterResultBuilder requestFilterResultBuilder() {
-        return new RequestFilterResultBuilderImpl();
+    public CompletionStage<RequestFilterResult> forwardRequest(RequestHeaderData header, ApiMessage request) {
+        return requestFilterResultBuilder().forward(header, request).completed();
     }
 
-    public CompletionStage<ResponseFilterResult> completedResponseFilterResult(ResponseHeaderData header, ApiMessage response) {
-        return CompletableFuture.completedStage(responseFilterResultBuilder().forward(header, response).build());
+    @Override
+    public RequestFilterResultBuilder requestFilterResultBuilder() {
+        return new RequestFilterResultBuilderImpl();
     }
 
     protected void closeConnection() {

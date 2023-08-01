@@ -11,13 +11,13 @@ import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.protocol.ApiMessage;
 
-import io.kroxylicious.proxy.filter.filterresultbuilder.CloseStage;
 import io.kroxylicious.proxy.filter.FilterResult;
 import io.kroxylicious.proxy.filter.FilterResultBuilder;
+import io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage;
 import io.kroxylicious.proxy.filter.filterresultbuilder.TerminalStage;
 
 public abstract class FilterResultBuilderImpl<H extends ApiMessage, FR extends FilterResult>
-        implements FilterResultBuilder<H, FR>, CloseStage<FR> {
+        implements FilterResultBuilder<H, FR>, CloseOrTerminalStage<FR> {
     private ApiMessage message;
     private ApiMessage header;
     private boolean closeConnection;
@@ -27,7 +27,7 @@ public abstract class FilterResultBuilderImpl<H extends ApiMessage, FR extends F
     }
 
     @Override
-    public CloseStage<FR> forward(H header, ApiMessage message) {
+    public CloseOrTerminalStage<FR> forward(H header, ApiMessage message) {
         validateForward(header, message);
         this.header = header;
         this.message = message;

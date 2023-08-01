@@ -71,7 +71,7 @@ public class ProduceValidationFilter implements ProduceRequestFilter, ProduceRes
             return handleInvalidTopicPartitions(header, request, context, result);
         }
         else {
-            return context.requestFilterResultBuilder().forward(header, request).completed();
+            return context.forwardRequest(header, request);
         }
     }
 
@@ -90,7 +90,7 @@ public class ProduceValidationFilter implements ProduceRequestFilter, ProduceRes
                 topicDatum.partitionData().removeIf(partitionProduceData -> !result.isPartitionValid(topicDatum.name(), partitionProduceData.index()));
             }
             correlatedResults.put(header.correlationId(), result);
-            return context.requestFilterResultBuilder().forward(header, request).completed();
+            return context.forwardRequest(header, request);
         }
         else {
             LOGGER.debug("some topic-partitions for transactional request with id: {}, contained invalid data: {}, invalidation entire request",

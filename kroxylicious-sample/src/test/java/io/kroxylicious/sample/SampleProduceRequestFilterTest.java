@@ -26,7 +26,6 @@ import org.apache.kafka.common.utils.ByteBufferOutputStream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Answers;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
@@ -35,7 +34,7 @@ import org.mockito.stubbing.Answer;
 
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
-import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
+import io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage;
 import io.kroxylicious.sample.config.SampleFilterConfig;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -53,9 +52,6 @@ class SampleProduceRequestFilterTest {
 
     @Mock
     private KrpcFilterContext context;
-
-    @Mock(answer = Answers.RETURNS_SELF)
-    private RequestFilterResultBuilder requestFilterResultBuilder;
 
     @Mock(strictness = Mock.Strictness.LENIENT)
     private RequestFilterResult requestFilterResult;
@@ -113,11 +109,9 @@ class SampleProduceRequestFilterTest {
     }
 
     private void setupContextMock() {
-        when(context.requestFilterResultBuilder()).thenReturn(requestFilterResultBuilder);
-        when(requestFilterResultBuilder.forward(requestHeaderDataCaptor.capture(), apiMessageCaptor.capture())).thenReturn(requestFilterResultBuilder);
+        when(context.forwardRequest(requestHeaderDataCaptor.capture(), apiMessageCaptor.capture())).thenAnswer(invocation -> CompletableFuture.completedStage(requestFilterResult));
         when(requestFilterResult.message()).thenAnswer(invocation -> apiMessageCaptor.getValue());
         when(requestFilterResult.header()).thenAnswer(invocation -> requestHeaderDataCaptor.getValue());
-        when(requestFilterResultBuilder.completed()).thenAnswer(invocation -> CompletableFuture.completedStage(requestFilterResult));
 
         when(context.createByteBufferOutputStream(bufferInitialCapacity.capture())).thenAnswer(
                 (Answer<ByteBufferOutputStream>) invocation -> {

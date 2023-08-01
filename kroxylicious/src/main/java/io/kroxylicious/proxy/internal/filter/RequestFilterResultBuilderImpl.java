@@ -10,18 +10,17 @@ import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
 
-import io.kroxylicious.proxy.filter.filterresultbuilder.CloseStage;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
+import io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage;
 
 public class RequestFilterResultBuilderImpl extends FilterResultBuilderImpl<RequestHeaderData, RequestFilterResult>
         implements RequestFilterResultBuilder {
 
     private static final String REQUEST_DATA_NAME_SUFFIX = "RequestData";
     private static final String RESPONSE_DATA_NAME_SUFFIX = "ResponseData";
-    private boolean shortCircuitResponse;
     private ResponseHeaderData shortCircuitHeader;
-    private ApiMessage shortCircuitResponse2;
+    private ApiMessage shortCircuitResponse;
 
     public RequestFilterResultBuilderImpl() {
     }
@@ -35,17 +34,17 @@ public class RequestFilterResultBuilderImpl extends FilterResultBuilderImpl<Requ
     }
 
     @Override
-    public CloseStage<RequestFilterResult> shortCircuitResponse(ResponseHeaderData header, ApiMessage message) {
+    public CloseOrTerminalStage<RequestFilterResult> shortCircuitResponse(ResponseHeaderData header, ApiMessage message) {
         validateShortCircuitResponse(header, message);
         this.shortCircuitHeader = header;
-        this.shortCircuitResponse2 = message;
+        this.shortCircuitResponse = message;
         return this;
     }
 
     @Override
-    public CloseStage<RequestFilterResult> shortCircuitResponse(ApiMessage message) {
+    public CloseOrTerminalStage<RequestFilterResult> shortCircuitResponse(ApiMessage message) {
         validateShortCircuitResponse(null, message);
-        this.shortCircuitResponse2 = message;
+        this.shortCircuitResponse = message;
         return this;
     }
 
@@ -62,18 +61,18 @@ public class RequestFilterResultBuilderImpl extends FilterResultBuilderImpl<Requ
 
             @Override
             public boolean shortCircuitResponse() {
-                return shortCircuitResponse2 != null;
+                return shortCircuitResponse != null;
             }
 
             @Override
             public ApiMessage header() {
 
-                return shortCircuitResponse2 == null ? RequestFilterResultBuilderImpl.this.header() : shortCircuitHeader;
+                return shortCircuitResponse == null ? RequestFilterResultBuilderImpl.this.header() : shortCircuitHeader;
             }
 
             @Override
             public ApiMessage message() {
-                return shortCircuitResponse2 == null ? RequestFilterResultBuilderImpl.this.message() : shortCircuitResponse2;
+                return shortCircuitResponse == null ? RequestFilterResultBuilderImpl.this.message() : shortCircuitResponse;
             }
 
             @Override

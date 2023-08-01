@@ -179,7 +179,7 @@ public class InvokerDispatchBenchmark {
         }
 
         @Override
-        public ResponseFilterResultBuilder responseFilterResultBuilder() {
+        public CompletionStage<ResponseFilterResult> forwardResponse(ResponseHeaderData header, ApiMessage response) {
             return null;
         }
 
@@ -188,12 +188,15 @@ public class InvokerDispatchBenchmark {
             return null;
         }
 
-        public CompletionStage<RequestFilterResult> completedRequestFilterResult(RequestHeaderData header, ApiMessage request) {
+        @Override
+        public CompletionStage<RequestFilterResult> forwardRequest(RequestHeaderData header, ApiMessage request) {
             return null;
         }
 
-        public CompletionStage<ResponseFilterResult> completedResponseFilterResult(ResponseHeaderData header, ApiMessage response) {
+        @Override
+        public ResponseFilterResultBuilder responseFilterResultBuilder() {
             return null;
         }
+
     }
 }

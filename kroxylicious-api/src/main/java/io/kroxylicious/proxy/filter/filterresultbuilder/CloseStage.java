@@ -8,7 +8,7 @@ package io.kroxylicious.proxy.filter.filterresultbuilder;
 
 import io.kroxylicious.proxy.filter.FilterResult;
 
-public interface CloseStage<FR extends FilterResult> extends TerminalStage<FR> {
+public interface CloseStage<FR extends FilterResult> {
     /**
      * Signals the desire of the filter that the connection is closed.
      *

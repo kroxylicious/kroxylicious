@@ -64,7 +64,7 @@ public class OutOfBandSendFilter implements DescribeClusterRequestFilter, Descri
             // expected to execute before onDescribeClusterResponse becase sendRequest called before forwardRequest
             values = unknownTaggedFieldsToStrings(apiMessage, config.tagIdToCollect).collect(Collectors.joining(","));
         });
-        return context.requestFilterResultBuilder().forward(header, request).completed();
+        return context.forwardRequest(header, request);
     }
 
     @Override

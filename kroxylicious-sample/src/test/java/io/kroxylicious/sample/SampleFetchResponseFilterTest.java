@@ -26,7 +26,6 @@ import org.apache.kafka.common.utils.ByteBufferOutputStream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Answers;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
@@ -35,7 +34,7 @@ import org.mockito.stubbing.Answer;
 
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
-import io.kroxylicious.proxy.filter.ResponseFilterResultBuilder;
+import io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage;
 import io.kroxylicious.sample.config.SampleFilterConfig;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -53,9 +52,6 @@ class SampleFetchResponseFilterTest {
     @Mock
     private KrpcFilterContext context;
 
-    @Mock(answer = Answers.RETURNS_SELF)
-    private ResponseFilterResultBuilder responseFilterResultBuilder;
-
     @Mock(strictness = Mock.Strictness.LENIENT)
     private ResponseFilterResult responseFilterResult;
     @Captor
@@ -63,6 +59,7 @@ class SampleFetchResponseFilterTest {
 
     @Captor
     private ArgumentCaptor<ResponseHeaderData> responseHeaderDataCaptor;
+
     @Captor
     private ArgumentCaptor<ApiMessage> apiMessageCaptor;
     private SampleFetchResponseFilter filter;
@@ -111,11 +108,10 @@ class SampleFetchResponseFilterTest {
     }
 
     private void setupContextMock() {
-        when(context.responseFilterResultBuilder()).thenReturn(responseFilterResultBuilder);
-        when(responseFilterResultBuilder.forward(responseHeaderDataCaptor.capture(), apiMessageCaptor.capture())).thenReturn(responseFilterResultBuilder);
+        when(context.forwardResponse(responseHeaderDataCaptor.capture(), apiMessageCaptor.capture())).thenAnswer(
+                invocation -> CompletableFuture.completedStage(responseFilterResult));
         when(responseFilterResult.message()).thenAnswer(invocation -> apiMessageCaptor.getValue());
         when(responseFilterResult.header()).thenAnswer(invocation -> responseHeaderDataCaptor.getValue());
-        when(responseFilterResultBuilder.completed()).thenAnswer(invocation -> CompletableFuture.completedStage(responseFilterResult));
 
         when(context.createByteBufferOutputStream(bufferInitialCapacity.capture())).thenAnswer(
                 (Answer<ByteBufferOutputStream>) invocation -> {
