@@ -95,7 +95,7 @@ class MultiTenantTransformationFilterTest {
     void requestsTransformed(@SuppressWarnings("unused") String testName, ApiMessageType apiMessageType, RequestHeaderData header, ApiMessageTestDef requestTestDef)
             throws Exception {
         var request = requestTestDef.message();
-        // marshalled the message object back to json, this is used for the comparison later.
+        // marshalled the request object back to json, this is used for the comparison later.
         var requestWriter = requestConverterFor(apiMessageType).writer();
         var marshalled = requestWriter.apply(request, header.requestApiVersion());
 

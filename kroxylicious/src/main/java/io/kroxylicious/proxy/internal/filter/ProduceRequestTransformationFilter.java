@@ -76,7 +76,7 @@ public class ProduceRequestTransformationFilter implements ProduceRequestFilter 
     @Override
     public CompletionStage<RequestFilterResult> onProduceRequest(short apiVersion, RequestHeaderData header, ProduceRequestData data, KrpcFilterContext context) {
         applyTransformation(context, data);
-        return context.requestFilterResultBuilder().forward(header, data).completed();
+        return context.forwardRequest(header, data);
     }
 
     private void applyTransformation(KrpcFilterContext ctx, ProduceRequestData req) {

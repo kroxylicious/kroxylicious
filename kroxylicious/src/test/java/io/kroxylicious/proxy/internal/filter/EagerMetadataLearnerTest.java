@@ -92,7 +92,7 @@ class EagerMetadataLearnerTest {
         var result = stage.toCompletableFuture().get();
 
         if (apiKey == ApiKeys.METADATA) {
-            // if caller's message is a metadata message, then the filter must forward it with fidelity
+            // if caller's request is a metadata request, then the filter must forward it with fidelity
             verify(context).sendRequest(eq(header.requestApiVersion()), eq(request));
             assertThat(result.message()).isEqualTo(metadataResponse);
         }

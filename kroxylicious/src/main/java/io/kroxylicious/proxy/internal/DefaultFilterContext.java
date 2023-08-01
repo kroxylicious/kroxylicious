@@ -240,7 +240,7 @@ class DefaultFilterContext implements KrpcFilterContext {
     private void forwardShortCircuitResponse(ResponseHeaderData header, ApiMessage response) {
         if (response.apiKey() != decodedFrame.apiKey().id) {
             throw new AssertionError(
-                    "Attempt to respond with ApiMessage of type " + ApiKeys.forId(response.apiKey()) + " but message is of type " + decodedFrame.apiKey());
+                    "Attempt to respond with ApiMessage of type " + ApiKeys.forId(response.apiKey()) + " but request is of type " + decodedFrame.apiKey());
         }
         DecodedResponseFrame<?> responseFrame = new DecodedResponseFrame<>(decodedFrame.apiVersion(), decodedFrame.correlationId(), header, response);
         decodedFrame.transferBuffersTo(responseFrame);
