@@ -40,7 +40,7 @@ class ResponseFilterResultBuilderTest {
 
     @Test
     void bareCloseConnection() {
-        var result = builder.withCloseConnection2(true).build();
+        var result = builder.withCloseConnection().build();
         assertThat(result.closeConnection()).isTrue();
     }
 
@@ -48,7 +48,7 @@ class ResponseFilterResultBuilderTest {
     void forwardResponseWithCloseConnection() {
         var res = new FetchResponseData();
         var head = new ResponseHeaderData();
-        var result = builder.forward(head, res).withCloseConnection2(true).build();
+        var result = builder.forward(head, res).withCloseConnection().build();
         assertThat(result.message()).isEqualTo(res);
         assertThat(result.header()).isEqualTo(head);
         assertThat(result.closeConnection()).isTrue();

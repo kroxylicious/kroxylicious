@@ -26,8 +26,6 @@ public interface FilterResultBuilder<H extends ApiMessage, FRB extends FilterRes
 
     FRB withMessage(ApiMessage message);
 
-    FRB withCloseConnection(boolean closeConnection);
-
     FR build();
 
     CompletionStage<FR> completedFilterResult();

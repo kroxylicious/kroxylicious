@@ -7,5 +7,5 @@
 package io.kroxylicious.proxy.filter;
 
 public interface CloseStage<FR extends FilterResult> extends TerminalStage<FR> {
-    TerminalStage<FR> withCloseConnection2(boolean closeConnection);
+    TerminalStage<FR> withCloseConnection();
 }

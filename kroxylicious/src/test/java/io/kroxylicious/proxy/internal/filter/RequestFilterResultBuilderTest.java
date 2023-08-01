@@ -42,7 +42,7 @@ class RequestFilterResultBuilderTest {
 
     @Test
     void bareCloseConnection() {
-        var result = builder.withCloseConnection2(true).build();
+        var result = builder.withCloseConnection().build();
         assertThat(result.closeConnection()).isTrue();
     }
 
@@ -51,7 +51,7 @@ class RequestFilterResultBuilderTest {
         var request = new FetchRequestData();
         var header = new RequestHeaderData();
 
-        var result = builder.forward(header, request).withCloseConnection2(true).build();
+        var result = builder.forward(header, request).withCloseConnection().build();
         assertThat(result.message()).isEqualTo(request);
         assertThat(result.header()).isEqualTo(header);
         assertThat(result.closeConnection()).isTrue();
@@ -69,7 +69,7 @@ class RequestFilterResultBuilderTest {
     @Test
     void shortCircuitResultWithCloseConnection() {
         var res = new FetchResponseData();
-        var result = builder.shortCircuitResponse(res).withCloseConnection2(true).build();
+        var result = builder.shortCircuitResponse(res).withCloseConnection().build();
         assertThat(result.message()).isEqualTo(res);
         assertThat(result.header()).isNull();
         assertThat(result.closeConnection()).isTrue();

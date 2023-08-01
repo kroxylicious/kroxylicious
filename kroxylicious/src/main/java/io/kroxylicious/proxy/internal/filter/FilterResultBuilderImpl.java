@@ -67,14 +67,8 @@ public abstract class FilterResultBuilderImpl<H extends ApiMessage, FRB extends 
     }
 
     @Override
-    public FRB withCloseConnection(boolean closeConnection) {
-        this.closeConnection = closeConnection;
-        return (FRB) this;
-    }
-
-    @Override
-    public TerminalStage<FR> withCloseConnection2(boolean closeConnection) {
-        this.closeConnection = closeConnection;
+    public TerminalStage<FR> withCloseConnection() {
+        this.closeConnection = true;
         return this;
     }
 
