@@ -11,12 +11,12 @@ import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.protocol.ApiMessage;
 
-import io.micrometer.common.lang.NonNull;
-
 import io.kroxylicious.proxy.filter.FilterResult;
 import io.kroxylicious.proxy.filter.FilterResultBuilder;
 import io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage;
 import io.kroxylicious.proxy.filter.filterresultbuilder.TerminalStage;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 public abstract class FilterResultBuilderImpl<H extends ApiMessage, FR extends FilterResult>
         implements FilterResultBuilder<H, FR>, CloseOrTerminalStage<FR> {
