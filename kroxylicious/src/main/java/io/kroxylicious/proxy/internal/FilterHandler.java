@@ -62,6 +62,12 @@ public class FilterHandler extends ChannelDuplexHandler {
 
             var stage = invoker.onRequest(decodedFrame.apiKey(), decodedFrame.apiVersion(), decodedFrame.header(),
                     decodedFrame.body(), filterContext);
+            if (stage == null) {
+                LOGGER.error("{}: Filter{} for {} request unexpectedly returned null. This is a coding error in the filter. Closing connection.",
+                        ctx.channel(), filterDescriptor(), decodedFrame.apiKey());
+                filterContext.closeConnection();
+                return;
+            }
             stage.whenComplete((requestFilterResult, t) -> {
                 // maybe better to run the whole thing on the netty thread.
 
@@ -128,6 +134,12 @@ public class FilterHandler extends ChannelDuplexHandler {
                 }
                 var stage = invoker.onResponse(decodedFrame.apiKey(), decodedFrame.apiVersion(),
                         decodedFrame.header(), decodedFrame.body(), filterContext);
+                if (stage == null) {
+                    LOGGER.error("{}: Filter{} for {} response unexpectedly returned null. This is a coding error in the filter. Closing connection.",
+                            ctx.channel(), filterDescriptor(), decodedFrame.apiKey());
+                    filterContext.closeConnection();
+                    return;
+                }
 
                 stage.whenComplete((responseFilterResult, t) -> {
                     if (t != null) {
