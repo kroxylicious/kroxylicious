@@ -53,4 +53,4 @@ jobs:
       - name: 'Build example service'
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: mvn -B clean verify -Pci
+        run: mvn -B clean verify -Pci -DDsonar.projectKey=kroxylicious_kroxylicious
