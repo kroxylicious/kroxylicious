@@ -6,6 +6,8 @@ Please enumerate **all user-facing** changes using format `<githib issue/pr numb
 
 ## 0.3.0
 
+
+* [#494](https://github.com/kroxylicious/kroxylicious/issues/494): [Breaking] Make the Filter API fully asynchronous (filter methods must return a CompletionStage)
 * [#498](https://github.com/kroxylicious/kroxylicious/issues/498): Include the cluster name from the configuration node in the config model.
 * [#488](https://github.com/kroxylicious/kroxylicious/pull/488): Kroxylicious Bill Of Materials 
 * [#480](https://github.com/kroxylicious/kroxylicious/issues/480): Multi-tenant - add suport for the versions of OffsetFetch, FindCoordinator, and DeleteTopics used by Sarama client v1.38.1
@@ -27,6 +29,11 @@ Please enumerate **all user-facing** changes using format `<githib issue/pr numb
 * [#364](https://github.com/kroxylicious/kroxylicious/pull/364): Add Dockerfile for kroxylicious
 
 ### Changes, deprecations and removals
+
+The Filter API is refactored to be fully asynchronous.  Filter API methods such as `#onXxxxRequest` and `onXxxxResponse`
+now are required to return a `CompletionStage<FilterResult>`. The `FilterResult` encapsulates the message to be
+forwarded and carries orders (such as close the connection). The context provides factory methods for creating
+`FilterResult` objects.
 
 The default metrics port has changed from 9193 to 9190 to prevent port collisions
 
