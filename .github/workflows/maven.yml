@@ -53,5 +53,13 @@ jobs:
       - name: 'Build Kroxylicious maven project'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: mvn -B clean verify -Pci -Dsonar.projectKey=kroxylicious_kroxylicious
+        run: mvn -B clean verify -Pci
+      - name: Save PR number to file
+        if: github.event_name == 'pull_request' && ${{ matrix.os }} == 'ubuntu-latest' && ${{ matrix.java_version }} == '17'
+        run: echo ${{ github.event.number }} > PR_NUMBER.txt
+      - name: Archive PR number
+        if: github.event_name == 'pull_request' && ${{ matrix.os }} == 'ubuntu-latest' && ${{ matrix.java_version }} == '17'
+        uses: actions/upload-artifact@v3
+        with:
+         name: PR_NUMBER
+         path: PR_NUMBER.txt
