@@ -6,6 +6,7 @@ addressing use cases such as multi-tenancy, schema validation, or encryption.
 <!-- TOC -->
 * [Kroxylicious](#kroxylicious)
   * [Quick Links](#quick-links)
+  * [Build status](#build-status)
   * [License](#license)
   * [Developer Guide](#developer-guide)
   * [Releasing this project](#releasing-this-project)
@@ -19,6 +20,9 @@ addressing use cases such as multi-tenancy, schema validation, or encryption.
 - [Documentation](https://www.kroxylicious.io/kroxylicious)
 - [GitHub design and discussion](https://github.com/kroxylicious/design)
 - [Community Slack chat](https://kroxylicious.slack.com/)
+
+## Build status
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=kroxylicious_kroxylicious&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=kroxylicious_kroxylicious) [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=kroxylicious_kroxylicious&metric=coverage)](https://sonarcloud.io/summary/new_code?id=kroxylicious_kroxylicious)
 
 ## License
 

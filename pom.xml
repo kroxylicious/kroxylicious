@@ -51,6 +51,7 @@
         <sundr-builder-annotations.version>0.100.1</sundr-builder-annotations.version>
         <findbugs.annotations.version>3.0.1u2</findbugs.annotations.version>
         <hamcrest.version>2.2</hamcrest.version>
+        <jacoco-maven-plugin.version>0.8.10</jacoco-maven-plugin.version>
     </properties>
 
     <name>Kroxylicious Parent</name>
@@ -667,6 +668,11 @@
             <activation>
                 <activeByDefault>false</activeByDefault>
             </activation>
+            <properties>
+                <sonar.organization>kroxylicious</sonar.organization>
+                <sonar.host.url>https://sonarcloud.io</sonar.host.url>
+                <sonar.projectKey>kroxylicious_kroxylicious</sonar.projectKey>
+            </properties>
             <build>
                 <plugins>
                     <plugin>
@@ -706,6 +712,35 @@
                                 <phase>none</phase>
                             </execution>
                         </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.jacoco</groupId>
+                        <artifactId>jacoco-maven-plugin</artifactId>
+                        <version>${jacoco-maven-plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>prepare-agent</id>
+                                <goals>
+                                    <goal>prepare-agent</goal>
+                                </goals>
+                            </execution>
+                            <execution>
+                                <id>report</id>
+                                <goals>
+                                    <goal>report</goal>
+                                </goals>
+                                <configuration>
+                                    <formats>
+                                        <format>XML</format>
+                                    </formats>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.sonarsource.scanner.maven</groupId>
+                        <artifactId>sonar-maven-plugin</artifactId>
+                        <version>3.9.1.2184</version>
                     </plugin>
                 </plugins>
             </build>

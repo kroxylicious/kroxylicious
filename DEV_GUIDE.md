@@ -4,6 +4,7 @@ This document gives a detailed breakdown of the various build processes and opti
 
 <!-- TOC -->
 * [Development Guide for Kroxylicious](#development-guide-for-kroxylicious)
+  * [Build status](#build-status)
   * [Build Prerequisites](#build-prerequisites)
   * [Prerequistes to run the kubernetes-examples](#prerequistes-to-run-the-kubernetes-examples)
   * [Build](#build)
@@ -24,6 +25,9 @@ This document gives a detailed breakdown of the various build processes and opti
     * [Verify that the fix is effective](#verify-that-the-fix-is-effective)
   * [Rendering documentation](#rendering-documentation)
 <!-- TOC -->
+
+## Build status
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=kroxylicious_kroxylicious&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=kroxylicious_kroxylicious) [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=kroxylicious_kroxylicious&metric=coverage)](https://sonarcloud.io/summary/new_code?id=kroxylicious_kroxylicious)
 
 ## Build Prerequisites
 
