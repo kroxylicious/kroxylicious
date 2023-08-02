@@ -82,12 +82,12 @@ To intercept all Fetch Requests your class would implement
 public class FetchRequestClientIdFilter implements FetchRequestFilter {
 
     @Override
-    public void onFetchRequest(short apiVersion,
-                               RequestHeaderData header,
-                               FetchRequestData request,
-                               KrpcFilterContext context) {
+    public CompletionStage<RequestFilterResult> onFetchRequest(short apiVersion,
+                                                               RequestHeaderData header,
+                                                               FetchRequestData request,
+                                                               KrpcFilterContext context) {
         header.setClientId("fetch-client!");
-        context.forwardRequest(header, request);
+        return context.forwardRequest(header, request);
     }
 }
 ----
@@ -100,14 +100,13 @@ To intercept all Fetch Responses your class would implement
 public class FetchRequestClientIdFilter implements FetchResponseFilter {
 
     @Override
-    public void onFetchResponse(short apiVersion,
-                                ResponseHeaderData header,
-                                FetchResponseData response,
-                                KrpcFilterContext context) {
-        mutateResponse(response),
-        context.forwardResponse(header, response);
+    public CompletionStage<ResponseFilterResult> onFetchResponse(short apiVersion,
+                                                                 ResponseHeaderData header,
+                                                                 FetchResponseData response,
+                                                                 KrpcFilterContext context) {
+        mutateResponse(response);
+        return context.forwardResponse(header, response);
     }
-    ...
 }
 ----
 
@@ -120,21 +119,21 @@ To intercept all Fetch Requests and all Fetch Responses your class would impleme
 public class FetchRequestClientIdFilter implements FetchRequestFilter, FetchResponseFilter {
 
     @Override
-    public void onFetchRequest(short apiVersion,
-                               RequestHeaderData header,
-                               FetchRequestData request,
-                               KrpcFilterContext context) {
+    public CompletionStage<RequestFilterResult> onFetchRequest(short apiVersion,
+                                                               RequestHeaderData header,
+                                                               FetchRequestData request,
+                                                               KrpcFilterContext context) {
         header.setClientId("fetch-client!");
-        context.forwardRequest(header, request);
+        return context.forwardRequest(header, request);
     }
 
     @Override
-    public void onFetchResponse(short apiVersion,
-                                ResponseHeaderData header,
-                                FetchResponseData response,
-                                KrpcFilterContext context) {
-        mutateResponse(response),
-        context.forwardResponse(header, response);
+    public CompletionStage<ResponseFilterResult> onFetchResponse(short apiVersion,
+                                                                 ResponseHeaderData header,
+                                                                 FetchResponseData response,
+                                                                 KrpcFilterContext context) {
+        mutateResponse(response);
+        return context.forwardResponse(header, response);
     }
 }
 ----
@@ -161,12 +160,12 @@ For example:
 public class FixedClientIdFilter implements RequestFilter {
 
     @Override
-    public void onRequest(ApiKeys apiKey,
-                          RequestHeaderData header,
-                          ApiMessage body,
-                          KrpcFilterContext filterContext) {
+    public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey,
+                                                          RequestHeaderData header,
+                                                          ApiMessage body,
+                                                          KrpcFilterContext filterContext) {
         header.setClientId("example!");
-        filterContext.forwardRequest(header, body);
+        return filterContext.forwardRequest(header, body);
     }
 
 }
@@ -190,7 +189,7 @@ class ExampleCompositeFilter implements CompositeFilter {
 
         private final ExampleConfiguration configuration;
 
-        public ExampleCompositeFilter(ExampleConfiguration configuration){
+        public ExampleCompositeFilter(ExampleConfiguration configuration) {
             this.configuration = configuration;
         }
 
@@ -223,6 +222,56 @@ The CompositeFilter interface is mutually exclusive with <<Specific Message Prot
 <<Request/Response Protocol Filters,Request/Response>> interfaces. Kroxylicious will reject invalid combinations of
 interfaces.
 
+=== The Filter Result
+
+As seen above, filter methods (`onXyz[Request|Response]`) must return a `CompletionStage<FilterResult>` object.
+It is the job of `FilterResult` to convey what message is to forwarded to the next filter in the chain (or broker
+/client if at the chain's end).  It is also used to carry instructions such as indicating that the connection must
+be closed, or a message dropped.
+
+TODO: once {github}/issues/351[#351] we need a sentence here to explain that Kroxylicious won't forward the request
+/response until the CompletionStage completes. We also need to explain how requests/responses queue awaiting the
+async work.
+
+The `KrpcFilterContext` is the factory for the `FilterResult` objects.
+
+There are two convenience methods{empty}footnote:[The `context.forward*()` methods behave exactly as the builder form
+`.forward(header, message).complete()`] that simply allow a filter to forward a result to the next filter.
+We've already seen  these in action above.
+
+* `context.forwardRequest(header, request)` used by result filter to forward a request.
+* `context.forwardResponse(header, response)` used by result filter to forward a request.
+
+To access richer features, use the filter result builders `context.requestFilterResultBuilder()` and
+`responseFilterResultBuilder()`.
+
+Filter result builders allow you to:
+
+1. forward a request/response: `.forward(header, request)`.
+2. signal that a connection is to be closed: `.withCloseConnection()`.
+3. signal that a message is to be dropped (i.e. not forwarded): `.drop()`.
+4. for requests only, send a short-circuit response: `.shortCircuitResponse(header, response)`
+
+The builder lets you combine legal behaviours together.  For instance, to close a connection after forwarding
+a response to a client, a response filter could use:
+
+[source,yaml]
+----
+return context.responseFilterResultBuilder()
+        .forward(header, response)
+        .withCloseConnection()
+        .complete();
+----
+
+The builders yield either a completed `CompletionStage<FilterResult>` which can be returned directly from the
+filter method, or bare `FilterResult`.  The latter exists to support asynchronous programming styles allowing you
+to use your own Futures.
+
+IMPORTANT: The `drop` behaviour can be legally used in very specific circumstances.  The Kafka Protocol is
+for the most part strictly request/response with responses expected in the order the request were sent.  The client
+will fail if contract isn't upheld.  The exception is `Produce` where `acks=0`.  Filters may drop these requests without
+introducing a protocol error.
+
 === The protocol filter lifecycle
 
 Instances of the filter class are created on demand when a protocol message is first sent by a client.
@@ -242,7 +291,7 @@ Therefore, there is no need to use synchronization when accessing such fields.
 Kroxylicious Protocol Filters support several patterns:
 
 1. <<Intercepting Requests and Responses>>
-2. <<Sending Response messages from a Request Filter towards the Client>>
+2. <<Sending Response messages from a Request Filter towards the Client (Short-circuit responses)>>
 3. <<Sending out-of-band requests to the Cluster>>
 4. <<Filtering specific API Versions>>
 
@@ -254,24 +303,26 @@ This is a common pattern, we want to inspect or modify a message. For example:
 ----
 public class SampleFetchResponseFilter implements FetchResponseFilter {
     @Override
-    public void onFetchResponse(short apiVersion,
-                                ResponseHeaderData header,
-                                FetchResponseData response,
-                                KrpcFilterContext context) {
+    public CompletionStage<ResponseFilterResult> onFetchResponse(short apiVersion,
+                                                                 ResponseHeaderData header,
+                                                                 FetchResponseData response,
+                                                                 KrpcFilterContext context) {
         mutateResponse(response, context); //<1>
-        context.forwardResponse(header, response); //<2>
+        return context.forwardResponse(header, response); //<2>
     }
 }
 ----
 <1> We mutate the response object. For example, you could alter the records that have been fetched.
-<2> We forward the response, sending it towards the client, invoking Filters downstream of this one. Note that we can
-only forward the response and header objects passed into the `onFetchResponse`. New instances are not supported.
-Also, `forwardResponse` must be called during the invocation of the `onFetchResponse` method.
+<2> We forward the response, sending it towards the client, invoking Filters downstream of this one.
 
-==== Sending Response messages from a Request Filter towards the Client
+NOTE: We can only forward the response and header objects passed into the `onFetchResponse`. New instances are not
+supported.
+
+==== Sending Response messages from a Request Filter towards the Client (Short-circuit responses)
 
 In some cases we may wish to not forward a request from the client to the Cluster. Instead, we want to intercept that
-request and generate a response message in a Kroxylicious Protocol Filter and send it towards the client.
+request and generate a response message in a Kroxylicious Protocol Filter and send it towards the client.  This is called
+this a short-circuit response.
 
 .Illustration of responding without proxying
 [a2s, format="svg"]
@@ -304,25 +355,57 @@ For example:
 
 [source,java]
 ----
-public class ApiVersionsErrorFilter implements ApiVersionsRequestFilter {
+public class CreateTopicRejectFilter implements CreateTopicsRequestFilter {
 
-    @Override
-    public void onApiVersionsRequest(short apiVersion,
-                                     RequestHeaderData header,
-                                     ApiVersionsRequestData request,
-                                     KrpcFilterContext context) {
-        ApiVersionsResponseData response = new ApiVersionsResponseData(); //<1>
-        response.setErrorCode(Errors.UNKNOWN_SERVER_ERROR.code());
-        context.forwardResponse(response);//<2>
+    public CompletionStage<RequestFilterResult> onCreateTopicsRequest(short apiVersion, RequestHeaderData header, CreateTopicsRequestData request,
+                                                                      KrpcFilterContext context) {
+        CreateTopicsResponseData response = new CreateTopicsResponseData();
+        CreateTopicsResponseData.CreatableTopicResultCollection topics = new CreateTopicsResponseData.CreatableTopicResultCollection(); // <1>
+        request.topics().forEach(creatableTopic -> {
+            CreateTopicsResponseData.CreatableTopicResult result = new CreateTopicsResponseData.CreatableTopicResult();
+            result.setErrorCode(Errors.INVALID_TOPIC_EXCEPTION.code()).setErrorMessage(ERROR_MESSAGE);
+            result.setName(creatableTopic.name());
+            topics.add(result);
+        });
+        response.setTopics(topics);
+        return context.requestFilterResultBuilder().shortCircuitResponse(response).completed(); // <2>
     }
 }
 ----
 <1> Create a new instance of the corresponding response data and populate it. Note you may need to use the `apiVersion`
 to check which fields can be set at this request's API version.
-<2> We forward the response, sending it towards the client, invoking Filters downstream of this one. Again, `forwardResponse`
-must be called during the invocation of the `onApiVersionsRequest` method.
+<2> We generate a short-circuit response that will send it towards the client, invoking Filters downstream of this one.
 
-This will respond to all Api Versions requests with an error response without forwarding any of those requests to the Cluster.
+This will respond to all Create Topic requests with an error response without forwarding any of those requests to the Cluster.
+
+===== Closing the connections
+
+There is a useful variation on the pattern above, where the filter needs, in addition to sending an error
+response, also to cause the connection to close.  This is useful in use-cases where the filter wishes to disallow
+certain client behaviours.
+
+[source,java]
+----
+public class DisallowAlterConfigs implements AlterConfigsRequestFilter {
+
+    @Override
+    public CompletionStage<RequestFilterResult> onAlterConfigsRequest(short apiVersion, RequestHeaderData header, AlterConfigsRequestData request,
+                                                                      KrpcFilterContext context) {
+        var response = new AlterConfigsResponseData();
+        response.setResponses(request.resources().stream()
+                .map(a -> new AlterConfigsResourceResponse()
+                        .setErrorCode(Errors.INVALID_CONFIG.code())
+                        .setErrorMessage("This service does not allow this operation - closing connection"))
+                .toList());
+        return context.requestFilterResultBuilder()
+                         .shortCircuitResponse(response)
+                         .withCloseConnection() // <1>
+                         .completed();
+    }
+}
+----
+<1> We enable the close connection option on the builder.  This will cause Kroxylicious to close the connection
+after the response is sent to the client.
 
 ==== Sending out-of-band requests to the Cluster
 
@@ -337,10 +420,10 @@ public class FetchFilter implements FetchRequestFilter{
     public static final short METADATA_VERSION_SUPPORTING_TOPIC_IDS = (short) 12;
 
     @Override
-    public void onFetchRequest(short apiVersion,
-                               RequestHeaderData header,
-                               FetchRequestData request,
-                               KrpcFilterContext context) {
+    public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey,
+                                                          RequestHeaderData header,
+                                                          ApiMessage body,
+                                                          KrpcFilterContext filterContext) {
         MetadataRequestData metadataRequest = new MetadataRequestData(); //<1>
         var topic = new MetadataRequestData.MetadataRequestTopic();
         topic.setTopicId(Uuid.randomUuid());
@@ -348,7 +431,7 @@ public class FetchFilter implements FetchRequestFilter{
         short version = METADATA_VERSION_SUPPORTING_TOPIC_IDS;
         CompletionStage<MetadataResponseData> stage = context.sendRequest(version, request);//<2>
         stage.thenAccept(response -> doSomethingWithMetadata(response, version));//<3>
-        context.forwardRequest(header, request);//<4>
+        return context.forwardRequest(header, request);//<4>
     }
 }
 ----
@@ -367,8 +450,31 @@ for that RPC (see issue {github}/issues/438[#438]).
 
 The out-of-band Request/Response will be intercepted by Filters upstream of this Filter.
 
-Note you should not attempt to call `forward` methods on the `KrpcFilterContext` using the CompletionStage, they still
-must be called synchronously during the invocation of the `onXyz[Request|Response]` method.
+WARNING: It is not yet possible to _asynchronously_ trigger a filter's forward.  Attempts to do this will lead a loss
+of ordering of the responses sent back to the client and client errors. This is being addressed by
+{github}/issues/351[#351].
+
+The following example illustrates:
+
+[source,java]
+----
+public class Issue351 implements FetchRequestFilter {
+
+    @Override
+    public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey,
+                                                          RequestHeaderData header,
+                                                          ApiMessage body,
+                                                          KrpcFilterContext filterContext) {
+        // Intent is to have the forward sent after the response to be in-band request.
+        CompletionStage<MetadataResponseData> stage = context.sendRequest(version, request);
+        return stage.thenCompose(response -> {
+            mutateRequest(request);
+            // This won't work properly yet - https://github.com/kroxylicious/kroxylicious/issues/351
+            return context.forwardRequest(header, request);
+        });
+    }
+}
+----
 
 ==== Filtering specific API Versions
 
@@ -384,7 +490,7 @@ messages greater than api version 7". To do this you can override a method named
 
 [source,java]
 ----
-public class FetchFilter implements FetchRequestFilter{
+public class FetchFilter implements FetchRequestFilter {
 
     @Override
     public boolean shouldHandleFetchRequest(short apiVersion) {
@@ -392,11 +498,12 @@ public class FetchFilter implements FetchRequestFilter{
     }
 
     @Override
-    public void onFetchRequest(short apiVersion,
-                               RequestHeaderData header,
-                               FetchRequestData request,
-                               KrpcFilterContext context) {
-        context.forwardRequest(header, request);
+    @Override
+    public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey,
+                                                          RequestHeaderData header,
+                                                          ApiMessage body,
+                                                          KrpcFilterContext filterContext) {
+        return context.forwardRequest(header, request);
     }
 }
 ----
