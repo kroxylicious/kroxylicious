@@ -66,13 +66,15 @@ public class FilterHandler extends ChannelDuplexHandler {
                 // maybe better to run the whole thing on the netty thread.
 
                 if (t != null) {
+                    LOGGER.warn("{}: Filter{} for {} request ended exceptionally - closing connection",
+                            ctx.channel(), filterDescriptor(), decodedFrame.apiKey(), t);
                     filterContext.closeConnection();
                     return;
                 }
 
                 if (requestFilterResult.drop()) {
                     if (LOGGER.isDebugEnabled()) {
-                        LOGGER.debug("{}: Filter{} drops request {}",
+                        LOGGER.debug("{}: Filter{} drops {} request",
                                 ctx.channel(), filterDescriptor(), decodedFrame.apiKey());
                     }
                 }
@@ -129,12 +131,14 @@ public class FilterHandler extends ChannelDuplexHandler {
 
                 stage.whenComplete((responseFilterResult, t) -> {
                     if (t != null) {
+                        LOGGER.warn("{}: Filter{} for {} response ended exceptionally - closing connection",
+                                ctx.channel(), filterDescriptor(), decodedFrame.apiKey(), t);
                         filterContext.closeConnection();
                         return;
                     }
                     if (responseFilterResult.drop()) {
                         if (LOGGER.isDebugEnabled()) {
-                            LOGGER.debug("{}: Filter{} drops response {}",
+                            LOGGER.debug("{}: Filter{} drops {} response",
                                     ctx.channel(), filterDescriptor(), decodedFrame.apiKey());
                         }
                     }
