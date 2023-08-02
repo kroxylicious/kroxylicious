@@ -52,7 +52,6 @@
         <findbugs.annotations.version>3.0.1u2</findbugs.annotations.version>
         <hamcrest.version>2.2</hamcrest.version>
         <jacoco-maven-plugin.version>0.8.10</jacoco-maven-plugin.version>
-        <sonar-maven-plugin.version>3.9.1.2184</sonar-maven-plugin.version>
     </properties>
 
     <name>Kroxylicious Parent</name>
@@ -460,11 +459,6 @@
                     <version>3.4.0</version>
                 </plugin>
                 <plugin>
-                    <groupId>org.sonarsource.scanner.maven</groupId>
-                    <artifactId>sonar-maven-plugin</artifactId>
-                    <version>${sonar-maven-plugin.version}</version>
-                </plugin>
-                <plugin>
                     <groupId>org.jacoco</groupId>
                     <artifactId>jacoco-maven-plugin</artifactId>
                     <version>${jacoco-maven-plugin.version}</version>
@@ -743,19 +737,6 @@
                                         <format>XML</format>
                                     </formats>
                                 </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                    <plugin>
-                        <groupId>org.sonarsource.scanner.maven</groupId>
-                        <artifactId>sonar-maven-plugin</artifactId>
-                        <executions>
-                            <execution>
-                                <id>sonar-scan</id>
-                                <goals>
-                                    <goal>sonar</goal>
-                                </goals>
-                                <phase>verify</phase>
                             </execution>
                         </executions>
                     </plugin>
