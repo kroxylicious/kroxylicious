@@ -5,6 +5,8 @@
  */
 package io.kroxylicious.test.client;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import io.netty.channel.ChannelFutureListener;
@@ -18,26 +20,57 @@ import io.kroxylicious.test.codec.DecodedResponseFrame;
  * Sends a single request frame, waits for a response then closes the channel
  */
 public class KafkaClientHandler extends ChannelInboundHandlerAdapter {
-    private final DecodedRequestFrame<?> decodedRequestFrame;
-    private final CompletableFuture<DecodedResponseFrame<?>> onResponse = new CompletableFuture<>();
+    private final List<DecodedRequestFrame<?>> decodedRequestFrames;
+    private final DecodedRequestFrame<?> initialRequest;
+    List<DecodedResponseFrame<?>> responses = new ArrayList<>();
+    private final CompletableFuture<List<DecodedResponseFrame<?>>> onResponse = new CompletableFuture<>();
+    private final CompletableFuture<Void> initialResponseReceived = new CompletableFuture<>();
 
     /**
      * Creates a KafkaClientHandler
-     * @param decodedRequestFrame the single request to send
+     * @param decodedRequestFrames the requests to send
      */
-    public KafkaClientHandler(DecodedRequestFrame<?> decodedRequestFrame) {
-        this.decodedRequestFrame = decodedRequestFrame;
+    public KafkaClientHandler(DecodedRequestFrame<?> initialRequest, List<DecodedRequestFrame<?>> decodedRequestFrames) {
+        this.decodedRequestFrames = decodedRequestFrames;
+        this.initialRequest = initialRequest;
+        if (this.initialRequest == null) {
+            initialResponseReceived.complete(null);
+        }
     }
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) {
-        ctx.writeAndFlush(decodedRequestFrame);
+        if (initialRequest != null) {
+            ctx.writeAndFlush(initialRequest);
+        }
+        initialResponseReceived.thenAccept(unused -> {
+            writeAllMessages(ctx);
+        });
+    }
+
+    private void writeAllMessages(ChannelHandlerContext ctx) {
+        for (DecodedRequestFrame<?> decodedRequestFrame : decodedRequestFrames) {
+            ctx.write(decodedRequestFrame);
+        }
+        ctx.flush();
     }
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) {
-        onResponse.complete((DecodedResponseFrame<?>) msg);
-        ctx.write(msg).addListener(ChannelFutureListener.CLOSE);
+        if (!initialResponseReceived.isDone()) {
+            initialResponseReceived.complete(null);
+        }
+        else {
+            responses.add((DecodedResponseFrame<?>) msg);
+            if (allResponsesReceived()) {
+                onResponse.complete(responses);
+                ctx.write(msg).addListener(ChannelFutureListener.CLOSE);
+            }
+        }
+    }
+
+    private boolean allResponsesReceived() {
+        return responses.size() == decodedRequestFrames.size();
     }
 
     @Override
@@ -55,7 +88,7 @@ public class KafkaClientHandler extends ChannelInboundHandlerAdapter {
      * A future that is completed when the response is received
      * @return on response future
      */
-    public CompletableFuture<DecodedResponseFrame<?>> getOnResponseFuture() {
+    public CompletableFuture<List<DecodedResponseFrame<?>>> getOnResponseFuture() {
         return onResponse;
     }
 }

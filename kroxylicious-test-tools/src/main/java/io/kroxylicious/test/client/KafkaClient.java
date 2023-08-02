@@ -6,11 +6,15 @@
 
 package io.kroxylicious.test.client;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
+import org.apache.kafka.common.protocol.ApiKeys;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.ChannelInitializer;
@@ -25,6 +29,8 @@ import io.kroxylicious.test.codec.DecodedRequestFrame;
 import io.kroxylicious.test.codec.DecodedResponseFrame;
 import io.kroxylicious.test.codec.KafkaRequestEncoder;
 import io.kroxylicious.test.codec.KafkaResponseDecoder;
+
+import static java.util.stream.Collectors.toList;
 
 /**
  * KafkaClient for testing.
@@ -78,9 +84,31 @@ public final class KafkaClient implements AutoCloseable {
      * @return a future that will be completed with the response from the kafka broker (translated to JsonNode)
      */
     public CompletableFuture<Response> get(Request request) {
-        DecodedRequestFrame<?> decodedRequestFrame = toApiRequest(request);
+        return getAll(request).thenApply(response -> {
+            if (response.size() != 1) {
+                throw new IllegalStateException("expected one response");
+            }
+            return response.get(0);
+        });
+    }
+
+    /**
+     * Bootstrap and connect to a Kafka broker on a given host and port. Send
+     * the requests to it and inform the client when we have received all responses.
+     * The channel is closed after we have received the message.
+     * @param requests request to send to kafka
+     * @return a future that will be completed with the response from the kafka broker (translated to JsonNode)
+     */
+    public CompletableFuture<List<Response>> getAll(Request... requests) {
+        List<DecodedRequestFrame<?>> decodedRequestFrames = Arrays.stream(requests).map(KafkaClient::toApiRequest).collect(toList());
         CorrelationManager correlationManager = new CorrelationManager();
-        KafkaClientHandler kafkaClientHandler = new KafkaClientHandler(decodedRequestFrame);
+        // if we are sending multiple requests then we need to behave like the kafka client, sending an initial request and
+        // awaiting response, this prevents blowing up the kroxylicious state machine when there is more data available to
+        // read than expected. After the connection is established this way we can send larger batches
+        DecodedRequestFrame<?> initialRequest = requests.length > 1
+                ? toApiRequest(new Request(ApiKeys.API_VERSIONS, ApiKeys.API_VERSIONS.latestVersion(), "client", new ApiVersionsRequestData()))
+                : null;
+        KafkaClientHandler kafkaClientHandler = new KafkaClientHandler(initialRequest, decodedRequestFrames);
         Bootstrap b = new Bootstrap();
         b.group(bossGroup)
                 .channel(eventGroupConfig.clientChannelClass())
@@ -96,13 +124,26 @@ public final class KafkaClient implements AutoCloseable {
                 });
 
         b.connect(host, port);
-        CompletableFuture<DecodedResponseFrame<?>> onResponseFuture = kafkaClientHandler.getOnResponseFuture();
-        return onResponseFuture.thenApply(KafkaClient::toResponse);
+        CompletableFuture<List<DecodedResponseFrame<?>>> onResponseFuture = kafkaClientHandler.getOnResponseFuture();
+        return onResponseFuture.thenApply(frames -> frames.stream().map(KafkaClient::toResponse).toList());
     }
 
     public Response getSync(Request request) {
         try {
             return get(request).get(10, TimeUnit.SECONDS);
+        }
+        catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException(ie);
+        }
+        catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public List<Response> getAllSync(Request... request) {
+        try {
+            return getAll(request).get(10, TimeUnit.SECONDS);
         }
         catch (InterruptedException ie) {
             Thread.currentThread().interrupt();

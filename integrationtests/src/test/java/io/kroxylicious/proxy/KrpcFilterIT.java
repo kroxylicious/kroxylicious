@@ -19,8 +19,11 @@ import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.errors.InvalidTopicException;
+import org.apache.kafka.common.message.ApiVersionsResponseData;
+import org.apache.kafka.common.message.CreateTopicsRequestData;
 import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.MetadataResponseData;
+import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.LoggerContext;
@@ -48,6 +51,8 @@ import static org.apache.kafka.clients.consumer.ConsumerConfig.AUTO_OFFSET_RESET
 import static org.apache.kafka.clients.consumer.ConsumerConfig.GROUP_ID_CONFIG;
 import static org.apache.kafka.clients.producer.ProducerConfig.CLIENT_ID_CONFIG;
 import static org.apache.kafka.clients.producer.ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG;
+import static org.apache.kafka.common.protocol.ApiKeys.API_VERSIONS;
+import static org.apache.kafka.common.protocol.ApiKeys.CREATE_TOPICS;
 import static org.apache.kafka.common.protocol.ApiKeys.METADATA;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
@@ -161,6 +166,26 @@ public class KrpcFilterIT {
             // check no topic created on the cluster
             Set<String> names = admin.listTopics().names().get(10, TimeUnit.SECONDS);
             assertThat(names).doesNotContain(TOPIC_1);
+        }
+    }
+
+    @Test
+    @SuppressWarnings("java:S5841") // java:S5841 warns that doesNotContain passes for the empty case. Which is what we want here.
+    public void requestFiltersCanRespondWithoutProxyingRespondsInCorrectOrder() throws Exception {
+
+        try (var tester = mockKafkaKroxyliciousTester(s -> proxy(s).addToFilters(new FilterDefinitionBuilder("CreateTopicRejectFilter").build()));
+                var client = tester.singleRequestClient()) {
+            tester.addMockResponseForApiKey(new Response(METADATA, METADATA.latestVersion(), new MetadataResponseData()));
+            tester.addMockResponseForApiKey(new Response(API_VERSIONS, API_VERSIONS.latestVersion(), new ApiVersionsResponseData()));
+            CreateTopicsRequestData.CreatableTopic topic = new CreateTopicsRequestData.CreatableTopic();
+            CreateTopicsRequestData data = new CreateTopicsRequestData();
+            data.topics().add(topic);
+            Request requestA = new Request(METADATA, METADATA.latestVersion(), "client", new MetadataRequestData());
+            Request requestB = new Request(CREATE_TOPICS, CREATE_TOPICS.latestVersion(), "client", data);
+            List<Response> all = client.getAllSync(requestA, requestB);
+            assertThat(all).hasSize(2);
+            List<ApiKeys> apiKeys = all.stream().map(Response::apiKeys).toList();
+            assertThat(apiKeys).containsExactly(METADATA, CREATE_TOPICS);
         }
     }
 
