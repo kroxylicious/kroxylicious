@@ -167,7 +167,7 @@ public class MultiTenantTransformationFilter
     @Override
     public CompletionStage<RequestFilterResult> onMetadataRequest(short apiVersion, RequestHeaderData header, MetadataRequestData request, KrpcFilterContext context) {
         if (request.topics() != null) {
-            // n.b. message.topics() == null used to query all the topics.
+            // n.b. request.topics() == null used to query all the topics.
             request.topics().forEach(topic -> applyTenantPrefix(context, topic::name, topic::setName, false));
         }
         return context.forwardRequest(header, request);
