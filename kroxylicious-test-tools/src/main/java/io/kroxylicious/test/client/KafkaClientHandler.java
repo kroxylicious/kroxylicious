@@ -9,7 +9,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 
@@ -24,18 +23,16 @@ public class KafkaClientHandler extends ChannelInboundHandlerAdapter {
     private final DecodedRequestFrame<?> initialRequest;
     List<DecodedResponseFrame<?>> responses = new ArrayList<>();
     private final CompletableFuture<List<DecodedResponseFrame<?>>> onResponse = new CompletableFuture<>();
-    private final CompletableFuture<Void> initialResponseReceived = new CompletableFuture<>();
+    private boolean readyToSendRemainingMessages;
 
     /**
      * Creates a KafkaClientHandler
      * @param decodedRequestFrames the requests to send
      */
-    public KafkaClientHandler(DecodedRequestFrame<?> initialRequest, List<DecodedRequestFrame<?>> decodedRequestFrames) {
+    public KafkaClientHandler(boolean waitForFirstResponse, List<DecodedRequestFrame<?>> decodedRequestFrames) {
         this.decodedRequestFrames = decodedRequestFrames;
-        this.initialRequest = initialRequest;
-        if (this.initialRequest == null) {
-            initialResponseReceived.complete(null);
-        }
+        this.initialRequest = waitForFirstResponse ? decodedRequestFrames.remove(0) : null;
+        readyToSendRemainingMessages = !waitForFirstResponse;
     }
 
     @Override
@@ -43,9 +40,9 @@ public class KafkaClientHandler extends ChannelInboundHandlerAdapter {
         if (initialRequest != null) {
             ctx.writeAndFlush(initialRequest);
         }
-        initialResponseReceived.thenAccept(unused -> {
+        else {
             writeAllMessages(ctx);
-        });
+        }
     }
 
     private void writeAllMessages(ChannelHandlerContext ctx) {
@@ -57,14 +54,15 @@ public class KafkaClientHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) {
-        if (!initialResponseReceived.isDone()) {
-            initialResponseReceived.complete(null);
+        if (!readyToSendRemainingMessages) {
+            readyToSendRemainingMessages = true;
+            writeAllMessages(ctx);
         }
         else {
             responses.add((DecodedResponseFrame<?>) msg);
             if (allResponsesReceived()) {
                 onResponse.complete(responses);
-                ctx.write(msg).addListener(ChannelFutureListener.CLOSE);
+                ctx.close();
             }
         }
     }

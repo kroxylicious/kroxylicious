@@ -6,6 +6,7 @@
 
 package io.kroxylicious.test.client;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -46,6 +47,10 @@ import static java.util.stream.Collectors.toList;
  */
 public final class KafkaClient implements AutoCloseable {
 
+    private static final AtomicInteger correlationId = new AtomicInteger(1);
+
+    public static final DecodedRequestFrame<?> INITIAL_REQUEST = toApiRequest(
+            new Request(ApiKeys.API_VERSIONS, ApiKeys.API_VERSIONS.latestVersion(), "client", new ApiVersionsRequestData()));
     private final String host;
     private final int port;
 
@@ -63,8 +68,6 @@ public final class KafkaClient implements AutoCloseable {
         this.eventGroupConfig = EventGroupConfig.create();
         bossGroup = eventGroupConfig.newBossGroup();
     }
-
-    private static final AtomicInteger correlationId = new AtomicInteger(1);
 
     private static DecodedRequestFrame<?> toApiRequest(Request request) {
         var messageType = request.apiKeys().messageType;
@@ -102,13 +105,15 @@ public final class KafkaClient implements AutoCloseable {
     public CompletableFuture<List<Response>> getAll(Request... requests) {
         List<DecodedRequestFrame<?>> decodedRequestFrames = Arrays.stream(requests).map(KafkaClient::toApiRequest).collect(toList());
         CorrelationManager correlationManager = new CorrelationManager();
+        List<DecodedRequestFrame<?>> toSend = new ArrayList<>(decodedRequestFrames);
         // if we are sending multiple requests then we need to behave like the kafka client, sending an initial request and
         // awaiting response, this prevents blowing up the kroxylicious state machine when there is more data available to
-        // read than expected. After the connection is established this way we can send larger batches
-        DecodedRequestFrame<?> initialRequest = requests.length > 1
-                ? toApiRequest(new Request(ApiKeys.API_VERSIONS, ApiKeys.API_VERSIONS.latestVersion(), "client", new ApiVersionsRequestData()))
-                : null;
-        KafkaClientHandler kafkaClientHandler = new KafkaClientHandler(initialRequest, decodedRequestFrames);
+        // read than expected. After the connection is established this way we can send larger batches. TODO fix this bug in Kroxy
+        var initialRequestRequired = requests.length > 1;
+        if (initialRequestRequired) {
+            toSend.add(0, INITIAL_REQUEST);
+        }
+        KafkaClientHandler kafkaClientHandler = new KafkaClientHandler(initialRequestRequired, toSend);
         Bootstrap b = new Bootstrap();
         b.group(bossGroup)
                 .channel(eventGroupConfig.clientChannelClass())
