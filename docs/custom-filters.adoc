@@ -267,8 +267,8 @@ The builders yield either a completed `CompletionStage<FilterResult>` which can 
 filter method, or bare `FilterResult`.  The latter exists to support asynchronous programming styles allowing you
 to use your own Futures.
 
-IMPORTANT: The `drop` behaviour can be legally used in very specific circumstances.  The Kafka Protocol is
-for the most part strictly request/response with responses expected in the order the request were sent.  The client
+IMPORTANT: The `drop` behaviour can be legally used in very specific circumstances.  The Kafka Protocol is,
+for the most part, strictly request/response with responses expected in the order the request were sent.  The client
 will fail if the contract isn't upheld.  The exception is `Produce` where `acks=0`.  Filters may drop these requests without
 introducing a protocol error.
 
