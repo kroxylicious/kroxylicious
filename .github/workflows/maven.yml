@@ -52,5 +52,6 @@ jobs:
 
       - name: 'Build example service'
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: mvn -B clean verify -Pci -Dsonar.projectKey=kroxylicious_kroxylicious
