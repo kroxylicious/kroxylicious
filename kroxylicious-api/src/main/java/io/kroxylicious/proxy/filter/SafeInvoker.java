@@ -27,7 +27,7 @@ record SafeInvoker(FilterInvoker invoker) implements FilterInvoker {
             return invoker.onRequest(apiKey, apiVersion, header, body, filterContext);
         }
         else {
-            return filterContext.requestFilterResultBuilder().forward(header, body).completed();
+            return filterContext.forwardRequest(header, body);
         }
     }
 
