@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.internal.codec;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
@@ -21,6 +22,7 @@ import io.netty.buffer.Unpooled;
 import io.kroxylicious.proxy.filter.ApiVersionsRequestFilter;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
+import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
 
@@ -29,7 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 public class RequestDecoderTest extends AbstractCodecTest {
 
     @ParameterizedTest
-    @MethodSource("requestApiVersions()")
+    @MethodSource("requestApiVersions")
     public void testApiVersionsExactlyOneFrame_decoded(short apiVersion) throws Exception {
         assertEquals(12,
                 exactlyOneFrame_decoded(apiVersion,
@@ -41,14 +43,15 @@ public class RequestDecoderTest extends AbstractCodecTest {
                         new KafkaRequestDecoder(
                                 DecodePredicate
                                         .forFilters(FilterAndInvoker.build(
-                                                (ApiVersionsRequestFilter) (version, header, request, context) -> context.forwardRequest(header, request)))),
+                                                (ApiVersionsRequestFilter) (version, header, request, context) -> context.requestFilterResultBuilder()
+                                                        .forward(header, request).completed()))),
                         DecodedRequestFrame.class,
                         (RequestHeaderData header) -> header),
                 "Unexpected correlation id");
     }
 
     @ParameterizedTest
-    @MethodSource("requestApiVersions()")
+    @MethodSource("requestApiVersions")
     public void testApiVersionsExactlyOneFrame_opaque(short apiVersion) throws Exception {
         assertEquals(12,
                 exactlyOneFrame_encoded(apiVersion,
@@ -64,9 +67,10 @@ public class RequestDecoderTest extends AbstractCodecTest {
                                     }
 
                                     @Override
-                                    public void onApiVersionsRequest(short apiVersion, RequestHeaderData header, ApiVersionsRequestData request,
-                                                                     KrpcFilterContext context) {
-                                        context.forwardRequest(header, request);
+                                    public CompletionStage<RequestFilterResult> onApiVersionsRequest(short apiVersion, RequestHeaderData header,
+                                                                                                     ApiVersionsRequestData request,
+                                                                                                     KrpcFilterContext context) {
+                                        return context.requestFilterResultBuilder().forward(header, request).completed();
                                     }
                                 }))),
                         OpaqueRequestFrame.class),
@@ -74,7 +78,7 @@ public class RequestDecoderTest extends AbstractCodecTest {
     }
 
     @ParameterizedTest
-    @MethodSource("requestApiVersions()")
+    @MethodSource("requestApiVersions")
     public void testApiVersionsFrameLessOneByte(short apiVersion) throws Exception {
         RequestHeaderData encodedHeader = exampleRequestHeader(apiVersion);
         ApiVersionsRequestData encodedBody = exampleApiVersionsRequest();
@@ -87,7 +91,9 @@ public class RequestDecoderTest extends AbstractCodecTest {
         var messages = new ArrayList<>();
         new KafkaRequestDecoder(
                 DecodePredicate.forFilters(
-                        FilterAndInvoker.build((ApiVersionsRequestFilter) (version, header, request, context) -> context.forwardRequest(header, request))))
+                        FilterAndInvoker.build((ApiVersionsRequestFilter) (version, header, request, context) -> {
+                            return context.requestFilterResultBuilder().forward(header, request).completed();
+                        })))
                 .decode(null, byteBuf, messages);
 
         assertEquals(List.of(), messageClasses(messages));
@@ -106,7 +112,9 @@ public class RequestDecoderTest extends AbstractCodecTest {
         var messages = new ArrayList<>();
         new KafkaRequestDecoder(
                 DecodePredicate.forFilters(
-                        FilterAndInvoker.build((ApiVersionsRequestFilter) (version, header, request, context) -> context.forwardRequest(header, request))))
+                        FilterAndInvoker
+                                .build((ApiVersionsRequestFilter) (version, header, request, context) -> context.requestFilterResultBuilder().forward(header, request)
+                                        .completed())))
                 .decode(null, byteBuf, messages);
 
         assertEquals(List.of(), messageClasses(messages));
@@ -114,19 +122,19 @@ public class RequestDecoderTest extends AbstractCodecTest {
     }
 
     @ParameterizedTest
-    @MethodSource("requestApiVersions()")
+    @MethodSource("requestApiVersions")
     public void testApiVersionsFrameFirst3Bytes(short apiVersion) throws Exception {
         doTestApiVersionsFrameFirstNBytes(apiVersion, 3, 0);
     }
 
     @ParameterizedTest
-    @MethodSource("requestApiVersions()")
+    @MethodSource("requestApiVersions")
     public void testApiVersionsFrameFirst5Bytes(short apiVersion) throws Exception {
         doTestApiVersionsFrameFirstNBytes(apiVersion, 5, 0);
     }
 
     @ParameterizedTest
-    @MethodSource("requestApiVersions()")
+    @MethodSource("requestApiVersions")
     public void testApiVersionsExactlyTwoFrames(short apiVersion) throws Exception {
         RequestHeaderData encodedHeader = exampleRequestHeader(apiVersion);
 
@@ -149,7 +157,9 @@ public class RequestDecoderTest extends AbstractCodecTest {
         var messages = new ArrayList<>();
         new KafkaRequestDecoder(
                 DecodePredicate.forFilters(
-                        FilterAndInvoker.build((ApiVersionsRequestFilter) (version, head, request, context) -> context.forwardRequest(header, request))))
+                        FilterAndInvoker
+                                .build((ApiVersionsRequestFilter) (version, head, request, context) -> context.requestFilterResultBuilder().forward(header, request)
+                                        .completed())))
                 .decode(null, byteBuf, messages);
 
         assertEquals(List.of(DecodedRequestFrame.class, DecodedRequestFrame.class), messageClasses(messages));

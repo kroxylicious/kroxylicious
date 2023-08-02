@@ -6,6 +6,7 @@
 package io.kroxylicious.proxy.filter.multitenant;
 
 import java.util.Optional;
+import java.util.concurrent.CompletionStage;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -90,17 +91,19 @@ import io.kroxylicious.proxy.filter.OffsetForLeaderEpochRequestFilter;
 import io.kroxylicious.proxy.filter.OffsetForLeaderEpochResponseFilter;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
 import io.kroxylicious.proxy.filter.ProduceResponseFilter;
+import io.kroxylicious.proxy.filter.RequestFilterResult;
+import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.filter.SyncGroupRequestFilter;
 import io.kroxylicious.proxy.filter.TxnOffsetCommitRequestFilter;
 import io.kroxylicious.proxy.filter.TxnOffsetCommitResponseFilter;
 
 /**
  * Simple multi-tenant filter.
- *
+ * <br/>
  * Uses the first component of a fully-qualified host name as a tenant prefix.
  * This tenant prefix is prepended to the kafka resources name in order to present an isolated
  * environment for each tenant.
- *
+ * <br/>
  * TODO prefix other resources e.g. group names, transaction ids
  * TODO disallow the use of topic uids belonging to one tenant by another.
  */
@@ -132,78 +135,84 @@ public class MultiTenantTransformationFilter
     private static final Logger LOGGER = LoggerFactory.getLogger(MultiTenantTransformationFilter.class);
 
     @Override
-    public void onCreateTopicsRequest(short apiVersion, RequestHeaderData header, CreateTopicsRequestData request, KrpcFilterContext context) {
+    public CompletionStage<RequestFilterResult> onCreateTopicsRequest(short apiVersion, RequestHeaderData header, CreateTopicsRequestData request,
+                                                                      KrpcFilterContext context) {
         request.topics().forEach(topic -> applyTenantPrefix(context, topic::name, topic::setName, false));
-        context.forwardRequest(header, request);
+        return context.forwardRequest(header, request);
     }
 
     @Override
-    public void onCreateTopicsResponse(short apiVersion, ResponseHeaderData header, CreateTopicsResponseData response, KrpcFilterContext context) {
+    public CompletionStage<ResponseFilterResult> onCreateTopicsResponse(short apiVersion, ResponseHeaderData header, CreateTopicsResponseData response,
+                                                                        KrpcFilterContext context) {
         response.topics().forEach(topic -> removeTenantPrefix(context, topic::name, topic::setName, false));
-        context.forwardResponse(header, response);
+        return context.forwardResponse(header, response);
     }
 
     @Override
-    public void onDeleteTopicsRequest(short apiVersion, RequestHeaderData header, DeleteTopicsRequestData request, KrpcFilterContext context) {
+    public CompletionStage<RequestFilterResult> onDeleteTopicsRequest(short apiVersion, RequestHeaderData header, DeleteTopicsRequestData request,
+                                                                      KrpcFilterContext context) {
         // the topicName field was present up to and including version 5
         request.setTopicNames(request.topicNames().stream().map(topic -> applyTenantPrefix(context, topic)).toList());
         request.topics().forEach(topic -> applyTenantPrefix(context, topic::name, topic::setName, topic.topicId() != null));
-        context.forwardRequest(header, request);
+        return context.forwardRequest(header, request);
     }
 
     @Override
-    public void onDeleteTopicsResponse(short apiVersion, ResponseHeaderData header, DeleteTopicsResponseData response, KrpcFilterContext context) {
+    public CompletionStage<ResponseFilterResult> onDeleteTopicsResponse(short apiVersion, ResponseHeaderData header, DeleteTopicsResponseData response,
+                                                                        KrpcFilterContext context) {
         response.responses().forEach(topic -> removeTenantPrefix(context, topic::name, topic::setName, false));
-        context.forwardResponse(header, response);
+        return context.forwardResponse(header, response);
     }
 
     @Override
-    public void onMetadataRequest(short apiVersion, RequestHeaderData header, MetadataRequestData request, KrpcFilterContext context) {
+    public CompletionStage<RequestFilterResult> onMetadataRequest(short apiVersion, RequestHeaderData header, MetadataRequestData request, KrpcFilterContext context) {
         if (request.topics() != null) {
             // n.b. request.topics() == null used to query all the topics.
             request.topics().forEach(topic -> applyTenantPrefix(context, topic::name, topic::setName, false));
         }
-        context.forwardRequest(header, request);
-
+        return context.forwardRequest(header, request);
     }
 
     @Override
-    public void onMetadataResponse(short apiVersion, ResponseHeaderData header, MetadataResponseData response, KrpcFilterContext context) {
+    public CompletionStage<ResponseFilterResult> onMetadataResponse(short apiVersion, ResponseHeaderData header, MetadataResponseData response,
+                                                                    KrpcFilterContext context) {
         String tenantPrefix = getTenantPrefix(context);
         response.topics().removeIf(topic -> !topic.name().startsWith(tenantPrefix)); // TODO: allow kafka internal topics to be returned?
         response.topics().forEach(topic -> removeTenantPrefix(context, topic::name, topic::setName, false));
-        context.forwardResponse(header, response);
+        return context.forwardResponse(header, response);
     }
 
     @Override
-    public void onProduceRequest(short apiVersion, RequestHeaderData header, ProduceRequestData request, KrpcFilterContext context) {
+    public CompletionStage<RequestFilterResult> onProduceRequest(short apiVersion, RequestHeaderData header, ProduceRequestData request, KrpcFilterContext context) {
         applyTenantPrefix(context, request::transactionalId, request::setTransactionalId, true);
         request.topicData().forEach(topic -> applyTenantPrefix(context, topic::name, topic::setName, false));
-        context.forwardRequest(header, request);
-
+        return context.forwardRequest(header, request);
     }
 
     @Override
-    public void onProduceResponse(short apiVersion, ResponseHeaderData header, ProduceResponseData response, KrpcFilterContext context) {
+    public CompletionStage<ResponseFilterResult> onProduceResponse(short apiVersion, ResponseHeaderData header, ProduceResponseData response,
+                                                                   KrpcFilterContext context) {
         response.responses().forEach(topic -> removeTenantPrefix(context, topic::name, topic::setName, false));
-        context.forwardResponse(header, response);
-
+        return context.forwardResponse(header, response);
     }
 
     @Override
-    public void onListOffsetsRequest(short apiVersion, RequestHeaderData header, ListOffsetsRequestData request, KrpcFilterContext context) {
+    public CompletionStage<RequestFilterResult> onListOffsetsRequest(short apiVersion, RequestHeaderData header, ListOffsetsRequestData request,
+                                                                     KrpcFilterContext context) {
         request.topics().forEach(topic -> applyTenantPrefix(context, topic::name, topic::setName, false));
-        context.forwardRequest(header, request);
+        return context.forwardRequest(header, request);
     }
 
     @Override
-    public void onListOffsetsResponse(short apiVersion, ResponseHeaderData header, ListOffsetsResponseData response, KrpcFilterContext context) {
+    public CompletionStage<ResponseFilterResult> onListOffsetsResponse(short apiVersion, ResponseHeaderData header, ListOffsetsResponseData response,
+                                                                       KrpcFilterContext context) {
         response.topics().forEach(topic -> removeTenantPrefix(context, topic::name, topic::setName, false));
-        context.forwardResponse(header, response);
+        return context.forwardResponse(header, response);
     }
 
     @Override
-    public void onOffsetFetchRequest(short apiVersion, RequestHeaderData header, OffsetFetchRequestData request, KrpcFilterContext context) {
+    public CompletionStage<RequestFilterResult> onOffsetFetchRequest(short apiVersion, RequestHeaderData header, OffsetFetchRequestData request,
+                                                                     KrpcFilterContext context) {
         // the groupId and top-level topic fields were present up to and including version 7
         Optional.ofNullable(request.groupId()).ifPresent(groupId -> applyTenantPrefix(context, request::groupId, request::setGroupId, true));
         Optional.ofNullable(request.topics()).ifPresent(topics -> topics.forEach(topic -> applyTenantPrefix(context, topic::name, topic::setName, false)));
@@ -213,140 +222,158 @@ public class MultiTenantTransformationFilter
                     .ifPresent(topics -> topics.forEach(topic -> applyTenantPrefix(context, topic::name, topic::setName, false)));
         });
 
-        context.forwardRequest(header, request);
+        return context.forwardRequest(header, request);
     }
 
     @Override
-    public void onOffsetFetchResponse(short apiVersion, ResponseHeaderData header, OffsetFetchResponseData response, KrpcFilterContext context) {
+    public CompletionStage<ResponseFilterResult> onOffsetFetchResponse(short apiVersion, ResponseHeaderData header, OffsetFetchResponseData response,
+                                                                       KrpcFilterContext context) {
         response.topics().forEach(topic -> removeTenantPrefix(context, topic::name, topic::setName, false));
         response.groups().forEach(responseGroup -> {
             removeTenantPrefix(context, responseGroup::groupId, responseGroup::setGroupId, false);
             responseGroup.topics().forEach(topic -> removeTenantPrefix(context, topic::name, topic::setName, false));
         });
-        context.forwardResponse(header, response);
+        return context.forwardResponse(header, response);
     }
 
     @Override
-    public void onOffsetForLeaderEpochRequest(short apiVersion, RequestHeaderData header, OffsetForLeaderEpochRequestData request, KrpcFilterContext context) {
+    public CompletionStage<RequestFilterResult> onOffsetForLeaderEpochRequest(short apiVersion, RequestHeaderData header, OffsetForLeaderEpochRequestData request,
+                                                                              KrpcFilterContext context) {
         request.topics().forEach(topic -> applyTenantPrefix(context, topic::topic, topic::setTopic, false));
-        context.forwardRequest(header, request);
+        return context.forwardRequest(header, request);
     }
 
     @Override
-    public void onOffsetForLeaderEpochResponse(short apiVersion, ResponseHeaderData header, OffsetForLeaderEpochResponseData response, KrpcFilterContext context) {
+    public CompletionStage<ResponseFilterResult> onOffsetForLeaderEpochResponse(short apiVersion, ResponseHeaderData header, OffsetForLeaderEpochResponseData response,
+                                                                                KrpcFilterContext context) {
         response.topics().forEach(topic -> removeTenantPrefix(context, topic::topic, topic::setTopic, false));
-        context.forwardResponse(header, response);
+        return context.forwardResponse(header, response);
     }
 
     @Override
-    public void onOffsetCommitRequest(short apiVersion, RequestHeaderData header, OffsetCommitRequestData request, KrpcFilterContext context) {
+    public CompletionStage<RequestFilterResult> onOffsetCommitRequest(short apiVersion, RequestHeaderData header, OffsetCommitRequestData request,
+                                                                      KrpcFilterContext context) {
         applyTenantPrefix(context, request::groupId, request::setGroupId, false);
         request.topics().forEach(topic -> applyTenantPrefix(context, topic::name, topic::setName, false));
-        context.forwardRequest(header, request);
+        return context.forwardRequest(header, request);
     }
 
     @Override
-    public void onOffsetCommitResponse(short apiVersion, ResponseHeaderData header, OffsetCommitResponseData response, KrpcFilterContext context) {
+    public CompletionStage<ResponseFilterResult> onOffsetCommitResponse(short apiVersion, ResponseHeaderData header, OffsetCommitResponseData response,
+                                                                        KrpcFilterContext context) {
         response.topics().forEach(topic -> removeTenantPrefix(context, topic::name, topic::setName, false));
-        context.forwardResponse(header, response);
+        return context.forwardResponse(header, response);
     }
 
     @Override
-    public void onOffsetDeleteRequest(short apiVersion, RequestHeaderData header, OffsetDeleteRequestData request, KrpcFilterContext context) {
+    public CompletionStage<RequestFilterResult> onOffsetDeleteRequest(short apiVersion, RequestHeaderData header, OffsetDeleteRequestData request,
+                                                                      KrpcFilterContext context) {
         applyTenantPrefix(context, request::groupId, request::setGroupId, false);
         request.topics().forEach(topic -> applyTenantPrefix(context, topic::name, topic::setName, false));
-        context.forwardRequest(header, request);
+        return context.forwardRequest(header, request);
     }
 
     @Override
-    public void onOffsetDeleteResponse(short apiVersion, ResponseHeaderData header, OffsetDeleteResponseData response, KrpcFilterContext context) {
+    public CompletionStage<ResponseFilterResult> onOffsetDeleteResponse(short apiVersion, ResponseHeaderData header, OffsetDeleteResponseData response,
+                                                                        KrpcFilterContext context) {
         response.topics().forEach(topic -> removeTenantPrefix(context, topic::name, topic::setName, false));
-        context.forwardResponse(header, response);
+        return context.forwardResponse(header, response);
     }
 
     @Override
-    public void onFetchRequest(short apiVersion, RequestHeaderData header, FetchRequestData request, KrpcFilterContext context) {
+    public CompletionStage<RequestFilterResult> onFetchRequest(short apiVersion, RequestHeaderData header, FetchRequestData request, KrpcFilterContext context) {
         request.topics().forEach(topic -> applyTenantPrefix(context, topic::topic, topic::setTopic, topic.topicId() != null));
-        context.forwardRequest(header, request);
+        return context.forwardRequest(header, request);
     }
 
     @Override
-    public void onFetchResponse(short apiVersion, ResponseHeaderData header, FetchResponseData response, KrpcFilterContext context) {
+    public CompletionStage<ResponseFilterResult> onFetchResponse(short apiVersion, ResponseHeaderData header, FetchResponseData response, KrpcFilterContext context) {
         response.responses().forEach(topic -> removeTenantPrefix(context, topic::topic, topic::setTopic, topic.topicId() != null));
-        context.forwardResponse(header, response);
+        return context.forwardResponse(header, response);
     }
 
     @Override
-    public void onFindCoordinatorRequest(short apiVersion, RequestHeaderData header, FindCoordinatorRequestData request, KrpcFilterContext context) {
+    public CompletionStage<RequestFilterResult> onFindCoordinatorRequest(short apiVersion, RequestHeaderData header, FindCoordinatorRequestData request,
+                                                                         KrpcFilterContext context) {
         // the key fields was present up to and including version 4
         Optional.ofNullable(request.key()).ifPresent(unused -> applyTenantPrefix(context, request::key, request::setKey, true));
         request.setCoordinatorKeys(request.coordinatorKeys().stream().map(key -> applyTenantPrefix(context, key)).toList());
-        context.forwardRequest(header, request);
+        return context.forwardRequest(header, request);
     }
 
     @Override
-    public void onFindCoordinatorResponse(short apiVersion, ResponseHeaderData header, FindCoordinatorResponseData response, KrpcFilterContext context) {
+    public CompletionStage<ResponseFilterResult> onFindCoordinatorResponse(short apiVersion, ResponseHeaderData header, FindCoordinatorResponseData response,
+                                                                           KrpcFilterContext context) {
         response.coordinators().forEach(coordinator -> removeTenantPrefix(context, coordinator::key, coordinator::setKey, false));
-        context.forwardResponse(header, response);
+        return context.forwardResponse(header, response);
     }
 
     @Override
-    public void onListGroupsResponse(short apiVersion, ResponseHeaderData header, ListGroupsResponseData response, KrpcFilterContext context) {
+    public CompletionStage<ResponseFilterResult> onListGroupsResponse(short apiVersion, ResponseHeaderData header, ListGroupsResponseData response,
+                                                                      KrpcFilterContext context) {
         var tenantPrefix = getTenantPrefix(context);
         var filteredGroups = response.groups().stream().filter(listedGroup -> listedGroup.groupId().startsWith(tenantPrefix)).toList();
         filteredGroups.forEach(listedGroup -> removeTenantPrefix(context, listedGroup::groupId, listedGroup::setGroupId, false));
         response.setGroups(filteredGroups);
-        context.forwardResponse(header, response);
+        return context.forwardResponse(header, response);
     }
 
     @Override
-    public void onJoinGroupRequest(short apiVersion, RequestHeaderData header, JoinGroupRequestData request, KrpcFilterContext context) {
+    public CompletionStage<RequestFilterResult> onJoinGroupRequest(short apiVersion, RequestHeaderData header, JoinGroupRequestData request,
+                                                                   KrpcFilterContext context) {
         var tenantPrefix = getTenantPrefix(context);
         request.setGroupId(tenantPrefix + request.groupId());
-        context.forwardRequest(header, request);
+        return context.forwardRequest(header, request);
     }
 
     @Override
-    public void onSyncGroupRequest(short apiVersion, RequestHeaderData header, SyncGroupRequestData request, KrpcFilterContext context) {
+    public CompletionStage<RequestFilterResult> onSyncGroupRequest(short apiVersion, RequestHeaderData header, SyncGroupRequestData request,
+                                                                   KrpcFilterContext context) {
         var tenantPrefix = getTenantPrefix(context);
         request.setGroupId(tenantPrefix + request.groupId());
-        context.forwardRequest(header, request);
+        return context.forwardRequest(header, request);
     }
 
     @Override
-    public void onLeaveGroupRequest(short apiVersion, RequestHeaderData header, LeaveGroupRequestData request, KrpcFilterContext context) {
+    public CompletionStage<RequestFilterResult> onLeaveGroupRequest(short apiVersion, RequestHeaderData header, LeaveGroupRequestData request,
+                                                                    KrpcFilterContext context) {
         var tenantPrefix = getTenantPrefix(context);
         request.setGroupId(tenantPrefix + request.groupId());
-        context.forwardRequest(header, request);
+        return context.forwardRequest(header, request);
     }
 
     @Override
-    public void onHeartbeatRequest(short apiVersion, RequestHeaderData header, HeartbeatRequestData request, KrpcFilterContext context) {
+    public CompletionStage<RequestFilterResult> onHeartbeatRequest(short apiVersion, RequestHeaderData header, HeartbeatRequestData request,
+                                                                   KrpcFilterContext context) {
         var tenantPrefix = getTenantPrefix(context);
         request.setGroupId(tenantPrefix + request.groupId());
-        context.forwardRequest(header, request);
+        return context.forwardRequest(header, request);
     }
 
     @Override
-    public void onDescribeGroupsRequest(short apiVersion, RequestHeaderData header, DescribeGroupsRequestData request, KrpcFilterContext context) {
+    public CompletionStage<RequestFilterResult> onDescribeGroupsRequest(short apiVersion, RequestHeaderData header, DescribeGroupsRequestData request,
+                                                                        KrpcFilterContext context) {
         request.setGroups(request.groups().stream().map(group -> applyTenantPrefix(context, group)).toList());
-        context.forwardRequest(header, request);
+        return context.forwardRequest(header, request);
     }
 
     @Override
-    public void onDescribeGroupsResponse(short apiVersion, ResponseHeaderData header, DescribeGroupsResponseData response, KrpcFilterContext context) {
+    public CompletionStage<ResponseFilterResult> onDescribeGroupsResponse(short apiVersion, ResponseHeaderData header, DescribeGroupsResponseData response,
+                                                                          KrpcFilterContext context) {
         response.groups().forEach(group -> removeTenantPrefix(context, group::groupId, group::setGroupId, false));
-        context.forwardResponse(header, response);
+        return context.forwardResponse(header, response);
     }
 
     @Override
-    public void onInitProducerIdRequest(short apiVersion, RequestHeaderData header, InitProducerIdRequestData request, KrpcFilterContext context) {
+    public CompletionStage<RequestFilterResult> onInitProducerIdRequest(short apiVersion, RequestHeaderData header, InitProducerIdRequestData request,
+                                                                        KrpcFilterContext context) {
         applyTenantPrefix(context, request::transactionalId, request::setTransactionalId, true);
-        context.forwardRequest(header, request);
+        return context.forwardRequest(header, request);
     }
 
     @Override
-    public void onAddPartitionsToTxnRequest(short apiVersion, RequestHeaderData header, AddPartitionsToTxnRequestData request, KrpcFilterContext context) {
+    public CompletionStage<RequestFilterResult> onAddPartitionsToTxnRequest(short apiVersion, RequestHeaderData header, AddPartitionsToTxnRequestData request,
+                                                                            KrpcFilterContext context) {
         request.v3AndBelowTopics().forEach(topic -> applyTenantPrefix(context, topic::name, topic::setName, false));
         applyTenantPrefix(context, request::v3AndBelowTransactionalId, request::setV3AndBelowTransactionalId, true);
 
@@ -356,11 +383,12 @@ public class MultiTenantTransformationFilter
                 applyTenantPrefix(context, addPartitionsToTxnTopic::name, addPartitionsToTxnTopic::setName, true);
             });
         });
-        context.forwardRequest(header, request);
+        return context.forwardRequest(header, request);
     }
 
     @Override
-    public void onAddPartitionsToTxnResponse(short apiVersion, ResponseHeaderData header, AddPartitionsToTxnResponseData response, KrpcFilterContext context) {
+    public CompletionStage<ResponseFilterResult> onAddPartitionsToTxnResponse(short apiVersion, ResponseHeaderData header, AddPartitionsToTxnResponseData response,
+                                                                              KrpcFilterContext context) {
         response.resultsByTopicV3AndBelow().forEach(results -> removeTenantPrefix(context, results::name, results::setName, false));
 
         response.resultsByTransaction().forEach(addPartitionsToTxnResult -> {
@@ -369,61 +397,67 @@ public class MultiTenantTransformationFilter
                 removeTenantPrefix(context, topicResult::name, topicResult::setName, true);
             }
         });
-        context.forwardResponse(header, response);
+        return context.forwardResponse(header, response);
     }
 
     @Override
-    public void onAddOffsetsToTxnRequest(short apiVersion, RequestHeaderData header, AddOffsetsToTxnRequestData request, KrpcFilterContext context) {
+    public CompletionStage<RequestFilterResult> onAddOffsetsToTxnRequest(short apiVersion, RequestHeaderData header, AddOffsetsToTxnRequestData request,
+                                                                         KrpcFilterContext context) {
         var tenantPrefix = getTenantPrefix(context);
         request.setTransactionalId(tenantPrefix + request.transactionalId());
         request.setGroupId(tenantPrefix + request.groupId());
-        context.forwardRequest(header, request);
+        return context.forwardRequest(header, request);
     }
 
     @Override
-    public void onTxnOffsetCommitRequest(short apiVersion, RequestHeaderData header, TxnOffsetCommitRequestData request, KrpcFilterContext context) {
+    public CompletionStage<RequestFilterResult> onTxnOffsetCommitRequest(short apiVersion, RequestHeaderData header, TxnOffsetCommitRequestData request,
+                                                                         KrpcFilterContext context) {
         var tenantPrefix = getTenantPrefix(context);
         request.setTransactionalId(tenantPrefix + request.transactionalId());
         request.setGroupId(tenantPrefix + request.groupId());
         request.topics().forEach(topic -> applyTenantPrefix(context, topic::name, topic::setName, false));
-        context.forwardRequest(header, request);
+        return context.forwardRequest(header, request);
     }
 
     @Override
-    public void onTxnOffsetCommitResponse(short apiVersion, ResponseHeaderData header, TxnOffsetCommitResponseData response, KrpcFilterContext context) {
+    public CompletionStage<ResponseFilterResult> onTxnOffsetCommitResponse(short apiVersion, ResponseHeaderData header, TxnOffsetCommitResponseData response,
+                                                                           KrpcFilterContext context) {
         response.topics().forEach(results -> removeTenantPrefix(context, results::name, results::setName, false));
-        context.forwardResponse(header, response);
+        return context.forwardResponse(header, response);
     }
 
     @Override
-    public void onListTransactionsResponse(short apiVersion, ResponseHeaderData header, ListTransactionsResponseData response, KrpcFilterContext context) {
+    public CompletionStage<ResponseFilterResult> onListTransactionsResponse(short apiVersion, ResponseHeaderData header, ListTransactionsResponseData response,
+                                                                            KrpcFilterContext context) {
         var tenantPrefix = getTenantPrefix(context);
         var filteredTransactions = response.transactionStates().stream().filter(listedTxn -> listedTxn.transactionalId().startsWith(tenantPrefix)).toList();
         filteredTransactions.forEach(listedTxn -> removeTenantPrefix(context, listedTxn::transactionalId, listedTxn::setTransactionalId, false));
         response.setTransactionStates(filteredTransactions);
-        context.forwardResponse(header, response);
+        return context.forwardResponse(header, response);
     }
 
     @Override
-    public void onDescribeTransactionsRequest(short apiVersion, RequestHeaderData header, DescribeTransactionsRequestData request, KrpcFilterContext context) {
+    public CompletionStage<RequestFilterResult> onDescribeTransactionsRequest(short apiVersion, RequestHeaderData header, DescribeTransactionsRequestData request,
+                                                                              KrpcFilterContext context) {
         request.setTransactionalIds(request.transactionalIds().stream().map(group -> applyTenantPrefix(context, group)).toList());
-        context.forwardRequest(header, request);
+        return context.forwardRequest(header, request);
     }
 
     @Override
-    public void onDescribeTransactionsResponse(short apiVersion, ResponseHeaderData header, DescribeTransactionsResponseData response, KrpcFilterContext context) {
+    public CompletionStage<ResponseFilterResult> onDescribeTransactionsResponse(short apiVersion, ResponseHeaderData header, DescribeTransactionsResponseData response,
+                                                                                KrpcFilterContext context) {
         response.transactionStates().forEach(ts -> {
             removeTenantPrefix(context, ts::transactionalId, ts::setTransactionalId, false);
             ts.topics().forEach(t -> removeTenantPrefix(context, t::topic, t::setTopic, false));
         });
-        context.forwardResponse(header, response);
+        return context.forwardResponse(header, response);
     }
 
     @Override
-    public void onEndTxnRequest(short apiVersion, RequestHeaderData header, EndTxnRequestData request, KrpcFilterContext context) {
+    public CompletionStage<RequestFilterResult> onEndTxnRequest(short apiVersion, RequestHeaderData header, EndTxnRequestData request, KrpcFilterContext context) {
         var tenantPrefix = getTenantPrefix(context);
         request.setTransactionalId(tenantPrefix + request.transactionalId());
-        context.forwardRequest(header, request);
+        return context.forwardRequest(header, request);
     }
 
     private void applyTenantPrefix(KrpcFilterContext context, Supplier<String> getter, Consumer<String> setter, boolean ignoreEmpty) {

@@ -7,6 +7,7 @@
 package io.kroxylicious.proxy.filter;
 
 import java.util.List;
+import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
@@ -27,9 +28,9 @@ public class CompositePrefixingFixedClientIdFilter implements CompositeFilter {
 
     private class PrefixingFilter implements RequestFilter {
         @Override
-        public void onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
+        public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
             header.setClientId(config.prefix + header.clientId());
-            filterContext.forwardRequest(header, body);
+            return filterContext.forwardRequest(header, body);
         }
     }
 

@@ -6,6 +6,8 @@
 
 package io.kroxylicious.proxy.filter;
 
+import java.util.concurrent.CompletionStage;
+
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
@@ -35,23 +37,13 @@ public class FixedClientIdFilter implements RequestFilter, ResponseFilter {
     }
 
     @Override
-    public boolean shouldHandleRequest(ApiKeys apiKey, short apiVersion) {
-        return true;
-    }
-
-    @Override
-    public boolean shouldHandleResponse(ApiKeys apiKey, short apiVersion) {
-        return true;
-    }
-
-    @Override
-    public void onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
+    public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
         header.setClientId(clientId);
-        filterContext.forwardRequest(header, body);
+        return filterContext.forwardRequest(header, body);
     }
 
     @Override
-    public void onResponse(ApiKeys apiKey, ResponseHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
-        filterContext.forwardResponse(header, body);
+    public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, ResponseHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
+        return filterContext.forwardResponse(header, body);
     }
 }

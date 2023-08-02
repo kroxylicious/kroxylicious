@@ -38,6 +38,10 @@ import io.kroxylicious.proxy.filter.FilterInvoker;
 import io.kroxylicious.proxy.filter.FilterInvokers;
 import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
+import io.kroxylicious.proxy.filter.RequestFilterResult;
+import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
+import io.kroxylicious.proxy.filter.ResponseFilterResult;
+import io.kroxylicious.proxy.filter.ResponseFilterResultBuilder;
 import io.kroxylicious.proxy.filter.SpecificFilterInvoker;
 
 // try hard to make shouldHandleXYZ to observe different receivers concrete types, saving unrolling to bias a specific call-site to a specific concrete type
@@ -170,28 +174,29 @@ public class InvokerDispatchBenchmark {
         }
 
         @Override
-        public void forwardRequest(RequestHeaderData header, ApiMessage request) {
-
-        }
-
-        @Override
         public <T extends ApiMessage> CompletionStage<T> sendRequest(short apiVersion, ApiMessage request) {
             return null;
         }
 
         @Override
-        public void forwardResponse(ResponseHeaderData header, ApiMessage response) {
-
+        public CompletionStage<ResponseFilterResult> forwardResponse(ResponseHeaderData header, ApiMessage response) {
+            return null;
         }
 
         @Override
-        public void forwardResponse(ApiMessage response) {
-
+        public RequestFilterResultBuilder requestFilterResultBuilder() {
+            return null;
         }
 
         @Override
-        public void closeConnection() {
-
+        public CompletionStage<RequestFilterResult> forwardRequest(RequestHeaderData header, ApiMessage request) {
+            return null;
         }
+
+        @Override
+        public ResponseFilterResultBuilder responseFilterResultBuilder() {
+            return null;
+        }
+
     }
 }

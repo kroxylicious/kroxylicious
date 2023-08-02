@@ -6,6 +6,8 @@
 
 package io.kroxylicious.proxy.filter;
 
+import java.util.concurrent.CompletionStage;
+
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
@@ -39,9 +41,11 @@ public interface ResponseFilter extends KrpcFilter {
      * @param header header of the response
      * @param body body of the response
      * @param filterContext context containing methods to continue the filter chain and other contextual data
+     * @return CompletionStage that, when complete, will yield a ResponseFilterResult containing the
+     *         response to be forwarded.
      */
-    void onResponse(ApiKeys apiKey,
-                    ResponseHeaderData header,
-                    ApiMessage body,
-                    KrpcFilterContext filterContext);
+    CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey,
+                                                     ResponseHeaderData header,
+                                                     ApiMessage body,
+                                                     KrpcFilterContext filterContext);
 }

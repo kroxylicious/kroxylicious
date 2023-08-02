@@ -25,10 +25,16 @@ import io.netty.channel.ChannelPromise;
 
 import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
+import io.kroxylicious.proxy.filter.RequestFilterResult;
+import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
+import io.kroxylicious.proxy.filter.ResponseFilterResult;
+import io.kroxylicious.proxy.filter.ResponseFilterResultBuilder;
 import io.kroxylicious.proxy.frame.DecodedFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.future.InternalCompletionStage;
+import io.kroxylicious.proxy.internal.filter.RequestFilterResultBuilderImpl;
+import io.kroxylicious.proxy.internal.filter.ResponseFilterResultBuilderImpl;
 import io.kroxylicious.proxy.internal.util.ByteBufOutputStream;
 
 /**
@@ -93,8 +99,7 @@ class DefaultFilterContext implements KrpcFilterContext {
      * @param header The header
      * @param message The message
      */
-    @Override
-    public void forwardRequest(RequestHeaderData header, ApiMessage message) {
+    protected void forwardRequestInternal(RequestHeaderData header, ApiMessage message) {
         if (decodedFrame.body() != message) {
             throw new IllegalStateException();
         }
@@ -167,6 +172,11 @@ class DefaultFilterContext implements KrpcFilterContext {
         return filterStage;
     }
 
+    @Override
+    public CompletionStage<ResponseFilterResult> forwardResponse(ResponseHeaderData header, ApiMessage response) {
+        return responseFilterResultBuilder().forward(header, response).completed();
+    }
+
     /**
      * Forward a request to the next filter in the chain
      * (or to the downstream client).
@@ -174,8 +184,7 @@ class DefaultFilterContext implements KrpcFilterContext {
      * @param header The header
      * @param response The message
      */
-    @Override
-    public void forwardResponse(ResponseHeaderData header, ApiMessage response) {
+    protected void forwardResponseInternal(ResponseHeaderData header, ApiMessage response) {
         // check it's a response
         String name = response.getClass().getName();
         if (!name.endsWith("ResponseData")) {
@@ -200,17 +209,21 @@ class DefaultFilterContext implements KrpcFilterContext {
     }
 
     @Override
-    public void forwardResponse(ApiMessage response) {
-        if (decodedFrame instanceof RequestFrame) {
-            this.forwardResponse(new ResponseHeaderData().setCorrelationId(decodedFrame.correlationId()), response);
-        }
-        else {
-            this.forwardResponse((ResponseHeaderData) decodedFrame.header(), response);
-        }
+    public ResponseFilterResultBuilder responseFilterResultBuilder() {
+        return new ResponseFilterResultBuilderImpl();
     }
 
     @Override
-    public void closeConnection() {
+    public CompletionStage<RequestFilterResult> forwardRequest(RequestHeaderData header, ApiMessage request) {
+        return requestFilterResultBuilder().forward(header, request).completed();
+    }
+
+    @Override
+    public RequestFilterResultBuilder requestFilterResultBuilder() {
+        return new RequestFilterResultBuilderImpl();
+    }
+
+    protected void closeConnection() {
         this.channelContext.close().addListener(future -> {
             LOGGER.debug("{} closed.", channelDescriptor());
         });

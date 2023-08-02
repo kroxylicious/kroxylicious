@@ -10,6 +10,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import org.apache.kafka.common.message.ApiMessageType;
 import org.apache.kafka.common.message.ProduceRequestData;
@@ -24,19 +25,21 @@ import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.stubbing.Answer;
 
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
+import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.sample.config.SampleFilterConfig;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+@ExtendWith(MockitoExtension.class)
 class SampleProduceRequestFilterTest {
 
     private static final short API_VERSION = ApiMessageType.PRODUCE.highestSupportedVersion(true); // this is arbitrary for our filter
@@ -46,10 +49,18 @@ class SampleProduceRequestFilterTest {
     private static final String CONFIG_FIND_VALUE = "from";
     private static final String CONFIG_REPLACE_VALUE = "to";
 
+    @Mock
     private KrpcFilterContext context;
 
+    @Mock(strictness = Mock.Strictness.LENIENT)
+    private RequestFilterResult requestFilterResult;
     @Captor
-    private ArgumentCaptor<ApiMessage> apiMessageCaptor = ArgumentCaptor.forClass(ApiMessage.class);
+    private ArgumentCaptor<Integer> bufferInitialCapacity;
+
+    @Captor
+    private ArgumentCaptor<ApiMessage> apiMessageCaptor;
+    @Captor
+    private ArgumentCaptor<RequestHeaderData> requestHeaderDataCaptor;
 
     private SampleProduceRequestFilter filter;
     private RequestHeaderData headerData;
@@ -66,11 +77,13 @@ class SampleProduceRequestFilterTest {
      * Unit Test: Checks that transformation is applied when request data contains configured value.
      */
     @Test
-    public void willTransformProduceRequestTest() {
+    public void willTransformProduceRequestTest() throws Exception {
         var requestData = buildProduceRequestData(PRE_TRANSFORM_VALUE);
-        filter.onProduceRequest(API_VERSION, headerData, requestData, context);
-        verify(context).forwardRequest(any(), apiMessageCaptor.capture());
-        var unpackedRequest = unpackProduceRequestData((ProduceRequestData) apiMessageCaptor.getValue());
+
+        var stage = filter.onProduceRequest(API_VERSION, headerData, requestData, context);
+        assertThat(stage).isCompleted();
+        var forwardedRequest = stage.toCompletableFuture().get().message();
+        var unpackedRequest = unpackProduceRequestData((ProduceRequestData) forwardedRequest);
         // We should see that the unpacked request value has changed from the input value, and
         // We should see that the unpacked request value has been transformed to the correct value
         assertThat(unpackedRequest)
@@ -83,21 +96,23 @@ class SampleProduceRequestFilterTest {
      * value.
      */
     @Test
-    public void wontTransformProduceRequestTest() {
+    public void wontTransformProduceRequestTest() throws Exception {
         var requestData = buildProduceRequestData(NO_TRANSFORM_VALUE);
-        filter.onProduceRequest(API_VERSION, headerData, requestData, context);
-        verify(context).forwardRequest(any(), apiMessageCaptor.capture());
-        var unpackedRequest = unpackProduceRequestData((ProduceRequestData) apiMessageCaptor.getValue());
+        var stage = filter.onProduceRequest(API_VERSION, headerData, requestData, context);
+        assertThat(stage).isCompleted();
+        var forwardedRequest = stage.toCompletableFuture().get().message();
+        var unpackedRequest = unpackProduceRequestData((ProduceRequestData) forwardedRequest);
         // We should see that the unpacked request value has not changed from the input value
         assertThat(unpackedRequest)
                 .containsExactly(NO_TRANSFORM_VALUE);
     }
 
     private void setupContextMock() {
-        context = mock(KrpcFilterContext.class);
-        // create stub for createByteBufferOutputStream method
-        ArgumentCaptor<Integer> argument = ArgumentCaptor.forClass(Integer.class);
-        when(context.createByteBufferOutputStream(argument.capture())).thenAnswer(
+        when(context.forwardRequest(requestHeaderDataCaptor.capture(), apiMessageCaptor.capture())).thenAnswer(invocation -> CompletableFuture.completedStage(requestFilterResult));
+        when(requestFilterResult.message()).thenAnswer(invocation -> apiMessageCaptor.getValue());
+        when(requestFilterResult.header()).thenAnswer(invocation -> requestHeaderDataCaptor.getValue());
+
+        when(context.createByteBufferOutputStream(bufferInitialCapacity.capture())).thenAnswer(
                 (Answer<ByteBufferOutputStream>) invocation -> {
                     Object[] args = invocation.getArguments();
                     Integer size = (Integer) args[0];

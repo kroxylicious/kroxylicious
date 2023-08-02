@@ -8,6 +8,8 @@
 <#assign
   dataClass="${messageSpec.name}Data"
   filterClass="${messageSpec.name}Filter"
+  filterResultClass="${messageSpec.type?lower_case?cap_first}FilterResult"
+  headerClass="${messageSpec.type?lower_case?cap_first}HeaderData"
   filterInvokerClass="${messageSpec.name}FilterInvoker"
   msgType=messageSpec.type?lower_case
 />
@@ -28,6 +30,8 @@
  * limitations under the License.
  */
 package io.kroxylicious.proxy.filter;
+
+import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.message.${messageSpec.name}Data;
 
@@ -58,7 +62,7 @@ class ${filterInvokerClass} implements FilterInvoker {
     }
 
     @Override
-    public void on<#if messageSpec.type?lower_case == 'response'>Response<#else>Request</#if>(ApiKeys apiKey, short apiVersion, <#if messageSpec.type?lower_case == 'response'>Response<#else>Request</#if>HeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
-        filter.on${messageSpec.name}(apiVersion, header, (${messageSpec.name}Data) body, filterContext);
+    public CompletionStage<${filterResultClass}> on<#if messageSpec.type?lower_case == 'response'>Response<#else>Request</#if>(ApiKeys apiKey, short apiVersion, ${headerClass} header, ApiMessage body, KrpcFilterContext filterContext) {
+        return filter.on${messageSpec.name}(apiVersion, header, (${dataClass}) body, filterContext);
     }
 }

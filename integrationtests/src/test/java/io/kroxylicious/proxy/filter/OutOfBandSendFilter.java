@@ -7,6 +7,7 @@
 package io.kroxylicious.proxy.filter;
 
 import java.util.Objects;
+import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
 
 import org.apache.kafka.common.message.CreateTopicsRequestData;
@@ -55,21 +56,23 @@ public class OutOfBandSendFilter implements DescribeClusterRequestFilter, Descri
     }
 
     @Override
-    public void onDescribeClusterRequest(short apiVersion, RequestHeaderData header, DescribeClusterRequestData request, KrpcFilterContext context) {
+    public CompletionStage<RequestFilterResult> onDescribeClusterRequest(short apiVersion, RequestHeaderData header, DescribeClusterRequestData request,
+                                                                         KrpcFilterContext context) {
         ApiKeys apiKeyToSend = config.apiKeyToSend;
         ApiMessage message = createApiMessage(apiKeyToSend);
         context.sendRequest(apiKeyToSend.latestVersion(), message).thenAccept(apiMessage -> {
             // expected to execute before onDescribeClusterResponse becase sendRequest called before forwardRequest
             values = unknownTaggedFieldsToStrings(apiMessage, config.tagIdToCollect).collect(Collectors.joining(","));
         });
-        context.forwardRequest(header, request);
+        return context.forwardRequest(header, request);
     }
 
     @Override
-    public void onDescribeClusterResponse(short apiVersion, ResponseHeaderData header, DescribeClusterResponseData response, KrpcFilterContext context) {
+    public CompletionStage<ResponseFilterResult> onDescribeClusterResponse(short apiVersion, ResponseHeaderData header, DescribeClusterResponseData response,
+                                                                           KrpcFilterContext context) {
         response.setErrorCode(Errors.UNKNOWN_SERVER_ERROR.code())
                 .setErrorMessage("filterNameTaggedFieldsFromOutOfBandResponse: " + values);
-        context.forwardResponse(response);
+        return context.forwardResponse(header, response);
     }
 
     private static ApiMessage createApiMessage(ApiKeys apiKeyToSend) {

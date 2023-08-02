@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.filter.multitenant;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
@@ -16,11 +17,14 @@ import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.flipkart.zjsonpatch.JsonDiff;
 import com.google.common.reflect.ClassPath;
@@ -29,6 +33,8 @@ import com.google.common.reflect.ClassPath.ResourceInfo;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.FilterInvoker;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
+import io.kroxylicious.proxy.filter.RequestFilterResult;
+import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.test.requestresponsetestdef.ApiMessageTestDef;
 import io.kroxylicious.test.requestresponsetestdef.RequestResponseTestDef;
 
@@ -36,15 +42,16 @@ import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.kroxylicious.test.requestresponsetestdef.KafkaApiMessageConverter.requestConverterFor;
 import static io.kroxylicious.test.requestresponsetestdef.KafkaApiMessageConverter.responseConverterFor;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mock.Strictness.LENIENT;
 import static org.mockito.Mockito.when;
 
+@ExtendWith(MockitoExtension.class)
 class MultiTenantTransformationFilterTest {
     private static final Pattern TEST_RESOURCE_FILTER = Pattern.compile(
             String.format("%s/.*\\.yaml", MultiTenantTransformationFilterTest.class.getPackageName().replace(".", "/")));
+    private static final String TENANT_1 = "tenant1.kafka.example.com";
 
     private static List<ResourceInfo> getTestResources() throws IOException {
         var resources = ClassPath.from(MultiTenantTransformationFilterTest.class.getClassLoader()).getResources().stream()
@@ -62,14 +69,21 @@ class MultiTenantTransformationFilterTest {
 
     private final FilterInvoker invoker = getOnlyElement(FilterAndInvoker.build(filter)).invoker();
 
-    private final KrpcFilterContext context = mock(KrpcFilterContext.class);
+    @Mock(strictness = LENIENT)
+    private KrpcFilterContext context;
 
-    private final ArgumentCaptor<ApiMessage> apiMessageCaptor = ArgumentCaptor.forClass(ApiMessage.class);
+    @Captor
+    private ArgumentCaptor<RequestHeaderData> requestHeaderDataCaptor;
 
-    @BeforeEach
-    public void beforeEach() {
-        when(context.sniHostname()).thenReturn("tenant1.kafka.example.com");
-    }
+    @Mock(strictness = LENIENT)
+    private RequestFilterResult requestFilterResult;
+    @Captor
+    private ArgumentCaptor<ResponseHeaderData> responseHeaderDataArgumentCaptor;
+    @Mock(strictness = LENIENT)
+    private ResponseFilterResult responseFilterResult;
+
+    @Captor
+    private ArgumentCaptor<ApiMessage> apiMessageCaptor;
 
     public static Stream<Arguments> requests() throws Exception {
         return RequestResponseTestDef.requestResponseTestDefinitions(getTestResources()).filter(td -> td.request() != null)
@@ -78,16 +92,24 @@ class MultiTenantTransformationFilterTest {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource(value = "requests")
-    void requestsTransformed(@SuppressWarnings("unused") String testName, ApiMessageType apiMessageType, RequestHeaderData header, ApiMessageTestDef requestTestDef) {
+    void requestsTransformed(@SuppressWarnings("unused") String testName, ApiMessageType apiMessageType, RequestHeaderData header, ApiMessageTestDef requestTestDef)
+            throws Exception {
         var request = requestTestDef.message();
         // marshalled the request object back to json, this is used for the comparison later.
         var requestWriter = requestConverterFor(apiMessageType).writer();
         var marshalled = requestWriter.apply(request, header.requestApiVersion());
 
-        invoker.onRequest(ApiKeys.forId(apiMessageType.apiKey()), header.requestApiVersion(), header, request, context);
-        verify(context).forwardRequest(any(), apiMessageCaptor.capture());
+        when(context.sniHostname()).thenReturn(TENANT_1);
+        when(requestFilterResult.message()).thenAnswer(invocation -> apiMessageCaptor.getValue());
+        when(requestFilterResult.header()).thenAnswer(invocation -> requestHeaderDataCaptor.getValue());
+        when(context.forwardRequest(requestHeaderDataCaptor.capture(), apiMessageCaptor.capture())).thenAnswer(
+                invocation -> CompletableFuture.completedStage(requestFilterResult));
 
-        var filtered = requestWriter.apply(apiMessageCaptor.getValue(), header.requestApiVersion());
+        var stage = invoker.onRequest(ApiKeys.forId(apiMessageType.apiKey()), header.requestApiVersion(), header, request, context);
+        assertThat(stage).isCompleted();
+        var forward = stage.toCompletableFuture().get().message();
+
+        var filtered = requestWriter.apply(forward, header.requestApiVersion());
         assertEquals(requestTestDef.expectedPatch(), JsonDiff.asJson(marshalled, filtered));
     }
 
@@ -98,18 +120,26 @@ class MultiTenantTransformationFilterTest {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource(value = "responses")
-    void responseTransformed(@SuppressWarnings("unused") String testName, ApiMessageType apiMessageType, RequestHeaderData header, ApiMessageTestDef responseTestDef) {
+    void responseTransformed(@SuppressWarnings("unused") String testName, ApiMessageType apiMessageType, RequestHeaderData header, ApiMessageTestDef responseTestDef)
+            throws Exception {
         var response = responseTestDef.message();
         // marshalled the response object back to json, this is used for comparison later.
         var responseWriter = responseConverterFor(apiMessageType).writer();
 
         var marshalled = responseWriter.apply(response, header.requestApiVersion());
 
-        ResponseHeaderData headerData = new ResponseHeaderData();
-        invoker.onResponse(ApiKeys.forId(apiMessageType.apiKey()), header.requestApiVersion(), headerData, response, context);
-        verify(context).forwardResponse(any(), apiMessageCaptor.capture());
+        when(context.sniHostname()).thenReturn(TENANT_1);
+        when(responseFilterResult.message()).thenAnswer(invocation -> apiMessageCaptor.getValue());
+        when(responseFilterResult.header()).thenAnswer(invocation -> responseHeaderDataArgumentCaptor.getValue());
+        when(context.forwardResponse(responseHeaderDataArgumentCaptor.capture(), apiMessageCaptor.capture())).thenAnswer(
+                invocation -> CompletableFuture.completedStage(responseFilterResult));
 
-        var filtered = responseWriter.apply(apiMessageCaptor.getValue(), header.requestApiVersion());
+        ResponseHeaderData headerData = new ResponseHeaderData();
+        var stage = invoker.onResponse(ApiKeys.forId(apiMessageType.apiKey()), header.requestApiVersion(), headerData, response, context);
+        assertThat(stage).isCompleted();
+        var forward = stage.toCompletableFuture().get().message();
+
+        var filtered = responseWriter.apply(forward, header.requestApiVersion());
         assertEquals(responseTestDef.expectedPatch(), JsonDiff.asJson(marshalled, filtered));
     }
 }

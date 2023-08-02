@@ -9,6 +9,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
+import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.ProduceRequestData.PartitionProduceData;
@@ -26,6 +27,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
+import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.internal.util.MemoryRecordsHelper;
 
 /**
@@ -72,9 +74,9 @@ public class ProduceRequestTransformationFilter implements ProduceRequestFilter 
     }
 
     @Override
-    public void onProduceRequest(short apiVersion, RequestHeaderData header, ProduceRequestData data, KrpcFilterContext context) {
+    public CompletionStage<RequestFilterResult> onProduceRequest(short apiVersion, RequestHeaderData header, ProduceRequestData data, KrpcFilterContext context) {
         applyTransformation(context, data);
-        context.forwardRequest(header, data);
+        return context.forwardRequest(header, data);
     }
 
     private void applyTransformation(KrpcFilterContext ctx, ProduceRequestData req) {

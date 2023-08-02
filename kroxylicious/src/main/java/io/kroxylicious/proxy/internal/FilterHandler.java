@@ -8,6 +8,8 @@ package io.kroxylicious.proxy.internal;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
+import org.apache.kafka.common.message.RequestHeaderData;
+import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,8 +32,7 @@ import io.kroxylicious.proxy.internal.util.Assertions;
  * A {@code ChannelInboundHandler} (for handling requests from downstream)
  * that applies a single {@link KrpcFilter}.
  */
-public class FilterHandler
-        extends ChannelDuplexHandler {
+public class FilterHandler extends ChannelDuplexHandler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(FilterHandler.class);
     private final KrpcFilter filter;
@@ -58,7 +59,49 @@ public class FilterHandler
                 LOGGER.debug("{}: Dispatching downstream {} request to filter{}: {}",
                         ctx.channel(), decodedFrame.apiKey(), filterDescriptor(), msg);
             }
-            invoker.onRequest(decodedFrame.apiKey(), decodedFrame.apiVersion(), decodedFrame.header(), decodedFrame.body(), filterContext);
+
+            var stage = invoker.onRequest(decodedFrame.apiKey(), decodedFrame.apiVersion(), decodedFrame.header(),
+                    decodedFrame.body(), filterContext);
+            if (stage == null) {
+                LOGGER.error("{}: Filter{} for {} request unexpectedly returned null. This is a coding error in the filter. Closing connection.",
+                        ctx.channel(), filterDescriptor(), decodedFrame.apiKey());
+                filterContext.closeConnection();
+                return;
+            }
+            stage.whenComplete((requestFilterResult, t) -> {
+                // maybe better to run the whole thing on the netty thread.
+
+                if (t != null) {
+                    LOGGER.warn("{}: Filter{} for {} request ended exceptionally - closing connection",
+                            ctx.channel(), filterDescriptor(), decodedFrame.apiKey(), t);
+                    filterContext.closeConnection();
+                    return;
+                }
+
+                if (requestFilterResult.drop()) {
+                    if (LOGGER.isDebugEnabled()) {
+                        LOGGER.debug("{}: Filter{} drops {} request",
+                                ctx.channel(), filterDescriptor(), decodedFrame.apiKey());
+                    }
+                }
+                else if (requestFilterResult.message() != null) {
+                    if (requestFilterResult.shortCircuitResponse()) {
+                        // this is the short circuit path
+                        var header = requestFilterResult.header() == null ? new ResponseHeaderData() : ((ResponseHeaderData) requestFilterResult.header());
+                        header.setCorrelationId(decodedFrame.correlationId());
+                        filterContext.forwardResponseInternal(header, requestFilterResult.message());
+                    }
+                    else {
+                        var header = requestFilterResult.header() == null ? decodedFrame.header() : requestFilterResult.header();
+                        filterContext.forwardRequestInternal((RequestHeaderData) header, requestFilterResult.message());
+                    }
+                }
+
+                if (requestFilterResult.closeConnection()) {
+                    filterContext.closeConnection();
+                }
+
+            });
 
         }
         else {
@@ -89,7 +132,38 @@ public class FilterHandler
                     LOGGER.debug("{}: Dispatching upstream {} response to filter {}: {}",
                             ctx.channel(), decodedFrame.apiKey(), filterDescriptor(), msg);
                 }
-                invoker.onResponse(decodedFrame.apiKey(), decodedFrame.apiVersion(), decodedFrame.header(), decodedFrame.body(), filterContext);
+                var stage = invoker.onResponse(decodedFrame.apiKey(), decodedFrame.apiVersion(),
+                        decodedFrame.header(), decodedFrame.body(), filterContext);
+                if (stage == null) {
+                    LOGGER.error("{}: Filter{} for {} response unexpectedly returned null. This is a coding error in the filter. Closing connection.",
+                            ctx.channel(), filterDescriptor(), decodedFrame.apiKey());
+                    filterContext.closeConnection();
+                    return;
+                }
+
+                stage.whenComplete((responseFilterResult, t) -> {
+                    if (t != null) {
+                        LOGGER.warn("{}: Filter{} for {} response ended exceptionally - closing connection",
+                                ctx.channel(), filterDescriptor(), decodedFrame.apiKey(), t);
+                        filterContext.closeConnection();
+                        return;
+                    }
+                    if (responseFilterResult.drop()) {
+                        if (LOGGER.isDebugEnabled()) {
+                            LOGGER.debug("{}: Filter{} drops {} response",
+                                    ctx.channel(), filterDescriptor(), decodedFrame.apiKey());
+                        }
+                    }
+                    else if (responseFilterResult.message() != null) {
+                        ResponseHeaderData header = responseFilterResult.header() == null ? decodedFrame.header() : (ResponseHeaderData) responseFilterResult.header();
+                        filterContext.forwardResponseInternal(header, responseFilterResult.message());
+                    }
+                    if (responseFilterResult.closeConnection()) {
+                        filterContext.closeConnection();
+                    }
+
+                });
+
             }
         }
         else {

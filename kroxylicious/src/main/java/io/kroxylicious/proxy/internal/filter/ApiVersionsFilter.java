@@ -7,6 +7,7 @@ package io.kroxylicious.proxy.internal.filter;
 
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.ResponseHeaderData;
@@ -16,6 +17,7 @@ import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.filter.ApiVersionsResponseFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
+import io.kroxylicious.proxy.filter.ResponseFilterResult;
 
 /**
  * Changes an API_VERSIONS response so that a client sees the intersection of supported version ranges for each
@@ -72,8 +74,9 @@ public class ApiVersionsFilter implements ApiVersionsResponseFilter {
     }
 
     @Override
-    public void onApiVersionsResponse(short apiVersion, ResponseHeaderData header, ApiVersionsResponseData data, KrpcFilterContext context) {
+    public CompletionStage<ResponseFilterResult> onApiVersionsResponse(short apiVersion, ResponseHeaderData header, ApiVersionsResponseData data,
+                                                                       KrpcFilterContext context) {
         intersectApiVersions(context.channelDescriptor(), data);
-        context.forwardResponse(header, data);
+        return context.forwardResponse(header, data);
     }
 }

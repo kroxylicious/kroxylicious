@@ -8,6 +8,8 @@
 <#assign
   dataClass="${messageSpec.name}Data"
   filterClass="${messageSpec.name}Filter"
+  filterResultClass="${messageSpec.type?lower_case?cap_first}FilterResult"
+  headerClass="${messageSpec.type?lower_case?cap_first}HeaderData"
   msgType=messageSpec.type?lower_case
 />
 /*
@@ -27,6 +29,8 @@
  * limitations under the License.
  */
 package io.kroxylicious.proxy.filter;
+
+import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.message.${messageSpec.name}Data;
 <#if messageSpec.type?lower_case == 'response'>
@@ -55,7 +59,7 @@ public interface ${filterClass} extends KrpcFilter {
 
     /**
      * Handle the given {@code ${msgType}},
-     * returning the {@code ${messageSpec.name}Data} instance to be passed to the next filter.
+     * returning the {@code ${dataClass}} instance to be passed to the next filter.
      * The implementation may modify the given {@code data} in-place and return it,
      * or instantiate a new one.
      *
@@ -63,7 +67,9 @@ public interface ${filterClass} extends KrpcFilter {
      * @param header <#if messageSpec.type?lower_case == 'response'>response<#else>request</#if> header.
      * @param ${msgType} The KRPC message to handle.
      * @param context The context.
+     * @return CompletionStage that, when complete, will yield a ${filterResultClass} containing the
+     *         ${messageSpec.type?lower_case} to be forwarded.
      */
-    void on${messageSpec.name}(short apiVersion, <#if messageSpec.type?lower_case == 'response'>ResponseHeaderData<#else>RequestHeaderData</#if> header, ${dataClass} ${msgType}, KrpcFilterContext context);
+     CompletionStage<${filterResultClass}> on${messageSpec.name}(short apiVersion, ${headerClass} header, ${dataClass} ${msgType}, KrpcFilterContext context);
 
 }
