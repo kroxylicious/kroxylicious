@@ -458,6 +458,11 @@
                     <artifactId>build-helper-maven-plugin</artifactId>
                     <version>3.4.0</version>
                 </plugin>
+                <plugin>
+                    <groupId>org.jacoco</groupId>
+                    <artifactId>jacoco-maven-plugin</artifactId>
+                    <version>${jacoco-maven-plugin.version}</version>
+                </plugin>
             </plugins>
         </pluginManagement>
         <plugins>
@@ -715,7 +720,6 @@
                     <plugin>
                         <groupId>org.jacoco</groupId>
                         <artifactId>jacoco-maven-plugin</artifactId>
-                        <version>${jacoco-maven-plugin.version}</version>
                         <executions>
                             <execution>
                                 <id>prepare-agent</id>
@@ -733,20 +737,6 @@
                                         <format>XML</format>
                                     </formats>
                                 </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                    <plugin>
-                        <groupId>org.sonarsource.scanner.maven</groupId>
-                        <artifactId>sonar-maven-plugin</artifactId>
-                        <version>3.9.1.2184</version>
-                        <executions>
-                            <execution>
-                                <id>sonar-scan</id>
-                                <goals>
-                                    <goal>sonar</goal>
-                                </goals>
-                                <phase>verify</phase>
                             </execution>
                         </executions>
                     </plugin>
