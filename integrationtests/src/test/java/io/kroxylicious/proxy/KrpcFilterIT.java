@@ -16,6 +16,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.errors.InvalidTopicException;
@@ -31,12 +32,13 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
 import io.kroxylicious.proxy.filter.CreateTopicRejectFilter;
+import io.kroxylicious.proxy.filter.InBandAsyncRequestMakingFilter;
 import io.kroxylicious.proxy.internal.filter.ByteBufferTransformation;
-import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.test.Request;
 import io.kroxylicious.test.Response;
 import io.kroxylicious.test.tester.MockServerKroxyliciousTester;
@@ -50,11 +52,13 @@ import static org.apache.kafka.clients.consumer.ConsumerConfig.AUTO_OFFSET_RESET
 import static org.apache.kafka.clients.consumer.ConsumerConfig.GROUP_ID_CONFIG;
 import static org.apache.kafka.clients.producer.ProducerConfig.CLIENT_ID_CONFIG;
 import static org.apache.kafka.clients.producer.ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG;
+import static org.apache.kafka.common.protocol.ApiKeys.LIST_TRANSACTIONS;
 import static org.apache.kafka.common.protocol.ApiKeys.METADATA;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.testcontainers.shaded.org.awaitility.Awaitility.await;
 
 @ExtendWith(KafkaClusterExtension.class)
 public class KrpcFilterIT {
@@ -134,8 +138,6 @@ public class KrpcFilterIT {
 
     @Test
     public void shouldPassThroughRecordUnchanged(KafkaCluster cluster, Admin admin) throws Exception {
-        var proxyAddress = HostPort.parse("localhost:9192");
-
         admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1))).all().get();
 
         try (var tester = kroxyliciousTester(proxy(cluster));
@@ -189,6 +191,43 @@ public class KrpcFilterIT {
         }
     }
 
+    @ParameterizedTest
+    @EnumSource(value = InBandAsyncRequestMakingFilter.Direction.class)
+    public void forwardDelayedByAsyncRequest(InBandAsyncRequestMakingFilter.Direction direction, KafkaCluster cluster) throws Exception {
+
+        var config = proxy(cluster).addToFilters(new FilterDefinitionBuilder("InBandAsyncRequestMakingFilter")
+                .withConfig("apiKeyTrigger", LIST_TRANSACTIONS,
+                        "direction", Set.of(direction),
+                        "topic", TOPIC_1,
+                        "message", PLAINTEXT)
+                .build());
+
+        try (var tester = kroxyliciousTester(config);
+                var admin = tester.admin();
+                var consumer = tester.consumer()) {
+
+            admin.createTopics(List.of(
+                    new NewTopic(TOPIC_1, 1, (short) 1))).all().get(10, TimeUnit.SECONDS);
+
+            await().atMost(Duration.ofSeconds(10))
+                    .ignoreExceptions()
+                    .until(() -> admin.describeTopics(Set.of(TOPIC_1)).allTopicNames().get(2, TimeUnit.SECONDS),
+                            n -> n.containsKey(TOPIC_1));
+
+            consumer.subscribe(Set.of(TOPIC_1));
+
+            // The LIST_TRANSACTIONS RPC is the trigger to the filter to make the async request. The filter
+            // won't send the LIST_TRANSACTIONS response to us until the async request completes. We
+            // don't actually care about the content of the response, only that it returns,
+            admin.listTransactions().all().get(10, TimeUnit.SECONDS);
+
+            var records = consumer.poll(Duration.ofSeconds(10));
+            consumer.close();
+            assertThat(records).hasSize(1);
+            assertThat(records.records(TOPIC_1)).map(ConsumerRecord::value).containsExactly(PLAINTEXT);
+        }
+    }
+
     @Test
     @SuppressWarnings("java:S5841") // java:S5841 warns that doesNotContain passes for the empty case. Which is what we want here.
     public void requestFiltersCanRespondWithoutProxyingDoesntLeakBuffers(KafkaCluster cluster, Admin admin) throws Exception {
@@ -234,8 +273,6 @@ public class KrpcFilterIT {
 
     @Test
     public void shouldModifyProduceMessage(KafkaCluster cluster, Admin admin) throws Exception {
-        var proxyAddress = HostPort.parse("localhost:9192");
-
         admin.createTopics(List.of(
                 new NewTopic(TOPIC_1, 1, (short) 1),
                 new NewTopic(TOPIC_2, 1, (short) 1))).all().get();

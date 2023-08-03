@@ -216,9 +216,15 @@ public class KroxyliciousTestersTest {
     }
 
     private static void assertOneRecordConsumedFrom(Consumer<String, String> consumer) {
-        consumer.subscribe(List.of(TOPIC));
-        ConsumerRecords<String, String> records = consumer.poll(Duration.ofSeconds(10));
-        assertEquals(1, records.count());
+        try {
+            consumer.subscribe(List.of(TOPIC));
+            ConsumerRecords<String, String> records = consumer.poll(Duration.ofSeconds(10));
+            assertEquals(1, records.count());
+        }
+        finally {
+            consumer.close();
+        }
+
     }
 
 }
