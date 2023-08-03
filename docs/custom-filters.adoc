@@ -322,7 +322,7 @@ supported.
 
 In some cases we may wish to not forward a request from the client to the Cluster. Instead, we want to intercept that
 request and generate a response message in a Kroxylicious Protocol Filter and send it towards the client.  This is called
-this a short-circuit response.
+a short-circuit response.
 
 .Illustration of responding without proxying
 [a2s, format="svg"]
