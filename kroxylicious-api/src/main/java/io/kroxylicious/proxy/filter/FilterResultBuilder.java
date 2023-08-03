@@ -16,9 +16,9 @@ import io.kroxylicious.proxy.filter.filterresultbuilder.TerminalStage;
  * Fluent builder for filter results.
  *
  * @param <H>  kafka api message header class
- * @param <FR> filter result
+ * @param <R> filter result
  */
-public interface FilterResultBuilder<H extends ApiMessage, FR extends FilterResult> extends CloseStage<FR> {
+public interface FilterResultBuilder<H extends ApiMessage, R extends FilterResult> extends CloseStage<R> {
 
     /**
      * A forward of a request or response message to the next filter in the chain.
@@ -30,13 +30,13 @@ public interface FilterResultBuilder<H extends ApiMessage, FR extends FilterResu
      * @return next stage in the fluent builder API
      * @throws IllegalArgumentException header or message do not meet criteria described above.
      */
-    CloseOrTerminalStage<FR> forward(H header, ApiMessage message) throws IllegalArgumentException;
+    CloseOrTerminalStage<R> forward(H header, ApiMessage message) throws IllegalArgumentException;
 
     /**
      * Signals the desire of the filter that the connection is closed.
      *
      * @return last stage in the fluent API.
      */
-    TerminalStage<FR> drop();
+    TerminalStage<R> drop();
 
 }

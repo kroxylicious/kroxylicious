@@ -13,19 +13,19 @@ import io.kroxylicious.proxy.filter.FilterResult;
 /**
  * Interface supporting the {@link io.kroxylicious.proxy.filter.FilterResultBuilder} fluent API.
  *
- * @param <FR> filter result
+ * @param <R> filter result
  */
-public interface TerminalStage<FR extends FilterResult> {
+public interface TerminalStage<R extends FilterResult> {
     /**
      * Constructs the filter result.
      *
      * @return filter result
      */
-    FR build();
+    R build();
 
     /**
      * Produces the filter result contained within a completed {@link CompletionStage}.
      * @return completion stage contain the filter result.
      */
-    CompletionStage<FR> completed();
+    CompletionStage<R> completed();
 }
