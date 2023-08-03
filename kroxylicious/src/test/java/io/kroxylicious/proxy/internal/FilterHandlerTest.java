@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.internal;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
 import org.apache.kafka.common.message.ApiVersionsRequestData;
@@ -31,6 +32,8 @@ import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.future.InternalCompletionStage;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -53,45 +56,31 @@ public class FilterHandlerTest extends FilterHarness {
     }
 
     @Test
-    public void testDeferredRequestTimeout() throws InterruptedException {
-        CompletableFuture<RequestFilterResult>[] fut = new CompletableFuture[]{ null };
-        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> {
-            CompletableFuture<RequestFilterResult> future = new CompletableFuture<>();
-            fut[0] = future;
-            return future;
-        };
+    public void testDeferredRequestTimeout() throws Exception {
+        var filterFuture = new CompletableFuture<RequestFilterResult>();
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> filterFuture;
         buildChannel(filter, 50L);
         writeRequest(new ApiVersionsRequestData());
         Thread.sleep(60L);
         channel.runPendingTasks();
-        CompletableFuture<RequestFilterResult> future = fut[0];
-        assertTrue(future.isDone(),
-                "Future should be finished yet");
-        assertTrue(future.isCompletedExceptionally(),
-                "Future should be finished yet");
-        assertThrows(ExecutionException.class, future::get);
-        assertFalse(channel.isOpen());
+
+        assertThat(filterFuture).isCompletedExceptionally().isNotCancelled();
+        assertThatThrownBy(filterFuture::get).hasCauseInstanceOf(TimeoutException.class);
+        assertThat(channel.isOpen()).isFalse();
     }
 
     @Test
-    public void testDeferredResponseTimeout() throws InterruptedException {
-        CompletableFuture<ResponseFilterResult>[] fut = new CompletableFuture[]{ null };
-        ApiVersionsResponseFilter filter = (apiVersion, header, request, context) -> {
-            CompletableFuture<ResponseFilterResult> future = new CompletableFuture<>();
-            fut[0] = future;
-            return future;
-        };
+    public void testDeferredResponseTimeout() throws Exception {
+        var filterFuture = new CompletableFuture<ResponseFilterResult>();
+        ApiVersionsResponseFilter filter = (apiVersion, header, request, context) -> filterFuture;
         buildChannel(filter, 50L);
         writeResponse(new ApiVersionsResponseData());
         Thread.sleep(60L);
         channel.runPendingTasks();
-        CompletableFuture<ResponseFilterResult> future = fut[0];
-        assertTrue(future.isDone(),
-                "Future should be finished yet");
-        assertTrue(future.isCompletedExceptionally(),
-                "Future should be finished yet");
-        assertThrows(ExecutionException.class, future::get);
-        assertFalse(channel.isOpen());
+
+        assertThat(filterFuture).isCompletedExceptionally().isNotCancelled();
+        assertThatThrownBy(filterFuture::get).hasCauseInstanceOf(TimeoutException.class);
+        assertThat(channel.isOpen()).isFalse();
     }
 
     @Test
@@ -125,7 +114,6 @@ public class FilterHandlerTest extends FilterHarness {
         var frame = writeRequest(new ApiVersionsRequestData());
         var propagated = channel.readOutbound();
         assertNull(propagated);
-
     }
 
     @Test

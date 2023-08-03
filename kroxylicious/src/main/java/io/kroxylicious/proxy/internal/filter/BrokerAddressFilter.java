@@ -106,9 +106,9 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
     private CompletionStage<ResponseFilterResult> doReconcileThenForwardResponse(ResponseHeaderData header, ApiMessage data, KrpcFilterContext context,
                                                                                  Map<Integer, HostPort> nodeMap) {
         return reconciler.reconcile(virtualCluster, nodeMap).toCompletableFuture()
-                        .thenCompose(u -> {
-                            LOGGER.debug("Endpoint reconciliation complete for virtual cluster {}", virtualCluster);
-                            return context.responseFilterResultBuilder().forward(header, data).completed();
-                        });
+                .thenCompose(u -> {
+                    LOGGER.debug("Endpoint reconciliation complete for virtual cluster {}", virtualCluster);
+                    return context.responseFilterResultBuilder().forward(header, data).completed();
+                });
     }
 }
