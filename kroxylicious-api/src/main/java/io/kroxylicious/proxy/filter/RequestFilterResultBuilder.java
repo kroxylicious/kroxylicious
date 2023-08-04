@@ -6,11 +6,15 @@
 
 package io.kroxylicious.proxy.filter;
 
+import javax.annotation.Nullable;
+
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
 
 import io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
  * Builder for request filter results.
@@ -28,7 +32,7 @@ public interface RequestFilterResultBuilder extends FilterResultBuilder<RequestH
      * @return next stage in the fluent builder API
      * @throws IllegalArgumentException header or message do not meet criteria described above.
      */
-    CloseOrTerminalStage<RequestFilterResult> shortCircuitResponse(ResponseHeaderData header, ApiMessage message) throws IllegalArgumentException;
+    CloseOrTerminalStage<RequestFilterResult> shortCircuitResponse(@Nullable ResponseHeaderData header, @NonNull ApiMessage message) throws IllegalArgumentException;
 
     /**
      * A short-circuit response towards the client.
@@ -38,6 +42,6 @@ public interface RequestFilterResultBuilder extends FilterResultBuilder<RequestH
      * @return next stage in the fluent builder API
      * @throws IllegalArgumentException header or message do not meet criteria described above.
      */
-    CloseOrTerminalStage<RequestFilterResult> shortCircuitResponse(ApiMessage message) throws IllegalArgumentException;
+    CloseOrTerminalStage<RequestFilterResult> shortCircuitResponse(@NonNull ApiMessage message) throws IllegalArgumentException;
 
 }

@@ -12,6 +12,8 @@ import io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage;
 import io.kroxylicious.proxy.filter.filterresultbuilder.CloseStage;
 import io.kroxylicious.proxy.filter.filterresultbuilder.TerminalStage;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 /**
  * Fluent builder for filter results.
  *
@@ -30,7 +32,7 @@ public interface FilterResultBuilder<H extends ApiMessage, R extends FilterResul
      * @return next stage in the fluent builder API
      * @throws IllegalArgumentException header or message do not meet criteria described above.
      */
-    CloseOrTerminalStage<R> forward(H header, ApiMessage message) throws IllegalArgumentException;
+    CloseOrTerminalStage<R> forward(@NonNull H header, @NonNull ApiMessage message) throws IllegalArgumentException;
 
     /**
      * Signals the desire of the filter that the connection is closed.

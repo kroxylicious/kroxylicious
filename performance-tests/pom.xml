@@ -23,7 +23,6 @@
     <properties>
         <jmh.version>1.36</jmh.version>
         <uberjar.name>benchmarks</uberjar.name>
-        <sonar.skip>true</sonar.skip>
     </properties>
 
     <dependencies>

@@ -32,6 +32,7 @@
 
         <freemarker.version>2.3.32</freemarker.version>
         <guava.version>32.1.1-jre</guava.version>
+        <hamcrest.version>2.2</hamcrest.version>
         <jackson.version>2.15.2</jackson.version>
         <junit.version>5.10.0</junit.version>
         <kafka.version>3.5.1</kafka.version>
@@ -45,12 +46,12 @@
         <netty.kqueue.classifier>osx-x86_64</netty.kqueue.classifier>
         <assertj-core.version>3.24.2</assertj-core.version>
         <mockito.version>5.4.0</mockito.version>
-        <slf4j.version>2.0.7</slf4j.version>
         <micrometer.version>1.11.2</micrometer.version>
-        <zjsonpatch.version>0.4.14</zjsonpatch.version>
+        <slf4j.version>2.0.7</slf4j.version>
         <sundr-builder-annotations.version>0.100.1</sundr-builder-annotations.version>
-        <findbugs.annotations.version>3.0.1u2</findbugs.annotations.version>
-        <hamcrest.version>2.2</hamcrest.version>
+        <spotbugs-annotations.version>4.7.3</spotbugs-annotations.version>
+        <zjsonpatch.version>0.4.14</zjsonpatch.version>
+
         <jacoco-maven-plugin.version>0.8.10</jacoco-maven-plugin.version>
     </properties>
 
@@ -139,12 +140,14 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+
             <dependency>
-                <groupId>com.google.code.findbugs</groupId>
-                <artifactId>annotations</artifactId>
-                <version>${findbugs.annotations.version}</version>
+                <groupId>com.github.spotbugs</groupId>
+                <artifactId>spotbugs-annotations</artifactId>
+                <version>${spotbugs-annotations.version}</version>
                 <scope>provided</scope>
             </dependency>
+
             <dependency>
                 <groupId>info.picocli</groupId>
                 <artifactId>picocli</artifactId>
@@ -458,6 +461,11 @@
                     <artifactId>build-helper-maven-plugin</artifactId>
                     <version>3.4.0</version>
                 </plugin>
+                <plugin>
+                    <groupId>org.jacoco</groupId>
+                    <artifactId>jacoco-maven-plugin</artifactId>
+                    <version>${jacoco-maven-plugin.version}</version>
+                </plugin>
             </plugins>
         </pluginManagement>
         <plugins>
@@ -715,7 +723,6 @@
                     <plugin>
                         <groupId>org.jacoco</groupId>
                         <artifactId>jacoco-maven-plugin</artifactId>
-                        <version>${jacoco-maven-plugin.version}</version>
                         <executions>
                             <execution>
                                 <id>prepare-agent</id>
@@ -733,20 +740,6 @@
                                         <format>XML</format>
                                     </formats>
                                 </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                    <plugin>
-                        <groupId>org.sonarsource.scanner.maven</groupId>
-                        <artifactId>sonar-maven-plugin</artifactId>
-                        <version>3.9.1.2184</version>
-                        <executions>
-                            <execution>
-                                <id>sonar-scan</id>
-                                <goals>
-                                    <goal>sonar</goal>
-                                </goals>
-                                <phase>verify</phase>
                             </execution>
                         </executions>
                     </plugin>
