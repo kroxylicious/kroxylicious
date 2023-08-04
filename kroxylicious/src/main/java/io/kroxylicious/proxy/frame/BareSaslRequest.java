@@ -42,6 +42,12 @@ public class BareSaslRequest implements RequestFrame {
         return decodeResponse;
     }
 
+    @Override
+    public boolean hasResponse() {
+        // unsure about this, BareSaslRequests aren't constructed anywhere but tests
+        return true;
+    }
+
     public byte[] bytes() {
         return bytes;
     }
