@@ -328,7 +328,7 @@
             </build>
         </profile>
         <profile>
-            <id>withFilters</id>
+            <id>withAdditionalFilters</id>
             <dependencies>
                 <dependency>
                     <groupId>io.kroxylicious</groupId>
