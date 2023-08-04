@@ -176,6 +176,10 @@ public class FilterHandler extends ChannelDuplexHandler {
             return stage.thenApply(filterResult -> {
                 timeoutFuture.cancel(false);
                 inboundChannel.config().setAutoRead(true);
+                var unused = writeFuture.whenComplete((u, t) -> {
+                    // Ensure any writes pending will be flushed upstream, towards the broker.
+                    ctx.flush();
+                });
                 return filterResult;
             });
         }
