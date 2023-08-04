@@ -11,7 +11,7 @@ import io.kroxylicious.proxy.filter.FilterResult;
 /**
  * Interface supporting the {@link io.kroxylicious.proxy.filter.FilterResultBuilder} fluent API.
  *
- * @param <FR> filter result
+ * @param <R> filter result
  */
-public interface CloseOrTerminalStage<FR extends FilterResult> extends TerminalStage<FR>, CloseStage<FR> {
+public interface CloseOrTerminalStage<R extends FilterResult> extends TerminalStage<R>, CloseStage<R> {
 }

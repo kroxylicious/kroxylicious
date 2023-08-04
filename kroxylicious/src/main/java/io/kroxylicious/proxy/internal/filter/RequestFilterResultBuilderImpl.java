@@ -25,9 +25,6 @@ public class RequestFilterResultBuilderImpl extends FilterResultBuilderImpl<Requ
     private ResponseHeaderData shortCircuitHeader;
     private ApiMessage shortCircuitResponse;
 
-    public RequestFilterResultBuilderImpl() {
-    }
-
     @Override
     protected void validateForward(RequestHeaderData header, ApiMessage message) {
         super.validateForward(header, message);
@@ -38,7 +35,7 @@ public class RequestFilterResultBuilderImpl extends FilterResultBuilderImpl<Requ
 
     @Override
     public CloseOrTerminalStage<RequestFilterResult> shortCircuitResponse(@Nullable ResponseHeaderData header, @NonNull ApiMessage message) {
-        validateShortCircuitResponse(header, message);
+        validateShortCircuitResponse(message);
         this.shortCircuitHeader = header;
         this.shortCircuitResponse = message;
         return this;
@@ -46,12 +43,12 @@ public class RequestFilterResultBuilderImpl extends FilterResultBuilderImpl<Requ
 
     @Override
     public CloseOrTerminalStage<RequestFilterResult> shortCircuitResponse(@NonNull ApiMessage message) {
-        validateShortCircuitResponse(null, message);
+        validateShortCircuitResponse(message);
         this.shortCircuitResponse = message;
         return this;
     }
 
-    private void validateShortCircuitResponse(ResponseHeaderData header, ApiMessage message) {
+    private void validateShortCircuitResponse(ApiMessage message) {
         if (message == null) {
             throw new IllegalArgumentException("message may not be null");
         }
