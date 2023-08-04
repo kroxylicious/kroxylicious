@@ -20,6 +20,7 @@ import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.FetchRequestData;
 import org.apache.kafka.common.message.FetchResponseData;
 import org.apache.kafka.common.message.ProduceRequestData;
+import org.apache.kafka.common.message.ProduceResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
@@ -33,6 +34,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import io.kroxylicious.proxy.filter.ApiVersionsRequestFilter;
 import io.kroxylicious.proxy.filter.ApiVersionsResponseFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
+import io.kroxylicious.proxy.filter.ProduceRequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
@@ -63,6 +65,40 @@ public class FilterHandlerTest extends FilterHarness {
         var frame = writeRequest(new ApiVersionsRequestData());
         var propagated = channel.readOutbound();
         assertEquals(frame, propagated, "Expect it to be the frame that was sent");
+    }
+
+    @Test
+    void testShortCircuitResponse() {
+        ApiVersionsResponseData responseData = new ApiVersionsResponseData();
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> context.requestFilterResultBuilder().shortCircuitResponse(responseData)
+                .completed();
+        buildChannel(filter);
+        writeRequest(new ApiVersionsRequestData());
+        DecodedResponseFrame<?> propagated = channel.readInbound();
+        assertEquals(responseData, propagated.body(), "expected ApiVersionsResponseData to be forwarded");
+    }
+
+    // We want to prevent a Kroxylicious filter unexpectedly responding to zero-ack produce requests
+    @Test
+    void testShortCircuitResponseZeroAcksProduceResponseDropped() {
+        ProduceResponseData responseData = new ProduceResponseData();
+        ProduceRequestFilter filter = (apiVersion, header, request, context) -> context.requestFilterResultBuilder().shortCircuitResponse(responseData)
+                .completed();
+        buildChannel(filter);
+        writeRequest(new ProduceRequestData().setAcks((short) 0));
+        DecodedResponseFrame<?> propagated = channel.readInbound();
+        assertNull(propagated, "no message should have been propagated");
+    }
+
+    @Test
+    void testShortCircuitResponseNonZeroAcksProduceResponseForwarded() {
+        ProduceResponseData responseData = new ProduceResponseData();
+        ProduceRequestFilter filter = (apiVersion, header, request, context) -> context.requestFilterResultBuilder().shortCircuitResponse(responseData)
+                .completed();
+        buildChannel(filter);
+        writeRequest(new ProduceRequestData().setAcks((short) 1));
+        DecodedResponseFrame<?> propagated = channel.readInbound();
+        assertEquals(responseData, propagated.body(), "expected ProduceResponseData to be forwarded");
     }
 
     @Test
