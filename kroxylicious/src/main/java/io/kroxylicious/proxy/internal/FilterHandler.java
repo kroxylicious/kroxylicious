@@ -123,6 +123,9 @@ public class FilterHandler extends ChannelDuplexHandler {
                 }
 
                 if (requestFilterResult.closeConnection()) {
+                    if (requestFilterResult.message() != null) {
+                        ctx.flush();
+                    }
                     filterContext.closeConnection();
                 }
             }).toCompletableFuture().thenApply(filterResult -> null);
