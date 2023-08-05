@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.proxy.internal;
 
+import java.util.ArrayList;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
@@ -160,6 +161,50 @@ public class FilterHandlerTest extends FilterHarness {
         else {
             assertThat(propagated).isNull();
         }
+    }
+
+    @Test
+    void closedChannelIgnoresDeferredPendingRequests() {
+        var seen = new ArrayList<ApiMessage>();
+        var filterFuture = new CompletableFuture<RequestFilterResult>();
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> {
+            seen.add(request);
+            return filterFuture;
+        };
+        buildChannel(filter);
+        var frame1 = writeRequest(new ApiVersionsRequestData());
+        writeRequest(new ApiVersionsRequestData().setClientSoftwareName("should not be processed"));
+        // the filter handler will have queued up the second request, awaiting the completion of the first.
+        filterFuture.complete(new RequestFilterResultBuilderImpl().withCloseConnection().build());
+        channel.runPendingTasks();
+
+        assertThat(channel.isOpen()).isFalse();
+        var propagated = channel.readOutbound();
+        assertThat(propagated).isNull();
+        assertThat(seen).hasSize(1);
+        assertThat(seen).containsExactly(frame1.body());
+    }
+
+    @Test
+    void closedChannelIgnoresDeferredPendingResponse() {
+        var seen = new ArrayList<ApiMessage>();
+        var filterFuture = new CompletableFuture<ResponseFilterResult>();
+        ApiVersionsResponseFilter filter = (apiVersion, header, response, context) -> {
+            seen.add(response);
+            return filterFuture;
+        };
+        buildChannel(filter);
+        var frame1 = writeResponse(new ApiVersionsResponseData().setErrorCode((short) 1));
+        writeResponse(new ApiVersionsResponseData().setErrorCode((short) 2));
+        // the filter handler will have queued up the second response, awaiting the completion of the first.
+        filterFuture.complete(new ResponseFilterResultBuilderImpl().withCloseConnection().build());
+        channel.runPendingTasks();
+
+        assertThat(channel.isOpen()).isFalse();
+        var propagated = channel.readInbound();
+        assertThat(propagated).isNull();
+        assertThat(seen).hasSize(1);
+        assertThat(seen).containsExactly(frame1.body());
     }
 
     @Test

@@ -70,7 +70,11 @@ public class FilterHandler extends ChannelDuplexHandler {
             writeFuture = doWrite(ctx, msg, promise);
         }
         else {
-            writeFuture = writeFuture.whenComplete((a, b) -> doWrite(ctx, msg, promise));
+            writeFuture = writeFuture.whenComplete((a, b) -> {
+                if (ctx.channel().isOpen()) {
+                    doWrite(ctx, msg, promise);
+                }
+            });
         }
     }
 
@@ -211,7 +215,11 @@ public class FilterHandler extends ChannelDuplexHandler {
             readFuture = doRead(ctx, msg);
         }
         else {
-            readFuture = readFuture.whenComplete((a, b) -> doRead(ctx, msg));
+            readFuture = readFuture.whenComplete((a, b) -> {
+                if (ctx.channel().isOpen()) {
+                    doRead(ctx, msg);
+                }
+            });
         }
     }
 
