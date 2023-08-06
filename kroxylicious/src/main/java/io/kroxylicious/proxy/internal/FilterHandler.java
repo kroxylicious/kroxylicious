@@ -8,8 +8,8 @@ package io.kroxylicious.proxy.internal;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
-import org.apache.kafka.common.errors.TimeoutException;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
@@ -26,6 +26,7 @@ import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.FilterInvoker;
 import io.kroxylicious.proxy.filter.FilterResult;
 import io.kroxylicious.proxy.filter.KrpcFilter;
+import io.kroxylicious.proxy.frame.DecodedFrame;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
@@ -69,7 +70,11 @@ public class FilterHandler extends ChannelDuplexHandler {
             writeFuture = doWrite(ctx, msg, promise);
         }
         else {
-            writeFuture = writeFuture.whenComplete((a, b) -> doWrite(ctx, msg, promise));
+            writeFuture = writeFuture.whenComplete((a, b) -> {
+                if (ctx.channel().isOpen()) {
+                    doWrite(ctx, msg, promise);
+                }
+            });
         }
     }
 
@@ -90,7 +95,7 @@ public class FilterHandler extends ChannelDuplexHandler {
                 return CompletableFuture.completedFuture(null);
             }
             var future = stage.toCompletableFuture();
-            var withTimeout = handleDeferredStage(ctx, future);
+            var withTimeout = handleDeferredStage(ctx, future, decodedFrame);
             var onNettyThread = switchBackToNettyIfRequired(ctx, withTimeout);
             return onNettyThread.whenComplete((requestFilterResult, t) -> {
                 // maybe better to run the whole thing on the netty thread.
@@ -122,6 +127,9 @@ public class FilterHandler extends ChannelDuplexHandler {
                 }
 
                 if (requestFilterResult.closeConnection()) {
+                    if (requestFilterResult.message() != null) {
+                        ctx.flush();
+                    }
                     filterContext.closeConnection();
                 }
             }).toCompletableFuture().thenApply(filterResult -> null);
@@ -163,14 +171,22 @@ public class FilterHandler extends ChannelDuplexHandler {
         }
     }
 
-    private <T extends FilterResult> CompletableFuture<T> handleDeferredStage(ChannelHandlerContext ctx, CompletableFuture<T> stage) {
+    private <T extends FilterResult> CompletableFuture<T> handleDeferredStage(ChannelHandlerContext ctx, CompletableFuture<T> stage,
+                                                                              DecodedFrame<?, ?> decodedFrame) {
         if (!stage.isDone()) {
             inboundChannel.config().setAutoRead(false);
-            ctx.executor().schedule(() -> {
-                stage.completeExceptionally(new TimeoutException());
+            var timeoutFuture = ctx.executor().schedule(() -> {
+                LOGGER.warn("{}: Filter {} was timed-out whilst processing {} {}", ctx.channel(), filterDescriptor(),
+                        decodedFrame instanceof DecodedRequestFrame ? "request" : "response", decodedFrame.apiKey());
+                stage.completeExceptionally(new TimeoutException("Filter %s was timed-out.".formatted(filterDescriptor())));
             }, timeoutMs, TimeUnit.MILLISECONDS);
             return stage.thenApply(filterResult -> {
+                timeoutFuture.cancel(false);
                 inboundChannel.config().setAutoRead(true);
+                var unused = writeFuture.whenComplete((u, t) -> {
+                    // Ensure any writes pending will be flushed upstream, towards the broker.
+                    ctx.flush();
+                });
                 return filterResult;
             });
         }
@@ -199,7 +215,11 @@ public class FilterHandler extends ChannelDuplexHandler {
             readFuture = doRead(ctx, msg);
         }
         else {
-            readFuture = readFuture.whenComplete((a, b) -> doRead(ctx, msg));
+            readFuture = readFuture.whenComplete((a, b) -> {
+                if (ctx.channel().isOpen()) {
+                    doRead(ctx, msg);
+                }
+            });
         }
     }
 
@@ -219,7 +239,7 @@ public class FilterHandler extends ChannelDuplexHandler {
                 return CompletableFuture.completedFuture(null);
             }
             var future = stage.toCompletableFuture();
-            var withTimeout = handleDeferredStage(ctx, future);
+            var withTimeout = handleDeferredStage(ctx, future, decodedFrame);
             var onNettyThread = switchBackToNettyIfRequired(ctx, withTimeout);
             return onNettyThread.whenComplete((responseFilterResult, t) -> {
                 if (t != null) {

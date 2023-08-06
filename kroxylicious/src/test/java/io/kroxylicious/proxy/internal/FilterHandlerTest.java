@@ -5,10 +5,14 @@
  */
 package io.kroxylicious.proxy.internal;
 
+import java.util.ArrayList;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
+import java.util.function.BiFunction;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
@@ -20,6 +24,9 @@ import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.types.RawTaggedField;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import io.kroxylicious.proxy.filter.ApiVersionsRequestFilter;
 import io.kroxylicious.proxy.filter.ApiVersionsResponseFilter;
@@ -29,8 +36,12 @@ import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.future.InternalCompletionStage;
+import io.kroxylicious.proxy.internal.filter.RequestFilterResultBuilderImpl;
+import io.kroxylicious.proxy.internal.filter.ResponseFilterResultBuilderImpl;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -53,45 +64,147 @@ public class FilterHandlerTest extends FilterHarness {
     }
 
     @Test
-    public void testDeferredRequestTimeout() throws InterruptedException {
-        CompletableFuture<RequestFilterResult>[] fut = new CompletableFuture[]{ null };
-        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> {
-            CompletableFuture<RequestFilterResult> future = new CompletableFuture<>();
-            fut[0] = future;
-            return future;
-        };
+    public void testDeferredRequestTimeout() throws Exception {
+        var filterFuture = new CompletableFuture<RequestFilterResult>();
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> filterFuture;
         buildChannel(filter, 50L);
         writeRequest(new ApiVersionsRequestData());
         Thread.sleep(60L);
         channel.runPendingTasks();
-        CompletableFuture<RequestFilterResult> future = fut[0];
-        assertTrue(future.isDone(),
-                "Future should be finished yet");
-        assertTrue(future.isCompletedExceptionally(),
-                "Future should be finished yet");
-        assertThrows(ExecutionException.class, future::get);
-        assertFalse(channel.isOpen());
+
+        assertThat(filterFuture).isCompletedExceptionally().isNotCancelled();
+        assertThatThrownBy(filterFuture::get).hasCauseInstanceOf(TimeoutException.class);
+        assertThat(channel.isOpen()).isFalse();
     }
 
     @Test
-    public void testDeferredResponseTimeout() throws InterruptedException {
-        CompletableFuture<ResponseFilterResult>[] fut = new CompletableFuture[]{ null };
-        ApiVersionsResponseFilter filter = (apiVersion, header, request, context) -> {
-            CompletableFuture<ResponseFilterResult> future = new CompletableFuture<>();
-            fut[0] = future;
-            return future;
-        };
+    public void testDeferredResponseTimeout() throws Exception {
+        var filterFuture = new CompletableFuture<ResponseFilterResult>();
+        ApiVersionsResponseFilter filter = (apiVersion, header, request, context) -> filterFuture;
         buildChannel(filter, 50L);
         writeResponse(new ApiVersionsResponseData());
         Thread.sleep(60L);
         channel.runPendingTasks();
-        CompletableFuture<ResponseFilterResult> future = fut[0];
-        assertTrue(future.isDone(),
-                "Future should be finished yet");
-        assertTrue(future.isCompletedExceptionally(),
-                "Future should be finished yet");
-        assertThrows(ExecutionException.class, future::get);
-        assertFalse(channel.isOpen());
+
+        assertThat(filterFuture).isCompletedExceptionally().isNotCancelled();
+        assertThatThrownBy(filterFuture::get).hasCauseInstanceOf(TimeoutException.class);
+        assertThat(channel.isOpen()).isFalse();
+    }
+
+    static Stream<Arguments> requestFilterClosesChannel() {
+        return Stream.of(
+                Arguments.of("completes exceptionally",
+                        (BiFunction<RequestHeaderData, ApiMessage, CompletionStage<RequestFilterResult>>) (header, request) -> CompletableFuture
+                                .failedStage(new RuntimeException("filter error")),
+                        false),
+                Arguments.of("filter result signals close",
+                        (BiFunction<RequestHeaderData, ApiMessage, CompletionStage<RequestFilterResult>>) (header, request) -> new RequestFilterResultBuilderImpl()
+                                .withCloseConnection().completed(),
+                        false),
+                Arguments.of("filter result signals close with forward",
+                        (BiFunction<RequestHeaderData, ApiMessage, CompletionStage<RequestFilterResult>>) (header, request) -> new RequestFilterResultBuilderImpl()
+                                .forward(header, request).withCloseConnection().completed(),
+                        true));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource
+    void requestFilterClosesChannel(String name,
+                                    BiFunction<RequestHeaderData, ApiMessage, CompletableFuture<RequestFilterResult>> stageFunction,
+                                    boolean forwardExpected) {
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> stageFunction.apply(header, request);
+        buildChannel(filter);
+        var frame = writeRequest(new ApiVersionsRequestData());
+        channel.runPendingTasks();
+
+        assertThat(channel.isOpen()).isFalse();
+        var propagated = channel.readOutbound();
+        if (forwardExpected) {
+            assertThat(propagated).isEqualTo(frame);
+        }
+        else {
+            assertThat(propagated).isNull();
+        }
+    }
+
+    static Stream<Arguments> responseFilterClosesChannel() {
+        return Stream.of(
+                Arguments.of("completes exceptionally",
+                        (BiFunction<ResponseHeaderData, ApiMessage, CompletionStage<ResponseFilterResult>>) (header, response) -> CompletableFuture
+                                .failedStage(new RuntimeException("filter error")),
+                        false),
+                Arguments.of("filter result signals close",
+                        (BiFunction<ResponseHeaderData, ApiMessage, CompletionStage<ResponseFilterResult>>) (header, response) -> new ResponseFilterResultBuilderImpl()
+                                .withCloseConnection().completed(),
+                        false),
+                Arguments.of("filter result signals close with forward",
+                        (BiFunction<ResponseHeaderData, ApiMessage, CompletionStage<ResponseFilterResult>>) (header, response) -> new ResponseFilterResultBuilderImpl()
+                                .forward(header, response).withCloseConnection().completed(),
+                        true));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource
+    void responseFilterClosesChannel(String name,
+                                     BiFunction<ResponseHeaderData, ApiMessage, CompletableFuture<ResponseFilterResult>> stageFunction,
+                                     boolean forwardExpected) {
+        ApiVersionsResponseFilter filter = (apiVersion, header, response, context) -> stageFunction.apply(header, response);
+        buildChannel(filter);
+        var frame = writeResponse(new ApiVersionsResponseData());
+        channel.runPendingTasks();
+
+        assertThat(channel.isOpen()).isFalse();
+        var propagated = channel.readInbound();
+        if (forwardExpected) {
+            assertThat(propagated).isEqualTo(frame);
+        }
+        else {
+            assertThat(propagated).isNull();
+        }
+    }
+
+    @Test
+    void closedChannelIgnoresDeferredPendingRequests() {
+        var seen = new ArrayList<ApiMessage>();
+        var filterFuture = new CompletableFuture<RequestFilterResult>();
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> {
+            seen.add(request);
+            return filterFuture;
+        };
+        buildChannel(filter);
+        var frame1 = writeRequest(new ApiVersionsRequestData());
+        writeRequest(new ApiVersionsRequestData().setClientSoftwareName("should not be processed"));
+        // the filter handler will have queued up the second request, awaiting the completion of the first.
+        filterFuture.complete(new RequestFilterResultBuilderImpl().withCloseConnection().build());
+        channel.runPendingTasks();
+
+        assertThat(channel.isOpen()).isFalse();
+        var propagated = channel.readOutbound();
+        assertThat(propagated).isNull();
+        assertThat(seen).hasSize(1);
+        assertThat(seen).containsExactly(frame1.body());
+    }
+
+    @Test
+    void closedChannelIgnoresDeferredPendingResponse() {
+        var seen = new ArrayList<ApiMessage>();
+        var filterFuture = new CompletableFuture<ResponseFilterResult>();
+        ApiVersionsResponseFilter filter = (apiVersion, header, response, context) -> {
+            seen.add(response);
+            return filterFuture;
+        };
+        buildChannel(filter);
+        var frame1 = writeResponse(new ApiVersionsResponseData().setErrorCode((short) 1));
+        writeResponse(new ApiVersionsResponseData().setErrorCode((short) 2));
+        // the filter handler will have queued up the second response, awaiting the completion of the first.
+        filterFuture.complete(new ResponseFilterResultBuilderImpl().withCloseConnection().build());
+        channel.runPendingTasks();
+
+        assertThat(channel.isOpen()).isFalse();
+        var propagated = channel.readInbound();
+        assertThat(propagated).isNull();
+        assertThat(seen).hasSize(1);
+        assertThat(seen).containsExactly(frame1.body());
     }
 
     @Test
@@ -125,7 +238,6 @@ public class FilterHandlerTest extends FilterHarness {
         var frame = writeRequest(new ApiVersionsRequestData());
         var propagated = channel.readOutbound();
         assertNull(propagated);
-
     }
 
     @Test
