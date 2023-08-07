@@ -36,7 +36,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
-import org.junit.jupiter.params.provider.ValueSource;
 
 import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
 import io.kroxylicious.proxy.filter.CreateTopicRejectFilter;
@@ -173,47 +172,54 @@ public class KrpcFilterIT {
         }
     }
 
-    @ParameterizedTest
-    @ValueSource(strings = { "RequestForwardDelaying", "ResponseForwardDelaying" })
-    public void supportsForwardDeferredByAsynchronousRequest(String delayType, KafkaCluster cluster) throws Exception {
-
-        var config = proxy(cluster).addToFilters(new FilterDefinitionBuilder(delayType).build());
-
-        try (var tester = kroxyliciousTester(config);
-                var admin = tester.admin();
-                var producer = tester.producer(Map.of(CLIENT_ID_CONFIG, "supportsForwardDeferredByAsynchronousRequest", DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000));
-                var consumer = tester.consumer()) {
-
-            admin.createTopics(List.of(
-                    new NewTopic(TOPIC_1, 1, (short) 1))).all().get(10, TimeUnit.SECONDS);
-
-            producer.send(new ProducerRecord<>(TOPIC_1, "my-key", "Hello, world!")).get(10, TimeUnit.SECONDS);
-            consumer.subscribe(Set.of(TOPIC_1));
-            var records = consumer.poll(Duration.ofSeconds(10));
-            consumer.close();
-            assertEquals(1, records.count());
-            assertEquals("Hello, world!", records.iterator().next().value());
-        }
-    }
-
+    /**
+     * This test verifies the use-case where a filter needs delay a request/response forward
+     * until a 3rd party asynchronous action completes.
+     * @param direction direction of the flow
+     */
     @ParameterizedTest
     @EnumSource(value = RequestResponseMarkingFilter.Direction.class)
-    public void supportsForwardDeferredByAsynchronousRequestToBroker(RequestResponseMarkingFilter.Direction direction) {
+    public void supportsForwardDeferredByAsynchronousAction(RequestResponseMarkingFilter.Direction direction) {
+        doSupportsForwardDeferredByAsynchronousRequest(direction,
+                "supportsForwardDeferredByAsynchronousAction",
+                RequestResponseMarkingFilter.ForwardingStyle.ASYNCHRONOUS_DELAYED);
+    }
 
+    /**
+     * This test verifies the use-case where a filter needs delay a request/response forward
+     * until an asynchronous request to the broker completes.
+     * @param direction direction of the flow
+     */
+    @ParameterizedTest
+    @EnumSource(value = RequestResponseMarkingFilter.Direction.class)
+    public void supportsForwardDeferredByAsynchronousBrokerRequest(RequestResponseMarkingFilter.Direction direction) {
+        doSupportsForwardDeferredByAsynchronousRequest(direction,
+                "supportsForwardDeferredByAsynchronousBrokerRequest",
+                RequestResponseMarkingFilter.ForwardingStyle.ASYNCHRONOUS_REQUEST_TO_BROKER);
+    }
+
+    private void doSupportsForwardDeferredByAsynchronousRequest(RequestResponseMarkingFilter.Direction direction, String name,
+                                                                RequestResponseMarkingFilter.ForwardingStyle forwardingStyle) {
         var markingFilter = new FilterDefinitionBuilder("RequestResponseMarking")
                 .withConfig("keysToMark", Set.of(LIST_TRANSACTIONS),
                         "direction", Set.of(direction),
-                        "name", "forwardDelayedByAsyncRequest",
-                        "async", true)
+                        "name", name,
+                        "forwardingStyle", forwardingStyle)
                 .build();
         try (var tester = mockKafkaKroxyliciousTester((mockBootstrap) -> proxy(mockBootstrap).addToFilters(markingFilter));
                 var singleRequestClient = tester.singleRequestClient()) {
 
             tester.addMockResponseForApiKey(new Response(LIST_TRANSACTIONS, LIST_TRANSACTIONS.latestVersion(), new ListTransactionsResponseData()));
-            tester.addMockResponseForApiKey(new Response(LIST_GROUPS, LIST_GROUPS.latestVersion(), new ListGroupsResponseData()));
+
+            // In the ASYNCHRONOUS_REQUEST_TO_BROKER case, the filter will send an async list_group
+            // request to the broker and defer the forward of the list transaction response until the list groups
+            // response arrives.
+            if (forwardingStyle == RequestResponseMarkingFilter.ForwardingStyle.ASYNCHRONOUS_REQUEST_TO_BROKER) {
+                tester.addMockResponseForApiKey(new Response(LIST_GROUPS, LIST_GROUPS.latestVersion(), new ListGroupsResponseData()));
+            }
 
             var response = singleRequestClient.getSync(new Request(LIST_TRANSACTIONS, LIST_TRANSACTIONS.latestVersion(), "client", new ListTransactionsRequestData()));
-            var requestMessageReceivedByBroker = tester.getOnlyRequest().message();
+            var requestMessageReceivedByBroker = tester.getOnlyRequestForApiKey(LIST_TRANSACTIONS).message();
             var responseMessageReceivedBtClient = response.message();
 
             assertThat(requestMessageReceivedByBroker).isInstanceOf(ListTransactionsRequestData.class);
@@ -221,8 +227,7 @@ public class KrpcFilterIT {
 
             var target = direction == RequestResponseMarkingFilter.Direction.REQUEST ? requestMessageReceivedByBroker : responseMessageReceivedBtClient;
             assertThat(unknownTaggedFieldsToStrings(target, FILTER_NAME_TAG)).containsExactly(
-                    "RequestResponseMarkingFilter-forwardDelayedByAsyncRequest-" + direction.toString().toLowerCase(
-                            Locale.ROOT));
+                    "RequestResponseMarkingFilter-%s-%s".formatted(name, direction.toString().toLowerCase(Locale.ROOT)));
         }
     }
 

@@ -15,8 +15,6 @@ public class TestFilterContributor extends BaseContributor<KrpcFilter> implement
             .add("RequestResponseMarking", RequestResponseMarkingFilter.RequestResponseMarkingFilterConfig.class, RequestResponseMarkingFilter::new)
             .add("OutOfBandSend", OutOfBandSendFilter.OutOfBandSendFilterConfig.class, OutOfBandSendFilter::new)
             .add("CompositePrefixingFixedClientId", CompositePrefixingFixedClientIdFilterConfig.class, CompositePrefixingFixedClientIdFilter::new)
-            .add("RequestForwardDelaying", RequestForwardDelayingFilter::new)
-            .add("ResponseForwardDelaying", ResponseForwardDelayingFilter::new)
             .add("CreateTopicRejectFilter", CreateTopicRejectFilter::new);
 
     public TestFilterContributor() {
