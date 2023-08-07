@@ -192,7 +192,6 @@ public class FilterHandlerTest extends FilterHarness {
         assertThat(channel.isOpen()).isFalse();
         var propagated = channel.readOutbound();
         assertThat(propagated).isNull();
-        assertThat(seen).hasSize(1);
         assertThat(seen).containsExactly(frame1.body());
     }
 
@@ -214,7 +213,6 @@ public class FilterHandlerTest extends FilterHarness {
         assertThat(channel.isOpen()).isFalse();
         var propagated = channel.readInbound();
         assertThat(propagated).isNull();
-        assertThat(seen).hasSize(1);
         assertThat(seen).containsExactly(frame1.body());
     }
 
