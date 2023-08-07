@@ -220,12 +220,12 @@ public class KrpcFilterIT {
 
             var response = singleRequestClient.getSync(new Request(LIST_TRANSACTIONS, LIST_TRANSACTIONS.latestVersion(), "client", new ListTransactionsRequestData()));
             var requestMessageReceivedByBroker = tester.getOnlyRequestForApiKey(LIST_TRANSACTIONS).message();
-            var responseMessageReceivedBtClient = response.message();
+            var responseMessageReceivedByClient = response.message();
 
             assertThat(requestMessageReceivedByBroker).isInstanceOf(ListTransactionsRequestData.class);
-            assertThat(responseMessageReceivedBtClient).isInstanceOf(ListTransactionsResponseData.class);
+            assertThat(responseMessageReceivedByClient).isInstanceOf(ListTransactionsResponseData.class);
 
-            var target = direction == RequestResponseMarkingFilter.Direction.REQUEST ? requestMessageReceivedByBroker : responseMessageReceivedBtClient;
+            var target = direction == RequestResponseMarkingFilter.Direction.REQUEST ? requestMessageReceivedByBroker : responseMessageReceivedByClient;
             assertThat(unknownTaggedFieldsToStrings(target, FILTER_NAME_TAG)).containsExactly(
                     "RequestResponseMarkingFilter-%s-%s".formatted(name, direction.toString().toLowerCase(Locale.ROOT)));
         }
