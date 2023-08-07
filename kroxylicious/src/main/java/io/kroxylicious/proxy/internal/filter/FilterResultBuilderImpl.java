@@ -11,15 +11,15 @@ import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.protocol.ApiMessage;
 
-import io.micrometer.common.lang.NonNull;
-
 import io.kroxylicious.proxy.filter.FilterResult;
 import io.kroxylicious.proxy.filter.FilterResultBuilder;
 import io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage;
 import io.kroxylicious.proxy.filter.filterresultbuilder.TerminalStage;
 
-public abstract class FilterResultBuilderImpl<H extends ApiMessage, FR extends FilterResult>
-        implements FilterResultBuilder<H, FR>, CloseOrTerminalStage<FR> {
+import edu.umd.cs.findbugs.annotations.NonNull;
+
+public abstract class FilterResultBuilderImpl<H extends ApiMessage, R extends FilterResult>
+        implements FilterResultBuilder<H, R>, CloseOrTerminalStage<R> {
     private ApiMessage message;
     private ApiMessage header;
     private boolean closeConnection;
@@ -29,7 +29,7 @@ public abstract class FilterResultBuilderImpl<H extends ApiMessage, FR extends F
     }
 
     @Override
-    public CloseOrTerminalStage<FR> forward(@NonNull H header, @NonNull ApiMessage message) {
+    public CloseOrTerminalStage<R> forward(@NonNull H header, @NonNull ApiMessage message) {
         validateForward(header, message);
         this.header = header;
         this.message = message;
@@ -55,7 +55,7 @@ public abstract class FilterResultBuilderImpl<H extends ApiMessage, FR extends F
     }
 
     @Override
-    public TerminalStage<FR> withCloseConnection() {
+    public TerminalStage<R> withCloseConnection() {
         this.closeConnection = true;
         return this;
     }
@@ -65,7 +65,7 @@ public abstract class FilterResultBuilderImpl<H extends ApiMessage, FR extends F
     }
 
     @Override
-    public TerminalStage<FR> drop() {
+    public TerminalStage<R> drop() {
         this.drop = true;
         return this;
     }
@@ -75,7 +75,7 @@ public abstract class FilterResultBuilderImpl<H extends ApiMessage, FR extends F
     }
 
     @Override
-    public CompletionStage<FR> completed() {
+    public CompletionStage<R> completed() {
         return CompletableFuture.completedStage(build());
     }
 }

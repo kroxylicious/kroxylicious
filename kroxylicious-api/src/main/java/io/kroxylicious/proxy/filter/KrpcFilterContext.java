@@ -7,6 +7,8 @@ package io.kroxylicious.proxy.filter;
 
 import java.util.concurrent.CompletionStage;
 
+import javax.annotation.Nullable;
+
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
@@ -35,6 +37,7 @@ public interface KrpcFilterContext {
      * @return the SNI hostname provided by the client.  Will be null if the client is
      * using a non-TLS connection or the TLS client hello didn't provide one.
      */
+    @Nullable
     String sniHostname();
 
     /**
