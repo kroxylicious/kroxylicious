@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
@@ -64,12 +65,17 @@ public class FilterHandlerTest extends FilterHarness {
     }
 
     @Test
-    public void testDeferredRequestTimeout() throws Exception {
+    void testDeferredRequestTimeout() {
         var filterFuture = new CompletableFuture<RequestFilterResult>();
         ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> filterFuture;
-        buildChannel(filter, 50L);
+        long timeoutMs = 50L;
+        buildChannel(filter, timeoutMs);
+        channel.freezeTime();
         writeRequest(new ApiVersionsRequestData());
-        Thread.sleep(60L);
+        channel.advanceTimeBy(timeoutMs - 1, TimeUnit.MILLISECONDS);
+        channel.runPendingTasks();
+        assertThat(filterFuture).isNotDone();
+        channel.advanceTimeBy(1, TimeUnit.MILLISECONDS);
         channel.runPendingTasks();
 
         assertThat(filterFuture).isCompletedExceptionally().isNotCancelled();
@@ -78,12 +84,17 @@ public class FilterHandlerTest extends FilterHarness {
     }
 
     @Test
-    public void testDeferredResponseTimeout() throws Exception {
+    void testDeferredResponseTimeout() {
         var filterFuture = new CompletableFuture<ResponseFilterResult>();
         ApiVersionsResponseFilter filter = (apiVersion, header, request, context) -> filterFuture;
-        buildChannel(filter, 50L);
+        long timeoutMs = 50L;
+        buildChannel(filter, timeoutMs);
+        channel.freezeTime();
         writeResponse(new ApiVersionsResponseData());
-        Thread.sleep(60L);
+        channel.advanceTimeBy(timeoutMs - 1, TimeUnit.MILLISECONDS);
+        channel.runPendingTasks();
+        assertThat(filterFuture).isNotDone();
+        channel.advanceTimeBy(1, TimeUnit.MILLISECONDS);
         channel.runPendingTasks();
 
         assertThat(filterFuture).isCompletedExceptionally().isNotCancelled();
@@ -417,7 +428,7 @@ public class FilterHandlerTest extends FilterHarness {
     }
 
     @Test
-    public void testSendRequestTimeout() throws InterruptedException {
+    void testSendRequestTimeout() {
         FetchRequestData body = new FetchRequestData();
         CompletionStage<ApiMessage>[] fut = new CompletionStage[]{ null };
         ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> {
@@ -428,6 +439,7 @@ public class FilterHandlerTest extends FilterHarness {
         };
 
         buildChannel(filter, 50L);
+        channel.freezeTime();
 
         var frame = writeRequest(new ApiVersionsRequestData());
         var propagated = channel.readOutbound();
@@ -440,8 +452,13 @@ public class FilterHandlerTest extends FilterHarness {
         assertFalse(q.isDone(),
                 "Future should not be finished yet");
 
-        // timeout the message
-        Thread.sleep(60L);
+        // advance to 1ms before timeout
+        channel.advanceTimeBy(49, TimeUnit.MILLISECONDS);
+        channel.runPendingTasks();
+        assertThat(q).isNotDone();
+
+        // advance to timeout
+        channel.advanceTimeBy(1, TimeUnit.MILLISECONDS);
         channel.runPendingTasks();
 
         assertTrue(q.isDone(),
