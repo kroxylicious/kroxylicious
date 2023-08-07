@@ -13,7 +13,6 @@ public class TestFilterContributor extends BaseContributor<KrpcFilter> implement
     public static final BaseContributorBuilder<KrpcFilter> FILTERS = BaseContributor.<KrpcFilter> builder()
             .add("FixedClientId", FixedClientIdFilter.FixedClientIdFilterConfig.class, FixedClientIdFilter::new)
             .add("RequestResponseMarking", RequestResponseMarkingFilter.RequestResponseMarkingFilterConfig.class, RequestResponseMarkingFilter::new)
-            .add("InBandAsyncRequestMakingFilter", InBandAsyncRequestMakingFilter.InBandAsyncRequestMakingFilterConfig.class, InBandAsyncRequestMakingFilter::new)
             .add("OutOfBandSend", OutOfBandSendFilter.OutOfBandSendFilterConfig.class, OutOfBandSendFilter::new)
             .add("CompositePrefixingFixedClientId", CompositePrefixingFixedClientIdFilterConfig.class, CompositePrefixingFixedClientIdFilter::new)
             .add("RequestForwardDelaying", RequestForwardDelayingFilter::new)
