@@ -28,6 +28,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import io.kroxylicious.proxy.filter.ApiVersionsRequestFilter;
 import io.kroxylicious.proxy.filter.ApiVersionsResponseFilter;
@@ -247,6 +248,32 @@ public class FilterHandlerTest extends FilterHarness {
         var frame = writeRequest(new ApiVersionsRequestData());
         var propagated = channel.readOutbound();
         assertNull(propagated);
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = { true, false })
+    void requestShortCircuit(boolean withClose) {
+        var shortCircuitResponse = new ApiVersionsResponseData();
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> {
+            var builder = context.requestFilterResultBuilder()
+                    .shortCircuitResponse(shortCircuitResponse);
+
+            if (withClose) {
+                builder.withCloseConnection();
+            }
+            return builder.completed();
+        };
+        buildChannel(filter);
+        writeRequest(new ApiVersionsRequestData());
+
+        assertThat(channel.isOpen()).isEqualTo(!withClose);
+
+        var propagatedOutbound = channel.readOutbound();
+        assertThat(propagatedOutbound).isNull();
+
+        var propagatedInbound = channel.readInbound();
+        assertThat(propagatedInbound).isNotNull();
+        assertThat(((DecodedResponseFrame<?>) propagatedInbound).body()).isEqualTo(shortCircuitResponse);
     }
 
     @Test
