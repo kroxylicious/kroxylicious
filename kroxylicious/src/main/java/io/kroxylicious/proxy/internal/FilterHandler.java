@@ -105,8 +105,8 @@ public class FilterHandler extends ChannelDuplexHandler {
             boolean defer = !future.isDone();
             var maybeDeferred = defer ? handleDeferredStage(ctx, future, decodedFrame) : future;
             var execute = executeWrite(ctx, decodedFrame, filterContext, maybeDeferred);
-            var maybeUndeferred = defer ? handleUndeferWrite(ctx, execute) : execute;
-            return maybeUndeferred.thenApply(filterResult -> null);
+            var maybeDeferredCompleted = defer ? handleDeferredWriteCompletion(ctx, execute) : execute;
+            return maybeDeferredCompleted.thenApply(filterResult -> null);
         }
         else {
             if (!(msg instanceof OpaqueRequestFrame)
@@ -232,8 +232,8 @@ public class FilterHandler extends ChannelDuplexHandler {
             boolean defer = !future.isDone();
             var maybeDeferred = defer ? handleDeferredStage(ctx, future, decodedFrame) : future;
             var execute = executeRead(ctx, decodedFrame, filterContext, maybeDeferred);
-            var maybeUndeferred = defer ? handleUndeferRead(execute) : execute;
-            return maybeUndeferred.thenApply(responseFilterResult -> null);
+            var maybeDeferredCompleted = defer ? handleDeferredReadCompletion(execute) : execute;
+            return maybeDeferredCompleted.thenApply(responseFilterResult -> null);
         }
         else {
             if (!(msg instanceof OpaqueResponseFrame)) {
@@ -244,14 +244,14 @@ public class FilterHandler extends ChannelDuplexHandler {
         }
     }
 
-    private CompletableFuture<?> handleUndeferRead(CompletableFuture<?> execute) {
+    private CompletableFuture<?> handleDeferredReadCompletion(CompletableFuture<?> execute) {
         return execute.whenComplete((ignored, throwable) -> {
             inboundChannel.config().setAutoRead(true);
             inboundChannel.flush();
         });
     }
 
-    private CompletableFuture<?> handleUndeferWrite(ChannelHandlerContext ctx, CompletableFuture<?> execute) {
+    private CompletableFuture<?> handleDeferredWriteCompletion(ChannelHandlerContext ctx, CompletableFuture<?> execute) {
         return execute.whenComplete((ignored, throwable) -> {
             inboundChannel.config().setAutoRead(true);
             ctx.flush();
