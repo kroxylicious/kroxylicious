@@ -328,6 +328,19 @@
             </build>
         </profile>
         <profile>
+            <id>withAdditionalFilters</id>
+            <dependencies>
+                <dependency>
+                    <groupId>io.kroxylicious</groupId>
+                    <artifactId>kroxylicious-multitenant</artifactId>
+                </dependency>
+                <dependency>
+                    <groupId>io.kroxylicious</groupId>
+                    <artifactId>kroxylicious-schema-validation</artifactId>
+                </dependency>
+            </dependencies>
+        </profile>
+        <profile>
             <id>architecture-check</id>
             <repositories>
                 <repository>

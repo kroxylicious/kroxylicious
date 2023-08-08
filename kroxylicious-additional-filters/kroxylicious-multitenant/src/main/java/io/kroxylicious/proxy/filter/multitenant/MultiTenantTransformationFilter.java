@@ -488,16 +488,12 @@ public class MultiTenantTransformationFilter
     }
 
     private static String getTenantPrefix(KrpcFilterContext context) {
-        // TODO naive - POC implementation uses the first component of a FQDN as the multi-tenant prefix.
-        var sniHostname = context.sniHostname();
-        if (sniHostname == null) {
-            throw new IllegalStateException("This filter requires that the client provides a TLS SNI hostname.");
+        // TODO naive - POC implementation uses virtual cluster name as a tenant prefix
+        var virtualClusterName = context.getVirtualClusterName();
+        if (virtualClusterName == null) {
+            throw new IllegalStateException("This filter requires that the virtual cluster has a name");
         }
-        int dot = sniHostname.indexOf(".");
-        if (dot < 1) {
-            throw new IllegalStateException("Unexpected SNI hostname formation. SNI hostname : " + sniHostname);
-        }
-        return sniHostname.substring(0, dot) + "-";
+        return virtualClusterName + "-";
     }
 
     public MultiTenantTransformationFilter() {

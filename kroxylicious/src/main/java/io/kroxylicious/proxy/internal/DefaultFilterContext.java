@@ -36,6 +36,7 @@ import io.kroxylicious.proxy.future.InternalCompletionStage;
 import io.kroxylicious.proxy.internal.filter.RequestFilterResultBuilderImpl;
 import io.kroxylicious.proxy.internal.filter.ResponseFilterResultBuilderImpl;
 import io.kroxylicious.proxy.internal.util.ByteBufOutputStream;
+import io.kroxylicious.proxy.model.VirtualCluster;
 
 /**
  * Implementation of {@link KrpcFilterContext}.
@@ -50,19 +51,22 @@ class DefaultFilterContext implements KrpcFilterContext {
     private final KrpcFilter filter;
     private final long timeoutMs;
     private final String sniHostname;
+    private final VirtualCluster virtualCluster;
 
     DefaultFilterContext(KrpcFilter filter,
                          ChannelHandlerContext channelContext,
                          DecodedFrame<?, ?> decodedFrame,
                          ChannelPromise promise,
                          long timeoutMs,
-                         String sniHostname) {
+                         String sniHostname,
+                         VirtualCluster virtualCluster) {
         this.filter = filter;
         this.channelContext = channelContext;
         this.decodedFrame = decodedFrame;
         this.promise = promise;
         this.timeoutMs = timeoutMs;
         this.sniHostname = sniHostname;
+        this.virtualCluster = virtualCluster;
     }
 
     /**
@@ -227,6 +231,10 @@ class DefaultFilterContext implements KrpcFilterContext {
         this.channelContext.close().addListener(future -> {
             LOGGER.debug("{} closed.", channelDescriptor());
         });
+    }
+
+    public String getVirtualClusterName() {
+        return virtualCluster.getClusterName();
     }
 
     /**

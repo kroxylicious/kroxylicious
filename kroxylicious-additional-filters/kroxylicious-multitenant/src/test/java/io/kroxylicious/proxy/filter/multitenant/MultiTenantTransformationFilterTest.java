@@ -17,6 +17,7 @@ import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -51,7 +52,7 @@ import static org.mockito.Mockito.when;
 class MultiTenantTransformationFilterTest {
     private static final Pattern TEST_RESOURCE_FILTER = Pattern.compile(
             String.format("%s/.*\\.yaml", MultiTenantTransformationFilterTest.class.getPackageName().replace(".", "/")));
-    private static final String TENANT_1 = "tenant1.kafka.example.com";
+    private static final String TENANT_1 = "tenant1";
 
     private static List<ResourceInfo> getTestResources() throws IOException {
         var resources = ClassPath.from(MultiTenantTransformationFilterTest.class.getClassLoader()).getResources().stream()
@@ -85,6 +86,11 @@ class MultiTenantTransformationFilterTest {
     @Captor
     private ArgumentCaptor<ApiMessage> apiMessageCaptor;
 
+    @BeforeEach
+    public void beforeEach() {
+        when(context.getVirtualClusterName()).thenReturn(TENANT_1);
+    }
+
     public static Stream<Arguments> requests() throws Exception {
         return RequestResponseTestDef.requestResponseTestDefinitions(getTestResources()).filter(td -> td.request() != null)
                 .map(td -> Arguments.of(td.testName(), td.apiKey(), td.header(), td.request()));
@@ -99,7 +105,6 @@ class MultiTenantTransformationFilterTest {
         var requestWriter = requestConverterFor(apiMessageType).writer();
         var marshalled = requestWriter.apply(request, header.requestApiVersion());
 
-        when(context.sniHostname()).thenReturn(TENANT_1);
         when(requestFilterResult.message()).thenAnswer(invocation -> apiMessageCaptor.getValue());
         when(requestFilterResult.header()).thenAnswer(invocation -> requestHeaderDataCaptor.getValue());
         when(context.forwardRequest(requestHeaderDataCaptor.capture(), apiMessageCaptor.capture())).thenAnswer(
@@ -128,7 +133,6 @@ class MultiTenantTransformationFilterTest {
 
         var marshalled = responseWriter.apply(response, header.requestApiVersion());
 
-        when(context.sniHostname()).thenReturn(TENANT_1);
         when(responseFilterResult.message()).thenAnswer(invocation -> apiMessageCaptor.getValue());
         when(responseFilterResult.header()).thenAnswer(invocation -> responseHeaderDataArgumentCaptor.getValue());
         when(context.forwardResponse(responseHeaderDataArgumentCaptor.capture(), apiMessageCaptor.capture())).thenAnswer(
