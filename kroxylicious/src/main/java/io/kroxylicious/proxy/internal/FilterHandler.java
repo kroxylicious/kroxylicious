@@ -132,6 +132,12 @@ public class FilterHandler extends ChannelDuplexHandler {
                 filterContext.closeConnection();
                 return;
             }
+            if (requestFilterResult == null) {
+                LOGGER.warn("{}: Filter{} for {} request future completed with null - closing connection",
+                        ctx.channel(), filterDescriptor(), decodedFrame.apiKey());
+                filterContext.closeConnection();
+                return;
+            }
 
             if (requestFilterResult.drop()) {
                 if (LOGGER.isDebugEnabled()) {
@@ -263,7 +269,12 @@ public class FilterHandler extends ChannelDuplexHandler {
                 filterContext.closeConnection();
                 return;
             }
-
+            if (responseFilterResult == null) {
+                LOGGER.warn("{}: Filter{} for {} response future completed with null - closing connection",
+                        ctx.channel(), filterDescriptor(), decodedFrame.apiKey());
+                filterContext.closeConnection();
+                return;
+            }
             if (responseFilterResult.drop()) {
                 if (LOGGER.isDebugEnabled()) {
                     LOGGER.debug("{}: Filter{} drops {} response",

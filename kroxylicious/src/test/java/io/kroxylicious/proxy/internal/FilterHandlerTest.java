@@ -103,6 +103,40 @@ public class FilterHandlerTest extends FilterHarness {
         assertThat(channel.isOpen()).isFalse();
     }
 
+    @Test
+    void testUserResponseFilterReturnsNullFuture() {
+        ApiVersionsResponseFilter filter = (apiVersion, header, request, context) -> null;
+        buildChannel(filter, 50L);
+        writeResponse(new ApiVersionsResponseData());
+        assertThat(channel.isOpen()).isFalse();
+    }
+
+    @Test
+    void testUserResponseFilterReturnsEmptyFuture() {
+        CompletableFuture<ResponseFilterResult> filterFuture = CompletableFuture.completedFuture(null);
+        ApiVersionsResponseFilter filter = (apiVersion, header, request, context) -> filterFuture;
+        buildChannel(filter, 50L);
+        writeResponse(new ApiVersionsResponseData());
+        assertThat(channel.isOpen()).isFalse();
+    }
+
+    @Test
+    void testUserRequestFilterReturnsNullFuture() {
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> null;
+        buildChannel(filter, 50L);
+        writeRequest(new ApiVersionsRequestData());
+        assertThat(channel.isOpen()).isFalse();
+    }
+
+    @Test
+    void testUserRequestFilterReturnsEmptyFuture() {
+        CompletableFuture<RequestFilterResult> filterFuture = CompletableFuture.completedFuture(null);
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> filterFuture;
+        buildChannel(filter, 50L);
+        writeRequest(new ApiVersionsRequestData());
+        assertThat(channel.isOpen()).isFalse();
+    }
+
     static Stream<Arguments> requestFilterClosesChannel() {
         return Stream.of(
                 Arguments.of("completes exceptionally",
@@ -355,7 +389,7 @@ public class FilterHandlerTest extends FilterHarness {
             assertNull(fut[0],
                     "Expected to only be called once");
             fut[0] = (InternalCompletionStage<ApiMessage>) context.sendRequest((short) 3, body);
-            return CompletableFuture.completedStage(null);
+            return context.requestFilterResultBuilder().drop().completed();
         };
 
         buildChannel(filter);
