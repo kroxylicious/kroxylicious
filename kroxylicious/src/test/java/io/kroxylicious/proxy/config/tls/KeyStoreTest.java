@@ -44,9 +44,9 @@ class KeyStoreTest {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource()
-    public void serverWithKeyStore(String name,
-                                   String storeType,
-                                   String storeFile, PasswordProvider storePassword, PasswordProvider keyPassword)
+    void serverWithKeyStore(String name,
+                            String storeType,
+                            String storeFile, PasswordProvider storePassword, PasswordProvider keyPassword)
             throws Exception {
         var keyStore = new KeyStore(getResourceLocationOnFilesystem(storeFile), storePassword, keyPassword, storeType);
 

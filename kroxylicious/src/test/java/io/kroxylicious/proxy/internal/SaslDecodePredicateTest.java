@@ -70,9 +70,9 @@ class SaslDecodePredicateTest {
         assertPredicateTargetsRequestKey(ApiKeys.API_VERSIONS);
     }
 
-    @EnumSource(ApiKeys.class)
     @ParameterizedTest
-    public void testAllKeysDecodedBeforeDelegateSet(ApiKeys keys) {
+    @EnumSource(ApiKeys.class)
+    void testAllKeysDecodedBeforeDelegateSet(ApiKeys keys) {
         givenSaslHandlingDisabled();
         assertPredicateTargetsRequestKey(keys);
         givenSaslHandlingEnabled();
@@ -89,7 +89,7 @@ class SaslDecodePredicateTest {
 
     @EnumSource(value = ApiKeys.class, mode = EnumSource.Mode.EXCLUDE, names = { "SASL_AUTHENTICATE", "SASL_HANDSHAKE", "API_VERSIONS" })
     @ParameterizedTest
-    public void testNonSaslKeysNotTargetedForDecodeWithOffloadingAuthWhenPredicateDeniesThem(ApiKeys apiKeys) {
+    void testNonSaslKeysNotTargetedForDecodeWithOffloadingAuthWhenPredicateDeniesThem(ApiKeys apiKeys) {
         givenSaslHandlingEnabled();
         givenDelegateTargetsNothing();
         assertPredicateDoesNotTargetRequestKey(apiKeys);
@@ -97,7 +97,7 @@ class SaslDecodePredicateTest {
 
     @EnumSource(value = ApiKeys.class, mode = EnumSource.Mode.EXCLUDE, names = { "API_VERSIONS" })
     @ParameterizedTest
-    public void testAllKeysCanBeDeniedByDelegateWhenNotOffloadingAuth(ApiKeys apiKeys) {
+    void testAllKeysCanBeDeniedByDelegateWhenNotOffloadingAuth(ApiKeys apiKeys) {
         givenSaslHandlingDisabled();
         givenDelegateTargetsNothing();
         assertPredicateDoesNotTargetRequestKey(apiKeys);
@@ -105,7 +105,7 @@ class SaslDecodePredicateTest {
 
     @EnumSource(value = ApiKeys.class, mode = EnumSource.Mode.EXCLUDE, names = { "API_VERSIONS" })
     @ParameterizedTest
-    public void testAllKeysCanBeTargetedByDelegateWhenNotOffloadingAuth(ApiKeys apiKeys) {
+    void testAllKeysCanBeTargetedByDelegateWhenNotOffloadingAuth(ApiKeys apiKeys) {
         givenSaslHandlingDisabled();
         givenDelegateTargetsAll();
         assertPredicateTargetsRequestKey(apiKeys);

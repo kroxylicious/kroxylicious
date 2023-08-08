@@ -179,7 +179,7 @@ public class KrpcFilterIT {
      */
     @ParameterizedTest
     @EnumSource(value = RequestResponseMarkingFilter.Direction.class)
-    public void supportsForwardDeferredByAsynchronousAction(RequestResponseMarkingFilter.Direction direction) {
+    void supportsForwardDeferredByAsynchronousAction(RequestResponseMarkingFilter.Direction direction) {
         doSupportsForwardDeferredByAsynchronousRequest(direction,
                 "supportsForwardDeferredByAsynchronousAction",
                 RequestResponseMarkingFilter.ForwardingStyle.ASYNCHRONOUS_DELAYED);
@@ -192,7 +192,7 @@ public class KrpcFilterIT {
      */
     @ParameterizedTest
     @EnumSource(value = RequestResponseMarkingFilter.Direction.class)
-    public void supportsForwardDeferredByAsynchronousBrokerRequest(RequestResponseMarkingFilter.Direction direction) {
+    void supportsForwardDeferredByAsynchronousBrokerRequest(RequestResponseMarkingFilter.Direction direction) {
         doSupportsForwardDeferredByAsynchronousRequest(direction,
                 "supportsForwardDeferredByAsynchronousBrokerRequest",
                 RequestResponseMarkingFilter.ForwardingStyle.ASYNCHRONOUS_REQUEST_TO_BROKER);

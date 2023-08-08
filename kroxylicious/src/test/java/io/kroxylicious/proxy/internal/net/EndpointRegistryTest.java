@@ -295,8 +295,8 @@ class EndpointRegistryTest {
 
     @ParameterizedTest
     @CsvSource({ "mycluster1:9192,upstream1:9192,true,true", "mycluster1:9192,upstream1:9192,true,false", "localhost:9192,upstream1:9192,false,false" })
-    public void resolveBootstrap(@ConvertWith(HostPortConverter.class) HostPort downstreamBootstrap, @ConvertWith(HostPortConverter.class) HostPort upstreamBootstrap,
-                                 boolean tls, boolean sni)
+    void resolveBootstrap(@ConvertWith(HostPortConverter.class) HostPort downstreamBootstrap, @ConvertWith(HostPortConverter.class) HostPort upstreamBootstrap,
+                          boolean tls, boolean sni)
             throws Exception {
         configureVirtualClusterMock(virtualCluster1, HostPort.parse(downstreamBootstrap.toString()), HostPort.parse(upstreamBootstrap.toString()), tls, sni, null);
 
@@ -309,12 +309,12 @@ class EndpointRegistryTest {
         assertThat(binding).isEqualTo(new VirtualClusterBootstrapBinding(virtualCluster1, upstreamBootstrap));
     }
 
-    @ParameterizedTest(name = "{0}")
+    @ParameterizedTest
     @CsvSource({ "mismatching host,mycluster1:9192,upstream1:9192,mycluster2:9192", "mistmatching port,mycluster1:9192,upstream1:9192,mycluster1:9191" })
-    public void resolveBootstrapResolutionFailures(String name,
-                                                   @ConvertWith(HostPortConverter.class) HostPort downstreamBootstrap,
-                                                   @ConvertWith(HostPortConverter.class) HostPort upstreamBootstrap,
-                                                   @ConvertWith(HostPortConverter.class) HostPort resolveAddress) {
+    void resolveBootstrapResolutionFailures(String name,
+                                            @ConvertWith(HostPortConverter.class) HostPort downstreamBootstrap,
+                                            @ConvertWith(HostPortConverter.class) HostPort upstreamBootstrap,
+                                            @ConvertWith(HostPortConverter.class) HostPort resolveAddress) {
         configureVirtualClusterMock(virtualCluster1, HostPort.parse(downstreamBootstrap.toString()), HostPort.parse(upstreamBootstrap.toString()), true);
 
         var f = endpointRegistry.registerVirtualCluster(virtualCluster1).toCompletableFuture();
@@ -329,9 +329,9 @@ class EndpointRegistryTest {
     @ParameterizedTest
     @CsvSource({ "mycluster1:9192,upstream1:9192,MyClUsTeR1:9192",
             "69.2.0.192.in-addr.arpa:9192,upstream1:9192,69.2.0.192.in-ADDR.ARPA:9192" })
-    public void resolveRespectsCaseInsensitivityRfc4343(@ConvertWith(HostPortConverter.class) HostPort downstreamBootstrap,
-                                                        @ConvertWith(HostPortConverter.class) HostPort upstreamBootstrap,
-                                                        @ConvertWith(HostPortConverter.class) HostPort resolveAddress)
+    void resolveRespectsCaseInsensitivityRfc4343(@ConvertWith(HostPortConverter.class) HostPort downstreamBootstrap,
+                                                 @ConvertWith(HostPortConverter.class) HostPort upstreamBootstrap,
+                                                 @ConvertWith(HostPortConverter.class) HostPort resolveAddress)
             throws Exception {
         configureVirtualClusterMock(virtualCluster1, HostPort.parse(downstreamBootstrap.toString()), HostPort.parse(upstreamBootstrap.toString()), true);
 

@@ -27,13 +27,13 @@ class FilterInvokersTest {
 
     @ParameterizedTest
     @MethodSource("invalidFilters")
-    public void testInvalidFilters(KrpcFilter invalid) {
+    void testInvalidFilters(KrpcFilter invalid) {
         Assertions.assertThrows(IllegalArgumentException.class, () -> FilterInvokers.from(invalid));
     }
 
     @ParameterizedTest
     @MethodSource("validFilters")
-    public void testValidFilters(KrpcFilter invalid) {
+    void testValidFilters(KrpcFilter invalid) {
         assertThat(FilterInvokers.from(invalid)).isNotNull();
     }
 

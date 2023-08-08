@@ -119,8 +119,8 @@ class KrpcGeneratorTest {
     }
 
     @ParameterizedTest
-    @CsvSource(value = { "AddPartitionsToTxnRequest.json,yes", "FetchRequest.json,no" })
-    public void testLatestVersionUnstable(String messageSpec, String expectedContents, @TempDir File tempDir) throws Exception {
+    @CsvSource({ "AddPartitionsToTxnRequest.json,yes", "FetchRequest.json,no" })
+    void testLatestVersionUnstable(String messageSpec, String expectedContents, @TempDir File tempDir) throws Exception {
         testSingleGeneration(tempDir, messageSpec, "${messageSpec.latestVersionUnstable.isPresent()?string('yes', 'no')}", expectedContents);
         testSingleGeneration(tempDir, messageSpec, "${messageSpec.latestVersionUnstable.orElse(false)?string('yes', 'no')}", expectedContents);
     }

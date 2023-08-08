@@ -18,7 +18,7 @@ public class ResponseDecoderTest extends AbstractCodecTest {
 
     @ParameterizedTest
     @MethodSource("requestApiVersions()")
-    public void testApiVersionsExactlyOneFrame_decoded(short apiVersion) throws Exception {
+    void testApiVersionsExactlyOneFrame_decoded(short apiVersion) throws Exception {
         var mgr = new CorrelationManager(12);
         mgr.putBrokerRequest(ApiKeys.API_VERSIONS.id, apiVersion, 52, true, null, null, true);
         assertEquals(52, exactlyOneFrame_decoded(apiVersion,
@@ -35,7 +35,7 @@ public class ResponseDecoderTest extends AbstractCodecTest {
 
     @ParameterizedTest
     @MethodSource("requestApiVersions()")
-    public void testApiVersionsExactlyOneFrame_opaque(short apiVersion) throws Exception {
+    void testApiVersionsExactlyOneFrame_opaque(short apiVersion) throws Exception {
         var mgr = new CorrelationManager(12);
         mgr.putBrokerRequest(ApiKeys.API_VERSIONS.id, apiVersion, 52, true, null, null, false);
         assertEquals(52, exactlyOneFrame_encoded(apiVersion,

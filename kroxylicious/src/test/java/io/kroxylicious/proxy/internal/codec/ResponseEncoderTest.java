@@ -18,7 +18,7 @@ import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 public class ResponseEncoderTest extends AbstractCodecTest {
     @ParameterizedTest
     @MethodSource("requestApiVersions()")
-    public void testApiVersions(short apiVersion) throws Exception {
+    void testApiVersions(short apiVersion) throws Exception {
         ResponseHeaderData exampleHeader = exampleResponseHeader();
         ApiVersionsResponseData exampleBody = exampleApiVersionsResponse();
         short headerVersion = ApiKeys.API_VERSIONS.responseHeaderVersion(apiVersion);

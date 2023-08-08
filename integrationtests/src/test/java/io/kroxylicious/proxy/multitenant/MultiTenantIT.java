@@ -205,7 +205,7 @@ public class MultiTenantIT extends BaseMultiTenantIT {
 
     @ParameterizedTest
     @EnumSource
-    public void tenantConsumeWithGroup(ConsumerStyle consumerStyle, KafkaCluster cluster) throws Exception {
+    void tenantConsumeWithGroup(ConsumerStyle consumerStyle, KafkaCluster cluster) throws Exception {
         var config = getConfig(cluster, this.certificateGenerator);
         try (var tester = kroxyliciousTester(config);
                 var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
@@ -217,7 +217,7 @@ public class MultiTenantIT extends BaseMultiTenantIT {
 
     @ParameterizedTest
     @EnumSource
-    public void tenantGroupIsolation(ConsumerStyle consumerStyle, KafkaCluster cluster) throws Exception {
+    void tenantGroupIsolation(ConsumerStyle consumerStyle, KafkaCluster cluster) throws Exception {
         var config = getConfig(cluster, this.certificateGenerator);
         try (var tester = kroxyliciousTester(config);
                 var adminTenant1 = tester.admin(TENANT_1_CLUSTER, this.clientConfig);

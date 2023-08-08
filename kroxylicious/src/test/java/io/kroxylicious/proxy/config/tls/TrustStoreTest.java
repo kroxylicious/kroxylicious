@@ -34,7 +34,7 @@ class TrustStoreTest {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource()
-    public void trustStoreTypes(String name, String storeType, String storeFile, PasswordProvider storePassword) throws Exception {
+    void trustStoreTypes(String name, String storeType, String storeFile, PasswordProvider storePassword) throws Exception {
         var trustStore = new TrustStore(TlsTestConstants.getResourceLocationOnFilesystem(storeFile), storePassword, storeType);
         trustStore.apply(sslContextBuilder);
 

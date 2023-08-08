@@ -46,11 +46,11 @@ class HostPortTest {
     }
 
     @ParameterizedTest
-    @CsvSource(value = { "foo.example.net:80,Foo.ExamplE.net:80",
+    @CsvSource({ "foo.example.net:80,Foo.ExamplE.net:80",
             "aol.com:80,AOL.COM:80",
             "www.gnu.ai.mit.edu:80,WWW.gnu.AI.mit.EDU:80",
             "69.2.0.192.in-addr.arpa:80,69.2.0.192.in-ADDR.ARPA:80" })
-    public void caseInsensitivityRfc4343(String left, String right) {
+    void caseInsensitivityRfc4343(String left, String right) {
         var l = HostPort.parse(left);
         var r = HostPort.parse(right);
         assertThat(l).isEqualTo(r);

@@ -137,7 +137,7 @@ public class ByteBufAccessorTest {
 
     @ParameterizedTest
     @MethodSource("requestApiVersions")
-    public void testReadApiVersionsRequest(short apiVersion, Schema schema) {
+    void testReadApiVersionsRequest(short apiVersion, Schema schema) {
         // Write using Kafka API
         var message = new ApiVersionsRequestData()
                 .setClientSoftwareName("foo/bar")
@@ -158,7 +158,7 @@ public class ByteBufAccessorTest {
 
     @ParameterizedTest
     @MethodSource("requestApiVersions")
-    public void testWriteApiVersionsRequest(short apiVersion, Schema schema) {
+    void testWriteApiVersionsRequest(short apiVersion, Schema schema) {
         // Write using our API
         var message = new ApiVersionsRequestData()
                 .setClientSoftwareName("foo/bar")
@@ -187,7 +187,7 @@ public class ByteBufAccessorTest {
 
     @ParameterizedTest
     @MethodSource("responseApiVersions")
-    public void testReadApiVersionsResponse(short apiVersion, Schema schema) {
+    void testReadApiVersionsResponse(short apiVersion, Schema schema) {
         // Write using Kafka API
         var ff = new ApiVersionsResponseData.FinalizedFeatureKeyCollection();
         ff.add(new ApiVersionsResponseData.FinalizedFeatureKey()
@@ -227,7 +227,7 @@ public class ByteBufAccessorTest {
 
     @ParameterizedTest
     @MethodSource("responseApiVersions")
-    public void testWriteApiVersionsResponse(short apiVersion, Schema schema) {
+    void testWriteApiVersionsResponse(short apiVersion, Schema schema) {
         // Write using our API
         var ff = new ApiVersionsResponseData.FinalizedFeatureKeyCollection();
         ff.add(new ApiVersionsResponseData.FinalizedFeatureKey()
