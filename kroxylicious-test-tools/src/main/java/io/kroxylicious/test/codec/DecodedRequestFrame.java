@@ -5,6 +5,8 @@
  */
 package io.kroxylicious.test.codec;
 
+import java.util.concurrent.CompletableFuture;
+
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
 
@@ -15,6 +17,8 @@ import org.apache.kafka.common.protocol.ApiMessage;
 public class DecodedRequestFrame<B extends ApiMessage>
         extends DecodedFrame<RequestHeaderData, B>
         implements Frame {
+
+    private final CompletableFuture<DecodedResponseFrame<?>> responseFuture = new CompletableFuture<>();
 
     /**
      * Create a decoded request frame
@@ -35,4 +39,7 @@ public class DecodedRequestFrame<B extends ApiMessage>
         return apiKey().messageType.requestHeaderVersion(apiVersion);
     }
 
+    public CompletableFuture<DecodedResponseFrame<?>> getResponseFuture() {
+        return responseFuture;
+    }
 }

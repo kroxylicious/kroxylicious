@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 
 import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.admin.NewTopic;
@@ -21,11 +22,14 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.errors.InvalidTopicException;
+import org.apache.kafka.common.message.CreateTopicsRequestData;
+import org.apache.kafka.common.message.CreateTopicsResponseData;
 import org.apache.kafka.common.message.ListGroupsResponseData;
 import org.apache.kafka.common.message.ListTransactionsRequestData;
 import org.apache.kafka.common.message.ListTransactionsResponseData;
 import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.MetadataResponseData;
+import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.LoggerContext;
@@ -36,10 +40,13 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
 import io.kroxylicious.proxy.filter.CreateTopicRejectFilter;
+import io.kroxylicious.proxy.filter.ForwardingStyle;
 import io.kroxylicious.proxy.filter.RequestResponseMarkingFilter;
 import io.kroxylicious.proxy.internal.filter.ByteBufferTransformation;
 import io.kroxylicious.test.Request;
@@ -58,6 +65,7 @@ import static org.apache.kafka.clients.consumer.ConsumerConfig.GROUP_ID_CONFIG;
 import static org.apache.kafka.clients.producer.ProducerConfig.ACKS_CONFIG;
 import static org.apache.kafka.clients.producer.ProducerConfig.CLIENT_ID_CONFIG;
 import static org.apache.kafka.clients.producer.ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG;
+import static org.apache.kafka.common.protocol.ApiKeys.CREATE_TOPICS;
 import static org.apache.kafka.common.protocol.ApiKeys.LIST_GROUPS;
 import static org.apache.kafka.common.protocol.ApiKeys.LIST_TRANSACTIONS;
 import static org.apache.kafka.common.protocol.ApiKeys.METADATA;
@@ -65,6 +73,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.testcontainers.shaded.org.awaitility.Awaitility.await;
 
 @ExtendWith(KafkaClusterExtension.class)
 class KrpcFilterIT {
@@ -162,7 +171,7 @@ class KrpcFilterIT {
     @SuppressWarnings("java:S5841") // java:S5841 warns that doesNotContain passes for the empty case. Which is what we want here.
     void requestFiltersCanRespondWithoutProxying(KafkaCluster cluster, Admin admin) throws Exception {
         var config = proxy(cluster)
-                .addToFilters(new FilterDefinitionBuilder("CreateTopicRejectFilter").build());
+                .addToFilters(new FilterDefinitionBuilder("CreateTopicReject").build());
 
         try (var tester = kroxyliciousTester(config);
                 var proxyAdmin = tester.admin()) {
@@ -172,6 +181,44 @@ class KrpcFilterIT {
             Set<String> names = admin.listTopics().names().get(10, TimeUnit.SECONDS);
             assertThat(names).doesNotContain(TOPIC_1);
         }
+    }
+
+    public static Stream<Arguments> requestFilterCanShortCircuitResponse() {
+        return Stream.of(
+                Arguments.of("synchronous with close", true, ForwardingStyle.SYNCHRONOUS),
+                Arguments.of("synchronous without close", false, ForwardingStyle.SYNCHRONOUS),
+                Arguments.of("asynchronous with close", true, ForwardingStyle.ASYNCHRONOUS_DELAYED),
+                Arguments.of("asynchronous without close", true, ForwardingStyle.ASYNCHRONOUS_REQUEST_TO_BROKER));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource
+    public void requestFilterCanShortCircuitResponse(String name, boolean closeConnection, ForwardingStyle forwardingStyle) {
+        var rejectFilter = new FilterDefinitionBuilder("CreateTopicReject")
+                .withConfig("withCloseConnection", closeConnection,
+                        "forwardingStyle", forwardingStyle)
+                .build();
+        try (var tester = mockKafkaKroxyliciousTester((mockBootstrap) -> proxy(mockBootstrap).addToFilters(rejectFilter));
+                var requestClient = tester.multiRequestClient()) {
+
+            if (forwardingStyle == ForwardingStyle.ASYNCHRONOUS_REQUEST_TO_BROKER) {
+                tester.addMockResponseForApiKey(new Response(LIST_GROUPS, LIST_GROUPS.latestVersion(), new ListGroupsResponseData()));
+            }
+
+            var createTopic = new CreateTopicsRequestData();
+            createTopic.topics().add(new CreateTopicsRequestData.CreatableTopic().setName("foo"));
+
+            var response = requestClient.getSync(new Request(CREATE_TOPICS, CREATE_TOPICS.latestVersion(), "client", createTopic));
+            assertThat(response.message()).isInstanceOf(CreateTopicsResponseData.class);
+
+            var responseMessage = (CreateTopicsResponseData) response.message();
+            assertThat(responseMessage.topics()).allMatch(p -> p.errorCode() == Errors.INVALID_TOPIC_EXCEPTION.code(),
+                    "response contains topics without the expected errorCode");
+
+            await().atMost(Duration.ofSeconds(5))
+                    .untilAsserted(() -> assertThat(requestClient.isOpen()).isEqualTo(!closeConnection));
+        }
+
     }
 
     /**
@@ -184,7 +231,7 @@ class KrpcFilterIT {
     void supportsForwardDeferredByAsynchronousAction(RequestResponseMarkingFilter.Direction direction) {
         doSupportsForwardDeferredByAsynchronousRequest(direction,
                 "supportsForwardDeferredByAsynchronousAction",
-                RequestResponseMarkingFilter.ForwardingStyle.ASYNCHRONOUS_DELAYED);
+                ForwardingStyle.ASYNCHRONOUS_DELAYED);
     }
 
     /**
@@ -197,11 +244,11 @@ class KrpcFilterIT {
     void supportsForwardDeferredByAsynchronousBrokerRequest(RequestResponseMarkingFilter.Direction direction) {
         doSupportsForwardDeferredByAsynchronousRequest(direction,
                 "supportsForwardDeferredByAsynchronousBrokerRequest",
-                RequestResponseMarkingFilter.ForwardingStyle.ASYNCHRONOUS_REQUEST_TO_BROKER);
+                ForwardingStyle.ASYNCHRONOUS_REQUEST_TO_BROKER);
     }
 
     private void doSupportsForwardDeferredByAsynchronousRequest(RequestResponseMarkingFilter.Direction direction, String name,
-                                                                RequestResponseMarkingFilter.ForwardingStyle forwardingStyle) {
+                                                                ForwardingStyle forwardingStyle) {
         var markingFilter = new FilterDefinitionBuilder("RequestResponseMarking")
                 .withConfig("keysToMark", Set.of(LIST_TRANSACTIONS),
                         "direction", Set.of(direction),
@@ -216,7 +263,7 @@ class KrpcFilterIT {
             // In the ASYNCHRONOUS_REQUEST_TO_BROKER case, the filter will send an async list_group
             // request to the broker and defer the forward of the list transaction response until the list groups
             // response arrives.
-            if (forwardingStyle == RequestResponseMarkingFilter.ForwardingStyle.ASYNCHRONOUS_REQUEST_TO_BROKER) {
+            if (forwardingStyle == ForwardingStyle.ASYNCHRONOUS_REQUEST_TO_BROKER) {
                 tester.addMockResponseForApiKey(new Response(LIST_GROUPS, LIST_GROUPS.latestVersion(), new ListGroupsResponseData()));
             }
 
@@ -237,7 +284,7 @@ class KrpcFilterIT {
     @SuppressWarnings("java:S5841") // java:S5841 warns that doesNotContain passes for the empty case. Which is what we want here.
     void requestFiltersCanRespondWithoutProxyingDoesntLeakBuffers(KafkaCluster cluster, Admin admin) throws Exception {
         var config = proxy(cluster)
-                .addToFilters(new FilterDefinitionBuilder("CreateTopicRejectFilter").build());
+                .addToFilters(new FilterDefinitionBuilder("CreateTopicReject").build());
 
         try (var tester = kroxyliciousTester(config);
                 var proxyAdmin = tester.admin()) {

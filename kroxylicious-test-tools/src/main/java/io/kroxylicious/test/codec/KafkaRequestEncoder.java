@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.test.codec;
 
+import org.apache.kafka.common.requests.ProduceRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,8 +39,9 @@ public class KafkaRequestEncoder extends KafkaMessageEncoder<DecodedRequestFrame
     @Override
     protected void encode(ChannelHandlerContext ctx, DecodedRequestFrame frame, ByteBuf out) throws Exception {
         super.encode(ctx, frame, out);
-        // not sure if this testing client needs to know that acks=0 produce requests don't get responses
-        correlationManager.putBrokerRequest(frame.apiKey().id, frame.apiVersion(), frame.correlationId());
+        if (!(frame.body instanceof ProduceRequest) || ((ProduceRequest) frame.body).acks() != 0) {
+            correlationManager.putBrokerRequest(frame.apiKey().id, frame.apiVersion(), frame.correlationId(), frame.getResponseFuture());
+        }
     }
 
 }

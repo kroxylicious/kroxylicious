@@ -69,7 +69,12 @@ class KroxyliciousClients {
 
     public KafkaClient singleRequestClient() {
         String[] hostPort = bootstrapServers.split(":");
-        return new KafkaClient(hostPort[0], Integer.parseInt(hostPort[1]));
+        return new KafkaClient(hostPort[0], Integer.parseInt(hostPort[1]), true);
+    }
+
+    public KafkaClient multiRequestClient() {
+        String[] hostPort = bootstrapServers.split(":");
+        return new KafkaClient(hostPort[0], Integer.parseInt(hostPort[1]), false);
     }
 
     private Map<String, Object> createConfigMap(String bootstrapServers, Map<String, Object> additionalConfig) {
@@ -78,4 +83,5 @@ class KroxyliciousClients {
         config.putAll(additionalConfig);
         return config;
     }
+
 }

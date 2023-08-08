@@ -5,9 +5,12 @@
  */
 package io.kroxylicious.test.client;
 
+import java.util.Deque;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedDeque;
 
-import io.netty.channel.ChannelFutureListener;
+import org.apache.kafka.common.requests.ProduceRequest;
+
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 
@@ -15,29 +18,39 @@ import io.kroxylicious.test.codec.DecodedRequestFrame;
 import io.kroxylicious.test.codec.DecodedResponseFrame;
 
 /**
- * Sends a single request frame, waits for a response then closes the channel
+ * Simple kafka handle capable of sending one or more requests to a server side.
+ * <br/>
+ * In single-shot mode, the client closes the channel after the response is received.
  */
 public class KafkaClientHandler extends ChannelInboundHandlerAdapter {
-    private final DecodedRequestFrame<?> decodedRequestFrame;
-    private final CompletableFuture<DecodedResponseFrame<?>> onResponse = new CompletableFuture<>();
+    private final Deque<DecodedRequestFrame<?>> queue = new ConcurrentLinkedDeque<>();
+    private final boolean singleShot;
+    private ChannelHandlerContext ctx;
 
     /**
      * Creates a KafkaClientHandler
-     * @param decodedRequestFrame the single request to send
      */
-    public KafkaClientHandler(DecodedRequestFrame<?> decodedRequestFrame) {
-        this.decodedRequestFrame = decodedRequestFrame;
+    public KafkaClientHandler(boolean singleShot) {
+        this.singleShot = singleShot;
+    }
+
+    @Override
+    public void channelRegistered(ChannelHandlerContext ctx) {
+        this.ctx = ctx;
+        ctx.fireChannelRegistered();
     }
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) {
-        ctx.writeAndFlush(decodedRequestFrame);
+        processPendingWrites();
+        ctx.fireChannelActive();
     }
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) {
-        onResponse.complete((DecodedResponseFrame<?>) msg);
-        ctx.write(msg).addListener(ChannelFutureListener.CLOSE);
+        if (singleShot) {
+            ctx.channel().close();
+        }
     }
 
     @Override
@@ -47,15 +60,28 @@ public class KafkaClientHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-        cause.printStackTrace();
         ctx.close();
     }
 
-    /**
-     * A future that is completed when the response is received
-     * @return on response future
-     */
-    public CompletableFuture<DecodedResponseFrame<?>> getOnResponseFuture() {
-        return onResponse;
+    public CompletableFuture<DecodedResponseFrame<?>> sendRequest(DecodedRequestFrame<?> decodedRequestFrame) {
+        queue.addLast(decodedRequestFrame);
+        processPendingWrites();
+        return decodedRequestFrame.getResponseFuture();
     }
+
+    private void processPendingWrites() {
+        ctx.executor().execute(() -> {
+            if (ctx.channel().isActive()) {
+                while (queue.peek() != null) {
+                    DecodedRequestFrame<?> msg = queue.removeFirst();
+                    ctx.writeAndFlush(msg).addListener(c -> {
+                        if (msg.body() instanceof ProduceRequest && ((ProduceRequest) msg.body()).acks() == 0) {
+                            msg.getResponseFuture().complete(null);
+                        }
+                    });
+                }
+            }
+        });
+    }
+
 }

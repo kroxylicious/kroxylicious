@@ -8,10 +8,13 @@ package io.kroxylicious.test.client;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import io.kroxylicious.test.codec.DecodedResponseFrame;
 
 /**
  * Tracks api version for requests
@@ -31,14 +34,15 @@ public class CorrelationManager {
     /**
      * Allocate and return a correlation id for an outgoing request to the broker.
      *
-     * @param apiKey                  The API key.
-     * @param apiVersion              The API version.
-     * @param correlationId The request's correlation id.
+     * @param apiKey         The API key.
+     * @param apiVersion     The API version.
+     * @param correlationId  The request's correlation id.
+     * @param responseFuture The future to complete with the response
      */
     public void putBrokerRequest(short apiKey,
                                  short apiVersion,
-                                 int correlationId) {
-        Correlation existing = this.brokerRequests.put(correlationId, new Correlation(apiKey, apiVersion));
+                                 int correlationId, CompletableFuture<DecodedResponseFrame<?>> responseFuture) {
+        Correlation existing = this.brokerRequests.put(correlationId, new Correlation(apiKey, apiVersion, responseFuture));
         if (existing != null) {
             LOGGER.error("Duplicate upstream correlation id {}", correlationId);
         }
@@ -57,16 +61,9 @@ public class CorrelationManager {
      * A record for which responses should be decoded, together with their
      * API key and version.
      */
-    // TODO a perfect value type
-    public static class Correlation {
-        private final short apiKey;
-        private final short apiVersion;
-
-        private Correlation(short apiKey,
-                            short apiVersion) {
-            this.apiKey = apiKey;
-            this.apiVersion = apiVersion;
-        }
+    public record Correlation(short apiKey,
+                              short apiVersion,
+                              CompletableFuture<DecodedResponseFrame<?>> responseFuture) {
 
         @Override
         public String toString() {
@@ -93,20 +90,5 @@ public class CorrelationManager {
             return Objects.hash(apiKey, apiVersion);
         }
 
-        /**
-         * get the api key of the request
-         * @return api key
-         */
-        public short apiKey() {
-            return apiKey;
-        }
-
-        /**
-         * get the api version of the request
-         * @return api version
-         */
-        public short apiVersion() {
-            return apiVersion;
-        }
     }
 }

@@ -115,6 +115,21 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     }
 
     @Override
+    public KafkaClient singleRequestClient(String virtualCluster) {
+        return clients(virtualCluster).singleRequestClient();
+    }
+
+    @Override
+    public KafkaClient multiRequestClient() {
+        return clients().multiRequestClient();
+    }
+
+    @Override
+    public KafkaClient multiRequestClient(String virtualCluster) {
+        return clients(virtualCluster).multiRequestClient();
+    }
+
+    @Override
     public Admin admin(String virtualCluster, Map<String, Object> additionalConfig) {
         return clients(virtualCluster).admin(additionalConfig);
     }
@@ -152,11 +167,6 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     @Override
     public <U, V> Consumer<U, V> consumer(String virtualCluster, Serde<U> keySerde, Serde<V> valueSerde, Map<String, Object> additionalConfig) {
         return clients(virtualCluster).consumer(keySerde, valueSerde, additionalConfig);
-    }
-
-    @Override
-    public KafkaClient singleRequestClient(String virtualCluster) {
-        return clients(virtualCluster).singleRequestClient();
     }
 
     @Override

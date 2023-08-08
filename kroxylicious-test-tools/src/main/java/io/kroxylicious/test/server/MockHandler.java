@@ -43,7 +43,7 @@ public class MockHandler extends ChannelInboundHandlerAdapter {
 
     }
 
-    private List<ConditionalMockResponse> conditionalMockResponses = new ArrayList<>();
+    private final List<ConditionalMockResponse> conditionalMockResponses = new ArrayList<>();
 
     private final List<DecodedRequestFrame<?>> requests = new ArrayList<>();
 
