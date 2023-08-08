@@ -11,6 +11,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 
@@ -58,11 +59,14 @@ public class RequestResponseMarkingFilter implements RequestFilter, ResponseFilt
             @Override
             public CompletionStage<ApiMessage> apply(KrpcFilterContext context, ApiMessage body) {
                 CompletableFuture<ApiMessage> result = new CompletableFuture<>();
-                try (var executor = Executors.newScheduledThreadPool(1)) {
-                    var delay = (long) (Math.random() * 200);
+                ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
+                try {
                     executor.schedule(() -> {
                         result.complete(body);
-                    }, delay, TimeUnit.MILLISECONDS);
+                    }, 200L, TimeUnit.MILLISECONDS);
+                }
+                finally {
+                    executor.shutdown();
                 }
                 return result;
             }

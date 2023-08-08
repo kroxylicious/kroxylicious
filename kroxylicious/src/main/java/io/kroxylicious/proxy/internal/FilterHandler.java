@@ -26,6 +26,8 @@ import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.FilterInvoker;
 import io.kroxylicious.proxy.filter.FilterResult;
 import io.kroxylicious.proxy.filter.KrpcFilter;
+import io.kroxylicious.proxy.filter.RequestFilterResult;
+import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.frame.DecodedFrame;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
@@ -95,44 +97,11 @@ public class FilterHandler extends ChannelDuplexHandler {
                 return CompletableFuture.completedFuture(null);
             }
             var future = stage.toCompletableFuture();
-            var withTimeout = handleDeferredStage(ctx, future, decodedFrame);
-            return withTimeout.whenComplete((requestFilterResult, t) -> {
-                // maybe better to run the whole thing on the netty thread.
-
-                if (t != null) {
-                    LOGGER.warn("{}: Filter{} for {} request ended exceptionally - closing connection",
-                            ctx.channel(), filterDescriptor(), decodedFrame.apiKey(), t);
-                    filterContext.closeConnection();
-                    return;
-                }
-
-                if (requestFilterResult.drop()) {
-                    if (LOGGER.isDebugEnabled()) {
-                        LOGGER.debug("{}: Filter{} drops {} request",
-                                ctx.channel(), filterDescriptor(), decodedFrame.apiKey());
-                    }
-                }
-                else if (requestFilterResult.message() != null) {
-                    if (requestFilterResult.shortCircuitResponse()) {
-                        // this is the short circuit path
-                        var header = requestFilterResult.header() == null ? new ResponseHeaderData() : ((ResponseHeaderData) requestFilterResult.header());
-                        header.setCorrelationId(decodedFrame.correlationId());
-                        filterContext.forwardResponseInternal(header, requestFilterResult.message());
-                    }
-                    else {
-                        var header = requestFilterResult.header() == null ? decodedFrame.header() : requestFilterResult.header();
-                        filterContext.forwardRequestInternal((RequestHeaderData) header, requestFilterResult.message());
-                    }
-                }
-
-                if (requestFilterResult.closeConnection()) {
-                    if (requestFilterResult.message() != null) {
-                        ctx.flush();
-                    }
-                    filterContext.closeConnection();
-                }
-            }).toCompletableFuture().thenApply(filterResult -> null);
-
+            boolean defer = !future.isDone();
+            var maybeDeferred = defer ? handleDeferredStage(ctx, future, decodedFrame) : future;
+            var execute = executeWrite(ctx, decodedFrame, filterContext, maybeDeferred);
+            var maybeUndeferred = defer ? handleUndeferWrite(ctx, execute) : execute;
+            return maybeUndeferred.thenApply(filterResult -> null);
         }
         else {
             if (!(msg instanceof OpaqueRequestFrame)
@@ -146,28 +115,59 @@ public class FilterHandler extends ChannelDuplexHandler {
         }
     }
 
+    private CompletableFuture<RequestFilterResult> executeWrite(ChannelHandlerContext ctx, DecodedRequestFrame<?> decodedFrame,
+                                                                DefaultFilterContext filterContext,
+                                                                CompletableFuture<RequestFilterResult> withTimeout) {
+        return withTimeout.whenComplete((requestFilterResult, t) -> {
+            // maybe better to run the whole thing on the netty thread.
+
+            if (t != null) {
+                LOGGER.warn("{}: Filter{} for {} request ended exceptionally - closing connection",
+                        ctx.channel(), filterDescriptor(), decodedFrame.apiKey(), t);
+                filterContext.closeConnection();
+                return;
+            }
+
+            if (requestFilterResult.drop()) {
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("{}: Filter{} drops {} request",
+                            ctx.channel(), filterDescriptor(), decodedFrame.apiKey());
+                }
+            }
+            else if (requestFilterResult.message() != null) {
+                if (requestFilterResult.shortCircuitResponse()) {
+                    // this is the short circuit path
+                    var header = requestFilterResult.header() == null ? new ResponseHeaderData() : ((ResponseHeaderData) requestFilterResult.header());
+                    header.setCorrelationId(decodedFrame.correlationId());
+                    filterContext.forwardResponseInternal(header, requestFilterResult.message());
+                }
+                else {
+                    var header = requestFilterResult.header() == null ? decodedFrame.header() : requestFilterResult.header();
+                    filterContext.forwardRequestInternal((RequestHeaderData) header, requestFilterResult.message());
+                }
+            }
+
+            if (requestFilterResult.closeConnection()) {
+                if (requestFilterResult.message() != null) {
+                    ctx.flush();
+                }
+                filterContext.closeConnection();
+            }
+        });
+    }
+
     private <T extends FilterResult> CompletableFuture<T> handleDeferredStage(ChannelHandlerContext ctx, CompletableFuture<T> stage,
                                                                               DecodedFrame<?, ?> decodedFrame) {
-        if (!stage.isDone()) {
-            inboundChannel.config().setAutoRead(false);
-            var timeoutFuture = ctx.executor().schedule(() -> {
-                LOGGER.warn("{}: Filter {} was timed-out whilst processing {} {}", ctx.channel(), filterDescriptor(),
-                        decodedFrame instanceof DecodedRequestFrame ? "request" : "response", decodedFrame.apiKey());
-                stage.completeExceptionally(new TimeoutException("Filter %s was timed-out.".formatted(filterDescriptor())));
-            }, timeoutMs, TimeUnit.MILLISECONDS);
-            return stage.thenApply(filterResult -> {
-                timeoutFuture.cancel(false);
-                inboundChannel.config().setAutoRead(true);
-                var unused = writeFuture.whenComplete((u, t) -> {
-                    // Ensure any writes pending will be flushed upstream, towards the broker.
-                    ctx.flush();
-                });
-                return filterResult;
-            });
-        }
-        else {
-            return stage;
-        }
+        inboundChannel.config().setAutoRead(false);
+        var timeoutFuture = ctx.executor().schedule(() -> {
+            LOGGER.warn("{}: Filter {} was timed-out whilst processing {} {}", ctx.channel(), filterDescriptor(),
+                    decodedFrame instanceof DecodedRequestFrame ? "request" : "response", decodedFrame.apiKey());
+            stage.completeExceptionally(new TimeoutException("Filter %s was timed-out.".formatted(filterDescriptor())));
+        }, timeoutMs, TimeUnit.MILLISECONDS);
+        return stage.thenApply(filterResult -> {
+            timeoutFuture.cancel(false);
+            return filterResult;
+        });
     }
 
     @Override
@@ -214,29 +214,11 @@ public class FilterHandler extends ChannelDuplexHandler {
                 return CompletableFuture.completedFuture(null);
             }
             var future = stage.toCompletableFuture();
-            var withTimeout = handleDeferredStage(ctx, future, decodedFrame);
-            return withTimeout.whenComplete((responseFilterResult, t) -> {
-                if (t != null) {
-                    LOGGER.warn("{}: Filter{} for {} response ended exceptionally - closing connection",
-                            ctx.channel(), filterDescriptor(), decodedFrame.apiKey(), t);
-                    filterContext.closeConnection();
-                    return;
-                }
-                if (responseFilterResult.drop()) {
-                    if (LOGGER.isDebugEnabled()) {
-                        LOGGER.debug("{}: Filter{} drops {} response",
-                                ctx.channel(), filterDescriptor(), decodedFrame.apiKey());
-                    }
-                }
-                else if (responseFilterResult.message() != null) {
-                    ResponseHeaderData header = responseFilterResult.header() == null ? decodedFrame.header() : (ResponseHeaderData) responseFilterResult.header();
-                    filterContext.forwardResponseInternal(header, responseFilterResult.message());
-                }
-                if (responseFilterResult.closeConnection()) {
-                    filterContext.closeConnection();
-                }
-
-            }).thenApply(responseFilterResult -> null);
+            boolean defer = !future.isDone();
+            var maybeDeferred = defer ? handleDeferredStage(ctx, future, decodedFrame) : future;
+            var execute = executeRead(ctx, decodedFrame, filterContext, maybeDeferred);
+            var maybeUndeferred = defer ? handleUndeferRead(execute) : execute;
+            return maybeUndeferred.thenApply(responseFilterResult -> null);
         }
         else {
             if (!(msg instanceof OpaqueResponseFrame)) {
@@ -245,6 +227,47 @@ public class FilterHandler extends ChannelDuplexHandler {
             ctx.fireChannelRead(msg);
             return CompletableFuture.completedFuture(null);
         }
+    }
+
+    private CompletableFuture<?> handleUndeferRead(CompletableFuture<?> execute) {
+        return execute.whenComplete((ignored, throwable) -> {
+            inboundChannel.config().setAutoRead(true);
+            inboundChannel.flush();
+        });
+    }
+
+    private CompletableFuture<?> handleUndeferWrite(ChannelHandlerContext ctx, CompletableFuture<?> execute) {
+        return execute.whenComplete((ignored, throwable) -> {
+            inboundChannel.config().setAutoRead(true);
+            ctx.flush();
+            // flush inbound in case of short-circuit
+            inboundChannel.flush();
+        });
+    }
+
+    private CompletableFuture<ResponseFilterResult> executeRead(ChannelHandlerContext ctx, DecodedResponseFrame<?> decodedFrame, DefaultFilterContext filterContext,
+                                                                CompletableFuture<ResponseFilterResult> withTimeout) {
+        return withTimeout.whenComplete((responseFilterResult, t) -> {
+            if (t != null) {
+                LOGGER.warn("{}: Filter{} for {} response ended exceptionally - closing connection",
+                        ctx.channel(), filterDescriptor(), decodedFrame.apiKey(), t);
+                filterContext.closeConnection();
+                return;
+            }
+            if (responseFilterResult.drop()) {
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("{}: Filter{} drops {} response",
+                            ctx.channel(), filterDescriptor(), decodedFrame.apiKey());
+                }
+            }
+            else if (responseFilterResult.message() != null) {
+                ResponseHeaderData header = responseFilterResult.header() == null ? decodedFrame.header() : (ResponseHeaderData) responseFilterResult.header();
+                filterContext.forwardResponseInternal(header, responseFilterResult.message());
+            }
+            if (responseFilterResult.closeConnection()) {
+                filterContext.closeConnection();
+            }
+        });
     }
 
 }
