@@ -91,8 +91,10 @@ public class FilterHandler extends ChannelDuplexHandler {
             var stage = invoker.onRequest(decodedFrame.apiKey(), decodedFrame.apiVersion(), decodedFrame.header(),
                     decodedFrame.body(), filterContext);
             if (stage == null) {
-                LOGGER.error("{}: Filter{} for {} request unexpectedly returned null. This is a coding error in the filter. Closing connection.",
-                        ctx.channel(), filterDescriptor(), decodedFrame.apiKey());
+                if (LOGGER.isWarnEnabled()) {
+                    LOGGER.warn("{}: Filter{} for {} request unexpectedly returned null. This is a coding error in the filter. Closing connection.",
+                            ctx.channel(), filterDescriptor(), decodedFrame.apiKey());
+                }
                 filterContext.closeConnection();
                 return CompletableFuture.completedFuture(null);
             }
@@ -117,8 +119,8 @@ public class FilterHandler extends ChannelDuplexHandler {
 
     private CompletableFuture<RequestFilterResult> executeWrite(ChannelHandlerContext ctx, DecodedRequestFrame<?> decodedFrame,
                                                                 DefaultFilterContext filterContext,
-                                                                CompletableFuture<RequestFilterResult> withTimeout) {
-        return withTimeout.whenComplete((requestFilterResult, t) -> {
+                                                                CompletableFuture<RequestFilterResult> filterFuture) {
+        return filterFuture.whenComplete((requestFilterResult, t) -> {
             // maybe better to run the whole thing on the netty thread.
 
             if (t != null) {
@@ -133,8 +135,10 @@ public class FilterHandler extends ChannelDuplexHandler {
                     LOGGER.debug("{}: Filter{} drops {} request",
                             ctx.channel(), filterDescriptor(), decodedFrame.apiKey());
                 }
+                return;
             }
-            else if (requestFilterResult.message() != null) {
+
+            if (requestFilterResult.message() != null) {
                 if (requestFilterResult.shortCircuitResponse()) {
                     // this is the short circuit path
                     var header = requestFilterResult.header() == null ? new ResponseHeaderData() : ((ResponseHeaderData) requestFilterResult.header());
@@ -208,8 +212,10 @@ public class FilterHandler extends ChannelDuplexHandler {
             var stage = invoker.onResponse(decodedFrame.apiKey(), decodedFrame.apiVersion(),
                     decodedFrame.header(), decodedFrame.body(), filterContext);
             if (stage == null) {
-                LOGGER.error("{}: Filter{} for {} response unexpectedly returned null. This is a coding error in the filter. Closing connection.",
-                        ctx.channel(), filterDescriptor(), decodedFrame.apiKey());
+                if (LOGGER.isWarnEnabled()) {
+                    LOGGER.warn("{}: Filter{} for {} response unexpectedly returned null. This is a coding error in the filter. Closing connection.",
+                            ctx.channel(), filterDescriptor(), decodedFrame.apiKey());
+                }
                 filterContext.closeConnection();
                 return CompletableFuture.completedFuture(null);
             }
@@ -246,24 +252,28 @@ public class FilterHandler extends ChannelDuplexHandler {
     }
 
     private CompletableFuture<ResponseFilterResult> executeRead(ChannelHandlerContext ctx, DecodedResponseFrame<?> decodedFrame, DefaultFilterContext filterContext,
-                                                                CompletableFuture<ResponseFilterResult> withTimeout) {
-        return withTimeout.whenComplete((responseFilterResult, t) -> {
+                                                                CompletableFuture<ResponseFilterResult> filterFuture) {
+        return filterFuture.whenComplete((responseFilterResult, t) -> {
             if (t != null) {
                 LOGGER.warn("{}: Filter{} for {} response ended exceptionally - closing connection",
                         ctx.channel(), filterDescriptor(), decodedFrame.apiKey(), t);
                 filterContext.closeConnection();
                 return;
             }
+
             if (responseFilterResult.drop()) {
                 if (LOGGER.isDebugEnabled()) {
                     LOGGER.debug("{}: Filter{} drops {} response",
                             ctx.channel(), filterDescriptor(), decodedFrame.apiKey());
                 }
+                return;
             }
-            else if (responseFilterResult.message() != null) {
+
+            if (responseFilterResult.message() != null) {
                 ResponseHeaderData header = responseFilterResult.header() == null ? decodedFrame.header() : (ResponseHeaderData) responseFilterResult.header();
                 filterContext.forwardResponseInternal(header, responseFilterResult.message());
             }
+
             if (responseFilterResult.closeConnection()) {
                 filterContext.closeConnection();
             }
