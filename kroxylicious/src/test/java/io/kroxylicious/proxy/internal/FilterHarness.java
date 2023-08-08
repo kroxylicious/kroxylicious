@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.proxy.internal;
 
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.kafka.common.message.RequestHeaderData;
@@ -15,13 +16,17 @@ import org.junit.jupiter.api.AfterEach;
 
 import io.netty.channel.embedded.EmbeddedChannel;
 
+import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
+import io.kroxylicious.proxy.model.VirtualCluster;
+import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static org.junit.jupiter.api.Assertions.fail;
+import static org.mockito.Mockito.mock;
 
 /**
  * A test harness for {@link KrpcFilter} implementations.
@@ -49,7 +54,9 @@ public abstract class FilterHarness {
      */
     protected void buildChannel(KrpcFilter filter, long timeoutMs) {
         this.filter = filter;
-        filterHandler = new FilterHandler(getOnlyElement(FilterAndInvoker.build(filter)), timeoutMs, null, new EmbeddedChannel());
+        filterHandler = new FilterHandler(getOnlyElement(FilterAndInvoker.build(filter)), timeoutMs, null,
+                new VirtualCluster("TestVirtualCluster", mock(TargetCluster.class), mock(ClusterNetworkAddressConfigProvider.class), Optional.empty(), false, false),
+                new EmbeddedChannel());
         channel = new EmbeddedChannel(filterHandler);
     }
 

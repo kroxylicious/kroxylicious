@@ -134,8 +134,7 @@ public class SampleFilterIntegrationTest {
          * @param filters the filters to be used in the test
          */
         FilterIntegrationTest(TestFilter... filters) {
-            ConfigurationBuilder builder1 = proxy(cluster);
-            ConfigurationBuilder builder = builder1;
+            ConfigurationBuilder builder = proxy(cluster);
             for (TestFilter filter : filters) {
                 builder.addToFilters(new FilterDefinitionBuilder(filter.name()).withConfig(filter.config()).build());
             }
@@ -212,6 +211,9 @@ public class SampleFilterIntegrationTest {
          */
         void close() {
             this.tester.close();
+            this.admin.close();
+            this.producer.close();
+            this.consumer.close();
         }
 
         /**

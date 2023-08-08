@@ -34,6 +34,7 @@ import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
 import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
 import io.kroxylicious.proxy.internal.util.Assertions;
+import io.kroxylicious.proxy.model.VirtualCluster;
 
 /**
  * A {@code ChannelInboundHandler} (for handling requests from downstream)
@@ -46,15 +47,17 @@ public class FilterHandler extends ChannelDuplexHandler {
     private final long timeoutMs;
     private final String sniHostname;
     private final Channel inboundChannel;
+    private final VirtualCluster virtualCluster;
     private final FilterInvoker invoker;
     private CompletableFuture<Void> writeFuture = CompletableFuture.completedFuture(null);
     private CompletableFuture<Void> readFuture = CompletableFuture.completedFuture(null);
 
-    public FilterHandler(FilterAndInvoker filterAndInvoker, long timeoutMs, String sniHostname, Channel inboundChannel) {
+    public FilterHandler(FilterAndInvoker filterAndInvoker, long timeoutMs, String sniHostname, VirtualCluster virtualCluster, Channel inboundChannel) {
         this.filter = Objects.requireNonNull(filterAndInvoker).filter();
         this.invoker = filterAndInvoker.invoker();
         this.timeoutMs = Assertions.requireStrictlyPositive(timeoutMs, "timeout");
         this.sniHostname = sniHostname;
+        this.virtualCluster = virtualCluster;
         this.inboundChannel = inboundChannel;
     }
 
@@ -82,7 +85,7 @@ public class FilterHandler extends ChannelDuplexHandler {
 
     private CompletableFuture<Void> doWrite(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) {
         if (msg instanceof DecodedRequestFrame<?> decodedFrame) {
-            var filterContext = new DefaultFilterContext(filter, ctx, decodedFrame, promise, timeoutMs, sniHostname);
+            var filterContext = new DefaultFilterContext(filter, ctx, decodedFrame, promise, timeoutMs, sniHostname, virtualCluster);
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug("{}: Dispatching downstream {} request to filter{}: {}",
                         ctx.channel(), decodedFrame.apiKey(), filterDescriptor(), msg);
@@ -204,7 +207,7 @@ public class FilterHandler extends ChannelDuplexHandler {
 
     private CompletableFuture<Void> doRead(ChannelHandlerContext ctx, Object msg) {
         if (msg instanceof DecodedResponseFrame<?> decodedFrame) {
-            var filterContext = new DefaultFilterContext(filter, ctx, decodedFrame, null, timeoutMs, sniHostname);
+            var filterContext = new DefaultFilterContext(filter, ctx, decodedFrame, null, timeoutMs, sniHostname, virtualCluster);
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug("{}: Dispatching upstream {} response to filter {}: {}",
                         ctx.channel(), decodedFrame.apiKey(), filterDescriptor(), msg);

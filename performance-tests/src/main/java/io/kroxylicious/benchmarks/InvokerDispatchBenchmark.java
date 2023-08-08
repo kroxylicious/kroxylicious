@@ -174,6 +174,11 @@ public class InvokerDispatchBenchmark {
         }
 
         @Override
+        public String getVirtualClusterName() {
+            return null;
+        }
+
+        @Override
         public <T extends ApiMessage> CompletionStage<T> sendRequest(short apiVersion, ApiMessage request) {
             return null;
         }

@@ -31,7 +31,7 @@
         <skipUTs>${skipTests}</skipUTs>
 
         <freemarker.version>2.3.32</freemarker.version>
-        <guava.version>32.1.1-jre</guava.version>
+        <guava.version>32.1.2-jre</guava.version>
         <hamcrest.version>2.2</hamcrest.version>
         <jackson.version>2.15.2</jackson.version>
         <junit.version>5.10.0</junit.version>
@@ -48,7 +48,7 @@
         <mockito.version>5.4.0</mockito.version>
         <micrometer.version>1.11.2</micrometer.version>
         <slf4j.version>2.0.7</slf4j.version>
-        <sundr-builder-annotations.version>0.100.1</sundr-builder-annotations.version>
+        <sundr-builder-annotations.version>0.100.2</sundr-builder-annotations.version>
         <spotbugs-annotations.version>4.7.3</spotbugs-annotations.version>
         <zjsonpatch.version>0.4.14</zjsonpatch.version>
 
