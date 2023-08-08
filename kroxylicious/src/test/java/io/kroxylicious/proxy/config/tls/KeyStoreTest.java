@@ -56,14 +56,14 @@ class KeyStoreTest {
     }
 
     @Test
-    public void serverKeyStoreFileNotFound() {
+    void serverKeyStoreFileNotFound() {
         var keyStore = new KeyStore(NOT_EXIST, null, null, null);
 
         assertThatCode(keyStore::forServer).hasCauseInstanceOf(IOException.class).hasMessageContaining(NOT_EXIST);
     }
 
     @Test
-    public void serverKeyStoreIncorrectPassword() {
+    void serverKeyStoreIncorrectPassword() {
         var keyStore = new KeyStore(getResourceLocationOnFilesystem("server.jks"),
                 BADPASS,
                 null,
@@ -73,7 +73,7 @@ class KeyStoreTest {
     }
 
     @Test
-    public void serverKeyStoreIncorrectKeyPassword() {
+    void serverKeyStoreIncorrectKeyPassword() {
         var keyStore = new KeyStore(getResourceLocationOnFilesystem("server_diff_keypass.jks"),
                 STOREPASS,
                 BADPASS,

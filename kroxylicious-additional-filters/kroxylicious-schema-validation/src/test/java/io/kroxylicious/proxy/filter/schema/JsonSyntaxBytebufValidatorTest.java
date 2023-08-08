@@ -27,7 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class JsonSyntaxBytebufValidatorTest {
 
     @Test
-    public void testSyntacticallyIncorrectRecordInvalidated() {
+    void testSyntacticallyIncorrectRecordInvalidated() {
         Record record = createRecord("a", "b");
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(false);
         Result result = validate(record, validator);
@@ -35,7 +35,7 @@ class JsonSyntaxBytebufValidatorTest {
     }
 
     @Test
-    public void testSyntacticallyCorrectRecordValidated() {
+    void testSyntacticallyCorrectRecordValidated() {
         Record record = createRecord("a", "{\"a\":\"a\"}");
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(false);
         Result result = validate(record, validator);
@@ -43,7 +43,7 @@ class JsonSyntaxBytebufValidatorTest {
     }
 
     @Test
-    public void testDuplicatedObjectKeyInvalidated() {
+    void testDuplicatedObjectKeyInvalidated() {
         Record record = createRecord("a", "{\"a\":\"a\",\"a\":\"b\"}");
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
         Result result = validate(record, validator);
@@ -52,7 +52,7 @@ class JsonSyntaxBytebufValidatorTest {
     }
 
     @Test
-    public void testDuplicatedObjectKeyInNestedObjectInvalidated() {
+    void testDuplicatedObjectKeyInNestedObjectInvalidated() {
         Record record = createRecord("a", "{\"inner\":{\"a\":\"a\",\"a\":\"b\"}}");
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
         Result result = validate(record, validator);
@@ -61,7 +61,7 @@ class JsonSyntaxBytebufValidatorTest {
     }
 
     @Test
-    public void testDuplicatedObjectKeyInArrayInvalidated() {
+    void testDuplicatedObjectKeyInArrayInvalidated() {
         Record record = createRecord("a", "[{\"a\":\"a\",\"a\":\"b\"}]");
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
         Result result = validate(record, validator);
@@ -70,7 +70,7 @@ class JsonSyntaxBytebufValidatorTest {
     }
 
     @Test
-    public void testNonDuplicatedObjectKeyInArrayValidated() {
+    void testNonDuplicatedObjectKeyInArrayValidated() {
         Record record = createRecord("a", "[{\"a\":\"a\",\"b\":\"b\"}]");
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
         Result result = validate(record, validator);
@@ -78,7 +78,7 @@ class JsonSyntaxBytebufValidatorTest {
     }
 
     @Test
-    public void testArrayWithTwoObjectsWithSameKeysValidated() {
+    void testArrayWithTwoObjectsWithSameKeysValidated() {
         Record record = createRecord("a", "[{\"a\":\"a\"},{\"a\":\"a\"}]");
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
         Result result = validate(record, validator);
@@ -86,7 +86,7 @@ class JsonSyntaxBytebufValidatorTest {
     }
 
     @Test
-    public void testNestedObjectsUsingSameKeysValidated() {
+    void testNestedObjectsUsingSameKeysValidated() {
         Record record = createRecord("a", "[{\"a\":{\"a\":\"a\"}}]");
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
         Result result = validate(record, validator);
@@ -94,7 +94,7 @@ class JsonSyntaxBytebufValidatorTest {
     }
 
     @Test
-    public void testNestedObjectsWithDuplicateKeysInvalidated() {
+    void testNestedObjectsWithDuplicateKeysInvalidated() {
         Record record = createRecord("a", "[{\"a\":{\"a\":\"a\",\"a\":\"b\"}}]");
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
         Result result = validate(record, validator);
@@ -103,7 +103,7 @@ class JsonSyntaxBytebufValidatorTest {
     }
 
     @Test
-    public void testDeepObjectsWithDuplicateKeysInvalidated() {
+    void testDeepObjectsWithDuplicateKeysInvalidated() {
         Record record = createRecord("a", "[[[{\"a\":{\"b\":[1,true,null,{\"duplicate\":1,\"duplicate\":1}]}}]]]]");
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
         Result result = validate(record, validator);
@@ -112,7 +112,7 @@ class JsonSyntaxBytebufValidatorTest {
     }
 
     @Test
-    public void testArrayWithTwoObjectsWithSameKeysAndOtherDataValidated() {
+    void testArrayWithTwoObjectsWithSameKeysAndOtherDataValidated() {
         Record record = createRecord("a", "[{\"a\":\"a\"},2,{\"a\":\"a\"},\"banana\"]");
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
         Result result = validate(record, validator);
@@ -120,7 +120,7 @@ class JsonSyntaxBytebufValidatorTest {
     }
 
     @Test
-    public void testNonDuplicatedObjectKeysWithDuplicationValidationEnabled() {
+    void testNonDuplicatedObjectKeysWithDuplicationValidationEnabled() {
         Record record = createRecord("a", "{\"a\":\"b\",\"c\":\"d\"}");
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
         Result result = validate(record, validator);
@@ -128,7 +128,7 @@ class JsonSyntaxBytebufValidatorTest {
     }
 
     @Test
-    public void testDuplicatedObjectKeyValidatedWithDuplicationValidationDisabled() {
+    void testDuplicatedObjectKeyValidatedWithDuplicationValidationDisabled() {
         Record record = createRecord("a", "{\"a\":\"a\",\"a\":\"b\"}");
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(false);
         Result result = validate(record, validator);
@@ -136,7 +136,7 @@ class JsonSyntaxBytebufValidatorTest {
     }
 
     @Test
-    public void testDifferentObjectsCanHaveSameKeyNames() {
+    void testDifferentObjectsCanHaveSameKeyNames() {
         Record record = createRecord("a", "{\"a\":{\"a\":1},\"b\":{\"a\":2}}");
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
         Result result = validate(record, validator);
@@ -144,7 +144,7 @@ class JsonSyntaxBytebufValidatorTest {
     }
 
     @Test
-    public void testTrailingCharactersInvalidated() {
+    void testTrailingCharactersInvalidated() {
         Record record = createRecord("a", "{\"a\":\"a\"}abc");
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(false);
         Result result = validate(record, validator);
@@ -152,7 +152,7 @@ class JsonSyntaxBytebufValidatorTest {
     }
 
     @Test
-    public void testLeadingCharactersInvalidated() {
+    void testLeadingCharactersInvalidated() {
         Record record = createRecord("a", "abc{\"a\":\"a\"}abc");
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(false);
         Result result = validate(record, validator);
@@ -160,7 +160,7 @@ class JsonSyntaxBytebufValidatorTest {
     }
 
     @Test
-    public void testValueValidated() {
+    void testValueValidated() {
         Record record = createRecord("a", "123");
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
         Result result = validate(record, validator);
@@ -168,7 +168,7 @@ class JsonSyntaxBytebufValidatorTest {
     }
 
     @Test
-    public void testKeyValidated() {
+    void testKeyValidated() {
         Record record = createRecord("\"abc\"", "123");
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
         Result result = validator.validate(record.key(), record.keySize(), record, true);
@@ -176,7 +176,7 @@ class JsonSyntaxBytebufValidatorTest {
     }
 
     @Test
-    public void testEmptyStringThrows() {
+    void testEmptyStringThrows() {
         Record record = createRecord("a", "");
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(false);
         assertThrows(IllegalArgumentException.class, () -> {
@@ -185,7 +185,7 @@ class JsonSyntaxBytebufValidatorTest {
     }
 
     @Test
-    public void testNullValueThrows() {
+    void testNullValueThrows() {
         Record record = createRecord("a", null);
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(false);
         assertThrows(IllegalArgumentException.class, () -> {

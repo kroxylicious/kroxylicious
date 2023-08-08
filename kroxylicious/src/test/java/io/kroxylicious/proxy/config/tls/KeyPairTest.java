@@ -40,7 +40,7 @@ class KeyPairTest {
     }
 
     @Test
-    public void serverKeyPairIncorrectKeyPassword() {
+    void serverKeyPairIncorrectKeyPassword() {
         doFailingKeyPairTest(TlsTestConstants.getResourceLocationOnFilesystem("server_encrypted.key"),
                 TlsTestConstants.getResourceLocationOnFilesystem("server.crt"), BADPASS)
                 .hasRootCauseInstanceOf(BadPaddingException.class)
@@ -49,14 +49,14 @@ class KeyPairTest {
     }
 
     @Test
-    public void serverKeyPairCertificateNotFound() {
+    void serverKeyPairCertificateNotFound() {
         doFailingKeyPairTest(TlsTestConstants.getResourceLocationOnFilesystem("server.key"), NOT_EXIST, null)
                 .hasRootCauseInstanceOf(CertificateException.class)
                 .hasMessageContaining(NOT_EXIST);
     }
 
     @Test
-    public void serverKeyPairKeyNotFound() {
+    void serverKeyPairKeyNotFound() {
         doFailingKeyPairTest(NOT_EXIST, TlsTestConstants.getResourceLocationOnFilesystem("server.crt"), null)
                 .hasRootCauseInstanceOf(KeyException.class)
                 .hasMessageContaining(NOT_EXIST);

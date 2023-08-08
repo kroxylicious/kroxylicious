@@ -74,7 +74,7 @@ public class SampleFilterIntegrationTest {
      * Test that the SampleProduceRequestFilter will transform when given data containing its findValue.
      */
     @Test
-    public void sampleProduceRequestFilterWillTransformIntegrationTest() {
+    void sampleProduceRequestFilterWillTransformIntegrationTest() {
         test = new FilterIntegrationTest(SAMPLE_PRODUCE_REQUEST_FILTER);
         test.withTopic("sampleProduceRequestFilterWillTransformRoundTripTest")
                 .produceMessage(PRE_TRANSFORM_VALUE)
@@ -86,7 +86,7 @@ public class SampleFilterIntegrationTest {
      * Test that the SampleProduceRequestFilter won't transform when given data that does not contain its findValue.
      */
     @Test
-    public void sampleProduceRequestFilterWontTransformIntegrationTest() {
+    void sampleProduceRequestFilterWontTransformIntegrationTest() {
         test = new FilterIntegrationTest(SAMPLE_PRODUCE_REQUEST_FILTER);
         test.withTopic("sampleProduceRequestFilterWontTransformRoundTripTest")
                 .produceMessage(NO_TRANSFORM_VALUE)
@@ -98,7 +98,7 @@ public class SampleFilterIntegrationTest {
      * Test that the SampleFetchResponseFilter will transform when given data containing its findValue.
      */
     @Test
-    public void sampleFetchResponseFilterWillTransformIntegrationTest() {
+    void sampleFetchResponseFilterWillTransformIntegrationTest() {
         test = new FilterIntegrationTest(SAMPLE_FETCH_RESPONSE_FILTER);
         test.withTopic("sampleFetchResponseFilterWillTransformRoundTripTest")
                 .produceMessage(PRE_TRANSFORM_VALUE)
@@ -110,7 +110,7 @@ public class SampleFilterIntegrationTest {
      * Test that the SampleFetchResponseFilter won't transform when given data that does not contain its findValue.
      */
     @Test
-    public void sampleFetchResponseFilterWontTransformIntegrationTest() {
+    void sampleFetchResponseFilterWontTransformIntegrationTest() {
         test = new FilterIntegrationTest(SAMPLE_FETCH_RESPONSE_FILTER);
         test.withTopic("sampleFetchResponseFilterWontTransformRoundTripTest")
                 .produceMessage(NO_TRANSFORM_VALUE)

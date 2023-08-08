@@ -31,7 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  */
 public class ByteBufAccessorTest {
     @Test
-    public void testRead() {
+    void testRead() {
         var bbuffer = ByteBuffer.allocate(1024);
 
         Random rng = new Random();
@@ -76,7 +76,7 @@ public class ByteBufAccessorTest {
     }
 
     @Test
-    public void testWrite() {
+    void testWrite() {
         var bbuf = Unpooled.buffer(1024);
 
         Random rng = new Random();

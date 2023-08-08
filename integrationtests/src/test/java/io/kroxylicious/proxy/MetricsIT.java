@@ -45,7 +45,7 @@ public class MetricsIT {
     }
 
     @Test
-    public void shouldOfferPrometheusMetricsScrapeEndpoint(KafkaCluster cluster) {
+    void shouldOfferPrometheusMetricsScrapeEndpoint(KafkaCluster cluster) {
         var config = proxy(cluster)
                 .withNewAdminHttp()
                 .withNewEndpoints()
@@ -65,7 +65,7 @@ public class MetricsIT {
     }
 
     @Test
-    public void shouldOfferPrometheusMetricsWithNamedBinder(KafkaCluster cluster) {
+    void shouldOfferPrometheusMetricsWithNamedBinder(KafkaCluster cluster) {
         var config = proxy(cluster)
                 .addToMicrometer(new MicrometerDefinitionBuilder("StandardBinders").withConfig("binderNames", List.of("JvmGcMetrics")).build())
                 .withNewAdminHttp()
@@ -82,7 +82,7 @@ public class MetricsIT {
     }
 
     @Test
-    public void shouldOfferPrometheusMetricsWithCommonTags(KafkaCluster cluster) {
+    void shouldOfferPrometheusMetricsWithCommonTags(KafkaCluster cluster) {
         var config = proxy(cluster)
                 .addToMicrometer(new MicrometerDefinitionBuilder("CommonTags").withConfig("commonTags", Map.of("a", "b")).build())
                 .withNewAdminHttp()

@@ -45,26 +45,26 @@ class SaslDecodePredicateTest {
     private SaslDecodePredicate predicate;
 
     @Test
-    public void testApiVersionAlwaysDecoded_SaslNotHandledAndBeforeDelegateSet() {
+    void testApiVersionAlwaysDecoded_SaslNotHandledAndBeforeDelegateSet() {
         givenSaslHandlingDisabled();
         assertPredicateTargetsRequestKey(ApiKeys.API_VERSIONS);
     }
 
     @Test
-    public void testApiVersionAlwaysDecoded_SaslHandledAndBeforeDelegateSet() {
+    void testApiVersionAlwaysDecoded_SaslHandledAndBeforeDelegateSet() {
         givenSaslHandlingEnabled();
         assertPredicateTargetsRequestKey(ApiKeys.API_VERSIONS);
     }
 
     @Test
-    public void testApiVersionAlwaysDecoded_SaslNotHandledAndDelegateSet() {
+    void testApiVersionAlwaysDecoded_SaslNotHandledAndDelegateSet() {
         givenSaslHandlingDisabled();
         givenDelegateTargetsNothing();
         assertPredicateTargetsRequestKey(ApiKeys.API_VERSIONS);
     }
 
     @Test
-    public void testApiVersionAlwaysDecoded_SaslHandledAndDelegateSet() {
+    void testApiVersionAlwaysDecoded_SaslHandledAndDelegateSet() {
         givenSaslHandlingEnabled();
         givenDelegateTargetsNothing();
         assertPredicateTargetsRequestKey(ApiKeys.API_VERSIONS);
@@ -80,7 +80,7 @@ class SaslDecodePredicateTest {
     }
 
     @Test
-    public void testSaslKeysTargetedForDecodeWithOffloadingAuth() {
+    void testSaslKeysTargetedForDecodeWithOffloadingAuth() {
         givenSaslHandlingEnabled();
         givenDelegateTargetsNothing();
         assertPredicateTargetsRequestKey(ApiKeys.SASL_AUTHENTICATE);

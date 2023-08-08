@@ -263,7 +263,7 @@ public class KrpcFilterIT {
     }
 
     @Test
-    public void testCompositeFilter() {
+    void testCompositeFilter() {
         try (MockServerKroxyliciousTester tester = mockKafkaKroxyliciousTester((mockBootstrap) -> proxy(mockBootstrap)
                 .addToFilters(new FilterDefinitionBuilder("CompositePrefixingFixedClientId")
                         .withConfig("clientId", "banana", "prefix", "123").build()));

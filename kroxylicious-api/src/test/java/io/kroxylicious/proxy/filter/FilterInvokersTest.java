@@ -38,7 +38,7 @@ class FilterInvokersTest {
     }
 
     @Test
-    public void testCompositeFilter() {
+    void testCompositeFilter() {
         MultipleSpecificFilter filterA = new MultipleSpecificFilter();
         RequestResponseFilter filterB = new RequestResponseFilter();
         RequestFilter filterC = (apiKey, header, body, filterContext) -> null;

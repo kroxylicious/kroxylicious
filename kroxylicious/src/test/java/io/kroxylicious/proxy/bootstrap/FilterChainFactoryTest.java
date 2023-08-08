@@ -19,7 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class FilterChainFactoryTest {
 
     @Test
-    public void testNullFiltersInConfigResultsInEmptyList() {
+    void testNullFiltersInConfigResultsInEmptyList() {
         FilterChainFactory filterChainFactory = new FilterChainFactory(new Configuration(null, null, null, null, true));
         List<FilterAndInvoker> filters = filterChainFactory.createFilters();
         assertNotNull(filters, "Filters list should not be null");
@@ -27,7 +27,7 @@ class FilterChainFactoryTest {
     }
 
     @Test
-    public void testEmptyFiltersInConfigResultsInEmptyList() {
+    void testEmptyFiltersInConfigResultsInEmptyList() {
         FilterChainFactory filterChainFactory = new FilterChainFactory(new Configuration(null, null, List.of(), null, true));
         List<FilterAndInvoker> filters = filterChainFactory.createFilters();
         assertNotNull(filters, "Filters list should not be null");

@@ -358,7 +358,7 @@ class EndpointRegistryTest {
     }
 
     @Test
-    public void resolveUsingSniFailsDueToMismatch() {
+    void resolveUsingSniFailsDueToMismatch() {
         configureVirtualClusterMock(virtualCluster1, SNI_DOWNSTREAM_BOOTSTRAP, UPSTREAM_BOOTSTRAP, true, true, null);
 
         var regf = endpointRegistry.registerVirtualCluster(virtualCluster1).toCompletableFuture();
@@ -650,7 +650,7 @@ class EndpointRegistryTest {
     }
 
     @Test
-    public void reconcileFailsDueToExternalPortConflict() {
+    void reconcileFailsDueToExternalPortConflict() {
         doReconcileFailsDueToExternalPortConflict(DOWNSTREAM_BROKER_0, UPSTREAM_BROKER_0);
     }
 

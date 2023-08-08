@@ -46,7 +46,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 public class OutOfBandRequestIT {
 
     @Test
-    public void testOutOfBandMessageInterceptedByUpstreamFilters() {
+    void testOutOfBandMessageInterceptedByUpstreamFilters() {
         // this filter should not intercept the out-of-band request or response, it will not either message with its name
         FilterDefinition downstreamFilter = addAddUnknownTaggedFieldToMessagesWithApiKey("downstreamOfOutOfBandFilter", CREATE_TOPICS);
         FilterDefinition outOfBandSender = outOfBandSender(CREATE_TOPICS, FILTER_NAME_TAG);
@@ -97,7 +97,7 @@ public class OutOfBandRequestIT {
 
     private static DescribeClusterResponseData whenDescribeCluster(KafkaClient client) {
         Response response = client.getSync(
-                new Request(ApiKeys.DESCRIBE_CLUSTER, ApiKeys.DESCRIBE_CLUSTER.latestVersion(), "client", new DescribeClusterRequestData()));
+                new Request(DESCRIBE_CLUSTER, DESCRIBE_CLUSTER.latestVersion(), "client", new DescribeClusterRequestData()));
         return (DescribeClusterResponseData) response.message();
     }
 

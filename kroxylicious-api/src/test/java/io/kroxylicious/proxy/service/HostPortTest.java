@@ -18,28 +18,28 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class HostPortTest {
 
     @Test
-    public void validBareHost() {
+    void validBareHost() {
         var hp = HostPort.parse("localhost:12345");
         assertThat(hp.host()).isEqualTo("localhost");
         assertThat(hp.port()).isEqualTo(12345);
     }
 
     @Test
-    public void validFQDN() {
+    void validFQDN() {
         var hp = HostPort.parse("kafka.example.com:12345");
         assertThat(hp.host()).isEqualTo("kafka.example.com");
         assertThat(hp.port()).isEqualTo(12345);
     }
 
     @Test
-    public void validIpv4() {
+    void validIpv4() {
         var hp = HostPort.parse("192.168.0.1:12345");
         assertThat(hp.host()).isEqualTo("192.168.0.1");
         assertThat(hp.port()).isEqualTo(12345);
     }
 
     @Test
-    public void validIpv6() {
+    void validIpv6() {
         var hp = HostPort.parse("[2001:db8::1]:12345");
         assertThat(hp.host()).isEqualTo("[2001:db8::1]");
         assertThat(hp.port()).isEqualTo(12345);

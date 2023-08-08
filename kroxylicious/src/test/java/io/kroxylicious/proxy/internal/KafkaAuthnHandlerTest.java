@@ -537,7 +537,7 @@ public class KafkaAuthnHandlerTest {
     }
 
     @Test
-    public void testUnknownMechanism() {
+    void testUnknownMechanism() {
         buildChannel(Map.of(
                 SaslMechanism.PLAIN, saslPlainCallbackHandler("bob", "pa55word")));
         var resp = doSendHandshake(SaslMechanism.SCRAM_SHA_256, SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION);

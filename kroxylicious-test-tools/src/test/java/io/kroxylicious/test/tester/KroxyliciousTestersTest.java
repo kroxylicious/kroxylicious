@@ -61,7 +61,7 @@ public class KroxyliciousTestersTest {
     public static final String TOPIC = "example";
 
     @Test
-    public void testAdminMethods(KafkaCluster cluster) {
+    void testAdminMethods(KafkaCluster cluster) {
         try (var tester = kroxyliciousTester(proxy(cluster))) {
             assertNotNull(tester.admin().describeCluster().clusterId().get(10, TimeUnit.SECONDS));
             assertNotNull(tester.admin(Map.of()).describeCluster().clusterId().get(10, TimeUnit.SECONDS));
@@ -97,7 +97,7 @@ public class KroxyliciousTestersTest {
     }
 
     @Test
-    public void testProducerMethods(KafkaCluster cluster) {
+    void testProducerMethods(KafkaCluster cluster) {
         try (var tester = kroxyliciousTester(proxy(cluster))) {
             send(tester.producer());
             send(tester.producer(Map.of()));
@@ -119,7 +119,7 @@ public class KroxyliciousTestersTest {
     }
 
     @Test
-    public void testSingleRequestClient(KafkaCluster cluster) {
+    void testSingleRequestClient(KafkaCluster cluster) {
         try (var tester = kroxyliciousTester(proxy(cluster))) {
             assertCanSendSingleRequestAndGetResponse(tester.singleRequestClient());
             assertCanSendSingleRequestAndGetResponse(tester.singleRequestClient(DEFAULT_VIRTUAL_CLUSTER));
@@ -130,7 +130,7 @@ public class KroxyliciousTestersTest {
     }
 
     @Test
-    public void testMockTester() {
+    void testMockTester() {
         try (var tester = mockKafkaKroxyliciousTester(KroxyliciousConfigUtils::proxy)) {
             assertCanSendSingleRequestAndReceiveMockMessage(tester, tester.singleRequestClient());
             assertCanSendSingleRequestAndReceiveMockMessage(tester, tester.singleRequestClient(DEFAULT_VIRTUAL_CLUSTER));
@@ -141,7 +141,7 @@ public class KroxyliciousTestersTest {
     }
 
     @Test
-    public void testIllegalToAskForNonExistantVirtualCluster(KafkaCluster cluster) {
+    void testIllegalToAskForNonExistantVirtualCluster(KafkaCluster cluster) {
         try (var tester = kroxyliciousTester(proxy(cluster))) {
             assertThrows(IllegalArgumentException.class, () -> tester.singleRequestClient("NON_EXIST"));
             assertThrows(IllegalArgumentException.class, () -> tester.consumer("NON_EXIST"));
@@ -159,7 +159,7 @@ public class KroxyliciousTestersTest {
     }
 
     @Test
-    public void testIllegalToAskForDefaultClientsWhenVirtualClustersAmbiguous(KafkaCluster cluster) {
+    void testIllegalToAskForDefaultClientsWhenVirtualClustersAmbiguous(KafkaCluster cluster) {
         String clusterBootstrapServers = cluster.getBootstrapServers();
         ConfigurationBuilder builder = new ConfigurationBuilder();
         ConfigurationBuilder proxy = addVirtualCluster(clusterBootstrapServers, addVirtualCluster(clusterBootstrapServers, builder, "foo",
