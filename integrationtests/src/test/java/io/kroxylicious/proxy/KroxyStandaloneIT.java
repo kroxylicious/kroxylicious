@@ -45,7 +45,7 @@ public class KroxyStandaloneIT {
     private static final String PLAINTEXT = "Hello, world!";
 
     @Test
-    public void shouldProxyWhenRunAsStandaloneProcess(KafkaCluster cluster, Admin admin, @TempDir Path tempDir) throws Exception {
+    void shouldProxyWhenRunAsStandaloneProcess(KafkaCluster cluster, Admin admin, @TempDir Path tempDir) throws Exception {
         var proxyAddress = HostPort.parse("localhost:9192");
 
         admin.createTopics(List.of(

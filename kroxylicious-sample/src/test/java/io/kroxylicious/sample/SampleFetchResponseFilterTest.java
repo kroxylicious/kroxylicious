@@ -76,7 +76,7 @@ class SampleFetchResponseFilterTest {
      * Unit Test: Checks that transformation is applied when response data contains configured value.
      */
     @Test
-    public void willTransformFetchResponseTest() throws Exception {
+    void willTransformFetchResponseTest() throws Exception {
         var responseData = buildFetchResponseData(PRE_TRANSFORM_VALUE);
         var stage = filter.onFetchResponse(API_VERSION, headerData, responseData, context);
 
@@ -95,7 +95,7 @@ class SampleFetchResponseFilterTest {
      * value.
      */
     @Test
-    public void wontTransformFetchResponseTest() throws Exception {
+    void wontTransformFetchResponseTest() throws Exception {
         var responseData = buildFetchResponseData(NO_TRANSFORM_VALUE);
         var stage = filter.onFetchResponse(API_VERSION, headerData, responseData, context);
 

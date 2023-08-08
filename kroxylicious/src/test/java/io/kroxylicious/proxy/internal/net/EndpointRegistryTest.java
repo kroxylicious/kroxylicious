@@ -67,7 +67,7 @@ class EndpointRegistryTest {
     private VirtualCluster virtualCluster2;
 
     @Test
-    public void registerVirtualCluster() throws Exception {
+    void registerVirtualCluster() throws Exception {
         configureVirtualClusterMock(virtualCluster1, DOWNSTREAM_BOOTSTRAP, UPSTREAM_BOOTSTRAP, false);
 
         var rf = endpointRegistry.registerVirtualCluster(virtualCluster1).toCompletableFuture();
@@ -79,7 +79,7 @@ class EndpointRegistryTest {
     }
 
     @Test
-    public void registerVirtualClusterWithDiscoveryAddresses() throws Exception {
+    void registerVirtualClusterWithDiscoveryAddresses() throws Exception {
         configureVirtualClusterMock(virtualCluster1, DOWNSTREAM_BOOTSTRAP, UPSTREAM_BOOTSTRAP, false, false,
                 Map.of(0, DOWNSTREAM_BROKER_0, 1, DOWNSTREAM_BROKER_1));
 
@@ -96,7 +96,7 @@ class EndpointRegistryTest {
     }
 
     @Test
-    public void registerVirtualClusterTls() throws Exception {
+    void registerVirtualClusterTls() throws Exception {
         configureVirtualClusterMock(virtualCluster1, DOWNSTREAM_BOOTSTRAP, UPSTREAM_BOOTSTRAP, true);
 
         var rf = endpointRegistry.registerVirtualCluster(virtualCluster1).toCompletableFuture();
@@ -105,7 +105,7 @@ class EndpointRegistryTest {
     }
 
     @Test
-    public void registerSameVirtualClusterIsIdempotent() throws Exception {
+    void registerSameVirtualClusterIsIdempotent() throws Exception {
         configureVirtualClusterMock(virtualCluster1, DOWNSTREAM_BOOTSTRAP, UPSTREAM_BOOTSTRAP, false);
 
         var rf1 = endpointRegistry.registerVirtualCluster(virtualCluster1).toCompletableFuture();
@@ -118,7 +118,7 @@ class EndpointRegistryTest {
     }
 
     @Test
-    public void registerTwoClustersThatShareSameNetworkEndpoint() throws Exception {
+    void registerTwoClustersThatShareSameNetworkEndpoint() throws Exception {
         // Same port..different SNI
         configureVirtualClusterMock(virtualCluster1, DOWNSTREAM_BOOTSTRAP, UPSTREAM_BOOTSTRAP, true);
         configureVirtualClusterMock(virtualCluster2, DOWNSTREAM_BOOTSTRAP_DIFF_SNI, UPSTREAM_BOOTSTRAP, true);
@@ -133,7 +133,7 @@ class EndpointRegistryTest {
     }
 
     @Test
-    public void registerTwoClustersThatUsesDistinctNetworkEndpoints() throws Exception {
+    void registerTwoClustersThatUsesDistinctNetworkEndpoints() throws Exception {
         configureVirtualClusterMock(virtualCluster1, DOWNSTREAM_BOOTSTRAP, UPSTREAM_BOOTSTRAP, false);
         configureVirtualClusterMock(virtualCluster2, DOWNSTREAM_BOOTSTRAP_DIFF_PORT, UPSTREAM_BOOTSTRAP, false);
 
@@ -148,7 +148,7 @@ class EndpointRegistryTest {
     }
 
     @Test
-    public void registerRejectsDuplicatedBinding() throws Exception {
+    void registerRejectsDuplicatedBinding() throws Exception {
         configureVirtualClusterMock(virtualCluster1, DOWNSTREAM_BOOTSTRAP, UPSTREAM_BOOTSTRAP, false);
         configureVirtualClusterMock(virtualCluster2, DOWNSTREAM_BOOTSTRAP, UPSTREAM_BOOTSTRAP, false);
 
@@ -168,7 +168,7 @@ class EndpointRegistryTest {
     }
 
     @Test
-    public void registerVirtualClusterFailsDueToExternalPortConflict() throws Exception {
+    void registerVirtualClusterFailsDueToExternalPortConflict() throws Exception {
         configureVirtualClusterMock(virtualCluster1, DOWNSTREAM_BOOTSTRAP, UPSTREAM_BOOTSTRAP, false);
 
         var rf = endpointRegistry.registerVirtualCluster(virtualCluster1).toCompletableFuture();
@@ -184,7 +184,7 @@ class EndpointRegistryTest {
     }
 
     @Test
-    public void deregisterVirtualCluster() throws Exception {
+    void deregisterVirtualCluster() throws Exception {
         configureVirtualClusterMock(virtualCluster1, DOWNSTREAM_BOOTSTRAP, UPSTREAM_BOOTSTRAP, true);
 
         var rf = endpointRegistry.registerVirtualCluster(virtualCluster1).toCompletableFuture();
@@ -203,7 +203,7 @@ class EndpointRegistryTest {
     }
 
     @Test
-    public void deregisterSameVirtualClusterIsIdempotent() throws Exception {
+    void deregisterSameVirtualClusterIsIdempotent() throws Exception {
         configureVirtualClusterMock(virtualCluster1, DOWNSTREAM_BOOTSTRAP, UPSTREAM_BOOTSTRAP, true);
 
         var rf = endpointRegistry.registerVirtualCluster(virtualCluster1).toCompletableFuture();
@@ -220,7 +220,7 @@ class EndpointRegistryTest {
     }
 
     @Test
-    public void deregisterClusterThatSharesEndpoint() throws Exception {
+    void deregisterClusterThatSharesEndpoint() throws Exception {
         configureVirtualClusterMock(virtualCluster1, DOWNSTREAM_BOOTSTRAP, UPSTREAM_BOOTSTRAP, true);
         configureVirtualClusterMock(virtualCluster2, DOWNSTREAM_BOOTSTRAP_DIFF_SNI, UPSTREAM_BOOTSTRAP, true);
 
@@ -241,7 +241,7 @@ class EndpointRegistryTest {
     }
 
     @Test
-    public void reregisterClusterWhilstDeregisterIsInProgress() throws Exception {
+    void reregisterClusterWhilstDeregisterIsInProgress() throws Exception {
         configureVirtualClusterMock(virtualCluster1, DOWNSTREAM_BOOTSTRAP, UPSTREAM_BOOTSTRAP, true);
 
         var rf1 = endpointRegistry.registerVirtualCluster(virtualCluster1).toCompletableFuture();
@@ -267,7 +267,7 @@ class EndpointRegistryTest {
     }
 
     @Test
-    public void registerClusterWhileAnotherIsDeregistering() throws Exception {
+    void registerClusterWhileAnotherIsDeregistering() throws Exception {
         configureVirtualClusterMock(virtualCluster1, DOWNSTREAM_BOOTSTRAP, UPSTREAM_BOOTSTRAP, true);
         configureVirtualClusterMock(virtualCluster2, DOWNSTREAM_BOOTSTRAP_DIFF_SNI, UPSTREAM_BOOTSTRAP, true);
 
@@ -344,7 +344,7 @@ class EndpointRegistryTest {
     }
 
     @Test
-    public void resolveUsingSniMatch() throws Exception {
+    void resolveUsingSniMatch() throws Exception {
         configureVirtualClusterMock(virtualCluster1, SNI_DOWNSTREAM_BOOTSTRAP, UPSTREAM_BOOTSTRAP, true, true, null);
 
         var regf = endpointRegistry.registerVirtualCluster(virtualCluster1).toCompletableFuture();
@@ -373,7 +373,7 @@ class EndpointRegistryTest {
     }
 
     @Test
-    public void resolveIgnoresRestrictedSniMatchAfterReconcile() throws Exception {
+    void resolveIgnoresRestrictedSniMatchAfterReconcile() throws Exception {
         configureVirtualClusterMock(virtualCluster1, SNI_DOWNSTREAM_BOOTSTRAP, UPSTREAM_BOOTSTRAP, true, true, null);
 
         var regf = endpointRegistry.registerVirtualCluster(virtualCluster1).toCompletableFuture();
@@ -399,7 +399,7 @@ class EndpointRegistryTest {
     }
 
     @Test
-    public void bindingAddressEndpointSeparation() throws Exception {
+    void bindingAddressEndpointSeparation() throws Exception {
         var bindingAddress1 = Optional.of("127.0.0.1");
         configureVirtualClusterMock(virtualCluster1, HostPort.parse("localhost:9192"), HostPort.parse("upstream1:9192"), false);
         when(virtualCluster1.getBindAddress()).thenReturn(bindingAddress1);
@@ -428,7 +428,7 @@ class EndpointRegistryTest {
     }
 
     @Test
-    public void reconcileAddsNewBrokerEndpoint() throws Exception {
+    void reconcileAddsNewBrokerEndpoint() throws Exception {
         configureVirtualClusterMock(virtualCluster1, DOWNSTREAM_BOOTSTRAP, UPSTREAM_BOOTSTRAP, false);
 
         var regf = endpointRegistry.registerVirtualCluster(virtualCluster1).toCompletableFuture();
@@ -447,7 +447,7 @@ class EndpointRegistryTest {
     }
 
     @Test
-    public void resolveReconciledBrokerAddress() throws Exception {
+    void resolveReconciledBrokerAddress() throws Exception {
         configureVirtualClusterMock(virtualCluster1, DOWNSTREAM_BOOTSTRAP, UPSTREAM_BOOTSTRAP, false);
 
         var regf = endpointRegistry.registerVirtualCluster(virtualCluster1).toCompletableFuture();
@@ -469,7 +469,7 @@ class EndpointRegistryTest {
     }
 
     @Test
-    public void resolveDiscoveryBrokerAddress() throws Exception {
+    void resolveDiscoveryBrokerAddress() throws Exception {
         configureVirtualClusterMock(virtualCluster1, DOWNSTREAM_BOOTSTRAP, UPSTREAM_BOOTSTRAP, false, false, Map.of(0, DOWNSTREAM_BROKER_0));
 
         var regf = endpointRegistry.registerVirtualCluster(virtualCluster1).toCompletableFuture();
@@ -483,7 +483,7 @@ class EndpointRegistryTest {
     }
 
     @Test
-    public void reconcileRemovesBrokerEndpoint() throws Exception {
+    void reconcileRemovesBrokerEndpoint() throws Exception {
         configureVirtualClusterMock(virtualCluster1, DOWNSTREAM_BOOTSTRAP, UPSTREAM_BOOTSTRAP, false);
 
         var regf = endpointRegistry.registerVirtualCluster(virtualCluster1).toCompletableFuture();
@@ -512,7 +512,7 @@ class EndpointRegistryTest {
     }
 
     @Test
-    public void reconcileChangesTargetClusterBrokerAddress() throws Exception {
+    void reconcileChangesTargetClusterBrokerAddress() throws Exception {
         var upstreamBrokerUpdated0 = HostPort.parse("upstreamupd:29193");
 
         configureVirtualClusterMock(virtualCluster1, DOWNSTREAM_BOOTSTRAP, UPSTREAM_BOOTSTRAP, false);
@@ -542,7 +542,7 @@ class EndpointRegistryTest {
     }
 
     @Test
-    public void reconcileReplacesDiscoveryAddress() throws Exception {
+    void reconcileReplacesDiscoveryAddress() throws Exception {
         configureVirtualClusterMock(virtualCluster1, DOWNSTREAM_BOOTSTRAP, UPSTREAM_BOOTSTRAP, false, false,
                 Map.of(0, DOWNSTREAM_BROKER_0, 1, DOWNSTREAM_BROKER_1));
 
@@ -580,7 +580,7 @@ class EndpointRegistryTest {
     }
 
     @Test
-    public void reconcileNoOp() throws Exception {
+    void reconcileNoOp() throws Exception {
         configureVirtualClusterMock(virtualCluster1, DOWNSTREAM_BOOTSTRAP, UPSTREAM_BOOTSTRAP, false);
 
         var regf = endpointRegistry.registerVirtualCluster(virtualCluster1).toCompletableFuture();
@@ -607,7 +607,7 @@ class EndpointRegistryTest {
     }
 
     @Test
-    public void reconcileDeleteWhilstPreviousAddInFlight() throws Exception {
+    void reconcileDeleteWhilstPreviousAddInFlight() throws Exception {
         configureVirtualClusterMock(virtualCluster1, DOWNSTREAM_BOOTSTRAP, UPSTREAM_BOOTSTRAP, false);
         when(virtualCluster1.getBrokerAddress(0)).thenReturn(DOWNSTREAM_BROKER_0);
         when(virtualCluster1.getBrokerAddress(1)).thenReturn(DOWNSTREAM_BROKER_1);
@@ -677,7 +677,7 @@ class EndpointRegistryTest {
     }
 
     @Test
-    public void nextReconcileSucceedsAfterTransientPortConflict() throws Exception {
+    void nextReconcileSucceedsAfterTransientPortConflict() throws Exception {
         var virtualCluster = doReconcileFailsDueToExternalPortConflict(DOWNSTREAM_BROKER_0, UPSTREAM_BROKER_0);
 
         var rcf = endpointRegistry.reconcile(virtualCluster, Map.of(0, UPSTREAM_BROKER_0)).toCompletableFuture();

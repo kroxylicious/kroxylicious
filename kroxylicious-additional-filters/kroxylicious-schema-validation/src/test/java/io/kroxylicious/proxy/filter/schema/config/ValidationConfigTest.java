@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class ValidationConfigTest {
 
     @Test
-    public void testDecodeDefaultValues() throws JsonProcessingException {
+    void testDecodeDefaultValues() throws JsonProcessingException {
         ObjectMapper yamlMapper = new ObjectMapper(new YAMLFactory());
         ValidationConfig deserialised = yamlMapper.readerFor(ValidationConfig.class).readValue("""
                 defaultRule:
@@ -43,7 +43,7 @@ class ValidationConfigTest {
     }
 
     @Test
-    public void testDecodeNonDefaultValues() throws JsonProcessingException {
+    void testDecodeNonDefaultValues() throws JsonProcessingException {
         ObjectMapper yamlMapper = new ObjectMapper(new YAMLFactory());
         ValidationConfig deserialised = yamlMapper.readerFor(ValidationConfig.class).readValue("""
                 forwardPartialRequests: true

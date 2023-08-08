@@ -453,11 +453,11 @@ public class FilterHandlerTest extends FilterHarness {
 
     /**
      * Test the special case within {@link FilterHandler} for
-     * {@link io.kroxylicious.proxy.filter.KrpcFilterContext#sendRequest(short, ApiMessage)}
+     * {@link KrpcFilterContext#sendRequest(short, ApiMessage)}
      * with acks=0 Produce requests.
      */
     @Test
-    public void testSendAcklessProduceRequest() throws ExecutionException, InterruptedException {
+    void testSendAcklessProduceRequest() throws ExecutionException, InterruptedException {
         ProduceRequestData body = new ProduceRequestData().setAcks((short) 0);
         CompletionStage<ApiMessage>[] fut = new CompletionStage[]{ null };
         ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> {

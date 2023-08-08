@@ -22,7 +22,7 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 class KeyPairTest {
 
     @Test
-    public void serverKeyPair() throws Exception {
+    void serverKeyPair() throws Exception {
         var keyPair = new KeyPair(TlsTestConstants.getResourceLocationOnFilesystem("server.key"), TlsTestConstants.getResourceLocationOnFilesystem("server.crt"), null);
         var sslContext = keyPair.forServer().build();
         assertThat(sslContext).isNotNull();
@@ -30,7 +30,7 @@ class KeyPairTest {
     }
 
     @Test
-    public void serverKeyPairKeyProtectedWithPassword() throws Exception {
+    void serverKeyPairKeyProtectedWithPassword() throws Exception {
         var keyPair = new KeyPair(TlsTestConstants.getResourceLocationOnFilesystem("server_encrypted.key"),
                 TlsTestConstants.getResourceLocationOnFilesystem("server.crt"), new InlinePassword("keypass"));
 

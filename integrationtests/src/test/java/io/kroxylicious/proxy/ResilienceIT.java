@@ -47,14 +47,14 @@ public class ResilienceIT extends BaseIT {
     static @BrokerCluster(numBrokers = 3) KafkaCluster cluster;
 
     @Test
-    public void kafkaProducerShouldTolerateKroxyliciousRestarting(Admin admin) throws Exception {
+    void kafkaProducerShouldTolerateKroxyliciousRestarting(Admin admin) throws Exception {
         String randomTopic = UUID.randomUUID().toString();
         createTopic(admin, randomTopic, 1);
         testProducerCanSurviveARestart(proxy(cluster), randomTopic);
     }
 
     @Test
-    public void kafkaConsumerShouldTolerateKroxyliciousRestarting(Admin admin) throws Exception {
+    void kafkaConsumerShouldTolerateKroxyliciousRestarting(Admin admin) throws Exception {
         String randomTopic = UUID.randomUUID().toString();
         createTopic(admin, randomTopic, 1);
         testConsumerCanSurviveKroxyliciousRestart(proxy(cluster), randomTopic);

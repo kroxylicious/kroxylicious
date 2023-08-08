@@ -65,7 +65,7 @@ class StandardBindersHookTest {
     }
 
     @Test
-    public void testAutoCloseableBindingClosed() throws Exception {
+    void testAutoCloseableBindingClosed() throws Exception {
         var hook = new StandardBindersHook(new StandardBindersHook.StandardBindersHookConfig(List.of(AUTO_CLOSEABLE_BINDER))) {
             @Override
             protected MeterBinder getBinder(String binderName) {

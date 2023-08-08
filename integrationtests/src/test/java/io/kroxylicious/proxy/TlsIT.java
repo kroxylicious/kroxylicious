@@ -98,7 +98,7 @@ public class TlsIT extends BaseIT {
     }
 
     @Test
-    public void upstreamUsesSelfSignedTls_TrustX509(@Tls KafkaCluster cluster) throws Exception {
+    void upstreamUsesSelfSignedTls_TrustX509(@Tls KafkaCluster cluster) throws Exception {
         var bootstrapServers = cluster.getBootstrapServers();
         var brokerTruststore = (String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG);
         var brokerTruststorePassword = (String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG);
@@ -136,7 +136,7 @@ public class TlsIT extends BaseIT {
     }
 
     @Test
-    public void upstreamUsesTlsInsecure(@Tls KafkaCluster cluster) throws Exception {
+    void upstreamUsesTlsInsecure(@Tls KafkaCluster cluster) throws Exception {
         var bootstrapServers = cluster.getBootstrapServers();
 
         var builder = new ConfigurationBuilder()
