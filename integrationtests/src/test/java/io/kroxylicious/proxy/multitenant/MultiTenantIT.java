@@ -60,7 +60,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.testcontainers.shaded.org.awaitility.Awaitility.await;
 
 @ExtendWith(KafkaClusterExtension.class)
-public class MultiTenantIT extends BaseMultiTenantIT {
+class MultiTenantIT extends BaseMultiTenantIT {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(MultiTenantIT.class);
 

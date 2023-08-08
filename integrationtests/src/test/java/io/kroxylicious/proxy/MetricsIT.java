@@ -32,7 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @ExtendWith(KafkaClusterExtension.class)
-public class MetricsIT {
+class MetricsIT {
 
     @BeforeEach
     public void beforeEach() {

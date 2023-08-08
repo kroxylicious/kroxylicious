@@ -43,7 +43,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @ExtendWith(KafkaClusterExtension.class)
-public class JsonSyntaxValidationIT extends BaseIT {
+class JsonSyntaxValidationIT extends BaseIT {
 
     public static final String SYNTACTICALLY_CORRECT_JSON = "{\"value\":\"json\"}";
     public static final String SYNTACTICALLY_INCORRECT_JSON = "Not Json";

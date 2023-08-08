@@ -56,7 +56,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.fail;
 
 @ExtendWith(KafkaClusterExtension.class)
-public class KroxyliciousTestersTest {
+class KroxyliciousTestersTest {
 
     public static final String TOPIC = "example";
 

@@ -48,7 +48,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * TODO add integration tests covering kroylicious's ability to use JKS and PEM material. Needs https://github.com/kroxylicious/kroxylicious-junit5-extension/issues/120
  */
 @ExtendWith(KafkaClusterExtension.class)
-public class TlsIT extends BaseIT {
+class TlsIT extends BaseIT {
     private static final HostPort PROXY_ADDRESS = HostPort.parse("localhost:9192");
     private static final ClusterNetworkAddressConfigProviderDefinition CONFIG_PROVIDER_DEFINITION = new ClusterNetworkAddressConfigProviderDefinitionBuilder(
             "PortPerBroker").withConfig("bootstrapAddress", PROXY_ADDRESS)
