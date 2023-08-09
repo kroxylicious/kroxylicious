@@ -149,10 +149,7 @@ public class FilterHandler extends ChannelDuplexHandler {
 
             if (requestFilterResult.message() != null) {
                 if (requestFilterResult.shortCircuitResponse()) {
-                    // this is the short circuit path
-                    var header = requestFilterResult.header() == null ? new ResponseHeaderData() : ((ResponseHeaderData) requestFilterResult.header());
-                    header.setCorrelationId(decodedFrame.correlationId());
-                    filterContext.forwardResponseInternal(header, requestFilterResult.message());
+                    forwardShortCircuitResponse(ctx, decodedFrame, filterContext, requestFilterResult);
                 }
                 else {
                     var header = requestFilterResult.header() == null ? decodedFrame.header() : requestFilterResult.header();
@@ -181,6 +178,22 @@ public class FilterHandler extends ChannelDuplexHandler {
             timeoutFuture.cancel(false);
             return filterResult;
         });
+    }
+
+    private void forwardShortCircuitResponse(ChannelHandlerContext ctx, DecodedRequestFrame<?> decodedFrame, DefaultFilterContext filterContext,
+                                             RequestFilterResult requestFilterResult) {
+        if (decodedFrame.hasResponse()) {
+            var header = requestFilterResult.header() == null ? new ResponseHeaderData() : ((ResponseHeaderData) requestFilterResult.header());
+            header.setCorrelationId(decodedFrame.correlationId());
+            filterContext.forwardResponseInternal(header, requestFilterResult.message());
+        }
+        else {
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("{}: Filter {} attempted to short-circuit respond to a message with apiKey {}" +
+                        " that has no response in the Kafka Protocol, dropping response",
+                        ctx.channel(), filterDescriptor(), decodedFrame.apiKey());
+            }
+        }
     }
 
     @Override

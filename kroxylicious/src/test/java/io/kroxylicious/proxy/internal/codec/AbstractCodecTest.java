@@ -36,6 +36,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.kroxylicious.proxy.frame.DecodedFrame;
 import io.kroxylicious.proxy.frame.Frame;
 import io.kroxylicious.proxy.frame.OpaqueFrame;
+import io.kroxylicious.proxy.frame.RequestFrame;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -180,7 +181,8 @@ public abstract class AbstractCodecTest {
                                                                                            BiFunction<Short, ByteBuffer, B> bodyDeser,
                                                                                            KafkaMessageDecoder decoder,
                                                                                            Class<? extends DecodedFrame> frameClass,
-                                                                                           Function<H, H> headerAdjuster) {
+                                                                                           Function<H, H> headerAdjuster,
+                                                                                           boolean expectedHasResponse) {
 
         ApiMessage encodedHeader = headerSupplier.apply(apiVersion);
 
@@ -209,6 +211,8 @@ public abstract class AbstractCodecTest {
         DecodedFrame<H, B> frame = (DecodedFrame<H, B>) messages.get(0);
         assertEquals(akHeader, headerAdjuster.apply(frame.header()));
         assertEquals(akBody, frame.body());
+        boolean hasResponse = frame instanceof RequestFrame requestFrame && requestFrame.hasResponse();
+        assertEquals(expectedHasResponse, hasResponse);
         return frame.correlationId();
     }
 
@@ -218,7 +222,8 @@ public abstract class AbstractCodecTest {
                                                                                            Function<Short, H> headerSupplier,
                                                                                            Supplier<B> bodySupplier,
                                                                                            KafkaMessageDecoder decoder,
-                                                                                           Class<? extends Frame> frameClass)
+                                                                                           Class<? extends Frame> frameClass,
+                                                                                           boolean expectedHasResponse)
             throws Exception {
 
         var encodedHeader = headerSupplier.apply(apiVersion);
@@ -237,6 +242,8 @@ public abstract class AbstractCodecTest {
         OpaqueFrame frame = (OpaqueFrame) messages.get(0);
         akBuf.readerIndex(4); // An OpaqueFrame excludes the length of the frame
         assertSameBytes(akBuf, frame.buf());
+        boolean hasResponse = frame instanceof RequestFrame requestFrame && requestFrame.hasResponse();
+        assertEquals(expectedHasResponse, hasResponse);
         return frame.correlationId();
     }
 

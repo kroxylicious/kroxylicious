@@ -12,24 +12,33 @@ import io.netty.buffer.ByteBuf;
 public class OpaqueRequestFrame extends OpaqueFrame implements RequestFrame {
 
     private final boolean decodeResponse;
+    private boolean hasResponse;
 
     /**
      * @param buf The message buffer (excluding the frame size)
      * @param correlationId
      * @param decodeResponse
      * @param length
+     * @param hasResponse
      */
     public OpaqueRequestFrame(ByteBuf buf,
                               int correlationId,
                               boolean decodeResponse,
-                              int length) {
+                              int length,
+                              boolean hasResponse) {
         super(buf, correlationId, length);
         this.decodeResponse = decodeResponse;
+        this.hasResponse = hasResponse;
     }
 
     @Override
     public boolean decodeResponse() {
         return decodeResponse;
+    }
+
+    @Override
+    public boolean hasResponse() {
+        return hasResponse;
     }
 
     @Override

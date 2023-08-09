@@ -17,6 +17,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.errors.InvalidTopicException;
@@ -54,6 +55,7 @@ import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester
 import static io.kroxylicious.test.tester.KroxyliciousTesters.mockKafkaKroxyliciousTester;
 import static org.apache.kafka.clients.consumer.ConsumerConfig.AUTO_OFFSET_RESET_CONFIG;
 import static org.apache.kafka.clients.consumer.ConsumerConfig.GROUP_ID_CONFIG;
+import static org.apache.kafka.clients.producer.ProducerConfig.ACKS_CONFIG;
 import static org.apache.kafka.clients.producer.ProducerConfig.CLIENT_ID_CONFIG;
 import static org.apache.kafka.clients.producer.ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG;
 import static org.apache.kafka.common.protocol.ApiKeys.LIST_GROUPS;
@@ -302,6 +304,53 @@ class KrpcFilterIT {
             assertArrayEquals(TOPIC_1_CIPHERTEXT, records1.iterator().next().value());
             assertEquals(1, records2.count());
             assertArrayEquals(TOPIC_2_CIPHERTEXT, records2.iterator().next().value());
+        }
+    }
+
+    // zero-ack produce requests require special handling because they have no response associated
+    // this checks that Kroxy can handle the basics of forwarding them.
+    @Test
+    public void shouldModifyZeroAckProduceMessage(KafkaCluster cluster, Admin admin) throws Exception {
+        admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1))).all().get();
+
+        var config = proxy(cluster)
+                .addToFilters(new FilterDefinitionBuilder("ProduceRequestTransformation").withConfig("transformation", TestEncoder.class.getName()).build());
+
+        try (var tester = kroxyliciousTester(config);
+                var producer = tester.producer(Map.of(CLIENT_ID_CONFIG, "shouldModifyProduceMessage", DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000, ACKS_CONFIG, "0"));
+                var consumer = tester
+                        .consumer(Serdes.String(), Serdes.ByteArray(), Map.of(GROUP_ID_CONFIG, "my-group-id", AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
+            producer.send(new ProducerRecord<>(TOPIC_1, "my-key", PLAINTEXT)).get();
+            producer.flush();
+
+            ConsumerRecords<String, byte[]> records1;
+            consumer.subscribe(Set.of(TOPIC_1));
+            records1 = consumer.poll(Duration.ofSeconds(10));
+
+            assertThat(records1).hasSize(1);
+            assertThat(records1.records(TOPIC_1)).map(ConsumerRecord::value)
+                    .containsExactly(TOPIC_1_CIPHERTEXT);
+        }
+    }
+
+    @Test
+    public void shouldForwardUnfilteredZeroAckProduceMessage(KafkaCluster cluster, Admin admin) throws Exception {
+        admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1))).all().get();
+
+        var config = proxy(cluster);
+
+        try (var tester = kroxyliciousTester(config);
+                var producer = tester.producer(Map.of(CLIENT_ID_CONFIG, "shouldModifyProduceMessage", DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000, ACKS_CONFIG, "0"));
+                var consumer = tester
+                        .consumer(Serdes.String(), Serdes.String(), Map.of(GROUP_ID_CONFIG, "my-group-id", AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
+            producer.send(new ProducerRecord<>(TOPIC_1, "my-key", PLAINTEXT)).get();
+            producer.flush();
+
+            consumer.subscribe(Set.of(TOPIC_1));
+            var records1 = consumer.poll(Duration.ofSeconds(10));
+
+            assertEquals(1, records1.count());
+            assertEquals(PLAINTEXT, records1.iterator().next().value());
         }
     }
 
