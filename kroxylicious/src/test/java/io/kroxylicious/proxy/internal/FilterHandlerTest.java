@@ -6,6 +6,7 @@
 package io.kroxylicious.proxy.internal;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
@@ -33,6 +34,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 import io.kroxylicious.proxy.filter.ApiVersionsRequestFilter;
 import io.kroxylicious.proxy.filter.ApiVersionsResponseFilter;
+import io.kroxylicious.proxy.filter.FetchRequestFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
@@ -99,6 +101,80 @@ public class FilterHandlerTest extends FilterHarness {
         writeRequest(new ProduceRequestData().setAcks((short) 1));
         DecodedResponseFrame<?> propagated = channel.readInbound();
         assertEquals(responseData, propagated.body(), "expected ProduceResponseData to be forwarded");
+    }
+
+    @Test
+    void shortCircuitSendsIncorrectApiResponse() {
+        ProduceResponseData responseData = new ProduceResponseData();
+        FetchRequestFilter filter = (apiVersion, header, request, context) -> context.requestFilterResultBuilder().shortCircuitResponse(responseData)
+                .completed();
+        buildChannel(filter);
+        writeRequest(new FetchRequestData());
+
+        DecodedResponseFrame<?> propagated = channel.readInbound();
+        assertThat(propagated).isNull();
+        // Defect https://github.com/kroxylicious/kroxylicious/issues/543
+        // assertThat(channel.isOpen()).isFalse();
+    }
+
+    @Test
+    void deferredRequestDelaysSubsequentRequest() {
+        var req1 = new ApiVersionsRequestData().setClientSoftwareName("req1");
+        var req2 = new ApiVersionsRequestData().setClientSoftwareName("req2");
+
+        var requestFutureMap = new LinkedHashMap<ApiVersionsRequestData, CompletableFuture<Void>>();
+        requestFutureMap.put(req1, new CompletableFuture<>());
+        requestFutureMap.put(req2, CompletableFuture.completedFuture(null));
+
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> requestFutureMap.get(request)
+                .thenCompose((u) -> context.forwardRequest(header, request));
+        buildChannel(filter);
+
+        requestFutureMap.keySet().forEach(this::writeRequest);
+        channel.runPendingTasks();
+
+        var propagated = channel.readOutbound();
+        assertThat(propagated).isNull();
+
+        // complete req1's future, now expect both requests to flow.
+        requestFutureMap.get(req1).complete(null);
+
+        channel.runPendingTasks();
+        DecodedRequestFrame<?> outboundRequest1 = channel.readOutbound();
+        assertThat(outboundRequest1).extracting(DecodedRequestFrame::body).isEqualTo(req1);
+
+        DecodedRequestFrame<?> outboundRequest2 = channel.readOutbound();
+        assertThat(outboundRequest2).extracting(DecodedRequestFrame::body).isEqualTo(req2);
+    }
+
+    @Test
+    void deferredResponseDelaysSubsequentResponse() {
+        var res1 = new ApiVersionsResponseData().setErrorCode((short) 1);
+        var res2 = new ApiVersionsResponseData().setErrorCode((short) 2);
+
+        var responseFutureMap = new LinkedHashMap<ApiVersionsResponseData, CompletableFuture<Void>>();
+        responseFutureMap.put(res1, new CompletableFuture<>());
+        responseFutureMap.put(res2, CompletableFuture.completedFuture(null));
+
+        ApiVersionsResponseFilter filter = (apiVersion, header, response, context) -> responseFutureMap.get(response)
+                .thenCompose((u) -> context.forwardResponse(header, response));
+        buildChannel(filter);
+
+        responseFutureMap.keySet().forEach(this::writeResponse);
+        channel.runPendingTasks();
+
+        var propagated = channel.readInbound();
+        assertThat(propagated).isNull();
+
+        // complete res1's future, now expect both response to flow.
+        responseFutureMap.get(res1).complete(null);
+
+        channel.runPendingTasks();
+        DecodedResponseFrame<?> inboundResponse1 = channel.readInbound();
+        assertThat(inboundResponse1).extracting(DecodedResponseFrame::body).isEqualTo(res1);
+
+        DecodedResponseFrame<?> inboundResponse2 = channel.readInbound();
+        assertThat(inboundResponse2).extracting(DecodedResponseFrame::body).isEqualTo(res2);
     }
 
     @Test
@@ -348,8 +424,7 @@ public class FilterHandlerTest extends FilterHarness {
 
     @Test
     void testForwardResponse() {
-        ApiVersionsResponseFilter filter = (apiVersion, header, response, context) -> context.responseFilterResultBuilder().forward(header, response)
-                .completed();
+        ApiVersionsResponseFilter filter = (apiVersion, header, response, context) -> context.forwardResponse(header, response);
         buildChannel(filter);
         var frame = writeResponse(new ApiVersionsResponseData());
         var propagated = channel.readInbound();
