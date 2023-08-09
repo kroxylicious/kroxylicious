@@ -17,6 +17,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.errors.InvalidTopicException;
@@ -326,8 +327,9 @@ class KrpcFilterIT {
             consumer.subscribe(Set.of(TOPIC_1));
             records1 = consumer.poll(Duration.ofSeconds(10));
 
-            assertEquals(1, records1.count());
-            assertArrayEquals(TOPIC_1_CIPHERTEXT, records1.iterator().next().value());
+            assertThat(records1).hasSize(1);
+            assertThat(records1.records(TOPIC_1)).map(ConsumerRecord::value)
+                    .containsExactly(TOPIC_1_CIPHERTEXT);
         }
     }
 
