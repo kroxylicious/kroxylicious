@@ -29,7 +29,7 @@ class ResponseDecoderTest extends AbstractCodecTest {
                 AbstractCodecTest::deserializeApiVersionsResponseUsingKafkaApis,
                 new KafkaResponseDecoder(mgr),
                 DecodedResponseFrame.class,
-                header -> header.setCorrelationId(12)),
+                header -> header.setCorrelationId(12), false),
                 "Unexpected correlation id");
     }
 
@@ -43,7 +43,7 @@ class ResponseDecoderTest extends AbstractCodecTest {
                 v -> AbstractCodecTest.exampleResponseHeader(),
                 AbstractCodecTest::exampleApiVersionsResponse,
                 new KafkaResponseDecoder(mgr),
-                OpaqueResponseFrame.class),
+                OpaqueResponseFrame.class, false),
                 "Unexpected correlation id");
     }
 

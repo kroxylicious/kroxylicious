@@ -13,4 +13,12 @@ public interface RequestFrame extends Frame {
      */
     boolean decodeResponse();
 
+    /**
+     * Whether the Kafka Client expects a response to this request
+     * @return Whether the Kafka Client expects a response to this request
+     */
+    default boolean hasResponse() {
+        return true;
+    }
+
 }

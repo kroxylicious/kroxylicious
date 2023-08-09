@@ -9,10 +9,15 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletionStage;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
+import org.apache.kafka.common.message.ApiMessageType;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
+import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
+import org.apache.kafka.common.protocol.ByteBufferAccessor;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
@@ -30,9 +35,44 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class RequestDecoderTest extends AbstractCodecTest {
 
+    public static final DecodePredicate DECODE_NOTHING = new DecodePredicate() {
+        @Override
+        public boolean shouldDecodeRequest(ApiKeys apiKey, short apiVersion) {
+            return false;
+        }
+
+        @Override
+        public boolean shouldDecodeResponse(ApiKeys apiKey, short apiVersion) {
+            return false;
+        }
+    };
+    public static final DecodePredicate DECODE_EVERYTHING = new DecodePredicate() {
+        @Override
+        public boolean shouldDecodeRequest(ApiKeys apiKey, short apiVersion) {
+            return true;
+        }
+
+        @Override
+        public boolean shouldDecodeResponse(ApiKeys apiKey, short apiVersion) {
+            return true;
+        }
+    };
+
+    public static List<Object[]> produceRequestApiVersions() {
+        List<Short> produceVersions = requestApiVersions(ApiMessageType.PRODUCE).collect(Collectors.toList());
+        List<Object[]> cartesianProduct = new ArrayList<>();
+        produceVersions
+                .forEach(produceVersion -> Stream.of((short) 0, (short) 1, (short) -1).forEach(acks -> cartesianProduct.add(new Object[]{ produceVersion, acks })));
+        return cartesianProduct;
+    }
+
+    static ProduceRequestData deserializeProduceRequestUsingKafkaApis(short apiVersion, ByteBuffer buffer) {
+        return new ProduceRequestData(new ByteBufferAccessor(buffer), apiVersion);
+    }
+
     @ParameterizedTest
     @MethodSource("requestApiVersions")
-    void testApiVersionsExactlyOneFrame_decoded(short apiVersion) throws Exception {
+    void testApiVersionsExactlyOneFrame_decoded(short apiVersion) {
         assertEquals(12,
                 exactlyOneFrame_decoded(apiVersion,
                         ApiKeys.API_VERSIONS::requestHeaderVersion,
@@ -46,7 +86,7 @@ public class RequestDecoderTest extends AbstractCodecTest {
                                                 (ApiVersionsRequestFilter) (version, header, request, context) -> context.requestFilterResultBuilder()
                                                         .forward(header, request).completed()))),
                         DecodedRequestFrame.class,
-                        (RequestHeaderData header) -> header),
+                        (RequestHeaderData header) -> header, true),
                 "Unexpected correlation id");
     }
 
@@ -73,7 +113,7 @@ public class RequestDecoderTest extends AbstractCodecTest {
                                         return context.requestFilterResultBuilder().forward(header, request).completed();
                                     }
                                 }))),
-                        OpaqueRequestFrame.class),
+                        OpaqueRequestFrame.class, true),
                 "Unexpected correlation id");
     }
 
@@ -171,5 +211,68 @@ public class RequestDecoderTest extends AbstractCodecTest {
         assertEquals(body, frame.body());
 
         assertEquals(byteBuf.writerIndex(), byteBuf.readerIndex());
+    }
+
+    /**
+     * KafkaRequestDecoder has some special case handling for Produce requests with acks==0
+     */
+    @ParameterizedTest
+    @MethodSource("produceRequestApiVersions")
+    void testAcksParsingWhenNotDecoding(short produceVersion, short acks) throws Exception {
+
+        var header = new RequestHeaderData()
+                .setRequestApiKey(ApiKeys.PRODUCE.id)
+                .setRequestApiVersion(produceVersion)
+                .setCorrelationId(45);
+        short headerVersion = ApiKeys.PRODUCE.requestHeaderVersion(produceVersion);
+        if (headerVersion >= 1) {
+            header.setClientId("323423");
+        }
+        var body = new ProduceRequestData()
+                .setAcks(acks);
+        if (produceVersion >= 3) {
+            body.setTransactionalId("wnedkwjn");
+        }
+        assertEquals(45,
+                exactlyOneFrame_encoded(produceVersion,
+                        ApiKeys.PRODUCE::requestHeaderVersion,
+                        (x) -> header,
+                        () -> body,
+                        new KafkaRequestDecoder(DECODE_NOTHING),
+                        OpaqueRequestFrame.class,
+                        acks != 0),
+                "Unexpected correlation id");
+    }
+
+    /**
+     * KafkaRequestDecoder has some special case handling for Produce requests with acks==0
+     */
+    @ParameterizedTest
+    @MethodSource("produceRequestApiVersions")
+    void testAcksParsingWhenDecoding(short produceVersion, short acks) throws Exception {
+
+        var header = new RequestHeaderData()
+                .setRequestApiKey(ApiKeys.PRODUCE.id)
+                .setRequestApiVersion(produceVersion)
+                .setCorrelationId(45);
+        short headerVersion = ApiKeys.PRODUCE.requestHeaderVersion(produceVersion);
+        if (headerVersion >= 1) {
+            header.setClientId("323423");
+        }
+        var body = new ProduceRequestData()
+                .setAcks(acks);
+        if (produceVersion >= 3) {
+            body.setTransactionalId("wnedkwjn");
+        }
+        assertEquals(45,
+                exactlyOneFrame_decoded(produceVersion,
+                        ApiKeys.PRODUCE::requestHeaderVersion,
+                        (x) -> header,
+                        () -> body,
+                        AbstractCodecTest::deserializeRequestHeaderUsingKafkaApis,
+                        RequestDecoderTest::deserializeProduceRequestUsingKafkaApis,
+                        new KafkaRequestDecoder(DECODE_EVERYTHING),
+                        DecodedRequestFrame.class, ((RequestHeaderData head) -> head), acks != 0),
+                "Unexpected correlation id");
     }
 }

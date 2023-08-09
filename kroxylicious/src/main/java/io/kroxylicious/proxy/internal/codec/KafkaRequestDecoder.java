@@ -51,6 +51,7 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
         if (log().isTraceEnabled()) { // avoid boxing
             log().trace("{}: apiVersion: {}", ctx, apiVersion);
         }
+        final int startOfMessage = in.readerIndex();
         int correlationId = in.readInt();
         LOGGER.debug("{}: {} downstream correlation id: {}", ctx, apiKey, correlationId);
 
@@ -89,29 +90,83 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
                 log().trace("{}: body {}", ctx, body);
             }
 
-            frame = new DecodedRequestFrame<ApiMessage>(apiVersion, correlationId, decodeResponse, header, body);
+            frame = new DecodedRequestFrame<>(apiVersion, correlationId, decodeResponse, header, body);
             if (log().isTraceEnabled()) {
                 log().trace("{}: frame {}", ctx, frame);
             }
         }
         else {
+            boolean hasResponse = true;
+            if (apiKey == ApiKeys.PRODUCE) {
+                short acks = readAcks(in, startOfMessage, apiKey.id, apiVersion);
+                hasResponse = acks != 0;
+            }
             in.readerIndex(sof);
-            frame = opaqueFrame(in, correlationId, decodeResponse, length);
+            frame = opaqueFrame(in, correlationId, decodeResponse, length, hasResponse);
             in.readerIndex(sof + length);
         }
 
         return frame;
     }
 
+    private static void incrementReaderIndex(ByteBuf byteBuf, int increment) {
+        byteBuf.readerIndex(byteBuf.readerIndex() + increment);
+    }
+
+    static short readAcks(ByteBuf in, int startOfMessage, short apiKey, short apiVersion) {
+        // Annoying case: we need to know whether to expect a response so that we know
+        // whether to add to the correlation (so that, in turn, we know how to rewrite the correlation
+        // id of the client response).
+        // Adding ack-less Produce requests to the correlation => OOME.
+        // This requires decoding at least the first one or two
+        // fields of all Produce requests.
+        // Because we want to avoid parsing the produce request using ProduceRequestData
+        // just for this we are stuck with hand coding deserialization code...
+        in.readerIndex(startOfMessage);
+        short headerVersion = ApiKeys.forId(apiKey).requestHeaderVersion(apiVersion);
+        incrementReaderIndex(in, 4);
+        if (headerVersion >= 1) {
+            int clientIdLength = in.readShort();
+            incrementReaderIndex(in, clientIdLength);
+        }
+        if (headerVersion >= 2) {
+            int numTaggedFields = ByteBufAccessorImpl.readUnsignedVarint(in);
+            for (int i = 0; i < numTaggedFields; i++) {
+                ByteBufAccessorImpl.readUnsignedVarint(in);
+                int size = ByteBufAccessorImpl.readUnsignedVarint(in);
+                incrementReaderIndex(in, size);
+            }
+        }
+
+        final short acks;
+        if (apiVersion >= 3) { // Transactional id comes before acks
+            int transactionIdLength;
+            if (apiVersion < 9) { // Last non-flexible version
+                transactionIdLength = in.readShort();
+            }
+            else if (apiVersion == 9) { // First flexible version
+                transactionIdLength = ByteBufAccessorImpl.readUnsignedVarint(in);
+            }
+            else {
+                throw new AssertionError("Unsupported Produce apiVersion: " + apiVersion);
+            }
+            incrementReaderIndex(in, transactionIdLength);
+        }
+        acks = in.readShort();
+        return acks;
+    }
+
     private OpaqueRequestFrame opaqueFrame(ByteBuf in,
                                            int correlationId,
                                            boolean decodeResponse,
-                                           int length) {
+                                           int length,
+                                           boolean hasResponse) {
         return new OpaqueRequestFrame(
                 in.readSlice(length).retain(),
                 correlationId,
                 decodeResponse,
-                length);
+                length,
+                hasResponse);
     }
 
     private RequestHeaderData readHeader(short headerVersion, Readable accessor) {

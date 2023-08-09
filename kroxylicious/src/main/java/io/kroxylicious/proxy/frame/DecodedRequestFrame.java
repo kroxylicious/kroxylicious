@@ -5,8 +5,11 @@
  */
 package io.kroxylicious.proxy.frame;
 
+import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
+
+import static org.apache.kafka.common.protocol.ApiKeys.PRODUCE;
 
 /**
  * A decoded request frame.
@@ -34,6 +37,15 @@ public class DecodedRequestFrame<B extends ApiMessage>
     @Override
     public boolean decodeResponse() {
         return decodeResponse;
+    }
+
+    @Override
+    public boolean hasResponse() {
+        return !isZeroAcksProduceRequest();
+    }
+
+    private boolean isZeroAcksProduceRequest() {
+        return apiKey() == PRODUCE && ((ProduceRequestData) body).acks() == 0;
     }
 
 }
