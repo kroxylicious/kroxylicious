@@ -417,10 +417,8 @@ class MultiTenantIT extends BaseMultiTenantIT {
     }
 
     private void verifyTenant(Admin admin, String... expectedTopics) throws Exception {
-        var listTopicsResult = admin.listTopics();
-
-        var topicListMap = listTopicsResult.namesToListings().get();
-        assertThat(expectedTopics).hasSize(topicListMap.size());
+        var topicListMap = await().atMost(Duration.ofSeconds(5)).until(() -> admin.listTopics().namesToListings().get(),
+                m -> m.size() == expectedTopics.length);
         Arrays.stream(expectedTopics)
                 .forEach(expectedTopic -> assertThat(topicListMap).hasEntrySatisfying(expectedTopic, allOf(matches(TopicListing::name, expectedTopic))));
 
