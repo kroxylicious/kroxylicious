@@ -14,6 +14,7 @@ import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Supplier;
 
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -32,7 +33,6 @@ import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.jetbrains.annotations.NotNull;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -72,24 +72,27 @@ public class KroxyliciousTestersTest {
         }
     }
 
-    // TODO fix this, I believe that during the initial async reconciliation of metadata Kroxylicious is responding
-    // with a FindCoordinator response out-of-order.
-    @Disabled
     @Test
-    public void testConsumerMethods(KafkaCluster cluster) throws Exception {
+    void testConsumerMethods(KafkaCluster cluster) throws Exception {
         KafkaProducer<String, String> producer = new KafkaProducer<>(cluster.getKafkaClientConfiguration(), new StringSerializer(), new StringSerializer());
         producer.send(new ProducerRecord<>(TOPIC, "key", "value")).get(10, TimeUnit.SECONDS);
         try (var tester = kroxyliciousTester(proxy(cluster))) {
-            assertOneRecordConsumedFrom(tester.consumer());
-            assertOneRecordConsumedFrom(tester.consumer(randomGroupIdAndEarliestReset()));
-            assertOneRecordConsumedFrom(tester.consumer(Serdes.String(), Serdes.String(), randomGroupIdAndEarliestReset()));
-
-            assertOneRecordConsumedFrom(tester.consumer(DEFAULT_VIRTUAL_CLUSTER));
-            assertOneRecordConsumedFrom(tester.consumer(DEFAULT_VIRTUAL_CLUSTER, randomGroupIdAndEarliestReset()));
-            assertOneRecordConsumedFrom(tester.consumer(DEFAULT_VIRTUAL_CLUSTER, Serdes.String(), Serdes.String(), randomGroupIdAndEarliestReset()));
+            withConsumer(tester::consumer, KroxyliciousTestersTest::assertOneRecordConsumedFrom);
+            withConsumer(() -> tester.consumer(randomGroupIdAndEarliestReset()), KroxyliciousTestersTest::assertOneRecordConsumedFrom);
+            withConsumer(() -> tester.consumer(Serdes.String(), Serdes.String(), randomGroupIdAndEarliestReset()), KroxyliciousTestersTest::assertOneRecordConsumedFrom);
+            withConsumer(() -> tester.consumer(DEFAULT_VIRTUAL_CLUSTER), KroxyliciousTestersTest::assertOneRecordConsumedFrom);
+            withConsumer(() -> tester.consumer(DEFAULT_VIRTUAL_CLUSTER, randomGroupIdAndEarliestReset()), KroxyliciousTestersTest::assertOneRecordConsumedFrom);
+            withConsumer(() -> tester.consumer(DEFAULT_VIRTUAL_CLUSTER, Serdes.String(), Serdes.String(), randomGroupIdAndEarliestReset()),
+                    KroxyliciousTestersTest::assertOneRecordConsumedFrom);
         }
         catch (Exception e) {
             fail("unexpected exception", e);
+        }
+    }
+
+    private void withConsumer(Supplier<Consumer<String, String>> supplier, java.util.function.Consumer<Consumer<String, String>> consumerFunc) {
+        try (Consumer<String, String> consumer = supplier.get()) {
+            consumerFunc.accept(consumer);
         }
     }
 
