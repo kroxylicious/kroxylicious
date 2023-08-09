@@ -34,6 +34,7 @@ import io.kroxylicious.proxy.internal.codec.KafkaResponseEncoder;
 import io.kroxylicious.proxy.internal.filter.ApiVersionsIntersectFilter;
 import io.kroxylicious.proxy.internal.filter.BrokerAddressFilter;
 import io.kroxylicious.proxy.internal.filter.EagerMetadataLearner;
+import io.kroxylicious.proxy.internal.filter.FilterContributorManager;
 import io.kroxylicious.proxy.internal.net.Endpoint;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
 import io.kroxylicious.proxy.internal.net.VirtualClusterBinding;
@@ -172,7 +173,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
 
         ApiVersionsServiceImpl apiVersionService = new ApiVersionsServiceImpl();
         var frontendHandler = new KafkaProxyFrontendHandler(context -> {
-            var filterChainFactory = new FilterChainFactory(config);
+            var filterChainFactory = new FilterChainFactory(config, FilterContributorManager.getInstance());
             List<FilterAndInvoker> apiVersionFilters = dp.isAuthenticationOffloadEnabled() ? List.of()
                     : FilterAndInvoker.build(new ApiVersionsIntersectFilter(apiVersionService));
             List<FilterAndInvoker> customProtocolFilters = filterChainFactory.createFilters();

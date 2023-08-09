@@ -84,7 +84,7 @@ class BaseContributorTest {
         final IllegalArgumentException illegalArgumentException = assertThrows(IllegalArgumentException.class,
                 () -> baseContributor.getInstance("requiresConfig", null));
 
-        //Then
+        // Then
         assertThat(illegalArgumentException).hasMessageContaining("requiresConfig requires config but it is null");
     }
 
@@ -99,7 +99,7 @@ class BaseContributorTest {
         // When
         final Long actualInstance = baseContributor.getInstance("noConfigRequired", null);
 
-        //Then
+        // Then
         assertThat(actualInstance).isNotNull();
     }
 
@@ -114,7 +114,7 @@ class BaseContributorTest {
         // When
         final Long actualInstance = baseContributor.getInstance("configRequired", new LongConfig());
 
-        //Then
+        // Then
         assertThat(actualInstance).isNotNull();
     }
 
@@ -129,7 +129,7 @@ class BaseContributorTest {
         // When
         final Long actualInstance = baseContributor.getInstance("configRequired", new LongConfig());
 
-        //Then
+        // Then
         assertThat(actualInstance).isNotNull();
     }
 

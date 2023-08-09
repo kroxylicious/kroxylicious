@@ -6,6 +6,9 @@
 package io.kroxylicious.proxy.bootstrap;
 
 import java.util.List;
+import java.util.Set;
+import java.util.StringJoiner;
+import java.util.stream.Collectors;
 
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.FilterDefinition;
@@ -20,9 +23,11 @@ import io.kroxylicious.proxy.internal.filter.FilterContributorManager;
 public class FilterChainFactory {
 
     private final Configuration config;
+    private final FilterContributorManager filterContributorManager;
 
-    public FilterChainFactory(Configuration config) {
+    public FilterChainFactory(Configuration config, FilterContributorManager filterContributorManager) {
         this.config = config;
+        this.filterContributorManager = filterContributorManager;
     }
 
     /**
@@ -31,11 +36,18 @@ public class FilterChainFactory {
      * @return the new chain.
      */
     public List<FilterAndInvoker> createFilters() {
-        FilterContributorManager filterContributorManager = FilterContributorManager.getInstance();
 
         List<FilterDefinition> filters = config.filters();
         if (filters == null || filters.isEmpty()) {
             return List.of();
+        }
+        final Set<String> filtersWithoutRequiredConfiguration = filters.stream().filter(f -> f.config() == null && filterContributorManager.requiresConfig(f.type())).map(FilterDefinition::type).collect(Collectors.toSet());
+        if (!filtersWithoutRequiredConfiguration.isEmpty()) {
+            StringJoiner joiner = new StringJoiner(", ", "[", "]");
+            for (String s : filtersWithoutRequiredConfiguration) {
+                joiner.add(s);
+            }
+            throw new IllegalStateException("Missing required config for " + joiner.toString());
         }
         return filters
                 .stream()

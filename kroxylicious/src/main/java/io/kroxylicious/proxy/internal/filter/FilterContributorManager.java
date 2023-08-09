@@ -7,6 +7,7 @@ package io.kroxylicious.proxy.internal.filter;
 
 import java.util.Iterator;
 import java.util.ServiceLoader;
+import java.util.function.Supplier;
 
 import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.filter.Filter;
@@ -14,12 +15,21 @@ import io.kroxylicious.proxy.filter.FilterContributor;
 
 public class FilterContributorManager {
 
-    private static final FilterContributorManager INSTANCE = new FilterContributorManager();
+    public static final FilterContributorManager INSTANCE = new FilterContributorManager(new Supplier<>() {
 
-    private final ServiceLoader<FilterContributor> contributors;
+        private final ServiceLoader<FilterContributor> serviceLoader = ServiceLoader.load(FilterContributor.class);
 
-    private FilterContributorManager() {
-        this.contributors = ServiceLoader.load(FilterContributor.class);
+        @Override
+        public Iterator<FilterContributor> get() {
+            return serviceLoader.iterator();
+        }
+    });
+
+    private final Supplier<Iterator<FilterContributor>> contributors;
+
+    /* test */
+    public FilterContributorManager(Supplier<Iterator<FilterContributor>> iteratorSupplier) {
+        this.contributors = iteratorSupplier;
     }
 
     public static FilterContributorManager getInstance() {
@@ -27,7 +37,7 @@ public class FilterContributorManager {
     }
 
     public Class<? extends BaseConfig> getConfigType(String shortName) {
-        Iterator<FilterContributor> it = contributors.iterator();
+        Iterator<FilterContributor> it = contributors.get();
         while (it.hasNext()) {
             FilterContributor contributor = it.next();
             Class<? extends BaseConfig> configType = contributor.getConfigType(shortName);
@@ -40,7 +50,7 @@ public class FilterContributorManager {
     }
 
     public Filter getFilter(String shortName, BaseConfig filterConfig) {
-        Iterator<FilterContributor> it = contributors.iterator();
+        Iterator<FilterContributor> it = contributors.get();
         while (it.hasNext()) {
             FilterContributor contributor = it.next();
             Filter filter = contributor.getInstance(shortName, filterConfig);
@@ -50,5 +60,14 @@ public class FilterContributorManager {
         }
 
         throw new IllegalArgumentException("No filter found for name '" + shortName + "'");
+    }
+
+    public boolean requiresConfig(String shortName) {
+        Iterator<FilterContributor> it = contributors.get();
+        while (it.hasNext()) {
+            FilterContributor contributor = it.next();
+            return contributor.requiresConfig(shortName);
+        }
+        return false;
     }
 }
