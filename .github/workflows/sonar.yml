@@ -11,7 +11,7 @@ on:
 jobs:
   Sonar:
     runs-on: ubuntu-latest
-    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'pull_request'
+    if: github.event.workflow_run && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'pull_request'
     steps:
       - name: echo event
         run: cat $GITHUB_EVENT_PATH
@@ -66,8 +66,10 @@ jobs:
   sonarcloud:
     name: SonarCloud
     runs-on: ubuntu-latest
-    if: github.event.workflow_run.event == 'push' && github.event.github.ref_name == main
+    if: github.event.workflow_run && github.event.workflow_run.event == 'push' && github.event.github.ref_name == main
     steps:
+      - name: echo event
+        run: cat $GITHUB_EVENT_PATH
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
