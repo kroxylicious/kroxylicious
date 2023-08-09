@@ -16,14 +16,14 @@ public class SampleFilterConfigTest {
     private static final String CONFIG_REPLACE_VALUE = "to";
 
     @Test
-    public void validateSampleFetchResponseConfigTest() {
+    void validateSampleFetchResponseConfigTest() {
         SampleFilterConfig config = new SampleFilterConfig(CONFIG_FIND_VALUE, CONFIG_REPLACE_VALUE);
         assertThat(config.getFindValue()).isEqualTo(CONFIG_FIND_VALUE);
         assertThat(config.getReplacementValue()).isEqualTo(CONFIG_REPLACE_VALUE);
     }
 
     @Test
-    public void validateSampleFetchResponseConfigEmptyReplacementValueTest() {
+    void validateSampleFetchResponseConfigEmptyReplacementValueTest() {
         SampleFilterConfig config = new SampleFilterConfig(CONFIG_FIND_VALUE, null);
         assertThat(config.getFindValue()).isEqualTo(CONFIG_FIND_VALUE);
         assertThat(config.getReplacementValue()).isEqualTo("");

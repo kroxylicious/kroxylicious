@@ -56,7 +56,7 @@ public class FilterHandlerTest extends FilterHarness {
     public static final int ARBITRARY_TAG = 500;
 
     @Test
-    public void testForwardRequest() {
+    void testForwardRequest() {
         ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> context.requestFilterResultBuilder().forward(header, request)
                 .completed();
         buildChannel(filter);
@@ -252,7 +252,7 @@ public class FilterHandlerTest extends FilterHarness {
     }
 
     @Test
-    public void testShouldNotDeserialiseRequest() {
+    void testShouldNotDeserialiseRequest() {
         ApiVersionsRequestFilter filter = new ApiVersionsRequestFilter() {
             @Override
             public boolean shouldHandleApiVersionsRequest(short apiVersion) {
@@ -273,7 +273,7 @@ public class FilterHandlerTest extends FilterHarness {
     }
 
     @Test
-    public void testDropRequest() {
+    void testDropRequest() {
         ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> {
             /* don't call forwardRequest => drop the request */
             return context.requestFilterResultBuilder().drop().completed();
@@ -311,7 +311,7 @@ public class FilterHandlerTest extends FilterHarness {
     }
 
     @Test
-    public void testForwardResponse() {
+    void testForwardResponse() {
         ApiVersionsResponseFilter filter = (apiVersion, header, response, context) -> context.responseFilterResultBuilder().forward(header, response)
                 .completed();
         buildChannel(filter);
@@ -321,7 +321,7 @@ public class FilterHandlerTest extends FilterHarness {
     }
 
     @Test
-    public void testOtherFiltersInChainCanFilterOutOfBandResponse() {
+    void testOtherFiltersInChainCanFilterOutOfBandResponse() {
         ApiVersionsResponseFilter recipientFilter = taggingApiVersionsResponseFilter("recipient");
         String filterName = "other-interested-filter";
         ApiVersionsResponseFilter filterUnderTest = taggingApiVersionsResponseFilter(filterName);
@@ -335,7 +335,7 @@ public class FilterHandlerTest extends FilterHarness {
     }
 
     @Test
-    public void testOtherFiltersInChainCanFilterOutOfBandRequest() {
+    void testOtherFiltersInChainCanFilterOutOfBandRequest() {
         ApiVersionsRequestFilter recipientFilter = taggingApiVersionsRequestFilter("recipient");
         String filterName = "other-interested-filter";
         ApiVersionsRequestFilter filterUnderTest = taggingApiVersionsRequestFilter(filterName);
@@ -349,7 +349,7 @@ public class FilterHandlerTest extends FilterHarness {
     }
 
     @Test
-    public void testShouldNotDeserializeResponse() {
+    void testShouldNotDeserializeResponse() {
         ApiVersionsResponseFilter filter = new ApiVersionsResponseFilter() {
             @Override
             public boolean shouldHandleApiVersionsResponse(short apiVersion) {
@@ -370,7 +370,7 @@ public class FilterHandlerTest extends FilterHarness {
     }
 
     @Test
-    public void testDropResponse() {
+    void testDropResponse() {
         ApiVersionsResponseFilter filter = (apiVersion, header, response, context) -> {
             return context.responseFilterResultBuilder().drop().completed();
         };
@@ -382,7 +382,7 @@ public class FilterHandlerTest extends FilterHarness {
     }
 
     @Test
-    public void testSendRequest() {
+    void testSendRequest() {
         FetchRequestData body = new FetchRequestData();
         InternalCompletionStage<ApiMessage>[] fut = new InternalCompletionStage[]{ null };
         ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> {
@@ -428,7 +428,7 @@ public class FilterHandlerTest extends FilterHarness {
     }
 
     @Test
-    public void testSendRequestCompletionStageCannotBeConvertedToFuture() {
+    void testSendRequestCompletionStageCannotBeConvertedToFuture() {
         FetchRequestData body = new FetchRequestData();
         CompletionStage<?>[] fut = { null };
         ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> {
@@ -453,11 +453,11 @@ public class FilterHandlerTest extends FilterHarness {
 
     /**
      * Test the special case within {@link FilterHandler} for
-     * {@link io.kroxylicious.proxy.filter.KrpcFilterContext#sendRequest(short, ApiMessage)}
+     * {@link KrpcFilterContext#sendRequest(short, ApiMessage)}
      * with acks=0 Produce requests.
      */
     @Test
-    public void testSendAcklessProduceRequest() throws ExecutionException, InterruptedException {
+    void testSendAcklessProduceRequest() throws ExecutionException, InterruptedException {
         ProduceRequestData body = new ProduceRequestData().setAcks((short) 0);
         CompletionStage<ApiMessage>[] fut = new CompletionStage[]{ null };
         ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> {

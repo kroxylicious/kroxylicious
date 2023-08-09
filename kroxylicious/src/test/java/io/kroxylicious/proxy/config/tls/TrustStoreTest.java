@@ -34,7 +34,7 @@ class TrustStoreTest {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource()
-    public void trustStoreTypes(String name, String storeType, String storeFile, PasswordProvider storePassword) throws Exception {
+    void trustStoreTypes(String name, String storeType, String storeFile, PasswordProvider storePassword) throws Exception {
         var trustStore = new TrustStore(TlsTestConstants.getResourceLocationOnFilesystem(storeFile), storePassword, storeType);
         trustStore.apply(sslContextBuilder);
 
@@ -44,7 +44,7 @@ class TrustStoreTest {
     }
 
     @Test
-    public void trustStoreIncorrectPassword() {
+    void trustStoreIncorrectPassword() {
         var trustStore = new TrustStore(TlsTestConstants.getResourceLocationOnFilesystem("client.jks"), TlsTestConstants.BADPASS, null);
         assertThatCode(() -> trustStore.apply(sslContextBuilder))
                 .hasMessageContaining("Error building SSLContext")
@@ -52,7 +52,7 @@ class TrustStoreTest {
     }
 
     @Test
-    public void trustStoreNotFound() {
+    void trustStoreNotFound() {
         var trustStore = new TrustStore(TlsTestConstants.NOT_EXIST, TlsTestConstants.STOREPASS, null);
         assertThatCode(() -> trustStore.apply(sslContextBuilder))
                 .hasMessageContaining("Error building SSLContext")

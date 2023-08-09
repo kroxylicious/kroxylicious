@@ -478,7 +478,7 @@ public class KafkaAuthnHandlerTest {
 
     @ParameterizedTest
     @MethodSource("apiVersions")
-    public void testSaslPlainSuccessfulAuth(RequestVersions versions) {
+    void testSaslPlainSuccessfulAuth(RequestVersions versions) {
         doSaslPlain(versions,
                 "fred", "foo",
                 "fred", "foo");
@@ -486,7 +486,7 @@ public class KafkaAuthnHandlerTest {
 
     @ParameterizedTest
     @MethodSource("apiVersions")
-    public void testSaslPlainWrongPassword(RequestVersions versions) {
+    void testSaslPlainWrongPassword(RequestVersions versions) {
         doSaslPlain(versions,
                 "fred", "foo",
                 "fred", "bar");
@@ -494,7 +494,7 @@ public class KafkaAuthnHandlerTest {
 
     @ParameterizedTest
     @MethodSource("apiVersions")
-    public void testSaslPlainUnknownUser(RequestVersions versions) {
+    void testSaslPlainUnknownUser(RequestVersions versions) {
         doSaslPlain(versions,
                 "fred", "foo",
                 "bob", "foo");
@@ -502,7 +502,7 @@ public class KafkaAuthnHandlerTest {
 
     @ParameterizedTest
     @MethodSource("apiVersions")
-    public void testSaslScramSha256SuccessfulAuth(RequestVersions versions)
+    void testSaslScramSha256SuccessfulAuth(RequestVersions versions)
             throws Exception {
         doSaslScramShaAuth(SaslMechanism.SCRAM_SHA_256, versions,
                 "fred", "password",
@@ -511,7 +511,7 @@ public class KafkaAuthnHandlerTest {
 
     @ParameterizedTest
     @MethodSource("apiVersions")
-    public void testSaslScramSha512SuccessfulAuth(RequestVersions versions)
+    void testSaslScramSha512SuccessfulAuth(RequestVersions versions)
             throws Exception {
         doSaslScramShaAuth(SaslMechanism.SCRAM_SHA_512, versions,
                 "fred", "password",
@@ -520,7 +520,7 @@ public class KafkaAuthnHandlerTest {
 
     @ParameterizedTest
     @MethodSource("apiVersions")
-    public void testSaslScramSha512WrongPassword(RequestVersions versions)
+    void testSaslScramSha512WrongPassword(RequestVersions versions)
             throws Exception {
         doSaslScramShaAuth(SaslMechanism.SCRAM_SHA_512, versions,
                 "fred", "password",
@@ -529,7 +529,7 @@ public class KafkaAuthnHandlerTest {
 
     @ParameterizedTest
     @MethodSource("apiVersions")
-    public void testSaslScramSha512UnknownUser(RequestVersions versions)
+    void testSaslScramSha512UnknownUser(RequestVersions versions)
             throws Exception {
         doSaslScramShaAuth(SaslMechanism.SCRAM_SHA_512, versions,
                 "fred", "password",
@@ -537,7 +537,7 @@ public class KafkaAuthnHandlerTest {
     }
 
     @Test
-    public void testUnknownMechanism() {
+    void testUnknownMechanism() {
         buildChannel(Map.of(
                 SaslMechanism.PLAIN, saslPlainCallbackHandler("bob", "pa55word")));
         var resp = doSendHandshake(SaslMechanism.SCRAM_SHA_256, SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION);

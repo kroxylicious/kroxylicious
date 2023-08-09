@@ -38,14 +38,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  * This test exists to check that the main method works as expected
  */
 @ExtendWith(KafkaClusterExtension.class)
-public class KroxyStandaloneIT {
+class KroxyStandaloneIT {
 
     private static final String TOPIC_1 = "my-test-topic";
     private static final String TOPIC_2 = "other-test-topic";
     private static final String PLAINTEXT = "Hello, world!";
 
     @Test
-    public void shouldProxyWhenRunAsStandaloneProcess(KafkaCluster cluster, Admin admin, @TempDir Path tempDir) throws Exception {
+    void shouldProxyWhenRunAsStandaloneProcess(KafkaCluster cluster, Admin admin, @TempDir Path tempDir) throws Exception {
         var proxyAddress = HostPort.parse("localhost:9192");
 
         admin.createTopics(List.of(

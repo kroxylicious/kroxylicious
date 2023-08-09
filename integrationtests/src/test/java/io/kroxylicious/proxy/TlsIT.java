@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.kafka.clients.CommonClientConfigs;
+import org.apache.kafka.clients.admin.CreateTopicsResult;
 import org.apache.kafka.common.config.SslConfigs;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.junit.jupiter.api.BeforeEach;
@@ -44,11 +45,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Integration tests focused on Kroxylicious ability to use TLS for both the upstream and downstream.
- *
- * TODO add integration tests covering kroylicious's ability to use JKS and PEM material. Needs https://github.com/kroxylicious/kroxylicious-junit5-extension/issues/120
+ * <p>
+ * TODO add integration tests covering kroylicious's ability to use JKS and PEM material. Needs <a href="https://github.com/kroxylicious/kroxylicious-junit5-extension/issues/120">issues#120</a>
  */
 @ExtendWith(KafkaClusterExtension.class)
-public class TlsIT extends BaseIT {
+class TlsIT extends BaseIT {
     private static final HostPort PROXY_ADDRESS = HostPort.parse("localhost:9192");
     private static final ClusterNetworkAddressConfigProviderDefinition CONFIG_PROVIDER_DEFINITION = new ClusterNetworkAddressConfigProviderDefinitionBuilder(
             "PortPerBroker").withConfig("bootstrapAddress", PROXY_ADDRESS)
@@ -70,7 +71,7 @@ public class TlsIT extends BaseIT {
     }
 
     @Test
-    public void upstreamUsesSelfSignedTls_TrustStore(@Tls KafkaCluster cluster) {
+    void upstreamUsesSelfSignedTls_TrustStore(@Tls KafkaCluster cluster) {
         var bootstrapServers = cluster.getBootstrapServers();
         var brokerTruststore = (String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG);
         var brokerTruststorePassword = (String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG);
@@ -93,12 +94,13 @@ public class TlsIT extends BaseIT {
 
         try (var tester = kroxyliciousTester(builder); var admin = tester.admin("demo")) {
             // do some work to ensure connection is opened
-            createTopic(admin, TOPIC, 1);
+            final CreateTopicsResult createTopicsResult = createTopic(admin, TOPIC, 1);
+            assertThat(createTopicsResult.all()).isDone();
         }
     }
 
     @Test
-    public void upstreamUsesSelfSignedTls_TrustX509(@Tls KafkaCluster cluster) throws Exception {
+    void upstreamUsesSelfSignedTls_TrustX509(@Tls KafkaCluster cluster) throws Exception {
         var bootstrapServers = cluster.getBootstrapServers();
         var brokerTruststore = (String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG);
         var brokerTruststorePassword = (String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG);
@@ -110,8 +112,8 @@ public class TlsIT extends BaseIT {
 
         var trustAnchors = params.getTrustAnchors();
         var certificates = trustAnchors.stream().map(TrustAnchor::getTrustedCert).toList();
-        assertThat(certificates).isNotNull();
-        assertThat(certificates).hasSizeGreaterThan(0);
+        assertThat(certificates).isNotNull()
+                .hasSizeGreaterThan(0);
 
         var file = writeTrustToTemporaryFile(certificates);
 
@@ -131,12 +133,13 @@ public class TlsIT extends BaseIT {
 
         try (var tester = kroxyliciousTester(builder); var admin = tester.admin("demo")) {
             // do some work to ensure connection is opened
-            createTopic(admin, TOPIC, 1);
+            final CreateTopicsResult createTopicsResult = createTopic(admin, TOPIC, 1);
+            assertThat(createTopicsResult.all()).isDone();
         }
     }
 
     @Test
-    public void upstreamUsesTlsInsecure(@Tls KafkaCluster cluster) throws Exception {
+    void upstreamUsesTlsInsecure(@Tls KafkaCluster cluster) {
         var bootstrapServers = cluster.getBootstrapServers();
 
         var builder = new ConfigurationBuilder()
@@ -152,12 +155,13 @@ public class TlsIT extends BaseIT {
 
         try (var tester = kroxyliciousTester(builder); var admin = tester.admin("demo")) {
             // do some work to ensure connection is opened
-            createTopic(admin, TOPIC, 1);
+            final CreateTopicsResult createTopicsResult = createTopic(admin, TOPIC, 1);
+            assertThat(createTopicsResult.all()).isDone();
         }
     }
 
     @Test
-    public void downstreamAndUpstreamTls(@Tls KafkaCluster cluster) {
+    void downstreamAndUpstreamTls(@Tls KafkaCluster cluster) {
         var bootstrapServers = cluster.getBootstrapServers();
         var brokerTruststore = (String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG);
         var brokerTruststorePassword = (String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG);
@@ -190,7 +194,8 @@ public class TlsIT extends BaseIT {
                                 SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
                                 SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, downstreamCertificateGenerator.getPassword()))) {
             // do some work to ensure connection is opened
-            createTopic(admin, TOPIC, 1);
+            final CreateTopicsResult createTopicsResult = createTopic(admin, TOPIC, 1);
+            assertThat(createTopicsResult.all()).isDone();
         }
     }
 

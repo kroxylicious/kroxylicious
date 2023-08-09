@@ -64,7 +64,7 @@ class KafkaProxyTest {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource
-    public void detectsConflictingPorts(String name, String config, String expectedMessage) throws Exception {
+    void detectsConflictingPorts(String name, String config, String expectedMessage) throws Exception {
         try (var kafkaProxy = new KafkaProxy(new ConfigParser().parseConfiguration(config))) {
             var illegalStateException = assertThrows(IllegalStateException.class, kafkaProxy::startup);
             assertThat(illegalStateException).hasStackTraceContaining(expectedMessage);
@@ -87,7 +87,7 @@ class KafkaProxyTest {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource
-    public void missingTls(String name, String config, String expectedMessage) throws Exception {
+    void missingTls(String name, String config, String expectedMessage) throws Exception {
 
         var illegalArgumentException = assertThrows(IllegalStateException.class, () -> {
             try (var kafkaProxy = new KafkaProxy(new ConfigParser().parseConfiguration(config))) {

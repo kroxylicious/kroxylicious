@@ -114,11 +114,11 @@ class KafkaProxyFrontendHandlerTest {
      */
     @ParameterizedTest
     @MethodSource("provideArgsForExpectedFlow")
-    public void expectedFlow(boolean sslConfigured,
-                             boolean haProxyConfigured,
-                             boolean saslOffloadConfigured,
-                             boolean sendApiVersions,
-                             boolean sendSasl) {
+    void expectedFlow(boolean sslConfigured,
+                      boolean haProxyConfigured,
+                      boolean saslOffloadConfigured,
+                      boolean sendApiVersions,
+                      boolean sendSasl) {
 
         var dp = new SaslDecodePredicate(saslOffloadConfigured);
         ArgumentCaptor<NetFilter.NetFilterContext> valueCapture = ArgumentCaptor.forClass(NetFilter.NetFilterContext.class);

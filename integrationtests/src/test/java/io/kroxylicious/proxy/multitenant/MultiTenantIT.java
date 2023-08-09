@@ -60,7 +60,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.testcontainers.shaded.org.awaitility.Awaitility.await;
 
 @ExtendWith(KafkaClusterExtension.class)
-public class MultiTenantIT extends BaseMultiTenantIT {
+class MultiTenantIT extends BaseMultiTenantIT {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(MultiTenantIT.class);
 
@@ -75,7 +75,7 @@ public class MultiTenantIT extends BaseMultiTenantIT {
     private static final String MY_VALUE = "my-value";
 
     @Test
-    public void createAndDeleteTopic(KafkaCluster cluster) throws Exception {
+    void createAndDeleteTopic(KafkaCluster cluster) throws Exception {
         var config = getConfig(cluster, this.certificateGenerator);
 
         try (var tester = kroxyliciousTester(config);
@@ -105,7 +105,7 @@ public class MultiTenantIT extends BaseMultiTenantIT {
     }
 
     @Test
-    public void describeTopic(KafkaCluster cluster) throws Exception {
+    void describeTopic(KafkaCluster cluster) throws Exception {
         var config = getConfig(cluster, this.certificateGenerator);
         try (var tester = kroxyliciousTester(config);
                 var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
@@ -121,7 +121,7 @@ public class MultiTenantIT extends BaseMultiTenantIT {
     }
 
     @Test
-    public void produceOne(KafkaCluster cluster) throws Exception {
+    void produceOne(KafkaCluster cluster) throws Exception {
         var config = getConfig(cluster, this.certificateGenerator);
         try (var tester = kroxyliciousTester(config);
                 var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
@@ -131,7 +131,7 @@ public class MultiTenantIT extends BaseMultiTenantIT {
     }
 
     @Test
-    public void consumeOne(KafkaCluster cluster) throws Exception {
+    void consumeOne(KafkaCluster cluster) throws Exception {
         var config = getConfig(cluster, this.certificateGenerator);
         try (var tester = kroxyliciousTester(config);
                 var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
@@ -143,7 +143,7 @@ public class MultiTenantIT extends BaseMultiTenantIT {
     }
 
     @Test
-    public void consumeOneAndOffsetCommit(KafkaCluster cluster) throws Exception {
+    void consumeOneAndOffsetCommit(KafkaCluster cluster) throws Exception {
         var config = getConfig(cluster, this.certificateGenerator);
         try (var tester = kroxyliciousTester(config);
                 var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
@@ -157,7 +157,7 @@ public class MultiTenantIT extends BaseMultiTenantIT {
     }
 
     @Test
-    public void alterOffsetCommit(KafkaCluster cluster) throws Exception {
+    void alterOffsetCommit(KafkaCluster cluster) throws Exception {
         var config = getConfig(cluster, this.certificateGenerator);
         try (var tester = kroxyliciousTester(config);
                 var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
@@ -175,7 +175,7 @@ public class MultiTenantIT extends BaseMultiTenantIT {
     }
 
     @Test
-    public void deleteConsumerGroupOffsets(KafkaCluster cluster) throws Exception {
+    void deleteConsumerGroupOffsets(KafkaCluster cluster) throws Exception {
         var config = getConfig(cluster, this.certificateGenerator);
         try (var tester = kroxyliciousTester(config);
                 var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
@@ -190,7 +190,7 @@ public class MultiTenantIT extends BaseMultiTenantIT {
     }
 
     @Test
-    public void tenantTopicIsolation(KafkaCluster cluster) throws Exception {
+    void tenantTopicIsolation(KafkaCluster cluster) throws Exception {
         var config = getConfig(cluster, this.certificateGenerator);
         try (var tester = kroxyliciousTester(config);
                 var adminTenant1 = tester.admin(TENANT_1_CLUSTER, this.clientConfig);
@@ -205,7 +205,7 @@ public class MultiTenantIT extends BaseMultiTenantIT {
 
     @ParameterizedTest
     @EnumSource
-    public void tenantConsumeWithGroup(ConsumerStyle consumerStyle, KafkaCluster cluster) throws Exception {
+    void tenantConsumeWithGroup(ConsumerStyle consumerStyle, KafkaCluster cluster) throws Exception {
         var config = getConfig(cluster, this.certificateGenerator);
         try (var tester = kroxyliciousTester(config);
                 var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
@@ -217,7 +217,7 @@ public class MultiTenantIT extends BaseMultiTenantIT {
 
     @ParameterizedTest
     @EnumSource
-    public void tenantGroupIsolation(ConsumerStyle consumerStyle, KafkaCluster cluster) throws Exception {
+    void tenantGroupIsolation(ConsumerStyle consumerStyle, KafkaCluster cluster) throws Exception {
         var config = getConfig(cluster, this.certificateGenerator);
         try (var tester = kroxyliciousTester(config);
                 var adminTenant1 = tester.admin(TENANT_1_CLUSTER, this.clientConfig);
@@ -232,7 +232,7 @@ public class MultiTenantIT extends BaseMultiTenantIT {
     }
 
     @Test
-    public void describeGroup(KafkaCluster cluster) throws Exception {
+    void describeGroup(KafkaCluster cluster) throws Exception {
         var config = getConfig(cluster, this.certificateGenerator);
         try (var tester = kroxyliciousTester(config);
                 var adminTenant1 = tester.admin(TENANT_1_CLUSTER, this.clientConfig);
@@ -249,7 +249,7 @@ public class MultiTenantIT extends BaseMultiTenantIT {
     }
 
     @Test
-    public void produceInTransaction(KafkaCluster cluster) throws Exception {
+    void produceInTransaction(KafkaCluster cluster) throws Exception {
         var config = getConfig(cluster, this.certificateGenerator);
         try (var tester = kroxyliciousTester(config);
                 var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
@@ -261,7 +261,7 @@ public class MultiTenantIT extends BaseMultiTenantIT {
     }
 
     @Test
-    public void produceAndConsumeInTransaction(KafkaCluster cluster) throws Exception {
+    void produceAndConsumeInTransaction(KafkaCluster cluster) throws Exception {
         var config = getConfig(cluster, this.certificateGenerator);
         try (var tester = kroxyliciousTester(config);
                 var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
@@ -316,7 +316,7 @@ public class MultiTenantIT extends BaseMultiTenantIT {
     }
 
     @Test
-    public void describeTransaction(KafkaCluster cluster) throws Exception {
+    void describeTransaction(KafkaCluster cluster) throws Exception {
         var config = getConfig(cluster, this.certificateGenerator);
         try (var tester = kroxyliciousTester(config)) {
             try (var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
@@ -335,7 +335,7 @@ public class MultiTenantIT extends BaseMultiTenantIT {
     }
 
     @Test
-    public void tenantTransactionalIdIsolation(KafkaCluster cluster) throws Exception {
+    void tenantTransactionalIdIsolation(KafkaCluster cluster) throws Exception {
         var config = getConfig(cluster, this.certificateGenerator);
         try (var tester = kroxyliciousTester(config);
                 var adminTenant1 = tester.admin(TENANT_1_CLUSTER, this.clientConfig);

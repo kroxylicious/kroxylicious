@@ -65,7 +65,7 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @ExtendWith(KafkaClusterExtension.class)
-public class KrpcFilterIT {
+class KrpcFilterIT {
 
     private static final String TOPIC_1 = "my-test-topic";
     private static final String TOPIC_2 = "other-test-topic";
@@ -141,7 +141,7 @@ public class KrpcFilterIT {
     }
 
     @Test
-    public void shouldPassThroughRecordUnchanged(KafkaCluster cluster, Admin admin) throws Exception {
+    void shouldPassThroughRecordUnchanged(KafkaCluster cluster, Admin admin) throws Exception {
         admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1))).all().get();
 
         try (var tester = kroxyliciousTester(proxy(cluster));
@@ -158,7 +158,7 @@ public class KrpcFilterIT {
 
     @Test
     @SuppressWarnings("java:S5841") // java:S5841 warns that doesNotContain passes for the empty case. Which is what we want here.
-    public void requestFiltersCanRespondWithoutProxying(KafkaCluster cluster, Admin admin) throws Exception {
+    void requestFiltersCanRespondWithoutProxying(KafkaCluster cluster, Admin admin) throws Exception {
         var config = proxy(cluster)
                 .addToFilters(new FilterDefinitionBuilder("CreateTopicRejectFilter").build());
 
@@ -179,7 +179,7 @@ public class KrpcFilterIT {
      */
     @ParameterizedTest
     @EnumSource(value = RequestResponseMarkingFilter.Direction.class)
-    public void supportsForwardDeferredByAsynchronousAction(RequestResponseMarkingFilter.Direction direction) {
+    void supportsForwardDeferredByAsynchronousAction(RequestResponseMarkingFilter.Direction direction) {
         doSupportsForwardDeferredByAsynchronousRequest(direction,
                 "supportsForwardDeferredByAsynchronousAction",
                 RequestResponseMarkingFilter.ForwardingStyle.ASYNCHRONOUS_DELAYED);
@@ -192,7 +192,7 @@ public class KrpcFilterIT {
      */
     @ParameterizedTest
     @EnumSource(value = RequestResponseMarkingFilter.Direction.class)
-    public void supportsForwardDeferredByAsynchronousBrokerRequest(RequestResponseMarkingFilter.Direction direction) {
+    void supportsForwardDeferredByAsynchronousBrokerRequest(RequestResponseMarkingFilter.Direction direction) {
         doSupportsForwardDeferredByAsynchronousRequest(direction,
                 "supportsForwardDeferredByAsynchronousBrokerRequest",
                 RequestResponseMarkingFilter.ForwardingStyle.ASYNCHRONOUS_REQUEST_TO_BROKER);
@@ -233,7 +233,7 @@ public class KrpcFilterIT {
 
     @Test
     @SuppressWarnings("java:S5841") // java:S5841 warns that doesNotContain passes for the empty case. Which is what we want here.
-    public void requestFiltersCanRespondWithoutProxyingDoesntLeakBuffers(KafkaCluster cluster, Admin admin) throws Exception {
+    void requestFiltersCanRespondWithoutProxyingDoesntLeakBuffers(KafkaCluster cluster, Admin admin) throws Exception {
         var config = proxy(cluster)
                 .addToFilters(new FilterDefinitionBuilder("CreateTopicRejectFilter").build());
 
@@ -263,7 +263,7 @@ public class KrpcFilterIT {
     }
 
     @Test
-    public void testCompositeFilter() {
+    void testCompositeFilter() {
         try (MockServerKroxyliciousTester tester = mockKafkaKroxyliciousTester((mockBootstrap) -> proxy(mockBootstrap)
                 .addToFilters(new FilterDefinitionBuilder("CompositePrefixingFixedClientId")
                         .withConfig("clientId", "banana", "prefix", "123").build()));
@@ -275,7 +275,7 @@ public class KrpcFilterIT {
     }
 
     @Test
-    public void shouldModifyProduceMessage(KafkaCluster cluster, Admin admin) throws Exception {
+    void shouldModifyProduceMessage(KafkaCluster cluster, Admin admin) throws Exception {
         admin.createTopics(List.of(
                 new NewTopic(TOPIC_1, 1, (short) 1),
                 new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
@@ -306,7 +306,7 @@ public class KrpcFilterIT {
     }
 
     @Test
-    public void shouldModifyFetchMessage(KafkaCluster cluster, Admin admin) throws Exception {
+    void shouldModifyFetchMessage(KafkaCluster cluster, Admin admin) throws Exception {
 
         admin.createTopics(List.of(
                 new NewTopic(TOPIC_1, 1, (short) 1),

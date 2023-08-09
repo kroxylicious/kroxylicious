@@ -32,8 +32,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class RequestEncoderTest extends AbstractCodecTest {
 
     @ParameterizedTest
-    @MethodSource("requestApiVersions()")
-    public void testApiVersions(short apiVersion) throws Exception {
+    @MethodSource("requestApiVersions")
+    void testApiVersions(short apiVersion) throws Exception {
         RequestHeaderData exampleHeader = exampleRequestHeader(apiVersion);
         ApiVersionsRequestData exampleBody = exampleApiVersionsRequest();
         short headerVersion = ApiKeys.API_VERSIONS.requestHeaderVersion(apiVersion);
@@ -65,7 +65,7 @@ public class RequestEncoderTest extends AbstractCodecTest {
      */
     @ParameterizedTest
     @MethodSource("produceRequestApiVersions")
-    public void testAcksParsing(short produceVersion, short acks, boolean decodeResponse) throws Exception {
+    void testAcksParsing(short produceVersion, short acks, boolean decodeResponse) throws Exception {
 
         var header = new RequestHeaderData()
                 .setRequestApiKey(ApiKeys.PRODUCE.id)

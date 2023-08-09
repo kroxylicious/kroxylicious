@@ -15,10 +15,10 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 
-public class ResponseEncoderTest extends AbstractCodecTest {
+class ResponseEncoderTest extends AbstractCodecTest {
     @ParameterizedTest
-    @MethodSource("requestApiVersions()")
-    public void testApiVersions(short apiVersion) throws Exception {
+    @MethodSource("requestApiVersions")
+    void testApiVersions(short apiVersion) throws Exception {
         ResponseHeaderData exampleHeader = exampleResponseHeader();
         ApiVersionsResponseData exampleBody = exampleApiVersionsResponse();
         short headerVersion = ApiKeys.API_VERSIONS.responseHeaderVersion(apiVersion);
