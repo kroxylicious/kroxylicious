@@ -11,6 +11,7 @@ import io.kroxylicious.proxy.config.BaseConfig;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class BaseContributorTest {
     static class LongConfig extends BaseConfig {
@@ -68,9 +69,68 @@ class BaseContributorTest {
         BaseContributor<Long> baseContributor = new BaseContributor<>(builder) {
         };
         AnotherConfig incompatibleConfig = new AnotherConfig();
-        assertThatThrownBy(() -> {
-            baseContributor.getInstance("fromBaseConfig", incompatibleConfig);
-        }).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> baseContributor.getInstance("fromBaseConfig", incompatibleConfig)).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void shouldFailsIfConfigIsNullAndRequired() {
+        // Given
+        BaseContributor.BaseContributorBuilder<Long> builder = BaseContributor.builder();
+        builder.add("requiresConfig", LongConfig.class, baseConfig -> 1L);
+        BaseContributor<Long> baseContributor = new BaseContributor<>(builder) {
+        };
+
+        // When
+        final IllegalArgumentException illegalArgumentException = assertThrows(IllegalArgumentException.class,
+                () -> baseContributor.getInstance("requiresConfig", null));
+
+        //Then
+        assertThat(illegalArgumentException).hasMessageContaining("requiresConfig requires config but it is null");
+    }
+
+    @Test
+    void shouldConstructInstanceIfConfigIsNullAndNotRequired() {
+        // Given
+        BaseContributor.BaseContributorBuilder<Long> builder = BaseContributor.builder();
+        builder.add("noConfigRequired", () -> 1L);
+        BaseContributor<Long> baseContributor = new BaseContributor<>(builder) {
+        };
+
+        // When
+        final Long actualInstance = baseContributor.getInstance("noConfigRequired", null);
+
+        //Then
+        assertThat(actualInstance).isNotNull();
+    }
+
+    @Test
+    void shouldConstructInstanceIfConfigIsNotNullAndRequired() {
+        // Given
+        BaseContributor.BaseContributorBuilder<Long> builder = BaseContributor.builder();
+        builder.add("configRequired", LongConfig.class, (longConfig) -> longConfig.value);
+        BaseContributor<Long> baseContributor = new BaseContributor<>(builder) {
+        };
+
+        // When
+        final Long actualInstance = baseContributor.getInstance("configRequired", new LongConfig());
+
+        //Then
+        assertThat(actualInstance).isNotNull();
+    }
+
+    @Test
+    void shouldConstructInstanceIfConfigIsNotNullAndNotRequired() {
+        // Given
+        BaseContributor.BaseContributorBuilder<Long> builder = BaseContributor.builder();
+        builder.add("configRequired", () -> 1L);
+        BaseContributor<Long> baseContributor = new BaseContributor<>(builder) {
+        };
+
+        // When
+        final Long actualInstance = baseContributor.getInstance("configRequired", new LongConfig());
+
+        //Then
+        assertThat(actualInstance).isNotNull();
     }
 
 }

@@ -38,7 +38,14 @@ public abstract class BaseContributor<T> implements Contributor<T> {
     @Override
     public T getInstance(String shortName, BaseConfig config) {
         InstanceBuilder<? extends BaseConfig, T> instanceBuilder = shortNameToInstanceBuilder.get(shortName);
+        if (builderRequiresConfig(instanceBuilder) && config == null) {
+            throw new IllegalArgumentException(shortName + " requires config but it is null");
+        }
         return instanceBuilder == null ? null : instanceBuilder.construct(config);
+    }
+
+    private static <T> boolean builderRequiresConfig(InstanceBuilder<? extends BaseConfig, T> instanceBuilder) {
+        return instanceBuilder != null && instanceBuilder.requiresConfig();
     }
 
     private static class InstanceBuilder<T extends BaseConfig, L> {
@@ -63,6 +70,10 @@ public abstract class BaseContributor<T> implements Contributor<T> {
                 throw new IllegalArgumentException("config has the wrong type, expected "
                         + configClass.getName() + ", got " + config.getClass().getName());
             }
+        }
+
+        public boolean requiresConfig() {
+            return this.configClass != BaseConfig.class;
         }
     }
 
