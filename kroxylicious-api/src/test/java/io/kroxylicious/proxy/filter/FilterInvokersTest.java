@@ -27,18 +27,18 @@ class FilterInvokersTest {
 
     @ParameterizedTest
     @MethodSource("invalidFilters")
-    public void testInvalidFilters(KrpcFilter invalid) {
+    void testInvalidFilters(KrpcFilter invalid) {
         Assertions.assertThrows(IllegalArgumentException.class, () -> FilterInvokers.from(invalid));
     }
 
     @ParameterizedTest
     @MethodSource("validFilters")
-    public void testValidFilters(KrpcFilter invalid) {
+    void testValidFilters(KrpcFilter invalid) {
         assertThat(FilterInvokers.from(invalid)).isNotNull();
     }
 
     @Test
-    public void testCompositeFilter() {
+    void testCompositeFilter() {
         MultipleSpecificFilter filterA = new MultipleSpecificFilter();
         RequestResponseFilter filterB = new RequestResponseFilter();
         RequestFilter filterC = (apiKey, header, body, filterContext) -> null;

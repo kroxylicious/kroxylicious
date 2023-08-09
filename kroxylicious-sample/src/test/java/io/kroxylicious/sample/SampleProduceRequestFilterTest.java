@@ -77,7 +77,7 @@ class SampleProduceRequestFilterTest {
      * Unit Test: Checks that transformation is applied when request data contains configured value.
      */
     @Test
-    public void willTransformProduceRequestTest() throws Exception {
+    void willTransformProduceRequestTest() throws Exception {
         var requestData = buildProduceRequestData(PRE_TRANSFORM_VALUE);
 
         var stage = filter.onProduceRequest(API_VERSION, headerData, requestData, context);
@@ -96,7 +96,7 @@ class SampleProduceRequestFilterTest {
      * value.
      */
     @Test
-    public void wontTransformProduceRequestTest() throws Exception {
+    void wontTransformProduceRequestTest() throws Exception {
         var requestData = buildProduceRequestData(NO_TRANSFORM_VALUE);
         var stage = filter.onProduceRequest(API_VERSION, headerData, requestData, context);
         assertThat(stage).isCompleted();
@@ -108,7 +108,8 @@ class SampleProduceRequestFilterTest {
     }
 
     private void setupContextMock() {
-        when(context.forwardRequest(requestHeaderDataCaptor.capture(), apiMessageCaptor.capture())).thenAnswer(invocation -> CompletableFuture.completedStage(requestFilterResult));
+        when(context.forwardRequest(requestHeaderDataCaptor.capture(), apiMessageCaptor.capture())).thenAnswer(
+                invocation -> CompletableFuture.completedStage(requestFilterResult));
         when(requestFilterResult.message()).thenAnswer(invocation -> apiMessageCaptor.getValue());
         when(requestFilterResult.header()).thenAnswer(invocation -> requestHeaderDataCaptor.getValue());
 

@@ -17,7 +17,7 @@ import io.micrometer.core.instrument.composite.CompositeMeterRegistry;
 class MeterRegistriesTest {
 
     @Test
-    public void testPreventingRegistrationOfMetersWithSameNameButDifferentTags() {
+    void testPreventingRegistrationOfMetersWithSameNameButDifferentTags() {
         CompositeMeterRegistry registry = new CompositeMeterRegistry();
         MeterRegistries.preventDifferentTagNameRegistration(registry);
         registry.counter("abc", List.of(Tag.of("a", "b")));

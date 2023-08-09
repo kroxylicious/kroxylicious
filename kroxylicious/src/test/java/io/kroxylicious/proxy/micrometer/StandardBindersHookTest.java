@@ -29,12 +29,12 @@ class StandardBindersHookTest {
     MeterBinder closeableBinder;
 
     @Test
-    public void testNullHookConfigThrows() {
+    void testNullHookConfigThrows() {
         assertThatThrownBy(() -> new StandardBindersHook(null)).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
-    public void testNullBinderNames() {
+    void testNullBinderNames() {
         try (StandardBindersHook hook = new StandardBindersHook(new StandardBindersHook.StandardBindersHookConfig(null))) {
             MeterRegistry registry = whenRegistryConfiguredWith(hook);
             thenNoMetersRegistered(registry);
@@ -42,7 +42,7 @@ class StandardBindersHookTest {
     }
 
     @Test
-    public void testEmptyBinderNames() {
+    void testEmptyBinderNames() {
         try (StandardBindersHook hook = new StandardBindersHook(new StandardBindersHook.StandardBindersHookConfig(List.of()))) {
             MeterRegistry registry = whenRegistryConfiguredWith(hook);
             thenNoMetersRegistered(registry);
@@ -50,7 +50,7 @@ class StandardBindersHookTest {
     }
 
     @Test
-    public void testKnownBinder() {
+    void testKnownBinder() {
         try (StandardBindersHook hook = new StandardBindersHook(new StandardBindersHook.StandardBindersHookConfig(List.of("UptimeMetrics")))) {
             MeterRegistry registry = whenRegistryConfiguredWith(hook);
             thenUptimeMeterRegistered(registry);
@@ -58,14 +58,14 @@ class StandardBindersHookTest {
     }
 
     @Test
-    public void testUnknownBinder() {
+    void testUnknownBinder() {
         try (StandardBindersHook hook = new StandardBindersHook(new StandardBindersHook.StandardBindersHookConfig(List.of("SadClown")))) {
             assertThatThrownBy(() -> whenRegistryConfiguredWith(hook)).isInstanceOf(IllegalArgumentException.class);
         }
     }
 
     @Test
-    public void testAutoCloseableBindingClosed() throws Exception {
+    void testAutoCloseableBindingClosed() throws Exception {
         var hook = new StandardBindersHook(new StandardBindersHook.StandardBindersHookConfig(List.of(AUTO_CLOSEABLE_BINDER))) {
             @Override
             protected MeterBinder getBinder(String binderName) {

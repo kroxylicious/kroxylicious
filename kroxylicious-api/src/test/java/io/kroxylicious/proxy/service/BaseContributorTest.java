@@ -22,7 +22,7 @@ class BaseContributorTest {
     }
 
     @Test
-    public void testDefaultConfigClass() {
+    void testDefaultConfigClass() {
         BaseContributor.BaseContributorBuilder<Long> builder = BaseContributor.builder();
         builder.add("one", () -> 1L);
         BaseContributor<Long> baseContributor = new BaseContributor<>(builder) {
@@ -32,7 +32,7 @@ class BaseContributorTest {
     }
 
     @Test
-    public void testSupplier() {
+    void testSupplier() {
         BaseContributor.BaseContributorBuilder<Long> builder = BaseContributor.builder();
         builder.add("one", () -> 1L);
         BaseContributor<Long> baseContributor = new BaseContributor<>(builder) {
@@ -42,7 +42,7 @@ class BaseContributorTest {
     }
 
     @Test
-    public void testSpecifyingConfigType() {
+    void testSpecifyingConfigType() {
         BaseContributor.BaseContributorBuilder<Long> builder = BaseContributor.builder();
         builder.add("fromBaseConfig", LongConfig.class, baseConfig -> baseConfig.value);
         BaseContributor<Long> baseContributor = new BaseContributor<>(builder) {
@@ -52,7 +52,7 @@ class BaseContributorTest {
     }
 
     @Test
-    public void testSpecifyingConfigTypeInstance() {
+    void testSpecifyingConfigTypeInstance() {
         BaseContributor.BaseContributorBuilder<Long> builder = BaseContributor.builder();
         builder.add("fromBaseConfig", LongConfig.class, baseConfig -> baseConfig.value);
         BaseContributor<Long> baseContributor = new BaseContributor<>(builder) {
@@ -62,7 +62,7 @@ class BaseContributorTest {
     }
 
     @Test
-    public void testFailsIfConfigNotAssignableToSpecifiedType() {
+    void testFailsIfConfigNotAssignableToSpecifiedType() {
         BaseContributor.BaseContributorBuilder<Long> builder = BaseContributor.builder();
         builder.add("fromBaseConfig", LongConfig.class, baseConfig -> baseConfig.value);
         BaseContributor<Long> baseContributor = new BaseContributor<>(builder) {

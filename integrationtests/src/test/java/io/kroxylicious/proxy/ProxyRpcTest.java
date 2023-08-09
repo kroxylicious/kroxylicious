@@ -58,7 +58,7 @@ public class ProxyRpcTest {
     }
 
     @BeforeEach
-    public void setup() {
+    void setup() {
         mockTester.clearMock();
     }
 
@@ -71,7 +71,7 @@ public class ProxyRpcTest {
 
     @MethodSource("scenarios")
     @ParameterizedTest
-    public void testKroxyliciousCanDecodeManipulateAndProxyRPC(Scenario scenario) {
+    void testKroxyliciousCanDecodeManipulateAndProxyRPC(Scenario scenario) {
         mockTester.addMockResponseForApiKey(scenario.givenMockResponse());
         try (KafkaClient kafkaClient = mockTester.singleRequestClient()) {
             Response response = kafkaClient.getSync(scenario.whenSendRequest());

@@ -64,7 +64,7 @@ class EagerMetadataLearnerTest {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("preludeRequests")
-    public void forwardsRequestsOfKafkaPrelude(String name, ApiKeys apiKey, RequestHeaderData header, ApiMessage request) {
+    void forwardsRequestsOfKafkaPrelude(String name, ApiKeys apiKey, RequestHeaderData header, ApiMessage request) {
         when(context.requestFilterResultBuilder()).thenReturn(new RequestFilterResultBuilderImpl());
         var stage = learner.onRequest(apiKey, header, request, context);
         assertThat(stage).isCompleted();
@@ -81,7 +81,7 @@ class EagerMetadataLearnerTest {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("postPreludeRequests")
-    public void spontaneouslyEmitsMetadataRequest(String name, ApiKeys apiKey, RequestHeaderData header, ApiMessage request) throws Exception {
+    void spontaneouslyEmitsMetadataRequest(String name, ApiKeys apiKey, RequestHeaderData header, ApiMessage request) throws Exception {
         var metadataResponse = new MetadataResponseData();
         metadataResponse.brokers().add(new MetadataResponseData.MetadataResponseBroker().setNodeId(1).setHost("localhost").setPort(1234));
 

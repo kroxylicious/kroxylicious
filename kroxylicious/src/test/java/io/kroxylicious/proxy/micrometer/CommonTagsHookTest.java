@@ -21,14 +21,14 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class CommonTagsHookTest {
 
     @Test
-    public void testNullConfig() {
+    void testNullConfig() {
         assertThatThrownBy(() -> {
             new CommonTagsHook(null);
         }).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
-    public void testCommonTags() {
+    void testCommonTags() {
         CommonTagsHook commonTagsHook = new CommonTagsHook(new CommonTagsHook.CommonTagsHookConfig(Map.of("a", "b")));
         MeterRegistry registry = givenRegistryConfiguredWith(commonTagsHook);
         Meter meter = whenCreateArbitraryMeter(registry);
@@ -36,7 +36,7 @@ class CommonTagsHookTest {
     }
 
     @Test
-    public void testNullCommonTagsMap() {
+    void testNullCommonTagsMap() {
         CommonTagsHook commonTagsHook = new CommonTagsHook(new CommonTagsHook.CommonTagsHookConfig(null));
         MeterRegistry registry = givenRegistryConfiguredWith(commonTagsHook);
         Meter meter = whenCreateArbitraryMeter(registry);
@@ -44,7 +44,7 @@ class CommonTagsHookTest {
     }
 
     @Test
-    public void testEmptyCommonTagsMap() {
+    void testEmptyCommonTagsMap() {
         CommonTagsHook commonTagsHook = new CommonTagsHook(new CommonTagsHook.CommonTagsHookConfig(new HashMap<>()));
         MeterRegistry registry = givenRegistryConfiguredWith(commonTagsHook);
         Meter meter = whenCreateArbitraryMeter(registry);

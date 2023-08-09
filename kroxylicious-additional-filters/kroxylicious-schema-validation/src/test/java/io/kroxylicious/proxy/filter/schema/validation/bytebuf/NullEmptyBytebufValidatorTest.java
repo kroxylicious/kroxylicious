@@ -10,7 +10,6 @@ import java.nio.ByteBuffer;
 
 import org.apache.kafka.common.record.Record;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 
 import io.kroxylicious.proxy.filter.schema.validation.Result;
 
@@ -28,10 +27,10 @@ import static org.mockito.Mockito.when;
 
 class NullEmptyBytebufValidatorTest {
 
-    private final Record record = Mockito.mock(Record.class);
+    private final Record record = mock(Record.class);
 
     @Test
-    public void testNullValid() {
+    void testNullValid() {
         BytebufValidator mockValidator = mock(BytebufValidator.class);
         boolean nullValid = true;
         BytebufValidator validator = nullEmptyValidator(nullValid, true, mockValidator);
@@ -41,7 +40,7 @@ class NullEmptyBytebufValidatorTest {
     }
 
     @Test
-    public void testNullInvalid() {
+    void testNullInvalid() {
         BytebufValidator mockValidator = mock(BytebufValidator.class);
         boolean nullValid = false;
         BytebufValidator validator = nullEmptyValidator(nullValid, true, mockValidator);
@@ -51,7 +50,7 @@ class NullEmptyBytebufValidatorTest {
     }
 
     @Test
-    public void testEmptyValid() {
+    void testEmptyValid() {
         BytebufValidator mockValidator = mock(BytebufValidator.class);
         boolean emptyValid = true;
         BytebufValidator validator = nullEmptyValidator(true, emptyValid, mockValidator);
@@ -61,7 +60,7 @@ class NullEmptyBytebufValidatorTest {
     }
 
     @Test
-    public void testEmptyInvalid() {
+    void testEmptyInvalid() {
         BytebufValidator mockValidator = mock(BytebufValidator.class);
         boolean emptyValid = false;
         BytebufValidator validator = nullEmptyValidator(true, emptyValid, mockValidator);
@@ -71,7 +70,7 @@ class NullEmptyBytebufValidatorTest {
     }
 
     @Test
-    public void testDelegation() {
+    void testDelegation() {
         BytebufValidator mockValidator = mock(BytebufValidator.class);
         when(mockValidator.validate(any(), anyInt(), any(), anyBoolean())).thenReturn(new Result(false, "FAIL"));
         BytebufValidator validator = nullEmptyValidator(true, true, mockValidator);

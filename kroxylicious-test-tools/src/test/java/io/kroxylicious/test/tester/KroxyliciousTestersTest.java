@@ -14,6 +14,7 @@ import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Supplier;
 
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -32,7 +33,6 @@ import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.jetbrains.annotations.NotNull;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -56,12 +56,12 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.fail;
 
 @ExtendWith(KafkaClusterExtension.class)
-public class KroxyliciousTestersTest {
+class KroxyliciousTestersTest {
 
     public static final String TOPIC = "example";
 
     @Test
-    public void testAdminMethods(KafkaCluster cluster) {
+    void testAdminMethods(KafkaCluster cluster) {
         try (var tester = kroxyliciousTester(proxy(cluster))) {
             assertNotNull(tester.admin().describeCluster().clusterId().get(10, TimeUnit.SECONDS));
             assertNotNull(tester.admin(Map.of()).describeCluster().clusterId().get(10, TimeUnit.SECONDS));
@@ -72,29 +72,32 @@ public class KroxyliciousTestersTest {
         }
     }
 
-    // TODO fix this, I believe that during the initial async reconciliation of metadata Kroxylicious is responding
-    // with a FindCoordinator response out-of-order.
-    @Disabled
     @Test
-    public void testConsumerMethods(KafkaCluster cluster) throws Exception {
+    void testConsumerMethods(KafkaCluster cluster) throws Exception {
         KafkaProducer<String, String> producer = new KafkaProducer<>(cluster.getKafkaClientConfiguration(), new StringSerializer(), new StringSerializer());
         producer.send(new ProducerRecord<>(TOPIC, "key", "value")).get(10, TimeUnit.SECONDS);
         try (var tester = kroxyliciousTester(proxy(cluster))) {
-            assertOneRecordConsumedFrom(tester.consumer());
-            assertOneRecordConsumedFrom(tester.consumer(randomGroupIdAndEarliestReset()));
-            assertOneRecordConsumedFrom(tester.consumer(Serdes.String(), Serdes.String(), randomGroupIdAndEarliestReset()));
-
-            assertOneRecordConsumedFrom(tester.consumer(DEFAULT_VIRTUAL_CLUSTER));
-            assertOneRecordConsumedFrom(tester.consumer(DEFAULT_VIRTUAL_CLUSTER, randomGroupIdAndEarliestReset()));
-            assertOneRecordConsumedFrom(tester.consumer(DEFAULT_VIRTUAL_CLUSTER, Serdes.String(), Serdes.String(), randomGroupIdAndEarliestReset()));
+            withConsumer(tester::consumer, KroxyliciousTestersTest::assertOneRecordConsumedFrom);
+            withConsumer(() -> tester.consumer(randomGroupIdAndEarliestReset()), KroxyliciousTestersTest::assertOneRecordConsumedFrom);
+            withConsumer(() -> tester.consumer(Serdes.String(), Serdes.String(), randomGroupIdAndEarliestReset()), KroxyliciousTestersTest::assertOneRecordConsumedFrom);
+            withConsumer(() -> tester.consumer(DEFAULT_VIRTUAL_CLUSTER), KroxyliciousTestersTest::assertOneRecordConsumedFrom);
+            withConsumer(() -> tester.consumer(DEFAULT_VIRTUAL_CLUSTER, randomGroupIdAndEarliestReset()), KroxyliciousTestersTest::assertOneRecordConsumedFrom);
+            withConsumer(() -> tester.consumer(DEFAULT_VIRTUAL_CLUSTER, Serdes.String(), Serdes.String(), randomGroupIdAndEarliestReset()),
+                    KroxyliciousTestersTest::assertOneRecordConsumedFrom);
         }
         catch (Exception e) {
             fail("unexpected exception", e);
         }
     }
 
+    private void withConsumer(Supplier<Consumer<String, String>> supplier, java.util.function.Consumer<Consumer<String, String>> consumerFunc) {
+        try (Consumer<String, String> consumer = supplier.get()) {
+            consumerFunc.accept(consumer);
+        }
+    }
+
     @Test
-    public void testProducerMethods(KafkaCluster cluster) {
+    void testProducerMethods(KafkaCluster cluster) {
         try (var tester = kroxyliciousTester(proxy(cluster))) {
             send(tester.producer());
             send(tester.producer(Map.of()));
@@ -116,7 +119,7 @@ public class KroxyliciousTestersTest {
     }
 
     @Test
-    public void testSingleRequestClient(KafkaCluster cluster) {
+    void testSingleRequestClient(KafkaCluster cluster) {
         try (var tester = kroxyliciousTester(proxy(cluster))) {
             assertCanSendSingleRequestAndGetResponse(tester.singleRequestClient());
             assertCanSendSingleRequestAndGetResponse(tester.singleRequestClient(DEFAULT_VIRTUAL_CLUSTER));
@@ -127,7 +130,7 @@ public class KroxyliciousTestersTest {
     }
 
     @Test
-    public void testMockTester() {
+    void testMockTester() {
         try (var tester = mockKafkaKroxyliciousTester(KroxyliciousConfigUtils::proxy)) {
             assertCanSendSingleRequestAndReceiveMockMessage(tester, tester.singleRequestClient());
             assertCanSendSingleRequestAndReceiveMockMessage(tester, tester.singleRequestClient(DEFAULT_VIRTUAL_CLUSTER));
@@ -138,7 +141,7 @@ public class KroxyliciousTestersTest {
     }
 
     @Test
-    public void testIllegalToAskForNonExistantVirtualCluster(KafkaCluster cluster) {
+    void testIllegalToAskForNonExistantVirtualCluster(KafkaCluster cluster) {
         try (var tester = kroxyliciousTester(proxy(cluster))) {
             assertThrows(IllegalArgumentException.class, () -> tester.singleRequestClient("NON_EXIST"));
             assertThrows(IllegalArgumentException.class, () -> tester.consumer("NON_EXIST"));
@@ -156,7 +159,7 @@ public class KroxyliciousTestersTest {
     }
 
     @Test
-    public void testIllegalToAskForDefaultClientsWhenVirtualClustersAmbiguous(KafkaCluster cluster) {
+    void testIllegalToAskForDefaultClientsWhenVirtualClustersAmbiguous(KafkaCluster cluster) {
         String clusterBootstrapServers = cluster.getBootstrapServers();
         ConfigurationBuilder builder = new ConfigurationBuilder();
         ConfigurationBuilder proxy = addVirtualCluster(clusterBootstrapServers, addVirtualCluster(clusterBootstrapServers, builder, "foo",

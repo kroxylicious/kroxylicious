@@ -17,12 +17,13 @@ dependency-reduced-pom.xml
 # Reference: https://intellij-support.jetbrains.com/hc/en-us/articles/206544839
 # Copied from https://github.com/github/gitignore/blob/4488915eec0b3a45b5c63ead28f286819c0917de/Global/JetBrains.gitignore
 
- # User-specific stuff
- .idea/**/workspace.xml
- .idea/**/tasks.xml
- .idea/**/usage.statistics.xml
- .idea/**/dictionaries
- .idea/**/shelf
+# User-specific stuff
+.idea/**/workspace.xml
+.idea/**/tasks.xml
+.idea/**/usage.statistics.xml
+.idea/**/dictionaries
+.idea/**/shelf
+.idea/kubernetes-settings.xml
 
  # AWS User-specific
  .idea/**/aws.xml

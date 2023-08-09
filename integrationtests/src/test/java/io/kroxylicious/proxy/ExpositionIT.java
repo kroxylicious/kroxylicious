@@ -62,7 +62,7 @@ import static org.testcontainers.shaded.org.awaitility.Awaitility.await;
  * TODO corner case test - verify kroxy's ability to recover for a temporary port already bound condition.
  */
 @ExtendWith(KafkaClusterExtension.class)
-public class ExpositionIT extends BaseIT {
+class ExpositionIT extends BaseIT {
     private static final Logger LOGGER = LoggerFactory.getLogger(ExpositionIT.class);
 
     private static final String TOPIC = "my-test-topic";

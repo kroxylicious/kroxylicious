@@ -43,7 +43,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @ExtendWith(KafkaClusterExtension.class)
-public class JsonSyntaxValidationIT extends BaseIT {
+class JsonSyntaxValidationIT extends BaseIT {
 
     public static final String SYNTACTICALLY_CORRECT_JSON = "{\"value\":\"json\"}";
     public static final String SYNTACTICALLY_INCORRECT_JSON = "Not Json";
@@ -51,7 +51,7 @@ public class JsonSyntaxValidationIT extends BaseIT {
     private static final String TOPIC_2 = "my-test-topic-2";
 
     @Test
-    public void testInvalidJsonProduceRejected(KafkaCluster cluster, Admin admin) throws Exception {
+    void testInvalidJsonProduceRejected(KafkaCluster cluster, Admin admin) throws Exception {
         assertThat(cluster.getNumOfBrokers()).isOne();
         createTopic(admin, TOPIC_1, 1);
 
@@ -68,7 +68,7 @@ public class JsonSyntaxValidationIT extends BaseIT {
     }
 
     @Test
-    public void testInvalidJsonProduceRejectedUsingTopicNames(KafkaCluster cluster, Admin admin) throws Exception {
+    void testInvalidJsonProduceRejectedUsingTopicNames(KafkaCluster cluster, Admin admin) throws Exception {
         assertThat(cluster.getNumOfBrokers()).isOne();
         createTopics(admin, new NewTopic(TOPIC_1, 1, (short) 1), new NewTopic(TOPIC_2, 1, (short) 1));
 
@@ -91,7 +91,7 @@ public class JsonSyntaxValidationIT extends BaseIT {
     }
 
     @Test
-    public void testPartiallyInvalidJsonTransactionalAllRejected(KafkaCluster cluster, Admin admin) throws Exception {
+    void testPartiallyInvalidJsonTransactionalAllRejected(KafkaCluster cluster, Admin admin) throws Exception {
         assertThat(cluster.getNumOfBrokers()).isOne();
         createTopics(admin, new NewTopic(TOPIC_1, 1, (short) 1), new NewTopic(TOPIC_2, 1, (short) 1));
 
@@ -115,7 +115,7 @@ public class JsonSyntaxValidationIT extends BaseIT {
     }
 
     @Test
-    public void testPartiallyInvalidJsonNotConfiguredToForwardAllRejected(KafkaCluster cluster, Admin admin) throws Exception {
+    void testPartiallyInvalidJsonNotConfiguredToForwardAllRejected(KafkaCluster cluster, Admin admin) throws Exception {
         assertThat(cluster.getNumOfBrokers()).isOne();
         createTopics(admin, new NewTopic(TOPIC_1, 1, (short) 1), new NewTopic(TOPIC_2, 1, (short) 1));
 
@@ -137,7 +137,7 @@ public class JsonSyntaxValidationIT extends BaseIT {
     }
 
     @Test
-    public void testPartiallyInvalidJsonProduceRejected(KafkaCluster cluster, Admin admin) throws Exception {
+    void testPartiallyInvalidJsonProduceRejected(KafkaCluster cluster, Admin admin) throws Exception {
         assertThat(cluster.getNumOfBrokers()).isOne();
         createTopics(admin, new NewTopic(TOPIC_1, 1, (short) 1), new NewTopic(TOPIC_2, 1, (short) 1));
 
@@ -166,7 +166,7 @@ public class JsonSyntaxValidationIT extends BaseIT {
     }
 
     @Test
-    public void testPartiallyInvalidAcrossPartitionsOfSameTopic(KafkaCluster cluster, Admin admin) throws Exception {
+    void testPartiallyInvalidAcrossPartitionsOfSameTopic(KafkaCluster cluster, Admin admin) throws Exception {
         assertThat(cluster.getNumOfBrokers()).isOne();
         createTopic(admin, TOPIC_1, 2);
 
@@ -195,7 +195,7 @@ public class JsonSyntaxValidationIT extends BaseIT {
     }
 
     @Test
-    public void testPartiallyInvalidWithinOnePartitionOfTopic(KafkaCluster cluster, Admin admin) throws Exception {
+    void testPartiallyInvalidWithinOnePartitionOfTopic(KafkaCluster cluster, Admin admin) throws Exception {
         assertThat(cluster.getNumOfBrokers()).isOne();
         createTopic(admin, TOPIC_1, 1);
 
@@ -219,7 +219,7 @@ public class JsonSyntaxValidationIT extends BaseIT {
     }
 
     @Test
-    public void testValidJsonProduceAccepted(KafkaCluster cluster, Admin admin) throws Exception {
+    void testValidJsonProduceAccepted(KafkaCluster cluster, Admin admin) throws Exception {
         assertThat(cluster.getNumOfBrokers()).isOne();
         createTopic(admin, TOPIC_1, 1);
 

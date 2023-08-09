@@ -37,7 +37,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class ApiVersionsIT {
 
     @Test
-    public void shouldOfferTheMinimumHighestSupportedVersionWhenBrokerIsAheadOfKroxylicious() {
+    void shouldOfferTheMinimumHighestSupportedVersionWhenBrokerIsAheadOfKroxylicious() {
         try (var tester = mockKafkaKroxyliciousTester(KroxyliciousConfigUtils::proxy);
                 var client = tester.singleRequestClient()) {
             givenMockRespondsWithApiVersionsForApiKey(tester, ApiKeys.METADATA, ApiKeys.METADATA.oldestVersion(), (short) (ApiKeys.METADATA.latestVersion() + 1));
@@ -47,7 +47,7 @@ public class ApiVersionsIT {
     }
 
     @Test
-    public void shouldOfferTheMinimumHighestSupportedVersionWhenKroxyliciousIsAheadOfBroker() {
+    void shouldOfferTheMinimumHighestSupportedVersionWhenKroxyliciousIsAheadOfBroker() {
         try (var tester = mockKafkaKroxyliciousTester(KroxyliciousConfigUtils::proxy);
                 var client = tester.singleRequestClient()) {
             givenMockRespondsWithApiVersionsForApiKey(tester, ApiKeys.METADATA, ApiKeys.METADATA.oldestVersion(), (short) (ApiKeys.METADATA.latestVersion() - 1));
@@ -58,7 +58,7 @@ public class ApiVersionsIT {
     }
 
     @Test
-    public void shouldOfferTheMaximumLowestSupportedVersionWhenBrokerIsAheadOfKroxylicious() {
+    void shouldOfferTheMaximumLowestSupportedVersionWhenBrokerIsAheadOfKroxylicious() {
         try (var tester = mockKafkaKroxyliciousTester(KroxyliciousConfigUtils::proxy);
                 var client = tester.singleRequestClient()) {
             short brokerOldestVersion = (short) (ApiKeys.METADATA.oldestVersion() + 1);
@@ -69,7 +69,7 @@ public class ApiVersionsIT {
     }
 
     @Test
-    public void shouldOfferTheMaximumLowestSupportedVersionWhenKroxyliciousIsAheadOfBroker() {
+    void shouldOfferTheMaximumLowestSupportedVersionWhenKroxyliciousIsAheadOfBroker() {
         try (var tester = mockKafkaKroxyliciousTester(KroxyliciousConfigUtils::proxy);
                 var client = tester.singleRequestClient()) {
             short brokerOldestVersion = (short) (ApiKeys.METADATA.oldestVersion() - 1);
@@ -80,7 +80,7 @@ public class ApiVersionsIT {
     }
 
     @Test
-    public void shouldNotOfferBrokerApisThatAreUnknownToKroxy() {
+    void shouldNotOfferBrokerApisThatAreUnknownToKroxy() {
         try (var tester = mockKafkaKroxyliciousTester(KroxyliciousConfigUtils::proxy);
                 var client = tester.singleRequestClient()) {
             ApiVersionsResponseData mockResponse = new ApiVersionsResponseData();
@@ -97,7 +97,7 @@ public class ApiVersionsIT {
     }
 
     @Test
-    public void shouldOfferBrokerApisThatAreKnownToKroxy() {
+    void shouldOfferBrokerApisThatAreKnownToKroxy() {
         try (var tester = mockKafkaKroxyliciousTester(KroxyliciousConfigUtils::proxy);
                 var client = tester.singleRequestClient()) {
             ApiVersionsResponseData mockResponse = new ApiVersionsResponseData();

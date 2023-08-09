@@ -32,7 +32,7 @@ public class RequestDecoderTest extends AbstractCodecTest {
 
     @ParameterizedTest
     @MethodSource("requestApiVersions")
-    public void testApiVersionsExactlyOneFrame_decoded(short apiVersion) throws Exception {
+    void testApiVersionsExactlyOneFrame_decoded(short apiVersion) throws Exception {
         assertEquals(12,
                 exactlyOneFrame_decoded(apiVersion,
                         ApiKeys.API_VERSIONS::requestHeaderVersion,
@@ -52,7 +52,7 @@ public class RequestDecoderTest extends AbstractCodecTest {
 
     @ParameterizedTest
     @MethodSource("requestApiVersions")
-    public void testApiVersionsExactlyOneFrame_opaque(short apiVersion) throws Exception {
+    void testApiVersionsExactlyOneFrame_opaque(short apiVersion) throws Exception {
         assertEquals(12,
                 exactlyOneFrame_encoded(apiVersion,
                         ApiKeys.API_VERSIONS::requestHeaderVersion,
@@ -79,7 +79,7 @@ public class RequestDecoderTest extends AbstractCodecTest {
 
     @ParameterizedTest
     @MethodSource("requestApiVersions")
-    public void testApiVersionsFrameLessOneByte(short apiVersion) throws Exception {
+    void testApiVersionsFrameLessOneByte(short apiVersion) throws Exception {
         RequestHeaderData encodedHeader = exampleRequestHeader(apiVersion);
         ApiVersionsRequestData encodedBody = exampleApiVersionsRequest();
 
@@ -123,19 +123,19 @@ public class RequestDecoderTest extends AbstractCodecTest {
 
     @ParameterizedTest
     @MethodSource("requestApiVersions")
-    public void testApiVersionsFrameFirst3Bytes(short apiVersion) throws Exception {
+    void testApiVersionsFrameFirst3Bytes(short apiVersion) throws Exception {
         doTestApiVersionsFrameFirstNBytes(apiVersion, 3, 0);
     }
 
     @ParameterizedTest
     @MethodSource("requestApiVersions")
-    public void testApiVersionsFrameFirst5Bytes(short apiVersion) throws Exception {
+    void testApiVersionsFrameFirst5Bytes(short apiVersion) throws Exception {
         doTestApiVersionsFrameFirstNBytes(apiVersion, 5, 0);
     }
 
     @ParameterizedTest
     @MethodSource("requestApiVersions")
-    public void testApiVersionsExactlyTwoFrames(short apiVersion) throws Exception {
+    void testApiVersionsExactlyTwoFrames(short apiVersion) throws Exception {
         RequestHeaderData encodedHeader = exampleRequestHeader(apiVersion);
 
         ApiVersionsRequestData encodedBody = exampleApiVersionsRequest();

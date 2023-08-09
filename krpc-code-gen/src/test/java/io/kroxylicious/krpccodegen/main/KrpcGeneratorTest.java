@@ -47,7 +47,7 @@ class KrpcGeneratorTest {
     private static final String TEST_CLASSES_DIR = "test-classes";
 
     @Test
-    public void testHelloWorld(@TempDir File tempDir) throws Exception {
+    void testHelloWorld(@TempDir File tempDir) throws Exception {
         KrpcGenerator gen = KrpcGenerator.single()
                 .withMessageSpecDir(getMessageSpecDir())
                 .withMessageSpecFilter("*.json")
@@ -65,7 +65,7 @@ class KrpcGeneratorTest {
     }
 
     @Test
-    public void testKrpcData(@TempDir File tempDir) throws Exception {
+    void testKrpcData(@TempDir File tempDir) throws Exception {
         KrpcGenerator gen = KrpcGenerator.single()
                 .withMessageSpecDir(getMessageSpecDir())
                 .withMessageSpecFilter("*.json")
@@ -83,7 +83,7 @@ class KrpcGeneratorTest {
     }
 
     @Test
-    public void testKproxyFilter(@TempDir File tempDir) throws Exception {
+    void testKproxyFilter(@TempDir File tempDir) throws Exception {
         KrpcGenerator gen = KrpcGenerator.single()
                 .withMessageSpecDir(getMessageSpecDir())
                 .withMessageSpecFilter("*.json")
@@ -101,7 +101,7 @@ class KrpcGeneratorTest {
     }
 
     @Test
-    public void testKproxyRequestFilter(@TempDir File tempDir) throws Exception {
+    void testKproxyRequestFilter(@TempDir File tempDir) throws Exception {
         KrpcGenerator gen = KrpcGenerator.multi()
                 .withMessageSpecDir(getMessageSpecDir())
                 .withMessageSpecFilter("*{Request}.json")
@@ -119,8 +119,8 @@ class KrpcGeneratorTest {
     }
 
     @ParameterizedTest
-    @CsvSource(value = { "AddPartitionsToTxnRequest.json,yes", "FetchRequest.json,no" })
-    public void testLatestVersionUnstable(String messageSpec, String expectedContents, @TempDir File tempDir) throws Exception {
+    @CsvSource({ "AddPartitionsToTxnRequest.json,yes", "FetchRequest.json,no" })
+    void testLatestVersionUnstable(String messageSpec, String expectedContents, @TempDir File tempDir) throws Exception {
         testSingleGeneration(tempDir, messageSpec, "${messageSpec.latestVersionUnstable.isPresent()?string('yes', 'no')}", expectedContents);
         testSingleGeneration(tempDir, messageSpec, "${messageSpec.latestVersionUnstable.orElse(false)?string('yes', 'no')}", expectedContents);
     }

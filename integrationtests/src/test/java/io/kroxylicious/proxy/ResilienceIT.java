@@ -41,20 +41,20 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Tests with the aim of demonstrating that system survives a Kroxylicious restart.
  */
 @ExtendWith(KafkaClusterExtension.class)
-public class ResilienceIT extends BaseIT {
+class ResilienceIT extends BaseIT {
     private static final Logger LOGGER = LoggerFactory.getLogger(ResilienceIT.class);
 
     static @BrokerCluster(numBrokers = 3) KafkaCluster cluster;
 
     @Test
-    public void kafkaProducerShouldTolerateKroxyliciousRestarting(Admin admin) throws Exception {
+    void kafkaProducerShouldTolerateKroxyliciousRestarting(Admin admin) throws Exception {
         String randomTopic = UUID.randomUUID().toString();
         createTopic(admin, randomTopic, 1);
         testProducerCanSurviveARestart(proxy(cluster), randomTopic);
     }
 
     @Test
-    public void kafkaConsumerShouldTolerateKroxyliciousRestarting(Admin admin) throws Exception {
+    void kafkaConsumerShouldTolerateKroxyliciousRestarting(Admin admin) throws Exception {
         String randomTopic = UUID.randomUUID().toString();
         createTopic(admin, randomTopic, 1);
         testConsumerCanSurviveKroxyliciousRestart(proxy(cluster), randomTopic);
