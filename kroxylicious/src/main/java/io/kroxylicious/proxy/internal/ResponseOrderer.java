@@ -19,6 +19,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 
 import io.kroxylicious.proxy.frame.Frame;
+import io.kroxylicious.proxy.frame.RequestFrame;
 
 /**
  * While processing a request from a Client, we want to enable custom Protocol
@@ -45,7 +46,12 @@ public class ResponseOrderer extends ChannelDuplexHandler {
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-        if (msg instanceof Frame frame) {
+        if (msg instanceof RequestFrame requestFrame) {
+            if (requestFrame.hasResponse()) {
+                inflightCorrelationIds.addLast(requestFrame.correlationId());
+            }
+        }
+        else if (msg instanceof Frame frame) {
             inflightCorrelationIds.addLast(frame.correlationId());
         }
         super.channelRead(ctx, msg);
