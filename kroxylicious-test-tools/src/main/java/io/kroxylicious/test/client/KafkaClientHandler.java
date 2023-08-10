@@ -30,6 +30,9 @@ public class KafkaClientHandler extends ChannelInboundHandlerAdapter {
     private final boolean singleShot;
     private ChannelHandlerContext ctx;
 
+    // Read/Mutated by the Netty thread only.
+    private boolean channelActivationSeen;
+
     /**
      * Creates a KafkaClientHandler
      */
@@ -45,6 +48,7 @@ public class KafkaClientHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) {
+        this.channelActivationSeen = true;
         processPendingWrites();
         ctx.fireChannelActive();
     }
@@ -67,6 +71,16 @@ public class KafkaClientHandler extends ChannelInboundHandlerAdapter {
         ctx.close();
     }
 
+    /**
+     * Sends a request frame.  If the channel is not yet active, the request is queued up until it
+     * is.
+     * <br/>
+     * The response to the request is returned by the future. If the request has no response the
+     * future will complete once the request is sent and yield a null value.
+     *
+     * @param decodedRequestFrame request frame to send
+     * @return future that will yield the response.
+     */
     public CompletableFuture<DecodedResponseFrame<?>> sendRequest(DecodedRequestFrame<?> decodedRequestFrame) {
         queue.addLast(decodedRequestFrame);
         processPendingWrites();
@@ -75,15 +89,22 @@ public class KafkaClientHandler extends ChannelInboundHandlerAdapter {
 
     private void processPendingWrites() {
         ctx.executor().execute(() -> {
-            if (ctx.channel().isActive()) {
-                while (queue.peek() != null) {
-                    DecodedRequestFrame<?> msg = queue.removeFirst();
-                    ctx.writeAndFlush(msg).addListener(c -> {
-                        if (!msg.hasResponse()) {
-                            msg.getResponseFuture().complete(null);
-                        }
-                    });
-                }
+            if (!channelActivationSeen) {
+                return;
+            }
+
+            while (queue.peek() != null) {
+                var msg = queue.removeFirst();
+                ctx.writeAndFlush(msg).addListener(c -> {
+                    var responseFuture = msg.getResponseFuture();
+                    if (c.cause() != null) {
+                        // I/O failed etc
+                        responseFuture.completeExceptionally(c.cause());
+                    }
+                    else if (!msg.hasResponse()) {
+                        responseFuture.complete(null);
+                    }
+                });
             }
         });
     }
