@@ -8,14 +8,13 @@ package io.kroxylicious.proxy.internal.codec;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.apache.kafka.common.message.ApiMessageType;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
+import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
@@ -30,6 +29,16 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class RequestEncoderTest extends AbstractCodecTest {
+
+    public static List<Object[]> testResponseFrames() {
+        List<Object[]> cartesianProduct = new ArrayList<>();
+        List.of(true, false).forEach(
+                requestHasResponse -> Stream.of(true, false)
+                        .forEach(decodeResponse -> cartesianProduct.add(new Object[]{ requestHasResponse, decodeResponse })));
+        return cartesianProduct;
+    }
+
+    // TODO test API_VERSIONS header is v0
 
     @ParameterizedTest
     @MethodSource("requestApiVersions")
@@ -50,23 +59,47 @@ public class RequestEncoderTest extends AbstractCodecTest {
         assertEquals(exampleHeader.correlationId(), corr.downstreamCorrelationId());
     }
 
-    // TODO test API_VERSIONS header is v0
-
-    public static List<Object[]> produceRequestApiVersions() {
-        List<Short> produceVersions = requestApiVersions(ApiMessageType.PRODUCE).collect(Collectors.toList());
-        List<Object[]> cartesianProduct = new ArrayList<>();
-        produceVersions.forEach(produceVersion -> Stream.of((short) 0, (short) 1, (short) -1)
-                .forEach(acks -> Stream.of(true, false).forEach(decodeResponse -> cartesianProduct.add(new Object[]{ produceVersion, acks, decodeResponse }))));
-        return cartesianProduct;
-    }
-
     /**
-     * KafkaRequestEncoder has some special case handling for Produce requests with acks==0
+     * Zero-ack produce requests do not have a response, so we do not want to add correlations in memory
+     * that will never be used. We determine this in the KafkaRequestDecoder and set a flag on the frame
+     * when there is no response expected.
      */
     @ParameterizedTest
-    @MethodSource("produceRequestApiVersions")
-    void testAcksParsing(short produceVersion, short acks, boolean decodeResponse) throws Exception {
+    @MethodSource("testResponseFrames")
+    void testRequestsWithNoResponseArentStoredInCorrelationManager() throws Exception {
 
+        givenRequestFrame frame = createRequestFrame(false);
+
+        var correlationManager = new CorrelationManager(78);
+        whenRequestEncoded(frame, correlationManager);
+
+        assertTrue(correlationManager.brokerRequests.isEmpty(),
+                "Expect request with no response to not have a correlation stored");
+    }
+
+    @ParameterizedTest
+    @MethodSource("testResponseFrames")
+    void testRequestsWithResponseAreStoredInCorrelationManager() throws Exception {
+
+        givenRequestFrame frame = createRequestFrame(true);
+
+        var correlationManager = new CorrelationManager(78);
+        whenRequestEncoded(frame, correlationManager);
+
+        assertNotNull(correlationManager.brokerRequests.get(78),
+                "Expect request with response to have a correlation stored");
+        assertEquals(1, correlationManager.brokerRequests.size(),
+                "Expect request with response to have a correlation");
+    }
+
+    private static void whenRequestEncoded(givenRequestFrame result, CorrelationManager correlationManager) throws Exception {
+        ByteBuf out = Unpooled.buffer(result.byteBuffer().capacity() + 4);
+        new KafkaRequestEncoder(correlationManager).encode(null, result.frame(), out);
+    }
+
+    @NotNull
+    private static givenRequestFrame createRequestFrame(boolean hasResponse) {
+        short produceVersion = ApiKeys.PRODUCE.latestVersion();
         var header = new RequestHeaderData()
                 .setRequestApiKey(ApiKeys.PRODUCE.id)
                 .setRequestApiVersion(produceVersion)
@@ -76,7 +109,7 @@ public class RequestEncoderTest extends AbstractCodecTest {
             header.setClientId("323423");
         }
         var body = new ProduceRequestData()
-                .setAcks(acks);
+                .setAcks((short) 0);
         if (produceVersion >= 3) {
             body.setTransactionalId("wnedkwjn");
         }
@@ -86,23 +119,11 @@ public class RequestEncoderTest extends AbstractCodecTest {
 
         ByteBuf buf = Unpooled.copiedBuffer(byteBuffer);
 
-        var frame = new OpaqueRequestFrame(buf, 12, decodeResponse, frameSize);
+        var frame = new OpaqueRequestFrame(buf, 12, true, frameSize, hasResponse);
+        givenRequestFrame result = new givenRequestFrame(byteBuffer, frame);
+        return result;
+    }
 
-        ByteBuf out = Unpooled.buffer(byteBuffer.capacity() + 4);
-
-        var correlationManager = new CorrelationManager(78);
-
-        new KafkaRequestEncoder(correlationManager).encode(null, frame, out);
-
-        if (acks == 0) {
-            assertTrue(correlationManager.brokerRequests.isEmpty(),
-                    "Expect acks == 0 to not have a correlation");
-        }
-        else {
-            assertNotNull(correlationManager.brokerRequests.get(78),
-                    "Expect acks != 0 to have a correlation");
-            assertEquals(1, correlationManager.brokerRequests.size(),
-                    "Expect acks != 0 to have a correlation");
-        }
+    private record givenRequestFrame(ByteBuffer byteBuffer, OpaqueRequestFrame frame) {
     }
 }
