@@ -45,8 +45,8 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
-import io.kroxylicious.proxy.filter.CreateTopicRejectFilter;
 import io.kroxylicious.proxy.filter.ForwardingStyle;
+import io.kroxylicious.proxy.filter.RejectingCreateTopicFilter;
 import io.kroxylicious.proxy.filter.RequestResponseMarkingFilter;
 import io.kroxylicious.proxy.internal.filter.ByteBufferTransformation;
 import io.kroxylicious.test.Request;
@@ -171,7 +171,7 @@ class KrpcFilterIT {
     @SuppressWarnings("java:S5841") // java:S5841 warns that doesNotContain passes for the empty case. Which is what we want here.
     void requestFiltersCanRespondWithoutProxying(KafkaCluster cluster, Admin admin) throws Exception {
         var config = proxy(cluster)
-                .addToFilters(new FilterDefinitionBuilder("CreateTopicReject").build());
+                .addToFilters(new FilterDefinitionBuilder("RejectingCreateTopic").build());
 
         try (var tester = kroxyliciousTester(config);
                 var proxyAdmin = tester.admin()) {
@@ -194,7 +194,7 @@ class KrpcFilterIT {
     @ParameterizedTest(name = "{0}")
     @MethodSource
     void requestFilterCanShortCircuitResponse(String name, boolean closeConnection, ForwardingStyle forwardingStyle) {
-        var rejectFilter = new FilterDefinitionBuilder("CreateTopicReject")
+        var rejectFilter = new FilterDefinitionBuilder("RejectingCreateTopic")
                 .withConfig("withCloseConnection", closeConnection,
                         "forwardingStyle", forwardingStyle)
                 .build();
@@ -286,7 +286,7 @@ class KrpcFilterIT {
     @SuppressWarnings("java:S5841") // java:S5841 warns that doesNotContain passes for the empty case. Which is what we want here.
     void requestFiltersCanRespondWithoutProxyingDoesntLeakBuffers(KafkaCluster cluster, Admin admin) throws Exception {
         var config = proxy(cluster)
-                .addToFilters(new FilterDefinitionBuilder("CreateTopicReject").build());
+                .addToFilters(new FilterDefinitionBuilder("RejectingCreateTopic").build());
 
         try (var tester = kroxyliciousTester(config);
                 var proxyAdmin = tester.admin()) {
@@ -310,7 +310,7 @@ class KrpcFilterIT {
                 .isThrownBy(() -> proxyAdmin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1))).all().get())
                 .withCauseInstanceOf(InvalidTopicException.class)
                 .havingCause()
-                .withMessage(CreateTopicRejectFilter.ERROR_MESSAGE);
+                .withMessage(RejectingCreateTopicFilter.ERROR_MESSAGE);
     }
 
     @Test

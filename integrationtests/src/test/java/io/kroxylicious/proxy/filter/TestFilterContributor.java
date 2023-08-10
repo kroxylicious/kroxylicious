@@ -15,7 +15,7 @@ public class TestFilterContributor extends BaseContributor<KrpcFilter> implement
             .add("RequestResponseMarking", RequestResponseMarkingFilter.RequestResponseMarkingFilterConfig.class, RequestResponseMarkingFilter::new)
             .add("OutOfBandSend", OutOfBandSendFilter.OutOfBandSendFilterConfig.class, OutOfBandSendFilter::new)
             .add("CompositePrefixingFixedClientId", CompositePrefixingFixedClientIdFilterConfig.class, CompositePrefixingFixedClientIdFilter::new)
-            .add("CreateTopicReject", CreateTopicRejectFilter.CreateTopicRejectFilterConfig.class, CreateTopicRejectFilter::new);
+            .add("RejectingCreateTopic", RejectingCreateTopicFilter.RejectingCreateTopicFilterConfig.class, RejectingCreateTopicFilter::new);
 
     public TestFilterContributor() {
         super(FILTERS);
