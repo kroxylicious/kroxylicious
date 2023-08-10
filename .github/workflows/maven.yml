@@ -54,7 +54,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: mvn -B clean verify -Pci
-      - name: 'Build Kroxylicious maven project'
+      - name: 'Build Kroxylicious maven project on main'
         if: github.event_name == 'push' && github.ref_name == 'main'
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
