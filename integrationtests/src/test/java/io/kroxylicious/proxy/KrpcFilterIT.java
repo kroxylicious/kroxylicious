@@ -193,9 +193,9 @@ class KrpcFilterIT {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource
-    void requestFilterCanShortCircuitResponse(String name, boolean closeConnection, ForwardingStyle forwardingStyle) {
+    void requestFilterCanShortCircuitResponse(String name, boolean withCloseConnection, ForwardingStyle forwardingStyle) {
         var rejectFilter = new FilterDefinitionBuilder("RejectingCreateTopic")
-                .withConfig("withCloseConnection", closeConnection,
+                .withConfig("withCloseConnection", withCloseConnection,
                         "forwardingStyle", forwardingStyle)
                 .build();
         try (var tester = mockKafkaKroxyliciousTester((mockBootstrap) -> proxy(mockBootstrap).addToFilters(rejectFilter));
@@ -217,8 +217,9 @@ class KrpcFilterIT {
                     .allMatch(p -> p.errorCode() == Errors.INVALID_TOPIC_EXCEPTION.code(),
                             "response contains topics without the expected errorCode");
 
+            var expectConnectionOpen = !withCloseConnection;
             await().atMost(Duration.ofSeconds(5))
-                    .untilAsserted(() -> assertThat(requestClient.isOpen()).isEqualTo(!closeConnection));
+                    .untilAsserted(() -> assertThat(requestClient.isOpen()).isEqualTo(expectConnectionOpen));
         }
 
     }
