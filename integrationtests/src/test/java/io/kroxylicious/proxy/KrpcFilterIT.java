@@ -212,8 +212,10 @@ class KrpcFilterIT {
             assertThat(response.message()).isInstanceOf(CreateTopicsResponseData.class);
 
             var responseMessage = (CreateTopicsResponseData) response.message();
-            assertThat(responseMessage.topics()).allMatch(p -> p.errorCode() == Errors.INVALID_TOPIC_EXCEPTION.code(),
-                    "response contains topics without the expected errorCode");
+            assertThat(responseMessage.topics())
+                    .hasSameSizeAs(createTopic.topics())
+                    .allMatch(p -> p.errorCode() == Errors.INVALID_TOPIC_EXCEPTION.code(),
+                            "response contains topics without the expected errorCode");
 
             await().atMost(Duration.ofSeconds(5))
                     .untilAsserted(() -> assertThat(requestClient.isOpen()).isEqualTo(!closeConnection));
