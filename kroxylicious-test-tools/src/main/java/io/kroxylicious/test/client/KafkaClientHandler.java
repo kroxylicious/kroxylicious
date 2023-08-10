@@ -9,6 +9,9 @@ import java.util.Deque;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedDeque;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 
@@ -21,6 +24,8 @@ import io.kroxylicious.test.codec.DecodedResponseFrame;
  * In single-shot mode, the client closes the channel after the response is received.
  */
 public class KafkaClientHandler extends ChannelInboundHandlerAdapter {
+    private static final Logger LOGGER = LoggerFactory.getLogger(KafkaClientHandler.class);
+
     private final Deque<DecodedRequestFrame<?>> queue = new ConcurrentLinkedDeque<>();
     private final boolean singleShot;
     private ChannelHandlerContext ctx;
@@ -58,6 +63,7 @@ public class KafkaClientHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+        LOGGER.warn("Kafka test client received unexpected exception, closing connection.", cause);
         ctx.close();
     }
 
