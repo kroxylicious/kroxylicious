@@ -226,13 +226,25 @@ interfaces.
 
 As seen above, filter methods (`onXyz[Request|Response]`) must return a `CompletionStage<FilterResult>` object.
 It is the job of `FilterResult` to convey what message is to forwarded to the next filter in the chain (or broker
-/client if at the chain's end).  It is also used to carry instructions such as indicating that the connection must
-be closed, or a message dropped.
+/client if at the chain's beginning or end).  It is also used to carry instructions such as indicating that the
+connection must be closed, or a message dropped.
 
-TODO: once {github}/issues/351[#351] we need a sentence here to explain that Kroxylicious won't forward the request
-/response until the CompletionStage completes. We also need to explain how requests/responses queue awaiting the
-async work.
+If the filter returns a `CompletionStage` that is already completed normally, Kroxylicious will immediately perform
+the action described by the `FilterResult`.
 
+The filter may return a `CompletionStage` that is not yet completed. When this happens, Kroxylicious will pause
+reading from the downstream (the Client writes will eventually block), and it begins to queue up in-flight
+requests/responses arriving at the filter.  This is done so that message order is maintained.  Once the
+`CompletionStage` completes, the action described  by the `FilterResult` is performed, reading from the downstream
+resumes and any queued up requests/responses are processed.
+
+IMPORTANT: The pausing of reads from the downstream is a relatively costly operation.  To maintain optimal performance
+filter implementations should minimise the occasions on which an incomplete `CompletionStage` is returned.
+
+If the `CompletionStage` completes exceptionally, the connection is closed.  This also applies if the
+`CompletionStage` does not complete within a timeout (20000 milliseconds).
+
+==== Creating a Filter Result
 The `KrpcFilterContext` is the factory for the `FilterResult` objects.
 
 There are two convenience methods{empty}footnote:[The `context.forward*()` methods behave exactly as the builder form
@@ -252,7 +264,7 @@ Filter result builders allow you to:
 3. signal that a message is to be dropped (i.e. not forwarded): `.drop()`.
 4. for requests only, send a short-circuit response: `.shortCircuitResponse(header, response)`
 
-The builder lets you combine legal behaviours together.  For instance, to close a connection after forwarding
+The builder lets you combine legal behaviours together.  For instance, to close the connection after forwarding
 a response to a client, a response filter could use:
 
 [source,yaml]
@@ -283,7 +295,7 @@ It exists while the client remains connected.
 
 The simplest way of managing per-client state is to use member fields.
 The proxy guarantees that all methods of a given filter instance will always be invoked on the same thread (also true of
-the CompletionStage completion in the case of <<Sending out-of-band requests to the Cluster>>).
+the CompletionStage completion in the case of <<Sending asynchronous requests to the Cluster>>).
 Therefore, there is no need to use synchronization when accessing such fields.
 
 === Filter Patterns
@@ -292,7 +304,7 @@ Kroxylicious Protocol Filters support several patterns:
 
 1. <<Intercepting Requests and Responses>>
 2. <<Sending Response messages from a Request Filter towards the Client (Short-circuit responses)>>
-3. <<Sending out-of-band requests to the Cluster>>
+3. <<Sending asynchronous requests to the Cluster>>
 4. <<Filtering specific API Versions>>
 
 ==== Intercepting Requests and Responses
@@ -407,74 +419,56 @@ public class DisallowAlterConfigs implements AlterConfigsRequestFilter {
 <1> We enable the close connection option on the builder.  This will cause Kroxylicious to close the connection
 after the response is sent to the client.
 
-==== Sending out-of-band requests to the Cluster
+==== Sending asynchronous requests to the Cluster
 
-Filters can also send arbitrary new messages towards the Cluster that will be invisible to the Client. For example, we could send a
-request towards the Cluster for topic metadata while handling a FetchRequest.
+Filters can make additional asynchronous requests to the Cluster.  This is useful if the Filter needs additional
+information from the Cluster in order to know how to mutate the filtered request/response.
 
-For example:
+The Filter can make use of {java-17-javadoc}/java.base/java/util/concurrent/CompletionStage.html[CompletionStage]
+chaining features ([`#thenApply()` etc.) to organise for actions to be done once the asynchronous request completes.
+For example, it could chain an action that mutates the filtered request/response using the asynchronous response, and
+finally, chain an action to forward the request/response to the next filter.
+
+The asynchronous request/response will be intercepted by Filters upstream of this Filter.  Filters downstream of this
+Filter (and the Client) do not see the asynchronous response.
+
+Let's take a look at an example. We'll send an asynchronous request towards the Cluster for topic metadata while
+handling a FetchRequest and use the response to mutate the FetchRequest before passing it to the next filter in the chain.
 
 [source,java]
 ----
-public class FetchFilter implements FetchRequestFilter{
+public class FetchFilter implements FetchRequestFilter {
     public static final short METADATA_VERSION_SUPPORTING_TOPIC_IDS = (short) 12;
 
     @Override
-    public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey,
-                                                          RequestHeaderData header,
-                                                          ApiMessage body,
-                                                          KrpcFilterContext filterContext) {
+    public CompletionStage<RequestFilterResult> onFetchRequest(ApiKeys apiKey,
+                                                               RequestHeaderData header,
+                                                               FetchRequestData request,
+                                                               KrpcFilterContext context) {
         MetadataRequestData metadataRequest = new MetadataRequestData(); //<1>
         var topic = new MetadataRequestData.MetadataRequestTopic();
         topic.setTopicId(Uuid.randomUuid());
         metadataRequest.topics().add(topic);
         short version = METADATA_VERSION_SUPPORTING_TOPIC_IDS;
-        CompletionStage<MetadataResponseData> stage = context.sendRequest(version, request);//<2>
-        stage.thenAccept(response -> doSomethingWithMetadata(response, version));//<3>
-        return context.forwardRequest(header, request);//<4>
+        CompletionStage<MetadataResponseData> stage = context.sendRequest(version, request); //<2>
+        return stage.thenApply(metadataResponse -> mutateFetchRequest(metadataResponse, request)) // <3>
+                    .thenCompose(mutatedFetchRequest -> context.forwardRequest(header, mutatedFetchRequest)); // <4>
     }
 }
 ----
-<1> We construct a new request object
+<1> We construct a new request object.  This will be forwarded asynchronously.
 <2> We send the request towards the Cluster, specifying the api version to use and obtaining a CompletionStage for the
 response.
-<3> When the CompletionStage is completed, we do something with the metadata (populate a cache for example). Note that this
-stage is completed on the same thread as the rest of the Filter work, so we can safely mutate Filter members without
-synchronising.
-<4> We also forward the original request. This will flow to the Cluster and back through Kroxylicious to the Client.
+<3> We use CompletionStage chaining to mutate the filtered fetch request using the response from the request sent at <1>.
+<4> We use CompletionStage chaining to forward the mutated request.
+
+NOTE: Kroxylicious provides the guarantee that the chained stage is completed on the same thread as the rest of the
+Filter work, so we can safely mutate Filter members without synchronising.
 
 As you can see, we need to know the API version we want our message to be encoded at. This must be done carefully as we
 currently do not have a mechanism for your Filter to know the supported API versions of the Cluster. If
 you use a hardcoded API version as shown, your Filter will only work with upstream brokers that support that api version
 for that RPC (see issue {github}/issues/438[#438]).
-
-The out-of-band Request/Response will be intercepted by Filters upstream of this Filter.
-
-WARNING: It is not yet possible to _asynchronously_ trigger a filter's forward.  Attempts to do this will lead a loss
-of ordering of the responses sent back to the client and client errors. This is being addressed by
-{github}/issues/351[#351].
-
-The following example illustrates:
-
-[source,java]
-----
-public class Issue351 implements FetchRequestFilter {
-
-    @Override
-    public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey,
-                                                          RequestHeaderData header,
-                                                          ApiMessage body,
-                                                          KrpcFilterContext filterContext) {
-        // Intent is to have the forward sent after the response to be in-band request.
-        CompletionStage<MetadataResponseData> stage = context.sendRequest(version, request);
-        return stage.thenCompose(response -> {
-            mutateRequest(request);
-            // This won't work properly yet - https://github.com/kroxylicious/kroxylicious/issues/351
-            return context.forwardRequest(header, request);
-        });
-    }
-}
-----
 
 ==== Filtering specific API Versions
 
