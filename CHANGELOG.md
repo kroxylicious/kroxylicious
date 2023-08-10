@@ -6,6 +6,7 @@ Please enumerate **all user-facing** changes using format `<githib issue/pr numb
 
 ## 0.3.0
 
+* [#531](https://github.com/kroxylicious/kroxylicious/pull/531 Mock test client supports multi-RPC conversations with the server.
 * [#510](https://github.com/kroxylicious/kroxylicious/pull/510 Add multi-tenant kubernetes example
 * [#519](https://github.com/kroxylicious/kroxylicious/pull/519): Fix Kafka Client leaks in the SampleFilterIntegrationTest.
 * [#494](https://github.com/kroxylicious/kroxylicious/issues/494): [Breaking] Make the Filter API fully asynchronous (filter methods must return a CompletionStage)
