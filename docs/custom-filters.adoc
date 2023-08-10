@@ -239,7 +239,7 @@ requests/responses arriving at the filter.  This is done so that message order i
 resumes and any queued up requests/responses are processed.
 
 IMPORTANT: The pausing of reads from the downstream is a relatively costly operation.  To maintain optimal performance
-filter implementations should minimise the occasions on which not yet completed `CompletionStage` are returned.
+filter implementations should minimise the occasions on which an incomplete `CompletionStage` is returned.
 
 If the `CompletionStage` completes exceptionally, the connection is closed.  This also applies if the
 `CompletionStage` does not complete within a timeout (20000 milliseconds).
