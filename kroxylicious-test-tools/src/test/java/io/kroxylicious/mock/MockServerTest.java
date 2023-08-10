@@ -43,7 +43,8 @@ class MockServerTest {
     @MethodSource("allSupportedApiVersions")
     void testClientCanSendAndReceiveRPCToMock(ApiAndVersion apiKey) throws Exception {
         Response mockResponse = getResponse(apiKey);
-        try (MockServer mockServer = MockServer.startOnRandomPort(mockResponse); KafkaClient kafkaClient = new KafkaClient("127.0.0.1", mockServer.port(), true)) {
+        try (var mockServer = MockServer.startOnRandomPort(mockResponse);
+                var kafkaClient = new KafkaClient("127.0.0.1", mockServer.port())) {
             CompletableFuture<Response> future = kafkaClient.get(getRequest(apiKey));
             Response clientResponse = future.get(10, TimeUnit.SECONDS);
             assertEquals(mockResponse, clientResponse);

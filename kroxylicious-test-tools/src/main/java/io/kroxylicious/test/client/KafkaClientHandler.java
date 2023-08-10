@@ -20,25 +20,15 @@ import io.kroxylicious.test.codec.DecodedResponseFrame;
 
 /**
  * Simple kafka handle capable of sending one or more requests to a server side.
- * <br/>
- * In single-shot mode, the client closes the channel after the response is received.
  */
 public class KafkaClientHandler extends ChannelInboundHandlerAdapter {
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaClientHandler.class);
 
     private final Deque<DecodedRequestFrame<?>> queue = new ConcurrentLinkedDeque<>();
-    private final boolean singleShot;
     private ChannelHandlerContext ctx;
 
     // Read/Mutated by the Netty thread only.
     private boolean channelActivationSeen;
-
-    /**
-     * Creates a KafkaClientHandler
-     */
-    public KafkaClientHandler(boolean singleShot) {
-        this.singleShot = singleShot;
-    }
 
     @Override
     public void channelRegistered(ChannelHandlerContext ctx) {
@@ -51,13 +41,6 @@ public class KafkaClientHandler extends ChannelInboundHandlerAdapter {
         this.channelActivationSeen = true;
         processPendingWrites();
         ctx.fireChannelActive();
-    }
-
-    @Override
-    public void channelRead(ChannelHandlerContext ctx, Object msg) {
-        if (singleShot) {
-            ctx.channel().close();
-        }
     }
 
     @Override

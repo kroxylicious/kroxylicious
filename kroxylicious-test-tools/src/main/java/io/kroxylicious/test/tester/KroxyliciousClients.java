@@ -67,14 +67,9 @@ class KroxyliciousClients {
         return CloseableConsumer.wrap(new KafkaConsumer<>(config, keySerde.deserializer(), valueSerde.deserializer()));
     }
 
-    public KafkaClient singleRequestClient() {
+    public KafkaClient mockRequestClient() {
         String[] hostPort = bootstrapServers.split(":");
-        return new KafkaClient(hostPort[0], Integer.parseInt(hostPort[1]), true);
-    }
-
-    public KafkaClient multiRequestClient() {
-        String[] hostPort = bootstrapServers.split(":");
-        return new KafkaClient(hostPort[0], Integer.parseInt(hostPort[1]), false);
+        return new KafkaClient(hostPort[0], Integer.parseInt(hostPort[1]));
     }
 
     private Map<String, Object> createConfigMap(String bootstrapServers, Map<String, Object> additionalConfig) {

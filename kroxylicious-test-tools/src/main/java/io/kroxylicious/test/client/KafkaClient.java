@@ -57,17 +57,16 @@ public final class KafkaClient implements AutoCloseable {
     /**
      * create empty kafkaClient
      *
-     * @param host        host to connect to
-     * @param port        port to connect to
-     * @param singleShot if true, client will be  a single shot client that allows exactly one request/response.
+     * @param host host to connect to
+     * @param port port to connect to
      */
-    public KafkaClient(String host, int port, boolean singleShot) {
+    public KafkaClient(String host, int port) {
         this.host = host;
         this.port = port;
         this.eventGroupConfig = EventGroupConfig.create();
         bossGroup = eventGroupConfig.newBossGroup();
         correlationManager = new CorrelationManager();
-        kafkaClientHandler = new KafkaClientHandler(singleShot);
+        kafkaClientHandler = new KafkaClientHandler();
     }
 
     private static final AtomicInteger correlationId = new AtomicInteger(1);

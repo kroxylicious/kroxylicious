@@ -39,7 +39,7 @@ public class ApiVersionsIT {
     @Test
     void shouldOfferTheMinimumHighestSupportedVersionWhenBrokerIsAheadOfKroxylicious() {
         try (var tester = mockKafkaKroxyliciousTester(KroxyliciousConfigUtils::proxy);
-                var client = tester.singleRequestClient()) {
+                var client = tester.mockRequestClient()) {
             givenMockRespondsWithApiVersionsForApiKey(tester, ApiKeys.METADATA, ApiKeys.METADATA.oldestVersion(), (short) (ApiKeys.METADATA.latestVersion() + 1));
             Response response = whenGetApiVersionsFromKroxylicious(client);
             assertKroxyliciousResponseOffersApiVersionsForApiKey(response, ApiKeys.METADATA, ApiKeys.METADATA.oldestVersion(), ApiKeys.METADATA.latestVersion());
@@ -49,7 +49,7 @@ public class ApiVersionsIT {
     @Test
     void shouldOfferTheMinimumHighestSupportedVersionWhenKroxyliciousIsAheadOfBroker() {
         try (var tester = mockKafkaKroxyliciousTester(KroxyliciousConfigUtils::proxy);
-                var client = tester.singleRequestClient()) {
+                var client = tester.mockRequestClient()) {
             givenMockRespondsWithApiVersionsForApiKey(tester, ApiKeys.METADATA, ApiKeys.METADATA.oldestVersion(), (short) (ApiKeys.METADATA.latestVersion() - 1));
             Response response = whenGetApiVersionsFromKroxylicious(client);
             assertKroxyliciousResponseOffersApiVersionsForApiKey(response, ApiKeys.METADATA, ApiKeys.METADATA.oldestVersion(),
@@ -60,7 +60,7 @@ public class ApiVersionsIT {
     @Test
     void shouldOfferTheMaximumLowestSupportedVersionWhenBrokerIsAheadOfKroxylicious() {
         try (var tester = mockKafkaKroxyliciousTester(KroxyliciousConfigUtils::proxy);
-                var client = tester.singleRequestClient()) {
+                var client = tester.mockRequestClient()) {
             short brokerOldestVersion = (short) (ApiKeys.METADATA.oldestVersion() + 1);
             givenMockRespondsWithApiVersionsForApiKey(tester, ApiKeys.METADATA, brokerOldestVersion, ApiKeys.METADATA.latestVersion());
             Response response = whenGetApiVersionsFromKroxylicious(client);
@@ -71,7 +71,7 @@ public class ApiVersionsIT {
     @Test
     void shouldOfferTheMaximumLowestSupportedVersionWhenKroxyliciousIsAheadOfBroker() {
         try (var tester = mockKafkaKroxyliciousTester(KroxyliciousConfigUtils::proxy);
-                var client = tester.singleRequestClient()) {
+                var client = tester.mockRequestClient()) {
             short brokerOldestVersion = (short) (ApiKeys.METADATA.oldestVersion() - 1);
             givenMockRespondsWithApiVersionsForApiKey(tester, ApiKeys.METADATA, brokerOldestVersion, ApiKeys.METADATA.latestVersion());
             Response response = whenGetApiVersionsFromKroxylicious(client);
@@ -82,7 +82,7 @@ public class ApiVersionsIT {
     @Test
     void shouldNotOfferBrokerApisThatAreUnknownToKroxy() {
         try (var tester = mockKafkaKroxyliciousTester(KroxyliciousConfigUtils::proxy);
-                var client = tester.singleRequestClient()) {
+                var client = tester.mockRequestClient()) {
             ApiVersionsResponseData mockResponse = new ApiVersionsResponseData();
             ApiVersionsResponseData.ApiVersion version = new ApiVersionsResponseData.ApiVersion();
             version.setApiKey((short) 9999).setMinVersion((short) 3).setMaxVersion((short) 4);
@@ -99,7 +99,7 @@ public class ApiVersionsIT {
     @Test
     void shouldOfferBrokerApisThatAreKnownToKroxy() {
         try (var tester = mockKafkaKroxyliciousTester(KroxyliciousConfigUtils::proxy);
-                var client = tester.singleRequestClient()) {
+                var client = tester.mockRequestClient()) {
             ApiVersionsResponseData mockResponse = new ApiVersionsResponseData();
             for (ApiKeys knownValue : ApiKeys.values()) {
                 ApiVersionsResponseData.ApiVersion version = new ApiVersionsResponseData.ApiVersion();

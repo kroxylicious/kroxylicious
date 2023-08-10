@@ -19,7 +19,7 @@ import io.kroxylicious.test.server.MockServer;
 
 /**
  * A kroxylicious tester for a kroxylicious instance that is proxying a mock kafka broker.
- * <p>When working with a mock broker, use the {@link #singleRequestClient()} or {@link #singleRequestClient(String)}
+ * <p>When working with a mock broker, use the {@link #mockRequestClient()} or {@link #mockRequestClient(String)}
  * methods to interact with the proxy as the {@link MockServer} currently can only mock a single response at a time,
  * it does not mock out any complex broker behaviour such that you could connect a Producer or Consumer to it
  * and see anything useful happen.</p>

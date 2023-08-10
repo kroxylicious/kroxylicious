@@ -199,7 +199,7 @@ class KrpcFilterIT {
                         "forwardingStyle", forwardingStyle)
                 .build();
         try (var tester = mockKafkaKroxyliciousTester((mockBootstrap) -> proxy(mockBootstrap).addToFilters(rejectFilter));
-                var requestClient = tester.multiRequestClient()) {
+                var requestClient = tester.mockRequestClient()) {
 
             if (forwardingStyle == ForwardingStyle.ASYNCHRONOUS_REQUEST_TO_BROKER) {
                 tester.addMockResponseForApiKey(new Response(LIST_GROUPS, LIST_GROUPS.latestVersion(), new ListGroupsResponseData()));
@@ -221,7 +221,6 @@ class KrpcFilterIT {
             await().atMost(Duration.ofSeconds(5))
                     .untilAsserted(() -> assertThat(requestClient.isOpen()).isEqualTo(expectConnectionOpen));
         }
-
     }
 
     /**
@@ -259,8 +258,7 @@ class KrpcFilterIT {
                         "forwardingStyle", forwardingStyle)
                 .build();
         try (var tester = mockKafkaKroxyliciousTester((mockBootstrap) -> proxy(mockBootstrap).addToFilters(markingFilter));
-                var singleRequestClient = tester.singleRequestClient()) {
-
+                var kafkaClient = tester.mockRequestClient()) {
             tester.addMockResponseForApiKey(new Response(LIST_TRANSACTIONS, LIST_TRANSACTIONS.latestVersion(), new ListTransactionsResponseData()));
 
             // In the ASYNCHRONOUS_REQUEST_TO_BROKER case, the filter will send an async list_group
@@ -270,7 +268,8 @@ class KrpcFilterIT {
                 tester.addMockResponseForApiKey(new Response(LIST_GROUPS, LIST_GROUPS.latestVersion(), new ListGroupsResponseData()));
             }
 
-            var response = singleRequestClient.getSync(new Request(LIST_TRANSACTIONS, LIST_TRANSACTIONS.latestVersion(), "client", new ListTransactionsRequestData()));
+            var response = kafkaClient
+                    .getSync(new Request(LIST_TRANSACTIONS, LIST_TRANSACTIONS.latestVersion(), "client", new ListTransactionsRequestData()));
             var requestMessageReceivedByBroker = tester.getOnlyRequestForApiKey(LIST_TRANSACTIONS).message();
             var responseMessageReceivedByClient = response.message();
 
@@ -319,9 +318,9 @@ class KrpcFilterIT {
         try (MockServerKroxyliciousTester tester = mockKafkaKroxyliciousTester((mockBootstrap) -> proxy(mockBootstrap)
                 .addToFilters(new FilterDefinitionBuilder("CompositePrefixingFixedClientId")
                         .withConfig("clientId", "banana", "prefix", "123").build()));
-                var singleRequestClient = tester.singleRequestClient()) {
+                var kafkaClient = tester.mockRequestClient()) {
             tester.addMockResponseForApiKey(new Response(METADATA, METADATA.latestVersion(), new MetadataResponseData()));
-            singleRequestClient.getSync(new Request(METADATA, METADATA.latestVersion(), "client", new MetadataRequestData()));
+            kafkaClient.getSync(new Request(METADATA, METADATA.latestVersion(), "client", new MetadataRequestData()));
             assertEquals("123banana", tester.getOnlyRequest().clientIdHeader());
         }
     }

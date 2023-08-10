@@ -52,9 +52,8 @@ public class OutOfBandRequestIT {
         FilterDefinition outOfBandSender = outOfBandSender(CREATE_TOPICS, FILTER_NAME_TAG);
         // this filter should intercept the out-of-band request and response, it will tag both messages with its name
         FilterDefinition upstreamFilter = addAddUnknownTaggedFieldToMessagesWithApiKey("upstreamOfOutOfBandFilter", CREATE_TOPICS);
-        try (var tester = createMockTesterWithFilters(downstreamFilter, outOfBandSender,
-                upstreamFilter);
-                var client = tester.singleRequestClient()) {
+        try (var tester = createMockTesterWithFilters(downstreamFilter, outOfBandSender, upstreamFilter);
+                var client = tester.mockRequestClient()) {
             givenMockReturnsArbitraryCreateTopicResponse(tester);
             givenMockReturnsArbitraryDescribeClusterResponse(tester);
             DescribeClusterResponseData responseData = whenDescribeCluster(client);
