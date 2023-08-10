@@ -459,7 +459,7 @@ public class FetchFilter implements FetchRequestFilter {
 <1> We construct a new request object.  This will be the asynchronous request.
 <2> We send the request towards the Cluster, specifying the api version to use and obtaining a CompletionStage for the
 response.
-<3> We use CompletionStage chaining to mutate the filtered fetch request using the asynchronous response.
+<3> We use CompletionStage chaining to mutate the filtered fetch request using the response from the request sent at <1>.
 <4> We use CompletionStage chaining to forward the mutated request.
 
 NOTE: Kroxylicious provides the guarantee that the chained stage is completed on the same thread as the rest of the
