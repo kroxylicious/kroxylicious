@@ -5,7 +5,6 @@
  */
 package io.kroxylicious.test.codec;
 
-import org.apache.kafka.common.requests.ProduceRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,7 +38,7 @@ public class KafkaRequestEncoder extends KafkaMessageEncoder<DecodedRequestFrame
     @Override
     protected void encode(ChannelHandlerContext ctx, DecodedRequestFrame frame, ByteBuf out) throws Exception {
         super.encode(ctx, frame, out);
-        if (!(frame.body instanceof ProduceRequest) || ((ProduceRequest) frame.body).acks() != 0) {
+        if (frame.hasResponse()) {
             correlationManager.putBrokerRequest(frame.apiKey().id, frame.apiVersion(), frame.correlationId(), frame.getResponseFuture());
         }
     }

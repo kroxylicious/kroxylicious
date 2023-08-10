@@ -9,6 +9,7 @@ import java.util.concurrent.CompletableFuture;
 
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
+import org.apache.kafka.common.requests.ProduceRequest;
 
 /**
  * A decoded request frame.
@@ -41,5 +42,13 @@ public class DecodedRequestFrame<B extends ApiMessage>
 
     public CompletableFuture<DecodedResponseFrame<?>> getResponseFuture() {
         return responseFuture;
+    }
+
+    /**
+     * Whether the Kafka Client expects a response to this request
+     * @return Whether the Kafka Client expects a response to this request
+     */
+    public boolean hasResponse() {
+        return !(body instanceof ProduceRequest pr && pr.acks() == 0);
     }
 }

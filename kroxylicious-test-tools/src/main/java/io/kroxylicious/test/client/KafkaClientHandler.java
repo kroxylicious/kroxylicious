@@ -9,8 +9,6 @@ import java.util.Deque;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedDeque;
 
-import org.apache.kafka.common.requests.ProduceRequest;
-
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 
@@ -75,7 +73,7 @@ public class KafkaClientHandler extends ChannelInboundHandlerAdapter {
                 while (queue.peek() != null) {
                     DecodedRequestFrame<?> msg = queue.removeFirst();
                     ctx.writeAndFlush(msg).addListener(c -> {
-                        if (msg.body() instanceof ProduceRequest && ((ProduceRequest) msg.body()).acks() == 0) {
+                        if (!msg.hasResponse()) {
                             msg.getResponseFuture().complete(null);
                         }
                     });
