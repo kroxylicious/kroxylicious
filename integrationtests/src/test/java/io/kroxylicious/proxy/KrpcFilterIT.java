@@ -183,7 +183,7 @@ class KrpcFilterIT {
         }
     }
 
-    public static Stream<Arguments> requestFilterCanShortCircuitResponse() {
+    static Stream<Arguments> requestFilterCanShortCircuitResponse() {
         return Stream.of(
                 Arguments.of("synchronous with close", true, ForwardingStyle.SYNCHRONOUS),
                 Arguments.of("synchronous without close", false, ForwardingStyle.SYNCHRONOUS),
@@ -193,7 +193,7 @@ class KrpcFilterIT {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource
-    public void requestFilterCanShortCircuitResponse(String name, boolean closeConnection, ForwardingStyle forwardingStyle) {
+    void requestFilterCanShortCircuitResponse(String name, boolean closeConnection, ForwardingStyle forwardingStyle) {
         var rejectFilter = new FilterDefinitionBuilder("CreateTopicReject")
                 .withConfig("withCloseConnection", closeConnection,
                         "forwardingStyle", forwardingStyle)
@@ -359,7 +359,7 @@ class KrpcFilterIT {
     // zero-ack produce requests require special handling because they have no response associated
     // this checks that Kroxy can handle the basics of forwarding them.
     @Test
-    public void shouldModifyZeroAckProduceMessage(KafkaCluster cluster, Admin admin) throws Exception {
+    void shouldModifyZeroAckProduceMessage(KafkaCluster cluster, Admin admin) throws Exception {
         admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1))).all().get();
 
         var config = proxy(cluster)
@@ -383,7 +383,7 @@ class KrpcFilterIT {
     }
 
     @Test
-    public void shouldForwardUnfilteredZeroAckProduceMessage(KafkaCluster cluster, Admin admin) throws Exception {
+    void shouldForwardUnfilteredZeroAckProduceMessage(KafkaCluster cluster, Admin admin) throws Exception {
         admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1))).all().get();
 
         var config = proxy(cluster);
