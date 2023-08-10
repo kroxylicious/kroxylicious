@@ -652,15 +652,25 @@
                                 </goals>
                                 <configuration>
                                     <rules>
-                                        <requireJavaVersion>
-                                            <version>[${java.version},)</version>
-                                        </requireJavaVersion>
                                         <requirePluginVersions>
                                             <banLatest>true</banLatest>
                                             <banRelease>true</banRelease>
                                             <banSnapshots>false</banSnapshots>
                                             <phases>clean,deploy,site</phases>
                                         </requirePluginVersions>
+                                    </rules>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>enforce-java-versions</id>
+                                <goals>
+                                    <goal>enforce</goal>
+                                </goals>
+                                <configuration>
+                                    <rules>
+                                        <requireJavaVersion>
+                                            <version>[${java.version},)</version>
+                                        </requireJavaVersion>
                                     </rules>
                                 </configuration>
                             </execution>
