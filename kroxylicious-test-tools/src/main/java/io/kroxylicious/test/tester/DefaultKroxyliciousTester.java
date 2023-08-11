@@ -110,13 +110,13 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     }
 
     @Override
-    public KafkaClient mockRequestClient() {
-        return clients().mockRequestClient();
+    public KafkaClient simpleTestClient() {
+        return clients().simpleTestClient();
     }
 
     @Override
-    public KafkaClient mockRequestClient(String virtualCluster) {
-        return clients(virtualCluster).mockRequestClient();
+    public KafkaClient simpleTestClient(String virtualCluster) {
+        return clients(virtualCluster).simpleTestClient();
     }
 
     @Override

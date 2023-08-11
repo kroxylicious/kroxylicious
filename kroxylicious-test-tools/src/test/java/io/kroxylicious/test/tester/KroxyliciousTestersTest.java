@@ -110,15 +110,15 @@ class KroxyliciousTestersTest {
     @Test
     void testMockRequestMockTester() {
         try (var tester = mockKafkaKroxyliciousTester(KroxyliciousConfigUtils::proxy)) {
-            assertCanSendRequestsAndReceiveMockResponses(tester, tester::mockRequestClient);
-            assertCanSendRequestsAndReceiveMockResponses(tester, () -> tester.mockRequestClient(DEFAULT_VIRTUAL_CLUSTER));
+            assertCanSendRequestsAndReceiveMockResponses(tester, tester::simpleTestClient);
+            assertCanSendRequestsAndReceiveMockResponses(tester, () -> tester.simpleTestClient(DEFAULT_VIRTUAL_CLUSTER));
         }
     }
 
     @Test
-    void testMockRequestClientReportsConnectionState() {
+    void testSimpleTestClientReportsConnectionState() {
         try (var tester = mockKafkaKroxyliciousTester(KroxyliciousConfigUtils::proxy);
-                var kafkaClient = tester.mockRequestClient()) {
+                var kafkaClient = tester.simpleTestClient()) {
             assertThat(kafkaClient.isOpen()).isFalse();
 
             var mockResponse = new DescribeAclsResponseData().setErrorMessage("hello").setErrorCode(Errors.UNKNOWN_SERVER_ERROR.code());
@@ -134,7 +134,7 @@ class KroxyliciousTestersTest {
     @Test
     void testIllegalToAskForNonExistentVirtualCluster(KafkaCluster cluster) {
         try (var tester = kroxyliciousTester(proxy(cluster))) {
-            assertThrows(IllegalArgumentException.class, () -> tester.mockRequestClient("NON_EXIST"));
+            assertThrows(IllegalArgumentException.class, () -> tester.simpleTestClient("NON_EXIST"));
             assertThrows(IllegalArgumentException.class, () -> tester.consumer("NON_EXIST"));
             assertThrows(IllegalArgumentException.class, () -> tester.consumer("NON_EXIST", Map.of()));
             assertThrows(IllegalArgumentException.class, () -> tester.consumer("NON_EXIST", Serdes.String(), Serdes.String(), Map.of()));
@@ -153,7 +153,7 @@ class KroxyliciousTestersTest {
         ConfigurationBuilder proxy = addVirtualCluster(clusterBootstrapServers, addVirtualCluster(clusterBootstrapServers, builder, "foo",
                 "localhost:9192"), "bar", "localhost:9296");
         try (var tester = kroxyliciousTester(proxy)) {
-            assertThrows(AmbiguousVirtualClusterException.class, tester::mockRequestClient);
+            assertThrows(AmbiguousVirtualClusterException.class, tester::simpleTestClient);
             assertThrows(AmbiguousVirtualClusterException.class, tester::consumer);
             assertThrows(AmbiguousVirtualClusterException.class, () -> tester.consumer(Map.of()));
             assertThrows(AmbiguousVirtualClusterException.class, () -> tester.consumer(Serdes.String(), Serdes.String(), Map.of()));

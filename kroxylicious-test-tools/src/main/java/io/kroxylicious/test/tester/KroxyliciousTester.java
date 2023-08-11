@@ -197,7 +197,7 @@ public interface KroxyliciousTester extends Closeable {
      * @return KafkaClient
      * @throws AmbiguousVirtualClusterException if this tester is for a Kroxylicious configured with multiple virtual clusters
      */
-    KafkaClient mockRequestClient();
+    KafkaClient simpleTestClient();
 
     /**
      * Creates a Mock Request client configured with the kroxylicious bootstrap server
@@ -207,7 +207,7 @@ public interface KroxyliciousTester extends Closeable {
      * @return KafkaClient
      * @throws IllegalArgumentException if the named virtual cluster is not part of the kroxylicious server
      */
-    KafkaClient mockRequestClient(String virtualCluster);
+    KafkaClient simpleTestClient(String virtualCluster);
 
     /**
      * Close the Kroxylicious server under test and any other resources that need cleaning.

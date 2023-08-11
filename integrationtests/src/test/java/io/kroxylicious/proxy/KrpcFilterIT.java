@@ -199,7 +199,7 @@ class KrpcFilterIT {
                         "forwardingStyle", forwardingStyle)
                 .build();
         try (var tester = mockKafkaKroxyliciousTester((mockBootstrap) -> proxy(mockBootstrap).addToFilters(rejectFilter));
-                var requestClient = tester.mockRequestClient()) {
+                var requestClient = tester.simpleTestClient()) {
 
             if (forwardingStyle == ForwardingStyle.ASYNCHRONOUS_REQUEST_TO_BROKER) {
                 tester.addMockResponseForApiKey(new Response(LIST_GROUPS, LIST_GROUPS.latestVersion(), new ListGroupsResponseData()));
@@ -258,7 +258,7 @@ class KrpcFilterIT {
                         "forwardingStyle", forwardingStyle)
                 .build();
         try (var tester = mockKafkaKroxyliciousTester((mockBootstrap) -> proxy(mockBootstrap).addToFilters(markingFilter));
-                var kafkaClient = tester.mockRequestClient()) {
+                var kafkaClient = tester.simpleTestClient()) {
             tester.addMockResponseForApiKey(new Response(LIST_TRANSACTIONS, LIST_TRANSACTIONS.latestVersion(), new ListTransactionsResponseData()));
 
             // In the ASYNCHRONOUS_REQUEST_TO_BROKER case, the filter will send an async list_group
@@ -318,7 +318,7 @@ class KrpcFilterIT {
         try (MockServerKroxyliciousTester tester = mockKafkaKroxyliciousTester((mockBootstrap) -> proxy(mockBootstrap)
                 .addToFilters(new FilterDefinitionBuilder("CompositePrefixingFixedClientId")
                         .withConfig("clientId", "banana", "prefix", "123").build()));
-                var kafkaClient = tester.mockRequestClient()) {
+                var kafkaClient = tester.simpleTestClient()) {
             tester.addMockResponseForApiKey(new Response(METADATA, METADATA.latestVersion(), new MetadataResponseData()));
             kafkaClient.getSync(new Request(METADATA, METADATA.latestVersion(), "client", new MetadataRequestData()));
             assertEquals("123banana", tester.getOnlyRequest().clientIdHeader());
