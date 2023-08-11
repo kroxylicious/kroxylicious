@@ -166,7 +166,10 @@ public class FilterHandler extends ChannelDuplexHandler {
         var future = stage.toCompletableFuture();
         boolean defer = !future.isDone();
         var maybeDeferred = defer ? handleDeferredStage(decodedFrame, future) : future;
-        var filterHandled = maybeDeferred.whenComplete((fr, t) -> handleResponseFilterResult(decodedFrame, fr, t));
+        var filterHandled = maybeDeferred
+                .thenApply(FilterHandler::validateFilterResultNonNull)
+                .thenApply(fr -> handleResponseFilterResult(decodedFrame, fr))
+                .exceptionally(t -> handleFilteringException(t, decodedFrame));
         var maybeDeferredCompleted = defer ? handleDeferredReadCompletion(filterHandled) : filterHandled;
         return maybeDeferredCompleted.thenApply(responseFilterResult -> null);
     }
@@ -191,34 +194,21 @@ public class FilterHandler extends ChannelDuplexHandler {
         var future = stage.toCompletableFuture();
         boolean defer = !future.isDone();
         var maybeDeferred = defer ? handleDeferredStage(decodedFrame, future) : future;
-        var filterHandled = maybeDeferred.whenComplete((fr, t) -> handleRequestFilterResult(decodedFrame, promise, fr, t));
+        var filterHandled = maybeDeferred
+                .thenApply(FilterHandler::validateFilterResultNonNull)
+                .thenApply(fr -> handleRequestFilterResult(decodedFrame, promise, fr))
+                .exceptionally(t -> handleFilteringException(t, decodedFrame));
         var maybeDeferredCompleted = defer ? handleDeferredWriteCompletion(filterHandled) : filterHandled;
         return maybeDeferredCompleted.thenApply(filterResult -> null);
     }
 
-    private void handleResponseFilterResult(DecodedResponseFrame<?> decodedFrame, ResponseFilterResult responseFilterResult, Throwable t) {
-        if (t != null) {
-            if (LOGGER.isWarnEnabled()) {
-                LOGGER.warn("{}: Filter{} for {} response ended exceptionally - closing connection",
-                        channelDescriptor(), filterDescriptor(), decodedFrame.apiKey(), t);
-            }
-            closeConnection();
-            return;
-        }
-        if (responseFilterResult == null) {
-            if (LOGGER.isWarnEnabled()) {
-                LOGGER.warn("{}: Filter{} for {} response future completed with null - closing connection",
-                        channelDescriptor(), filterDescriptor(), decodedFrame.apiKey());
-            }
-            closeConnection();
-            return;
-        }
+    private ResponseFilterResult handleResponseFilterResult(DecodedResponseFrame<?> decodedFrame, ResponseFilterResult responseFilterResult) {
         if (responseFilterResult.drop()) {
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug("{}: Filter{} drops {} response",
                         channelDescriptor(), filterDescriptor(), decodedFrame.apiKey());
             }
-            return;
+            return responseFilterResult;
         }
 
         if (responseFilterResult.message() != null) {
@@ -229,32 +219,16 @@ public class FilterHandler extends ChannelDuplexHandler {
         if (responseFilterResult.closeConnection()) {
             closeConnection();
         }
+        return responseFilterResult;
     }
 
-    private void handleRequestFilterResult(DecodedRequestFrame<?> decodedFrame, ChannelPromise promise, RequestFilterResult requestFilterResult, Throwable t) {
-        if (t != null) {
-            if (LOGGER.isWarnEnabled()) {
-                LOGGER.warn("{}: Filter{} for {} request ended exceptionally - closing connection",
-                        channelDescriptor(), filterDescriptor(), decodedFrame.apiKey(), t);
-            }
-            closeConnection();
-            return;
-        }
-        if (requestFilterResult == null) {
-            if (LOGGER.isWarnEnabled()) {
-                LOGGER.warn("{}: Filter{} for {} request future completed with null - closing connection",
-                        channelDescriptor(), filterDescriptor(), decodedFrame.apiKey());
-            }
-            closeConnection();
-            return;
-        }
-
+    private RequestFilterResult handleRequestFilterResult(DecodedRequestFrame<?> decodedFrame, ChannelPromise promise, RequestFilterResult requestFilterResult) {
         if (requestFilterResult.drop()) {
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug("{}: Filter{} drops {} request",
                         channelDescriptor(), filterDescriptor(), decodedFrame.apiKey());
             }
-            return;
+            return requestFilterResult;
         }
 
         if (requestFilterResult.message() != null) {
@@ -272,10 +246,20 @@ public class FilterHandler extends ChannelDuplexHandler {
             }
             closeConnection();
         }
-
+        return requestFilterResult;
     }
 
-    private <T extends FilterResult> CompletableFuture<T> handleDeferredStage(DecodedFrame<?, ?> decodedFrame, CompletableFuture<T> future) {
+    private <F extends FilterResult> F handleFilteringException(Throwable t, DecodedFrame<?, ?> decodedFrame) {
+        if (LOGGER.isWarnEnabled()) {
+            var direction = decodedFrame.header() instanceof RequestHeaderData ? "request" : "response";
+            LOGGER.warn("{}: Filter{} for {} {} ended exceptionally - closing connection",
+                    channelDescriptor(), direction, filterDescriptor(), decodedFrame.apiKey(), t);
+        }
+        closeConnection();
+        return null;
+    }
+
+    private <F extends FilterResult> CompletableFuture<F> handleDeferredStage(DecodedFrame<?, ?> decodedFrame, CompletableFuture<F> future) {
         inboundChannel.config().setAutoRead(false);
         var timeoutFuture = ctx.executor().schedule(() -> {
             if (LOGGER.isWarnEnabled()) {
@@ -397,6 +381,12 @@ public class FilterHandler extends ChannelDuplexHandler {
         }
         CompletableFuture<ApiMessage> p = decodedFrame.promise();
         p.complete(decodedFrame.body());
+    }
+
+    private static <F extends FilterResult> F validateFilterResultNonNull(F f) {
+        return Objects.requireNonNullElseGet(f, () -> {
+            throw new IllegalStateException("filter completion must not yield a null result");
+        });
     }
 
     private class InternalFilterContext implements KrpcFilterContext {

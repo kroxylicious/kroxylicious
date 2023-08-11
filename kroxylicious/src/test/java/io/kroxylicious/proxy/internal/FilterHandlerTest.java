@@ -113,8 +113,7 @@ public class FilterHandlerTest extends FilterHarness {
 
         DecodedResponseFrame<?> propagated = channel.readInbound();
         assertThat(propagated).isNull();
-        // Defect https://github.com/kroxylicious/kroxylicious/issues/543
-        // assertThat(channel.isOpen()).isFalse();
+        assertThat(channel.isOpen()).isFalse();
     }
 
     @Test
