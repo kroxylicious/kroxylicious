@@ -38,8 +38,9 @@ public class KafkaRequestEncoder extends KafkaMessageEncoder<DecodedRequestFrame
     @Override
     protected void encode(ChannelHandlerContext ctx, DecodedRequestFrame frame, ByteBuf out) throws Exception {
         super.encode(ctx, frame, out);
-        // not sure if this testing client needs to know that acks=0 produce requests don't get responses
-        correlationManager.putBrokerRequest(frame.apiKey().id, frame.apiVersion(), frame.correlationId());
+        if (frame.hasResponse()) {
+            correlationManager.putBrokerRequest(frame.apiKey().id, frame.apiVersion(), frame.correlationId(), frame.getResponseFuture());
+        }
     }
 
 }

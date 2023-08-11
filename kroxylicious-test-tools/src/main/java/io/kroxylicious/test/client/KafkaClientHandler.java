@@ -5,9 +5,13 @@
  */
 package io.kroxylicious.test.client;
 
+import java.util.Deque;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedDeque;
 
-import io.netty.channel.ChannelFutureListener;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 
@@ -15,29 +19,28 @@ import io.kroxylicious.test.codec.DecodedRequestFrame;
 import io.kroxylicious.test.codec.DecodedResponseFrame;
 
 /**
- * Sends a single request frame, waits for a response then closes the channel
+ * Simple kafka handle capable of sending one or more requests to a server side.
  */
 public class KafkaClientHandler extends ChannelInboundHandlerAdapter {
-    private final DecodedRequestFrame<?> decodedRequestFrame;
-    private final CompletableFuture<DecodedResponseFrame<?>> onResponse = new CompletableFuture<>();
+    private static final Logger LOGGER = LoggerFactory.getLogger(KafkaClientHandler.class);
 
-    /**
-     * Creates a KafkaClientHandler
-     * @param decodedRequestFrame the single request to send
-     */
-    public KafkaClientHandler(DecodedRequestFrame<?> decodedRequestFrame) {
-        this.decodedRequestFrame = decodedRequestFrame;
+    private final Deque<DecodedRequestFrame<?>> queue = new ConcurrentLinkedDeque<>();
+    private ChannelHandlerContext ctx;
+
+    // Read/Mutated by the Netty thread only.
+    private boolean channelActivationSeen;
+
+    @Override
+    public void channelRegistered(ChannelHandlerContext ctx) {
+        this.ctx = ctx;
+        ctx.fireChannelRegistered();
     }
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) {
-        ctx.writeAndFlush(decodedRequestFrame);
-    }
-
-    @Override
-    public void channelRead(ChannelHandlerContext ctx, Object msg) {
-        onResponse.complete((DecodedResponseFrame<?>) msg);
-        ctx.write(msg).addListener(ChannelFutureListener.CLOSE);
+        this.channelActivationSeen = true;
+        processPendingWrites();
+        ctx.fireChannelActive();
     }
 
     @Override
@@ -47,15 +50,46 @@ public class KafkaClientHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-        cause.printStackTrace();
+        LOGGER.warn("Kafka test client received unexpected exception, closing connection.", cause);
         ctx.close();
     }
 
     /**
-     * A future that is completed when the response is received
-     * @return on response future
+     * Sends a request frame.  If the channel is not yet active, the request is queued up until it
+     * is.
+     * <br/>
+     * The response to the request is returned by the future. If the request has no response the
+     * future will complete once the request is sent and yield a null value.
+     *
+     * @param decodedRequestFrame request frame to send
+     * @return future that will yield the response.
      */
-    public CompletableFuture<DecodedResponseFrame<?>> getOnResponseFuture() {
-        return onResponse;
+    public CompletableFuture<DecodedResponseFrame<?>> sendRequest(DecodedRequestFrame<?> decodedRequestFrame) {
+        queue.addLast(decodedRequestFrame);
+        processPendingWrites();
+        return decodedRequestFrame.getResponseFuture();
     }
+
+    private void processPendingWrites() {
+        ctx.executor().execute(() -> {
+            if (!channelActivationSeen) {
+                return;
+            }
+
+            while (queue.peek() != null) {
+                var msg = queue.removeFirst();
+                ctx.writeAndFlush(msg).addListener(c -> {
+                    var responseFuture = msg.getResponseFuture();
+                    if (c.cause() != null) {
+                        // I/O failed etc
+                        responseFuture.completeExceptionally(c.cause());
+                    }
+                    else if (!msg.hasResponse()) {
+                        responseFuture.complete(null);
+                    }
+                });
+            }
+        });
+    }
+
 }

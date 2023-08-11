@@ -9,10 +9,14 @@ package io.kroxylicious.test.client;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.kafka.common.message.RequestHeaderData;
 
 import io.netty.bootstrap.Bootstrap;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
@@ -43,11 +47,16 @@ public final class KafkaClient implements AutoCloseable {
     private final String host;
     private final int port;
 
+    private final AtomicReference<CompletableFuture<Channel>> connected = new AtomicReference<>();
+
     private final EventGroupConfig eventGroupConfig;
     private final EventLoopGroup bossGroup;
+    private final CorrelationManager correlationManager;
+    private final KafkaClientHandler kafkaClientHandler;
 
     /**
      * create empty kafkaClient
+     *
      * @param host host to connect to
      * @param port port to connect to
      */
@@ -56,6 +65,8 @@ public final class KafkaClient implements AutoCloseable {
         this.port = port;
         this.eventGroupConfig = EventGroupConfig.create();
         bossGroup = eventGroupConfig.newBossGroup();
+        correlationManager = new CorrelationManager();
+        kafkaClientHandler = new KafkaClientHandler();
     }
 
     private static final AtomicInteger correlationId = new AtomicInteger(1);
@@ -79,25 +90,12 @@ public final class KafkaClient implements AutoCloseable {
      */
     public CompletableFuture<Response> get(Request request) {
         DecodedRequestFrame<?> decodedRequestFrame = toApiRequest(request);
-        CorrelationManager correlationManager = new CorrelationManager();
-        KafkaClientHandler kafkaClientHandler = new KafkaClientHandler(decodedRequestFrame);
-        Bootstrap b = new Bootstrap();
-        b.group(bossGroup)
-                .channel(eventGroupConfig.clientChannelClass())
-                .option(ChannelOption.TCP_NODELAY, true)
-                .handler(new ChannelInitializer<SocketChannel>() {
-                    @Override
-                    public void initChannel(SocketChannel ch) {
-                        ChannelPipeline p = ch.pipeline();
-                        p.addLast(new KafkaRequestEncoder(correlationManager));
-                        p.addLast(new KafkaResponseDecoder(correlationManager));
-                        p.addLast(kafkaClientHandler);
-                    }
-                });
 
-        b.connect(host, port);
-        CompletableFuture<DecodedResponseFrame<?>> onResponseFuture = kafkaClientHandler.getOnResponseFuture();
-        return onResponseFuture.thenApply(KafkaClient::toResponse);
+        return ensureChannel(correlationManager, kafkaClientHandler)
+                .thenApply(KafkaClient::checkChannelOpen)
+                .thenCompose(u -> kafkaClientHandler.sendRequest(decodedRequestFrame))
+                .thenApply(KafkaClient::toResponse);
+
     }
 
     public Response getSync(Request request) {
@@ -113,12 +111,61 @@ public final class KafkaClient implements AutoCloseable {
         }
     }
 
-    private static Response toResponse(DecodedResponseFrame<?> decodedResponseFrame) {
-        return new Response(decodedResponseFrame.apiKey(), decodedResponseFrame.apiVersion(), decodedResponseFrame.body());
+    private CompletableFuture<Channel> ensureChannel(CorrelationManager correlationManager, KafkaClientHandler kafkaClientHandler) {
+        var candidate = new CompletableFuture<Channel>();
+        if (connected.compareAndSet(null, candidate)) {
+            Bootstrap b = new Bootstrap();
+            b.group(bossGroup)
+                    .channel(eventGroupConfig.clientChannelClass())
+                    .option(ChannelOption.TCP_NODELAY, true)
+                    .handler(new ChannelInitializer<SocketChannel>() {
+                        @Override
+                        public void initChannel(SocketChannel ch) {
+                            ChannelPipeline p = ch.pipeline();
+                            p.addLast(new KafkaRequestEncoder(correlationManager));
+                            p.addLast(new KafkaResponseDecoder(correlationManager));
+                            p.addLast(kafkaClientHandler);
+                        }
+                    });
+
+            ChannelFuture connect = b.connect(host, port);
+            connect.addListeners((ChannelFutureListener) channelFuture -> candidate.complete(channelFuture.channel()));
+            return candidate;
+        }
+        else {
+            return connected.get();
+        }
+    }
+
+    public boolean isOpen() {
+        CompletableFuture<Channel> channelCompletableFuture = connected.get();
+        if (channelCompletableFuture == null) {
+            return false;
+        }
+        else {
+            Channel now = channelCompletableFuture.getNow(null);
+            return now != null && now.isOpen();
+        }
     }
 
     @Override
     public void close() {
+        CompletableFuture<Channel> channelCompletableFuture = connected.get();
+        if (channelCompletableFuture != null) {
+            channelCompletableFuture.thenApply(Channel::close);
+        }
         bossGroup.shutdownGracefully();
     }
+
+    private static Channel checkChannelOpen(Channel c) {
+        if (!c.isOpen()) {
+            throw new RuntimeException("Channel is already closed");
+        }
+        return c;
+    }
+
+    private static Response toResponse(DecodedResponseFrame<?> decodedResponseFrame) {
+        return new Response(decodedResponseFrame.apiKey(), decodedResponseFrame.apiVersion(), decodedResponseFrame.body());
+    }
+
 }

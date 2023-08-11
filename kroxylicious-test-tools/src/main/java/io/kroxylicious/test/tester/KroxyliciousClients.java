@@ -67,7 +67,7 @@ class KroxyliciousClients {
         return CloseableConsumer.wrap(new KafkaConsumer<>(config, keySerde.deserializer(), valueSerde.deserializer()));
     }
 
-    public KafkaClient singleRequestClient() {
+    public KafkaClient simpleTestClient() {
         String[] hostPort = bootstrapServers.split(":");
         return new KafkaClient(hostPort[0], Integer.parseInt(hostPort[1]));
     }
@@ -78,4 +78,5 @@ class KroxyliciousClients {
         config.putAll(additionalConfig);
         return config;
     }
+
 }

@@ -54,7 +54,7 @@ public class KafkaResponseDecoder extends KafkaMessageDecoder {
             LOGGER.debug("{}: Recovered correlation {} for upstream correlation id {}", ctx, correlation, correlationId);
         }
 
-        final Frame frame;
+        final DecodedResponseFrame<?> frame;
         ApiKeys apiKey = ApiKeys.forId(correlation.apiKey());
         short apiVersion = correlation.apiVersion();
         var accessor = new ByteBufAccessorImpl(in);
@@ -65,6 +65,7 @@ public class KafkaResponseDecoder extends KafkaMessageDecoder {
         ApiMessage body = BodyDecoder.decodeResponse(apiKey, apiVersion, accessor);
         log().trace("{}: Body: {}", ctx, body);
         frame = new DecodedResponseFrame<>(apiVersion, correlationId, header, body);
+        correlation.responseFuture().complete(frame);
         return frame;
     }
 

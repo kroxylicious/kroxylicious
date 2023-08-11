@@ -11,9 +11,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 
 import org.apache.kafka.clients.consumer.Consumer;
@@ -23,10 +21,10 @@ import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.common.message.ApiVersionsRequestData;
-import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.DescribeAclsRequestData;
 import org.apache.kafka.common.message.DescribeAclsResponseData;
+import org.apache.kafka.common.message.ListTransactionsRequestData;
+import org.apache.kafka.common.message.ListTransactionsResponseData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.serialization.Serdes;
@@ -49,11 +47,11 @@ import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.DEFAULT_VIRTUA
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.mockKafkaKroxyliciousTester;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.fail;
 
 @ExtendWith(KafkaClusterExtension.class)
 class KroxyliciousTestersTest {
@@ -61,14 +59,11 @@ class KroxyliciousTestersTest {
     public static final String TOPIC = "example";
 
     @Test
-    void testAdminMethods(KafkaCluster cluster) {
+    void testAdminMethods(KafkaCluster cluster) throws Exception {
         try (var tester = kroxyliciousTester(proxy(cluster))) {
             assertNotNull(tester.admin().describeCluster().clusterId().get(10, TimeUnit.SECONDS));
             assertNotNull(tester.admin(Map.of()).describeCluster().clusterId().get(10, TimeUnit.SECONDS));
             assertNotNull(tester.admin(DEFAULT_VIRTUAL_CLUSTER, Map.of()).describeCluster().clusterId().get(10, TimeUnit.SECONDS));
-        }
-        catch (Exception e) {
-            fail("unexpected exception", e);
         }
     }
 
@@ -85,9 +80,6 @@ class KroxyliciousTestersTest {
             withConsumer(() -> tester.consumer(DEFAULT_VIRTUAL_CLUSTER, Serdes.String(), Serdes.String(), randomGroupIdAndEarliestReset()),
                     KroxyliciousTestersTest::assertOneRecordConsumedFrom);
         }
-        catch (Exception e) {
-            fail("unexpected exception", e);
-        }
     }
 
     private void withConsumer(Supplier<Consumer<String, String>> supplier, java.util.function.Consumer<Consumer<String, String>> consumerFunc) {
@@ -97,7 +89,7 @@ class KroxyliciousTestersTest {
     }
 
     @Test
-    void testProducerMethods(KafkaCluster cluster) {
+    void testProducerMethods(KafkaCluster cluster) throws Exception {
         try (var tester = kroxyliciousTester(proxy(cluster))) {
             send(tester.producer());
             send(tester.producer(Map.of()));
@@ -113,37 +105,36 @@ class KroxyliciousTestersTest {
             int recordCount = consumer.poll(Duration.ofSeconds(10)).count();
             assertEquals(6, recordCount);
         }
-        catch (Exception e) {
-            fail("unexpected exception", e);
-        }
     }
 
     @Test
-    void testSingleRequestClient(KafkaCluster cluster) {
-        try (var tester = kroxyliciousTester(proxy(cluster))) {
-            assertCanSendSingleRequestAndGetResponse(tester.singleRequestClient());
-            assertCanSendSingleRequestAndGetResponse(tester.singleRequestClient(DEFAULT_VIRTUAL_CLUSTER));
-        }
-        catch (Exception e) {
-            fail("unexpected exception", e);
-        }
-    }
-
-    @Test
-    void testMockTester() {
+    void testMockRequestMockTester() {
         try (var tester = mockKafkaKroxyliciousTester(KroxyliciousConfigUtils::proxy)) {
-            assertCanSendSingleRequestAndReceiveMockMessage(tester, tester.singleRequestClient());
-            assertCanSendSingleRequestAndReceiveMockMessage(tester, tester.singleRequestClient(DEFAULT_VIRTUAL_CLUSTER));
-        }
-        catch (Exception e) {
-            fail("unexpected exception", e);
+            assertCanSendRequestsAndReceiveMockResponses(tester, tester::simpleTestClient);
+            assertCanSendRequestsAndReceiveMockResponses(tester, () -> tester.simpleTestClient(DEFAULT_VIRTUAL_CLUSTER));
         }
     }
 
     @Test
-    void testIllegalToAskForNonExistantVirtualCluster(KafkaCluster cluster) {
+    void testSimpleTestClientReportsConnectionState() {
+        try (var tester = mockKafkaKroxyliciousTester(KroxyliciousConfigUtils::proxy);
+                var kafkaClient = tester.simpleTestClient()) {
+            assertThat(kafkaClient.isOpen()).isFalse();
+
+            var mockResponse = new DescribeAclsResponseData().setErrorMessage("hello").setErrorCode(Errors.UNKNOWN_SERVER_ERROR.code());
+            tester.addMockResponseForApiKey(new Response(ApiKeys.DESCRIBE_ACLS, ApiKeys.DESCRIBE_ACLS.latestVersion(), mockResponse));
+
+            var response = kafkaClient
+                    .getSync(new Request(ApiKeys.DESCRIBE_ACLS, ApiKeys.DESCRIBE_ACLS.latestVersion(), "client", new DescribeAclsRequestData()));
+            assertThat(response.message()).isEqualTo(mockResponse);
+            assertThat(kafkaClient.isOpen()).isTrue();
+        }
+    }
+
+    @Test
+    void testIllegalToAskForNonExistentVirtualCluster(KafkaCluster cluster) {
         try (var tester = kroxyliciousTester(proxy(cluster))) {
-            assertThrows(IllegalArgumentException.class, () -> tester.singleRequestClient("NON_EXIST"));
+            assertThrows(IllegalArgumentException.class, () -> tester.simpleTestClient("NON_EXIST"));
             assertThrows(IllegalArgumentException.class, () -> tester.consumer("NON_EXIST"));
             assertThrows(IllegalArgumentException.class, () -> tester.consumer("NON_EXIST", Map.of()));
             assertThrows(IllegalArgumentException.class, () -> tester.consumer("NON_EXIST", Serdes.String(), Serdes.String(), Map.of()));
@@ -152,9 +143,6 @@ class KroxyliciousTestersTest {
             assertThrows(IllegalArgumentException.class, () -> tester.producer("NON_EXIST", Serdes.String(), Serdes.String(), Map.of()));
             assertThrows(IllegalArgumentException.class, () -> tester.admin("NON_EXIST"));
             assertThrows(IllegalArgumentException.class, () -> tester.admin("NON_EXIST", Map.of()));
-        }
-        catch (Exception e) {
-            fail("unexpected exception", e);
         }
     }
 
@@ -165,7 +153,7 @@ class KroxyliciousTestersTest {
         ConfigurationBuilder proxy = addVirtualCluster(clusterBootstrapServers, addVirtualCluster(clusterBootstrapServers, builder, "foo",
                 "localhost:9192"), "bar", "localhost:9296");
         try (var tester = kroxyliciousTester(proxy)) {
-            assertThrows(AmbiguousVirtualClusterException.class, tester::singleRequestClient);
+            assertThrows(AmbiguousVirtualClusterException.class, tester::simpleTestClient);
             assertThrows(AmbiguousVirtualClusterException.class, tester::consumer);
             assertThrows(AmbiguousVirtualClusterException.class, () -> tester.consumer(Map.of()));
             assertThrows(AmbiguousVirtualClusterException.class, () -> tester.consumer(Serdes.String(), Serdes.String(), Map.of()));
@@ -174,9 +162,6 @@ class KroxyliciousTestersTest {
             assertThrows(AmbiguousVirtualClusterException.class, () -> tester.producer(Serdes.String(), Serdes.String(), Map.of()));
             assertThrows(AmbiguousVirtualClusterException.class, tester::admin);
             assertThrows(AmbiguousVirtualClusterException.class, () -> tester.admin(Map.of()));
-        }
-        catch (Exception e) {
-            fail("unexpected exception", e);
         }
     }
 
@@ -192,24 +177,28 @@ class KroxyliciousTestersTest {
                 .build());
     }
 
-    private static void assertCanSendSingleRequestAndReceiveMockMessage(MockServerKroxyliciousTester tester, KafkaClient kafkaClient) {
-        DescribeAclsResponseData data = new DescribeAclsResponseData();
-        data.setErrorMessage("helllo");
-        data.setErrorCode(Errors.UNKNOWN_SERVER_ERROR.code());
-        tester.addMockResponseForApiKey(new Response(ApiKeys.DESCRIBE_ACLS, ApiKeys.DESCRIBE_ACLS.latestVersion(), data));
-        Response response = kafkaClient
-                .getSync(new Request(ApiKeys.DESCRIBE_ACLS, ApiKeys.DESCRIBE_ACLS.latestVersion(), "client", new DescribeAclsRequestData()));
-        assertInstanceOf(DescribeAclsResponseData.class, response.message());
-        assertEquals(data, response.message());
+    private static void assertCanSendRequestsAndReceiveMockResponses(MockServerKroxyliciousTester tester, Supplier<KafkaClient> kafkaClientSupplier) {
+        try (var kafkaClient = kafkaClientSupplier.get()) {
+            var mockResponse1 = new DescribeAclsResponseData().setErrorMessage("hello").setErrorCode(Errors.UNKNOWN_SERVER_ERROR.code());
+            tester.addMockResponseForApiKey(new Response(ApiKeys.DESCRIBE_ACLS, ApiKeys.DESCRIBE_ACLS.latestVersion(), mockResponse1));
+
+            var mockResponse2 = new ListTransactionsResponseData().setErrorCode(Errors.UNKNOWN_SERVER_ERROR.code());
+            tester.addMockResponseForApiKey(new Response(ApiKeys.LIST_TRANSACTIONS, ApiKeys.LIST_TRANSACTIONS.latestVersion(), mockResponse2));
+
+            var response1 = kafkaClient
+                    .getSync(new Request(ApiKeys.DESCRIBE_ACLS, ApiKeys.DESCRIBE_ACLS.latestVersion(), "client", new DescribeAclsRequestData()));
+            assertThat(response1.message()).isInstanceOf(DescribeAclsResponseData.class);
+            assertThat(response1.message()).isEqualTo(mockResponse1);
+
+            var response2 = kafkaClient
+                    .getSync(new Request(ApiKeys.LIST_TRANSACTIONS, ApiKeys.LIST_TRANSACTIONS.latestVersion(), "client", new ListTransactionsRequestData()));
+            assertInstanceOf(ListTransactionsResponseData.class, response2.message());
+            assertThat(response2.message()).isInstanceOf(ListTransactionsResponseData.class);
+            assertThat(response2.message()).isEqualTo(mockResponse2);
+        }
     }
 
-    private static void assertCanSendSingleRequestAndGetResponse(KafkaClient kafkaClient) {
-        Response response = kafkaClient
-                .getSync(new Request(ApiKeys.API_VERSIONS, ApiKeys.API_VERSIONS.latestVersion(), "client", new ApiVersionsRequestData()));
-        assertInstanceOf(ApiVersionsResponseData.class, response.message());
-    }
-
-    private static void send(Producer<String, String> producer) throws InterruptedException, ExecutionException, TimeoutException {
+    private static void send(Producer<String, String> producer) throws Exception {
         producer.send(new ProducerRecord<>(TOPIC, "key", "value")).get(10, TimeUnit.SECONDS);
     }
 

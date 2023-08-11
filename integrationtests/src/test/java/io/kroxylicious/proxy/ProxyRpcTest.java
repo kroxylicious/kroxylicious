@@ -73,7 +73,7 @@ public class ProxyRpcTest {
     @ParameterizedTest
     void testKroxyliciousCanDecodeManipulateAndProxyRPC(Scenario scenario) {
         mockTester.addMockResponseForApiKey(scenario.givenMockResponse());
-        try (KafkaClient kafkaClient = mockTester.singleRequestClient()) {
+        try (KafkaClient kafkaClient = mockTester.simpleTestClient()) {
             Response response = kafkaClient.getSync(scenario.whenSendRequest());
             assertEquals(scenario.thenMockReceivesRequest(), mockTester.getOnlyRequest(), "unexpected request received at mock for scenario: " + scenario.name());
             assertEquals(scenario.thenResponseReceived(), response, "unexpected response received from kroxylicious for scenario: " + scenario.name());

@@ -191,23 +191,23 @@ public interface KroxyliciousTester extends Closeable {
     <U, V> Consumer<U, V> consumer(String virtualCluster, Serde<U> keySerde, Serde<V> valueSerde, Map<String, Object> additionalConfig);
 
     /**
-     * Creates a Single Request client configured with the kroxylicious bootstrap server
-     * for the only virtual cluster configured. This client can be used to send a single
-     * ApiMessage to kroxilicious and receive a single response ApiMessage.
+     * Creates a Mock Request client configured with the kroxylicious bootstrap server
+     * for the only virtual cluster configured. This client can be used to send multiple
+     * ApiMessage to kroxilicious and receive many ApiMessage responses.
      * @return KafkaClient
      * @throws AmbiguousVirtualClusterException if this tester is for a Kroxylicious configured with multiple virtual clusters
      */
-    KafkaClient singleRequestClient();
+    KafkaClient simpleTestClient();
 
     /**
-     * Creates a Single Request client configured with the kroxylicious bootstrap server
-     * for a specific virtual cluster. This client can be used to send a single
-     * ApiMessage to kroxilicious and receive a single response ApiMessage.
+     * Creates a Mock Request client configured with the kroxylicious bootstrap server
+     * for a specific virtual cluster. This client can be used to send multiple
+     * ApiMessage to kroxilicious and receive many ApiMessage responses.
      * @param virtualCluster the virtual cluster we want the client to connect to
      * @return KafkaClient
      * @throws IllegalArgumentException if the named virtual cluster is not part of the kroxylicious server
      */
-    KafkaClient singleRequestClient(String virtualCluster);
+    KafkaClient simpleTestClient(String virtualCluster);
 
     /**
      * Close the Kroxylicious server under test and any other resources that need cleaning.
