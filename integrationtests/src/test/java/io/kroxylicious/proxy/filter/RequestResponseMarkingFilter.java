@@ -54,25 +54,25 @@ public class RequestResponseMarkingFilter implements RequestFilter, ResponseFilt
     }
 
     @Override
-    public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
+    public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage body, KrpcFilterContext context) {
         if (!(direction.contains(Direction.REQUEST) && keysToMark.contains(apiKey))) {
-            return filterContext.forwardRequest(header, body);
+            return context.forwardRequest(header, body);
         }
 
-        return forwardingStyle.apply(filterContext, body)
+        return forwardingStyle.apply(context, body)
                 .thenApply(request -> applyTaggedField(request, Direction.REQUEST, name))
-                .thenCompose(taggedRequest -> filterContext.forwardRequest(header, taggedRequest));
+                .thenCompose(taggedRequest -> context.forwardRequest(header, taggedRequest));
     }
 
     @Override
-    public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, ResponseHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
+    public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, ResponseHeaderData header, ApiMessage response, KrpcFilterContext context) {
         if (!(direction.contains(Direction.RESPONSE) && keysToMark.contains(apiKey))) {
-            return filterContext.forwardResponse(header, body);
+            return context.forwardResponse(header, response);
         }
 
-        return forwardingStyle.apply(filterContext, body)
+        return forwardingStyle.apply(context, response)
                 .thenApply(request -> applyTaggedField(request, Direction.RESPONSE, name))
-                .thenCompose(taggedRequest -> filterContext.forwardResponse(header, taggedRequest));
+                .thenCompose(taggedRequest -> context.forwardResponse(header, taggedRequest));
     }
 
     private ApiMessage applyTaggedField(ApiMessage body, Direction direction, String name) {
