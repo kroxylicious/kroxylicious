@@ -9,7 +9,7 @@ FROM registry.access.redhat.com/ubi9/openjdk-17:1.15 AS builder
 USER root
 WORKDIR /opt/kroxylicious
 COPY . .
-RUN ./mvnw -B clean verify -Pdist,withAdditionalFilters -Dquick -pl :kroxylicious-bom,:kroxylicious -am
+RUN ./mvnw -B clean verify -Pdist,withAdditionalFilters -Dquick -pl :kroxylicious-bom,:kroxylicious-app -am
 USER 185
 FROM registry.access.redhat.com/ubi9/ubi-minimal:9.2
 
@@ -51,6 +51,6 @@ RUN set -ex; \
         echo "${TINI_SHA256_AMD64} */usr/bin/tini" | sha256sum -c; \
         chmod +x /usr/bin/tini; \
     fi
-COPY --from=builder /opt/kroxylicious/kroxylicious/target/libs /opt/kroxylicious/libs
-COPY --from=builder /opt/kroxylicious/kroxylicious/target/kroxylicious-${KROXYLICIOUS_VERSION}.jar /opt/kroxylicious/kroxylicious.jar
-ENTRYPOINT ["/usr/bin/tini", "--", "java", "-cp", "/opt/kroxylicious/kroxylicious.jar:/opt/kroxylicious/libs/*:/opt/kroxylicious/user-libs/*", "io.kroxylicious.proxy.Kroxylicious"]
+COPY --from=builder /opt/kroxylicious/kroxylicious-app/target/libs /opt/kroxylicious/libs
+COPY --from=builder /opt/kroxylicious/kroxylicious-app/target/kroxylicious-app-${KROXYLICIOUS_VERSION}.jar /opt/kroxylicious/kroxylicious.jar
+ENTRYPOINT ["/usr/bin/tini", "--", "java", "-cp", "/opt/kroxylicious/kroxylicious.jar:/opt/kroxylicious/libs/*:/opt/kroxylicious/user-libs/*", "io.kroxylicious.app.Kroxylicious"]
