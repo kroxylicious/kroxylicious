@@ -3,7 +3,7 @@
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
-package io.kroxylicious.proxy;
+package io.kroxylicious.app;
 
 import java.io.File;
 import java.nio.file.Files;
@@ -38,7 +38,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  * This test exists to check that the main method works as expected
  */
 @ExtendWith(KafkaClusterExtension.class)
-class KroxyStandaloneIT {
+class KroxyliciousIT {
 
     private static final String TOPIC_1 = "my-test-topic";
     private static final String TOPIC_2 = "other-test-topic";
@@ -82,7 +82,7 @@ class KroxyStandaloneIT {
             Files.writeString(configPath, new ConfigParser().toYaml(config));
             String java = System.getProperty("java.home") + File.separator + "bin" + File.separator + "java";
             String classpath = System.getProperty("java.class.path");
-            var processBuilder = new ProcessBuilder(java, "-cp", classpath, "io.kroxylicious.proxy.Kroxylicious", "-c", configPath.toString()).inheritIO();
+            var processBuilder = new ProcessBuilder(java, "-cp", classpath, "io.kroxylicious.app.Kroxylicious", "-c", configPath.toString()).inheritIO();
             Process start = processBuilder.start();
             return () -> {
                 start.destroy();
