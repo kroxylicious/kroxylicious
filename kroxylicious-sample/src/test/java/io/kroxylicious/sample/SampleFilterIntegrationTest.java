@@ -95,6 +95,20 @@ class SampleFilterIntegrationTest {
     }
 
     /**
+     * Test that the SampleFetchResponseFilter won't drop a second message produced to a topic.
+     */
+    @Test
+    void sampleProduceRequestFilterWontDropSecondMessageIntegrationTest() {
+        test = new FilterIntegrationTest(SAMPLE_PRODUCE_REQUEST_FILTER);
+        test.withTopic("sampleProduceRequestFilterWontDropSecondMessageRoundTripTest")
+                .produceMessage(NO_TRANSFORM_VALUE)
+                .consumeSingleRecord()
+                .produceMessage(PRE_TRANSFORM_VALUE)
+                .consumeSingleRecord()
+                .assertConsumerRecordEquals(PRODUCE_TRANSFORM_VALUE);
+    }
+
+    /**
      * Test that the SampleFetchResponseFilter will transform when given data containing its findValue.
      */
     @Test
@@ -116,6 +130,20 @@ class SampleFilterIntegrationTest {
                 .produceMessage(NO_TRANSFORM_VALUE)
                 .consumeSingleRecord()
                 .assertConsumerRecordEquals(NO_TRANSFORM_VALUE);
+    }
+
+    /**
+     * Test that the SampleFetchResponseFilter won't drop a second message produced to a topic.
+     */
+    @Test
+    void sampleFetchResponseFilterWontDropSecondMessageIntegrationTest() {
+        test = new FilterIntegrationTest(SAMPLE_FETCH_RESPONSE_FILTER);
+        test.withTopic("sampleFetchResponseFilterWontDropSecondMessageRoundTripTest")
+                .produceMessage(NO_TRANSFORM_VALUE)
+                .consumeSingleRecord()
+                .produceMessage(PRE_TRANSFORM_VALUE)
+                .consumeSingleRecord()
+                .assertConsumerRecordEquals(FETCH_TRANSFORM_VALUE);
     }
 
     /**
