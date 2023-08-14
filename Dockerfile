@@ -19,7 +19,7 @@ ARG TARGETARCH
 ARG KROXYLICIOUS_VERSION
 
 RUN microdnf update \
-    && microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y java-${JAVA_VERSION}-openjdk-headless openssl shadow-utils tar gzip \
+    && microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y java-${JAVA_VERSION}-openjdk-headless openssl shadow-utils \
     && microdnf reinstall -y tzdata \
     && microdnf clean all
 
@@ -51,7 +51,5 @@ RUN set -ex; \
         echo "${TINI_SHA256_AMD64} */usr/bin/tini" | sha256sum -c; \
         chmod +x /usr/bin/tini; \
     fi
-COPY --from=builder /opt/kroxylicious/kroxylicious-app/target/kroxylicious-app-${KROXYLICIOUS_VERSION}-bin.tar.gz /opt/kroxylicious-bin.tar.gz
-WORKDIR /opt/
-RUN  ls && tar -zxf kroxylicious-bin.tar.gz && ln -s ./kroxylicious-app-${KROXYLICIOUS_VERSION} ./kroxylicious
+COPY --from=builder /opt/kroxylicious/kroxylicious-app/target/kroxylicious-app-${KROXYLICIOUS_VERSION}-bin/kroxylicious-app-${KROXYLICIOUS_VERSION}/ /opt/kroxylicious/
 ENTRYPOINT ["/usr/bin/tini", "--", "/opt/kroxylicious/bin/kroxylicious-start.sh" ]
