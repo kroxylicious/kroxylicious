@@ -38,5 +38,23 @@
  *     <li>{@link io.kroxylicious.proxy.filter.FilterContext#requestFilterResultBuilder()} and</li>
  *     <li>{@link io.kroxylicious.proxy.filter.FilterContext#responseFilterResultBuilder()}.</li>
  * </ul>
+ * <h3 id='implementing.threadSafety'>Thread Safety</h3>
+ * <p>
+ * The Filter API provides the following thread-safety guarantees:
+ * </p>
+ * <ol>
+ *   <li>There is a single thread associated with each connection and this association lasts for the lifetime of connection..</li>
+ *   <li>Each filter instance is associated with exactly one connection.</li>
+ *   <li>Construction of the filter instance and dispatch of the filter methods {@code onXxxRequest} and
+ *       {@code onXxxResponse} takes place on that same thread.</li>
+ *   <li>Any computation stages chained to the {@link java.util.concurrent.CompletionStage} returned by
+ *       {@link io.kroxylicious.proxy.filter.FilterContext#sendRequest(short, org.apache.kafka.common.protocol.ApiMessage)}
+ *       using the default execution methods (using methods without the suffix async) or default asynchronous execution
+ *       (using methods with suffix async that employ the stage's default asynchronous execution facility)
+ *       are guaranteed to be performed by that same thread.  Computation stages chained using custom asynchronous
+ *       execution (using methods with suffix async that take an Executor argument) do not get this guarantee.</li>
+ *  </ol>
+ *  <p>Filter implementations are free to rely on these guarantees to safely maintain state within fields
+ *     of the Filter without employing additional synchronization.</p>
  */
 package io.kroxylicious.proxy.filter;

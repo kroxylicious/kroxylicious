@@ -49,6 +49,7 @@ public interface ResponseFilter extends Filter {
      * @return a non-null CompletionStage that, when complete, will yield a ResponseFilterResult containing the
      *         response to be forwarded.
      * @see io.kroxylicious.proxy.filter Creating Filter Result objects
+     * @see io.kroxylicious.proxy.filter Thread Safety
      */
     CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey,
                                                      ResponseHeaderData header,
