@@ -196,6 +196,7 @@ public class KrpcGenerator {
     private final String outputFilePattern;
     private final Charset outputEncoding = StandardCharsets.UTF_8;
 
+    @SuppressWarnings("java:S107") // Methods should not have too many parameters - ignored as use-case with builder seems reasonable.
     private KrpcGenerator(Logger logger, GeneratorMode mode, File messageSpecDir, String messageSpecFilter, File templateDir, List<String> templateNames,
                           String outputPackage, File outputDir,
                           String outputFilePattern) {
