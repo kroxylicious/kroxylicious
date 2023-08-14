@@ -114,7 +114,11 @@ public class FilterHandler extends ChannelDuplexHandler {
             if (!(msg instanceof OpaqueResponseFrame)) {
                 throw new IllegalStateException("Unexpected message reading from upstream:  " + msg);
             }
-            ctx.fireChannelRead(msg);
+            readFuture = readFuture.whenComplete((a, b) -> {
+                if (ctx.channel().isOpen()) {
+                    ctx.fireChannelRead(msg);
+                }
+            });
         }
     }
 
@@ -142,7 +146,11 @@ public class FilterHandler extends ChannelDuplexHandler {
                 // but, otherwise we don't expect any other kind of message
                 throw new IllegalStateException("Unexpected message writing to upstream: " + msg);
             }
-            ctx.write(msg, promise);
+            writeFuture.whenComplete((unused, throwable) -> {
+                if (ctx.channel().isOpen()) {
+                    ctx.write(msg, promise);
+                }
+            });
         }
     }
 
