@@ -11,10 +11,10 @@ import java.nio.charset.StandardCharsets;
 
 import org.apache.kafka.common.message.FetchResponseData;
 import org.apache.kafka.common.message.ProduceRequestData;
+import org.apache.kafka.common.record.AbstractRecords;
 import org.apache.kafka.common.record.CompressionType;
 import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.record.MemoryRecordsBuilder;
-import org.apache.kafka.common.record.MutableRecordBatch;
 import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.record.RecordBatch;
 import org.apache.kafka.common.record.TimestampType;
@@ -36,7 +36,7 @@ public class SampleFilterTransformer {
      * @param config the transform configuration
      */
     public static void transform(ProduceRequestData.PartitionProduceData partitionData, KrpcFilterContext context, SampleFilterConfig config) {
-        partitionData.setRecords(transformPartitionRecords((MemoryRecords) partitionData.records(), context, config.getFindValue(), config.getReplacementValue()));
+        partitionData.setRecords(transformPartitionRecords((AbstractRecords) partitionData.records(), context, config.getFindValue(), config.getReplacementValue()));
     }
 
     /**
@@ -46,7 +46,7 @@ public class SampleFilterTransformer {
      * @param config the transform configuration
      */
     public static void transform(FetchResponseData.PartitionData partitionData, KrpcFilterContext context, SampleFilterConfig config) {
-        partitionData.setRecords(transformPartitionRecords((MemoryRecords) partitionData.records(), context, config.getFindValue(), config.getReplacementValue()));
+        partitionData.setRecords(transformPartitionRecords((AbstractRecords) partitionData.records(), context, config.getFindValue(), config.getReplacementValue()));
     }
 
     /**
@@ -57,11 +57,11 @@ public class SampleFilterTransformer {
      * @param replacementValue the replacement value
      * @return the transformed partition records
      */
-    private static MemoryRecords transformPartitionRecords(MemoryRecords records, KrpcFilterContext context, String findValue, String replacementValue) {
+    private static MemoryRecords transformPartitionRecords(AbstractRecords records, KrpcFilterContext context, String findValue, String replacementValue) {
         ByteBufferOutputStream stream = context.createByteBufferOutputStream(records.sizeInBytes());
-        MemoryRecordsBuilder newRecords = createMemoryRecordsBuilder(stream);
+        MemoryRecordsBuilder newRecords = createMemoryRecordsBuilder(stream, records.firstBatch());
 
-        for (MutableRecordBatch batch : records.batches()) {
+        for (RecordBatch batch : records.batches()) {
             for (Record batchRecord : batch) {
                 newRecords.append(batchRecord.timestamp(), batchRecord.key(), transformRecord(batchRecord.value(), findValue, replacementValue));
             }
@@ -84,7 +84,12 @@ public class SampleFilterTransformer {
      * Instantiates a MemoryRecordsBuilder object using the given stream. This duplicates some of the
      * functionality in io.kroxylicious.proxy.internal, but we aren't supposed to import from there.
      */
-    private static MemoryRecordsBuilder createMemoryRecordsBuilder(ByteBufferOutputStream stream) {
+    private static MemoryRecordsBuilder createMemoryRecordsBuilder(ByteBufferOutputStream stream, RecordBatch firstBatch) {
+        if (firstBatch != null) {
+            return new MemoryRecordsBuilder(stream, firstBatch.magic(), firstBatch.compressionType(), firstBatch.timestampType(), firstBatch.baseOffset(),
+                    firstBatch.maxTimestamp(), firstBatch.producerId(), firstBatch.producerEpoch(), firstBatch.baseSequence(), firstBatch.isTransactional(),
+                    firstBatch.isControlBatch(), firstBatch.partitionLeaderEpoch(), stream.remaining());
+        }
         return new MemoryRecordsBuilder(stream, RecordBatch.CURRENT_MAGIC_VALUE, CompressionType.NONE, TimestampType.CREATE_TIME, 0, RecordBatch.NO_TIMESTAMP,
                 RecordBatch.NO_PRODUCER_ID, RecordBatch.NO_PRODUCER_EPOCH, RecordBatch.NO_SEQUENCE, false, false, RecordBatch.NO_PARTITION_LEADER_EPOCH,
                 stream.remaining());
