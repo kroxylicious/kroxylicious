@@ -12,7 +12,15 @@ script_dir() {
   echo ${full_dir}
 }
 
-export JAVA_CLASSPATH="$(script_dir)/../libs/*"
+classpath() {
+  local class_path="$(script_dir)/../libs/*"
+  if [ -n "${KROXYLICIOUS_CLASSPATH:-}" ]; then
+    class_path="$class_path:${KROXYLICIOUS_CLASSPATH}"
+  fi
+  echo "${class_path}"
+}
+
+export JAVA_CLASSPATH="$(classpath)"
 export JAVA_MAIN_CLASS=io.kroxylicious.app.Kroxylicious
 exec $(script_dir)/run-java.sh "$@"
 
