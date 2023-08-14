@@ -18,7 +18,7 @@
 #
 #
 # This script will pick up either a 'fat' jar which can be run with "-jar"
-# or you can sepcify a JAVA_MAIN_CLASS.
+# or you can specify a JAVA_MAIN_CLASS.
 #
 # Source and Documentation can be found
 # at https://github.com/fabric8io-images/run-java-sh
@@ -42,7 +42,7 @@
 # of other memory areas (metadata, thread, code cache, ...) which adds to the overall
 # size. When your container gets killed because of an OOM, then you should tune
 # the absolute values.
-# JAVA_INIT_MEM_RATIO: Ratio use to calculate a default intial heap memory, in percent.
+# JAVA_INIT_MEM_RATIO: Ratio use to calculate a default initial heap memory, in percent.
 #                      By default this value is not set.
 #
 # The following variables are exposed to your Java application:
@@ -220,24 +220,6 @@ init_limit_env_vars() {
   fi
 }
 
-init_java_major_version() {
-    # Initialize JAVA_MAJOR_VERSION variable if missing
-    if [ -z "${JAVA_MAJOR_VERSION:-}" ]; then
-        local full_version=""
-
-        # Parse JAVA_VERSION variable available in containers
-        if [ -n "${JAVA_VERSION:-}" ]; then
-            full_version="$JAVA_VERSION"
-        elif [ -n "${JAVA_HOME:-}" ] && [ -r "${JAVA_HOME}/release" ]; then
-            full_version="$(grep -e '^JAVA_VERSION=' ${JAVA_HOME}/release | sed -e 's/.*\"\([0-9.]\{1,\}\).*/\1/')"
-        else
-            # kroxy customization: use code from https://github.com/pinterest/ktlint/pull/1544/files to support JAVA_TOOL_OPTIONS being set
-            full_version=$(java -version 2>&1 | sed -E -n 's/.* version "([^.-]*).*".*/\1/p')
-        fi
-        export JAVA_MAJOR_VERSION=$(echo $full_version | sed -e 's/[^0-9]*\(1\.\)\{0,1\}\([0-9]\{1,\}\).*/\2/')
-    fi
-}
-
 load_env() {
   local script_dir="$1"
 
@@ -295,17 +277,13 @@ debug_options() {
       fi
     fi
 
-    local address_prefix=""
-	  if [ "${JAVA_MAJOR_VERSION:-0}" -ge "9" ]; then
-      address_prefix="*:"
-	  fi
-	  echo "-agentlib:jdwp=transport=dt_socket,server=y,suspend=${suspend_mode},address=${address_prefix}${debug_port}"
+	  echo "-agentlib:jdwp=transport=dt_socket,server=y,suspend=${suspend_mode},address=*:${debug_port}"
   fi
 }
 
 # Read in a classpath either from a file with a single line, colon separated
 # or given line-by-line in separate lines
-# Arg 1: path to claspath (must exist), optional arg2: application jar, which is stripped from the classpath in
+# Arg 1: path to classpath (must exist), optional arg2: application jar, which is stripped from the classpath in
 # multi line arrangements
 format_classpath() {
   local cp_file="$1"
@@ -357,19 +335,10 @@ calc_max_memory() {
   # Check for the 'real memory size' and calculate Xmx from the ratio
   if [ -n "${JAVA_MAX_MEM_RATIO:-}" ]; then
     if [ "${JAVA_MAX_MEM_RATIO}" -eq 0 ]; then
-      # Explicitely switched off
+      # Explicitly switched off
       return
     fi
     calc_mem_opt "${CONTAINER_MAX_MEMORY}" "${JAVA_MAX_MEM_RATIO}" "mx"
-  # When JAVA_MAX_MEM_RATIO not set and JVM >= 10 no max_memory
-  elif [ "${JAVA_MAJOR_VERSION:-0}" -ge "10" ]; then
-    return
-  elif [ "${CONTAINER_MAX_MEMORY}" -le 314572800 ]; then
-    # Restore the one-fourth default heap size instead of the one-half below 300MB threshold
-    # See https://docs.oracle.com/javase/8/docs/technotes/guides/vm/gctuning/parallel.html#default_heap_size
-    calc_mem_opt "${CONTAINER_MAX_MEMORY}" "25" "mx"
-  else
-    calc_mem_opt "${CONTAINER_MAX_MEMORY}" "50" "mx"
   fi
 }
 
@@ -409,27 +378,10 @@ c2_disabled() {
   echo false
 }
 
-jit_options() {
-  if [ "${JAVA_MAJOR_VERSION:-0}" -ge "10" ]; then
-    return
-  fi
-  # Check whether -XX:TieredStopAtLevel is already given in JAVA_OPTIONS
-  if echo "${JAVA_OPTIONS:-}" | grep -q -- "-XX:TieredStopAtLevel"; then
-    return
-  fi
-  if [ $(c2_disabled) = true ]; then
-    echo "-XX:TieredStopAtLevel=1"
-  fi
-}
-
 # Switch on diagnostics except when switched off
 diagnostics_options() {
   if [ -n "${JAVA_DIAGNOSTICS:-}" ]; then
-    if [ "${JAVA_MAJOR_VERSION:-0}" -ge "11" ]; then
-      echo "-XX:NativeMemoryTracking=summary -Xlog:gc*:stdout:time -XX:+UnlockDiagnosticVMOptions"
-    else
-      echo "-XX:NativeMemoryTracking=summary -XX:+PrintGC -XX:+PrintGCDateStamps -XX:+PrintGCTimeStamps -XX:+UnlockDiagnosticVMOptions"
-    fi
+    echo "-XX:NativeMemoryTracking=summary -Xlog:gc*:stdout:time -XX:+UnlockDiagnosticVMOptions"
   fi
 }
 
@@ -448,28 +400,6 @@ ci_compiler_count() {
   [ $(c2_disabled) = true ] && echo "$c1_count" || echo $(calc '$1+$2' "$c1_count" "$c2_count")
 }
 
-cpu_options() {
-  # JVMs >= 10 know about CPU limits
-  if [ "${JAVA_MAJOR_VERSION:-0}" -ge "10" ]; then
-    return
-  fi
-
-  local core_limit="${JAVA_CORE_LIMIT:-}"
-  if [ "$core_limit" = "0" ]; then
-    return
-  fi
-
-  if [ -n "${CONTAINER_CORE_LIMIT:-}" ]; then
-    if [ -z ${core_limit} ]; then
-      core_limit="${CONTAINER_CORE_LIMIT}"
-    fi
-    echo "-XX:ParallelGCThreads=${core_limit} " \
-         "-XX:ConcGCThreads=${core_limit} " \
-         "-Djava.util.concurrent.ForkJoinPool.common.parallelism=${core_limit} " \
-         "-XX:CICompilerCount=$(ci_compiler_count $core_limit)"
-  fi
-}
-
 #-XX:MinHeapFreeRatio=20  These parameters tell the heap to shrink aggressively and to grow conservatively.
 #-XX:MaxHeapFreeRatio=40  Thereby optimizing the amount of memory available to the operating system.
 heap_ratio() {
@@ -484,21 +414,12 @@ gc_options() {
   if echo "${JAVA_OPTIONS:-}" | grep -q -- "-XX:.*Use.*GC"; then
     return
   fi
-
-  local opts=""
-  # for JVMs < 10 set GC settings
-  if [ -z "${JAVA_MAJOR_VERSION:-}" ] || [ "${JAVA_MAJOR_VERSION:-0}" -lt "10" ]; then
-    opts="${opts} -XX:+UseParallelGC -XX:GCTimeRatio=4 -XX:AdaptiveSizePolicyWeight=90 $(heap_ratio)"
-  fi
-  if [ -z "${JAVA_MAJOR_VERSION:-}" ] || [ "${JAVA_MAJOR_VERSION:-}" != "7" ]; then
-    opts="${opts} -XX:+ExitOnOutOfMemoryError"
-  fi
-  echo $opts
+  echo " -XX:+ExitOnOutOfMemoryError"
 }
 
 java_default_options() {
   # Echo options, trimming trailing and multiple spaces
-  echo "$(memory_options) $(jit_options) $(diagnostics_options) $(cpu_options) $(gc_options)" | awk '$1=$1'
+  echo "$(memory_options) $(diagnostics_options) $(gc_options)" | awk '$1=$1'
 
 }
 
@@ -558,7 +479,7 @@ exec_args() {
 
 # Combine all java options
 java_options() {
-  # Normalize spaces with awk (i.e. trim and elimate double spaces)
+  # Normalize spaces with awk (i.e. trim and eliminate double spaces)
   # See e.g. https://www.physicsforums.com/threads/awk-1-1-1-file-txt.658865/ for an explanation
   # of this awk idiom
   echo "${JAVA_OPTIONS:-} $(run_java_options) $(debug_options) $(proxy_options) $(java_default_options)" | awk '$1=$1'
@@ -622,14 +543,8 @@ options() {
     if [ $(hasflag --memory) ]; then
       ret="$ret $(memory_options)"
     fi
-    if [ $(hasflag --jit) ]; then
-      ret="$ret $(jit_options)"
-    fi
     if [ $(hasflag --diagnostics) ]; then
       ret="$ret $(diagnostics_options)"
-    fi
-    if [ $(hasflag --cpu) ]; then
-      ret="$ret $(cpu_options)"
     fi
     if [ $(hasflag --gc) ]; then
       ret="$ret $(gc_options)"
@@ -669,9 +584,6 @@ run() {
 
 # =============================================================================
 # Fire up
-
-# Initialize JAVA_MAJOR_VERSION variable if missing
-init_java_major_version
 
 # Set env vars reflecting limits
 init_limit_env_vars
