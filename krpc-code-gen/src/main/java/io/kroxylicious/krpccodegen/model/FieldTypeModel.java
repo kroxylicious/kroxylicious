@@ -13,11 +13,11 @@ import freemarker.template.TemplateModel;
 import freemarker.template.TemplateModelException;
 import freemarker.template.TemplateScalarModel;
 
-public class FieldTypeModel implements TemplateHashModel, TemplateScalarModel, AdapterTemplateModel {
+class FieldTypeModel implements TemplateHashModel, TemplateScalarModel, AdapterTemplateModel {
     final FieldType fieldType;
     final KrpcSchemaObjectWrapper wrapper;
 
-    public FieldTypeModel(KrpcSchemaObjectWrapper wrapper, FieldType fieldType) {
+    FieldTypeModel(KrpcSchemaObjectWrapper wrapper, FieldType fieldType) {
         this.wrapper = wrapper;
         this.fieldType = fieldType;
     }

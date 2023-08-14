@@ -42,8 +42,14 @@ import freemarker.template.TemplateException;
 import freemarker.template.TemplateExceptionHandler;
 import freemarker.template.Version;
 
+/**
+ * Code generator driven by Apache Kafka message specifications definitions.
+ */
 public class KrpcGenerator {
 
+    /**
+     * Builder for the {@link KrpcGenerator}.
+     */
     public static class Builder {
 
         private final GeneratorMode mode;
@@ -63,52 +69,105 @@ public class KrpcGenerator {
             this.mode = mode;
         }
 
+        /**
+         * configures logging.
+         * @param logger logger.
+         * @return this
+         */
         public Builder withLogger(Logger logger) {
             this.logger = logger;
             return this;
         }
 
+        /**
+         * configures the message specification directory.
+         *
+         * @param messageSpecDir message specification directory.
+         * @return this
+         */
         public Builder withMessageSpecDir(File messageSpecDir) {
             this.messageSpecDir = messageSpecDir;
             return this;
         }
 
+        /**
+         * configures the glob pattern used to match message specification files.
+         *
+         * @param messageSpecFilter the glob pattern
+         * @return this
+         */
         public Builder withMessageSpecFilter(String messageSpecFilter) {
             this.messageSpecFilter = messageSpecFilter;
             return this;
         }
 
+        /**
+         * configures the directory contain the Apache Free Maker template.
+         * @param templateDir template directory.
+         * @return this
+         */
         public Builder withTemplateDir(File templateDir) {
             this.templateDir = templateDir;
             return this;
         }
 
+        /**
+         * configures a list of template file names.
+         *
+         * @param templateNames list of template file names.
+         * @return this
+         */
         public Builder withTemplateNames(List<String> templateNames) {
             this.templateNames = templateNames;
             return this;
         }
 
+        /**
+         * configures the java package name to be used in the generated source.
+         *
+         * @param outputPackage output package name.
+         * @return this
+         */
         public Builder withOutputPackage(String outputPackage) {
             this.outputPackage = outputPackage;
             return this;
         }
 
+        /**
+         * configures the output directory to be used for the generated source files.
+         * @param outputDir output directory.
+         * @return this
+         */
         public Builder withOutputDir(File outputDir) {
             this.outputDir = outputDir;
             return this;
         }
 
+        /**
+         * configures the pattern used to form the output file name.
+         * This understands two pattern {@code ${messageSpecName}} and {@code ${templateName}}
+         * which if present will be replaced by the message specification name the template
+         * name respectively.
+         *
+         * @param outputFilePattern output filename pattern.
+         * @return this
+         */
         public Builder withOutputFilePattern(String outputFilePattern) {
             this.outputFilePattern = outputFilePattern;
             return this;
         }
 
+        /**
+         * Creates the generator.
+         *
+         * @return the generator.
+         */
         public KrpcGenerator build() {
             return new KrpcGenerator(logger, mode, messageSpecDir, messageSpecFilter, templateDir, templateNames, outputPackage, outputDir, outputFilePattern);
         }
     }
 
-    public enum GeneratorMode {
+    enum GeneratorMode {
         SINGLE,
         MULTI;
     }
@@ -137,9 +196,9 @@ public class KrpcGenerator {
     private final String outputFilePattern;
     private final Charset outputEncoding = StandardCharsets.UTF_8;
 
-    public KrpcGenerator(Logger logger, GeneratorMode mode, File messageSpecDir, String messageSpecFilter, File templateDir, List<String> templateNames,
-                         String outputPackage, File outputDir,
-                         String outputFilePattern) {
+    private KrpcGenerator(Logger logger, GeneratorMode mode, File messageSpecDir, String messageSpecFilter, File templateDir, List<String> templateNames,
+                          String outputPackage, File outputDir,
+                          String outputFilePattern) {
         this.logger = logger != null ? logger : System.getLogger(KrpcGenerator.class.getName());
         this.mode = mode;
         this.messageSpecDir = messageSpecDir != null ? messageSpecDir : new File(".");
@@ -155,14 +214,29 @@ public class KrpcGenerator {
         }
     }
 
+    /**
+     * Constructs a generator in single mode. The generator passes a list of all
+     * message specifications to the template which is used to produce a single
+     * output file.
+     * @return the builder
+     */
     public static Builder single() {
         return new Builder(GeneratorMode.SINGLE);
     }
 
+    /**
+     * Constructs a generator in multi-mode. The generator each message specification
+     * to the generator in turn, each of which produces a distinct output file.
+     * @return the builder
+     */
     public static Builder multi() {
         return new Builder(GeneratorMode.MULTI);
     }
 
+    /**
+     * Generates the sources.
+     * @throws Exception exception during source generation.
+     */
     public void generate() throws Exception {
         var cfg = buildFmConfiguration();
         Set<MessageSpec> messageSpecs = messageSpecs();
