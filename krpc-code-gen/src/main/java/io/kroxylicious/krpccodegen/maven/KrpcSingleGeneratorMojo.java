@@ -24,6 +24,7 @@ public class KrpcSingleGeneratorMojo extends AbstractKrpcGeneratorMojo {
      * Constructs a single-generator.
      */
     public KrpcSingleGeneratorMojo() {
+        super();
     }
 
     @Override

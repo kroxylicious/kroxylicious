@@ -20,6 +20,7 @@ public class RetrieveApiKey implements TemplateMethodModelEx {
      * Constructs a RetrieveApiKey.
      */
     public RetrieveApiKey() {
+        super();
     }
 
     private static String retrieveApiKey(MessageSpecModel messageSpecModel) {

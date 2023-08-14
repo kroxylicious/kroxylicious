@@ -24,6 +24,7 @@ public class KrpcMultiGeneratorMojo extends AbstractKrpcGeneratorMojo {
      * Constructs a multi-generator.
      */
     public KrpcMultiGeneratorMojo() {
+        super();
     }
 
     @Override
