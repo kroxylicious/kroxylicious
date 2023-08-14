@@ -12,6 +12,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -43,7 +44,6 @@ import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
 import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
-import io.kroxylicious.proxy.future.InternalCompletionStage;
 import io.kroxylicious.proxy.internal.filter.RequestFilterResultBuilderImpl;
 import io.kroxylicious.proxy.internal.filter.ResponseFilterResultBuilderImpl;
 
@@ -776,6 +776,52 @@ public class FilterHandlerTest extends FilterHarness {
         assertTrue(q.isCompletedExceptionally(),
                 "Future should be finished yet");
         assertThrows(ExecutionException.class, q::get);
+    }
+
+    @Test
+    void sendRequestChainedActionsRunOnNettyEventLoop() {
+        var eventLoopThreadFuture = new CompletableFuture<Thread>();
+
+        var asyncRequestBody = new FetchRequestData();
+        var applyActionThread = new AtomicReference<Thread>();
+        var applyAsyncActionThread = new AtomicReference<Thread>();
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> context.sendRequest((short) 3, asyncRequestBody)
+                .thenApply(u1 -> {
+                    applyActionThread.set(Thread.currentThread());
+                    return null;
+                }).thenApplyAsync(u2 -> {
+                    applyAsyncActionThread.set(Thread.currentThread());
+                    return null;
+                }).thenCompose(u3 -> context.forwardRequest(header, request));
+
+        buildChannel(filter);
+
+        // capture the thread used by the embedded channel
+        channel.eventLoop().submit(() -> eventLoopThreadFuture.complete(Thread.currentThread()));
+        channel.runPendingTasks();
+        assertThat(eventLoopThreadFuture).isCompleted();
+
+        var frame = writeRequest(new ApiVersionsRequestData());
+
+        // Process the async request and write response
+        var propagated = channel.readOutbound();
+        writeInternalResponse(new FetchResponseData(), ((InternalRequestFrame<?>) propagated).promise());
+
+        // Running the tasks will run the actions chained to the async response
+        channel.runPendingTasks();
+
+        // Verify actions ran on the expected thread.
+        assertThat(applyActionThread)
+                .describedAs("first chained action (apply) must run on event loop")
+                .hasValue(eventLoopThreadFuture.getNow(null));
+
+        assertThat(applyAsyncActionThread)
+                .describedAs("second chained action (applySync) must run on event loop")
+                .hasValue(eventLoopThreadFuture.getNow(null));
+
+        // Verify the filtered request arrived at outcome.
+        propagated = channel.readOutbound();
+        assertThat(propagated).isEqualTo(frame);
     }
 
     private static void assertResponseMessageTaggedWith(String filterName, DecodedResponseFrame<?> propagated) {

@@ -66,6 +66,7 @@ public interface ${filterClass} extends Filter {
      * @return a non-null CompletionStage that, when complete, will yield a ${filterResultClass} containing the
      *         ${msgType} to be forwarded.
      * @see io.kroxylicious.proxy.filter Creating Filter Result objects
+     * @see io.kroxylicious.proxy.filter  Thread Safety
      */
      CompletionStage<${filterResultClass}> on${messageSpec.name}(short apiVersion, ${headerClass} header, ${dataClass} ${msgType}, FilterContext context);
 
