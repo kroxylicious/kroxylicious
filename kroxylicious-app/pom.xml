@@ -141,9 +141,6 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-resources-plugin</artifactId>
-                <configuration>
-                    <propertiesEncoding>UTF8</propertiesEncoding>
-                </configuration>
             </plugin>
         </plugins>
         <resources>
