@@ -43,7 +43,6 @@ import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
 import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
-import io.kroxylicious.proxy.future.InternalCompletionStage;
 import io.kroxylicious.proxy.internal.filter.RequestFilterResultBuilderImpl;
 import io.kroxylicious.proxy.internal.filter.ResponseFilterResultBuilderImpl;
 
@@ -776,6 +775,50 @@ public class FilterHandlerTest extends FilterHarness {
         assertTrue(q.isCompletedExceptionally(),
                 "Future should be finished yet");
         assertThrows(ExecutionException.class, q::get);
+    }
+
+    @Test
+    void sendRequestChainedActionsRunOnNettyEventLoop() {
+        var eventLoopThreadFuture = new CompletableFuture<Thread>();
+
+        var sendRequestBody = new FetchRequestData();
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> context.sendRequest((short) 3, sendRequestBody)
+                .thenApply(u1 -> {
+                    assertThat(Thread.currentThread())
+                            .describedAs("first chained action must run on event loop")
+                            .isEqualTo(eventLoopThreadFuture.getNow(null));
+
+                    return null;
+                }).thenApplyAsync(u2 -> {
+                    assertThat(Thread.currentThread())
+                            .describedAs("second chained action must also run on event loop")
+                            .isEqualTo(eventLoopThreadFuture.getNow(null));
+                    return null;
+                }).thenCompose(u3 -> context.forwardRequest(header, request));
+
+        buildChannel(filter);
+
+        // capture the thread used by the embedded channel
+        channel.eventLoop().submit(() -> eventLoopThreadFuture.complete(Thread.currentThread()));
+        channel.runPendingTasks();
+        assertThat(eventLoopThreadFuture).isCompleted();
+
+        var frame = writeRequest(new ApiVersionsRequestData());
+
+        // Process the async request and write response
+        var propagated = channel.readOutbound();
+        assertThat(propagated).isInstanceOf(InternalRequestFrame.class);
+        var internalRequest = ((InternalRequestFrame<?>) propagated);
+        assertThat(internalRequest.body()).isEqualTo(sendRequestBody);
+        writeInternalResponse(new FetchResponseData(), internalRequest.promise());
+
+        channel.runPendingTasks();
+
+        // Now verify the filter request.
+        propagated = channel.readOutbound();
+        assertThat(propagated)
+                .isInstanceOf(DecodedRequestFrame.class)
+                .isEqualTo(frame);
     }
 
     private static void assertResponseMessageTaggedWith(String filterName, DecodedResponseFrame<?> propagated) {

@@ -46,7 +46,6 @@ import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
 import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
 import io.kroxylicious.proxy.frame.RequestFrame;
-import io.kroxylicious.proxy.future.InternalCompletionStage;
 import io.kroxylicious.proxy.internal.filter.RequestFilterResultBuilderImpl;
 import io.kroxylicious.proxy.internal.filter.ResponseFilterResultBuilderImpl;
 import io.kroxylicious.proxy.internal.util.Assertions;
@@ -196,7 +195,8 @@ public class FilterHandler extends ChannelDuplexHandler {
             closeConnection();
             return CompletableFuture.completedFuture(null);
         }
-        return stage.toCompletableFuture();
+        return stage instanceof InternalCompletionStage ? ((InternalCompletionStage<ResponseFilterResult>) stage).getUnderlyingCompletableFuture()
+                : stage.toCompletableFuture();
     }
 
     private CompletableFuture<ResponseFilterResult> configureResponseFilterChain(DecodedResponseFrame<?> decodedFrame, CompletableFuture<ResponseFilterResult> future) {
@@ -236,7 +236,8 @@ public class FilterHandler extends ChannelDuplexHandler {
             closeConnection();
             return CompletableFuture.completedFuture(null);
         }
-        return stage.toCompletableFuture();
+        return stage instanceof InternalCompletionStage ? ((InternalCompletionStage<RequestFilterResult>) stage).getUnderlyingCompletableFuture()
+                : stage.toCompletableFuture();
     }
 
     private CompletableFuture<RequestFilterResult> configureRequestFilterChain(DecodedRequestFrame<?> decodedFrame, ChannelPromise promise,
@@ -504,7 +505,7 @@ public class FilterHandler extends ChannelDuplexHandler {
             boolean hasResponse = apiKey != ApiKeys.PRODUCE
                     || ((ProduceRequestData) request).acks() != 0;
             var filterPromise = new CompletableFuture<T>();
-            var filterStage = new InternalCompletionStage<>(filterPromise);
+            var filterStage = new InternalCompletionStage<>(filterPromise, ctx.executor());
             var frame = new InternalRequestFrame<>(
                     apiVersion, -1, hasResponse,
                     filter, filterPromise, header, request);
