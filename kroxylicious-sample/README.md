@@ -31,7 +31,7 @@ $ mvn clean verify -Pdist -Dquick
 Build with the `dist` profile as above, then run the following command:
 
 ```
-$ java -cp {path-to-your-class-path}:kroxylicious-sample/target/kroxylicious-sample-*-SNAPSHOT.jar:kroxylicious-app/target/kroxylicious-app-*-SNAPSHOT.jar io.kroxylicious.app.Kroxylicious --config kroxylicious-sample/sample-proxy-config.yml
+$ KROXYLICIOUS_CLASSPATH="kroxylicious-sample/target/*" kroxylicious-app/target/kroxylicious-app-*-bin/kroxylicious-app-*/bin/kroxylicious-start.sh --config kroxylicious-sample/sample-proxy-config.yml
 ```
 
 ### Configure
