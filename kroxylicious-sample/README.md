@@ -11,13 +11,13 @@ Building the sample project is easy! You can build the **kroxylicious-sample** j
 To build all of Kroxylicious, including the sample:
 
 ```
-$ mvn clean install
+$ mvn clean verify
 ```
 
 To build the sample on its own:
 
 ```
-$ mvn clean install -pl kroxylicious-sample
+$ mvn clean verify -pl :kroxylicious-sample
 ```
 
 Build with the `dist` profile for creating executable JARs:
@@ -31,8 +31,12 @@ $ mvn clean verify -Pdist -Dquick
 Build with the `dist` profile as above, then run the following command:
 
 ```
-$ java -cp {path-to-your-class-path}:kroxylicious-sample/target/kroxylicious-sample-*-SNAPSHOT.jar:kroxylicious-app/target/kroxylicious-app-*-SNAPSHOT.jar io.kroxylicious.app.Kroxylicious --config kroxylicious-sample/sample-proxy-config.yml
+$ java -cp {path-to-your-class-path}:$(ls kroxylicious-sample/target/kroxylicious-sample-*-SNAPSHOT.jar):$(ls kroxylicious-app/target/kroxylicious-app-*-SNAPSHOT.jar) io.kroxylicious.app.Kroxylicious --config kroxylicious-sample/sample-proxy-config.yml
 ```
+
+**Note 1:** The `{path-to-your-class-path}:` is optional, but if you wanted to add any other JARs in (i.e. a specific SLF4J implementation) this is where you would put each JAR's file path (each one separated by a `:` character).
+
+**Note 2:** We wrap each Kroxylicious JAR path in `$(ls )` here so that the file names will be auto-completed without the rest of the `java` command potentially being interpreted as part of the file path. Alternately, you could leave these out and instead replace each wildcard character (`*`) with the specific Kroxylicious version you have built, i.e. for version `0.3.0-SNAPSHOT`, `$(ls kroxylicious-sample/target/kroxylicious-sample-*-SNAPSHOT.jar)` becomes `kroxylicious-sample/target/kroxylicious-sample-0.3.0-SNAPSHOT.jar`
 
 ### Configure
 
