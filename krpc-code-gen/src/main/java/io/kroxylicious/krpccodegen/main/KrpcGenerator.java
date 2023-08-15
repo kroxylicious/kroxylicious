@@ -48,7 +48,7 @@ import freemarker.template.Version;
 public class KrpcGenerator {
 
     /**
-     * Builder for the {@link KrpcGenerator}.
+     * Configures and instantiates the {@link KrpcGenerator}.
      */
     public static class Builder {
 
