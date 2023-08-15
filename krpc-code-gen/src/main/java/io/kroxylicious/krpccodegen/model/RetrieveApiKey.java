@@ -10,12 +10,18 @@ import java.util.List;
 import org.apache.kafka.common.protocol.ApiKeys;
 
 import freemarker.template.TemplateMethodModelEx;
-import freemarker.template.TemplateModelException;
 
 /**
  * A custom FreeMarker function which obtains the API key (as an enum name) from a message spec, e.g. "CREATE_TOPICS".
  */
 public class RetrieveApiKey implements TemplateMethodModelEx {
+
+    /**
+     * Constructs a RetrieveApiKey.
+     */
+    public RetrieveApiKey() {
+        super();
+    }
 
     private static String retrieveApiKey(MessageSpecModel messageSpecModel) {
         Short apiKey = messageSpecModel.spec.apiKey().orElseThrow();
@@ -23,7 +29,7 @@ public class RetrieveApiKey implements TemplateMethodModelEx {
     }
 
     @Override
-    public Object exec(List arguments) throws TemplateModelException {
+    public Object exec(List arguments) {
         return retrieveApiKey(((MessageSpecModel) arguments.get(0)));
     }
 }
