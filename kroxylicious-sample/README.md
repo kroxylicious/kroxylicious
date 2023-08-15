@@ -8,27 +8,31 @@ This sample filter project provides examples to help you learn how [custom filte
 
 Building the sample project is easy! You can build the **kroxylicious-sample** jar either on its own or with the rest of the Kroxylicious project.
 
-To build all of Kroxylicious, including the sample:
+#### To build all of Kroxylicious, including the sample:
 
 ```
-$ mvn clean verify
+$ mvn verify --also-make
 ```
 
-To build the sample on its own:
+#### To build the sample on its own:
 
 ```
-$ mvn clean verify -pl :kroxylicious-sample
+$ mvn verify -pl :kroxylicious-sample --also-make
 ```
 
-Build with the `dist` profile for creating executable JARs:
+> *__Note:__ If you build just the `kroxylicious-sample` module, you will need to also build the `kroxylicious-app` module separately (with `dist` profile, as shown below) in order to run the sample.*
+
+#### Build with the `dist` profile for creating executable JARs:
 
 ```
-$ mvn clean verify -Pdist -Dquick
+$ mvn verify -Pdist -Dquick --also-make
 ```
+
+> *__Note:__ You can leave out `--also-make` from these commands if you have already built the whole Kroxylicious project.*
 
 ### Run
 
-Build with the `dist` profile as above, then run the following command:
+Build both `kroxylicious-sample` and `kroxylicious-app` with the `dist` profile as above, then run the following command:
 
 ```
 $ KROXYLICIOUS_CLASSPATH="kroxylicious-sample/target/*" kroxylicious-app/target/kroxylicious-app-*-bin/kroxylicious-app-*/bin/kroxylicious-start.sh --config kroxylicious-sample/sample-proxy-config.yml
