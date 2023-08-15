@@ -11,7 +11,7 @@
  * <h3 id='implementing.filterResults'>Filter Results</h3>
  * <p>Filter implementation must return a {@link java.util.concurrent.CompletionStage} containing a
  * {@link io.kroxylicious.proxy.filter.FilterResult} object. It is the job of FilterResult to convey what
- * message is to forwarded to the next filter in the chain (or broker /client if at the chain's beginning
+ * message is to be forwarded to the next filter in the chain (or client/broker if at the chain's beginning
  * or end).  It is also used to carry instructions such as indicating that the connection must be closed,
  * or a message dropped.</p>
  * <h3 id='implementing.deferringForward'>Deferring Forwards</h3>
