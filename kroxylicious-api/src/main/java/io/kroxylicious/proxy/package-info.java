@@ -12,9 +12,6 @@
  * <p>Filter plugins can multiply inherit several of the per-RPC interfaces if they need to intercept several kinds
  * of request and/or response.</p>
  *
- * <p>Filter plugins exist in a chain that is specific to a single channel. The
- * <p>filter chain is instantiated by a {@link io.kroxylicious.proxy.bootstrap.FilterChainFactory}
- * when a connection is made by a client.</p>
  *
  * <h2 id='assumptions'>Important facts about the Kafka protocol</h2>
  *
@@ -41,4 +38,4 @@
  * the communication between the client and broker.</p>
  *
  */
-package io.kroxylicious.proxy.filter;
+package io.kroxylicious.proxy;

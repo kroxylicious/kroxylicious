@@ -27,26 +27,31 @@ public interface RequestFilter extends KrpcFilter {
      * will be eligible to be called with the deserialized request data (if the
      * message reaches this filter in the filter chain).
      *
-     * @param apiKeys the api key of the message
+     * @param apiKey the api key of the message
      * @param apiVersion the api version of the message
      * @return true if this filter wants to handle the request
      */
-    default boolean shouldHandleRequest(ApiKeys apiKeys, short apiVersion) {
+    default boolean shouldHandleRequest(ApiKeys apiKey, short apiVersion) {
         return true;
     }
 
     /**
-     * Handle the request
+     * Handle the given {@code header} and {@code request} pair, returning the {@code header} and {@code request}
+     * pair to be passed to the next filter using the RequestFilterResult.
+     * <br/>
+     * The implementation may modify the given {@code header} and {@code request} in-place, or instantiate a
+     * new instances.
      *
-     * @param apiKey        key of the request
-     * @param header        header of the request
-     * @param body          body of the request
-     * @param filterContext context containing methods to continue the filter chain and other contextual data
-     * @return CompletionStage that, when complete, will yield a RequestFilterResult containing the
+     * @param apiKey  key of the request
+     * @param header  header of the request
+     * @param request body of the request
+     * @param context context containing methods to continue the filter chain and other contextual data
+     * @return a non-null CompletionStage that, when complete, will yield a RequestFilterResult containing the
      *         request to be forwarded.
+     * @see io.kroxylicious.proxy.filter Creating Filter Result objects
      */
     CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey,
                                                    RequestHeaderData header,
-                                                   ApiMessage body,
-                                                   KrpcFilterContext filterContext);
+                                                   ApiMessage request,
+                                                   KrpcFilterContext context);
 }

@@ -27,25 +27,31 @@ public interface ResponseFilter extends KrpcFilter {
      * will be eligible to be called with the deserialized response data (if the
      * message reaches this filter in the filter chain).
      *
-     * @param apiKeys the api key of the message
+     * @param apiKey     the api key of the message
      * @param apiVersion the api version of the message
      * @return true if this filter wants to handle the response
      */
-    default boolean shouldHandleResponse(ApiKeys apiKeys, short apiVersion) {
+    default boolean shouldHandleResponse(ApiKeys apiKey, short apiVersion) {
         return true;
     }
 
     /**
-     * Handle the response
-     * @param apiKey key of the response
-     * @param header header of the response
-     * @param body body of the response
-     * @param filterContext context containing methods to continue the filter chain and other contextual data
-     * @return CompletionStage that, when complete, will yield a ResponseFilterResult containing the
+     * Handle the given {@code header} and {@code response} pair, returning the {@code header} and {@code response}
+     * pair to be passed to the next filter using the ResponseFilterResult.
+     * <br/>
+     * The implementation may modify the given {@code header} and {@code response} in-place, or instantiate a
+     * new instances.
+     *
+     * @param apiKey   key of the request
+     * @param header   response header.
+     * @param response The body to handle.
+     * @param context  The context.
+     * @return a non-null CompletionStage that, when complete, will yield a ResponseFilterResult containing the
      *         response to be forwarded.
+     * @see io.kroxylicious.proxy.filter Creating Filter Result objects
      */
     CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey,
                                                      ResponseHeaderData header,
-                                                     ApiMessage body,
-                                                     KrpcFilterContext filterContext);
+                                                     ApiMessage response,
+                                                     KrpcFilterContext context);
 }
