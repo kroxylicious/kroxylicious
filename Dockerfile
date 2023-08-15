@@ -51,6 +51,5 @@ RUN set -ex; \
         echo "${TINI_SHA256_AMD64} */usr/bin/tini" | sha256sum -c; \
         chmod +x /usr/bin/tini; \
     fi
-COPY --from=builder /opt/kroxylicious/kroxylicious-app/target/libs /opt/kroxylicious/libs
-COPY --from=builder /opt/kroxylicious/kroxylicious-app/target/kroxylicious-app-${KROXYLICIOUS_VERSION}.jar /opt/kroxylicious/kroxylicious.jar
-ENTRYPOINT ["/usr/bin/tini", "--", "java", "-cp", "/opt/kroxylicious/kroxylicious.jar:/opt/kroxylicious/libs/*:/opt/kroxylicious/user-libs/*", "io.kroxylicious.app.Kroxylicious"]
+COPY --from=builder /opt/kroxylicious/kroxylicious-app/target/kroxylicious-app-${KROXYLICIOUS_VERSION}-bin/kroxylicious-app-${KROXYLICIOUS_VERSION}/ /opt/kroxylicious/
+ENTRYPOINT ["/usr/bin/tini", "--", "/opt/kroxylicious/bin/kroxylicious-start.sh" ]
