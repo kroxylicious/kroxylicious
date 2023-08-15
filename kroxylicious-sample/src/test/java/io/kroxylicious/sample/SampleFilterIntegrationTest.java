@@ -95,7 +95,7 @@ class SampleFilterIntegrationTest {
     }
 
     /**
-     * Test that the SampleFetchResponseFilter won't drop a second message produced to a topic.
+     * Test that the SampleProduceRequestFilter won't drop a second message produced to a topic.
      */
     @Test
     void sampleProduceRequestFilterWontDropSecondMessageIntegrationTest() {
