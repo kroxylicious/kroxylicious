@@ -117,22 +117,20 @@ No one likes to argue about code formatting in pull requests, as project we take
 Build with the `dist` profile as shown above, then execute this:
 
 ```shell
-$ java -jar kroxylicious-app/target/kroxylicious-app-*-SNAPSHOT.jar --config {path-to-kroxylicious-config}
+$ kroxylicious-app/target/kroxylicious-app-*-bin/kroxylicious-app-*/bin/kroxylicious-start.sh --config {path-to-kroxylicious-config}
 ```
 
 Or, to run with your own class path, run this instead:
 
 ```shell
-$ java -cp {path-to-your-class-path}:kroxylicious-app/target/kroxylicious-app-*-SNAPSHOT.jar io.kroxylicious.app.Kroxylicious --config {path-to-kroxylicious-config}
+$ KROXYLICIOUS_CLASSPATH="{additional-classpath-entries}" kroxylicious-app/target/kroxylicious-app-*-bin/kroxylicious-app-*/bin/kroxylicious-start.sh --config {path-to-kroxylicious-config}
 ```
 
-To prevent the [following error](https://www.slf4j.org/codes.html#StaticLoggerBinder):
+for example:
 
 ```shell
-Failed to load class org.slf4j.impl.StaticLoggerBinder
+$ KROXYLICIOUS_CLASSPATH="/path/to/any.jar:/path/to/libs/dir/*" kroxylicious-app/target/kroxylicious-app-*-bin/kroxylicious-app-*/bin/kroxylicious-start.sh --config kroxylicious-app/example-proxy-config.yml
 ```
-
-Make sure to follow the [suggestions here](https://www.slf4j.org/codes.html#StaticLoggerBinder) to include one (and only one) of the suggested jars on the classpath.
 
 ### Debugging
 Logging is turned off by default for better performance. In case you want to debug, logging should be turned on in the `example-proxy-config.yml` file:
