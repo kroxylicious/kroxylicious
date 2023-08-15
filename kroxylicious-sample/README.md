@@ -11,13 +11,13 @@ Building the sample project is easy! You can build the **kroxylicious-sample** j
 To build all of Kroxylicious, including the sample:
 
 ```
-$ mvn clean install
+$ mvn clean verify
 ```
 
 To build the sample on its own:
 
 ```
-$ mvn clean install -pl kroxylicious-sample
+$ mvn clean verify -pl :kroxylicious-sample
 ```
 
 Build with the `dist` profile for creating executable JARs:
