@@ -22,6 +22,8 @@
  * requests/responses arriving at the filter.  This is done so that message order is maintained.  Once the
  * `CompletionStage` completes, the action described  by the `FilterResult` is performed, reading from the downstream
  * resumes and any queued up requests/responses are processed.</p>
+ * <p>Note: The pausing of reads from the downstream is a relatively costly operation.  To maintain optimal performance
+ * filter implementations should minimise the occasions on which an incomplete `CompletionStage` is returned.</p>
  * <h3 id='implementing.createFilterResults'>Creating Filter Result objects</h3>
  * <p>The {@link io.kroxylicious.proxy.filter.KrpcFilterContext} is the factory for the `FilterResult` objects.</p>
  * <p>There are two convenience methods that simply allow a filter to immediately forward a result.:</p>
