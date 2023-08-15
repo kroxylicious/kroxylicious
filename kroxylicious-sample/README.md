@@ -11,7 +11,7 @@ Building the sample project is easy! You can build the **kroxylicious-sample** j
 #### To build all of Kroxylicious, including the sample:
 
 ```
-$ mvn verify --also-make
+$ mvn verify
 ```
 
 #### To build the sample on its own:
@@ -25,7 +25,7 @@ $ mvn verify -pl :kroxylicious-sample --also-make
 #### Build with the `dist` profile for creating executable JARs:
 
 ```
-$ mvn verify -Pdist -Dquick --also-make
+$ mvn verify -Pdist -Dquick
 ```
 
 > *__Note:__ You can leave out `--also-make` from these commands if you have already built the whole Kroxylicious project.*
