@@ -123,7 +123,13 @@ $ kroxylicious-app/target/kroxylicious-app-*-bin/kroxylicious-app-*/bin/kroxylic
 Or, to run with your own class path, run this instead:
 
 ```shell
-$ KROXYLICIOUS_CLASSPATH="/path/to/a.jar:/path/to/b.jar" kroxylicious-app/target/kroxylicious-app-*-bin/kroxylicious-app-*/bin/kroxylicious-start.sh --config {path-to-kroxylicious-config}
+$ KROXYLICIOUS_CLASSPATH="{additional-classpath-entries}" kroxylicious-app/target/kroxylicious-app-*-bin/kroxylicious-app-*/bin/kroxylicious-start.sh --config {path-to-kroxylicious-config}
+```
+
+for example:
+
+```shell
+$ KROXYLICIOUS_CLASSPATH="/path/to/any.jar:/path/to/libs/dir/*" kroxylicious-app/target/kroxylicious-app-*-bin/kroxylicious-app-*/bin/kroxylicious-start.sh --config kroxylicious-app/example-proxy-config.yml
 ```
 
 ### Debugging
