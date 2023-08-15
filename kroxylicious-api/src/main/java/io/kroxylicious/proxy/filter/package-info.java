@@ -27,7 +27,7 @@
  * <p>If the CompletionStage completes exceptionally, the connection is closed.  This also applies if the
  * CompletionStage does not complete within a timeout (20000 milliseconds).</p>
  * <h3 id='implementing.createFilterResults'>Creating Filter Result objects</h3>
- * <p>The {@link io.kroxylicious.proxy.filter.KrpcFilterContext} is the factory for the FilterResul` objects.</p>
+ * <p>The {@link io.kroxylicious.proxy.filter.KrpcFilterContext} is the factory for the FilterResult objects.</p>
  * <p>There are two convenience methods that simply allow a filter to immediately forward a result:</p>
  * <ul>
  *     <li>{@link io.kroxylicious.proxy.filter.KrpcFilterContext#forwardRequest(org.apache.kafka.common.message.RequestHeaderData, org.apache.kafka.common.protocol.ApiMessage)}, and</li>
