@@ -163,6 +163,20 @@ public class FilterHandler extends ChannelDuplexHandler {
     private CompletableFuture<Void> readDecodedResponse(DecodedResponseFrame<?> decodedFrame) {
         var filterContext = new InternalFilterContext(decodedFrame);
 
+        final var future = dispatchDecodedResponseFrame(decodedFrame, filterContext);
+        boolean defer = !future.isDone();
+        if (defer) {
+            return configureResponseFilterChain(decodedFrame, handleDeferredStage(decodedFrame, future))
+                    .whenComplete(this::deferredResponseCompleted)
+                    .thenApply(responseFilterResult -> null);
+        }
+        else {
+            return configureResponseFilterChain(decodedFrame, future)
+                    .thenApply(responseFilterResult -> null);
+        }
+    }
+
+    private CompletableFuture<ResponseFilterResult> dispatchDecodedResponseFrame(DecodedResponseFrame<?> decodedFrame, InternalFilterContext filterContext) {
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("{}: Dispatching upstream {} response to filter {}: {}",
                     channelDescriptor(), decodedFrame.apiKey(), filterDescriptor(), decodedFrame);
@@ -177,19 +191,31 @@ public class FilterHandler extends ChannelDuplexHandler {
             closeConnection();
             return CompletableFuture.completedFuture(null);
         }
-        var future = stage.toCompletableFuture();
-        boolean defer = !future.isDone();
-        var maybeDeferred = defer ? handleDeferredStage(decodedFrame, future) : future;
-        var filterHandled = maybeDeferred
-                .thenApply(FilterHandler::validateFilterResultNonNull)
+        return stage.toCompletableFuture();
+    }
+
+    private CompletableFuture<ResponseFilterResult> configureResponseFilterChain(DecodedResponseFrame<?> decodedFrame, CompletableFuture<ResponseFilterResult> future) {
+        return future.thenApply(FilterHandler::validateFilterResultNonNull)
                 .thenApply(fr -> handleResponseFilterResult(decodedFrame, fr))
                 .exceptionally(t -> handleFilteringException(t, decodedFrame));
-        var maybeDeferredCompleted = defer ? handleDeferredReadCompletion(filterHandled) : filterHandled;
-        return maybeDeferredCompleted.thenApply(responseFilterResult -> null);
     }
 
     private CompletableFuture<Void> writeDecodedRequest(DecodedRequestFrame<?> decodedFrame, ChannelPromise promise) {
         var filterContext = new InternalFilterContext(decodedFrame);
+        final var future = dispatchDecodedRequest(decodedFrame, filterContext);
+        boolean defer = !future.isDone();
+        if (defer) {
+            return configureRequestFilterChain(decodedFrame, promise, handleDeferredStage(decodedFrame, future))
+                    .whenComplete(this::deferredRequestCompleted)
+                    .thenApply(requestFilterResult -> null);
+        }
+        else {
+            return configureRequestFilterChain(decodedFrame, promise, future)
+                    .thenApply(requestFilterResult -> null);
+        }
+    }
+
+    private CompletableFuture<RequestFilterResult> dispatchDecodedRequest(DecodedRequestFrame<?> decodedFrame, InternalFilterContext filterContext) {
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("{}: Dispatching downstream {} request to filter{}: {}",
                     channelDescriptor(), decodedFrame.apiKey(), filterDescriptor(), decodedFrame);
@@ -205,15 +231,14 @@ public class FilterHandler extends ChannelDuplexHandler {
             closeConnection();
             return CompletableFuture.completedFuture(null);
         }
-        var future = stage.toCompletableFuture();
-        boolean defer = !future.isDone();
-        var maybeDeferred = defer ? handleDeferredStage(decodedFrame, future) : future;
-        var filterHandled = maybeDeferred
-                .thenApply(FilterHandler::validateFilterResultNonNull)
+        return stage.toCompletableFuture();
+    }
+
+    private CompletableFuture<RequestFilterResult> configureRequestFilterChain(DecodedRequestFrame<?> decodedFrame, ChannelPromise promise,
+                                                                               CompletableFuture<RequestFilterResult> future) {
+        return future.thenApply(FilterHandler::validateFilterResultNonNull)
                 .thenApply(fr -> handleRequestFilterResult(decodedFrame, promise, fr))
                 .exceptionally(t -> handleFilteringException(t, decodedFrame));
-        var maybeDeferredCompleted = defer ? handleDeferredWriteCompletion(filterHandled) : filterHandled;
-        return maybeDeferredCompleted.thenApply(filterResult -> null);
     }
 
     private ResponseFilterResult handleResponseFilterResult(DecodedResponseFrame<?> decodedFrame, ResponseFilterResult responseFilterResult) {
@@ -284,27 +309,24 @@ public class FilterHandler extends ChannelDuplexHandler {
         }, timeoutMs, TimeUnit.MILLISECONDS);
         return future.thenApply(filterResult -> {
             timeoutFuture.cancel(false);
+
             return filterResult;
         });
     }
 
-    private CompletableFuture<?> handleDeferredReadCompletion(CompletableFuture<?> future) {
-        return future.whenComplete((ignored, throwable) -> {
-            inboundChannel.config().setAutoRead(true);
-            readFuture.whenComplete((u, t) -> inboundChannel.flush());
-        });
+    private void deferredResponseCompleted(ResponseFilterResult ignored, Throwable throwable) {
+        inboundChannel.config().setAutoRead(true);
+        readFuture.whenComplete((u, t) -> inboundChannel.flush());
     }
 
-    private CompletableFuture<?> handleDeferredWriteCompletion(CompletableFuture<?> future) {
-        return future.whenComplete((ignored, throwable) -> {
-            inboundChannel.config().setAutoRead(true);
-            // flush so that writes from this completion can be driven towards the broker
-            ctx.flush();
-            // chain a flush to force any pending writes from other enqueued work to be driven towards the broker
-            writeFuture.whenComplete((u, t) -> ctx.flush());
-            // flush inbound in case of short-circuit
-            inboundChannel.flush();
-        });
+    private void deferredRequestCompleted(RequestFilterResult ignored, Throwable throwable) {
+        inboundChannel.config().setAutoRead(true);
+        // flush so that writes from this completion can be driven towards the broker
+        ctx.flush();
+        // chain a flush to force any pending writes towards the broker
+        writeFuture.whenComplete((u, t) -> ctx.flush());
+        // flush inbound in case of short-circuit
+        inboundChannel.flush();
     }
 
     private void forwardRequest(DecodedRequestFrame<?> decodedFrame, RequestFilterResult requestFilterResult, ChannelPromise promise) {
