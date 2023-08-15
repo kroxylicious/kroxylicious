@@ -14,6 +14,7 @@ import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.junit.jupiter.api.AfterEach;
 
+import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
 
 import io.kroxylicious.proxy.config.TargetCluster;
@@ -21,6 +22,8 @@ import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
+import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
+import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
 import io.kroxylicious.proxy.model.VirtualCluster;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 
@@ -76,6 +79,28 @@ public abstract class FilterHarness {
         header.setClientId(TEST_CLIENT);
         var frame = new DecodedRequestFrame<>(apiKey.latestVersion(), correlationId, false, header, data);
         channel.writeOutbound(frame);
+        return frame;
+    }
+
+    /**
+     * Writes an opaque request, simulating the case where no Filter in the chain
+     * is interested in this RPC, so it is not decoded
+     * @return the opaque frame written to the channel
+     */
+    protected OpaqueRequestFrame writeArbitraryOpaqueRequest() {
+        OpaqueRequestFrame frame = new OpaqueRequestFrame(Unpooled.buffer(), 55, false, 0, false);
+        channel.writeOneOutbound(frame);
+        return frame;
+    }
+
+    /**
+     * Writes an opaque response, simulating the case where no Filter in the chain
+     * is interested in this RPC, so it is not decoded
+     * @return the opaque frame written to the channel
+     */
+    protected OpaqueResponseFrame writeArbitraryOpaqueResponse() {
+        OpaqueResponseFrame frame = new OpaqueResponseFrame(Unpooled.buffer(), 55, 0);
+        channel.writeOneInbound(frame);
         return frame;
     }
 

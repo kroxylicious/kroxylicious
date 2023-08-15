@@ -32,16 +32,11 @@ package io.kroxylicious.proxy.filter;
 
 import java.util.concurrent.CompletionStage;
 
-import org.apache.kafka.common.message.${messageSpec.name}Data;
-<#if messageSpec.type?lower_case == 'response'>
-import org.apache.kafka.common.message.ResponseHeaderData;
-<#else>
-import org.apache.kafka.common.message.RequestHeaderData;
-</#if>
+import org.apache.kafka.common.message.${dataClass};
+import org.apache.kafka.common.message.${headerClass};
 
 /**
  * A stateless filter for ${messageSpec.name}s.
- * The same instance may be invoked on multiple channels.
  */
 public interface ${filterClass} extends KrpcFilter {
 
@@ -58,17 +53,19 @@ public interface ${filterClass} extends KrpcFilter {
     }
 
     /**
-     * Handle the given {@code ${msgType}},
-     * returning the {@code ${dataClass}} instance to be passed to the next filter.
-     * The implementation may modify the given {@code data} in-place and return it,
-     * or instantiate a new one.
+     * Handle the given {@code header} and {@code ${msgType}} pair, returning the {@code header} and {@code ${msgType}}
+     * pair to be passed to the next filter using the ${filterResultClass}.
+     * <br/>
+     * The implementation may modify the given {@code header} and {@code ${msgType}} in-place, or instantiate a
+     * new instances.
      *
-     * @param apiVersion the apiVersion of the ${messageSpec.type?lower_case}
-     * @param header <#if messageSpec.type?lower_case == 'response'>response<#else>request</#if> header.
-     * @param ${msgType} The KRPC message to handle.
+     * @param apiVersion the apiVersion of the ${msgType}
+     * @param header ${msgType} header.
+     * @param ${msgType} The body to handle.
      * @param context The context.
-     * @return CompletionStage that, when complete, will yield a ${filterResultClass} containing the
-     *         ${messageSpec.type?lower_case} to be forwarded.
+     * @return a non-null CompletionStage that, when complete, will yield a ${filterResultClass} containing the
+     *         ${msgType} to be forwarded.
+     * @see io.kroxylicious.proxy.filter Creating Filter Result objects
      */
      CompletionStage<${filterResultClass}> on${messageSpec.name}(short apiVersion, ${headerClass} header, ${dataClass} ${msgType}, KrpcFilterContext context);
 

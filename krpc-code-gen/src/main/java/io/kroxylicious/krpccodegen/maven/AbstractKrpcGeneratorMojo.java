@@ -21,7 +21,11 @@ import org.codehaus.plexus.build.BuildContext;
 
 import io.kroxylicious.krpccodegen.main.KrpcGenerator;
 
-public abstract class AbstractKrpcGeneratorMojo extends AbstractMojo {
+/**
+ * Abstract Maven plugin capable of generating java source from Apache Kafka message
+ * specifications definitions.
+ */
+abstract class AbstractKrpcGeneratorMojo extends AbstractMojo {
 
     /**
      * Gives access to the Maven project information.
@@ -55,6 +59,10 @@ public abstract class AbstractKrpcGeneratorMojo extends AbstractMojo {
 
     @Component
     private BuildContext buildContext;
+
+    AbstractKrpcGeneratorMojo() {
+        super();
+    }
 
     @Override
     public void execute() throws MojoExecutionException, MojoFailureException {
@@ -98,5 +106,5 @@ public abstract class AbstractKrpcGeneratorMojo extends AbstractMojo {
         }
     }
 
-    protected abstract KrpcGenerator.Builder builder();
+    abstract KrpcGenerator.Builder builder();
 }

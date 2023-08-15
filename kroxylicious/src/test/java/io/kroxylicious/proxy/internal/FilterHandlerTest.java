@@ -6,6 +6,7 @@
 package io.kroxylicious.proxy.internal;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
@@ -33,12 +34,15 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 import io.kroxylicious.proxy.filter.ApiVersionsRequestFilter;
 import io.kroxylicious.proxy.filter.ApiVersionsResponseFilter;
+import io.kroxylicious.proxy.filter.FetchRequestFilter;
 import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
+import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
+import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
 import io.kroxylicious.proxy.future.InternalCompletionStage;
 import io.kroxylicious.proxy.internal.filter.RequestFilterResultBuilderImpl;
 import io.kroxylicious.proxy.internal.filter.ResponseFilterResultBuilderImpl;
@@ -99,6 +103,218 @@ public class FilterHandlerTest extends FilterHarness {
         writeRequest(new ProduceRequestData().setAcks((short) 1));
         DecodedResponseFrame<?> propagated = channel.readInbound();
         assertEquals(responseData, propagated.body(), "expected ProduceResponseData to be forwarded");
+    }
+
+    @Test
+    void shortCircuitSendsIncorrectApiResponse() {
+        ProduceResponseData responseData = new ProduceResponseData();
+        FetchRequestFilter filter = (apiVersion, header, request, context) -> context.requestFilterResultBuilder().shortCircuitResponse(responseData)
+                .completed();
+        buildChannel(filter);
+        writeRequest(new FetchRequestData());
+
+        DecodedResponseFrame<?> propagated = channel.readInbound();
+        assertThat(propagated).isNull();
+        assertThat(channel.isOpen()).isFalse();
+    }
+
+    @Test
+    void deferredRequestDelaysSubsequentRequest() {
+        var req1 = new ApiVersionsRequestData().setClientSoftwareName("req1");
+        var req2 = new ApiVersionsRequestData().setClientSoftwareName("req2");
+
+        var requestFutureMap = new LinkedHashMap<ApiVersionsRequestData, CompletableFuture<Void>>();
+        requestFutureMap.put(req1, new CompletableFuture<>());
+        requestFutureMap.put(req2, CompletableFuture.completedFuture(null));
+
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> requestFutureMap.get(request)
+                .thenCompose((u) -> context.forwardRequest(header, request));
+        buildChannel(filter);
+
+        requestFutureMap.keySet().forEach(this::writeRequest);
+        channel.runPendingTasks();
+
+        var propagated = channel.readOutbound();
+        assertThat(propagated).isNull();
+
+        // complete req1's future, now expect both requests to flow.
+        requestFutureMap.get(req1).complete(null);
+
+        channel.runPendingTasks();
+        DecodedRequestFrame<?> outboundRequest1 = channel.readOutbound();
+        assertThat(outboundRequest1).extracting(DecodedRequestFrame::body).isEqualTo(req1);
+
+        DecodedRequestFrame<?> outboundRequest2 = channel.readOutbound();
+        assertThat(outboundRequest2).extracting(DecodedRequestFrame::body).isEqualTo(req2);
+    }
+
+    @Test
+    void deferredRequestDelaysSubsequentOpaqueRequest() {
+        var req1 = new ApiVersionsRequestData().setClientSoftwareName("req1");
+
+        var requestFutureMap = new LinkedHashMap<ApiVersionsRequestData, CompletableFuture<Void>>();
+        requestFutureMap.put(req1, new CompletableFuture<>());
+
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> requestFutureMap.get(request)
+                .thenCompose((u) -> context.forwardRequest(header, request));
+        buildChannel(filter);
+
+        requestFutureMap.keySet().forEach(this::writeRequest);
+        OpaqueRequestFrame opaqueRequestFrame = writeArbitraryOpaqueRequest();
+        channel.runPendingTasks();
+
+        var propagated = channel.readOutbound();
+        assertThat(propagated).isNull();
+
+        // complete req1's future, now expect both requests to flow.
+        requestFutureMap.get(req1).complete(null);
+
+        channel.runPendingTasks();
+        DecodedRequestFrame<?> outboundRequest1 = channel.readOutbound();
+        assertThat(outboundRequest1).extracting(DecodedRequestFrame::body).isEqualTo(req1);
+
+        OpaqueRequestFrame outboundRequest2 = channel.readOutbound();
+        assertThat(outboundRequest2).isSameAs(opaqueRequestFrame);
+    }
+
+    @Test
+    void multipleDeferredRequests() {
+        var req1 = new ApiVersionsRequestData().setClientSoftwareName("req1");
+        var req2 = new ApiVersionsRequestData().setClientSoftwareName("req2");
+        var req3 = new ApiVersionsRequestData().setClientSoftwareName("req3");
+
+        var requestFutureMap = new LinkedHashMap<ApiVersionsRequestData, CompletableFuture<Void>>();
+        requestFutureMap.put(req1, new CompletableFuture<>());
+        requestFutureMap.put(req2, new CompletableFuture<>());
+        requestFutureMap.put(req3, CompletableFuture.completedFuture(null));
+
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> requestFutureMap.get(request)
+                .thenCompose((u) -> context.forwardRequest(header, request));
+        buildChannel(filter);
+        // freeze time to prevent the deferred request timeout driving completion
+        channel.freezeTime();
+
+        requestFutureMap.keySet().forEach(this::writeRequest);
+        channel.runPendingTasks();
+
+        var propagated = channel.readOutbound();
+        assertThat(propagated).isNull();
+
+        // complete req1's future, now expect both requests to flow.
+        requestFutureMap.get(req1).complete(null);
+
+        channel.runPendingTasks();
+        DecodedRequestFrame<?> outboundRequest1 = channel.readOutbound();
+        assertThat(outboundRequest1).extracting(DecodedRequestFrame::body).isEqualTo(req1);
+
+        requestFutureMap.get(req2).complete(null);
+
+        channel.runPendingTasks();
+
+        DecodedRequestFrame<?> outboundRequest2 = channel.readOutbound();
+        assertThat(outboundRequest2).extracting(DecodedRequestFrame::body).isEqualTo(req2);
+
+        DecodedRequestFrame<?> outboundRequest3 = channel.readOutbound();
+        assertThat(outboundRequest3).extracting(DecodedRequestFrame::body).isEqualTo(req3);
+    }
+
+    @Test
+    void deferredResponseDelaysSubsequentResponse() {
+        var res1 = new ApiVersionsResponseData().setErrorCode((short) 1);
+        var res2 = new ApiVersionsResponseData().setErrorCode((short) 2);
+
+        var responseFutureMap = new LinkedHashMap<ApiVersionsResponseData, CompletableFuture<Void>>();
+        responseFutureMap.put(res1, new CompletableFuture<>());
+        responseFutureMap.put(res2, CompletableFuture.completedFuture(null));
+
+        ApiVersionsResponseFilter filter = (apiVersion, header, response, context) -> responseFutureMap.get(response)
+                .thenCompose((u) -> context.forwardResponse(header, response));
+        buildChannel(filter);
+
+        responseFutureMap.keySet().forEach(this::writeResponse);
+        channel.runPendingTasks();
+
+        var propagated = channel.readInbound();
+        assertThat(propagated).isNull();
+
+        // complete res1's future, now expect both response to flow.
+        responseFutureMap.get(res1).complete(null);
+
+        channel.runPendingTasks();
+        DecodedResponseFrame<?> inboundResponse1 = channel.readInbound();
+        assertThat(inboundResponse1).extracting(DecodedResponseFrame::body).isEqualTo(res1);
+
+        DecodedResponseFrame<?> inboundResponse2 = channel.readInbound();
+        assertThat(inboundResponse2).extracting(DecodedResponseFrame::body).isEqualTo(res2);
+    }
+
+    @Test
+    void deferredResponseDelaysSubsequentOpaqueResponse() {
+        var res1 = new ApiVersionsResponseData().setErrorCode((short) 1);
+
+        var responseFutureMap = new LinkedHashMap<ApiVersionsResponseData, CompletableFuture<Void>>();
+        responseFutureMap.put(res1, new CompletableFuture<>());
+
+        ApiVersionsResponseFilter filter = (apiVersion, header, response, context) -> responseFutureMap.get(response)
+                .thenCompose((u) -> context.forwardResponse(header, response));
+        buildChannel(filter);
+
+        responseFutureMap.keySet().forEach(this::writeResponse);
+        OpaqueResponseFrame opaqueResponseFrame = writeArbitraryOpaqueResponse();
+        channel.runPendingTasks();
+
+        var propagated = channel.readInbound();
+        assertThat(propagated).isNull();
+
+        // complete res1's future, now expect both response to flow.
+        responseFutureMap.get(res1).complete(null);
+
+        channel.runPendingTasks();
+        DecodedResponseFrame<?> inboundResponse1 = channel.readInbound();
+        assertThat(inboundResponse1).extracting(DecodedResponseFrame::body).isEqualTo(res1);
+
+        OpaqueResponseFrame inboundResponse2 = channel.readInbound();
+        assertThat(inboundResponse2).isSameAs(opaqueResponseFrame);
+    }
+
+    @Test
+    void multipleDeferredResponses() {
+        var res1 = new ApiVersionsResponseData().setErrorCode((short) 1);
+        var res2 = new ApiVersionsResponseData().setErrorCode((short) 2);
+        var res3 = new ApiVersionsResponseData().setErrorCode((short) 3);
+
+        var responseFutureMap = new LinkedHashMap<ApiVersionsResponseData, CompletableFuture<Void>>();
+        responseFutureMap.put(res1, new CompletableFuture<>());
+        responseFutureMap.put(res2, new CompletableFuture<>());
+        responseFutureMap.put(res3, CompletableFuture.completedFuture(null));
+
+        ApiVersionsResponseFilter filter = (apiVersion, header, response, context) -> responseFutureMap.get(response)
+                .thenCompose((u) -> context.forwardResponse(header, response));
+        buildChannel(filter);
+
+        responseFutureMap.keySet().forEach(this::writeResponse);
+        channel.runPendingTasks();
+
+        var propagated = channel.readInbound();
+        assertThat(propagated).isNull();
+
+        // complete res1's future, expect res1's response to flow toward client
+        responseFutureMap.get(res1).complete(null);
+
+        channel.runPendingTasks();
+        DecodedResponseFrame<?> inboundResponse1 = channel.readInbound();
+        assertThat(inboundResponse1).extracting(DecodedResponseFrame::body).isEqualTo(res1);
+
+        // complete res2's future, now expect res2 and res3 responses to flow.
+        responseFutureMap.get(res2).complete(null);
+
+        channel.runPendingTasks();
+
+        DecodedResponseFrame<?> inboundResponse2 = channel.readInbound();
+        assertThat(inboundResponse2).extracting(DecodedResponseFrame::body).isEqualTo(res2);
+
+        DecodedResponseFrame<?> inboundResponse3 = channel.readInbound();
+        assertThat(inboundResponse3).extracting(DecodedResponseFrame::body).isEqualTo(res3);
     }
 
     @Test
@@ -348,8 +564,7 @@ public class FilterHandlerTest extends FilterHarness {
 
     @Test
     void testForwardResponse() {
-        ApiVersionsResponseFilter filter = (apiVersion, header, response, context) -> context.responseFilterResultBuilder().forward(header, response)
-                .completed();
+        ApiVersionsResponseFilter filter = (apiVersion, header, response, context) -> context.forwardResponse(header, response);
         buildChannel(filter);
         var frame = writeResponse(new ApiVersionsResponseData());
         var propagated = channel.readInbound();

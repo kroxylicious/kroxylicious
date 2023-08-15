@@ -12,11 +12,11 @@ import freemarker.template.TemplateHashModel;
 import freemarker.template.TemplateModel;
 import freemarker.template.TemplateModelException;
 
-public class FieldSpecModel implements TemplateHashModel, AdapterTemplateModel {
+class FieldSpecModel implements TemplateHashModel, AdapterTemplateModel {
     final FieldSpec spec;
     final KrpcSchemaObjectWrapper wrapper;
 
-    public FieldSpecModel(KrpcSchemaObjectWrapper wrapper, FieldSpec ms) {
+    FieldSpecModel(KrpcSchemaObjectWrapper wrapper, FieldSpec ms) {
         this.wrapper = wrapper;
         this.spec = ms;
     }

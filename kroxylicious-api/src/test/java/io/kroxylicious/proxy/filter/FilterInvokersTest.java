@@ -79,12 +79,12 @@ class FilterInvokersTest {
     static class RequestResponseFilter implements RequestFilter, ResponseFilter {
 
         @Override
-        public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
+        public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage request, KrpcFilterContext context) {
             return null;
         }
 
         @Override
-        public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, ResponseHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
+        public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, ResponseHeaderData header, ApiMessage response, KrpcFilterContext context) {
             return null;
         }
     }
@@ -129,7 +129,7 @@ class FilterInvokersTest {
         }
 
         @Override
-        public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
+        public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage request, KrpcFilterContext context) {
 
             return null;
         }
@@ -159,7 +159,7 @@ class FilterInvokersTest {
         }
 
         @Override
-        public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, ResponseHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
+        public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, ResponseHeaderData header, ApiMessage response, KrpcFilterContext context) {
 
             return null;
         }
@@ -190,7 +190,7 @@ class FilterInvokersTest {
         }
 
         @Override
-        public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, ResponseHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
+        public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, ResponseHeaderData header, ApiMessage response, KrpcFilterContext context) {
 
             return null;
         }
@@ -199,7 +199,7 @@ class FilterInvokersTest {
     static class SpecificAndRequestFilter implements ApiVersionsRequestFilter, RequestFilter {
 
         @Override
-        public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
+        public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage request, KrpcFilterContext context) {
 
             return null;
         }

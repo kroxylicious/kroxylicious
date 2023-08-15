@@ -10,12 +10,12 @@ import java.util.ResourceBundle;
 
 import org.apache.maven.plugin.logging.Log;
 
-public class MavenLogger implements System.Logger {
+class MavenLogger implements System.Logger {
 
     private final String name;
     private final Log mavenLog;
 
-    public MavenLogger(String name, Log mavenLog) {
+    MavenLogger(String name, Log mavenLog) {
         this.name = name;
         this.mavenLog = mavenLog;
     }

@@ -14,6 +14,8 @@ import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 /**
  * A context to allow filters to interact with other filters and the pipeline.
  */
@@ -66,21 +68,27 @@ public interface KrpcFilterContext {
      * @param request The request to forward to the broker.
      * @return completed filter results.
      */
-    CompletionStage<RequestFilterResult> forwardRequest(RequestHeaderData header, ApiMessage request);
+    CompletionStage<RequestFilterResult> forwardRequest(@NonNull RequestHeaderData header, @NonNull ApiMessage request);
 
     /**
-     * Send a message from a filter towards the broker, invoking upstream filters
-     * and being informed of the response via TODO.
-     * The response will pass through upstream filters, invoking them, prior to the handler being invoked.
-     * Response propagation will stop once the handler has completed,
-     * i.e. the downstream filters will not receive the response.
+     * Send a message from a filter towards the broker.   The response to the requests will be
+     * made available to the filter asynchronously, by way of the {@link CompletionStage}.  The
+     * CompletionStage will contain the response object, or null of the request does not have a
+     * response.
+     * <br>
+     * The request will pass through all filters upstream of the filter that invoked the operation,
+     * invoking them, but not itself.  Similarly, the response will pass through all filters upstream
+     * of the filter that invoked the operation, invoking them, but not itself. The response does not
+     * pass through filter downstream.
+     * <br/>
      *
      * @param apiVersion The version of the request to use
      * @param request The request to send.
      * @param <T> The type of the response
-     * @return CompletionStage providing the response.
+     * @return CompletionStage that will yield the response.
      */
-    <T extends ApiMessage> CompletionStage<T> sendRequest(short apiVersion, ApiMessage request);
+    @NonNull
+    <T extends ApiMessage> CompletionStage<T> sendRequest(short apiVersion, @NonNull ApiMessage request);
 
     /**
      * Generates a completed filter results containing the given header and response.  When
@@ -94,7 +102,7 @@ public interface KrpcFilterContext {
      * @param response The request to forward to the broker.
      * @return completed filter results.
      */
-    CompletionStage<ResponseFilterResult> forwardResponse(ResponseHeaderData header, ApiMessage response);
+    CompletionStage<ResponseFilterResult> forwardResponse(@NonNull ResponseHeaderData header, @NonNull ApiMessage response);
 
     /**
      * Creates a builder for a request filter result objects.  This object encapsulates
