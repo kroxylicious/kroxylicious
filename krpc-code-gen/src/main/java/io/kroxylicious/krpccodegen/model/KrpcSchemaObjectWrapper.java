@@ -16,8 +16,16 @@ import freemarker.template.TemplateModel;
 import freemarker.template.TemplateModelException;
 import freemarker.template.Version;
 
+/**
+ * Wraps the java representation of the Kafka Model in a Apache FreeMaker
+ * template object.
+ */
 public class KrpcSchemaObjectWrapper extends DefaultObjectWrapper {
 
+    /**
+     * Creates a schema object wrapper for the specified version.
+     * @param version kafka model version.
+     */
     public KrpcSchemaObjectWrapper(Version version) {
         super(version);
     }

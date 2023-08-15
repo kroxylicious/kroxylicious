@@ -16,11 +16,11 @@ import freemarker.template.TemplateModelException;
 import freemarker.template.TemplateScalarModel;
 import freemarker.template.TemplateSequenceModel;
 
-public class VersionsModel implements TemplateHashModel, TemplateScalarModel, TemplateSequenceModel, AdapterTemplateModel {
+class VersionsModel implements TemplateHashModel, TemplateScalarModel, TemplateSequenceModel, AdapterTemplateModel {
     final Versions versions;
     final KrpcSchemaObjectWrapper wrapper;
 
-    public VersionsModel(KrpcSchemaObjectWrapper wrapper, Versions versions) {
+    VersionsModel(KrpcSchemaObjectWrapper wrapper, Versions versions) {
         this.wrapper = wrapper;
         this.versions = versions;
     }
