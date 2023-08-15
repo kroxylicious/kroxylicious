@@ -45,9 +45,9 @@ public class EagerMetadataLearner implements RequestFilter {
     }
 
     @Override
-    public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage body, KrpcFilterContext filterContext) {
+    public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage body, KrpcFilterContext context) {
         if (KAFKA_PRELUDE.contains(apiKey)) {
-            return filterContext.requestFilterResultBuilder().forward(header, body).completed();
+            return context.requestFilterResultBuilder().forward(header, body).completed();
         }
         else {
             final short apiVersion = determineMetadataApiVersion(header);
@@ -57,12 +57,12 @@ public class EagerMetadataLearner implements RequestFilter {
             var request = useClientRequest ? (MetadataRequestData) body : new MetadataRequestData();
 
             var future = new CompletableFuture<RequestFilterResult>();
-            var unused = filterContext.<MetadataResponseData> sendRequest(apiVersion, request)
+            var unused = context.<MetadataResponseData> sendRequest(apiVersion, request)
                     .thenAccept(metadataResponseData -> {
                         // closing the connection is important. This client connection is connected to bootstrap (it could
                         // be any broker or maybe not something else). we must close the connection to force the client to
                         // connect again.
-                        var builder = filterContext.requestFilterResultBuilder();
+                        var builder = context.requestFilterResultBuilder();
                         if (useClientRequest) {
                             // The client's request matched our out-of-band message, so we may as well return the
                             // response.
@@ -72,7 +72,7 @@ public class EagerMetadataLearner implements RequestFilter {
                             future.complete(builder.withCloseConnection().build());
 
                         }
-                        LOGGER.info("Closing upstream bootstrap connection {} now that endpoint reconciliation is complete.", filterContext.channelDescriptor());
+                        LOGGER.info("Closing upstream bootstrap connection {} now that endpoint reconciliation is complete.", context.channelDescriptor());
                     });
             return future;
         }
