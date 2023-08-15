@@ -103,11 +103,14 @@ public class FilterHandler extends ChannelDuplexHandler {
                 readFuture = readDecodedResponse(decodedFrame);
             }
             else {
-                readFuture = readFuture.whenComplete((a, b) -> {
+                readFuture = readFuture.thenCompose(ignored -> {
                     if (ctx.channel().isOpen()) {
-                        readDecodedResponse(decodedFrame);
+                        return readDecodedResponse(decodedFrame);
                     }
-                });
+                    else {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                }).exceptionally(throwable -> null);
             }
         }
         else {
@@ -133,11 +136,14 @@ public class FilterHandler extends ChannelDuplexHandler {
                 writeFuture = writeDecodedRequest(decodedFrame, promise);
             }
             else {
-                writeFuture = writeFuture.whenComplete((a, b) -> {
+                writeFuture = writeFuture.thenCompose(ignored -> {
                     if (ctx.channel().isOpen()) {
-                        writeDecodedRequest(decodedFrame, promise);
+                        return writeDecodedRequest(decodedFrame, promise);
                     }
-                });
+                    else {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                }).exceptionally(throwable -> null);
             }
         }
         else {
@@ -292,7 +298,9 @@ public class FilterHandler extends ChannelDuplexHandler {
     private CompletableFuture<?> handleDeferredWriteCompletion(CompletableFuture<?> future) {
         return future.whenComplete((ignored, throwable) -> {
             inboundChannel.config().setAutoRead(true);
-            // chain a flush to force any pending writes towards the broker
+            // flush so that writes from this completion can be driven towards the broker
+            ctx.flush();
+            // chain a flush to force any pending writes from other enqueued work to be driven towards the broker
             writeFuture.whenComplete((u, t) -> ctx.flush());
             // flush inbound in case of short-circuit
             inboundChannel.flush();
