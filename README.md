@@ -53,12 +53,12 @@ Any new package relationships need to be registered there.
 
 To verify whether the code base adheres to that target model, run the following:
 
-```bash
-$ mvn clean verify -Dquick -Parchitecture-check -pl kroxylicious
+```shell
+mvn clean verify -Dquick -Parchitecture-check -pl kroxylicious
 ```
 
 In case of any architecture violations, the actual architecture can be visualized using GraphViz like so:
 
-```bash
-$ dot -Tpng kroxylicious/target/generated-sources/annotations/deptective.dot > kroxylicious-arch.png
+```shell
+dot -Tpng kroxylicious/target/generated-sources/annotations/deptective.dot > kroxylicious-arch.png
 ```

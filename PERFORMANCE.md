@@ -6,32 +6,32 @@ This document describes how to run some basic performance tests for the proxy.
 
 Download Apache Kafka:
 
-```
-$ wget https://downloads.apache.org/kafka/3.4.1/kafka_2.13-3.4.1.tgz
-$ tar xvf kafka_2.13-3.4.1.tgz
+```shell
+wget https://downloads.apache.org/kafka/3.4.1/kafka_2.13-3.4.1.tgz
+tar xvf kafka_2.13-3.4.1.tgz
 ```
 
 Start up ZooKeeper and Kafka:
 
-```
-$ cd kafka_2.13-3.4.1
-$ bin/zookeeper-server-start.sh config/zookeeper.properties
-$ bin/kafka-server-start.sh config/server.properties
+```shell
+cd kafka_2.13-3.4.1
+bin/zookeeper-server-start.sh config/zookeeper.properties
+bin/kafka-server-start.sh config/server.properties
 ```
 
 ## Execution
 
 Build and launch the proxy:
 
-```
-$ mvn clean verify -Pdist -Dquick
-$ kroxylicious-app/target/kroxylicious-app-*-bin/kroxylicious-app-*/bin/kroxylicious-start.sh --config kroxylicious-app/example-proxy-config.yml
+```shell
+mvn clean verify -Pdist -Dquick
+kroxylicious-app/target/kroxylicious-app-*-bin/kroxylicious-app-*/bin/kroxylicious-start.sh --config kroxylicious-app/example-proxy-config.yml
 ```
 
 Run Kafka's _kafka-producer-perf-test.sh_ script:
 
-```
-$ bin/kafka-producer-perf-test.sh \
+```shell
+bin/kafka-producer-perf-test.sh \
 --topic perf-test \
 --throughput -1 \
 --num-records 10000000 \
