@@ -8,6 +8,7 @@ target/
 .apt_generated_tests/
 bin/
 dependency-reduced-pom.xml
+/apis/
 
 # VS Code
 .factorypath
