@@ -53,7 +53,7 @@ dependency-reduced-pom.xml
 .idea/compiler.xml
 .idea/encodings.xml
 # .idea/jarRepositories.xml
-# .idea/modules.xml
+.idea/modules.xml
 .idea/*.iml
 # .idea/modules
 *.iml
