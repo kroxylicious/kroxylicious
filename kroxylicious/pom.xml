@@ -289,40 +289,6 @@
             </dependencies>
         </profile>
         <profile>
-            <id>architecture-check</id>
-            <repositories>
-                <repository>
-                    <id>jitpack</id>
-                    <name>Jitpack</name>
-                    <url>https://jitpack.io</url>
-                </repository>
-            </repositories>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-compiler-plugin</artifactId>
-                        <configuration>
-                            <fork>true</fork>
-                            <showWarnings>true</showWarnings>
-                            <compilerArgs>
-                                <!-- <arg>-Xplugin:Deptective mode=ANALYZE components=io.netty.*:io.netty*;org.apache.kafka.*:org.apache.kafka*;io.kroxylicious.proxy.example.*:io.kroxylicious.proxy.example* visualize=true</arg> -->
-                                <arg>-Xplugin:Deptective mode=VALIDATE cycle_reporting_policy=ERROR reporting_policy=WARN visualize=true</arg>
-                                <!-- <arg>-J-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=1044</arg> -->
-                            </compilerArgs>
-                            <annotationProcessorPaths>
-                                <path>
-                                    <groupId>com.github.moditect.deptective</groupId>
-                                    <artifactId>deptective-javac-plugin</artifactId>
-                                    <version>master-SNAPSHOT</version>
-                                </path>
-                            </annotationProcessorPaths>
-                        </configuration>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-        <profile>
             <id>debug</id>
             <dependencyManagement>
                 <dependencies>
