@@ -21,14 +21,11 @@
         <module name="kroxylicious-schema-validation" />
         <module name="kroxylicious.test" />
         <module name="kroxylicious-krpc-plugin" />
+        <module name="kroxylicious-app" />
         <module name="performance-tests" />
         <module name="kroxylicious-krpc-plugin.test" />
       </profile>
     </annotationProcessing>
-    <bytecodeTargetLevel>
-      <module name="kroxylicious-bom" target="1.5" />
-      <module name="kroxylicious-filter-api-bom" target="1.5" />
-    </bytecodeTargetLevel>
   </component>
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
@@ -38,6 +35,7 @@
       <module name="kroxylicious" options="-parameters" />
       <module name="kroxylicious-additional-filters" options="-parameters" />
       <module name="kroxylicious-api" options="-parameters" />
+      <module name="kroxylicious-app" options="-parameters" />
       <module name="kroxylicious-krpc-plugin" options="-parameters" />
       <module name="kroxylicious-krpc-plugin.main" options="-parameters" />
       <module name="kroxylicious-krpc-plugin.test" options="-parameters" />
