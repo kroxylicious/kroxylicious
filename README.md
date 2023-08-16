@@ -43,22 +43,3 @@ See the [Performance Guide](PERFORMANCE.md) for information on running basic per
 ## Kroxylicious Samples
 
 See [kroxylicious-sample](kroxylicious-sample) to learn more about sample filters. Try them out and customise them for a hands-on introduction to custom filters in Kroxylicious.
-
-## Architecture Monitoring
-
-This project uses [Deptective 🕵](https://github.com/moditect/deptective/) for monitoring its architecture and fails any violations,
-either in form of unwanted package dependencies or circular package dependencies.
-The target dependency model is configured in the [deptective.json](kroxylicious/src/main/resources/META-INF/deptective.json) file.
-Any new package relationships need to be registered there.
-
-To verify whether the code base adheres to that target model, run the following:
-
-```shell
-mvn clean verify -Dquick -Parchitecture-check -pl kroxylicious
-```
-
-In case of any architecture violations, the actual architecture can be visualized using GraphViz like so:
-
-```shell
-dot -Tpng kroxylicious/target/generated-sources/annotations/deptective.dot > kroxylicious-arch.png
-```
