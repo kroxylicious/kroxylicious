@@ -56,8 +56,8 @@ which targets 20 to access some new language features.
 
 Build the project like this:
 
-```
-$ mvn clean install
+```shell
+mvn clean install
 ```
 
 The running of the tests can be controlled with the following Maven properties:
@@ -81,26 +81,26 @@ the `container.logs.dir`  system property. When run through Maven this is defaul
 
 Pass the `-Dquick` option to skip all tests and non-essential plug-ins and create the output artifact as quickly as possible:
 
-```
-$ mvn clean verify -Dquick
+```shell
+mvn clean verify -Dquick
 ```
 
 Run the following command to format the source code and organize the imports as per the project's conventions:
 
-```
-$ mvn process-sources
+```shell
+mvn process-sources
 ```
 
 Build with the `dist` profile for creating an executable JAR:
 
-```
-$ mvn clean verify -Pdist -Dquick
+```shell
+mvn clean verify -Pdist -Dquick
 ```
 
 Run the following to add missing license headers e.g. when adding new source files:
 
-```
-$ mvn org.commonjava.maven.plugins:directory-maven-plugin:highest-basedir@resolve-rootdir license:format
+```shell
+mvn org.commonjava.maven.plugins:directory-maven-plugin:highest-basedir@resolve-rootdir license:format
 ```
 
 ### Formatting the Code
@@ -117,19 +117,19 @@ No one likes to argue about code formatting in pull requests, as project we take
 Build with the `dist` profile as shown above, then execute this:
 
 ```shell
-$ kroxylicious-app/target/kroxylicious-app-*-bin/kroxylicious-app-*/bin/kroxylicious-start.sh --config {path-to-kroxylicious-config}
+kroxylicious-app/target/kroxylicious-app-*-bin/kroxylicious-app-*/bin/kroxylicious-start.sh --config {path-to-kroxylicious-config}
 ```
 
 Or, to run with your own class path, run this instead:
 
 ```shell
-$ KROXYLICIOUS_CLASSPATH="{additional-classpath-entries}" kroxylicious-app/target/kroxylicious-app-*-bin/kroxylicious-app-*/bin/kroxylicious-start.sh --config {path-to-kroxylicious-config}
+KROXYLICIOUS_CLASSPATH="{additional-classpath-entries}" kroxylicious-app/target/kroxylicious-app-*-bin/kroxylicious-app-*/bin/kroxylicious-start.sh --config {path-to-kroxylicious-config}
 ```
 
 for example:
 
 ```shell
-$ KROXYLICIOUS_CLASSPATH="/path/to/any.jar:/path/to/libs/dir/*" kroxylicious-app/target/kroxylicious-app-*-bin/kroxylicious-app-*/bin/kroxylicious-start.sh --config kroxylicious-app/example-proxy-config.yml
+KROXYLICIOUS_CLASSPATH="/path/to/any.jar:/path/to/libs/dir/*" kroxylicious-app/target/kroxylicious-app-*-bin/kroxylicious-app-*/bin/kroxylicious-start.sh --config kroxylicious-app/example-proxy-config.yml
 ```
 
 ### Debugging
@@ -184,30 +184,30 @@ While Kroxylicious is a java application we've had reports of issues running the
 ### Ensure appropriate tooling available
 1. Open the WSL window.
 2. Update the packages using
-    ```bash
+    ```shell
     sudo apt update
     sudo apt upgrade
     ```
 3. 
     1. Check the Java version by typing
-      ```bash
+      ```shell
       java --version
       ```
       Expect output similar to: 
-      ```bash
+      ```shell
       > java --version
    openjdk 19.0.2 2023-01-17
    OpenJDK Runtime Environment Temurin-19.0.2+7 (build 19.0.2+7)
    OpenJDK 64-Bit Server VM Temurin-19.0.2+7 (build 19.0.2+7, mixed mode, sharing)
    ```
     2. Update if needed: sample update command like:
-    ```bash
+    ```shell
     sudo apt update
     sudo apt upgrade
     sudo apt install openjdk-18-jre-headless
     ```
 4. Ensure GIT is available
-   1. ```bash
+   1. ```shell
       git --version
       ```
       Expect a version string similar to `git version 2.37.1 (Apple Git-137.1)`
@@ -221,7 +221,7 @@ While Kroxylicious is a java application we've had reports of issues running the
 
 On Linux, it maybe necessary to configure the `DOCKER_HOST` environment variable to allow the tests to correctly use test containers.
 
-```bash
+```shell
 DOCKER_HOST=unix://$(podman info --format '{{.Host.RemoteSocket.Path}}')
 export DOCKER_HOST
 ```
@@ -285,7 +285,7 @@ has been applied ineffectively.
 The `docs` directory has some user documentation written in [AsciiDoc](https://docs.asciidoctor.org/asciidoc/latest/) format.
 You can render it to HTML using:
 
-```bash
+```shell
 mvn org.asciidoctor:asciidoctor-maven-plugin:process-asciidoc@convert-to-html
 ```
 
