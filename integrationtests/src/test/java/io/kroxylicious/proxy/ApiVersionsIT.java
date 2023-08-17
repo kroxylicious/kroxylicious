@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.test.Request;
 import io.kroxylicious.test.Response;
+import io.kroxylicious.test.ResponsePayload;
 import io.kroxylicious.test.client.KafkaClient;
 import io.kroxylicious.test.tester.KroxyliciousConfigUtils;
 import io.kroxylicious.test.tester.MockServerKroxyliciousTester;
@@ -87,11 +88,12 @@ public class ApiVersionsIT {
             ApiVersionsResponseData.ApiVersion version = new ApiVersionsResponseData.ApiVersion();
             version.setApiKey((short) 9999).setMinVersion((short) 3).setMaxVersion((short) 4);
             mockResponse.apiKeys().add(version);
-            tester.addMockResponseForApiKey(new Response(ApiKeys.API_VERSIONS, (short) 3, mockResponse));
+            tester.addMockResponseForApiKey(new ResponsePayload(ApiKeys.API_VERSIONS, (short) 3, mockResponse));
             Response response = whenGetApiVersionsFromKroxylicious(client);
-            assertEquals(ApiKeys.API_VERSIONS, response.apiKeys());
-            assertEquals((short) 3, response.apiVersion());
-            ApiVersionsResponseData message = (ApiVersionsResponseData) response.message();
+            ResponsePayload payload = response.payload();
+            assertEquals(ApiKeys.API_VERSIONS, payload.apiKeys());
+            assertEquals((short) 3, payload.apiVersion());
+            ApiVersionsResponseData message = (ApiVersionsResponseData) payload.message();
             assertTrue(message.apiKeys().isEmpty());
         }
     }
@@ -106,11 +108,12 @@ public class ApiVersionsIT {
                 version.setApiKey(knownValue.id).setMinVersion(knownValue.oldestVersion()).setMaxVersion(knownValue.latestVersion());
                 mockResponse.apiKeys().add(version);
             }
-            tester.addMockResponseForApiKey(new Response(ApiKeys.API_VERSIONS, (short) 3, mockResponse));
+            tester.addMockResponseForApiKey(new ResponsePayload(ApiKeys.API_VERSIONS, (short) 3, mockResponse));
             Response response = whenGetApiVersionsFromKroxylicious(client);
-            assertEquals(ApiKeys.API_VERSIONS, response.apiKeys());
-            assertEquals((short) 3, response.apiVersion());
-            ApiVersionsResponseData message = (ApiVersionsResponseData) response.message();
+            ResponsePayload payload = response.payload();
+            assertEquals(ApiKeys.API_VERSIONS, payload.apiKeys());
+            assertEquals((short) 3, payload.apiVersion());
+            ApiVersionsResponseData message = (ApiVersionsResponseData) payload.message();
             Map<ApiKeys, ApiVersionsResponseData.ApiVersion> responseVersions = message.apiKeys().stream()
                     .collect(Collectors.toMap(k -> ApiKeys.forId(k.apiKey()), k -> k));
             for (ApiKeys knownValue : ApiKeys.values()) {
@@ -126,7 +129,7 @@ public class ApiVersionsIT {
         ApiVersionsResponseData.ApiVersion version = new ApiVersionsResponseData.ApiVersion();
         version.setApiKey(keys.id).setMinVersion(minVersion).setMaxVersion(maxVersion);
         mockResponse.apiKeys().add(version);
-        tester.addMockResponseForApiKey(new Response(ApiKeys.API_VERSIONS, (short) 3, mockResponse));
+        tester.addMockResponseForApiKey(new ResponsePayload(ApiKeys.API_VERSIONS, (short) 3, mockResponse));
     }
 
     private static Response whenGetApiVersionsFromKroxylicious(KafkaClient client) {
@@ -134,9 +137,10 @@ public class ApiVersionsIT {
     }
 
     private static void assertKroxyliciousResponseOffersApiVersionsForApiKey(Response response, ApiKeys apiKeys, short minVersion, short maxVersion) {
-        assertEquals(ApiKeys.API_VERSIONS, response.apiKeys());
-        assertEquals((short) 3, response.apiVersion());
-        ApiVersionsResponseData message = (ApiVersionsResponseData) response.message();
+        ResponsePayload payload = response.payload();
+        assertEquals(ApiKeys.API_VERSIONS, payload.apiKeys());
+        assertEquals((short) 3, payload.apiVersion());
+        ApiVersionsResponseData message = (ApiVersionsResponseData) payload.message();
         assertEquals(1, message.apiKeys().size());
         ApiVersionsResponseData.ApiVersion singletonVersion = message.apiKeys().iterator().next();
         assertEquals(apiKeys.id, singletonVersion.apiKey());

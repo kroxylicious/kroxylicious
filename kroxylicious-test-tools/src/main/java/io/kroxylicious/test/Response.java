@@ -6,11 +6,6 @@
 
 package io.kroxylicious.test;
 
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
-
-public record Response(ApiKeys apiKeys,
-                       short apiVersion,
-                       ApiMessage message) {
-
+public record Response(ResponsePayload payload,
+                       int sequenceNumber) {
 }

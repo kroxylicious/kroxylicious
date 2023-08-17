@@ -14,8 +14,6 @@ import org.apache.kafka.common.protocol.ApiKeys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.kroxylicious.test.codec.DecodedResponseFrame;
-
 /**
  * Tracks api version for requests
  */
@@ -41,7 +39,7 @@ public class CorrelationManager {
      */
     public void putBrokerRequest(short apiKey,
                                  short apiVersion,
-                                 int correlationId, CompletableFuture<DecodedResponseFrame<?>> responseFuture) {
+                                 int correlationId, CompletableFuture<SequencedResponse> responseFuture) {
         Correlation existing = this.brokerRequests.put(correlationId, new Correlation(apiKey, apiVersion, responseFuture));
         if (existing != null) {
             LOGGER.error("Duplicate upstream correlation id {}", correlationId);
@@ -63,7 +61,7 @@ public class CorrelationManager {
      */
     public record Correlation(short apiKey,
                               short apiVersion,
-                              CompletableFuture<DecodedResponseFrame<?>> responseFuture) {
+                              CompletableFuture<SequencedResponse> responseFuture) {
 
         @Override
         public String toString() {
