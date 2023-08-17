@@ -12,15 +12,17 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+import org.apache.kafka.common.header.Header;
+import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.message.ApiMessageType;
 import org.apache.kafka.common.message.FetchResponseData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.record.CompressionType;
-import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.record.MemoryRecordsBuilder;
 import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.record.RecordBatch;
+import org.apache.kafka.common.record.Records;
 import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 import org.junit.jupiter.api.BeforeEach;
@@ -79,7 +81,7 @@ class SampleFetchResponseFilterTest {
     void willTransformFetchResponseTest() throws Exception {
         var responseData = buildFetchResponseData(PRE_TRANSFORM_VALUE);
         var stage = filter.onFetchResponse(API_VERSION, headerData, responseData, context);
-
+        assertThat(stage).isCompleted();
         var response = stage.toCompletableFuture().get().message();
         var unpackedResponse = unpackFetchResponseData(((FetchResponseData) response));
         // We only put 1 record in, we should only get 1 record back, and
@@ -98,12 +100,38 @@ class SampleFetchResponseFilterTest {
     void wontTransformFetchResponseTest() throws Exception {
         var responseData = buildFetchResponseData(NO_TRANSFORM_VALUE);
         var stage = filter.onFetchResponse(API_VERSION, headerData, responseData, context);
-
+        assertThat(stage).isCompleted();
         var response = stage.toCompletableFuture().get().message();
         var unpackedResponse = unpackFetchResponseData((FetchResponseData) response);
         // We only put 1 record in, we should only get 1 record back, and
         // We should see that the unpacked response value has not changed from the input value
         assertThat(unpackedResponse).containsExactly(NO_TRANSFORM_VALUE);
+    }
+
+    /**
+     * Unit Test: Checks that when a transformation is applied that the response record(s) metadata matches what was sent.
+     */
+    @Test
+    void onTransformMetadataRetainedFetchResponseTest() throws Exception {
+        var responseData = buildFetchResponseData(PRE_TRANSFORM_VALUE);
+        var sent = responseData.duplicate(); // due to pass-by-reference issues we need a safe copy to compare with
+        var stage = filter.onFetchResponse(API_VERSION, headerData, responseData, context);
+        assertThat(stage).isCompleted();
+        var received = (FetchResponseData) stage.toCompletableFuture().get().message();
+        compareRecords(received, sent);
+    }
+
+    /**
+     * Unit Test: Checks that when a transformation is not applied that the response record(s) metadata matches what was sent.
+     */
+    @Test
+    void onNoTransformMetadataRetainedFetchResponseTest() throws Exception {
+        var responseData = buildFetchResponseData(NO_TRANSFORM_VALUE);
+        var sent = responseData.duplicate(); // due to pass-by-reference issues we need a safe copy to compare with
+        var stage = filter.onFetchResponse(API_VERSION, headerData, responseData, context);
+        assertThat(stage).isCompleted();
+        var received = (FetchResponseData) stage.toCompletableFuture().get().message();
+        compareRecords(received, sent);
     }
 
     private void setupContextMock() {
@@ -135,8 +163,10 @@ class SampleFetchResponseFilterTest {
         var recordsBuilder = new MemoryRecordsBuilder(stream, RecordBatch.CURRENT_MAGIC_VALUE, CompressionType.NONE, TimestampType.CREATE_TIME, 0,
                 RecordBatch.NO_TIMESTAMP, RecordBatch.NO_PRODUCER_ID, RecordBatch.NO_PRODUCER_EPOCH, RecordBatch.NO_SEQUENCE, false, false,
                 RecordBatch.NO_PARTITION_LEADER_EPOCH, stream.remaining());
+        // Create record Headers
+        Header header = new RecordHeader("myKey", "myValue".getBytes());
         // Add transformValue as buffer to records
-        recordsBuilder.append(RecordBatch.NO_TIMESTAMP, null, ByteBuffer.wrap(transformValue.getBytes(StandardCharsets.UTF_8)).position(0));
+        recordsBuilder.append(RecordBatch.NO_TIMESTAMP, null, ByteBuffer.wrap(transformValue.getBytes(StandardCharsets.UTF_8)).position(0), new Header[]{ header });
         var records = recordsBuilder.build();
         // Build partitions from built records
         var partitions = new ArrayList<FetchResponseData.PartitionData>();
@@ -154,15 +184,60 @@ class SampleFetchResponseFilterTest {
     }
 
     private static List<String> unpackFetchResponseData(FetchResponseData responseData) {
-        var responses = responseData.responses();
         var values = new ArrayList<String>();
-        for (FetchResponseData.FetchableTopicResponse response : responses) {
+        var records = unpackRecords(responseData);
+        assertThat(records).isNotNull();
+        for (Record record : records) {
+            values.add(new String(StandardCharsets.UTF_8.decode(record.value()).array()));
+        }
+        return values;
+    }
+
+    private static List<Record> unpackRecords(FetchResponseData responseData) {
+        List<Record> records = new ArrayList<>();
+        for (FetchResponseData.FetchableTopicResponse response : responseData.responses()) {
             for (FetchResponseData.PartitionData partitionData : response.partitions()) {
-                for (Record record : ((MemoryRecords) partitionData.records()).records()) {
-                    values.add(new String(StandardCharsets.UTF_8.decode(record.value()).array()));
+                for (Record record : ((Records) partitionData.records()).records()) {
+                    records.add(record);
                 }
             }
         }
-        return values;
+        return records;
+    }
+
+    private static void compareRecords(FetchResponseData a, FetchResponseData b) {
+        var aRecords = unpackRecords(a).listIterator();
+        var bRecords = unpackRecords(b).listIterator();
+        assertThat(aRecords).isNotNull();
+        assertThat(bRecords).isNotNull();
+        while (aRecords.hasNext()) {
+            assertThat(bRecords).hasNext();
+            checkRecordMetadataMatches(aRecords.next(), bRecords.next());
+        }
+    }
+
+    private static void checkRecordMetadataMatches(Record a, Record b) {
+        // We don't compare record size, value, or value size as we expect the filter to change these
+        assertThat(a.offset()).isEqualTo(b.offset());
+        assertThat(a.sequence()).isEqualTo(b.sequence());
+        assertThat(a.timestamp()).isEqualTo(b.timestamp());
+        assertThat(a.keySize()).isEqualTo(b.keySize());
+        assertThat(a.hasKey()).isEqualTo(b.hasKey());
+        assertThat(a.key()).isSameAs(b.key());
+        assertThat(a.hasValue()).isEqualTo(b.hasValue());
+        assertThat(a.isCompressed()).isEqualTo(b.isCompressed());
+        checkRecordHeadersMatch(a.headers(), b.headers());
+    }
+
+    private static void checkRecordHeadersMatch(Header[] a, Header[] b) {
+        assertThat(a).hasSameSizeAs(b);
+        for (var i = 0; i < a.length; i++) {
+            var aHeader = a[i];
+            var bHeader = b[i];
+            assertThat(aHeader).isNotNull();
+            assertThat(bHeader).isNotNull();
+            assertThat(aHeader.key()).isEqualTo(bHeader.key());
+            assertThat(aHeader.value()).containsExactly(bHeader.value());
+        }
     }
 }

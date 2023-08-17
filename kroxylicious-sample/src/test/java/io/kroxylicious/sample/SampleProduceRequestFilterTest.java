@@ -12,15 +12,17 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+import org.apache.kafka.common.header.Header;
+import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.message.ApiMessageType;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.record.CompressionType;
-import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.record.MemoryRecordsBuilder;
 import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.record.RecordBatch;
+import org.apache.kafka.common.record.Records;
 import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 import org.junit.jupiter.api.BeforeEach;
@@ -79,7 +81,6 @@ class SampleProduceRequestFilterTest {
     @Test
     void willTransformProduceRequestTest() throws Exception {
         var requestData = buildProduceRequestData(PRE_TRANSFORM_VALUE);
-
         var stage = filter.onProduceRequest(API_VERSION, headerData, requestData, context);
         assertThat(stage).isCompleted();
         var forwardedRequest = stage.toCompletableFuture().get().message();
@@ -107,6 +108,32 @@ class SampleProduceRequestFilterTest {
                 .containsExactly(NO_TRANSFORM_VALUE);
     }
 
+    /**
+     * Unit Test: Checks that when a transformation is applied that the request record(s) metadata matches what was sent.
+     */
+    @Test
+    void onTransformMetadataRetainedProduceRequestTest() throws Exception {
+        var requestData = buildProduceRequestData(PRE_TRANSFORM_VALUE);
+        var sent = requestData.duplicate(); // due to pass-by-reference issues we need a safe copy to compare with
+        var stage = filter.onProduceRequest(API_VERSION, headerData, requestData, context);
+        assertThat(stage).isCompleted();
+        var received = (ProduceRequestData) stage.toCompletableFuture().get().message();
+        compareRecords(received, sent);
+    }
+
+    /**
+     * Unit Test: Checks that when a transformation is not applied that the request record(s) metadata matches what was sent.
+     */
+    @Test
+    void onNoTransformMetadataRetainedProduceRequestTest() throws Exception {
+        var requestData = buildProduceRequestData(NO_TRANSFORM_VALUE);
+        var sent = requestData.duplicate(); // due to pass-by-reference issues we need a safe copy to compare with
+        var stage = filter.onProduceRequest(API_VERSION, headerData, requestData, context);
+        assertThat(stage).isCompleted();
+        var received = (ProduceRequestData) stage.toCompletableFuture().get().message();
+        compareRecords(received, sent);
+    }
+
     private void setupContextMock() {
         when(context.forwardRequest(requestHeaderDataCaptor.capture(), apiMessageCaptor.capture())).thenAnswer(
                 invocation -> CompletableFuture.completedStage(requestFilterResult));
@@ -129,8 +156,10 @@ class SampleProduceRequestFilterTest {
         var recordsBuilder = new MemoryRecordsBuilder(stream, RecordBatch.CURRENT_MAGIC_VALUE, CompressionType.NONE, TimestampType.CREATE_TIME, 0,
                 RecordBatch.NO_TIMESTAMP, RecordBatch.NO_PRODUCER_ID, RecordBatch.NO_PRODUCER_EPOCH, RecordBatch.NO_SEQUENCE, false, false,
                 RecordBatch.NO_PARTITION_LEADER_EPOCH, stream.remaining());
+        // Create record Headers
+        Header header = new RecordHeader("myKey", "myValue".getBytes());
         // Add transformValue as buffer to records
-        recordsBuilder.append(RecordBatch.NO_TIMESTAMP, null, ByteBuffer.wrap(transformValue.getBytes(StandardCharsets.UTF_8)).position(0));
+        recordsBuilder.append(RecordBatch.NO_TIMESTAMP, null, ByteBuffer.wrap(transformValue.getBytes(StandardCharsets.UTF_8)).position(0), new Header[]{ header });
         var records = recordsBuilder.build();
         // Build partitions from built records
         var partitions = new ArrayList<ProduceRequestData.PartitionProduceData>();
@@ -148,15 +177,59 @@ class SampleProduceRequestFilterTest {
     }
 
     private static List<String> unpackProduceRequestData(ProduceRequestData requestData) {
-        var topics = requestData.topicData();
+        var recordList = unpackRecords(requestData);
         var values = new ArrayList<String>();
-        for (ProduceRequestData.TopicProduceData topicData : topics) {
-            for (ProduceRequestData.PartitionProduceData partitionData : topicData.partitionData()) {
-                for (Record record : ((MemoryRecords) partitionData.records()).records()) {
-                    values.add(new String(StandardCharsets.UTF_8.decode(record.value()).array()));
+        for (Record record : recordList) {
+            values.add(new String(StandardCharsets.UTF_8.decode(record.value()).array()));
+        }
+        return values;
+    }
+
+    private static List<Record> unpackRecords(ProduceRequestData requestData) {
+        List<Record> records = new ArrayList<>();
+        for (ProduceRequestData.TopicProduceData topicProduceData : requestData.topicData()) {
+            for (ProduceRequestData.PartitionProduceData partitionProduceData : topicProduceData.partitionData()) {
+                for (Record record : ((Records) partitionProduceData.records()).records()) {
+                    records.add(record);
                 }
             }
         }
-        return values;
+        return records;
+    }
+
+    private static void compareRecords(ProduceRequestData a, ProduceRequestData b) {
+        var aRecords = unpackRecords(a).listIterator();
+        var bRecords = unpackRecords(b).listIterator();
+        assertThat(aRecords).isNotNull();
+        assertThat(bRecords).isNotNull();
+        while (aRecords.hasNext()) {
+            assertThat(bRecords).hasNext();
+            checkRecordMetadataMatches(aRecords.next(), bRecords.next());
+        }
+    }
+
+    private static void checkRecordMetadataMatches(Record a, Record b) {
+        // We don't compare record size, value, or value size as we expect the filter to change these
+        assertThat(a.offset()).isEqualTo(b.offset());
+        assertThat(a.sequence()).isEqualTo(b.sequence());
+        assertThat(a.timestamp()).isEqualTo(b.timestamp());
+        assertThat(a.keySize()).isEqualTo(b.keySize());
+        assertThat(a.hasKey()).isEqualTo(b.hasKey());
+        assertThat(a.key()).isSameAs(b.key());
+        assertThat(a.hasValue()).isEqualTo(b.hasValue());
+        assertThat(a.isCompressed()).isEqualTo(b.isCompressed());
+        checkRecordHeadersMatch(a.headers(), b.headers());
+    }
+
+    private static void checkRecordHeadersMatch(Header[] a, Header[] b) {
+        assertThat(a).hasSameSizeAs(b);
+        for (var i = 0; i < a.length; i++) {
+            var aHeader = a[i];
+            var bHeader = b[i];
+            assertThat(aHeader).isNotNull();
+            assertThat(bHeader).isNotNull();
+            assertThat(aHeader.key()).isEqualTo(bHeader.key());
+            assertThat(aHeader.value()).containsExactly(bHeader.value());
+        }
     }
 }
