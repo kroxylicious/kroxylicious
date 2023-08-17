@@ -165,7 +165,23 @@ To change the container engine to podman set `CONTAINER_ENGINE=podman`
 
 ### Intellij
 
+The project requires JDK-20 to build and run the `integrationtests` module and the IDEA project is configured to build against an SDK
+named `temurin-20`. A suggested way to install this is with [skdman](https://sdkman.io/) using `sdk install java 20-tem`.
+
+Run `mvn clean install -DskipTests` to install the project into your local maven repository (in `~/.m2`). This is necessary because
+IDEA fails to synchronise the project if the kroxylicious maven plugin isn't available to maven.
+
 Open the root `pom.xml` as a project.
+
+Then navigate to `File > Project Structure > Project Settings` and update `SDK` to point at your install JDK 20 (it should be populated
+as a suggestion if you used sdkman to install it).
+
+In the IDEA Maven dialogue click on `Generate Sources and Update Folders For All Projects`.
+
+Build the entire project by running `Build > Build Project` and then check that you can run `io.kroxylicious.proxy.KrpcFilterIT`
+
+If you encounter any further issues with generated sources, you can can try running `mvn clean install -DskipTests` again or running 
+`Generate Sources and Update Folders` for the specific module that is having problems.
 
 ## Setting Up in Windows Using WSL
 While Kroxylicious is a java application we've had reports of issues running the build natively on Windows and thus suggest using the Windows Subsystem for Linux (WSL) for development.
