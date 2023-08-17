@@ -145,6 +145,5 @@ public class PortPerBrokerClusterNetworkAddressConfigProvider implements Cluster
         public HostPort getBootstrapAddress() {
             return bootstrapAddress;
         }
-
     }
 }

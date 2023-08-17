@@ -18,7 +18,7 @@ public abstract class AbstractDefinitionBuilder<D> {
     private final String type;
     private Map<String, Object> config;
 
-    public AbstractDefinitionBuilder(String type) {
+    protected AbstractDefinitionBuilder(String type) {
         Objects.requireNonNull(type);
         this.type = type;
     }
@@ -44,6 +44,7 @@ public abstract class AbstractDefinitionBuilder<D> {
         return withConfig(Map.of(k1, v1, k2, v2, k3, v3));
     }
 
+    @SuppressWarnings("java:S107") // Methods should not have too many parameters - ignored as this convenience shouldn't blow any minds
     public AbstractDefinitionBuilder<D> withConfig(String k1, Object v1, String k2, Object v2, String k3, Object v3, String k4, Object v4) {
         return withConfig(Map.of(k1, v1, k2, v2, k3, v3, k4, v4));
     }
