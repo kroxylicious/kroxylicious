@@ -15,7 +15,6 @@ import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.common.serialization.Serde;
 
 import io.kroxylicious.proxy.KafkaProxy;
-import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.test.client.KafkaClient;
@@ -24,17 +23,14 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     private final AutoCloseable proxy;
     private final Configuration kroxyliciousConfig;
 
-    private final KroxyliciousClients defaultClients;
-
     DefaultKroxyliciousTester(ConfigurationBuilder configurationBuilder) {
         this(configurationBuilder, config -> {
-            var configParser = new ConfigParser();
             KafkaProxy kafkaProxy = new KafkaProxy(config);
             try {
                 kafkaProxy.startup();
             }
             catch (InterruptedException e) {
-                throw new RuntimeException(e);
+                Thread.currentThread().interrupt();
             }
             return kafkaProxy;
         });
@@ -43,14 +39,6 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     DefaultKroxyliciousTester(ConfigurationBuilder configuration, Function<Configuration, AutoCloseable> kroxyliciousFactory) {
         kroxyliciousConfig = configuration.build();
         proxy = kroxyliciousFactory.apply(kroxyliciousConfig);
-        int numVirtualClusters = kroxyliciousConfig.virtualClusters().size();
-        if (numVirtualClusters == 1) {
-            String onlyCluster = kroxyliciousConfig.virtualClusters().keySet().stream().findFirst().orElseThrow();
-            defaultClients = new KroxyliciousClients(KroxyliciousConfigUtils.bootstrapServersFor(onlyCluster, kroxyliciousConfig));
-        }
-        else {
-            defaultClients = null;
-        }
     }
 
     private KroxyliciousClients clients() {
