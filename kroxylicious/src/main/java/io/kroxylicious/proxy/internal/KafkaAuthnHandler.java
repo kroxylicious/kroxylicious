@@ -423,12 +423,8 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
     }
 
     private void handleBareRequest(ChannelHandlerContext ctx, BareSaslRequest msg) throws SaslException {
-        if (supportsSaslGssApi() && (lastSeen == State.START
-                || lastSeen == State.API_VERSIONS)) {
-            doTransition(ctx.channel(), State.UNFRAMED_SASL_AUTHENTICATE);
-            writeBareResponse(ctx, doEvaluateResponse(ctx, msg.bytes()));
-        }
-        else if (lastSeen == State.SASL_HANDSHAKE_v0
+        // TODO support SASL GSS API
+        if (lastSeen == State.SASL_HANDSHAKE_v0
                 || lastSeen == State.UNFRAMED_SASL_AUTHENTICATE) {
             doTransition(ctx.channel(), State.UNFRAMED_SASL_AUTHENTICATE);
             // delegate to the SASL code to read the bytes directly
@@ -828,10 +824,6 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
                         data.correlationId(),
                         new ResponseHeaderData().setCorrelationId(data.correlationId()),
                         body));
-    }
-
-    private boolean supportsSaslGssApi() {
-        return false;
     }
 
     private byte[] doEvaluateResponse(ChannelHandlerContext ctx,
