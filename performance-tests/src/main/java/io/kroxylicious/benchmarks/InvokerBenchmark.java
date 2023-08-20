@@ -22,10 +22,10 @@ public class InvokerBenchmark {
 
     @org.openjdk.jmh.annotations.State(Scope.Benchmark)
     public static class BenchState {
-        volatile FilterInvoker arrayInvokerFilter2HasOneInterface = FilterInvokers.arrayInvoker(new OneInterfaceFilter());
-        volatile FilterInvoker arrayInvokerFilter2HasTwoInterfaces = FilterInvokers.arrayInvoker(new TwoInterfaceFilter());
-        volatile FilterInvoker arrayInvokerFilter2HasFourInterfaces = FilterInvokers.arrayInvoker(new FourInterfaceFilter());
-        volatile FilterInvoker arrayInvokerFilter2HasEightInterfaces = FilterInvokers.arrayInvoker(new EightInterfaceFilter());
+        final FilterInvoker arrayInvokerFilter2HasOneInterface = FilterInvokers.arrayInvoker(new OneInterfaceFilter());
+        final FilterInvoker arrayInvokerFilter2HasTwoInterfaces = FilterInvokers.arrayInvoker(new TwoInterfaceFilter());
+        final FilterInvoker arrayInvokerFilter2HasFourInterfaces = FilterInvokers.arrayInvoker(new FourInterfaceFilter());
+        final FilterInvoker arrayInvokerFilter2HasEightInterfaces = FilterInvokers.arrayInvoker(new EightInterfaceFilter());
     }
 
     @Benchmark
