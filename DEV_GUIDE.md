@@ -157,6 +157,9 @@ This `run-with-strimzi.sh` script does the following:
 4. installs a 3-node Kafka cluster using Strimzi into minikube
 5. installs kroxylicious into minikube, configured to proxy the cluster
 
+> NOTE: If the kroxylicious pod doesn't come up but it's stuck on ImagePullBackOff with "unauthorized: access to the requested resource is not authorized" error, 
+it could mean you have to make the Quay image as public.
+
 If you want to only build and push an image to quay.io you can run `PUSH_IMAGE=y QUAY_ORG=$your_quay_username$ ./scripts/deploy-image.sh`
 
 To change the container engine to podman set `CONTAINER_ENGINE=podman`
