@@ -210,26 +210,9 @@ class SampleProduceRequestFilterTest {
 
     private static void checkRecordMetadataMatches(Record a, Record b) {
         // We don't compare record size, value, or value size as we expect the filter to change these
-        assertThat(a.offset()).isEqualTo(b.offset());
-        assertThat(a.sequence()).isEqualTo(b.sequence());
-        assertThat(a.timestamp()).isEqualTo(b.timestamp());
-        assertThat(a.keySize()).isEqualTo(b.keySize());
-        assertThat(a.hasKey()).isEqualTo(b.hasKey());
-        assertThat(a.key()).isSameAs(b.key());
-        assertThat(a.hasValue()).isEqualTo(b.hasValue());
-        assertThat(a.isCompressed()).isEqualTo(b.isCompressed());
-        checkRecordHeadersMatch(a.headers(), b.headers());
-    }
-
-    private static void checkRecordHeadersMatch(Header[] a, Header[] b) {
-        assertThat(a).hasSameSizeAs(b);
-        for (var i = 0; i < a.length; i++) {
-            var aHeader = a[i];
-            var bHeader = b[i];
-            assertThat(aHeader).isNotNull();
-            assertThat(bHeader).isNotNull();
-            assertThat(aHeader.key()).isEqualTo(bHeader.key());
-            assertThat(aHeader.value()).containsExactly(bHeader.value());
-        }
+        assertThat(a).usingRecursiveComparison()
+                .ignoringFields("sizeInBytes", "valueSize", "value")
+                .isEqualTo(b);
+        assertThat(a.headers()).usingRecursiveComparison().isEqualTo(b.headers());
     }
 }
