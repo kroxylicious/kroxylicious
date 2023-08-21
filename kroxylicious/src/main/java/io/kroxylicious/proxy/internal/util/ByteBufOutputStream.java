@@ -98,11 +98,11 @@ public class ByteBufOutputStream extends ByteBufferOutputStream {
     @Override
     public void ensureRemaining(int remainingBytesRequired) {
         if (remainingBytesRequired > byteBuf.writableBytes()) {
-            expandBuffer(remainingBytesRequired);
+            expandByteBuffer(remainingBytesRequired);
         }
     }
 
-    private void expandBuffer(int remainingRequired) {
+    private void expandByteBuffer(int remainingRequired) {
         byteBuf.ensureWritable(remainingRequired);
         final int position = nioBuffer.position();
         nioBuffer.position(0);
