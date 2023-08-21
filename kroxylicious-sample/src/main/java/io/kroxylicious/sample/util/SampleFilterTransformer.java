@@ -61,7 +61,8 @@ public class SampleFilterTransformer {
 
             for (RecordBatch batch : records.batches()) {
                 for (Record batchRecord : batch) {
-                    newRecords.append(batchRecord.timestamp(), batchRecord.key(), transformRecord(batchRecord.value(), findValue, replacementValue));
+                    newRecords.append(batchRecord.timestamp(), batchRecord.key(), transformRecord(batchRecord.value(), findValue, replacementValue),
+                            batchRecord.headers());
                 }
             }
             return newRecords.build();
