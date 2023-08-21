@@ -21,10 +21,6 @@
     <artifactId>kroxylicious-app</artifactId>
     <packaging>jar</packaging>
 
-    <properties>
-        <libs.dir>libs</libs.dir>
-    </properties>
-
     <name>Kroxylicious Proxy Application</name>
 
     <dependencyManagement>
@@ -176,37 +172,6 @@
                                 </goals>
                             </execution>
                         </executions>
-                    </plugin>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-dependency-plugin</artifactId>
-                        <executions>
-                            <execution>
-                                <id>copy-dependencies</id>
-                                <phase>prepare-package</phase>
-                                <goals>
-                                    <goal>copy-dependencies</goal>
-                                </goals>
-                                <configuration>
-                                    <outputDirectory>
-                                        ${project.build.directory}/${libs.dir}
-                                    </outputDirectory>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-jar-plugin</artifactId>
-                        <configuration>
-                            <archive>
-                                <manifest>
-                                    <addClasspath>true</addClasspath>
-                                    <classpathPrefix>${libs.dir}/</classpathPrefix>
-                                    <mainClass>io.kroxylicious.app.Kroxylicious</mainClass>
-                                </manifest>
-                            </archive>
-                        </configuration>
                     </plugin>
                 </plugins>
             </build>
