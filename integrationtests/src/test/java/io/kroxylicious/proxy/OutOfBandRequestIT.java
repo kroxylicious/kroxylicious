@@ -23,6 +23,7 @@ import io.kroxylicious.proxy.config.FilterDefinition;
 import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
 import io.kroxylicious.test.Request;
 import io.kroxylicious.test.Response;
+import io.kroxylicious.test.ResponsePayload;
 import io.kroxylicious.test.client.KafkaClient;
 import io.kroxylicious.test.tester.KroxyliciousConfigUtils;
 import io.kroxylicious.test.tester.KroxyliciousTesters;
@@ -67,7 +68,7 @@ public class OutOfBandRequestIT {
         DescribeClusterResponseData message = new DescribeClusterResponseData();
         message.setErrorMessage("arbitrary");
         message.setErrorCode(Errors.UNSUPPORTED_VERSION.code());
-        tester.addMockResponseForApiKey(new Response(DESCRIBE_CLUSTER, DESCRIBE_CLUSTER.latestVersion(), message));
+        tester.addMockResponseForApiKey(new ResponsePayload(DESCRIBE_CLUSTER, DESCRIBE_CLUSTER.latestVersion(), message));
     }
 
     private static MockServerKroxyliciousTester createMockTesterWithFilters(FilterDefinition... definitions) {
@@ -97,7 +98,7 @@ public class OutOfBandRequestIT {
     private static DescribeClusterResponseData whenDescribeCluster(KafkaClient client) {
         Response response = client.getSync(
                 new Request(DESCRIBE_CLUSTER, DESCRIBE_CLUSTER.latestVersion(), "client", new DescribeClusterRequestData()));
-        return (DescribeClusterResponseData) response.message();
+        return (DescribeClusterResponseData) response.payload().message();
     }
 
     private static void givenMockReturnsArbitraryCreateTopicResponse(MockServerKroxyliciousTester tester) {
@@ -107,6 +108,6 @@ public class OutOfBandRequestIT {
         topic.setReplicationFactor((short) 3);
         topic.setNumPartitions(3);
         message.topics().add(topic);
-        tester.addMockResponseForApiKey(new Response(CREATE_TOPICS, CREATE_TOPICS.latestVersion(), message));
+        tester.addMockResponseForApiKey(new ResponsePayload(CREATE_TOPICS, CREATE_TOPICS.latestVersion(), message));
     }
 }

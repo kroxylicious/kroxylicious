@@ -11,6 +11,8 @@ import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.requests.ProduceRequest;
 
+import io.kroxylicious.test.client.SequencedResponse;
+
 /**
  * A decoded request frame.
  * @param <B> type of api message in decoded frame
@@ -19,7 +21,7 @@ public class DecodedRequestFrame<B extends ApiMessage>
         extends DecodedFrame<RequestHeaderData, B>
         implements Frame {
 
-    private final CompletableFuture<DecodedResponseFrame<?>> responseFuture = new CompletableFuture<>();
+    private final CompletableFuture<SequencedResponse> responseFuture = new CompletableFuture<>();
 
     /**
      * Create a decoded request frame
@@ -40,7 +42,7 @@ public class DecodedRequestFrame<B extends ApiMessage>
         return apiKey().messageType.requestHeaderVersion(apiVersion);
     }
 
-    public CompletableFuture<DecodedResponseFrame<?>> getResponseFuture() {
+    public CompletableFuture<SequencedResponse> getResponseFuture() {
         return responseFuture;
     }
 

@@ -21,7 +21,7 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 
 import io.kroxylicious.test.Request;
-import io.kroxylicious.test.Response;
+import io.kroxylicious.test.ResponsePayload;
 import io.kroxylicious.test.client.EventGroupConfig;
 import io.kroxylicious.test.codec.DecodedRequestFrame;
 import io.kroxylicious.test.codec.KafkaRequestDecoder;
@@ -40,7 +40,7 @@ public final class MockServer implements AutoCloseable {
     private final int port;
     private MockHandler serverHandler;
 
-    private MockServer(Response response, int port) {
+    private MockServer(ResponsePayload response, int port) {
         this.port = start(port, response);
     }
 
@@ -48,7 +48,7 @@ public final class MockServer implements AutoCloseable {
      * Adds a response to be served by the MockServer if the request api key matches the response api key
      * @param response the response (nullable)
      */
-    public void addMockResponseForApiKey(Response response) {
+    public void addMockResponseForApiKey(ResponsePayload response) {
         Objects.requireNonNull(response);
         serverHandler.setMockResponseForApiKey(response.apiKeys(), response.message());
     }
@@ -57,10 +57,15 @@ public final class MockServer implements AutoCloseable {
      * Set the response to be served by the MockServer if the request matches.
      * @param response the response (nullable)
      */
-    public void addMockResponse(Matcher<Request> requestMatcher, Response response) {
+    public void addMockResponse(Matcher<Request> requestMatcher, ResponsePayload response) {
         Objects.requireNonNull(response);
         Objects.requireNonNull(requestMatcher);
-        serverHandler.addMockResponse(requestMatcher, response.message());
+        serverHandler.addMockResponse(requestMatcher, Action.respond(response.message()));
+    }
+
+    public void dropWhen(Matcher<Request> requestMatcher) {
+        Objects.requireNonNull(requestMatcher);
+        serverHandler.addMockResponse(requestMatcher, Action.drop());
     }
 
     /**
@@ -89,7 +94,7 @@ public final class MockServer implements AutoCloseable {
      * @param response response to serve
      * @return the created server
      */
-    public static MockServer startOnRandomPort(Response response) {
+    public static MockServer startOnRandomPort(ResponsePayload response) {
         return new MockServer(response, 0);
     }
 
@@ -99,7 +104,7 @@ public final class MockServer implements AutoCloseable {
      * @param response response to serve (nullable)
      * @return the port bound to
      */
-    public int start(int port, Response response) {
+    public int start(int port, ResponsePayload response) {
         // Configure the server.
         final EventGroupConfig eventGroupConfig = EventGroupConfig.create();
         bossGroup = eventGroupConfig.newBossGroup();

@@ -16,7 +16,6 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 
 import io.kroxylicious.test.codec.DecodedRequestFrame;
-import io.kroxylicious.test.codec.DecodedResponseFrame;
 
 /**
  * Simple kafka handle capable of sending one or more requests to a server side.
@@ -62,9 +61,9 @@ public class KafkaClientHandler extends ChannelInboundHandlerAdapter {
      * future will complete once the request is sent and yield a null value.
      *
      * @param decodedRequestFrame request frame to send
-     * @return future that will yield the response.
+     * @return future that will yield the response along with a sequenceNumber indicating the order it was received by the client.
      */
-    public CompletableFuture<DecodedResponseFrame<?>> sendRequest(DecodedRequestFrame<?> decodedRequestFrame) {
+    public CompletableFuture<SequencedResponse> sendRequest(DecodedRequestFrame<?> decodedRequestFrame) {
         queue.addLast(decodedRequestFrame);
         processPendingWrites();
         return decodedRequestFrame.getResponseFuture();

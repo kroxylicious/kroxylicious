@@ -26,6 +26,7 @@ import org.apache.kafka.common.message.DescribeAclsResponseData;
 import org.apache.kafka.common.message.ListTransactionsRequestData;
 import org.apache.kafka.common.message.ListTransactionsResponseData;
 import org.apache.kafka.common.protocol.ApiKeys;
+import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.common.serialization.StringDeserializer;
@@ -38,7 +39,7 @@ import io.kroxylicious.proxy.config.ClusterNetworkAddressConfigProviderDefinitio
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.test.Request;
-import io.kroxylicious.test.Response;
+import io.kroxylicious.test.ResponsePayload;
 import io.kroxylicious.test.client.KafkaClient;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
@@ -122,11 +123,11 @@ class KroxyliciousTestersTest {
             assertThat(kafkaClient.isOpen()).isFalse();
 
             var mockResponse = new DescribeAclsResponseData().setErrorMessage("hello").setErrorCode(Errors.UNKNOWN_SERVER_ERROR.code());
-            tester.addMockResponseForApiKey(new Response(ApiKeys.DESCRIBE_ACLS, ApiKeys.DESCRIBE_ACLS.latestVersion(), mockResponse));
+            tester.addMockResponseForApiKey(new ResponsePayload(ApiKeys.DESCRIBE_ACLS, ApiKeys.DESCRIBE_ACLS.latestVersion(), mockResponse));
 
             var response = kafkaClient
                     .getSync(new Request(ApiKeys.DESCRIBE_ACLS, ApiKeys.DESCRIBE_ACLS.latestVersion(), "client", new DescribeAclsRequestData()));
-            assertThat(response.message()).isEqualTo(mockResponse);
+            assertThat(response.payload().message()).isEqualTo(mockResponse);
             assertThat(kafkaClient.isOpen()).isTrue();
         }
     }
@@ -180,21 +181,23 @@ class KroxyliciousTestersTest {
     private static void assertCanSendRequestsAndReceiveMockResponses(MockServerKroxyliciousTester tester, Supplier<KafkaClient> kafkaClientSupplier) {
         try (var kafkaClient = kafkaClientSupplier.get()) {
             var mockResponse1 = new DescribeAclsResponseData().setErrorMessage("hello").setErrorCode(Errors.UNKNOWN_SERVER_ERROR.code());
-            tester.addMockResponseForApiKey(new Response(ApiKeys.DESCRIBE_ACLS, ApiKeys.DESCRIBE_ACLS.latestVersion(), mockResponse1));
+            tester.addMockResponseForApiKey(new ResponsePayload(ApiKeys.DESCRIBE_ACLS, ApiKeys.DESCRIBE_ACLS.latestVersion(), mockResponse1));
 
             var mockResponse2 = new ListTransactionsResponseData().setErrorCode(Errors.UNKNOWN_SERVER_ERROR.code());
-            tester.addMockResponseForApiKey(new Response(ApiKeys.LIST_TRANSACTIONS, ApiKeys.LIST_TRANSACTIONS.latestVersion(), mockResponse2));
+            tester.addMockResponseForApiKey(new ResponsePayload(ApiKeys.LIST_TRANSACTIONS, ApiKeys.LIST_TRANSACTIONS.latestVersion(), mockResponse2));
 
             var response1 = kafkaClient
                     .getSync(new Request(ApiKeys.DESCRIBE_ACLS, ApiKeys.DESCRIBE_ACLS.latestVersion(), "client", new DescribeAclsRequestData()));
-            assertThat(response1.message()).isInstanceOf(DescribeAclsResponseData.class);
-            assertThat(response1.message()).isEqualTo(mockResponse1);
+            ApiMessage response1Message = response1.payload().message();
+            assertThat(response1Message).isInstanceOf(DescribeAclsResponseData.class);
+            assertThat(response1Message).isEqualTo(mockResponse1);
 
             var response2 = kafkaClient
                     .getSync(new Request(ApiKeys.LIST_TRANSACTIONS, ApiKeys.LIST_TRANSACTIONS.latestVersion(), "client", new ListTransactionsRequestData()));
-            assertInstanceOf(ListTransactionsResponseData.class, response2.message());
-            assertThat(response2.message()).isInstanceOf(ListTransactionsResponseData.class);
-            assertThat(response2.message()).isEqualTo(mockResponse2);
+            ApiMessage response2Message = response2.payload().message();
+            assertInstanceOf(ListTransactionsResponseData.class, response2Message);
+            assertThat(response2Message).isInstanceOf(ListTransactionsResponseData.class);
+            assertThat(response2Message).isEqualTo(mockResponse2);
         }
     }
 

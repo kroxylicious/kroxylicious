@@ -159,8 +159,8 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
         // because it needs to know whether to decode requests
         KafkaRequestDecoder decoder = new KafkaRequestDecoder(dp);
         pipeline.addLast("requestDecoder", decoder);
-
         pipeline.addLast("responseEncoder", new KafkaResponseEncoder());
+        pipeline.addLast("responseOrderer", new ResponseOrderer());
         if (virtualCluster.isLogFrames()) {
             pipeline.addLast("frameLogger", new LoggingHandler("io.kroxylicious.proxy.internal.DownstreamFrameLogger", LogLevel.INFO));
         }

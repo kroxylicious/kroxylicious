@@ -22,6 +22,8 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.errors.InvalidTopicException;
+import org.apache.kafka.common.message.ApiVersionsRequestData;
+import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.CreateTopicsRequestData;
 import org.apache.kafka.common.message.CreateTopicsResponseData;
 import org.apache.kafka.common.message.ListGroupsResponseData;
@@ -29,6 +31,7 @@ import org.apache.kafka.common.message.ListTransactionsRequestData;
 import org.apache.kafka.common.message.ListTransactionsResponseData;
 import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.MetadataResponseData;
+import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.logging.log4j.LogManager;
@@ -51,6 +54,7 @@ import io.kroxylicious.proxy.filter.RequestResponseMarkingFilter;
 import io.kroxylicious.proxy.internal.filter.ByteBufferTransformation;
 import io.kroxylicious.test.Request;
 import io.kroxylicious.test.Response;
+import io.kroxylicious.test.ResponsePayload;
 import io.kroxylicious.test.tester.MockServerKroxyliciousTester;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
@@ -60,15 +64,18 @@ import static io.kroxylicious.proxy.filter.RequestResponseMarkingFilter.FILTER_N
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.mockKafkaKroxyliciousTester;
+import static io.kroxylicious.test.tester.MockServerKroxyliciousTester.zeroAckProduceRequestMatcher;
 import static org.apache.kafka.clients.consumer.ConsumerConfig.AUTO_OFFSET_RESET_CONFIG;
 import static org.apache.kafka.clients.consumer.ConsumerConfig.GROUP_ID_CONFIG;
 import static org.apache.kafka.clients.producer.ProducerConfig.ACKS_CONFIG;
 import static org.apache.kafka.clients.producer.ProducerConfig.CLIENT_ID_CONFIG;
 import static org.apache.kafka.clients.producer.ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG;
+import static org.apache.kafka.common.protocol.ApiKeys.API_VERSIONS;
 import static org.apache.kafka.common.protocol.ApiKeys.CREATE_TOPICS;
 import static org.apache.kafka.common.protocol.ApiKeys.LIST_GROUPS;
 import static org.apache.kafka.common.protocol.ApiKeys.LIST_TRANSACTIONS;
 import static org.apache.kafka.common.protocol.ApiKeys.METADATA;
+import static org.apache.kafka.common.protocol.ApiKeys.PRODUCE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
@@ -202,16 +209,16 @@ class KrpcFilterIT {
                 var requestClient = tester.simpleTestClient()) {
 
             if (forwardingStyle == ForwardingStyle.ASYNCHRONOUS_REQUEST_TO_BROKER) {
-                tester.addMockResponseForApiKey(new Response(LIST_GROUPS, LIST_GROUPS.latestVersion(), new ListGroupsResponseData()));
+                tester.addMockResponseForApiKey(new ResponsePayload(LIST_GROUPS, LIST_GROUPS.latestVersion(), new ListGroupsResponseData()));
             }
 
             var createTopic = new CreateTopicsRequestData();
             createTopic.topics().add(new CreateTopicsRequestData.CreatableTopic().setName("foo"));
 
             var response = requestClient.getSync(new Request(CREATE_TOPICS, CREATE_TOPICS.latestVersion(), "client", createTopic));
-            assertThat(response.message()).isInstanceOf(CreateTopicsResponseData.class);
+            assertThat(response.payload().message()).isInstanceOf(CreateTopicsResponseData.class);
 
-            var responseMessage = (CreateTopicsResponseData) response.message();
+            var responseMessage = (CreateTopicsResponseData) response.payload().message();
             assertThat(responseMessage.topics())
                     .hasSameSizeAs(createTopic.topics())
                     .allMatch(p -> p.errorCode() == Errors.INVALID_TOPIC_EXCEPTION.code(),
@@ -259,19 +266,19 @@ class KrpcFilterIT {
                 .build();
         try (var tester = mockKafkaKroxyliciousTester((mockBootstrap) -> proxy(mockBootstrap).addToFilters(markingFilter));
                 var kafkaClient = tester.simpleTestClient()) {
-            tester.addMockResponseForApiKey(new Response(LIST_TRANSACTIONS, LIST_TRANSACTIONS.latestVersion(), new ListTransactionsResponseData()));
+            tester.addMockResponseForApiKey(new ResponsePayload(LIST_TRANSACTIONS, LIST_TRANSACTIONS.latestVersion(), new ListTransactionsResponseData()));
 
             // In the ASYNCHRONOUS_REQUEST_TO_BROKER case, the filter will send an async list_group
             // request to the broker and defer the forward of the list transaction response until the list groups
             // response arrives.
             if (forwardingStyle == ForwardingStyle.ASYNCHRONOUS_REQUEST_TO_BROKER) {
-                tester.addMockResponseForApiKey(new Response(LIST_GROUPS, LIST_GROUPS.latestVersion(), new ListGroupsResponseData()));
+                tester.addMockResponseForApiKey(new ResponsePayload(LIST_GROUPS, LIST_GROUPS.latestVersion(), new ListGroupsResponseData()));
             }
 
             var response = kafkaClient
                     .getSync(new Request(LIST_TRANSACTIONS, LIST_TRANSACTIONS.latestVersion(), "client", new ListTransactionsRequestData()));
             var requestMessageReceivedByBroker = tester.getOnlyRequestForApiKey(LIST_TRANSACTIONS).message();
-            var responseMessageReceivedByClient = response.message();
+            var responseMessageReceivedByClient = response.payload().message();
 
             assertThat(requestMessageReceivedByBroker).isInstanceOf(ListTransactionsRequestData.class);
             assertThat(responseMessageReceivedByClient).isInstanceOf(ListTransactionsResponseData.class);
@@ -319,7 +326,7 @@ class KrpcFilterIT {
                 .addToFilters(new FilterDefinitionBuilder("CompositePrefixingFixedClientId")
                         .withConfig("clientId", "banana", "prefix", "123").build()));
                 var kafkaClient = tester.simpleTestClient()) {
-            tester.addMockResponseForApiKey(new Response(METADATA, METADATA.latestVersion(), new MetadataResponseData()));
+            tester.addMockResponseForApiKey(new ResponsePayload(METADATA, METADATA.latestVersion(), new MetadataResponseData()));
             kafkaClient.getSync(new Request(METADATA, METADATA.latestVersion(), "client", new MetadataRequestData()));
             assertEquals("123banana", tester.getOnlyRequest().clientIdHeader());
         }
@@ -353,6 +360,51 @@ class KrpcFilterIT {
             assertArrayEquals(TOPIC_1_CIPHERTEXT, records1.iterator().next().value());
             assertEquals(1, records2.count());
             assertArrayEquals(TOPIC_2_CIPHERTEXT, records2.iterator().next().value());
+        }
+    }
+
+    @Test
+    void requestFiltersCanRespondWithoutProxyingRespondsInCorrectOrder() throws Exception {
+
+        try (var tester = mockKafkaKroxyliciousTester(s -> proxy(s).addToFilters(new FilterDefinitionBuilder("RejectingCreateTopic").build()));
+                var client = tester.simpleTestClient()) {
+            tester.addMockResponseForApiKey(new ResponsePayload(METADATA, METADATA.latestVersion(), new MetadataResponseData()));
+            tester.addMockResponseForApiKey(new ResponsePayload(API_VERSIONS, API_VERSIONS.latestVersion(), new ApiVersionsResponseData()));
+            CreateTopicsRequestData.CreatableTopic topic = new CreateTopicsRequestData.CreatableTopic();
+            CreateTopicsRequestData data = new CreateTopicsRequestData();
+            data.topics().add(topic);
+            client.getSync(new Request(API_VERSIONS, API_VERSIONS.latestVersion(), "client", new ApiVersionsRequestData()));
+            Request requestA = new Request(METADATA, METADATA.latestVersion(), "client", new MetadataRequestData());
+            Request requestB = new Request(CREATE_TOPICS, CREATE_TOPICS.latestVersion(), "client", data);
+            var futureA = client.get(requestA);
+            var futureB = client.get(requestB);
+            Response responseA = futureA.get(10, TimeUnit.SECONDS);
+            Response responseB = futureB.get(10, TimeUnit.SECONDS);
+            assertThat(responseA.sequenceNumber()).withFailMessage(() -> "responses received out of order").isLessThan(responseB.sequenceNumber());
+        }
+    }
+
+    @Test
+    void zeroAckProduceRequestsDoNotInterfereWithResponseReorderingLogic() throws Exception {
+
+        try (var tester = mockKafkaKroxyliciousTester(s -> proxy(s).addToFilters(new FilterDefinitionBuilder("RejectingCreateTopic").build()));
+                var client = tester.simpleTestClient()) {
+            tester.addMockResponseForApiKey(new ResponsePayload(METADATA, METADATA.latestVersion(), new MetadataResponseData()));
+            tester.dropWhen(zeroAckProduceRequestMatcher());
+            tester.addMockResponseForApiKey(new ResponsePayload(API_VERSIONS, API_VERSIONS.latestVersion(), new ApiVersionsResponseData()));
+            CreateTopicsRequestData.CreatableTopic topic = new CreateTopicsRequestData.CreatableTopic();
+            CreateTopicsRequestData data = new CreateTopicsRequestData();
+            data.topics().add(topic);
+            client.getSync(new Request(API_VERSIONS, API_VERSIONS.latestVersion(), "client", new ApiVersionsRequestData()));
+            Request requestA = new Request(METADATA, METADATA.latestVersion(), "client", new MetadataRequestData());
+            Request requestB = new Request(PRODUCE, PRODUCE.latestVersion(), "client", new ProduceRequestData().setAcks((short) 0));
+            Request requestC = new Request(CREATE_TOPICS, CREATE_TOPICS.latestVersion(), "client", data);
+            var futureA = client.get(requestA);
+            client.get(requestB);
+            var futureC = client.get(requestC);
+            Response responseA = futureA.get(10, TimeUnit.SECONDS);
+            Response responseC = futureC.get(10, TimeUnit.SECONDS);
+            assertThat(responseA.sequenceNumber()).withFailMessage(() -> "responses received out of order").isLessThan(responseC.sequenceNumber());
         }
     }
 

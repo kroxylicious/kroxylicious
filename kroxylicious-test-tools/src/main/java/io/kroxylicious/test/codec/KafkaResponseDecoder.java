@@ -16,12 +16,14 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 
 import io.kroxylicious.test.client.CorrelationManager;
+import io.kroxylicious.test.client.SequencedResponse;
 
 /**
  * KafkaResponseDecoder
  */
 public class KafkaResponseDecoder extends KafkaMessageDecoder {
 
+    int i = 0;
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaResponseDecoder.class);
 
     private final CorrelationManager correlationManager;
@@ -65,7 +67,7 @@ public class KafkaResponseDecoder extends KafkaMessageDecoder {
         ApiMessage body = BodyDecoder.decodeResponse(apiKey, apiVersion, accessor);
         log().trace("{}: Body: {}", ctx, body);
         frame = new DecodedResponseFrame<>(apiVersion, correlationId, header, body);
-        correlation.responseFuture().complete(frame);
+        correlation.responseFuture().complete(new SequencedResponse(frame, i++));
         return frame;
     }
 

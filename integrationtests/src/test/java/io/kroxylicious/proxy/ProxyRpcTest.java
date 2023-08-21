@@ -27,6 +27,7 @@ import io.kroxylicious.test.ApiMessageSampleGenerator;
 import io.kroxylicious.test.ApiMessageSampleGenerator.ApiAndVersion;
 import io.kroxylicious.test.Request;
 import io.kroxylicious.test.Response;
+import io.kroxylicious.test.ResponsePayload;
 import io.kroxylicious.test.client.KafkaClient;
 import io.kroxylicious.test.tester.MockServerKroxyliciousTester;
 
@@ -42,7 +43,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 public class ProxyRpcTest {
     private static MockServerKroxyliciousTester mockTester;
 
-    public record Scenario(String name, Response givenMockResponse, Request whenSendRequest, Request thenMockReceivesRequest, Response thenResponseReceived) {
+    public record Scenario(String name, ResponsePayload givenMockResponse, Request whenSendRequest, Request thenMockReceivesRequest,
+                           ResponsePayload thenResponseReceived) {
     }
 
     /**
@@ -76,7 +78,7 @@ public class ProxyRpcTest {
         try (KafkaClient kafkaClient = mockTester.simpleTestClient()) {
             Response response = kafkaClient.getSync(scenario.whenSendRequest());
             assertEquals(scenario.thenMockReceivesRequest(), mockTester.getOnlyRequest(), "unexpected request received at mock for scenario: " + scenario.name());
-            assertEquals(scenario.thenResponseReceived(), response, "unexpected response received from kroxylicious for scenario: " + scenario.name());
+            assertEquals(scenario.thenResponseReceived(), response.payload(), "unexpected response received from kroxylicious for scenario: " + scenario.name());
         }
     }
 
@@ -106,14 +108,14 @@ public class ProxyRpcTest {
                 expected = "fixed";
             }
             Request expectedAtMock = createRequestDefinition(apiAndVersion, expected, request);
-            Response responseJson = createResponseDefinition(apiAndVersion, response);
+            ResponsePayload responseJson = createResponseDefinition(apiAndVersion, response);
             return new Scenario(apiKeys.name, responseJson, clientRequest, expectedAtMock, responseJson);
         });
     }
 
     @NotNull
-    private static Response createResponseDefinition(ApiAndVersion apiAndVersion, ApiMessage message) {
-        return new Response(apiAndVersion.keys(), apiAndVersion.apiVersion(), message);
+    private static ResponsePayload createResponseDefinition(ApiAndVersion apiAndVersion, ApiMessage message) {
+        return new ResponsePayload(apiAndVersion.keys(), apiAndVersion.apiVersion(), message);
     }
 
     @NotNull

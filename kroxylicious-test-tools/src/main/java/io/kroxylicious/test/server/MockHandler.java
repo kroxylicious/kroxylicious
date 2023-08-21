@@ -11,13 +11,14 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
-import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.StringDescription;
 import org.hamcrest.TypeSafeMatcher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.channel.ChannelHandlerContext;
@@ -25,7 +26,6 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
 
 import io.kroxylicious.test.Request;
 import io.kroxylicious.test.codec.DecodedRequestFrame;
-import io.kroxylicious.test.codec.DecodedResponseFrame;
 
 /**
  * MockHandler is responsible for:
@@ -39,9 +39,11 @@ import io.kroxylicious.test.codec.DecodedResponseFrame;
 @Sharable
 public class MockHandler extends ChannelInboundHandlerAdapter {
 
-    private record ConditionalMockResponse(Matcher<Request> matcher, ApiMessage message, AtomicLong invocations) {
+    private record ConditionalMockResponse(Matcher<Request> matcher, Action action, AtomicLong invocations) {
 
     }
+
+    private static final Logger logger = LoggerFactory.getLogger(MockHandler.class);
 
     private final List<ConditionalMockResponse> conditionalMockResponses = new ArrayList<>();
 
@@ -65,11 +67,9 @@ public class MockHandler extends ChannelInboundHandlerAdapter {
 
     private void respond(ChannelHandlerContext ctx, DecodedRequestFrame<?> frame) {
         requests.add(frame);
-        ConditionalMockResponse message = conditionalMockResponses.stream().filter(r -> r.matcher.matches(MockServer.toRequest(frame))).findFirst().orElseThrow();
-        DecodedResponseFrame<?> responseFrame = new DecodedResponseFrame<>(frame.apiVersion(),
-                frame.correlationId(), new ResponseHeaderData().setCorrelationId(frame.correlationId()), message.message());
-        message.invocations.incrementAndGet();
-        ctx.write(responseFrame);
+        ConditionalMockResponse response = conditionalMockResponses.stream().filter(r -> r.matcher.matches(MockServer.toRequest(frame))).findFirst().orElseThrow();
+        response.action.handle(ctx, frame);
+        response.invocations.incrementAndGet();
     }
 
     @Override
@@ -79,8 +79,8 @@ public class MockHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+        logger.error("Exception in Mock Handler", cause);
         // Close the connection when an exception is raised.
-        cause.printStackTrace();
         ctx.close();
     }
 
@@ -99,11 +99,11 @@ public class MockHandler extends ChannelInboundHandlerAdapter {
             public void describeTo(Description description) {
                 description.appendText("has key " + keys);
             }
-        }, response);
+        }, Action.respond(response));
     }
 
-    public void addMockResponse(Matcher<Request> matcher, ApiMessage response) {
-        conditionalMockResponses.add(new ConditionalMockResponse(matcher, response, new AtomicLong(0)));
+    public void addMockResponse(Matcher<Request> matcher, Action action) {
+        conditionalMockResponses.add(new ConditionalMockResponse(matcher, action, new AtomicLong(0)));
     }
 
     /**

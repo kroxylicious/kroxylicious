@@ -25,6 +25,7 @@ import io.netty.channel.socket.SocketChannel;
 
 import io.kroxylicious.test.Request;
 import io.kroxylicious.test.Response;
+import io.kroxylicious.test.ResponsePayload;
 import io.kroxylicious.test.codec.DecodedRequestFrame;
 import io.kroxylicious.test.codec.DecodedResponseFrame;
 import io.kroxylicious.test.codec.KafkaRequestEncoder;
@@ -164,8 +165,9 @@ public final class KafkaClient implements AutoCloseable {
         return c;
     }
 
-    private static Response toResponse(DecodedResponseFrame<?> decodedResponseFrame) {
-        return new Response(decodedResponseFrame.apiKey(), decodedResponseFrame.apiVersion(), decodedResponseFrame.body());
+    private static Response toResponse(SequencedResponse sequencedResponse) {
+        DecodedResponseFrame<?> frame = sequencedResponse.frame();
+        return new Response(new ResponsePayload(frame.apiKey(), frame.apiVersion(), frame.body()), sequencedResponse.sequenceNumber());
     }
 
 }
