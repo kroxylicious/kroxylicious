@@ -8,8 +8,10 @@ package io.kroxylicious.proxy.service;
 
 public interface ContributorContext {
 
+    ContributorContext CONTEXT = new ContributorContext() {
+    };
+
     static ContributorContext instance() {
-        return new ContributorContext() {
-        };
+        return CONTEXT;
     }
 }
