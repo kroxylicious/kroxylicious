@@ -10,8 +10,8 @@ import java.util.ServiceLoader;
 
 import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.filter.FilterContributor;
+import io.kroxylicious.proxy.filter.FilterContributorContext;
 import io.kroxylicious.proxy.filter.KrpcFilter;
-import io.kroxylicious.proxy.service.ContributorContext;
 
 public class FilterContributorManager {
 
@@ -40,11 +40,11 @@ public class FilterContributorManager {
         throw new IllegalArgumentException("No filter found for name '" + shortName + "'");
     }
 
-    public KrpcFilter getFilter(String shortName, BaseConfig filterConfig) {
+    public KrpcFilter getFilter(String shortName, BaseConfig filterConfig, FilterContributorContext context) {
         Iterator<FilterContributor> it = contributors.iterator();
         while (it.hasNext()) {
             FilterContributor contributor = it.next();
-            KrpcFilter filter = contributor.getInstance(shortName, filterConfig, ContributorContext.instance());
+            KrpcFilter filter = contributor.getInstance(shortName, filterConfig, context);
             if (filter != null) {
                 return filter;
             }

@@ -100,6 +100,23 @@ public abstract class BaseContributor<T, S extends ContributorContext> implement
          * Registers a factory function for the construction of a service instance.
          *
          * @param shortName service short name
+         * @param configClass concrete type of configuration required by the service
+         * @param instanceFunction function that constructs the service instance
+         * @return this
+         * @param <T> the configuration concrete type
+         */
+        public <T extends BaseConfig> BaseContributorBuilder<L, S> add(String shortName, Class<T> configClass, BiFunction<S, T, L> instanceFunction) {
+            if (shortNameToInstanceBuilder.containsKey(shortName)) {
+                throw new IllegalArgumentException(shortName + " already registered");
+            }
+            shortNameToInstanceBuilder.put(shortName, new InstanceBuilder<>(configClass, instanceFunction));
+            return this;
+        }
+
+        /**
+         * Registers a factory function for the construction of a service instance.
+         *
+         * @param shortName service short name
          * @param instanceFunction function that constructs the service instance
          * @return this
          */

@@ -5,9 +5,15 @@
  */
 package io.kroxylicious.proxy.service;
 
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.atomic.AtomicReference;
+
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.proxy.config.BaseConfig;
+import io.kroxylicious.proxy.filter.FilterContributorContext;
+import io.kroxylicious.proxy.filter.FilterExecutors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -59,6 +65,27 @@ class BaseContributorTest {
         };
         Long instance = baseContributor.getInstance("fromBaseConfig", new LongConfig(), getContext());
         assertThat(instance).isEqualTo(2L);
+    }
+
+    @Test
+    void testAccessingContext() {
+        ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(1);
+        BaseContributor.BaseContributorBuilder<Long, FilterContributorContext> builder = BaseContributor.builder();
+        AtomicReference<ScheduledExecutorService> received = new AtomicReference<>();
+        builder.add("fromBaseConfig", LongConfig.class, (filterContributorContext, longConfig) -> {
+            received.set(filterContributorContext.executors().filterExecutor());
+            return longConfig.value;
+        });
+        BaseContributor<Long, FilterContributorContext> baseContributor = new BaseContributor<>(builder) {
+        };
+        Long instance = baseContributor.getInstance("fromBaseConfig", new LongConfig(), new FilterContributorContext() {
+            @Override
+            public FilterExecutors executors() {
+                return () -> scheduledExecutorService;
+            }
+        });
+        assertThat(instance).isEqualTo(2L);
+        assertThat(received.get()).isEqualTo(scheduledExecutorService);
     }
 
     @Test

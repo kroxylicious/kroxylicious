@@ -10,6 +10,7 @@ import java.util.List;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.FilterDefinition;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
+import io.kroxylicious.proxy.filter.FilterContributorContext;
 import io.kroxylicious.proxy.internal.filter.FilterContributorManager;
 
 /**
@@ -20,9 +21,11 @@ import io.kroxylicious.proxy.internal.filter.FilterContributorManager;
 public class FilterChainFactory {
 
     private final Configuration config;
+    private final FilterContributorContext context;
 
-    public FilterChainFactory(Configuration config) {
+    public FilterChainFactory(Configuration config, FilterContributorContext context) {
         this.config = config;
+        this.context = context;
     }
 
     /**
@@ -39,7 +42,7 @@ public class FilterChainFactory {
         }
         return filters
                 .stream()
-                .map(f -> filterContributorManager.getFilter(f.type(), f.config()))
+                .map(f -> filterContributorManager.getFilter(f.type(), f.config(), context))
                 .flatMap(filter -> FilterAndInvoker.build(filter).stream())
                 .toList();
     }
