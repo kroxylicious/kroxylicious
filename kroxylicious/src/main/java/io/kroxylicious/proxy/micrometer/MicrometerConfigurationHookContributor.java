@@ -6,6 +6,7 @@
 package io.kroxylicious.proxy.micrometer;
 
 import io.kroxylicious.proxy.service.Contributor;
+import io.kroxylicious.proxy.service.ContributorContext;
 
-public interface MicrometerConfigurationHookContributor extends Contributor<MicrometerConfigurationHook> {
+public interface MicrometerConfigurationHookContributor extends Contributor<MicrometerConfigurationHook, ContributorContext> {
 }

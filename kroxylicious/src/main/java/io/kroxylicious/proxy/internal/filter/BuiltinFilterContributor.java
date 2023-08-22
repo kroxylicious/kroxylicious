@@ -10,10 +10,11 @@ import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.internal.filter.FetchResponseTransformationFilter.FetchResponseTransformationConfig;
 import io.kroxylicious.proxy.internal.filter.ProduceRequestTransformationFilter.ProduceRequestTransformationConfig;
 import io.kroxylicious.proxy.service.BaseContributor;
+import io.kroxylicious.proxy.service.ContributorContext;
 
-public class BuiltinFilterContributor extends BaseContributor<KrpcFilter> implements FilterContributor {
+public class BuiltinFilterContributor extends BaseContributor<KrpcFilter, ContributorContext> implements FilterContributor {
 
-    public static final BaseContributorBuilder<KrpcFilter> FILTERS = BaseContributor.<KrpcFilter> builder()
+    public static final BaseContributorBuilder<KrpcFilter, ContributorContext> FILTERS = BaseContributor.<KrpcFilter, ContributorContext> builder()
             .add("ProduceRequestTransformation", ProduceRequestTransformationConfig.class, ProduceRequestTransformationFilter::new)
             .add("FetchResponseTransformation", FetchResponseTransformationConfig.class, FetchResponseTransformationFilter::new);
 

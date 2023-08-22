@@ -10,13 +10,14 @@ import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.filter.schema.config.ValidationConfig;
 import io.kroxylicious.proxy.filter.schema.validation.request.ProduceRequestValidator;
 import io.kroxylicious.proxy.service.BaseContributor;
+import io.kroxylicious.proxy.service.ContributorContext;
 
 /**
  * Contributor for request validation filters
  */
-public class ProduceRequestValidationFilterContributor extends BaseContributor<KrpcFilter> implements FilterContributor {
+public class ProduceRequestValidationFilterContributor extends BaseContributor<KrpcFilter, ContributorContext> implements FilterContributor {
 
-    private static final BaseContributorBuilder<KrpcFilter> FILTERS = BaseContributor.<KrpcFilter> builder()
+    private static final BaseContributorBuilder<KrpcFilter, ContributorContext> FILTERS = BaseContributor.<KrpcFilter, ContributorContext> builder()
             .add("ProduceValidator", ValidationConfig.class, (config) -> {
                 ProduceRequestValidator validator = ProduceValidationFilterBuilder.build(config);
                 return new ProduceValidationFilter(config.isForwardPartialRequests(), validator);

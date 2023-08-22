@@ -6,10 +6,13 @@
 package io.kroxylicious.proxy.micrometer;
 
 import io.kroxylicious.proxy.service.BaseContributor;
+import io.kroxylicious.proxy.service.ContributorContext;
 
-public class DefaultMicrometerConfigurationHookContributor extends BaseContributor<MicrometerConfigurationHook> implements MicrometerConfigurationHookContributor {
+public class DefaultMicrometerConfigurationHookContributor extends BaseContributor<MicrometerConfigurationHook, ContributorContext>
+        implements MicrometerConfigurationHookContributor {
 
-    public static final BaseContributorBuilder<MicrometerConfigurationHook> BUILDER = BaseContributor.<MicrometerConfigurationHook> builder()
+    public static final BaseContributorBuilder<MicrometerConfigurationHook, ContributorContext> BUILDER = BaseContributor
+            .<MicrometerConfigurationHook, ContributorContext> builder()
             .add("CommonTags", CommonTagsHook.CommonTagsHookConfig.class, CommonTagsHook::new)
             .add("StandardBinders", StandardBindersHook.StandardBindersHookConfig.class, StandardBindersHook::new);
 

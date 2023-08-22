@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.micrometer;
 import java.util.ServiceLoader;
 
 import io.kroxylicious.proxy.config.BaseConfig;
+import io.kroxylicious.proxy.service.ContributorContext;
 
 public class MicrometerConfigurationHookContributorManager {
 
@@ -36,7 +37,7 @@ public class MicrometerConfigurationHookContributorManager {
 
     public MicrometerConfigurationHook getHook(String shortName, BaseConfig filterConfig) {
         for (MicrometerConfigurationHookContributor contributor : contributors) {
-            MicrometerConfigurationHook hook = contributor.getInstance(shortName, filterConfig);
+            MicrometerConfigurationHook hook = contributor.getInstance(shortName, filterConfig, ContributorContext.instance());
             if (hook != null) {
                 return hook;
             }

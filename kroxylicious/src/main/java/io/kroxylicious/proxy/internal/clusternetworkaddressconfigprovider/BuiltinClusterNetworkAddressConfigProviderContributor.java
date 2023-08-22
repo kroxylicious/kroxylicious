@@ -10,11 +10,13 @@ import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPe
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.SniRoutingClusterNetworkAddressConfigProvider.SniRoutingClusterNetworkAddressConfigProviderConfig;
 import io.kroxylicious.proxy.service.BaseContributor;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
+import io.kroxylicious.proxy.service.ContributorContext;
 
-public class BuiltinClusterNetworkAddressConfigProviderContributor extends BaseContributor<ClusterNetworkAddressConfigProvider>
+public class BuiltinClusterNetworkAddressConfigProviderContributor extends BaseContributor<ClusterNetworkAddressConfigProvider, ContributorContext>
         implements ClusterNetworkAddressConfigProviderContributor {
 
-    public static final BaseContributorBuilder<ClusterNetworkAddressConfigProvider> FILTERS = BaseContributor.<ClusterNetworkAddressConfigProvider> builder()
+    public static final BaseContributorBuilder<ClusterNetworkAddressConfigProvider, ContributorContext> FILTERS = BaseContributor
+            .<ClusterNetworkAddressConfigProvider, ContributorContext> builder()
             .add("PortPerBroker", PortPerBrokerClusterNetworkAddressConfigProviderConfig.class, PortPerBrokerClusterNetworkAddressConfigProvider::new)
             .add("SniRouting", SniRoutingClusterNetworkAddressConfigProviderConfig.class, SniRoutingClusterNetworkAddressConfigProvider::new);
 
