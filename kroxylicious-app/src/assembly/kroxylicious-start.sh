@@ -20,7 +20,10 @@ classpath() {
   echo "${class_path}"
 }
 
-export JAVA_OPTIONS="${JAVA_OPTIONS:-} -Dlog4j2.configurationFile=$(script_dir)/../config/log4j2.yml"
+if [ "${KROXYLICIOUS_LOGGING_OPTIONS+set}" != set ]; then
+  KROXYLICIOUS_LOGGING_OPTIONS="-Dlog4j2.configurationFile=$(script_dir)/../config/log4j2.yml"
+fi
+export JAVA_OPTIONS="${KROXYLICIOUS_LOGGING_OPTIONS} ${JAVA_OPTIONS:-}"
 export JAVA_CLASSPATH="$(classpath)"
 export JAVA_MAIN_CLASS=io.kroxylicious.app.Kroxylicious
 exec $(script_dir)/run-java.sh "$@"
