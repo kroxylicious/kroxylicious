@@ -32,6 +32,13 @@
       </includes>
     </fileSet>
     <fileSet>
+      <directory>${project.basedir}/..</directory>
+      <outputDirectory>/</outputDirectory>
+      <includes>
+        <include>LICENSE</include>
+      </includes>
+    </fileSet>
+    <fileSet>
       <directory>${project.basedir}/src/main/resources/</directory>
       <outputDirectory>/config/</outputDirectory>
       <includes>
