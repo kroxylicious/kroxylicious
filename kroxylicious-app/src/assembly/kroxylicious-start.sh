@@ -20,6 +20,7 @@ classpath() {
   echo "${class_path}"
 }
 
+export JAVA_OPTIONS="${JAVA_OPTIONS:-} -Dlog4j2.configurationFile=$(script_dir)/../config/log4j2.yml"
 export JAVA_CLASSPATH="$(classpath)"
 export JAVA_MAIN_CLASS=io.kroxylicious.app.Kroxylicious
 exec $(script_dir)/run-java.sh "$@"
