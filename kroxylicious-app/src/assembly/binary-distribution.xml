@@ -31,6 +31,20 @@
         <include>example-proxy-config.yml</include>
       </includes>
     </fileSet>
+    <fileSet>
+      <directory>${project.basedir}/..</directory>
+      <outputDirectory>/</outputDirectory>
+      <includes>
+        <include>LICENSE</include>
+      </includes>
+    </fileSet>
+    <fileSet>
+      <directory>${project.basedir}/src/main/resources/</directory>
+      <outputDirectory>/config/</outputDirectory>
+      <includes>
+        <include>log4j2.yml</include>
+      </includes>
+    </fileSet>
   </fileSets>
   <dependencySets>
     <dependencySet>
