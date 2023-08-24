@@ -11,6 +11,5 @@ kubernetes-examples
 scripts
 Dockerfile
 .dockerignore
-.git
 .github
 README.md
