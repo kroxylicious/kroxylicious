@@ -20,7 +20,7 @@ import io.kroxylicious.proxy.config.BaseConfig;
  */
 public abstract class BaseContributor<T, S extends Context> implements Contributor<T, S> {
 
-    private final Map<String, InstanceBuilder<? extends BaseConfig, T, S>> shortNameToInstanceBuilder;
+    private final Map<String, InstanceBuilder<T, S>> shortNameToInstanceBuilder;
 
     /**
      * Constructs and configures the contributor using the supplied {@code builder}.
@@ -32,39 +32,46 @@ public abstract class BaseContributor<T, S extends Context> implements Contribut
 
     @Override
     public Class<? extends BaseConfig> getConfigType(String shortName) {
-        InstanceBuilder<?, T, S> instanceBuilder = shortNameToInstanceBuilder.get(shortName);
+        InstanceBuilder<T, S> instanceBuilder = shortNameToInstanceBuilder.get(shortName);
         return instanceBuilder == null ? null : instanceBuilder.configClass;
     }
 
     @Override
     public T getInstance(String shortName, S context) {
-        InstanceBuilder<? extends BaseConfig, T, S> instanceBuilder = shortNameToInstanceBuilder.get(shortName);
+        InstanceBuilder<T, S> instanceBuilder = shortNameToInstanceBuilder.get(shortName);
         return instanceBuilder == null ? null : instanceBuilder.construct(context);
     }
 
-    private static class InstanceBuilder<T extends BaseConfig, L, D extends Context> {
+    private static class InstanceBuilder<L, D extends Context> {
 
-        private final Class<T> configClass;
-        private final BiFunction<D, T, L> instanceFunction;
+        private final Class<? extends BaseConfig> configClass;
+        private final Function<D, L> instanceFunction;
 
-        InstanceBuilder(Class<T> configClass, BiFunction<D, T, L> instanceFunction) {
+        InstanceBuilder(Class<? extends BaseConfig> configClass, Function<D, L> instanceFunction) {
             this.configClass = configClass;
             this.instanceFunction = instanceFunction;
         }
 
         L construct(D context) {
-            BaseConfig config = context.getConfig();
-            if (config == null) {
-                // tests pass in a null config, which some instance functions can tolerate
-                return instanceFunction.apply(context, null);
-            }
-            else if (configClass.isAssignableFrom(config.getClass())) {
-                return instanceFunction.apply(context, configClass.cast(config));
-            }
-            else {
-                throw new IllegalArgumentException("config has the wrong type, expected "
-                        + configClass.getName() + ", got " + config.getClass().getName());
-            }
+            return instanceFunction.apply(context);
+        }
+
+        static <T extends BaseConfig, L, D extends Context> InstanceBuilder<L, D> builder(Class<T> configClass, BiFunction<D, T, L> instanceFunction) {
+            return new InstanceBuilder<>(configClass, context -> {
+                BaseConfig config = context.getConfig();
+                if (config == null) {
+                    // tests pass in a null config, which some instance functions can tolerate
+                    return instanceFunction.apply(context, null);
+                }
+                else if (configClass.isAssignableFrom(config.getClass())) {
+                    return instanceFunction.apply(context, configClass.cast(config));
+                }
+                else {
+                    throw new IllegalArgumentException("config has the wrong type, expected "
+                            + configClass.getName() + ", got " + config.getClass().getName());
+                }
+            });
+
         }
     }
 
@@ -78,7 +85,7 @@ public abstract class BaseContributor<T, S extends Context> implements Contribut
         private BaseContributorBuilder() {
         }
 
-        private final Map<String, InstanceBuilder<?, L, D>> shortNameToInstanceBuilder = new HashMap<>();
+        private final Map<String, InstanceBuilder<L, D>> shortNameToInstanceBuilder = new HashMap<>();
 
         /**
          * Registers a factory function for the construction of a service instance.
@@ -106,7 +113,7 @@ public abstract class BaseContributor<T, S extends Context> implements Contribut
             if (shortNameToInstanceBuilder.containsKey(shortName)) {
                 throw new IllegalArgumentException(shortName + " already registered");
             }
-            shortNameToInstanceBuilder.put(shortName, new InstanceBuilder<>(configClass, instanceFunction));
+            shortNameToInstanceBuilder.put(shortName, InstanceBuilder.builder(configClass, instanceFunction));
             return this;
         }
 
@@ -121,7 +128,7 @@ public abstract class BaseContributor<T, S extends Context> implements Contribut
             return add(shortName, BaseConfig.class, config -> instanceFunction.get());
         }
 
-        Map<String, InstanceBuilder<?, L, D>> build() {
+        Map<String, InstanceBuilder<L, D>> build() {
             return Map.copyOf(shortNameToInstanceBuilder);
         }
     }
