@@ -16,7 +16,7 @@ public class SampleContributor extends BaseContributor<Filter, Context> implemen
 
     public static final String SAMPLE_FETCH = "SampleFetchResponse";
     public static final String SAMPLE_PRODUCE = "SampleProduceRequest";
-    public static final BaseContributorBuilder<Filter> FILTERS = BaseContributor.<Filter> builder()
+    public static final BaseContributorBuilder<Filter, Context> FILTERS = BaseContributor.<Filter, Context> builder()
             .add(SAMPLE_FETCH, SampleFilterConfig.class, SampleFetchResponseFilter::new)
             .add(SAMPLE_PRODUCE, SampleFilterConfig.class, SampleProduceRequestFilter::new);
 

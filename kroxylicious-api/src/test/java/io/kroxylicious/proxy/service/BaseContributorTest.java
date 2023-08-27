@@ -24,7 +24,7 @@ class BaseContributorTest {
 
     @Test
     void testDefaultConfigClass() {
-        BaseContributor.BaseContributorBuilder<Long> builder = BaseContributor.builder();
+        BaseContributor.BaseContributorBuilder<Long, Context> builder = BaseContributor.builder();
         builder.add("one", () -> 1L);
         BaseContributor<Long, Context> baseContributor = new BaseContributor<>(builder) {
         };
@@ -34,7 +34,7 @@ class BaseContributorTest {
 
     @Test
     void testSupplier() {
-        BaseContributor.BaseContributorBuilder<Long> builder = BaseContributor.builder();
+        BaseContributor.BaseContributorBuilder<Long, Context> builder = BaseContributor.builder();
         builder.add("one", () -> 1L);
         BaseContributor<Long, Context> baseContributor = new BaseContributor<>(builder) {
         };
@@ -44,7 +44,7 @@ class BaseContributorTest {
 
     @Test
     void testSpecifyingConfigType() {
-        BaseContributor.BaseContributorBuilder<Long> builder = BaseContributor.builder();
+        BaseContributor.BaseContributorBuilder<Long, Context> builder = BaseContributor.builder();
         builder.add("fromBaseConfig", LongConfig.class, baseConfig -> baseConfig.value);
         BaseContributor<Long, Context> baseContributor = new BaseContributor<>(builder) {
         };
@@ -54,7 +54,7 @@ class BaseContributorTest {
 
     @Test
     void testSpecifyingConfigTypeInstance() {
-        BaseContributor.BaseContributorBuilder<Long> builder = BaseContributor.builder();
+        BaseContributor.BaseContributorBuilder<Long, Context> builder = BaseContributor.builder();
         builder.add("fromBaseConfig", LongConfig.class, baseConfig -> baseConfig.value);
         BaseContributor<Long, Context> baseContributor = new BaseContributor<>(builder) {
         };
@@ -64,7 +64,7 @@ class BaseContributorTest {
 
     @Test
     void testFailsIfConfigNotAssignableToSpecifiedType() {
-        BaseContributor.BaseContributorBuilder<Long> builder = BaseContributor.builder();
+        BaseContributor.BaseContributorBuilder<Long, Context> builder = BaseContributor.builder();
         builder.add("fromBaseConfig", LongConfig.class, baseConfig -> baseConfig.value);
         BaseContributor<Long, Context> baseContributor = new BaseContributor<>(builder) {
         };

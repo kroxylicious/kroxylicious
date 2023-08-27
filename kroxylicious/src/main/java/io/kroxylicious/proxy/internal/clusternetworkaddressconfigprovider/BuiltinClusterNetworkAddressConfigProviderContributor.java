@@ -15,7 +15,8 @@ import io.kroxylicious.proxy.service.Context;
 public class BuiltinClusterNetworkAddressConfigProviderContributor extends BaseContributor<ClusterNetworkAddressConfigProvider, Context>
         implements ClusterNetworkAddressConfigProviderContributor {
 
-    public static final BaseContributorBuilder<ClusterNetworkAddressConfigProvider> FILTERS = BaseContributor.<ClusterNetworkAddressConfigProvider> builder()
+    public static final BaseContributorBuilder<ClusterNetworkAddressConfigProvider, Context> FILTERS = BaseContributor
+            .<ClusterNetworkAddressConfigProvider, Context> builder()
             .add("PortPerBroker", PortPerBrokerClusterNetworkAddressConfigProviderConfig.class, PortPerBrokerClusterNetworkAddressConfigProvider::new)
             .add("SniRouting", SniRoutingClusterNetworkAddressConfigProviderConfig.class, SniRoutingClusterNetworkAddressConfigProvider::new);
 

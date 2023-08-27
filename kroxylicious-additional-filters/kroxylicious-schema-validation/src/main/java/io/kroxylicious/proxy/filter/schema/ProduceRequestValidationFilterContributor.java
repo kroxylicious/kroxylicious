@@ -17,7 +17,7 @@ import io.kroxylicious.proxy.service.Context;
  */
 public class ProduceRequestValidationFilterContributor extends BaseContributor<Filter, Context> implements FilterContributor {
 
-    private static final BaseContributorBuilder<Filter> FILTERS = BaseContributor.<Filter> builder()
+    private static final BaseContributorBuilder<Filter, Context> FILTERS = BaseContributor.<Filter, Context> builder()
             .add("ProduceValidator", ValidationConfig.class, (config) -> {
                 ProduceRequestValidator validator = ProduceValidationFilterBuilder.build(config);
                 return new ProduceValidationFilter(config.isForwardPartialRequests(), validator);

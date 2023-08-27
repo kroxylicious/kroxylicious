@@ -14,7 +14,7 @@ import io.kroxylicious.proxy.service.Context;
 
 public class BuiltinFilterContributor extends BaseContributor<Filter, Context> implements FilterContributor {
 
-    public static final BaseContributorBuilder<Filter> FILTERS = BaseContributor.<Filter> builder()
+    public static final BaseContributorBuilder<Filter, Context> FILTERS = BaseContributor.<Filter, Context> builder()
             .add("ProduceRequestTransformation", ProduceRequestTransformationConfig.class, ProduceRequestTransformationFilter::new)
             .add("FetchResponseTransformation", FetchResponseTransformationConfig.class, FetchResponseTransformationFilter::new);
 

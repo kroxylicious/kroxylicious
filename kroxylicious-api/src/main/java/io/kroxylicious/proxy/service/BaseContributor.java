@@ -25,7 +25,7 @@ public abstract class BaseContributor<T, S extends Context> implements Contribut
      * Constructs and configures the contributor using the supplied {@code builder}.
      * @param builder builder
      */
-    public BaseContributor(BaseContributorBuilder<T> builder) {
+    public BaseContributor(BaseContributorBuilder<T, S> builder) {
         shortNameToInstanceBuilder = builder.build();
     }
 
@@ -71,7 +71,7 @@ public abstract class BaseContributor<T, S extends Context> implements Contribut
      * @see BaseContributor#builder()
      * @param <L> the service type
      */
-    public static class BaseContributorBuilder<L> {
+    public static class BaseContributorBuilder<L, D extends Context> {
 
         private BaseContributorBuilder() {
         }
@@ -87,7 +87,7 @@ public abstract class BaseContributor<T, S extends Context> implements Contribut
          * @return this
          * @param <T> the configuration concrete type
          */
-        public <T extends BaseConfig> BaseContributorBuilder<L> add(String shortName, Class<T> configClass, Function<T, L> instanceFunction) {
+        public <T extends BaseConfig> BaseContributorBuilder<L, D> add(String shortName, Class<T> configClass, Function<T, L> instanceFunction) {
             if (shortNameToInstanceBuilder.containsKey(shortName)) {
                 throw new IllegalArgumentException(shortName + " already registered");
             }
@@ -102,7 +102,7 @@ public abstract class BaseContributor<T, S extends Context> implements Contribut
          * @param instanceFunction function that constructs the service instance
          * @return this
          */
-        public BaseContributorBuilder<L> add(String shortName, Supplier<L> instanceFunction) {
+        public BaseContributorBuilder<L, D> add(String shortName, Supplier<L> instanceFunction) {
             return add(shortName, BaseConfig.class, (config) -> instanceFunction.get());
         }
 
@@ -117,7 +117,7 @@ public abstract class BaseContributor<T, S extends Context> implements Contribut
      * @return the builder
      * @param <L> the service type
      */
-    public static <L> BaseContributorBuilder<L> builder() {
+    public static <L, D extends Context> BaseContributorBuilder<L, D> builder() {
         return new BaseContributorBuilder<>();
     }
 }

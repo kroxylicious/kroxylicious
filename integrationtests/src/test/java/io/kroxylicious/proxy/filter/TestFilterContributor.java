@@ -11,7 +11,7 @@ import io.kroxylicious.proxy.service.Context;
 
 public class TestFilterContributor extends BaseContributor<Filter, Context> implements FilterContributor {
 
-    public static final BaseContributorBuilder<Filter> FILTERS = BaseContributor.<Filter> builder()
+    public static final BaseContributorBuilder<Filter, Context> FILTERS = BaseContributor.<Filter, Context> builder()
             .add("FixedClientId", FixedClientIdFilter.FixedClientIdFilterConfig.class, FixedClientIdFilter::new)
             .add("ApiVersionsMarkingFilter", ApiVersionsMarkingFilter::new)
             .add("RequestResponseMarking", RequestResponseMarkingFilter.RequestResponseMarkingFilterConfig.class, RequestResponseMarkingFilter::new)
