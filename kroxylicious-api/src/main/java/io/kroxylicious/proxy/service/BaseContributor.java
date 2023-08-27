@@ -19,7 +19,7 @@ import io.kroxylicious.proxy.config.BaseConfig;
  */
 public abstract class BaseContributor<T, S extends Context> implements Contributor<T, S> {
 
-    private final Map<String, InstanceBuilder<? extends BaseConfig, T>> shortNameToInstanceBuilder;
+    private final Map<String, InstanceBuilder<? extends BaseConfig, T, S>> shortNameToInstanceBuilder;
 
     /**
      * Constructs and configures the contributor using the supplied {@code builder}.
@@ -31,17 +31,17 @@ public abstract class BaseContributor<T, S extends Context> implements Contribut
 
     @Override
     public Class<? extends BaseConfig> getConfigType(String shortName) {
-        InstanceBuilder<?, T> instanceBuilder = shortNameToInstanceBuilder.get(shortName);
+        InstanceBuilder<?, T, S> instanceBuilder = shortNameToInstanceBuilder.get(shortName);
         return instanceBuilder == null ? null : instanceBuilder.configClass;
     }
 
     @Override
     public T getInstance(String shortName, Context config) {
-        InstanceBuilder<? extends BaseConfig, T> instanceBuilder = shortNameToInstanceBuilder.get(shortName);
+        InstanceBuilder<? extends BaseConfig, T, S> instanceBuilder = shortNameToInstanceBuilder.get(shortName);
         return instanceBuilder == null ? null : instanceBuilder.construct(config.getConfig());
     }
 
-    private static class InstanceBuilder<T extends BaseConfig, L> {
+    private static class InstanceBuilder<T extends BaseConfig, L, D extends Context> {
 
         private final Class<T> configClass;
         private final Function<T, L> instanceFunction;
@@ -76,7 +76,7 @@ public abstract class BaseContributor<T, S extends Context> implements Contribut
         private BaseContributorBuilder() {
         }
 
-        private final Map<String, InstanceBuilder<?, L>> shortNameToInstanceBuilder = new HashMap<>();
+        private final Map<String, InstanceBuilder<?, L, D>> shortNameToInstanceBuilder = new HashMap<>();
 
         /**
          * Registers a factory function for the construction of a service instance.
@@ -106,7 +106,7 @@ public abstract class BaseContributor<T, S extends Context> implements Contribut
             return add(shortName, BaseConfig.class, (config) -> instanceFunction.get());
         }
 
-        Map<String, InstanceBuilder<?, L>> build() {
+        Map<String, InstanceBuilder<?, L, D>> build() {
             return Map.copyOf(shortNameToInstanceBuilder);
         }
     }
