@@ -6,18 +6,18 @@
 package io.kroxylicious.proxy.filter.schema;
 
 import io.kroxylicious.proxy.filter.Filter;
+import io.kroxylicious.proxy.filter.FilterConstructContext;
 import io.kroxylicious.proxy.filter.FilterContributor;
 import io.kroxylicious.proxy.filter.schema.config.ValidationConfig;
 import io.kroxylicious.proxy.filter.schema.validation.request.ProduceRequestValidator;
 import io.kroxylicious.proxy.service.BaseContributor;
-import io.kroxylicious.proxy.service.Context;
 
 /**
  * Contributor for request validation filters
  */
-public class ProduceRequestValidationFilterContributor extends BaseContributor<Filter, Context> implements FilterContributor {
+public class ProduceRequestValidationFilterContributor extends BaseContributor<Filter, FilterConstructContext> implements FilterContributor {
 
-    private static final BaseContributorBuilder<Filter, Context> FILTERS = BaseContributor.<Filter, Context> builder()
+    private static final BaseContributorBuilder<Filter, FilterConstructContext> FILTERS = BaseContributor.<Filter, FilterConstructContext> builder()
             .add("ProduceValidator", ValidationConfig.class, (config) -> {
                 ProduceRequestValidator validator = ProduceValidationFilterBuilder.build(config);
                 return new ProduceValidationFilter(config.isForwardPartialRequests(), validator);

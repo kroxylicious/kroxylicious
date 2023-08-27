@@ -7,16 +7,16 @@
 package io.kroxylicious.sample;
 
 import io.kroxylicious.proxy.filter.Filter;
+import io.kroxylicious.proxy.filter.FilterConstructContext;
 import io.kroxylicious.proxy.filter.FilterContributor;
 import io.kroxylicious.proxy.service.BaseContributor;
-import io.kroxylicious.proxy.service.Context;
 import io.kroxylicious.sample.config.SampleFilterConfig;
 
-public class SampleContributor extends BaseContributor<Filter, Context> implements FilterContributor {
+public class SampleContributor extends BaseContributor<Filter, FilterConstructContext> implements FilterContributor {
 
     public static final String SAMPLE_FETCH = "SampleFetchResponse";
     public static final String SAMPLE_PRODUCE = "SampleProduceRequest";
-    public static final BaseContributorBuilder<Filter, Context> FILTERS = BaseContributor.<Filter, Context> builder()
+    public static final BaseContributorBuilder<Filter, FilterConstructContext> FILTERS = BaseContributor.<Filter, FilterConstructContext> builder()
             .add(SAMPLE_FETCH, SampleFilterConfig.class, SampleFetchResponseFilter::new)
             .add(SAMPLE_PRODUCE, SampleFilterConfig.class, SampleProduceRequestFilter::new);
 

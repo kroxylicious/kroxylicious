@@ -7,11 +7,10 @@ package io.kroxylicious.proxy.filter;
 
 import io.kroxylicious.proxy.filter.CompositePrefixingFixedClientIdFilter.CompositePrefixingFixedClientIdFilterConfig;
 import io.kroxylicious.proxy.service.BaseContributor;
-import io.kroxylicious.proxy.service.Context;
 
-public class TestFilterContributor extends BaseContributor<Filter, Context> implements FilterContributor {
+public class TestFilterContributor extends BaseContributor<Filter, FilterConstructContext> implements FilterContributor {
 
-    public static final BaseContributorBuilder<Filter, Context> FILTERS = BaseContributor.<Filter, Context> builder()
+    public static final BaseContributorBuilder<Filter, FilterConstructContext> FILTERS = BaseContributor.<Filter, FilterConstructContext> builder()
             .add("FixedClientId", FixedClientIdFilter.FixedClientIdFilterConfig.class, FixedClientIdFilter::new)
             .add("ApiVersionsMarkingFilter", ApiVersionsMarkingFilter::new)
             .add("RequestResponseMarking", RequestResponseMarkingFilter.RequestResponseMarkingFilterConfig.class, RequestResponseMarkingFilter::new)
