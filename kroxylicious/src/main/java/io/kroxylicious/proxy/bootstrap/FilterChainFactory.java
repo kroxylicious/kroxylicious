@@ -11,6 +11,7 @@ import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.FilterDefinition;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.internal.filter.FilterContributorManager;
+import io.kroxylicious.proxy.internal.filter.NettyFilterContext;
 
 /**
  * Abstracts the creation of a chain of filter instances, hiding the configuration
@@ -30,7 +31,7 @@ public class FilterChainFactory {
      *
      * @return the new chain.
      */
-    public List<FilterAndInvoker> createFilters() {
+    public List<FilterAndInvoker> createFilters(NettyFilterContext context) {
         FilterContributorManager filterContributorManager = FilterContributorManager.getInstance();
 
         List<FilterDefinition> filters = config.filters();
@@ -39,7 +40,7 @@ public class FilterChainFactory {
         }
         return filters
                 .stream()
-                .map(f -> filterContributorManager.getFilter(f.type(), f.config()))
+                .map(f -> filterContributorManager.getFilter(f.type(), context, f.config()))
                 .flatMap(filter -> FilterAndInvoker.build(filter).stream())
                 .toList();
     }

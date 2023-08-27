@@ -7,14 +7,11 @@ package io.kroxylicious.proxy.internal.filter;
 
 import java.util.Iterator;
 import java.util.ServiceLoader;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 
 import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterConstructContext;
 import io.kroxylicious.proxy.filter.FilterContributor;
-import io.kroxylicious.proxy.filter.FilterExecutors;
 
 public class FilterContributorManager {
 
@@ -43,26 +40,12 @@ public class FilterContributorManager {
         throw new IllegalArgumentException("No filter found for name '" + shortName + "'");
     }
 
-    public Filter getFilter(String shortName, BaseConfig filterConfig) {
+    public Filter getFilter(String shortName, NettyFilterContext context, BaseConfig filterConfig) {
         Iterator<FilterContributor> it = contributors.iterator();
         while (it.hasNext()) {
             FilterContributor contributor = it.next();
-            Filter filter = contributor.getInstance(shortName, new FilterConstructContext() {
-                @Override
-                public FilterExecutors executors() {
-                    return new FilterExecutors() {
-                        @Override
-                        public ScheduledExecutorService eventLoop() {
-                            return Executors.newScheduledThreadPool(1);
-                        }
-                    };
-                }
-
-                @Override
-                public BaseConfig getConfig() {
-                    return filterConfig;
-                }
-            });
+            FilterConstructContext context1 = context.wrap(filterConfig);
+            Filter filter = contributor.getInstance(shortName, context1);
             if (filter != null) {
                 return filter;
             }
@@ -70,4 +53,5 @@ public class FilterContributorManager {
 
         throw new IllegalArgumentException("No filter found for name '" + shortName + "'");
     }
+
 }
