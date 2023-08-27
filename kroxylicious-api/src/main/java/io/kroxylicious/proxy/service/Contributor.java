@@ -13,7 +13,7 @@ import io.kroxylicious.proxy.config.BaseConfig;
  *
  * @param <T> the service type
  */
-public interface Contributor<T> {
+public interface Contributor<T, S extends Context> {
 
     /**
      * Gets the concrete type of the configuration required by this service instance.
@@ -30,5 +30,5 @@ public interface Contributor<T> {
      * @param context   context containing service configuration which may be null if the service instance does not accept configuration.
      * @return the service instance, or null if this contributor does not offer this short name.
      */
-    T getInstance(String shortName, Context context);
+    T getInstance(String shortName, S context);
 }

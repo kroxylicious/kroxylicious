@@ -17,7 +17,7 @@ import io.kroxylicious.proxy.config.BaseConfig;
  *
  * @param <T> the service type
  */
-public abstract class BaseContributor<T> implements Contributor<T> {
+public abstract class BaseContributor<T, S extends Context> implements Contributor<T, S> {
 
     private final Map<String, InstanceBuilder<? extends BaseConfig, T>> shortNameToInstanceBuilder;
 

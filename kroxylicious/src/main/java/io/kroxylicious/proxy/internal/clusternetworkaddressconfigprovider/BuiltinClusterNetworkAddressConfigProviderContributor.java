@@ -10,8 +10,9 @@ import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPe
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.SniRoutingClusterNetworkAddressConfigProvider.SniRoutingClusterNetworkAddressConfigProviderConfig;
 import io.kroxylicious.proxy.service.BaseContributor;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
+import io.kroxylicious.proxy.service.Context;
 
-public class BuiltinClusterNetworkAddressConfigProviderContributor extends BaseContributor<ClusterNetworkAddressConfigProvider>
+public class BuiltinClusterNetworkAddressConfigProviderContributor extends BaseContributor<ClusterNetworkAddressConfigProvider, Context>
         implements ClusterNetworkAddressConfigProviderContributor {
 
     public static final BaseContributorBuilder<ClusterNetworkAddressConfigProvider> FILTERS = BaseContributor.<ClusterNetworkAddressConfigProvider> builder()

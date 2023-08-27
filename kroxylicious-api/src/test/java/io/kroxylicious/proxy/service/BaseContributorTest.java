@@ -26,7 +26,7 @@ class BaseContributorTest {
     void testDefaultConfigClass() {
         BaseContributor.BaseContributorBuilder<Long> builder = BaseContributor.builder();
         builder.add("one", () -> 1L);
-        BaseContributor<Long> baseContributor = new BaseContributor<>(builder) {
+        BaseContributor<Long, Context> baseContributor = new BaseContributor<>(builder) {
         };
         Class<? extends BaseConfig> one = baseContributor.getConfigType("one");
         assertThat(one).isEqualTo(BaseConfig.class);
@@ -36,7 +36,7 @@ class BaseContributorTest {
     void testSupplier() {
         BaseContributor.BaseContributorBuilder<Long> builder = BaseContributor.builder();
         builder.add("one", () -> 1L);
-        BaseContributor<Long> baseContributor = new BaseContributor<>(builder) {
+        BaseContributor<Long, Context> baseContributor = new BaseContributor<>(builder) {
         };
         Long instance = baseContributor.getInstance("one", wrap(new BaseConfig()));
         assertThat(instance).isEqualTo(1L);
@@ -46,7 +46,7 @@ class BaseContributorTest {
     void testSpecifyingConfigType() {
         BaseContributor.BaseContributorBuilder<Long> builder = BaseContributor.builder();
         builder.add("fromBaseConfig", LongConfig.class, baseConfig -> baseConfig.value);
-        BaseContributor<Long> baseContributor = new BaseContributor<>(builder) {
+        BaseContributor<Long, Context> baseContributor = new BaseContributor<>(builder) {
         };
         Class<? extends BaseConfig> configType = baseContributor.getConfigType("fromBaseConfig");
         assertThat(configType).isEqualTo(LongConfig.class);
@@ -56,7 +56,7 @@ class BaseContributorTest {
     void testSpecifyingConfigTypeInstance() {
         BaseContributor.BaseContributorBuilder<Long> builder = BaseContributor.builder();
         builder.add("fromBaseConfig", LongConfig.class, baseConfig -> baseConfig.value);
-        BaseContributor<Long> baseContributor = new BaseContributor<>(builder) {
+        BaseContributor<Long, Context> baseContributor = new BaseContributor<>(builder) {
         };
         Long instance = baseContributor.getInstance("fromBaseConfig", wrap(new LongConfig()));
         assertThat(instance).isEqualTo(2L);
@@ -66,7 +66,7 @@ class BaseContributorTest {
     void testFailsIfConfigNotAssignableToSpecifiedType() {
         BaseContributor.BaseContributorBuilder<Long> builder = BaseContributor.builder();
         builder.add("fromBaseConfig", LongConfig.class, baseConfig -> baseConfig.value);
-        BaseContributor<Long> baseContributor = new BaseContributor<>(builder) {
+        BaseContributor<Long, Context> baseContributor = new BaseContributor<>(builder) {
         };
         AnotherConfig incompatibleConfig = new AnotherConfig();
         assertThatThrownBy(() -> {

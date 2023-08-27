@@ -10,8 +10,9 @@ import io.kroxylicious.proxy.filter.FilterContributor;
 import io.kroxylicious.proxy.internal.filter.FetchResponseTransformationFilter.FetchResponseTransformationConfig;
 import io.kroxylicious.proxy.internal.filter.ProduceRequestTransformationFilter.ProduceRequestTransformationConfig;
 import io.kroxylicious.proxy.service.BaseContributor;
+import io.kroxylicious.proxy.service.Context;
 
-public class BuiltinFilterContributor extends BaseContributor<Filter> implements FilterContributor {
+public class BuiltinFilterContributor extends BaseContributor<Filter, Context> implements FilterContributor {
 
     public static final BaseContributorBuilder<Filter> FILTERS = BaseContributor.<Filter> builder()
             .add("ProduceRequestTransformation", ProduceRequestTransformationConfig.class, ProduceRequestTransformationFilter::new)

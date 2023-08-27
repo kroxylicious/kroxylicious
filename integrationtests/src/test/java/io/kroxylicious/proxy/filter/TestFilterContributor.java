@@ -7,8 +7,9 @@ package io.kroxylicious.proxy.filter;
 
 import io.kroxylicious.proxy.filter.CompositePrefixingFixedClientIdFilter.CompositePrefixingFixedClientIdFilterConfig;
 import io.kroxylicious.proxy.service.BaseContributor;
+import io.kroxylicious.proxy.service.Context;
 
-public class TestFilterContributor extends BaseContributor<Filter> implements FilterContributor {
+public class TestFilterContributor extends BaseContributor<Filter, Context> implements FilterContributor {
 
     public static final BaseContributorBuilder<Filter> FILTERS = BaseContributor.<Filter> builder()
             .add("FixedClientId", FixedClientIdFilter.FixedClientIdFilterConfig.class, FixedClientIdFilter::new)

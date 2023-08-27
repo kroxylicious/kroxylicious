@@ -9,9 +9,10 @@ package io.kroxylicious.sample;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterContributor;
 import io.kroxylicious.proxy.service.BaseContributor;
+import io.kroxylicious.proxy.service.Context;
 import io.kroxylicious.sample.config.SampleFilterConfig;
 
-public class SampleContributor extends BaseContributor<Filter> implements FilterContributor {
+public class SampleContributor extends BaseContributor<Filter, Context> implements FilterContributor {
 
     public static final String SAMPLE_FETCH = "SampleFetchResponse";
     public static final String SAMPLE_PRODUCE = "SampleProduceRequest";
