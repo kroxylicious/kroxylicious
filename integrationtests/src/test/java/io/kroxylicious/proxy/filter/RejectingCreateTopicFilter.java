@@ -27,8 +27,10 @@ public class RejectingCreateTopicFilter implements CreateTopicsRequestFilter {
     public static final String ERROR_MESSAGE = "rejecting all topics";
     private final ForwardingStyle forwardingStyle;
     private final boolean withCloseConnection;
+    private final FilterConstructContext constructionContext;
 
-    public RejectingCreateTopicFilter(RejectingCreateTopicFilterConfig config) {
+    public RejectingCreateTopicFilter(FilterConstructContext constructionContext, RejectingCreateTopicFilterConfig config) {
+        this.constructionContext = constructionContext;
         config = config == null ? new RejectingCreateTopicFilterConfig(false, ForwardingStyle.SYNCHRONOUS) : config;
         this.withCloseConnection = config.withCloseConnection;
         this.forwardingStyle = config.forwardingStyle;
@@ -37,7 +39,7 @@ public class RejectingCreateTopicFilter implements CreateTopicsRequestFilter {
     @Override
     public CompletionStage<RequestFilterResult> onCreateTopicsRequest(short apiVersion, RequestHeaderData header, CreateTopicsRequestData request,
                                                                       FilterContext context) {
-        return forwardingStyle.apply(context, request)
+        return forwardingStyle.apply(new ForwardContext(context, constructionContext, request))
                 .thenCompose((u) -> {
                     CreateTopicsResponseData response = new CreateTopicsResponseData();
                     CreateTopicsResponseData.CreatableTopicResultCollection topics = new CreateTopicsResponseData.CreatableTopicResultCollection();

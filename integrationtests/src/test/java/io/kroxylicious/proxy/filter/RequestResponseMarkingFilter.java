@@ -41,12 +41,14 @@ public class RequestResponseMarkingFilter implements RequestFilter, ResponseFilt
     }
 
     public static final int FILTER_NAME_TAG = 500;
+    private final FilterConstructContext constructionContext;
     private final String name;
     private final Set<ApiKeys> keysToMark;
     private final Set<Direction> direction;
     private final ForwardingStyle forwardingStyle;
 
-    public RequestResponseMarkingFilter(RequestResponseMarkingFilterConfig config) {
+    public RequestResponseMarkingFilter(FilterConstructContext constructionContext, RequestResponseMarkingFilterConfig config) {
+        this.constructionContext = constructionContext;
         name = config.name;
         keysToMark = config.keysToMark;
         direction = config.direction;
@@ -58,7 +60,8 @@ public class RequestResponseMarkingFilter implements RequestFilter, ResponseFilt
         if (!(direction.contains(Direction.REQUEST) && keysToMark.contains(apiKey))) {
             return context.forwardRequest(header, body);
         }
-        return forwardingStyle.apply(context, body)
+
+        return forwardingStyle.apply(new ForwardContext(context, constructionContext, body))
                 .thenApply(request -> applyTaggedField(request, Direction.REQUEST, name))
                 .thenCompose(taggedRequest -> context.forwardRequest(header, taggedRequest));
     }
@@ -69,7 +72,7 @@ public class RequestResponseMarkingFilter implements RequestFilter, ResponseFilt
             return context.forwardResponse(header, response);
         }
 
-        return forwardingStyle.apply(context, response)
+        return forwardingStyle.apply(new ForwardContext(context, constructionContext, response))
                 .thenApply(request -> applyTaggedField(request, Direction.RESPONSE, name))
                 .thenCompose(taggedRequest -> context.forwardResponse(header, taggedRequest));
     }
