@@ -7,6 +7,7 @@ package io.kroxylicious.proxy.service;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -25,7 +26,7 @@ public abstract class BaseContributor<T, S extends Context> implements Contribut
      * Constructs and configures the contributor using the supplied {@code builder}.
      * @param builder builder
      */
-    public BaseContributor(BaseContributorBuilder<T, S> builder) {
+    protected BaseContributor(BaseContributorBuilder<T, S> builder) {
         shortNameToInstanceBuilder = builder.build();
     }
 
@@ -36,28 +37,29 @@ public abstract class BaseContributor<T, S extends Context> implements Contribut
     }
 
     @Override
-    public T getInstance(String shortName, Context config) {
+    public T getInstance(String shortName, S context) {
         InstanceBuilder<? extends BaseConfig, T, S> instanceBuilder = shortNameToInstanceBuilder.get(shortName);
-        return instanceBuilder == null ? null : instanceBuilder.construct(config.getConfig());
+        return instanceBuilder == null ? null : instanceBuilder.construct(context);
     }
 
     private static class InstanceBuilder<T extends BaseConfig, L, D extends Context> {
 
         private final Class<T> configClass;
-        private final Function<T, L> instanceFunction;
+        private final BiFunction<D, T, L> instanceFunction;
 
-        InstanceBuilder(Class<T> configClass, Function<T, L> instanceFunction) {
+        InstanceBuilder(Class<T> configClass, BiFunction<D, T, L> instanceFunction) {
             this.configClass = configClass;
             this.instanceFunction = instanceFunction;
         }
 
-        L construct(BaseConfig config) {
+        L construct(D context) {
+            BaseConfig config = context.getConfig();
             if (config == null) {
                 // tests pass in a null config, which some instance functions can tolerate
-                return instanceFunction.apply(null);
+                return instanceFunction.apply(context, null);
             }
             else if (configClass.isAssignableFrom(config.getClass())) {
-                return instanceFunction.apply(configClass.cast(config));
+                return instanceFunction.apply(context, configClass.cast(config));
             }
             else {
                 throw new IllegalArgumentException("config has the wrong type, expected "
@@ -88,6 +90,19 @@ public abstract class BaseContributor<T, S extends Context> implements Contribut
          * @param <T> the configuration concrete type
          */
         public <T extends BaseConfig> BaseContributorBuilder<L, D> add(String shortName, Class<T> configClass, Function<T, L> instanceFunction) {
+            return add(shortName, configClass, (context, config) -> instanceFunction.apply(config));
+        }
+
+        /**
+         * Registers a factory function for the construction of a service instance.
+         *
+         * @param shortName service short name
+         * @param configClass concrete type of configuration required by the service
+         * @param instanceFunction function that constructs the service instance
+         * @return this
+         * @param <T> the configuration concrete type
+         */
+        public <T extends BaseConfig> BaseContributorBuilder<L, D> add(String shortName, Class<T> configClass, BiFunction<D, T, L> instanceFunction) {
             if (shortNameToInstanceBuilder.containsKey(shortName)) {
                 throw new IllegalArgumentException(shortName + " already registered");
             }
@@ -103,7 +118,7 @@ public abstract class BaseContributor<T, S extends Context> implements Contribut
          * @return this
          */
         public BaseContributorBuilder<L, D> add(String shortName, Supplier<L> instanceFunction) {
-            return add(shortName, BaseConfig.class, (config) -> instanceFunction.get());
+            return add(shortName, BaseConfig.class, config -> instanceFunction.get());
         }
 
         Map<String, InstanceBuilder<?, L, D>> build() {
