@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.proxy.config.BaseConfig;
 
+import static io.kroxylicious.proxy.service.Context.wrap;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -37,7 +38,7 @@ class BaseContributorTest {
         builder.add("one", () -> 1L);
         BaseContributor<Long> baseContributor = new BaseContributor<>(builder) {
         };
-        Long instance = baseContributor.getInstance("one", new BaseConfig());
+        Long instance = baseContributor.getInstance("one", wrap(new BaseConfig()));
         assertThat(instance).isEqualTo(1L);
     }
 
@@ -57,7 +58,7 @@ class BaseContributorTest {
         builder.add("fromBaseConfig", LongConfig.class, baseConfig -> baseConfig.value);
         BaseContributor<Long> baseContributor = new BaseContributor<>(builder) {
         };
-        Long instance = baseContributor.getInstance("fromBaseConfig", new LongConfig());
+        Long instance = baseContributor.getInstance("fromBaseConfig", wrap(new LongConfig()));
         assertThat(instance).isEqualTo(2L);
     }
 
@@ -69,7 +70,7 @@ class BaseContributorTest {
         };
         AnotherConfig incompatibleConfig = new AnotherConfig();
         assertThatThrownBy(() -> {
-            baseContributor.getInstance("fromBaseConfig", incompatibleConfig);
+            baseContributor.getInstance("fromBaseConfig", wrap(incompatibleConfig));
         }).isInstanceOf(IllegalArgumentException.class);
     }
 

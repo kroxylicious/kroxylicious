@@ -27,8 +27,8 @@ public interface Contributor<T> {
      * Creates an instance of the service.
      *
      * @param shortName service short name
-     * @param config    service configuration which may be null if the service instance does not accept configuration.
+     * @param context   context containing service configuration which may be null if the service instance does not accept configuration.
      * @return the service instance, or null if this contributor does not offer this short name.
      */
-    T getInstance(String shortName, BaseConfig config);
+    T getInstance(String shortName, Context context);
 }

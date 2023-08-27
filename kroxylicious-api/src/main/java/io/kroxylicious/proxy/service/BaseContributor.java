@@ -36,9 +36,9 @@ public abstract class BaseContributor<T> implements Contributor<T> {
     }
 
     @Override
-    public T getInstance(String shortName, BaseConfig config) {
+    public T getInstance(String shortName, Context config) {
         InstanceBuilder<? extends BaseConfig, T> instanceBuilder = shortNameToInstanceBuilder.get(shortName);
-        return instanceBuilder == null ? null : instanceBuilder.construct(config);
+        return instanceBuilder == null ? null : instanceBuilder.construct(config.getConfig());
     }
 
     private static class InstanceBuilder<T extends BaseConfig, L> {

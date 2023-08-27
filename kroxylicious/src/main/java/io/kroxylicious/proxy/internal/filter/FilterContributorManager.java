@@ -12,6 +12,8 @@ import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterContributor;
 
+import static io.kroxylicious.proxy.service.Context.wrap;
+
 public class FilterContributorManager {
 
     private static final FilterContributorManager INSTANCE = new FilterContributorManager();
@@ -43,7 +45,7 @@ public class FilterContributorManager {
         Iterator<FilterContributor> it = contributors.iterator();
         while (it.hasNext()) {
             FilterContributor contributor = it.next();
-            Filter filter = contributor.getInstance(shortName, filterConfig);
+            Filter filter = contributor.getInstance(shortName, wrap(filterConfig));
             if (filter != null) {
                 return filter;
             }
