@@ -45,6 +45,16 @@ class BaseContributorTest {
     }
 
     @Test
+    void testNullConfigIsAllowed() {
+        BaseContributor.BaseContributorBuilder<Long, Context> builder = BaseContributor.builder();
+        builder.add("one", () -> 1L);
+        BaseContributor<Long, Context> baseContributor = new BaseContributor<>(builder) {
+        };
+        Long instance = baseContributor.getInstance("one", wrap(null));
+        assertThat(instance).isEqualTo(1L);
+    }
+
+    @Test
     void testContextAndConfigFunction() {
         BaseContributor.BaseContributorBuilder<Long, Context> builder = BaseContributor.builder();
         AtomicReference<Context> contextRef = new AtomicReference<>();
