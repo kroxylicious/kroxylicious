@@ -6,6 +6,7 @@
 package io.kroxylicious.proxy.bootstrap;
 
 import java.util.List;
+import java.util.Objects;
 
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.FilterDefinition;
@@ -23,6 +24,7 @@ public class FilterChainFactory {
     private final Configuration config;
 
     public FilterChainFactory(Configuration config) {
+        Objects.requireNonNull(config);
         this.config = config;
     }
 
