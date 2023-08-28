@@ -128,6 +128,17 @@ public abstract class BaseContributor<T, S extends Context> implements Contribut
             return add(shortName, BaseConfig.class, config -> instanceFunction.get());
         }
 
+        /**
+         * Registers a factory function for the construction of a service instance.
+         *
+         * @param shortName service short name
+         * @param instanceFunction function that constructs the service instance from a context
+         * @return this
+         */
+        public BaseContributorBuilder<L, D> add(String shortName, Function<D, L> instanceFunction) {
+            return add(shortName, BaseConfig.class, (context, config) -> instanceFunction.apply(context));
+        }
+
         Map<String, InstanceBuilder<L, D>> build() {
             return Map.copyOf(shortNameToInstanceBuilder);
         }
