@@ -10,8 +10,8 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import io.kroxylicious.proxy.config.BaseConfig;
-import io.kroxylicious.proxy.filter.FilterContext;
-import io.kroxylicious.proxy.filter.KrpcFilter;
+import io.kroxylicious.proxy.filter.Filter;
+import io.kroxylicious.proxy.filter.FilterConstructContext;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -27,7 +27,7 @@ class MultiTenantFilterContributorTest {
     @Test
     void testGetInstance() {
         MultiTenantFilterContributor contributor = new MultiTenantFilterContributor();
-        KrpcFilter filter = contributor.getInstance("MultiTenant", Mockito.mock(FilterContext.class));
+        Filter filter = contributor.getInstance("MultiTenant", Mockito.mock(FilterConstructContext.class));
         assertThat(filter).isNotNull().isInstanceOf(MultiTenantTransformationFilter.class);
     }
 
