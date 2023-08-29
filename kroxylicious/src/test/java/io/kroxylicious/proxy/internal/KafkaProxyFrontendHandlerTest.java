@@ -182,7 +182,7 @@ class KafkaProxyFrontendHandlerTest {
     }
 
     KafkaProxyFrontendHandler handler(NetFilter filter, SaslDecodePredicate dp, VirtualCluster virtualCluster) {
-        return new KafkaProxyFrontendHandler(filter, dp, virtualCluster) {
+        return new KafkaProxyFrontendHandler(filter, dp, virtualCluster, new ApiVersionsServiceImpl()) {
             @Override
             ChannelFuture initConnection(String remoteHost, int remotePort, Bootstrap b) {
                 // This is ugly... basically the EmbeddedChannel doesn't seem to handle the case

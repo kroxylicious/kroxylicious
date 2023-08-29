@@ -12,7 +12,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
@@ -33,6 +32,7 @@ import org.apache.kafka.common.message.ListTransactionsResponseData;
 import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.message.ProduceRequestData;
+import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.logging.log4j.LogManager;
@@ -61,6 +61,8 @@ import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
 import static io.kroxylicious.UnknownTaggedFields.unknownTaggedFieldsToStrings;
+import static io.kroxylicious.proxy.filter.ApiVersionsMarkingFilter.INTERSECTED_API_VERSION_RANGE_TAG;
+import static io.kroxylicious.proxy.filter.ApiVersionsMarkingFilter.UPSTREAM_API_VERSION_RANGE_TAG;
 import static io.kroxylicious.proxy.filter.RequestResponseMarkingFilter.FILTER_NAME_TAG;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
@@ -73,6 +75,7 @@ import static org.apache.kafka.clients.producer.ProducerConfig.CLIENT_ID_CONFIG;
 import static org.apache.kafka.clients.producer.ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG;
 import static org.apache.kafka.common.protocol.ApiKeys.API_VERSIONS;
 import static org.apache.kafka.common.protocol.ApiKeys.CREATE_TOPICS;
+import static org.apache.kafka.common.protocol.ApiKeys.FETCH;
 import static org.apache.kafka.common.protocol.ApiKeys.LIST_GROUPS;
 import static org.apache.kafka.common.protocol.ApiKeys.LIST_TRANSACTIONS;
 import static org.apache.kafka.common.protocol.ApiKeys.METADATA;
@@ -268,6 +271,10 @@ class FilterIT {
         try (var tester = mockKafkaKroxyliciousTester((mockBootstrap) -> proxy(mockBootstrap).addToFilters(markingFilter));
                 var kafkaClient = tester.simpleTestClient()) {
             tester.addMockResponseForApiKey(new ResponsePayload(LIST_TRANSACTIONS, LIST_TRANSACTIONS.latestVersion(), new ListTransactionsResponseData()));
+            ApiVersionsResponseData apiVersionsResponseData = new ApiVersionsResponseData();
+            apiVersionsResponseData.apiKeys()
+                    .add(new ApiVersionsResponseData.ApiVersion().setApiKey(FETCH.id).setMaxVersion(FETCH.latestVersion()).setMinVersion(FETCH.oldestVersion()));
+            tester.addMockResponseForApiKey(new ResponsePayload(API_VERSIONS, API_VERSIONS.latestVersion(), apiVersionsResponseData));
 
             // In the ASYNCHRONOUS_REQUEST_TO_BROKER case, the filter will send an async list_group
             // request to the broker and defer the forward of the list transaction response until the list groups
@@ -330,6 +337,25 @@ class FilterIT {
             tester.addMockResponseForApiKey(new ResponsePayload(METADATA, METADATA.latestVersion(), new MetadataResponseData()));
             kafkaClient.getSync(new Request(METADATA, METADATA.latestVersion(), "client", new MetadataRequestData()));
             assertEquals("123banana", tester.getOnlyRequest().clientIdHeader());
+        }
+    }
+
+    @Test
+    void testApiVersionsAvailableToFilter() {
+        try (MockServerKroxyliciousTester tester = mockKafkaKroxyliciousTester((mockBootstrap) -> proxy(mockBootstrap)
+                .addToFilters(new FilterDefinitionBuilder("ApiVersionsMarkingFilter").build()));
+                var kafkaClient = tester.simpleTestClient()) {
+            ApiVersionsResponseData apiVersionsResponseData = new ApiVersionsResponseData();
+            short kroxyliciousLatestVersion = METADATA.latestVersion();
+            int upstreamLatestVersion = kroxyliciousLatestVersion + 1;
+            apiVersionsResponseData.apiKeys().add(new ApiVersionsResponseData.ApiVersion().setApiKey(METADATA.id).setMinVersion(METADATA.oldestVersion()).setMaxVersion(
+                    (short) upstreamLatestVersion));
+            tester.addMockResponseForApiKey(new ResponsePayload(API_VERSIONS, API_VERSIONS.latestVersion(), apiVersionsResponseData));
+            tester.addMockResponseForApiKey(new ResponsePayload(METADATA, METADATA.latestVersion(), new MetadataResponseData()));
+            kafkaClient.getSync(new Request(METADATA, METADATA.latestVersion(), "client", new MetadataRequestData()));
+            ApiMessage message = tester.getOnlyRequestForApiKey(METADATA).message();
+            assertThat(unknownTaggedFieldsToStrings(message, INTERSECTED_API_VERSION_RANGE_TAG)).containsExactly("0-" + kroxyliciousLatestVersion);
+            assertThat(unknownTaggedFieldsToStrings(message, UPSTREAM_API_VERSION_RANGE_TAG)).containsExactly("0-" + upstreamLatestVersion);
         }
     }
 

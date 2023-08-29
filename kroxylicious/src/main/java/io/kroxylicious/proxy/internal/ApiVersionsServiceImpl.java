@@ -3,32 +3,42 @@
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
-package io.kroxylicious.proxy.internal.filter;
+
+package io.kroxylicious.proxy.internal;
 
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
+import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
-import org.apache.kafka.common.message.ResponseHeaderData;
+import org.apache.kafka.common.message.ApiVersionsResponseData.ApiVersion;
+import org.apache.kafka.common.message.ApiVersionsResponseData.ApiVersionCollection;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.kroxylicious.proxy.filter.ApiVersionsResponseFilter;
+import io.kroxylicious.proxy.ApiVersionsService;
 import io.kroxylicious.proxy.filter.FilterContext;
-import io.kroxylicious.proxy.filter.ResponseFilterResult;
 
-/**
- * Changes an API_VERSIONS response so that a client sees the intersection of supported version ranges for each
- * API key. This is an intrinsic part of correctly acting as a proxy.
- */
-public class ApiVersionsFilter implements ApiVersionsResponseFilter {
+public class ApiVersionsServiceImpl {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(ApiVersionsFilter.class);
+    private record ApiVersions(ApiVersionCollection upstream, ApiVersionCollection intersected) {
+    }
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(ApiVersionsServiceImpl.class);
+    private ApiVersions apiVersions = null;
+
+    public void mutateVersionsApplyingIntersection(String channel, ApiVersionsResponseData upstreamApiVersions) {
+        var upstream = upstreamApiVersions.duplicate().apiKeys();
+        intersectApiVersions(channel, upstreamApiVersions);
+        var intersected = upstreamApiVersions.duplicate().apiKeys();
+        this.apiVersions = new ApiVersions(upstream, intersected);
+    }
 
     private static void intersectApiVersions(String channel, ApiVersionsResponseData resp) {
-        Set<ApiVersionsResponseData.ApiVersion> unknownApis = new HashSet<>();
+        Set<ApiVersion> unknownApis = new HashSet<>();
         for (var key : resp.apiKeys()) {
             short apiId = key.apiKey();
             if (ApiKeys.hasId(apiId)) {
@@ -73,10 +83,25 @@ public class ApiVersionsFilter implements ApiVersionsResponseFilter {
         }
     }
 
-    @Override
-    public CompletionStage<ResponseFilterResult> onApiVersionsResponse(short apiVersion, ResponseHeaderData header, ApiVersionsResponseData data,
-                                                                       FilterContext context) {
-        intersectApiVersions(context.channelDescriptor(), data);
-        return context.forwardResponse(header, data);
+    public CompletionStage<ApiVersionsService.ApiVersionRanges> getApiVersionRanges(ApiKeys keys, FilterContext context) {
+        return getVersions(context).thenApply(versions -> {
+            ApiVersion upstream = versions.upstream.find(keys.id);
+            ApiVersion intersected = versions.intersected.find(keys.id);
+            return new ApiVersionsService.ApiVersionRanges(upstream, intersected);
+        });
     }
+
+    private CompletionStage<ApiVersions> getVersions(FilterContext context) {
+        if (apiVersions != null) {
+            return CompletableFuture.completedFuture(apiVersions);
+        }
+        else {
+            return context.sendRequest(ApiKeys.API_VERSIONS.latestVersion(), new ApiVersionsRequestData()).thenApply(message -> {
+                ApiVersionsResponseData apiVersionsResponseData = (ApiVersionsResponseData) message;
+                mutateVersionsApplyingIntersection(context.channelDescriptor(), apiVersionsResponseData);
+                return apiVersions;
+            });
+        }
+    }
+
 }

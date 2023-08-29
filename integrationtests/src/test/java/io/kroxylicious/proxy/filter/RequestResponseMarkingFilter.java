@@ -58,7 +58,6 @@ public class RequestResponseMarkingFilter implements RequestFilter, ResponseFilt
         if (!(direction.contains(Direction.REQUEST) && keysToMark.contains(apiKey))) {
             return context.forwardRequest(header, body);
         }
-
         return forwardingStyle.apply(context, body)
                 .thenApply(request -> applyTaggedField(request, Direction.REQUEST, name))
                 .thenCompose(taggedRequest -> context.forwardRequest(header, taggedRequest));
