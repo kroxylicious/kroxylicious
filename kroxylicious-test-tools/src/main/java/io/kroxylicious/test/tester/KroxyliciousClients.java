@@ -43,7 +43,6 @@ class KroxyliciousClients {
 
     public Admin admin(Map<String, Object> additionalConfig) {
         Map<String, Object> config = createConfigMap(bootstrapServers, additionalConfig);
-        // Should we do something smart here to reuse admins with the same config???
         Admin admin = CloseableAdmin.create(config);
         admins.add(admin);
         return admin;
@@ -63,7 +62,6 @@ class KroxyliciousClients {
 
     public <U, V> Producer<U, V> producer(Serde<U> keySerde, Serde<V> valueSerde, Map<String, Object> additionalConfig) {
         Map<String, Object> config = createConfigMap(bootstrapServers, additionalConfig);
-        // Should we do something smart here to reuse producers with the same config???
         Producer<U, V> producer = CloseableProducer.wrap(new KafkaProducer<>(config, keySerde.serializer(), valueSerde.serializer()));
         producers.add(producer);
         return producer;
@@ -79,7 +77,6 @@ class KroxyliciousClients {
 
     public <U, V> Consumer<U, V> consumer(Serde<U> keySerde, Serde<V> valueSerde, Map<String, Object> additionalConfig) {
         Map<String, Object> config = createConfigMap(bootstrapServers, additionalConfig);
-        // Should we do something smart here to reuse consumers with the same config???
         Consumer<U, V> consumer = CloseableConsumer.wrap(new KafkaConsumer<>(config, keySerde.deserializer(), valueSerde.deserializer()));
         consumers.add(consumer);
         return consumer;
