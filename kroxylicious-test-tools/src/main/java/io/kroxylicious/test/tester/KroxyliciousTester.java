@@ -210,6 +210,11 @@ public interface KroxyliciousTester extends Closeable {
     KafkaClient simpleTestClient(String virtualCluster);
 
     /**
+     * Restarts the Kroxylicious server under test without closing any other resources.
+     */
+    void restartProxy();
+
+    /**
      * Close the Kroxylicious server under test and any other resources that need cleaning.
      */
     void close();

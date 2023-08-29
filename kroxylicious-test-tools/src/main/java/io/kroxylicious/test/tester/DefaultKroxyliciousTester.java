@@ -6,6 +6,7 @@
 
 package io.kroxylicious.test.tester;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 
@@ -20,8 +21,10 @@ import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.test.client.KafkaClient;
 
 public class DefaultKroxyliciousTester implements KroxyliciousTester {
-    private final AutoCloseable proxy;
+    private AutoCloseable proxy;
     private final Configuration kroxyliciousConfig;
+
+    private final Map<String, KroxyliciousClients> clients;
 
     DefaultKroxyliciousTester(ConfigurationBuilder configurationBuilder) {
         this(configurationBuilder, config -> {
@@ -39,13 +42,16 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     DefaultKroxyliciousTester(ConfigurationBuilder configuration, Function<Configuration, AutoCloseable> kroxyliciousFactory) {
         kroxyliciousConfig = configuration.build();
         proxy = kroxyliciousFactory.apply(kroxyliciousConfig);
+        clients = new HashMap<>();
     }
 
     private KroxyliciousClients clients() {
         int numVirtualClusters = kroxyliciousConfig.virtualClusters().size();
         if (numVirtualClusters == 1) {
             String onlyCluster = kroxyliciousConfig.virtualClusters().keySet().stream().findFirst().orElseThrow();
-            return new KroxyliciousClients(KroxyliciousConfigUtils.bootstrapServersFor(onlyCluster, kroxyliciousConfig));
+            KroxyliciousClients client = new KroxyliciousClients(KroxyliciousConfigUtils.bootstrapServersFor(onlyCluster, kroxyliciousConfig));
+            clients.put(onlyCluster, client);
+            return client;
         }
         else {
             throw new AmbiguousVirtualClusterException(
@@ -54,7 +60,9 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     }
 
     private KroxyliciousClients clients(String virtualCluster) {
-        return new KroxyliciousClients(KroxyliciousConfigUtils.bootstrapServersFor(virtualCluster, kroxyliciousConfig));
+        KroxyliciousClients client = new KroxyliciousClients(KroxyliciousConfigUtils.bootstrapServersFor(virtualCluster, kroxyliciousConfig));
+        clients.put(virtualCluster, client);
+        return client;
     }
 
     @Override
@@ -147,9 +155,20 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
         return clients(virtualCluster).consumer(keySerde, valueSerde, additionalConfig);
     }
 
+    public void restartProxy() {
+        try {
+            proxy.close();
+            proxy = new KafkaProxy(kroxyliciousConfig).startup();
+        }
+        catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     @Override
     public void close() {
         try {
+            clients.values().forEach(KroxyliciousClients::close);
             proxy.close();
         }
         catch (Exception e) {

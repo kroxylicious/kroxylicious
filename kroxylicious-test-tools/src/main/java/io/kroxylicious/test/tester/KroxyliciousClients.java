@@ -6,7 +6,9 @@
 
 package io.kroxylicious.test.tester;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -28,13 +30,23 @@ import io.kroxylicious.testing.kafka.clients.CloseableProducer;
 class KroxyliciousClients {
     private final String bootstrapServers;
 
+    private final List<Admin> admins;
+    private final List<Producer> producers;
+    private final List<Consumer> consumers;
+
     KroxyliciousClients(String bootstrapServers) {
         this.bootstrapServers = bootstrapServers;
+        this.admins = new ArrayList<>();
+        this.producers = new ArrayList<>();
+        this.consumers = new ArrayList<>();
     }
 
     public Admin admin(Map<String, Object> additionalConfig) {
         Map<String, Object> config = createConfigMap(bootstrapServers, additionalConfig);
-        return CloseableAdmin.create(config);
+        // Should we do something smart here to reuse admins with the same config???
+        Admin admin = CloseableAdmin.create(config);
+        admins.add(admin);
+        return admin;
     }
 
     public Admin admin() {
@@ -51,7 +63,10 @@ class KroxyliciousClients {
 
     public <U, V> Producer<U, V> producer(Serde<U> keySerde, Serde<V> valueSerde, Map<String, Object> additionalConfig) {
         Map<String, Object> config = createConfigMap(bootstrapServers, additionalConfig);
-        return CloseableProducer.wrap(new KafkaProducer<>(config, keySerde.serializer(), valueSerde.serializer()));
+        // Should we do something smart here to reuse producers with the same config???
+        Producer<U, V> producer = CloseableProducer.wrap(new KafkaProducer<>(config, keySerde.serializer(), valueSerde.serializer()));
+        producers.add(producer);
+        return producer;
     }
 
     public Consumer<String, String> consumer(Map<String, Object> additionalConfig) {
@@ -64,12 +79,26 @@ class KroxyliciousClients {
 
     public <U, V> Consumer<U, V> consumer(Serde<U> keySerde, Serde<V> valueSerde, Map<String, Object> additionalConfig) {
         Map<String, Object> config = createConfigMap(bootstrapServers, additionalConfig);
-        return CloseableConsumer.wrap(new KafkaConsumer<>(config, keySerde.deserializer(), valueSerde.deserializer()));
+        // Should we do something smart here to reuse consumers with the same config???
+        Consumer<U, V> consumer = CloseableConsumer.wrap(new KafkaConsumer<>(config, keySerde.deserializer(), valueSerde.deserializer()));
+        consumers.add(consumer);
+        return consumer;
     }
 
     public KafkaClient simpleTestClient() {
         String[] hostPort = bootstrapServers.split(":");
         return new KafkaClient(hostPort[0], Integer.parseInt(hostPort[1]));
+    }
+
+    public void close() {
+        try {
+            admins.forEach(Admin::close);
+            producers.forEach(Producer::close);
+            consumers.forEach(Consumer::close);
+        }
+        catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private Map<String, Object> createConfigMap(String bootstrapServers, Map<String, Object> additionalConfig) {
