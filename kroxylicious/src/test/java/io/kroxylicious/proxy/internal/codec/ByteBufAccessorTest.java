@@ -143,7 +143,7 @@ public class ByteBufAccessorTest {
         var bbuf = Unpooled.buffer(2);
         var kp = new ByteBufAccessorImpl(bbuf);
 
-        var buf2 = Unpooled.wrappedBuffer(new byte[]{5, 2});
+        var buf2 = Unpooled.wrappedBuffer(new byte[]{ 5, 2 });
         kp.writeBytes(buf2, 1);
         assertThat(kp.writerIndex()).isEqualTo(1);
         var nio = ByteBuffer.wrap(bbuf.array());
@@ -155,7 +155,7 @@ public class ByteBufAccessorTest {
     void testWriteByteBuffer() {
         var bbuf = Unpooled.buffer(2);
         var kp = new ByteBufAccessorImpl(bbuf);
-        kp.writeByteBuffer(ByteBuffer.wrap(new byte[]{5, 2}));
+        kp.writeByteBuffer(ByteBuffer.wrap(new byte[]{ 5, 2 }));
         var nio = ByteBuffer.wrap(bbuf.array());
         var kafkaAccessor = new ByteBufferAccessor(nio);
         assertThat(kafkaAccessor.readByte()).isEqualTo((byte) 5);
@@ -164,7 +164,7 @@ public class ByteBufAccessorTest {
 
     @Test
     void testReadBuffer() {
-        var bytebuf = Unpooled.wrappedBuffer(new byte[]{5, 2});
+        var bytebuf = Unpooled.wrappedBuffer(new byte[]{ 5, 2 });
         var kafkaAccessor = new ByteBufAccessorImpl(bytebuf);
         assertThat(kafkaAccessor.readByteBuffer(2).array()).containsExactly((byte) 5, (byte) 2);
     }
