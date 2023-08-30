@@ -242,8 +242,10 @@
                             <goal>format</goal>
                         </goals>
                         <phase>process-sources</phase>
-                        <configuration combine.children="override">
-                            <sourceDirectory>${project.build.directory}/generated-sources/krpc</sourceDirectory>
+                        <configuration>
+                        <directories>
+                            <directory>${project.build.directory}/generated-sources/krpc</directory>
+                        </directories>
                         </configuration>
                     </execution>
                 </executions>
