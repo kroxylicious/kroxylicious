@@ -32,8 +32,8 @@ import com.flipkart.zjsonpatch.JsonDiff;
 import com.google.common.reflect.ClassPath;
 
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
+import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.FilterInvoker;
-import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
 import io.kroxylicious.proxy.model.VirtualCluster;
 import io.kroxylicious.proxy.service.HostPort;
@@ -74,7 +74,7 @@ class BrokerAddressFilterTest {
     private EndpointReconciler endpointReconciler;
 
     @Mock
-    private KrpcFilterContext context;
+    private FilterContext context;
 
     private BrokerAddressFilter filter;
 

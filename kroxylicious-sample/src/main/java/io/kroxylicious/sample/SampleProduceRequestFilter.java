@@ -15,7 +15,7 @@ import org.apache.kafka.common.message.RequestHeaderData;
 import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.Timer;
 
-import io.kroxylicious.proxy.filter.KrpcFilterContext;
+import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.sample.config.SampleFilterConfig;
@@ -60,7 +60,7 @@ public class SampleProduceRequestFilter implements ProduceRequestFilter {
      * @return CompletionStage that will yield a {@link RequestFilterResult} containing the request to be forwarded.
      */
     @Override
-    public CompletionStage<RequestFilterResult> onProduceRequest(short apiVersion, RequestHeaderData header, ProduceRequestData request, KrpcFilterContext context) {
+    public CompletionStage<RequestFilterResult> onProduceRequest(short apiVersion, RequestHeaderData header, ProduceRequestData request, FilterContext context) {
         this.timer.record(() -> applyTransformation(request, context)); // We're timing this to report how long it takes through Micrometer
 
         return context.forwardRequest(header, request);
@@ -71,7 +71,7 @@ public class SampleProduceRequestFilter implements ProduceRequestFilter {
      * @param request the request to be transformed
      * @param context the context
      */
-    private void applyTransformation(ProduceRequestData request, KrpcFilterContext context) {
+    private void applyTransformation(ProduceRequestData request, FilterContext context) {
         request.topicData().forEach(topicData -> {
             for (PartitionProduceData partitionData : topicData.partitionData()) {
                 SampleFilterTransformer.transform(partitionData, context, this.config);

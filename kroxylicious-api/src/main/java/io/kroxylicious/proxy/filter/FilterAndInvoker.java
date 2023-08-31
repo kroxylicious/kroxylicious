@@ -15,7 +15,7 @@ import static java.util.Objects.requireNonNull;
  * @param filter filter
  * @param invoker invoker
  */
-public record FilterAndInvoker(KrpcFilter filter, FilterInvoker invoker) {
+public record FilterAndInvoker(Filter filter, FilterInvoker invoker) {
     public FilterAndInvoker {
         requireNonNull(filter, "filter cannot be null");
         requireNonNull(invoker, "invoker cannot be null");
@@ -26,7 +26,7 @@ public record FilterAndInvoker(KrpcFilter filter, FilterInvoker invoker) {
      * @param filter filter
      * @return a filter and its respective invoker
      */
-    public static List<FilterAndInvoker> build(KrpcFilter filter) {
+    public static List<FilterAndInvoker> build(Filter filter) {
         return FilterInvokers.from(filter);
     }
 }

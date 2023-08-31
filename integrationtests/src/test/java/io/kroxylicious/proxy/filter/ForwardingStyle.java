@@ -19,16 +19,16 @@ import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.Errors;
 
-public enum ForwardingStyle implements BiFunction<KrpcFilterContext, ApiMessage, CompletionStage<ApiMessage>> {
+public enum ForwardingStyle implements BiFunction<FilterContext, ApiMessage, CompletionStage<ApiMessage>> {
     SYNCHRONOUS {
         @Override
-        public CompletionStage<ApiMessage> apply(KrpcFilterContext context, ApiMessage body) {
+        public CompletionStage<ApiMessage> apply(FilterContext context, ApiMessage body) {
             return CompletableFuture.completedStage(body);
         }
     },
     ASYNCHRONOUS_DELAYED {
         @Override
-        public CompletionStage<ApiMessage> apply(KrpcFilterContext context, ApiMessage body) {
+        public CompletionStage<ApiMessage> apply(FilterContext context, ApiMessage body) {
             CompletableFuture<ApiMessage> result = new CompletableFuture<>();
             ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
             try {
@@ -44,11 +44,11 @@ public enum ForwardingStyle implements BiFunction<KrpcFilterContext, ApiMessage,
     },
     ASYNCHRONOUS_REQUEST_TO_BROKER {
         @Override
-        public CompletionStage<ApiMessage> apply(KrpcFilterContext context, ApiMessage body) {
+        public CompletionStage<ApiMessage> apply(FilterContext context, ApiMessage body) {
             return sendAsyncRequestAndCheckForResponseErrors(context).thenApply(unused -> body);
         }
 
-        private CompletionStage<ListGroupsResponseData> sendAsyncRequestAndCheckForResponseErrors(KrpcFilterContext filterContext) {
+        private CompletionStage<ListGroupsResponseData> sendAsyncRequestAndCheckForResponseErrors(FilterContext filterContext) {
             return filterContext.<ListGroupsResponseData> sendRequest(ApiKeys.LIST_GROUPS.latestVersion(), new ListGroupsRequestData())
                     .thenApply(r -> {
                         if (r.errorCode() != Errors.NONE.code()) {

@@ -34,7 +34,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.stubbing.Answer;
 
-import io.kroxylicious.proxy.filter.KrpcFilterContext;
+import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.sample.config.SampleFilterConfig;
 
@@ -51,7 +51,7 @@ class SampleFetchResponseFilterTest {
     private static final String CONFIG_FIND_VALUE = "from";
     private static final String CONFIG_REPLACE_VALUE = "to";
     @Mock
-    private KrpcFilterContext context;
+    private FilterContext context;
 
     @Mock(strictness = Mock.Strictness.LENIENT)
     private ResponseFilterResult responseFilterResult;

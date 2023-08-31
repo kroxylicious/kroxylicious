@@ -15,7 +15,7 @@ import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.Timer;
 
 import io.kroxylicious.proxy.filter.FetchResponseFilter;
-import io.kroxylicious.proxy.filter.KrpcFilterContext;
+import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.sample.config.SampleFilterConfig;
 import io.kroxylicious.sample.util.SampleFilterTransformer;
@@ -59,7 +59,7 @@ public class SampleFetchResponseFilter implements FetchResponseFilter {
      * @return CompletionStage that will yield a {@link ResponseFilterResult} containing the response to be forwarded.
      */
     @Override
-    public CompletionStage<ResponseFilterResult> onFetchResponse(short apiVersion, ResponseHeaderData header, FetchResponseData response, KrpcFilterContext context) {
+    public CompletionStage<ResponseFilterResult> onFetchResponse(short apiVersion, ResponseHeaderData header, FetchResponseData response, FilterContext context) {
         this.timer.record(() -> applyTransformation(response, context)); // We're timing this to report how long it takes through Micrometer
         return context.forwardResponse(header, response);
     }
@@ -69,7 +69,7 @@ public class SampleFetchResponseFilter implements FetchResponseFilter {
      * @param response the response to be transformed
      * @param context the context
      */
-    private void applyTransformation(FetchResponseData response, KrpcFilterContext context) {
+    private void applyTransformation(FetchResponseData response, FilterContext context) {
         response.responses().forEach(responseData -> {
             for (FetchResponseData.PartitionData partitionData : responseData.partitions()) {
                 SampleFilterTransformer.transform(partitionData, context, this.config);

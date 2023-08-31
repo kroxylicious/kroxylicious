@@ -29,11 +29,11 @@ import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 
+import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
+import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.FilterInvoker;
 import io.kroxylicious.proxy.filter.FilterResult;
-import io.kroxylicious.proxy.filter.KrpcFilter;
-import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
@@ -53,12 +53,12 @@ import io.kroxylicious.proxy.model.VirtualCluster;
 
 /**
  * A {@code ChannelInboundHandler} (for handling requests from downstream)
- * that applies a single {@link KrpcFilter}.
+ * that applies a single {@link Filter}.
  */
 public class FilterHandler extends ChannelDuplexHandler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(FilterHandler.class);
-    private final KrpcFilter filter;
+    private final Filter filter;
     private final FilterInvoker invoker;
     private final long timeoutMs;
     private final String sniHostname;
@@ -427,7 +427,7 @@ public class FilterHandler extends ChannelDuplexHandler {
         });
     }
 
-    private class InternalFilterContext implements KrpcFilterContext {
+    private class InternalFilterContext implements FilterContext {
 
         private final DecodedFrame<?, ?> decodedFrame;
 

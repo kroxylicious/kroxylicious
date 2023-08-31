@@ -27,13 +27,13 @@ class FilterInvokersTest {
 
     @ParameterizedTest
     @MethodSource("invalidFilters")
-    void testInvalidFilters(KrpcFilter invalid) {
+    void testInvalidFilters(Filter invalid) {
         Assertions.assertThrows(IllegalArgumentException.class, () -> FilterInvokers.from(invalid));
     }
 
     @ParameterizedTest
     @MethodSource("validFilters")
-    void testValidFilters(KrpcFilter invalid) {
+    void testValidFilters(Filter invalid) {
         assertThat(FilterInvokers.from(invalid)).isNotNull();
     }
 
@@ -45,15 +45,15 @@ class FilterInvokersTest {
         ResponseFilter filterD = (apiKey, header, body, filterContext) -> null;
         List<FilterAndInvoker> from = FilterInvokers.from(
                 (CompositeFilter) () -> List.of((CompositeFilter) () -> List.of(filterA, filterB), (CompositeFilter) () -> List.of(filterC, filterD)));
-        List<KrpcFilter> filters = from.stream().map(FilterAndInvoker::filter).toList();
+        List<Filter> filters = from.stream().map(FilterAndInvoker::filter).toList();
         assertThat(filters).containsExactly(filterA, filterB, filterC, filterD);
     }
 
-    public static Stream<KrpcFilter> invalidFilters() {
-        KrpcFilter noKrpcFilterSubinterfacesImplemented = new KrpcFilter() {
+    public static Stream<Filter> invalidFilters() {
+        Filter noFilterSubinterfacesImplemented = new Filter() {
 
         };
-        return Stream.of(noKrpcFilterSubinterfacesImplemented,
+        return Stream.of(noFilterSubinterfacesImplemented,
                 new SpecificAndRequestFilter(),
                 new SpecificAndResponseFilter(),
                 new SpecificAndCompositeFilter(),
@@ -63,7 +63,7 @@ class FilterInvokersTest {
                 new SelfReferencingCompositeFilter());
     }
 
-    public static Stream<KrpcFilter> validFilters() {
+    public static Stream<Filter> validFilters() {
         ApiVersionsRequestFilter singleSpecificMessageFilter = (apiVersion, header, request, context) -> null;
         RequestFilter requestFilter = (apiKey, header, body, filterContext) -> null;
         ResponseFilter responseFilter = (apiKey, header, body, filterContext) -> null;
@@ -79,12 +79,12 @@ class FilterInvokersTest {
     static class RequestResponseFilter implements RequestFilter, ResponseFilter {
 
         @Override
-        public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage request, KrpcFilterContext context) {
+        public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage request, FilterContext context) {
             return null;
         }
 
         @Override
-        public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, ResponseHeaderData header, ApiMessage response, KrpcFilterContext context) {
+        public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, ResponseHeaderData header, ApiMessage response, FilterContext context) {
             return null;
         }
     }
@@ -92,7 +92,7 @@ class FilterInvokersTest {
     static class NoRecursionCompositeFilter implements CompositeFilter {
 
         @Override
-        public List<KrpcFilter> getFilters() {
+        public List<Filter> getFilters() {
             return List.of(new MultipleSpecificFilter());
         }
     }
@@ -100,7 +100,7 @@ class FilterInvokersTest {
     static class SingleRecursionCompositeFilter implements CompositeFilter {
 
         @Override
-        public List<KrpcFilter> getFilters() {
+        public List<Filter> getFilters() {
             return List.of((CompositeFilter) () -> List.of(new MultipleSpecificFilter()), (CompositeFilter) () -> List.of(new MultipleSpecificFilter()));
         }
     }
@@ -109,14 +109,14 @@ class FilterInvokersTest {
 
         @Override
         public CompletionStage<RequestFilterResult> onApiVersionsRequest(short apiVersion, RequestHeaderData header, ApiVersionsRequestData request,
-                                                                         KrpcFilterContext context) {
+                                                                         FilterContext context) {
 
             return null;
         }
 
         @Override
         public CompletionStage<ResponseFilterResult> onApiVersionsResponse(short apiVersion, ResponseHeaderData header, ApiVersionsResponseData response,
-                                                                           KrpcFilterContext context) {
+                                                                           FilterContext context) {
 
             return null;
         }
@@ -124,12 +124,12 @@ class FilterInvokersTest {
 
     static class CompositeAndRequestFilter implements RequestFilter, CompositeFilter {
         @Override
-        public List<KrpcFilter> getFilters() {
+        public List<Filter> getFilters() {
             return null;
         }
 
         @Override
-        public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage request, KrpcFilterContext context) {
+        public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage request, FilterContext context) {
 
             return null;
         }
@@ -140,26 +140,26 @@ class FilterInvokersTest {
      */
     static class SelfReferencingCompositeFilter implements CompositeFilter {
         @Override
-        public List<KrpcFilter> getFilters() {
+        public List<Filter> getFilters() {
             return List.of(this);
         }
     }
 
     static class TooDeeplyNestedCompositeFilter implements CompositeFilter {
         @Override
-        public List<KrpcFilter> getFilters() {
+        public List<Filter> getFilters() {
             return List.of((CompositeFilter) () -> List.of((CompositeFilter) () -> List.of((ApiVersionsRequestFilter) (apiVersion, header, request, context) -> null)));
         }
     }
 
     static class CompositeAndResponseFilter implements ResponseFilter, CompositeFilter {
         @Override
-        public List<KrpcFilter> getFilters() {
+        public List<Filter> getFilters() {
             return null;
         }
 
         @Override
-        public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, ResponseHeaderData header, ApiMessage response, KrpcFilterContext context) {
+        public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, ResponseHeaderData header, ApiMessage response, FilterContext context) {
 
             return null;
         }
@@ -169,13 +169,13 @@ class FilterInvokersTest {
 
         @Override
         public CompletionStage<RequestFilterResult> onApiVersionsRequest(short apiVersion, RequestHeaderData header, ApiVersionsRequestData request,
-                                                                         KrpcFilterContext context) {
+                                                                         FilterContext context) {
 
             return null;
         }
 
         @Override
-        public List<KrpcFilter> getFilters() {
+        public List<Filter> getFilters() {
             return null;
         }
     }
@@ -184,13 +184,13 @@ class FilterInvokersTest {
 
         @Override
         public CompletionStage<RequestFilterResult> onApiVersionsRequest(short apiVersion, RequestHeaderData header, ApiVersionsRequestData request,
-                                                                         KrpcFilterContext context) {
+                                                                         FilterContext context) {
 
             return null;
         }
 
         @Override
-        public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, ResponseHeaderData header, ApiMessage response, KrpcFilterContext context) {
+        public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, ResponseHeaderData header, ApiMessage response, FilterContext context) {
 
             return null;
         }
@@ -199,14 +199,14 @@ class FilterInvokersTest {
     static class SpecificAndRequestFilter implements ApiVersionsRequestFilter, RequestFilter {
 
         @Override
-        public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage request, KrpcFilterContext context) {
+        public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage request, FilterContext context) {
 
             return null;
         }
 
         @Override
         public CompletionStage<RequestFilterResult> onApiVersionsRequest(short apiVersion, RequestHeaderData header, ApiVersionsRequestData request,
-                                                                         KrpcFilterContext context) {
+                                                                         FilterContext context) {
 
             return null;
         }

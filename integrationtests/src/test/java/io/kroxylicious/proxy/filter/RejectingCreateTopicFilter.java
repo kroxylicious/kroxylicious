@@ -36,7 +36,7 @@ public class RejectingCreateTopicFilter implements CreateTopicsRequestFilter {
 
     @Override
     public CompletionStage<RequestFilterResult> onCreateTopicsRequest(short apiVersion, RequestHeaderData header, CreateTopicsRequestData request,
-                                                                      KrpcFilterContext context) {
+                                                                      FilterContext context) {
         return forwardingStyle.apply(context, request)
                 .thenCompose((u) -> {
                     CreateTopicsResponseData response = new CreateTopicsResponseData();
@@ -58,7 +58,7 @@ public class RejectingCreateTopicFilter implements CreateTopicsRequestFilter {
                 });
     }
 
-    private static void allocateByteBufToTestKroxyliciousReleasesIt(KrpcFilterContext context) {
+    private static void allocateByteBufToTestKroxyliciousReleasesIt(FilterContext context) {
         context.createByteBufferOutputStream(4000);
     }
 

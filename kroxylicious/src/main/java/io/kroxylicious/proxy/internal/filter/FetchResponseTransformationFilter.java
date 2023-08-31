@@ -32,7 +32,7 @@ import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.filter.FetchResponseFilter;
-import io.kroxylicious.proxy.filter.KrpcFilterContext;
+import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.internal.util.MemoryRecordsHelper;
 
@@ -75,7 +75,7 @@ public class FetchResponseTransformationFilter implements FetchResponseFilter {
 
     @Override
     public CompletionStage<ResponseFilterResult> onFetchResponse(short apiVersion, ResponseHeaderData header, FetchResponseData fetchResponse,
-                                                                 KrpcFilterContext context) {
+                                                                 FilterContext context) {
         List<MetadataRequestData.MetadataRequestTopic> requestTopics = fetchResponse.responses().stream()
                 .filter(t -> t.topic().isEmpty())
                 .map(fetchableTopicResponse -> {
@@ -112,7 +112,7 @@ public class FetchResponseTransformationFilter implements FetchResponseFilter {
         }
     }
 
-    private void applyTransformation(KrpcFilterContext context, FetchResponseData responseData) {
+    private void applyTransformation(FilterContext context, FetchResponseData responseData) {
         for (FetchableTopicResponse topicData : responseData.responses()) {
             for (PartitionData partitionData : topicData.partitions()) {
                 MemoryRecords records = (MemoryRecords) partitionData.records();

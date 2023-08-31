@@ -18,8 +18,9 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
 
 import io.kroxylicious.proxy.config.TargetCluster;
+import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
-import io.kroxylicious.proxy.filter.KrpcFilter;
+import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
@@ -32,20 +33,20 @@ import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.Mockito.mock;
 
 /**
- * A test harness for {@link KrpcFilter} implementations.
+ * A test harness for {@link Filter} implementations.
  */
 public abstract class FilterHarness {
     public static final String TEST_CLIENT = "test-client";
     protected EmbeddedChannel channel;
     private FilterHandler filterHandler;
-    private KrpcFilter filter;
+    private Filter filter;
 
     /**
      * Build a {@link #channel} containing a single {@link FilterHandler} for the given
      * {@code filter}.
      * @param filter The filter in the pipeline.
      */
-    protected void buildChannel(KrpcFilter filter) {
+    protected void buildChannel(Filter filter) {
         buildChannel(filter, 1000L);
     }
 
@@ -53,9 +54,9 @@ public abstract class FilterHarness {
      * Build a {@link #channel} containing a single {@link FilterHandler} for the given
      * {@code filter}.
      * @param filter The filter in the pipeline.
-     * @param timeoutMs The timeout for {@link io.kroxylicious.proxy.filter.KrpcFilterContext#sendRequest(short, ApiMessage)}.
+     * @param timeoutMs The timeout for {@link FilterContext#sendRequest(short, ApiMessage)}.
      */
-    protected void buildChannel(KrpcFilter filter, long timeoutMs) {
+    protected void buildChannel(Filter filter, long timeoutMs) {
         this.filter = filter;
         filterHandler = new FilterHandler(getOnlyElement(FilterAndInvoker.build(filter)), timeoutMs, null,
                 new VirtualCluster("TestVirtualCluster", mock(TargetCluster.class), mock(ClusterNetworkAddressConfigProvider.class), Optional.empty(), false, false),
@@ -139,7 +140,7 @@ public abstract class FilterHarness {
      * @return The frame that was written.
      * @param <B> The type of the response body.
      */
-    protected <B extends ApiMessage> DecodedResponseFrame<B> writeInternalResponse(B data, CompletableFuture<?> future, KrpcFilter recipient) {
+    protected <B extends ApiMessage> DecodedResponseFrame<B> writeInternalResponse(B data, CompletableFuture<?> future, Filter recipient) {
         var apiKey = ApiKeys.forId(data.apiKey());
         var header = new ResponseHeaderData();
         int correlationId = 42;
@@ -157,7 +158,7 @@ public abstract class FilterHarness {
      * @return The frame that was written.
      * @param <B> The type of the response body.
      */
-    protected <B extends ApiMessage> DecodedRequestFrame<B> writeInternalRequest(B data, CompletableFuture<?> future, KrpcFilter recipient) {
+    protected <B extends ApiMessage> DecodedRequestFrame<B> writeInternalRequest(B data, CompletableFuture<?> future, Filter recipient) {
         var apiKey = ApiKeys.forId(data.apiKey());
         var header = new RequestHeaderData();
         int correlationId = 42;
