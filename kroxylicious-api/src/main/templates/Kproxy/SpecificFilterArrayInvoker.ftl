@@ -37,7 +37,7 @@ import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 
 /**
- * Invoker for KrpcFilters that implement any number of Specific Message interfaces (for
+ * Invoker for Filters that implement any number of Specific Message interfaces (for
  * example {@link io.kroxylicious.proxy.filter.AlterConfigsResponseFilter}.
  */
 class SpecificFilterArrayInvoker implements FilterInvoker {
@@ -47,7 +47,7 @@ class SpecificFilterArrayInvoker implements FilterInvoker {
     private final FilterInvoker[] requestInvokers;
     private final FilterInvoker[] responseInvokers;
 
-    SpecificFilterArrayInvoker(KrpcFilter filter) {
+    SpecificFilterArrayInvoker(Filter filter) {
         Map<Integer, FilterInvoker> requestInvokers = new HashMap<>();
         Map<Integer, FilterInvoker> responseInvokers = new HashMap<>();
         <#list messageSpecs as messageSpec>
@@ -73,7 +73,7 @@ class SpecificFilterArrayInvoker implements FilterInvoker {
                                                           short apiVersion,
                                                           RequestHeaderData header,
                                                           ApiMessage body,
-                                                          KrpcFilterContext filterContext) {
+                                                          FilterContext filterContext) {
         // We wrap the array lookup in a switch based on the API Key as it supports JIT optimisations around method dispatch.
         // See the InvokerDispatchBenchmark micro benchmark for a comparison
         return switch (apiKey) {
@@ -102,7 +102,7 @@ class SpecificFilterArrayInvoker implements FilterInvoker {
                                                             short apiVersion,
                                                             ResponseHeaderData header,
                                                             ApiMessage body,
-                                                            KrpcFilterContext filterContext) {
+                                                            FilterContext filterContext) {
         // We wrap the array lookup in a switch based on the API Key as it supports JIT optimisations around method dispatch.
         // See the InvokerDispatchBenchmark micro benchmark for a comparison
         return switch (apiKey) {
@@ -184,11 +184,11 @@ class SpecificFilterArrayInvoker implements FilterInvoker {
     }
 
     /**
-    * Check if a KrpcFilter implements any of the Specific Message Filter interfaces
+    * Check if a Filter implements any of the Specific Message Filter interfaces
     * @param filter the filter
     * @return true if the filter implements any Specific Message Filter interfaces
     */
-    public static boolean implementsAnySpecificFilterInterface(KrpcFilter filter) {
+    public static boolean implementsAnySpecificFilterInterface(Filter filter) {
         return <#list messageSpecs as messageSpec>filter instanceof ${messageSpec.name}Filter<#sep> ||
         </#sep></#list>;
     }

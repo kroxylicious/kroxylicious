@@ -22,9 +22,9 @@ import org.openjdk.jmh.infra.Blackhole;
 import io.kroxylicious.filters.TwoInterfaceFilter0;
 import io.kroxylicious.filters.TwoInterfaceFilter1;
 import io.kroxylicious.proxy.filter.ArrayFilterInvoker;
+import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterInvoker;
 import io.kroxylicious.proxy.filter.FilterInvokers;
-import io.kroxylicious.proxy.filter.KrpcFilter;
 import io.kroxylicious.proxy.filter.SpecificFilterInvoker;
 
 // try hard to make shouldHandleXYZ to observe different receivers concrete types, saving unrolling to bias a specific call-site to a specific concrete type
@@ -36,24 +36,24 @@ public class InvokerScalabilityBenchmark {
     public enum Invoker {
         array {
             @Override
-            FilterInvoker invokerWith(KrpcFilter filter) {
+            FilterInvoker invokerWith(Filter filter) {
                 return new ArrayFilterInvoker(filter);
             }
         },
         specific {
             @Override
-            FilterInvoker invokerWith(KrpcFilter filter) {
+            FilterInvoker invokerWith(Filter filter) {
                 return new SpecificFilterInvoker(filter);
             }
         },
         switching {
             @Override
-            FilterInvoker invokerWith(KrpcFilter filter) {
+            FilterInvoker invokerWith(Filter filter) {
                 return FilterInvokers.arrayInvoker(filter);
             }
         };
 
-        abstract FilterInvoker invokerWith(KrpcFilter filter);
+        abstract FilterInvoker invokerWith(Filter filter);
     }
 
     @org.openjdk.jmh.annotations.State(Scope.Benchmark)

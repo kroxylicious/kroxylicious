@@ -16,7 +16,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.filter.ApiVersionsResponseFilter;
-import io.kroxylicious.proxy.filter.KrpcFilterContext;
+import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 
 /**
@@ -75,7 +75,7 @@ public class ApiVersionsFilter implements ApiVersionsResponseFilter {
 
     @Override
     public CompletionStage<ResponseFilterResult> onApiVersionsResponse(short apiVersion, ResponseHeaderData header, ApiVersionsResponseData data,
-                                                                       KrpcFilterContext context) {
+                                                                       FilterContext context) {
         intersectApiVersions(context.channelDescriptor(), data);
         return context.forwardResponse(header, data);
     }

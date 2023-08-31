@@ -9,6 +9,6 @@ package io.kroxylicious.proxy.filter;
 /**
  * Marker interface all Filter interfaces extend from
  */
-public /* sealed */ interface KrpcFilter {
+public /* sealed */ interface Filter {
 
 }

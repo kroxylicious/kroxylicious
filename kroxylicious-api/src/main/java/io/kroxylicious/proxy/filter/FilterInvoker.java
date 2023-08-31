@@ -14,7 +14,7 @@ import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 
 /**
- * The FilterInvoker connects Kroxylicious with the concrete implementation of a KrpcFilter.
+ * The FilterInvoker connects Kroxylicious with the concrete implementation of a Filter.
  * <p>When handling a message, we want to avoid the penalty of deserializing the bytes
  * into an ApiMessage. When Kroxylicious receives a message, all the Filters in the
  * filter chain will be consulted (via their invoker) to see if any want to handle that message.
@@ -27,7 +27,7 @@ import org.apache.kafka.common.protocol.ApiMessage;
  * <ol>
  *     <li>That each instance of the FilterInvoker is associated with a single channel</li>
  *     <li>That {@link #shouldHandleRequest(ApiKeys, short)} and
- *     {@link #onRequest(ApiKeys, short, RequestHeaderData, ApiMessage, KrpcFilterContext)} (or {@code on*Request} as appropriate)
+ *     {@link #onRequest(ApiKeys, short, RequestHeaderData, ApiMessage, FilterContext)} (or {@code on*Request} as appropriate)
  *     will always be invoked on the same thread.</li>
  *     <li>That filters are applied in the order they were configured.</li>
  * </ol>
@@ -45,7 +45,7 @@ public interface FilterInvoker {
     /**
      * Should this Invoker handle a request with a given api key and api version.
      * Returning true implies that this request will be deserialized and
-     * {@link #onRequest(ApiKeys, short, RequestHeaderData, ApiMessage, KrpcFilterContext)}
+     * {@link #onRequest(ApiKeys, short, RequestHeaderData, ApiMessage, FilterContext)}
      * is eligible to be called with the deserialized data (if the message flows to that filter).
      *
      * @param apiKey the key of the message
@@ -59,7 +59,7 @@ public interface FilterInvoker {
     /**
      * Should this Invoker handle a response with a given api key and api version.
      * Returning true implies that this response will be deserialized and
-     * {@link #onResponse(ApiKeys, short, ResponseHeaderData, ApiMessage, KrpcFilterContext)}
+     * {@link #onResponse(ApiKeys, short, ResponseHeaderData, ApiMessage, FilterContext)}
      * is eligible to be called with the deserialized data (if the message flows to that filter).
      *
      * @param apiKey the key of the message
@@ -78,9 +78,9 @@ public interface FilterInvoker {
      * encapsulates the request to be forwarded and, optionally, orders for actions such as closing the connection or
      * dropping the request.
      * </p><p>
-     * The {@link KrpcFilterContext} is the factory for {@link FilterResult} objects.  See
-     * {@link KrpcFilterContext#forwardRequest(RequestHeaderData, ApiMessage)} and
-     * {@link KrpcFilterContext#requestFilterResultBuilder()} for more details.
+     * The {@link FilterContext} is the factory for {@link FilterResult} objects.  See
+     * {@link FilterContext#forwardRequest(RequestHeaderData, ApiMessage)} and
+     * {@link FilterContext#requestFilterResultBuilder()} for more details.
      * </p>
      * @param apiKey        the key of the message
      * @param apiVersion    the apiVersion of the message
@@ -90,7 +90,7 @@ public interface FilterInvoker {
      * @return a {@link CompletionStage<RequestFilterResult>}, that when complete, will yield the request to forward.
      */
     default CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage body,
-                                                           KrpcFilterContext filterContext) {
+                                                           FilterContext filterContext) {
         return filterContext.requestFilterResultBuilder().forward(header, body).completed();
     }
 
@@ -102,9 +102,9 @@ public interface FilterInvoker {
      * encapsulates the response to be forwarded and, optionally, orders for actions such as closing the connection or
      * dropping the response.
      * </p><p>
-     * The {@link KrpcFilterContext} is the factory for {@link FilterResult} objects.  See
-     * {@link KrpcFilterContext#forwardResponse(ResponseHeaderData, ApiMessage)} and
-     * {@link KrpcFilterContext#responseFilterResultBuilder()} for more details.
+     * The {@link FilterContext} is the factory for {@link FilterResult} objects.  See
+     * {@link FilterContext#forwardResponse(ResponseHeaderData, ApiMessage)} and
+     * {@link FilterContext#responseFilterResultBuilder()} for more details.
      * </p>
      *
      * @param apiKey        the key of the message
@@ -115,7 +115,7 @@ public interface FilterInvoker {
      * @return a {@link CompletionStage<ResponseFilterResult>}, that when complete, will yield the response to forward.
      */
     default CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, short apiVersion, ResponseHeaderData header, ApiMessage body,
-                                                             KrpcFilterContext filterContext) {
+                                                             FilterContext filterContext) {
         return filterContext.responseFilterResultBuilder().forward(header, body).completed();
     }
 

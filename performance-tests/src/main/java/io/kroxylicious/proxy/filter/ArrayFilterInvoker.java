@@ -18,7 +18,7 @@ import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 
 /**
- * Invoker for KrpcFilters that implement any number of Specific Message interfaces (for
+ * Invoker for Filters that implement any number of Specific Message interfaces (for
  * example {@link AlterConfigsResponseFilter}.
  */
 public class ArrayFilterInvoker implements FilterInvoker {
@@ -28,7 +28,7 @@ public class ArrayFilterInvoker implements FilterInvoker {
     private final FilterInvoker[] requestInvokers;
     private final FilterInvoker[] responseInvokers;
 
-    public ArrayFilterInvoker(KrpcFilter filter) {
+    public ArrayFilterInvoker(Filter filter) {
         Map<Integer, FilterInvoker> requestInvokers = new HashMap<>();
         Map<Integer, FilterInvoker> responseInvokers = new HashMap<>();
         if (filter instanceof AddOffsetsToTxnRequestFilter) {
@@ -458,7 +458,7 @@ public class ArrayFilterInvoker implements FilterInvoker {
                                                           short apiVersion,
                                                           RequestHeaderData header,
                                                           ApiMessage body,
-                                                          KrpcFilterContext filterContext) {
+                                                          FilterContext filterContext) {
         FilterInvoker invoker = requestInvokers[apiKey.id];
         return invoker.onRequest(apiKey, apiVersion, header, body, filterContext);
     }
@@ -478,7 +478,7 @@ public class ArrayFilterInvoker implements FilterInvoker {
                                                             short apiVersion,
                                                             ResponseHeaderData header,
                                                             ApiMessage body,
-                                                            KrpcFilterContext filterContext) {
+                                                            FilterContext filterContext) {
         FilterInvoker invoker = responseInvokers[apiKey.id];
         return invoker.onResponse(apiKey, apiVersion, header, body, filterContext);
     }

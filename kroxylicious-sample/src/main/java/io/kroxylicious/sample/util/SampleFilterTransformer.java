@@ -17,7 +17,7 @@ import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.record.RecordBatch;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 
-import io.kroxylicious.proxy.filter.KrpcFilterContext;
+import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.sample.config.SampleFilterConfig;
 
 /**
@@ -32,7 +32,7 @@ public class SampleFilterTransformer {
      * @param context the context
      * @param config the transform configuration
      */
-    public static void transform(ProduceRequestData.PartitionProduceData partitionData, KrpcFilterContext context, SampleFilterConfig config) {
+    public static void transform(ProduceRequestData.PartitionProduceData partitionData, FilterContext context, SampleFilterConfig config) {
         partitionData.setRecords(transformPartitionRecords((AbstractRecords) partitionData.records(), context, config.getFindValue(), config.getReplacementValue()));
     }
 
@@ -42,7 +42,7 @@ public class SampleFilterTransformer {
      * @param context the context
      * @param config the transform configuration
      */
-    public static void transform(FetchResponseData.PartitionData partitionData, KrpcFilterContext context, SampleFilterConfig config) {
+    public static void transform(FetchResponseData.PartitionData partitionData, FilterContext context, SampleFilterConfig config) {
         partitionData.setRecords(transformPartitionRecords((AbstractRecords) partitionData.records(), context, config.getFindValue(), config.getReplacementValue()));
     }
 
@@ -54,7 +54,7 @@ public class SampleFilterTransformer {
      * @param replacementValue the replacement value
      * @return the transformed partition records
      */
-    private static AbstractRecords transformPartitionRecords(AbstractRecords records, KrpcFilterContext context, String findValue, String replacementValue) {
+    private static AbstractRecords transformPartitionRecords(AbstractRecords records, FilterContext context, String findValue, String replacementValue) {
         if (records.batchIterator().hasNext()) {
             ByteBufferOutputStream stream = context.createByteBufferOutputStream(records.sizeInBytes());
             MemoryRecordsBuilder newRecords = createMemoryRecordsBuilder(stream, records.firstBatch());

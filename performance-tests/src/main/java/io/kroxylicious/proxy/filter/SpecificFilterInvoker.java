@@ -150,14 +150,14 @@ import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 
 /**
- * Invoker for KrpcFilters that implement any number of Specific Message interfaces (for
+ * Invoker for Filters that implement any number of Specific Message interfaces (for
  * example {@link io.kroxylicious.proxy.filter.AlterConfigsResponseFilter}.
  */
 public class SpecificFilterInvoker implements FilterInvoker {
 
-    private final KrpcFilter filter;
+    private final Filter filter;
 
-    public SpecificFilterInvoker(KrpcFilter filter) {
+    public SpecificFilterInvoker(Filter filter) {
         this.filter = filter;
     }
 
@@ -176,7 +176,7 @@ public class SpecificFilterInvoker implements FilterInvoker {
                                                           short apiVersion,
                                                           RequestHeaderData header,
                                                           ApiMessage body,
-                                                          KrpcFilterContext filterContext) {
+                                                          FilterContext filterContext) {
         return switch (apiKey) {
             case ADD_OFFSETS_TO_TXN ->
                 ((AddOffsetsToTxnRequestFilter) filter).onAddOffsetsToTxnRequest(apiVersion, header, (AddOffsetsToTxnRequestData) body, filterContext);
@@ -300,7 +300,7 @@ public class SpecificFilterInvoker implements FilterInvoker {
                                                             short apiVersion,
                                                             ResponseHeaderData header,
                                                             ApiMessage body,
-                                                            KrpcFilterContext filterContext) {
+                                                            FilterContext filterContext) {
         return switch (apiKey) {
             case ADD_OFFSETS_TO_TXN ->
                 ((AddOffsetsToTxnResponseFilter) filter).onAddOffsetsToTxnResponse(apiVersion, header, (AddOffsetsToTxnResponseData) body, filterContext);

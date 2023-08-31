@@ -34,10 +34,10 @@ import io.kroxylicious.filters.FourInterfaceFilter1;
 import io.kroxylicious.filters.FourInterfaceFilter2;
 import io.kroxylicious.filters.FourInterfaceFilter3;
 import io.kroxylicious.proxy.filter.ArrayFilterInvoker;
+import io.kroxylicious.proxy.filter.Filter;
+import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.FilterInvoker;
 import io.kroxylicious.proxy.filter.FilterInvokers;
-import io.kroxylicious.proxy.filter.KrpcFilter;
-import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
@@ -56,24 +56,24 @@ public class InvokerDispatchBenchmark {
     public enum Invoker {
         array {
             @Override
-            FilterInvoker invokerWith(KrpcFilter filter) {
+            FilterInvoker invokerWith(Filter filter) {
                 return new ArrayFilterInvoker(filter);
             }
         },
         specific {
             @Override
-            FilterInvoker invokerWith(KrpcFilter filter) {
+            FilterInvoker invokerWith(Filter filter) {
                 return new SpecificFilterInvoker(filter);
             }
         },
         switching {
             @Override
-            FilterInvoker invokerWith(KrpcFilter filter) {
+            FilterInvoker invokerWith(Filter filter) {
                 return FilterInvokers.arrayInvoker(filter);
             }
         };
 
-        abstract FilterInvoker invokerWith(KrpcFilter filter);
+        abstract FilterInvoker invokerWith(Filter filter);
     }
 
     @State(Scope.Benchmark)
@@ -86,7 +86,7 @@ public class InvokerDispatchBenchmark {
         String invoker;
 
         private RequestHeaderData requestHeaders;
-        private KrpcFilterContext filterContext;
+        private FilterContext filterContext;
         private Map.Entry<ApiKeys, ApiMessage>[] apiMessages;
 
         @SuppressWarnings("unchecked")
@@ -145,7 +145,7 @@ public class InvokerDispatchBenchmark {
     }
 
     private static void invokeHandleRequest(FilterInvoker[] filters, Map.Entry<ApiKeys, ApiMessage>[] apiMessages, RequestHeaderData requestHeaders,
-                                            KrpcFilterContext filterContext) {
+                                            FilterContext filterContext) {
         for (Map.Entry<ApiKeys, ApiMessage> entry : apiMessages) {
             final ApiKeys apiKey = entry.getKey();
             final short apiVersion = apiKey.latestVersion();
@@ -157,7 +157,7 @@ public class InvokerDispatchBenchmark {
         }
     }
 
-    private static class StubFilterContext implements KrpcFilterContext {
+    private static class StubFilterContext implements FilterContext {
         @Override
         public String channelDescriptor() {
             return null;
