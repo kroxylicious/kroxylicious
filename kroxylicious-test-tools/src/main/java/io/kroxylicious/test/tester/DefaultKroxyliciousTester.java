@@ -49,9 +49,7 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
         int numVirtualClusters = kroxyliciousConfig.virtualClusters().size();
         if (numVirtualClusters == 1) {
             String onlyCluster = kroxyliciousConfig.virtualClusters().keySet().stream().findFirst().orElseThrow();
-            KroxyliciousClients client = new KroxyliciousClients(KroxyliciousConfigUtils.bootstrapServersFor(onlyCluster, kroxyliciousConfig));
-            clients.put(onlyCluster, client);
-            return client;
+            return clients(onlyCluster);
         }
         else {
             throw new AmbiguousVirtualClusterException(
@@ -60,9 +58,14 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     }
 
     private KroxyliciousClients clients(String virtualCluster) {
-        KroxyliciousClients client = new KroxyliciousClients(KroxyliciousConfigUtils.bootstrapServersFor(virtualCluster, kroxyliciousConfig));
-        clients.put(virtualCluster, client);
-        return client;
+        if (clients.containsKey(virtualCluster)) {
+            return clients.get(virtualCluster);
+        }
+        else {
+            KroxyliciousClients client = new KroxyliciousClients(KroxyliciousConfigUtils.bootstrapServersFor(virtualCluster, kroxyliciousConfig));
+            clients.put(virtualCluster, client);
+            return client;
+        }
     }
 
     @Override
