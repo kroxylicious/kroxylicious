@@ -20,6 +20,8 @@
         <kroxyliciousApi.version>0.3.0-SNAPSHOT</kroxyliciousApi.version>
         <java.version>17</java.version>
         <java.test.version>17</java.test.version>
+        <maven.exec.version>3.1.0</maven.exec.version>
+        <maven.compiler.version>3.10.1</maven.compiler.version>
         <maven.compiler.parameters>true</maven.compiler.parameters>
         <maven.compiler.release>${java.version}</maven.compiler.release>
         <maven.compiler.testRelease>${java.test.version}</maven.compiler.testRelease>
@@ -53,6 +55,32 @@
         <zjsonpatch.version>0.4.14</zjsonpatch.version>
 
         <jacoco-maven-plugin.version>0.8.10</jacoco-maven-plugin.version>
+
+        <!-- Build tools -->
+        <strimzi.version>0.36.1</strimzi.version>
+        <checkstyle.version>9.2.1</checkstyle.version>
+        <spotbugs.version>4.7.3</spotbugs.version>
+        <sundrio.version>0.100.1</sundrio.version>
+        <lombok.version>1.18.24</lombok.version>
+
+        <!-- Runtime dependencies -->
+        <fabric8.kubernetes.version>6.8.1</fabric8.kubernetes.version>
+        <vertx.version>4.4.4</vertx.version>
+        <yammer-metrics.version>2.2.0</yammer-metrics.version>
+        <scala-library.version>2.13.9</scala-library.version>
+        <zookeeper.version>3.6.4</zookeeper.version>
+        <zkclient.version>0.11</zkclient.version>
+        <quartz.version>2.3.2</quartz.version>
+        <jetty.version>9.4.51.v20230217</jetty.version>
+        <javax-servlet.version>3.1.0</javax-servlet.version>
+        <micrometer.version>1.9.5</micrometer.version>
+        <jayway-jsonpath.version>2.8.0</jayway-jsonpath.version>
+        <registry.version>1.3.2.Final</registry.version>
+        <commons-codec.version>1.13</commons-codec.version>
+        <bouncycastle.version>1.76</bouncycastle.version>
+        <rest-assured.version>4.4.0</rest-assured.version>
+        <opentest4j.version>1.2.0</opentest4j.version>
+        <javax.json.version>1.1.4</javax.json.version>
     </properties>
 
     <name>Kroxylicious Parent</name>
@@ -259,6 +287,7 @@
         <module>integrationtests</module>
         <module>kroxylicious-additional-filters</module>
         <module>kroxylicious-sample</module>
+        <module>systemtests</module>
     </modules>
 
 

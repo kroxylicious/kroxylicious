@@ -1,0 +1,179 @@
+/*
+ * Copyright Strimzi authors.
+ * License: Apache License 2.0 (see the file LICENSE or http://apache.org/licenses/LICENSE-2.0.html).
+ */
+package io.kroxylicious.systemtest.resources.crd;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.junit.platform.commons.util.Preconditions;
+
+import io.fabric8.kubernetes.api.model.DeletionPropagation;
+import io.fabric8.kubernetes.api.model.LabelSelector;
+import io.fabric8.kubernetes.api.model.LabelSelectorBuilder;
+import io.fabric8.kubernetes.client.dsl.MixedOperation;
+import io.fabric8.kubernetes.client.dsl.Resource;
+import io.strimzi.api.kafka.Crds;
+import io.strimzi.api.kafka.KafkaList;
+import io.strimzi.api.kafka.model.Kafka;
+import io.strimzi.api.kafka.model.KafkaResources;
+import io.strimzi.api.kafka.model.status.KafkaStatus;
+
+import io.kroxylicious.systemtest.Annotations;
+import io.kroxylicious.systemtest.Constants;
+import io.kroxylicious.systemtest.Environment;
+import io.kroxylicious.systemtest.Labels;
+import io.kroxylicious.systemtest.resources.ResourceManager;
+import io.kroxylicious.systemtest.resources.ResourceOperation;
+import io.kroxylicious.systemtest.resources.ResourceType;
+import io.kroxylicious.systemtest.utils.kubeUtils.objects.PersistentVolumeClaimUtils;
+
+import static io.kroxylicious.systemtest.enums.CustomResourceStatus.Ready;
+import static io.kroxylicious.systemtest.utils.StUtils.hashStub;
+
+public class KafkaResource implements ResourceType<Kafka> {
+
+    private static final Logger LOGGER = LogManager.getLogger(KafkaResource.class);
+    private static final Predicate<Kafka> HAS_CRUISE_CONTROL_SUPPORT = resource -> resource.getSpec().getCruiseControl() != null;
+
+    public KafkaResource() {
+    }
+
+    @Override
+    public String getKind() {
+        return Kafka.RESOURCE_KIND;
+    }
+
+    @Override
+    public Kafka get(String namespace, String name) {
+        return kafkaClient().inNamespace(namespace).withName(name).get();
+    }
+
+    @Override
+    public void create(Kafka resource) {
+        kafkaClient().inNamespace(resource.getMetadata().getNamespace()).resource(resource).create();
+    }
+
+    @Override
+    public void delete(Kafka resource) {
+        final String namespaceName = resource.getMetadata().getNamespace();
+        final String clusterName = resource.getMetadata().getName();
+
+        Preconditions.notNull(namespaceName, "Kafka Namespace name is null!");
+        Preconditions.notNull(clusterName, "Kafka cluster name is null!");
+
+        // important: contract that if one wants to delete Kafka cluster with CruiseControl it also trigger
+        // deletion of all KafkaTopics
+        if (HAS_CRUISE_CONTROL_SUPPORT.test(resource)) {
+            LOGGER.info("Explicit deletion of KafkaTopics in Namespace: {}, for CruiseControl Kafka cluster {}", namespaceName, clusterName);
+            KafkaTopicResource.kafkaTopicClient().inNamespace(namespaceName).list()
+                    .getItems().stream()
+                    .parallel()
+                    .filter(kt -> kt.getMetadata().getLabels().get(Labels.STRIMZI_CLUSTER_LABEL).equals(clusterName))
+                    .map(kt -> KafkaTopicResource.kafkaTopicClient().inNamespace(namespaceName).withName(kt.getMetadata().getName())
+                            .withPropagationPolicy(DeletionPropagation.FOREGROUND).delete())
+                    // check that all topic was successfully deleted
+                    .allMatch(result -> true);
+        }
+
+        // load current Kafka's annotations to obtain information, if KafkaNodePools are used for this Kafka
+        Map<String, String> annotations = kafkaClient().inNamespace(namespaceName)
+                .withName(resource.getMetadata().getName()).get().getMetadata().getAnnotations();
+
+        kafkaClient().inNamespace(namespaceName).withName(
+                resource.getMetadata().getName()).withPropagationPolicy(DeletionPropagation.FOREGROUND).delete();
+
+        if (annotations.get(Annotations.ANNO_STRIMZI_IO_NODE_POOLS) == null
+                || annotations.get(Annotations.ANNO_STRIMZI_IO_NODE_POOLS).equals("disabled")) {
+            // additional deletion of pvcs with specification deleteClaim set to false which were not deleted prior this method
+            PersistentVolumeClaimUtils.deletePvcsByPrefixWithWait(namespaceName, clusterName);
+        }
+    }
+
+    @Override
+    public void update(Kafka resource) {
+        kafkaClient().inNamespace(resource.getMetadata().getNamespace()).resource(resource).update();
+    }
+
+    @Override
+    public boolean waitForReadiness(Kafka resource) {
+        long timeout = ResourceOperation.getTimeoutForResourceReadiness(resource.getKind());
+
+        // KafkaExporter is not setup every time
+        if (resource.getSpec().getKafkaExporter() != null) {
+            timeout += ResourceOperation.getTimeoutForResourceReadiness(Constants.KAFKA_EXPORTER_DEPLOYMENT);
+        }
+        // CruiseControl is not setup every time
+        if (resource.getSpec().getCruiseControl() != null) {
+            timeout += ResourceOperation.getTimeoutForResourceReadiness(Constants.KAFKA_CRUISE_CONTROL_DEPLOYMENT);
+        }
+        return ResourceManager.waitForResourceStatus(kafkaClient(), resource, Ready, timeout);
+    }
+
+    public static MixedOperation<Kafka, KafkaList, Resource<Kafka>> kafkaClient() {
+        return Crds.kafkaOperation(ResourceManager.kubeClient().getClient());
+    }
+
+    public static void replaceKafkaResourceInSpecificNamespace(String resourceName, Consumer<Kafka> editor, String namespaceName) {
+        ResourceManager.replaceCrdResource(Kafka.class, KafkaList.class, resourceName, editor, namespaceName);
+    }
+
+    public static KafkaStatus getKafkaStatus(String clusterName, String namespace) {
+        return kafkaClient().inNamespace(namespace).withName(clusterName).get().getStatus();
+    }
+
+    public static LabelSelector getLabelSelector(String clusterName, String componentName) {
+        Map<String, String> matchLabels = new HashMap<>();
+        matchLabels.put(Labels.STRIMZI_CLUSTER_LABEL, clusterName);
+        matchLabels.put(Labels.STRIMZI_KIND_LABEL, Kafka.RESOURCE_KIND);
+        matchLabels.put(Labels.STRIMZI_NAME_LABEL, componentName);
+
+        return new LabelSelectorBuilder()
+                .withMatchLabels(matchLabels)
+                .build();
+    }
+
+    public static String getKafkaNodePoolName(String clusterName) {
+        return Constants.KAFKA_NODE_POOL_PREFIX + hashStub(clusterName);
+    }
+
+    public static String getStrimziPodSetName(String clusterName) {
+        return getStrimziPodSetName(clusterName, null);
+    }
+
+    public static String getStrimziPodSetName(String clusterName, String nodePoolName) {
+        if (Environment.isKafkaNodePoolsEnabled() && nodePoolName == null) {
+            return String.join("-", clusterName, getKafkaNodePoolName(clusterName));
+        }
+        else if (nodePoolName != null) {
+            return String.join("-", clusterName, nodePoolName);
+        }
+        else {
+            return KafkaResources.kafkaStatefulSetName(clusterName);
+        }
+    }
+
+    public static String getKafkaPodName(String clusterName, int podNum) {
+        return getKafkaPodName(clusterName, null, podNum);
+    }
+
+    public static String getKafkaPodName(String clusterName, String nodePoolName, int podNum) {
+        if (Environment.isKafkaNodePoolsEnabled()) {
+            if (nodePoolName == null) {
+                return String.join("-", clusterName, getKafkaNodePoolName(clusterName), String.valueOf(podNum));
+            }
+            return String.join("-", clusterName, nodePoolName, String.valueOf(podNum));
+        }
+
+        return KafkaResources.kafkaPodName(clusterName, podNum);
+    }
+
+    public static String getNodePoolName(String clusterName) {
+        return Constants.KAFKA_NODE_POOL_PREFIX + hashStub(clusterName);
+    }
+}
