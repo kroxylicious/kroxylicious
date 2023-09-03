@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
@@ -381,6 +382,22 @@ class FilterIT {
             Response responseA = futureA.get(10, TimeUnit.SECONDS);
             Response responseB = futureB.get(10, TimeUnit.SECONDS);
             assertThat(responseA.sequenceNumber()).withFailMessage(() -> "responses received out of order").isLessThan(responseB.sequenceNumber());
+        }
+    }
+
+    @Test
+    void clientsCanSendMultipleMessagesImmediately() {
+
+        try (var tester = mockKafkaKroxyliciousTester(s -> proxy(s).addToFilters(new FilterDefinitionBuilder("RejectingCreateTopic").build()));
+                var client = tester.simpleTestClient()) {
+            tester.addMockResponseForApiKey(new ResponsePayload(METADATA, METADATA.latestVersion(), new MetadataResponseData()));
+            tester.addMockResponseForApiKey(new ResponsePayload(API_VERSIONS, API_VERSIONS.latestVersion(), new ApiVersionsResponseData()));
+            Request requestA = new Request(METADATA, METADATA.latestVersion(), "clientA", new MetadataRequestData());
+            Request requestB = new Request(API_VERSIONS, API_VERSIONS.latestVersion(), "clientB", new ApiVersionsRequestData());
+            var futureA = client.get(requestA);
+            var futureB = client.get(requestB);
+            assertThat(futureA).succeedsWithin(10, TimeUnit.SECONDS);
+            assertThat(futureB).succeedsWithin(10, TimeUnit.SECONDS);
         }
     }
 
