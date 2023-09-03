@@ -101,6 +101,13 @@
             <organization>Red Hat</organization>
             <organizationUrl>https://www.redhat.com</organizationUrl>
         </developer>
+        <developer>
+            <name>Grace Grimwood</name>
+            <email>ggrimwoo@redhat.com</email>
+            <organization>Red Hat</organization>
+            <organizationUrl>https://www.redhat.com</organizationUrl>
+            <timezone>Pacific/Auckland</timezone>
+        </developer>
     </developers>
 
     <scm>
