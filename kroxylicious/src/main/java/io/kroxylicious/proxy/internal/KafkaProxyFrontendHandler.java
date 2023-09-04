@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.kafka.common.message.ApiVersionsRequestData;
@@ -84,10 +85,12 @@ public class KafkaProxyFrontendHandler
     private String sniHostname;
 
     private ChannelHandlerContext inboundCtx;
-    // The message buffered while we connect to the outbound cluster
-    // There can only be one such because auto read is disabled until outbound
+
+    // Messages buffered while we connect to the outbound cluster
+    // The size should be limited because auto read is disabled until outbound
     // channel activation
-    private Object bufferedMsg;
+    private List<Object> bufferedMsgs = new ArrayList<>();
+
     // Flag if we receive a channelReadComplete() prior to outbound connection activation
     // so we can perform the channelReadComplete()/outbound flush & auto_read
     // once the outbound channel is active
@@ -156,8 +159,10 @@ public class KafkaProxyFrontendHandler
         LOGGER.trace("{}: outboundChannelActive", inboundCtx.channel().id());
         outboundCtx = ctx;
         // connection is complete, so first forward the buffered message
-        forwardOutbound(ctx, bufferedMsg);
-        bufferedMsg = null; // don't pin in memory once we no longer need it
+        for (Object bufferedMsg : bufferedMsgs) {
+            forwardOutbound(ctx, bufferedMsg);
+        }
+        bufferedMsgs = null; // don't pin in memory once we no longer need it
         if (pendingReadComplete) {
             pendingReadComplete = false;
             channelReadComplete(ctx);
@@ -183,56 +188,83 @@ public class KafkaProxyFrontendHandler
         if (state == State.OUTBOUND_ACTIVE) { // post-backend connection
             forwardOutbound(ctx, msg);
         }
-        else { // pre-backend connection
-            if (state == State.START
-                    && msg instanceof HAProxyMessage) {
-                this.haProxyMessage = (HAProxyMessage) msg;
-                state = State.HA_PROXY;
-            }
-            else if ((state == State.START
-                    || state == State.HA_PROXY)
-                    && msg instanceof DecodedRequestFrame
-                    && ((DecodedRequestFrame<?>) msg).apiKey() == ApiKeys.API_VERSIONS) {
-                state = State.API_VERSIONS;
-                DecodedRequestFrame<ApiVersionsRequestData> apiVersionsFrame = (DecodedRequestFrame<ApiVersionsRequestData>) msg;
-                storeApiVersionsFeatures(apiVersionsFrame);
-                if (dp.isAuthenticationOffloadEnabled()) {
-                    // This handler can respond to ApiVersions itself
-                    writeApiVersionsResponse(ctx, apiVersionsFrame);
-                    // Request to read the following request
-                    ctx.channel().read();
-                }
-                else {
-                    bufferMsgAndSelectServer(msg);
-                }
-            }
-            else if ((state == State.START
-                    || state == State.HA_PROXY
-                    || state == State.API_VERSIONS)
-                    && msg instanceof RequestFrame) {
-                bufferMsgAndSelectServer(msg);
-            }
-            else {
-                throw illegalState("Unexpected channelRead() message of " + msg.getClass());
-            }
+        else {
+            handlePreOutboundActive(ctx, msg);
         }
     }
 
-    private void bufferMsgAndSelectServer(Object msg) {
-        if (bufferedMsg != null) {
-            // Single buffered message assertion failed
-            throw illegalState("Already have buffered msg");
+    private void handlePreOutboundActive(ChannelHandlerContext ctx, Object msg) {
+        if (isInitialHaProxyMessage(msg)) {
+            this.haProxyMessage = (HAProxyMessage) msg;
+            state = State.HA_PROXY;
         }
+        else if (isInitialDecodedApiVersionsFrame(msg)) {
+            handleApiVersionsFrame(ctx, msg);
+        }
+        else if (isInitialRequestFrame(msg)) {
+            bufferMsgAndSelectServer(msg);
+        }
+        else if (isSubsequentRequestFrame(msg)) {
+            bufferMessage(msg);
+        }
+        else {
+            throw illegalState("Unexpected channelRead() message of " + msg.getClass());
+        }
+    }
+
+    private void handleApiVersionsFrame(ChannelHandlerContext ctx, Object msg) {
+        state = State.API_VERSIONS;
+        DecodedRequestFrame<ApiVersionsRequestData> apiVersionsFrame = (DecodedRequestFrame<ApiVersionsRequestData>) msg;
+        storeApiVersionsFeatures(apiVersionsFrame);
+        if (dp.isAuthenticationOffloadEnabled()) {
+            // This handler can respond to ApiVersions itself
+            writeApiVersionsResponse(ctx, apiVersionsFrame);
+            // Request to read the following request
+            ctx.channel().read();
+        }
+        else {
+            bufferMsgAndSelectServer(msg);
+        }
+    }
+
+    private boolean isSubsequentRequestFrame(Object msg) {
+        return (state == State.CONNECTING || state == State.CONNECTED) && msg instanceof RequestFrame;
+    }
+
+    private boolean isInitialRequestFrame(Object msg) {
+        return (state == State.START
+                || state == State.HA_PROXY
+                || state == State.API_VERSIONS)
+                && msg instanceof RequestFrame;
+    }
+
+    private boolean isInitialHaProxyMessage(Object msg) {
+        return state == State.START
+                && msg instanceof HAProxyMessage;
+    }
+
+    private boolean isInitialDecodedApiVersionsFrame(Object msg) {
+        return (state == State.START
+                || state == State.HA_PROXY)
+                && msg instanceof DecodedRequestFrame
+                && ((DecodedRequestFrame<?>) msg).apiKey() == ApiKeys.API_VERSIONS;
+    }
+
+    private void bufferMsgAndSelectServer(Object msg) {
         state = State.CONNECTING;
         // But for any other request we'll need a backend connection
         // (for which we need to ask the filter which cluster to connect to
         // and with what filters)
-        this.bufferedMsg = msg;
+        bufferMessage(msg);
         // TODO ensure that the filter makes exactly one upstream connection?
         // Or not for the topic routing case
 
         // Note filter.upstreamBroker will call back on the connect() method below
         filter.selectServer(this);
+    }
+
+    private void bufferMessage(Object msg) {
+        this.bufferedMsgs.add(msg);
     }
 
     @Override
