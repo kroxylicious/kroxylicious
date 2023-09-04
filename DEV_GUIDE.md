@@ -117,13 +117,13 @@ No one likes to argue about code formatting in pull requests, as project we take
 Build with the `dist` profile as shown above, then execute this:
 
 ```shell
-kroxylicious-app/target/kroxylicious-app-*-bin/kroxylicious-app-*/bin/kroxylicious-start.sh --config {path-to-kroxylicious-config}
+kroxylicious-app/target/kroxylicious-app-*-bin/kroxylicious-app-*/bin/kroxylicious-start.sh --config ${path_to_kroxylicious_config}
 ```
 
 Or, to run with your own class path, run this instead:
 
 ```shell
-KROXYLICIOUS_CLASSPATH="{additional-classpath-entries}" kroxylicious-app/target/kroxylicious-app-*-bin/kroxylicious-app-*/bin/kroxylicious-start.sh --config {path-to-kroxylicious-config}
+KROXYLICIOUS_CLASSPATH="${additional_classpath_entries}" kroxylicious-app/target/kroxylicious-app-*-bin/kroxylicious-app-*/bin/kroxylicious-start.sh --config ${path_to_kroxylicious_config}
 ```
 
 for example:
@@ -146,9 +146,9 @@ Kroxylicious can be containerised and run on Minikube against a [Strimzi](https:
 Running:
 
 ```shell
-minikube delete && QUAY_ORG=$your_quay_username$ ./scripts/run-with-strimzi.sh $kubernetes example directory$
+minikube delete && QUAY_ORG=${your_quay_username} ./scripts/run-with-strimzi.sh ${kubernetes_example_directory}
 ```
-where `$kubernetes example directory$` is replaced by a path to an example directory e.g. `./kubernetes-examples/portperbroker_plain`.
+where `${kubernetes_example_directory}` is replaced by a path to an example directory e.g. `./kubernetes-examples/portperbroker_plain`.
 
 This `run-with-strimzi.sh` script does the following:
 1. builds and pushes a kroxylicious image to quay.io
