@@ -91,10 +91,18 @@ Run the following command to format the source code and organize the imports as 
 mvn process-sources
 ```
 
-Build with the `dist` profile for creating an executable JAR:
+Build with the `dist` profile to create distribution artefacts (see [kroxylicious-app](kroxylicious-app)):
 
 ```shell
 mvn clean verify -Pdist -Dquick
+```
+
+The project provides some Kroxylicious-maintained Filter implementations that are not included in the distribution
+by default. To also include the additional filters in the distribution (located under [kroxylicious-additional-filters](./kroxylicious-additional-filters)), 
+activate the `withAdditionalFilters` profile:
+
+```shell
+mvn clean install -Pdist -Dquick -PwithAdditionalFilters
 ```
 
 Run the following to add missing license headers e.g. when adding new source files:
