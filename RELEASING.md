@@ -29,11 +29,11 @@ TIP: To get the short ID for your key `gpg2 --show-keys --keyid-format short $\{
 The project is release is two parts, the API and the Framework. There are separate release scripts beneath `./scripts` for each of these.
 
 ```shell
-scripts/release-api.sh <RELEASE_VERSION>
+scripts/release-api.sh ${RELEASE_VERSION}
 ```
 
 ```shell
-scripts/release-framework.sh <RELEASE_VERSION>
+scripts/release-framework.sh ${RELEASE_VERSION}
 ```
 
 
