@@ -6,7 +6,7 @@ This document gives a detailed breakdown of the various build processes and opti
 * [Development Guide for Kroxylicious](#development-guide-for-kroxylicious)
   * [Build status](#build-status)
   * [Build Prerequisites](#build-prerequisites)
-  * [Prerequistes to run the kubernetes-examples](#prerequistes-to-run-the-kubernetes-examples)
+  * [Prerequisites to run the kubernetes-examples](#prerequisites-to-run-the-kubernetes-examples)
   * [Build](#build)
     * [Formatting the Code](#formatting-the-code)
   * [Run](#run)
@@ -37,7 +37,7 @@ This document gives a detailed breakdown of the various build processes and opti
 
 > :warning: **If you are using Podman please see [these notes](#running-integration-tests-on-podman) below**
 
-## Prerequistes to run the kubernetes-examples
+## Prerequisites to run the kubernetes-examples
 
 * User must have a [quay.io](https://www.quay.io) account and create a public repository named `kroxylicious`
 * Minikube [installed](https://minikube.sigs.k8s.io/docs/start)
@@ -157,7 +157,7 @@ This `run-with-strimzi.sh` script does the following:
 4. installs a 3-node Kafka cluster using Strimzi into minikube
 5. installs kroxylicious into minikube, configured to proxy the cluster
 
-> NOTE: If the kroxylicious pod doesn't come up but it's stuck on ImagePullBackOff with "unauthorized: access to the requested resource is not authorized" error, 
+> NOTE: If the kroxylicious pod doesn't come up, but it's stuck on ImagePullBackOff with "unauthorized: access to the requested resource is not authorized" error, 
 it could mean you have to make the Quay image as public.
 
 If you want to only build and push an image to quay.io you can run `PUSH_IMAGE=y QUAY_ORG=$your_quay_username$ ./scripts/deploy-image.sh`
@@ -183,7 +183,7 @@ In the IDEA Maven dialogue click on `Generate Sources and Update Folders For All
 
 Build the entire project by running `Build > Build Project` and then check that you can run `io.kroxylicious.proxy.FilterIT`
 
-If you encounter any further issues with generated sources, you can can try running `mvn clean install -DskipTests` again or running 
+If you encounter any further issues with generated sources, you can try running `mvn clean install -DskipTests` again or running 
 `Generate Sources and Update Folders` for the specific module that is having problems.
 
 ## Setting Up in Windows Using WSL
@@ -238,7 +238,7 @@ While Kroxylicious is a java application we've had reports of issues running the
 
 ### DOCKER_HOST environment variable
 
-On Linux, it maybe necessary to configure the `DOCKER_HOST` environment variable to allow the tests to correctly use test containers.
+On Linux, it may be necessary to configure the `DOCKER_HOST` environment variable to allow the tests to correctly use test containers.
 
 ```shell
 DOCKER_HOST=unix://$(podman info --format '{{.Host.RemoteSocket.Path}}')
@@ -295,7 +295,7 @@ Host: www.example.com
 ```
 
 You'll see an API response.  If the service_timeout change is effective, the socat
-will continue for 3 mins.  If `socat` terminates after about 10 seconds, the workaround
+will continue for 3 minutes.  If `socat` terminates after about 10 seconds, the workaround
 has been applied ineffectively.
 
 
