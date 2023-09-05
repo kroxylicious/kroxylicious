@@ -12,7 +12,6 @@ addressing use cases such as multi-tenancy, schema validation, or encryption.
   * [Releasing this project](#releasing-this-project)
   * [Performance Testing](#performance-testing)
   * [Kroxylicious Samples](#kroxylicious-samples)
-  * [Architecture Monitoring](#architecture-monitoring)
 <!-- TOC -->
 
 ## Quick Links
