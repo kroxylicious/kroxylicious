@@ -41,7 +41,8 @@ public class FilterChainFactory {
         if (filters == null || filters.isEmpty()) {
             return List.of();
         }
-        final Set<String> filtersWithoutRequiredConfiguration = filters.stream().filter(f -> f.config() == null && filterContributorManager.requiresConfig(f.type())).map(FilterDefinition::type).collect(Collectors.toSet());
+        final Set<String> filtersWithoutRequiredConfiguration = filters.stream().filter(f -> f.config() == null && filterContributorManager.requiresConfig(f.type()))
+                .map(FilterDefinition::type).collect(Collectors.toSet());
         if (!filtersWithoutRequiredConfiguration.isEmpty()) {
             StringJoiner joiner = new StringJoiner(", ", "[", "]");
             for (String s : filtersWithoutRequiredConfiguration) {

@@ -52,15 +52,15 @@ class FilterChainFactoryTest {
 
     @Test
     void shouldConstructFilterWithoutConfig() {
-        //Given
+        // Given
         final FilterDefinition filterWithoutConfig = new FilterDefinition(TestFilterContributor.NO_CONFIG_REQUIRED_TYPE_NAME, null);
         FilterChainFactory filterChainFactory = new FilterChainFactory(new Configuration(null, null, List.of(filterWithoutConfig), null, true),
                 testFilterContributorManager);
 
-        //When
+        // When
         final List<FilterAndInvoker> actualFilters = filterChainFactory.createFilters();
 
-        //Then
+        // Then
         assertThat(actualFilters).hasSize(1)
                 .allMatch(Objects::nonNull)
                 .allSatisfy(filterAndInvoker -> assertThat(filterAndInvoker.filter()).isInstanceOf(TestFilterContributor.NoConfigFilter.class));
@@ -68,16 +68,16 @@ class FilterChainFactoryTest {
 
     @Test
     void shouldConstructFilterWithConfig() {
-        //Given
+        // Given
         final FilterDefinition filterWithoutConfig = new FilterDefinition(TestFilterContributor.CONFIG_REQUIRED_TYPE_NAME,
                 new TestFilterContributor.ConfigRequiredFilter.Config("wibble"));
         FilterChainFactory filterChainFactory = new FilterChainFactory(new Configuration(null, null, List.of(filterWithoutConfig), null, true),
                 testFilterContributorManager);
 
-        //When
+        // When
         final List<FilterAndInvoker> actualFilters = filterChainFactory.createFilters();
 
-        //Then
+        // Then
         assertThat(actualFilters).hasSize(1)
                 .allMatch(Objects::nonNull)
                 .allSatisfy(filterAndInvoker -> assertThat(filterAndInvoker.filter()).isInstanceOf(TestFilterContributor.ConfigRequiredFilter.class));
@@ -85,15 +85,15 @@ class FilterChainFactoryTest {
 
     @Test
     void shouldNotConstructFilterWithMissingConfig() {
-        //Given
+        // Given
         final FilterDefinition filterWithoutConfig = new FilterDefinition(TestFilterContributor.CONFIG_REQUIRED_TYPE_NAME, null);
         FilterChainFactory filterChainFactory = new FilterChainFactory(new Configuration(null, null, List.of(filterWithoutConfig), null, true),
                 testFilterContributorManager);
 
-        //When
+        // When
         final IllegalStateException actualException = assertThrows(IllegalStateException.class, filterChainFactory::createFilters);
 
-        //Then
+        // Then
         assertThat(actualException).hasStackTraceContaining("Missing required config for [" + TestFilterContributor.CONFIG_REQUIRED_TYPE_NAME + "]");
     }
 

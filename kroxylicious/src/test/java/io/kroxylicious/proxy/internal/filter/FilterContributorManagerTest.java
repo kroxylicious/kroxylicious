@@ -27,23 +27,23 @@ class FilterContributorManagerTest {
 
     @Test
     void shouldReturnFalseIfConfigNotRequired() {
-        //Given
+        // Given
 
-        //When
+        // When
         final boolean actual = testFilterContributorManager.requiresConfig(TestFilterContributor.NO_CONFIG_REQUIRED_TYPE_NAME);
 
-        //Then
+        // Then
         assertThat(actual).isFalse();
     }
 
     @Test
     void shouldReturnTrueIfConfigRequired() {
-        //Given
+        // Given
 
-        //When
+        // When
         final boolean actual = testFilterContributorManager.requiresConfig(TestFilterContributor.CONFIG_REQUIRED_TYPE_NAME);
 
-        //Then
+        // Then
         assertThat(actual).isTrue();
     }
 
