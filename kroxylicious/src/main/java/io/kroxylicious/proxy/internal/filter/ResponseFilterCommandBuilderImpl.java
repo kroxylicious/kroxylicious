@@ -9,11 +9,11 @@ package io.kroxylicious.proxy.internal.filter;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
 
-import io.kroxylicious.proxy.filter.ResponseFilterResult;
-import io.kroxylicious.proxy.filter.ResponseFilterResultBuilder;
+import io.kroxylicious.proxy.filter.ResponseFilterCommand;
+import io.kroxylicious.proxy.filter.ResponseFilterCommandBuilder;
 
-public class ResponseFilterResultBuilderImpl extends FilterResultBuilderImpl<ResponseHeaderData, ResponseFilterResult>
-        implements ResponseFilterResultBuilder {
+public class ResponseFilterCommandBuilderImpl extends FilterCommandBuilderImpl<ResponseHeaderData, ResponseFilterCommand>
+        implements ResponseFilterCommandBuilder {
 
     private static final String RESPONSE_DATA_NAME_SUFFIX = "ResponseData";
 
@@ -26,26 +26,26 @@ public class ResponseFilterResultBuilderImpl extends FilterResultBuilderImpl<Res
     }
 
     @Override
-    public ResponseFilterResult build() {
-        return new ResponseFilterResult() {
+    public ResponseFilterCommand build() {
+        return new ResponseFilterCommand() {
             @Override
             public ApiMessage header() {
-                return ResponseFilterResultBuilderImpl.this.header();
+                return ResponseFilterCommandBuilderImpl.this.header();
             }
 
             @Override
             public ApiMessage message() {
-                return ResponseFilterResultBuilderImpl.this.message();
+                return ResponseFilterCommandBuilderImpl.this.message();
             }
 
             @Override
             public boolean closeConnection() {
-                return ResponseFilterResultBuilderImpl.this.closeConnection();
+                return ResponseFilterCommandBuilderImpl.this.closeConnection();
             }
 
             @Override
             public boolean drop() {
-                return ResponseFilterResultBuilderImpl.this.isDrop();
+                return ResponseFilterCommandBuilderImpl.this.isDrop();
             }
         };
     }

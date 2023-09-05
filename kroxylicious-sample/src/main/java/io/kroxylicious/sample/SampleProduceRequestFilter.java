@@ -17,7 +17,7 @@ import io.micrometer.core.instrument.Timer;
 
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
-import io.kroxylicious.proxy.filter.RequestFilterResult;
+import io.kroxylicious.proxy.filter.RequestFilterCommand;
 import io.kroxylicious.sample.config.SampleFilterConfig;
 import io.kroxylicious.sample.util.SampleFilterTransformer;
 
@@ -57,10 +57,10 @@ public class SampleProduceRequestFilter implements ProduceRequestFilter {
      * @param header     request header.
      * @param request    The KRPC message to handle.
      * @param context    The context.
-     * @return CompletionStage that will yield a {@link RequestFilterResult} containing the request to be forwarded.
+     * @return CompletionStage that will yield a {@link RequestFilterCommand} containing the request to be forwarded.
      */
     @Override
-    public CompletionStage<RequestFilterResult> onProduceRequest(short apiVersion, RequestHeaderData header, ProduceRequestData request, FilterContext context) {
+    public CompletionStage<RequestFilterCommand> onProduceRequest(short apiVersion, RequestHeaderData header, ProduceRequestData request, FilterContext context) {
         this.timer.record(() -> applyTransformation(request, context)); // We're timing this to report how long it takes through Micrometer
 
         return context.forwardRequest(header, request);

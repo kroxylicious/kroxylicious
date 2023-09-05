@@ -11,21 +11,21 @@ import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.protocol.ApiMessage;
 
-import io.kroxylicious.proxy.filter.FilterResult;
-import io.kroxylicious.proxy.filter.FilterResultBuilder;
-import io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage;
-import io.kroxylicious.proxy.filter.filterresultbuilder.TerminalStage;
+import io.kroxylicious.proxy.filter.FilterCommand;
+import io.kroxylicious.proxy.filter.FilterCommandBuilder;
+import io.kroxylicious.proxy.filter.filtercommandbuilder.CloseOrTerminalStage;
+import io.kroxylicious.proxy.filter.filtercommandbuilder.TerminalStage;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-public abstract class FilterResultBuilderImpl<H extends ApiMessage, R extends FilterResult>
-        implements FilterResultBuilder<H, R>, CloseOrTerminalStage<R> {
+public abstract class FilterCommandBuilderImpl<H extends ApiMessage, R extends FilterCommand>
+        implements FilterCommandBuilder<H, R>, CloseOrTerminalStage<R> {
     private ApiMessage message;
     private ApiMessage header;
     private boolean closeConnection;
     private boolean drop;
 
-    protected FilterResultBuilderImpl() {
+    protected FilterCommandBuilderImpl() {
     }
 
     @Override

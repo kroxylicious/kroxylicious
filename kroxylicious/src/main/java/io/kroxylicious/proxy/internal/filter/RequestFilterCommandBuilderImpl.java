@@ -10,15 +10,15 @@ import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
 
-import io.kroxylicious.proxy.filter.RequestFilterResult;
-import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
-import io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage;
+import io.kroxylicious.proxy.filter.RequestFilterCommand;
+import io.kroxylicious.proxy.filter.RequestFilterCommandBuilder;
+import io.kroxylicious.proxy.filter.filtercommandbuilder.CloseOrTerminalStage;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
-public class RequestFilterResultBuilderImpl extends FilterResultBuilderImpl<RequestHeaderData, RequestFilterResult>
-        implements RequestFilterResultBuilder {
+public class RequestFilterCommandBuilderImpl extends FilterCommandBuilderImpl<RequestHeaderData, RequestFilterCommand>
+        implements RequestFilterCommandBuilder {
 
     private static final String REQUEST_DATA_NAME_SUFFIX = "RequestData";
     private static final String RESPONSE_DATA_NAME_SUFFIX = "ResponseData";
@@ -34,7 +34,7 @@ public class RequestFilterResultBuilderImpl extends FilterResultBuilderImpl<Requ
     }
 
     @Override
-    public CloseOrTerminalStage<RequestFilterResult> shortCircuitResponse(@Nullable ResponseHeaderData header, @NonNull ApiMessage message) {
+    public CloseOrTerminalStage<RequestFilterCommand> shortCircuitResponse(@Nullable ResponseHeaderData header, @NonNull ApiMessage message) {
         validateShortCircuitResponse(message);
         this.shortCircuitHeader = header;
         this.shortCircuitResponse = message;
@@ -42,7 +42,7 @@ public class RequestFilterResultBuilderImpl extends FilterResultBuilderImpl<Requ
     }
 
     @Override
-    public CloseOrTerminalStage<RequestFilterResult> shortCircuitResponse(@NonNull ApiMessage message) {
+    public CloseOrTerminalStage<RequestFilterCommand> shortCircuitResponse(@NonNull ApiMessage message) {
         validateShortCircuitResponse(message);
         this.shortCircuitResponse = message;
         return this;
@@ -58,9 +58,9 @@ public class RequestFilterResultBuilderImpl extends FilterResultBuilderImpl<Requ
     }
 
     @Override
-    public RequestFilterResult build() {
+    public RequestFilterCommand build() {
 
-        return new RequestFilterResult() {
+        return new RequestFilterCommand() {
 
             @Override
             public boolean shortCircuitResponse() {
@@ -70,22 +70,22 @@ public class RequestFilterResultBuilderImpl extends FilterResultBuilderImpl<Requ
             @Override
             public ApiMessage header() {
 
-                return shortCircuitResponse == null ? RequestFilterResultBuilderImpl.this.header() : shortCircuitHeader;
+                return shortCircuitResponse == null ? RequestFilterCommandBuilderImpl.this.header() : shortCircuitHeader;
             }
 
             @Override
             public ApiMessage message() {
-                return shortCircuitResponse == null ? RequestFilterResultBuilderImpl.this.message() : shortCircuitResponse;
+                return shortCircuitResponse == null ? RequestFilterCommandBuilderImpl.this.message() : shortCircuitResponse;
             }
 
             @Override
             public boolean closeConnection() {
-                return RequestFilterResultBuilderImpl.this.closeConnection();
+                return RequestFilterCommandBuilderImpl.this.closeConnection();
             }
 
             @Override
             public boolean drop() {
-                return RequestFilterResultBuilderImpl.this.isDrop();
+                return RequestFilterCommandBuilderImpl.this.isDrop();
             }
         };
 

@@ -172,11 +172,11 @@ public class SpecificFilterInvoker implements FilterInvoker {
      * @return
      */
     @Override
-    public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey,
-                                                          short apiVersion,
-                                                          RequestHeaderData header,
-                                                          ApiMessage body,
-                                                          FilterContext filterContext) {
+    public CompletionStage<RequestFilterCommand> onRequest(ApiKeys apiKey,
+                                                           short apiVersion,
+                                                           RequestHeaderData header,
+                                                           ApiMessage body,
+                                                           FilterContext filterContext) {
         return switch (apiKey) {
             case ADD_OFFSETS_TO_TXN -> ((AddOffsetsToTxnRequestFilter) filter).onAddOffsetsToTxnRequest(apiVersion, header, (AddOffsetsToTxnRequestData) body,
                     filterContext);
@@ -296,11 +296,11 @@ public class SpecificFilterInvoker implements FilterInvoker {
      * @return
      */
     @Override
-    public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey,
-                                                            short apiVersion,
-                                                            ResponseHeaderData header,
-                                                            ApiMessage body,
-                                                            FilterContext filterContext) {
+    public CompletionStage<ResponseFilterCommand> onResponse(ApiKeys apiKey,
+                                                             short apiVersion,
+                                                             ResponseHeaderData header,
+                                                             ApiMessage body,
+                                                             FilterContext filterContext) {
         return switch (apiKey) {
             case ADD_OFFSETS_TO_TXN -> ((AddOffsetsToTxnResponseFilter) filter).onAddOffsetsToTxnResponse(apiVersion, header, (AddOffsetsToTxnResponseData) body,
                     filterContext);

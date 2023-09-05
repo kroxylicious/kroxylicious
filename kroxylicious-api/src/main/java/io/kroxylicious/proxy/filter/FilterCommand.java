@@ -9,13 +9,14 @@ package io.kroxylicious.proxy.filter;
 import org.apache.kafka.common.protocol.ApiMessage;
 
 /**
- * The result of a filter request or response operation that encapsulates the request or response
- * to be forwarded to the next filter in the chain.  Optionally it carries orders for actions such
- * as close the connection or drop the message.
+ * Encapsulates the action a Filter wants to command the framework to take in response to handling a
+ * message. That could be to forward a request or response to the next filter in the chain. Or it could
+ * command the framework to close the connection or drop the frame. Or some combination like forward
+ * and close connection.
  *
- * @see FilterResultBuilder
+ * @see FilterCommandBuilder
  */
-public interface FilterResult {
+public interface FilterCommand {
     /**
      * the header to be forwarded to the next filter in the chain.
      *

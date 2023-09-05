@@ -12,14 +12,14 @@ import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.junit.jupiter.api.Test;
 
-import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
+import io.kroxylicious.proxy.filter.RequestFilterCommandBuilder;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-class RequestFilterResultBuilderTest {
+class RequestFilterCommandBuilderTest {
 
-    private final RequestFilterResultBuilder builder = new RequestFilterResultBuilderImpl();
+    private final RequestFilterCommandBuilder builder = new RequestFilterCommandBuilderImpl();
 
     @Test
     void forwardRequest() {

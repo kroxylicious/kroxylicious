@@ -13,13 +13,13 @@ import org.apache.kafka.common.message.ResponseHeaderData;
 
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.ProduceResponseFilter;
-import io.kroxylicious.proxy.filter.ResponseFilterResult;
+import io.kroxylicious.proxy.filter.ResponseFilterCommand;
 
 public class OneInterfaceFilter implements ProduceResponseFilter {
 
     @Override
-    public CompletionStage<ResponseFilterResult> onProduceResponse(short apiVersion, ResponseHeaderData header, ProduceResponseData response,
-                                                                   FilterContext context) {
+    public CompletionStage<ResponseFilterCommand> onProduceResponse(short apiVersion, ResponseHeaderData header, ProduceResponseData response,
+                                                                    FilterContext context) {
         return null;
     }
 }

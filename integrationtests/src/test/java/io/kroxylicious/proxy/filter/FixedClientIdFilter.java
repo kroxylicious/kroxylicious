@@ -37,13 +37,13 @@ public class FixedClientIdFilter implements RequestFilter, ResponseFilter {
     }
 
     @Override
-    public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage request, FilterContext context) {
+    public CompletionStage<RequestFilterCommand> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage request, FilterContext context) {
         header.setClientId(clientId);
         return context.forwardRequest(header, request);
     }
 
     @Override
-    public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, ResponseHeaderData header, ApiMessage response, FilterContext context) {
+    public CompletionStage<ResponseFilterCommand> onResponse(ApiKeys apiKey, ResponseHeaderData header, ApiMessage response, FilterContext context) {
         return context.forwardResponse(header, response);
     }
 }

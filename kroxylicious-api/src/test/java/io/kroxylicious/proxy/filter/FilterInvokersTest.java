@@ -79,12 +79,12 @@ class FilterInvokersTest {
     static class RequestResponseFilter implements RequestFilter, ResponseFilter {
 
         @Override
-        public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage request, FilterContext context) {
+        public CompletionStage<RequestFilterCommand> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage request, FilterContext context) {
             return null;
         }
 
         @Override
-        public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, ResponseHeaderData header, ApiMessage response, FilterContext context) {
+        public CompletionStage<ResponseFilterCommand> onResponse(ApiKeys apiKey, ResponseHeaderData header, ApiMessage response, FilterContext context) {
             return null;
         }
     }
@@ -108,15 +108,15 @@ class FilterInvokersTest {
     static class MultipleSpecificFilter implements ApiVersionsRequestFilter, ApiVersionsResponseFilter {
 
         @Override
-        public CompletionStage<RequestFilterResult> onApiVersionsRequest(short apiVersion, RequestHeaderData header, ApiVersionsRequestData request,
-                                                                         FilterContext context) {
+        public CompletionStage<RequestFilterCommand> onApiVersionsRequest(short apiVersion, RequestHeaderData header, ApiVersionsRequestData request,
+                                                                          FilterContext context) {
 
             return null;
         }
 
         @Override
-        public CompletionStage<ResponseFilterResult> onApiVersionsResponse(short apiVersion, ResponseHeaderData header, ApiVersionsResponseData response,
-                                                                           FilterContext context) {
+        public CompletionStage<ResponseFilterCommand> onApiVersionsResponse(short apiVersion, ResponseHeaderData header, ApiVersionsResponseData response,
+                                                                            FilterContext context) {
 
             return null;
         }
@@ -129,7 +129,7 @@ class FilterInvokersTest {
         }
 
         @Override
-        public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage request, FilterContext context) {
+        public CompletionStage<RequestFilterCommand> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage request, FilterContext context) {
 
             return null;
         }
@@ -159,7 +159,7 @@ class FilterInvokersTest {
         }
 
         @Override
-        public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, ResponseHeaderData header, ApiMessage response, FilterContext context) {
+        public CompletionStage<ResponseFilterCommand> onResponse(ApiKeys apiKey, ResponseHeaderData header, ApiMessage response, FilterContext context) {
 
             return null;
         }
@@ -168,8 +168,8 @@ class FilterInvokersTest {
     static class SpecificAndCompositeFilter implements ApiVersionsRequestFilter, CompositeFilter {
 
         @Override
-        public CompletionStage<RequestFilterResult> onApiVersionsRequest(short apiVersion, RequestHeaderData header, ApiVersionsRequestData request,
-                                                                         FilterContext context) {
+        public CompletionStage<RequestFilterCommand> onApiVersionsRequest(short apiVersion, RequestHeaderData header, ApiVersionsRequestData request,
+                                                                          FilterContext context) {
 
             return null;
         }
@@ -183,14 +183,14 @@ class FilterInvokersTest {
     static class SpecificAndResponseFilter implements ApiVersionsRequestFilter, ResponseFilter {
 
         @Override
-        public CompletionStage<RequestFilterResult> onApiVersionsRequest(short apiVersion, RequestHeaderData header, ApiVersionsRequestData request,
-                                                                         FilterContext context) {
+        public CompletionStage<RequestFilterCommand> onApiVersionsRequest(short apiVersion, RequestHeaderData header, ApiVersionsRequestData request,
+                                                                          FilterContext context) {
 
             return null;
         }
 
         @Override
-        public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, ResponseHeaderData header, ApiMessage response, FilterContext context) {
+        public CompletionStage<ResponseFilterCommand> onResponse(ApiKeys apiKey, ResponseHeaderData header, ApiMessage response, FilterContext context) {
 
             return null;
         }
@@ -199,14 +199,14 @@ class FilterInvokersTest {
     static class SpecificAndRequestFilter implements ApiVersionsRequestFilter, RequestFilter {
 
         @Override
-        public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage request, FilterContext context) {
+        public CompletionStage<RequestFilterCommand> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage request, FilterContext context) {
 
             return null;
         }
 
         @Override
-        public CompletionStage<RequestFilterResult> onApiVersionsRequest(short apiVersion, RequestHeaderData header, ApiVersionsRequestData request,
-                                                                         FilterContext context) {
+        public CompletionStage<RequestFilterCommand> onApiVersionsRequest(short apiVersion, RequestHeaderData header, ApiVersionsRequestData request,
+                                                                          FilterContext context) {
 
             return null;
         }

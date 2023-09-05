@@ -15,7 +15,7 @@ import org.apache.kafka.common.protocol.ApiMessage;
 import io.kroxylicious.proxy.filter.FilterConstructContext;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilter;
-import io.kroxylicious.proxy.filter.RequestFilterResult;
+import io.kroxylicious.proxy.filter.RequestFilterCommand;
 
 public class TestFilter implements RequestFilter {
     private final String shortName;
@@ -29,7 +29,7 @@ public class TestFilter implements RequestFilter {
     }
 
     @Override
-    public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage request, FilterContext context) {
+    public CompletionStage<RequestFilterCommand> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage request, FilterContext context) {
         throw new IllegalStateException("not implemented!");
     }
 

@@ -37,8 +37,8 @@ public class RejectingCreateTopicFilter implements CreateTopicsRequestFilter {
     }
 
     @Override
-    public CompletionStage<RequestFilterResult> onCreateTopicsRequest(short apiVersion, RequestHeaderData header, CreateTopicsRequestData request,
-                                                                      FilterContext context) {
+    public CompletionStage<RequestFilterCommand> onCreateTopicsRequest(short apiVersion, RequestHeaderData header, CreateTopicsRequestData request,
+                                                                       FilterContext context) {
         return forwardingStyle.apply(new ForwardingContext(context, constructionContext, request))
                 .thenCompose((u) -> {
                     CreateTopicsResponseData response = new CreateTopicsResponseData();
@@ -52,7 +52,7 @@ public class RejectingCreateTopicFilter implements CreateTopicsRequestFilter {
                     });
                     response.setTopics(topics);
 
-                    var builder = context.requestFilterResultBuilder().shortCircuitResponse(response);
+                    var builder = context.requestFilterCommandBuilder().shortCircuitResponse(response);
                     if (withCloseConnection) {
                         builder.withCloseConnection();
                     }

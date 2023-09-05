@@ -39,10 +39,10 @@ import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.FilterInvoker;
 import io.kroxylicious.proxy.filter.FilterInvokers;
-import io.kroxylicious.proxy.filter.RequestFilterResult;
-import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
-import io.kroxylicious.proxy.filter.ResponseFilterResult;
-import io.kroxylicious.proxy.filter.ResponseFilterResultBuilder;
+import io.kroxylicious.proxy.filter.RequestFilterCommand;
+import io.kroxylicious.proxy.filter.RequestFilterCommandBuilder;
+import io.kroxylicious.proxy.filter.ResponseFilterCommand;
+import io.kroxylicious.proxy.filter.ResponseFilterCommandBuilder;
 import io.kroxylicious.proxy.filter.SpecificFilterInvoker;
 
 // try hard to make shouldHandleXYZ to observe different receivers concrete types, saving unrolling to bias a specific call-site to a specific concrete type
@@ -190,22 +190,22 @@ public class InvokerDispatchBenchmark {
         }
 
         @Override
-        public CompletionStage<ResponseFilterResult> forwardResponse(ResponseHeaderData header, ApiMessage response) {
+        public CompletionStage<ResponseFilterCommand> forwardResponse(ResponseHeaderData header, ApiMessage response) {
             return null;
         }
 
         @Override
-        public RequestFilterResultBuilder requestFilterResultBuilder() {
+        public RequestFilterCommandBuilder requestFilterCommandBuilder() {
             return null;
         }
 
         @Override
-        public CompletionStage<RequestFilterResult> forwardRequest(RequestHeaderData header, ApiMessage request) {
+        public CompletionStage<RequestFilterCommand> forwardRequest(RequestHeaderData header, ApiMessage request) {
             return null;
         }
 
         @Override
-        public ResponseFilterResultBuilder responseFilterResultBuilder() {
+        public ResponseFilterCommandBuilder responseFilterCommandBuilder() {
             return null;
         }
 

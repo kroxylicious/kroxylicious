@@ -11,5 +11,5 @@ import org.apache.kafka.common.message.ResponseHeaderData;
 /**
  * Builder for response filter results.
  */
-public interface ResponseFilterResultBuilder extends FilterResultBuilder<ResponseHeaderData, ResponseFilterResult> {
+public interface ResponseFilterCommandBuilder extends FilterCommandBuilder<ResponseHeaderData, ResponseFilterCommand> {
 }

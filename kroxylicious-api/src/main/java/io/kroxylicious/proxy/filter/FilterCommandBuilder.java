@@ -8,9 +8,9 @@ package io.kroxylicious.proxy.filter;
 
 import org.apache.kafka.common.protocol.ApiMessage;
 
-import io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage;
-import io.kroxylicious.proxy.filter.filterresultbuilder.CloseStage;
-import io.kroxylicious.proxy.filter.filterresultbuilder.TerminalStage;
+import io.kroxylicious.proxy.filter.filtercommandbuilder.CloseOrTerminalStage;
+import io.kroxylicious.proxy.filter.filtercommandbuilder.CloseStage;
+import io.kroxylicious.proxy.filter.filtercommandbuilder.TerminalStage;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -20,7 +20,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * @param <H>  kafka api message header class
  * @param <R> filter result
  */
-public interface FilterResultBuilder<H extends ApiMessage, R extends FilterResult> extends CloseStage<R> {
+public interface FilterCommandBuilder<H extends ApiMessage, R extends FilterCommand> extends CloseStage<R> {
 
     /**
      * A forward of a request or response message to the next filter in the chain.

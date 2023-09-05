@@ -34,9 +34,9 @@ Please enumerate **all user-facing** changes using format `<githib issue/pr numb
 ### Changes, deprecations and removals
 
 The Filter API is refactored to be fully asynchronous.  Filter API methods such as `#onXxxxRequest` and `onXxxxResponse`
-now are required to return a `CompletionStage<FilterResult>`. The `FilterResult` encapsulates the message to be
+now are required to return a `CompletionStage<FilterCommand>`. The `FilterCommand` encapsulates the message to be
 forwarded and carries orders (such as close the connection). The context provides factory methods for creating
-`FilterResult` objects.
+`FilterCommand` objects.
 
 The default metrics port has changed from 9193 to 9190 to prevent port collisions
 

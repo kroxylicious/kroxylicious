@@ -74,37 +74,37 @@ public interface FilterInvoker {
      * <p>Handle deserialized request data. It is implicit that the underlying filter
      * wants to handle this data because it indicated that with {@link #shouldHandleRequest(ApiKeys, short)}
      * </p><p>
-     * Filters must return a {@link CompletionStage<RequestFilterResult>} object.  This object
+     * Filters must return a {@link CompletionStage<RequestFilterCommand>} object.  This object
      * encapsulates the request to be forwarded and, optionally, orders for actions such as closing the connection or
      * dropping the request.
      * </p><p>
-     * The {@link FilterContext} is the factory for {@link FilterResult} objects.  See
+     * The {@link FilterContext} is the factory for {@link FilterCommand} objects.  See
      * {@link FilterContext#forwardRequest(RequestHeaderData, ApiMessage)} and
-     * {@link FilterContext#requestFilterResultBuilder()} for more details.
+     * {@link FilterContext#requestFilterCommandBuilder()} for more details.
      * </p>
      * @param apiKey        the key of the message
      * @param apiVersion    the apiVersion of the message
      * @param header        the header of the message
      * @param body          the body of the message
      * @param filterContext contains methods to continue the filter chain and other contextual data
-     * @return a {@link CompletionStage<RequestFilterResult>}, that when complete, will yield the request to forward.
+     * @return a {@link CompletionStage<RequestFilterCommand>}, that when complete, will yield the request to forward.
      */
-    default CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage body,
-                                                           FilterContext filterContext) {
-        return filterContext.requestFilterResultBuilder().forward(header, body).completed();
+    default CompletionStage<RequestFilterCommand> onRequest(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage body,
+                                                            FilterContext filterContext) {
+        return filterContext.requestFilterCommandBuilder().forward(header, body).completed();
     }
 
     /**
      * <p>Handle deserialized response data. It is implicit that the underlying filter
      * wants to handle this data because it indicated that with {@link #shouldHandleResponse(ApiKeys, short)}
      * </p><p>
-     * Filters must return a {@link CompletionStage<ResponseFilterResult>} object.  This object
+     * Filters must return a {@link CompletionStage<ResponseFilterCommand>} object.  This object
      * encapsulates the response to be forwarded and, optionally, orders for actions such as closing the connection or
      * dropping the response.
      * </p><p>
-     * The {@link FilterContext} is the factory for {@link FilterResult} objects.  See
+     * The {@link FilterContext} is the factory for {@link FilterCommand} objects.  See
      * {@link FilterContext#forwardResponse(ResponseHeaderData, ApiMessage)} and
-     * {@link FilterContext#responseFilterResultBuilder()} for more details.
+     * {@link FilterContext#responseFilterCommandBuilder()} for more details.
      * </p>
      *
      * @param apiKey        the key of the message
@@ -112,11 +112,11 @@ public interface FilterInvoker {
      * @param header        the header of the message
      * @param body          the body of the message
      * @param filterContext contains methods to continue the filter chain and other contextual data
-     * @return a {@link CompletionStage<ResponseFilterResult>}, that when complete, will yield the response to forward.
+     * @return a {@link CompletionStage<ResponseFilterCommand>}, that when complete, will yield the response to forward.
      */
-    default CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, short apiVersion, ResponseHeaderData header, ApiMessage body,
-                                                             FilterContext filterContext) {
-        return filterContext.responseFilterResultBuilder().forward(header, body).completed();
+    default CompletionStage<ResponseFilterCommand> onResponse(ApiKeys apiKey, short apiVersion, ResponseHeaderData header, ApiMessage body,
+                                                              FilterContext filterContext) {
+        return filterContext.responseFilterCommandBuilder().forward(header, body).completed();
     }
 
 }

@@ -16,12 +16,12 @@ import org.apache.kafka.common.protocol.ApiMessage;
 record RequestResponseInvoker(RequestFilter requestFilter, ResponseFilter responseFilter) implements FilterInvoker {
 
     @Override
-    public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage body, FilterContext filterContext) {
+    public CompletionStage<RequestFilterCommand> onRequest(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage body, FilterContext filterContext) {
         return requestFilter.onRequest(apiKey, header, body, filterContext);
     }
 
     @Override
-    public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, short apiVersion, ResponseHeaderData header, ApiMessage body, FilterContext filterContext) {
+    public CompletionStage<ResponseFilterCommand> onResponse(ApiKeys apiKey, short apiVersion, ResponseHeaderData header, ApiMessage body, FilterContext filterContext) {
         return responseFilter.onResponse(apiKey, header, body, filterContext);
     }
 

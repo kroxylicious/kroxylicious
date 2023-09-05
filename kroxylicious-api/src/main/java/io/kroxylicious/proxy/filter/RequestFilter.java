@@ -37,7 +37,7 @@ public interface RequestFilter extends Filter {
 
     /**
      * Handle the given {@code header} and {@code request} pair, returning the {@code header} and {@code request}
-     * pair to be passed to the next filter using the RequestFilterResult.
+     * pair to be passed to the next filter using the RequestFilterCommand.
      * <br/>
      * The implementation may modify the given {@code header} and {@code request} in-place, or instantiate a
      * new instances.
@@ -46,12 +46,12 @@ public interface RequestFilter extends Filter {
      * @param header  header of the request
      * @param request body of the request
      * @param context context containing methods to continue the filter chain and other contextual data
-     * @return a non-null CompletionStage that, when complete, will yield a RequestFilterResult containing the
+     * @return a non-null CompletionStage that, when complete, will yield a RequestFilterCommand containing the
      *         request to be forwarded.
      * @see io.kroxylicious.proxy.filter Creating Filter Result objects
      */
-    CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey,
-                                                   RequestHeaderData header,
-                                                   ApiMessage request,
-                                                   FilterContext context);
+    CompletionStage<RequestFilterCommand> onRequest(ApiKeys apiKey,
+                                                    RequestHeaderData header,
+                                                    ApiMessage request,
+                                                    FilterContext context);
 }

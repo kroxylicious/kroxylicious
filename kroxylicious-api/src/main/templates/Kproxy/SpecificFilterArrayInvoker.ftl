@@ -69,7 +69,7 @@ class SpecificFilterArrayInvoker implements FilterInvoker {
      */
     @Override
     @SuppressWarnings("SwitchStatementWithTooFewBranches")
-    public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey,
+    public CompletionStage<RequestFilterCommand> onRequest(ApiKeys apiKey,
                                                           short apiVersion,
                                                           RequestHeaderData header,
                                                           ApiMessage body,
@@ -98,7 +98,7 @@ class SpecificFilterArrayInvoker implements FilterInvoker {
      */
     @Override
     @SuppressWarnings("SwitchStatementWithTooFewBranches")
-    public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey,
+    public CompletionStage<ResponseFilterCommand> onResponse(ApiKeys apiKey,
                                                             short apiVersion,
                                                             ResponseHeaderData header,
                                                             ApiMessage body,

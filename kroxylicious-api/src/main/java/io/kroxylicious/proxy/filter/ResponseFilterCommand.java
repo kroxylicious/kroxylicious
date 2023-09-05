@@ -7,8 +7,8 @@
 package io.kroxylicious.proxy.filter;
 
 /**
- * A specialization of the {@link FilterResult} for response filters.
+ * A specialization of the {@link FilterCommand} for response filters.
  */
-public interface ResponseFilterResult extends FilterResult {
+public interface ResponseFilterCommand extends FilterCommand {
 
 }

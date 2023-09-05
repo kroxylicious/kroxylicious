@@ -34,8 +34,8 @@ import com.google.common.reflect.ClassPath.ResourceInfo;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.FilterInvoker;
-import io.kroxylicious.proxy.filter.RequestFilterResult;
-import io.kroxylicious.proxy.filter.ResponseFilterResult;
+import io.kroxylicious.proxy.filter.RequestFilterCommand;
+import io.kroxylicious.proxy.filter.ResponseFilterCommand;
 import io.kroxylicious.test.requestresponsetestdef.ApiMessageTestDef;
 import io.kroxylicious.test.requestresponsetestdef.RequestResponseTestDef;
 
@@ -77,11 +77,11 @@ class MultiTenantTransformationFilterTest {
     private ArgumentCaptor<RequestHeaderData> requestHeaderDataCaptor;
 
     @Mock(strictness = LENIENT)
-    private RequestFilterResult requestFilterResult;
+    private RequestFilterCommand requestFilterCommand;
     @Captor
     private ArgumentCaptor<ResponseHeaderData> responseHeaderDataArgumentCaptor;
     @Mock(strictness = LENIENT)
-    private ResponseFilterResult responseFilterResult;
+    private ResponseFilterCommand responseFilterCommand;
 
     @Captor
     private ArgumentCaptor<ApiMessage> apiMessageCaptor;
@@ -105,10 +105,10 @@ class MultiTenantTransformationFilterTest {
         var requestWriter = requestConverterFor(apiMessageType).writer();
         var marshalled = requestWriter.apply(request, header.requestApiVersion());
 
-        when(requestFilterResult.message()).thenAnswer(invocation -> apiMessageCaptor.getValue());
-        when(requestFilterResult.header()).thenAnswer(invocation -> requestHeaderDataCaptor.getValue());
+        when(requestFilterCommand.message()).thenAnswer(invocation -> apiMessageCaptor.getValue());
+        when(requestFilterCommand.header()).thenAnswer(invocation -> requestHeaderDataCaptor.getValue());
         when(context.forwardRequest(requestHeaderDataCaptor.capture(), apiMessageCaptor.capture())).thenAnswer(
-                invocation -> CompletableFuture.completedStage(requestFilterResult));
+                invocation -> CompletableFuture.completedStage(requestFilterCommand));
 
         var stage = invoker.onRequest(ApiKeys.forId(apiMessageType.apiKey()), header.requestApiVersion(), header, request, context);
         assertThat(stage).isCompleted();
@@ -133,10 +133,10 @@ class MultiTenantTransformationFilterTest {
 
         var marshalled = responseWriter.apply(response, header.requestApiVersion());
 
-        when(responseFilterResult.message()).thenAnswer(invocation -> apiMessageCaptor.getValue());
-        when(responseFilterResult.header()).thenAnswer(invocation -> responseHeaderDataArgumentCaptor.getValue());
+        when(responseFilterCommand.message()).thenAnswer(invocation -> apiMessageCaptor.getValue());
+        when(responseFilterCommand.header()).thenAnswer(invocation -> responseHeaderDataArgumentCaptor.getValue());
         when(context.forwardResponse(responseHeaderDataArgumentCaptor.capture(), apiMessageCaptor.capture())).thenAnswer(
-                invocation -> CompletableFuture.completedStage(responseFilterResult));
+                invocation -> CompletableFuture.completedStage(responseFilterCommand));
 
         ResponseHeaderData headerData = new ResponseHeaderData();
         var stage = invoker.onResponse(ApiKeys.forId(apiMessageType.apiKey()), header.requestApiVersion(), headerData, response, context);

@@ -8,7 +8,7 @@
 <#assign
   dataClass="${messageSpec.name}Data"
   filterClass="${messageSpec.name}Filter"
-  filterResultClass="${messageSpec.type?lower_case?cap_first}FilterResult"
+  FilterCommandClass="${messageSpec.type?lower_case?cap_first}FilterCommand"
   headerClass="${messageSpec.type?lower_case?cap_first}HeaderData"
   msgType=messageSpec.type?lower_case
 />
@@ -54,7 +54,7 @@ public interface ${filterClass} extends Filter {
 
     /**
      * Handle the given {@code header} and {@code ${msgType}} pair, returning the {@code header} and {@code ${msgType}}
-     * pair to be passed to the next filter using the ${filterResultClass}.
+     * pair to be passed to the next filter using the ${FilterCommandClass}.
      * <br/>
      * The implementation may modify the given {@code header} and {@code ${msgType}} in-place, or instantiate a
      * new instances.
@@ -63,10 +63,10 @@ public interface ${filterClass} extends Filter {
      * @param header ${msgType} header.
      * @param ${msgType} The body to handle.
      * @param context The context.
-     * @return a non-null CompletionStage that, when complete, will yield a ${filterResultClass} containing the
+     * @return a non-null CompletionStage that, when complete, will yield a ${FilterCommandClass} containing the
      *         ${msgType} to be forwarded.
      * @see io.kroxylicious.proxy.filter Creating Filter Result objects
      */
-     CompletionStage<${filterResultClass}> on${messageSpec.name}(short apiVersion, ${headerClass} header, ${dataClass} ${msgType}, FilterContext context);
+     CompletionStage<${FilterCommandClass}> on${messageSpec.name}(short apiVersion, ${headerClass} header, ${dataClass} ${msgType}, FilterContext context);
 
 }

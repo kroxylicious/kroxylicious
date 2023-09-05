@@ -12,16 +12,16 @@ import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
 
-import io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage;
+import io.kroxylicious.proxy.filter.filtercommandbuilder.CloseOrTerminalStage;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
  * Builder for request filter results.
  * <br/>
- * See {@link RequestFilterResult} for a description of short-circuit responses.
+ * See {@link RequestFilterCommand} for a description of short-circuit responses.
  */
-public interface RequestFilterResultBuilder extends FilterResultBuilder<RequestHeaderData, RequestFilterResult> {
+public interface RequestFilterCommandBuilder extends FilterCommandBuilder<RequestHeaderData, RequestFilterCommand> {
 
     /**
      * A short-circuit response towards the client.
@@ -32,7 +32,7 @@ public interface RequestFilterResultBuilder extends FilterResultBuilder<RequestH
      * @return next stage in the fluent builder API
      * @throws IllegalArgumentException header or message do not meet criteria described above.
      */
-    CloseOrTerminalStage<RequestFilterResult> shortCircuitResponse(@Nullable ResponseHeaderData header, @NonNull ApiMessage message) throws IllegalArgumentException;
+    CloseOrTerminalStage<RequestFilterCommand> shortCircuitResponse(@Nullable ResponseHeaderData header, @NonNull ApiMessage message) throws IllegalArgumentException;
 
     /**
      * A short-circuit response towards the client.
@@ -42,6 +42,6 @@ public interface RequestFilterResultBuilder extends FilterResultBuilder<RequestH
      * @return next stage in the fluent builder API
      * @throws IllegalArgumentException header or message do not meet criteria described above.
      */
-    CloseOrTerminalStage<RequestFilterResult> shortCircuitResponse(@NonNull ApiMessage message) throws IllegalArgumentException;
+    CloseOrTerminalStage<RequestFilterCommand> shortCircuitResponse(@NonNull ApiMessage message) throws IllegalArgumentException;
 
 }

@@ -7,13 +7,13 @@
 package io.kroxylicious.proxy.filter;
 
 /**
- * A specialization of the {@link FilterResult} for request filters.
+ * A specialization of the {@link FilterCommand} for request filters.
  * <br>
  * A request filter may, rather than forwarding a request towards the broker, opt to
  * send a response towards the client instead. This is called a short circuit response. It
  * is useful for implementing validating filters.
  */
-public interface RequestFilterResult extends FilterResult {
+public interface RequestFilterCommand extends FilterCommand {
 
     /**
      * If true, the request is carrying a short circuit response.

@@ -33,7 +33,7 @@ import org.slf4j.LoggerFactory;
 import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.filter.FetchResponseFilter;
 import io.kroxylicious.proxy.filter.FilterContext;
-import io.kroxylicious.proxy.filter.ResponseFilterResult;
+import io.kroxylicious.proxy.filter.ResponseFilterCommand;
 import io.kroxylicious.proxy.internal.util.MemoryRecordsHelper;
 
 /**
@@ -74,8 +74,8 @@ public class FetchResponseTransformationFilter implements FetchResponseFilter {
     }
 
     @Override
-    public CompletionStage<ResponseFilterResult> onFetchResponse(short apiVersion, ResponseHeaderData header, FetchResponseData fetchResponse,
-                                                                 FilterContext context) {
+    public CompletionStage<ResponseFilterCommand> onFetchResponse(short apiVersion, ResponseHeaderData header, FetchResponseData fetchResponse,
+                                                                  FilterContext context) {
         List<MetadataRequestData.MetadataRequestTopic> requestTopics = fetchResponse.responses().stream()
                 .filter(t -> t.topic().isEmpty())
                 .map(fetchableTopicResponse -> {
@@ -86,7 +86,7 @@ public class FetchResponseTransformationFilter implements FetchResponseFilter {
                 .collect(Collectors.toList());
         if (!requestTopics.isEmpty()) {
             LOGGER.debug("Fetch response contains {} unknown topic ids, lookup via Metadata request: {}", requestTopics.size(), requestTopics);
-            var future = new CompletableFuture<ResponseFilterResult>();
+            var future = new CompletableFuture<ResponseFilterCommand>();
             // TODO Can't necessarily use HIGHEST_SUPPORTED_VERSION, must use highest supported version
             context.<MetadataResponseData> sendRequest(MetadataRequestData.HIGHEST_SUPPORTED_VERSION,
                     new MetadataRequestData()
@@ -101,7 +101,7 @@ public class FetchResponseTransformationFilter implements FetchResponseFilter {
                         applyTransformation(context, fetchResponse);
                         LOGGER.debug("Forwarding original Fetch response");
 
-                        var value = context.responseFilterResultBuilder().forward(header, fetchResponse).build();
+                        var value = context.responseFilterCommandBuilder().forward(header, fetchResponse).build();
                         future.complete(value);
                     });
             return future;

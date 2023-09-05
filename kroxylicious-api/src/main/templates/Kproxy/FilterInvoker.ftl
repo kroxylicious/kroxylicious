@@ -8,7 +8,7 @@
 <#assign
   dataClass="${messageSpec.name}Data"
   filterClass="${messageSpec.name}Filter"
-  filterResultClass="${messageSpec.type?lower_case?cap_first}FilterResult"
+  FilterCommandClass="${messageSpec.type?lower_case?cap_first}FilterCommand"
   headerClass="${messageSpec.type?lower_case?cap_first}HeaderData"
   filterInvokerClass="${messageSpec.name}FilterInvoker"
   msgType=messageSpec.type?lower_case
@@ -62,7 +62,7 @@ class ${filterInvokerClass} implements FilterInvoker {
     }
 
     @Override
-    public CompletionStage<${filterResultClass}> on<#if messageSpec.type?lower_case == 'response'>Response<#else>Request</#if>(ApiKeys apiKey, short apiVersion, ${headerClass} header, ApiMessage body, FilterContext filterContext) {
+    public CompletionStage<${FilterCommandClass}> on<#if messageSpec.type?lower_case == 'response'>Response<#else>Request</#if>(ApiKeys apiKey, short apiVersion, ${headerClass} header, ApiMessage body, FilterContext filterContext) {
         return filter.on${messageSpec.name}(apiVersion, header, (${dataClass}) body, filterContext);
     }
 }

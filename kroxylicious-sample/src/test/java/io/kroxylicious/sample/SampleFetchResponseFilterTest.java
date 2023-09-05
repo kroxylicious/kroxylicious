@@ -35,7 +35,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.stubbing.Answer;
 
 import io.kroxylicious.proxy.filter.FilterContext;
-import io.kroxylicious.proxy.filter.ResponseFilterResult;
+import io.kroxylicious.proxy.filter.ResponseFilterCommand;
 import io.kroxylicious.sample.config.SampleFilterConfig;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -54,7 +54,7 @@ class SampleFetchResponseFilterTest {
     private FilterContext context;
 
     @Mock(strictness = Mock.Strictness.LENIENT)
-    private ResponseFilterResult responseFilterResult;
+    private ResponseFilterCommand responseFilterCommand;
     @Captor
     private ArgumentCaptor<Integer> bufferInitialCapacity;
 
@@ -136,9 +136,9 @@ class SampleFetchResponseFilterTest {
 
     private void setupContextMock() {
         when(context.forwardResponse(responseHeaderDataCaptor.capture(), apiMessageCaptor.capture())).thenAnswer(
-                invocation -> CompletableFuture.completedStage(responseFilterResult));
-        when(responseFilterResult.message()).thenAnswer(invocation -> apiMessageCaptor.getValue());
-        when(responseFilterResult.header()).thenAnswer(invocation -> responseHeaderDataCaptor.getValue());
+                invocation -> CompletableFuture.completedStage(responseFilterCommand));
+        when(responseFilterCommand.message()).thenAnswer(invocation -> apiMessageCaptor.getValue());
+        when(responseFilterCommand.header()).thenAnswer(invocation -> responseHeaderDataCaptor.getValue());
 
         when(context.createByteBufferOutputStream(bufferInitialCapacity.capture())).thenAnswer(
                 (Answer<ByteBufferOutputStream>) invocation -> {

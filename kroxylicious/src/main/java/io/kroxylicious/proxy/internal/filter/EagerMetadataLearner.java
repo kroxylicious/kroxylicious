@@ -19,7 +19,7 @@ import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilter;
-import io.kroxylicious.proxy.filter.RequestFilterResult;
+import io.kroxylicious.proxy.filter.RequestFilterCommand;
 
 /**
  * An internal filter that causes the system to eagerly learn the cluster's topology by spontaneously emitting
@@ -45,9 +45,9 @@ public class EagerMetadataLearner implements RequestFilter {
     }
 
     @Override
-    public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage body, FilterContext context) {
+    public CompletionStage<RequestFilterCommand> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage body, FilterContext context) {
         if (KAFKA_PRELUDE.contains(apiKey)) {
-            return context.requestFilterResultBuilder().forward(header, body).completed();
+            return context.requestFilterCommandBuilder().forward(header, body).completed();
         }
         else {
             final short apiVersion = determineMetadataApiVersion(header);
@@ -56,13 +56,13 @@ public class EagerMetadataLearner implements RequestFilter {
             boolean useClientRequest = apiKey.equals(ApiKeys.METADATA) && apiVersion == header.requestApiVersion();
             var request = useClientRequest ? (MetadataRequestData) body : new MetadataRequestData();
 
-            var future = new CompletableFuture<RequestFilterResult>();
+            var future = new CompletableFuture<RequestFilterCommand>();
             var unused = context.<MetadataResponseData> sendRequest(apiVersion, request)
                     .thenAccept(metadataResponseData -> {
                         // closing the connection is important. This client connection is connected to bootstrap (it could
                         // be any broker or maybe not something else). we must close the connection to force the client to
                         // connect again.
-                        var builder = context.requestFilterResultBuilder();
+                        var builder = context.requestFilterCommandBuilder();
                         if (useClientRequest) {
                             // The client's request matched our out-of-band message, so we may as well return the
                             // response.

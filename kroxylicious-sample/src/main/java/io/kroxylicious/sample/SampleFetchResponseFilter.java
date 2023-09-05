@@ -16,7 +16,7 @@ import io.micrometer.core.instrument.Timer;
 
 import io.kroxylicious.proxy.filter.FetchResponseFilter;
 import io.kroxylicious.proxy.filter.FilterContext;
-import io.kroxylicious.proxy.filter.ResponseFilterResult;
+import io.kroxylicious.proxy.filter.ResponseFilterCommand;
 import io.kroxylicious.sample.config.SampleFilterConfig;
 import io.kroxylicious.sample.util.SampleFilterTransformer;
 
@@ -56,10 +56,10 @@ public class SampleFetchResponseFilter implements FetchResponseFilter {
      * @param header     response header.
      * @param response   The KRPC message to handle.
      * @param context    The context.
-     * @return CompletionStage that will yield a {@link ResponseFilterResult} containing the response to be forwarded.
+     * @return CompletionStage that will yield a {@link ResponseFilterCommand} containing the response to be forwarded.
      */
     @Override
-    public CompletionStage<ResponseFilterResult> onFetchResponse(short apiVersion, ResponseHeaderData header, FetchResponseData response, FilterContext context) {
+    public CompletionStage<ResponseFilterCommand> onFetchResponse(short apiVersion, ResponseHeaderData header, FetchResponseData response, FilterContext context) {
         this.timer.record(() -> applyTransformation(response, context)); // We're timing this to report how long it takes through Micrometer
         return context.forwardResponse(header, response);
     }

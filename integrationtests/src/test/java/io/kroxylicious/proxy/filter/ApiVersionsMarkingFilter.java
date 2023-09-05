@@ -24,10 +24,10 @@ public class ApiVersionsMarkingFilter implements RequestFilter {
     public static final int UPSTREAM_API_VERSION_RANGE_TAG = 90;
 
     @Override
-    public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage request, FilterContext context) {
+    public CompletionStage<RequestFilterCommand> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage request, FilterContext context) {
         return context.getApiVersionsService().getApiVersionRanges(apiKey).thenCompose(apiVersionRanges -> {
             if (apiVersionRanges.isEmpty()) {
-                return context.requestFilterResultBuilder().withCloseConnection().completed();
+                return context.requestFilterCommandBuilder().withCloseConnection().completed();
             }
             ApiVersionsService.ApiVersionRanges versionRanges = apiVersionRanges.get();
             ApiVersionsResponseData.ApiVersion intersected = versionRanges.intersected();

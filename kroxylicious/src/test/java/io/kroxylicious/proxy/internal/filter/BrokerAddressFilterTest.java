@@ -129,7 +129,7 @@ class BrokerAddressFilterTest {
 
         var marshalled = responseWriter.apply(response, header.requestApiVersion());
 
-        when(context.responseFilterResultBuilder()).thenReturn(new ResponseFilterResultBuilderImpl());
+        when(context.responseFilterCommandBuilder()).thenReturn(new ResponseFilterCommandBuilderImpl());
 
         ResponseHeaderData headerData = new ResponseHeaderData();
         var stage = invoker.onResponse(ApiKeys.forId(apiMessageType.apiKey()), header.requestApiVersion(), headerData, response, context);

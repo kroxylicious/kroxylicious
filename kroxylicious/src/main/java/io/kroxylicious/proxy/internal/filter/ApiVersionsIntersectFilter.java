@@ -12,7 +12,7 @@ import org.apache.kafka.common.message.ResponseHeaderData;
 
 import io.kroxylicious.proxy.filter.ApiVersionsResponseFilter;
 import io.kroxylicious.proxy.filter.FilterContext;
-import io.kroxylicious.proxy.filter.ResponseFilterResult;
+import io.kroxylicious.proxy.filter.ResponseFilterCommand;
 import io.kroxylicious.proxy.internal.ApiVersionsServiceImpl;
 
 /**
@@ -27,8 +27,8 @@ public class ApiVersionsIntersectFilter implements ApiVersionsResponseFilter {
     }
 
     @Override
-    public CompletionStage<ResponseFilterResult> onApiVersionsResponse(short apiVersion, ResponseHeaderData header, ApiVersionsResponseData data,
-                                                                       FilterContext context) {
+    public CompletionStage<ResponseFilterCommand> onApiVersionsResponse(short apiVersion, ResponseHeaderData header, ApiVersionsResponseData data,
+                                                                        FilterContext context) {
         apiVersionsService.updateVersions(context.channelDescriptor(), data);
         return context.forwardResponse(header, data);
     }

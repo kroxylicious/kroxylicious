@@ -49,14 +49,14 @@ public interface FilterContext {
      * the request to forward and optionally orders for actions such as closing
      * the connection or dropping the request.
      * <br/>
-     * The builder returns either {@link CompletionStage<RequestFilterResult>} object
-     * ready to be returned by the request filter, or a {@link ResponseFilterResult} object.
+     * The builder returns either {@link CompletionStage<RequestFilterCommand>} object
+     * ready to be returned by the request filter, or a {@link ResponseFilterCommand} object.
      * The latter facilitates asynchronous programming patterns where requests must be
      * forwarded after other work has completed.
      *
      * @return builder
      */
-    RequestFilterResultBuilder requestFilterResultBuilder();
+    RequestFilterCommandBuilder requestFilterCommandBuilder();
 
     /**
      * Generates a completed filter results containing the given header and request.  When
@@ -64,13 +64,13 @@ public interface FilterContext {
      * the broker, invoking upstream filters.
      * <br/>
      * Invoking this method is identical to invoking:
-     * {@code requestFilterResultBuilder.forward(header, request).complete()}
+     * {@code requestFilterCommandBuilder.forward(header, request).complete()}
      *
      * @param header The header to forward to the broker.
      * @param request The request to forward to the broker.
      * @return completed filter results.
      */
-    CompletionStage<RequestFilterResult> forwardRequest(@NonNull RequestHeaderData header, @NonNull ApiMessage request);
+    CompletionStage<RequestFilterCommand> forwardRequest(@NonNull RequestHeaderData header, @NonNull ApiMessage request);
 
     /**
      * Send a message from a filter towards the broker.   The response to the requests will be
@@ -98,27 +98,27 @@ public interface FilterContext {
      * the client, invoking downstream filters.
      * <br/>
      * Invoking this method is identical to invoking:
-     * {@code responseFilterResultBuilder.forward(header, response).complete()}
+     * {@code responseFilterCommandBuilder.forward(header, response).complete()}
      *
      * @param header The header to forward to the broker.
      * @param response The request to forward to the broker.
      * @return completed filter results.
      */
-    CompletionStage<ResponseFilterResult> forwardResponse(@NonNull ResponseHeaderData header, @NonNull ApiMessage response);
+    CompletionStage<ResponseFilterCommand> forwardResponse(@NonNull ResponseHeaderData header, @NonNull ApiMessage response);
 
     /**
      * Creates a builder for a request filter result objects.  This object encapsulates
      * the response to forward and optionally orders for actions such as closing
      * the connection or dropping the response.
      * <br/>
-     * The builder returns either {@link CompletionStage<ResponseFilterResult>} object
-     * ready to be returned by the response filter, or a {@link ResponseFilterResult} object.
+     * The builder returns either {@link CompletionStage<ResponseFilterCommand>} object
+     * ready to be returned by the response filter, or a {@link ResponseFilterCommand} object.
      * The latter facilitates asynchronous programming patterns where responses must be
      * forwarded after other work has completed.
      *
      * @return builder
      */
-    ResponseFilterResultBuilder responseFilterResultBuilder();
+    ResponseFilterCommandBuilder responseFilterCommandBuilder();
 
     /**
      * Allows the filter to identify which cluster it is processing a request for

@@ -65,7 +65,7 @@ class EagerMetadataLearnerTest {
     @ParameterizedTest(name = "{0}")
     @MethodSource("preludeRequests")
     void forwardsRequestsOfKafkaPrelude(String name, ApiKeys apiKey, RequestHeaderData header, ApiMessage request) {
-        when(context.requestFilterResultBuilder()).thenReturn(new RequestFilterResultBuilderImpl());
+        when(context.requestFilterCommandBuilder()).thenReturn(new RequestFilterCommandBuilderImpl());
         var stage = learner.onRequest(apiKey, header, request, context);
         assertThat(stage).isCompleted();
     }
@@ -85,7 +85,7 @@ class EagerMetadataLearnerTest {
         var metadataResponse = new MetadataResponseData();
         metadataResponse.brokers().add(new MetadataResponseData.MetadataResponseBroker().setNodeId(1).setHost("localhost").setPort(1234));
 
-        when(context.requestFilterResultBuilder()).thenReturn(new RequestFilterResultBuilderImpl());
+        when(context.requestFilterCommandBuilder()).thenReturn(new RequestFilterCommandBuilderImpl());
         when(context.sendRequest(anyShort(), isA(MetadataRequestData.class))).thenReturn(CompletableFuture.completedStage(metadataResponse));
         var stage = learner.onRequest(apiKey, header, request, context);
         assertThat(stage).isCompleted();

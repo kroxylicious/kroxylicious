@@ -37,15 +37,15 @@ import io.kroxylicious.proxy.filter.ApiVersionsResponseFilter;
 import io.kroxylicious.proxy.filter.FetchRequestFilter;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
-import io.kroxylicious.proxy.filter.RequestFilterResult;
-import io.kroxylicious.proxy.filter.ResponseFilterResult;
+import io.kroxylicious.proxy.filter.RequestFilterCommand;
+import io.kroxylicious.proxy.filter.ResponseFilterCommand;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
 import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
 import io.kroxylicious.proxy.future.InternalCompletionStage;
-import io.kroxylicious.proxy.internal.filter.RequestFilterResultBuilderImpl;
-import io.kroxylicious.proxy.internal.filter.ResponseFilterResultBuilderImpl;
+import io.kroxylicious.proxy.internal.filter.RequestFilterCommandBuilderImpl;
+import io.kroxylicious.proxy.internal.filter.ResponseFilterCommandBuilderImpl;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -63,7 +63,7 @@ public class FilterHandlerTest extends FilterHarness {
 
     @Test
     void testForwardRequest() {
-        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> context.requestFilterResultBuilder().forward(header, request)
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> context.requestFilterCommandBuilder().forward(header, request)
                 .completed();
         buildChannel(filter);
         var frame = writeRequest(new ApiVersionsRequestData());
@@ -74,7 +74,7 @@ public class FilterHandlerTest extends FilterHarness {
     @Test
     void testShortCircuitResponse() {
         ApiVersionsResponseData responseData = new ApiVersionsResponseData();
-        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> context.requestFilterResultBuilder().shortCircuitResponse(responseData)
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> context.requestFilterCommandBuilder().shortCircuitResponse(responseData)
                 .completed();
         buildChannel(filter);
         writeRequest(new ApiVersionsRequestData());
@@ -86,7 +86,7 @@ public class FilterHandlerTest extends FilterHarness {
     @Test
     void testShortCircuitResponseZeroAcksProduceResponseDropped() {
         ProduceResponseData responseData = new ProduceResponseData();
-        ProduceRequestFilter filter = (apiVersion, header, request, context) -> context.requestFilterResultBuilder().shortCircuitResponse(responseData)
+        ProduceRequestFilter filter = (apiVersion, header, request, context) -> context.requestFilterCommandBuilder().shortCircuitResponse(responseData)
                 .completed();
         buildChannel(filter);
         writeRequest(new ProduceRequestData().setAcks((short) 0));
@@ -97,7 +97,7 @@ public class FilterHandlerTest extends FilterHarness {
     @Test
     void testShortCircuitResponseNonZeroAcksProduceResponseForwarded() {
         ProduceResponseData responseData = new ProduceResponseData();
-        ProduceRequestFilter filter = (apiVersion, header, request, context) -> context.requestFilterResultBuilder().shortCircuitResponse(responseData)
+        ProduceRequestFilter filter = (apiVersion, header, request, context) -> context.requestFilterCommandBuilder().shortCircuitResponse(responseData)
                 .completed();
         buildChannel(filter);
         writeRequest(new ProduceRequestData().setAcks((short) 1));
@@ -108,7 +108,7 @@ public class FilterHandlerTest extends FilterHarness {
     @Test
     void shortCircuitSendsIncorrectApiResponse() {
         ProduceResponseData responseData = new ProduceResponseData();
-        FetchRequestFilter filter = (apiVersion, header, request, context) -> context.requestFilterResultBuilder().shortCircuitResponse(responseData)
+        FetchRequestFilter filter = (apiVersion, header, request, context) -> context.requestFilterCommandBuilder().shortCircuitResponse(responseData)
                 .completed();
         buildChannel(filter);
         writeRequest(new FetchRequestData());
@@ -319,7 +319,7 @@ public class FilterHandlerTest extends FilterHarness {
 
     @Test
     void testDeferredRequestTimeout() {
-        var filterFuture = new CompletableFuture<RequestFilterResult>();
+        var filterFuture = new CompletableFuture<RequestFilterCommand>();
         ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> filterFuture;
         long timeoutMs = 50L;
         buildChannel(filter, timeoutMs);
@@ -338,7 +338,7 @@ public class FilterHandlerTest extends FilterHarness {
 
     @Test
     void testDeferredResponseTimeout() {
-        var filterFuture = new CompletableFuture<ResponseFilterResult>();
+        var filterFuture = new CompletableFuture<ResponseFilterCommand>();
         ApiVersionsResponseFilter filter = (apiVersion, header, request, context) -> filterFuture;
         long timeoutMs = 50L;
         buildChannel(filter, timeoutMs);
@@ -365,7 +365,7 @@ public class FilterHandlerTest extends FilterHarness {
 
     @Test
     void testUserResponseFilterReturnsEmptyFuture() {
-        CompletableFuture<ResponseFilterResult> filterFuture = CompletableFuture.completedFuture(null);
+        CompletableFuture<ResponseFilterCommand> filterFuture = CompletableFuture.completedFuture(null);
         ApiVersionsResponseFilter filter = (apiVersion, header, request, context) -> filterFuture;
         buildChannel(filter, 50L);
         writeResponse(new ApiVersionsResponseData());
@@ -382,7 +382,7 @@ public class FilterHandlerTest extends FilterHarness {
 
     @Test
     void testUserRequestFilterReturnsEmptyFuture() {
-        CompletableFuture<RequestFilterResult> filterFuture = CompletableFuture.completedFuture(null);
+        CompletableFuture<RequestFilterCommand> filterFuture = CompletableFuture.completedFuture(null);
         ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> filterFuture;
         buildChannel(filter, 50L);
         writeRequest(new ApiVersionsRequestData());
@@ -392,15 +392,15 @@ public class FilterHandlerTest extends FilterHarness {
     static Stream<Arguments> requestFilterClosesChannel() {
         return Stream.of(
                 Arguments.of("completes exceptionally",
-                        (BiFunction<RequestHeaderData, ApiMessage, CompletionStage<RequestFilterResult>>) (header, request) -> CompletableFuture
+                        (BiFunction<RequestHeaderData, ApiMessage, CompletionStage<RequestFilterCommand>>) (header, request) -> CompletableFuture
                                 .failedStage(new RuntimeException("filter error")),
                         false),
                 Arguments.of("filter result signals close",
-                        (BiFunction<RequestHeaderData, ApiMessage, CompletionStage<RequestFilterResult>>) (header, request) -> new RequestFilterResultBuilderImpl()
+                        (BiFunction<RequestHeaderData, ApiMessage, CompletionStage<RequestFilterCommand>>) (header, request) -> new RequestFilterCommandBuilderImpl()
                                 .withCloseConnection().completed(),
                         false),
                 Arguments.of("filter result signals close with forward",
-                        (BiFunction<RequestHeaderData, ApiMessage, CompletionStage<RequestFilterResult>>) (header, request) -> new RequestFilterResultBuilderImpl()
+                        (BiFunction<RequestHeaderData, ApiMessage, CompletionStage<RequestFilterCommand>>) (header, request) -> new RequestFilterCommandBuilderImpl()
                                 .forward(header, request).withCloseConnection().completed(),
                         true));
     }
@@ -408,7 +408,7 @@ public class FilterHandlerTest extends FilterHarness {
     @ParameterizedTest(name = "{0}")
     @MethodSource
     void requestFilterClosesChannel(String name,
-                                    BiFunction<RequestHeaderData, ApiMessage, CompletableFuture<RequestFilterResult>> stageFunction,
+                                    BiFunction<RequestHeaderData, ApiMessage, CompletableFuture<RequestFilterCommand>> stageFunction,
                                     boolean forwardExpected) {
         ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> stageFunction.apply(header, request);
         buildChannel(filter);
@@ -428,15 +428,15 @@ public class FilterHandlerTest extends FilterHarness {
     static Stream<Arguments> responseFilterClosesChannel() {
         return Stream.of(
                 Arguments.of("completes exceptionally",
-                        (BiFunction<ResponseHeaderData, ApiMessage, CompletionStage<ResponseFilterResult>>) (header, response) -> CompletableFuture
+                        (BiFunction<ResponseHeaderData, ApiMessage, CompletionStage<ResponseFilterCommand>>) (header, response) -> CompletableFuture
                                 .failedStage(new RuntimeException("filter error")),
                         false),
                 Arguments.of("filter result signals close",
-                        (BiFunction<ResponseHeaderData, ApiMessage, CompletionStage<ResponseFilterResult>>) (header, response) -> new ResponseFilterResultBuilderImpl()
+                        (BiFunction<ResponseHeaderData, ApiMessage, CompletionStage<ResponseFilterCommand>>) (header, response) -> new ResponseFilterCommandBuilderImpl()
                                 .withCloseConnection().completed(),
                         false),
                 Arguments.of("filter result signals close with forward",
-                        (BiFunction<ResponseHeaderData, ApiMessage, CompletionStage<ResponseFilterResult>>) (header, response) -> new ResponseFilterResultBuilderImpl()
+                        (BiFunction<ResponseHeaderData, ApiMessage, CompletionStage<ResponseFilterCommand>>) (header, response) -> new ResponseFilterCommandBuilderImpl()
                                 .forward(header, response).withCloseConnection().completed(),
                         true));
     }
@@ -444,7 +444,7 @@ public class FilterHandlerTest extends FilterHarness {
     @ParameterizedTest(name = "{0}")
     @MethodSource
     void responseFilterClosesChannel(String name,
-                                     BiFunction<ResponseHeaderData, ApiMessage, CompletableFuture<ResponseFilterResult>> stageFunction,
+                                     BiFunction<ResponseHeaderData, ApiMessage, CompletableFuture<ResponseFilterCommand>> stageFunction,
                                      boolean forwardExpected) {
         ApiVersionsResponseFilter filter = (apiVersion, header, response, context) -> stageFunction.apply(header, response);
         buildChannel(filter);
@@ -464,7 +464,7 @@ public class FilterHandlerTest extends FilterHarness {
     @Test
     void closedChannelIgnoresDeferredPendingRequests() {
         var seen = new ArrayList<ApiMessage>();
-        var filterFuture = new CompletableFuture<RequestFilterResult>();
+        var filterFuture = new CompletableFuture<RequestFilterCommand>();
         ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> {
             seen.add(request);
             return filterFuture;
@@ -473,7 +473,7 @@ public class FilterHandlerTest extends FilterHarness {
         var frame1 = writeRequest(new ApiVersionsRequestData());
         writeRequest(new ApiVersionsRequestData().setClientSoftwareName("should not be processed"));
         // the filter handler will have queued up the second request, awaiting the completion of the first.
-        filterFuture.complete(new RequestFilterResultBuilderImpl().withCloseConnection().build());
+        filterFuture.complete(new RequestFilterCommandBuilderImpl().withCloseConnection().build());
         channel.runPendingTasks();
 
         assertThat(channel.isOpen()).isFalse();
@@ -485,7 +485,7 @@ public class FilterHandlerTest extends FilterHarness {
     @Test
     void closedChannelIgnoresDeferredPendingResponse() {
         var seen = new ArrayList<ApiMessage>();
-        var filterFuture = new CompletableFuture<ResponseFilterResult>();
+        var filterFuture = new CompletableFuture<ResponseFilterCommand>();
         ApiVersionsResponseFilter filter = (apiVersion, header, response, context) -> {
             seen.add(response);
             return filterFuture;
@@ -494,7 +494,7 @@ public class FilterHandlerTest extends FilterHarness {
         var frame1 = writeResponse(new ApiVersionsResponseData().setErrorCode((short) 1));
         writeResponse(new ApiVersionsResponseData().setErrorCode((short) 2));
         // the filter handler will have queued up the second response, awaiting the completion of the first.
-        filterFuture.complete(new ResponseFilterResultBuilderImpl().withCloseConnection().build());
+        filterFuture.complete(new ResponseFilterCommandBuilderImpl().withCloseConnection().build());
         channel.runPendingTasks();
 
         assertThat(channel.isOpen()).isFalse();
@@ -512,8 +512,8 @@ public class FilterHandlerTest extends FilterHarness {
             }
 
             @Override
-            public CompletionStage<RequestFilterResult> onApiVersionsRequest(short apiVersion, RequestHeaderData header, ApiVersionsRequestData request,
-                                                                             FilterContext context) {
+            public CompletionStage<RequestFilterCommand> onApiVersionsRequest(short apiVersion, RequestHeaderData header, ApiVersionsRequestData request,
+                                                                              FilterContext context) {
                 fail("Should not be called");
                 return null;
             }
@@ -528,7 +528,7 @@ public class FilterHandlerTest extends FilterHarness {
     void testDropRequest() {
         ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> {
             /* don't call forwardRequest => drop the request */
-            return context.requestFilterResultBuilder().drop().completed();
+            return context.requestFilterCommandBuilder().drop().completed();
         };
         buildChannel(filter);
         var frame = writeRequest(new ApiVersionsRequestData());
@@ -541,7 +541,7 @@ public class FilterHandlerTest extends FilterHarness {
     void requestShortCircuit(boolean withClose) {
         var shortCircuitResponse = new ApiVersionsResponseData();
         ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> {
-            var builder = context.requestFilterResultBuilder()
+            var builder = context.requestFilterCommandBuilder()
                     .shortCircuitResponse(shortCircuitResponse);
 
             if (withClose) {
@@ -608,8 +608,8 @@ public class FilterHandlerTest extends FilterHarness {
             }
 
             @Override
-            public CompletionStage<ResponseFilterResult> onApiVersionsResponse(short apiVersion, ResponseHeaderData header, ApiVersionsResponseData response,
-                                                                               FilterContext context) {
+            public CompletionStage<ResponseFilterCommand> onApiVersionsResponse(short apiVersion, ResponseHeaderData header, ApiVersionsResponseData response,
+                                                                                FilterContext context) {
                 fail("Should not be called");
                 return null;
             }
@@ -623,7 +623,7 @@ public class FilterHandlerTest extends FilterHarness {
     @Test
     void testDropResponse() {
         ApiVersionsResponseFilter filter = (apiVersion, header, response, context) -> {
-            return context.responseFilterResultBuilder().drop().completed();
+            return context.responseFilterCommandBuilder().drop().completed();
         };
         buildChannel(filter);
         var frame = writeResponse(new ApiVersionsResponseData());
@@ -640,7 +640,7 @@ public class FilterHandlerTest extends FilterHarness {
             assertNull(fut[0],
                     "Expected to only be called once");
             fut[0] = (InternalCompletionStage<ApiMessage>) context.sendRequest((short) 3, body);
-            return context.requestFilterResultBuilder().drop().completed();
+            return context.requestFilterCommandBuilder().drop().completed();
         };
 
         buildChannel(filter);
@@ -791,7 +791,7 @@ public class FilterHandlerTest extends FilterHarness {
     private static ApiVersionsResponseFilter taggingApiVersionsResponseFilter(String tag) {
         return (apiVersion, header, response, context) -> {
             response.unknownTaggedFields().add(new RawTaggedField(ARBITRARY_TAG, tag.getBytes(UTF_8)));
-            return context.responseFilterResultBuilder().forward(header, response).completed();
+            return context.responseFilterCommandBuilder().forward(header, response).completed();
         };
     }
 
@@ -803,7 +803,7 @@ public class FilterHandlerTest extends FilterHarness {
     private static ApiVersionsRequestFilter taggingApiVersionsRequestFilter(String tag) {
         return (apiVersion, header, request, context) -> {
             request.unknownTaggedFields().add(new RawTaggedField(ARBITRARY_TAG, tag.getBytes(UTF_8)));
-            return context.requestFilterResultBuilder().forward(header, request).completed();
+            return context.requestFilterCommandBuilder().forward(header, request).completed();
         };
     }
 

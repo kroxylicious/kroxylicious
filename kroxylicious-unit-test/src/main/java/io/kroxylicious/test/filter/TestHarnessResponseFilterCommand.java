@@ -9,6 +9,6 @@ package io.kroxylicious.test.filter;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
 
-import io.kroxylicious.proxy.filter.ResponseFilterResult;
+import io.kroxylicious.proxy.filter.ResponseFilterCommand;
 
-public record TestHarnessResponseFilterResult(ResponseHeaderData header, ApiMessage message, boolean closeConnection, boolean drop) implements ResponseFilterResult {}
+public record TestHarnessResponseFilterCommand(ResponseHeaderData header, ApiMessage message, boolean closeConnection, boolean drop) implements ResponseFilterCommand {}
