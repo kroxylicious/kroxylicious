@@ -6,6 +6,7 @@ Please enumerate **all user-facing** changes using format `<githib issue/pr numb
 
 ## 0.3.0
 
+* [#602](https://github.com/kroxylicious/kroxylicious/pull/602): Added `requiresConfig(String shortName)` to Contributor with a default implementation to say that custom config objects are required.
 * [#538](https://github.com/kroxylicious/kroxylicious/pull/538): Refactor FilterHandler and fix several bugs that would leave messages unflushed to client/broker.
 * [#531](https://github.com/kroxylicious/kroxylicious/pull/531): Simple Test Client now supports multi-RPC conversations with the server.
 * [#510](https://github.com/kroxylicious/kroxylicious/pull/510): Add multi-tenant kubernetes example
