@@ -137,6 +137,16 @@ class KroxyliciousTestersTest {
         consumer.subscribe(List.of(TOPIC));
         assertThat(consumer.poll(Duration.ofSeconds(10))).isNotNull();
         tester.close();
+        // we expect the following to throw an exception, but if it doesn't we fail.
+        try {
+            admin.describeCluster();
+            send(producer);
+            consumer.poll(Duration.ofSeconds(10));
+            assert false;
+        }
+        catch (Exception e) {
+            assertThat(e).isNotNull();
+        }
     }
 
     @Test
