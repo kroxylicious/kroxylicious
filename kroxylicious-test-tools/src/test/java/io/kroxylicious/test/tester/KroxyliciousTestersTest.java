@@ -109,6 +109,37 @@ class KroxyliciousTestersTest {
     }
 
     @Test
+    void testRestartingProxyDoesNotCloseClients(KafkaCluster cluster) throws Exception {
+        try (var tester = kroxyliciousTester(proxy(cluster))) {
+            var admin = tester.admin();
+            var producer = tester.producer();
+            var consumer = tester.consumer();
+            assertThat(admin.describeCluster()).isNotNull();
+            send(producer);
+            consumer.subscribe(List.of(TOPIC));
+            assertThat(consumer.poll(Duration.ofSeconds(10))).isNotNull();
+            tester.restartProxy();
+            // assert some basic things here but if restarting the proxy restarted the clients these would except
+            assertThat(admin.describeCluster()).isNotNull();
+            send(producer);
+            assertThat(consumer.poll(Duration.ofSeconds(10))).isNotNull();
+        }
+    }
+
+    @Test
+    void testClosingTesterAlsoClosesClients(KafkaCluster cluster) throws Exception {
+        var tester = kroxyliciousTester(proxy(cluster));
+        var admin = tester.admin();
+        var producer = tester.producer();
+        var consumer = tester.consumer();
+        assertThat(admin.describeCluster()).isNotNull();
+        send(producer);
+        consumer.subscribe(List.of(TOPIC));
+        assertThat(consumer.poll(Duration.ofSeconds(10))).isNotNull();
+        tester.close();
+    }
+
+    @Test
     void testMockRequestMockTester() {
         try (var tester = mockKafkaKroxyliciousTester(KroxyliciousConfigUtils::proxy)) {
             assertCanSendRequestsAndReceiveMockResponses(tester, tester::simpleTestClient);
