@@ -12,7 +12,4 @@ import io.kroxylicious.proxy.service.Contributor;
  * @see Contributor
  */
 public interface FilterContributor extends Contributor<Filter> {
-    default Boolean requiresConfig(String shortName) {
-        return false;
-    }
 }

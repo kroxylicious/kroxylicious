@@ -90,7 +90,7 @@ class KafkaProxyTest {
                 """;
         try (var kafkaProxy = new KafkaProxy(new ConfigParser().parseConfiguration(config))) {
             var illegalStateException = assertThrows(IllegalStateException.class, kafkaProxy::startup);
-            assertThat(illegalStateException).hasStackTraceContaining("because \"config\" is null");
+            assertThat(illegalStateException).hasStackTraceContaining("Missing required config for");
         }
     }
 

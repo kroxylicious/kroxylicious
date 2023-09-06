@@ -6,6 +6,7 @@
 package io.kroxylicious.proxy.bootstrap;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.StringJoiner;
 import java.util.stream.Collectors;
@@ -30,6 +31,21 @@ public class FilterChainFactory {
         this.filterContributorManager = filterContributorManager;
     }
 
+    public static void validateFilterConfiguration(List<FilterDefinition> filters, FilterContributorManager contributorManager) {
+        if (Objects.isNull(filters) || filters.isEmpty()) {
+            return;
+        }
+        final Set<String> filtersWithoutRequiredConfiguration = filters.stream().filter(f -> f.config() == null && contributorManager.requiresConfig(f.type()))
+                .map(FilterDefinition::type).collect(Collectors.toSet());
+        if (!filtersWithoutRequiredConfiguration.isEmpty()) {
+            StringJoiner joiner = new StringJoiner(", ", "[", "]");
+            for (String s : filtersWithoutRequiredConfiguration) {
+                joiner.add(s);
+            }
+            throw new IllegalStateException("Missing required config for " + joiner.toString());
+        }
+    }
+
     /**
      * Create a new chain of filter instances
      *
@@ -41,15 +57,7 @@ public class FilterChainFactory {
         if (filters == null || filters.isEmpty()) {
             return List.of();
         }
-        final Set<String> filtersWithoutRequiredConfiguration = filters.stream().filter(f -> f.config() == null && filterContributorManager.requiresConfig(f.type()))
-                .map(FilterDefinition::type).collect(Collectors.toSet());
-        if (!filtersWithoutRequiredConfiguration.isEmpty()) {
-            StringJoiner joiner = new StringJoiner(", ", "[", "]");
-            for (String s : filtersWithoutRequiredConfiguration) {
-                joiner.add(s);
-            }
-            throw new IllegalStateException("Missing required config for " + joiner.toString());
-        }
+        validateFilterConfiguration(filters, filterContributorManager);
         return filters
                 .stream()
                 .map(f -> filterContributorManager.getFilter(f.type(), f.config()))

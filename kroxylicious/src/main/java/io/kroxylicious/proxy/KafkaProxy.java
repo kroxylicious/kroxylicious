@@ -33,6 +33,7 @@ import io.netty.incubator.channel.uring.IOUringEventLoopGroup;
 import io.netty.incubator.channel.uring.IOUringServerSocketChannel;
 import io.netty.util.concurrent.Future;
 
+import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.MicrometerDefinition;
 import io.kroxylicious.proxy.config.admin.AdminHttpConfiguration;
@@ -40,6 +41,7 @@ import io.kroxylicious.proxy.internal.KafkaProxyInitializer;
 import io.kroxylicious.proxy.internal.MeterRegistries;
 import io.kroxylicious.proxy.internal.PortConflictDetector;
 import io.kroxylicious.proxy.internal.admin.AdminHttpInitializer;
+import io.kroxylicious.proxy.internal.filter.FilterContributorManager;
 import io.kroxylicious.proxy.internal.net.DefaultNetworkBindingOperationProcessor;
 import io.kroxylicious.proxy.internal.net.EndpointRegistry;
 import io.kroxylicious.proxy.internal.net.NetworkBindingOperationProcessor;
@@ -106,8 +108,11 @@ public final class KafkaProxy implements AutoCloseable {
 
         bindingOperationProcessor.start(plainServerBootstrap, tlsServerBootstrap);
 
+        FilterChainFactory.validateFilterConfiguration(config.filters(), FilterContributorManager.getInstance());
+
         // TODO: startup/shutdown should return a completionstage
-        CompletableFuture.allOf(virtualClusters.stream().map(vc -> endpointRegistry.registerVirtualCluster(vc).toCompletableFuture()).toArray(CompletableFuture[]::new))
+        CompletableFuture.allOf(virtualClusters.stream()
+                .map(vc -> endpointRegistry.registerVirtualCluster(vc).toCompletableFuture()).toArray(CompletableFuture[]::new))
                 .join();
 
         // Pre-register counters/summaries to avoid creating them on first request and thus skewing the request latency
