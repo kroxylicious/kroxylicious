@@ -6,7 +6,9 @@
 
 package io.kroxylicious.test.tester;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
@@ -27,16 +29,7 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     private final Map<String, KroxyliciousClients> clients;
 
     DefaultKroxyliciousTester(ConfigurationBuilder configurationBuilder) {
-        this(configurationBuilder, config -> {
-            KafkaProxy kafkaProxy = new KafkaProxy(config);
-            try {
-                kafkaProxy.startup();
-            }
-            catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-            return kafkaProxy;
-        });
+        this(configurationBuilder, DefaultKroxyliciousTester::spawnProxy);
     }
 
     DefaultKroxyliciousTester(ConfigurationBuilder configuration, Function<Configuration, AutoCloseable> kroxyliciousFactory) {
@@ -58,14 +51,8 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     }
 
     private KroxyliciousClients clients(String virtualCluster) {
-        if (clients.containsKey(virtualCluster)) {
-            return clients.get(virtualCluster);
-        }
-        else {
-            KroxyliciousClients client = new KroxyliciousClients(KroxyliciousConfigUtils.bootstrapServersFor(virtualCluster, kroxyliciousConfig));
-            clients.put(virtualCluster, client);
-            return client;
-        }
+        clients.computeIfAbsent(virtualCluster, k -> new KroxyliciousClients(KroxyliciousConfigUtils.bootstrapServersFor(k, kroxyliciousConfig)));
+        return clients.get(virtualCluster);
     }
 
     @Override
@@ -161,7 +148,7 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     public void restartProxy() {
         try {
             proxy.close();
-            proxy = new KafkaProxy(kroxyliciousConfig).startup();
+            proxy = spawnProxy(kroxyliciousConfig);
         }
         catch (Exception e) {
             throw new RuntimeException(e);
@@ -171,12 +158,35 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     @Override
     public void close() {
         try {
-            clients.values().forEach(KroxyliciousClients::close);
+            List<Exception> exceptions = new ArrayList<>();
+            for (KroxyliciousClients c : clients.values()) {
+                try {
+                    c.close();
+                }
+                catch (Exception e) {
+                    exceptions.add(e);
+                }
+            }
             proxy.close();
+            if (exceptions.size() > 0) {
+                // if we encountered any exceptions while closing, throw whichever one came first.
+                throw exceptions.get(0);
+            }
         }
         catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public static KafkaProxy spawnProxy(Configuration config) {
+        KafkaProxy kafkaProxy = new KafkaProxy(config);
+        try {
+            kafkaProxy.startup();
+        }
+        catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        return kafkaProxy;
     }
 
 }

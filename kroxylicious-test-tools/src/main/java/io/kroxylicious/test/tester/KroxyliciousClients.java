@@ -88,10 +88,36 @@ class KroxyliciousClients {
     }
 
     public void close() {
+        List<Exception> exceptions = new ArrayList<>();
         try {
-            admins.forEach(Admin::close);
-            producers.forEach(Producer::close);
-            consumers.forEach(Consumer::close);
+            for (Admin admin : admins) {
+                try {
+                    admin.close();
+                }
+                catch (Exception e) {
+                    exceptions.add(e);
+                }
+            }
+            for (Producer producer : producers) {
+                try {
+                    producer.close();
+                }
+                catch (Exception e) {
+                    exceptions.add(e);
+                }
+            }
+            for (Consumer consumer : consumers) {
+                try {
+                    consumer.close();
+                }
+                catch (Exception e) {
+                    exceptions.add(e);
+                }
+            }
+            if (exceptions.size() > 0) {
+                // if we encountered any exceptions while closing, throw whichever one came first.
+                throw exceptions.get(0);
+            }
         }
         catch (Exception e) {
             throw new RuntimeException(e);
