@@ -5,8 +5,6 @@
  */
 package io.kroxylicious.proxy.service;
 
-import java.util.Objects;
-
 import io.kroxylicious.proxy.config.BaseConfig;
 
 /**
@@ -19,8 +17,8 @@ public interface Contributor<T> {
 
     /**
      * Gets the concrete type of the configuration required by this service instance.
-     * @param shortName service short name
      *
+     * @param shortName service short name
      * @return class of a concrete type, or null if this contributor does not offer this short name.
      */
     Class<? extends BaseConfig> getConfigType(String shortName);
@@ -31,13 +29,9 @@ public interface Contributor<T> {
      * To make custom config classes entirely optional implementors should override this method.
      *
      * @param shortName service short name
-     *
      * @return <code>true</code> if the configuration must be specified.
      */
-    default boolean requiresConfig(String shortName) {
-        final Class<? extends BaseConfig> configType = getConfigType(shortName);
-        return !Objects.isNull(configType) && !Objects.equals(configType, BaseConfig.class);
-    }
+    Boolean requiresConfig(String shortName);
 
     /**
      * Creates an instance of the service.

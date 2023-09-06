@@ -6,6 +6,7 @@
 package io.kroxylicious.proxy.internal.filter;
 
 import java.util.Iterator;
+import java.util.Objects;
 import java.util.ServiceLoader;
 import java.util.function.Supplier;
 
@@ -66,7 +67,10 @@ public class FilterContributorManager {
         Iterator<FilterContributor> it = contributors.get();
         while (it.hasNext()) {
             FilterContributor contributor = it.next();
-            return contributor.requiresConfig(shortName);
+            final Boolean requiresConfig = contributor.requiresConfig(shortName);
+            if (!Objects.isNull(requiresConfig)) {
+                return requiresConfig;
+            }
         }
         return false;
     }

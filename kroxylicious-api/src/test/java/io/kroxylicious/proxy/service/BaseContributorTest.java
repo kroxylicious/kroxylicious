@@ -76,7 +76,7 @@ class BaseContributorTest {
     void shouldFailIfConfigIsNullAndRequired() {
         // Given
         BaseContributor.BaseContributorBuilder<Long> builder = BaseContributor.builder();
-        builder.add("requiresConfig", LongConfig.class, baseConfig -> 1L);
+        builder.add("requiresConfig", LongConfig.class, baseConfig -> 1L, true);
         BaseContributor<Long> baseContributor = new BaseContributor<>(builder) {
         };
 
@@ -92,7 +92,7 @@ class BaseContributorTest {
     void shouldConstructInstanceIfConfigIsNullAndNotRequired() {
         // Given
         BaseContributor.BaseContributorBuilder<Long> builder = BaseContributor.builder();
-        builder.add("noConfigRequired", () -> 1L);
+        builder.add("noConfigRequired", LongConfig.class, longConfig -> 1L, false);
         BaseContributor<Long> baseContributor = new BaseContributor<>(builder) {
         };
 
@@ -107,12 +107,8 @@ class BaseContributorTest {
     void shouldConstructInstanceIfConfigTypeIsSpecifiedButNotRequiredAndConfigIsNull() {
         // Given
         BaseContributor.BaseContributorBuilder<Long> builder = BaseContributor.builder();
-        builder.add("configOptional", LongConfig.class, longConfig -> 1L);
+        builder.add("configOptional", LongConfig.class, longConfig -> 1L, false);
         BaseContributor<Long> baseContributor = new BaseContributor<>(builder) {
-            @Override
-            public boolean requiresConfig(String shortName) {
-                return false;
-            }
         };
 
         // When
@@ -141,12 +137,12 @@ class BaseContributorTest {
     void shouldConstructInstanceIfConfigIsNotNullAndNotRequired() {
         // Given
         BaseContributor.BaseContributorBuilder<Long> builder = BaseContributor.builder();
-        builder.add("configRequired", () -> 1L);
+        builder.add("configOptional", () -> 1L);
         BaseContributor<Long> baseContributor = new BaseContributor<>(builder) {
         };
 
         // When
-        final Long actualInstance = baseContributor.getInstance("configRequired", new LongConfig());
+        final Long actualInstance = baseContributor.getInstance("configOptional", new LongConfig());
 
         // Then
         assertThat(actualInstance).isNotNull();

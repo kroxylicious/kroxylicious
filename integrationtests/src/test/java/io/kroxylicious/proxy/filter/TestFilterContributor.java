@@ -17,18 +17,9 @@ public class TestFilterContributor extends BaseContributor<Filter> implements Fi
             .add("RequestResponseMarking", RequestResponseMarkingFilter.RequestResponseMarkingFilterConfig.class, RequestResponseMarkingFilter::new)
             .add("OutOfBandSend", OutOfBandSendFilter.OutOfBandSendFilterConfig.class, OutOfBandSendFilter::new)
             .add("CompositePrefixingFixedClientId", CompositePrefixingFixedClientIdFilterConfig.class, CompositePrefixingFixedClientIdFilter::new)
-            .add(REJECTING_CREATE_TOPIC, RejectingCreateTopicFilter.RejectingCreateTopicFilterConfig.class, RejectingCreateTopicFilter::new);
+            .add(REJECTING_CREATE_TOPIC, RejectingCreateTopicFilter.RejectingCreateTopicFilterConfig.class, RejectingCreateTopicFilter::new, false);
 
     public TestFilterContributor() {
         super(FILTERS);
-    }
-
-    @Override
-    public boolean requiresConfig(String shortName) {
-        if (shortName.equals(REJECTING_CREATE_TOPIC)) {
-            // The Rejecting Create Topic filter accepts nulls and defaults them thus the config is genuinely optional
-            return false;
-        }
-        return super.requiresConfig(shortName);
     }
 }
