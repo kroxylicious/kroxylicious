@@ -178,7 +178,7 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
         }
     }
 
-    public static KafkaProxy spawnProxy(Configuration config) {
+    private static KafkaProxy spawnProxy(Configuration config) {
         KafkaProxy kafkaProxy = new KafkaProxy(config);
         try {
             kafkaProxy.startup();
