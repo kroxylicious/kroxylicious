@@ -73,7 +73,7 @@ class BaseContributorTest {
     }
 
     @Test
-    void shouldFailsIfConfigIsNullAndRequired() {
+    void shouldFailIfConfigIsNullAndRequired() {
         // Given
         BaseContributor.BaseContributorBuilder<Long> builder = BaseContributor.builder();
         builder.add("requiresConfig", LongConfig.class, baseConfig -> 1L);
@@ -104,10 +104,29 @@ class BaseContributorTest {
     }
 
     @Test
+    void shouldConstructInstanceIfConfigTypeIsSpecifiedButNotRequiredAndConfigIsNull() {
+        // Given
+        BaseContributor.BaseContributorBuilder<Long> builder = BaseContributor.builder();
+        builder.add("configOptional", LongConfig.class, longConfig -> 1L);
+        BaseContributor<Long> baseContributor = new BaseContributor<>(builder) {
+            @Override
+            public boolean requiresConfig(String shortName) {
+                return false;
+            }
+        };
+
+        // When
+        final Long actualInstance = baseContributor.getInstance("configOptional", null);
+
+        // Then
+        assertThat(actualInstance).isNotNull();
+    }
+
+    @Test
     void shouldConstructInstanceIfConfigIsNotNullAndRequired() {
         // Given
         BaseContributor.BaseContributorBuilder<Long> builder = BaseContributor.builder();
-        builder.add("configRequired", LongConfig.class, (longConfig) -> longConfig.value);
+        builder.add("configRequired", LongConfig.class, longConfig -> longConfig.value);
         BaseContributor<Long> baseContributor = new BaseContributor<>(builder) {
         };
 
@@ -132,5 +151,4 @@ class BaseContributorTest {
         // Then
         assertThat(actualInstance).isNotNull();
     }
-
 }
