@@ -10,15 +10,25 @@ import io.kroxylicious.proxy.service.BaseContributor;
 
 public class TestFilterContributor extends BaseContributor<Filter> implements FilterContributor {
 
+    public static final String REJECTING_CREATE_TOPIC = "RejectingCreateTopic";
     public static final BaseContributorBuilder<Filter> FILTERS = BaseContributor.<Filter> builder()
             .add("FixedClientId", FixedClientIdFilter.FixedClientIdFilterConfig.class, FixedClientIdFilter::new)
             .add("ApiVersionsMarkingFilter", ApiVersionsMarkingFilter::new)
             .add("RequestResponseMarking", RequestResponseMarkingFilter.RequestResponseMarkingFilterConfig.class, RequestResponseMarkingFilter::new)
             .add("OutOfBandSend", OutOfBandSendFilter.OutOfBandSendFilterConfig.class, OutOfBandSendFilter::new)
             .add("CompositePrefixingFixedClientId", CompositePrefixingFixedClientIdFilterConfig.class, CompositePrefixingFixedClientIdFilter::new)
-            .add("RejectingCreateTopic", RejectingCreateTopicFilter.RejectingCreateTopicFilterConfig.class, RejectingCreateTopicFilter::new);
+            .add(REJECTING_CREATE_TOPIC, RejectingCreateTopicFilter.RejectingCreateTopicFilterConfig.class, RejectingCreateTopicFilter::new);
 
     public TestFilterContributor() {
         super(FILTERS);
+    }
+
+    @Override
+    public boolean requiresConfig(String shortName) {
+        if (shortName.equals(REJECTING_CREATE_TOPIC)) {
+            // The Rejecting Create Topic filter accepts nulls and defaults them thus the config is genuinely optional
+            return false;
+        }
+        return super.requiresConfig(shortName);
     }
 }

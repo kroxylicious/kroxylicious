@@ -35,7 +35,8 @@ public interface Contributor<T> {
      * @return <code>true</code> if the configuration must be specified.
      */
     default boolean requiresConfig(String shortName) {
-        return !Objects.equals(getConfigType(shortName), BaseConfig.class);
+        final Class<? extends BaseConfig> configType = getConfigType(shortName);
+        return !Objects.isNull(configType) && !Objects.equals(configType, BaseConfig.class);
     }
 
     /**
