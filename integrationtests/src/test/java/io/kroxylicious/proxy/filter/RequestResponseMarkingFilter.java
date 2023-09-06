@@ -61,7 +61,7 @@ public class RequestResponseMarkingFilter implements RequestFilter, ResponseFilt
             return context.forwardRequest(header, body);
         }
 
-        return forwardingStyle.apply(new ForwardContext(context, constructionContext, body))
+        return forwardingStyle.apply(new ForwardingContext(context, constructionContext, body))
                 .thenApply(request -> applyTaggedField(request, Direction.REQUEST, name))
                 .thenCompose(taggedRequest -> context.forwardRequest(header, taggedRequest));
     }
@@ -72,7 +72,7 @@ public class RequestResponseMarkingFilter implements RequestFilter, ResponseFilt
             return context.forwardResponse(header, response);
         }
 
-        return forwardingStyle.apply(new ForwardContext(context, constructionContext, response))
+        return forwardingStyle.apply(new ForwardingContext(context, constructionContext, response))
                 .thenApply(request -> applyTaggedField(request, Direction.RESPONSE, name))
                 .thenCompose(taggedRequest -> context.forwardResponse(header, taggedRequest));
     }

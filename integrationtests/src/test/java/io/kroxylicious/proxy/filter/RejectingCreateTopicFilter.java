@@ -39,7 +39,7 @@ public class RejectingCreateTopicFilter implements CreateTopicsRequestFilter {
     @Override
     public CompletionStage<RequestFilterResult> onCreateTopicsRequest(short apiVersion, RequestHeaderData header, CreateTopicsRequestData request,
                                                                       FilterContext context) {
-        return forwardingStyle.apply(new ForwardContext(context, constructionContext, request))
+        return forwardingStyle.apply(new ForwardingContext(context, constructionContext, request))
                 .thenCompose((u) -> {
                     CreateTopicsResponseData response = new CreateTopicsResponseData();
                     CreateTopicsResponseData.CreatableTopicResultCollection topics = new CreateTopicsResponseData.CreatableTopicResultCollection();

@@ -19,16 +19,16 @@ import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.Errors;
 
-public enum ForwardingStyle implements Function<ForwardContext, CompletionStage<ApiMessage>> {
+public enum ForwardingStyle implements Function<ForwardingContext, CompletionStage<ApiMessage>> {
     SYNCHRONOUS {
         @Override
-        public CompletionStage<ApiMessage> apply(ForwardContext context) {
+        public CompletionStage<ApiMessage> apply(ForwardingContext context) {
             return CompletableFuture.completedStage(context.body());
         }
     },
     ASYNCHRONOUS_DELAYED {
         @Override
-        public CompletionStage<ApiMessage> apply(ForwardContext context) {
+        public CompletionStage<ApiMessage> apply(ForwardingContext context) {
             CompletableFuture<ApiMessage> result = new CompletableFuture<>();
             ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
             try {
@@ -44,7 +44,7 @@ public enum ForwardingStyle implements Function<ForwardContext, CompletionStage<
     },
     ASYNCHRONOUS_DELAYED_ON_EVENTlOOP {
         @Override
-        public CompletionStage<ApiMessage> apply(ForwardContext context) {
+        public CompletionStage<ApiMessage> apply(ForwardingContext context) {
             ScheduledExecutorService executor = context.constructionContext().executors().eventLoop();
             CompletableFuture<ApiMessage> result = new CompletableFuture<>();
             executor.schedule(() -> {
@@ -55,7 +55,7 @@ public enum ForwardingStyle implements Function<ForwardContext, CompletionStage<
     },
     ASYNCHRONOUS_REQUEST_TO_BROKER {
         @Override
-        public CompletionStage<ApiMessage> apply(ForwardContext context) {
+        public CompletionStage<ApiMessage> apply(ForwardingContext context) {
             return sendAsyncRequestAndCheckForResponseErrors(context.filterContext()).thenApply(unused -> context.body());
         }
 
