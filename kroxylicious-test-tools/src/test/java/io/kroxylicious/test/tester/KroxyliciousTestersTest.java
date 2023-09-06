@@ -49,6 +49,7 @@ import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.mockKafkaKroxyliciousTester;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -142,7 +143,7 @@ class KroxyliciousTestersTest {
             admin.describeCluster();
             send(producer);
             consumer.poll(Duration.ofSeconds(10));
-            assert false;
+            fail("No exception was thrown when invoking clients that should be closed");
         }
         catch (Exception e) {
             assertThat(e).isNotNull();
