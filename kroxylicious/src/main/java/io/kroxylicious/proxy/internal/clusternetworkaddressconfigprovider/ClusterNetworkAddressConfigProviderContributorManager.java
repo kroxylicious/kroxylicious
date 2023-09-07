@@ -5,12 +5,13 @@
  */
 package io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider;
 
-import java.util.Iterator;
+import java.util.Optional;
 import java.util.ServiceLoader;
 
 import io.kroxylicious.proxy.clusternetworkaddressconfigprovider.ClusterNetworkAddressConfigProviderContributor;
 import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
+import io.kroxylicious.proxy.service.InstanceFactory;
 
 public class ClusterNetworkAddressConfigProviderContributorManager {
 
@@ -27,12 +28,10 @@ public class ClusterNetworkAddressConfigProviderContributorManager {
     }
 
     public Class<? extends BaseConfig> getConfigType(String shortName) {
-        Iterator<ClusterNetworkAddressConfigProviderContributor> it = contributors.iterator();
-        while (it.hasNext()) {
-            ClusterNetworkAddressConfigProviderContributor contributor = it.next();
-            Class<? extends BaseConfig> configType = contributor.getConfigType(shortName);
-            if (configType != null) {
-                return configType;
+        for (ClusterNetworkAddressConfigProviderContributor contributor : contributors) {
+            Optional<InstanceFactory<ClusterNetworkAddressConfigProvider>> factory = contributor.getInstanceFactory(shortName);
+            if (factory.isPresent()) {
+                return factory.get().getConfigClass();
             }
         }
 
@@ -41,9 +40,9 @@ public class ClusterNetworkAddressConfigProviderContributorManager {
 
     public ClusterNetworkAddressConfigProvider getClusterEndpointConfigProvider(String shortName, BaseConfig baseConfig) {
         for (ClusterNetworkAddressConfigProviderContributor contributor : contributors) {
-            var assigner = contributor.getInstance(shortName, baseConfig);
-            if (assigner != null) {
-                return assigner;
+            Optional<InstanceFactory<ClusterNetworkAddressConfigProvider>> factory = contributor.getInstanceFactory(shortName);
+            if (factory.isPresent()) {
+                return factory.get().getInstance(baseConfig);
             }
         }
 

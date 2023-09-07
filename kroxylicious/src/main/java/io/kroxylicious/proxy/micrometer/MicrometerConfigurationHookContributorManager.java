@@ -5,9 +5,11 @@
  */
 package io.kroxylicious.proxy.micrometer;
 
+import java.util.Optional;
 import java.util.ServiceLoader;
 
 import io.kroxylicious.proxy.config.BaseConfig;
+import io.kroxylicious.proxy.service.InstanceFactory;
 
 public class MicrometerConfigurationHookContributorManager {
 
@@ -25,9 +27,9 @@ public class MicrometerConfigurationHookContributorManager {
 
     public Class<? extends BaseConfig> getConfigType(String shortName) {
         for (MicrometerConfigurationHookContributor contributor : contributors) {
-            Class<? extends BaseConfig> configType = contributor.getConfigType(shortName);
-            if (configType != null) {
-                return configType;
+            Optional<InstanceFactory<MicrometerConfigurationHook>> factory = contributor.getInstanceFactory(shortName);
+            if (factory.isPresent()) {
+                return factory.get().getConfigClass();
             }
         }
 
@@ -36,9 +38,9 @@ public class MicrometerConfigurationHookContributorManager {
 
     public MicrometerConfigurationHook getHook(String shortName, BaseConfig filterConfig) {
         for (MicrometerConfigurationHookContributor contributor : contributors) {
-            MicrometerConfigurationHook hook = contributor.getInstance(shortName, filterConfig);
-            if (hook != null) {
-                return hook;
+            Optional<InstanceFactory<MicrometerConfigurationHook>> factory = contributor.getInstanceFactory(shortName);
+            if (factory.isPresent()) {
+                return factory.get().getInstance(filterConfig);
             }
         }
 

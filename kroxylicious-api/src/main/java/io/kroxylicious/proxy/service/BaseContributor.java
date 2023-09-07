@@ -7,10 +7,13 @@ package io.kroxylicious.proxy.service;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
 import io.kroxylicious.proxy.config.BaseConfig;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
  * A convenience base class for creating concrete contributor subclasses using a typesafe builder
@@ -29,16 +32,20 @@ public abstract class BaseContributor<T> implements Contributor<T> {
         shortNameToInstanceBuilder = builder.build();
     }
 
+    @NonNull
     @Override
-    public Class<? extends BaseConfig> getConfigType(String shortName) {
-        InstanceBuilder<?, T> instanceBuilder = shortNameToInstanceBuilder.get(shortName);
-        return instanceBuilder == null ? null : instanceBuilder.configClass;
-    }
+    public Optional<InstanceFactory<T>> getInstanceFactory(String shortName) {
+        return Optional.ofNullable(shortNameToInstanceBuilder.get(shortName)).map(tInstanceBuilder -> new InstanceFactory<T>() {
+            @Override
+            public Class<? extends BaseConfig> getConfigClass() {
+                return tInstanceBuilder.configClass;
+            }
 
-    @Override
-    public T getInstance(String shortName, BaseConfig config) {
-        InstanceBuilder<? extends BaseConfig, T> instanceBuilder = shortNameToInstanceBuilder.get(shortName);
-        return instanceBuilder == null ? null : instanceBuilder.construct(config);
+            @Override
+            public T getInstance(BaseConfig config) {
+                return tInstanceBuilder.construct(config);
+            }
+        });
     }
 
     private static class InstanceBuilder<T extends BaseConfig, L> {

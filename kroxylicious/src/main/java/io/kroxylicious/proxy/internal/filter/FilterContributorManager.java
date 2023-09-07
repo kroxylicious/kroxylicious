@@ -5,12 +5,13 @@
  */
 package io.kroxylicious.proxy.internal.filter;
 
-import java.util.Iterator;
+import java.util.Optional;
 import java.util.ServiceLoader;
 
 import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterContributor;
+import io.kroxylicious.proxy.service.InstanceFactory;
 
 public class FilterContributorManager {
 
@@ -27,12 +28,10 @@ public class FilterContributorManager {
     }
 
     public Class<? extends BaseConfig> getConfigType(String shortName) {
-        Iterator<FilterContributor> it = contributors.iterator();
-        while (it.hasNext()) {
-            FilterContributor contributor = it.next();
-            Class<? extends BaseConfig> configType = contributor.getConfigType(shortName);
-            if (configType != null) {
-                return configType;
+        for (FilterContributor contributor : contributors) {
+            Optional<InstanceFactory<Filter>> configType = contributor.getInstanceFactory(shortName);
+            if (configType.isPresent()) {
+                return configType.get().getConfigClass();
             }
         }
 
@@ -40,12 +39,10 @@ public class FilterContributorManager {
     }
 
     public Filter getFilter(String shortName, BaseConfig filterConfig) {
-        Iterator<FilterContributor> it = contributors.iterator();
-        while (it.hasNext()) {
-            FilterContributor contributor = it.next();
-            Filter filter = contributor.getInstance(shortName, filterConfig);
-            if (filter != null) {
-                return filter;
+        for (FilterContributor contributor : contributors) {
+            Optional<InstanceFactory<Filter>> configType = contributor.getInstanceFactory(shortName);
+            if (configType.isPresent()) {
+                return configType.get().getInstance(filterConfig);
             }
         }
 

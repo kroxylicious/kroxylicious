@@ -5,6 +5,8 @@
  */
 package io.kroxylicious.proxy.service;
 
+import java.util.Optional;
+
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.proxy.config.BaseConfig;
@@ -27,8 +29,9 @@ class BaseContributorTest {
         builder.add("one", () -> 1L);
         BaseContributor<Long> baseContributor = new BaseContributor<>(builder) {
         };
-        Class<? extends BaseConfig> one = baseContributor.getConfigType("one");
-        assertThat(one).isEqualTo(BaseConfig.class);
+        Optional<InstanceFactory<Long>> factory = baseContributor.getInstanceFactory("one");
+        assertThat(factory).isPresent();
+        assertThat(factory.get().getConfigClass()).isEqualTo(BaseConfig.class);
     }
 
     @Test
@@ -37,7 +40,9 @@ class BaseContributorTest {
         builder.add("one", () -> 1L);
         BaseContributor<Long> baseContributor = new BaseContributor<>(builder) {
         };
-        Long instance = baseContributor.getInstance("one", new BaseConfig());
+        Optional<InstanceFactory<Long>> factory = baseContributor.getInstanceFactory("one");
+        assertThat(factory).isPresent();
+        Long instance = factory.get().getInstance(new BaseConfig());
         assertThat(instance).isEqualTo(1L);
     }
 
@@ -47,8 +52,9 @@ class BaseContributorTest {
         builder.add("fromBaseConfig", LongConfig.class, baseConfig -> baseConfig.value);
         BaseContributor<Long> baseContributor = new BaseContributor<>(builder) {
         };
-        Class<? extends BaseConfig> configType = baseContributor.getConfigType("fromBaseConfig");
-        assertThat(configType).isEqualTo(LongConfig.class);
+        Optional<InstanceFactory<Long>> factory = baseContributor.getInstanceFactory("fromBaseConfig");
+        assertThat(factory).isPresent();
+        assertThat(factory.get().getConfigClass()).isEqualTo(LongConfig.class);
     }
 
     @Test
@@ -57,8 +63,10 @@ class BaseContributorTest {
         builder.add("fromBaseConfig", LongConfig.class, baseConfig -> baseConfig.value);
         BaseContributor<Long> baseContributor = new BaseContributor<>(builder) {
         };
-        Long instance = baseContributor.getInstance("fromBaseConfig", new LongConfig());
-        assertThat(instance).isEqualTo(2L);
+
+        Optional<InstanceFactory<Long>> factory = baseContributor.getInstanceFactory("fromBaseConfig");
+        assertThat(factory).isPresent();
+        assertThat(factory.get().getInstance(new LongConfig())).isEqualTo(2L);
     }
 
     @Test
@@ -68,8 +76,11 @@ class BaseContributorTest {
         BaseContributor<Long> baseContributor = new BaseContributor<>(builder) {
         };
         AnotherConfig incompatibleConfig = new AnotherConfig();
+        Optional<InstanceFactory<Long>> factory = baseContributor.getInstanceFactory("fromBaseConfig");
+        assertThat(factory).isPresent();
+        InstanceFactory<Long> instanceFactory = factory.get();
         assertThatThrownBy(() -> {
-            baseContributor.getInstance("fromBaseConfig", incompatibleConfig);
+            instanceFactory.getInstance(incompatibleConfig);
         }).isInstanceOf(IllegalArgumentException.class);
     }
 

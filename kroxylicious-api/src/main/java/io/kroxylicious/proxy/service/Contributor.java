@@ -5,30 +5,24 @@
  */
 package io.kroxylicious.proxy.service;
 
-import io.kroxylicious.proxy.config.BaseConfig;
+import java.util.Optional;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
- * Support loading an Instance of a service, optionally providing it with configuration obtained
- * from the Kroxylicious configuration file.
+ * Support loading an InstanceFactory of a service
  *
  * @param <T> the service type
  */
 public interface Contributor<T> {
 
     /**
-     * Gets the concrete type of the configuration required by this service instance.
+     * Gets an instanceFactory for this service short name.
      * @param shortName service short name
      *
-     * @return class of a concrete type, or null if this contributor does not offer this short name.
+     * @return instance factory, or empty if this contributor does not offer this short name.
      */
-    Class<? extends BaseConfig> getConfigType(String shortName);
+    @NonNull
+    Optional<InstanceFactory<T>> getInstanceFactory(String shortName);
 
-    /**
-     * Creates an instance of the service.
-     *
-     * @param shortName service short name
-     * @param config    service configuration which may be null if the service instance does not accept configuration.
-     * @return the service instance, or null if this contributor does not offer this short name.
-     */
-    T getInstance(String shortName, BaseConfig config);
 }
