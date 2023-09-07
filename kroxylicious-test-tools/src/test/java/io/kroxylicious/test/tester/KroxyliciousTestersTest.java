@@ -151,6 +151,19 @@ class KroxyliciousTestersTest {
     }
 
     @Test
+    void testCanCloseTesterWithClosedClient(KafkaCluster cluster) {
+        try {
+            var tester = kroxyliciousTester(proxy(cluster));
+            var admin = tester.admin();
+            admin.close();
+            tester.close();
+        }
+        catch (Exception e) {
+            fail(e.getMessage());
+        }
+    }
+
+    @Test
     void testMockRequestMockTester() {
         try (var tester = mockKafkaKroxyliciousTester(KroxyliciousConfigUtils::proxy)) {
             assertCanSendRequestsAndReceiveMockResponses(tester, tester::simpleTestClient);
