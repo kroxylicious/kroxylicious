@@ -172,9 +172,7 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
             proxy.close();
             if (!exceptions.isEmpty()) {
                 // if we encountered any exceptions while closing, log them all and then throw whichever one came first.
-                exceptions.forEach(e -> {
-                    LOGGER.error(e.getMessage(), e);
-                });
+                exceptions.forEach(e -> LOGGER.error(e.getMessage(), e));
                 throw exceptions.get(0);
             }
         }

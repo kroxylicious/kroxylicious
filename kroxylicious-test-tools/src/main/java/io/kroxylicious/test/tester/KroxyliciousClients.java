@@ -7,6 +7,7 @@
 package io.kroxylicious.test.tester;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -90,31 +91,10 @@ class KroxyliciousClients {
     public void close() {
         List<Exception> exceptions = new ArrayList<>();
         try {
-            for (Admin admin : admins) {
-                try {
-                    admin.close();
-                }
-                catch (Exception e) {
-                    exceptions.add(e);
-                }
-            }
-            for (Producer producer : producers) {
-                try {
-                    producer.close();
-                }
-                catch (Exception e) {
-                    exceptions.add(e);
-                }
-            }
-            for (Consumer consumer : consumers) {
-                try {
-                    consumer.close();
-                }
-                catch (Exception e) {
-                    exceptions.add(e);
-                }
-            }
-            if (exceptions.size() > 0) {
+            exceptions.addAll(batchClose(admins));
+            exceptions.addAll(batchClose(producers));
+            exceptions.addAll(batchClose(consumers));
+            if (!exceptions.isEmpty()) {
                 // if we encountered any exceptions while closing, throw whichever one came first.
                 throw exceptions.get(0);
             }
@@ -122,6 +102,19 @@ class KroxyliciousClients {
         catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    Collection<Exception> batchClose(Collection<? extends AutoCloseable> closeables) {
+        List<Exception> exceptions = new ArrayList<>();
+        for (AutoCloseable closeable : closeables) {
+            try {
+                closeable.close();
+            }
+            catch (Exception e) {
+                exceptions.add(e);
+            }
+        }
+        return exceptions;
     }
 
     private Map<String, Object> createConfigMap(String bootstrapServers, Map<String, Object> additionalConfig) {
