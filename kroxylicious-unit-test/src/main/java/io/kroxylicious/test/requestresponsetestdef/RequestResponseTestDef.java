@@ -28,6 +28,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.reflect.ClassPath.ResourceInfo;
 
 public record RequestResponseTestDef(String testName, ApiMessageType apiKey, RequestHeaderData header, ApiMessageTestDef request, ApiMessageTestDef response) {
+
     private static final ObjectMapper MAPPER = new ObjectMapper(new YAMLFactory());
 
     public static Stream<RequestResponseTestDef> requestResponseTestDefinitions(List<ResourceInfo> resources) {

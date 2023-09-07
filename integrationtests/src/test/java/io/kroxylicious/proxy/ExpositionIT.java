@@ -498,8 +498,7 @@ class ExpositionIT extends BaseIT {
         return n.host() + ":" + n.port();
     }
 
-    private record KeystoreTrustStorePair(String brokerKeyStore, String clientTrustStore, String password) {
-    }
+    private record KeystoreTrustStorePair(String brokerKeyStore, String clientTrustStore, String password) {}
 
     @NotNull
     private static ExpositionIT.KeystoreTrustStorePair buildKeystoreTrustStorePair(String domain) throws Exception {

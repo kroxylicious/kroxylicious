@@ -487,7 +487,7 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
                                                     p -> new TopicPartition(t.name(), p)))
                                             .collect(Collectors.toList()))),
                             true, false)
-                            .build(apiVersion);
+                                    .build(apiVersion);
                 }
                 else if (offsetFetchRequestData.topics() != null) {
                     req = new OffsetFetchRequest.Builder(
@@ -498,7 +498,7 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
                                             p -> new TopicPartition(x.name(), p)))
                                     .collect(Collectors.toList()),
                             false)
-                            .build(apiVersion);
+                                    .build(apiVersion);
                 }
                 else {
                     throw new IllegalStateException();
@@ -580,7 +580,7 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
                                 d.hostFilter(),
                                 AclOperation.fromCode(d.operation()),
                                 AclPermissionType.fromCode(d.permissionType()))))
-                        .build(apiVersion);
+                                        .build(apiVersion);
                 break;
             case CREATE_ACLS:
                 req = new CreateAclsRequest.Builder((CreateAclsRequestData) reqBody)
@@ -621,7 +621,7 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
                 DescribeDelegationTokenRequestData tokenRequestData = (DescribeDelegationTokenRequestData) reqBody;
                 req = new DescribeDelegationTokenRequest.Builder(
                         tokenRequestData.owners().stream().map(o -> new KafkaPrincipal(o.principalType(), o.principalName())).collect(Collectors.toList()))
-                        .build(apiVersion);
+                                .build(apiVersion);
                 break;
             case DELETE_GROUPS:
                 req = new DeleteGroupsRequest((DeleteGroupsRequestData) reqBody, apiVersion);
@@ -635,7 +635,7 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
                                         p -> new TopicPartition(t.topic(), p)))
                                 .collect(Collectors.toList()),
                         electLeaders.timeoutMs())
-                        .build(apiVersion);
+                                .build(apiVersion);
                 break;
             case INCREMENTAL_ALTER_CONFIGS:
                 req = new IncrementalAlterConfigsRequest((IncrementalAlterConfigsRequestData) reqBody, apiVersion);
@@ -724,7 +724,7 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
                                         x.hostName(),
                                         x.port()))
                                 .collect(Collectors.toList()))
-                        .build(apiVersion);
+                                        .build(apiVersion);
                 break;
             case STOP_REPLICA:
                 StopReplicaRequestData stopReplica = (StopReplicaRequestData) reqBody;
@@ -734,7 +734,7 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
                         stopReplica.brokerEpoch(),
                         stopReplica.deletePartitions(),
                         stopReplica.topicStates())
-                        .build(apiVersion);
+                                .build(apiVersion);
                 break;
             case UPDATE_METADATA:
                 req = new UpdateFeaturesRequest((UpdateFeaturesRequestData) reqBody, apiVersion);

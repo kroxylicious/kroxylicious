@@ -32,9 +32,10 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
  */
 @SuppressFBWarnings(value = "PATH_TRAVERSAL_IN", justification = "The paths provide the location for key material which may exist anywhere on the file-system. Paths are provided by the user in the administrator role via Kroxylicious configuration. ")
 public record KeyStore(String storeFile,
-                       @JsonProperty(value="storePassword") PasswordProvider storePasswordProvider,
-                       @JsonProperty(value="keyPassword") PasswordProvider keyPasswordProvider,
-                       String storeType) implements KeyProvider {
+                       @JsonProperty(value = "storePassword") PasswordProvider storePasswordProvider,
+                       @JsonProperty(value = "keyPassword") PasswordProvider keyPasswordProvider,
+                       String storeType)
+        implements KeyProvider {
 
     public String getType() {
         return Tls.getStoreTypeOrPlatformDefault(storeType);

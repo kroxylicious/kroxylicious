@@ -18,8 +18,7 @@ public record VirtualCluster(TargetCluster targetCluster,
 
                              @JsonProperty() Optional<Tls> tls,
                              boolean logNetwork,
-                             boolean logFrames
-) {
+                             boolean logFrames) {
     public io.kroxylicious.proxy.model.VirtualCluster toVirtualClusterModel(String virtualClusterNodeName) {
         return new io.kroxylicious.proxy.model.VirtualCluster(virtualClusterNodeName,
                 targetCluster(),

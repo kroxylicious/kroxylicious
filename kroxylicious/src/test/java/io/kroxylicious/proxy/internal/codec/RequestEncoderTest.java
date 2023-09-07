@@ -124,6 +124,5 @@ public class RequestEncoderTest extends AbstractCodecTest {
         return result;
     }
 
-    private record givenRequestFrame(ByteBuffer byteBuffer, OpaqueRequestFrame frame) {
-    }
+    private record givenRequestFrame(ByteBuffer byteBuffer, OpaqueRequestFrame frame) {}
 }

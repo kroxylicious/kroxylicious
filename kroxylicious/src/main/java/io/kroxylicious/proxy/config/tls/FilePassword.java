@@ -23,8 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
  */
 public record FilePassword(String filePath) implements PasswordProvider {
     @JsonCreator
-    public FilePassword {
-    }
+    public FilePassword {}
 
     @Override
     public String getProvidedPassword() {

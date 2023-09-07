@@ -134,7 +134,7 @@ public class RequestDecoderTest extends AbstractCodecTest {
                         FilterAndInvoker.build((ApiVersionsRequestFilter) (version, header, request, context) -> {
                             return context.requestFilterResultBuilder().forward(header, request).completed();
                         })))
-                .decode(null, byteBuf, messages);
+                                .decode(null, byteBuf, messages);
 
         assertEquals(List.of(), messageClasses(messages));
         assertEquals(0, byteBuf.readerIndex());
@@ -155,7 +155,7 @@ public class RequestDecoderTest extends AbstractCodecTest {
                         FilterAndInvoker
                                 .build((ApiVersionsRequestFilter) (version, header, request, context) -> context.requestFilterResultBuilder().forward(header, request)
                                         .completed())))
-                .decode(null, byteBuf, messages);
+                                                .decode(null, byteBuf, messages);
 
         assertEquals(List.of(), messageClasses(messages));
         assertEquals(expectRead, byteBuf.readerIndex());
@@ -200,7 +200,7 @@ public class RequestDecoderTest extends AbstractCodecTest {
                         FilterAndInvoker
                                 .build((ApiVersionsRequestFilter) (version, head, request, context) -> context.requestFilterResultBuilder().forward(header, request)
                                         .completed())))
-                .decode(null, byteBuf, messages);
+                                                .decode(null, byteBuf, messages);
 
         assertEquals(List.of(DecodedRequestFrame.class, DecodedRequestFrame.class), messageClasses(messages));
         DecodedRequestFrame frame = (DecodedRequestFrame) messages.get(0);

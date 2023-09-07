@@ -103,10 +103,11 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
 
     private record SniRoutingKey(String sniHostname) implements RoutingKey {
 
-    private SniRoutingKey(String sniHostname) {
+        private SniRoutingKey(String sniHostname) {
             Objects.requireNonNull(sniHostname);
             this.sniHostname = sniHostname.toLowerCase(Locale.ROOT);
-        }}
+        }
+    }
 
     protected static final AttributeKey<Map<RoutingKey, VirtualClusterBinding>> CHANNEL_BINDINGS = AttributeKey.newInstance("channelBindings");
 
@@ -116,11 +117,11 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
             Objects.requireNonNull(reconciliationStage);
         }
 
-    public static ReconciliationRecord createEmptyReconcileRecord() {
+        public static ReconciliationRecord createEmptyReconcileRecord() {
             return ReconciliationRecord.createReconcileRecord(Map.of(), CompletableFuture.completedStage(null));
         }
 
-    private static ReconciliationRecord createReconcileRecord(Map<Integer, HostPort> upstreamNodeMap, CompletionStage<Void> future) {
+        private static ReconciliationRecord createReconcileRecord(Map<Integer, HostPort> upstreamNodeMap, CompletionStage<Void> future) {
             return new ReconciliationRecord(upstreamNodeMap, future);
         }
 
@@ -134,9 +135,10 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
             Objects.requireNonNull(deregistrationStage);
         }
 
-    private static VirtualClusterRecord create(CompletionStage<Endpoint> stage) {
-        return new VirtualClusterRecord(stage, new AtomicReference<>(), new AtomicReference<>());
-    }}
+        private static VirtualClusterRecord create(CompletionStage<Endpoint> stage) {
+            return new VirtualClusterRecord(stage, new AtomicReference<>(), new AtomicReference<>());
+        }
+    }
 
     /** Registry of virtual clusters that have been registered */
     private final Map<VirtualCluster, VirtualClusterRecord> registeredVirtualClusters = new ConcurrentHashMap<>();
@@ -147,9 +149,10 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
             Objects.requireNonNull(unbindingStage);
         }
 
-    public static ListeningChannelRecord create(CompletionStage<Channel> stage) {
+        public static ListeningChannelRecord create(CompletionStage<Channel> stage) {
             return new ListeningChannelRecord(stage, new AtomicReference<>());
-        }}
+        }
+    }
 
     /** Registry of endpoints and their underlying Netty Channel */
     private final Map<Endpoint, ListeningChannelRecord> listeningChannels = new ConcurrentHashMap<>();
