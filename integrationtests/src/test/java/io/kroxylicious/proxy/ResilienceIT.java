@@ -74,21 +74,21 @@ class ResilienceIT extends BaseIT {
             consumer = tester.consumer(consumerConfig);
             producer.send(new ProducerRecord<>(topic, "my-key", "Hello, world!")).get(10, TimeUnit.SECONDS);
             consumer.subscribe(Set.of(topic));
-            var records = consumer.poll(Duration.ofSeconds(10));
-            assertThat(records).hasSize(1);
-            assertThat(records.iterator()).toIterable().map(ConsumerRecord::value).containsExactly("Hello, world!");
+            var firstRecords = consumer.poll(Duration.ofSeconds(10));
+            assertThat(firstRecords).hasSize(1);
+            assertThat(firstRecords.iterator()).toIterable().map(ConsumerRecord::value).containsExactly("Hello, world!");
 
-            assertThat(records.count()).isOne();
-            assertThat(records.iterator().next().value()).isEqualTo("Hello, world!");
+            assertThat(firstRecords.count()).isOne();
+            assertThat(firstRecords.iterator().next().value()).isEqualTo("Hello, world!");
             producer.send(new ProducerRecord<>(topic, "my-key", "Hello, again!")).get(10, TimeUnit.SECONDS);
-        }
 
-        LOGGER.debug("Restarting proxy");
+            LOGGER.debug("Restarting proxy");
+            producer.close();
+            tester.restartProxy();
 
-        try (var ignored = kroxyliciousTester(builder)) {
-            var records = consumer.poll(Duration.ofSeconds(10));
-            assertThat(records).hasSize(1);
-            assertThat(records.iterator()).toIterable().map(ConsumerRecord::value).containsExactly("Hello, again!");
+            var secondRecords = consumer.poll(Duration.ofSeconds(10));
+            assertThat(secondRecords).hasSize(1);
+            assertThat(secondRecords.iterator()).toIterable().map(ConsumerRecord::value).containsExactly("Hello, again!");
             consumer.close();
         }
     }
@@ -114,11 +114,9 @@ class ResilienceIT extends BaseIT {
                 consumer.subscribe(Set.of(topic));
                 var response = producer.send(new ProducerRecord<>(topic, "my-key", "Hello, world!")).get(10, TimeUnit.SECONDS);
                 LOGGER.warn("response {}", response);
-            }
 
-            LOGGER.debug("Restarting proxy");
-
-            try (var ignored = kroxyliciousTester(builder)) {
+                LOGGER.debug("Restarting proxy");
+                tester.restartProxy();
                 // re-use the existing producer and consumer (made through Kroxylicious's first incarnation). This provides us the assurance
                 // that they were able to reconnect successfully.
                 producer.send(new ProducerRecord<>(topic, "my-key", "Hello, again!")).get(10, TimeUnit.SECONDS);

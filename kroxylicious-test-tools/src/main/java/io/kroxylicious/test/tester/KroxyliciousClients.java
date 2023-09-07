@@ -6,7 +6,10 @@
 
 package io.kroxylicious.test.tester;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -28,13 +31,22 @@ import io.kroxylicious.testing.kafka.clients.CloseableProducer;
 class KroxyliciousClients {
     private final String bootstrapServers;
 
+    private final List<Admin> admins;
+    private final List<Producer> producers;
+    private final List<Consumer> consumers;
+
     KroxyliciousClients(String bootstrapServers) {
         this.bootstrapServers = bootstrapServers;
+        this.admins = new ArrayList<>();
+        this.producers = new ArrayList<>();
+        this.consumers = new ArrayList<>();
     }
 
     public Admin admin(Map<String, Object> additionalConfig) {
         Map<String, Object> config = createConfigMap(bootstrapServers, additionalConfig);
-        return CloseableAdmin.create(config);
+        Admin admin = CloseableAdmin.create(config);
+        admins.add(admin);
+        return admin;
     }
 
     public Admin admin() {
@@ -51,7 +63,9 @@ class KroxyliciousClients {
 
     public <U, V> Producer<U, V> producer(Serde<U> keySerde, Serde<V> valueSerde, Map<String, Object> additionalConfig) {
         Map<String, Object> config = createConfigMap(bootstrapServers, additionalConfig);
-        return CloseableProducer.wrap(new KafkaProducer<>(config, keySerde.serializer(), valueSerde.serializer()));
+        Producer<U, V> producer = CloseableProducer.wrap(new KafkaProducer<>(config, keySerde.serializer(), valueSerde.serializer()));
+        producers.add(producer);
+        return producer;
     }
 
     public Consumer<String, String> consumer(Map<String, Object> additionalConfig) {
@@ -64,12 +78,43 @@ class KroxyliciousClients {
 
     public <U, V> Consumer<U, V> consumer(Serde<U> keySerde, Serde<V> valueSerde, Map<String, Object> additionalConfig) {
         Map<String, Object> config = createConfigMap(bootstrapServers, additionalConfig);
-        return CloseableConsumer.wrap(new KafkaConsumer<>(config, keySerde.deserializer(), valueSerde.deserializer()));
+        Consumer<U, V> consumer = CloseableConsumer.wrap(new KafkaConsumer<>(config, keySerde.deserializer(), valueSerde.deserializer()));
+        consumers.add(consumer);
+        return consumer;
     }
 
     public KafkaClient simpleTestClient() {
         String[] hostPort = bootstrapServers.split(":");
         return new KafkaClient(hostPort[0], Integer.parseInt(hostPort[1]));
+    }
+
+    public void close() {
+        List<Exception> exceptions = new ArrayList<>();
+        try {
+            exceptions.addAll(batchClose(admins));
+            exceptions.addAll(batchClose(producers));
+            exceptions.addAll(batchClose(consumers));
+            if (!exceptions.isEmpty()) {
+                // if we encountered any exceptions while closing, throw whichever one came first.
+                throw exceptions.get(0);
+            }
+        }
+        catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    Collection<Exception> batchClose(Collection<? extends AutoCloseable> closeables) {
+        List<Exception> exceptions = new ArrayList<>();
+        for (AutoCloseable closeable : closeables) {
+            try {
+                closeable.close();
+            }
+            catch (Exception e) {
+                exceptions.add(e);
+            }
+        }
+        return exceptions;
     }
 
     private Map<String, Object> createConfigMap(String bootstrapServers, Map<String, Object> additionalConfig) {
