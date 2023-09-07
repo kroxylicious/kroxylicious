@@ -16,6 +16,8 @@ import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.common.serialization.Serde;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.KafkaProxy;
 import io.kroxylicious.proxy.config.Configuration;
@@ -27,6 +29,7 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     private final Configuration kroxyliciousConfig;
 
     private final Map<String, KroxyliciousClients> clients;
+    private static final Logger LOGGER = LoggerFactory.getLogger(DefaultKroxyliciousTester.class);
 
     DefaultKroxyliciousTester(ConfigurationBuilder configurationBuilder) {
         this(configurationBuilder, DefaultKroxyliciousTester::spawnProxy);
@@ -169,7 +172,10 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
             }
             proxy.close();
             if (!exceptions.isEmpty()) {
-                // if we encountered any exceptions while closing, throw whichever one came first.
+                // if we encountered any exceptions while closing, log them all and then throw whichever one came first.
+                exceptions.forEach(e -> {
+                    LOGGER.error(e.getMessage(), e);
+                });
                 throw exceptions.get(0);
             }
         }
