@@ -54,8 +54,7 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     }
 
     private KroxyliciousClients clients(String virtualCluster) {
-        clients.computeIfAbsent(virtualCluster, k -> new KroxyliciousClients(KroxyliciousConfigUtils.bootstrapServersFor(k, kroxyliciousConfig)));
-        return clients.get(virtualCluster);
+        return clients.computeIfAbsent(virtualCluster, k -> new KroxyliciousClients(KroxyliciousConfigUtils.bootstrapServersFor(k, kroxyliciousConfig)));
     }
 
     @Override
