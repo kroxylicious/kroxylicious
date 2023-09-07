@@ -168,7 +168,7 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
                 }
             }
             proxy.close();
-            if (exceptions.size() > 0) {
+            if (!exceptions.isEmpty()) {
                 // if we encountered any exceptions while closing, throw whichever one came first.
                 throw exceptions.get(0);
             }
