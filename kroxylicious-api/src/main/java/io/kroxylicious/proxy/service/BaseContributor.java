@@ -33,23 +33,39 @@ public abstract class BaseContributor<T> implements Contributor<T> {
 
     @Override
     public Class<? extends BaseConfig> getConfigType(String shortName) {
-        InstanceBuilder<?, T> instanceBuilder = shortNameToContributorDetails.get(shortName).instanceBuilder();
-        return instanceBuilder == null ? null : instanceBuilder.configClass;
+        if (shortNameToContributorDetails.containsKey(shortName)) {
+            InstanceBuilder<?, T> instanceBuilder = shortNameToContributorDetails.get(shortName).instanceBuilder();
+            return instanceBuilder == null ? null : instanceBuilder.configClass;
+        }
+        else {
+            return null;
+        }
     }
 
     @Override
+    @SuppressWarnings("java:S2447")
     public Boolean requiresConfig(String shortName) {
-        return shortNameToContributorDetails.get(shortName).configRequired();
+        if (shortNameToContributorDetails.containsKey(shortName)) {
+            return shortNameToContributorDetails.get(shortName).configRequired();
+        }
+        else {
+            return null;
+        }
     }
 
     @Override
     public T getInstance(String shortName, BaseConfig config) {
-        final ContributorDetails<?, T> contributorDetails = shortNameToContributorDetails.get(shortName);
-        InstanceBuilder<? extends BaseConfig, T> instanceBuilder = contributorDetails.instanceBuilder;
-        if (contributorDetails.configRequired() && Objects.isNull(config)) {
-            throw new IllegalArgumentException(shortName + " requires config but it is null");
+        if (shortNameToContributorDetails.containsKey(shortName)) {
+            final ContributorDetails<?, T> contributorDetails = shortNameToContributorDetails.get(shortName);
+            InstanceBuilder<? extends BaseConfig, T> instanceBuilder = contributorDetails.instanceBuilder;
+            if (contributorDetails.configRequired() && Objects.isNull(config)) {
+                throw new IllegalArgumentException(shortName + " requires config but it is null");
+            }
+            return instanceBuilder == null ? null : instanceBuilder.construct(config);
         }
-        return instanceBuilder == null ? null : instanceBuilder.construct(config);
+        else {
+            return null;
+        }
     }
 
     private static class InstanceBuilder<T extends BaseConfig, L> {
@@ -131,6 +147,7 @@ public abstract class BaseContributor<T> implements Contributor<T> {
             return add(shortName, BaseConfig.class, config -> instanceFunction.get());
         }
 
+        @SuppressWarnings("java:S1452")
         Map<String, ContributorDetails<? extends BaseConfig, L>> build() {
             return Map.copyOf(shortNameToInstanceBuilder);
         }
@@ -146,10 +163,5 @@ public abstract class BaseContributor<T> implements Contributor<T> {
         return new BaseContributorBuilder<>();
     }
 
-    private record ContributorDetails<C extends BaseConfig,T>(
-    InstanceBuilder<C, T> instanceBuilder,
-    boolean configRequired)
-    {
-
-    }
+    private record ContributorDetails<C extends BaseConfig, T>(InstanceBuilder<C, T> instanceBuilder, boolean configRequired) { }
 }

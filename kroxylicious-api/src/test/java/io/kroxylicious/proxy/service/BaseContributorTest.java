@@ -33,6 +33,62 @@ class BaseContributorTest {
     }
 
     @Test
+    void shouldReturnNullConfigTypeForUnregisteredName() {
+        //Given
+        BaseContributor.BaseContributorBuilder<Long> builder = BaseContributor.builder();
+        builder.add("one", () -> 1L);
+        BaseContributor<Long> baseContributor = new BaseContributor<>(builder) {
+        };
+
+        //When
+        Class<? extends BaseConfig> actual = baseContributor.getConfigType("two");
+
+        assertThat(actual).isNull();
+    }
+
+    @Test
+    void shouldReturnNullToRequiresConfigForUnregisteredName() {
+        //Given
+        BaseContributor.BaseContributorBuilder<Long> builder = BaseContributor.builder();
+        builder.add("one", () -> 1L);
+        BaseContributor<Long> baseContributor = new BaseContributor<>(builder) {
+        };
+
+        //When
+        Boolean actual = baseContributor.requiresConfig("two");
+
+        assertThat(actual).isNull();
+    }
+
+    @Test
+    void shouldReturnTrueFroRequiredRegisteredConfig() {
+        //Given
+        BaseContributor.BaseContributorBuilder<Long> builder = BaseContributor.builder();
+        builder.add("one", LongConfig.class, longConfig -> 1L);
+        BaseContributor<Long> baseContributor = new BaseContributor<>(builder) {
+        };
+
+        //When
+        Boolean actual = baseContributor.requiresConfig("one");
+
+        assertThat(actual).isTrue();
+    }
+
+    @Test
+    void shouldReturnFalseFroOptionalRegisteredConfig() {
+        //Given
+        BaseContributor.BaseContributorBuilder<Long> builder = BaseContributor.builder();
+        builder.add("one", LongConfig.class, longConfig -> 1L, false);
+        BaseContributor<Long> baseContributor = new BaseContributor<>(builder) {
+        };
+
+        //When
+        Boolean actual = baseContributor.requiresConfig("one");
+
+        assertThat(actual).isFalse();
+    }
+
+    @Test
     void testSupplier() {
         BaseContributor.BaseContributorBuilder<Long> builder = BaseContributor.builder();
         builder.add("one", () -> 1L);
