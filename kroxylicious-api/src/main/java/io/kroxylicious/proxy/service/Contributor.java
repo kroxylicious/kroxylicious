@@ -19,7 +19,7 @@ public interface Contributor<T> {
      * Gets the concrete type of the configuration required by this service instance.
      * @param shortName service short name
      *
-     * @return class of a concrete type or null, if this service instance does not accept configuration.
+     * @return class of a concrete type, or null if this contributor does not offer this short name.
      */
     Class<? extends BaseConfig> getConfigType(String shortName);
 
@@ -28,7 +28,7 @@ public interface Contributor<T> {
      *
      * @param shortName service short name
      * @param config    service configuration which may be null if the service instance does not accept configuration.
-     * @return the service instance
+     * @return the service instance, or null if this contributor does not offer this short name.
      */
     T getInstance(String shortName, BaseConfig config);
 }
