@@ -7,6 +7,7 @@
 package io.kroxylicious.proxy.internal;
 
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -30,7 +31,7 @@ public class ApiVersionsServiceImpl {
     private static final Logger LOGGER = LoggerFactory.getLogger(ApiVersionsServiceImpl.class);
     private ApiVersions apiVersions = null;
 
-    public void mutateVersionsApplyingIntersection(String channel, ApiVersionsResponseData upstreamApiVersions) {
+    public void updateVersions(String channel, ApiVersionsResponseData upstreamApiVersions) {
         var upstream = upstreamApiVersions.duplicate().apiKeys();
         intersectApiVersions(channel, upstreamApiVersions);
         var intersected = upstreamApiVersions.duplicate().apiKeys();
@@ -83,11 +84,16 @@ public class ApiVersionsServiceImpl {
         }
     }
 
-    public CompletionStage<ApiVersionsService.ApiVersionRanges> getApiVersionRanges(ApiKeys keys, FilterContext context) {
+    public CompletionStage<Optional<ApiVersionsService.ApiVersionRanges>> getApiVersionRanges(ApiKeys keys, FilterContext context) {
         return getVersions(context).thenApply(versions -> {
             ApiVersion upstream = versions.upstream.find(keys.id);
             ApiVersion intersected = versions.intersected.find(keys.id);
-            return new ApiVersionsService.ApiVersionRanges(upstream, intersected);
+            if (upstream == null || intersected == null) {
+                return Optional.empty();
+            }
+            else {
+                return Optional.of(new ApiVersionsService.ApiVersionRanges(upstream, intersected));
+            }
         });
     }
 
@@ -98,7 +104,7 @@ public class ApiVersionsServiceImpl {
         else {
             return context.sendRequest(ApiKeys.API_VERSIONS.latestVersion(), new ApiVersionsRequestData()).thenApply(message -> {
                 ApiVersionsResponseData apiVersionsResponseData = (ApiVersionsResponseData) message;
-                mutateVersionsApplyingIntersection(context.channelDescriptor(), apiVersionsResponseData);
+                updateVersions(context.channelDescriptor(), apiVersionsResponseData);
                 return apiVersions;
             });
         }

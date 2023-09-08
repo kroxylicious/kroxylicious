@@ -29,7 +29,7 @@ public class ApiVersionsIntersectFilter implements ApiVersionsResponseFilter {
     @Override
     public CompletionStage<ResponseFilterResult> onApiVersionsResponse(short apiVersion, ResponseHeaderData header, ApiVersionsResponseData data,
                                                                        FilterContext context) {
-        apiVersionsService.mutateVersionsApplyingIntersection(context.channelDescriptor(), data);
+        apiVersionsService.updateVersions(context.channelDescriptor(), data);
         return context.forwardResponse(header, data);
     }
 }

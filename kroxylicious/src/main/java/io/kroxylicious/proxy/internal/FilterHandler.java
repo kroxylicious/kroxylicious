@@ -6,6 +6,7 @@
 package io.kroxylicious.proxy.internal;
 
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
@@ -538,7 +539,7 @@ public class FilterHandler extends ChannelDuplexHandler {
         }
 
         @Override
-        public CompletionStage<ApiVersionRanges> getApiVersionRanges(ApiKeys keys) {
+        public CompletionStage<Optional<ApiVersionRanges>> getApiVersionRanges(ApiKeys keys) {
             return apiVersionService.getApiVersionRanges(keys, this);
         }
 

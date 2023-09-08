@@ -6,6 +6,7 @@
 
 package io.kroxylicious.proxy.internal;
 
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.kafka.common.message.ApiVersionsResponseData;
@@ -27,9 +28,9 @@ class ApiVersionsServiceImplTest {
         ApiVersionsServiceImpl apiVersionsService = new ApiVersionsServiceImpl();
         ApiVersionsResponseData upstreamApiVersions = createApiVersionsWith(ApiKeys.METADATA.id, (short) (ApiKeys.METADATA.oldestVersion() + 1),
                 (short) (ApiKeys.METADATA.latestVersion() + 1));
-        apiVersionsService.mutateVersionsApplyingIntersection("channel", upstreamApiVersions);
+        apiVersionsService.updateVersions("channel", upstreamApiVersions);
         ApiVersionsService.ApiVersionRanges range = apiVersionsService.getApiVersionRanges(ApiKeys.METADATA, Mockito.mock(FilterContext.class)).toCompletableFuture()
-                .getNow(null);
+                .getNow(Optional.empty()).orElse(null);
         assertThat(range).isNotNull();
         assertThat(range.upstream().minVersion()).isEqualTo((short) (ApiKeys.METADATA.oldestVersion() + 1));
         assertThat(range.upstream().maxVersion()).isEqualTo((short) (ApiKeys.METADATA.latestVersion() + 1));
@@ -45,7 +46,7 @@ class ApiVersionsServiceImplTest {
         FilterContext filterContext = Mockito.mock(FilterContext.class);
         Mockito.when(filterContext.sendRequest(anyShort(), any())).thenReturn(CompletableFuture.completedFuture(upstreamApiVersions));
         ApiVersionsService.ApiVersionRanges range = apiVersionsService.getApiVersionRanges(ApiKeys.METADATA, filterContext).toCompletableFuture()
-                .getNow(null);
+                .getNow(Optional.empty()).orElse(null);
         assertThat(range).isNotNull();
         assertThat(range.upstream().minVersion()).isEqualTo((short) (ApiKeys.METADATA.oldestVersion() - 1));
         assertThat(range.upstream().maxVersion()).isEqualTo((short) (ApiKeys.METADATA.latestVersion() - 1));
@@ -58,7 +59,7 @@ class ApiVersionsServiceImplTest {
         ApiVersionsServiceImpl apiVersionsService = new ApiVersionsServiceImpl();
         ApiVersionsResponseData upstreamApiVersions = createApiVersionsWith(ApiKeys.METADATA.id, ApiKeys.METADATA.oldestVersion(),
                 ApiKeys.METADATA.latestVersion());
-        apiVersionsService.mutateVersionsApplyingIntersection("channel", upstreamApiVersions);
+        apiVersionsService.updateVersions("channel", upstreamApiVersions);
         assertThatApiVersionsContainsExactly(upstreamApiVersions, ApiKeys.METADATA, ApiKeys.METADATA.oldestVersion(), ApiKeys.METADATA.latestVersion());
     }
 
@@ -67,7 +68,7 @@ class ApiVersionsServiceImplTest {
         ApiVersionsServiceImpl apiVersionsService = new ApiVersionsServiceImpl();
         ApiVersionsResponseData upstreamApiVersions = createApiVersionsWith(ApiKeys.METADATA.id, (short) (ApiKeys.METADATA.oldestVersion() - 1),
                 ApiKeys.METADATA.latestVersion());
-        apiVersionsService.mutateVersionsApplyingIntersection("channel", upstreamApiVersions);
+        apiVersionsService.updateVersions("channel", upstreamApiVersions);
         assertThatApiVersionsContainsExactly(upstreamApiVersions, ApiKeys.METADATA, ApiKeys.METADATA.oldestVersion(), ApiKeys.METADATA.latestVersion());
     }
 
@@ -76,7 +77,7 @@ class ApiVersionsServiceImplTest {
         ApiVersionsServiceImpl apiVersionsService = new ApiVersionsServiceImpl();
         ApiVersionsResponseData upstreamApiVersions = createApiVersionsWith(ApiKeys.METADATA.id, (short) (ApiKeys.METADATA.oldestVersion() + 1),
                 ApiKeys.METADATA.latestVersion());
-        apiVersionsService.mutateVersionsApplyingIntersection("channel", upstreamApiVersions);
+        apiVersionsService.updateVersions("channel", upstreamApiVersions);
         assertThatApiVersionsContainsExactly(upstreamApiVersions, ApiKeys.METADATA, (short) (ApiKeys.METADATA.oldestVersion() + 1), ApiKeys.METADATA.latestVersion());
     }
 
@@ -85,7 +86,7 @@ class ApiVersionsServiceImplTest {
         ApiVersionsServiceImpl apiVersionsService = new ApiVersionsServiceImpl();
         ApiVersionsResponseData upstreamApiVersions = createApiVersionsWith(ApiKeys.METADATA.id, ApiKeys.METADATA.oldestVersion(),
                 (short) (ApiKeys.METADATA.latestVersion() - 1));
-        apiVersionsService.mutateVersionsApplyingIntersection("channel", upstreamApiVersions);
+        apiVersionsService.updateVersions("channel", upstreamApiVersions);
         assertThatApiVersionsContainsExactly(upstreamApiVersions, ApiKeys.METADATA, ApiKeys.METADATA.oldestVersion(), (short) (ApiKeys.METADATA.latestVersion() - 1));
     }
 
@@ -94,7 +95,7 @@ class ApiVersionsServiceImplTest {
         ApiVersionsServiceImpl apiVersionsService = new ApiVersionsServiceImpl();
         ApiVersionsResponseData upstreamApiVersions = createApiVersionsWith(ApiKeys.METADATA.id, ApiKeys.METADATA.oldestVersion(),
                 (short) (ApiKeys.METADATA.latestVersion() + 1));
-        apiVersionsService.mutateVersionsApplyingIntersection("channel", upstreamApiVersions);
+        apiVersionsService.updateVersions("channel", upstreamApiVersions);
         assertThatApiVersionsContainsExactly(upstreamApiVersions, ApiKeys.METADATA, ApiKeys.METADATA.oldestVersion(), ApiKeys.METADATA.latestVersion());
     }
 
@@ -103,7 +104,7 @@ class ApiVersionsServiceImplTest {
         ApiVersionsServiceImpl apiVersionsService = new ApiVersionsServiceImpl();
         ApiVersionsResponseData upstreamApiVersions = createApiVersionsWith((short) 678, ApiKeys.METADATA.oldestVersion(),
                 (short) (ApiKeys.METADATA.latestVersion() + 1));
-        apiVersionsService.mutateVersionsApplyingIntersection("channel", upstreamApiVersions);
+        apiVersionsService.updateVersions("channel", upstreamApiVersions);
         assertThat(upstreamApiVersions.apiKeys()).isEmpty();
     }
 

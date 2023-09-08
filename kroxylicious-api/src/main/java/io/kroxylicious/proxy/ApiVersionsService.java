@@ -6,12 +6,13 @@
 
 package io.kroxylicious.proxy;
 
+import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.message.ApiVersionsResponseData.ApiVersion;
 import org.apache.kafka.common.protocol.ApiKeys;
 
-import edu.umd.cs.findbugs.annotations.Nullable;
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 public interface ApiVersionsService {
 
@@ -20,7 +21,7 @@ public interface ApiVersionsService {
      * @param upstream the version range supported by the upstream server, or null if this key is not supported by upstream
      * @param intersected the version range supported by both Kroxylicious and the upstream server, or null if this ApiKey is not supported
      */
-    record ApiVersionRanges(@Nullable ApiVersion upstream, @Nullable ApiVersion intersected) {
+    record ApiVersionRanges(@NonNull ApiVersion upstream, @NonNull ApiVersion intersected) {
     }
 
     /**
@@ -29,7 +30,8 @@ public interface ApiVersionsService {
      * Filters will likely want to work with the intersected range as both the proxy and the
      * upstream can parse those versions.
      * @param keys keys
-     * @return a CompletionStage that will be completed with the upstream ApiVersionRanges
+     * @return a CompletionStage that will be completed with the upstream ApiVersionRanges,
+     * or an empty optional if the upstream doesn't support this key
      */
-    CompletionStage<ApiVersionRanges> getApiVersionRanges(ApiKeys keys);
+    CompletionStage<Optional<ApiVersionRanges>> getApiVersionRanges(ApiKeys keys);
 }
