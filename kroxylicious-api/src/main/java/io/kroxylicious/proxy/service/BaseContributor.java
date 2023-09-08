@@ -163,5 +163,5 @@ public abstract class BaseContributor<T> implements Contributor<T> {
         return new BaseContributorBuilder<>();
     }
 
-    private record ContributorDetails<C extends BaseConfig, T>(InstanceBuilder<C, T> instanceBuilder, boolean configRequired) { }
+    private record ContributorDetails<C extends BaseConfig, T>(InstanceBuilder<C, T> instanceBuilder, boolean configRequired) {}
 }

@@ -34,13 +34,13 @@ class BaseContributorTest {
 
     @Test
     void shouldReturnNullConfigTypeForUnregisteredName() {
-        //Given
+        // Given
         BaseContributor.BaseContributorBuilder<Long> builder = BaseContributor.builder();
         builder.add("one", () -> 1L);
         BaseContributor<Long> baseContributor = new BaseContributor<>(builder) {
         };
 
-        //When
+        // When
         Class<? extends BaseConfig> actual = baseContributor.getConfigType("two");
 
         assertThat(actual).isNull();
@@ -48,13 +48,13 @@ class BaseContributorTest {
 
     @Test
     void shouldReturnNullToRequiresConfigForUnregisteredName() {
-        //Given
+        // Given
         BaseContributor.BaseContributorBuilder<Long> builder = BaseContributor.builder();
         builder.add("one", () -> 1L);
         BaseContributor<Long> baseContributor = new BaseContributor<>(builder) {
         };
 
-        //When
+        // When
         Boolean actual = baseContributor.requiresConfig("two");
 
         assertThat(actual).isNull();
@@ -62,13 +62,13 @@ class BaseContributorTest {
 
     @Test
     void shouldReturnTrueFroRequiredRegisteredConfig() {
-        //Given
+        // Given
         BaseContributor.BaseContributorBuilder<Long> builder = BaseContributor.builder();
         builder.add("one", LongConfig.class, longConfig -> 1L);
         BaseContributor<Long> baseContributor = new BaseContributor<>(builder) {
         };
 
-        //When
+        // When
         Boolean actual = baseContributor.requiresConfig("one");
 
         assertThat(actual).isTrue();
@@ -76,13 +76,13 @@ class BaseContributorTest {
 
     @Test
     void shouldReturnFalseFroOptionalRegisteredConfig() {
-        //Given
+        // Given
         BaseContributor.BaseContributorBuilder<Long> builder = BaseContributor.builder();
         builder.add("one", LongConfig.class, longConfig -> 1L, false);
         BaseContributor<Long> baseContributor = new BaseContributor<>(builder) {
         };
 
-        //When
+        // When
         Boolean actual = baseContributor.requiresConfig("one");
 
         assertThat(actual).isFalse();
