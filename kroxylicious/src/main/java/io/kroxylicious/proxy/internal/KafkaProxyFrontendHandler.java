@@ -69,6 +69,7 @@ public class KafkaProxyFrontendHandler
 
     private final boolean logNetwork;
     private final boolean logFrames;
+    private final ApiVersionsServiceImpl apiVersionService;
     private final VirtualCluster virtualCluster;
 
     private ChannelHandlerContext outboundCtx;
@@ -133,12 +134,14 @@ public class KafkaProxyFrontendHandler
 
     KafkaProxyFrontendHandler(NetFilter filter,
                               SaslDecodePredicate dp,
-                              VirtualCluster virtualCluster) {
+                              VirtualCluster virtualCluster,
+                              ApiVersionsServiceImpl apiVersionService) {
         this.filter = filter;
         this.dp = dp;
         this.virtualCluster = virtualCluster;
         this.logNetwork = virtualCluster.isLogNetwork();
         this.logFrames = virtualCluster.isLogFrames();
+        this.apiVersionService = apiVersionService;
     }
 
     private IllegalStateException illegalState(String msg) {
@@ -336,7 +339,7 @@ public class KafkaProxyFrontendHandler
     private void addFiltersToPipeline(List<FilterAndInvoker> filters, ChannelPipeline pipeline, Channel inboundChannel) {
         for (var filter : filters) {
             // TODO configurable timeout
-            pipeline.addFirst(filter.toString(), new FilterHandler(filter, 20000, sniHostname, virtualCluster, inboundChannel));
+            pipeline.addFirst(filter.toString(), new FilterHandler(filter, 20000, sniHostname, virtualCluster, inboundChannel, apiVersionService));
         }
     }
 

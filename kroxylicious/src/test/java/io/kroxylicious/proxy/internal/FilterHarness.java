@@ -60,7 +60,7 @@ public abstract class FilterHarness {
         this.filter = filter;
         filterHandler = new FilterHandler(getOnlyElement(FilterAndInvoker.build(filter)), timeoutMs, null,
                 new VirtualCluster("TestVirtualCluster", mock(TargetCluster.class), mock(ClusterNetworkAddressConfigProvider.class), Optional.empty(), false, false),
-                new EmbeddedChannel());
+                new EmbeddedChannel(), new ApiVersionsServiceImpl());
         channel = new EmbeddedChannel(filterHandler);
     }
 

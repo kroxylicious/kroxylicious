@@ -14,6 +14,8 @@ import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 
+import io.kroxylicious.proxy.ApiVersionsService;
+
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
@@ -124,4 +126,11 @@ public interface FilterContext {
      */
     String getVirtualClusterName();
     // TODO an API to allow a filter to add/remove another filter from the pipeline
+
+    /**
+     * Gets a Service responsible for exposing the API versions supported by the
+     * upstream broker and kroxylicious
+     * @return apiVersionsService
+     */
+    ApiVersionsService getApiVersionsService();
 }

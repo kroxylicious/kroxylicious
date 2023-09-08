@@ -12,6 +12,7 @@ public class TestFilterContributor extends BaseContributor<Filter> implements Fi
 
     public static final BaseContributorBuilder<Filter> FILTERS = BaseContributor.<Filter> builder()
             .add("FixedClientId", FixedClientIdFilter.FixedClientIdFilterConfig.class, FixedClientIdFilter::new)
+            .add("ApiVersionsMarkingFilter", ApiVersionsMarkingFilter::new)
             .add("RequestResponseMarking", RequestResponseMarkingFilter.RequestResponseMarkingFilterConfig.class, RequestResponseMarkingFilter::new)
             .add("OutOfBandSend", OutOfBandSendFilter.OutOfBandSendFilterConfig.class, OutOfBandSendFilter::new)
             .add("CompositePrefixingFixedClientId", CompositePrefixingFixedClientIdFilterConfig.class, CompositePrefixingFixedClientIdFilter::new)
