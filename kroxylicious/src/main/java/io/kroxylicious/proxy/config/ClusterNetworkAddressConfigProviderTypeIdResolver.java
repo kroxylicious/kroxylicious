@@ -5,8 +5,6 @@
  */
 package io.kroxylicious.proxy.config;
 
-import java.io.IOException;
-
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.DatabindContext;
 import com.fasterxml.jackson.databind.JavaType;
@@ -38,7 +36,7 @@ public class ClusterNetworkAddressConfigProviderTypeIdResolver extends TypeIdRes
     }
 
     @Override
-    public JavaType typeFromId(DatabindContext context, String id) throws IOException {
+    public JavaType typeFromId(DatabindContext context, String id) {
         Class<?> subType = ClusterNetworkAddressConfigProviderContributorManager.getInstance().getConfigType(id);
         return context.constructSpecializedType(superType, subType);
     }

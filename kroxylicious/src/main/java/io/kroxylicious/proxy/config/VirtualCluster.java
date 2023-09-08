@@ -29,6 +29,6 @@ public record VirtualCluster(TargetCluster targetCluster,
 
     private ClusterNetworkAddressConfigProvider toClusterNetworkAddressConfigProviderModel() {
         return ClusterNetworkAddressConfigProviderContributorManager.getInstance()
-                .getClusterEndpointConfigProvider(clusterNetworkAddressConfigProvider().type(), clusterNetworkAddressConfigProvider().config());
+                .getInstance(clusterNetworkAddressConfigProvider().type(), clusterNetworkAddressConfigProvider().config());
     }
 }

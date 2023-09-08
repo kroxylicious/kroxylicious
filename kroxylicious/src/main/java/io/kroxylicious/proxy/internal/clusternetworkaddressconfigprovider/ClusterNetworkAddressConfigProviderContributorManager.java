@@ -5,47 +5,21 @@
  */
 package io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider;
 
-import java.util.Optional;
-import java.util.ServiceLoader;
-
 import io.kroxylicious.proxy.clusternetworkaddressconfigprovider.ClusterNetworkAddressConfigProviderContributor;
-import io.kroxylicious.proxy.config.BaseConfig;
+import io.kroxylicious.proxy.internal.ContributorManager;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
-import io.kroxylicious.proxy.service.InstanceFactory;
 
-public class ClusterNetworkAddressConfigProviderContributorManager {
+public class ClusterNetworkAddressConfigProviderContributorManager
+        extends ContributorManager<ClusterNetworkAddressConfigProvider, ClusterNetworkAddressConfigProviderContributor> {
 
     private static final ClusterNetworkAddressConfigProviderContributorManager INSTANCE = new ClusterNetworkAddressConfigProviderContributorManager();
 
-    private final ServiceLoader<ClusterNetworkAddressConfigProviderContributor> contributors;
-
     private ClusterNetworkAddressConfigProviderContributorManager() {
-        this.contributors = ServiceLoader.load(ClusterNetworkAddressConfigProviderContributor.class);
+        super(ClusterNetworkAddressConfigProviderContributor.class, "endpoint provider");
     }
 
     public static ClusterNetworkAddressConfigProviderContributorManager getInstance() {
         return INSTANCE;
     }
 
-    public Class<? extends BaseConfig> getConfigType(String shortName) {
-        for (ClusterNetworkAddressConfigProviderContributor contributor : contributors) {
-            Optional<InstanceFactory<ClusterNetworkAddressConfigProvider>> factory = contributor.getInstanceFactory(shortName);
-            if (factory.isPresent()) {
-                return factory.get().getConfigClass();
-            }
-        }
-
-        throw new IllegalArgumentException("No endpoint provider found for name '" + shortName + "'");
-    }
-
-    public ClusterNetworkAddressConfigProvider getClusterEndpointConfigProvider(String shortName, BaseConfig baseConfig) {
-        for (ClusterNetworkAddressConfigProviderContributor contributor : contributors) {
-            Optional<InstanceFactory<ClusterNetworkAddressConfigProvider>> factory = contributor.getInstanceFactory(shortName);
-            if (factory.isPresent()) {
-                return factory.get().getInstance(baseConfig);
-            }
-        }
-
-        throw new IllegalArgumentException("No endpoint provider found for name '" + shortName + "'");
-    }
 }
