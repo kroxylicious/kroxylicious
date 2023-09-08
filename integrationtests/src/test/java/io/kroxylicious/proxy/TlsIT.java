@@ -52,8 +52,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 class TlsIT extends BaseIT {
     private static final HostPort PROXY_ADDRESS = HostPort.parse("localhost:9192");
     private static final ClusterNetworkAddressConfigProviderDefinition CONFIG_PROVIDER_DEFINITION = new ClusterNetworkAddressConfigProviderDefinitionBuilder(
-            "PortPerBroker").withConfig("bootstrapAddress", PROXY_ADDRESS)
-                    .build();
+            "PortPerBroker")
+            .withConfig("bootstrapAddress", PROXY_ADDRESS)
+            .build();
     private static final String TOPIC = "my-test-topic";
     @TempDir
     private Path certsDirectory;

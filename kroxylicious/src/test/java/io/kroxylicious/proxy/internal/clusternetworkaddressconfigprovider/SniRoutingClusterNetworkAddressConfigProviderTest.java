@@ -82,6 +82,6 @@ class SniRoutingClusterNetworkAddressConfigProviderTest {
     void badNodeId() {
         assertThrows(IllegalArgumentException.class, () -> new SniRoutingClusterNetworkAddressConfigProvider(
                 new SniRoutingClusterNetworkAddressConfigProviderConfig(parse("boot.kafka:1234"), "broker-$(nodeId).kafka"))
-                        .getBrokerAddress(-1));
+                .getBrokerAddress(-1));
     }
 }

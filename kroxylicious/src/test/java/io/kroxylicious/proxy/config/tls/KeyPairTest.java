@@ -43,9 +43,9 @@ class KeyPairTest {
     void serverKeyPairIncorrectKeyPassword() {
         doFailingKeyPairTest(TlsTestConstants.getResourceLocationOnFilesystem("server_encrypted.key"),
                 TlsTestConstants.getResourceLocationOnFilesystem("server.crt"), BADPASS)
-                        .hasRootCauseInstanceOf(BadPaddingException.class)
-                        .hasMessageContaining("server.crt")
-                        .hasMessageContaining("server_encrypted.key");
+                .hasRootCauseInstanceOf(BadPaddingException.class)
+                .hasMessageContaining("server.crt")
+                .hasMessageContaining("server_encrypted.key");
     }
 
     @Test
