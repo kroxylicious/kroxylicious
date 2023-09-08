@@ -21,8 +21,7 @@ public interface ApiVersionsService {
      * @param upstream the version range supported by the upstream server, or null if this key is not supported by upstream
      * @param intersected the version range supported by both Kroxylicious and the upstream server, or null if this ApiKey is not supported
      */
-    record ApiVersionRanges(@NonNull ApiVersion upstream, @NonNull ApiVersion intersected) {
-    }
+    record ApiVersionRanges(@NonNull ApiVersion upstream, @NonNull ApiVersion intersected) {}
 
     /**
      * Get the supported version ranges for an ApiKey. Will contain the upstream supported
