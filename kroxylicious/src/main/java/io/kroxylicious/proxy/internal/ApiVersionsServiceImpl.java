@@ -25,8 +25,7 @@ import io.kroxylicious.proxy.filter.FilterContext;
 
 public class ApiVersionsServiceImpl {
 
-    private record ApiVersions(ApiVersionCollection upstream, ApiVersionCollection intersected) {
-    }
+    private record ApiVersions(ApiVersionCollection upstream, ApiVersionCollection intersected) {}
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ApiVersionsServiceImpl.class);
     private ApiVersions apiVersions = null;

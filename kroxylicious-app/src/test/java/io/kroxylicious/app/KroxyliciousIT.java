@@ -75,22 +75,23 @@ class KroxyliciousIT {
 
     private record SubprocessKroxyliciousFactory(Path tempDir) implements Function<Configuration, AutoCloseable> {
 
-    @Override
-    public AutoCloseable apply(Configuration config) {
-        try {
-            Path configPath = tempDir.resolve("config.yaml");
-            Files.writeString(configPath, new ConfigParser().toYaml(config));
-            String java = System.getProperty("java.home") + File.separator + "bin" + File.separator + "java";
-            String classpath = System.getProperty("java.class.path");
-            var processBuilder = new ProcessBuilder(java, "-cp", classpath, "io.kroxylicious.app.Kroxylicious", "-c", configPath.toString()).inheritIO();
-            Process start = processBuilder.start();
-            return () -> {
-                start.destroy();
-                start.onExit().get(10, TimeUnit.SECONDS);
-            };
-        }
-        catch (Exception e) {
-            throw new RuntimeException(e);
+        @Override
+        public AutoCloseable apply(Configuration config) {
+            try {
+                Path configPath = tempDir.resolve("config.yaml");
+                Files.writeString(configPath, new ConfigParser().toYaml(config));
+                String java = System.getProperty("java.home") + File.separator + "bin" + File.separator + "java";
+                String classpath = System.getProperty("java.class.path");
+                var processBuilder = new ProcessBuilder(java, "-cp", classpath, "io.kroxylicious.app.Kroxylicious", "-c", configPath.toString()).inheritIO();
+                Process start = processBuilder.start();
+                return () -> {
+                    start.destroy();
+                    start.onExit().get(10, TimeUnit.SECONDS);
+                };
+            }
+            catch (Exception e) {
+                throw new RuntimeException(e);
+            }
         }
     }
-}}
+}

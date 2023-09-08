@@ -28,8 +28,8 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 @SuppressFBWarnings(value = "PATH_TRAVERSAL_IN", justification = "The paths provide the location for key material which may exist anywhere on the file-system. Paths are provided by the user in the administrator role via Kroxylicious configuration. ")
 public record KeyPair(String privateKeyFile,
                       String certificateFile,
-                      @JsonProperty(value="keyPassword") PasswordProvider keyPasswordProvider
-) implements KeyProvider {
+                      @JsonProperty(value = "keyPassword") PasswordProvider keyPasswordProvider)
+        implements KeyProvider {
 
     @Override
     public SslContextBuilder forServer() {
@@ -40,7 +40,8 @@ public record KeyPair(String privateKeyFile,
         }
         catch (Exception e) {
             throw new RuntimeException(
-                    "Error building SSLContext. certificateFile : " + certificateFile + ", privateKeyFile: " + privateKeyFile + ", password present: " + (keyPasswordProvider != null),
+                    "Error building SSLContext. certificateFile : " + certificateFile + ", privateKeyFile: " + privateKeyFile + ", password present: "
+                            + (keyPasswordProvider != null),
                     e);
         }
     }

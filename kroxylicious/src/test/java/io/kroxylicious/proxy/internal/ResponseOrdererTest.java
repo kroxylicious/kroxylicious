@@ -24,49 +24,49 @@ class ResponseOrdererTest {
 
     record TestFrame(int correlationId) implements Frame {
 
-    @Override
-    public int estimateEncodedSize() {
-        return 0;
-    }
+        @Override
+        public int estimateEncodedSize() {
+            return 0;
+        }
 
-    @Override
-    public void encode(ByteBufAccessor out) {
-        throw new IllegalStateException("Not implemented");
-    }
+        @Override
+        public void encode(ByteBufAccessor out) {
+            throw new IllegalStateException("Not implemented");
+        }
 
-    @Override
-    public int correlationId() {
-        return correlationId;
-    }
+        @Override
+        public int correlationId() {
+            return correlationId;
+        }
 
     }
 
     record TestRequestFrame(int correlationId, boolean hasResponse) implements RequestFrame {
 
-    @Override
-    public int estimateEncodedSize() {
-        return 0;
-    }
+        @Override
+        public int estimateEncodedSize() {
+            return 0;
+        }
 
-    @Override
-    public void encode(ByteBufAccessor out) {
+        @Override
+        public void encode(ByteBufAccessor out) {
 
-    }
+        }
 
-    @Override
-    public int correlationId() {
-        return correlationId;
-    }
+        @Override
+        public int correlationId() {
+            return correlationId;
+        }
 
-    @Override
-    public boolean hasResponse() {
-        return hasResponse;
-    }
+        @Override
+        public boolean hasResponse() {
+            return hasResponse;
+        }
 
-    @Override
-    public boolean decodeResponse() {
-        return false;
-    }
+        @Override
+        public boolean decodeResponse() {
+            return false;
+        }
 
     }
 

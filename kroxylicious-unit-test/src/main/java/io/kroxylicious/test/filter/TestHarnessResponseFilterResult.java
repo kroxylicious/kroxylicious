@@ -11,5 +11,4 @@ import org.apache.kafka.common.protocol.ApiMessage;
 
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 
-public record TestHarnessResponseFilterResult(ResponseHeaderData header, ApiMessage message, boolean closeConnection, boolean drop) implements ResponseFilterResult {
-}
+public record TestHarnessResponseFilterResult(ResponseHeaderData header, ApiMessage message, boolean closeConnection, boolean drop) implements ResponseFilterResult {}
