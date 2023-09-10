@@ -249,6 +249,19 @@ class FilterIT {
 
     /**
      * This test verifies the use-case where a filter needs delay a request/response forward
+     * until a 3rd party asynchronous action completes.
+     * @param direction direction of the flow
+     */
+    @ParameterizedTest
+    @EnumSource(value = RequestResponseMarkingFilter.Direction.class)
+    void supportsForwardDeferredByAsynchronousActionOnEventLoop(RequestResponseMarkingFilter.Direction direction) {
+        doSupportsForwardDeferredByAsynchronousRequest(direction,
+                "supportsForwardDeferredByAsynchronousActionOnEventLoop",
+                ForwardingStyle.ASYNCHRONOUS_DELAYED_ON_EVENTlOOP);
+    }
+
+    /**
+     * This test verifies the use-case where a filter needs delay a request/response forward
      * until an asynchronous request to the broker completes.
      * @param direction direction of the flow
      */

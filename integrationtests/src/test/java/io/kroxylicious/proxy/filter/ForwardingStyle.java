@@ -11,7 +11,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.function.BiFunction;
+import java.util.function.Function;
 
 import org.apache.kafka.common.message.ListGroupsRequestData;
 import org.apache.kafka.common.message.ListGroupsResponseData;
@@ -19,21 +19,21 @@ import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.Errors;
 
-public enum ForwardingStyle implements BiFunction<FilterContext, ApiMessage, CompletionStage<ApiMessage>> {
+public enum ForwardingStyle implements Function<ForwardingContext, CompletionStage<ApiMessage>> {
     SYNCHRONOUS {
         @Override
-        public CompletionStage<ApiMessage> apply(FilterContext context, ApiMessage body) {
-            return CompletableFuture.completedStage(body);
+        public CompletionStage<ApiMessage> apply(ForwardingContext context) {
+            return CompletableFuture.completedStage(context.body());
         }
     },
     ASYNCHRONOUS_DELAYED {
         @Override
-        public CompletionStage<ApiMessage> apply(FilterContext context, ApiMessage body) {
+        public CompletionStage<ApiMessage> apply(ForwardingContext context) {
             CompletableFuture<ApiMessage> result = new CompletableFuture<>();
             ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
             try {
                 executor.schedule(() -> {
-                    result.complete(body);
+                    result.complete(context.body());
                 }, 200L, TimeUnit.MILLISECONDS);
             }
             finally {
@@ -42,10 +42,21 @@ public enum ForwardingStyle implements BiFunction<FilterContext, ApiMessage, Com
             return result;
         }
     },
+    ASYNCHRONOUS_DELAYED_ON_EVENTlOOP {
+        @Override
+        public CompletionStage<ApiMessage> apply(ForwardingContext context) {
+            ScheduledExecutorService executor = context.constructionContext().executors().eventLoop();
+            CompletableFuture<ApiMessage> result = new CompletableFuture<>();
+            executor.schedule(() -> {
+                result.complete(context.body());
+            }, 200L, TimeUnit.MILLISECONDS);
+            return result;
+        }
+    },
     ASYNCHRONOUS_REQUEST_TO_BROKER {
         @Override
-        public CompletionStage<ApiMessage> apply(FilterContext context, ApiMessage body) {
-            return sendAsyncRequestAndCheckForResponseErrors(context).thenApply(unused -> body);
+        public CompletionStage<ApiMessage> apply(ForwardingContext context) {
+            return sendAsyncRequestAndCheckForResponseErrors(context.filterContext()).thenApply(unused -> context.body());
         }
 
         private CompletionStage<ListGroupsResponseData> sendAsyncRequestAndCheckForResponseErrors(FilterContext filterContext) {

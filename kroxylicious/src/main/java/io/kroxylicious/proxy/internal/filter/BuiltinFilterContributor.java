@@ -6,14 +6,15 @@
 package io.kroxylicious.proxy.internal.filter;
 
 import io.kroxylicious.proxy.filter.Filter;
+import io.kroxylicious.proxy.filter.FilterConstructContext;
 import io.kroxylicious.proxy.filter.FilterContributor;
 import io.kroxylicious.proxy.internal.filter.FetchResponseTransformationFilter.FetchResponseTransformationConfig;
 import io.kroxylicious.proxy.internal.filter.ProduceRequestTransformationFilter.ProduceRequestTransformationConfig;
 import io.kroxylicious.proxy.service.BaseContributor;
 
-public class BuiltinFilterContributor extends BaseContributor<Filter> implements FilterContributor {
+public class BuiltinFilterContributor extends BaseContributor<Filter, FilterConstructContext> implements FilterContributor {
 
-    public static final BaseContributorBuilder<Filter> FILTERS = BaseContributor.<Filter> builder()
+    public static final BaseContributorBuilder<Filter, FilterConstructContext> FILTERS = BaseContributor.<Filter, FilterConstructContext> builder()
             .add("ProduceRequestTransformation", ProduceRequestTransformationConfig.class, ProduceRequestTransformationFilter::new)
             .add("FetchResponseTransformation", FetchResponseTransformationConfig.class, FetchResponseTransformationFilter::new);
 

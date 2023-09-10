@@ -12,6 +12,8 @@ import io.kroxylicious.proxy.clusternetworkaddressconfigprovider.ClusterNetworkA
 import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 
+import static io.kroxylicious.proxy.service.Context.wrap;
+
 public class ClusterNetworkAddressConfigProviderContributorManager {
 
     private static final ClusterNetworkAddressConfigProviderContributorManager INSTANCE = new ClusterNetworkAddressConfigProviderContributorManager();
@@ -41,7 +43,7 @@ public class ClusterNetworkAddressConfigProviderContributorManager {
 
     public ClusterNetworkAddressConfigProvider getClusterEndpointConfigProvider(String shortName, BaseConfig baseConfig) {
         for (ClusterNetworkAddressConfigProviderContributor contributor : contributors) {
-            var assigner = contributor.getInstance(shortName, baseConfig);
+            var assigner = contributor.getInstance(shortName, wrap(baseConfig));
             if (assigner != null) {
                 return assigner;
             }

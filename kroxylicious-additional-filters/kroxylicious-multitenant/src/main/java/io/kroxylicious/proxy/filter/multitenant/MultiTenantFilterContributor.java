@@ -6,12 +6,13 @@
 package io.kroxylicious.proxy.filter.multitenant;
 
 import io.kroxylicious.proxy.filter.Filter;
+import io.kroxylicious.proxy.filter.FilterConstructContext;
 import io.kroxylicious.proxy.filter.FilterContributor;
 import io.kroxylicious.proxy.service.BaseContributor;
 
-public class MultiTenantFilterContributor extends BaseContributor<Filter> implements FilterContributor {
+public class MultiTenantFilterContributor extends BaseContributor<Filter, FilterConstructContext> implements FilterContributor {
 
-    public static final BaseContributorBuilder<Filter> FILTERS = BaseContributor.<Filter> builder()
+    public static final BaseContributorBuilder<Filter, FilterConstructContext> FILTERS = BaseContributor.<Filter, FilterConstructContext> builder()
             .add("MultiTenant", MultiTenantTransformationFilter::new);
 
     public MultiTenantFilterContributor() {
