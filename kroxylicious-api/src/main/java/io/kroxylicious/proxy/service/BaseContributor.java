@@ -34,8 +34,8 @@ public abstract class BaseContributor<T> implements Contributor<T> {
 
     @NonNull
     @Override
-    public Optional<InstanceFactory<T>> getInstanceFactory(String shortName) {
-        return Optional.ofNullable(shortNameToInstanceBuilder.get(shortName)).map(tInstanceBuilder -> new InstanceFactory<T>() {
+    public Optional<SpecificContributor<T>> getSpecificContributor(String shortName) {
+        return Optional.ofNullable(shortNameToInstanceBuilder.get(shortName)).map(tInstanceBuilder -> new SpecificContributor<T>() {
             @Override
             public Class<? extends BaseConfig> getConfigClass() {
                 return tInstanceBuilder.configClass;

@@ -29,7 +29,7 @@ class BaseContributorTest {
         builder.add("one", () -> 1L);
         BaseContributor<Long> baseContributor = new BaseContributor<>(builder) {
         };
-        Optional<InstanceFactory<Long>> factory = baseContributor.getInstanceFactory("one");
+        Optional<SpecificContributor<Long>> factory = baseContributor.getSpecificContributor("one");
         assertThat(factory).isPresent();
         assertThat(factory.get().getConfigClass()).isEqualTo(BaseConfig.class);
     }
@@ -40,7 +40,7 @@ class BaseContributorTest {
         builder.add("one", () -> 1L);
         BaseContributor<Long> baseContributor = new BaseContributor<>(builder) {
         };
-        Optional<InstanceFactory<Long>> factory = baseContributor.getInstanceFactory("one");
+        Optional<SpecificContributor<Long>> factory = baseContributor.getSpecificContributor("one");
         assertThat(factory).isPresent();
         Long instance = factory.get().getInstance(new BaseConfig());
         assertThat(instance).isEqualTo(1L);
@@ -52,7 +52,7 @@ class BaseContributorTest {
         builder.add("fromBaseConfig", LongConfig.class, baseConfig -> baseConfig.value);
         BaseContributor<Long> baseContributor = new BaseContributor<>(builder) {
         };
-        Optional<InstanceFactory<Long>> factory = baseContributor.getInstanceFactory("fromBaseConfig");
+        Optional<SpecificContributor<Long>> factory = baseContributor.getSpecificContributor("fromBaseConfig");
         assertThat(factory).isPresent();
         assertThat(factory.get().getConfigClass()).isEqualTo(LongConfig.class);
     }
@@ -64,7 +64,7 @@ class BaseContributorTest {
         BaseContributor<Long> baseContributor = new BaseContributor<>(builder) {
         };
 
-        Optional<InstanceFactory<Long>> factory = baseContributor.getInstanceFactory("fromBaseConfig");
+        Optional<SpecificContributor<Long>> factory = baseContributor.getSpecificContributor("fromBaseConfig");
         assertThat(factory).isPresent();
         assertThat(factory.get().getInstance(new LongConfig())).isEqualTo(2L);
     }
@@ -76,11 +76,11 @@ class BaseContributorTest {
         BaseContributor<Long> baseContributor = new BaseContributor<>(builder) {
         };
         AnotherConfig incompatibleConfig = new AnotherConfig();
-        Optional<InstanceFactory<Long>> factory = baseContributor.getInstanceFactory("fromBaseConfig");
+        Optional<SpecificContributor<Long>> factory = baseContributor.getSpecificContributor("fromBaseConfig");
         assertThat(factory).isPresent();
-        InstanceFactory<Long> instanceFactory = factory.get();
+        SpecificContributor<Long> specificContributor = factory.get();
         assertThatThrownBy(() -> {
-            instanceFactory.getInstance(incompatibleConfig);
+            specificContributor.getInstance(incompatibleConfig);
         }).isInstanceOf(IllegalArgumentException.class);
     }
 

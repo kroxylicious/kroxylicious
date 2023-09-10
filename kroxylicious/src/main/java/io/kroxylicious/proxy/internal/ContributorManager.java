@@ -11,7 +11,7 @@ import java.util.ServiceLoader;
 
 import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.service.Contributor;
-import io.kroxylicious.proxy.service.InstanceFactory;
+import io.kroxylicious.proxy.service.SpecificContributor;
 
 public class ContributorManager<Y, T extends Contributor<Y>> {
 
@@ -25,7 +25,7 @@ public class ContributorManager<Y, T extends Contributor<Y>> {
 
     public Class<? extends BaseConfig> getConfigType(String shortName) {
         for (T contributor : contributors) {
-            Optional<InstanceFactory<Y>> configType = contributor.getInstanceFactory(shortName);
+            Optional<SpecificContributor<Y>> configType = contributor.getSpecificContributor(shortName);
             if (configType.isPresent()) {
                 return configType.get().getConfigClass();
             }
@@ -36,7 +36,7 @@ public class ContributorManager<Y, T extends Contributor<Y>> {
 
     public Y getInstance(String shortName, BaseConfig config) {
         for (T contributor : contributors) {
-            Optional<InstanceFactory<Y>> configType = contributor.getInstanceFactory(shortName);
+            Optional<SpecificContributor<Y>> configType = contributor.getSpecificContributor(shortName);
             if (configType.isPresent()) {
                 return configType.get().getInstance(config);
             }

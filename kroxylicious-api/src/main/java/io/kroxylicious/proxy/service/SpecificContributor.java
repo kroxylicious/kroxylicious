@@ -13,7 +13,7 @@ import io.kroxylicious.proxy.config.BaseConfig;
  * class that should be populated by the Kroxylicious framework when creating an instance.
  * @param <T> The type produced by the factory
  */
-public interface InstanceFactory<T> {
+public interface SpecificContributor<T> {
 
     /**
      * Gets the concrete type of the configuration required by this service instance.

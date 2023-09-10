@@ -17,12 +17,12 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 public interface Contributor<T> {
 
     /**
-     * Gets an instanceFactory for this service short name.
+     * Gets an optional SpecificContributor for this service short name.
      * @param shortName service short name
      *
-     * @return instance factory, or empty if this contributor does not offer this short name.
+     * @return optional containing specific contributor, or empty if this contributor does not offer this short name.
      */
     @NonNull
-    Optional<InstanceFactory<T>> getInstanceFactory(String shortName);
+    Optional<SpecificContributor<T>> getSpecificContributor(String shortName);
 
 }
