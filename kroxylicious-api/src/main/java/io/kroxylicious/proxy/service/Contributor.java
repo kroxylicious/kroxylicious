@@ -49,5 +49,4 @@ public interface Contributor<T, S extends Context> {
      */
     T getInstance(String shortName, S context);
 
-    record ConfigurationDefinition(Class<? extends BaseConfig> configurationType) {}
 }

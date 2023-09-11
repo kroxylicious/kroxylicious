@@ -9,6 +9,7 @@ package io.kroxylicious.proxy.micrometer;
 import java.util.Objects;
 
 import io.kroxylicious.proxy.config.BaseConfig;
+import io.kroxylicious.proxy.service.ConfigurationDefinition;
 import io.kroxylicious.proxy.service.Context;
 
 public class TestMicrometerConfigurationHookContributor implements MicrometerConfigurationHookContributor {
