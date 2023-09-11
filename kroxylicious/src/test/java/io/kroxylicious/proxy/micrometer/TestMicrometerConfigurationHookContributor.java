@@ -20,9 +20,24 @@ public class TestMicrometerConfigurationHookContributor implements MicrometerCon
     public static final String SHORT_NAME = "test";
 
     @Override
+    public boolean contributes(String shortName) {
+        return Objects.equals(SHORT_NAME, shortName);
+    }
+
+    @Override
     public Class<? extends BaseConfig> getConfigType(String shortName) {
         if (Objects.equals(shortName, SHORT_NAME)) {
             return Config.class;
+        }
+        else {
+            return null;
+        }
+    }
+
+    @Override
+    public ConfigurationDefinition getConfigDefinition(String shortName) {
+        if (Objects.equals(shortName, SHORT_NAME)) {
+            return new ConfigurationDefinition(Config.class);
         }
         else {
             return null;

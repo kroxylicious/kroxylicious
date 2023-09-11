@@ -20,7 +20,7 @@ import io.kroxylicious.proxy.config.BaseConfig;
  */
 public abstract class BaseContributor<T, S extends Context> implements Contributor<T, S> {
 
-    private final Map<String, InstanceBuilder<T, S>> shortNameToInstanceBuilder;
+    private final Map<String, ContributionDetails<T, S>> shortNameToInstanceBuilder;
 
     /**
      * Constructs and configures the contributor using the supplied {@code builder}.
@@ -31,15 +31,37 @@ public abstract class BaseContributor<T, S extends Context> implements Contribut
     }
 
     @Override
+    public boolean contributes(String shortName) {
+        return shortNameToInstanceBuilder.containsKey(shortName);
+    }
+
+    @Override
+    public ConfigurationDefinition getConfigDefinition(String shortName) {
+        return shortNameToInstanceBuilder.get(shortName).configurationDefinition();
+    }
+
+    @SuppressWarnings("removal")
+    @Override
     public Class<? extends BaseConfig> getConfigType(String shortName) {
-        InstanceBuilder<T, S> instanceBuilder = shortNameToInstanceBuilder.get(shortName);
-        return instanceBuilder == null ? null : instanceBuilder.configClass;
+        final ContributionDetails<?, ?> contributionDetails = shortNameToInstanceBuilder.get(shortName);
+        if (contributionDetails != null) {
+            return contributionDetails.configurationDefinition().configurationType();
+        }
+        else {
+            return null;
+        }
     }
 
     @Override
     public T getInstance(String shortName, S context) {
-        InstanceBuilder<T, S> instanceBuilder = shortNameToInstanceBuilder.get(shortName);
-        return instanceBuilder == null ? null : instanceBuilder.construct(context);
+        final ContributionDetails<T, S> contributionDetails = shortNameToInstanceBuilder.get(shortName);
+        if (contributionDetails != null) {
+            InstanceBuilder<T, S> instanceBuilder = contributionDetails.instanceBuilder();
+            return instanceBuilder == null ? null : instanceBuilder.construct(context);
+        }
+        else {
+            return null;
+        }
     }
 
     private static class InstanceBuilder<L, D extends Context> {
@@ -85,7 +107,7 @@ public abstract class BaseContributor<T, S extends Context> implements Contribut
         private BaseContributorBuilder() {
         }
 
-        private final Map<String, InstanceBuilder<L, D>> shortNameToInstanceBuilder = new HashMap<>();
+        private final Map<String, ContributionDetails<L, D>> shortNameToInstanceBuilder = new HashMap<>();
 
         /**
          * Registers a factory function for the construction of a service instance.
@@ -113,7 +135,8 @@ public abstract class BaseContributor<T, S extends Context> implements Contribut
             if (shortNameToInstanceBuilder.containsKey(shortName)) {
                 throw new IllegalArgumentException(shortName + " already registered");
             }
-            shortNameToInstanceBuilder.put(shortName, InstanceBuilder.builder(configClass, instanceFunction));
+            shortNameToInstanceBuilder.put(shortName,
+                    new ContributionDetails<>(new ConfigurationDefinition(configClass), InstanceBuilder.builder(configClass, instanceFunction)));
             return this;
         }
 
@@ -139,7 +162,7 @@ public abstract class BaseContributor<T, S extends Context> implements Contribut
             return add(shortName, BaseConfig.class, (context, config) -> instanceFunction.apply(context));
         }
 
-        Map<String, InstanceBuilder<L, D>> build() {
+        Map<String, ContributionDetails<L, D>> build() {
             return Map.copyOf(shortNameToInstanceBuilder);
         }
     }
@@ -153,4 +176,6 @@ public abstract class BaseContributor<T, S extends Context> implements Contribut
     public static <L, D extends Context> BaseContributorBuilder<L, D> builder() {
         return new BaseContributorBuilder<>();
     }
+
+    protected record ContributionDetails<T, D extends Context>(ConfigurationDefinition configurationDefinition, InstanceBuilder<T, D> instanceBuilder) {}
 }
