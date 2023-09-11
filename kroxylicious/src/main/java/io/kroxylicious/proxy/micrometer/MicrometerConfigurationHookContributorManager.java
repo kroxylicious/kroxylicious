@@ -5,46 +5,42 @@
  */
 package io.kroxylicious.proxy.micrometer;
 
-import java.util.ServiceLoader;
-
 import io.kroxylicious.proxy.config.BaseConfig;
+import io.kroxylicious.proxy.service.Context;
+import io.kroxylicious.proxy.service.ContributionManager;
 
 import static io.kroxylicious.proxy.service.Context.wrap;
 
 public class MicrometerConfigurationHookContributorManager {
 
     private static final MicrometerConfigurationHookContributorManager INSTANCE = new MicrometerConfigurationHookContributorManager();
-
-    private final ServiceLoader<MicrometerConfigurationHookContributor> contributors;
+    private final ContributionManager<MicrometerConfigurationHook, Context, MicrometerConfigurationHookContributor> contributionManager;
 
     public static MicrometerConfigurationHookContributorManager getInstance() {
         return INSTANCE;
     }
 
     private MicrometerConfigurationHookContributorManager() {
-        this.contributors = ServiceLoader.load(MicrometerConfigurationHookContributor.class);
+        contributionManager = new ContributionManager<>();
     }
 
     public Class<? extends BaseConfig> getConfigType(String shortName) {
-        for (MicrometerConfigurationHookContributor contributor : contributors) {
-            Class<? extends BaseConfig> configType = contributor.getConfigType(shortName);
-            if (configType != null) {
-                return configType;
-            }
+        try {
+            return this.contributionManager.getDefinition(MicrometerConfigurationHookContributor.class, shortName).configurationType();
         }
-
-        throw new IllegalArgumentException("No micrometer configuration hook found for name '" + shortName + "'");
+        catch (IllegalArgumentException e) {
+            //Catch and re-throw with a more user-friendly error message
+            throw new IllegalArgumentException("No micrometer configuration hook found for name '" + shortName + "'");
+        }
     }
 
     public MicrometerConfigurationHook getHook(String shortName, BaseConfig filterConfig) {
-        for (MicrometerConfigurationHookContributor contributor : contributors) {
-            MicrometerConfigurationHook hook = contributor.getInstance(shortName, wrap(filterConfig));
-            if (hook != null) {
-                return hook;
-            }
+        try {
+            return this.contributionManager.getInstance(MicrometerConfigurationHookContributor.class, shortName, wrap(filterConfig));
         }
-
-        throw new IllegalArgumentException("No micrometer configuration hook found for name '" + shortName + "'");
+        catch (IllegalArgumentException e) {
+            //Catch and re-throw with a more user-friendly error message
+            throw new IllegalArgumentException("No micrometer configuration hook found for name '" + shortName + "'");
+        }
     }
-
 }
