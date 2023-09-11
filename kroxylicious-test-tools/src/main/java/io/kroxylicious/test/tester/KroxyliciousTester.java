@@ -214,42 +214,69 @@ public interface KroxyliciousTester extends Closeable {
     KafkaClient simpleTestClient(String virtualCluster);
 
     /**
-     *
+     * Creates the given topics on the specified virtual cluster, with an admin client using the specified configuration.
+     * @param topics the topics to be created
+     * @param additionalConfig additional admin config
+     * @param virtualCluster the virtual cluster we want the topics created on
+     * @return CreateTopicsResult
      */
     CreateTopicsResult createTopics(String virtualCluster, Map<String, Object> additionalConfig, NewTopic... topics);
 
     /**
-     *
+     * Creates the given topic on the specified virtual cluster, with an admin client using the specified configuration.
+     * @param topic the name of the topic to be created
+     * @param numPartitions the number of partitions for the topic
+     * @param additionalConfig additional admin config
+     * @param virtualCluster the virtual cluster we want the topics created on
+     * @return CreateTopicsResult
      */
     CreateTopicsResult createTopic(String virtualCluster, Map<String, Object> additionalConfig, String topic, int numPartitions);
 
     /**
-     *
+     * Creates the given topic on the specified virtual cluster.
+     * @param topic the name of the topic to be created
+     * @param numPartitions the number of partitions for the topic
+     * @param virtualCluster the virtual cluster we want the topics created on
+     * @return CreateTopicsResult
      */
     CreateTopicsResult createTopic(String virtualCluster, String topic, int numPartitions);
 
     /**
-     *
+     * Creates the given topics on the only virtual cluster.
+     * @param topics the topics to be created
+     * @return CreateTopicsResult
      */
     CreateTopicsResult createTopics(NewTopic... topics);
 
     /**
-     *
+     * Creates the given topic on the only virtual cluster.
+     * @param topic the name of the topic to be created
+     * @param numPartitions the number of partitions for the topic
+     * @return CreateTopicsResult
      */
     CreateTopicsResult createTopic(String topic, int numPartitions);
 
     /**
-     *
+     * Deletes the given topics on the specified virtual cluster, with an admin client using the specified configuration.
+     * @param topics the topics to be deleted
+     * @param additionalConfig additional admin config
+     * @param virtualCluster the virtual cluster we want the topics deleted from
+     * @return DeleteTopicsResult
      */
     DeleteTopicsResult deleteTopics(String virtualCluster, Map<String, Object> additionalConfig, TopicCollection topics);
 
     /**
-     *
+     * Deletes the given topics on the specified virtual cluster.
+     * @param topics the topics to be deleted
+     * @param virtualCluster the virtual cluster we want the topics deleted from
+     * @return DeleteTopicsResult
      */
     DeleteTopicsResult deleteTopics(String virtualCluster, TopicCollection topics);
 
     /**
-     *
+     * Deletes the given topics on the only virtual cluster.
+     * @param topics the topics to be deleted
+     * @return DeleteTopicsResult
      */
     DeleteTopicsResult deleteTopics(TopicCollection topics);
 
