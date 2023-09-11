@@ -5,23 +5,21 @@
  */
 package io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider;
 
-import java.util.Iterator;
-import java.util.ServiceLoader;
-
 import io.kroxylicious.proxy.clusternetworkaddressconfigprovider.ClusterNetworkAddressConfigProviderContributor;
 import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
+import io.kroxylicious.proxy.service.Context;
+import io.kroxylicious.proxy.service.ContributionManager;
 
 import static io.kroxylicious.proxy.service.Context.wrap;
 
 public class ClusterNetworkAddressConfigProviderContributorManager {
 
     private static final ClusterNetworkAddressConfigProviderContributorManager INSTANCE = new ClusterNetworkAddressConfigProviderContributorManager();
-
-    private final ServiceLoader<ClusterNetworkAddressConfigProviderContributor> contributors;
+    private final ContributionManager<ClusterNetworkAddressConfigProvider, Context, ClusterNetworkAddressConfigProviderContributor> contributionManager;
 
     private ClusterNetworkAddressConfigProviderContributorManager() {
-        this.contributors = ServiceLoader.load(ClusterNetworkAddressConfigProviderContributor.class);
+        contributionManager = new ContributionManager<>();
     }
 
     public static ClusterNetworkAddressConfigProviderContributorManager getInstance() {
@@ -29,26 +27,10 @@ public class ClusterNetworkAddressConfigProviderContributorManager {
     }
 
     public Class<? extends BaseConfig> getConfigType(String shortName) {
-        Iterator<ClusterNetworkAddressConfigProviderContributor> it = contributors.iterator();
-        while (it.hasNext()) {
-            ClusterNetworkAddressConfigProviderContributor contributor = it.next();
-            Class<? extends BaseConfig> configType = contributor.getConfigType(shortName);
-            if (configType != null) {
-                return configType;
-            }
-        }
-
-        throw new IllegalArgumentException("No endpoint provider found for name '" + shortName + "'");
+        return contributionManager.getDefinition(ClusterNetworkAddressConfigProviderContributor.class, shortName).configurationType();
     }
 
     public ClusterNetworkAddressConfigProvider getClusterEndpointConfigProvider(String shortName, BaseConfig baseConfig) {
-        for (ClusterNetworkAddressConfigProviderContributor contributor : contributors) {
-            var assigner = contributor.getInstance(shortName, wrap(baseConfig));
-            if (assigner != null) {
-                return assigner;
-            }
-        }
-
-        throw new IllegalArgumentException("No endpoint provider found for name '" + shortName + "'");
+        return contributionManager.getInstance(ClusterNetworkAddressConfigProviderContributor.class, shortName, wrap(baseConfig));
     }
 }
