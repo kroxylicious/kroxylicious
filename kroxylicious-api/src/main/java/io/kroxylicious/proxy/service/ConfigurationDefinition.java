@@ -8,5 +8,4 @@ package io.kroxylicious.proxy.service;
 
 import io.kroxylicious.proxy.config.BaseConfig;
 
-public record ConfigurationDefinition(Class<? extends BaseConfig> configurationType) {
-}
+public record ConfigurationDefinition(Class<? extends BaseConfig> configurationType) {}

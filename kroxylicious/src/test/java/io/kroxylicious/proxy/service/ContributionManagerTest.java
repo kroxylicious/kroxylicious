@@ -7,8 +7,10 @@
 package io.kroxylicious.proxy.service;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Function;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -25,65 +27,93 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class ContributionManagerTest {
 
+    private List<StringContributor> contributingContributors;
+
+    @BeforeEach
+    void setUp() {
+        contributingContributors = List.of(new StringContributor("one", "v1"), new StringContributor("two", "v2", StringyConfig.class));
+    }
+
     @SuppressWarnings("unchecked")
     @Test
     void shouldLoadServicesOfType() {
-        //Given
+        // Given
         final Function<Class<StringContributor>, Iterable<StringContributor>> supplier = mock(Function.class);
-        final ContributionManager<StringContributor> contributionManager = new ContributionManager<>(supplier);
-        when(supplier.apply(StringContributor.class)).thenReturn(List.of(new StringContributor(true, "testType")));
+        final ContributionManager<String, Context, StringContributor> contributionManager = new ContributionManager<>(supplier);
+        when(supplier.apply(StringContributor.class)).thenReturn(List.of(new StringContributor("testType", "testValue")));
 
-        //When
-            contributionManager.getDefinition(StringContributor.class, "testType");
+        // When
+        contributionManager.getDefinition(StringContributor.class, "testType");
 
-        //Then
+        // Then
         verify(supplier).apply(any());
     }
 
     @Test
-    void shouldThrowExceptionIfShortNameIsUnknown() {
-        //Given
-        List<StringContributor> contributors = List.of(new StringContributor(false, "one"), new StringContributor(false, "two"));
-        final ContributionManager<StringContributor> contributionManager = new ContributionManager<>(clazz -> contributors);
+    void shouldThrowExceptionIfShortNameIsUnknownForConfigurationDefinition() {
+        // Given
+        final ContributionManager<String, Context, StringContributor> contributionManager = new ContributionManager<>(clazz -> contributingContributors);
 
-        //When
+        // When
         assertThrows(IllegalArgumentException.class, () -> contributionManager.getDefinition(StringContributor.class, "unknown"));
 
-        //Then
+        // Then
     }
 
     @Test
-    void shouldFindConfigTypeByShortName() {
-        //Given
-        List<StringContributor> contributors = List.of(new StringContributor(false, "one"), new StringContributor(true, "two", StringyConfig.class));
-        final ContributionManager<StringContributor> contributionManager = new ContributionManager<>(clazz -> contributors);
+    void shouldFindConfigDefinitionByShortName() {
+        // Given
+        final ContributionManager<String, Context, StringContributor> contributionManager = new ContributionManager<>(clazz -> contributingContributors);
 
-        //When
+        // When
         final ConfigurationDefinition configurationDefinition = contributionManager.getDefinition(StringContributor.class, "two");
 
-        //Then
+        // Then
         assertThat(configurationDefinition).hasFieldOrProperty("configurationType").extracting("configurationType").isEqualTo(StringyConfig.class);
     }
 
-    private class StringContributor implements Contributor<String, Context> {
+    @Test
+    void shouldThrowExceptionIfShortNameIsUnknownForInstance() {
+        // Given
+        final ContributionManager<String, Context, StringContributor> contributionManager = new ContributionManager<>(clazz -> contributingContributors);
 
-        private final boolean contributes;
+        // When
+        assertThrows(IllegalArgumentException.class, () -> contributionManager.getInstance(StringContributor.class, "unknown", () -> null));
+
+        // Then
+    }
+
+    @Test
+    void shouldGetInstanceByShortName() {
+        // Given
+        final ContributionManager<String, Context, StringContributor> contributionManager = new ContributionManager<>(clazz -> contributingContributors);
+
+        // When
+        final String actualInstance = contributionManager.getInstance(StringContributor.class, "two", () -> null);
+
+        // Then
+        assertThat(actualInstance).isEqualTo("v2");
+    }
+
+    private static class StringContributor implements Contributor<String, Context> {
+
+        private final String myTypeName;
         private final String value;
         private final Class<? extends BaseConfig> configurationType;
 
-        private StringContributor(boolean contributes, String value) {
-            this(contributes, value, StringConfig.class);
+        private StringContributor(String typeName, String value) {
+            this(typeName, value, StringConfig.class);
         }
 
-        private StringContributor(boolean contributes, String value, Class<? extends BaseConfig> configurationType) {
-            this.contributes = contributes;
+        private StringContributor(String typeName, String value, Class<? extends BaseConfig> configurationType) {
+            this.myTypeName = typeName;
             this.value = value;
             this.configurationType = configurationType;
         }
 
         @Override
-        public boolean contributes(String shortName) {
-            return contributes;
+        public boolean contributes(String typeName) {
+            return Objects.equals(this.myTypeName, typeName);
         }
 
         @Override
