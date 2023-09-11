@@ -93,9 +93,9 @@ class TlsIT extends BaseIT {
                         .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
                         .build());
 
-        try (var tester = kroxyliciousTester(builder); var admin = tester.admin("demo")) {
+        try (var tester = kroxyliciousTester(builder)) {
             // do some work to ensure connection is opened
-            final CreateTopicsResult createTopicsResult = createTopic(admin, TOPIC, 1);
+            final CreateTopicsResult createTopicsResult = tester.createTopic("demo", TOPIC, 1);
             assertThat(createTopicsResult.all()).isDone();
         }
     }
@@ -132,9 +132,9 @@ class TlsIT extends BaseIT {
                         .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
                         .build());
 
-        try (var tester = kroxyliciousTester(builder); var admin = tester.admin("demo")) {
+        try (var tester = kroxyliciousTester(builder)) {
             // do some work to ensure connection is opened
-            final CreateTopicsResult createTopicsResult = createTopic(admin, TOPIC, 1);
+            final CreateTopicsResult createTopicsResult = tester.createTopic("demo", TOPIC, 1);
             assertThat(createTopicsResult.all()).isDone();
         }
     }
@@ -154,9 +154,9 @@ class TlsIT extends BaseIT {
                         .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
                         .build());
 
-        try (var tester = kroxyliciousTester(builder); var admin = tester.admin("demo")) {
+        try (var tester = kroxyliciousTester(builder)) {
             // do some work to ensure connection is opened
-            final CreateTopicsResult createTopicsResult = createTopic(admin, TOPIC, 1);
+            final CreateTopicsResult createTopicsResult = tester.createTopic("demo", TOPIC, 1);
             assertThat(createTopicsResult.all()).isDone();
         }
     }
@@ -189,13 +189,12 @@ class TlsIT extends BaseIT {
                         .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
                         .build());
 
-        try (var tester = kroxyliciousTester(builder);
-                var admin = tester.admin("demo",
-                        Map.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name,
-                                SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
-                                SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, downstreamCertificateGenerator.getPassword()))) {
+        try (var tester = kroxyliciousTester(builder)) {
             // do some work to ensure connection is opened
-            final CreateTopicsResult createTopicsResult = createTopic(admin, TOPIC, 1);
+            final CreateTopicsResult createTopicsResult = tester.createTopic("demo",
+                    Map.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name, SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG,
+                            clientTrustStore.toAbsolutePath().toString(), SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, downstreamCertificateGenerator.getPassword()),
+                    TOPIC, 1);
             assertThat(createTopicsResult.all()).isDone();
         }
     }

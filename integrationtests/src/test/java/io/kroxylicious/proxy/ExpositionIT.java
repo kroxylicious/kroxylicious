@@ -91,7 +91,7 @@ class ExpositionIT extends BaseIT {
         try (var tester = kroxyliciousTester(builder);
                 var admin = tester.admin("demo", clientSecurityProtocolConfig)) {
             // do some work to ensure connection is opened
-            createTopic(admin, TOPIC, 1);
+            tester.createTopic("demo", clientSecurityProtocolConfig, TOPIC, 1);
 
             var connectionsMetric = admin.metrics().entrySet().stream().filter(metricNameEntry -> "connections".equals(metricNameEntry.getKey().name()))
                     .findFirst();
@@ -126,10 +126,8 @@ class ExpositionIT extends BaseIT {
 
         try (var tester = kroxyliciousTester(builder)) {
             for (int i = 0; i < clusterProxyAddresses.size(); i++) {
-                try (var admin = tester.admin("cluster" + i)) {
-                    // do some work to ensure virtual cluster is operational
-                    createTopic(admin, TOPIC + i, 1);
-                }
+                // do some work to ensure virtual cluster is operational
+                tester.createTopic("cluster" + i, TOPIC + i, 1);
             }
         }
     }
@@ -175,13 +173,9 @@ class ExpositionIT extends BaseIT {
         try (var tester = kroxyliciousTester(builder)) {
             for (int i = 0; i < numberOfVirtualClusters; i++) {
                 var trust = keystoreTrustStoreList.get(i);
-                try (var admin = tester.admin("cluster" + i, Map.of(
-                        CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name,
-                        SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, trust.clientTrustStore(),
-                        SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, trust.password()))) {
-                    // do some work to ensure virtual cluster is operational
-                    createTopic(admin, TOPIC + i, 1);
-                }
+                // do some work to ensure virtual cluster is operational
+                tester.createTopic("cluster" + i, Map.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name,
+                        SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, trust.clientTrustStore(), SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, trust.password()), TOPIC + i, 1);
             }
         }
     }
@@ -474,7 +468,7 @@ class ExpositionIT extends BaseIT {
         // create topic and ensure that leaders are on different brokers.
         try (var admin = tester.admin();
                 var producer = tester.producer("demo", Map.of(ProducerConfig.CLIENT_ID_CONFIG, "myclient"))) {
-            createTopic(admin, topic, numberOfPartitions);
+            tester.createTopic(topic, numberOfPartitions);
             try {
                 await().atMost(Duration.ofSeconds(10))
                         .ignoreExceptions()
@@ -489,7 +483,7 @@ class ExpositionIT extends BaseIT {
                 }
             }
             finally {
-                deleteTopics(admin, TopicNameCollection.ofTopicNames(List.of(topic)));
+                tester.deleteTopics(TopicNameCollection.ofTopicNames(List.of(topic)));
             }
         }
     }

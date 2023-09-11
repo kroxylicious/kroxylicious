@@ -10,8 +10,12 @@ import java.io.Closeable;
 import java.util.Map;
 
 import org.apache.kafka.clients.admin.Admin;
+import org.apache.kafka.clients.admin.CreateTopicsResult;
+import org.apache.kafka.clients.admin.DeleteTopicsResult;
+import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.producer.Producer;
+import org.apache.kafka.common.TopicCollection;
 import org.apache.kafka.common.serialization.Serde;
 
 import io.kroxylicious.test.client.KafkaClient;
@@ -208,6 +212,46 @@ public interface KroxyliciousTester extends Closeable {
      * @throws IllegalArgumentException if the named virtual cluster is not part of the kroxylicious server
      */
     KafkaClient simpleTestClient(String virtualCluster);
+
+    /**
+     *
+     */
+    CreateTopicsResult createTopics(String virtualCluster, Map<String, Object> additionalConfig, NewTopic... topics);
+
+    /**
+     *
+     */
+    CreateTopicsResult createTopic(String virtualCluster, Map<String, Object> additionalConfig, String topic, int numPartitions);
+
+    /**
+     *
+     */
+    CreateTopicsResult createTopic(String virtualCluster, String topic, int numPartitions);
+
+    /**
+     *
+     */
+    CreateTopicsResult createTopics(NewTopic... topics);
+
+    /**
+     *
+     */
+    CreateTopicsResult createTopic(String topic, int numPartitions);
+
+    /**
+     *
+     */
+    DeleteTopicsResult deleteTopics(String virtualCluster, Map<String, Object> additionalConfig, TopicCollection topics);
+
+    /**
+     *
+     */
+    DeleteTopicsResult deleteTopics(String virtualCluster, TopicCollection topics);
+
+    /**
+     *
+     */
+    DeleteTopicsResult deleteTopics(TopicCollection topics);
 
     /**
      * Restarts the Kroxylicious server under test without closing any other resources.

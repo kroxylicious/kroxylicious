@@ -10,11 +10,18 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 
 import org.apache.kafka.clients.admin.Admin;
+import org.apache.kafka.clients.admin.CreateTopicsResult;
+import org.apache.kafka.clients.admin.DeleteTopicsResult;
+import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.producer.Producer;
+import org.apache.kafka.common.TopicCollection;
 import org.apache.kafka.common.serialization.Serde;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -145,6 +152,83 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     @Override
     public <U, V> Consumer<U, V> consumer(String virtualCluster, Serde<U> keySerde, Serde<V> valueSerde, Map<String, Object> additionalConfig) {
         return clients(virtualCluster).consumer(keySerde, valueSerde, additionalConfig);
+    }
+
+    public CreateTopicsResult createTopics(String virtualCluster, Map<String, Object> additionalConfig, NewTopic... topics) {
+        try (var admin = admin(virtualCluster, additionalConfig)) {
+            return createTopicsWithAdmin(admin, topics);
+        }
+        catch (ExecutionException e) {
+            throw new RuntimeException(e.getCause());
+        }
+        catch (InterruptedException | TimeoutException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public CreateTopicsResult createTopic(String virtualCluster, Map<String, Object> additionalConfig, String topic, int numPartitions) {
+        return createTopics(virtualCluster, additionalConfig, new NewTopic(topic, numPartitions, (short) 1));
+    }
+
+    public CreateTopicsResult createTopic(String virtualCluster, String topic, int numPartitions) {
+        return createTopics(virtualCluster, Map.of(), new NewTopic(topic, numPartitions, (short) 1));
+    }
+
+    public CreateTopicsResult createTopics(NewTopic... topics) {
+        try (var admin = admin()) {
+            return createTopicsWithAdmin(admin, topics);
+        }
+        catch (ExecutionException e) {
+            throw new RuntimeException(e.getCause());
+        }
+        catch (InterruptedException | TimeoutException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public CreateTopicsResult createTopic(String topic, int numPartitions) {
+        return createTopics(new NewTopic(topic, numPartitions, (short) 1));
+    }
+
+    private CreateTopicsResult createTopicsWithAdmin(Admin admin, NewTopic... topics) throws ExecutionException, InterruptedException, TimeoutException {
+        List<NewTopic> topicsList = List.of(topics);
+        var created = admin.createTopics(topicsList);
+        created.all().get(10, TimeUnit.SECONDS);
+        return created;
+    }
+
+    public DeleteTopicsResult deleteTopics(String virtualCluster, Map<String, Object> additionalConfig, TopicCollection topics) {
+        try (var admin = admin(virtualCluster, additionalConfig)) {
+            return deleteTopicsWithAdmin(admin, topics);
+        }
+        catch (ExecutionException e) {
+            throw new RuntimeException(e.getCause());
+        }
+        catch (InterruptedException | TimeoutException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public DeleteTopicsResult deleteTopics(String virtualCluster, TopicCollection topics) {
+        return deleteTopics(virtualCluster, Map.of(), topics);
+    }
+
+    public DeleteTopicsResult deleteTopics(TopicCollection topics) {
+        try (var admin = admin()) {
+            return deleteTopicsWithAdmin(admin, topics);
+        }
+        catch (ExecutionException e) {
+            throw new RuntimeException(e.getCause());
+        }
+        catch (InterruptedException | TimeoutException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private DeleteTopicsResult deleteTopicsWithAdmin(Admin admin, TopicCollection topics) throws ExecutionException, InterruptedException, TimeoutException {
+        var deleted = admin.deleteTopics(topics);
+        deleted.all().get(10, TimeUnit.SECONDS);
+        return deleted;
     }
 
     public void restartProxy() {

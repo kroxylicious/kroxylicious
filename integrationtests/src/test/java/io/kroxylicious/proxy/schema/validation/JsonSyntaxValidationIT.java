@@ -13,8 +13,10 @@ import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import org.apache.kafka.clients.admin.Admin;
+import org.apache.kafka.clients.admin.CreateTopicsResult;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.producer.Producer;
@@ -248,6 +250,26 @@ class JsonSyntaxValidationIT extends BaseIT {
             invalid.get(10, TimeUnit.SECONDS);
         }).isInstanceOf(ExecutionException.class).hasCauseInstanceOf(InvalidRecordException.class).cause()
                 .hasMessageContaining(message);
+    }
+
+    private CreateTopicsResult createTopics(Admin admin, NewTopic... topics) {
+        try {
+            List<NewTopic> topicsList = List.of(topics);
+            var created = admin.createTopics(topicsList);
+            assertThat(created.values()).hasSizeGreaterThanOrEqualTo(topicsList.size());
+            created.all().get(10, TimeUnit.SECONDS);
+            return created;
+        }
+        catch (ExecutionException e) {
+            throw new RuntimeException(e.getCause());
+        }
+        catch (InterruptedException | TimeoutException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private CreateTopicsResult createTopic(Admin admin, String topic, int numPartitions) {
+        return createTopics(admin, new NewTopic(topic, numPartitions, (short) 1));
     }
 
 }

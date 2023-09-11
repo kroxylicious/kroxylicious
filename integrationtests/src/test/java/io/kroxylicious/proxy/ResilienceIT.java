@@ -7,12 +7,17 @@ package io.kroxylicious.proxy;
 
 import java.time.Duration;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import org.apache.kafka.clients.admin.Admin;
+import org.apache.kafka.clients.admin.CreateTopicsResult;
+import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -139,6 +144,22 @@ class ResilienceIT extends BaseIT {
                 }
             }
 
+        }
+    }
+
+    private CreateTopicsResult createTopic(Admin admin, String topic, int numPartitions) {
+        try {
+            List<NewTopic> topicsList = List.of(new NewTopic(topic, numPartitions, (short) 1));
+            var created = admin.createTopics(topicsList);
+            assertThat(created.values()).hasSizeGreaterThanOrEqualTo(topicsList.size());
+            created.all().get(10, TimeUnit.SECONDS);
+            return created;
+        }
+        catch (ExecutionException e) {
+            throw new RuntimeException(e.getCause());
+        }
+        catch (InterruptedException | TimeoutException e) {
+            throw new RuntimeException(e);
         }
     }
 
