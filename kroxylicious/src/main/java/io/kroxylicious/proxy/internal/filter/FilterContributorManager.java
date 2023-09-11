@@ -5,22 +5,19 @@
  */
 package io.kroxylicious.proxy.internal.filter;
 
-import java.util.Iterator;
-import java.util.ServiceLoader;
-
 import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterConstructContext;
 import io.kroxylicious.proxy.filter.FilterContributor;
+import io.kroxylicious.proxy.service.ContributionManager;
 
 public class FilterContributorManager {
 
     private static final FilterContributorManager INSTANCE = new FilterContributorManager();
-
-    private final ServiceLoader<FilterContributor> contributors;
+    private final ContributionManager<Filter, FilterConstructContext, FilterContributor> contributionManager;
 
     private FilterContributorManager() {
-        this.contributors = ServiceLoader.load(FilterContributor.class);
+        contributionManager = new ContributionManager<>();
     }
 
     public static FilterContributorManager getInstance() {
@@ -28,30 +25,10 @@ public class FilterContributorManager {
     }
 
     public Class<? extends BaseConfig> getConfigType(String shortName) {
-        Iterator<FilterContributor> it = contributors.iterator();
-        while (it.hasNext()) {
-            FilterContributor contributor = it.next();
-            Class<? extends BaseConfig> configType = contributor.getConfigType(shortName);
-            if (configType != null) {
-                return configType;
-            }
-        }
-
-        throw new IllegalArgumentException("No filter found for name '" + shortName + "'");
+        return contributionManager.getDefinition(FilterContributor.class, shortName).configurationType();
     }
 
     public Filter getFilter(String shortName, NettyFilterContext context, BaseConfig filterConfig) {
-        Iterator<FilterContributor> it = contributors.iterator();
-        while (it.hasNext()) {
-            FilterContributor contributor = it.next();
-            FilterConstructContext context1 = context.wrap(filterConfig);
-            Filter filter = contributor.getInstance(shortName, context1);
-            if (filter != null) {
-                return filter;
-            }
-        }
-
-        throw new IllegalArgumentException("No filter found for name '" + shortName + "'");
+        return contributionManager.getInstance(FilterContributor.class, shortName, context.wrap(filterConfig));
     }
-
 }
