@@ -29,7 +29,7 @@ public class MicrometerConfigurationHookContributorManager {
             return this.contributionManager.getDefinition(MicrometerConfigurationHookContributor.class, shortName).configurationType();
         }
         catch (IllegalArgumentException e) {
-            //Catch and re-throw with a more user-friendly error message
+            // Catch and re-throw with a more user-friendly error message
             throw new IllegalArgumentException("No micrometer configuration hook found for name '" + shortName + "'");
         }
     }
@@ -39,7 +39,7 @@ public class MicrometerConfigurationHookContributorManager {
             return this.contributionManager.getInstance(MicrometerConfigurationHookContributor.class, shortName, wrap(filterConfig));
         }
         catch (IllegalArgumentException e) {
-            //Catch and re-throw with a more user-friendly error message
+            // Catch and re-throw with a more user-friendly error message
             throw new IllegalArgumentException("No micrometer configuration hook found for name '" + shortName + "'");
         }
     }
