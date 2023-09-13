@@ -35,7 +35,7 @@ The module structure is as follows:
 * `krpc-code-gen` a code generator used to build the API module.
 * `kroxylicious-api` the APIs needed to write a filter.
 * `kroxylicious-unit-test` test utilities for filter authors.
-* `kroxylicious` is the proxy runtime platform for hosting filters, including the networking code etc, but lacking a `main()` method
+* `kroxylicious` the proxy runtime platform for hosting filters, including the networking code etc, but lacking a `main()` method
 * `kroxylicious-test-tools` ???
 * `kroxylicious-app` provides a `main()` method for the proxy.
 * `kroxylicious-multitenant` a filter that implements multitenancy
