@@ -18,14 +18,9 @@ public class ClusterNetworkAddressConfigProviderDefinitionBuilder extends Abstra
 
     @Override
     protected ClusterNetworkAddressConfigProviderDefinition buildInternal(String type, Map<String, Object> config) {
-        Class<? extends BaseConfig> result;
-        try {
-            result = ContributionManager.INSTANCE.getDefinition(ClusterNetworkAddressConfigProviderContributor.class, type, (clazz, typeName) -> "").configurationType();
-        }
-        catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("No endpoint provider found for name '" + type + "'");
-        }
-        var configType = result;
-        return new ClusterNetworkAddressConfigProviderDefinition(type, mapper.convertValue(config, configType));
+        Class<? extends BaseConfig> result = ContributionManager.INSTANCE.getDefinition(ClusterNetworkAddressConfigProviderContributor.class, type,
+                (clazz, typeName) -> "No endpoint provider found for name '" + typeName + "'").configurationType();
+
+        return new ClusterNetworkAddressConfigProviderDefinition(type, mapper.convertValue(config, result));
     }
 }

@@ -18,15 +18,9 @@ public class MicrometerDefinitionBuilder extends AbstractDefinitionBuilder<Micro
 
     @Override
     protected MicrometerDefinition buildInternal(String type, Map<String, Object> config) {
-        Class<? extends BaseConfig> result;
-        try {
-            result = ContributionManager.INSTANCE.getDefinition(MicrometerConfigurationHookContributor.class, type, (clazz, typeName) -> "").configurationType();
-        }
-        catch (IllegalArgumentException e) {
-            // Catch and re-throw with a more user-friendly error message
-            throw new IllegalArgumentException("No micrometer configuration hook found for name '" + type + "'");
-        }
-        var configType = result;
-        return new MicrometerDefinition(type, mapper.convertValue(config, configType));
+        Class<? extends BaseConfig> result = ContributionManager.INSTANCE.getDefinition(MicrometerConfigurationHookContributor.class, type,
+                (clazz, typeName) -> "No micrometer configuration hook found for name '" + type + "'").configurationType();
+
+        return new MicrometerDefinition(type, mapper.convertValue(config, result));
     }
 }
