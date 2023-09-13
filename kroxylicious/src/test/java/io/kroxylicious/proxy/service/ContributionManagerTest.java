@@ -44,7 +44,7 @@ class ContributionManagerTest {
         final ContributionManager contributionManager = new ContributionManager(supplier);
 
         // When
-        contributionManager.getDefinition(StringContributor.class, "testType");
+        contributionManager.getDefinition(StringContributor.class, "testType", (clazz, typeName) -> "");
 
         // Then
         verify(supplier).apply(any());
@@ -54,10 +54,10 @@ class ContributionManagerTest {
     void shouldLoadServicesOfMultipleType() {
         // Given
         final ContributionManager contributionManager = new ContributionManager(clazz -> contributingContributors);
-        final ConfigurationDefinition stringConfigDef = contributionManager.getDefinition(StringContributor.class, "two");
+        final ConfigurationDefinition stringConfigDef = contributionManager.getDefinition(StringContributor.class, "two", (clazz, typeName) -> "");
 
         // When
-        final ConfigurationDefinition longConfigDef = contributionManager.getDefinition(LongContributor.class, "three");
+        final ConfigurationDefinition longConfigDef = contributionManager.getDefinition(LongContributor.class, "three", (clazz, typeName) -> "");
 
         // Then
         assertThat(stringConfigDef).hasFieldOrProperty("configurationType").extracting("configurationType").isEqualTo(StringyConfig.class);
@@ -70,7 +70,7 @@ class ContributionManagerTest {
         final ContributionManager contributionManager = new ContributionManager(clazz -> contributingContributors);
 
         // When
-        assertThrows(IllegalArgumentException.class, () -> contributionManager.getDefinition(StringContributor.class, "unknown"));
+        assertThrows(IllegalArgumentException.class, () -> contributionManager.getDefinition(StringContributor.class, "unknown", (clazz, typeName) -> ""));
 
         // Then
     }
@@ -81,7 +81,7 @@ class ContributionManagerTest {
         final ContributionManager contributionManager = new ContributionManager(clazz -> contributingContributors);
 
         // When
-        final ConfigurationDefinition configurationDefinition = contributionManager.getDefinition(StringContributor.class, "two");
+        final ConfigurationDefinition configurationDefinition = contributionManager.getDefinition(StringContributor.class, "two", (clazz, typeName) -> "");
 
         // Then
         assertThat(configurationDefinition).hasFieldOrProperty("configurationType").extracting("configurationType").isEqualTo(StringyConfig.class);
@@ -93,7 +93,7 @@ class ContributionManagerTest {
         final ContributionManager contributionManager = new ContributionManager(clazz -> contributingContributors);
 
         // When
-        assertThrows(IllegalArgumentException.class, () -> contributionManager.getInstance(StringContributor.class, "unknown", () -> null));
+        assertThrows(IllegalArgumentException.class, () -> contributionManager.getInstance(StringContributor.class, "unknown", () -> null, (clazz, typeName) -> ""));
 
         // Then
     }
@@ -104,7 +104,7 @@ class ContributionManagerTest {
         final ContributionManager contributionManager = new ContributionManager(clazz -> contributingContributors);
 
         // When
-        final String actualInstance = contributionManager.getInstance(StringContributor.class, "two", () -> null);
+        final String actualInstance = contributionManager.getInstance(StringContributor.class, "two", () -> null, (clazz, typeName) -> "");
 
         // Then
         assertThat(actualInstance).isEqualTo("v2");

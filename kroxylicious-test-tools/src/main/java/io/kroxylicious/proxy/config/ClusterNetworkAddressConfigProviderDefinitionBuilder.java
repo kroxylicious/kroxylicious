@@ -8,7 +8,8 @@ package io.kroxylicious.proxy.config;
 
 import java.util.Map;
 
-import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.ClusterNetworkAddressConfigProviderContributorManager;
+import io.kroxylicious.proxy.clusternetworkaddressconfigprovider.ClusterNetworkAddressConfigProviderContributor;
+import io.kroxylicious.proxy.service.ContributionManager;
 
 public class ClusterNetworkAddressConfigProviderDefinitionBuilder extends AbstractDefinitionBuilder<ClusterNetworkAddressConfigProviderDefinition> {
     public ClusterNetworkAddressConfigProviderDefinitionBuilder(String type) {
@@ -17,7 +18,14 @@ public class ClusterNetworkAddressConfigProviderDefinitionBuilder extends Abstra
 
     @Override
     protected ClusterNetworkAddressConfigProviderDefinition buildInternal(String type, Map<String, Object> config) {
-        var configType = ClusterNetworkAddressConfigProviderContributorManager.getInstance().getConfigType(type);
+        Class<? extends BaseConfig> result;
+        try {
+            result = ContributionManager.INSTANCE.getDefinition(ClusterNetworkAddressConfigProviderContributor.class, type, (clazz, typeName) -> "").configurationType();
+        }
+        catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("No endpoint provider found for name '" + type + "'");
+        }
+        var configType = result;
         return new ClusterNetworkAddressConfigProviderDefinition(type, mapper.convertValue(config, configType));
     }
 }

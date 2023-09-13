@@ -23,7 +23,10 @@ import io.micrometer.prometheus.PrometheusMeterRegistry;
 
 import io.kroxylicious.proxy.config.MicrometerDefinition;
 import io.kroxylicious.proxy.micrometer.MicrometerConfigurationHook;
-import io.kroxylicious.proxy.micrometer.MicrometerConfigurationHookContributorManager;
+import io.kroxylicious.proxy.micrometer.MicrometerConfigurationHookContributor;
+import io.kroxylicious.proxy.service.ContributionManager;
+
+import static io.kroxylicious.proxy.service.Context.wrap;
 
 public class MeterRegistries implements AutoCloseable {
     private final PrometheusMeterRegistry prometheusMeterRegistry;
@@ -40,10 +43,12 @@ public class MeterRegistries implements AutoCloseable {
     private List<MicrometerConfigurationHook> registerHooks(List<MicrometerDefinition> micrometerConfig) {
         CompositeMeterRegistry globalRegistry = Metrics.globalRegistry;
         preventDifferentTagNameRegistration(globalRegistry);
-        MicrometerConfigurationHookContributorManager manager = MicrometerConfigurationHookContributorManager.getInstance();
-        var hooks = micrometerConfig.stream().map(f -> manager.getHook(f.type(), f.config())).toList();
-        hooks.forEach(micrometerConfigurationHook -> micrometerConfigurationHook.configure(globalRegistry));
-        return hooks;
+        var configurationHooks = micrometerConfig.stream()
+                .map(f -> ContributionManager.INSTANCE.getInstance(MicrometerConfigurationHookContributor.class, f.type(), wrap(f.config()),
+                        (clazz, typeName) -> "No micrometer configuration hook found for name '" + typeName + "'"))
+                .toList();
+        configurationHooks.forEach(micrometerConfigurationHook -> micrometerConfigurationHook.configure(globalRegistry));
+        return configurationHooks;
     }
 
     /**
@@ -54,7 +59,8 @@ public class MeterRegistries implements AutoCloseable {
      *
      * @param registry registry
      */
-    /* test */ static void preventDifferentTagNameRegistration(CompositeMeterRegistry registry) {
+    /* test */
+    static void preventDifferentTagNameRegistration(CompositeMeterRegistry registry) {
         registry.config().meterFilter(new MeterFilter() {
             @Override
             public MeterFilterReply accept(Meter.Id id) {

@@ -8,7 +8,8 @@ package io.kroxylicious.proxy.config;
 
 import java.util.Map;
 
-import io.kroxylicious.proxy.internal.filter.FilterContributorManager;
+import io.kroxylicious.proxy.filter.FilterContributor;
+import io.kroxylicious.proxy.service.ContributionManager;
 
 public class FilterDefinitionBuilder extends AbstractDefinitionBuilder<FilterDefinition> {
     public FilterDefinitionBuilder(String type) {
@@ -17,7 +18,8 @@ public class FilterDefinitionBuilder extends AbstractDefinitionBuilder<FilterDef
 
     @Override
     protected FilterDefinition buildInternal(String type, Map<String, Object> config) {
-        var configType = FilterContributorManager.getInstance().getConfigType(type);
+        var configType = ContributionManager.INSTANCE.getDefinition(FilterContributor.class, type, (clazz, typeName) -> "No filter found for '" + typeName + "'")
+                .configurationType();
         return new FilterDefinition(type, mapper.convertValue(config, configType));
     }
 }
