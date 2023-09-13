@@ -7,17 +7,15 @@ package io.kroxylicious.proxy.internal.filter;
 
 import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.filter.Filter;
-import io.kroxylicious.proxy.filter.FilterConstructContext;
 import io.kroxylicious.proxy.filter.FilterContributor;
 import io.kroxylicious.proxy.service.ContributionManager;
 
+@SuppressWarnings("java:S6548")
 public class FilterContributorManager {
 
-    private static final FilterContributorManager INSTANCE = new FilterContributorManager();
-    private final ContributionManager<Filter, FilterConstructContext, FilterContributor> contributionManager;
+    public static final FilterContributorManager INSTANCE = new FilterContributorManager();
 
     private FilterContributorManager() {
-        contributionManager = new ContributionManager<>();
     }
 
     public static FilterContributorManager getInstance() {
@@ -25,10 +23,10 @@ public class FilterContributorManager {
     }
 
     public Class<? extends BaseConfig> getConfigType(String shortName) {
-        return contributionManager.getDefinition(FilterContributor.class, shortName).configurationType();
+        return ContributionManager.INSTANCE.getDefinition(FilterContributor.class, shortName).configurationType();
     }
 
     public Filter getFilter(String shortName, NettyFilterContext context, BaseConfig filterConfig) {
-        return contributionManager.getInstance(FilterContributor.class, shortName, context.wrap(filterConfig));
+        return ContributionManager.INSTANCE.getInstance(FilterContributor.class, shortName, context.wrap(filterConfig));
     }
 }

@@ -27,20 +27,21 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class ContributionManagerTest {
 
-    private List<StringContributor> contributingContributors;
+    private List<Contributor<?, ? super Context>> contributingContributors;
 
     @BeforeEach
     void setUp() {
-        contributingContributors = List.of(new StringContributor("one", "v1"), new StringContributor("two", "v2", StringyConfig.class));
+        contributingContributors = List.of(new StringContributor("one", "v1"), new StringContributor("two", "v2", StringyConfig.class),
+                new LongContributor("three", 3));
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({ "rawtypes", "unchecked" })
     @Test
     void shouldLoadServicesOfType() {
         // Given
-        final Function<Class<StringContributor>, Iterable<StringContributor>> supplier = mock(Function.class);
-        final ContributionManager<String, Context, StringContributor> contributionManager = new ContributionManager<>(supplier);
+        final Function<Class, Iterable> supplier = mock(Function.class);
         when(supplier.apply(StringContributor.class)).thenReturn(List.of(new StringContributor("testType", "testValue")));
+        final ContributionManager contributionManager = new ContributionManager(supplier);
 
         // When
         contributionManager.getDefinition(StringContributor.class, "testType");
@@ -50,9 +51,23 @@ class ContributionManagerTest {
     }
 
     @Test
+    void shouldLoadServicesOfMultipleType() {
+        // Given
+        final ContributionManager contributionManager = new ContributionManager(clazz -> contributingContributors);
+        final ConfigurationDefinition stringConfigDef = contributionManager.getDefinition(StringContributor.class, "two");
+
+        // When
+        final ConfigurationDefinition longConfigDef = contributionManager.getDefinition(LongContributor.class, "three");
+
+        // Then
+        assertThat(stringConfigDef).hasFieldOrProperty("configurationType").extracting("configurationType").isEqualTo(StringyConfig.class);
+        assertThat(longConfigDef).hasFieldOrProperty("configurationType").extracting("configurationType").isEqualTo(LongConfig.class);
+    }
+
+    @Test
     void shouldThrowExceptionIfShortNameIsUnknownForConfigurationDefinition() {
         // Given
-        final ContributionManager<String, Context, StringContributor> contributionManager = new ContributionManager<>(clazz -> contributingContributors);
+        final ContributionManager contributionManager = new ContributionManager(clazz -> contributingContributors);
 
         // When
         assertThrows(IllegalArgumentException.class, () -> contributionManager.getDefinition(StringContributor.class, "unknown"));
@@ -63,7 +78,7 @@ class ContributionManagerTest {
     @Test
     void shouldFindConfigDefinitionByShortName() {
         // Given
-        final ContributionManager<String, Context, StringContributor> contributionManager = new ContributionManager<>(clazz -> contributingContributors);
+        final ContributionManager contributionManager = new ContributionManager(clazz -> contributingContributors);
 
         // When
         final ConfigurationDefinition configurationDefinition = contributionManager.getDefinition(StringContributor.class, "two");
@@ -75,7 +90,7 @@ class ContributionManagerTest {
     @Test
     void shouldThrowExceptionIfShortNameIsUnknownForInstance() {
         // Given
-        final ContributionManager<String, Context, StringContributor> contributionManager = new ContributionManager<>(clazz -> contributingContributors);
+        final ContributionManager contributionManager = new ContributionManager(clazz -> contributingContributors);
 
         // When
         assertThrows(IllegalArgumentException.class, () -> contributionManager.getInstance(StringContributor.class, "unknown", () -> null));
@@ -86,13 +101,43 @@ class ContributionManagerTest {
     @Test
     void shouldGetInstanceByShortName() {
         // Given
-        final ContributionManager<String, Context, StringContributor> contributionManager = new ContributionManager<>(clazz -> contributingContributors);
+        final ContributionManager contributionManager = new ContributionManager(clazz -> contributingContributors);
 
         // When
         final String actualInstance = contributionManager.getInstance(StringContributor.class, "two", () -> null);
 
         // Then
         assertThat(actualInstance).isEqualTo("v2");
+    }
+
+    private static class LongContributor implements Contributor<Long, Context> {
+        private final String myTypeName;
+        private final long value;
+
+        private LongContributor(String typeName, long value) {
+            this.myTypeName = typeName;
+            this.value = value;
+        }
+
+        @Override
+        public boolean contributes(String typeName) {
+            return Objects.equals(this.myTypeName, typeName);
+        }
+
+        @Override
+        public Class<? extends BaseConfig> getConfigType(String shortName) {
+            return LongConfig.class;
+        }
+
+        @Override
+        public ConfigurationDefinition getConfigDefinition(String shortName) {
+            return new ConfigurationDefinition(LongConfig.class);
+        }
+
+        @Override
+        public Long getInstance(String shortName, Context context) {
+            return value;
+        }
     }
 
     private static class StringContributor implements Contributor<String, Context> {
@@ -133,6 +178,10 @@ class ContributionManagerTest {
     }
 
     private static class StringConfig extends BaseConfig {
+
+    }
+
+    private static class LongConfig extends BaseConfig {
 
     }
 

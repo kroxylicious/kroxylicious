@@ -12,25 +12,27 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
-public class ContributionManager<T, C extends Context, S extends Contributor<T, C>> {
+@SuppressWarnings({ "rawtypes", "unchecked" })
+public class ContributionManager /* <T, C extends Context, S extends Contributor<T, C>> */ {
+    public static final ContributionManager INSTANCE = new ContributionManager();
 
-    private final Map<Class<S>, Iterable<S>> contributors;
-    private final Function<Class<S>, Iterable<S>> loaderFunction;
+    private final Map<Class, Iterable> contributors;
+    private final Function<Class, Iterable> loaderFunction;
 
-    public ContributionManager() {
+    private ContributionManager() {
         this(ServiceLoader::load);
     }
 
-    /* test */ ContributionManager(Function<Class<S>, Iterable<S>> loaderFunction) {
+    /* test */ ContributionManager(Function<Class, Iterable> loaderFunction) {
         this.contributors = new ConcurrentHashMap<>();
         this.loaderFunction = loaderFunction;
     }
 
-    public ConfigurationDefinition getDefinition(Class<S> contributorClass, String typeName) {
+    public <T, C extends Context, S extends Contributor<T, C>> ConfigurationDefinition getDefinition(Class<S> contributorClass, String typeName) {
         return findContributor(contributorClass, typeName, (typName, contributor) -> contributor.getConfigDefinition(typName));
     }
 
-    private <X> X findContributor(Class<S> contributorClass, String typeName, BiFunction<String, S, X> extractor) {
+    private <T, C extends Context, S extends Contributor<T, C>, X> X findContributor(Class<S> contributorClass, String typeName, BiFunction<String, S, X> extractor) {
         final Iterable<S> contributorsForClass = this.contributors.computeIfAbsent(contributorClass, loaderFunction);
         for (S contributor : contributorsForClass) {
             if (contributor.contributes(typeName)) {
@@ -40,7 +42,7 @@ public class ContributionManager<T, C extends Context, S extends Contributor<T, 
         throw new IllegalArgumentException("No Contributor for type " + contributorClass.getSimpleName() + " is registered with name " + typeName);
     }
 
-    public T getInstance(Class<S> contributorClass, String typeName, C constructionContext) {
+    public <T, C extends Context, S extends Contributor<T, C>> T getInstance(Class<S> contributorClass, String typeName, C constructionContext) {
         return findContributor(contributorClass, typeName, (typName, contributor) -> contributor.getInstance(typeName, constructionContext));
     }
 }
