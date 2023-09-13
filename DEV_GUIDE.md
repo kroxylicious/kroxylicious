@@ -31,17 +31,16 @@ This document gives a detailed breakdown of the various build processes and opti
 
 The module structure is as follows:
 
-* `kroxylicious-bom` is the Bill Of Materials used by developers to conveniently declare a consistent set of Kroxylicious dependencies.
-* `krpc-code-gen` is a code generator use to buid the API module.
-* `kroxylicious-api` is the all the code that a filter author would need to write their filter, but without a `main()` method.
-* `kroxylicious-unit-test` contains tests utilities useful to filter authors.
-* `kroxylicious` is the proxy itself including the networking code the runtime platform for hosting filters.
+* `kroxylicious-bom` the Bill Of Materials used by developers to conveniently declare a consistent set of Kroxylicious dependencies.
+* `krpc-code-gen` a code generator used to build the API module.
+* `kroxylicious-api` the APIs needed to write a filter.
+* `kroxylicious-unit-test` test utilities for filter authors.
+* `kroxylicious` is the proxy runtime platform for hosting filters, including the networking code etc, but lacking a `main()` method
 * `kroxylicious-test-tools` ???
 * `kroxylicious-app` provides a `main()` method for the proxy.
-* `kroxylicious-filter-sample` Is an example filter
-* `kroxylicious-multitenant` Is a filter that implements multitenancy
-* `kroxylicious-schema-enforcement` Is a filter that implements schema enforcement
-* `integrationtests` contains the integration test suite
+* `kroxylicious-multitenant` a filter that implements multitenancy
+* `kroxylicious-schema-enforcement` a filter that implements schema enforcement
+* `integrationtests` the integration test suite
 * `kroxylicious-sample` contains a sample filter
 
 ## Build status
