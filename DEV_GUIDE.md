@@ -4,6 +4,7 @@ This document gives a detailed breakdown of the various build processes and opti
 
 <!-- TOC -->
 * [Development Guide for Kroxylicious](#development-guide-for-kroxylicious)
+  * [Project structure](#project-structure)
   * [Build status](#build-status)
   * [Build Prerequisites](#build-prerequisites)
   * [Prerequisites to run the kubernetes-examples](#prerequisites-to-run-the-kubernetes-examples)
@@ -25,6 +26,23 @@ This document gives a detailed breakdown of the various build processes and opti
     * [Verify that the fix is effective](#verify-that-the-fix-is-effective)
   * [Rendering documentation](#rendering-documentation)
 <!-- TOC -->
+
+## Project structure
+
+The module structure is as follows:
+
+* `kroxylicious-bom` is the Bill Of Materials used by developers to conveniently declare a consistent set of Kroxylicious dependencies.
+* `krpc-code-gen` is a code generator use to buid the API module.
+* `kroxylicious-api` is the all the code that a filter author would need to write their filter, but without a `main()` method.
+* `kroxylicious-unit-test` contains tests utilities useful to filter authors.
+* `kroxylicious` is the proxy itself including the networking code the runtime platform for hosting filters.
+* `kroxylicious-test-tools` ???
+* `kroxylicious-app` provides a `main()` method for the proxy.
+* `kroxylicious-filter-sample` Is an example filter
+* `kroxylicious-multitenant` Is a filter that implements multitenancy
+* `kroxylicious-schema-enforcement` Is a filter that implements schema enforcement
+* `integrationtests` contains the integration test suite
+* `kroxylicious-sample` contains a sample filter
 
 ## Build status
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=kroxylicious_kroxylicious&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=kroxylicious_kroxylicious) [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=kroxylicious_kroxylicious&metric=coverage)](https://sonarcloud.io/summary/new_code?id=kroxylicious_kroxylicious)
