@@ -26,7 +26,7 @@ class MultiTenantFilterContributorTest {
     }
 
     @Test
-    void testGetConfigTypViaConfigurationDefinition() {
+    void testGetConfigTypeViaConfigurationDefinition() {
         MultiTenantFilterContributor contributor = new MultiTenantFilterContributor();
         ConfigurationDefinition actualConfigurationDefinition = contributor.getConfigDefinition("MultiTenant");
         assertThat(actualConfigurationDefinition).isNotNull().hasFieldOrPropertyWithValue("configurationType", BaseConfig.class);
