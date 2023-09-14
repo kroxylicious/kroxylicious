@@ -41,8 +41,7 @@ public class FilterChainFactory {
         }
         return filters
                 .stream()
-                .map(f -> ContributionManager.INSTANCE.getInstance(FilterContributor.class, f.type(), context.wrap(f.config()),
-                        (clazz, typeName) -> "No filter found for '" + typeName + "'"))
+                .map(f -> ContributionManager.INSTANCE.getInstance(FilterContributor.class, f.type(), context.wrap(f.config())))
                 .flatMap(filter -> FilterAndInvoker.build(filter).stream())
                 .toList();
     }

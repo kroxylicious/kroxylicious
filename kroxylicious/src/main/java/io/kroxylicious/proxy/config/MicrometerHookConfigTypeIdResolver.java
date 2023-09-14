@@ -40,8 +40,7 @@ public class MicrometerHookConfigTypeIdResolver extends TypeIdResolverBase {
 
     @Override
     public JavaType typeFromId(DatabindContext context, String id) throws IOException {
-        Class<? extends BaseConfig> result = ContributionManager.INSTANCE.getDefinition(MicrometerConfigurationHookContributor.class, id,
-                (clazz, typeName) -> "No micrometer configuration hook found for name '" + typeName + "'").configurationType();
+        Class<? extends BaseConfig> result = ContributionManager.INSTANCE.getDefinition(MicrometerConfigurationHookContributor.class, id).configurationType();
         return context.constructSpecializedType(superType, result);
     }
 }

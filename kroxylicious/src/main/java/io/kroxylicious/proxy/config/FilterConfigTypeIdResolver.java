@@ -40,7 +40,7 @@ public class FilterConfigTypeIdResolver extends TypeIdResolverBase {
 
     @Override
     public JavaType typeFromId(DatabindContext context, String id) throws IOException {
-        Class<?> subType = ContributionManager.INSTANCE.getDefinition(FilterContributor.class, id, (clazz, typeName) -> "No filter found for '" + typeName + "'")
+        Class<?> subType = ContributionManager.INSTANCE.getDefinition(FilterContributor.class, id)
                 .configurationType();
         return context.constructSpecializedType(superType, subType);
     }

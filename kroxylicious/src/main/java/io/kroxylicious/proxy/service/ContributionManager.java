@@ -28,24 +28,21 @@ public class ContributionManager {
         this.loaderFunction = loaderFunction;
     }
 
-    public <T, C extends Context, S extends Contributor<T, C>> ConfigurationDefinition getDefinition(Class<S> contributorClass, String typeName,
-                                                                                                     BiFunction<Class<S>, String, String> errorGenerator) {
-        return findContributor(contributorClass, typeName, (typName, contributor) -> contributor.getConfigDefinition(typName), errorGenerator);
+    public <T, C extends Context, S extends Contributor<T, C>> ConfigurationDefinition getDefinition(Class<S> contributorClass, String typeName) {
+        return findContributor(contributorClass, typeName, (typName, contributor) -> contributor.getConfigDefinition(typName));
     }
 
-    public <T, C extends Context, S extends Contributor<T, C>> T getInstance(Class<S> contributorClass, String typeName, C constructionContext,
-                                                                             BiFunction<Class<S>, String, String> errorGenerator) {
-        return findContributor(contributorClass, typeName, (typName, contributor) -> contributor.getInstance(typeName, constructionContext), errorGenerator);
+    public <T, C extends Context, S extends Contributor<T, C>> T getInstance(Class<S> contributorClass, String typeName, C constructionContext) {
+        return findContributor(contributorClass, typeName, (typName, contributor) -> contributor.getInstance(typeName, constructionContext));
     }
 
-    private <T, C extends Context, S extends Contributor<T, C>, X> X findContributor(Class<S> contributorClass, String typeName, BiFunction<String, S, X> extractor,
-                                                                                     BiFunction<Class<S>, String, String> errorGenerator) {
+    private <T, C extends Context, S extends Contributor<T, C>, X> X findContributor(Class<S> contributorClass, String typeName, BiFunction<String, S, X> extractor) {
         final Iterable<S> contributorsForClass = this.contributors.computeIfAbsent(contributorClass, loaderFunction);
         for (S contributor : contributorsForClass) {
             if (contributor.contributes(typeName)) {
                 return extractor.apply(typeName, contributor);
             }
         }
-        throw new IllegalArgumentException(errorGenerator.apply(contributorClass, typeName));
+        throw new IllegalArgumentException("Name '" + typeName + "' is not contributed by any " + contributorClass);
     }
 }

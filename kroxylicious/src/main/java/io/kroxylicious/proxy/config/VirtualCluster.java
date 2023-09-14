@@ -33,7 +33,6 @@ public record VirtualCluster(TargetCluster targetCluster,
     private ClusterNetworkAddressConfigProvider toClusterNetworkAddressConfigProviderModel() {
         String shortName = clusterNetworkAddressConfigProvider().type();
         return ContributionManager.INSTANCE.getInstance(
-                ClusterNetworkAddressConfigProviderContributor.class, shortName, wrap(this.clusterNetworkAddressConfigProvider().config()),
-                (clazz, typeName) -> "No endpoint provider found for name '" + typeName + "'");
+                ClusterNetworkAddressConfigProviderContributor.class, shortName, wrap(this.clusterNetworkAddressConfigProvider().config()));
     }
 }

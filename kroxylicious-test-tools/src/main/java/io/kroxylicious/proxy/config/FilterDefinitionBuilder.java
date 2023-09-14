@@ -18,7 +18,7 @@ public class FilterDefinitionBuilder extends AbstractDefinitionBuilder<FilterDef
 
     @Override
     protected FilterDefinition buildInternal(String type, Map<String, Object> config) {
-        var configType = ContributionManager.INSTANCE.getDefinition(FilterContributor.class, type, (clazz, typeName) -> "No filter found for '" + typeName + "'")
+        var configType = ContributionManager.INSTANCE.getDefinition(FilterContributor.class, type)
                 .configurationType();
         return new FilterDefinition(type, mapper.convertValue(config, configType));
     }
