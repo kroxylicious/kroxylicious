@@ -112,10 +112,36 @@ class BaseContributorTest {
         builder.add("fromBaseConfig", LongConfig.class, baseConfig -> baseConfig.value);
         BaseContributor<Long, Context> baseContributor = new BaseContributor<>(builder) {
         };
-        AnotherConfig incompatibleConfig = new AnotherConfig();
-        assertThatThrownBy(() -> {
-            baseContributor.getInstance("fromBaseConfig", wrap(incompatibleConfig));
-        }).isInstanceOf(IllegalArgumentException.class);
+        final Context wrappedContext = wrap(new AnotherConfig());
+
+        assertThatThrownBy(() -> baseContributor.getInstance("fromBaseConfig", wrappedContext)).isInstanceOf(IllegalArgumentException.class);
     }
 
+    @Test
+    void shouldGetConfigDefinitionForKnownTypeName() {
+        //Given
+        BaseContributor.BaseContributorBuilder<Long, Context> builder = BaseContributor.builder();
+        builder.add("fromBaseConfig", LongConfig.class, baseConfig -> baseConfig.value);
+        BaseContributor<Long, Context> baseContributor = new BaseContributor<>(builder) {
+        };
+
+        //When
+        ConfigurationDefinition actual = baseContributor.getConfigDefinition("fromBaseConfig");
+
+        //Then
+        assertThat(actual).isNotNull().hasFieldOrPropertyWithValue("configurationType", LongConfig.class);
+    }
+
+    @Test
+    void shouldThrowForUnknownTypeNameConfigDefinition() {
+        //Given
+        BaseContributor.BaseContributorBuilder<Long, Context> builder = BaseContributor.builder();
+        BaseContributor<Long, Context> baseContributor = new BaseContributor<>(builder) {
+        };
+
+        //When
+        assertThatThrownBy(() -> baseContributor.getConfigDefinition("fromBaseConfig")).isInstanceOf(IllegalArgumentException.class);
+
+        //Then
+    }
 }
