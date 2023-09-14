@@ -35,6 +35,16 @@ class BaseContributorTest {
     }
 
     @Test
+    void testDefaultConfigClassFromConfigDefinition() {
+        BaseContributor.BaseContributorBuilder<Long, Context> builder = BaseContributor.builder();
+        builder.add("one", () -> 1L);
+        BaseContributor<Long, Context> baseContributor = new BaseContributor<>(builder) {
+        };
+        ConfigurationDefinition one = baseContributor.getConfigDefinition("one");
+        assertThat(one).hasFieldOrPropertyWithValue("configurationType", BaseConfig.class);
+    }
+
+    @Test
     void testSupplier() {
         BaseContributor.BaseContributorBuilder<Long, Context> builder = BaseContributor.builder();
         builder.add("one", () -> 1L);
@@ -78,6 +88,16 @@ class BaseContributorTest {
         };
         Class<? extends BaseConfig> configType = baseContributor.getConfigType("fromBaseConfig");
         assertThat(configType).isEqualTo(LongConfig.class);
+    }
+
+    @Test
+    void testSpecifyingConfigTypeViaConfigDefinition() {
+        BaseContributor.BaseContributorBuilder<Long, Context> builder = BaseContributor.builder();
+        builder.add("fromBaseConfig", LongConfig.class, baseConfig -> baseConfig.value);
+        BaseContributor<Long, Context> baseContributor = new BaseContributor<>(builder) {
+        };
+        ConfigurationDefinition actualConfigDefinition = baseContributor.getConfigDefinition("fromBaseConfig");
+        assertThat(actualConfigDefinition).hasFieldOrPropertyWithValue("configurationType", LongConfig.class);
     }
 
     @Test
