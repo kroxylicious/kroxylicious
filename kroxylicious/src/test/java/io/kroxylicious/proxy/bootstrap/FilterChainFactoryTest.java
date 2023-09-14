@@ -19,15 +19,15 @@ import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.internal.filter.ExampleConfig;
 import io.kroxylicious.proxy.internal.filter.NettyFilterContext;
 import io.kroxylicious.proxy.internal.filter.TestFilter;
-import io.kroxylicious.proxy.internal.filter.TestFilterContributor;
 
+import static io.kroxylicious.proxy.internal.filter.TestFilter.SHORT_NAME_A;
+import static io.kroxylicious.proxy.internal.filter.TestFilter.SHORT_NAME_B;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class FilterChainFactoryTest {
-
     @Test
     void testNullFiltersInConfigResultsInEmptyList() {
         ScheduledExecutorService eventLoop = Executors.newScheduledThreadPool(1);
@@ -56,12 +56,11 @@ class FilterChainFactoryTest {
         ScheduledExecutorService eventLoop = Executors.newScheduledThreadPool(1);
         ExampleConfig config = new ExampleConfig();
         FilterChainFactory filterChainFactory = new FilterChainFactory(
-                new Configuration(null, null, List.of(new FilterDefinition(TestFilterContributor.SHORT_NAME_A, config)), null, true));
+                new Configuration(null, null, List.of(new FilterDefinition(SHORT_NAME_A, config)), null, true));
         NettyFilterContext context = new NettyFilterContext(eventLoop);
         List<FilterAndInvoker> filters = filterChainFactory.createFilters(context);
         assertThat(filters).isNotNull().hasSize(1).first().extracting(FilterAndInvoker::filter).isInstanceOfSatisfying(TestFilter.class, testFilter -> {
-            assertThat(testFilter.getShortName()).isEqualTo(TestFilterContributor.SHORT_NAME_A);
-            assertThat(testFilter.getContext().getConfig()).isSameAs(config);
+            assertThat(testFilter.getShortName()).isEqualTo(SHORT_NAME_A);
             assertThat(testFilter.getContext().executors().eventLoop()).isSameAs(eventLoop);
             assertThat(testFilter.getExampleConfig()).isSameAs(config);
         });
@@ -71,22 +70,20 @@ class FilterChainFactoryTest {
     void testCreateFilters() {
         ScheduledExecutorService eventLoop = Executors.newScheduledThreadPool(1);
         ExampleConfig config = new ExampleConfig();
-        FilterDefinition definitionA = new FilterDefinition(TestFilterContributor.SHORT_NAME_A, config);
-        FilterDefinition definitionB = new FilterDefinition(TestFilterContributor.SHORT_NAME_B, config);
+        FilterDefinition definitionA = new FilterDefinition(SHORT_NAME_A, config);
+        FilterDefinition definitionB = new FilterDefinition(SHORT_NAME_B, config);
         List<FilterDefinition> filterDefinitions = List.of(definitionA, definitionB);
         FilterChainFactory filterChainFactory = new FilterChainFactory(new Configuration(null, null, filterDefinitions, null, true));
         NettyFilterContext context = new NettyFilterContext(eventLoop);
         List<FilterAndInvoker> filters = filterChainFactory.createFilters(context);
         ListAssert<FilterAndInvoker> listAssert = assertThat(filters).isNotNull().hasSize(2);
         listAssert.element(0).extracting(FilterAndInvoker::filter).isInstanceOfSatisfying(TestFilter.class, testFilter -> {
-            assertThat(testFilter.getShortName()).isEqualTo(TestFilterContributor.SHORT_NAME_A);
-            assertThat(testFilter.getContext().getConfig()).isSameAs(config);
+            assertThat(testFilter.getShortName()).isEqualTo(SHORT_NAME_A);
             assertThat(testFilter.getContext().executors().eventLoop()).isSameAs(eventLoop);
             assertThat(testFilter.getExampleConfig()).isSameAs(config);
         });
         listAssert.element(1).extracting(FilterAndInvoker::filter).isInstanceOfSatisfying(TestFilter.class, testFilter -> {
-            assertThat(testFilter.getShortName()).isEqualTo(TestFilterContributor.SHORT_NAME_B);
-            assertThat(testFilter.getContext().getConfig()).isSameAs(config);
+            assertThat(testFilter.getShortName()).isEqualTo(SHORT_NAME_B);
             assertThat(testFilter.getContext().executors().eventLoop()).isSameAs(eventLoop);
             assertThat(testFilter.getExampleConfig()).isSameAs(config);
         });

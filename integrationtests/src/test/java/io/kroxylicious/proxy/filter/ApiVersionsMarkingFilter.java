@@ -15,6 +15,7 @@ import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.types.RawTaggedField;
 
 import io.kroxylicious.proxy.ApiVersionsService;
+import io.kroxylicious.proxy.config.BaseConfig;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -38,5 +39,18 @@ public class ApiVersionsMarkingFilter implements RequestFilter {
                     UTF_8)));
             return context.forwardRequest(header, request);
         });
+    }
+
+    public static class Contributor implements FilterContributor {
+
+        @Override
+        public String getTypeName() {
+            return "ApiVersionsMarkingFilter";
+        }
+
+        @Override
+        public Filter getInstance(BaseConfig config, FilterConstructContext context) {
+            return new ApiVersionsMarkingFilter();
+        }
     }
 }

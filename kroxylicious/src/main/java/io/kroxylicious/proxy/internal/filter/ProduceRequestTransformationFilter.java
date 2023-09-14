@@ -25,7 +25,10 @@ import org.apache.kafka.common.record.TimestampType;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.kroxylicious.proxy.config.BaseConfig;
+import io.kroxylicious.proxy.filter.Filter;
+import io.kroxylicious.proxy.filter.FilterConstructContext;
 import io.kroxylicious.proxy.filter.FilterContext;
+import io.kroxylicious.proxy.filter.FilterContributor;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.internal.util.MemoryRecordsHelper;
@@ -96,5 +99,23 @@ public class ProduceRequestTransformationFilter implements ProduceRequestFilter 
                 partitionData.setRecords(newRecords.build());
             }
         });
+    }
+
+    public static class Contributor implements FilterContributor {
+
+        @Override
+        public String getTypeName() {
+            return "ProduceRequestTransformation";
+        }
+
+        @Override
+        public Class<? extends BaseConfig> getConfigClass() {
+            return ProduceRequestTransformationConfig.class;
+        }
+
+        @Override
+        public Filter getInstance(BaseConfig config, FilterConstructContext context) {
+            return new ProduceRequestTransformationFilter((ProduceRequestTransformationConfig) config);
+        }
     }
 }

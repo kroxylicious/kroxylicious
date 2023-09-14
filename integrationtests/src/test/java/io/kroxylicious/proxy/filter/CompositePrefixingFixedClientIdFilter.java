@@ -50,4 +50,22 @@ public class CompositePrefixingFixedClientIdFilter implements CompositeFilter {
             this.clientId = clientId;
         }
     }
+
+    public static class Contributor implements FilterContributor {
+
+        @Override
+        public String getTypeName() {
+            return "CompositePrefixingFixedClientId";
+        }
+
+        @Override
+        public Class<? extends BaseConfig> getConfigClass() {
+            return CompositePrefixingFixedClientIdFilterConfig.class;
+        }
+
+        @Override
+        public Filter getInstance(BaseConfig config, FilterConstructContext context) {
+            return new CompositePrefixingFixedClientIdFilter((CompositePrefixingFixedClientIdFilterConfig) config);
+        }
+    }
 }

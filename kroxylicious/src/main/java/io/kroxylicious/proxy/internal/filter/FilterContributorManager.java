@@ -5,12 +5,10 @@
  */
 package io.kroxylicious.proxy.internal.filter;
 
-import java.util.Iterator;
 import java.util.ServiceLoader;
 
 import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.filter.Filter;
-import io.kroxylicious.proxy.filter.FilterConstructContext;
 import io.kroxylicious.proxy.filter.FilterContributor;
 
 public class FilterContributorManager {
@@ -27,31 +25,18 @@ public class FilterContributorManager {
         return INSTANCE;
     }
 
-    public Class<? extends BaseConfig> getConfigType(String shortName) {
-        Iterator<FilterContributor> it = contributors.iterator();
-        while (it.hasNext()) {
-            FilterContributor contributor = it.next();
-            Class<? extends BaseConfig> configType = contributor.getConfigType(shortName);
-            if (configType != null) {
-                return configType;
-            }
-        }
-
-        throw new IllegalArgumentException("No filter found for name '" + shortName + "'");
-    }
-
     public Filter getFilter(String shortName, NettyFilterContext context, BaseConfig filterConfig) {
-        Iterator<FilterContributor> it = contributors.iterator();
-        while (it.hasNext()) {
-            FilterContributor contributor = it.next();
-            FilterConstructContext context1 = context.wrap(filterConfig);
-            Filter filter = contributor.getInstance(shortName, context1);
-            if (filter != null) {
-                return filter;
-            }
-        }
-
-        throw new IllegalArgumentException("No filter found for name '" + shortName + "'");
+        return getContributor(shortName).getInstance(filterConfig, context);
     }
 
+    public Class<? extends BaseConfig> getConfigType(String shortName) {
+        return getContributor(shortName).getConfigClass();
+    }
+
+    public FilterContributor getContributor(String shortName) {
+        return contributors.stream().map(ServiceLoader.Provider::get)
+                .filter(filterContributor -> filterContributor.getTypeName().equals(shortName))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("No filter found for name '" + shortName + "'"));
+    }
 }

@@ -54,6 +54,7 @@ import org.apache.kafka.common.message.TxnOffsetCommitResponseData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.filter.AddOffsetsToTxnRequestFilter;
 import io.kroxylicious.proxy.filter.AddPartitionsToTxnRequestFilter;
 import io.kroxylicious.proxy.filter.AddPartitionsToTxnResponseFilter;
@@ -68,7 +69,10 @@ import io.kroxylicious.proxy.filter.DescribeTransactionsResponseFilter;
 import io.kroxylicious.proxy.filter.EndTxnRequestFilter;
 import io.kroxylicious.proxy.filter.FetchRequestFilter;
 import io.kroxylicious.proxy.filter.FetchResponseFilter;
+import io.kroxylicious.proxy.filter.Filter;
+import io.kroxylicious.proxy.filter.FilterConstructContext;
 import io.kroxylicious.proxy.filter.FilterContext;
+import io.kroxylicious.proxy.filter.FilterContributor;
 import io.kroxylicious.proxy.filter.FindCoordinatorRequestFilter;
 import io.kroxylicious.proxy.filter.FindCoordinatorResponseFilter;
 import io.kroxylicious.proxy.filter.HeartbeatRequestFilter;
@@ -497,5 +501,18 @@ public class MultiTenantTransformationFilter
     }
 
     public MultiTenantTransformationFilter() {
+    }
+
+    public static class Contributor implements FilterContributor {
+
+        @Override
+        public String getTypeName() {
+            return "MultiTenant";
+        }
+
+        @Override
+        public Filter getInstance(BaseConfig config, FilterConstructContext context) {
+            return new MultiTenantTransformationFilter();
+        }
     }
 }

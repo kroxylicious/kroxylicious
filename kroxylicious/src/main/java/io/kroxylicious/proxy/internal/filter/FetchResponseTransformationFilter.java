@@ -32,7 +32,10 @@ import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.filter.FetchResponseFilter;
+import io.kroxylicious.proxy.filter.Filter;
+import io.kroxylicious.proxy.filter.FilterConstructContext;
 import io.kroxylicious.proxy.filter.FilterContext;
+import io.kroxylicious.proxy.filter.FilterContributor;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.internal.util.MemoryRecordsHelper;
 
@@ -128,6 +131,24 @@ public class FetchResponseTransformationFilter implements FetchResponseFilter {
 
                 partitionData.setRecords(newRecords.build());
             }
+        }
+    }
+
+    public static class Contributor implements FilterContributor {
+
+        @Override
+        public String getTypeName() {
+            return "FetchResponseTransformation";
+        }
+
+        @Override
+        public Class<? extends BaseConfig> getConfigClass() {
+            return FetchResponseTransformationConfig.class;
+        }
+
+        @Override
+        public Filter getInstance(BaseConfig config, FilterConstructContext context) {
+            return new FetchResponseTransformationFilter((FetchResponseTransformationConfig) config);
         }
     }
 }

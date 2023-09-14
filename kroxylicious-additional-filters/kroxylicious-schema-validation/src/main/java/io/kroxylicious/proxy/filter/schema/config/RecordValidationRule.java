@@ -10,6 +10,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
@@ -21,11 +22,13 @@ public class RecordValidationRule {
     /**
      * rule to apply to record key
      */
+    @JsonProperty(value = "keyRule")
     protected final BytebufValidation keyRule;
 
     /**
      * rule to apply to record value
      */
+    @JsonProperty(value = "valueRule")
     protected final BytebufValidation valueRule;
 
     /**
@@ -40,6 +43,7 @@ public class RecordValidationRule {
         this.valueRule = valueRule;
     }
 
+    @JsonIgnore
     /**
      * get optional key rule
      * @return optional containing key rule if non-null, else empty optional
@@ -48,6 +52,7 @@ public class RecordValidationRule {
         return Optional.ofNullable(keyRule);
     }
 
+    @JsonIgnore
     /**
      * get value rule
      * @return optional containing value rule if non-null, else empty optional

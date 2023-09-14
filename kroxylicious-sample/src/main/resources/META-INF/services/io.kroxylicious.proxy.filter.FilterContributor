@@ -1,1 +1,2 @@
-io.kroxylicious.sample.SampleContributor
+io.kroxylicious.sample.SampleFetchResponseFilter$Contributor
+io.kroxylicious.sample.SampleProduceRequestFilter$Contributor

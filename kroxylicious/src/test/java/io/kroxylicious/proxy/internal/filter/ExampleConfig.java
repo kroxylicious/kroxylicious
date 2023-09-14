@@ -6,7 +6,10 @@
 
 package io.kroxylicious.proxy.internal.filter;
 
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+
 import io.kroxylicious.proxy.config.BaseConfig;
 
+@JsonSerialize
 public class ExampleConfig extends BaseConfig {
 }

@@ -45,6 +45,12 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- third party dependencies - runtime and compile -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+
         <!-- third party dependencies - test -->
         <dependency>
             <groupId>org.assertj</groupId>

@@ -46,4 +46,23 @@ public class FixedClientIdFilter implements RequestFilter, ResponseFilter {
     public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, ResponseHeaderData header, ApiMessage response, FilterContext context) {
         return context.forwardResponse(header, response);
     }
+
+    public static class Contributor implements FilterContributor {
+
+        @Override
+        public String getTypeName() {
+            return "FixedClientId";
+        }
+
+        @Override
+        public Class<? extends BaseConfig> getConfigClass() {
+            return FixedClientIdFilterConfig.class;
+        }
+
+        @Override
+        public Filter getInstance(BaseConfig config, FilterConstructContext context) {
+            return new FixedClientIdFilter((FixedClientIdFilterConfig) config);
+        }
+    }
+
 }

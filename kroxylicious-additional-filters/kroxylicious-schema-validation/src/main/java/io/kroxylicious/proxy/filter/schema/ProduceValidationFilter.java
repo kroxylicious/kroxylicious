@@ -18,11 +18,16 @@ import org.apache.kafka.common.protocol.Errors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.kroxylicious.proxy.config.BaseConfig;
+import io.kroxylicious.proxy.filter.Filter;
+import io.kroxylicious.proxy.filter.FilterConstructContext;
 import io.kroxylicious.proxy.filter.FilterContext;
+import io.kroxylicious.proxy.filter.FilterContributor;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
 import io.kroxylicious.proxy.filter.ProduceResponseFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
+import io.kroxylicious.proxy.filter.schema.config.ValidationConfig;
 import io.kroxylicious.proxy.filter.schema.validation.request.ProduceRequestValidationResult;
 import io.kroxylicious.proxy.filter.schema.validation.request.ProduceRequestValidator;
 import io.kroxylicious.proxy.filter.schema.validation.topic.PartitionValidationResult;
@@ -186,5 +191,25 @@ public class ProduceValidationFilter implements ProduceRequestFilter, ProduceRes
             response.setErrorMessage(toErrorString(partitionValidationResult.recordValidationFailures()));
             topicProduceResponse.partitionResponses().add(response);
         });
+    }
+
+    public static class Contributor implements FilterContributor {
+
+        @Override
+        public String getTypeName() {
+            return "ProduceValidator";
+        }
+
+        @Override
+        public Class<? extends BaseConfig> getConfigClass() {
+            return ValidationConfig.class;
+        }
+
+        @Override
+        public Filter getInstance(BaseConfig config, FilterConstructContext context) {
+            ValidationConfig validationConfig = (ValidationConfig) config;
+            ProduceRequestValidator validator = ProduceValidationFilterBuilder.build(validationConfig);
+            return new ProduceValidationFilter(validationConfig.isForwardPartialRequests(), validator);
+        }
     }
 }

@@ -15,19 +15,18 @@ import io.kroxylicious.proxy.filter.FilterConstructContext;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class MultiTenantFilterContributorTest {
+class ContributorTest {
 
     @Test
     void testGetConfigType() {
-        MultiTenantFilterContributor contributor = new MultiTenantFilterContributor();
-        Class<? extends BaseConfig> configType = contributor.getConfigType("MultiTenant");
-        assertThat(configType).isEqualTo(BaseConfig.class);
+        MultiTenantTransformationFilter.Contributor contributor = new MultiTenantTransformationFilter.Contributor();
+        assertThat(contributor.getTypeName()).isEqualTo("MultiTenant");
     }
 
     @Test
     void testGetInstance() {
-        MultiTenantFilterContributor contributor = new MultiTenantFilterContributor();
-        Filter filter = contributor.getInstance("MultiTenant", Mockito.mock(FilterConstructContext.class));
+        MultiTenantTransformationFilter.Contributor contributor = new MultiTenantTransformationFilter.Contributor();
+        Filter filter = contributor.getInstance(new BaseConfig(), Mockito.mock(FilterConstructContext.class));
         assertThat(filter).isNotNull().isInstanceOf(MultiTenantTransformationFilter.class);
     }
 

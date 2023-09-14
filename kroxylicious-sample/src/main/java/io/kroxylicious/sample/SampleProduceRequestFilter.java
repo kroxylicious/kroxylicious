@@ -15,7 +15,11 @@ import org.apache.kafka.common.message.RequestHeaderData;
 import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.Timer;
 
+import io.kroxylicious.proxy.config.BaseConfig;
+import io.kroxylicious.proxy.filter.Filter;
+import io.kroxylicious.proxy.filter.FilterConstructContext;
 import io.kroxylicious.proxy.filter.FilterContext;
+import io.kroxylicious.proxy.filter.FilterContributor;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.sample.config.SampleFilterConfig;
@@ -77,5 +81,25 @@ public class SampleProduceRequestFilter implements ProduceRequestFilter {
                 SampleFilterTransformer.transform(partitionData, context, this.config);
             }
         });
+    }
+
+    public static class Contributor implements FilterContributor {
+
+        public static final String SAMPLE_PRODUCE = "SampleProduceRequest";
+
+        @Override
+        public String getTypeName() {
+            return SAMPLE_PRODUCE;
+        }
+
+        @Override
+        public Class<? extends BaseConfig> getConfigClass() {
+            return SampleFilterConfig.class;
+        }
+
+        @Override
+        public Filter getInstance(BaseConfig config, FilterConstructContext context) {
+            return new SampleProduceRequestFilter((SampleFilterConfig) config);
+        }
     }
 }

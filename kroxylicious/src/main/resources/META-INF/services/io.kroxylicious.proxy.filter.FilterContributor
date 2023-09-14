@@ -1,1 +1,2 @@
-io.kroxylicious.proxy.internal.filter.BuiltinFilterContributor
+io.kroxylicious.proxy.internal.filter.ProduceRequestTransformationFilter$Contributor
+io.kroxylicious.proxy.internal.filter.FetchResponseTransformationFilter$Contributor

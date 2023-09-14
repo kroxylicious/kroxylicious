@@ -1,1 +1,2 @@
-io.kroxylicious.proxy.internal.filter.TestFilterContributor
+io.kroxylicious.proxy.internal.filter.TestFilter$ContributorA
+io.kroxylicious.proxy.internal.filter.TestFilter$ContributorB

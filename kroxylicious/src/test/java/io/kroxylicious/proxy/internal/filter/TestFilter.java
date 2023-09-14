@@ -12,12 +12,17 @@ import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 
+import io.kroxylicious.proxy.config.BaseConfig;
+import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterConstructContext;
 import io.kroxylicious.proxy.filter.FilterContext;
+import io.kroxylicious.proxy.filter.FilterContributor;
 import io.kroxylicious.proxy.filter.RequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 
 public class TestFilter implements RequestFilter {
+    public static final String SHORT_NAME_A = "TEST1";
+    public static final String SHORT_NAME_B = "TEST2";
     private final String shortName;
     private final FilterConstructContext context;
     private final ExampleConfig exampleConfig;
@@ -43,5 +48,41 @@ public class TestFilter implements RequestFilter {
 
     public ExampleConfig getExampleConfig() {
         return exampleConfig;
+    }
+
+    public static class ContributorA implements FilterContributor {
+
+        @Override
+        public String getTypeName() {
+            return SHORT_NAME_A;
+        }
+
+        @Override
+        public Class<? extends BaseConfig> getConfigClass() {
+            return ExampleConfig.class;
+        }
+
+        @Override
+        public Filter getInstance(BaseConfig config, FilterConstructContext context) {
+            return new TestFilter(SHORT_NAME_A, context, (ExampleConfig) config);
+        }
+    }
+
+    public static class ContributorB implements FilterContributor {
+
+        @Override
+        public String getTypeName() {
+            return SHORT_NAME_B;
+        }
+
+        @Override
+        public Class<? extends BaseConfig> getConfigClass() {
+            return ExampleConfig.class;
+        }
+
+        @Override
+        public Filter getInstance(BaseConfig config, FilterConstructContext context) {
+            return new TestFilter(SHORT_NAME_B, context, (ExampleConfig) config);
+        }
     }
 }
