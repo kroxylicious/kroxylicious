@@ -13,7 +13,7 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 
 @SuppressWarnings({ "rawtypes", "unchecked" })
-public class ContributionManager /* <T, C extends Context, S extends Contributor<T, C>> */ {
+public class ContributionManager {
     public static final ContributionManager INSTANCE = new ContributionManager();
 
     private final Map<Class, Iterable> contributors;
