@@ -30,11 +30,22 @@ public abstract class BaseContributor<T, S extends Context> implements Contribut
         typeNameToInstanceBuilder = builder.build();
     }
 
+    /**
+     * Allows consumers to identify if this contributor recognises the requested type.
+     * @param typeName The type name to test for.
+     * @return <code>true</code> if this Contributor provides the typeName.
+     */
     @Override
     public boolean contributes(String typeName) {
         return typeNameToInstanceBuilder.containsKey(typeName);
     }
 
+    /**
+     * Returns the details of configuration of the supplied typeName
+     * @param typeName the name of the type.
+     * @return the configuration definition for the typename
+     * @throws IllegalArgumentException if the type name is not known to this contributor
+     */
     @Override
     public ConfigurationDefinition getConfigDefinition(String typeName) {
         if (typeNameToInstanceBuilder.containsKey(typeName)) {
@@ -45,8 +56,15 @@ public abstract class BaseContributor<T, S extends Context> implements Contribut
         }
     }
 
+    /**
+     * @deprecated in favour of calling {@link #getConfigDefinition(String)}}
+     * @param typeName service short name
+     *
+     * @return {@code null} if the typename is not know to this contributor.
+     */
     @SuppressWarnings("removal")
     @Override
+    @Deprecated(forRemoval = true, since = "0.3.0")
     public Class<? extends BaseConfig> getConfigType(String typeName) {
         if (typeNameToInstanceBuilder.containsKey(typeName)) {
             return typeNameToInstanceBuilder.get(typeName).configurationDefinition().configurationType();
