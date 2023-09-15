@@ -32,7 +32,8 @@ class InternalCompletionStage<T> implements CompletionStage<T> {
     }
 
     private <U> CompletionStage<U> wrap(CompletionStage<U> completionStage) {
-        return new InternalCompletionStage<>(completionStage, executor);
+        return completionStage instanceof InternalCompletionStage && ((InternalCompletionStage<U>) completionStage).getExecutor() == executor ? completionStage
+                : new InternalCompletionStage<>(completionStage, executor);
     }
 
     @Override
@@ -252,5 +253,9 @@ class InternalCompletionStage<T> implements CompletionStage<T> {
 
     CompletableFuture<T> getUnderlyingCompletableFuture() {
         return completionStage.toCompletableFuture();
+    }
+
+    Executor getExecutor() {
+        return executor;
     }
 }
