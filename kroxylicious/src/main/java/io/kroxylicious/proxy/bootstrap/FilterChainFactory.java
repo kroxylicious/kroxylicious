@@ -25,8 +25,7 @@ public class FilterChainFactory {
     private final Configuration config;
 
     public FilterChainFactory(Configuration config) {
-        Objects.requireNonNull(config);
-        this.config = config;
+        this.config = Objects.requireNonNull(config);
     }
 
     /**
