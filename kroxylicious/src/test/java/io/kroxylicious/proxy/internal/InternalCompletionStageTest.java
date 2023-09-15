@@ -9,14 +9,13 @@ package io.kroxylicious.proxy.internal;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
-import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -30,14 +29,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class InternalCompletionStageTest {
     private final CompletableFuture<Void> underlying = new CompletableFuture<>();
 
-    private ExecutorService executor;
-    private TallyThread executorThread;
+    private ThreadPoolExecutor executor;
     private InternalCompletionStage<Void> stage;
 
     @BeforeEach
-    void beforeEach() throws Exception {
-        executor = Executors.newSingleThreadExecutor(TallyThread::new);
-        executorThread = ((TallyThread) executor.submit(Thread::currentThread).get());
+    void beforeEach() {
+        executor = newSingleThreadThreadPool();
         stage = new InternalCompletionStage<>(underlying, executor);
     }
 
@@ -49,87 +46,87 @@ class InternalCompletionStageTest {
     static Stream<Arguments> noExecutorFormAsyncMethodsUsesConfiguredExecutor() {
         var other = CompletableFuture.<Void> completedFuture(null);
         return Stream.of(
-                Arguments.of("thenAcceptAsync", (Function<CompletionStage<Void>, CompletionStage<Void>>) (s) -> s.thenAcceptAsync(u -> tallyInvocations())),
-                Arguments.of("thenApplyAsync", (Function<CompletionStage<Void>, CompletionStage<Void>>) (s) -> s.thenApplyAsync(u -> tallyInvocations())),
+                Arguments.of("thenAcceptAsync", (Function<CompletionStage<Void>, CompletionStage<Void>>) (s) -> s.thenAcceptAsync(u -> noOp())),
+                Arguments.of("thenApplyAsync", (Function<CompletionStage<Void>, CompletionStage<Void>>) (s) -> s.thenApplyAsync(u -> noOp())),
                 Arguments.of("thenComposeAsync",
-                        (Function<CompletionStage<Void>, CompletionStage<Void>>) (s) -> s.thenComposeAsync(u -> CompletableFuture.completedStage(tallyInvocations()))),
-                Arguments.of("thenRunAsync", (Function<CompletionStage<Void>, CompletionStage<Void>>) (s) -> s.thenRunAsync(() -> tallyInvocations())),
+                        (Function<CompletionStage<Void>, CompletionStage<Void>>) (s) -> s.thenComposeAsync(u -> CompletableFuture.completedStage(noOp()))),
+                Arguments.of("thenRunAsync", (Function<CompletionStage<Void>, CompletionStage<Void>>) (s) -> s.thenRunAsync(() -> noOp())),
 
-                Arguments.of("handleAsync", (Function<CompletionStage<Void>, CompletionStage<Void>>) (s) -> s.handleAsync((u, t) -> tallyInvocations())),
-                Arguments.of("whenCompleteAsync", (Function<CompletionStage<Void>, CompletionStage<Void>>) (s) -> s.whenCompleteAsync((u, t) -> tallyInvocations())),
+                Arguments.of("handleAsync", (Function<CompletionStage<Void>, CompletionStage<Void>>) (s) -> s.handleAsync((u, t) -> noOp())),
+                Arguments.of("whenCompleteAsync", (Function<CompletionStage<Void>, CompletionStage<Void>>) (s) -> s.whenCompleteAsync((u, t) -> noOp())),
 
-                Arguments.of("exceptionallyAsync", (Function<CompletionStage<Void>, CompletionStage<Void>>) (s) -> s.exceptionallyAsync((t) -> tallyInvocations())),
+                Arguments.of("exceptionallyAsync", (Function<CompletionStage<Void>, CompletionStage<Void>>) (s) -> s.exceptionallyAsync((t) -> noOp())),
                 Arguments.of("exceptionallyComposeAsync",
                         (Function<CompletionStage<Void>, CompletionStage<Void>>) (s) -> s
-                                .exceptionallyComposeAsync((t) -> CompletableFuture.completedStage(tallyInvocations()))),
+                                .exceptionallyComposeAsync((t) -> CompletableFuture.completedStage(noOp()))),
 
-                Arguments.of("acceptEitherAsync", (Function<CompletionStage<Void>, CompletionStage<Void>>) (s) -> s.acceptEitherAsync(other, (u) -> tallyInvocations())),
+                Arguments.of("acceptEitherAsync", (Function<CompletionStage<Void>, CompletionStage<Void>>) (s) -> s.acceptEitherAsync(other, (u) -> noOp())),
                 Arguments.of("applyToEitherAsync",
-                        (Function<CompletionStage<Void>, CompletionStage<Void>>) (s) -> s.applyToEitherAsync(other, (u) -> tallyInvocations())),
+                        (Function<CompletionStage<Void>, CompletionStage<Void>>) (s) -> s.applyToEitherAsync(other, (u) -> noOp())),
 
                 Arguments.of("thenAcceptBothAsync",
-                        (Function<CompletionStage<Void>, CompletionStage<Void>>) (s) -> s.thenAcceptBothAsync(other, (u1, u2) -> tallyInvocations())),
+                        (Function<CompletionStage<Void>, CompletionStage<Void>>) (s) -> s.thenAcceptBothAsync(other, (u1, u2) -> noOp())),
                 Arguments.of("thenCombineAsync",
-                        (Function<CompletionStage<Void>, CompletionStage<Void>>) (s) -> s.thenCombineAsync(other, (u1, u2) -> tallyInvocations())),
+                        (Function<CompletionStage<Void>, CompletionStage<Void>>) (s) -> s.thenCombineAsync(other, (u1, u2) -> noOp())),
 
                 Arguments.of("runAfterBothAsync",
                         (Function<CompletionStage<Void>, CompletionStage<Void>>) (s) -> s.runAfterBothAsync(other, () -> CompletableFuture.completedStage(
-                                tallyInvocations()))),
+                                noOp()))),
                 Arguments.of("runAfterEitherAsync",
                         (Function<CompletionStage<Void>, CompletionStage<Void>>) (s) -> s.runAfterEitherAsync(other, () -> CompletableFuture.completedStage(
-                                tallyInvocations()))));
+                                noOp()))));
     }
 
     @ParameterizedTest(name = "{0}")
     @MethodSource
     void noExecutorFormAsyncMethodsUsesConfiguredExecutor(String name, Function<CompletionStage<Void>, CompletionStage<Void>> func) throws Exception {
         var result = func.apply(stage);
-        completeUnderlyingFuture(name);
+        completeUnderlyingFuture(shouldCompleteExceptionally(name));
 
         assertStageCompletion(result);
-        assertThat(executorThread.getTally()).isEqualTo(1);
+        assertThat(executor.getCompletedTaskCount()).isEqualTo(1);
     }
 
     static Stream<Arguments> executorFormAsyncMethodsUsesCallerExecutor() {
         var other = CompletableFuture.<Void> completedFuture(null);
         return Stream.of(
                 Arguments.of("thenAcceptAsync",
-                        (BiFunction<Executor, CompletionStage<Void>, CompletionStage<Void>>) (e, s) -> s.thenAcceptAsync(u -> tallyInvocations(), e)),
+                        (BiFunction<Executor, CompletionStage<Void>, CompletionStage<Void>>) (e, s) -> s.thenAcceptAsync(u -> noOp(), e)),
                 Arguments.of("thenApplyAsync",
-                        (BiFunction<Executor, CompletionStage<Void>, CompletionStage<Void>>) (e, s) -> s.thenApplyAsync(u -> tallyInvocations(), e)),
+                        (BiFunction<Executor, CompletionStage<Void>, CompletionStage<Void>>) (e, s) -> s.thenApplyAsync(u -> noOp(), e)),
                 Arguments.of("thenComposeAsync",
                         (BiFunction<Executor, CompletionStage<Void>, CompletionStage<Void>>) (e, s) -> s
-                                .thenComposeAsync(u -> CompletableFuture.completedStage(tallyInvocations()), e)),
-                Arguments.of("thenRunAsync", (BiFunction<Executor, CompletionStage<Void>, CompletionStage<Void>>) (e, s) -> s.thenRunAsync(() -> tallyInvocations(), e)),
+                                .thenComposeAsync(u -> CompletableFuture.completedStage(noOp()), e)),
+                Arguments.of("thenRunAsync", (BiFunction<Executor, CompletionStage<Void>, CompletionStage<Void>>) (e, s) -> s.thenRunAsync(() -> noOp(), e)),
 
                 Arguments.of("handleAsync",
-                        (BiFunction<Executor, CompletionStage<Void>, CompletionStage<Void>>) (e, s) -> s.handleAsync((u, t) -> tallyInvocations(), e)),
+                        (BiFunction<Executor, CompletionStage<Void>, CompletionStage<Void>>) (e, s) -> s.handleAsync((u, t) -> noOp(), e)),
                 Arguments.of("whenCompleteAsync",
-                        (BiFunction<Executor, CompletionStage<Void>, CompletionStage<Void>>) (e, s) -> s.whenCompleteAsync((u, t) -> tallyInvocations(), e)),
+                        (BiFunction<Executor, CompletionStage<Void>, CompletionStage<Void>>) (e, s) -> s.whenCompleteAsync((u, t) -> noOp(), e)),
 
                 Arguments.of("exceptionallyAsync",
-                        (BiFunction<Executor, CompletionStage<Void>, CompletionStage<Void>>) (e, s) -> s.exceptionallyAsync((t) -> tallyInvocations(), e)),
+                        (BiFunction<Executor, CompletionStage<Void>, CompletionStage<Void>>) (e, s) -> s.exceptionallyAsync((t) -> noOp(), e)),
                 Arguments.of("exceptionallyComposeAsync",
                         (BiFunction<Executor, CompletionStage<Void>, CompletionStage<Void>>) (e, s) -> s
-                                .exceptionallyComposeAsync((t) -> CompletableFuture.completedStage(tallyInvocations()), e)),
+                                .exceptionallyComposeAsync((t) -> CompletableFuture.completedStage(noOp()), e)),
 
                 Arguments.of("acceptEitherAsync",
-                        (BiFunction<Executor, CompletionStage<Void>, CompletionStage<Void>>) (e, s) -> s.acceptEitherAsync(other, (u) -> tallyInvocations(), e)),
+                        (BiFunction<Executor, CompletionStage<Void>, CompletionStage<Void>>) (e, s) -> s.acceptEitherAsync(other, (u) -> noOp(), e)),
                 Arguments.of("applyToEitherAsync",
-                        (BiFunction<Executor, CompletionStage<Void>, CompletionStage<Void>>) (e, s) -> s.applyToEitherAsync(other, (u) -> tallyInvocations(), e)),
+                        (BiFunction<Executor, CompletionStage<Void>, CompletionStage<Void>>) (e, s) -> s.applyToEitherAsync(other, (u) -> noOp(), e)),
 
                 Arguments.of("thenAcceptBothAsync",
-                        (BiFunction<Executor, CompletionStage<Void>, CompletionStage<Void>>) (e, s) -> s.thenAcceptBothAsync(other, (u1, u2) -> tallyInvocations(), e)),
+                        (BiFunction<Executor, CompletionStage<Void>, CompletionStage<Void>>) (e, s) -> s.thenAcceptBothAsync(other, (u1, u2) -> noOp(), e)),
                 Arguments.of("thenCombineAsync",
-                        (BiFunction<Executor, CompletionStage<Void>, CompletionStage<Void>>) (e, s) -> s.thenCombineAsync(other, (u1, u2) -> tallyInvocations(), e)),
+                        (BiFunction<Executor, CompletionStage<Void>, CompletionStage<Void>>) (e, s) -> s.thenCombineAsync(other, (u1, u2) -> noOp(), e)),
 
                 Arguments.of("runAfterBothAsync",
                         (BiFunction<Executor, CompletionStage<Void>, CompletionStage<Void>>) (e, s) -> s.runAfterBothAsync(other, () -> CompletableFuture.completedStage(
-                                tallyInvocations()), e)),
+                                noOp()), e)),
                 Arguments.of("runAfterEitherAsync",
                         (BiFunction<Executor, CompletionStage<Void>, CompletionStage<Void>>) (e, s) -> s.runAfterEitherAsync(other,
                                 () -> CompletableFuture.completedStage(
-                                        tallyInvocations()),
+                                        noOp()),
                                 e)));
     }
 
@@ -137,17 +134,15 @@ class InternalCompletionStageTest {
     @MethodSource
     void executorFormAsyncMethodsUsesCallerExecutor(String name, BiFunction<Executor, CompletionStage<Void>, CompletionStage<Void>> func) throws Exception {
 
-        var callerExecutor = Executors.newSingleThreadExecutor(TallyThread::new);
+        var callerExecutor = newSingleThreadThreadPool();
         try {
-            var callerExecutorThread = ((TallyThread) callerExecutor.submit(Thread::currentThread).get());
-
             var result = func.apply(callerExecutor, stage);
-            completeUnderlyingFuture(name);
+            completeUnderlyingFuture(shouldCompleteExceptionally(name));
 
             assertStageCompletion(result);
             // ensure the action ran on the caller's thread pool, rather than that of the ICS.
-            assertThat(executorThread.getTally()).isEqualTo(0);
-            assertThat(callerExecutorThread.getTally()).isEqualTo(1);
+            assertThat(executor.getCompletedTaskCount()).isEqualTo(0);
+            assertThat(callerExecutor.getCompletedTaskCount()).isEqualTo(1);
         }
         finally {
             callerExecutor.shutdown();
@@ -248,7 +243,7 @@ class InternalCompletionStageTest {
     @MethodSource
     void chainingMethodsWrapReturnedValue(String name, BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>> func) throws Exception {
         var result = func.apply(stage, executor);
-        completeUnderlyingFuture(name);
+        completeUnderlyingFuture(shouldCompleteExceptionally(name));
 
         assertStageCompletion(result);
         // Verify that the completion stage return is one of ours. The purpose of this is to make sure that thread safety
@@ -261,8 +256,12 @@ class InternalCompletionStageTest {
         assertThatThrownBy(() -> stage.toCompletableFuture()).isInstanceOf(UnsupportedOperationException.class);
     }
 
-    private void completeUnderlyingFuture(String name) {
-        if (name.startsWith("exceptionally")) {
+    private boolean shouldCompleteExceptionally(String name) {
+        return name.startsWith("exceptionally");
+    }
+
+    private void completeUnderlyingFuture(boolean completeExceptionally) {
+        if (completeExceptionally) {
             underlying.completeExceptionally(new RuntimeException("exceptional completion"));
         }
         else {
@@ -271,38 +270,41 @@ class InternalCompletionStageTest {
     }
 
     private void assertStageCompletion(CompletionStage<Void> result) throws Exception {
+
         var stageComplete = new CompletableFuture<Void>();
-        var unused = result.whenCompleteAsync((u, t) -> {
-            if (t != null) {
-                stageComplete.completeExceptionally(t);
-            }
-            else {
-                stageComplete.complete(null);
-            }
-        });
-        stageComplete.get();
+        // use separate executor to avoid the additional action being counted on executor's task count.
+        var executor = newSingleThreadThreadPool();
+        try {
+            var unused = result.whenCompleteAsync((u, t) -> {
+                if (t != null) {
+                    stageComplete.completeExceptionally(t);
+                }
+                else {
+                    stageComplete.complete(null);
+                }
+            }, executor);
+            stageComplete.get();
+        }
+        finally {
+            executor.shutdown();
+        }
     }
 
-    private static Void tallyInvocations() {
-        assertThat(Thread.currentThread()).isInstanceOf(TallyThread.class);
-        ((TallyThread) Thread.currentThread()).incTally();
+    /**
+     * This method is invoked by the executor as the chain action to the future.
+     * It doesn't need to actually do anything.  The tests make assertions based
+     * on the {@link ThreadPoolExecutor#getCompletedTaskCount()} in order to know that
+     * the action has been executed by the expected executor.
+     * @return null
+     */
+    private static Void noOp() {
         return null;
     }
 
-    private static class TallyThread extends Thread {
-        private final AtomicInteger tally = new AtomicInteger();
-
-        TallyThread(@NotNull Runnable r) {
-            super(r);
-        }
-
-        public void incTally() {
-            tally.incrementAndGet();
-        }
-
-        public int getTally() {
-            return tally.get();
-        }
+    public static ThreadPoolExecutor newSingleThreadThreadPool() {
+        int nThreads = 1;
+        return new ThreadPoolExecutor(nThreads, nThreads,
+                0L, TimeUnit.MILLISECONDS,
+                new LinkedBlockingQueue<>());
     }
-
 }
