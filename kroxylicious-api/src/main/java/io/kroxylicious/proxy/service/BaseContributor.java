@@ -207,6 +207,5 @@ public abstract class BaseContributor<T, S extends Context> implements Contribut
         return new BaseContributorBuilder<>();
     }
 
-    protected record ContributionDetails<T, D extends Context>(ConfigurationDefinition configurationDefinition, InstanceBuilder<T, D> instanceBuilder) {
-    }
+    protected record ContributionDetails<T, D extends Context>(ConfigurationDefinition configurationDefinition, InstanceBuilder<T, D> instanceBuilder) {}
 }

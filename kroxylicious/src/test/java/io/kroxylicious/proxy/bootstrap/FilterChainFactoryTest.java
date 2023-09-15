@@ -88,57 +88,57 @@ class FilterChainFactoryTest {
 
     @Test
     void shouldThrowExceptionIfFilterRequiresConfigAndNoneIsSupplied() {
-        //Given
+        // Given
         final List<FilterDefinition> filters = List.of(new FilterDefinition(TestFilterContributor.TYPE_NAME_A, config),
                 new FilterDefinition(TestFilterContributor.TYPE_NAME_B, null));
 
-        //When
+        // When
         assertThatThrownBy(() -> FilterChainFactory.validateFilterConfiguration(filters))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining(TestFilterContributor.TYPE_NAME_B);
 
-        //Then
+        // Then
     }
 
     @Test
     void shouldThrowExceptionMentioningAllFiltersWithoutRequiredConfig() {
-        //Given
+        // Given
         final List<FilterDefinition> filters = List.of(new FilterDefinition(TestFilterContributor.TYPE_NAME_A, null),
                 new FilterDefinition(TestFilterContributor.TYPE_NAME_B, null));
 
-        //When
+        // When
         assertThatThrownBy(() -> FilterChainFactory.validateFilterConfiguration(filters))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining(TestFilterContributor.TYPE_NAME_A)
                 .hasMessageContaining(TestFilterContributor.TYPE_NAME_B);
 
-        //Then
+        // Then
     }
 
     @Test
     void shouldCompleteIfAllFiltersHaveConfiguration() {
-        //Given
+        // Given
         final List<FilterDefinition> filterDefinitions = List.of(new FilterDefinition(TestFilterContributor.TYPE_NAME_A, config),
                 new FilterDefinition(TestFilterContributor.TYPE_NAME_B, config));
 
-        //When
+        // When
         final boolean configurationValid = FilterChainFactory.validateFilterConfiguration(filterDefinitions);
 
-        //Then
+        // Then
         assertThat(configurationValid).isTrue();
     }
 
     @Test
     void shouldCompleteIfFiltersWithOptionalConfigurationAreMissingConfiguration() {
-        //Given
+        // Given
         final List<FilterDefinition> filterDefinitions = List.of(new FilterDefinition(TestFilterContributor.TYPE_NAME_A, config),
                 new FilterDefinition(TestFilterContributor.TYPE_NAME_B, config),
                 new FilterDefinition(TestFilterContributor.OPTIONAL_CONFIG_FILTER, null));
 
-        //When
+        // When
         final boolean configurationValid = FilterChainFactory.validateFilterConfiguration(filterDefinitions);
 
-        //Then
+        // Then
         assertThat(configurationValid).isTrue();
     }
 
