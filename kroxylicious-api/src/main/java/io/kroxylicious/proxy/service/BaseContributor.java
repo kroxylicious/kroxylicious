@@ -7,6 +7,7 @@ package io.kroxylicious.proxy.service;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -20,14 +21,14 @@ import io.kroxylicious.proxy.config.BaseConfig;
  */
 public abstract class BaseContributor<T, S extends Context> implements Contributor<T, S> {
 
-    private final Map<String, ContributionDetails<T, S>> typeNameToInstanceBuilder;
+    private final Map<String, ContributionDetails<T, S>> typeNameToContributorDetails;
 
     /**
      * Constructs and configures the contributor using the supplied {@code builder}.
      * @param builder builder
      */
     protected BaseContributor(BaseContributorBuilder<T, S> builder) {
-        typeNameToInstanceBuilder = builder.build();
+        typeNameToContributorDetails = builder.build();
     }
 
     /**
@@ -37,7 +38,7 @@ public abstract class BaseContributor<T, S extends Context> implements Contribut
      */
     @Override
     public boolean contributes(String typeName) {
-        return typeNameToInstanceBuilder.containsKey(typeName);
+        return typeNameToContributorDetails.containsKey(typeName);
     }
 
     /**
@@ -48,8 +49,8 @@ public abstract class BaseContributor<T, S extends Context> implements Contribut
      */
     @Override
     public ConfigurationDefinition getConfigDefinition(String typeName) {
-        if (typeNameToInstanceBuilder.containsKey(typeName)) {
-            return typeNameToInstanceBuilder.get(typeName).configurationDefinition();
+        if (typeNameToContributorDetails.containsKey(typeName)) {
+            return typeNameToContributorDetails.get(typeName).configurationDefinition();
         }
         else {
             throw new IllegalArgumentException("No configuration definition registered for " + typeName);
@@ -66,8 +67,8 @@ public abstract class BaseContributor<T, S extends Context> implements Contribut
     @Override
     @Deprecated(forRemoval = true, since = "0.3.0")
     public Class<? extends BaseConfig> getConfigType(String typeName) {
-        if (typeNameToInstanceBuilder.containsKey(typeName)) {
-            return typeNameToInstanceBuilder.get(typeName).configurationDefinition().configurationType();
+        if (typeNameToContributorDetails.containsKey(typeName)) {
+            return typeNameToContributorDetails.get(typeName).configurationDefinition().configurationType();
         }
         else {
             return null;
@@ -76,9 +77,17 @@ public abstract class BaseContributor<T, S extends Context> implements Contribut
 
     @Override
     public T getInstance(String typeName, S context) {
-        if (typeNameToInstanceBuilder.containsKey(typeName)) {
-            InstanceBuilder<T, S> instanceBuilder = typeNameToInstanceBuilder.get(typeName).instanceBuilder();
-            return instanceBuilder == null ? null : instanceBuilder.construct(context);
+        if (typeNameToContributorDetails.containsKey(typeName)) {
+            final ContributionDetails<T, S> contributionDetails = typeNameToContributorDetails.get(typeName);
+            final boolean configurationRequired = contributionDetails.configurationDefinition().configurationRequired();
+            final boolean hasConfiguration = context.getConfig() != null;
+            if (!configurationRequired || hasConfiguration) {
+                InstanceBuilder<T, S> instanceBuilder = contributionDetails.instanceBuilder();
+                return instanceBuilder == null ? null : instanceBuilder.construct(context);
+            }
+            else {
+                throw new IllegalArgumentException("'" + typeName + "' requires configuration but none was supplied");
+            }
         }
         else {
             return null;
@@ -138,7 +147,7 @@ public abstract class BaseContributor<T, S extends Context> implements Contribut
          * @param <T> the configuration concrete type
          */
         public <T extends BaseConfig> BaseContributorBuilder<L, D> add(String typeName, Class<T> configClass, Function<T, L> instanceFunction) {
-            return add(typeName, configClass, (context, config) -> instanceFunction.apply(config));
+            return add(typeName, configClass, (context, config) -> instanceFunction.apply(config), !Objects.equals(BaseConfig.class, configClass));
         }
 
         /**
@@ -147,15 +156,17 @@ public abstract class BaseContributor<T, S extends Context> implements Contribut
          * @param typeName service short name
          * @param configClass concrete type of configuration required by the service
          * @param instanceFunction function that constructs the service instance
+         * @param configurationRequired {@code true} if the contribution requires configuration. {@code false} if the contribution uses configuration for optional properties or to override defaults.
          * @return this
          * @param <T> the configuration concrete type
          */
-        public <T extends BaseConfig> BaseContributorBuilder<L, D> add(String typeName, Class<T> configClass, BiFunction<D, T, L> instanceFunction) {
+        public <T extends BaseConfig> BaseContributorBuilder<L, D> add(String typeName, Class<T> configClass, BiFunction<D, T, L> instanceFunction,
+                                                                       boolean configurationRequired) {
             if (typeNameToInstanceBuilder.containsKey(typeName)) {
                 throw new IllegalArgumentException(typeName + " already registered");
             }
             typeNameToInstanceBuilder.put(typeName,
-                    new ContributionDetails<>(new ConfigurationDefinition(configClass), InstanceBuilder.builder(configClass, instanceFunction)));
+                    new ContributionDetails<>(new ConfigurationDefinition(configClass, configurationRequired), InstanceBuilder.builder(configClass, instanceFunction)));
             return this;
         }
 
@@ -178,7 +189,7 @@ public abstract class BaseContributor<T, S extends Context> implements Contribut
          * @return this
          */
         public BaseContributorBuilder<L, D> add(String typeName, Function<D, L> instanceFunction) {
-            return add(typeName, BaseConfig.class, (context, config) -> instanceFunction.apply(context));
+            return add(typeName, BaseConfig.class, (context, config) -> instanceFunction.apply(context), true);
         }
 
         Map<String, ContributionDetails<L, D>> build() {
@@ -196,5 +207,6 @@ public abstract class BaseContributor<T, S extends Context> implements Contribut
         return new BaseContributorBuilder<>();
     }
 
-    protected record ContributionDetails<T, D extends Context>(ConfigurationDefinition configurationDefinition, InstanceBuilder<T, D> instanceBuilder) {}
+    protected record ContributionDetails<T, D extends Context>(ConfigurationDefinition configurationDefinition, InstanceBuilder<T, D> instanceBuilder) {
+    }
 }
