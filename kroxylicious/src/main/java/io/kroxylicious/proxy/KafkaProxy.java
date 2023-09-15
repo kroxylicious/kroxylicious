@@ -33,6 +33,7 @@ import io.netty.incubator.channel.uring.IOUringEventLoopGroup;
 import io.netty.incubator.channel.uring.IOUringServerSocketChannel;
 import io.netty.util.concurrent.Future;
 
+import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.MicrometerDefinition;
 import io.kroxylicious.proxy.config.admin.AdminHttpConfiguration;
@@ -105,6 +106,8 @@ public final class KafkaProxy implements AutoCloseable {
         var plainServerBootstrap = buildServerBootstrap(serverEventGroup, new KafkaProxyInitializer(config, false, endpointRegistry, endpointRegistry, false, Map.of()));
 
         bindingOperationProcessor.start(plainServerBootstrap, tlsServerBootstrap);
+
+        FilterChainFactory.validateFilterConfiguration(config.filters());
 
         // TODO: startup/shutdown should return a completionstage
         CompletableFuture.allOf(virtualClusters.stream().map(vc -> endpointRegistry.registerVirtualCluster(vc).toCompletableFuture()).toArray(CompletableFuture[]::new))

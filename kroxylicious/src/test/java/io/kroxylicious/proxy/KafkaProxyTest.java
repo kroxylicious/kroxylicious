@@ -8,6 +8,7 @@ package io.kroxylicious.proxy;
 
 import java.util.stream.Stream;
 
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -18,6 +19,28 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class KafkaProxyTest {
+
+    @Test
+    void shouldFailToStartIfRequireFilterConfigIsMissing() throws Exception {
+        var config = """
+                    virtualClusters:
+                        demo1:
+                            targetCluster:
+                              bootstrap_servers: kafka.example:1234
+                            clusterNetworkAddressConfigProvider:
+                              type: PortPerBroker
+                              config:
+                                bootstrapAddress: localhost:9192
+                                brokerStartPort: 9193
+                                numberOfBrokerPorts: 2
+                    filters:
+                       - type: ProduceRequestTransformation
+                """;
+        try (var kafkaProxy = new KafkaProxy(new ConfigParser().parseConfiguration(config))) {
+            var illegalStateException = assertThrows(IllegalStateException.class, kafkaProxy::startup);
+            assertThat(illegalStateException).hasStackTraceContaining("Missing required config for");
+        }
+    }
 
     public static Stream<Arguments> detectsConflictingPorts() {
         return Stream.of(Arguments.of("bootstrap port conflict", """
