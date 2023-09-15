@@ -59,9 +59,9 @@ class FilterChainFactoryTest {
 
     @Test
     void testCreateFilter() {
-        final ListAssert<FilterAndInvoker> listAssert = assertFiltersCreated(List.of(new FilterDefinition(TestFilterContributor.SHORT_NAME_A, config)));
+        final ListAssert<FilterAndInvoker> listAssert = assertFiltersCreated(List.of(new FilterDefinition(TestFilterContributor.TYPE_NAME_A, config)));
         listAssert.first().extracting(FilterAndInvoker::filter).isInstanceOfSatisfying(TestFilter.class, testFilter -> {
-            assertThat(testFilter.getShortName()).isEqualTo(TestFilterContributor.SHORT_NAME_A);
+            assertThat(testFilter.getShortName()).isEqualTo(TestFilterContributor.TYPE_NAME_A);
             assertThat(testFilter.getContext().getConfig()).isSameAs(config);
             assertThat(testFilter.getContext().executors().eventLoop()).isSameAs(eventLoop);
             assertThat(testFilter.getExampleConfig()).isSameAs(config);
@@ -70,16 +70,16 @@ class FilterChainFactoryTest {
 
     @Test
     void testCreateFilters() {
-        final ListAssert<FilterAndInvoker> listAssert = assertFiltersCreated(List.of(new FilterDefinition(TestFilterContributor.SHORT_NAME_A, config),
-                new FilterDefinition(TestFilterContributor.SHORT_NAME_B, config)));
+        final ListAssert<FilterAndInvoker> listAssert = assertFiltersCreated(List.of(new FilterDefinition(TestFilterContributor.TYPE_NAME_A, config),
+                new FilterDefinition(TestFilterContributor.TYPE_NAME_B, config)));
         listAssert.element(0).extracting(FilterAndInvoker::filter).isInstanceOfSatisfying(TestFilter.class, testFilter -> {
-            assertThat(testFilter.getShortName()).isEqualTo(TestFilterContributor.SHORT_NAME_A);
+            assertThat(testFilter.getShortName()).isEqualTo(TestFilterContributor.TYPE_NAME_A);
             assertThat(testFilter.getContext().getConfig()).isSameAs(config);
             assertThat(testFilter.getContext().executors().eventLoop()).isSameAs(eventLoop);
             assertThat(testFilter.getExampleConfig()).isSameAs(config);
         });
         listAssert.element(1).extracting(FilterAndInvoker::filter).isInstanceOfSatisfying(TestFilter.class, testFilter -> {
-            assertThat(testFilter.getShortName()).isEqualTo(TestFilterContributor.SHORT_NAME_B);
+            assertThat(testFilter.getShortName()).isEqualTo(TestFilterContributor.TYPE_NAME_B);
             assertThat(testFilter.getContext().getConfig()).isSameAs(config);
             assertThat(testFilter.getContext().executors().eventLoop()).isSameAs(eventLoop);
             assertThat(testFilter.getExampleConfig()).isSameAs(config);
@@ -89,13 +89,13 @@ class FilterChainFactoryTest {
     @Test
     void shouldThrowExceptionIfFilterRequiresConfigAndNoneIsSupplied() {
         //Given
-        final List<FilterDefinition> filters = List.of(new FilterDefinition(TestFilterContributor.SHORT_NAME_A, config),
-                new FilterDefinition(TestFilterContributor.SHORT_NAME_B, null));
+        final List<FilterDefinition> filters = List.of(new FilterDefinition(TestFilterContributor.TYPE_NAME_A, config),
+                new FilterDefinition(TestFilterContributor.TYPE_NAME_B, null));
 
         //When
         assertThatThrownBy(() -> FilterChainFactory.validateFilterConfiguration(filters))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining(TestFilterContributor.SHORT_NAME_B);
+                .hasMessageContaining(TestFilterContributor.TYPE_NAME_B);
 
         //Then
     }
@@ -103,14 +103,14 @@ class FilterChainFactoryTest {
     @Test
     void shouldThrowExceptionMentioningAllFiltersWithoutRequiredConfig() {
         //Given
-        final List<FilterDefinition> filters = List.of(new FilterDefinition(TestFilterContributor.SHORT_NAME_A, null),
-                new FilterDefinition(TestFilterContributor.SHORT_NAME_B, null));
+        final List<FilterDefinition> filters = List.of(new FilterDefinition(TestFilterContributor.TYPE_NAME_A, null),
+                new FilterDefinition(TestFilterContributor.TYPE_NAME_B, null));
 
         //When
         assertThatThrownBy(() -> FilterChainFactory.validateFilterConfiguration(filters))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining(TestFilterContributor.SHORT_NAME_A)
-                .hasMessageContaining(TestFilterContributor.SHORT_NAME_B);
+                .hasMessageContaining(TestFilterContributor.TYPE_NAME_A)
+                .hasMessageContaining(TestFilterContributor.TYPE_NAME_B);
 
         //Then
     }
@@ -118,8 +118,22 @@ class FilterChainFactoryTest {
     @Test
     void shouldCompleteIfAllFiltersHaveConfiguration() {
         //Given
-        final List<FilterDefinition> filterDefinitions = List.of(new FilterDefinition(TestFilterContributor.SHORT_NAME_A, config),
-                new FilterDefinition(TestFilterContributor.SHORT_NAME_B, config));
+        final List<FilterDefinition> filterDefinitions = List.of(new FilterDefinition(TestFilterContributor.TYPE_NAME_A, config),
+                new FilterDefinition(TestFilterContributor.TYPE_NAME_B, config));
+
+        //When
+        final boolean configurationValid = FilterChainFactory.validateFilterConfiguration(filterDefinitions);
+
+        //Then
+        assertThat(configurationValid).isTrue();
+    }
+
+    @Test
+    void shouldCompleteIfFiltersWithOptionalConfigurationAreMissingConfiguration() {
+        //Given
+        final List<FilterDefinition> filterDefinitions = List.of(new FilterDefinition(TestFilterContributor.TYPE_NAME_A, config),
+                new FilterDefinition(TestFilterContributor.TYPE_NAME_B, config),
+                new FilterDefinition(TestFilterContributor.OPTIONAL_CONFIG_FILTER, null));
 
         //When
         final boolean configurationValid = FilterChainFactory.validateFilterConfiguration(filterDefinitions);
