@@ -13,17 +13,17 @@ import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 
 /**
- * A KrpcFilter implementation intended to simplify cases where we want to handle all or
+ * A Filter implementation intended to simplify cases where we want to handle all or
  * most response types, for example to modify the response headers. If a Filter implements
  * ResponseFilter, it cannot also implement {@link CompositeFilter} or any of the specific
  * message Filter interfaces like {@link ApiVersionsRequestFilter}. If a Filter implements
  * ResponseFilter, it may also implement {@link RequestFilter}.
  */
-public interface ResponseFilter extends KrpcFilter {
+public interface ResponseFilter extends Filter {
 
     /**
      * Does this filter implementation want to handle a response. If so, the
-     * {@link #onResponse(ApiKeys, ResponseHeaderData, ApiMessage, KrpcFilterContext)} method
+     * {@link #onResponse(ApiKeys, ResponseHeaderData, ApiMessage, FilterContext)} method
      * will be eligible to be called with the deserialized response data (if the
      * message reaches this filter in the filter chain).
      *
@@ -53,5 +53,5 @@ public interface ResponseFilter extends KrpcFilter {
     CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey,
                                                      ResponseHeaderData header,
                                                      ApiMessage response,
-                                                     KrpcFilterContext context);
+                                                     FilterContext context);
 }

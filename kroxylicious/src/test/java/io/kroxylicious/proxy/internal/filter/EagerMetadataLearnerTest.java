@@ -34,7 +34,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import io.kroxylicious.proxy.filter.KrpcFilterContext;
+import io.kroxylicious.proxy.filter.FilterContext;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyShort;
@@ -47,7 +47,7 @@ import static org.mockito.Mockito.when;
 class EagerMetadataLearnerTest {
 
     @Mock
-    KrpcFilterContext context;
+    FilterContext context;
     private EagerMetadataLearner learner;
 
     @BeforeEach

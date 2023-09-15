@@ -34,7 +34,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.stubbing.Answer;
 
-import io.kroxylicious.proxy.filter.KrpcFilterContext;
+import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.sample.config.SampleFilterConfig;
 
@@ -52,7 +52,7 @@ class SampleProduceRequestFilterTest {
     private static final String CONFIG_REPLACE_VALUE = "to";
 
     @Mock
-    private KrpcFilterContext context;
+    private FilterContext context;
 
     @Mock(strictness = Mock.Strictness.LENIENT)
     private RequestFilterResult requestFilterResult;

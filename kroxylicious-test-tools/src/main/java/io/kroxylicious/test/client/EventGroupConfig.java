@@ -22,8 +22,8 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 
 public record EventGroupConfig(
-        Class<? extends SocketChannel> clientChannelClass,
-        Class<? extends ServerSocketChannel> serverChannelClass) {
+                               Class<? extends SocketChannel> clientChannelClass,
+                               Class<? extends ServerSocketChannel> serverChannelClass) {
 
     public static EventGroupConfig create() {
         final Class<? extends SocketChannel> clientChannelClass;
@@ -59,6 +59,7 @@ public record EventGroupConfig(
     public EventLoopGroup newWorkerGroup() {
         return newGroup(1);
     }
+
     public EventLoopGroup newBossGroup() {
         return newGroup(1);
     }

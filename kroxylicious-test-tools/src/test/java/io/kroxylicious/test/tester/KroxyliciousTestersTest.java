@@ -49,6 +49,7 @@ import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.mockKafkaKroxyliciousTester;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -105,6 +106,60 @@ class KroxyliciousTestersTest {
             consumer.subscribe(List.of(TOPIC));
             int recordCount = consumer.poll(Duration.ofSeconds(10)).count();
             assertEquals(6, recordCount);
+        }
+    }
+
+    @Test
+    void testRestartingProxyDoesNotCloseClients(KafkaCluster cluster) throws Exception {
+        try (var tester = kroxyliciousTester(proxy(cluster))) {
+            var admin = tester.admin();
+            var producer = tester.producer();
+            var consumer = tester.consumer();
+            assertThat(admin.describeCluster()).isNotNull();
+            send(producer);
+            consumer.subscribe(List.of(TOPIC));
+            assertThat(consumer.poll(Duration.ofSeconds(10))).isNotNull();
+            tester.restartProxy();
+            // assert some basic things here but if restarting the proxy restarted the clients these would except
+            assertThat(admin.describeCluster()).isNotNull();
+            send(producer);
+            assertThat(consumer.poll(Duration.ofSeconds(10))).isNotNull();
+        }
+    }
+
+    @Test
+    void testClosingTesterAlsoClosesClients(KafkaCluster cluster) throws Exception {
+        var tester = kroxyliciousTester(proxy(cluster));
+        var admin = tester.admin();
+        var producer = tester.producer();
+        var consumer = tester.consumer();
+        assertThat(admin.describeCluster()).isNotNull();
+        send(producer);
+        consumer.subscribe(List.of(TOPIC));
+        assertThat(consumer.poll(Duration.ofSeconds(10))).isNotNull();
+        tester.close();
+        // we expect the following to throw an exception, but if it doesn't we fail.
+        try {
+            admin.describeCluster();
+            send(producer);
+            consumer.poll(Duration.ofSeconds(10));
+            fail("No exception was thrown when invoking clients that should be closed");
+        }
+        catch (Exception e) {
+            assertThat(e).isNotNull();
+        }
+    }
+
+    @Test
+    void testCanCloseTesterWithClosedClient(KafkaCluster cluster) {
+        try {
+            var tester = kroxyliciousTester(proxy(cluster));
+            var admin = tester.admin();
+            admin.close();
+            tester.close();
+        }
+        catch (Exception e) {
+            fail(e.getMessage());
         }
     }
 

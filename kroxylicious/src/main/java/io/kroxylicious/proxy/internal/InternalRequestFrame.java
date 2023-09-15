@@ -11,18 +11,18 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
 
-import io.kroxylicious.proxy.filter.KrpcFilter;
+import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 
 public class InternalRequestFrame<B extends ApiMessage> extends DecodedRequestFrame<B> {
 
     private final CompletableFuture<?> promise;
-    private final KrpcFilter recipient;
+    private final Filter recipient;
 
     public InternalRequestFrame(short apiVersion,
                                 int correlationId,
                                 boolean decodeResponse,
-                                KrpcFilter recipient,
+                                Filter recipient,
                                 CompletableFuture<?> promise,
                                 RequestHeaderData header,
                                 B body) {
@@ -31,7 +31,7 @@ public class InternalRequestFrame<B extends ApiMessage> extends DecodedRequestFr
         this.recipient = Objects.requireNonNull(recipient);
     }
 
-    public KrpcFilter recipient() {
+    public Filter recipient() {
         return recipient;
     }
 

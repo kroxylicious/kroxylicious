@@ -6,6 +6,7 @@
 package io.kroxylicious.proxy.internal;
 
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
@@ -29,11 +30,12 @@ import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 
+import io.kroxylicious.proxy.ApiVersionsService;
+import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
+import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.FilterInvoker;
 import io.kroxylicious.proxy.filter.FilterResult;
-import io.kroxylicious.proxy.filter.KrpcFilter;
-import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
@@ -53,28 +55,31 @@ import io.kroxylicious.proxy.model.VirtualCluster;
 
 /**
  * A {@code ChannelInboundHandler} (for handling requests from downstream)
- * that applies a single {@link KrpcFilter}.
+ * that applies a single {@link Filter}.
  */
 public class FilterHandler extends ChannelDuplexHandler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(FilterHandler.class);
-    private final KrpcFilter filter;
+    private final Filter filter;
     private final FilterInvoker invoker;
     private final long timeoutMs;
     private final String sniHostname;
     private final VirtualCluster virtualCluster;
     private final Channel inboundChannel;
+    private final ApiVersionsServiceImpl apiVersionService;
     private CompletableFuture<Void> writeFuture = CompletableFuture.completedFuture(null);
     private CompletableFuture<Void> readFuture = CompletableFuture.completedFuture(null);
     private ChannelHandlerContext ctx;
 
-    public FilterHandler(FilterAndInvoker filterAndInvoker, long timeoutMs, String sniHostname, VirtualCluster virtualCluster, Channel inboundChannel) {
+    public FilterHandler(FilterAndInvoker filterAndInvoker, long timeoutMs, String sniHostname, VirtualCluster virtualCluster, Channel inboundChannel,
+                         ApiVersionsServiceImpl apiVersionService) {
         this.filter = Objects.requireNonNull(filterAndInvoker).filter();
         this.invoker = filterAndInvoker.invoker();
         this.timeoutMs = Assertions.requireStrictlyPositive(timeoutMs, "timeout");
         this.sniHostname = sniHostname;
         this.virtualCluster = virtualCluster;
         this.inboundChannel = inboundChannel;
+        this.apiVersionService = apiVersionService;
     }
 
     String filterDescriptor() {
@@ -161,7 +166,7 @@ public class FilterHandler extends ChannelDuplexHandler {
     }
 
     private CompletableFuture<Void> readDecodedResponse(DecodedResponseFrame<?> decodedFrame) {
-        var filterContext = new InternalFilterContext(decodedFrame);
+        var filterContext = new InternalFilterContext(decodedFrame, apiVersionService);
 
         final var future = dispatchDecodedResponseFrame(decodedFrame, filterContext);
         boolean defer = !future.isDone();
@@ -201,7 +206,7 @@ public class FilterHandler extends ChannelDuplexHandler {
     }
 
     private CompletableFuture<Void> writeDecodedRequest(DecodedRequestFrame<?> decodedFrame, ChannelPromise promise) {
-        var filterContext = new InternalFilterContext(decodedFrame);
+        var filterContext = new InternalFilterContext(decodedFrame, apiVersionService);
         final var future = dispatchDecodedRequest(decodedFrame, filterContext);
         boolean defer = !future.isDone();
         if (defer) {
@@ -427,12 +432,14 @@ public class FilterHandler extends ChannelDuplexHandler {
         });
     }
 
-    private class InternalFilterContext implements KrpcFilterContext {
+    private class InternalFilterContext implements FilterContext, ApiVersionsService {
 
         private final DecodedFrame<?, ?> decodedFrame;
+        private final ApiVersionsServiceImpl apiVersionService;
 
-        InternalFilterContext(DecodedFrame<?, ?> decodedFrame) {
+        InternalFilterContext(DecodedFrame<?, ?> decodedFrame, ApiVersionsServiceImpl apiVersionService) {
             this.decodedFrame = decodedFrame;
+            this.apiVersionService = apiVersionService;
         }
 
         @Override
@@ -455,6 +462,11 @@ public class FilterHandler extends ChannelDuplexHandler {
 
         public String getVirtualClusterName() {
             return virtualCluster.getClusterName();
+        }
+
+        @Override
+        public ApiVersionsService getApiVersionsService() {
+            return this;
         }
 
         @Override
@@ -525,5 +537,11 @@ public class FilterHandler extends ChannelDuplexHandler {
             }, timeoutMs, TimeUnit.MILLISECONDS);
             return filterStage;
         }
+
+        @Override
+        public CompletionStage<Optional<ApiVersionRanges>> getApiVersionRanges(ApiKeys keys) {
+            return apiVersionService.getApiVersionRanges(keys, this);
+        }
+
     }
 }

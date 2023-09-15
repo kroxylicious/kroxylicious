@@ -6,9 +6,9 @@
 
 package io.kroxylicious.proxy.filter;
 
-/**
- * Marker interface all Filter interfaces extend from
- */
-public /* sealed */ interface KrpcFilter {
+import java.util.concurrent.ScheduledExecutorService;
 
+public interface FilterExecutors {
+
+    ScheduledExecutorService eventLoop();
 }

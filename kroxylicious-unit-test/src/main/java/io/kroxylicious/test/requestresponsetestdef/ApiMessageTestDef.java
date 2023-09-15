@@ -10,5 +10,4 @@ import org.apache.kafka.common.protocol.ApiMessage;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
-public record ApiMessageTestDef(ApiMessage message, JsonNode expectedPatch) {
-}
+public record ApiMessageTestDef(ApiMessage message, JsonNode expectedPatch) {}

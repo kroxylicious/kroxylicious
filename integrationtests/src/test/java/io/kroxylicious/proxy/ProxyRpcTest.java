@@ -44,8 +44,7 @@ public class ProxyRpcTest {
     private static MockServerKroxyliciousTester mockTester;
 
     public record Scenario(String name, ResponsePayload givenMockResponse, Request whenSendRequest, Request thenMockReceivesRequest,
-                           ResponsePayload thenResponseReceived) {
-    }
+                           ResponsePayload thenResponseReceived) {}
 
     /**
      * API_VERSIONS is not proxied, kroxylicious can respond to this itself

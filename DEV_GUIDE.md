@@ -6,7 +6,7 @@ This document gives a detailed breakdown of the various build processes and opti
 * [Development Guide for Kroxylicious](#development-guide-for-kroxylicious)
   * [Build status](#build-status)
   * [Build Prerequisites](#build-prerequisites)
-  * [Prerequistes to run the kubernetes-examples](#prerequistes-to-run-the-kubernetes-examples)
+  * [Prerequisites to run the kubernetes-examples](#prerequisites-to-run-the-kubernetes-examples)
   * [Build](#build)
     * [Formatting the Code](#formatting-the-code)
   * [Run](#run)
@@ -37,7 +37,7 @@ This document gives a detailed breakdown of the various build processes and opti
 
 > :warning: **If you are using Podman please see [these notes](#running-integration-tests-on-podman) below**
 
-## Prerequistes to run the kubernetes-examples
+## Prerequisites to run the kubernetes-examples
 
 * User must have a [quay.io](https://www.quay.io) account and create a public repository named `kroxylicious`
 * Minikube [installed](https://minikube.sigs.k8s.io/docs/start)
@@ -91,10 +91,18 @@ Run the following command to format the source code and organize the imports as 
 mvn process-sources
 ```
 
-Build with the `dist` profile for creating an executable JAR:
+Build with the `dist` profile to create distribution artefacts (see [kroxylicious-app](kroxylicious-app)):
 
 ```shell
 mvn clean verify -Pdist -Dquick
+```
+
+The project provides some Kroxylicious-maintained Filter implementations that are not included in the distribution
+by default. To also include the additional filters in the distribution (located under [kroxylicious-additional-filters](./kroxylicious-additional-filters)), 
+activate the `withAdditionalFilters` profile:
+
+```shell
+mvn clean install -Pdist -Dquick -PwithAdditionalFilters
 ```
 
 Run the following to add missing license headers e.g. when adding new source files:
@@ -117,13 +125,13 @@ No one likes to argue about code formatting in pull requests, as project we take
 Build with the `dist` profile as shown above, then execute this:
 
 ```shell
-kroxylicious-app/target/kroxylicious-app-*-bin/kroxylicious-app-*/bin/kroxylicious-start.sh --config {path-to-kroxylicious-config}
+kroxylicious-app/target/kroxylicious-app-*-bin/kroxylicious-app-*/bin/kroxylicious-start.sh --config ${path_to_kroxylicious_config}
 ```
 
 Or, to run with your own class path, run this instead:
 
 ```shell
-KROXYLICIOUS_CLASSPATH="{additional-classpath-entries}" kroxylicious-app/target/kroxylicious-app-*-bin/kroxylicious-app-*/bin/kroxylicious-start.sh --config {path-to-kroxylicious-config}
+KROXYLICIOUS_CLASSPATH="${additional_classpath_entries}" kroxylicious-app/target/kroxylicious-app-*-bin/kroxylicious-app-*/bin/kroxylicious-start.sh --config ${path_to_kroxylicious_config}
 ```
 
 for example:
@@ -146,9 +154,9 @@ Kroxylicious can be containerised and run on Minikube against a [Strimzi](https:
 Running:
 
 ```shell
-minikube delete && QUAY_ORG=$your_quay_username$ ./scripts/run-with-strimzi.sh $kubernetes example directory$
+minikube delete && QUAY_ORG=${your_quay_username} ./scripts/run-with-strimzi.sh ${kubernetes_example_directory}
 ```
-where `$kubernetes example directory$` is replaced by a path to an example directory e.g. `./kubernetes-examples/portperbroker_plain`.
+where `${kubernetes_example_directory}` is replaced by a path to an example directory e.g. `./kubernetes-examples/portperbroker_plain`.
 
 This `run-with-strimzi.sh` script does the following:
 1. builds and pushes a kroxylicious image to quay.io
@@ -157,7 +165,7 @@ This `run-with-strimzi.sh` script does the following:
 4. installs a 3-node Kafka cluster using Strimzi into minikube
 5. installs kroxylicious into minikube, configured to proxy the cluster
 
-> NOTE: If the kroxylicious pod doesn't come up but it's stuck on ImagePullBackOff with "unauthorized: access to the requested resource is not authorized" error, 
+> NOTE: If the kroxylicious pod doesn't come up, but it's stuck on ImagePullBackOff with "unauthorized: access to the requested resource is not authorized" error, 
 it could mean you have to make the Quay image as public.
 
 If you want to only build and push an image to quay.io you can run `PUSH_IMAGE=y QUAY_ORG=$your_quay_username$ ./scripts/deploy-image.sh`
@@ -181,9 +189,9 @@ as a suggestion if you used sdkman to install it).
 
 In the IDEA Maven dialogue click on `Generate Sources and Update Folders For All Projects`.
 
-Build the entire project by running `Build > Build Project` and then check that you can run `io.kroxylicious.proxy.KrpcFilterIT`
+Build the entire project by running `Build > Build Project` and then check that you can run `io.kroxylicious.proxy.FilterIT`
 
-If you encounter any further issues with generated sources, you can can try running `mvn clean install -DskipTests` again or running 
+If you encounter any further issues with generated sources, you can try running `mvn clean install -DskipTests` again or running 
 `Generate Sources and Update Folders` for the specific module that is having problems.
 
 ## Setting Up in Windows Using WSL
@@ -238,7 +246,7 @@ While Kroxylicious is a java application we've had reports of issues running the
 
 ### DOCKER_HOST environment variable
 
-On Linux, it maybe necessary to configure the `DOCKER_HOST` environment variable to allow the tests to correctly use test containers.
+On Linux, it may be necessary to configure the `DOCKER_HOST` environment variable to allow the tests to correctly use test containers.
 
 ```shell
 DOCKER_HOST=unix://$(podman info --format '{{.Host.RemoteSocket.Path}}')
@@ -295,7 +303,7 @@ Host: www.example.com
 ```
 
 You'll see an API response.  If the service_timeout change is effective, the socat
-will continue for 3 mins.  If `socat` terminates after about 10 seconds, the workaround
+will continue for 3 minutes.  If `socat` terminates after about 10 seconds, the workaround
 has been applied ineffectively.
 
 

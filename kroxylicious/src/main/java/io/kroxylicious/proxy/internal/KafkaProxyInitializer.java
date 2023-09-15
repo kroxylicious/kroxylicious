@@ -31,9 +31,10 @@ import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.internal.codec.KafkaRequestDecoder;
 import io.kroxylicious.proxy.internal.codec.KafkaResponseEncoder;
-import io.kroxylicious.proxy.internal.filter.ApiVersionsFilter;
+import io.kroxylicious.proxy.internal.filter.ApiVersionsIntersectFilter;
 import io.kroxylicious.proxy.internal.filter.BrokerAddressFilter;
 import io.kroxylicious.proxy.internal.filter.EagerMetadataLearner;
+import io.kroxylicious.proxy.internal.filter.NettyFilterContext;
 import io.kroxylicious.proxy.internal.net.Endpoint;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
 import io.kroxylicious.proxy.internal.net.VirtualClusterBinding;
@@ -170,10 +171,12 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
             pipeline.addLast(new KafkaAuthnHandler(ch, authnHandlers));
         }
 
+        ApiVersionsServiceImpl apiVersionService = new ApiVersionsServiceImpl();
         var frontendHandler = new KafkaProxyFrontendHandler(context -> {
             var filterChainFactory = new FilterChainFactory(config);
-            List<FilterAndInvoker> apiVersionFilters = dp.isAuthenticationOffloadEnabled() ? List.of() : FilterAndInvoker.build(new ApiVersionsFilter());
-            List<FilterAndInvoker> customProtocolFilters = filterChainFactory.createFilters();
+            List<FilterAndInvoker> apiVersionFilters = dp.isAuthenticationOffloadEnabled() ? List.of()
+                    : FilterAndInvoker.build(new ApiVersionsIntersectFilter(apiVersionService));
+            List<FilterAndInvoker> customProtocolFilters = filterChainFactory.createFilters(new NettyFilterContext(ch.eventLoop()));
             List<FilterAndInvoker> brokerAddressFilters = FilterAndInvoker.build(new BrokerAddressFilter(virtualCluster, endpointReconciler));
             var filters = new ArrayList<>(apiVersionFilters);
             filters.addAll(customProtocolFilters);
@@ -189,7 +192,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
             }
 
             context.initiateConnect(target, filters);
-        }, dp, virtualCluster);
+        }, dp, virtualCluster, apiVersionService);
 
         pipeline.addLast("netHandler", frontendHandler);
 

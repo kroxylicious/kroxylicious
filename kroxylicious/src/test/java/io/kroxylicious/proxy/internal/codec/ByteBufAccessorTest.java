@@ -21,8 +21,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -73,6 +76,106 @@ public class ByteBufAccessorTest {
 
             bbuffer.clear();
         }
+    }
+
+    @Test
+    void testReadTooLongVarLong() {
+        var bbuffer = ByteBuffer.allocate(1024);
+        ByteBufferAccessor nio = new ByteBufferAccessor(bbuffer);
+        for (int j = 0; j < 10; j++) {
+            nio.writeByte((byte) -5);
+        }
+
+        var bbuf = Unpooled.wrappedBuffer(bbuffer.flip());
+        var kp = new ByteBufAccessorImpl(bbuf);
+        assertThatThrownBy(kp::readVarlong).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("Varlong is too long");
+    }
+
+    @Test
+    void testReadTooLongUnsignedVarInt() {
+        var bbuffer = ByteBuffer.allocate(1024);
+        ByteBufferAccessor nio = new ByteBufferAccessor(bbuffer);
+        for (int j = 0; j < 5; j++) {
+            nio.writeByte((byte) -5);
+        }
+
+        var bbuf = Unpooled.wrappedBuffer(bbuffer.flip());
+        var kp = new ByteBufAccessorImpl(bbuf);
+        assertThatThrownBy(kp::readUnsignedVarint).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("Varint is too long");
+    }
+
+    @Test
+    void testReadTooLongVarInt() {
+        var bbuffer = ByteBuffer.allocate(1024);
+        ByteBufferAccessor nio = new ByteBufferAccessor(bbuffer);
+        for (int j = 0; j < 5; j++) {
+            nio.writeByte((byte) -5);
+        }
+
+        var bbuf = Unpooled.wrappedBuffer(bbuffer.flip());
+        var kp = new ByteBufAccessorImpl(bbuf);
+        assertThatThrownBy(kp::readVarint).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("Varint is too long");
+    }
+
+    @Test
+    void testReadArrayWithSizeGreaterThanRemaining() {
+        var bbuffer = ByteBuffer.allocate(1);
+        ByteBufferAccessor nio = new ByteBufferAccessor(bbuffer);
+        nio.writeByte((byte) -5);
+
+        var bbuf = Unpooled.wrappedBuffer(bbuffer.flip());
+        var kp = new ByteBufAccessorImpl(bbuf);
+        assertThatThrownBy(() -> kp.readArray(2)).isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Error reading byte array of 2 byte(s): only 1 byte(s) available");
+    }
+
+    @Test
+    void testWriterIndex() {
+        var bbuf = Unpooled.buffer(2);
+        var kp = new ByteBufAccessorImpl(bbuf);
+        assertThat(kp.writerIndex()).isZero();
+        bbuf.writerIndex(1);
+        assertThat(kp.writerIndex()).isEqualTo(1);
+    }
+
+    @Test
+    void testWriteBytes() {
+        var bbuf = Unpooled.buffer(2);
+        var kp = new ByteBufAccessorImpl(bbuf);
+
+        var buf2 = Unpooled.wrappedBuffer(new byte[]{ 5, 2 });
+        kp.writeBytes(buf2, 1);
+        assertThat(kp.writerIndex()).isEqualTo(1);
+        var nio = ByteBuffer.wrap(bbuf.array());
+        var kafkaAccessor = new ByteBufferAccessor(nio);
+        assertThat(kafkaAccessor.readByte()).isEqualTo((byte) 5);
+    }
+
+    @Test
+    void testWriteByteBuffer() {
+        var bbuf = Unpooled.buffer(2);
+        var kp = new ByteBufAccessorImpl(bbuf);
+        kp.writeByteBuffer(ByteBuffer.wrap(new byte[]{ 5, 2 }));
+        var nio = ByteBuffer.wrap(bbuf.array());
+        var kafkaAccessor = new ByteBufferAccessor(nio);
+        assertThat(kafkaAccessor.readByte()).isEqualTo((byte) 5);
+        assertThat(kafkaAccessor.readByte()).isEqualTo((byte) 2);
+    }
+
+    @Test
+    void testReadBuffer() {
+        var bytebuf = Unpooled.wrappedBuffer(new byte[]{ 5, 2 });
+        var kafkaAccessor = new ByteBufAccessorImpl(bytebuf);
+        assertThat(kafkaAccessor.readByteBuffer(2).array()).containsExactly((byte) 5, (byte) 2);
+    }
+
+    @Test
+    void testEnsureWritableExpandsUnderlyingBufferIfAble() {
+        ByteBuf buffer = Unpooled.buffer(1);
+        var kp = new ByteBufAccessorImpl(buffer);
+        assertThat(buffer.writableBytes()).isEqualTo(1);
+        kp.ensureWritable(5);
+        assertThat(buffer.writableBytes()).isGreaterThanOrEqualTo(5);
     }
 
     @Test

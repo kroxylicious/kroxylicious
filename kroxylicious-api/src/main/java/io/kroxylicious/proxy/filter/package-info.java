@@ -27,16 +27,16 @@
  * <p><strong>IMPORTANT:</strong> The pausing of reads from the downstream is a relatively costly operation.  To maintain optimal performance
  * filter implementations should minimise the occasions on which an incomplete CompletionStage is returned.</p>
  * <h3 id='implementing.createFilterResults'>Creating Filter Result objects</h3>
- * <p>The {@link io.kroxylicious.proxy.filter.KrpcFilterContext} is the factory for the FilterResult objects.</p>
+ * <p>The {@link io.kroxylicious.proxy.filter.FilterContext} is the factory for the FilterResult objects.</p>
  * <p>There are two convenience methods that simply allow a filter to immediately forward a result:</p>
  * <ul>
- *     <li>{@link io.kroxylicious.proxy.filter.KrpcFilterContext#forwardRequest(org.apache.kafka.common.message.RequestHeaderData, org.apache.kafka.common.protocol.ApiMessage)}, and</li>
- *     <li>{@link io.kroxylicious.proxy.filter.KrpcFilterContext#forwardResponse(org.apache.kafka.common.message.ResponseHeaderData, org.apache.kafka.common.protocol.ApiMessage)}.</li>
+ *     <li>{@link io.kroxylicious.proxy.filter.FilterContext#forwardRequest(org.apache.kafka.common.message.RequestHeaderData, org.apache.kafka.common.protocol.ApiMessage)}, and</li>
+ *     <li>{@link io.kroxylicious.proxy.filter.FilterContext#forwardResponse(org.apache.kafka.common.message.ResponseHeaderData, org.apache.kafka.common.protocol.ApiMessage)}.</li>
  * </ul>
  * <p>To access richer features, use the filter result builders:</p>
  * <ul>
- *     <li>{@link io.kroxylicious.proxy.filter.KrpcFilterContext#requestFilterResultBuilder()} and</li>
- *     <li>{@link io.kroxylicious.proxy.filter.KrpcFilterContext#responseFilterResultBuilder()}.</li>
+ *     <li>{@link io.kroxylicious.proxy.filter.FilterContext#requestFilterResultBuilder()} and</li>
+ *     <li>{@link io.kroxylicious.proxy.filter.FilterContext#responseFilterResultBuilder()}.</li>
  * </ul>
  */
 package io.kroxylicious.proxy.filter;

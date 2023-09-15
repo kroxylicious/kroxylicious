@@ -38,18 +38,18 @@
         <jackson.version>2.15.2</jackson.version>
         <junit.version>5.10.0</junit.version>
         <kafka.version>3.5.1</kafka.version>
-        <kroxy.extension.version>0.4.0</kroxy.extension.version>
+        <kroxy.extension.version>0.5.0</kroxy.extension.version>
         <log4j.version>2.20.0</log4j.version>
         <picocli.version>4.7.5</picocli.version>
-        <netty.version>4.1.96.Final</netty.version>
-        <netty.io_uring.version>0.0.21.Final</netty.io_uring.version>
+        <netty.version>4.1.97.Final</netty.version>
+        <netty.io_uring.version>0.0.22.Final</netty.io_uring.version>
         <netty.epoll.classifier>linux-x86_64</netty.epoll.classifier>
         <netty.io_uring.classifier>linux-x86_64</netty.io_uring.classifier>
         <netty.kqueue.classifier>osx-x86_64</netty.kqueue.classifier>
         <assertj-core.version>3.24.2</assertj-core.version>
         <mockito.version>5.5.0</mockito.version>
         <micrometer.version>1.11.3</micrometer.version>
-        <slf4j.version>2.0.7</slf4j.version>
+        <slf4j.version>2.0.9</slf4j.version>
         <sundr-builder-annotations.version>0.100.3</sundr-builder-annotations.version>
         <spotbugs-annotations.version>4.7.3</spotbugs-annotations.version>
         <zjsonpatch.version>0.4.14</zjsonpatch.version>
@@ -128,6 +128,13 @@
             <email>fvila@redhat.com</email>
             <organization>Red Hat</organization>
             <organizationUrl>https://www.redhat.com</organizationUrl>
+        </developer>
+        <developer>
+            <name>Grace Grimwood</name>
+            <email>ggrimwoo@redhat.com</email>
+            <organization>Red Hat</organization>
+            <organizationUrl>https://www.redhat.com</organizationUrl>
+            <timezone>Pacific/Auckland</timezone>
         </developer>
     </developers>
 
@@ -405,7 +412,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-enforcer-plugin</artifactId>
-                    <version>3.3.0</version>
+                    <version>3.4.1</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -769,6 +776,10 @@
                             </execution>
                             <execution>
                                 <id>format-test-sources</id>
+                                <phase>none</phase>
+                            </execution>
+                            <execution>
+                                <id>format-generated</id>
                                 <phase>none</phase>
                             </execution>
                         </executions>

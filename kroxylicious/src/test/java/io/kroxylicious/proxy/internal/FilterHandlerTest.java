@@ -35,7 +35,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import io.kroxylicious.proxy.filter.ApiVersionsRequestFilter;
 import io.kroxylicious.proxy.filter.ApiVersionsResponseFilter;
 import io.kroxylicious.proxy.filter.FetchRequestFilter;
-import io.kroxylicious.proxy.filter.KrpcFilterContext;
+import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
@@ -513,7 +513,7 @@ public class FilterHandlerTest extends FilterHarness {
 
             @Override
             public CompletionStage<RequestFilterResult> onApiVersionsRequest(short apiVersion, RequestHeaderData header, ApiVersionsRequestData request,
-                                                                             KrpcFilterContext context) {
+                                                                             FilterContext context) {
                 fail("Should not be called");
                 return null;
             }
@@ -609,7 +609,7 @@ public class FilterHandlerTest extends FilterHarness {
 
             @Override
             public CompletionStage<ResponseFilterResult> onApiVersionsResponse(short apiVersion, ResponseHeaderData header, ApiVersionsResponseData response,
-                                                                               KrpcFilterContext context) {
+                                                                               FilterContext context) {
                 fail("Should not be called");
                 return null;
             }
@@ -704,7 +704,7 @@ public class FilterHandlerTest extends FilterHarness {
 
     /**
      * Test the special case within {@link FilterHandler} for
-     * {@link KrpcFilterContext#sendRequest(short, ApiMessage)}
+     * {@link FilterContext#sendRequest(short, ApiMessage)}
      * with acks=0 Produce requests.
      */
     @Test

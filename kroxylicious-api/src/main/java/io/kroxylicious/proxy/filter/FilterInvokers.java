@@ -24,39 +24,39 @@ public class FilterInvokers {
     /**
      * Create a FilterInvoker for this filter. Supported cases are:
      * <ol>
-     *     <li>A KrpcFilter implementing {@link ResponseFilter}</li>
-     *     <li>A KrpcFilter implementing {@link RequestFilter}</li>
-     *     <li>A KrpcFilter implementing both {@link ResponseFilter} and {@link RequestFilter} </li>
-     *     <li>A KrpcFilter implementing any number of Specific Message Filter interfaces</li>
-     *     <li>A KrpcFilter implementing {@link CompositeFilter}</li>
+     *     <li>A Filter implementing {@link ResponseFilter}</li>
+     *     <li>A Filter implementing {@link RequestFilter}</li>
+     *     <li>A Filter implementing both {@link ResponseFilter} and {@link RequestFilter} </li>
+     *     <li>A Filter implementing any number of Specific Message Filter interfaces</li>
+     *     <li>A Filter implementing {@link CompositeFilter}</li>
      * </ol>
      * Examples of unsupported cases are:
      * <ol>
-     *     <li>A KrpcFilter implementing {@link ResponseFilter} and any number of Specific Message Filter interfaces</li>
-     *     <li>A KrpcFilter implementing {@link CompositeFilter} and any number of Specific Message Filter interfaces</li>
-     *     <li>A KrpcFilter implementing {@link ResponseFilter} and {@link CompositeFilter}</li>
-     *     <li>A KrpcFilter implementing {@link RequestFilter} and {@link CompositeFilter}</li>
+     *     <li>A Filter implementing {@link ResponseFilter} and any number of Specific Message Filter interfaces</li>
+     *     <li>A Filter implementing {@link CompositeFilter} and any number of Specific Message Filter interfaces</li>
+     *     <li>A Filter implementing {@link ResponseFilter} and {@link CompositeFilter}</li>
+     *     <li>A Filter implementing {@link RequestFilter} and {@link CompositeFilter}</li>
      * </ol>
      * @throws IllegalArgumentException if there is an invalid combination of Filter interfaces
      * @throws IllegalArgumentException if none of the supported interfaces are implemented
      * @param filter the Filter to create an invoker for
      * @return the invoker
      */
-    static List<FilterAndInvoker> from(KrpcFilter filter) {
+    static List<FilterAndInvoker> from(Filter filter) {
         List<FilterAndInvoker> filterInvokers = invokersForFilter(filter, 0);
         // all invokers are wrapped in safe invoker so that clients can safely call onRequest/onResponse
         // even if the invoker isn't interested in that message.
         return wrapAllInSafeInvoker(filterInvokers).toList();
     }
 
-    private static List<FilterAndInvoker> invokersForFilter(KrpcFilter filter, int depth) {
+    private static List<FilterAndInvoker> invokersForFilter(Filter filter, int depth) {
         boolean isCompositeFilter = filter instanceof CompositeFilter;
         boolean isResponseFilter = filter instanceof ResponseFilter;
         boolean isRequestFilter = filter instanceof RequestFilter;
         boolean isAnySpecificFilterInterface = SpecificFilterArrayInvoker.implementsAnySpecificFilterInterface(filter);
         validateFilter(filter, isResponseFilter, isRequestFilter, isAnySpecificFilterInterface, isCompositeFilter);
         if (isCompositeFilter) {
-            List<KrpcFilter> composedFilters = ((CompositeFilter) filter).getFilters();
+            List<Filter> composedFilters = ((CompositeFilter) filter).getFilters();
             if (depth >= RECURSION_DEPTH_LIMIT) {
                 throw new IllegalArgumentException("CompositeFilter's were nested too deeply, exceeded recursion depth limit of " + RECURSION_DEPTH_LIMIT);
             }
@@ -80,7 +80,7 @@ public class FilterInvokers {
         return filterInvokers.stream().map(filterAndInvoker -> new FilterAndInvoker(filterAndInvoker.filter(), new SafeInvoker(filterAndInvoker.invoker())));
     }
 
-    private static void validateFilter(KrpcFilter filter, boolean isResponseFilter, boolean isRequestFilter, boolean isAnySpecificFilterInterface,
+    private static void validateFilter(Filter filter, boolean isResponseFilter, boolean isRequestFilter, boolean isAnySpecificFilterInterface,
                                        boolean isCompositeFilter) {
         if (isAnySpecificFilterInterface && isCompositeFilter) {
             throw unsupportedFilterInstance(filter, "Cannot mix specific message filter interfaces and CompositeFilter interfaces");
@@ -93,11 +93,11 @@ public class FilterInvokers {
         }
         if (!isRequestFilter && !isResponseFilter && !isAnySpecificFilterInterface && !isCompositeFilter) {
             throw unsupportedFilterInstance(filter,
-                    "KrpcFilter must implement ResponseFilter, RequestFilter, CompositeFilter or any combination of specific message Filter interfaces");
+                    "Filter must implement ResponseFilter, RequestFilter, CompositeFilter or any combination of specific message Filter interfaces");
         }
     }
 
-    private static List<FilterAndInvoker> singleFilterAndInvoker(KrpcFilter filter, FilterInvoker invoker) {
+    private static List<FilterAndInvoker> singleFilterAndInvoker(Filter filter, FilterInvoker invoker) {
         return List.of(new FilterAndInvoker(filter, invoker));
     }
 
@@ -108,7 +108,7 @@ public class FilterInvokers {
      * @param filter the filter
      * @return an invoker for the filter
      */
-    public static FilterInvoker arrayInvoker(KrpcFilter filter) {
+    public static FilterInvoker arrayInvoker(Filter filter) {
         return new SpecificFilterArrayInvoker(filter);
     }
 
@@ -120,7 +120,7 @@ public class FilterInvokers {
         return HandleNothingFilterInvoker.INSTANCE;
     }
 
-    private static IllegalArgumentException unsupportedFilterInstance(KrpcFilter filter, String message) {
+    private static IllegalArgumentException unsupportedFilterInstance(Filter filter, String message) {
         return new IllegalArgumentException("Invoker could not be created for: " + filter.getClass().getName() + ". " + message);
     }
 

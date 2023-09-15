@@ -62,7 +62,7 @@ class ${filterInvokerClass} implements FilterInvoker {
     }
 
     @Override
-    public CompletionStage<${filterResultClass}> on<#if messageSpec.type?lower_case == 'response'>Response<#else>Request</#if>(ApiKeys apiKey, short apiVersion, ${headerClass} header, ApiMessage body, KrpcFilterContext filterContext) {
+    public CompletionStage<${filterResultClass}> on<#if messageSpec.type?lower_case == 'response'>Response<#else>Request</#if>(ApiKeys apiKey, short apiVersion, ${headerClass} header, ApiMessage body, FilterContext filterContext) {
         return filter.on${messageSpec.name}(apiVersion, header, (${dataClass}) body, filterContext);
     }
 }

@@ -32,8 +32,8 @@ import com.google.common.reflect.ClassPath;
 import com.google.common.reflect.ClassPath.ResourceInfo;
 
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
+import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.FilterInvoker;
-import io.kroxylicious.proxy.filter.KrpcFilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.test.requestresponsetestdef.ApiMessageTestDef;
@@ -71,7 +71,7 @@ class MultiTenantTransformationFilterTest {
     private final FilterInvoker invoker = getOnlyElement(FilterAndInvoker.build(filter)).invoker();
 
     @Mock(strictness = LENIENT)
-    private KrpcFilterContext context;
+    private FilterContext context;
 
     @Captor
     private ArgumentCaptor<RequestHeaderData> requestHeaderDataCaptor;

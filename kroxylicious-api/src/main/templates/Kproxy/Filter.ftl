@@ -38,7 +38,7 @@ import org.apache.kafka.common.message.${headerClass};
 /**
  * A stateless filter for ${messageSpec.name}s.
  */
-public interface ${filterClass} extends KrpcFilter {
+public interface ${filterClass} extends Filter {
 
     /**
      * Determine if a ${msgType} message of type ${messageSpec.name} should be handled by
@@ -67,6 +67,6 @@ public interface ${filterClass} extends KrpcFilter {
      *         ${msgType} to be forwarded.
      * @see io.kroxylicious.proxy.filter Creating Filter Result objects
      */
-     CompletionStage<${filterResultClass}> on${messageSpec.name}(short apiVersion, ${headerClass} header, ${dataClass} ${msgType}, KrpcFilterContext context);
+     CompletionStage<${filterResultClass}> on${messageSpec.name}(short apiVersion, ${headerClass} header, ${dataClass} ${msgType}, FilterContext context);
 
 }

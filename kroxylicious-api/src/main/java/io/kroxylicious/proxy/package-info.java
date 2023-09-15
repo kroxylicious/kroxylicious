@@ -6,7 +6,7 @@
 /**
  * <p>The API for writing protocol filters (aka interceptors).</p>
  *
- * <p>{@link io.kroxylicious.proxy.filter.KrpcFilter} is the base interface for filters,
+ * <p>{@link io.kroxylicious.proxy.filter.Filter} is the base interface for filters,
  * with a subinterface for each request and response API (e.g. {@link io.kroxylicious.proxy.filter.ProduceRequestFilter}).</p>
  *
  * <p>Filter plugins can multiply inherit several of the per-RPC interfaces if they need to intercept several kinds

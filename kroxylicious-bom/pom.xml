@@ -24,6 +24,61 @@
     <properties>
         <kroxylicious-api.version>0.3.0-SNAPSHOT</kroxylicious-api.version>
     </properties>
+    <licenses>
+        <license>
+            <name>Apache-2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <name>Tom Bentley</name>
+            <email>tbentley@redhat.com</email>
+            <organization>Red Hat</organization>
+            <organizationUrl>https://www.redhat.com</organizationUrl>
+        </developer>
+        <developer>
+            <name>Keith Wall</name>
+            <email>kwall@redhat.com</email>
+            <organization>Red Hat</organization>
+            <organizationUrl>https://www.redhat.com</organizationUrl>
+        </developer>
+        <developer>
+            <name>Sam Barker</name>
+            <email>sbarker@redhat.com</email>
+            <organization>Red Hat</organization>
+            <organizationUrl>https://www.redhat.com</organizationUrl>
+            <timezone>Pacific/Auckland</timezone>
+        </developer>
+        <developer>
+            <name>Robert Young</name>
+            <email>robeyoun@redhat.com</email>
+            <organization>Red Hat</organization>
+            <organizationUrl>https://www.redhat.com</organizationUrl>
+            <timezone>Pacific/Auckland</timezone>
+        </developer>
+        <developer>
+            <name>Francisco Vila</name>
+            <email>fvila@redhat.com</email>
+            <organization>Red Hat</organization>
+            <organizationUrl>https://www.redhat.com</organizationUrl>
+        </developer>
+        <developer>
+            <name>Grace Grimwood</name>
+            <email>ggrimwoo@redhat.com</email>
+            <organization>Red Hat</organization>
+            <organizationUrl>https://www.redhat.com</organizationUrl>
+            <timezone>Pacific/Auckland</timezone>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>scm:git:git@github.com:kroxylicious/kroxylicious.git</connection>
+        <developerConnection>scm:git:git@github.com:kroxylicious/kroxylicious.git</developerConnection>
+        <url>https://github.com/kroxylicious/kroxylicious</url>
+    </scm>
 
     <dependencyManagement>
         <dependencies>

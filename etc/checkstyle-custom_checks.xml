@@ -58,6 +58,8 @@
         <module name="WhitespaceAround">
             <property name="tokens" value="LCURLY,QUESTION,COLON,SLIST" />
             <property name="allowEmptyLambdas" value="true" />
+            <property name="allowEmptyConstructors" value="true" />
+            <property name="allowEmptyTypes" value="true" />
         </module>
 
         <!-- Checks for blocks. You know, those {}'s -->

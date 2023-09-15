@@ -14,7 +14,7 @@ import org.apache.kafka.common.protocol.ApiKeys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.kroxylicious.proxy.filter.KrpcFilter;
+import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 /**
@@ -54,7 +54,7 @@ public class CorrelationManager {
                                 short apiVersion,
                                 int downstreamCorrelationId,
                                 boolean hasResponse,
-                                KrpcFilter recipient,
+                                Filter recipient,
                                 CompletableFuture<?> promise,
                                 boolean decodeResponse) {
         // need to allocate an id and put in a map for quick lookup, along with the "tag"
@@ -90,14 +90,14 @@ public class CorrelationManager {
 
         private final int downstreamCorrelationId;
         private final boolean decodeResponse;
-        private final KrpcFilter recipient;
+        private final Filter recipient;
         private final CompletableFuture<?> promise;
 
         private Correlation(short apiKey,
                             short apiVersion,
                             int downstreamCorrelationId,
                             boolean decodeResponse,
-                            KrpcFilter recipient,
+                            Filter recipient,
                             CompletableFuture<?> promise) {
             this.apiKey = apiKey;
             this.apiVersion = apiVersion;
@@ -153,7 +153,7 @@ public class CorrelationManager {
             return decodeResponse;
         }
 
-        public KrpcFilter recipient() {
+        public Filter recipient() {
             return recipient;
         }
 

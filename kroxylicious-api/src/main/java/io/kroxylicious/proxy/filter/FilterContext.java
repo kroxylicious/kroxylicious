@@ -14,12 +14,14 @@ import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 
+import io.kroxylicious.proxy.ApiVersionsService;
+
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
  * A context to allow filters to interact with other filters and the pipeline.
  */
-public interface KrpcFilterContext {
+public interface FilterContext {
     /**
      * A description of this channel.
      * @return A description of this channel (typically used for logging).
@@ -124,4 +126,11 @@ public interface KrpcFilterContext {
      */
     String getVirtualClusterName();
     // TODO an API to allow a filter to add/remove another filter from the pipeline
+
+    /**
+     * Gets a Service responsible for exposing the API versions supported by the
+     * upstream broker and kroxylicious
+     * @return apiVersionsService
+     */
+    ApiVersionsService getApiVersionsService();
 }

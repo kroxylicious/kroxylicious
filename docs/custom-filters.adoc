@@ -3,14 +3,12 @@
 :source-highlighter: pygments
 :java-17-javadoc: https://docs.oracle.com/en/java/javase/17/docs/api
 
-= Custom filters
+= Custom Filters
 
 Custom filters can be written in the Java programming language.
 Knowledge of the https://kafka.apache.org/protocol.html[Kafka protocol] is generally required to write a protocol filter.
 
-As explained in the overview, there are two kinds of filter:
-
-<<Net filters>>:: Allow customisation over how Kafka client connections are handled.
+There is currently one class of Custom Filters users can implement:
 
 <<Protocol filters>>:: Allow customisation of how protocol messages are handled on their way to, or from, the Cluster.
 
@@ -42,10 +40,6 @@ For common things like logging and metric facade APIs it is recommended to use t
 // TODO Gradle dependency
 
 // TODO recommend BOM usage
-
-== Net filters
-
-=== An example net filter
 
 == Protocol filters
 
@@ -85,7 +79,7 @@ public class FetchRequestClientIdFilter implements FetchRequestFilter {
     public CompletionStage<RequestFilterResult> onFetchRequest(short apiVersion,
                                                                RequestHeaderData header,
                                                                FetchRequestData request,
-                                                               KrpcFilterContext context) {
+                                                               FilterContext context) {
         header.setClientId("fetch-client!");
         return context.forwardRequest(header, request);
     }
@@ -103,7 +97,7 @@ public class FetchRequestClientIdFilter implements FetchResponseFilter {
     public CompletionStage<ResponseFilterResult> onFetchResponse(short apiVersion,
                                                                  ResponseHeaderData header,
                                                                  FetchResponseData response,
-                                                                 KrpcFilterContext context) {
+                                                                 FilterContext context) {
         mutateResponse(response);
         return context.forwardResponse(header, response);
     }
@@ -122,7 +116,7 @@ public class FetchRequestClientIdFilter implements FetchRequestFilter, FetchResp
     public CompletionStage<RequestFilterResult> onFetchRequest(short apiVersion,
                                                                RequestHeaderData header,
                                                                FetchRequestData request,
-                                                               KrpcFilterContext context) {
+                                                               FilterContext context) {
         header.setClientId("fetch-client!");
         return context.forwardRequest(header, request);
     }
@@ -131,7 +125,7 @@ public class FetchRequestClientIdFilter implements FetchRequestFilter, FetchResp
     public CompletionStage<ResponseFilterResult> onFetchResponse(short apiVersion,
                                                                  ResponseHeaderData header,
                                                                  FetchResponseData response,
-                                                                 KrpcFilterContext context) {
+                                                                 FilterContext context) {
         mutateResponse(response);
         return context.forwardResponse(header, response);
     }
@@ -163,7 +157,7 @@ public class FixedClientIdFilter implements RequestFilter {
     public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey,
                                                           RequestHeaderData header,
                                                           ApiMessage body,
-                                                          KrpcFilterContext filterContext) {
+                                                          FilterContext filterContext) {
         header.setClientId("example!");
         return filterContext.forwardRequest(header, body);
     }
@@ -194,7 +188,7 @@ class ExampleCompositeFilter implements CompositeFilter {
         }
 
         @Override
-        public List<KrpcFilter> getFilters() {
+        public List<Filter> getFilters() {
             return List.of(
                 new OverrideAllClientIdHeadersFilter(configuration.clientId()),
                 new PrefixProduceRequestFilter(configuration.prefix())
@@ -245,7 +239,7 @@ If the `CompletionStage` completes exceptionally, the connection is closed.  Thi
 `CompletionStage` does not complete within a timeout (20000 milliseconds).
 
 ==== Creating a Filter Result
-The `KrpcFilterContext` is the factory for the `FilterResult` objects.
+The `FilterContext` is the factory for the `FilterResult` objects.
 
 There are two convenience methods{empty}footnote:[The `context.forward*()` methods behave exactly as the builder form
 `.forward(header, message).complete()`] that simply allow a filter to forward a result to the next filter.
@@ -318,7 +312,7 @@ public class SampleFetchResponseFilter implements FetchResponseFilter {
     public CompletionStage<ResponseFilterResult> onFetchResponse(short apiVersion,
                                                                  ResponseHeaderData header,
                                                                  FetchResponseData response,
-                                                                 KrpcFilterContext context) {
+                                                                 FilterContext context) {
         mutateResponse(response, context); //<1>
         return context.forwardResponse(header, response); //<2>
     }
@@ -370,7 +364,7 @@ For example:
 public class CreateTopicRejectFilter implements CreateTopicsRequestFilter {
 
     public CompletionStage<RequestFilterResult> onCreateTopicsRequest(short apiVersion, RequestHeaderData header, CreateTopicsRequestData request,
-                                                                      KrpcFilterContext context) {
+                                                                      FilterContext context) {
         CreateTopicsResponseData response = new CreateTopicsResponseData();
         CreateTopicsResponseData.CreatableTopicResultCollection topics = new CreateTopicsResponseData.CreatableTopicResultCollection(); // <1>
         request.topics().forEach(creatableTopic -> {
@@ -402,7 +396,7 @@ public class DisallowAlterConfigs implements AlterConfigsRequestFilter {
 
     @Override
     public CompletionStage<RequestFilterResult> onAlterConfigsRequest(short apiVersion, RequestHeaderData header, AlterConfigsRequestData request,
-                                                                      KrpcFilterContext context) {
+                                                                      FilterContext context) {
         var response = new AlterConfigsResponseData();
         response.setResponses(request.resources().stream()
                 .map(a -> new AlterConfigsResourceResponse()
@@ -444,7 +438,7 @@ public class FetchFilter implements FetchRequestFilter {
     public CompletionStage<RequestFilterResult> onFetchRequest(ApiKeys apiKey,
                                                                RequestHeaderData header,
                                                                FetchRequestData request,
-                                                               KrpcFilterContext context) {
+                                                               FilterContext context) {
         MetadataRequestData metadataRequest = new MetadataRequestData(); //<1>
         var topic = new MetadataRequestData.MetadataRequestTopic();
         topic.setTopicId(Uuid.randomUuid());
@@ -496,7 +490,7 @@ public class FetchFilter implements FetchRequestFilter {
     public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey,
                                                           RequestHeaderData header,
                                                           ApiMessage body,
-                                                          KrpcFilterContext filterContext) {
+                                                          FilterContext filterContext) {
         return context.forwardRequest(header, request);
     }
 }

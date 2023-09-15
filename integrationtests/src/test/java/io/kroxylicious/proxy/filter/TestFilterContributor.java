@@ -8,10 +8,11 @@ package io.kroxylicious.proxy.filter;
 import io.kroxylicious.proxy.filter.CompositePrefixingFixedClientIdFilter.CompositePrefixingFixedClientIdFilterConfig;
 import io.kroxylicious.proxy.service.BaseContributor;
 
-public class TestFilterContributor extends BaseContributor<KrpcFilter> implements FilterContributor {
+public class TestFilterContributor extends BaseContributor<Filter, FilterConstructContext> implements FilterContributor {
 
-    public static final BaseContributorBuilder<KrpcFilter> FILTERS = BaseContributor.<KrpcFilter> builder()
+    public static final BaseContributorBuilder<Filter, FilterConstructContext> FILTERS = BaseContributor.<Filter, FilterConstructContext> builder()
             .add("FixedClientId", FixedClientIdFilter.FixedClientIdFilterConfig.class, FixedClientIdFilter::new)
+            .add("ApiVersionsMarkingFilter", ApiVersionsMarkingFilter::new)
             .add("RequestResponseMarking", RequestResponseMarkingFilter.RequestResponseMarkingFilterConfig.class, RequestResponseMarkingFilter::new)
             .add("OutOfBandSend", OutOfBandSendFilter.OutOfBandSendFilterConfig.class, OutOfBandSendFilter::new)
             .add("CompositePrefixingFixedClientId", CompositePrefixingFixedClientIdFilterConfig.class, CompositePrefixingFixedClientIdFilter::new)

@@ -26,7 +26,7 @@ import io.netty.buffer.Unpooled;
 
 import io.kroxylicious.proxy.filter.ApiVersionsRequestFilter;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
-import io.kroxylicious.proxy.filter.KrpcFilterContext;
+import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
@@ -109,7 +109,7 @@ public class RequestDecoderTest extends AbstractCodecTest {
                                     @Override
                                     public CompletionStage<RequestFilterResult> onApiVersionsRequest(short apiVersion, RequestHeaderData header,
                                                                                                      ApiVersionsRequestData request,
-                                                                                                     KrpcFilterContext context) {
+                                                                                                     FilterContext context) {
                                         return context.requestFilterResultBuilder().forward(header, request).completed();
                                     }
                                 }))),

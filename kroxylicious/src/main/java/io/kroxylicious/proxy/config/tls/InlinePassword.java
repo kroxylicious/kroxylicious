@@ -15,8 +15,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
  */
 public record InlinePassword(String password) implements PasswordProvider {
     @JsonCreator
-    public InlinePassword {
-    }
+    public InlinePassword {}
 
     @Override
     public String getProvidedPassword() {

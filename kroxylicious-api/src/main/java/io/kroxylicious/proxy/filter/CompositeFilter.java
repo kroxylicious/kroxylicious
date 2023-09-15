@@ -25,12 +25,12 @@ import java.util.List;
  * user configuration.
  *</p>
  */
-public interface CompositeFilter extends KrpcFilter {
+public interface CompositeFilter extends Filter {
 
     /**
-     * Get composed KrpcFilters
+     * Get composed Filters
      * @return filters
      */
-    List<KrpcFilter> getFilters();
+    List<Filter> getFilters();
 
 }

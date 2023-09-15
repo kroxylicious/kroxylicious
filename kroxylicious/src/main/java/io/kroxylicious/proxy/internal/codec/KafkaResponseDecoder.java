@@ -15,7 +15,7 @@ import org.slf4j.LoggerFactory;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 
-import io.kroxylicious.proxy.filter.KrpcFilter;
+import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.Frame;
 import io.kroxylicious.proxy.frame.OpaqueFrame;
@@ -69,7 +69,7 @@ public class KafkaResponseDecoder extends KafkaMessageDecoder {
             log().trace("{}: Header: {}", ctx, header);
             ApiMessage body = BodyDecoder.decodeResponse(apiKey, apiVersion, accessor);
             log().trace("{}: Body: {}", ctx, body);
-            KrpcFilter recipient = correlation.recipient();
+            Filter recipient = correlation.recipient();
             Metrics.payloadSizeBytesDownstreamSummary(apiKey, apiVersion).record(length);
             if (recipient == null) {
                 frame = new DecodedResponseFrame<>(apiVersion, correlationId, header, body);

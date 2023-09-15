@@ -48,7 +48,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import io.netty.channel.embedded.EmbeddedChannel;
 
-import io.kroxylicious.proxy.filter.KrpcFilterContext;
+import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.ResponseFilter;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.frame.BareSaslRequest;
@@ -210,7 +210,7 @@ public class KafkaAuthnHandlerTest {
             }
 
             @Override
-            public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, ResponseHeaderData header, ApiMessage response, KrpcFilterContext context) {
+            public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, ResponseHeaderData header, ApiMessage response, FilterContext context) {
 
                 return null;
             }

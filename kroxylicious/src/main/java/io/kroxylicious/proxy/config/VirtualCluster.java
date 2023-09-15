@@ -9,17 +9,19 @@ import java.util.Optional;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import io.kroxylicious.proxy.clusternetworkaddressconfigprovider.ClusterNetworkAddressConfigProviderContributor;
 import io.kroxylicious.proxy.config.tls.Tls;
-import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.ClusterNetworkAddressConfigProviderContributorManager;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
+import io.kroxylicious.proxy.service.ContributionManager;
+
+import static io.kroxylicious.proxy.service.Context.wrap;
 
 public record VirtualCluster(TargetCluster targetCluster,
                              @JsonProperty(required = true) ClusterNetworkAddressConfigProviderDefinition clusterNetworkAddressConfigProvider,
 
                              @JsonProperty() Optional<Tls> tls,
                              boolean logNetwork,
-                             boolean logFrames
-) {
+                             boolean logFrames) {
     public io.kroxylicious.proxy.model.VirtualCluster toVirtualClusterModel(String virtualClusterNodeName) {
         return new io.kroxylicious.proxy.model.VirtualCluster(virtualClusterNodeName,
                 targetCluster(),
@@ -29,7 +31,8 @@ public record VirtualCluster(TargetCluster targetCluster,
     }
 
     private ClusterNetworkAddressConfigProvider toClusterNetworkAddressConfigProviderModel() {
-        return ClusterNetworkAddressConfigProviderContributorManager.getInstance()
-                .getClusterEndpointConfigProvider(clusterNetworkAddressConfigProvider().type(), clusterNetworkAddressConfigProvider().config());
+        String shortName = clusterNetworkAddressConfigProvider().type();
+        return ContributionManager.INSTANCE.getInstance(
+                ClusterNetworkAddressConfigProviderContributor.class, shortName, wrap(this.clusterNetworkAddressConfigProvider().config()));
     }
 }
