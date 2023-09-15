@@ -86,6 +86,48 @@ class FilterChainFactoryTest {
         });
     }
 
+    @Test
+    void shouldThrowExceptionIfFilterRequiresConfigAndNoneIsSupplied() {
+        //Given
+        final List<FilterDefinition> filters = List.of(new FilterDefinition(TestFilterContributor.SHORT_NAME_A, config),
+                new FilterDefinition(TestFilterContributor.SHORT_NAME_B, null));
+
+        //When
+        assertThatThrownBy(() -> FilterChainFactory.validateFilterConfiguration(filters))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining(TestFilterContributor.SHORT_NAME_B);
+
+        //Then
+    }
+
+    @Test
+    void shouldThrowExceptionMentioningAllFiltersWithoutRequiredConfig() {
+        //Given
+        final List<FilterDefinition> filters = List.of(new FilterDefinition(TestFilterContributor.SHORT_NAME_A, null),
+                new FilterDefinition(TestFilterContributor.SHORT_NAME_B, null));
+
+        //When
+        assertThatThrownBy(() -> FilterChainFactory.validateFilterConfiguration(filters))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining(TestFilterContributor.SHORT_NAME_A)
+                .hasMessageContaining(TestFilterContributor.SHORT_NAME_B);
+
+        //Then
+    }
+
+    @Test
+    void shouldCompleteIfAllFiltersHaveConfiguration() {
+        //Given
+        final List<FilterDefinition> filterDefinitions = List.of(new FilterDefinition(TestFilterContributor.SHORT_NAME_A, config),
+                new FilterDefinition(TestFilterContributor.SHORT_NAME_B, config));
+
+        //When
+        final boolean configurationValid = FilterChainFactory.validateFilterConfiguration(filterDefinitions);
+
+        //Then
+        assertThat(configurationValid).isTrue();
+    }
+
     private ListAssert<FilterAndInvoker> assertFiltersCreated(List<FilterDefinition> filterDefinitions) {
         FilterChainFactory filterChainFactory = new FilterChainFactory(new Configuration(null, null, filterDefinitions, null, true));
         NettyFilterContext context = new NettyFilterContext(eventLoop);
