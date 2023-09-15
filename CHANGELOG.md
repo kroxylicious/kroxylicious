@@ -6,6 +6,7 @@ Please enumerate **all user-facing** changes using format `<githib issue/pr numb
 
 ## 0.3.0
 
+* [#608](https://github.com/kroxylicious/kroxylicious/pull/608): Improve the contributor API to allow it to express more properties about the configuration. This release deprecates `Contributor.getConfigType` in favour of `Contributor.getConfigDefinition`. It also removes the proliferation of ContributorManager classes by providing a single type which can handle all Contributors.
 * [#538](https://github.com/kroxylicious/kroxylicious/pull/538): Refactor FilterHandler and fix several bugs that would leave messages unflushed to client/broker.
 * [#531](https://github.com/kroxylicious/kroxylicious/pull/531): Simple Test Client now supports multi-RPC conversations with the server.
 * [#510](https://github.com/kroxylicious/kroxylicious/pull/510): Add multi-tenant kubernetes example
