@@ -37,7 +37,7 @@ public class FilterChainFactory {
      * @return the Set of filter names which fail validation.
      */
     public static Set<String> validateFilterConfiguration(Collection<FilterDefinition> filterDefinitions) {
-        if (Objects.isNull(filterDefinitions) || filterDefinitions.isEmpty()) {
+        if (filterDefinitions == null || filterDefinitions.isEmpty()) {
             return Set.of();
         }
         return filterDefinitions.stream()
