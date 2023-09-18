@@ -123,6 +123,22 @@ class BaseContributorTest {
     }
 
     @Test
+    void testContextAndConfigFunctionWithNoConfig() {
+        BaseContributor.BaseContributorBuilder<Long, Context> builder = BaseContributor.builder();
+        AtomicReference<Context> contextRef = new AtomicReference<>();
+        builder.add("one", (context -> {
+            contextRef.set(context);
+            return 1L;
+        }));
+        BaseContributor<Long, Context> baseContributor = new BaseContributor<>(builder) {
+        };
+        Context context = wrap(null);
+        Long instance = baseContributor.getInstance("one", context);
+        assertThat(instance).isEqualTo(1L);
+        assertThat(contextRef).hasValue(context);
+    }
+
+    @Test
     void testSpecifyingConfigType() {
         BaseContributor.BaseContributorBuilder<Long, Context> builder = BaseContributor.builder();
         builder.add("fromBaseConfig", LongConfig.class, baseConfig -> baseConfig.value);

@@ -189,7 +189,7 @@ public abstract class BaseContributor<T, S extends Context> implements Contribut
          * @return this
          */
         public BaseContributorBuilder<L, D> add(String typeName, Function<D, L> instanceFunction) {
-            return add(typeName, BaseConfig.class, (context, config) -> instanceFunction.apply(context), true);
+            return add(typeName, BaseConfig.class, (context, config) -> instanceFunction.apply(context), false);
         }
 
         Map<String, ContributionDetails<L, D>> build() {
