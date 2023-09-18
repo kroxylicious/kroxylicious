@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.proxy.bootstrap;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -30,20 +31,20 @@ public class FilterChainFactory {
         this.config = Objects.requireNonNull(config);
     }
 
-    public static boolean validateFilterConfiguration(List<FilterDefinition> filters) {
-        if (Objects.isNull(filters) || filters.isEmpty()) {
-            return true;
+    /**
+     * Validate that a collection of FilterDefinitions contains all the required configuration to configure the filter.
+     * @param filterDefinitions the candidates to validate.
+     * @return the Set of filter names which fail validation.
+     */
+    public static Set<String> validateFilterConfiguration(Collection<FilterDefinition> filterDefinitions) {
+        if (Objects.isNull(filterDefinitions) || filterDefinitions.isEmpty()) {
+            return Set.of();
         }
-        final Set<String> filtersWithoutRequiredConfiguration = filters.stream()
+        return filterDefinitions.stream()
                 .filter(f -> f.config() == null)
                 .map(FilterDefinition::type)
                 .filter(type -> ContributionManager.INSTANCE.getDefinition(FilterContributor.class, type).configurationRequired())
                 .collect(Collectors.toSet());
-        if (!filtersWithoutRequiredConfiguration.isEmpty()) {
-            throw new IllegalStateException(filtersWithoutRequiredConfiguration.stream()
-                    .collect(Collectors.joining(", ", "Missing required config for [", "]")));
-        }
-        return true;
     }
 
     /**

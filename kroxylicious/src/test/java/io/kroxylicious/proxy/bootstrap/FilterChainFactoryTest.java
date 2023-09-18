@@ -7,6 +7,7 @@
 package io.kroxylicious.proxy.bootstrap;
 
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -87,59 +88,58 @@ class FilterChainFactoryTest {
     }
 
     @Test
-    void shouldThrowExceptionIfFilterRequiresConfigAndNoneIsSupplied() {
+    void shouldReturnInvalidFilterNameIfFilterRequiresConfigAndNoneIsSupplied() {
         // Given
         final List<FilterDefinition> filters = List.of(new FilterDefinition(TestFilterContributor.TYPE_NAME_A, config),
                 new FilterDefinition(TestFilterContributor.TYPE_NAME_B, null));
 
         // When
-        assertThatThrownBy(() -> FilterChainFactory.validateFilterConfiguration(filters))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining(TestFilterContributor.TYPE_NAME_B);
+        final Set<String> invalidFilters = FilterChainFactory.validateFilterConfiguration(filters);
 
         // Then
+        assertThat(invalidFilters).containsOnly(TestFilterContributor.TYPE_NAME_B);
     }
 
     @Test
-    void shouldThrowExceptionMentioningAllFiltersWithoutRequiredConfig() {
+    void shouldReturnInvalidFilterNamesForAllFiltersWithoutRequiredConfig() {
         // Given
         final List<FilterDefinition> filters = List.of(new FilterDefinition(TestFilterContributor.TYPE_NAME_A, null),
-                new FilterDefinition(TestFilterContributor.TYPE_NAME_B, null));
+                new FilterDefinition(TestFilterContributor.TYPE_NAME_B, null),
+                new FilterDefinition(TestFilterContributor.OPTIONAL_CONFIG_FILTER, null));
 
         // When
-        assertThatThrownBy(() -> FilterChainFactory.validateFilterConfiguration(filters))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining(TestFilterContributor.TYPE_NAME_A)
-                .hasMessageContaining(TestFilterContributor.TYPE_NAME_B);
+        final Set<String> invalidFilters = FilterChainFactory.validateFilterConfiguration(filters);
 
         // Then
+        assertThat(invalidFilters).containsOnly(TestFilterContributor.TYPE_NAME_A,
+                TestFilterContributor.TYPE_NAME_B);
     }
 
     @Test
-    void shouldCompleteIfAllFiltersHaveConfiguration() {
+    void shouldPassValidationWhenAllFiltersHaveConfiguration() {
         // Given
         final List<FilterDefinition> filterDefinitions = List.of(new FilterDefinition(TestFilterContributor.TYPE_NAME_A, config),
                 new FilterDefinition(TestFilterContributor.TYPE_NAME_B, config));
 
         // When
-        final boolean configurationValid = FilterChainFactory.validateFilterConfiguration(filterDefinitions);
+        final Set<String> invalidFilters = FilterChainFactory.validateFilterConfiguration(filterDefinitions);
 
         // Then
-        assertThat(configurationValid).isTrue();
+        assertThat(invalidFilters).isEmpty();
     }
 
     @Test
-    void shouldCompleteIfFiltersWithOptionalConfigurationAreMissingConfiguration() {
+    void shouldPassValidationWhenFiltersWithOptionalConfigurationAreMissingConfiguration() {
         // Given
         final List<FilterDefinition> filterDefinitions = List.of(new FilterDefinition(TestFilterContributor.TYPE_NAME_A, config),
                 new FilterDefinition(TestFilterContributor.TYPE_NAME_B, config),
                 new FilterDefinition(TestFilterContributor.OPTIONAL_CONFIG_FILTER, null));
 
         // When
-        final boolean configurationValid = FilterChainFactory.validateFilterConfiguration(filterDefinitions);
+        final Set<String> invalidFilters = FilterChainFactory.validateFilterConfiguration(filterDefinitions);
 
         // Then
-        assertThat(configurationValid).isTrue();
+        assertThat(invalidFilters).isEmpty();
     }
 
     private ListAssert<FilterAndInvoker> assertFiltersCreated(List<FilterDefinition> filterDefinitions) {

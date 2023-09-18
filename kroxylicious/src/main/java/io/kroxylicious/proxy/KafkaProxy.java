@@ -9,8 +9,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -107,7 +109,11 @@ public final class KafkaProxy implements AutoCloseable {
 
         bindingOperationProcessor.start(plainServerBootstrap, tlsServerBootstrap);
 
-        FilterChainFactory.validateFilterConfiguration(config.filters());
+        final Set<String> invalidFilters = FilterChainFactory.validateFilterConfiguration(config.filters());
+        if (!invalidFilters.isEmpty()) {
+            throw new IllegalStateException(invalidFilters.stream()
+                    .collect(Collectors.joining(", ", "Missing required config for [", "]")));
+        }
 
         // TODO: startup/shutdown should return a completionstage
         CompletableFuture.allOf(virtualClusters.stream().map(vc -> endpointRegistry.registerVirtualCluster(vc).toCompletableFuture()).toArray(CompletableFuture[]::new))
