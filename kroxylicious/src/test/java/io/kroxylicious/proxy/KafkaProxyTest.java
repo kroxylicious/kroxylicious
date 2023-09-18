@@ -14,10 +14,12 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import io.kroxylicious.proxy.config.ConfigParser;
+import io.kroxylicious.proxy.config.Configuration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.fail;
 
 class KafkaProxyTest {
 
@@ -112,10 +114,12 @@ class KafkaProxyTest {
     @MethodSource
     void missingTls(String name, String config, String expectedMessage) throws Exception {
 
-        var illegalArgumentException = assertThrows(IllegalStateException.class, () -> {
-            try (var kafkaProxy = new KafkaProxy(new ConfigParser().parseConfiguration(config))) {
+        final Configuration parsedConfiguration = new ConfigParser().parseConfiguration(config);
+        var illegalStateException = assertThrows(IllegalStateException.class, () -> {
+            try (var ignored = new KafkaProxy(parsedConfiguration)) {
+                fail("The proxy started, but a failure was expected.");
             }
         });
-        assertThat(illegalArgumentException).hasStackTraceContaining(expectedMessage);
+        assertThat(illegalStateException).hasStackTraceContaining(expectedMessage);
     }
 }
