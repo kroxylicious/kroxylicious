@@ -218,9 +218,10 @@ class BaseContributorTest {
         };
 
         // When
-        assertThatThrownBy(() -> baseContributor.getConfigDefinition("fromBaseConfig")).isInstanceOf(IllegalArgumentException.class);
+        var throwableAssert = assertThatThrownBy(() -> baseContributor.getConfigDefinition("fromBaseConfig"));
 
         // Then
+        throwableAssert.isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -232,10 +233,10 @@ class BaseContributorTest {
         };
 
         // When
-        assertThatThrownBy(() -> baseContributor.getInstance("requiresConfig", () -> null)).isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("'requiresConfig' requires configuration but none was supplied");
+        var throwableAssert = assertThatThrownBy(() -> baseContributor.getInstance("requiresConfig", () -> null));
 
         // Then
+        throwableAssert.isInstanceOf(IllegalArgumentException.class).hasMessage("'requiresConfig' requires configuration but none was supplied");
     }
 
     @Test
