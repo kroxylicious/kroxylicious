@@ -15,9 +15,11 @@ public class TestFilterContributor extends BaseContributor<Filter, FilterConstru
     public static final String TYPE_NAME_A = "TEST1";
     public static final String TYPE_NAME_B = "TEST2";
     public static final String OPTIONAL_CONFIG_FILTER = "TEST3";
+    public static final String REQUIRED_CONFIG_FILTER = "TEST4";
     public static final BaseContributorBuilder<Filter, FilterConstructContext> FILTERS = BaseContributor.<Filter, FilterConstructContext> builder()
             .add(TYPE_NAME_A, ExampleConfig.class, (context, exampleConfig) -> new TestFilter(TYPE_NAME_A, context, exampleConfig), true)
             .add(TYPE_NAME_B, ExampleConfig.class, (context, exampleConfig) -> new TestFilter(TYPE_NAME_B, context, exampleConfig), true)
+            .add(REQUIRED_CONFIG_FILTER, ExampleConfig.class, (context, exampleConfig) -> new TestFilter(REQUIRED_CONFIG_FILTER, context, exampleConfig), true)
             .add(OPTIONAL_CONFIG_FILTER, ExampleConfig.class, (context, exampleConfig) -> new TestFilter(OPTIONAL_CONFIG_FILTER, context, exampleConfig), false);
 
     public TestFilterContributor() {

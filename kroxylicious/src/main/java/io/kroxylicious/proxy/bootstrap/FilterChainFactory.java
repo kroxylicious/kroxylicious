@@ -9,6 +9,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import io.kroxylicious.proxy.config.Configuration;
@@ -41,9 +42,8 @@ public class FilterChainFactory {
             return Set.of();
         }
         return filterDefinitions.stream()
-                .filter(f -> f.config() == null)
+                .filter(Predicate.not(FilterDefinition::isDefinitionValid))
                 .map(FilterDefinition::type)
-                .filter(type -> ContributionManager.INSTANCE.getDefinition(FilterContributor.class, type).configurationRequired())
                 .collect(Collectors.toSet());
     }
 
