@@ -318,7 +318,7 @@ class BaseContributorTest {
     void shouldThrowExceptionIfRegisteredInstanceBuilderReturnsNull() {
         // Given
         BaseContributor.BaseContributorBuilder<Long, Context> builder = BaseContributor.builder();
-        builder.add("registered", () -> null);
+        builder.add("registered", (context) -> null);
         BaseContributor<Long, Context> baseContributor = new BaseContributor<>(builder) {
         };
 
@@ -326,6 +326,7 @@ class BaseContributorTest {
         final ThrowableAssert.ThrowingCallable throwingCallable = () -> baseContributor.getInstance("registered", BaseConfig::new);
 
         // Then
-        assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(throwingCallable).withMessage("'registered' is not a provided type");
+        assertThatExceptionOfType(NullPointerException.class).isThrownBy(throwingCallable)
+                .withMessage("Tried to instantiate 'registered' but the Contributor returned null");
     }
 }

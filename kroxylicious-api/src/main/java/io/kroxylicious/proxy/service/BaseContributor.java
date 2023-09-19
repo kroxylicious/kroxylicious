@@ -14,6 +14,8 @@ import java.util.function.Supplier;
 
 import io.kroxylicious.proxy.config.BaseConfig;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 /**
  * A convenience base class for creating concrete contributor subclasses using a typesafe builder
  *
@@ -49,7 +51,7 @@ public abstract class BaseContributor<T, S extends Context> implements Contribut
      */
     @Override
     public ConfigurationDefinition getConfigDefinition(String typeName) {
-        if (typeNameToContributorDetails.containsKey(typeName)) {
+        if (contributes(typeName)) {
             return typeNameToContributorDetails.get(typeName).configurationDefinition();
         }
         else {
@@ -67,7 +69,7 @@ public abstract class BaseContributor<T, S extends Context> implements Contribut
     @Override
     @Deprecated(forRemoval = true, since = "0.3.0")
     public Class<? extends BaseConfig> getConfigType(String typeName) {
-        if (typeNameToContributorDetails.containsKey(typeName)) {
+        if (contributes(typeName)) {
             return typeNameToContributorDetails.get(typeName).configurationDefinition().configurationType();
         }
         else {
@@ -77,16 +79,13 @@ public abstract class BaseContributor<T, S extends Context> implements Contribut
 
     @Override
     public T getInstance(String typeName, S context) {
-        if (typeNameToContributorDetails.containsKey(typeName)) {
+        if (contributes(typeName)) {
             final ContributionDetails<T, S> contributionDetails = typeNameToContributorDetails.get(typeName);
             final boolean configurationRequired = contributionDetails.configurationDefinition().configurationRequired();
             final boolean hasConfiguration = context.getConfig() != null;
             if (!configurationRequired || hasConfiguration) {
                 InstanceBuilder<T, S> instanceBuilder = contributionDetails.instanceBuilder();
-                if (instanceBuilder == null) {
-                    throw new IllegalArgumentException("'" + typeName + "' is not a provided type");
-                }
-                return instanceBuilder.construct(context);
+                return Objects.requireNonNull(instanceBuilder.construct(context), "Tried to instantiate '" + typeName + "' but the Contributor returned null");
             }
             else {
                 throw new IllegalArgumentException("'" + typeName + "' requires configuration but none was supplied");
@@ -210,5 +209,5 @@ public abstract class BaseContributor<T, S extends Context> implements Contribut
         return new BaseContributorBuilder<>();
     }
 
-    protected record ContributionDetails<T, D extends Context>(ConfigurationDefinition configurationDefinition, InstanceBuilder<T, D> instanceBuilder) {}
+    protected record ContributionDetails<T, D extends Context>(ConfigurationDefinition configurationDefinition, @NonNull InstanceBuilder<T, D> instanceBuilder) {}
 }
