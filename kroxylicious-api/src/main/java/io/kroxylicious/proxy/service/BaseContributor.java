@@ -83,14 +83,17 @@ public abstract class BaseContributor<T, S extends Context> implements Contribut
             final boolean hasConfiguration = context.getConfig() != null;
             if (!configurationRequired || hasConfiguration) {
                 InstanceBuilder<T, S> instanceBuilder = contributionDetails.instanceBuilder();
-                return instanceBuilder == null ? null : instanceBuilder.construct(context);
+                if (instanceBuilder == null) {
+                    throw new IllegalArgumentException("'" + typeName + "' is not a provided type");
+                }
+                return instanceBuilder.construct(context);
             }
             else {
                 throw new IllegalArgumentException("'" + typeName + "' requires configuration but none was supplied");
             }
         }
         else {
-            return null;
+            throw new IllegalArgumentException("'" + typeName + "' is not a provided type");
         }
     }
 

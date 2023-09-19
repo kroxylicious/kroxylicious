@@ -7,12 +7,14 @@ package io.kroxylicious.proxy.service;
 
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.assertj.core.api.ThrowableAssert;
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.proxy.config.BaseConfig;
 
 import static io.kroxylicious.proxy.service.Context.wrap;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class BaseContributorTest {
@@ -297,5 +299,33 @@ class BaseContributorTest {
 
         // Then
         assertThat(actualInstance).isNotNull();
+    }
+
+    @Test
+    void shouldThrowExceptionIfNoTypeRegistered() {
+        // Given
+        BaseContributor<Long, Context> baseContributor = new BaseContributor<>(BaseContributor.builder()) {
+        };
+
+        // When
+        final ThrowableAssert.ThrowingCallable throwingCallable = () -> baseContributor.getInstance("unknown", BaseConfig::new);
+
+        // Then
+        assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(throwingCallable).withMessage("'unknown' is not a provided type");
+    }
+
+    @Test
+    void shouldThrowExceptionIfRegisteredInstanceBuilderReturnsNull() {
+        // Given
+        BaseContributor.BaseContributorBuilder<Long, Context> builder = BaseContributor.builder();
+        builder.add("registered", () -> null);
+        BaseContributor<Long, Context> baseContributor = new BaseContributor<>(builder) {
+        };
+
+        // When
+        final ThrowableAssert.ThrowingCallable throwingCallable = () -> baseContributor.getInstance("registered", BaseConfig::new);
+
+        // Then
+        assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(throwingCallable).withMessage("'registered' is not a provided type");
     }
 }
