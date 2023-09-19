@@ -7,12 +7,14 @@ package io.kroxylicious.proxy;
 
 import java.time.Duration;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.kafka.clients.admin.Admin;
+import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -49,14 +51,14 @@ class ResilienceIT extends BaseIT {
     @Test
     void kafkaProducerShouldTolerateKroxyliciousRestarting(Admin admin) throws Exception {
         String randomTopic = UUID.randomUUID().toString();
-        createTopic(admin, randomTopic, 1);
+        admin.createTopics(List.of(new NewTopic(randomTopic, 1, (short) 1))).all().get(10, TimeUnit.SECONDS);
         testProducerCanSurviveARestart(proxy(cluster), randomTopic);
     }
 
     @Test
     void kafkaConsumerShouldTolerateKroxyliciousRestarting(Admin admin) throws Exception {
         String randomTopic = UUID.randomUUID().toString();
-        createTopic(admin, randomTopic, 1);
+        admin.createTopics(List.of(new NewTopic(randomTopic, 1, (short) 1))).all().get(10, TimeUnit.SECONDS);
         testConsumerCanSurviveKroxyliciousRestart(proxy(cluster), randomTopic);
     }
 

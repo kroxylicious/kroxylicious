@@ -19,6 +19,7 @@ import java.util.stream.Stream;
 
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.admin.AdminClientConfig;
+import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.Node;
@@ -83,7 +84,8 @@ class ExpositionIT extends BaseIT {
     void exposesSingleUpstreamClusterOverTls(String name,
                                              VirtualClusterBuilder virtualClusterBuilder,
                                              Map<String, Object> clientSecurityProtocolConfig,
-                                             @BrokerCluster(numBrokers = 2) KafkaCluster cluster) {
+                                             @BrokerCluster(numBrokers = 2) KafkaCluster cluster)
+            throws Exception {
         virtualClusterBuilder.editOrNewTargetCluster().withBootstrapServers(cluster.getBootstrapServers()).endTargetCluster();
         var builder = new ConfigurationBuilder()
                 .addToVirtualClusters("demo", virtualClusterBuilder.build());
@@ -91,7 +93,7 @@ class ExpositionIT extends BaseIT {
         try (var tester = kroxyliciousTester(builder);
                 var admin = tester.admin("demo", clientSecurityProtocolConfig)) {
             // do some work to ensure connection is opened
-            createTopic(admin, TOPIC, 1);
+            admin.createTopics(List.of(new NewTopic(TOPIC, 1, (short) 1))).all().get(10, TimeUnit.SECONDS);
 
             var connectionsMetric = admin.metrics().entrySet().stream().filter(metricNameEntry -> "connections".equals(metricNameEntry.getKey().name()))
                     .findFirst();
@@ -102,7 +104,7 @@ class ExpositionIT extends BaseIT {
     }
 
     @Test
-    void exposesTwoClusterOverPlainWithSeparatePorts(KafkaCluster cluster) {
+    void exposesTwoClusterOverPlainWithSeparatePorts(KafkaCluster cluster) throws Exception {
         List<String> clusterProxyAddresses = List.of("localhost:9192", "localhost:9294");
 
         var builder = new ConfigurationBuilder();
@@ -128,7 +130,7 @@ class ExpositionIT extends BaseIT {
             for (int i = 0; i < clusterProxyAddresses.size(); i++) {
                 try (var admin = tester.admin("cluster" + i)) {
                     // do some work to ensure virtual cluster is operational
-                    createTopic(admin, TOPIC + i, 1);
+                    admin.createTopics(List.of(new NewTopic(TOPIC + i, 1, (short) 1))).all().get(10, TimeUnit.SECONDS);
                 }
             }
         }
@@ -180,7 +182,7 @@ class ExpositionIT extends BaseIT {
                         SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, trust.clientTrustStore(),
                         SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, trust.password()))) {
                     // do some work to ensure virtual cluster is operational
-                    createTopic(admin, TOPIC + i, 1);
+                    admin.createTopics(List.of(new NewTopic(TOPIC + i, 1, (short) 1))).all().get(10, TimeUnit.SECONDS);
                 }
             }
         }
@@ -474,7 +476,7 @@ class ExpositionIT extends BaseIT {
         // create topic and ensure that leaders are on different brokers.
         try (var admin = tester.admin();
                 var producer = tester.producer("demo", Map.of(ProducerConfig.CLIENT_ID_CONFIG, "myclient"))) {
-            createTopic(admin, topic, numberOfPartitions);
+            admin.createTopics(List.of(new NewTopic(topic, numberOfPartitions, (short) 1))).all().get(10, TimeUnit.SECONDS);
             try {
                 await().atMost(Duration.ofSeconds(10))
                         .ignoreExceptions()
@@ -489,7 +491,7 @@ class ExpositionIT extends BaseIT {
                 }
             }
             finally {
-                deleteTopics(admin, TopicNameCollection.ofTopicNames(List.of(topic)));
+                admin.deleteTopics(TopicNameCollection.ofTopicNames(List.of(topic))).all().get(10, TimeUnit.SECONDS);
             }
         }
     }

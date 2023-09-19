@@ -53,7 +53,7 @@ class JsonSyntaxValidationIT extends BaseIT {
     @Test
     void testInvalidJsonProduceRejected(KafkaCluster cluster, Admin admin) throws Exception {
         assertThat(cluster.getNumOfBrokers()).isOne();
-        createTopic(admin, TOPIC_1, 1);
+        admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1))).all().get(10, TimeUnit.SECONDS);
 
         var config = proxy(cluster)
                 .addToFilters(new FilterDefinitionBuilder("ProduceValidator").withConfig("rules",
@@ -70,7 +70,7 @@ class JsonSyntaxValidationIT extends BaseIT {
     @Test
     void testInvalidJsonProduceRejectedUsingTopicNames(KafkaCluster cluster, Admin admin) throws Exception {
         assertThat(cluster.getNumOfBrokers()).isOne();
-        createTopics(admin, new NewTopic(TOPIC_1, 1, (short) 1), new NewTopic(TOPIC_2, 1, (short) 1));
+        admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1), new NewTopic(TOPIC_2, 1, (short) 1))).all().get(10, TimeUnit.SECONDS);
 
         var config = proxy(cluster)
                 .addToFilters(new FilterDefinitionBuilder("ProduceValidator").withConfig("rules",
@@ -93,7 +93,7 @@ class JsonSyntaxValidationIT extends BaseIT {
     @Test
     void testPartiallyInvalidJsonTransactionalAllRejected(KafkaCluster cluster, Admin admin) throws Exception {
         assertThat(cluster.getNumOfBrokers()).isOne();
-        createTopics(admin, new NewTopic(TOPIC_1, 1, (short) 1), new NewTopic(TOPIC_2, 1, (short) 1));
+        admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1), new NewTopic(TOPIC_2, 1, (short) 1))).all().get(10, TimeUnit.SECONDS);
 
         var config = proxy(cluster)
                 .addToFilters(new FilterDefinitionBuilder("ProduceValidator").withConfig("forwardPartialRequests", true, "rules",
@@ -117,7 +117,7 @@ class JsonSyntaxValidationIT extends BaseIT {
     @Test
     void testPartiallyInvalidJsonNotConfiguredToForwardAllRejected(KafkaCluster cluster, Admin admin) throws Exception {
         assertThat(cluster.getNumOfBrokers()).isOne();
-        createTopics(admin, new NewTopic(TOPIC_1, 1, (short) 1), new NewTopic(TOPIC_2, 1, (short) 1));
+        admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1), new NewTopic(TOPIC_2, 1, (short) 1))).all().get(10, TimeUnit.SECONDS);
 
         boolean forwardPartialRequests = false;
         var config = proxy(cluster)
@@ -139,7 +139,7 @@ class JsonSyntaxValidationIT extends BaseIT {
     @Test
     void testPartiallyInvalidJsonProduceRejected(KafkaCluster cluster, Admin admin) throws Exception {
         assertThat(cluster.getNumOfBrokers()).isOne();
-        createTopics(admin, new NewTopic(TOPIC_1, 1, (short) 1), new NewTopic(TOPIC_2, 1, (short) 1));
+        admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1), new NewTopic(TOPIC_2, 1, (short) 1))).all().get(10, TimeUnit.SECONDS);
 
         var config = proxy(cluster)
                 .addToFilters(new FilterDefinitionBuilder("ProduceValidator")
@@ -168,7 +168,7 @@ class JsonSyntaxValidationIT extends BaseIT {
     @Test
     void testPartiallyInvalidAcrossPartitionsOfSameTopic(KafkaCluster cluster, Admin admin) throws Exception {
         assertThat(cluster.getNumOfBrokers()).isOne();
-        createTopic(admin, TOPIC_1, 2);
+        admin.createTopics(List.of(new NewTopic(TOPIC_1, 2, (short) 1))).all().get(10, TimeUnit.SECONDS);
 
         var config = proxy(cluster)
                 .addToFilters(new FilterDefinitionBuilder("ProduceValidator")
@@ -197,7 +197,7 @@ class JsonSyntaxValidationIT extends BaseIT {
     @Test
     void testPartiallyInvalidWithinOnePartitionOfTopic(KafkaCluster cluster, Admin admin) throws Exception {
         assertThat(cluster.getNumOfBrokers()).isOne();
-        createTopic(admin, TOPIC_1, 1);
+        admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1))).all().get(10, TimeUnit.SECONDS);
 
         var config = proxy(cluster)
                 .addToFilters(new FilterDefinitionBuilder("ProduceValidator").withConfig("forwardPartialRequests", true, "rules",
@@ -221,7 +221,7 @@ class JsonSyntaxValidationIT extends BaseIT {
     @Test
     void testValidJsonProduceAccepted(KafkaCluster cluster, Admin admin) throws Exception {
         assertThat(cluster.getNumOfBrokers()).isOne();
-        createTopic(admin, TOPIC_1, 1);
+        admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1))).all().get(10, TimeUnit.SECONDS);
 
         var config = proxy(cluster)
                 .addToFilters(new FilterDefinitionBuilder("ProduceValidator").withConfig("rules",

@@ -20,9 +20,11 @@ import java.security.cert.X509Certificate;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.admin.CreateTopicsResult;
+import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.common.config.SslConfigs;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.junit.jupiter.api.BeforeEach;
@@ -72,7 +74,7 @@ class TlsIT extends BaseIT {
     }
 
     @Test
-    void upstreamUsesSelfSignedTls_TrustStore(@Tls KafkaCluster cluster) {
+    void upstreamUsesSelfSignedTls_TrustStore(@Tls KafkaCluster cluster) throws Exception {
         var bootstrapServers = cluster.getBootstrapServers();
         var brokerTruststore = (String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG);
         var brokerTruststorePassword = (String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG);
@@ -95,7 +97,8 @@ class TlsIT extends BaseIT {
 
         try (var tester = kroxyliciousTester(builder); var admin = tester.admin("demo")) {
             // do some work to ensure connection is opened
-            final CreateTopicsResult createTopicsResult = createTopic(admin, TOPIC, 1);
+            final CreateTopicsResult createTopicsResult = admin.createTopics(List.of(new NewTopic(TOPIC, 1, (short) 1)));
+            createTopicsResult.all().get(10, TimeUnit.SECONDS);
             assertThat(createTopicsResult.all()).isDone();
         }
     }
@@ -134,13 +137,14 @@ class TlsIT extends BaseIT {
 
         try (var tester = kroxyliciousTester(builder); var admin = tester.admin("demo")) {
             // do some work to ensure connection is opened
-            final CreateTopicsResult createTopicsResult = createTopic(admin, TOPIC, 1);
+            final CreateTopicsResult createTopicsResult = admin.createTopics(List.of(new NewTopic(TOPIC, 1, (short) 1)));
+            createTopicsResult.all().get(10, TimeUnit.SECONDS);
             assertThat(createTopicsResult.all()).isDone();
         }
     }
 
     @Test
-    void upstreamUsesTlsInsecure(@Tls KafkaCluster cluster) {
+    void upstreamUsesTlsInsecure(@Tls KafkaCluster cluster) throws Exception {
         var bootstrapServers = cluster.getBootstrapServers();
 
         var builder = new ConfigurationBuilder()
@@ -156,13 +160,14 @@ class TlsIT extends BaseIT {
 
         try (var tester = kroxyliciousTester(builder); var admin = tester.admin("demo")) {
             // do some work to ensure connection is opened
-            final CreateTopicsResult createTopicsResult = createTopic(admin, TOPIC, 1);
+            final CreateTopicsResult createTopicsResult = admin.createTopics(List.of(new NewTopic(TOPIC, 1, (short) 1)));
+            createTopicsResult.all().get(10, TimeUnit.SECONDS);
             assertThat(createTopicsResult.all()).isDone();
         }
     }
 
     @Test
-    void downstreamAndUpstreamTls(@Tls KafkaCluster cluster) {
+    void downstreamAndUpstreamTls(@Tls KafkaCluster cluster) throws Exception {
         var bootstrapServers = cluster.getBootstrapServers();
         var brokerTruststore = (String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG);
         var brokerTruststorePassword = (String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG);
@@ -195,7 +200,8 @@ class TlsIT extends BaseIT {
                                 SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
                                 SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, downstreamCertificateGenerator.getPassword()))) {
             // do some work to ensure connection is opened
-            final CreateTopicsResult createTopicsResult = createTopic(admin, TOPIC, 1);
+            final CreateTopicsResult createTopicsResult = admin.createTopics(List.of(new NewTopic(TOPIC, 1, (short) 1)));
+            createTopicsResult.all().get(10, TimeUnit.SECONDS);
             assertThat(createTopicsResult.all()).isDone();
         }
     }

@@ -80,7 +80,8 @@ class MultiTenantIT extends BaseMultiTenantIT {
 
         try (var tester = kroxyliciousTester(config);
                 var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
-            var created = createTopics(admin, NEW_TOPIC_1, NEW_TOPIC_2);
+            var created = admin.createTopics(List.of(NEW_TOPIC_1, NEW_TOPIC_2));
+            created.all().get(10, TimeUnit.SECONDS);
 
             var topicMap = await().atMost(Duration.ofSeconds(5)).until(() -> admin.listTopics().namesToListings().get(),
                     n -> n.size() == 2);
@@ -94,12 +95,14 @@ class MultiTenantIT extends BaseMultiTenantIT {
 
             // Delete by name
             var topics1 = TopicNameCollection.ofTopicNames(List.of(TOPIC_1));
-            var deleted = deleteTopics(admin, topics1);
+            var deleted = admin.deleteTopics(topics1);
+            deleted.all().get(10, TimeUnit.SECONDS);
             assertThat(deleted.topicNameValues().keySet()).containsAll(topics1.topicNames());
 
             // Delete by id
             var topics2 = TopicCollection.ofTopicIds(List.of(created.topicId(TOPIC_2).get()));
-            deleted = deleteTopics(admin, topics2);
+            deleted = admin.deleteTopics(topics2);
+            deleted.all().get(10, TimeUnit.SECONDS);
             assertThat(deleted.topicIdValues().keySet()).containsAll(topics2.topicIds());
         }
     }
@@ -109,7 +112,8 @@ class MultiTenantIT extends BaseMultiTenantIT {
         var config = getConfig(cluster, this.certificateGenerator);
         try (var tester = kroxyliciousTester(config);
                 var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
-            var created = createTopics(admin, NEW_TOPIC_1);
+            var created = admin.createTopics(List.of(NEW_TOPIC_1));
+            created.all().get(10, TimeUnit.SECONDS);
 
             await().atMost(Duration.ofSeconds(5)).ignoreExceptions().untilAsserted(() -> {
                 var describeTopicsResult = admin.describeTopics(TopicNameCollection.ofTopicNames(List.of(TOPIC_1)));
@@ -125,7 +129,7 @@ class MultiTenantIT extends BaseMultiTenantIT {
         var config = getConfig(cluster, this.certificateGenerator);
         try (var tester = kroxyliciousTester(config);
                 var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
-            createTopics(admin, NEW_TOPIC_1);
+            admin.createTopics(List.of(NEW_TOPIC_1)).all().get(10, TimeUnit.SECONDS);
             produceAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER, Stream.of(new ProducerRecord<>(TOPIC_1, MY_KEY, MY_VALUE)), Optional.empty());
         }
     }
@@ -136,7 +140,7 @@ class MultiTenantIT extends BaseMultiTenantIT {
         try (var tester = kroxyliciousTester(config);
                 var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
             var groupId = testInfo.getDisplayName();
-            createTopics(admin, NEW_TOPIC_1);
+            admin.createTopics(List.of(NEW_TOPIC_1)).all().get(10, TimeUnit.SECONDS);
             produceAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER, Stream.of(new ProducerRecord<>(TOPIC_1, MY_KEY, MY_VALUE)), Optional.empty());
             consumeAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER, TOPIC_1, groupId, new LinkedList<>(List.of(matchesRecord(TOPIC_1, MY_KEY, MY_VALUE))), false);
         }
@@ -148,7 +152,7 @@ class MultiTenantIT extends BaseMultiTenantIT {
         try (var tester = kroxyliciousTester(config);
                 var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
             var groupId = testInfo.getDisplayName();
-            createTopics(admin, NEW_TOPIC_1);
+            admin.createTopics(List.of(NEW_TOPIC_1)).all().get(10, TimeUnit.SECONDS);
             produceAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER,
                     Stream.of(new ProducerRecord<>(TOPIC_1, MY_KEY, "1"), new ProducerRecord<>(TOPIC_1, MY_KEY, "2"), inCaseOfFailure()), Optional.empty());
             consumeAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER, TOPIC_1, groupId, new LinkedList<>(List.of(matchesRecord(TOPIC_1, MY_KEY, "1"))), true);
@@ -162,7 +166,7 @@ class MultiTenantIT extends BaseMultiTenantIT {
         try (var tester = kroxyliciousTester(config);
                 var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
             var groupId = testInfo.getDisplayName();
-            createTopics(admin, NEW_TOPIC_1);
+            admin.createTopics(List.of(NEW_TOPIC_1)).all().get(10, TimeUnit.SECONDS);
             produceAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER,
                     Stream.of(new ProducerRecord<>(TOPIC_1, MY_KEY, "1"), new ProducerRecord<>(TOPIC_1, MY_KEY, "2"), inCaseOfFailure()), Optional.empty());
             consumeAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER, TOPIC_1, groupId, new LinkedList<>(List.of(matchesRecord(TOPIC_1, MY_KEY, "1"))), true);
@@ -180,7 +184,7 @@ class MultiTenantIT extends BaseMultiTenantIT {
         try (var tester = kroxyliciousTester(config);
                 var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
             var groupId = testInfo.getDisplayName();
-            createTopics(admin, NEW_TOPIC_1);
+            admin.createTopics(List.of(NEW_TOPIC_1)).all().get(10, TimeUnit.SECONDS);
             produceAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER, Stream.of(new ProducerRecord<>(TOPIC_1, MY_KEY, "1"), inCaseOfFailure()), Optional.empty());
             consumeAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER, TOPIC_1, groupId, new LinkedList<>(List.of(matchesRecord(TOPIC_1, MY_KEY, "1"))), true);
 
@@ -195,8 +199,8 @@ class MultiTenantIT extends BaseMultiTenantIT {
         try (var tester = kroxyliciousTester(config);
                 var adminTenant1 = tester.admin(TENANT_1_CLUSTER, this.clientConfig);
                 var adminTenant2 = tester.admin(TENANT_2_CLUSTER, this.clientConfig)) {
-            createTopics(adminTenant1, NEW_TOPIC_1);
-            createTopics(adminTenant2, NEW_TOPIC_2, NEW_TOPIC_3);
+            adminTenant1.createTopics(List.of(NEW_TOPIC_1)).all().get(10, TimeUnit.SECONDS);
+            adminTenant2.createTopics(List.of(NEW_TOPIC_2, NEW_TOPIC_3)).all().get(10, TimeUnit.SECONDS);
 
             verifyTenant(adminTenant1, TOPIC_1);
             verifyTenant(adminTenant2, TOPIC_2, TOPIC_3);
@@ -209,7 +213,7 @@ class MultiTenantIT extends BaseMultiTenantIT {
         var config = getConfig(cluster, this.certificateGenerator);
         try (var tester = kroxyliciousTester(config);
                 var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
-            createTopics(admin, NEW_TOPIC_1);
+            admin.createTopics(List.of(NEW_TOPIC_1)).all().get(10, TimeUnit.SECONDS);
             runConsumerInOrderToCreateGroup(tester, TENANT_1_CLUSTER, "Tenant1Group", NEW_TOPIC_1, consumerStyle, this.clientConfig);
             verifyConsumerGroupsWithList(admin, Set.of("Tenant1Group"));
         }
@@ -222,10 +226,10 @@ class MultiTenantIT extends BaseMultiTenantIT {
         try (var tester = kroxyliciousTester(config);
                 var adminTenant1 = tester.admin(TENANT_1_CLUSTER, this.clientConfig);
                 var adminTenant2 = tester.admin(TENANT_2_CLUSTER, this.clientConfig)) {
-            createTopics(adminTenant1, NEW_TOPIC_1);
+            adminTenant1.createTopics(List.of(NEW_TOPIC_1)).all().get(10, TimeUnit.SECONDS);
             runConsumerInOrderToCreateGroup(tester, TENANT_1_CLUSTER, "Tenant1Group", NEW_TOPIC_1, consumerStyle, this.clientConfig);
 
-            createTopics(adminTenant2, NEW_TOPIC_1);
+            adminTenant2.createTopics(List.of(NEW_TOPIC_1)).all().get(10, TimeUnit.SECONDS);
             runConsumerInOrderToCreateGroup(tester, TENANT_2_CLUSTER, "Tenant2Group", NEW_TOPIC_1, consumerStyle, this.clientConfig);
             verifyConsumerGroupsWithList(adminTenant2, Set.of("Tenant2Group"));
         }
@@ -237,10 +241,10 @@ class MultiTenantIT extends BaseMultiTenantIT {
         try (var tester = kroxyliciousTester(config);
                 var adminTenant1 = tester.admin(TENANT_1_CLUSTER, this.clientConfig);
                 var adminTenant2 = tester.admin(TENANT_2_CLUSTER, this.clientConfig)) {
-            createTopics(adminTenant1, NEW_TOPIC_1);
+            adminTenant1.createTopics(List.of(NEW_TOPIC_1)).all().get(10, TimeUnit.SECONDS);
             runConsumerInOrderToCreateGroup(tester, TENANT_1_CLUSTER, "Tenant1Group", NEW_TOPIC_1, ConsumerStyle.ASSIGN, this.clientConfig);
 
-            createTopics(adminTenant2, NEW_TOPIC_1);
+            adminTenant2.createTopics(List.of(NEW_TOPIC_1)).all().get(10, TimeUnit.SECONDS);
             runConsumerInOrderToCreateGroup(tester, TENANT_2_CLUSTER, "Tenant2Group", NEW_TOPIC_1, ConsumerStyle.ASSIGN, this.clientConfig);
 
             verifyConsumerGroupsWithDescribe(adminTenant1, Set.of("Tenant1Group"), Set.of("Tenant2Group", "idontexist"));
@@ -253,7 +257,7 @@ class MultiTenantIT extends BaseMultiTenantIT {
         var config = getConfig(cluster, this.certificateGenerator);
         try (var tester = kroxyliciousTester(config);
                 var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
-            createTopics(admin, NEW_TOPIC_1);
+            admin.createTopics(List.of(NEW_TOPIC_1)).all().get(10, TimeUnit.SECONDS);
             produceAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER,
                     Stream.of(new ProducerRecord<>(TOPIC_1, MY_KEY, "1")),
                     Optional.of("12345"));
@@ -268,8 +272,8 @@ class MultiTenantIT extends BaseMultiTenantIT {
             // put some records in an input topic
             var inputTopic = "input";
             var outputTopic = "output";
-            createTopics(admin, new NewTopic(inputTopic, 1, (short) 1),
-                    new NewTopic(outputTopic, 1, (short) 1));
+            admin.createTopics(List.of(new NewTopic(inputTopic, 1, (short) 1),
+                    new NewTopic(outputTopic, 1, (short) 1))).all().get(10, TimeUnit.SECONDS);
             produceAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER,
                     Stream.of(new ProducerRecord<>(inputTopic, MY_KEY, "1"),
                             new ProducerRecord<>(inputTopic, MY_KEY, "2"),
@@ -320,7 +324,7 @@ class MultiTenantIT extends BaseMultiTenantIT {
         var config = getConfig(cluster, this.certificateGenerator);
         try (var tester = kroxyliciousTester(config)) {
             try (var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
-                createTopics(admin, NEW_TOPIC_1);
+                admin.createTopics(List.of(NEW_TOPIC_1)).all().get(10, TimeUnit.SECONDS);
                 var transactionalId = "12345";
                 produceAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER,
                         Stream.of(new ProducerRecord<>(TOPIC_1, MY_KEY, "1")),
@@ -340,14 +344,14 @@ class MultiTenantIT extends BaseMultiTenantIT {
         try (var tester = kroxyliciousTester(config);
                 var adminTenant1 = tester.admin(TENANT_1_CLUSTER, this.clientConfig);
                 var adminTenant2 = tester.admin(TENANT_2_CLUSTER, this.clientConfig)) {
-            createTopics(adminTenant1, NEW_TOPIC_1);
+            adminTenant1.createTopics(List.of(NEW_TOPIC_1)).all().get(10, TimeUnit.SECONDS);
             var tenant1TransactionId = "12345";
             produceAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER,
                     Stream.of(new ProducerRecord<>(TOPIC_1, MY_KEY, "1")),
                     Optional.of(tenant1TransactionId));
             verifyTransactionsWithList(adminTenant1, Set.of(tenant1TransactionId));
 
-            createTopics(adminTenant2, NEW_TOPIC_2);
+            adminTenant2.createTopics(List.of(NEW_TOPIC_2)).all().get(10, TimeUnit.SECONDS);
             var tenant2TransactionId = "54321";
             produceAndVerify(tester, this.clientConfig, TENANT_2_CLUSTER,
                     Stream.of(new ProducerRecord<>(TOPIC_2, MY_KEY, "1")),
