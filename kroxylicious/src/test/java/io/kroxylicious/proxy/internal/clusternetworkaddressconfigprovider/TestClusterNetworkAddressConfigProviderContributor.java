@@ -11,6 +11,7 @@ import java.util.Objects;
 import io.kroxylicious.proxy.clusternetworkaddressconfigprovider.ClusterNetworkAddressConfigProviderContributor;
 import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
+import io.kroxylicious.proxy.service.ConfigurationDefinition;
 import io.kroxylicious.proxy.service.Context;
 
 public class TestClusterNetworkAddressConfigProviderContributor implements ClusterNetworkAddressConfigProviderContributor {
@@ -18,11 +19,24 @@ public class TestClusterNetworkAddressConfigProviderContributor implements Clust
     public static final String SHORT_NAME = "test";
 
     @Override
+    public boolean contributes(String shortName) {
+        return Objects.equals(shortName, SHORT_NAME);
+    }
+
+    @Override
     public Class<? extends BaseConfig> getConfigType(String shortName) {
         if (!Objects.equals(shortName, SHORT_NAME)) {
             return null;
         }
         return Config.class;
+    }
+
+    @Override
+    public ConfigurationDefinition getConfigDefinition(String shortName) {
+        if (Objects.equals(shortName, SHORT_NAME)) {
+            return new ConfigurationDefinition(Config.class);
+        }
+        return null;
     }
 
     @Override

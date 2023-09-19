@@ -19,7 +19,7 @@ public class NettyFilterContext {
         this.eventLoop = eventLoop;
     }
 
-    FilterConstructContext wrap(BaseConfig config) {
+    public FilterConstructContext wrap(BaseConfig config) {
         return new NettyFilterConfigContext(config);
     }
 

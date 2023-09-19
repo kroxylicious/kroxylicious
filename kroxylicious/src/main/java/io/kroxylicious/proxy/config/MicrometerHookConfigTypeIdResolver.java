@@ -12,7 +12,8 @@ import com.fasterxml.jackson.databind.DatabindContext;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.jsontype.impl.TypeIdResolverBase;
 
-import io.kroxylicious.proxy.micrometer.MicrometerConfigurationHookContributorManager;
+import io.kroxylicious.proxy.micrometer.MicrometerConfigurationHookContributor;
+import io.kroxylicious.proxy.service.ContributionManager;
 
 public class MicrometerHookConfigTypeIdResolver extends TypeIdResolverBase {
     private JavaType superType;
@@ -39,7 +40,7 @@ public class MicrometerHookConfigTypeIdResolver extends TypeIdResolverBase {
 
     @Override
     public JavaType typeFromId(DatabindContext context, String id) throws IOException {
-        Class<?> subType = MicrometerConfigurationHookContributorManager.getInstance().getConfigType(id);
-        return context.constructSpecializedType(superType, subType);
+        Class<? extends BaseConfig> result = ContributionManager.INSTANCE.getDefinition(MicrometerConfigurationHookContributor.class, id).configurationType();
+        return context.constructSpecializedType(superType, result);
     }
 }
