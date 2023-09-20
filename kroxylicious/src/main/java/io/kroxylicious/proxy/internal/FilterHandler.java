@@ -187,14 +187,6 @@ public class FilterHandler extends ChannelDuplexHandler {
         }
         var stage = invoker.onResponse(decodedFrame.apiKey(), decodedFrame.apiVersion(),
                 decodedFrame.header(), decodedFrame.body(), filterContext);
-        if (stage == null) {
-            if (LOGGER.isWarnEnabled()) {
-                LOGGER.warn("{}: Filter{} for {} response unexpectedly returned null. This is a coding error in the filter. Closing connection.",
-                        channelDescriptor(), filterDescriptor(), decodedFrame.apiKey());
-            }
-            closeConnection();
-            return CompletableFuture.completedFuture(null);
-        }
         return stage instanceof InternalCompletionStage ? ((InternalCompletionStage<ResponseFilterResult>) stage).getUnderlyingCompletableFuture()
                 : stage.toCompletableFuture();
     }
@@ -228,14 +220,6 @@ public class FilterHandler extends ChannelDuplexHandler {
 
         var stage = invoker.onRequest(decodedFrame.apiKey(), decodedFrame.apiVersion(), decodedFrame.header(),
                 decodedFrame.body(), filterContext);
-        if (stage == null) {
-            if (LOGGER.isWarnEnabled()) {
-                LOGGER.warn("{}: Filter{} for {} request unexpectedly returned null. This is a coding error in the filter. Closing connection.",
-                        channelDescriptor(), filterDescriptor(), decodedFrame.apiKey());
-            }
-            closeConnection();
-            return CompletableFuture.completedFuture(null);
-        }
         return stage instanceof InternalCompletionStage ? ((InternalCompletionStage<RequestFilterResult>) stage).getUnderlyingCompletableFuture()
                 : stage.toCompletableFuture();
     }
