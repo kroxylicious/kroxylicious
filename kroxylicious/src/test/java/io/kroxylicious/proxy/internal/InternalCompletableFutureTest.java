@@ -47,7 +47,7 @@ class InternalCompletableFutureTest {
         var actualThread = new AtomicReference<Thread>();
         var result = future.thenAcceptAsync((u) -> {
             assertThat(actualThread).hasValue(null);
-            actualThread.compareAndSet(null, Thread.currentThread());
+            actualThread.set(Thread.currentThread());
         });
         result.join();
 
