@@ -24,8 +24,7 @@ class InternalCompletableFuture<T> extends CompletableFuture<T> {
     private final Executor executor;
 
     InternalCompletableFuture(Executor executor) {
-        Objects.requireNonNull(executor);
-        this.executor = executor;
+        this.executor = Objects.requireNonNull(executor);
     }
 
     /**
