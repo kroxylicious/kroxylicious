@@ -1,5 +1,6 @@
 :github: https://github.com/kroxylicious/kroxylicious
 :api-javadoc: https://javadoc.io/doc/io.kroxylicious/kroxylicious-api/latest
+:kafka-protocol: https://kafka.apache.org/protocol.html
 :source-highlighter: pygments
 :java-17-javadoc: https://docs.oracle.com/en/java/javase/17/docs/api
 
@@ -442,32 +443,36 @@ public class FetchFilter implements FetchRequestFilter {
                                                                RequestHeaderData header,
                                                                FetchRequestData request,
                                                                FilterContext context) {
-        MetadataRequestData metadataRequest = new MetadataRequestData(); //<1>
+        var metadataRequestHeader = new RequestHeaderData().setRequestApiVersion(METADATA_VERSION_SUPPORTING_TOPIC_IDS); // <1>
+        var metadataRequest = new MetadataRequestData(); // <2>
         var topic = new MetadataRequestData.MetadataRequestTopic();
         topic.setTopicId(Uuid.randomUuid());
         metadataRequest.topics().add(topic);
-        short version = METADATA_VERSION_SUPPORTING_TOPIC_IDS;
-        CompletionStage<MetadataResponseData> stage = context.sendRequest(version, request); //<2>
-        return stage.thenApply(metadataResponse -> mutateFetchRequest(metadataResponse, request)) // <3>
-                    .thenCompose(mutatedFetchRequest -> context.forwardRequest(header, mutatedFetchRequest)); // <4>
+        var stage = context.sendRequest(metadataRequestHeader, metadataRequest); // <3>
+        return stage.thenApply(metadataResponse -> mutateFetchRequest(metadataResponse.message(), request)) // <4>
+                    .thenCompose(mutatedFetchRequest -> context.forwardRequest(header, mutatedFetchRequest)); // <5>
     }
 }
 ----
-<1> We construct a new request object.  This will be forwarded asynchronously.
-<2> We send the request towards the Cluster, specifying the api version to use and obtaining a CompletionStage for the
-response.
-<3> We use a computation stage to mutate the filtered fetch request using the response from the request sent at <1>.
-<4> We use another computation stage to forward the mutated request.
+<1> We construct a header object for the asynchronous request.  It is important to specify the API version of the request
+that is to be used.  The version chosen must be a version know to the Kafka Client used by Kroxylicious
+and must be an API version supported by the Target Cluster.
+<2> We construct a new request object. When constructing the request object, take care to populate  the fields known to
+the request object at the API version you have chosen.  Refer to the {kafka-protocol}[Kafka Protocol Guide] for more details.
+<3> We asynchronously send the request towards the Cluster and obtain a CompletionStage which will contain the response.
+<4> We use a computation stage to mutate the filtered fetch request using the response from the request sent at <3>.
+<5> We use another computation stage to forward the mutated request.
+
+As you have read above, we need to know the API version we want our request to be encoded at. Your filter can discover
+what versions of an API the Kafka Cluster supports.  To do this use the
+{api-javadoc}/io/kroxylicious/proxy/ApiVersionsService.html[ApiVersionsService] available from the `FilterContext`
+to determine programmatically what versions of an API are support and then write code to make a suitable `request`
+object.
 
 NOTE: Kroxylicious provides the guarantee that computation stages chained using the _default execution methods_ are
 executed on the same thread as the rest of the Filter work, so we can safely mutate Filter members without synchronising.
 See the {api-javadoc}/io/kroxylicious/proxy/filter/package-summary.html#implementing.threadSafety[`io.kroxylicious.proxy.filter`]
 package javadoc for more information on thread-safety.
-
-As you can see, we need to know the API version we want our message to be encoded at. This must be done carefully as we
-currently do not have a mechanism for your Filter to know the supported API versions of the Cluster. If
-you use a hardcoded API version as shown, your Filter will only work with upstream brokers that support that api version
-for that RPC (see issue {github}/issues/438[#438]).
 
 ==== Filtering specific API Versions
 

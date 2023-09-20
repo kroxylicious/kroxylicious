@@ -7,14 +7,18 @@ package io.kroxylicious.proxy.internal;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 
+import org.apache.kafka.common.message.ApiMessageType;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.FetchRequestData;
@@ -39,6 +43,7 @@ import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
+import io.kroxylicious.proxy.filter.ResponseHeaderAndApiMessage;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
@@ -608,6 +613,80 @@ class FilterHandlerTest extends FilterHarness {
     @Test
     void sendRequest() {
         var oobRequestBody = new FetchRequestData();
+        var snoopedOobRequestResponseStage = new AtomicReference<CompletionStage<ResponseHeaderAndApiMessage<FetchRequestData>>>();
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> {
+            assertNull(snoopedOobRequestResponseStage.get(), "Expected to only be called once");
+            snoopedOobRequestResponseStage.set(context.sendRequest(new RequestHeaderData(), oobRequestBody));
+            return snoopedOobRequestResponseStage.get()
+                    .thenCompose(u -> context.forwardRequest(header, request));
+        };
+
+        buildChannel(filter);
+
+        // trigger filter
+        var requestFrame = writeRequest(new ApiVersionsRequestData());
+
+        // verify filter has sent the send request.
+        InternalRequestFrame<?> propagatedOobRequest = channel.readOutbound();
+        assertThat(propagatedOobRequest.body()).isEqualTo(oobRequestBody);
+        assertThat(propagatedOobRequest.header()).isNotNull();
+
+        // verify oob request response future is in the expected state
+        assertThat(snoopedOobRequestResponseStage).isNotNull();
+        var snoopedOobRequestResponseFuture = toCompletableFuture(snoopedOobRequestResponseStage.get());
+        assertThat(snoopedOobRequestResponseFuture).withFailMessage("out-of-band request response future in wrong state").isNotDone();
+
+        // mimic the broker sending the oob response
+        var responseFrame = writeInternalResponse(propagatedOobRequest.header().correlationId(), new FetchResponseData());
+        assertThat(snoopedOobRequestResponseFuture).isCompletedWithValueMatching(r -> Objects.equals(r.message(), responseFrame.body()));
+
+        // verify the filter has forwarded the request showing the that OOB request future completed.
+        var propagated = channel.readOutbound();
+        assertThat(propagated).isEqualTo(requestFrame);
+    }
+
+    static Stream<Arguments> sendRequestHeaderHandling() {
+        ApiMessageType fetch = ApiMessageType.FETCH;
+        return Stream.of(
+                Arguments.of("api key set",
+                        (Supplier<RequestHeaderData>) RequestHeaderData::new,
+                        (Consumer<RequestHeaderData>) (h) -> assertThat(h.requestApiKey()).isEqualTo(fetch.apiKey())),
+                Arguments.of("clientid",
+                        (Supplier<RequestHeaderData>) () -> new RequestHeaderData().setClientId("clientid"),
+                        (Consumer<RequestHeaderData>) (h) -> assertThat(h.clientId()).isEqualTo("clientid")),
+                Arguments.of("version",
+                        (Supplier<RequestHeaderData>) () -> new RequestHeaderData().setRequestApiVersion(fetch.highestSupportedVersion(false)),
+                        (Consumer<RequestHeaderData>) (h) -> assertThat(h.requestApiVersion()).isEqualTo(fetch.highestSupportedVersion(false))));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource
+    void sendRequestHeaderHandling(String name, Supplier<RequestHeaderData> headerSupplier, Consumer<RequestHeaderData> headerConsumer) {
+        var oobRequestBody = new FetchRequestData();
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> context.sendRequest(headerSupplier.get(), oobRequestBody)
+                .thenCompose(u -> context.requestFilterResultBuilder().drop().completed());
+
+        buildChannel(filter);
+
+        // trigger filter
+        writeRequest(new ApiVersionsRequestData());
+
+        // verify the header
+        InternalRequestFrame<?> propagatedOobRequest = channel.readOutbound();
+        assertThat(propagatedOobRequest.header()).isNotNull();
+        headerConsumer.accept(propagatedOobRequest.header());
+
+        // mimic the broker sending the oob response
+        writeInternalResponse(propagatedOobRequest.header().correlationId(), new FetchResponseData());
+
+        var propagated = channel.readOutbound();
+        assertThat(propagated).isNull();
+    }
+
+    @Test
+    @Deprecated
+    void sendRequestOldApi() {
+        var oobRequestBody = new FetchRequestData();
         var snoopedOobRequestResponseStage = new AtomicReference<CompletionStage<ApiMessage>>();
         ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> {
             assertNull(snoopedOobRequestResponseStage.get(), "Expected to only be called once");
@@ -643,9 +722,9 @@ class FilterHandlerTest extends FilterHarness {
     @Test
     void sendRequestCompletionStageCannotBeConvertedToFuture() {
         var oobRequestBody = new FetchRequestData();
-        var snoopedOobRequestResponseStage = new AtomicReference<CompletionStage<ApiMessage>>();
+        var snoopedOobRequestResponseStage = new AtomicReference<CompletionStage<ResponseHeaderAndApiMessage<FetchResponseData>>>();
         ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> {
-            snoopedOobRequestResponseStage.set(context.sendRequest((short) 3, oobRequestBody));
+            snoopedOobRequestResponseStage.set(context.sendRequest(new RequestHeaderData(), oobRequestBody));
             // TODO - it'd be a better test if the filter made the call to toCompletableFuture and the filter failed.
             // We'd then assert that the filter had closed the connection for the right reason. However we currently
             // don't have a way to trap the exception that causes a filter to close.
@@ -672,13 +751,13 @@ class FilterHandlerTest extends FilterHarness {
 
     /**
      * Test the special case within {@link FilterHandler} for
-     * {@link FilterContext#sendRequest(short, ApiMessage)}
+     * {@link FilterContext#sendRequest(RequestHeaderData, ApiMessage)}
      * with acks=0 Produce requests.
      */
     @Test
     void sendAcklessProduceRequest() {
         var oobRequestBody = new ProduceRequestData().setAcks((short) 0);
-        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> context.sendRequest((short) 3, oobRequestBody)
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> context.sendRequest(new RequestHeaderData(), oobRequestBody)
                 .thenCompose(u -> context.forwardRequest(header, request));
 
         buildChannel(filter);
@@ -698,9 +777,9 @@ class FilterHandlerTest extends FilterHarness {
     @Test
     void sendRequestTimeout() {
         var oobRequestBody = new FetchRequestData();
-        var snoopedOobRequestResponseStage = new AtomicReference<CompletionStage<ApiMessage>>();
+        var snoopedOobRequestResponseStage = new AtomicReference<CompletionStage<ResponseHeaderAndApiMessage<FetchResponseData>>>();
         ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> {
-            snoopedOobRequestResponseStage.set(context.sendRequest((short) 3, oobRequestBody));
+            snoopedOobRequestResponseStage.set(context.sendRequest(new RequestHeaderData(), oobRequestBody));
             return context.requestFilterResultBuilder().drop().completed();
         };
 
@@ -739,7 +818,7 @@ class FilterHandlerTest extends FilterHarness {
         var oobRequestBody = new FetchRequestData();
         var applyActionThread = new AtomicReference<Thread>();
         var applyAsyncActionThread = new AtomicReference<Thread>();
-        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> context.sendRequest((short) 3, oobRequestBody)
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> context.sendRequest(new RequestHeaderData(), oobRequestBody)
                 .thenApply(u1 -> {
                     applyActionThread.set(Thread.currentThread());
                     return null;
@@ -763,7 +842,7 @@ class FilterHandlerTest extends FilterHarness {
         assertThat(propagatedOobRequest.body()).isEqualTo(oobRequestBody);
 
         // mimic the broker sending the response
-        var responseFrame = writeInternalResponse(propagatedOobRequest.header().correlationId(), new FetchResponseData());
+        writeInternalResponse(propagatedOobRequest.header().correlationId(), new FetchResponseData());
 
         // Running the tasks will run the actions chained to the async response
         channel.runPendingTasks();
@@ -785,7 +864,7 @@ class FilterHandlerTest extends FilterHarness {
     @Test
     void upstreamFiltersCanFilterOutOfBandRequest() {
         var oobRequestBody = new FetchRequestData();
-        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> context.sendRequest((short) 3, oobRequestBody)
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> context.sendRequest(new RequestHeaderData(), oobRequestBody)
                 .thenCompose(outOfBandResponse -> context.requestFilterResultBuilder().drop().completed());
 
         // this filter will intercept the out-of-band request and add the mark
@@ -809,9 +888,9 @@ class FilterHandlerTest extends FilterHarness {
     @Test
     void upstreamFiltersCanFilterOutOfBandResponse() {
         var oobRequestBody = new FetchRequestData();
-        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> context.sendRequest((short) 3, oobRequestBody)
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> context.sendRequest(new RequestHeaderData(), oobRequestBody)
                 .thenCompose(outOfBandResponse -> {
-                    assertThat(outOfBandResponse.unknownTaggedFields()).containsExactly(MARK);
+                    assertThat(outOfBandResponse.message().unknownTaggedFields()).containsExactly(MARK);
                     return context.forwardRequest(header, request);
                 });
 

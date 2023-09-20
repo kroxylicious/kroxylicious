@@ -50,15 +50,15 @@ public class EagerMetadataLearner implements RequestFilter {
             return context.requestFilterResultBuilder().forward(header, body).completed();
         }
         else {
-            final short apiVersion = determineMetadataApiVersion(header);
             // Send an out-of-band Metadata request. The response will be intercepted by the in-built BrokerAddressFilter.
             // By the time control returns to the handler, the upstream addresses will have been reconciled.
-            boolean useClientRequest = apiKey.equals(ApiKeys.METADATA) && apiVersion == header.requestApiVersion();
+            var requestHeader = determineMetadataRequestHeader(header);
+            var useClientRequest = requestHeader.equals(header);
             var request = useClientRequest ? (MetadataRequestData) body : new MetadataRequestData();
 
             var future = new CompletableFuture<RequestFilterResult>();
-            var unused = context.<MetadataResponseData> sendRequest(apiVersion, request)
-                    .thenAccept(metadataResponseData -> {
+            var unused = context.<MetadataResponseData> sendRequest(requestHeader, request)
+                    .thenAccept(metadataResponse -> {
                         // closing the connection is important. This client connection is connected to bootstrap (it could
                         // be any broker or maybe not something else). we must close the connection to force the client to
                         // connect again.
@@ -66,7 +66,7 @@ public class EagerMetadataLearner implements RequestFilter {
                         if (useClientRequest) {
                             // The client's request matched our out-of-band message, so we may as well return the
                             // response.
-                            future.complete(builder.shortCircuitResponse(metadataResponseData).withCloseConnection().build());
+                            future.complete(builder.shortCircuitResponse(metadataResponse.message()).withCloseConnection().build());
                         }
                         else {
                             future.complete(builder.withCloseConnection().build());
@@ -78,16 +78,14 @@ public class EagerMetadataLearner implements RequestFilter {
         }
     }
 
-    private short determineMetadataApiVersion(RequestHeaderData header) {
-        final short apiVersion;
+    private RequestHeaderData determineMetadataRequestHeader(RequestHeaderData header) {
         if (header.requestApiKey() == ApiKeys.METADATA.id) {
-            apiVersion = header.requestApiVersion();
+            return header;
         }
         else {
             // TODO: use a version appearing the intersection calculated by ApiVersionFilter.
-            apiVersion = MetadataRequestData.LOWEST_SUPPORTED_VERSION;
+            return new RequestHeaderData().setRequestApiVersion(MetadataRequestData.LOWEST_SUPPORTED_VERSION);
         }
-        return apiVersion;
     }
 
 }

@@ -80,7 +80,7 @@ public interface FilterContext {
      * <br>
      * The request will pass through all filters upstream of the filter that invoked the operation,
      * invoking them, but not itself.  Similarly, the response will pass through all filters upstream
-     * of the filter that invoked the operation, invoking them, but not itself. The response does not
+     * of the filter that invoked the operation, invoking them. The response does not
      * pass through filter downstream.
      * <br/>
      * Default and asynchronous default computation stages chained to the returned
@@ -92,9 +92,47 @@ public interface FilterContext {
      * @param <T> The type of the response
      * @return CompletionStage that will yield the response.
      * @see io.kroxylicious.proxy.filter Thread Safety
+     * @deprecated use {@link FilterContext#sendRequest(RequestHeaderData, ApiMessage)} instead.
      */
     @NonNull
+    @Deprecated(forRemoval = true, since = "0.3.0")
     <T extends ApiMessage> CompletionStage<T> sendRequest(short apiVersion, @NonNull ApiMessage request);
+
+    /**
+     * Send a request from a filter towards the broker.   The response to the request will be
+     * made available to the filter asynchronously, by way of the {@link CompletionStage}.  The
+     * CompletionStage will contain the response header and response body, or null of the
+     * request does not have a response.
+     * <h4>Header</h4>
+     * <p>The caller is required to provide a {@link RequestHeaderData}. It is recommended that the
+     * caller specify the {@link RequestHeaderData#requestApiVersion()}. This can be done conveniently
+     * with forms such as:</p>
+     * <pre>{@code new RequestHeaderData().setRequestApiVersion(4)}</pre>
+     * <p>The caller may also provide a {@link RequestHeaderData#clientId()} an
+     * {@link RequestHeaderData#unknownTaggedFields()}.
+     * <p>Kroxylicious will automatically set the {@link RequestHeaderData#requestApiKey()} to be consistent
+     * with the {@code request}. {@link RequestHeaderData#correlationId()} is ignored.</p>
+     * <h4>Filtering</h4>
+     * <p>The request will pass through all filters upstream of the filter that invoked the operation,
+     * invoking them.  Similarly, the response will pass through all filters upstream
+     * of the filter that invoked the operation, invoking them, but not itself. The response does not
+     * pass through filters downstream.
+     * </p>
+     * <h4>Chained Computation stages</h4>
+     * <p>Default and asynchronous default computation stages chained to the returned
+     * {@link java.util.concurrent.CompletionStage} are guaranteed to be executed by the thread associated with the
+     * connection. See {@link io.kroxylicious.proxy.filter} for more details.
+     * </p>
+     *
+     * @param <M>     The type of the response
+     * @param header  The request header.
+     * @param request The request data.
+     * @return CompletionStage that will yield the response.
+     * @see io.kroxylicious.proxy.filter Thread Safety
+     */
+    @NonNull
+    <M extends ApiMessage> CompletionStage<ResponseHeaderAndApiMessage<M>> sendRequest(@NonNull RequestHeaderData header,
+                                                                                       @NonNull ApiMessage request);
 
     /**
      * Generates a completed filter results containing the given header and response.  When

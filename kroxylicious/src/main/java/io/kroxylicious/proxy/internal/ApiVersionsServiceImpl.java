@@ -16,6 +16,7 @@ import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.ApiVersionsResponseData.ApiVersion;
 import org.apache.kafka.common.message.ApiVersionsResponseData.ApiVersionCollection;
+import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -101,8 +102,10 @@ public class ApiVersionsServiceImpl {
             return CompletableFuture.completedFuture(apiVersions);
         }
         else {
-            return context.sendRequest(ApiKeys.API_VERSIONS.latestVersion(), new ApiVersionsRequestData()).thenApply(message -> {
-                ApiVersionsResponseData apiVersionsResponseData = (ApiVersionsResponseData) message;
+            var data = new ApiVersionsRequestData();
+            var header = new RequestHeaderData().setRequestApiVersion(data.highestSupportedVersion());
+            return context.<ApiVersionsResponseData> sendRequest(header, data).thenApply(response -> {
+                var apiVersionsResponseData = response.message();
                 updateVersions(context.channelDescriptor(), apiVersionsResponseData);
                 return apiVersions;
             });
