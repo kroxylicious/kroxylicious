@@ -6,25 +6,39 @@
 
 package io.kroxylicious.proxy.filter;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Wraps a delegate invoker so that onRequest and onResponse can be safely called even if this
  * Invoker does not want to handle this message, in this case the message will be forwarded without
  * the delegate doing anything with it.
+ *
  * @param invoker the delegate
  */
 record SafeInvoker(FilterInvoker invoker) implements FilterInvoker {
 
+    private static final Logger logger = LoggerFactory.getLogger(SafeInvoker.class);
+
     @Override
     public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage body, FilterContext filterContext) {
         if (invoker.shouldHandleRequest(apiKey, apiVersion)) {
-            return invoker.onRequest(apiKey, apiVersion, header, body, filterContext);
+            CompletionStage<RequestFilterResult> stage = invoker.onRequest(apiKey, apiVersion, header, body, filterContext);
+            if (stage == null) {
+                if (logger.isWarnEnabled()) {
+                    logger.warn("invoker onRequest returned null for apiKey {}, apiVersion {}, channel: {}," +
+                            " Filters should always return a CompletionStage", apiKey, apiVersion, filterContext.channelDescriptor());
+                }
+                return CompletableFuture.failedFuture(new IllegalStateException("invoker onRequest returned null for apiKey " + apiKey));
+            }
+            return stage;
         }
         else {
             return filterContext.forwardRequest(header, body);
@@ -34,10 +48,18 @@ record SafeInvoker(FilterInvoker invoker) implements FilterInvoker {
     @Override
     public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, short apiVersion, ResponseHeaderData header, ApiMessage body, FilterContext filterContext) {
         if (invoker.shouldHandleResponse(apiKey, apiVersion)) {
-            return invoker.onResponse(apiKey, apiVersion, header, body, filterContext);
+            CompletionStage<ResponseFilterResult> stage = invoker.onResponse(apiKey, apiVersion, header, body, filterContext);
+            if (stage == null) {
+                if (logger.isWarnEnabled()) {
+                    logger.warn("invoker onResponse returned null for apiKey {}, apiVersion {}, channel: {}," +
+                            " Filters should always return a CompletionStage", apiKey, apiVersion, filterContext.channelDescriptor());
+                }
+                return CompletableFuture.failedFuture(new IllegalStateException("invoker onResponse returned null for apiKey " + apiKey));
+            }
+            return stage;
         }
         else {
-            return filterContext.responseFilterResultBuilder().forward(header, body).completed();
+            return filterContext.forwardResponse(header, body);
         }
     }
 
