@@ -8,16 +8,41 @@ package io.kroxylicious.proxy;
 
 import java.util.stream.Stream;
 
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import io.kroxylicious.proxy.config.ConfigParser;
+import io.kroxylicious.proxy.config.Configuration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.fail;
 
 class KafkaProxyTest {
+
+    @Test
+    void shouldFailToStartIfRequireFilterConfigIsMissing() throws Exception {
+        var config = """
+                    virtualClusters:
+                        demo1:
+                            targetCluster:
+                              bootstrap_servers: kafka.example:1234
+                            clusterNetworkAddressConfigProvider:
+                              type: PortPerBroker
+                              config:
+                                bootstrapAddress: localhost:9192
+                                brokerStartPort: 9193
+                                numberOfBrokerPorts: 2
+                    filters:
+                       - type: ProduceRequestTransformation
+                """;
+        try (var kafkaProxy = new KafkaProxy(new ConfigParser().parseConfiguration(config))) {
+            assertThatThrownBy(kafkaProxy::startup).isInstanceOf(IllegalStateException.class).hasMessage("Missing required config for [ProduceRequestTransformation]");
+        }
+    }
 
     public static Stream<Arguments> detectsConflictingPorts() {
         return Stream.of(Arguments.of("bootstrap port conflict", """
@@ -89,10 +114,12 @@ class KafkaProxyTest {
     @MethodSource
     void missingTls(String name, String config, String expectedMessage) throws Exception {
 
-        var illegalArgumentException = assertThrows(IllegalStateException.class, () -> {
-            try (var kafkaProxy = new KafkaProxy(new ConfigParser().parseConfiguration(config))) {
+        final Configuration parsedConfiguration = new ConfigParser().parseConfiguration(config);
+        var illegalStateException = assertThrows(IllegalStateException.class, () -> {
+            try (var ignored = new KafkaProxy(parsedConfiguration)) {
+                fail("The proxy started, but a failure was expected.");
             }
         });
-        assertThat(illegalArgumentException).hasStackTraceContaining(expectedMessage);
+        assertThat(illegalStateException).hasStackTraceContaining(expectedMessage);
     }
 }

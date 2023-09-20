@@ -7,12 +7,14 @@ package io.kroxylicious.proxy.service;
 
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.assertj.core.api.ThrowableAssert;
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.proxy.config.BaseConfig;
 
 import static io.kroxylicious.proxy.service.Context.wrap;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class BaseContributorTest {
@@ -22,6 +24,48 @@ class BaseContributorTest {
     }
 
     static class AnotherConfig extends BaseConfig {
+    }
+
+    @Test
+    void shouldReturnTrueForConfigurationRequiredViaDefaulting() {
+        // Given
+        BaseContributor.BaseContributorBuilder<Long, Context> builder = BaseContributor.builder();
+        builder.add("one", LongConfig.class, longConfig -> 1L);
+        BaseContributor<Long, Context> baseContributor = new BaseContributor<>(builder) {
+        };
+
+        // When
+        boolean actual = baseContributor.getConfigDefinition("one").configurationRequired();
+
+        assertThat(actual).isTrue();
+    }
+
+    @Test
+    void shouldReturnTrueForExplicitlySpecifiedConfigurationRequired() {
+        // Given
+        BaseContributor.BaseContributorBuilder<Long, Context> builder = BaseContributor.builder();
+        builder.add("one", LongConfig.class, (longConfig, context) -> 1L, true);
+        BaseContributor<Long, Context> baseContributor = new BaseContributor<>(builder) {
+        };
+
+        // When
+        boolean actual = baseContributor.getConfigDefinition("one").configurationRequired();
+
+        assertThat(actual).isTrue();
+    }
+
+    @Test
+    void shouldReturnFalseFroOptionalRegisteredConfig() {
+        // Given
+        BaseContributor.BaseContributorBuilder<Long, Context> builder = BaseContributor.builder();
+        builder.add("one", LongConfig.class, (longConfig, context) -> 1L, false);
+        BaseContributor<Long, Context> baseContributor = new BaseContributor<>(builder) {
+        };
+
+        // When
+        boolean actual = baseContributor.getConfigDefinition("one").configurationRequired();
+
+        assertThat(actual).isFalse();
     }
 
     @Test
@@ -81,6 +125,22 @@ class BaseContributorTest {
     }
 
     @Test
+    void testContextAndConfigFunctionWithNoConfig() {
+        BaseContributor.BaseContributorBuilder<Long, Context> builder = BaseContributor.builder();
+        AtomicReference<Context> contextRef = new AtomicReference<>();
+        builder.add("one", (context -> {
+            contextRef.set(context);
+            return 1L;
+        }));
+        BaseContributor<Long, Context> baseContributor = new BaseContributor<>(builder) {
+        };
+        Context context = wrap(null);
+        Long instance = baseContributor.getInstance("one", context);
+        assertThat(instance).isEqualTo(1L);
+        assertThat(contextRef).hasValue(context);
+    }
+
+    @Test
     void testSpecifyingConfigType() {
         BaseContributor.BaseContributorBuilder<Long, Context> builder = BaseContributor.builder();
         builder.add("fromBaseConfig", LongConfig.class, baseConfig -> baseConfig.value);
@@ -117,7 +177,7 @@ class BaseContributorTest {
         builder.add("fromBaseConfig", LongConfig.class, (context, baseConfig) -> {
             contextRef.set(context);
             return baseConfig.value;
-        });
+        }, true);
         BaseContributor<Long, Context> baseContributor = new BaseContributor<>(builder) {
         };
         Context context = wrap(new LongConfig());
@@ -160,8 +220,113 @@ class BaseContributorTest {
         };
 
         // When
-        assertThatThrownBy(() -> baseContributor.getConfigDefinition("fromBaseConfig")).isInstanceOf(IllegalArgumentException.class);
+        var throwableAssert = assertThatThrownBy(() -> baseContributor.getConfigDefinition("fromBaseConfig"));
 
         // Then
+        throwableAssert.isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void shouldFailIfConfigIsNullAndRequired() {
+        // Given
+        BaseContributor.BaseContributorBuilder<Long, Context> builder = BaseContributor.builder();
+        builder.add("requiresConfig", LongConfig.class, (baseConfig, context) -> 1L, true);
+        BaseContributor<Long, Context> baseContributor = new BaseContributor<>(builder) {
+        };
+
+        // When
+        var throwableAssert = assertThatThrownBy(() -> baseContributor.getInstance("requiresConfig", () -> null));
+
+        // Then
+        throwableAssert.isInstanceOf(IllegalArgumentException.class).hasMessage("'requiresConfig' requires configuration but none was supplied");
+    }
+
+    @Test
+    void shouldConstructInstanceIfConfigIsNullAndNotRequired() {
+        // Given
+        BaseContributor.BaseContributorBuilder<Long, Context> builder = BaseContributor.builder();
+        builder.add("noConfigRequired", LongConfig.class, (longConfig, context) -> 1L, false);
+        BaseContributor<Long, Context> baseContributor = new BaseContributor<>(builder) {
+        };
+
+        // When
+        final Long actualInstance = baseContributor.getInstance("noConfigRequired", () -> null);
+
+        // Then
+        assertThat(actualInstance).isNotNull();
+    }
+
+    @Test
+    void shouldConstructInstanceIfConfigTypeIsSpecifiedButNotRequiredAndConfigIsNull() {
+        // Given
+        BaseContributor.BaseContributorBuilder<Long, Context> builder = BaseContributor.builder();
+        builder.add("configOptional", LongConfig.class, (longConfig, context) -> 1L, false);
+        BaseContributor<Long, Context> baseContributor = new BaseContributor<>(builder) {
+        };
+
+        // When
+        final Long actualInstance = baseContributor.getInstance("configOptional", () -> null);
+
+        // Then
+        assertThat(actualInstance).isNotNull();
+    }
+
+    @Test
+    void shouldConstructInstanceIfConfigIsNotNullAndRequired() {
+        // Given
+        BaseContributor.BaseContributorBuilder<Long, Context> builder = BaseContributor.builder();
+        builder.add("configRequired", LongConfig.class, longConfig -> longConfig.value);
+        BaseContributor<Long, Context> baseContributor = new BaseContributor<>(builder) {
+        };
+
+        // When
+        final Long actualInstance = baseContributor.getInstance("configRequired", LongConfig::new);
+
+        // Then
+        assertThat(actualInstance).isNotNull();
+    }
+
+    @Test
+    void shouldConstructInstanceIfConfigIsNotNullAndNotRequired() {
+        // Given
+        BaseContributor.BaseContributorBuilder<Long, Context> builder = BaseContributor.builder();
+        builder.add("configOptional", () -> 1L);
+        BaseContributor<Long, Context> baseContributor = new BaseContributor<>(builder) {
+        };
+
+        // When
+        final Long actualInstance = baseContributor.getInstance("configOptional", () -> null);
+
+        // Then
+        assertThat(actualInstance).isNotNull();
+    }
+
+    @Test
+    void shouldThrowExceptionIfNoTypeRegistered() {
+        // Given
+        BaseContributor<Long, Context> baseContributor = new BaseContributor<>(BaseContributor.builder()) {
+        };
+
+        // When
+        final ThrowableAssert.ThrowingCallable throwingCallable = () -> baseContributor.getInstance("unknown", BaseConfig::new);
+
+        // Then
+        assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(throwingCallable).withMessage("'unknown' is not a provided type");
+    }
+
+    @Test
+    void shouldThrowExceptionIfRegisteredInstanceBuilderReturnsNull() {
+        // Given
+        BaseContributor.BaseContributorBuilder<Long, Context> builder = BaseContributor.builder();
+        builder.add("registered", (context) -> null);
+        BaseContributor<Long, Context> baseContributor = new BaseContributor<>(builder) {
+        };
+
+        // When
+        final ThrowableAssert.ThrowingCallable throwingCallable = () -> baseContributor.getInstance("registered", BaseConfig::new);
+
+        // Then
+        assertThatExceptionOfType(NullPointerException.class).isThrownBy(throwingCallable)
+                .withMessage("Tried to instantiate 'registered' but the Contributor returned null");
     }
 }

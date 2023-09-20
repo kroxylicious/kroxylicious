@@ -5,8 +5,12 @@
  */
 package io.kroxylicious.proxy.bootstrap;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.FilterDefinition;
@@ -25,8 +29,22 @@ public class FilterChainFactory {
     private final Configuration config;
 
     public FilterChainFactory(Configuration config) {
-        Objects.requireNonNull(config);
-        this.config = config;
+        this.config = Objects.requireNonNull(config);
+    }
+
+    /**
+     * Validate that a collection of FilterDefinitions contains all the required configuration to configure the filter.
+     * @param filterDefinitions the candidates to validate.
+     * @return the Set of filter names which fail validation.
+     */
+    public static Set<String> validateFilterConfiguration(Collection<FilterDefinition> filterDefinitions) {
+        if (filterDefinitions == null || filterDefinitions.isEmpty()) {
+            return Set.of();
+        }
+        return filterDefinitions.stream()
+                .filter(Predicate.not(FilterDefinition::isDefinitionValid))
+                .map(FilterDefinition::type)
+                .collect(Collectors.toSet());
     }
 
     /**
@@ -39,6 +57,7 @@ public class FilterChainFactory {
         if (filters == null || filters.isEmpty()) {
             return List.of();
         }
+        validateFilterConfiguration(filters);
         return filters
                 .stream()
                 .map(f -> ContributionManager.INSTANCE.getInstance(FilterContributor.class, f.type(), context.wrap(f.config())))

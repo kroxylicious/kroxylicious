@@ -38,7 +38,7 @@ public class TestMicrometerConfigurationHookContributor implements MicrometerCon
     @Override
     public ConfigurationDefinition getConfigDefinition(String shortName) {
         if (Objects.equals(shortName, SHORT_NAME)) {
-            return new ConfigurationDefinition(Config.class);
+            return new ConfigurationDefinition(Config.class, true);
         }
         else {
             return null;
