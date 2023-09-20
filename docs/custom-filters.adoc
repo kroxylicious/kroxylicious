@@ -292,6 +292,9 @@ The proxy guarantees that all methods of a given filter instance will always be 
 the CompletionStage completion in the case of <<Sending asynchronous requests to the Cluster>>).
 Therefore, there is no need to use synchronization when accessing such fields.
 
+See the {api-javadoc}/io/kroxylicious/proxy/filter/package-summary.html#implementing.threadSafety[`io.kroxylicious.proxy.filter`]
+package javadoc for more information on thread-safety.
+
 === Filter Patterns
 
 Kroxylicious Protocol Filters support several patterns:
@@ -456,10 +459,10 @@ response.
 <3> We use a computation stage to mutate the filtered fetch request using the response from the request sent at <1>.
 <4> We use another computation stage to forward the mutated request.
 
-NOTE: Kroxylicious provides the guarantee that computation stages are executed on the same thread as the rest of the
-Filter work, so we can safely mutate Filter members without synchronising.  See the
-{api-javadoc}/io/kroxylicious/proxy/filter/package-summary.html[`io.kroxylicious.proxy.filter`] package javadoc for more
-information on thread safety.
+NOTE: Kroxylicious provides the guarantee that computation stages chained using the _default execution methods_ are
+executed on the same thread as the rest of the Filter work, so we can safely mutate Filter members without synchronising.
+See the {api-javadoc}/io/kroxylicious/proxy/filter/package-summary.html#implementing.threadSafety[`io.kroxylicious.proxy.filter`]
+package javadoc for more information on thread-safety.
 
 As you can see, we need to know the API version we want our message to be encoded at. This must be done carefully as we
 currently do not have a mechanism for your Filter to know the supported API versions of the Cluster. If
