@@ -6,7 +6,7 @@
 
 package io.kroxylicious.proxy.micrometer;
 
-import org.jetbrains.annotations.NotNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.service.ConfigurationDefinition;
@@ -14,7 +14,7 @@ import io.kroxylicious.proxy.service.Context;
 
 public class TestMicrometerConfigurationHookContributor implements MicrometerConfigurationHookContributor {
 
-    @NotNull
+    @NonNull
     @Override
     public String getTypeName() {
         return SHORT_NAME;

@@ -6,7 +6,7 @@
 
 package io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider;
 
-import org.jetbrains.annotations.NotNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 import io.kroxylicious.proxy.clusternetworkaddressconfigprovider.ClusterNetworkAddressConfigProviderContributor;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
@@ -17,7 +17,7 @@ public class TestClusterNetworkAddressConfigProviderContributor implements Clust
 
     public static final String SHORT_NAME = "test";
 
-    @NotNull
+    @NonNull
     @Override
     public String getTypeName() {
         return SHORT_NAME;
