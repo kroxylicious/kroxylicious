@@ -6,11 +6,11 @@
 
 package io.kroxylicious.proxy.micrometer;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.service.ConfigurationDefinition;
 import io.kroxylicious.proxy.service.Context;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 public class TestMicrometerConfigurationHookContributor implements MicrometerConfigurationHookContributor {
 

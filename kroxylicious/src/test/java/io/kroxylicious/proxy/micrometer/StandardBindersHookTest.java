@@ -17,6 +17,9 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.binder.MeterBinder;
 import io.micrometer.core.instrument.composite.CompositeMeterRegistry;
 
+import io.kroxylicious.proxy.micrometer.StandardBindersHook.StandardBindersHookConfig;
+import io.kroxylicious.proxy.service.ConfigurationDefinition;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.verify;
@@ -35,7 +38,7 @@ class StandardBindersHookTest {
 
     @Test
     void testNullBinderNames() {
-        try (StandardBindersHook hook = new StandardBindersHook(new StandardBindersHook.StandardBindersHookConfig(null))) {
+        try (StandardBindersHook hook = new StandardBindersHook(new StandardBindersHookConfig(null))) {
             MeterRegistry registry = whenRegistryConfiguredWith(hook);
             thenNoMetersRegistered(registry);
         }
@@ -43,7 +46,7 @@ class StandardBindersHookTest {
 
     @Test
     void testEmptyBinderNames() {
-        try (StandardBindersHook hook = new StandardBindersHook(new StandardBindersHook.StandardBindersHookConfig(List.of()))) {
+        try (StandardBindersHook hook = new StandardBindersHook(new StandardBindersHookConfig(List.of()))) {
             MeterRegistry registry = whenRegistryConfiguredWith(hook);
             thenNoMetersRegistered(registry);
         }
@@ -51,7 +54,7 @@ class StandardBindersHookTest {
 
     @Test
     void testKnownBinder() {
-        try (StandardBindersHook hook = new StandardBindersHook(new StandardBindersHook.StandardBindersHookConfig(List.of("UptimeMetrics")))) {
+        try (StandardBindersHook hook = new StandardBindersHook(new StandardBindersHookConfig(List.of("UptimeMetrics")))) {
             MeterRegistry registry = whenRegistryConfiguredWith(hook);
             thenUptimeMeterRegistered(registry);
         }
@@ -59,14 +62,14 @@ class StandardBindersHookTest {
 
     @Test
     void testUnknownBinder() {
-        try (StandardBindersHook hook = new StandardBindersHook(new StandardBindersHook.StandardBindersHookConfig(List.of("SadClown")))) {
+        try (StandardBindersHook hook = new StandardBindersHook(new StandardBindersHookConfig(List.of("SadClown")))) {
             assertThatThrownBy(() -> whenRegistryConfiguredWith(hook)).isInstanceOf(IllegalArgumentException.class);
         }
     }
 
     @Test
     void testAutoCloseableBindingClosed() throws Exception {
-        var hook = new StandardBindersHook(new StandardBindersHook.StandardBindersHookConfig(List.of(AUTO_CLOSEABLE_BINDER))) {
+        var hook = new StandardBindersHook(new StandardBindersHookConfig(List.of(AUTO_CLOSEABLE_BINDER))) {
             @Override
             protected MeterBinder getBinder(String binderName) {
                 if (binderName.equals(AUTO_CLOSEABLE_BINDER)) {
@@ -80,6 +83,15 @@ class StandardBindersHookTest {
 
         hook.close();
         verify(((AutoCloseable) closeableBinder)).close();
+    }
+
+    @Test
+    void testContributor() {
+        StandardBindersHook.Contributor contributor = new StandardBindersHook.Contributor();
+        assertThat(contributor.getTypeName()).isEqualTo("StandardBinders");
+        assertThat(contributor.getConfigDefinition()).isEqualTo(new ConfigurationDefinition(StandardBindersHookConfig.class, true));
+        MicrometerConfigurationHook hook = contributor.getInstance(() -> new StandardBindersHookConfig(List.of("UptimeMetrics")));
+        assertThat(hook).isNotNull().isInstanceOf(StandardBindersHook.class);
     }
 
     private static void thenUptimeMeterRegistered(MeterRegistry registry) {

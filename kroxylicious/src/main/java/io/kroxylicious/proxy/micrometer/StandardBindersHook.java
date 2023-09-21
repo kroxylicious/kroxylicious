@@ -8,8 +8,6 @@ package io.kroxylicious.proxy.micrometer;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,6 +29,8 @@ import io.micrometer.core.instrument.binder.system.UptimeMetrics;
 import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.service.ConfigurationDefinition;
 import io.kroxylicious.proxy.service.Context;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 public class StandardBindersHook implements MicrometerConfigurationHook {
     private static final Logger log = LoggerFactory.getLogger(StandardBindersHook.class);

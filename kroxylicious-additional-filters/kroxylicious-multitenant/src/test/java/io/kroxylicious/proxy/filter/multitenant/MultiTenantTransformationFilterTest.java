@@ -18,6 +18,7 @@ import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -25,6 +26,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.flipkart.zjsonpatch.JsonDiff;
@@ -32,6 +34,7 @@ import com.google.common.reflect.ClassPath;
 import com.google.common.reflect.ClassPath.ResourceInfo;
 
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
+import io.kroxylicious.proxy.filter.FilterConstructContext;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.FilterInvoker;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
@@ -145,5 +148,12 @@ class MultiTenantTransformationFilterTest {
 
         var filtered = responseWriter.apply(forward, header.requestApiVersion());
         assertEquals(responseTestDef.expectedPatch(), JsonDiff.asJson(marshalled, filtered));
+    }
+
+    @Test
+    void testContributor() {
+        MultiTenantTransformationFilter.Contributor contributor = new MultiTenantTransformationFilter.Contributor();
+        assertThat(contributor.getTypeName()).isEqualTo("MultiTenant");
+        assertThat(contributor.getInstance(Mockito.mock(FilterConstructContext.class))).isInstanceOf(MultiTenantTransformationFilter.class);
     }
 }

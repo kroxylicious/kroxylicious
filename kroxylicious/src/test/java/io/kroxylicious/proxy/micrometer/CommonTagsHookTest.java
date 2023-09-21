@@ -15,6 +15,8 @@ import io.micrometer.core.instrument.Meter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.composite.CompositeMeterRegistry;
 
+import io.kroxylicious.proxy.service.ConfigurationDefinition;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -49,6 +51,15 @@ class CommonTagsHookTest {
         MeterRegistry registry = givenRegistryConfiguredWith(commonTagsHook);
         Meter meter = whenCreateArbitraryMeter(registry);
         thenTagsEmpty(meter);
+    }
+
+    @Test
+    void testContributor() {
+        CommonTagsHook.Contributor contributor = new CommonTagsHook.Contributor();
+        assertThat(contributor.getTypeName()).isEqualTo("CommonTags");
+        assertThat(contributor.getConfigDefinition()).isEqualTo(new ConfigurationDefinition(CommonTagsHook.CommonTagsHookConfig.class, true));
+        MicrometerConfigurationHook hook = contributor.getInstance(() -> new CommonTagsHook.CommonTagsHookConfig(Map.of()));
+        assertThat(hook).isNotNull().isInstanceOf(CommonTagsHook.class);
     }
 
     private static void thenTagsEmpty(Meter counter) {

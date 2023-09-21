@@ -9,8 +9,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,6 +20,8 @@ import io.micrometer.core.instrument.Tag;
 import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.service.ConfigurationDefinition;
 import io.kroxylicious.proxy.service.Context;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 public class CommonTagsHook implements MicrometerConfigurationHook {
 
