@@ -5,6 +5,8 @@
  */
 package io.kroxylicious.proxy.service;
 
+import io.kroxylicious.proxy.config.BaseConfig;
+
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
@@ -15,6 +17,8 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * @param <S> the context type
  */
 public interface Contributor<T, S extends Context> {
+
+    ConfigurationDefinition NO_CONFIGURATION = new ConfigurationDefinition(BaseConfig.class, false);
 
     /**
      * Identifies the type name this contributor offers.
@@ -27,7 +31,9 @@ public interface Contributor<T, S extends Context> {
      * Defines the configuration requirements of this contributor for the given short name.
      * @return the ConfigurationDefinition for the short name
      */
-    ConfigurationDefinition getConfigDefinition();
+    default ConfigurationDefinition getConfigDefinition() {
+        return NO_CONFIGURATION;
+    }
 
     /**
      * Creates an instance of the service.

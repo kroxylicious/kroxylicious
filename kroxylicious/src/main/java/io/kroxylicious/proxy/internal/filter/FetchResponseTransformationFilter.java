@@ -31,16 +31,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.config.BaseConfig;
+import io.kroxylicious.proxy.filter.ConfigurableFilterContributor;
 import io.kroxylicious.proxy.filter.FetchResponseFilter;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterConstructContext;
 import io.kroxylicious.proxy.filter.FilterContext;
-import io.kroxylicious.proxy.filter.FilterContributor;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.internal.util.MemoryRecordsHelper;
-import io.kroxylicious.proxy.service.ConfigurationDefinition;
-
-import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
  * An filter for modifying the key/value/header/topic of {@link ApiKeys#FETCH} responses.
@@ -137,22 +134,15 @@ public class FetchResponseTransformationFilter implements FetchResponseFilter {
         }
     }
 
-    public static class Contributor implements FilterContributor {
+    public static class Contributor extends ConfigurableFilterContributor<FetchResponseTransformationConfig> {
 
-        @NonNull
-        @Override
-        public String getTypeName() {
-            return "FetchResponseTransformation";
+        public Contributor() {
+            super("FetchResponseTransformation", FetchResponseTransformationConfig.class, true);
         }
 
         @Override
-        public ConfigurationDefinition getConfigDefinition() {
-            return new ConfigurationDefinition(FetchResponseTransformationConfig.class, true);
-        }
-
-        @Override
-        public Filter getInstance(FilterConstructContext context) {
-            return new FetchResponseTransformationFilter((FetchResponseTransformationConfig) context.getConfig());
+        protected Filter getInstance(FilterConstructContext context, FetchResponseTransformationConfig config) {
+            return new FetchResponseTransformationFilter(config);
         }
     }
 }

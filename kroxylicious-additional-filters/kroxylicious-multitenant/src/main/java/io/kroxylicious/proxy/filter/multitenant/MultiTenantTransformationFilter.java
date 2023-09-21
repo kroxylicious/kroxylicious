@@ -54,7 +54,6 @@ import org.apache.kafka.common.message.TxnOffsetCommitResponseData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.filter.AddOffsetsToTxnRequestFilter;
 import io.kroxylicious.proxy.filter.AddPartitionsToTxnRequestFilter;
 import io.kroxylicious.proxy.filter.AddPartitionsToTxnResponseFilter;
@@ -100,7 +99,6 @@ import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.filter.SyncGroupRequestFilter;
 import io.kroxylicious.proxy.filter.TxnOffsetCommitRequestFilter;
 import io.kroxylicious.proxy.filter.TxnOffsetCommitResponseFilter;
-import io.kroxylicious.proxy.service.ConfigurationDefinition;
 
 /**
  * Simple multi-tenant filter.
@@ -509,11 +507,6 @@ public class MultiTenantTransformationFilter
         @Override
         public String getTypeName() {
             return "MultiTenant";
-        }
-
-        @Override
-        public ConfigurationDefinition getConfigDefinition() {
-            return new ConfigurationDefinition(BaseConfig.class, false);
         }
 
         @Override
