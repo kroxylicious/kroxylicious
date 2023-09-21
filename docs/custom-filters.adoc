@@ -505,26 +505,17 @@ public class FetchFilter implements FetchRequestFilter {
 :github-sample-contributor: {github}/blob/main/kroxylicious-sample/src/main/java/io/kroxylicious/sample/SampleContributor.java
 
 For Kroxylicious to instantiate and configure your custom filter we use Java's {java-17-javadoc}/java.base/java/util/ServiceLoader.html[ServiceLoader] API.
-A Custom Filter JAR should provide a {api-javadoc}/io/kroxylicious/proxy/filter/FilterContributor.html[FilterContributor] implementation that can contribute an instance of your custom Filter and
-optionally declare a configuration class that Kroxylicious will populate (using Jackson) when loading your custom Filter.
-The module must package a `META-INF/services/io.kroxylicious.proxy.filter.FilterContributor` file containing the
-classname of the contributor into the JAR file.
+Each Custom Filter should provide a corresponding {api-javadoc}/io/kroxylicious/proxy/filter/FilterContributor.html[FilterContributor]
+implementation that can contribute an instance of your custom Filter and optionally declare a configuration class that Kroxylicious will
+populate (using Jackson) when loading your custom Filter. The module must package a `META-INF/services/io.kroxylicious.proxy.filter.FilterContributor` 
+file containing the classnames of each contributor into the JAR file.
 
-A convenience is provided to simplify building FilterContributors, the {api-javadoc}/io/kroxylicious/proxy/service/BaseContributor.html[BaseContributor]. See the {github-sample-contributor}[SampleContributor] for
-an example implementation (and corresponding {github}/blob/main/kroxylicious-sample/src/main/resources/META-INF/services/io.kroxylicious.proxy.filter.FilterContributor[service metadata]).
-
-For simple integration with the BaseContributor a Custom Protocol Filter may have:
-
-1. No Constructor
-2. A no-arguments Constructor
-3. A Constructor where the only parameter is a class that extends {api-javadoc}/io/kroxylicious/proxy/config/BaseConfig.html[BaseConfig].
-
-If you use style 3, you will supply a custom configuration class. This class must be deserializable using https://github.com/FasterXML/jackson[FasterXML/Jackson]
-we use this to load filter configuration from the Kroxylicious configuration file into your custom class.
+A convenience abstract class is provided to simplify building FilterContributors for Filters that require configuration, the {api-javadoc}/io/kroxylicious/proxy/filter/ConfigurableFilterContributor.html[ConfigurableFilterContributor].
+See the {github-sample-contributor}[SampleContributor] for an example implementation (and corresponding {github}/blob/main/kroxylicious-sample/src/main/resources/META-INF/services/io.kroxylicious.proxy.filter.FilterContributor[service metadata]).
 
 For example in the kroxylicious-samples we have the {github}/blob/main/kroxylicious-sample/src/main/java/io/kroxylicious/sample/config/SampleFilterConfig.java[SampleFilterConfig] class.
-This is used in the {github-sample-contributor}[SampleContributor] when building up the mappings and then again in the
-constructors of the Filters (see {github}/blob/main/kroxylicious-sample/src/main/java/io/kroxylicious/sample/SampleFetchResponseFilter.java[SampleFetchResponseFilter]).
+This is used in the {github}/blob/main/kroxylicious-sample/src/main/java/io/kroxylicious/sample/SampleFetchResponseFilter.java[SampleFetchResponseFilter]) when configuring the
+Contributor inner class.
 
 Then, when we configure a filter in Kroxylicious configuration like:
 
