@@ -23,11 +23,13 @@ public class TestClusterNetworkAddressConfigProviderContributor implements Clust
         return SHORT_NAME;
     }
 
+    @NonNull
     @Override
     public ConfigurationDefinition getConfigDefinition() {
         return new ConfigurationDefinition(Config.class, true);
     }
 
+    @NonNull
     @Override
     public ClusterNetworkAddressConfigProvider getInstance(Context context) {
         return new TestClusterNetworkAddressConfigProvider(SHORT_NAME, context.getConfig(), context);

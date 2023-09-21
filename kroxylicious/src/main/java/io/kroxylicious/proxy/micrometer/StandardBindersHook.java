@@ -8,6 +8,8 @@ package io.kroxylicious.proxy.micrometer;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -94,16 +96,19 @@ public class StandardBindersHook implements MicrometerConfigurationHook {
 
     public static class Contributor implements MicrometerConfigurationHookContributor {
 
+        @NonNull
         @Override
         public String getTypeName() {
             return "StandardBinders";
         }
 
+        @NonNull
         @Override
         public ConfigurationDefinition getConfigDefinition() {
             return new ConfigurationDefinition(StandardBindersHookConfig.class, true);
         }
 
+        @NonNull
         @Override
         public MicrometerConfigurationHook getInstance(Context context) {
             return new StandardBindersHook((StandardBindersHookConfig) context.getConfig());

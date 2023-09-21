@@ -20,11 +20,13 @@ public class TestMicrometerConfigurationHookContributor implements MicrometerCon
         return SHORT_NAME;
     }
 
+    @NonNull
     @Override
     public ConfigurationDefinition getConfigDefinition() {
         return new ConfigurationDefinition(Config.class, true);
     }
 
+    @NonNull
     @Override
     public MicrometerConfigurationHook getInstance(Context context) {
         return new TestHook(SHORT_NAME, context.getConfig(), context);

@@ -9,6 +9,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,16 +54,19 @@ public class CommonTagsHook implements MicrometerConfigurationHook {
 
     public static class Contributor implements MicrometerConfigurationHookContributor {
 
+        @NonNull
         @Override
         public String getTypeName() {
             return "CommonTags";
         }
 
+        @NonNull
         @Override
         public ConfigurationDefinition getConfigDefinition() {
             return new ConfigurationDefinition(CommonTagsHookConfig.class, true);
         }
 
+        @NonNull
         @Override
         public MicrometerConfigurationHook getInstance(Context context) {
             return new CommonTagsHook((CommonTagsHookConfig) context.getConfig());

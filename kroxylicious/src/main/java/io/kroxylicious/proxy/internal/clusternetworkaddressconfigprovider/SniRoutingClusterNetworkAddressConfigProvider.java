@@ -12,6 +12,8 @@ import java.util.regex.Pattern;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 import io.kroxylicious.proxy.clusternetworkaddressconfigprovider.ClusterNetworkAddressConfigProviderContributor;
 import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
@@ -141,16 +143,19 @@ public class SniRoutingClusterNetworkAddressConfigProvider implements ClusterNet
 
     public static class Contributor implements ClusterNetworkAddressConfigProviderContributor {
 
+        @NonNull
         @Override
         public String getTypeName() {
             return "SniRouting";
         }
 
+        @NonNull
         @Override
         public ConfigurationDefinition getConfigDefinition() {
             return new ConfigurationDefinition(SniRoutingClusterNetworkAddressConfigProviderConfig.class, true);
         }
 
+        @NonNull
         @Override
         public ClusterNetworkAddressConfigProvider getInstance(Context context) {
             return new SniRoutingClusterNetworkAddressConfigProvider((SniRoutingClusterNetworkAddressConfigProviderConfig) context.getConfig());
