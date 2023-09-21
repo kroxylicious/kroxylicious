@@ -18,16 +18,21 @@ import org.apache.kafka.common.protocol.Errors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.kroxylicious.proxy.filter.Filter;
+import io.kroxylicious.proxy.filter.FilterConstructContext;
 import io.kroxylicious.proxy.filter.FilterContext;
+import io.kroxylicious.proxy.filter.FilterContributor;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
 import io.kroxylicious.proxy.filter.ProduceResponseFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
+import io.kroxylicious.proxy.filter.schema.config.ValidationConfig;
 import io.kroxylicious.proxy.filter.schema.validation.request.ProduceRequestValidationResult;
 import io.kroxylicious.proxy.filter.schema.validation.request.ProduceRequestValidator;
 import io.kroxylicious.proxy.filter.schema.validation.topic.PartitionValidationResult;
 import io.kroxylicious.proxy.filter.schema.validation.topic.RecordValidationFailure;
 import io.kroxylicious.proxy.filter.schema.validation.topic.TopicValidationResult;
+import io.kroxylicious.proxy.service.ConfigurationDefinition;
 
 /**
  * A Filter that is intended to validate some criteria about each topic-partition, preventing
@@ -186,5 +191,25 @@ public class ProduceValidationFilter implements ProduceRequestFilter, ProduceRes
             response.setErrorMessage(toErrorString(partitionValidationResult.recordValidationFailures()));
             topicProduceResponse.partitionResponses().add(response);
         });
+    }
+
+    public static class Contributor implements FilterContributor {
+
+        @Override
+        public String getTypeName() {
+            return "ProduceValidator";
+        }
+
+        @Override
+        public ConfigurationDefinition getConfigDefinition() {
+            return new ConfigurationDefinition(ValidationConfig.class, true);
+        }
+
+        @Override
+        public Filter getInstance(FilterConstructContext context) {
+            ValidationConfig config = (ValidationConfig) context.getConfig();
+            ProduceRequestValidator validator = ProduceValidationFilterBuilder.build(config);
+            return new ProduceValidationFilter(config.isForwardPartialRequests(), validator);
+        }
     }
 }

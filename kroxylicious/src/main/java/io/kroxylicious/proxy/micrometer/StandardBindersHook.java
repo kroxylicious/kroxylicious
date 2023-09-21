@@ -27,6 +27,8 @@ import io.micrometer.core.instrument.binder.system.ProcessorMetrics;
 import io.micrometer.core.instrument.binder.system.UptimeMetrics;
 
 import io.kroxylicious.proxy.config.BaseConfig;
+import io.kroxylicious.proxy.service.ConfigurationDefinition;
+import io.kroxylicious.proxy.service.Context;
 
 public class StandardBindersHook implements MicrometerConfigurationHook {
     private static final Logger log = LoggerFactory.getLogger(StandardBindersHook.class);
@@ -88,5 +90,24 @@ public class StandardBindersHook implements MicrometerConfigurationHook {
             case "JvmThreadMetrics" -> new JvmThreadMetrics();
             default -> throw new IllegalArgumentException("no binder available for " + binderName);
         };
+    }
+
+    public static class Contributor implements MicrometerConfigurationHookContributor {
+
+        @Override
+        public String getTypeName() {
+            return "StandardBinders";
+        }
+
+        @Override
+        public ConfigurationDefinition getConfigDefinition() {
+            return new ConfigurationDefinition(StandardBindersHookConfig.class, true);
+        }
+
+        @Override
+        public MicrometerConfigurationHook getInstance(Context context) {
+            return new StandardBindersHook((StandardBindersHookConfig) context.getConfig());
+        }
+
     }
 }

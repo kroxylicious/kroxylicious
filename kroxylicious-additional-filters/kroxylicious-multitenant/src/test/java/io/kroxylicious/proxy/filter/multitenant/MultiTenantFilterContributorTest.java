@@ -19,23 +19,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 class MultiTenantFilterContributorTest {
 
     @Test
-    void testGetConfigType() {
-        MultiTenantFilterContributor contributor = new MultiTenantFilterContributor();
-        Class<? extends BaseConfig> configType = contributor.getConfigType("MultiTenant");
-        assertThat(configType).isEqualTo(BaseConfig.class);
-    }
-
-    @Test
     void testGetConfigTypeViaConfigurationDefinition() {
-        MultiTenantFilterContributor contributor = new MultiTenantFilterContributor();
-        ConfigurationDefinition actualConfigurationDefinition = contributor.getConfigDefinition("MultiTenant");
+        MultiTenantTransformationFilter.Contributor contributor = new MultiTenantTransformationFilter.Contributor();
+        ConfigurationDefinition actualConfigurationDefinition = contributor.getConfigDefinition();
         assertThat(actualConfigurationDefinition).isNotNull().hasFieldOrPropertyWithValue("configurationType", BaseConfig.class);
     }
 
     @Test
     void testGetInstance() {
-        MultiTenantFilterContributor contributor = new MultiTenantFilterContributor();
-        Filter filter = contributor.getInstance("MultiTenant", Mockito.mock(FilterConstructContext.class));
+        MultiTenantTransformationFilter.Contributor contributor = new MultiTenantTransformationFilter.Contributor();
+        Filter filter = contributor.getInstance(Mockito.mock(FilterConstructContext.class));
         assertThat(filter).isNotNull().isInstanceOf(MultiTenantTransformationFilter.class);
     }
 

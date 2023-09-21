@@ -9,7 +9,6 @@ package io.kroxylicious.proxy.service;
 import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.BiFunction;
 import java.util.function.Function;
 
 @SuppressWarnings({ "rawtypes", "unchecked" })
@@ -29,18 +28,18 @@ public class ContributionManager {
     }
 
     public <T, C extends Context, S extends Contributor<T, C>> ConfigurationDefinition getDefinition(Class<S> contributorClass, String typeName) {
-        return findContributor(contributorClass, typeName, (typName, contributor) -> contributor.getConfigDefinition(typName));
+        return findContributor(contributorClass, typeName, Contributor::getConfigDefinition);
     }
 
     public <T, C extends Context, S extends Contributor<T, C>> T getInstance(Class<S> contributorClass, String typeName, C constructionContext) {
-        return findContributor(contributorClass, typeName, (typName, contributor) -> contributor.getInstance(typeName, constructionContext));
+        return findContributor(contributorClass, typeName, (contributor) -> contributor.getInstance(constructionContext));
     }
 
-    private <T, C extends Context, S extends Contributor<T, C>, X> X findContributor(Class<S> contributorClass, String typeName, BiFunction<String, S, X> extractor) {
+    private <T, C extends Context, S extends Contributor<T, C>, X> X findContributor(Class<S> contributorClass, String typeName, Function<S, X> extractor) {
         final Iterable<S> contributorsForClass = this.contributors.computeIfAbsent(contributorClass, loaderFunction);
         for (S contributor : contributorsForClass) {
-            if (contributor.contributes(typeName)) {
-                return extractor.apply(typeName, contributor);
+            if (contributor.getTypeName().equals(typeName)) {
+                return extractor.apply(contributor);
             }
         }
         throw new IllegalArgumentException("Name '" + typeName + "' is not contributed by any " + contributorClass);

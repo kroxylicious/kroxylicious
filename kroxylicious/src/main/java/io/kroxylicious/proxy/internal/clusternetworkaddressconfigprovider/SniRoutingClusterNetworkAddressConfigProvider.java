@@ -12,8 +12,11 @@ import java.util.regex.Pattern;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import io.kroxylicious.proxy.clusternetworkaddressconfigprovider.ClusterNetworkAddressConfigProviderContributor;
 import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
+import io.kroxylicious.proxy.service.ConfigurationDefinition;
+import io.kroxylicious.proxy.service.Context;
 import io.kroxylicious.proxy.service.HostPort;
 
 import static io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.BrokerAddressPatternUtils.EXPECTED_TOKEN_SET;
@@ -132,6 +135,25 @@ public class SniRoutingClusterNetworkAddressConfigProvider implements ClusterNet
 
         public HostPort getBootstrapAddress() {
             return bootstrapAddress;
+        }
+
+    }
+
+    public static class Contributor implements ClusterNetworkAddressConfigProviderContributor {
+
+        @Override
+        public String getTypeName() {
+            return "SniRouting";
+        }
+
+        @Override
+        public ConfigurationDefinition getConfigDefinition() {
+            return new ConfigurationDefinition(SniRoutingClusterNetworkAddressConfigProviderConfig.class, true);
+        }
+
+        @Override
+        public ClusterNetworkAddressConfigProvider getInstance(Context context) {
+            return new SniRoutingClusterNetworkAddressConfigProvider((SniRoutingClusterNetworkAddressConfigProviderConfig) context.getConfig());
         }
 
     }

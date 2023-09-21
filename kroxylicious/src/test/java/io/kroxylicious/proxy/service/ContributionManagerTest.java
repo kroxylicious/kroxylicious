@@ -7,9 +7,9 @@
 package io.kroxylicious.proxy.service;
 
 import java.util.List;
-import java.util.Objects;
 import java.util.function.Function;
 
+import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -119,23 +119,19 @@ class ContributionManagerTest {
             this.value = value;
         }
 
+        @NotNull
         @Override
-        public boolean contributes(String typeName) {
-            return Objects.equals(this.myTypeName, typeName);
+        public String getTypeName() {
+            return myTypeName;
         }
 
         @Override
-        public Class<? extends BaseConfig> getConfigType(String shortName) {
-            return LongConfig.class;
-        }
-
-        @Override
-        public ConfigurationDefinition getConfigDefinition(String shortName) {
+        public ConfigurationDefinition getConfigDefinition() {
             return new ConfigurationDefinition(LongConfig.class, true);
         }
 
         @Override
-        public Long getInstance(String shortName, Context context) {
+        public Long getInstance(Context context) {
             return value;
         }
     }
@@ -156,23 +152,19 @@ class ContributionManagerTest {
             this.configurationType = configurationType;
         }
 
+        @NotNull
         @Override
-        public boolean contributes(String typeName) {
-            return Objects.equals(this.myTypeName, typeName);
+        public String getTypeName() {
+            return myTypeName;
         }
 
         @Override
-        public Class<? extends BaseConfig> getConfigType(String shortName) {
-            return getConfigDefinition(shortName).configurationType();
-        }
-
-        @Override
-        public ConfigurationDefinition getConfigDefinition(String shortName) {
+        public ConfigurationDefinition getConfigDefinition() {
             return new ConfigurationDefinition(configurationType, true);
         }
 
         @Override
-        public String getInstance(String shortName, Context context) {
+        public String getInstance(Context context) {
             return value;
         }
     }

@@ -17,6 +17,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.kroxylicious.proxy.config.BaseConfig;
+import io.kroxylicious.proxy.service.ConfigurationDefinition;
 
 public class CompositePrefixingFixedClientIdFilter implements CompositeFilter {
 
@@ -48,6 +49,24 @@ public class CompositePrefixingFixedClientIdFilter implements CompositeFilter {
         public CompositePrefixingFixedClientIdFilterConfig(@JsonProperty("prefix") String prefix, @JsonProperty("clientId") String clientId) {
             this.prefix = prefix;
             this.clientId = clientId;
+        }
+    }
+
+    public static class Contributor implements FilterContributor {
+
+        @Override
+        public String getTypeName() {
+            return "CompositePrefixingFixedClientId";
+        }
+
+        @Override
+        public ConfigurationDefinition getConfigDefinition() {
+            return new ConfigurationDefinition(CompositePrefixingFixedClientIdFilterConfig.class, true);
+        }
+
+        @Override
+        public Filter getInstance(FilterConstructContext context) {
+            return new CompositePrefixingFixedClientIdFilter((CompositePrefixingFixedClientIdFilterConfig) context.getConfig());
         }
     }
 }

@@ -1,1 +1,4 @@
-io.kroxylicious.proxy.internal.filter.TestFilterContributor
+io.kroxylicious.proxy.internal.filter.TestFilterContributor$ContributorA
+io.kroxylicious.proxy.internal.filter.TestFilterContributor$ContributorB
+io.kroxylicious.proxy.internal.filter.TestFilterContributor$RequiredConfigContributor
+io.kroxylicious.proxy.internal.filter.TestFilterContributor$OptionalConfigContributor

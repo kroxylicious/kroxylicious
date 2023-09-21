@@ -1,1 +1,2 @@
-io.kroxylicious.proxy.micrometer.DefaultMicrometerConfigurationHookContributor
+io.kroxylicious.proxy.micrometer.CommonTagsHook$Contributor
+io.kroxylicious.proxy.micrometer.StandardBindersHook$Contributor

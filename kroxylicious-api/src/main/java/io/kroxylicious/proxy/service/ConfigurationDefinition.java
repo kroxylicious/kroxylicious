@@ -9,7 +9,7 @@ package io.kroxylicious.proxy.service;
 import io.kroxylicious.proxy.config.BaseConfig;
 
 /**
- * Defines the details of how Contributions interact with configuration for {@link BaseContributor}'s purposes.
+ * Defines the details of how Contributions interact with configuration.
  * <p>
  * configurationRequired allows filter authors to tell Kroxylicious if the filter must be supplied with a config object.
  * If the filter uses configuration to supply optional properties, or it can provide sensible default values for the configuration then it should be set to false.

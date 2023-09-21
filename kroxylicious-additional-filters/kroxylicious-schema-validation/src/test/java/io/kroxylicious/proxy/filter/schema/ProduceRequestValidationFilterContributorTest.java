@@ -11,7 +11,6 @@ import java.util.concurrent.Executors;
 
 import org.junit.jupiter.api.Test;
 
-import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterConstructContext;
 import io.kroxylicious.proxy.filter.schema.config.RecordValidationRule;
@@ -23,24 +22,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ProduceRequestValidationFilterContributorTest {
 
     @Test
-    void testGetConfigType() {
-        ProduceRequestValidationFilterContributor contributor = new ProduceRequestValidationFilterContributor();
-        Class<? extends BaseConfig> configType = contributor.getConfigType("ProduceValidator");
-        assertThat(configType).isEqualTo(ValidationConfig.class);
-    }
-
-    @Test
     void testGetConfigTypeViaConfigurationDefinition() {
-        ProduceRequestValidationFilterContributor contributor = new ProduceRequestValidationFilterContributor();
-        ConfigurationDefinition actualConfigurationDefinition = contributor.getConfigDefinition("ProduceValidator");
+        ProduceValidationFilter.Contributor contributor = new ProduceValidationFilter.Contributor();
+        ConfigurationDefinition actualConfigurationDefinition = contributor.getConfigDefinition();
         assertThat(actualConfigurationDefinition).isNotNull().hasFieldOrPropertyWithValue("configurationType", ValidationConfig.class);
     }
 
     @Test
     void testGetInstance() {
-        ProduceRequestValidationFilterContributor contributor = new ProduceRequestValidationFilterContributor();
+        ProduceValidationFilter.Contributor contributor = new ProduceValidationFilter.Contributor();
         ValidationConfig config = new ValidationConfig(true, List.of(), new RecordValidationRule(null, null));
-        Filter filter = contributor.getInstance("ProduceValidator", FilterConstructContext.wrap(config, () -> Executors.newScheduledThreadPool(1)));
+        Filter filter = contributor.getInstance(FilterConstructContext.wrap(config, () -> Executors.newScheduledThreadPool(1)));
         assertThat(filter).isNotNull().isInstanceOf(ProduceValidationFilter.class);
     }
 

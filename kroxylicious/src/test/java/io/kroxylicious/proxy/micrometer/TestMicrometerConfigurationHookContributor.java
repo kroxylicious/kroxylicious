@@ -6,7 +6,7 @@
 
 package io.kroxylicious.proxy.micrometer;
 
-import java.util.Objects;
+import org.jetbrains.annotations.NotNull;
 
 import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.service.ConfigurationDefinition;
@@ -14,42 +14,26 @@ import io.kroxylicious.proxy.service.Context;
 
 public class TestMicrometerConfigurationHookContributor implements MicrometerConfigurationHookContributor {
 
+    @NotNull
+    @Override
+    public String getTypeName() {
+        return SHORT_NAME;
+    }
+
+    @Override
+    public ConfigurationDefinition getConfigDefinition() {
+        return new ConfigurationDefinition(Config.class, true);
+    }
+
+    @Override
+    public MicrometerConfigurationHook getInstance(Context context) {
+        return new TestHook(SHORT_NAME, context.getConfig(), context);
+    }
+
     public static class Config extends BaseConfig {
 
     }
 
     public static final String SHORT_NAME = "test";
 
-    @Override
-    public boolean contributes(String shortName) {
-        return Objects.equals(SHORT_NAME, shortName);
-    }
-
-    @Override
-    public Class<? extends BaseConfig> getConfigType(String shortName) {
-        if (Objects.equals(shortName, SHORT_NAME)) {
-            return Config.class;
-        }
-        else {
-            return null;
-        }
-    }
-
-    @Override
-    public ConfigurationDefinition getConfigDefinition(String shortName) {
-        if (Objects.equals(shortName, SHORT_NAME)) {
-            return new ConfigurationDefinition(Config.class, true);
-        }
-        else {
-            return null;
-        }
-    }
-
-    @Override
-    public MicrometerConfigurationHook getInstance(String shortName, Context context) {
-        if (!Objects.equals(shortName, SHORT_NAME)) {
-            return null;
-        }
-        return new TestHook(shortName, context.getConfig(), context);
-    }
 }

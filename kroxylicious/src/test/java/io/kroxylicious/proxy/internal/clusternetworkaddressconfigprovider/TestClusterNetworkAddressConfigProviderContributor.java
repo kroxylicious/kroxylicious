@@ -6,10 +6,9 @@
 
 package io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider;
 
-import java.util.Objects;
+import org.jetbrains.annotations.NotNull;
 
 import io.kroxylicious.proxy.clusternetworkaddressconfigprovider.ClusterNetworkAddressConfigProviderContributor;
-import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.ConfigurationDefinition;
 import io.kroxylicious.proxy.service.Context;
@@ -18,32 +17,19 @@ public class TestClusterNetworkAddressConfigProviderContributor implements Clust
 
     public static final String SHORT_NAME = "test";
 
+    @NotNull
     @Override
-    public boolean contributes(String shortName) {
-        return Objects.equals(shortName, SHORT_NAME);
+    public String getTypeName() {
+        return SHORT_NAME;
     }
 
     @Override
-    public Class<? extends BaseConfig> getConfigType(String shortName) {
-        if (!Objects.equals(shortName, SHORT_NAME)) {
-            return null;
-        }
-        return Config.class;
+    public ConfigurationDefinition getConfigDefinition() {
+        return new ConfigurationDefinition(Config.class, true);
     }
 
     @Override
-    public ConfigurationDefinition getConfigDefinition(String shortName) {
-        if (Objects.equals(shortName, SHORT_NAME)) {
-            return new ConfigurationDefinition(Config.class, true);
-        }
-        return null;
-    }
-
-    @Override
-    public ClusterNetworkAddressConfigProvider getInstance(String shortName, Context context) {
-        if (!Objects.equals(shortName, SHORT_NAME)) {
-            return null;
-        }
-        return new TestClusterNetworkAddressConfigProvider(shortName, context.getConfig(), context);
+    public ClusterNetworkAddressConfigProvider getInstance(Context context) {
+        return new TestClusterNetworkAddressConfigProvider(SHORT_NAME, context.getConfig(), context);
     }
 }
