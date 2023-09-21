@@ -13,6 +13,10 @@ import io.kroxylicious.proxy.service.ConfigurationDefinition;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+/**
+ * A Convenience FilterContributor for Filters that require configuration.
+ * @param <T> The Configuration Type
+ */
 public abstract class ConfigurableFilterContributor<T extends BaseConfig> implements FilterContributor {
 
     private final String typeName;
@@ -34,11 +38,13 @@ public abstract class ConfigurableFilterContributor<T extends BaseConfig> implem
         return typeName;
     }
 
+    @NonNull
     @Override
     public ConfigurationDefinition getConfigDefinition() {
         return configDefiniton;
     }
 
+    @NonNull
     @Override
     public Filter getInstance(FilterConstructContext context) {
         try {
@@ -50,5 +56,13 @@ public abstract class ConfigurableFilterContributor<T extends BaseConfig> implem
         }
     }
 
+    /**
+     * Creates an instance of the service.
+     *
+     * @param context   context containing service configuration which may be null if the service instance does not accept configuration.
+     * @param config   the configuration object.
+     * @return the service instance.
+     */
+    @NonNull
     protected abstract Filter getInstance(FilterConstructContext context, T config);
 }

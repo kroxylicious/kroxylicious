@@ -28,9 +28,10 @@ public interface Contributor<T, S extends Context> {
     String getTypeName();
 
     /**
-     * Defines the configuration requirements of this contributor for the given short name.
-     * @return the ConfigurationDefinition for the short name
+     * Defines the configuration requirements of this contributor.
+     * @return the ConfigurationDefinition
      */
+    @NonNull
     default ConfigurationDefinition getConfigDefinition() {
         return NO_CONFIGURATION;
     }
@@ -39,8 +40,9 @@ public interface Contributor<T, S extends Context> {
      * Creates an instance of the service.
      *
      * @param context   context containing service configuration which may be null if the service instance does not accept configuration.
-     * @return the service instance, or null if this contributor does not offer this short name.
+     * @return the service instance.
      */
+    @NonNull
     T getInstance(S context);
 
 }
