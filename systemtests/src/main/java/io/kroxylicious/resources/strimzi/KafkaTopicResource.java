@@ -19,6 +19,9 @@ import io.kroxylicious.resources.manager.ResourceManager;
 
 import static io.kroxylicious.k8s.KubeClusterResource.kubeClient;
 
+/**
+ * The type Kafka topic resource.
+ */
 public class KafkaTopicResource implements ResourceType<KafkaTopic> {
 
     @Override
@@ -53,6 +56,11 @@ public class KafkaTopicResource implements ResourceType<KafkaTopic> {
                 resource.getMetadata().getName(), CustomResourceStatus.Ready, ResourceOperation.getTimeoutForResourceReadiness(resource.getKind()));
     }
 
+    /**
+     * Kafka topic client mixed operation.
+     *
+     * @return the mixed operation
+     */
     public static MixedOperation<KafkaTopic, KafkaTopicList, io.fabric8.kubernetes.client.dsl.Resource<KafkaTopic>> kafkaTopicClient() {
         return kubeClient().getClient().resources(KafkaTopic.class, KafkaTopicList.class);
     }

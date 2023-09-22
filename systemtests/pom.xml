@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  ~ Copyright Kroxylicious Authors.
-  ~
-  ~ Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
-  -->
+
+    Copyright Kroxylicious Authors.
+
+    Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+
+-->
 
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -15,12 +17,12 @@
         <version>0.3.0-SNAPSHOT</version>
     </parent>
 
-    <properties>
-        <java.version>17</java.version>
-        <java.test.version>17</java.test.version>
-        <maven.compiler.release>${java.version}</maven.compiler.release>
-        <maven.compiler.testRelease>${java.test.version}</maven.compiler.testRelease>
-    </properties>
+<!--    <properties>-->
+<!--        <java.version>17</java.version>-->
+<!--        <java.test.version>17</java.test.version>-->
+<!--        <maven.compiler.release>${java.version}</maven.compiler.release>-->
+<!--        <maven.compiler.testRelease>${java.test.version}</maven.compiler.testRelease>-->
+<!--    </properties>-->
 
     <artifactId>systemtests</artifactId>
     <dependencies>
@@ -41,16 +43,17 @@
             <scope>runtime</scope>
             <version>${fabric8.kubernetes.version}</version>
         </dependency>
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <scope>test</scope>
-            <version>4.13.2</version>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>junit</groupId>-->
+<!--            <artifactId>junit</artifactId>-->
+<!--            <scope>test</scope>-->
+<!--            <version>4.13.2</version>-->
+<!--        </dependency>-->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-engine</artifactId>
             <scope>test</scope>
+            <version>${junit.version}</version>
         </dependency>
         <dependency>
             <groupId>org.junit.platform</groupId>
@@ -77,7 +80,18 @@
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
             <artifactId>log4j-slf4j2-impl</artifactId>
-            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.openjdk.jmh</groupId>
+            <artifactId>jmh-core</artifactId>
+            <version>1.37</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers</artifactId>
+            <version>1.19.0</version>
+            <scope>compile</scope>
         </dependency>
     </dependencies>
 
@@ -85,45 +99,68 @@
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-failsafe-plugin</artifactId>
-                <version>3.1.2</version>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>integration-test</goal>
-                            <goal>verify</goal>
-                        </goals>
-                        <configuration>
-                            <includes>
-                                <include>**/ST*.java</include>
-                                <include>**/*ST.java</include>
-                            </includes>
-                            <trimStackTrace>false</trimStackTrace>
-                            <!-- This is workaround for https://issues.apache.org/jira/browse/SUREFIRE-1809 -->
-                            <useModulePath>false</useModulePath>
-                            <statelessTestsetReporter implementation="org.apache.maven.plugin.surefire.extensions.junit5.JUnit5Xml30StatelessReporter">
-                                <disable>false</disable>
-                                <version>3.0</version>
-                                <usePhrasedFileName>false</usePhrasedFileName>
-                                <usePhrasedTestSuiteClassName>true</usePhrasedTestSuiteClassName>
-                                <usePhrasedTestCaseClassName>true</usePhrasedTestCaseClassName>
-                                <usePhrasedTestCaseMethodName>true</usePhrasedTestCaseMethodName>
-                            </statelessTestsetReporter>
-                            <consoleOutputReporter implementation="org.apache.maven.plugin.surefire.extensions.junit5.JUnit5ConsoleOutputReporter">
-                                <disable>false</disable>
-                                <encoding>UTF-8</encoding>
-                                <usePhrasedFileName>true</usePhrasedFileName>
-                            </consoleOutputReporter>
-                            <statelessTestsetInfoReporter implementation="org.apache.maven.plugin.surefire.extensions.junit5.JUnit5StatelessTestsetInfoReporter">
-                                <disable>false</disable>
-                                <usePhrasedFileName>false</usePhrasedFileName>
-                                <usePhrasedClassNameInRunning>false</usePhrasedClassNameInRunning>
-                                <usePhrasedClassNameInTestCaseSummary>true</usePhrasedClassNameInTestCaseSummary>
-                            </statelessTestsetInfoReporter>
-                        </configuration>
-                    </execution>
-                </executions>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>2.22.0</version>
+                <configuration>
+                    <includes>
+                        <include>**/ST*.java</include>
+                        <include>**/*ST.java</include>
+                    </includes>
+                </configuration>
+<!--                <dependencies>-->
+<!--                    <dependency>-->
+<!--                        <groupId>org.junit.jupiter</groupId>-->
+<!--                        <artifactId>junit-jupiter-engine</artifactId>-->
+<!--                        <version>5.10.0</version>-->
+<!--                    </dependency>-->
+<!--                    <dependency>-->
+<!--                        <groupId>org.junit.vintage</groupId>-->
+<!--                        <artifactId>junit-vintage-engine</artifactId>-->
+<!--                        <version>5.10.0</version>-->
+<!--                    </dependency>-->
+<!--                </dependencies>-->
             </plugin>
+<!--            <plugin>-->
+<!--                <groupId>org.apache.maven.plugins</groupId>-->
+<!--                <artifactId>maven-failsafe-plugin</artifactId>-->
+<!--                <version>3.1.2</version>-->
+<!--                <executions>-->
+<!--                    <execution>-->
+<!--                        <goals>-->
+<!--                            <goal>integration-test</goal>-->
+<!--                            <goal>verify</goal>-->
+<!--                        </goals>-->
+<!--                        <configuration>-->
+<!--                            <includes>-->
+<!--                                <include>**/ST*.java</include>-->
+<!--                                <include>**/*ST.java</include>-->
+<!--                            </includes>-->
+<!--                            <trimStackTrace>false</trimStackTrace>-->
+<!--                            &lt;!&ndash; This is workaround for https://issues.apache.org/jira/browse/SUREFIRE-1809 &ndash;&gt;-->
+<!--                            <useModulePath>false</useModulePath>-->
+<!--                            <statelessTestsetReporter implementation="org.apache.maven.plugin.surefire.extensions.junit5.JUnit5Xml30StatelessReporter">-->
+<!--                                <disable>false</disable>-->
+<!--                                <version>3.0</version>-->
+<!--                                <usePhrasedFileName>false</usePhrasedFileName>-->
+<!--                                <usePhrasedTestSuiteClassName>true</usePhrasedTestSuiteClassName>-->
+<!--                                <usePhrasedTestCaseClassName>true</usePhrasedTestCaseClassName>-->
+<!--                                <usePhrasedTestCaseMethodName>true</usePhrasedTestCaseMethodName>-->
+<!--                            </statelessTestsetReporter>-->
+<!--                            <consoleOutputReporter implementation="org.apache.maven.plugin.surefire.extensions.junit5.JUnit5ConsoleOutputReporter">-->
+<!--                                <disable>false</disable>-->
+<!--                                <encoding>UTF-8</encoding>-->
+<!--                                <usePhrasedFileName>true</usePhrasedFileName>-->
+<!--                            </consoleOutputReporter>-->
+<!--                            <statelessTestsetInfoReporter implementation="org.apache.maven.plugin.surefire.extensions.junit5.JUnit5StatelessTestsetInfoReporter">-->
+<!--                                <disable>false</disable>-->
+<!--                                <usePhrasedFileName>false</usePhrasedFileName>-->
+<!--                                <usePhrasedClassNameInRunning>false</usePhrasedClassNameInRunning>-->
+<!--                                <usePhrasedClassNameInTestCaseSummary>true</usePhrasedClassNameInTestCaseSummary>-->
+<!--                            </statelessTestsetInfoReporter>-->
+<!--                        </configuration>-->
+<!--                    </execution>-->
+<!--                </executions>-->
+<!--            </plugin>-->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>

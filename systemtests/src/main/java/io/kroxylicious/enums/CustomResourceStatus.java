@@ -6,9 +6,24 @@
 
 package io.kroxylicious.enums;
 
+/**
+ * The enum Custom resource status.
+ */
 public enum CustomResourceStatus {
+    /**
+     *Ready custom resource status.
+     */
     Ready,
+    /**
+     *Not ready custom resource status.
+     */
     NotReady,
+    /**
+     *Warning custom resource status.
+     */
     Warning,
+    /**
+     *Reconciliation paused custom resource status.
+     */
     ReconciliationPaused
 }

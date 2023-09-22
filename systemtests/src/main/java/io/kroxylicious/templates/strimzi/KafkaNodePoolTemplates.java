@@ -13,8 +13,20 @@ import io.strimzi.api.kafka.model.nodepool.ProcessRoles;
 
 import io.kroxylicious.Constants;
 
+/**
+ * The type Kafka node pool templates.
+ */
 public class KafkaNodePoolTemplates {
 
+    /**
+     * Default kafka node pool kafka node pool builder.
+     *
+     * @param namespaceName the namespace name
+     * @param nodePoolName the node pool name
+     * @param kafkaClusterName the kafka cluster name
+     * @param kafkaReplicas the kafka replicas
+     * @return the kafka node pool builder
+     */
     public static KafkaNodePoolBuilder defaultKafkaNodePool(String namespaceName, String nodePoolName, String kafkaClusterName, int kafkaReplicas) {
         return new KafkaNodePoolBuilder()
                 .withNewMetadata()
@@ -27,6 +39,15 @@ public class KafkaNodePoolTemplates {
                 .endSpec();
     }
 
+    /**
+     * Kafka node pool with broker role kafka node pool builder.
+     *
+     * @param namespaceName the namespace name
+     * @param nodePoolName the node pool name
+     * @param kafkaClusterName the kafka cluster name
+     * @param kafkaReplicas the kafka replicas
+     * @return the kafka node pool builder
+     */
     public static KafkaNodePoolBuilder kafkaNodePoolWithBrokerRole(String namespaceName, String nodePoolName, String kafkaClusterName, int kafkaReplicas) {
         return defaultKafkaNodePool(namespaceName, nodePoolName, kafkaClusterName, kafkaReplicas)
                 .editOrNewSpec()

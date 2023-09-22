@@ -15,6 +15,9 @@ import io.kroxylicious.resources.ResourceType;
 
 import static io.kroxylicious.k8s.KubeClusterResource.kubeClient;
 
+/**
+ * The type Kafka node pool resource.
+ */
 public class KafkaNodePoolResource implements ResourceType<KafkaNodePool> {
     @Override
     public String getKind() {
@@ -46,6 +49,11 @@ public class KafkaNodePoolResource implements ResourceType<KafkaNodePool> {
         return resource != null;
     }
 
+    /**
+     * Kafka node pool client mixed operation.
+     *
+     * @return the mixed operation
+     */
     public static MixedOperation<KafkaNodePool, KafkaNodePoolList, io.fabric8.kubernetes.client.dsl.Resource<KafkaNodePool>> kafkaNodePoolClient() {
         return kubeClient().getClient().resources(KafkaNodePool.class, KafkaNodePoolList.class);
     }

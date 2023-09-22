@@ -10,14 +10,21 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.Constants;
-import io.kroxylicious.k8s.cmd.BaseCmdKubeClient;
 
 import static io.kroxylicious.k8s.KubeClusterResource.kubeClient;
 
+/**
+ * The type Namespace utils.
+ */
 public class NamespaceUtils {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(BaseCmdKubeClient.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(NamespaceUtils.class);
 
+    /**
+     * Delete namespace with wait.
+     *
+     * @param namespace the namespace
+     */
     public static void deleteNamespaceWithWait(String namespace) {
         LOGGER.info("Deleting namespace: {}", namespace);
         kubeClient().deleteNamespace(namespace);

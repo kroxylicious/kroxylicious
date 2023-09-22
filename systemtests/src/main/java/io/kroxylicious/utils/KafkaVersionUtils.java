@@ -6,8 +6,17 @@
 
 package io.kroxylicious.utils;
 
+/**
+ * The type Kafka version utils.
+ */
 public class KafkaVersionUtils {
 
+    /**
+     * Gets kafka protocol version.
+     *
+     * @param kafkaVersion the kafka version
+     * @return the kafka protocol version
+     */
     public static String getKafkaProtocolVersion(String kafkaVersion) {
         String[] splitVersion = kafkaVersion.split("\\.");
 

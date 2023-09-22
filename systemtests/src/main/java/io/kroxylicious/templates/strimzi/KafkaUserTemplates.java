@@ -10,8 +10,19 @@ import io.strimzi.api.kafka.model.KafkaUserBuilder;
 
 import io.kroxylicious.Constants;
 
+/**
+ * The type Kafka user templates.
+ */
 public class KafkaUserTemplates {
 
+    /**
+     * Default user kafka user builder.
+     *
+     * @param namespaceName the namespace name
+     * @param clusterName the cluster name
+     * @param name the name
+     * @return the kafka user builder
+     */
     public static KafkaUserBuilder defaultUser(String namespaceName, String clusterName, String name) {
         return new KafkaUserBuilder()
                 .withNewMetadata()

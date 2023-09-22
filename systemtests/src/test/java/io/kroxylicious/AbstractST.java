@@ -6,6 +6,8 @@
 
 package io.kroxylicious;
 
+import java.io.IOException;
+import java.nio.file.Path;
 import java.util.Collections;
 
 import org.junit.jupiter.api.AfterAll;
@@ -17,6 +19,7 @@ import org.junit.jupiter.api.TestInstance;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.kroxylicious.installation.kroxy.Kroxy;
 import io.kroxylicious.installation.strimzi.Strimzi;
 import io.kroxylicious.k8s.KubeClusterResource;
 import io.kroxylicious.resources.manager.ResourceManager;
@@ -30,6 +33,7 @@ public class AbstractST {
 
     protected static KubeClusterResource cluster;
     protected static Strimzi strimziOperator;
+    protected static Kroxy kroxy;
     protected final ResourceManager resourceManager = ResourceManager.getInstance();
 
     @BeforeEach
@@ -39,24 +43,30 @@ public class AbstractST {
     }
 
     @BeforeAll
-    static void setup() {
+    static void setup() throws IOException {
         cluster = KubeClusterResource.getInstance();
 
         // simple teardown before all tests
-        if (kubeClient().getNamespace(Constants.STRIMZI_DEFAULT_NAMESPACE) != null) {
-            NamespaceUtils.deleteNamespaceWithWait(Constants.STRIMZI_DEFAULT_NAMESPACE);
+        if (kubeClient().getNamespace(Constants.KROXY_DEFAULT_NAMESPACE) != null) {
+            NamespaceUtils.deleteNamespaceWithWait(Constants.KROXY_DEFAULT_NAMESPACE);
         }
 
-        kubeClient().createNamespace(Constants.STRIMZI_DEFAULT_NAMESPACE);
+        kubeClient().createNamespace(Constants.KROXY_DEFAULT_NAMESPACE);
 
-        strimziOperator = new Strimzi(Constants.STRIMZI_DEFAULT_NAMESPACE);
+        strimziOperator = new Strimzi(Constants.KROXY_DEFAULT_NAMESPACE);
         strimziOperator.deploy();
+
+        // start kroxy
+        Path path = Path.of(System.getProperty("user.dir")).getParent();
+        kroxy = new Kroxy(Constants.KROXY_DEFAULT_NAMESPACE, path + Constants.KROXY_KUBE_DIR_PORTPERBROKER);
+        kroxy.deploy();
     }
 
     @AfterAll
     static void teardown() {
         strimziOperator.delete();
-        NamespaceUtils.deleteNamespaceWithWait(Constants.STRIMZI_DEFAULT_NAMESPACE);
+        kroxy.delete();
+        NamespaceUtils.deleteNamespaceWithWait(Constants.KROXY_DEFAULT_NAMESPACE);
     }
 
     @AfterEach

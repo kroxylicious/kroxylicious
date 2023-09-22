@@ -11,11 +11,22 @@ package io.kroxylicious.k8s.cmd;
  */
 public class Kubectl extends BaseCmdKubeClient<Kubectl> {
 
+    /**
+     * The constant KUBECTL.
+     */
     public static final String KUBECTL = "kubectl";
 
+    /**
+     * Instantiates a new Kubectl.
+     */
     public Kubectl() {
     }
 
+    /**
+     * Instantiates a new Kubectl.
+     *
+     * @param futureNamespace the future namespace
+     */
     Kubectl(String futureNamespace) {
         namespace = futureNamespace;
     }

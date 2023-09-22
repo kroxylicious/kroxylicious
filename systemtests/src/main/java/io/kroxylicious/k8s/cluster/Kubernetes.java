@@ -15,9 +15,9 @@ import org.slf4j.LoggerFactory;
 import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 
 import io.kroxylicious.executor.Exec;
+import io.kroxylicious.k8s.KubeClient;
 import io.kroxylicious.k8s.cmd.KubeCmdClient;
 import io.kroxylicious.k8s.cmd.Kubectl;
-import io.kroxylicious.k8s.exception.KubeClient;
 import io.kroxylicious.k8s.exception.KubeClusterException;
 
 /**
@@ -25,6 +25,9 @@ import io.kroxylicious.k8s.exception.KubeClusterException;
  */
 public class Kubernetes implements KubeCluster {
 
+    /**
+     * The constant CMD.
+     */
     public static final String CMD = "kubectl";
     private static final Logger LOGGER = LoggerFactory.getLogger(Kubernetes.class);
 

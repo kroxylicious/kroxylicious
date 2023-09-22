@@ -11,7 +11,6 @@ import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.k8s.cluster.KubeCluster;
 import io.kroxylicious.k8s.cmd.KubeCmdClient;
-import io.kroxylicious.k8s.exception.KubeClient;
 
 /**
  * A Junit resource which discovers the running cluster and provides an appropriate KubeClient for it,
@@ -38,6 +37,11 @@ public class KubeClusterResource {
     private String namespace;
     private String testNamespace;
 
+    /**
+     * Gets instance.
+     *
+     * @return the instance
+     */
     public static synchronized KubeClusterResource getInstance() {
         if (kubeClusterResource == null) {
             kubeClusterResource = new KubeClusterResource();
@@ -56,10 +60,20 @@ public class KubeClusterResource {
         kubeClusterResource.setTestNamespace(cmdKubeClient().defaultNamespace());
     }
 
+    /**
+     * Sets test namespace.
+     *
+     * @param testNamespace the test namespace
+     */
     public void setTestNamespace(String testNamespace) {
         this.testNamespace = testNamespace;
     }
 
+    /**
+     * Sets default namespace.
+     *
+     * @param namespace the namespace
+     */
     public void setDefaultNamespace(String namespace) {
         this.namespace = namespace;
     }
@@ -106,6 +120,11 @@ public class KubeClusterResource {
         return kubeClusterResource.client().namespace(inNamespace);
     }
 
+    /**
+     * Cmd client kube cmd client.
+     *
+     * @return the kube cmd client
+     */
     public KubeCmdClient cmdClient() {
         if (cmdClient == null) {
             cmdClient = cluster().defaultCmdClient();
@@ -113,6 +132,11 @@ public class KubeClusterResource {
         return cmdClient;
     }
 
+    /**
+     * Client kube client.
+     *
+     * @return the kube client
+     */
     public KubeClient client() {
         if (client == null) {
             this.client = cluster().defaultClient();
@@ -120,6 +144,11 @@ public class KubeClusterResource {
         return client;
     }
 
+    /**
+     * Cluster kube cluster.
+     *
+     * @return the kube cluster
+     */
     public KubeCluster cluster() {
         if (kubeCluster == null) {
             kubeCluster = KubeCluster.bootstrap();
@@ -127,6 +156,11 @@ public class KubeClusterResource {
         return kubeCluster;
     }
 
+    /**
+     * Gets test namespace.
+     *
+     * @return the test namespace
+     */
     public String getTestNamespace() {
         return testNamespace;
     }

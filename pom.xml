@@ -420,6 +420,7 @@
                     <version>3.1.2</version>
                     <configuration>
                         <skipTests>${skipITs}</skipTests>
+                        <failIfNoTests>false</failIfNoTests>
                     </configuration>
                 </plugin>
                 <plugin>
@@ -456,6 +457,7 @@
                     <version>3.1.2</version>
                     <configuration>
                         <skipTests>${skipUTs}</skipTests>
+                        <failIfNoTests>false</failIfNoTests>
                         <runOrder>random</runOrder>
                         <statelessTestsetReporter
                                 implementation="org.apache.maven.plugin.surefire.extensions.junit5.JUnit5Xml30StatelessReporter">

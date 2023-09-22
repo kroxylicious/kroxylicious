@@ -18,6 +18,9 @@ import io.kroxylicious.resources.manager.ResourceManager;
 
 import static io.kroxylicious.k8s.KubeClusterResource.kubeClient;
 
+/**
+ * The type Kafka user resource.
+ */
 public class KafkaUserResource implements ResourceType<KafkaUser> {
 
     @Override
@@ -51,6 +54,11 @@ public class KafkaUserResource implements ResourceType<KafkaUser> {
         kafkaUserClient().inNamespace(kafkaUser.getMetadata().getNamespace()).resource(kafkaUser).update();
     }
 
+    /**
+     * Kafka user client mixed operation.
+     *
+     * @return the mixed operation
+     */
     public static MixedOperation<KafkaUser, KafkaUserList, io.fabric8.kubernetes.client.dsl.Resource<KafkaUser>> kafkaUserClient() {
         return kubeClient().getClient().resources(KafkaUser.class, KafkaUserList.class);
     }

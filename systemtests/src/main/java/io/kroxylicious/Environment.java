@@ -10,6 +10,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 
+/**
+ * The type Environment.
+ */
 public class Environment {
 
     private static final Map<String, String> VALUES = new HashMap<>();
@@ -22,7 +25,7 @@ public class Environment {
     /**
      * Env. variables defaults
      */
-    public static final String KAFKA_VERSION_DEFAULT = "3.5.0";
+    public static final String KAFKA_VERSION_DEFAULT = "3.5.1";
 
     /**
      * Env. variables assignment

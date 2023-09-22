@@ -6,7 +6,15 @@
 
 package io.kroxylicious.runner;
 
+/**
+ * The interface Throwable runner.
+ */
 @FunctionalInterface
 public interface ThrowableRunner {
+    /**
+     * Run.
+     *
+     * @throws Exception the exception
+     */
     void run() throws Exception;
 }

@@ -15,20 +15,36 @@ import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.k8s.exception.WaitException;
 
+/**
+ * The type Test utils.
+ */
 public class TestUtils {
     private static final Logger LOGGER = LoggerFactory.getLogger(TestUtils.class);
 
     /**
      * Poll the given {@code ready} function every {@code pollIntervalMs} milliseconds until it returns true,
      * or throw a WaitException if it doesn't returns true within {@code timeoutMs} milliseconds.
-     * @return The remaining time left until timeout occurs
-     * (helpful if you have several calls which need to share a common timeout),
-     * */
+     * @param description the description
+     * @param pollIntervalMs the poll interval ms
+     * @param timeoutMs the timeout ms
+     * @param ready the ready
+     * @return The remaining time left until timeout occurs (helpful if you have several calls which need to share a common timeout),
+     */
     public static long waitFor(String description, long pollIntervalMs, long timeoutMs, BooleanSupplier ready) {
         return waitFor(description, pollIntervalMs, timeoutMs, ready, () -> {
         });
     }
 
+    /**
+     * Wait for long.
+     *
+     * @param description the description
+     * @param pollIntervalMs the poll interval ms
+     * @param timeoutMs the timeout ms
+     * @param ready the ready
+     * @param onTimeout the on timeout
+     * @return the long
+     */
     public static long waitFor(String description, long pollIntervalMs, long timeoutMs, BooleanSupplier ready, Runnable onTimeout) {
         LOGGER.debug("Waiting for {}", description);
         long deadline = System.currentTimeMillis() + timeoutMs;

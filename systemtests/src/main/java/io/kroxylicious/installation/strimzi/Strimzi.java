@@ -13,22 +13,36 @@ import io.kroxylicious.Constants;
 import io.kroxylicious.executor.Exec;
 import io.kroxylicious.utils.DeploymentUtils;
 
+/**
+ * The type Strimzi.
+ */
 public class Strimzi {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Strimzi.class);
 
     private String deploymentNamespace;
 
+    /**
+     * Instantiates a new Strimzi.
+     *
+     * @param deploymentNamespace the deployment namespace
+     */
     public Strimzi(String deploymentNamespace) {
         this.deploymentNamespace = deploymentNamespace;
     }
 
+    /**
+     * Deploy.
+     */
     public void deploy() {
         LOGGER.info("Deploy Strimzi in {} namespace", deploymentNamespace);
         Exec.exec("kubectl", "apply", "-f", "https://strimzi.io/install/latest?namespace=" + deploymentNamespace, "-n", deploymentNamespace);
         DeploymentUtils.waitForDeploymentReady(deploymentNamespace, Constants.STRIMZI_DEPLOYMENT_NAME);
     }
 
+    /**
+     * Delete.
+     */
     public void delete() {
         LOGGER.info("Deleting Strimzi in {} namespace", deploymentNamespace);
         Exec.exec("kubectl", "delete", "-f", "https://strimzi.io/install/latest?namespace=" + deploymentNamespace, "-n", deploymentNamespace);

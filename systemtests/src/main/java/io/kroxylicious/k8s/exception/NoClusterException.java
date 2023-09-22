@@ -6,7 +6,15 @@
 
 package io.kroxylicious.k8s.exception;
 
+/**
+ * The type No cluster exception.
+ */
 public class NoClusterException extends RuntimeException {
+    /**
+     * Instantiates a new No cluster exception.
+     *
+     * @param message the message
+     */
     public NoClusterException(String message) {
         super(message);
     }

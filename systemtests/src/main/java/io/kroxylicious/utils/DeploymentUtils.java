@@ -16,6 +16,9 @@ import io.kroxylicious.Constants;
 import static io.kroxylicious.k8s.KubeClusterResource.cmdKubeClient;
 import static io.kroxylicious.k8s.KubeClusterResource.kubeClient;
 
+/**
+ * The type Deployment utils.
+ */
 public class DeploymentUtils {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DeploymentUtils.class);
@@ -23,6 +26,12 @@ public class DeploymentUtils {
     private static final long READINESS_TIMEOUT = Duration.ofMinutes(8).toMillis();
     private static final long DELETION_TIMEOUT = Duration.ofMinutes(5).toMillis();
 
+    /**
+     * Wait for deployment ready.
+     *
+     * @param namespaceName the namespace name
+     * @param deploymentName the deployment name
+     */
     public static void waitForDeploymentReady(String namespaceName, String deploymentName) {
         LOGGER.info("Waiting for Deployment: {}/{} to be ready", namespaceName, deploymentName);
 

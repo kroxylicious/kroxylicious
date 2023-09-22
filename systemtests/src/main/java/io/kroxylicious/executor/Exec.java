@@ -46,6 +46,9 @@ public class Exec {
     private static final int MAXIMUM_EXEC_LOG_CHARACTER_SIZE = Integer.parseInt(System.getenv().getOrDefault("STRIMZI_EXEC_MAX_LOG_OUTPUT_CHARACTERS", "20000"));
     private static final Object LOCK = new Object();
 
+    /**
+     * The Process.
+     */
     public Process process;
     private String stdOut;
     private String stdErr;
@@ -54,6 +57,9 @@ public class Exec {
     private Path logPath;
     private boolean appendLineSeparator;
 
+    /**
+     * Instantiates a new Exec.
+     */
     public Exec() {
         this.appendLineSeparator = true;
     }
@@ -76,10 +82,20 @@ public class Exec {
         return stdErr;
     }
 
+    /**
+     * Is running boolean.
+     *
+     * @return the boolean
+     */
     public boolean isRunning() {
         return process.isAlive();
     }
 
+    /**
+     * Gets ret code.
+     *
+     * @return the ret code
+     */
     public int getRetCode() {
         LOGGER.info("Process: {}", process);
         if (isRunning()) {
@@ -93,18 +109,40 @@ public class Exec {
     /**
      * Method executes external command
      *
+     * @param dir the dir
      * @param command arguments for command
      * @return execution results
      */
+    public static ExecResult exec(File dir, String... command) {
+        return exec(Arrays.asList(command), dir);
+    }
+
+    /**
+     * Exec exec result.
+     *
+     * @param command the command
+     * @return the exec result
+     */
     public static ExecResult exec(String... command) {
-        return exec(Arrays.asList(command));
+        return exec(Arrays.asList(command), null);
     }
 
     /**
      * Method executes external command
      *
      * @param command arguments for command
+     * @param dir the dir
      * @return execution results
+     */
+    public static ExecResult exec(List<String> command, File dir) {
+        return exec(null, command, 0, false, dir);
+    }
+
+    /**
+     * Exec exec result.
+     *
+     * @param command the command
+     * @return the exec result
      */
     public static ExecResult exec(List<String> command) {
         return exec(null, command, 0, false);
@@ -113,6 +151,7 @@ public class Exec {
     /**
      * Method executes external command
      *
+     * @param input the input
      * @param command arguments for command
      * @return execution results
      */
@@ -122,29 +161,46 @@ public class Exec {
 
     /**
      * Method executes external command
+     * @param input the input
      * @param command arguments for command
      * @param timeout timeout for execution
      * @param logToOutput log output or not
+     * @param dir the dir
      * @return execution results
      */
+    public static ExecResult exec(String input, List<String> command, int timeout, boolean logToOutput, File dir) {
+        return exec(input, command, timeout, logToOutput, true, dir);
+    }
+
+    /**
+     * Exec exec result.
+     *
+     * @param input the input
+     * @param command the command
+     * @param timeout the timeout
+     * @param logToOutput the log to output
+     * @return the exec result
+     */
     public static ExecResult exec(String input, List<String> command, int timeout, boolean logToOutput) {
-        return exec(input, command, timeout, logToOutput, true);
+        return exec(input, command, timeout, logToOutput, true, null);
     }
 
     /**
      * Method executes external command
+     * @param input the input
      * @param command arguments for command
      * @param timeout timeout for execution
      * @param logToOutput log output or not
      * @param throwErrors look for errors in output and throws exception if true
+     * @param dir the dir
      * @return execution results
      */
-    public static ExecResult exec(String input, List<String> command, int timeout, boolean logToOutput, boolean throwErrors) {
+    public static ExecResult exec(String input, List<String> command, int timeout, boolean logToOutput, boolean throwErrors, File dir) {
         int ret = 1;
         ExecResult execResult;
         try {
             Exec executor = new Exec();
-            ret = executor.execute(input, command, timeout);
+            ret = executor.execute(input, command, timeout, dir);
             synchronized (LOCK) {
                 if (logToOutput || ret != 0) {
                     String log = ret != 0 ? "Failed to exec command" : "Command";
@@ -211,18 +267,21 @@ public class Exec {
     /**
      * Method executes external command
      *
+     * @param input the input
      * @param commands arguments for command
-     * @param timeoutMs  timeout in ms for kill
+     * @param timeoutMs timeout in ms for kill
+     * @param dir the dir
      * @return returns ecode of execution
-     * @throws IOException
-     * @throws InterruptedException
-     * @throws ExecutionException
+     * @throws IOException the io exception
+     * @throws InterruptedException the interrupted exception
+     * @throws ExecutionException the execution exception
      */
-    public int execute(String input, List<String> commands, long timeoutMs) throws IOException, InterruptedException, ExecutionException {
+    public int execute(String input, List<String> commands, long timeoutMs, File dir) throws IOException, InterruptedException, ExecutionException {
         LOGGER.trace("Running command - " + join(" ", commands.toArray(new String[0])));
         ProcessBuilder builder = new ProcessBuilder();
         builder.command(commands);
-        builder.directory(new File(System.getProperty("user.dir")));
+        dir = dir == null ? new File(System.getProperty("user.dir")) : dir;
+        builder.directory(dir);
         process = builder.start();
         OutputStream outputStream = process.getOutputStream();
         if (input != null) {
@@ -307,7 +366,7 @@ public class Exec {
     /**
      * Check if command is executable
      * @param cmd command
-     * @return true.false
+     * @return true.false boolean
      */
     public static boolean isExecutableOnPath(String cmd) {
         for (String dir : PATH_SPLITTER.split(System.getenv("PATH"))) {

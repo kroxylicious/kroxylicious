@@ -10,6 +10,12 @@ package io.kroxylicious.enums;
  * Status of the CR, found inside .status.conditions.*.status
  */
 public enum ConditionStatus {
+    /**
+     *True condition status.
+     */
     True,
+    /**
+     *False condition status.
+     */
     False
 }

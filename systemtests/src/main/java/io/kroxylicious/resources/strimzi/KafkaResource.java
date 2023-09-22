@@ -19,6 +19,9 @@ import io.kroxylicious.resources.manager.ResourceManager;
 
 import static io.kroxylicious.k8s.KubeClusterResource.kubeClient;
 
+/**
+ * The type Kafka resource.
+ */
 public class KafkaResource implements ResourceType<Kafka> {
 
     @Override
@@ -53,6 +56,11 @@ public class KafkaResource implements ResourceType<Kafka> {
                 ResourceOperation.getTimeoutForResourceReadiness(Constants.KAFKA_KIND));
     }
 
+    /**
+     * Kafka client mixed operation.
+     *
+     * @return the mixed operation
+     */
     public static MixedOperation<Kafka, KafkaList, io.fabric8.kubernetes.client.dsl.Resource<Kafka>> kafkaClient() {
         return kubeClient().getClient().resources(Kafka.class, KafkaList.class);
     }

@@ -14,8 +14,20 @@ import io.kroxylicious.Constants;
 import io.kroxylicious.Environment;
 import io.kroxylicious.utils.KafkaVersionUtils;
 
+/**
+ * The type Kafka templates.
+ */
 public class KafkaTemplates {
 
+    /**
+     * Kafka persistent kafka builder.
+     *
+     * @param namespaceName the namespace name
+     * @param clusterName the cluster name
+     * @param kafkaReplicas the kafka replicas
+     * @param zkReplicas the zk replicas
+     * @return the kafka builder
+     */
     public static KafkaBuilder kafkaPersistent(String namespaceName, String clusterName, int kafkaReplicas, int zkReplicas) {
         return defaultKafka(namespaceName, clusterName, kafkaReplicas, zkReplicas)
                 .editSpec()

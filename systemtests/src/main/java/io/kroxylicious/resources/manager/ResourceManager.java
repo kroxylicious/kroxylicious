@@ -39,11 +39,22 @@ import io.kroxylicious.utils.TestUtils;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+/**
+ * The type Resource manager.
+ */
 public class ResourceManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(ResourceManager.class);
+    /**
+     * The constant STORED_RESOURCES.
+     */
     public static final Map<String, Stack<Resource>> STORED_RESOURCES = new LinkedHashMap<>();
     private static ResourceManager instance;
 
+    /**
+     * Gets instance.
+     *
+     * @return the instance
+     */
     public static synchronized ResourceManager getInstance() {
         if (instance == null) {
             instance = new ResourceManager();
@@ -58,11 +69,25 @@ public class ResourceManager {
             new KafkaNodePoolResource()
     };
 
+    /**
+     * Create resource without wait.
+     *
+     * @param <T>  the type parameter
+     * @param testInfo the test info
+     * @param resources the resources
+     */
     @SafeVarargs
     public final <T extends HasMetadata> void createResourceWithoutWait(TestInfo testInfo, T... resources) {
         createResource(testInfo, false, resources);
     }
 
+    /**
+     * Create resource with wait.
+     *
+     * @param <T>  the type parameter
+     * @param testInfo the test info
+     * @param resources the resources
+     */
     @SafeVarargs
     public final <T extends HasMetadata> void createResourceWithWait(TestInfo testInfo, T... resources) {
         createResource(testInfo, true, resources);
@@ -100,6 +125,12 @@ public class ResourceManager {
         }
     }
 
+    /**
+     * Delete resource.
+     *
+     * @param <T>  the type parameter
+     * @param resources the resources
+     */
     @SafeVarargs
     public final <T extends HasMetadata> void deleteResource(T... resources) {
         for (T resource : resources) {
@@ -124,6 +155,11 @@ public class ResourceManager {
         }
     }
 
+    /**
+     * Delete resources.
+     *
+     * @param testInfo the test info
+     */
     public void deleteResources(TestInfo testInfo) {
         LOGGER.info(String.join("", Collections.nCopies(76, "#")));
         if (!STORED_RESOURCES.containsKey(testInfo.getDisplayName()) || STORED_RESOURCES.get(testInfo.getDisplayName()).isEmpty()) {
@@ -158,6 +194,14 @@ public class ResourceManager {
         LOGGER.info(String.join("", Collections.nCopies(76, "#")));
     }
 
+    /**
+     * Wait resource condition boolean.
+     *
+     * @param <T>  the type parameter
+     * @param resource the resource
+     * @param condition the condition
+     * @return the boolean
+     */
     public final <T extends HasMetadata> boolean waitResourceCondition(T resource, ResourceCondition<T> condition) {
         assertNotNull(resource);
         assertNotNull(resource.getMetadata());
@@ -194,9 +238,11 @@ public class ResourceManager {
 
     /**
      * Wait until the CR is in desired state
+     * @param <T>  the type parameter
      * @param operation - client of CR - for example kafkaClient()
      * @param resource - custom resource
      * @param statusType - desired status
+     * @param resourceTimeout the resource timeout
      * @return returns CR
      */
     public static <T extends CustomResource<? extends Spec, ? extends Status>> boolean waitForResourceStatus(MixedOperation<T, ?, ?> operation, T resource,
@@ -205,12 +251,37 @@ public class ResourceManager {
                 ConditionStatus.True, resourceTimeout);
     }
 
+    /**
+     * Wait for resource status boolean.
+     *
+     * @param <T>  the type parameter
+     * @param operation the operation
+     * @param kind the kind
+     * @param namespace the namespace
+     * @param name the name
+     * @param statusType the status type
+     * @param resourceTimeoutMs the resource timeout ms
+     * @return the boolean
+     */
     public static <T extends CustomResource<? extends Spec, ? extends Status>> boolean waitForResourceStatus(MixedOperation<T, ?, ?> operation, String kind,
                                                                                                              String namespace, String name, Enum<?> statusType,
                                                                                                              long resourceTimeoutMs) {
         return waitForResourceStatus(operation, kind, namespace, name, statusType, ConditionStatus.True, resourceTimeoutMs);
     }
 
+    /**
+     * Wait for resource status boolean.
+     *
+     * @param <T>  the type parameter
+     * @param operation the operation
+     * @param kind the kind
+     * @param namespace the namespace
+     * @param name the name
+     * @param statusType the status type
+     * @param conditionStatus the condition status
+     * @param resourceTimeoutMs the resource timeout ms
+     * @return the boolean
+     */
     public static <T extends CustomResource<? extends Spec, ? extends Status>> boolean waitForResourceStatus(MixedOperation<T, ?, ?> operation, String kind,
                                                                                                              String namespace, String name, Enum<?> statusType,
                                                                                                              ConditionStatus conditionStatus, long resourceTimeoutMs) {
@@ -227,6 +298,15 @@ public class ResourceManager {
         return true;
     }
 
+    /**
+     * Wait for resource status boolean.
+     *
+     * @param <T>  the type parameter
+     * @param operation the operation
+     * @param resource the resource
+     * @param status the status
+     * @return the boolean
+     */
     public static <T extends CustomResource<? extends Spec, ? extends Status>> boolean waitForResourceStatus(MixedOperation<T, ?, ?> operation, T resource,
                                                                                                              Enum<?> status) {
         long resourceTimeout = ResourceOperation.getTimeoutForResourceReadiness(resource.getKind());

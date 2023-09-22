@@ -23,6 +23,11 @@ import io.kroxylicious.executor.ExecResult;
 
 import static java.util.Arrays.asList;
 
+/**
+ * The type Base cmd kube client.
+ *
+ * @param <K>  the type parameter
+ */
 public abstract class BaseCmdKubeClient<K extends BaseCmdKubeClient<K>> implements KubeCmdClient<K> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BaseCmdKubeClient.class);
@@ -30,10 +35,16 @@ public abstract class BaseCmdKubeClient<K extends BaseCmdKubeClient<K>> implemen
     private static final String APPLY = "apply";
     private static final String DELETE = "delete";
 
+    /**
+     * The Namespace.
+     */
     String namespace = defaultNamespace();
 
     public abstract String cmd();
 
+    /**
+     * The type Context.
+     */
     protected static class Context implements AutoCloseable {
         @Override
         public void close() {
@@ -42,10 +53,21 @@ public abstract class BaseCmdKubeClient<K extends BaseCmdKubeClient<K>> implemen
 
     private static final Context NOOP = new Context();
 
+    /**
+     * Default context context.
+     *
+     * @return the context
+     */
     protected Context defaultContext() {
         return NOOP;
     }
 
+    /**
+     * Namespaced command list.
+     *
+     * @param rest the rest
+     * @return the list
+     */
     protected List<String> namespacedCommand(String... rest) {
         return namespacedCommand(asList(rest));
     }
@@ -101,7 +123,7 @@ public abstract class BaseCmdKubeClient<K extends BaseCmdKubeClient<K>> implemen
         for (File f : files) {
             if (f.isFile()) {
                 if (f.getName().endsWith(".yaml")) {
-                    execResults.put(f, Exec.exec(null, namespacedCommand(subcommand, "-f", f.getAbsolutePath()), 0, false, false));
+                    execResults.put(f, Exec.exec(null, namespacedCommand(subcommand, "-f", f.getAbsolutePath()), 0, false, false, null));
                 }
             }
             else if (f.isDirectory()) {

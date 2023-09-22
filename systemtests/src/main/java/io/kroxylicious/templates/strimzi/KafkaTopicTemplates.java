@@ -10,8 +10,22 @@ import io.strimzi.api.kafka.model.KafkaTopicBuilder;
 
 import io.kroxylicious.Constants;
 
+/**
+ * The type Kafka topic templates.
+ */
 public class KafkaTopicTemplates {
 
+    /**
+     * Default topic kafka topic builder.
+     *
+     * @param topicNamespace the topic namespace
+     * @param clusterName the cluster name
+     * @param topicName the topic name
+     * @param partitions the partitions
+     * @param replicas the replicas
+     * @param minIsr the min isr
+     * @return the kafka topic builder
+     */
     public static KafkaTopicBuilder defaultTopic(String topicNamespace, String clusterName, String topicName, int partitions, int replicas, int minIsr) {
         return new KafkaTopicBuilder()
                 .withApiVersion(Constants.KAFKA_API_VERSION_V1BETA2)

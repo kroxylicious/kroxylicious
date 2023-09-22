@@ -12,8 +12,8 @@ import org.slf4j.LoggerFactory;
 import io.fabric8.kubernetes.client.Config;
 import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 
+import io.kroxylicious.k8s.KubeClient;
 import io.kroxylicious.k8s.cmd.KubeCmdClient;
-import io.kroxylicious.k8s.exception.KubeClient;
 import io.kroxylicious.k8s.exception.NoClusterException;
 
 /**
@@ -21,17 +21,31 @@ import io.kroxylicious.k8s.exception.NoClusterException;
  */
 public interface KubeCluster {
 
+    /**
+     * The constant CONFIG.
+     */
     Config CONFIG = Config.autoConfigure(null);
 
-    /** Return true iff this kind of cluster installed on the local machine. */
+    /** Return true iff this kind of cluster installed on the local machine.
+     *  @return the boolean
+     *  */
     boolean isAvailable();
 
-    /** Return true iff this kind of cluster is running on the local machine */
+    /** Return true iff this kind of cluster is running on the local machine
+     * @return the boolean
+     * */
     boolean isClusterUp();
 
-    /** Return a default CMD cmdClient for this kind of cluster. */
+    /** Return a default CMD cmdClient for this kind of cluster.
+     * @return the kube cmd client
+     * */
     KubeCmdClient defaultCmdClient();
 
+    /**
+     * Default client kube client.
+     *
+     * @return the kube client
+     */
     default KubeClient defaultClient() {
         return new KubeClient(new KubernetesClientBuilder().build(), "default");
     }

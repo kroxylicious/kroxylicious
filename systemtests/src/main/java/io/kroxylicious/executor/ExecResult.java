@@ -8,6 +8,9 @@ package io.kroxylicious.executor;
 
 import java.io.Serializable;
 
+/**
+ * The type Exec result.
+ */
 public class ExecResult implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -16,24 +19,51 @@ public class ExecResult implements Serializable {
     private final String stdOut;
     private final String stdErr;
 
-    ExecResult(int returnCode, String stdOut, String stdErr) {
+    /**
+     * Instantiates a new Exec result.
+     *
+     * @param returnCode the return code
+     * @param stdOut the std out
+     * @param stdErr the std err
+     */
+    public ExecResult(int returnCode, String stdOut, String stdErr) {
         this.returnCode = returnCode;
         this.stdOut = stdOut;
         this.stdErr = stdErr;
     }
 
+    /**
+     * Exit status boolean.
+     *
+     * @return the boolean
+     */
     public boolean exitStatus() {
         return returnCode == 0;
     }
 
+    /**
+     * Return code int.
+     *
+     * @return the int
+     */
     public int returnCode() {
         return returnCode;
     }
 
+    /**
+     * Out string.
+     *
+     * @return the string
+     */
     public String out() {
         return stdOut;
     }
 
+    /**
+     * Err string.
+     *
+     * @return the string
+     */
     public String err() {
         return stdErr;
     }
