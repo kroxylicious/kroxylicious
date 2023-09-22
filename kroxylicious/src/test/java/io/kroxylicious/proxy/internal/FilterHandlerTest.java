@@ -53,7 +53,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.fail;
 
-public class FilterHandlerTest extends FilterHarness {
+class FilterHandlerTest extends FilterHarness {
 
     private static final int ARBITRARY_TAG = 500;
     private static final RawTaggedField MARK = createTag(ARBITRARY_TAG, "mark");
@@ -633,8 +633,6 @@ public class FilterHandlerTest extends FilterHarness {
 
         // mimic the broker sending the oob response
         var responseFrame = writeInternalResponse(propagatedOobRequest.header().correlationId(), new FetchResponseData());
-        assertThat(snoopedOobRequestResponseFuture).isCompleted();
-
         assertThat(snoopedOobRequestResponseFuture).isCompletedWithValue(responseFrame.body());
 
         // verify the filter has forwarded the request showing the that OOB request future completed.
@@ -664,9 +662,10 @@ public class FilterHandlerTest extends FilterHarness {
         assertThat(propagatedAsyncRequest.body()).isEqualTo(oobRequestBody);
 
         // verify async request response future is in the expected state
-        assertThat(snoopedOobRequestResponseStage).isNotNull();
+        assertThat(snoopedOobRequestResponseStage).doesNotHaveValue(null);
 
-        assertThatThrownBy(() -> snoopedOobRequestResponseStage.get().toCompletableFuture())
+        var apiMessageCompletionStage = snoopedOobRequestResponseStage.get();
+        assertThatThrownBy(apiMessageCompletionStage::toCompletableFuture)
                 .isInstanceOf(UnsupportedOperationException.class)
                 .hasMessageContaining("CompletableFuture usage disallowed");
     }
