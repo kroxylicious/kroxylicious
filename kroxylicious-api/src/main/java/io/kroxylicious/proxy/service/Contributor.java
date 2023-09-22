@@ -5,9 +5,9 @@
  */
 package io.kroxylicious.proxy.service;
 
-import io.kroxylicious.proxy.config.BaseConfig;
-
 import edu.umd.cs.findbugs.annotations.NonNull;
+
+import io.kroxylicious.proxy.config.BaseConfig;
 
 /**
  * Support loading an Instance of a service, optionally providing it with configuration obtained
@@ -17,7 +17,6 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * @param <C> the context type
  */
 public interface Contributor<S, C extends Context> {
-
     ConfigurationDefinition NO_CONFIGURATION = new ConfigurationDefinition(BaseConfig.class, false);
 
     /**

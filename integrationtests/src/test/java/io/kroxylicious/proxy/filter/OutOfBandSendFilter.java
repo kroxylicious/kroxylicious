@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.kroxylicious.proxy.config.BaseConfig;
+import io.kroxylicious.proxy.service.ConfigurationDefinition;
 
 import static io.kroxylicious.UnknownTaggedFields.unknownTaggedFieldsToStrings;
 
@@ -86,15 +87,21 @@ public class OutOfBandSendFilter implements DescribeClusterRequestFilter, Descri
         return message;
     }
 
-    public static class Contributor extends ConfigurableFilterContributor<OutOfBandSendFilterConfig> {
+    public static class Contributor implements FilterContributor {
 
-        public Contributor() {
-            super("OutOfBandSend", OutOfBandSendFilterConfig.class, true);
+        @Override
+        public String getTypeName() {
+            return "OutOfBandSend";
         }
 
         @Override
-        protected Filter getInstance(FilterConstructContext context, OutOfBandSendFilterConfig config) {
-            return new OutOfBandSendFilter(config);
+        public ConfigurationDefinition getConfigDefinition() {
+            return new ConfigurationDefinition(OutOfBandSendFilterConfig.class, true);
+        }
+
+        @Override
+        public Filter getInstance(FilterConstructContext context) {
+            return new OutOfBandSendFilter((OutOfBandSendFilterConfig) context.getConfig());
         }
     }
 }

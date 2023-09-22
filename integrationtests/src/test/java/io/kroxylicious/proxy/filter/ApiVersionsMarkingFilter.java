@@ -15,6 +15,8 @@ import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.types.RawTaggedField;
 
 import io.kroxylicious.proxy.ApiVersionsService;
+import io.kroxylicious.proxy.config.BaseConfig;
+import io.kroxylicious.proxy.service.ConfigurationDefinition;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -44,6 +46,11 @@ public class ApiVersionsMarkingFilter implements RequestFilter {
         @Override
         public String getTypeName() {
             return "ApiVersionsMarkingFilter";
+        }
+
+        @Override
+        public ConfigurationDefinition getConfigDefinition() {
+            return new ConfigurationDefinition(BaseConfig.class, false);
         }
 
         @Override

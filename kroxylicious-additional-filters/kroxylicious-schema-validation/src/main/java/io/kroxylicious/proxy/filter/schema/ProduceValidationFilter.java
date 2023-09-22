@@ -18,10 +18,10 @@ import org.apache.kafka.common.protocol.Errors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.kroxylicious.proxy.filter.ConfigurableFilterContributor;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterConstructContext;
 import io.kroxylicious.proxy.filter.FilterContext;
+import io.kroxylicious.proxy.filter.FilterContributor;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
 import io.kroxylicious.proxy.filter.ProduceResponseFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
@@ -32,6 +32,7 @@ import io.kroxylicious.proxy.filter.schema.validation.request.ProduceRequestVali
 import io.kroxylicious.proxy.filter.schema.validation.topic.PartitionValidationResult;
 import io.kroxylicious.proxy.filter.schema.validation.topic.RecordValidationFailure;
 import io.kroxylicious.proxy.filter.schema.validation.topic.TopicValidationResult;
+import io.kroxylicious.proxy.service.ConfigurationDefinition;
 
 /**
  * A Filter that is intended to validate some criteria about each topic-partition, preventing
@@ -60,7 +61,7 @@ public class ProduceValidationFilter implements ProduceRequestFilter, ProduceRes
      * @param forwardPartialRequests whether to forward valid topic-partitions if some other topic-partition is invalid (transactional requests are never forwarded if any topic-partition invalid)
      * @param validator validator to test ProduceRequests with
      */
-    ProduceValidationFilter(boolean forwardPartialRequests, ProduceRequestValidator validator) {
+    public ProduceValidationFilter(boolean forwardPartialRequests, ProduceRequestValidator validator) {
         if (validator == null) {
             throw new IllegalArgumentException("validator is null");
         }
@@ -192,14 +193,21 @@ public class ProduceValidationFilter implements ProduceRequestFilter, ProduceRes
         });
     }
 
-    public static class Contributor extends ConfigurableFilterContributor<ValidationConfig> {
+    public static class Contributor implements FilterContributor {
 
-        public Contributor() {
-            super("ProduceValidator", ValidationConfig.class, true);
+        @Override
+        public String getTypeName() {
+            return "ProduceValidator";
         }
 
         @Override
-        protected Filter getInstance(FilterConstructContext context, ValidationConfig config) {
+        public ConfigurationDefinition getConfigDefinition() {
+            return new ConfigurationDefinition(ValidationConfig.class, true);
+        }
+
+        @Override
+        public Filter getInstance(FilterConstructContext context) {
+            ValidationConfig config = (ValidationConfig) context.getConfig();
             ProduceRequestValidator validator = ProduceValidationFilterBuilder.build(config);
             return new ProduceValidationFilter(config.isForwardPartialRequests(), validator);
         }

@@ -6,9 +6,10 @@
 
 package io.kroxylicious.proxy.internal.filter;
 
-import io.kroxylicious.proxy.filter.ConfigurableFilterContributor;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterConstructContext;
+import io.kroxylicious.proxy.filter.FilterContributor;
+import io.kroxylicious.proxy.service.ConfigurationDefinition;
 
 public class TestFilterContributor {
     public static final String TYPE_NAME_A = "TEST1";
@@ -16,51 +17,72 @@ public class TestFilterContributor {
     public static final String OPTIONAL_CONFIG_FILTER = "TEST3";
     public static final String REQUIRED_CONFIG_FILTER = "TEST4";
 
-    public static class ContributorA extends ConfigurableFilterContributor<ExampleConfig> {
-
-        public ContributorA() {
-            super(TYPE_NAME_A, ExampleConfig.class, true);
+    public static class ContributorA implements FilterContributor {
+        @Override
+        public String getTypeName() {
+            return TYPE_NAME_A;
         }
 
         @Override
-        protected Filter getInstance(FilterConstructContext context, ExampleConfig config) {
-            return new TestFilter(getTypeName(), context, config);
-        }
-    }
-
-    public static class ContributorB extends ConfigurableFilterContributor<ExampleConfig> {
-
-        public ContributorB() {
-            super(TYPE_NAME_B, ExampleConfig.class, true);
+        public ConfigurationDefinition getConfigDefinition() {
+            return new ConfigurationDefinition(ExampleConfig.class, true);
         }
 
         @Override
-        protected Filter getInstance(FilterConstructContext context, ExampleConfig config) {
-            return new TestFilter(getTypeName(), context, config);
+        public Filter getInstance(FilterConstructContext context) {
+            return new TestFilter(getTypeName(), context, (ExampleConfig) context.getConfig());
         }
     }
 
-    public static class RequiredConfigContributor extends ConfigurableFilterContributor<ExampleConfig> {
-
-        public RequiredConfigContributor() {
-            super(REQUIRED_CONFIG_FILTER, ExampleConfig.class, true);
+    public static class ContributorB implements FilterContributor {
+        @Override
+        public String getTypeName() {
+            return TYPE_NAME_B;
         }
 
         @Override
-        protected Filter getInstance(FilterConstructContext context, ExampleConfig config) {
-            return new TestFilter(getTypeName(), context, config);
-        }
-    }
-
-    public static class OptionalConfigContributor extends ConfigurableFilterContributor<ExampleConfig> {
-
-        public OptionalConfigContributor() {
-            super(OPTIONAL_CONFIG_FILTER, ExampleConfig.class, false);
+        public ConfigurationDefinition getConfigDefinition() {
+            return new ConfigurationDefinition(ExampleConfig.class, true);
         }
 
         @Override
-        protected Filter getInstance(FilterConstructContext context, ExampleConfig config) {
-            return new TestFilter(getTypeName(), context, config);
+        public Filter getInstance(FilterConstructContext context) {
+            return new TestFilter(getTypeName(), context, (ExampleConfig) context.getConfig());
         }
     }
+
+    public static class RequiredConfigContributor implements FilterContributor {
+        @Override
+        public String getTypeName() {
+            return REQUIRED_CONFIG_FILTER;
+        }
+
+        @Override
+        public ConfigurationDefinition getConfigDefinition() {
+            return new ConfigurationDefinition(ExampleConfig.class, true);
+        }
+
+        @Override
+        public Filter getInstance(FilterConstructContext context) {
+            return new TestFilter(getTypeName(), context, (ExampleConfig) context.getConfig());
+        }
+    }
+
+    public static class OptionalConfigContributor implements FilterContributor {
+        @Override
+        public String getTypeName() {
+            return OPTIONAL_CONFIG_FILTER;
+        }
+
+        @Override
+        public ConfigurationDefinition getConfigDefinition() {
+            return new ConfigurationDefinition(ExampleConfig.class, false);
+        }
+
+        @Override
+        public Filter getInstance(FilterConstructContext context) {
+            return new TestFilter(getTypeName(), context, (ExampleConfig) context.getConfig());
+        }
+    }
+
 }

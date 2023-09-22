@@ -25,13 +25,16 @@ import org.apache.kafka.common.record.TimestampType;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.kroxylicious.proxy.config.BaseConfig;
-import io.kroxylicious.proxy.filter.ConfigurableFilterContributor;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterConstructContext;
 import io.kroxylicious.proxy.filter.FilterContext;
+import io.kroxylicious.proxy.filter.FilterContributor;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.internal.util.MemoryRecordsHelper;
+import io.kroxylicious.proxy.service.ConfigurationDefinition;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
  * An filter for modifying the key/value/header/topic of {@link ApiKeys#PRODUCE} requests.
@@ -101,15 +104,22 @@ public class ProduceRequestTransformationFilter implements ProduceRequestFilter 
         });
     }
 
-    public static class Contributor extends ConfigurableFilterContributor<ProduceRequestTransformationConfig> {
+    public static class Contributor implements FilterContributor {
 
-        public Contributor() {
-            super("ProduceRequestTransformation", ProduceRequestTransformationConfig.class, true);
+        @NonNull
+        @Override
+        public String getTypeName() {
+            return "ProduceRequestTransformation";
         }
 
         @Override
-        protected Filter getInstance(FilterConstructContext context, ProduceRequestTransformationConfig config) {
-            return new ProduceRequestTransformationFilter(config);
+        public ConfigurationDefinition getConfigDefinition() {
+            return new ConfigurationDefinition(ProduceRequestTransformationConfig.class, true);
+        }
+
+        @Override
+        public Filter getInstance(FilterConstructContext context) {
+            return new ProduceRequestTransformationFilter((ProduceRequestTransformationConfig) context.getConfig());
         }
     }
 }

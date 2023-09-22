@@ -14,12 +14,13 @@ import org.apache.kafka.common.message.ResponseHeaderData;
 import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.Timer;
 
-import io.kroxylicious.proxy.filter.ConfigurableFilterContributor;
 import io.kroxylicious.proxy.filter.FetchResponseFilter;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterConstructContext;
 import io.kroxylicious.proxy.filter.FilterContext;
+import io.kroxylicious.proxy.filter.FilterContributor;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
+import io.kroxylicious.proxy.service.ConfigurationDefinition;
 import io.kroxylicious.sample.config.SampleFilterConfig;
 import io.kroxylicious.sample.util.SampleFilterTransformer;
 
@@ -80,16 +81,22 @@ public class SampleFetchResponseFilter implements FetchResponseFilter {
         });
     }
 
-    public static class Contributor extends ConfigurableFilterContributor<SampleFilterConfig> {
+    public static class Contributor implements FilterContributor {
         public static final String SAMPLE_FETCH = "SampleFetchResponse";
 
-        public Contributor() {
-            super(SAMPLE_FETCH, SampleFilterConfig.class, true);
+        @Override
+        public String getTypeName() {
+            return SAMPLE_FETCH;
         }
 
         @Override
-        protected Filter getInstance(FilterConstructContext context, SampleFilterConfig config) {
-            return new SampleFetchResponseFilter(config);
+        public ConfigurationDefinition getConfigDefinition() {
+            return new ConfigurationDefinition(SampleFilterConfig.class, true);
+        }
+
+        @Override
+        public Filter getInstance(FilterConstructContext context) {
+            return new SampleFetchResponseFilter((SampleFilterConfig) context.getConfig());
         }
     }
 }
