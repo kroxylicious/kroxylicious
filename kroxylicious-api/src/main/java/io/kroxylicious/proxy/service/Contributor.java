@@ -13,10 +13,10 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * Support loading an Instance of a service, optionally providing it with configuration obtained
  * from the Kroxylicious configuration file.
  *
- * @param <T> the service type
- * @param <S> the context type
+ * @param <S> the service type
+ * @param <C> the context type
  */
-public interface Contributor<T, S extends Context> {
+public interface Contributor<S, C extends Context> {
 
     ConfigurationDefinition NO_CONFIGURATION = new ConfigurationDefinition(BaseConfig.class, false);
 
@@ -43,6 +43,6 @@ public interface Contributor<T, S extends Context> {
      * @return the service instance.
      */
     @NonNull
-    T getInstance(S context);
+    S getInstance(C context);
 
 }
