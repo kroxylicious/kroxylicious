@@ -5,8 +5,15 @@
  */
 package io.kroxylicious.proxy.internal;
 
+import java.util.ArrayDeque;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collector;
+import java.util.stream.Stream;
 
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
@@ -15,12 +22,15 @@ import org.apache.kafka.common.protocol.ApiMessage;
 import org.junit.jupiter.api.AfterEach;
 
 import io.netty.buffer.Unpooled;
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelOutboundHandlerAdapter;
+import io.netty.channel.ChannelPromise;
 import io.netty.channel.embedded.EmbeddedChannel;
 
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
-import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
@@ -29,6 +39,7 @@ import io.kroxylicious.proxy.model.VirtualCluster;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.Mockito.mock;
 
@@ -38,30 +49,46 @@ import static org.mockito.Mockito.mock;
 public abstract class FilterHarness {
     public static final String TEST_CLIENT = "test-client";
     protected EmbeddedChannel channel;
-    private FilterHandler filterHandler;
-    private Filter filter;
+    private final AtomicInteger outboundCorrelationId = new AtomicInteger(1);
+    private final Map<Integer, Correlation> pendingInternalRequestMap = new HashMap<>();
+    private long timeoutMs = 1000L;
 
     /**
-     * Build a {@link #channel} containing a single {@link FilterHandler} for the given
-     * {@code filter}.
-     * @param filter The filter in the pipeline.
+     * Sets the timeout for applied to the filters.
+     *
+     * @param timeoutMs timeout in millis
+     * @return this
      */
-    protected void buildChannel(Filter filter) {
-        buildChannel(filter, 1000L);
+    protected FilterHarness timeout(long timeoutMs) {
+        this.timeoutMs = timeoutMs;
+        return this;
     }
 
     /**
-     * Build a {@link #channel} containing a single {@link FilterHandler} for the given
-     * {@code filter}.
-     * @param filter The filter in the pipeline.
-     * @param timeoutMs The timeout for {@link FilterContext#sendRequest(short, ApiMessage)}.
+     * Build a {@link #channel} containing a {@link FilterHandler} for each the given {@link Filter}.
+     *
+     * @param filters - the filters to associate with the channel.
      */
-    protected void buildChannel(Filter filter, long timeoutMs) {
-        this.filter = filter;
-        filterHandler = new FilterHandler(getOnlyElement(FilterAndInvoker.build(filter)), timeoutMs, null,
-                new VirtualCluster("TestVirtualCluster", mock(TargetCluster.class), mock(ClusterNetworkAddressConfigProvider.class), Optional.empty(), false, false),
-                new EmbeddedChannel(), new ApiVersionsServiceImpl());
-        channel = new EmbeddedChannel(filterHandler);
+    protected void buildChannel(Filter... filters) {
+        assertNull(channel, "Channel already built");
+
+        var testVirtualCluster = new VirtualCluster("TestVirtualCluster", mock(TargetCluster.class), mock(ClusterNetworkAddressConfigProvider.class), Optional.empty(),
+                false, false);
+        var inboundChannel = new EmbeddedChannel();
+        var apiVersionService = new ApiVersionsServiceImpl();
+        var channelProcessors = Stream.<ChannelHandler> of(new InternalRequestTracker(), new CorrelationIdIssuer());
+
+        var filterHandlers = Arrays.stream(filters)
+                .collect(Collector.of(ArrayDeque<Filter>::new, ArrayDeque::addFirst, (d1, d2) -> {
+                    d2.addAll(d1);
+                    return d2;
+                })) // reverses order
+                .stream()
+                .map(f -> new FilterHandler(getOnlyElement(FilterAndInvoker.build(f)), timeoutMs, null, testVirtualCluster, inboundChannel, apiVersionService))
+                .map(ChannelHandler.class::cast);
+        var handlers = Stream.concat(channelProcessors, filterHandlers);
+
+        channel = new EmbeddedChannel(handlers.toArray(ChannelHandler[]::new));
     }
 
     /**
@@ -122,50 +149,27 @@ public abstract class FilterHarness {
     }
 
     /**
-     * Write a response for a filter-originated request, as if from the broker.
-     * @param data The body of the response.
-     * @param future
+     * Write a response for a filter-originated out-of-band request, as if from the broker. The caller must provide
+     * a valid {@code requestCorrelationId} that corresponds to an internal request that is already pending.  This
+     * is used to determine the recipient filter and the promise.
+     *
+     * @param <B>                  The type of the response body.
+     * @param requestCorrelationId the correlation id of the internal request for which this response is being generated for.
+     * @param data                 The body of the response.
      * @return The frame that was written.
-     * @param <B> The type of the response body.
      */
-    protected <B extends ApiMessage> DecodedResponseFrame<B> writeInternalResponse(B data, CompletableFuture<?> future) {
-        return writeInternalResponse(data, future, filter);
-    }
-
-    /**
-     * Write a response for a filter-originated request, as if from the broker.
-     * @param data The body of the response.
-     * @param future
-     * @param recipient the Filter that wants to receive the internal response
-     * @return The frame that was written.
-     * @param <B> The type of the response body.
-     */
-    protected <B extends ApiMessage> DecodedResponseFrame<B> writeInternalResponse(B data, CompletableFuture<?> future, Filter recipient) {
+    protected <B extends ApiMessage> DecodedResponseFrame<B> writeInternalResponse(int requestCorrelationId, B data) {
         var apiKey = ApiKeys.forId(data.apiKey());
         var header = new ResponseHeaderData();
-        int correlationId = 42;
-        header.setCorrelationId(correlationId);
-        var frame = new InternalResponseFrame<>(recipient, apiKey.latestVersion(), correlationId, header, data, future);
+        header.setCorrelationId(requestCorrelationId);
+        var correlation = pendingInternalRequestMap.remove(requestCorrelationId);
+        if (correlation == null) {
+            throw new IllegalStateException("No corresponding internal request known " + requestCorrelationId);
+        }
+        var frame = new InternalResponseFrame<>(correlation.recipient(), apiKey.latestVersion(), requestCorrelationId, header, data, correlation.promise());
         channel.writeInbound(frame);
         return frame;
-    }
 
-    /**
-     * Write a response for a filter-originated request, as if from the broker.
-     * @param data The body of the response.
-     * @param future
-     * @param recipient the Filter that wants to receive the internal response
-     * @return The frame that was written.
-     * @param <B> The type of the response body.
-     */
-    protected <B extends ApiMessage> DecodedRequestFrame<B> writeInternalRequest(B data, CompletableFuture<?> future, Filter recipient) {
-        var apiKey = ApiKeys.forId(data.apiKey());
-        var header = new RequestHeaderData();
-        int correlationId = 42;
-        header.setCorrelationId(correlationId);
-        var frame = new InternalRequestFrame<>(apiKey.latestVersion(), correlationId, true, recipient, future, header, data);
-        channel.writeOutbound(frame);
-        return frame;
     }
 
     /**
@@ -189,6 +193,35 @@ public abstract class FilterHarness {
             else {
                 fail("Logically this is impossible");
             }
+        }
+    }
+
+    public record Correlation(Filter recipient, CompletableFuture<?> promise) {}
+
+    /**
+     * Tracks outstanding internal requests by associating the correlation id with the recipient/promise tuple.
+     */
+    private class InternalRequestTracker extends ChannelOutboundHandlerAdapter {
+        public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
+            if (msg instanceof InternalRequestFrame<?> irf && irf.hasResponse()) {
+                if (pendingInternalRequestMap.put(irf.header().correlationId(), new Correlation(irf.recipient(), irf.promise())) != null) {
+                    throw new IllegalStateException("correlationId %d already has a promise associated with it".formatted(irf.correlationId()));
+                }
+            }
+            super.write(ctx, msg, promise);
+        }
+    }
+
+    /**
+     * Issues a unique correlation id to every request.
+     */
+    private class CorrelationIdIssuer extends ChannelOutboundHandlerAdapter {
+        @Override
+        public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
+            if (msg instanceof DecodedRequestFrame<?> drf) {
+                drf.header().setCorrelationId(outboundCorrelationId.getAndIncrement());
+            }
+            super.write(ctx, msg, promise);
         }
     }
 }
