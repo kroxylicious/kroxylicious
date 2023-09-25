@@ -37,7 +37,6 @@ import io.kroxylicious.resources.strimzi.KafkaUserResource;
 import io.kroxylicious.utils.TestUtils;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * The type Resource manager.
@@ -148,8 +147,10 @@ public class ResourceManager {
 
             try {
                 type.delete(resource);
-                assertTrue(waitResourceCondition(resource, ResourceCondition.deletion()),
-                        String.format("Timed out deleting %s %s/%s", resource.getKind(), resource.getMetadata().getNamespace(), resource.getMetadata().getName()));
+                if (!waitResourceCondition(resource, ResourceCondition.deletion())) {
+                    throw new RuntimeException(
+                            String.format("Timed out deleting %s %s/%s", resource.getKind(), resource.getMetadata().getNamespace(), resource.getMetadata().getName()));
+                }
             }
             catch (Exception e) {
                 LOGGER.error("Failed to delete {} {}/{}", resource.getKind(), resource.getMetadata().getNamespace(), resource.getMetadata().getName(), e);

@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -44,7 +45,10 @@ public class Kroxy {
     public Kroxy(String deploymentNamespace, String sampleDir) throws IOException {
         this.deploymentNamespace = deploymentNamespace;
         this.sampleDir = sampleDir;
-        kustomizeTmpdir = Files.createTempDirectory(Paths.get("/tmp"), "kustomize");
+        Path kustomizeDir = Files.createDirectories(Paths.get("/tmp/kustomize"), PosixFilePermissions.asFileAttribute(
+                PosixFilePermissions.fromString("rwx------")));
+        kustomizeDir.toFile().deleteOnExit();
+        kustomizeTmpdir = Files.createTempDirectory(kustomizeDir, "tmp");
     }
 
     /**
