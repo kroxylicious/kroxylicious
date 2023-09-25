@@ -18,7 +18,7 @@ import io.kroxylicious.proxy.service.ContributionManager;
 import io.kroxylicious.proxy.service.ContributionManager.ConfigurationDefinition;
 
 public record FilterDefinition(@JsonProperty(required = true) String type,
-                               @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.EXTERNAL_PROPERTY, property = "type") @JsonTypeIdResolver(FilterConfigTypeIdResolver.class) BaseConfig config) {
+                               @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.EXTERNAL_PROPERTY, property = "type") @JsonTypeIdResolver(FilterConfigTypeIdResolver.class) Object config) {
     @JsonCreator
     public FilterDefinition {
         Objects.requireNonNull(type);

@@ -16,8 +16,6 @@ import org.apache.kafka.common.protocol.Errors;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import io.kroxylicious.proxy.config.BaseConfig;
-
 /**
  * A test filter that rejects all create topic requests with a short-circuit
  * error response.  The request never reaches the broker.
@@ -64,7 +62,7 @@ public class RejectingCreateTopicFilter implements CreateTopicsRequestFilter {
         context.createByteBufferOutputStream(4000);
     }
 
-    public static class RejectingCreateTopicFilterConfig extends BaseConfig {
+    public static class RejectingCreateTopicFilterConfig {
 
         /*
          * If true, rejection will also close the connection

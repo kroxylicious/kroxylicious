@@ -10,10 +10,9 @@ import org.testcontainers.shaded.org.apache.commons.lang3.NotImplementedExceptio
 
 import io.micrometer.core.instrument.MeterRegistry;
 
-import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.service.Context;
 
-public record TestHook(String shortName, BaseConfig config, Context context) implements MicrometerConfigurationHook {
+public record TestHook(String shortName, Object config, Context context) implements MicrometerConfigurationHook {
     @Override
     public void configure(MeterRegistry targetRegistry) {
         throw new NotImplementedException("not implemented!");

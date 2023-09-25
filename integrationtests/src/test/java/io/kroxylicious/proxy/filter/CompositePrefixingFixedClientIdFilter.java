@@ -16,8 +16,6 @@ import org.apache.kafka.common.protocol.ApiMessage;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import io.kroxylicious.proxy.config.BaseConfig;
-
 public class CompositePrefixingFixedClientIdFilter implements CompositeFilter {
 
     private final CompositePrefixingFixedClientIdFilterConfig config;
@@ -40,7 +38,7 @@ public class CompositePrefixingFixedClientIdFilter implements CompositeFilter {
         return List.of(clientIdFilter, new PrefixingFilter());
     }
 
-    public static class CompositePrefixingFixedClientIdFilterConfig extends BaseConfig {
+    public static class CompositePrefixingFixedClientIdFilterConfig {
         private final String prefix;
         private final String clientId;
 

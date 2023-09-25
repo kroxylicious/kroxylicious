@@ -5,7 +5,6 @@
  */
 package io.kroxylicious.proxy.clusternetworkaddressconfigprovider;
 
-import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.Context;
 import io.kroxylicious.proxy.service.Contributor;
@@ -14,5 +13,5 @@ import io.kroxylicious.proxy.service.Contributor;
  * ClusterNetworkAddressConfigProviderContributor is a pluggable source of network address information.
  * @see Contributor
  */
-public interface ClusterNetworkAddressConfigProviderContributor<B extends BaseConfig> extends Contributor<ClusterNetworkAddressConfigProvider, B, Context<B>> {
+public interface ClusterNetworkAddressConfigProviderContributor<B> extends Contributor<ClusterNetworkAddressConfigProvider, B, Context<B>> {
 }

@@ -30,7 +30,6 @@ import org.apache.kafka.common.record.TimestampType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.filter.FetchResponseFilter;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterConstructContext;
@@ -46,7 +45,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  */
 public class FetchResponseTransformationFilter implements FetchResponseFilter {
 
-    public static class FetchResponseTransformationConfig extends BaseConfig {
+    public static class FetchResponseTransformationConfig {
 
         private final String transformation;
 

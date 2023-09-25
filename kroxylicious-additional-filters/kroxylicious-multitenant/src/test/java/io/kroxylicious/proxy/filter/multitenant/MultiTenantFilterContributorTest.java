@@ -9,7 +9,6 @@ package io.kroxylicious.proxy.filter.multitenant;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
-import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterConstructContext;
 
@@ -20,7 +19,7 @@ class MultiTenantFilterContributorTest {
     @Test
     void testGetConfigTypeViaConfigurationDefinition() {
         MultiTenantTransformationFilter.Contributor contributor = new MultiTenantTransformationFilter.Contributor();
-        assertThat(contributor.getConfigType()).isEqualTo(BaseConfig.class);
+        assertThat(contributor.getConfigType()).isEqualTo(Void.class);
     }
 
     @Test

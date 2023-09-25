@@ -5,12 +5,11 @@
  */
 package io.kroxylicious.proxy.filter;
 
-import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.service.Contributor;
 
 /**
  * FilterContributor is a pluggable source of Kroxylicious filter implementations.
  * @see Contributor
  */
-public interface FilterContributor<B extends BaseConfig> extends Contributor<Filter, B, FilterConstructContext<B>> {
+public interface FilterContributor<B> extends Contributor<Filter, B, FilterConstructContext<B>> {
 }

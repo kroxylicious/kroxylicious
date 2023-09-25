@@ -6,7 +6,5 @@
 
 package io.kroxylicious.proxy.internal.filter;
 
-import io.kroxylicious.proxy.config.BaseConfig;
-
-public class ExampleConfig extends BaseConfig {
+public class ExampleConfig {
 }

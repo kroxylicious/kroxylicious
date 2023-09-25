@@ -22,8 +22,6 @@ import org.apache.kafka.common.protocol.Errors;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import io.kroxylicious.proxy.config.BaseConfig;
-
 import static io.kroxylicious.UnknownTaggedFields.unknownTaggedFieldsToStrings;
 
 /**
@@ -42,7 +40,7 @@ public class OutOfBandSendFilter implements DescribeClusterRequestFilter, Descri
         this.config = config;
     }
 
-    public static class OutOfBandSendFilterConfig extends BaseConfig {
+    public static class OutOfBandSendFilterConfig {
         private final ApiKeys apiKeyToSend;
         private final int tagIdToCollect;
 

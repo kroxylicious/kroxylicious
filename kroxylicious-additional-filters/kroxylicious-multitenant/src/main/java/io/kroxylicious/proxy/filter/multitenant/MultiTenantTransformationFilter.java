@@ -54,7 +54,6 @@ import org.apache.kafka.common.message.TxnOffsetCommitResponseData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.filter.AddOffsetsToTxnRequestFilter;
 import io.kroxylicious.proxy.filter.AddPartitionsToTxnRequestFilter;
 import io.kroxylicious.proxy.filter.AddPartitionsToTxnResponseFilter;
@@ -503,7 +502,7 @@ public class MultiTenantTransformationFilter
     public MultiTenantTransformationFilter() {
     }
 
-    public static class Contributor implements FilterContributor<BaseConfig> {
+    public static class Contributor implements FilterContributor<Void> {
 
         @Override
         public String getTypeName() {
@@ -511,12 +510,12 @@ public class MultiTenantTransformationFilter
         }
 
         @Override
-        public Class<BaseConfig> getConfigType() {
-            return BaseConfig.class;
+        public Class<Void> getConfigType() {
+            return Void.class;
         }
 
         @Override
-        public Filter getInstance(FilterConstructContext<BaseConfig> context) {
+        public Filter getInstance(FilterConstructContext<Void> context) {
             return new MultiTenantTransformationFilter();
         }
     }

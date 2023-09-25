@@ -8,12 +8,11 @@ package io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider;
 
 import org.testcontainers.shaded.org.apache.commons.lang3.NotImplementedException;
 
-import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.Context;
 import io.kroxylicious.proxy.service.HostPort;
 
-public record TestClusterNetworkAddressConfigProvider(String shortName, BaseConfig config, Context context) implements ClusterNetworkAddressConfigProvider {
+public record TestClusterNetworkAddressConfigProvider(String shortName, Object config, Context context) implements ClusterNetworkAddressConfigProvider {
     @Override
     public HostPort getClusterBootstrapAddress() {
         throw new NotImplementedException("not implemented!");

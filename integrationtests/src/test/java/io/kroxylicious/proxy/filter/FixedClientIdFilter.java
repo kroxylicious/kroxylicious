@@ -13,13 +13,11 @@ import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 
-import io.kroxylicious.proxy.config.BaseConfig;
-
 public class FixedClientIdFilter implements RequestFilter, ResponseFilter {
 
     private final String clientId;
 
-    public static class FixedClientIdFilterConfig extends BaseConfig {
+    public static class FixedClientIdFilterConfig {
 
         private final String clientId;
 

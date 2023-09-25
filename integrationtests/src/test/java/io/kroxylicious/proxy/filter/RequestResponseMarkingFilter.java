@@ -19,8 +19,6 @@ import org.apache.kafka.common.protocol.types.RawTaggedField;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import io.kroxylicious.proxy.config.BaseConfig;
-
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
@@ -86,7 +84,7 @@ public class RequestResponseMarkingFilter implements RequestFilter, ResponseFilt
         return new RawTaggedField(FILTER_NAME_TAG, (this.getClass().getSimpleName() + "-" + name + "-" + type).getBytes(UTF_8));
     }
 
-    public static class RequestResponseMarkingFilterConfig extends BaseConfig {
+    public static class RequestResponseMarkingFilterConfig {
         private final String name;
 
         private final Set<ApiKeys> keysToMark;

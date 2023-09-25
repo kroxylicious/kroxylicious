@@ -11,8 +11,6 @@ import java.util.ServiceLoader;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
-import io.kroxylicious.proxy.config.BaseConfig;
-
 @SuppressWarnings({ "rawtypes", "unchecked" })
 public class ContributionManager {
     public static final ContributionManager INSTANCE = new ContributionManager();
@@ -50,5 +48,5 @@ public class ContributionManager {
         throw new IllegalArgumentException("Name '" + typeName + "' is not contributed by any " + contributorClass);
     }
 
-    public record ConfigurationDefinition(Class<? extends BaseConfig> configurationType, boolean configurationRequired) {}
+    public record ConfigurationDefinition(Class<?> configurationType, boolean configurationRequired) {}
 }

@@ -6,8 +6,6 @@
 
 package io.kroxylicious.proxy.service;
 
-import io.kroxylicious.proxy.config.BaseConfig;
-
 /**
  * Defines the details of how Contributions interact with configuration.
  * <p>
@@ -17,4 +15,4 @@ import io.kroxylicious.proxy.config.BaseConfig;
  * @param configurationType defines the expected class for configuration objects
  * @param configurationRequired {@code true} if the contribution requires a non-null configuration object. {@code false} if the contribution can tolerate a null configuration object
  */
-public record ConfigurationDefinition(Class<? extends BaseConfig> configurationType, boolean configurationRequired) {}
+public record ConfigurationDefinition(Class<?> configurationType, boolean configurationRequired) {}

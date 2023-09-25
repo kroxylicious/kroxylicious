@@ -24,7 +24,6 @@ import org.apache.kafka.common.record.TimestampType;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterConstructContext;
 import io.kroxylicious.proxy.filter.FilterContext;
@@ -48,7 +47,7 @@ public class ProduceRequestTransformationFilter implements ProduceRequestFilter 
         }
     }
 
-    public static class ProduceRequestTransformationConfig extends BaseConfig {
+    public static class ProduceRequestTransformationConfig {
 
         private final String transformation;
 

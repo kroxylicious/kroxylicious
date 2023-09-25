@@ -26,7 +26,6 @@ import io.micrometer.core.instrument.binder.system.FileDescriptorMetrics;
 import io.micrometer.core.instrument.binder.system.ProcessorMetrics;
 import io.micrometer.core.instrument.binder.system.UptimeMetrics;
 
-import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.service.Context;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -36,7 +35,7 @@ public class StandardBindersHook implements MicrometerConfigurationHook {
     private final StandardBindersHookConfig config;
     private final List<AutoCloseable> closeableBinders = new CopyOnWriteArrayList<>();
 
-    public static class StandardBindersHookConfig extends BaseConfig {
+    public static class StandardBindersHookConfig {
         private final List<String> binderNames;
 
         @JsonCreator

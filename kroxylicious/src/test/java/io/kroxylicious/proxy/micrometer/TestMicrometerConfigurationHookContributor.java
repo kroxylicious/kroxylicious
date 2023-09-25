@@ -6,7 +6,6 @@
 
 package io.kroxylicious.proxy.micrometer;
 
-import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.service.Context;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -21,7 +20,7 @@ public class TestMicrometerConfigurationHookContributor implements MicrometerCon
 
     @NonNull
     @Override
-    public Class<? extends BaseConfig> getConfigType() {
+    public Class<?> getConfigType() {
         return Config.class;
     }
 
@@ -37,7 +36,7 @@ public class TestMicrometerConfigurationHookContributor implements MicrometerCon
         return new TestHook(SHORT_NAME, context.getConfig(), context);
     }
 
-    public static class Config extends BaseConfig {
+    public static class Config {
 
     }
 

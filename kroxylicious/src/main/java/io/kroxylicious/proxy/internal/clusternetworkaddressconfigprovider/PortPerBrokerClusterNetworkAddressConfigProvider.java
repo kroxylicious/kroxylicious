@@ -18,7 +18,6 @@ import java.util.stream.IntStream;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.kroxylicious.proxy.clusternetworkaddressconfigprovider.ClusterNetworkAddressConfigProviderContributor;
-import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.Context;
 import io.kroxylicious.proxy.service.HostPort;
@@ -105,7 +104,7 @@ public class PortPerBrokerClusterNetworkAddressConfigProvider implements Cluster
     /**
      * Creates the configuration for this provider.
      */
-    public static class PortPerBrokerClusterNetworkAddressConfigProviderConfig extends BaseConfig {
+    public static class PortPerBrokerClusterNetworkAddressConfigProviderConfig {
         private final HostPort bootstrapAddress;
         private final String brokerAddressPattern;
         private final int brokerStartPort;

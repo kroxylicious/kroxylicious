@@ -6,13 +6,12 @@
 
 package io.kroxylicious.proxy.filter;
 
-import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.service.Context;
 
-public interface FilterConstructContext<B extends BaseConfig> extends Context<B> {
+public interface FilterConstructContext<B> extends Context<B> {
     FilterExecutors executors();
 
-    static <B extends BaseConfig> FilterConstructContext<B> wrap(B config, FilterExecutors executors) {
+    static <B> FilterConstructContext<B> wrap(B config, FilterExecutors executors) {
         return new FilterConstructContext<B>() {
             @Override
             public FilterExecutors executors() {
