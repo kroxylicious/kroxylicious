@@ -32,7 +32,6 @@ import io.kroxylicious.proxy.filter.FilterContributor;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.internal.util.MemoryRecordsHelper;
-import io.kroxylicious.proxy.service.ConfigurationDefinition;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -104,7 +103,7 @@ public class ProduceRequestTransformationFilter implements ProduceRequestFilter 
         });
     }
 
-    public static class Contributor implements FilterContributor {
+    public static class Contributor implements FilterContributor<ProduceRequestTransformationConfig> {
 
         @NonNull
         @Override
@@ -113,13 +112,18 @@ public class ProduceRequestTransformationFilter implements ProduceRequestFilter 
         }
 
         @Override
-        public ConfigurationDefinition getConfigDefinition() {
-            return new ConfigurationDefinition(ProduceRequestTransformationConfig.class, true);
+        public Class<ProduceRequestTransformationConfig> getConfigType() {
+            return ProduceRequestTransformationConfig.class;
         }
 
         @Override
-        public Filter getInstance(FilterConstructContext context) {
-            return new ProduceRequestTransformationFilter((ProduceRequestTransformationConfig) context.getConfig());
+        public boolean requiresConfiguration() {
+            return true;
+        }
+
+        @Override
+        public Filter getInstance(FilterConstructContext<ProduceRequestTransformationConfig> context) {
+            return new ProduceRequestTransformationFilter(context.getConfig());
         }
     }
 }

@@ -11,6 +11,8 @@ import java.util.ServiceLoader;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
+import io.kroxylicious.proxy.config.BaseConfig;
+
 @SuppressWarnings({ "rawtypes", "unchecked" })
 public class ContributionManager {
     public static final ContributionManager INSTANCE = new ContributionManager();
@@ -27,15 +29,18 @@ public class ContributionManager {
         this.loaderFunction = loaderFunction;
     }
 
-    public <T, C extends Context, S extends Contributor<T, C>> ConfigurationDefinition getDefinition(Class<S> contributorClass, String typeName) {
-        return findContributor(contributorClass, typeName, Contributor::getConfigDefinition);
+    public <S extends Contributor> ConfigurationDefinition getDefinition(Class<S> contributorClass,
+                                                                         String typeName) {
+        return (ConfigurationDefinition) findContributor(contributorClass, typeName, s -> new ConfigurationDefinition(s.getConfigType(), s.requiresConfiguration()));
     }
 
-    public <T, C extends Context, S extends Contributor<T, C>> T getInstance(Class<S> contributorClass, String typeName, C constructionContext) {
-        return findContributor(contributorClass, typeName, (contributor) -> contributor.getInstance(constructionContext));
+    public <T, S extends Contributor> T getInstance(Class<S> contributorClass, String typeName,
+                                                    Context constructionContext) {
+        return (T) findContributor(contributorClass, typeName, contributor -> contributor.getInstance(constructionContext));
     }
 
-    private <T, C extends Context, S extends Contributor<T, C>, X> X findContributor(Class<S> contributorClass, String typeName, Function<S, X> extractor) {
+    private <T, S extends Contributor<T, ?, ?>, X> X findContributor(Class<S> contributorClass, String typeName,
+                                                                     Function<S, X> extractor) {
         final Iterable<S> contributorsForClass = this.contributors.computeIfAbsent(contributorClass, loaderFunction);
         for (S contributor : contributorsForClass) {
             if (contributor.getTypeName().equals(typeName)) {
@@ -44,4 +49,6 @@ public class ContributionManager {
         }
         throw new IllegalArgumentException("Name '" + typeName + "' is not contributed by any " + contributorClass);
     }
+
+    public record ConfigurationDefinition(Class<? extends BaseConfig> configurationType, boolean configurationRequired) {}
 }

@@ -11,15 +11,15 @@ import io.kroxylicious.proxy.config.BaseConfig;
 /**
  * Context in which a Contributor is getting an instance, this includes the user-supplied configuration.
  */
-public interface Context {
+public interface Context<B extends BaseConfig> {
 
     /**
      * service configuration which may be null if the service instance does not accept configuration.
      * @return config
      */
-    BaseConfig getConfig();
+    B getConfig();
 
-    static Context wrap(BaseConfig config) {
+    static <B extends BaseConfig> Context<B> wrap(B config) {
         return () -> config;
     }
 

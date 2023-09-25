@@ -17,7 +17,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.kroxylicious.proxy.config.BaseConfig;
-import io.kroxylicious.proxy.service.ConfigurationDefinition;
 
 /**
  * A test filter that rejects all create topic requests with a short-circuit
@@ -81,7 +80,7 @@ public class RejectingCreateTopicFilter implements CreateTopicsRequestFilter {
         }
     }
 
-    public static class Contributor implements FilterContributor {
+    public static class Contributor implements FilterContributor<RejectingCreateTopicFilterConfig> {
 
         @Override
         public String getTypeName() {
@@ -89,13 +88,18 @@ public class RejectingCreateTopicFilter implements CreateTopicsRequestFilter {
         }
 
         @Override
-        public ConfigurationDefinition getConfigDefinition() {
-            return new ConfigurationDefinition(RejectingCreateTopicFilterConfig.class, false);
+        public Class<RejectingCreateTopicFilterConfig> getConfigType() {
+            return RejectingCreateTopicFilterConfig.class;
         }
 
         @Override
-        public Filter getInstance(FilterConstructContext context) {
-            return new RejectingCreateTopicFilter(context, (RejectingCreateTopicFilterConfig) context.getConfig());
+        public boolean requiresConfiguration() {
+            return false;
+        }
+
+        @Override
+        public Filter getInstance(FilterConstructContext<RejectingCreateTopicFilterConfig> context) {
+            return new RejectingCreateTopicFilter(context, context.getConfig());
         }
     }
 

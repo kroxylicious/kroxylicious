@@ -17,8 +17,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ContributorTest {
 
     @Test
-    void testDefaultConfigDefinition() {
-        Contributor<Object, Context> contributor = new Contributor<>() {
+    void testDefaultFilterConfiguration() {
+        Contributor<Object, BaseConfig, Context<BaseConfig>> contributor = new Contributor<>() {
 
             @NonNull
             @Override
@@ -28,11 +28,18 @@ class ContributorTest {
 
             @NonNull
             @Override
-            public Object getInstance(Context context) {
+            public Class<BaseConfig> getConfigType() {
+                return BaseConfig.class;
+            }
+
+            @NonNull
+            @Override
+            public Object getInstance(Context<BaseConfig> context) {
                 return 1;
             }
         };
-        assertThat(contributor.getConfigDefinition()).isEqualTo(new ConfigurationDefinition(BaseConfig.class, false));
+        assertThat(contributor.getConfigType()).isEqualTo(BaseConfig.class);
+        assertThat(contributor.requiresConfiguration()).isFalse();
     }
 
 }

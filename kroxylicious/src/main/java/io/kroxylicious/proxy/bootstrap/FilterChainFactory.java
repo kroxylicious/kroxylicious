@@ -12,11 +12,14 @@ import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.FilterDefinition;
+import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.FilterContributor;
 import io.kroxylicious.proxy.internal.filter.NettyFilterContext;
+import io.kroxylicious.proxy.service.Context;
 import io.kroxylicious.proxy.service.ContributionManager;
 
 /**
@@ -60,7 +63,10 @@ public class FilterChainFactory {
         validateFilterConfiguration(filters);
         return filters
                 .stream()
-                .map(f -> ContributionManager.INSTANCE.getInstance(FilterContributor.class, f.type(), context.wrap(f.config())))
+                .map(f -> {
+                    Context<BaseConfig> wrap = context.wrap(f.config());
+                    return (Filter) ContributionManager.INSTANCE.getInstance(FilterContributor.class, f.type(), wrap);
+                })
                 .flatMap(filter -> FilterAndInvoker.build(filter).stream())
                 .toList();
     }

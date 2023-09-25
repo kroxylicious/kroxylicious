@@ -6,14 +6,16 @@
 
 package io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider;
 
+import org.jetbrains.annotations.NotNull;
+
 import io.kroxylicious.proxy.clusternetworkaddressconfigprovider.ClusterNetworkAddressConfigProviderContributor;
+import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
-import io.kroxylicious.proxy.service.ConfigurationDefinition;
 import io.kroxylicious.proxy.service.Context;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-public class TestClusterNetworkAddressConfigProviderContributor implements ClusterNetworkAddressConfigProviderContributor {
+public class TestClusterNetworkAddressConfigProviderContributor implements ClusterNetworkAddressConfigProviderContributor<BaseConfig> {
 
     public static final String SHORT_NAME = "test";
 
@@ -23,15 +25,15 @@ public class TestClusterNetworkAddressConfigProviderContributor implements Clust
         return SHORT_NAME;
     }
 
-    @NonNull
+    @NotNull
     @Override
-    public ConfigurationDefinition getConfigDefinition() {
-        return new ConfigurationDefinition(Config.class, true);
+    public Class<BaseConfig> getConfigType() {
+        return BaseConfig.class;
     }
 
     @NonNull
     @Override
-    public ClusterNetworkAddressConfigProvider getInstance(Context context) {
+    public ClusterNetworkAddressConfigProvider getInstance(Context<BaseConfig> context) {
         return new TestClusterNetworkAddressConfigProvider(SHORT_NAME, context.getConfig(), context);
     }
 }

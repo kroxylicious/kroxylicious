@@ -15,7 +15,6 @@ import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterConstructContext;
 import io.kroxylicious.proxy.filter.schema.config.RecordValidationRule;
 import io.kroxylicious.proxy.filter.schema.config.ValidationConfig;
-import io.kroxylicious.proxy.service.ConfigurationDefinition;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -24,8 +23,8 @@ class ProduceRequestValidationFilterContributorTest {
     @Test
     void testGetConfigTypeViaConfigurationDefinition() {
         ProduceValidationFilter.Contributor contributor = new ProduceValidationFilter.Contributor();
-        ConfigurationDefinition actualConfigurationDefinition = contributor.getConfigDefinition();
-        assertThat(actualConfigurationDefinition).isNotNull().hasFieldOrPropertyWithValue("configurationType", ValidationConfig.class);
+        assertThat(contributor.getConfigType()).isEqualTo(ValidationConfig.class);
+        assertThat(contributor.requiresConfiguration()).isTrue();
     }
 
     @Test

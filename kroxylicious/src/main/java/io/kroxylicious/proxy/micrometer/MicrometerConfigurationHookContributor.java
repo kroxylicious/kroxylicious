@@ -5,8 +5,9 @@
  */
 package io.kroxylicious.proxy.micrometer;
 
+import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.service.Context;
 import io.kroxylicious.proxy.service.Contributor;
 
-public interface MicrometerConfigurationHookContributor extends Contributor<MicrometerConfigurationHook, Context> {
+public interface MicrometerConfigurationHookContributor<B extends BaseConfig> extends Contributor<MicrometerConfigurationHook, B, Context<B>> {
 }

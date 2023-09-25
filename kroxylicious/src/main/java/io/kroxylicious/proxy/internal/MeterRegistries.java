@@ -44,7 +44,8 @@ public class MeterRegistries implements AutoCloseable {
         CompositeMeterRegistry globalRegistry = Metrics.globalRegistry;
         preventDifferentTagNameRegistration(globalRegistry);
         var configurationHooks = micrometerConfig.stream()
-                .map(f -> ContributionManager.INSTANCE.getInstance(MicrometerConfigurationHookContributor.class, f.type(), wrap(f.config())))
+                .map(f -> (MicrometerConfigurationHook) ContributionManager.INSTANCE.getInstance(MicrometerConfigurationHookContributor.class, f.type(),
+                        wrap(f.config())))
                 .toList();
         configurationHooks.forEach(micrometerConfigurationHook -> micrometerConfigurationHook.configure(globalRegistry));
         return configurationHooks;

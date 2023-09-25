@@ -17,6 +17,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.kroxylicious.proxy.config.BaseConfig;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
@@ -27,11 +29,11 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class ContributionManagerTest {
 
-    private List<Contributor<?, ? super Context>> contributingContributors;
+    private List<Contributor> contributingContributors;
 
     @BeforeEach
     void setUp() {
-        contributingContributors = List.of(new StringContributor("one", "v1"), new StringContributor("two", "v2", StringyConfig.class),
+        contributingContributors = List.of(new StringContributor("one", "v1"), new StringContributor("two", "v2"),
                 new LongContributor("three", 3));
     }
 
@@ -54,13 +56,13 @@ class ContributionManagerTest {
     void shouldLoadServicesOfMultipleType() {
         // Given
         final ContributionManager contributionManager = new ContributionManager(clazz -> contributingContributors);
-        final ConfigurationDefinition stringConfigDef = contributionManager.getDefinition(StringContributor.class, "two");
+        final ContributionManager.ConfigurationDefinition stringConfigDef = contributionManager.getDefinition(StringContributor.class, "two");
 
         // When
-        final ConfigurationDefinition longConfigDef = contributionManager.getDefinition(LongContributor.class, "three");
+        final ContributionManager.ConfigurationDefinition longConfigDef = contributionManager.getDefinition(LongContributor.class, "three");
 
         // Then
-        assertThat(stringConfigDef).hasFieldOrProperty("configurationType").extracting("configurationType").isEqualTo(StringyConfig.class);
+        assertThat(stringConfigDef).hasFieldOrProperty("configurationType").extracting("configurationType").isEqualTo(StringConfig.class);
         assertThat(longConfigDef).hasFieldOrProperty("configurationType").extracting("configurationType").isEqualTo(LongConfig.class);
     }
 
@@ -81,10 +83,10 @@ class ContributionManagerTest {
         final ContributionManager contributionManager = new ContributionManager(clazz -> contributingContributors);
 
         // When
-        final ConfigurationDefinition configurationDefinition = contributionManager.getDefinition(StringContributor.class, "two");
+        final ContributionManager.ConfigurationDefinition configurationDefinition = contributionManager.getDefinition(StringContributor.class, "two");
 
         // Then
-        assertThat(configurationDefinition).hasFieldOrProperty("configurationType").extracting("configurationType").isEqualTo(StringyConfig.class);
+        assertThat(configurationDefinition).hasFieldOrProperty("configurationType").extracting("configurationType").isEqualTo(StringConfig.class);
     }
 
     @Test
@@ -110,7 +112,7 @@ class ContributionManagerTest {
         assertThat(actualInstance).isEqualTo("v2");
     }
 
-    private static class LongContributor implements Contributor<Long, Context> {
+    private static class LongContributor implements Contributor<Long, LongConfig, Context<LongConfig>> {
         private final String myTypeName;
         private final long value;
 
@@ -125,31 +127,28 @@ class ContributionManagerTest {
             return myTypeName;
         }
 
+        @NonNull
         @Override
-        public ConfigurationDefinition getConfigDefinition() {
-            return new ConfigurationDefinition(LongConfig.class, true);
+        public Class<LongConfig> getConfigType() {
+            return LongConfig.class;
         }
 
         @Override
-        public Long getInstance(Context context) {
+        public Long getInstance(Context<LongConfig> context) {
             return value;
         }
     }
 
-    private static class StringContributor implements Contributor<String, Context> {
+    private static class StringContributor implements Contributor<String, StringConfig, Context<StringConfig>> {
 
         private final String myTypeName;
         private final String value;
-        private final Class<? extends BaseConfig> configurationType;
+        private final Class<StringConfig> configurationType;
 
         private StringContributor(String typeName, String value) {
-            this(typeName, value, StringConfig.class);
-        }
-
-        private StringContributor(String typeName, String value, Class<? extends BaseConfig> configurationType) {
             this.myTypeName = typeName;
             this.value = value;
-            this.configurationType = configurationType;
+            this.configurationType = StringConfig.class;
         }
 
         @NotNull
@@ -158,13 +157,14 @@ class ContributionManagerTest {
             return myTypeName;
         }
 
+        @NonNull
         @Override
-        public ConfigurationDefinition getConfigDefinition() {
-            return new ConfigurationDefinition(configurationType, true);
+        public Class<StringConfig> getConfigType() {
+            return configurationType;
         }
 
         @Override
-        public String getInstance(Context context) {
+        public String getInstance(Context<StringConfig> context) {
             return value;
         }
     }
@@ -174,10 +174,6 @@ class ContributionManagerTest {
     }
 
     private static class LongConfig extends BaseConfig {
-
-    }
-
-    private static class StringyConfig extends BaseConfig {
 
     }
 }

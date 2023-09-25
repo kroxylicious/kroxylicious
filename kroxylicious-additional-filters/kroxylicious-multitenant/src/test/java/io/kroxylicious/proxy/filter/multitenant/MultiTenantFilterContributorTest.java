@@ -12,7 +12,6 @@ import org.mockito.Mockito;
 import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterConstructContext;
-import io.kroxylicious.proxy.service.ConfigurationDefinition;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -21,8 +20,7 @@ class MultiTenantFilterContributorTest {
     @Test
     void testGetConfigTypeViaConfigurationDefinition() {
         MultiTenantTransformationFilter.Contributor contributor = new MultiTenantTransformationFilter.Contributor();
-        ConfigurationDefinition actualConfigurationDefinition = contributor.getConfigDefinition();
-        assertThat(actualConfigurationDefinition).isNotNull().hasFieldOrPropertyWithValue("configurationType", BaseConfig.class);
+        assertThat(contributor.getConfigType()).isEqualTo(BaseConfig.class);
     }
 
     @Test

@@ -14,8 +14,8 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.annotation.JsonTypeIdResolver;
 
 import io.kroxylicious.proxy.filter.FilterContributor;
-import io.kroxylicious.proxy.service.ConfigurationDefinition;
 import io.kroxylicious.proxy.service.ContributionManager;
+import io.kroxylicious.proxy.service.ContributionManager.ConfigurationDefinition;
 
 public record FilterDefinition(@JsonProperty(required = true) String type,
                                @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.EXTERNAL_PROPERTY, property = "type") @JsonTypeIdResolver(FilterConfigTypeIdResolver.class) BaseConfig config) {

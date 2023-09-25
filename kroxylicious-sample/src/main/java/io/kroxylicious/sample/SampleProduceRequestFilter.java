@@ -21,7 +21,6 @@ import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.FilterContributor;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
-import io.kroxylicious.proxy.service.ConfigurationDefinition;
 import io.kroxylicious.sample.config.SampleFilterConfig;
 import io.kroxylicious.sample.util.SampleFilterTransformer;
 
@@ -83,7 +82,7 @@ public class SampleProduceRequestFilter implements ProduceRequestFilter {
         });
     }
 
-    public static class Contributor implements FilterContributor {
+    public static class Contributor implements FilterContributor<SampleFilterConfig> {
         public static final String SAMPLE_PRODUCE = "SampleProduceRequest";
 
         @Override
@@ -92,13 +91,18 @@ public class SampleProduceRequestFilter implements ProduceRequestFilter {
         }
 
         @Override
-        public ConfigurationDefinition getConfigDefinition() {
-            return new ConfigurationDefinition(SampleFilterConfig.class, true);
+        public Class<SampleFilterConfig> getConfigType() {
+            return SampleFilterConfig.class;
         }
 
         @Override
-        public Filter getInstance(FilterConstructContext context) {
-            return new SampleProduceRequestFilter((SampleFilterConfig) context.getConfig());
+        public boolean requiresConfiguration() {
+            return true;
+        }
+
+        @Override
+        public Filter getInstance(FilterConstructContext<SampleFilterConfig> context) {
+            return new SampleProduceRequestFilter(context.getConfig());
         }
     }
 }

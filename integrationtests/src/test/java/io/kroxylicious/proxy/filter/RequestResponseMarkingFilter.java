@@ -20,7 +20,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.kroxylicious.proxy.config.BaseConfig;
-import io.kroxylicious.proxy.service.ConfigurationDefinition;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -114,7 +113,7 @@ public class RequestResponseMarkingFilter implements RequestFilter, ResponseFilt
         }
     }
 
-    public static class Contributor implements FilterContributor {
+    public static class Contributor implements FilterContributor<RequestResponseMarkingFilterConfig> {
 
         @Override
         public String getTypeName() {
@@ -122,13 +121,18 @@ public class RequestResponseMarkingFilter implements RequestFilter, ResponseFilt
         }
 
         @Override
-        public ConfigurationDefinition getConfigDefinition() {
-            return new ConfigurationDefinition(RequestResponseMarkingFilterConfig.class, true);
+        public Filter getInstance(FilterConstructContext<RequestResponseMarkingFilterConfig> context) {
+            return new RequestResponseMarkingFilter(context, context.getConfig());
         }
 
         @Override
-        public Filter getInstance(FilterConstructContext context) {
-            return new RequestResponseMarkingFilter(context, (RequestResponseMarkingFilterConfig) context.getConfig());
+        public Class<RequestResponseMarkingFilterConfig> getConfigType() {
+            return RequestResponseMarkingFilterConfig.class;
+        }
+
+        @Override
+        public boolean requiresConfiguration() {
+            return true;
         }
     }
 

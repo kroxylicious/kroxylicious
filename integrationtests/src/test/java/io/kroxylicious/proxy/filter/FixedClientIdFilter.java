@@ -14,7 +14,6 @@ import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 
 import io.kroxylicious.proxy.config.BaseConfig;
-import io.kroxylicious.proxy.service.ConfigurationDefinition;
 
 public class FixedClientIdFilter implements RequestFilter, ResponseFilter {
 
@@ -48,20 +47,25 @@ public class FixedClientIdFilter implements RequestFilter, ResponseFilter {
         return context.forwardResponse(header, response);
     }
 
-    public static class Contributor implements FilterContributor {
+    public static class Contributor implements FilterContributor<FixedClientIdFilterConfig> {
         @Override
         public String getTypeName() {
             return "FixedClientId";
         }
 
         @Override
-        public ConfigurationDefinition getConfigDefinition() {
-            return new ConfigurationDefinition(FixedClientIdFilter.FixedClientIdFilterConfig.class, true);
+        public Class<FixedClientIdFilterConfig> getConfigType() {
+            return FixedClientIdFilterConfig.class;
         }
 
         @Override
-        public Filter getInstance(FilterConstructContext context) {
-            return new FixedClientIdFilter((FixedClientIdFilterConfig) context.getConfig());
+        public boolean requiresConfiguration() {
+            return true;
+        }
+
+        @Override
+        public Filter getInstance(FilterConstructContext<FixedClientIdFilterConfig> context) {
+            return new FixedClientIdFilter(context.getConfig());
         }
     }
 }

@@ -38,7 +38,6 @@ import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.FilterContributor;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.internal.util.MemoryRecordsHelper;
-import io.kroxylicious.proxy.service.ConfigurationDefinition;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -137,7 +136,7 @@ public class FetchResponseTransformationFilter implements FetchResponseFilter {
         }
     }
 
-    public static class Contributor implements FilterContributor {
+    public static class Contributor implements FilterContributor<FetchResponseTransformationConfig> {
 
         @NonNull
         @Override
@@ -146,13 +145,18 @@ public class FetchResponseTransformationFilter implements FetchResponseFilter {
         }
 
         @Override
-        public ConfigurationDefinition getConfigDefinition() {
-            return new ConfigurationDefinition(FetchResponseTransformationConfig.class, true);
+        public Class<FetchResponseTransformationConfig> getConfigType() {
+            return FetchResponseTransformationConfig.class;
         }
 
         @Override
-        public Filter getInstance(FilterConstructContext context) {
-            return new FetchResponseTransformationFilter((FetchResponseTransformationConfig) context.getConfig());
+        public boolean requiresConfiguration() {
+            return true;
+        }
+
+        @Override
+        public Filter getInstance(FilterConstructContext<FetchResponseTransformationConfig> context) {
+            return new FetchResponseTransformationFilter(context.getConfig());
         }
     }
 }

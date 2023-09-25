@@ -32,7 +32,6 @@ import io.kroxylicious.proxy.filter.schema.validation.request.ProduceRequestVali
 import io.kroxylicious.proxy.filter.schema.validation.topic.PartitionValidationResult;
 import io.kroxylicious.proxy.filter.schema.validation.topic.RecordValidationFailure;
 import io.kroxylicious.proxy.filter.schema.validation.topic.TopicValidationResult;
-import io.kroxylicious.proxy.service.ConfigurationDefinition;
 
 /**
  * A Filter that is intended to validate some criteria about each topic-partition, preventing
@@ -193,7 +192,7 @@ public class ProduceValidationFilter implements ProduceRequestFilter, ProduceRes
         });
     }
 
-    public static class Contributor implements FilterContributor {
+    public static class Contributor implements FilterContributor<ValidationConfig> {
 
         @Override
         public String getTypeName() {
@@ -201,15 +200,19 @@ public class ProduceValidationFilter implements ProduceRequestFilter, ProduceRes
         }
 
         @Override
-        public ConfigurationDefinition getConfigDefinition() {
-            return new ConfigurationDefinition(ValidationConfig.class, true);
+        public Class<ValidationConfig> getConfigType() {
+            return ValidationConfig.class;
         }
 
         @Override
-        public Filter getInstance(FilterConstructContext context) {
-            ValidationConfig config = (ValidationConfig) context.getConfig();
-            ProduceRequestValidator validator = ProduceValidationFilterBuilder.build(config);
-            return new ProduceValidationFilter(config.isForwardPartialRequests(), validator);
+        public boolean requiresConfiguration() {
+            return true;
+        }
+
+        @Override
+        public Filter getInstance(FilterConstructContext<ValidationConfig> context) {
+            ProduceRequestValidator validator = ProduceValidationFilterBuilder.build(context.getConfig());
+            return new ProduceValidationFilter(context.getConfig().isForwardPartialRequests(), validator);
         }
     }
 }

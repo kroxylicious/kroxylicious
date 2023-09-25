@@ -12,7 +12,6 @@ import org.mockito.Mockito;
 import io.kroxylicious.proxy.filter.FilterConstructContext;
 import io.kroxylicious.proxy.internal.filter.FetchResponseTransformationFilter.Contributor;
 import io.kroxylicious.proxy.internal.filter.FetchResponseTransformationFilter.FetchResponseTransformationConfig;
-import io.kroxylicious.proxy.service.ConfigurationDefinition;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
@@ -23,7 +22,8 @@ class FetchResponseTransformationFilterTest {
     void testContributor() {
         Contributor contributor = new Contributor();
         assertThat(contributor.getTypeName()).isEqualTo("FetchResponseTransformation");
-        assertThat(contributor.getConfigDefinition()).isEqualTo(new ConfigurationDefinition(FetchResponseTransformationConfig.class, true));
+        assertThat(contributor.getConfigType()).isEqualTo(FetchResponseTransformationConfig.class);
+        assertThat(contributor.requiresConfiguration()).isEqualTo(true);
         FilterConstructContext constructContext = Mockito.mock(FilterConstructContext.class);
         when(constructContext.getConfig()).thenReturn(new FetchResponseTransformationConfig(ProduceRequestTransformationFilter.UpperCasing.class.getName()));
         assertThat(contributor.getInstance(constructContext)).isInstanceOf(FetchResponseTransformationFilter.class);

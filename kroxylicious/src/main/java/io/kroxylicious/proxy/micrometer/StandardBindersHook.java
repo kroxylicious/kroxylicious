@@ -27,7 +27,6 @@ import io.micrometer.core.instrument.binder.system.ProcessorMetrics;
 import io.micrometer.core.instrument.binder.system.UptimeMetrics;
 
 import io.kroxylicious.proxy.config.BaseConfig;
-import io.kroxylicious.proxy.service.ConfigurationDefinition;
 import io.kroxylicious.proxy.service.Context;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -94,7 +93,7 @@ public class StandardBindersHook implements MicrometerConfigurationHook {
         };
     }
 
-    public static class Contributor implements MicrometerConfigurationHookContributor {
+    public static class Contributor implements MicrometerConfigurationHookContributor<StandardBindersHookConfig> {
 
         @NonNull
         @Override
@@ -102,16 +101,20 @@ public class StandardBindersHook implements MicrometerConfigurationHook {
             return "StandardBinders";
         }
 
-        @NonNull
         @Override
-        public ConfigurationDefinition getConfigDefinition() {
-            return new ConfigurationDefinition(StandardBindersHookConfig.class, true);
+        public Class<StandardBindersHookConfig> getConfigType() {
+            return StandardBindersHookConfig.class;
+        }
+
+        @Override
+        public boolean requiresConfiguration() {
+            return true;
         }
 
         @NonNull
         @Override
-        public MicrometerConfigurationHook getInstance(Context context) {
-            return new StandardBindersHook((StandardBindersHookConfig) context.getConfig());
+        public MicrometerConfigurationHook getInstance(Context<StandardBindersHookConfig> context) {
+            return new StandardBindersHook(context.getConfig());
         }
 
     }

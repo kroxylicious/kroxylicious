@@ -20,7 +20,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.kroxylicious.proxy.clusternetworkaddressconfigprovider.ClusterNetworkAddressConfigProviderContributor;
 import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
-import io.kroxylicious.proxy.service.ConfigurationDefinition;
 import io.kroxylicious.proxy.service.Context;
 import io.kroxylicious.proxy.service.HostPort;
 
@@ -152,7 +151,7 @@ public class PortPerBrokerClusterNetworkAddressConfigProvider implements Cluster
         }
     }
 
-    public static class Contributor implements ClusterNetworkAddressConfigProviderContributor {
+    public static class Contributor implements ClusterNetworkAddressConfigProviderContributor<PortPerBrokerClusterNetworkAddressConfigProviderConfig> {
 
         @NonNull
         @Override
@@ -162,14 +161,20 @@ public class PortPerBrokerClusterNetworkAddressConfigProvider implements Cluster
 
         @NonNull
         @Override
-        public ConfigurationDefinition getConfigDefinition() {
-            return new ConfigurationDefinition(PortPerBrokerClusterNetworkAddressConfigProviderConfig.class, true);
+        public boolean requiresConfiguration() {
+            return true;
         }
 
         @NonNull
         @Override
-        public ClusterNetworkAddressConfigProvider getInstance(Context context) {
-            return new PortPerBrokerClusterNetworkAddressConfigProvider((PortPerBrokerClusterNetworkAddressConfigProviderConfig) context.getConfig());
+        public Class<PortPerBrokerClusterNetworkAddressConfigProviderConfig> getConfigType() {
+            return PortPerBrokerClusterNetworkAddressConfigProviderConfig.class;
+        }
+
+        @NonNull
+        @Override
+        public ClusterNetworkAddressConfigProvider getInstance(Context<PortPerBrokerClusterNetworkAddressConfigProviderConfig> context) {
+            return new PortPerBrokerClusterNetworkAddressConfigProvider(context.getConfig());
         }
 
     }

@@ -100,7 +100,6 @@ import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.filter.SyncGroupRequestFilter;
 import io.kroxylicious.proxy.filter.TxnOffsetCommitRequestFilter;
 import io.kroxylicious.proxy.filter.TxnOffsetCommitResponseFilter;
-import io.kroxylicious.proxy.service.ConfigurationDefinition;
 
 /**
  * Simple multi-tenant filter.
@@ -504,7 +503,7 @@ public class MultiTenantTransformationFilter
     public MultiTenantTransformationFilter() {
     }
 
-    public static class Contributor implements FilterContributor {
+    public static class Contributor implements FilterContributor<BaseConfig> {
 
         @Override
         public String getTypeName() {
@@ -512,12 +511,12 @@ public class MultiTenantTransformationFilter
         }
 
         @Override
-        public ConfigurationDefinition getConfigDefinition() {
-            return new ConfigurationDefinition(BaseConfig.class, false);
+        public Class<BaseConfig> getConfigType() {
+            return BaseConfig.class;
         }
 
         @Override
-        public Filter getInstance(FilterConstructContext context) {
+        public Filter getInstance(FilterConstructContext<BaseConfig> context) {
             return new MultiTenantTransformationFilter();
         }
     }

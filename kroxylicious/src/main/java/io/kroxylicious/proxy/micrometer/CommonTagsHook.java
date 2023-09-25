@@ -18,7 +18,6 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tag;
 
 import io.kroxylicious.proxy.config.BaseConfig;
-import io.kroxylicious.proxy.service.ConfigurationDefinition;
 import io.kroxylicious.proxy.service.Context;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -52,7 +51,7 @@ public class CommonTagsHook implements MicrometerConfigurationHook {
         log.info("configured micrometer registry with tags: {}", tags);
     }
 
-    public static class Contributor implements MicrometerConfigurationHookContributor {
+    public static class Contributor implements MicrometerConfigurationHookContributor<CommonTagsHookConfig> {
 
         @NonNull
         @Override
@@ -60,16 +59,20 @@ public class CommonTagsHook implements MicrometerConfigurationHook {
             return "CommonTags";
         }
 
-        @NonNull
         @Override
-        public ConfigurationDefinition getConfigDefinition() {
-            return new ConfigurationDefinition(CommonTagsHookConfig.class, true);
+        public Class<CommonTagsHookConfig> getConfigType() {
+            return CommonTagsHookConfig.class;
+        }
+
+        @Override
+        public boolean requiresConfiguration() {
+            return true;
         }
 
         @NonNull
         @Override
-        public MicrometerConfigurationHook getInstance(Context context) {
-            return new CommonTagsHook((CommonTagsHookConfig) context.getConfig());
+        public MicrometerConfigurationHook getInstance(Context<CommonTagsHookConfig> context) {
+            return new CommonTagsHook(context.getConfig());
         }
 
     }

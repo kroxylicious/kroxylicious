@@ -20,7 +20,6 @@ import io.kroxylicious.proxy.filter.FilterConstructContext;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.FilterContributor;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
-import io.kroxylicious.proxy.service.ConfigurationDefinition;
 import io.kroxylicious.sample.config.SampleFilterConfig;
 import io.kroxylicious.sample.util.SampleFilterTransformer;
 
@@ -81,7 +80,7 @@ public class SampleFetchResponseFilter implements FetchResponseFilter {
         });
     }
 
-    public static class Contributor implements FilterContributor {
+    public static class Contributor implements FilterContributor<SampleFilterConfig> {
         public static final String SAMPLE_FETCH = "SampleFetchResponse";
 
         @Override
@@ -90,13 +89,18 @@ public class SampleFetchResponseFilter implements FetchResponseFilter {
         }
 
         @Override
-        public ConfigurationDefinition getConfigDefinition() {
-            return new ConfigurationDefinition(SampleFilterConfig.class, true);
+        public Filter getInstance(FilterConstructContext<SampleFilterConfig> context) {
+            return new SampleFetchResponseFilter((SampleFilterConfig) context.getConfig());
         }
 
         @Override
-        public Filter getInstance(FilterConstructContext context) {
-            return new SampleFetchResponseFilter((SampleFilterConfig) context.getConfig());
+        public boolean requiresConfiguration() {
+            return true;
+        }
+
+        @Override
+        public Class<SampleFilterConfig> getConfigType() {
+            return SampleFilterConfig.class;
         }
     }
 }

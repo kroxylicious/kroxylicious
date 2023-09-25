@@ -18,7 +18,6 @@ import io.micrometer.core.instrument.binder.MeterBinder;
 import io.micrometer.core.instrument.composite.CompositeMeterRegistry;
 
 import io.kroxylicious.proxy.micrometer.StandardBindersHook.StandardBindersHookConfig;
-import io.kroxylicious.proxy.service.ConfigurationDefinition;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -89,7 +88,8 @@ class StandardBindersHookTest {
     void testContributor() {
         StandardBindersHook.Contributor contributor = new StandardBindersHook.Contributor();
         assertThat(contributor.getTypeName()).isEqualTo("StandardBinders");
-        assertThat(contributor.getConfigDefinition()).isEqualTo(new ConfigurationDefinition(StandardBindersHookConfig.class, true));
+        assertThat(contributor.getConfigType()).isEqualTo(StandardBindersHookConfig.class);
+        assertThat(contributor.requiresConfiguration()).isTrue();
         MicrometerConfigurationHook hook = contributor.getInstance(() -> new StandardBindersHookConfig(List.of("UptimeMetrics")));
         assertThat(hook).isNotNull().isInstanceOf(StandardBindersHook.class);
     }

@@ -15,7 +15,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.kroxylicious.proxy.clusternetworkaddressconfigprovider.ClusterNetworkAddressConfigProviderContributor;
 import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
-import io.kroxylicious.proxy.service.ConfigurationDefinition;
 import io.kroxylicious.proxy.service.Context;
 import io.kroxylicious.proxy.service.HostPort;
 
@@ -141,7 +140,7 @@ public class SniRoutingClusterNetworkAddressConfigProvider implements ClusterNet
 
     }
 
-    public static class Contributor implements ClusterNetworkAddressConfigProviderContributor {
+    public static class Contributor implements ClusterNetworkAddressConfigProviderContributor<SniRoutingClusterNetworkAddressConfigProviderConfig> {
 
         @NonNull
         @Override
@@ -151,14 +150,20 @@ public class SniRoutingClusterNetworkAddressConfigProvider implements ClusterNet
 
         @NonNull
         @Override
-        public ConfigurationDefinition getConfigDefinition() {
-            return new ConfigurationDefinition(SniRoutingClusterNetworkAddressConfigProviderConfig.class, true);
+        public boolean requiresConfiguration() {
+            return true;
         }
 
         @NonNull
         @Override
-        public ClusterNetworkAddressConfigProvider getInstance(Context context) {
-            return new SniRoutingClusterNetworkAddressConfigProvider((SniRoutingClusterNetworkAddressConfigProviderConfig) context.getConfig());
+        public Class<SniRoutingClusterNetworkAddressConfigProviderConfig> getConfigType() {
+            return SniRoutingClusterNetworkAddressConfigProviderConfig.class;
+        }
+
+        @NonNull
+        @Override
+        public ClusterNetworkAddressConfigProvider getInstance(Context<SniRoutingClusterNetworkAddressConfigProviderConfig> context) {
+            return new SniRoutingClusterNetworkAddressConfigProvider(context.getConfig());
         }
 
     }

@@ -10,7 +10,6 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import io.kroxylicious.proxy.filter.FilterConstructContext;
-import io.kroxylicious.proxy.service.ConfigurationDefinition;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
@@ -20,8 +19,8 @@ class ProduceRequestTransformationFilterTest {
     void testContributor() {
         ProduceRequestTransformationFilter.Contributor contributor = new ProduceRequestTransformationFilter.Contributor();
         assertThat(contributor.getTypeName()).isEqualTo("ProduceRequestTransformation");
-        assertThat(contributor.getConfigDefinition()).isEqualTo(
-                new ConfigurationDefinition(ProduceRequestTransformationFilter.ProduceRequestTransformationConfig.class, true));
+        assertThat(contributor.getConfigType()).isEqualTo(ProduceRequestTransformationFilter.ProduceRequestTransformationConfig.class);
+        assertThat(contributor.requiresConfiguration()).isTrue();
         FilterConstructContext constructContext = Mockito.mock(FilterConstructContext.class);
         when(constructContext.getConfig()).thenReturn(
                 new ProduceRequestTransformationFilter.ProduceRequestTransformationConfig(ProduceRequestTransformationFilter.UpperCasing.class.getName()));
