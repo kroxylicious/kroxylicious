@@ -31,6 +31,7 @@
         <skipTests>false</skipTests>
         <skipITs>${skipTests}</skipITs>
         <skipUTs>${skipTests}</skipUTs>
+        <skipSTs>${skipTests}</skipSTs>
 
         <freemarker.version>2.3.32</freemarker.version>
         <guava.version>32.1.2-jre</guava.version>
@@ -720,6 +721,7 @@
             <properties>
                 <sonar.organization>kroxylicious</sonar.organization>
                 <sonar.host.url>https://sonarcloud.io</sonar.host.url>
+                <skipSTs>true</skipSTs>
             </properties>
             <build>
                 <plugins>
