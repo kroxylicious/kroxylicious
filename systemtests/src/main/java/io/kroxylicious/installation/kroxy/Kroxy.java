@@ -20,6 +20,7 @@ import org.slf4j.LoggerFactory;
 import org.testcontainers.shaded.org.apache.commons.io.FileUtils;
 
 import io.kroxylicious.Constants;
+import io.kroxylicious.Environment;
 import io.kroxylicious.executor.Exec;
 import io.kroxylicious.executor.ExecResult;
 import io.kroxylicious.k8s.exception.KubeClusterException;
@@ -71,9 +72,9 @@ public class Kroxy {
         }
 
         Exec.exec(overlayDir, "kustomize", "edit", "set", "namespace", deploymentNamespace);
-        if (!Objects.equals(Constants.QUAY_USER_NAME, "kroxylicious")) {
+        if (!Objects.equals(Environment.QUAY_ORG, Environment.QUAY_ORG_DEFAULT)) {
             Exec.exec(overlayDir, "kustomize", "edit", "set", "image",
-                    "quay.io/kroxylicious/kroxylicious-developer=quay.io/" + Constants.QUAY_USER_NAME + "/kroxylicious");
+                    "quay.io/kroxylicious/kroxylicious-developer=quay.io/" + Environment.QUAY_ORG + "/kroxylicious");
         }
 
         LOGGER.info("Deploy Kroxy in {} namespace", deploymentNamespace);

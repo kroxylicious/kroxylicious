@@ -21,16 +21,19 @@ public class Environment {
      * Env. variables names
      */
     public static final String KAFKA_VERSION_ENV = "KAFKA_VERSION";
+    public static final String QUAY_ORG_ENV = "QUAY_ORG";
 
     /**
      * Env. variables defaults
      */
     public static final String KAFKA_VERSION_DEFAULT = "3.5.1";
+    public static final String QUAY_ORG_DEFAULT = "kroxylicious";
 
     /**
      * Env. variables assignment
      */
     public static final String KAFKA_VERSION = getOrDefault(KAFKA_VERSION_ENV, KAFKA_VERSION_DEFAULT);
+    public static final String QUAY_ORG = getOrDefault(QUAY_ORG_ENV, QUAY_ORG_DEFAULT);
 
     private static String getOrDefault(String varName, String defaultValue) {
         return getOrDefault(varName, String::toString, defaultValue);

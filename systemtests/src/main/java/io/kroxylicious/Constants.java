@@ -94,7 +94,6 @@ public interface Constants {
      * Kubernetes related constants
      */
     String DEPLOYMENT = "Deployment";
-    String QUAY_USER_NAME = "fvila";
     String KROXY_KUBE_DIR_PORTPERBROKER = "/kubernetes-examples/portperbroker_plain";
     String KROXY_KUBE_DIR_MULTITENANT = "/kubernetes-examples/multitenant";
     String STRIMZI_KAFKA_IMAGE = "quay.io/strimzi/kafka:latest-kafka-" + KAFKA_VERSION_DEFAULT;
