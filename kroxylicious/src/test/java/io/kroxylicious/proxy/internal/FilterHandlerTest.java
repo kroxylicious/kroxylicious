@@ -783,7 +783,7 @@ class FilterHandlerTest extends FilterHarness {
     }
 
     @Test
-    void otherFiltersInChainCanFilterOutOfBandRequest() {
+    void upstreamFiltersCanFilterOutOfBandRequest() {
         var oobRequestBody = new FetchRequestData();
         ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> context.sendRequest((short) 3, oobRequestBody)
                 .thenCompose(outOfBandResponse -> context.requestFilterResultBuilder().drop().completed());
@@ -807,7 +807,7 @@ class FilterHandlerTest extends FilterHarness {
     }
 
     @Test
-    void otherFiltersInChainCanFilterOutOfBandResponse() {
+    void upstreamFiltersCanFilterOutOfBandResponse() {
         var oobRequestBody = new FetchRequestData();
         ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> context.sendRequest((short) 3, oobRequestBody)
                 .thenCompose(outOfBandResponse -> {
