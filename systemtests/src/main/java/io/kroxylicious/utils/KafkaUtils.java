@@ -21,14 +21,14 @@ public class KafkaUtils {
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaUtils.class);
 
     public static ExecResult ConsumeMessage(String topicName, int timeoutMilliseconds) {
-        LOGGER.info("Consuming messages from '{}' topic", topicName);
+        LOGGER.debug("Consuming messages from '{}' topic", topicName);
         return Exec.exec("kubectl", "-n", "kafka", "run", "java-kafka-consumer", "-i", "--image=" + Constants.STRIMZI_KAFKA_IMAGE, "--rm=true",
                 "--restart=Never", "--", "bin/kafka-console-consumer.sh", "--bootstrap-server", Constants.KROXY_BOOTSTRAP, "--topic", topicName,
                 "--from-beginning", "--timeout-ms", String.valueOf(timeoutMilliseconds));
     }
 
     public static ExecResult ProduceMessage(String topicName, String message) {
-        LOGGER.info("Sending '{}' message to '{}' topic", message, topicName);
+        LOGGER.debug("Sending '{}' message to '{}' topic", message, topicName);
         List<String> commands = SetCommands("kubectl", "-n", "kafka", "run", "java-kafka-producer", "-i",
                 "--image=" + Constants.STRIMZI_KAFKA_IMAGE,
                 "--rm=true", "--restart=Never", "--", "bin/kafka-console-producer.sh", "--bootstrap-server", Constants.KROXY_BOOTSTRAP,
