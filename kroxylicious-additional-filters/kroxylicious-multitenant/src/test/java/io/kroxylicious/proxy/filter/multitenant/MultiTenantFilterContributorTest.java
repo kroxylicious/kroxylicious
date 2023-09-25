@@ -25,7 +25,7 @@ class MultiTenantFilterContributorTest {
     @Test
     void testGetInstance() {
         MultiTenantTransformationFilter.Contributor contributor = new MultiTenantTransformationFilter.Contributor();
-        Filter filter = contributor.getInstance(Mockito.mock(FilterConstructContext.class));
+        Filter filter = contributor.createInstance(Mockito.mock(FilterConstructContext.class));
         assertThat(filter).isNotNull().isInstanceOf(MultiTenantTransformationFilter.class);
     }
 

@@ -101,7 +101,7 @@ public class SampleProduceRequestFilter implements ProduceRequestFilter {
         }
 
         @Override
-        public Filter getInstance(FilterConstructContext<SampleFilterConfig> context) {
+        public Filter createInstance(FilterConstructContext<SampleFilterConfig> context) {
             return new SampleProduceRequestFilter(context.getConfig());
         }
     }

@@ -210,7 +210,7 @@ public class ProduceValidationFilter implements ProduceRequestFilter, ProduceRes
         }
 
         @Override
-        public Filter getInstance(FilterConstructContext<ValidationConfig> context) {
+        public Filter createInstance(FilterConstructContext<ValidationConfig> context) {
             ProduceRequestValidator validator = ProduceValidationFilterBuilder.build(context.getConfig());
             return new ProduceValidationFilter(context.getConfig().isForwardPartialRequests(), validator);
         }

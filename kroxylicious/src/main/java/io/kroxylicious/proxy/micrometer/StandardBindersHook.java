@@ -112,7 +112,7 @@ public class StandardBindersHook implements MicrometerConfigurationHook {
 
         @NonNull
         @Override
-        public MicrometerConfigurationHook getInstance(Context<StandardBindersHookConfig> context) {
+        public MicrometerConfigurationHook createInstance(Context<StandardBindersHookConfig> context) {
             return new StandardBindersHook(context.getConfig());
         }
 

@@ -31,7 +31,7 @@ class ProduceRequestValidationFilterContributorTest {
     void testGetInstance() {
         ProduceValidationFilter.Contributor contributor = new ProduceValidationFilter.Contributor();
         ValidationConfig config = new ValidationConfig(true, List.of(), new RecordValidationRule(null, null));
-        Filter filter = contributor.getInstance(FilterConstructContext.wrap(config, () -> Executors.newScheduledThreadPool(1)));
+        Filter filter = contributor.createInstance(FilterConstructContext.wrap(config, () -> Executors.newScheduledThreadPool(1)));
         assertThat(filter).isNotNull().isInstanceOf(ProduceValidationFilter.class);
     }
 

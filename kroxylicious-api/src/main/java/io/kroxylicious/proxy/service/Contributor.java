@@ -27,7 +27,7 @@ public interface Contributor<S, C, X extends Context<C>> {
      * The type of config expected by the service.
      * <br/>
      * The type must have a constructor annotated with the JsonCreator annotation.
-     * If the service does not required configuration, return {@link Void} instead.
+     * If the service does not require configuration, return {@link Void} instead.
      *
      * @return type of config expected by the service.
      */
@@ -46,6 +46,6 @@ public interface Contributor<S, C, X extends Context<C>> {
      * @return the service instance.
      */
     @NonNull
-    S getInstance(X context);
+    S createInstance(X context);
 
 }

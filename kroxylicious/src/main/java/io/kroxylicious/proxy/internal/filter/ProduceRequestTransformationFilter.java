@@ -121,7 +121,7 @@ public class ProduceRequestTransformationFilter implements ProduceRequestFilter 
         }
 
         @Override
-        public Filter getInstance(FilterConstructContext<ProduceRequestTransformationConfig> context) {
+        public Filter createInstance(FilterConstructContext<ProduceRequestTransformationConfig> context) {
             return new ProduceRequestTransformationFilter(context.getConfig());
         }
     }

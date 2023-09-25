@@ -26,7 +26,7 @@ class FetchResponseTransformationFilterTest {
         assertThat(contributor.requiresConfiguration()).isEqualTo(true);
         FilterConstructContext constructContext = Mockito.mock(FilterConstructContext.class);
         when(constructContext.getConfig()).thenReturn(new FetchResponseTransformationConfig(ProduceRequestTransformationFilter.UpperCasing.class.getName()));
-        assertThat(contributor.getInstance(constructContext)).isInstanceOf(FetchResponseTransformationFilter.class);
+        assertThat(contributor.createInstance(constructContext)).isInstanceOf(FetchResponseTransformationFilter.class);
     }
 
 }

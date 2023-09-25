@@ -132,7 +132,7 @@ class ContributionManagerTest {
         }
 
         @Override
-        public Long getInstance(Context<LongConfig> context) {
+        public Long createInstance(Context<LongConfig> context) {
             return value;
         }
     }
@@ -162,7 +162,7 @@ class ContributionManagerTest {
         }
 
         @Override
-        public String getInstance(Context<StringConfig> context) {
+        public String createInstance(Context<StringConfig> context) {
             return value;
         }
     }

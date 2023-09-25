@@ -24,6 +24,6 @@ class ProduceRequestTransformationFilterTest {
         FilterConstructContext constructContext = Mockito.mock(FilterConstructContext.class);
         when(constructContext.getConfig()).thenReturn(
                 new ProduceRequestTransformationFilter.ProduceRequestTransformationConfig(ProduceRequestTransformationFilter.UpperCasing.class.getName()));
-        assertThat(contributor.getInstance(constructContext)).isInstanceOf(ProduceRequestTransformationFilter.class);
+        assertThat(contributor.createInstance(constructContext)).isInstanceOf(ProduceRequestTransformationFilter.class);
     }
 }

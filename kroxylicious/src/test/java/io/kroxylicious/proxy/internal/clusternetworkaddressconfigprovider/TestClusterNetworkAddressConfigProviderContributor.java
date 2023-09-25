@@ -32,7 +32,7 @@ public class TestClusterNetworkAddressConfigProviderContributor implements Clust
 
     @NonNull
     @Override
-    public ClusterNetworkAddressConfigProvider getInstance(Context<Void> context) {
+    public ClusterNetworkAddressConfigProvider createInstance(Context<Void> context) {
         return new TestClusterNetworkAddressConfigProvider(SHORT_NAME, context.getConfig(), context);
     }
 }

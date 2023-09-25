@@ -62,7 +62,7 @@ public class FixedClientIdFilter implements RequestFilter, ResponseFilter {
         }
 
         @Override
-        public Filter getInstance(FilterConstructContext<FixedClientIdFilterConfig> context) {
+        public Filter createInstance(FilterConstructContext<FixedClientIdFilterConfig> context) {
             return new FixedClientIdFilter(context.getConfig());
         }
     }

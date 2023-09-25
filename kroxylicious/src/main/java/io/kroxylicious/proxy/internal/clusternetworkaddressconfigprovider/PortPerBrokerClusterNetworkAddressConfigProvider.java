@@ -172,7 +172,7 @@ public class PortPerBrokerClusterNetworkAddressConfigProvider implements Cluster
 
         @NonNull
         @Override
-        public ClusterNetworkAddressConfigProvider getInstance(Context<PortPerBrokerClusterNetworkAddressConfigProviderConfig> context) {
+        public ClusterNetworkAddressConfigProvider createInstance(Context<PortPerBrokerClusterNetworkAddressConfigProviderConfig> context) {
             return new PortPerBrokerClusterNetworkAddressConfigProvider(context.getConfig());
         }
 

@@ -37,7 +37,7 @@ public class TestFilterContributor {
         }
 
         @Override
-        public Filter getInstance(FilterConstructContext<ExampleConfig> context) {
+        public Filter createInstance(FilterConstructContext<ExampleConfig> context) {
             return new TestFilter(getTypeName(), context, context.getConfig());
         }
     }
@@ -61,7 +61,7 @@ public class TestFilterContributor {
         }
 
         @Override
-        public Filter getInstance(FilterConstructContext<ExampleConfig> context) {
+        public Filter createInstance(FilterConstructContext<ExampleConfig> context) {
             return new TestFilter(getTypeName(), context, context.getConfig());
         }
     }
@@ -85,7 +85,7 @@ public class TestFilterContributor {
         }
 
         @Override
-        public Filter getInstance(FilterConstructContext<ExampleConfig> context) {
+        public Filter createInstance(FilterConstructContext<ExampleConfig> context) {
             return new TestFilter(getTypeName(), context, context.getConfig());
         }
     }
@@ -109,7 +109,7 @@ public class TestFilterContributor {
         }
 
         @Override
-        public Filter getInstance(FilterConstructContext<ExampleConfig> context) {
+        public Filter createInstance(FilterConstructContext<ExampleConfig> context) {
             return new TestFilter(getTypeName(), context, context.getConfig());
         }
     }

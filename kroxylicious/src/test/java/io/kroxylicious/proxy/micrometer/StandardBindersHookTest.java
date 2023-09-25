@@ -90,7 +90,7 @@ class StandardBindersHookTest {
         assertThat(contributor.getTypeName()).isEqualTo("StandardBinders");
         assertThat(contributor.getConfigType()).isEqualTo(StandardBindersHookConfig.class);
         assertThat(contributor.requiresConfiguration()).isTrue();
-        MicrometerConfigurationHook hook = contributor.getInstance(() -> new StandardBindersHookConfig(List.of("UptimeMetrics")));
+        MicrometerConfigurationHook hook = contributor.createInstance(() -> new StandardBindersHookConfig(List.of("UptimeMetrics")));
         assertThat(hook).isNotNull().isInstanceOf(StandardBindersHook.class);
     }
 

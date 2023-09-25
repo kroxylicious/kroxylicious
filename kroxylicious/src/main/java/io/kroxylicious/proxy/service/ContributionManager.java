@@ -34,7 +34,7 @@ public class ContributionManager {
 
     public <T, S extends Contributor> T getInstance(Class<S> contributorClass, String typeName,
                                                     Context constructionContext) {
-        return (T) findContributor(contributorClass, typeName, contributor -> contributor.getInstance(constructionContext));
+        return (T) findContributor(contributorClass, typeName, contributor -> contributor.createInstance(constructionContext));
     }
 
     private <T, S extends Contributor<T, ?, ?>, X> X findContributor(Class<S> contributorClass, String typeName,

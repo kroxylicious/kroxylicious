@@ -161,7 +161,7 @@ public class SniRoutingClusterNetworkAddressConfigProvider implements ClusterNet
 
         @NonNull
         @Override
-        public ClusterNetworkAddressConfigProvider getInstance(Context<SniRoutingClusterNetworkAddressConfigProviderConfig> context) {
+        public ClusterNetworkAddressConfigProvider createInstance(Context<SniRoutingClusterNetworkAddressConfigProviderConfig> context) {
             return new SniRoutingClusterNetworkAddressConfigProvider(context.getConfig());
         }
 

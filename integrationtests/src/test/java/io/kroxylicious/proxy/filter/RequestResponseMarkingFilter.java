@@ -119,7 +119,7 @@ public class RequestResponseMarkingFilter implements RequestFilter, ResponseFilt
         }
 
         @Override
-        public Filter getInstance(FilterConstructContext<RequestResponseMarkingFilterConfig> context) {
+        public Filter createInstance(FilterConstructContext<RequestResponseMarkingFilterConfig> context) {
             return new RequestResponseMarkingFilter(context, context.getConfig());
         }
 

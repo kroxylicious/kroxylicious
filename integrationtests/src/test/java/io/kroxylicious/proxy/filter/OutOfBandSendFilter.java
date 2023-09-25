@@ -102,7 +102,7 @@ public class OutOfBandSendFilter implements DescribeClusterRequestFilter, Descri
         }
 
         @Override
-        public Filter getInstance(FilterConstructContext<OutOfBandSendFilterConfig> context) {
+        public Filter createInstance(FilterConstructContext<OutOfBandSendFilterConfig> context) {
             return new OutOfBandSendFilter(context.getConfig());
         }
     }

@@ -57,7 +57,7 @@ class CommonTagsHookTest {
         assertThat(contributor.getTypeName()).isEqualTo("CommonTags");
         assertThat(contributor.getConfigType()).isEqualTo(CommonTagsHook.CommonTagsHookConfig.class);
         assertThat(contributor.requiresConfiguration()).isTrue();
-        MicrometerConfigurationHook hook = contributor.getInstance(() -> new CommonTagsHook.CommonTagsHookConfig(Map.of()));
+        MicrometerConfigurationHook hook = contributor.createInstance(() -> new CommonTagsHook.CommonTagsHookConfig(Map.of()));
         assertThat(hook).isNotNull().isInstanceOf(CommonTagsHook.class);
     }
 

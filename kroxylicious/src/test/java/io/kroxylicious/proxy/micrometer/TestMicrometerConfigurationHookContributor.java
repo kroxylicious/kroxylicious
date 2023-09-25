@@ -32,7 +32,7 @@ public class TestMicrometerConfigurationHookContributor implements MicrometerCon
 
     @NonNull
     @Override
-    public MicrometerConfigurationHook getInstance(Context context) {
+    public MicrometerConfigurationHook createInstance(Context context) {
         return new TestHook(SHORT_NAME, context.getConfig(), context);
     }
 

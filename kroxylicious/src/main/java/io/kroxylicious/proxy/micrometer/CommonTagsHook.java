@@ -70,7 +70,7 @@ public class CommonTagsHook implements MicrometerConfigurationHook {
 
         @NonNull
         @Override
-        public MicrometerConfigurationHook getInstance(Context<CommonTagsHookConfig> context) {
+        public MicrometerConfigurationHook createInstance(Context<CommonTagsHookConfig> context) {
             return new CommonTagsHook(context.getConfig());
         }
 

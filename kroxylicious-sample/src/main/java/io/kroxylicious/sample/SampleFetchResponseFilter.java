@@ -89,7 +89,7 @@ public class SampleFetchResponseFilter implements FetchResponseFilter {
         }
 
         @Override
-        public Filter getInstance(FilterConstructContext<SampleFilterConfig> context) {
+        public Filter createInstance(FilterConstructContext<SampleFilterConfig> context) {
             return new SampleFetchResponseFilter((SampleFilterConfig) context.getConfig());
         }
 

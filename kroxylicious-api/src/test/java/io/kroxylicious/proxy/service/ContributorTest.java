@@ -32,7 +32,7 @@ class ContributorTest {
 
             @NonNull
             @Override
-            public Object getInstance(Context<Void> context) {
+            public Object createInstance(Context<Void> context) {
                 return 1;
             }
         };
