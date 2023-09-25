@@ -41,6 +41,8 @@ public class Kroxy {
      * Instantiates a new Kroxy.
      *
      * @param deploymentNamespace the deployment namespace
+     * @param sampleDir the sample dir
+     * @throws IOException the io exception
      */
     public Kroxy(String deploymentNamespace, String sampleDir) throws IOException {
         this.deploymentNamespace = deploymentNamespace;
