@@ -23,7 +23,7 @@ public class AcceptanceST extends AbstractST {
     private static final Logger LOGGER = LoggerFactory.getLogger(AcceptanceST.class);
 
     @Test
-    void produceAndConsumeMessage(TestInfo testInfo) throws IOException {
+    public void produceAndConsumeMessage(TestInfo testInfo) throws IOException {
         String topicName = "my-topic";
         String message = "Hello, world!";
 
