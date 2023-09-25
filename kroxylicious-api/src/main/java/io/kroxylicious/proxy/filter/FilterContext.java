@@ -83,11 +83,15 @@ public interface FilterContext {
      * of the filter that invoked the operation, invoking them, but not itself. The response does not
      * pass through filter downstream.
      * <br/>
+     * Default and asynchronous default computation stages chained to the returned
+     * {@link java.util.concurrent.CompletionStage} are guaranteed to be executed by the thread associated with the
+     * connection. See {@link io.kroxylicious.proxy.filter} for more details.
      *
      * @param apiVersion The version of the request to use
      * @param request The request to send.
      * @param <T> The type of the response
      * @return CompletionStage that will yield the response.
+     * @see io.kroxylicious.proxy.filter Thread Safety
      */
     @NonNull
     <T extends ApiMessage> CompletionStage<T> sendRequest(short apiVersion, @NonNull ApiMessage request);

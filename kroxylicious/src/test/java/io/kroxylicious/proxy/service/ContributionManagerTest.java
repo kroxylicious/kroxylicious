@@ -131,7 +131,7 @@ class ContributionManagerTest {
 
         @Override
         public ConfigurationDefinition getConfigDefinition(String shortName) {
-            return new ConfigurationDefinition(LongConfig.class);
+            return new ConfigurationDefinition(LongConfig.class, true);
         }
 
         @Override
@@ -168,7 +168,7 @@ class ContributionManagerTest {
 
         @Override
         public ConfigurationDefinition getConfigDefinition(String shortName) {
-            return new ConfigurationDefinition(configurationType);
+            return new ConfigurationDefinition(configurationType, true);
         }
 
         @Override

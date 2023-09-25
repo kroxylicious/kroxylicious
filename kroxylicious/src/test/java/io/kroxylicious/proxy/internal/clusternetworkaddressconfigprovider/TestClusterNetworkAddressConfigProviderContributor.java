@@ -34,7 +34,7 @@ public class TestClusterNetworkAddressConfigProviderContributor implements Clust
     @Override
     public ConfigurationDefinition getConfigDefinition(String shortName) {
         if (Objects.equals(shortName, SHORT_NAME)) {
-            return new ConfigurationDefinition(Config.class);
+            return new ConfigurationDefinition(Config.class, true);
         }
         return null;
     }
