@@ -101,6 +101,7 @@ public class ResourceManager {
             LOGGER.info("Creating/Updating {} {}",
                     resource.getKind(), resource.getMetadata().getName());
 
+            assert type != null;
             type.create(resource);
 
             synchronized (this) {
@@ -118,9 +119,10 @@ public class ResourceManager {
                 if (Objects.equals(resource.getKind(), KafkaTopic.RESOURCE_KIND)) {
                     continue;
                 }
-                assertTrue(waitResourceCondition(resource, ResourceCondition.readiness(type)),
-                        String.format("Timed out waiting for %s %s/%s to be ready", resource.getKind(), resource.getMetadata().getNamespace(),
-                                resource.getMetadata().getName()));
+                if (!waitResourceCondition(resource, ResourceCondition.readiness(type))) {
+                    throw new RuntimeException(String.format("Timed out waiting for %s %s/%s to be ready", resource.getKind(), resource.getMetadata().getNamespace(),
+                            resource.getMetadata().getName()));
+                }
             }
         }
     }
@@ -185,7 +187,7 @@ public class ResourceManager {
                     resource.getThrowableRunner().run();
                 }
                 catch (Exception e) {
-                    e.printStackTrace();
+                    LOGGER.trace(e.getMessage());
                 }
                 numberOfResources.decrementAndGet();
             }

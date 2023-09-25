@@ -82,7 +82,7 @@ public class TestUtils {
                 }
                 onTimeout.run();
                 WaitException waitException = new WaitException("Timeout after " + timeoutMs + " ms waiting for " + description);
-                waitException.printStackTrace();
+                LOGGER.trace(waitException.getMessage());
                 throw waitException;
             }
             long sleepTime = Math.min(pollIntervalMs, timeLeft);
@@ -93,6 +93,7 @@ public class TestUtils {
                 Thread.sleep(sleepTime);
             }
             catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
                 return deadline - System.currentTimeMillis();
             }
         }
