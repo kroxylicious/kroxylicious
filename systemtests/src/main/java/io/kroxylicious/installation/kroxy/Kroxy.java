@@ -45,10 +45,8 @@ public class Kroxy {
     public Kroxy(String deploymentNamespace, String sampleDir) throws IOException {
         this.deploymentNamespace = deploymentNamespace;
         this.sampleDir = sampleDir;
-        Path kustomizeDir = Files.createDirectories(Paths.get("/tmp/kustomize"), PosixFilePermissions.asFileAttribute(
+        kustomizeTmpdir = Files.createTempDirectory(Paths.get("/tmp"), "kustomize", PosixFilePermissions.asFileAttribute(
                 PosixFilePermissions.fromString("rwx------")));
-        kustomizeDir.toFile().deleteOnExit();
-        kustomizeTmpdir = Files.createTempDirectory(kustomizeDir, "tmp");
     }
 
     /**
