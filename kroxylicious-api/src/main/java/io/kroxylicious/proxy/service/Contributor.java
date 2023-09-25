@@ -10,8 +10,7 @@ import io.kroxylicious.proxy.config.BaseConfig;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
- * Support loading an Instance of a service, optionally providing it with configuration obtained
- * from the Kroxylicious configuration file.
+ * Support creating an instance of a service, optionally providing it with configuration.
  *
  * @param <S> the service type
  * @param <C> the context type

@@ -510,7 +510,6 @@ implementation that can contribute an instance of your custom Filter and optiona
 populate (using Jackson) when loading your custom Filter. The module must package a `META-INF/services/io.kroxylicious.proxy.filter.FilterContributor` 
 file containing the classnames of each contributor into the JAR file.
 
-A convenience abstract class is provided to simplify building FilterContributors for Filters that require configuration, the {api-javadoc}/io/kroxylicious/proxy/filter/ConfigurableFilterContributor.html[ConfigurableFilterContributor].
 See the {github-sample-contributor}[SampleContributor] for an example implementation (and corresponding {github}/blob/main/kroxylicious-sample/src/main/resources/META-INF/services/io.kroxylicious.proxy.filter.FilterContributor[service metadata]).
 
 For example in the kroxylicious-samples we have the {github}/blob/main/kroxylicious-sample/src/main/java/io/kroxylicious/sample/config/SampleFilterConfig.java[SampleFilterConfig] class.
