@@ -12,6 +12,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <packaging>jar</packaging>
+
     <parent>
         <groupId>io.kroxylicious</groupId>
         <artifactId>kroxylicious-parent</artifactId>
@@ -20,6 +21,10 @@
     </parent>
     <artifactId>kroxylicious-test-tools</artifactId>
     <name>Testing tools</name>
+
+    <properties>
+        <moby-names-generator.version>20.10.0-r0</moby-names-generator.version>
+    </properties>
 
     <dependencies>
 
@@ -89,6 +94,11 @@
         <dependency>
             <groupId>com.github.spotbugs</groupId>
             <artifactId>spotbugs-annotations</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>info.schnatterer.moby-names-generator</groupId>
+            <artifactId>moby-names-generator</artifactId>
+            <version>${moby-names-generator.version}</version>
         </dependency>
 
         <!-- third party dependencies - test -->

@@ -10,14 +10,23 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import org.apache.kafka.clients.admin.Admin;
+import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.common.serialization.Serde;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import info.schnatterer.mobynamesgenerator.MobyNamesGenerator;
 
 import io.kroxylicious.proxy.KafkaProxy;
 import io.kroxylicious.proxy.config.Configuration;
@@ -201,6 +210,25 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
             Thread.currentThread().interrupt();
         }
         return kafkaProxy;
+    }
+
+    @Override
+    public Set<String> createTopics(String virtualCluster, int numberOfTopics) {
+        try (Admin admin = clients(virtualCluster).admin()) {
+            final List<NewTopic> newTopics = IntStream.range(0, numberOfTopics).mapToObj(ignored -> {
+                final String topicName = MobyNamesGenerator.getRandomName();
+                return new NewTopic(topicName, (short) 1, (short) 1); // We should be able to
+            }).toList();
+            admin.createTopics(newTopics).all().get(30, TimeUnit.SECONDS);
+            return newTopics.stream().map(NewTopic::name).collect(Collectors.toSet());
+        }
+        catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("failed to create topics on " + virtualCluster, e);
+        }
+        catch (ExecutionException | TimeoutException e) {
+            throw new IllegalStateException("failed to create topics on " + virtualCluster, e);
+        }
     }
 
     @FunctionalInterface

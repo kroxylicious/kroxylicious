@@ -8,6 +8,7 @@ package io.kroxylicious.test.tester;
 
 import java.io.Closeable;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.consumer.Consumer;
@@ -219,4 +220,14 @@ public interface KroxyliciousTester extends Closeable {
      */
     void close();
 
+    /**
+     * Creates a single topic on the default Kafka cluster
+     * @param clusterName the name of the virtual cluster on which to create the topic
+     * @return the name of the created topic
+     */
+    default String createTopic(String clusterName) {
+        return createTopics(clusterName, 1).stream().findFirst().orElseThrow(() -> new IllegalStateException("Failed to create topic"));
+    }
+
+    Set<String> createTopics(String clusterName, int numberOfTopics);
 }
