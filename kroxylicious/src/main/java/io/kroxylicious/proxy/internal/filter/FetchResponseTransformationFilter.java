@@ -38,6 +38,8 @@ import io.kroxylicious.proxy.filter.FilterContributor;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.internal.util.MemoryRecordsHelper;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 /**
  * An filter for modifying the key/value/header/topic of {@link ApiKeys#FETCH} responses.
  */
@@ -134,6 +136,12 @@ public class FetchResponseTransformationFilter implements FetchResponseFilter {
     }
 
     public static class Contributor implements FilterContributor<FetchResponseTransformationConfig> {
+
+        @NonNull
+        @Override
+        public Class<? extends Filter> getServiceType() {
+            return FetchResponseTransformationFilter.class;
+        }
 
         @Override
         public Class<FetchResponseTransformationConfig> getConfigType() {

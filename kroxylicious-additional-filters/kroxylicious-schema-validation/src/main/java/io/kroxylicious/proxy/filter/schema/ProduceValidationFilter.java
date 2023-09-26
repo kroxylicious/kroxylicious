@@ -195,6 +195,11 @@ public class ProduceValidationFilter implements ProduceRequestFilter, ProduceRes
     public static class Contributor implements FilterContributor<ValidationConfig> {
 
         @Override
+        public Class<? extends Filter> getServiceType() {
+            return ProduceValidationFilter.class;
+        }
+
+        @Override
         public Class<ValidationConfig> getConfigType() {
             return ValidationConfig.class;
         }

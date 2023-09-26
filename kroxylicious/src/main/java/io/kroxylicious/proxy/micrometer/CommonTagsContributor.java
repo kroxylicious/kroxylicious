@@ -14,6 +14,13 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 public class CommonTagsContributor implements MicrometerConfigurationHookContributor<CommonTagsHookConfig> {
 
     @Override
+    @NonNull
+    public Class<? extends MicrometerConfigurationHook> getServiceType() {
+        return CommonTagsHook.class;
+    }
+
+    @Override
+    @NonNull
     public Class<CommonTagsHookConfig> getConfigType() {
         return CommonTagsHookConfig.class;
     }

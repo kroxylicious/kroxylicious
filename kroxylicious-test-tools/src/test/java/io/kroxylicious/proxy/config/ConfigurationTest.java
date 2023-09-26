@@ -34,12 +34,12 @@ class ConfigurationTest {
 
                 Arguments.of("With filter",
                         new ConfigurationBuilder()
-                                .addToFilters(new FilterDefinitionBuilder(ProduceRequestTransformationFilter.Contributor.class.getName())
+                                .addToFilters(new FilterDefinitionBuilder("ProduceRequestTransformationFilter")
                                         .withConfig("transformation", ProduceRequestTransformationFilter.UpperCasing.class.getName()).build())
                                 .build(),
                         """
                                 filters:
-                                - type: io.kroxylicious.proxy.internal.filter.ProduceRequestTransformationFilter$Contributor
+                                - type: ProduceRequestTransformationFilter
                                   config:
                                     transformation: "io.kroxylicious.proxy.internal.filter.ProduceRequestTransformationFilter$UpperCasing"
                                 """),
@@ -51,7 +51,7 @@ class ConfigurationTest {
                                         .endTargetCluster()
                                         .withClusterNetworkAddressConfigProvider(
                                                 new ClusterNetworkAddressConfigProviderDefinitionBuilder(
-                                                        "SniRoutingContributor")
+                                                        "SniRoutingClusterNetworkAddressConfigProvider")
                                                         .withConfig("bootstrapAddress", "cluster1:9192", "brokerAddressPattern", "broker-$(nodeId)")
                                                         .build())
                                         .build())
@@ -62,7 +62,7 @@ class ConfigurationTest {
                                     targetCluster:
                                       bootstrap_servers: kafka.example:1234
                                     clusterNetworkAddressConfigProvider:
-                                      type: SniRoutingContributor
+                                      type: SniRoutingClusterNetworkAddressConfigProvider
                                       config:
                                         bootstrapAddress: cluster1:9192
                                         brokerAddressPattern: broker-$(nodeId)
@@ -82,7 +82,7 @@ class ConfigurationTest {
                                         .endTls()
                                         .withClusterNetworkAddressConfigProvider(
                                                 new ClusterNetworkAddressConfigProviderDefinitionBuilder(
-                                                        "SniRoutingContributor")
+                                                        "SniRoutingClusterNetworkAddressConfigProvider")
                                                         .withConfig("bootstrapAddress", "cluster1:9192", "brokerAddressPattern", "broker-$(nodeId)")
                                                         .build())
                                         .build())
@@ -99,7 +99,7 @@ class ConfigurationTest {
                                          keyPassword:
                                            password: keypassword
                                     clusterNetworkAddressConfigProvider:
-                                      type: SniRoutingContributor
+                                      type: SniRoutingClusterNetworkAddressConfigProvider
                                       config:
                                         bootstrapAddress: cluster1:9192
                                         brokerAddressPattern: broker-$(nodeId)
@@ -114,7 +114,7 @@ class ConfigurationTest {
                                         .endTargetCluster()
                                         .withClusterNetworkAddressConfigProvider(
                                                 new ClusterNetworkAddressConfigProviderDefinitionBuilder(
-                                                        "SniRoutingContributor")
+                                                        "SniRoutingClusterNetworkAddressConfigProvider")
                                                         .withConfig("bootstrapAddress", "cluster1:9192", "brokerAddressPattern", "broker-$(nodeId)")
                                                         .build())
                                         .build())
@@ -126,7 +126,7 @@ class ConfigurationTest {
                                       bootstrap_servers: kafka.example:1234
                                       tls: {}
                                     clusterNetworkAddressConfigProvider:
-                                      type: SniRoutingContributor
+                                      type: SniRoutingClusterNetworkAddressConfigProvider
                                       config:
                                         bootstrapAddress: cluster1:9192
                                         brokerAddressPattern: broker-$(nodeId)
@@ -146,7 +146,7 @@ class ConfigurationTest {
                                         .endTargetCluster()
                                         .withClusterNetworkAddressConfigProvider(
                                                 new ClusterNetworkAddressConfigProviderDefinitionBuilder(
-                                                        "SniRoutingContributor")
+                                                        "SniRoutingClusterNetworkAddressConfigProvider")
                                                         .withConfig("bootstrapAddress", "cluster1:9192", "brokerAddressPattern", "broker-$(nodeId)")
                                                         .build())
                                         .build())
@@ -163,7 +163,7 @@ class ConfigurationTest {
                                               password: storepassword
                                             storeType: JKS
                                     clusterNetworkAddressConfigProvider:
-                                      type: SniRoutingContributor
+                                      type: SniRoutingClusterNetworkAddressConfigProvider
                                       config:
                                         bootstrapAddress: cluster1:9192
                                         brokerAddressPattern: broker-$(nodeId)
@@ -179,7 +179,7 @@ class ConfigurationTest {
                                         .endTargetCluster()
                                         .withClusterNetworkAddressConfigProvider(
                                                 new ClusterNetworkAddressConfigProviderDefinitionBuilder(
-                                                        "SniRoutingContributor")
+                                                        "SniRoutingClusterNetworkAddressConfigProvider")
                                                         .withConfig("bootstrapAddress", "cluster1:9192", "brokerAddressPattern", "broker-$(nodeId)")
                                                         .build())
                                         .build())
@@ -193,7 +193,7 @@ class ConfigurationTest {
                                          trust:
                                             insecure: true
                                     clusterNetworkAddressConfigProvider:
-                                      type: SniRoutingContributor
+                                      type: SniRoutingClusterNetworkAddressConfigProvider
                                       config:
                                         bootstrapAddress: cluster1:9192
                                         brokerAddressPattern: broker-$(nodeId)

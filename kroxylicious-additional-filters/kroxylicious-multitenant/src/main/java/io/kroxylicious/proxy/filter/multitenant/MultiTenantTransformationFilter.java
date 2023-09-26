@@ -505,6 +505,11 @@ public class MultiTenantTransformationFilter
     public static class Contributor implements FilterContributor<Void> {
 
         @Override
+        public Class<? extends Filter> getServiceType() {
+            return MultiTenantTransformationFilter.class;
+        }
+
+        @Override
         public Class<Void> getConfigType() {
             return Void.class;
         }

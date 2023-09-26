@@ -10,7 +10,7 @@ import io.kroxylicious.proxy.config.ClusterNetworkAddressConfigProviderDefinitio
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
-import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerContributor;
+import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 
@@ -37,7 +37,7 @@ public class KroxyliciousConfigUtils {
                 .withBootstrapServers(clusterBootstrapServers)
                 .endTargetCluster()
                 .withClusterNetworkAddressConfigProvider(
-                        new ClusterNetworkAddressConfigProviderDefinitionBuilder(PortPerBrokerContributor.class.getName())
+                        new ClusterNetworkAddressConfigProviderDefinitionBuilder(PortPerBrokerClusterNetworkAddressConfigProvider.class.getName())
                                 .withConfig("bootstrapAddress", DEFAULT_PROXY_BOOTSTRAP)
                                 .build())
                 .build());

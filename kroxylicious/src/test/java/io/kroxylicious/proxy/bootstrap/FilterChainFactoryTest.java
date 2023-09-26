@@ -20,8 +20,8 @@ import io.kroxylicious.proxy.config.FilterDefinition;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.internal.filter.ExampleConfig;
 import io.kroxylicious.proxy.internal.filter.NettyFilterContext;
+import io.kroxylicious.proxy.internal.filter.OptionalConfigFilter;
 import io.kroxylicious.proxy.internal.filter.TestFilter;
-import io.kroxylicious.proxy.internal.filter.TestFilterContributor;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -60,9 +60,9 @@ class FilterChainFactoryTest {
 
     @Test
     void testCreateFilter() {
-        final ListAssert<FilterAndInvoker> listAssert = assertFiltersCreated(List.of(new FilterDefinition(TestFilterContributor.ContributorA.class.getName(), config)));
+        final ListAssert<FilterAndInvoker> listAssert = assertFiltersCreated(List.of(new FilterDefinition(TestFilter.class.getName(), config)));
         listAssert.first().extracting(FilterAndInvoker::filter).isInstanceOfSatisfying(TestFilter.class, testFilter -> {
-            assertThat(testFilter.getContributorClass()).isEqualTo(TestFilterContributor.ContributorA.class);
+            assertThat(testFilter.getContributorClass()).isEqualTo(TestFilter.ContributorA.class);
             assertThat(testFilter.getContext().getConfig()).isSameAs(config);
             assertThat(testFilter.getContext().executors().eventLoop()).isSameAs(eventLoop);
             assertThat(testFilter.getExampleConfig()).isSameAs(config);
@@ -71,16 +71,16 @@ class FilterChainFactoryTest {
 
     @Test
     void testCreateFilters() {
-        final ListAssert<FilterAndInvoker> listAssert = assertFiltersCreated(List.of(new FilterDefinition(TestFilterContributor.ContributorA.class.getName(), config),
-                new FilterDefinition(TestFilterContributor.ContributorB.class.getName(), config)));
+        final ListAssert<FilterAndInvoker> listAssert = assertFiltersCreated(List.of(new FilterDefinition(TestFilter.class.getName(), config),
+                new FilterDefinition(TestFilter.class.getName(), config)));
         listAssert.element(0).extracting(FilterAndInvoker::filter).isInstanceOfSatisfying(TestFilter.class, testFilter -> {
-            assertThat(testFilter.getContributorClass()).isEqualTo(TestFilterContributor.ContributorA.class);
+            assertThat(testFilter.getContributorClass()).isEqualTo(TestFilter.ContributorA.class);
             assertThat(testFilter.getContext().getConfig()).isSameAs(config);
             assertThat(testFilter.getContext().executors().eventLoop()).isSameAs(eventLoop);
             assertThat(testFilter.getExampleConfig()).isSameAs(config);
         });
         listAssert.element(1).extracting(FilterAndInvoker::filter).isInstanceOfSatisfying(TestFilter.class, testFilter -> {
-            assertThat(testFilter.getContributorClass()).isEqualTo(TestFilterContributor.ContributorB.class);
+            assertThat(testFilter.getContributorClass()).isEqualTo(TestFilter.ContributorA.class);
             assertThat(testFilter.getContext().getConfig()).isSameAs(config);
             assertThat(testFilter.getContext().executors().eventLoop()).isSameAs(eventLoop);
             assertThat(testFilter.getExampleConfig()).isSameAs(config);
@@ -90,36 +90,36 @@ class FilterChainFactoryTest {
     @Test
     void shouldReturnInvalidFilterNameIfFilterRequiresConfigAndNoneIsSupplied() {
         // Given
-        final List<FilterDefinition> filters = List.of(new FilterDefinition(TestFilterContributor.ContributorA.class.getName(), config),
-                new FilterDefinition(TestFilterContributor.ContributorB.class.getName(), null));
+        final List<FilterDefinition> filters = List.of(new FilterDefinition(TestFilter.class.getName(), config),
+                new FilterDefinition(TestFilter.class.getName(), null));
 
         // When
         final Set<String> invalidFilters = FilterChainFactory.validateFilterConfiguration(filters);
 
         // Then
-        assertThat(invalidFilters).containsOnly(TestFilterContributor.ContributorB.class.getName());
+        assertThat(invalidFilters).containsOnly(TestFilter.class.getName());
     }
 
     @Test
     void shouldReturnInvalidFilterNamesForAllFiltersWithoutRequiredConfig() {
         // Given
-        final List<FilterDefinition> filters = List.of(new FilterDefinition(TestFilterContributor.ContributorA.class.getName(), null),
-                new FilterDefinition(TestFilterContributor.ContributorB.class.getName(), null),
-                new FilterDefinition(TestFilterContributor.OptionalConfigContributor.class.getName(), null));
+        final List<FilterDefinition> filters = List.of(new FilterDefinition(TestFilter.class.getName(), null),
+                new FilterDefinition(TestFilter.class.getName(), null),
+                new FilterDefinition(OptionalConfigFilter.class.getName(), null));
 
         // When
         final Set<String> invalidFilters = FilterChainFactory.validateFilterConfiguration(filters);
 
         // Then
-        assertThat(invalidFilters).containsOnly(TestFilterContributor.ContributorA.class.getName(),
-                TestFilterContributor.ContributorB.class.getName());
+        assertThat(invalidFilters).containsOnly(TestFilter.class.getName(),
+                TestFilter.class.getName());
     }
 
     @Test
     void shouldPassValidationWhenAllFiltersHaveConfiguration() {
         // Given
-        final List<FilterDefinition> filterDefinitions = List.of(new FilterDefinition(TestFilterContributor.ContributorA.class.getName(), config),
-                new FilterDefinition(TestFilterContributor.ContributorB.class.getName(), config));
+        final List<FilterDefinition> filterDefinitions = List.of(new FilterDefinition(TestFilter.class.getName(), config),
+                new FilterDefinition(TestFilter.class.getName(), config));
 
         // When
         final Set<String> invalidFilters = FilterChainFactory.validateFilterConfiguration(filterDefinitions);
@@ -131,9 +131,9 @@ class FilterChainFactoryTest {
     @Test
     void shouldPassValidationWhenFiltersWithOptionalConfigurationAreMissingConfiguration() {
         // Given
-        final List<FilterDefinition> filterDefinitions = List.of(new FilterDefinition(TestFilterContributor.ContributorA.class.getName(), config),
-                new FilterDefinition(TestFilterContributor.ContributorB.class.getName(), config),
-                new FilterDefinition(TestFilterContributor.OptionalConfigContributor.class.getName(), null));
+        final List<FilterDefinition> filterDefinitions = List.of(new FilterDefinition(TestFilter.class.getName(), config),
+                new FilterDefinition(TestFilter.class.getName(), config),
+                new FilterDefinition(OptionalConfigFilter.class.getName(), null));
 
         // When
         final Set<String> invalidFilters = FilterChainFactory.validateFilterConfiguration(filterDefinitions);

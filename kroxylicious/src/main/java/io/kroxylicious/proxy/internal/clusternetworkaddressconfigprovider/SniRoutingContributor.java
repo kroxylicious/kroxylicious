@@ -24,6 +24,12 @@ public class SniRoutingContributor
 
     @NonNull
     @Override
+    public Class<? extends ClusterNetworkAddressConfigProvider> getServiceType() {
+        return SniRoutingClusterNetworkAddressConfigProvider.class;
+    }
+
+    @NonNull
+    @Override
     public Class<SniRoutingClusterNetworkAddressConfigProviderConfig> getConfigType() {
         return SniRoutingClusterNetworkAddressConfigProviderConfig.class;
     }

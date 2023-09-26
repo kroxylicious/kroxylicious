@@ -54,11 +54,11 @@ adminHttp:
   endpoints:
     prometheus: {}
 micrometer:
-  - type: "CommonTagsContributor"
+  - type: "CommonTagsHook"
     config:
       commonTags:
         zone: "euc-1a" #1
-  - type: "StandardBindersContributor"
+  - type: "StandardBindersHook"
     config:
       binderNames:
       - "JvmGcMetrics" #2
@@ -86,7 +86,7 @@ To configure common tags use configuration:
 
 [source,yaml]
 ----
-  - type: "CommonTagsContributor"
+  - type: "CommonTagsHook"
     config:
       commonTags:
         zone: "euc-1a"
@@ -108,7 +108,7 @@ To configure multiple binders you can use configuration like:
 [source, yaml]
 ----
 micrometer:
-  - type: "StandardBindersContributor"
+  - type: "StandardBindersHook"
     config:
       binderNames:
       - "JvmGcMetrics"

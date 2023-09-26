@@ -13,6 +13,12 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 public class StandardBindersContributor implements MicrometerConfigurationHookContributor<StandardBindersHookConfig> {
 
+    @NonNull
+    @Override
+    public Class<? extends MicrometerConfigurationHook> getServiceType() {
+        return StandardBindersHook.class;
+    }
+
     @Override
     public Class<StandardBindersHookConfig> getConfigType() {
         return StandardBindersHookConfig.class;

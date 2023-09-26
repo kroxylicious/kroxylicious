@@ -26,13 +26,13 @@ virtualClusters:
     targetCluster:
       bootstrap_servers: myprivatecluster:9092  # <2>
     clusterNetworkAddressConfigProvider:
-      type: PortPerBrokerContributor                       # <3>
+      type: PortPerBrokerClusterNetworkAddressConfigProvider                       # <3>
       config:
         bootstrapAddress: mypublickroxylicious:9192    # <4>
 ----
 <1> The name of the virtual cluster.
 <2> The bootstrap of the (physical) Kafka Cluster.  This is the Kafka Cluster being proxied.
-<3> The name of a cluster network address config provider. The built-in types are `PortPerBrokerContributor` and `SniRoutingContributor`.
+<3> The name of a cluster network address config provider. The built-in types are `PortPerBrokerClusterNetworkAddressConfigProvider` and `SniRoutingClusterNetworkAddressConfigProvider`.
 <4> The hostname and port of the bootstrap that will be used by the Kafka Clients.  The hostname must be resolved
 by the clients.
 
@@ -64,7 +64,7 @@ The `PortPerBroker` scheme can be used with either clear text or TLS downstream 
 [source, yaml]
 ----
 clusterNetworkAddressConfigProvider:
-  type: PortPerBrokerContributor
+  type: PortPerBrokerClusterNetworkAddressConfigProvider
   config:
     bootstrapAddress: mycluster.kafka.com:9192                   # <1>
     brokerAddressPattern: mybroker-$(nodeId).mycluster.kafka.com # <2>
@@ -108,7 +108,7 @@ a single cloud provider load balancer to be shared across all virtual clusters.
 [source, yaml]
 ----
 clusterNetworkAddressConfigProvider:
-  type: SniRoutingContributor
+  type: SniRoutingClusterNetworkAddressConfigProvider
   config:
     bootstrapAddress: mycluster.kafka.com:9192                    # <1>
     brokerAddressPattern: mybroker-$(nodeId).mycluster.kafka.com  # <2>

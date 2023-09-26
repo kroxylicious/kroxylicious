@@ -48,6 +48,11 @@ public class FixedClientIdFilter implements RequestFilter, ResponseFilter {
     public static class Contributor implements FilterContributor<FixedClientIdFilterConfig> {
 
         @Override
+        public Class<? extends Filter> getServiceType() {
+            return FixedClientIdFilter.class;
+        }
+
+        @Override
         public Class<FixedClientIdFilterConfig> getConfigType() {
             return FixedClientIdFilterConfig.class;
         }

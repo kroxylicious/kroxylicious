@@ -9,6 +9,7 @@ package io.kroxylicious.proxy.service;
 import java.util.List;
 import java.util.function.Function;
 
+import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,7 +32,7 @@ class ContributionManagerTest {
     @BeforeEach
     void setUp() {
         contributingContributors = List.of(new StringContributor("v1"),
-                new LongContributor(3), new IntContributor(), new InnerClassContributor("inner"));
+                new LongContributor(3), new IntContributor());
     }
 
     @SuppressWarnings({ "rawtypes", "unchecked" })
@@ -43,7 +44,7 @@ class ContributionManagerTest {
         final ContributionManager contributionManager = new ContributionManager(supplier);
 
         // When
-        contributionManager.getDefinition(StringContributor.class, StringContributor.class.getName());
+        contributionManager.getDefinition(StringContributor.class, String.class.getName());
 
         // Then
         verify(supplier).apply(any());
@@ -56,44 +57,20 @@ class ContributionManagerTest {
         ContributionManager manager = new ContributionManager(clazz -> contributingContributors);
 
         // When
-        ContributionManager.ConfigurationDefinition definition = manager.getDefinition(IntContributor.class, "IntContributor");
+        ContributionManager.ConfigurationDefinition definition = manager.getDefinition(IntContributor.class, "Integer");
 
         // Then
         assertThat(definition.configurationType()).isEqualTo(Void.class);
-    }
-
-    @SuppressWarnings({ "rawtypes", "unchecked" })
-    @Test
-    void shouldNotLoadServicesOfStaticInnerClassByShortName() {
-        // Given
-        ContributionManager manager = new ContributionManager(clazz -> contributingContributors);
-
-        // When
-        assertThrows(IllegalArgumentException.class, () -> manager.getDefinition(StringContributor.class, "StringContributor"));
-
-        // Then
-    }
-
-    @SuppressWarnings({ "rawtypes", "unchecked" })
-    @Test
-    void shouldNotLoadServicesOfNonStaticInnerClassByShortName() {
-        // Given
-        ContributionManager manager = new ContributionManager(clazz -> contributingContributors);
-
-        // When
-        assertThrows(IllegalArgumentException.class, () -> manager.getDefinition(StringContributor.class, "InnerClassContributor"));
-
-        // Then
     }
 
     @Test
     void shouldLoadServicesOfMultipleType() {
         // Given
         final ContributionManager contributionManager = new ContributionManager(clazz -> contributingContributors);
-        final ContributionManager.ConfigurationDefinition stringConfigDef = contributionManager.getDefinition(StringContributor.class, StringContributor.class.getName());
+        final ContributionManager.ConfigurationDefinition stringConfigDef = contributionManager.getDefinition(StringContributor.class, "String");
 
         // When
-        final ContributionManager.ConfigurationDefinition longConfigDef = contributionManager.getDefinition(LongContributor.class, LongContributor.class.getName());
+        final ContributionManager.ConfigurationDefinition longConfigDef = contributionManager.getDefinition(LongContributor.class, "Long");
 
         // Then
         assertThat(stringConfigDef).hasFieldOrProperty("configurationType").extracting("configurationType").isEqualTo(StringConfig.class);
@@ -118,7 +95,7 @@ class ContributionManagerTest {
 
         // When
         final ContributionManager.ConfigurationDefinition configurationDefinition = contributionManager.getDefinition(StringContributor.class,
-                StringContributor.class.getName());
+                "String");
 
         // Then
         assertThat(configurationDefinition).hasFieldOrProperty("configurationType").extracting("configurationType").isEqualTo(StringConfig.class);
@@ -141,7 +118,7 @@ class ContributionManagerTest {
         final ContributionManager contributionManager = new ContributionManager(clazz -> contributingContributors);
 
         // When
-        final String actualInstance = contributionManager.createInstance(StringContributor.class, StringContributor.class.getName(), () -> null);
+        final String actualInstance = contributionManager.createInstance(StringContributor.class, "String", () -> null);
 
         // Then
         assertThat(actualInstance).isEqualTo("v1");
@@ -152,6 +129,12 @@ class ContributionManagerTest {
 
         private LongContributor(long value) {
             this.value = value;
+        }
+
+        @NotNull
+        @Override
+        public Class<? extends Long> getServiceType() {
+            return Long.class;
         }
 
         @NonNull
@@ -175,25 +158,10 @@ class ContributionManagerTest {
             this.configurationType = StringConfig.class;
         }
 
-        @NonNull
+        @NotNull
         @Override
-        public Class<StringConfig> getConfigType() {
-            return configurationType;
-        }
-
-        @Override
-        public String createInstance(Context<StringConfig> context) {
-            return value;
-        }
-    }
-
-    private class InnerClassContributor implements Contributor<String, StringConfig, Context<StringConfig>> {
-        private final String value;
-        private final Class<StringConfig> configurationType;
-
-        private InnerClassContributor(String value) {
-            this.value = value;
-            this.configurationType = StringConfig.class;
+        public Class<? extends String> getServiceType() {
+            return String.class;
         }
 
         @NonNull

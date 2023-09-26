@@ -14,6 +14,12 @@ public class IntContributor implements Contributor<Integer, Void, Context<Void>>
 
     @NotNull
     @Override
+    public Class<? extends Integer> getServiceType() {
+        return Integer.class;
+    }
+
+    @NotNull
+    @Override
     public Class<Void> getConfigType() {
         return Void.class;
     }

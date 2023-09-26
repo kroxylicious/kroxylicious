@@ -45,7 +45,7 @@ import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.filter.multitenant.MultiTenantTransformationFilter;
-import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerContributor;
+import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.test.tester.KroxyliciousTester;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
@@ -95,7 +95,7 @@ public abstract class BaseMultiTenantIT extends BaseIT {
                         .withBootstrapServers(cluster.getBootstrapServers())
                         .endTargetCluster()
                         .withClusterNetworkAddressConfigProvider(
-                                new ClusterNetworkAddressConfigProviderDefinitionBuilder(PortPerBrokerContributor.class.getName())
+                                new ClusterNetworkAddressConfigProviderDefinitionBuilder(PortPerBrokerClusterNetworkAddressConfigProvider.class.getName())
                                         .withConfig("bootstrapAddress", TENANT_1_PROXY_ADDRESS)
                                         .build())
                         .withNewTls()
@@ -110,7 +110,7 @@ public abstract class BaseMultiTenantIT extends BaseIT {
                         .withBootstrapServers(cluster.getBootstrapServers())
                         .endTargetCluster()
                         .withClusterNetworkAddressConfigProvider(
-                                new ClusterNetworkAddressConfigProviderDefinitionBuilder(PortPerBrokerContributor.class.getName())
+                                new ClusterNetworkAddressConfigProviderDefinitionBuilder(PortPerBrokerClusterNetworkAddressConfigProvider.class.getName())
                                         .withConfig("bootstrapAddress", TENANT_2_PROXY_ADDRESS)
                                         .build())
                         .withNewTls()
@@ -120,7 +120,7 @@ public abstract class BaseMultiTenantIT extends BaseIT {
                         .endKeyStoreKey()
                         .endTls()
                         .build())
-                .addToFilters(new FilterDefinitionBuilder(MultiTenantTransformationFilter.Contributor.class.getName()).build());
+                .addToFilters(new FilterDefinitionBuilder(MultiTenantTransformationFilter.class.getName()).build());
     }
 
     Consumer<String, String> getConsumerWithConfig(KroxyliciousTester tester, String virtualCluster, String groupId, Map<String, Object> baseConfig,

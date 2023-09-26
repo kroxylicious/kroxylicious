@@ -23,12 +23,12 @@ import io.kroxylicious.proxy.service.Contributor;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-public class TestFilter implements RequestFilter {
+public class RequiresConfigFilter implements RequestFilter {
     private final FilterConstructContext context;
     private final ExampleConfig exampleConfig;
     private final Class<? extends Contributor<?, ?, ?>> contributorClass;
 
-    public TestFilter(FilterConstructContext context, ExampleConfig exampleConfig, Class<? extends Contributor<?, ?, ?>> contributorClass) {
+    public RequiresConfigFilter(FilterConstructContext context, ExampleConfig exampleConfig, Class<? extends Contributor<?, ?, ?>> contributorClass) {
         this.context = context;
         this.exampleConfig = exampleConfig;
         this.contributorClass = contributorClass;
@@ -51,12 +51,12 @@ public class TestFilter implements RequestFilter {
         return contributorClass;
     }
 
-    public static class ContributorA implements FilterContributor<ExampleConfig> {
+    public static class RequiresConfigContributor implements FilterContributor<ExampleConfig> {
 
         @NotNull
         @Override
         public Class<? extends Filter> getServiceType() {
-            return TestFilter.class;
+            return RequiresConfigFilter.class;
         }
 
         @NonNull
@@ -73,7 +73,7 @@ public class TestFilter implements RequestFilter {
 
         @Override
         public Filter createInstance(FilterConstructContext<ExampleConfig> context) {
-            return new TestFilter(context, context.getConfig(), this.getClass());
+            return new RequiresConfigFilter(context, context.getConfig(), this.getClass());
         }
     }
 }

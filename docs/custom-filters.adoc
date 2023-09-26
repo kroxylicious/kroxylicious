@@ -521,7 +521,7 @@ Then, when we configure a filter in Kroxylicious configuration like:
 [source,yaml]
 ----
 filters:
-- type: io.kroxylicious.sample.SampleFetchResponseFilter$Contributor
+- type: SampleFetchResponseFilter
   config:
     findValue: a
     replacementValue: b

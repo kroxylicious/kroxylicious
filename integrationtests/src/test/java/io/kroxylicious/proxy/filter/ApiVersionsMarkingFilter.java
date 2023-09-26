@@ -43,6 +43,11 @@ public class ApiVersionsMarkingFilter implements RequestFilter {
     public static class Contributor implements FilterContributor<Void> {
 
         @Override
+        public Class<? extends Filter> getServiceType() {
+            return ApiVersionsMarkingFilter.class;
+        }
+
+        @Override
         public Class<Void> getConfigType() {
             return Void.class;
         }

@@ -119,6 +119,11 @@ public class RequestResponseMarkingFilter implements RequestFilter, ResponseFilt
         }
 
         @Override
+        public Class<? extends Filter> getServiceType() {
+            return RequestResponseMarkingFilter.class;
+        }
+
+        @Override
         public Class<RequestResponseMarkingFilterConfig> getConfigType() {
             return RequestResponseMarkingFilterConfig.class;
         }

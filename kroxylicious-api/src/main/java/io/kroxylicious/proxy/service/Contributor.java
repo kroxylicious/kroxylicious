@@ -17,6 +17,14 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 public interface Contributor<S, C, X extends Context<C>> {
 
     /**
+     * The concrete type of the service this Contributor can instantiate
+     *
+     * @return type of the service this Contributor offers.
+     */
+    @NonNull
+    Class<? extends S> getServiceType();
+
+    /**
      * The type of config expected by the service.
      * <br/>
      * The type must have a constructor annotated with the JsonCreator annotation.

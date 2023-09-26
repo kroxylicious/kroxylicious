@@ -49,7 +49,7 @@ public class ContributionManager {
     }
 
     private static <T, S extends Contributor<T, ?, ?>> boolean matches(String typeName, S contributor) {
-        Class<? extends Contributor> contributorClass = contributor.getClass();
+        Class<?> contributorClass = contributor.getServiceType();
         boolean matchesShortNameForTopLevelClass = !contributorClass.isMemberClass() && !contributorClass.isLocalClass() && !contributorClass.isAnonymousClass()
                 && contributorClass.getSimpleName().equals(typeName);
         return contributorClass.getName().equals(typeName) || matchesShortNameForTopLevelClass;

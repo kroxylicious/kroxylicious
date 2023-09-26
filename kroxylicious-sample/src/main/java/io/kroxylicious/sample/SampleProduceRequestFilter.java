@@ -85,6 +85,11 @@ public class SampleProduceRequestFilter implements ProduceRequestFilter {
     public static class Contributor implements FilterContributor<SampleFilterConfig> {
 
         @Override
+        public Class<? extends Filter> getServiceType() {
+            return SampleProduceRequestFilter.class;
+        }
+
+        @Override
         public Class<SampleFilterConfig> getConfigType() {
             return SampleFilterConfig.class;
         }

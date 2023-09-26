@@ -79,12 +79,12 @@ public class OutOfBandRequestIT {
     }
 
     private static FilterDefinition outOfBandSender(ApiKeys apiKeyToSend, int tagToCollect) {
-        return new FilterDefinitionBuilder(OutOfBandSendFilter.Contributor.class.getName()).withConfig(Map.of("apiKeyToSend", apiKeyToSend, "tagToCollect", tagToCollect))
+        return new FilterDefinitionBuilder(OutOfBandSendFilter.class.getName()).withConfig(Map.of("apiKeyToSend", apiKeyToSend, "tagToCollect", tagToCollect))
                 .build();
     }
 
     private static FilterDefinition addAddUnknownTaggedFieldToMessagesWithApiKey(String name, ApiKeys apiKeys) {
-        return new FilterDefinitionBuilder(RequestResponseMarkingFilter.Contributor.class.getName()).withConfig("name", name, "keysToMark", Set.of(apiKeys)).build();
+        return new FilterDefinitionBuilder(RequestResponseMarkingFilter.class.getName()).withConfig("name", name, "keysToMark", Set.of(apiKeys)).build();
     }
 
     private static void andMessageFromOutOfBandRequestToMockHadTagAddedByUpstreamFilterOnly(MockServerKroxyliciousTester tester) {

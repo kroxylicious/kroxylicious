@@ -93,6 +93,11 @@ public class SampleFetchResponseFilter implements FetchResponseFilter {
         }
 
         @Override
+        public Class<? extends Filter> getServiceType() {
+            return SampleFetchResponseFilter.class;
+        }
+
+        @Override
         public Class<SampleFilterConfig> getConfigType() {
             return SampleFilterConfig.class;
         }

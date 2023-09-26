@@ -17,6 +17,11 @@ class ContributorTest {
     @Test
     void testDefaultFilterConfiguration() {
         Contributor<Object, Void, Context<Void>> contributor = new Contributor<>() {
+            @Override
+            public @NonNull Class<?> getServiceType() {
+                return Object.class;
+            }
+
             @NonNull
             @Override
             public Class<Void> getConfigType() {

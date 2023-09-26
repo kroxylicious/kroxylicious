@@ -24,6 +24,12 @@ public class PortPerBrokerContributor implements
 
     @NonNull
     @Override
+    public Class<? extends ClusterNetworkAddressConfigProvider> getServiceType() {
+        return PortPerBrokerClusterNetworkAddressConfigProvider.class;
+    }
+
+    @NonNull
+    @Override
     public Class<PortPerBrokerClusterNetworkAddressConfigProviderConfig> getConfigType() {
         return PortPerBrokerClusterNetworkAddressConfigProviderConfig.class;
     }
