@@ -153,7 +153,6 @@ class MultiTenantTransformationFilterTest {
     @Test
     void testContributor() {
         MultiTenantTransformationFilter.Contributor contributor = new MultiTenantTransformationFilter.Contributor();
-        assertThat(contributor.getTypeName()).isEqualTo("MultiTenant");
         assertThat(contributor.createInstance(Mockito.mock(FilterConstructContext.class))).isInstanceOf(MultiTenantTransformationFilter.class);
     }
 }

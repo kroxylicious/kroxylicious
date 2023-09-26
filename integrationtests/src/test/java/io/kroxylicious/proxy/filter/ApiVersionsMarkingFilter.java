@@ -41,10 +41,6 @@ public class ApiVersionsMarkingFilter implements RequestFilter {
     }
 
     public static class Contributor implements FilterContributor<Void> {
-        @Override
-        public String getTypeName() {
-            return "ApiVersionsMarkingFilter";
-        }
 
         @Override
         public Class<Void> getConfigType() {

@@ -26,10 +26,6 @@ import io.micrometer.core.instrument.binder.system.FileDescriptorMetrics;
 import io.micrometer.core.instrument.binder.system.ProcessorMetrics;
 import io.micrometer.core.instrument.binder.system.UptimeMetrics;
 
-import io.kroxylicious.proxy.service.Context;
-
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 public class StandardBindersHook implements MicrometerConfigurationHook {
     private static final Logger log = LoggerFactory.getLogger(StandardBindersHook.class);
     private final StandardBindersHookConfig config;
@@ -92,29 +88,4 @@ public class StandardBindersHook implements MicrometerConfigurationHook {
         };
     }
 
-    public static class Contributor implements MicrometerConfigurationHookContributor<StandardBindersHookConfig> {
-
-        @NonNull
-        @Override
-        public String getTypeName() {
-            return "StandardBinders";
-        }
-
-        @Override
-        public Class<StandardBindersHookConfig> getConfigType() {
-            return StandardBindersHookConfig.class;
-        }
-
-        @Override
-        public boolean requiresConfiguration() {
-            return true;
-        }
-
-        @NonNull
-        @Override
-        public MicrometerConfigurationHook createInstance(Context<StandardBindersHookConfig> context) {
-            return new StandardBindersHook(context.getConfig());
-        }
-
-    }
 }

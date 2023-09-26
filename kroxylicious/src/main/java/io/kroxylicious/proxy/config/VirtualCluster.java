@@ -32,7 +32,7 @@ public record VirtualCluster(TargetCluster targetCluster,
 
     private ClusterNetworkAddressConfigProvider toClusterNetworkAddressConfigProviderModel() {
         String shortName = clusterNetworkAddressConfigProvider().type();
-        return ContributionManager.INSTANCE.getInstance(
+        return ContributionManager.INSTANCE.createInstance(
                 ClusterNetworkAddressConfigProviderContributor.class, shortName, wrap(this.clusterNetworkAddressConfigProvider().config()));
     }
 }

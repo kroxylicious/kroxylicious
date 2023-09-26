@@ -21,6 +21,8 @@ import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.proxy.config.FilterDefinition;
 import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
+import io.kroxylicious.proxy.filter.OutOfBandSendFilter;
+import io.kroxylicious.proxy.filter.RequestResponseMarkingFilter;
 import io.kroxylicious.test.Request;
 import io.kroxylicious.test.Response;
 import io.kroxylicious.test.ResponsePayload;
@@ -77,11 +79,12 @@ public class OutOfBandRequestIT {
     }
 
     private static FilterDefinition outOfBandSender(ApiKeys apiKeyToSend, int tagToCollect) {
-        return new FilterDefinitionBuilder("OutOfBandSend").withConfig(Map.of("apiKeyToSend", apiKeyToSend, "tagToCollect", tagToCollect)).build();
+        return new FilterDefinitionBuilder(OutOfBandSendFilter.Contributor.class.getName()).withConfig(Map.of("apiKeyToSend", apiKeyToSend, "tagToCollect", tagToCollect))
+                .build();
     }
 
     private static FilterDefinition addAddUnknownTaggedFieldToMessagesWithApiKey(String name, ApiKeys apiKeys) {
-        return new FilterDefinitionBuilder("RequestResponseMarking").withConfig("name", name, "keysToMark", Set.of(apiKeys)).build();
+        return new FilterDefinitionBuilder(RequestResponseMarkingFilter.Contributor.class.getName()).withConfig("name", name, "keysToMark", Set.of(apiKeys)).build();
     }
 
     private static void andMessageFromOutOfBandRequestToMockHadTagAddedByUpstreamFilterOnly(MockServerKroxyliciousTester tester) {

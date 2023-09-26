@@ -32,8 +32,6 @@ import io.kroxylicious.proxy.filter.ProduceRequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.internal.util.MemoryRecordsHelper;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 /**
  * An filter for modifying the key/value/header/topic of {@link ApiKeys#PRODUCE} requests.
  */
@@ -103,12 +101,6 @@ public class ProduceRequestTransformationFilter implements ProduceRequestFilter 
     }
 
     public static class Contributor implements FilterContributor<ProduceRequestTransformationConfig> {
-
-        @NonNull
-        @Override
-        public String getTypeName() {
-            return "ProduceRequestTransformation";
-        }
 
         @Override
         public Class<ProduceRequestTransformationConfig> getConfigType() {

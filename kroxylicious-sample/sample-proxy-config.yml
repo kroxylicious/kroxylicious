@@ -13,17 +13,17 @@ virtualClusters:
     targetCluster:
       bootstrap_servers: localhost:9092
     clusterNetworkAddressConfigProvider:
-      type: PortPerBroker
+      type: PortPerBrokerContributor
       config:
         bootstrapAddress: localhost:9192
     logNetwork: false
     logFrames: false
 filters:
-  - type: SampleProduceRequest
+  - type: io.kroxylicious.sample.SampleProduceRequestFilter$Contributor
     config:
       findValue: foo
       replacementValue: bar
-  - type: SampleFetchResponse
+  - type: io.kroxylicious.sample.SampleFetchResponseFilter$Contributor
     config:
       findValue: bar
       replacementValue: baz

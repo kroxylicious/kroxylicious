@@ -17,23 +17,23 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 public interface Contributor<S, C, X extends Context<C>> {
 
     /**
-     * Identifies the type name this contributor offers.
-     * @return typeName
-     */
-    @NonNull
-    String getTypeName();
-
-    /**
      * The type of config expected by the service.
      * <br/>
      * The type must have a constructor annotated with the JsonCreator annotation.
-     * If the service does not require configuration, return {@link Void} instead.
+     * If the service has no configuration, return {@link Void} instead.
      *
      * @return type of config expected by the service.
      */
     @NonNull
     Class<C> getConfigType();
 
+    /**
+     * If requiresConfiguration returns true and getConfigType returns a non-Void
+     * type, then the framework will enforce that the config object passed to createInstance
+     * within the context is non-null. If set to false then null configuration can be passed
+     * in the context.
+     * @return true if the configuration must be non-null, false if it is allowed to be null
+     */
     @NonNull
     default boolean requiresConfiguration() {
         return false;

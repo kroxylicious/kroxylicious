@@ -17,10 +17,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tag;
 
-import io.kroxylicious.proxy.service.Context;
-
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 public class CommonTagsHook implements MicrometerConfigurationHook {
 
     private static final Logger log = LoggerFactory.getLogger(CommonTagsHook.class);
@@ -50,29 +46,4 @@ public class CommonTagsHook implements MicrometerConfigurationHook {
         log.info("configured micrometer registry with tags: {}", tags);
     }
 
-    public static class Contributor implements MicrometerConfigurationHookContributor<CommonTagsHookConfig> {
-
-        @NonNull
-        @Override
-        public String getTypeName() {
-            return "CommonTags";
-        }
-
-        @Override
-        public Class<CommonTagsHookConfig> getConfigType() {
-            return CommonTagsHookConfig.class;
-        }
-
-        @Override
-        public boolean requiresConfiguration() {
-            return true;
-        }
-
-        @NonNull
-        @Override
-        public MicrometerConfigurationHook createInstance(Context<CommonTagsHookConfig> context) {
-            return new CommonTagsHook(context.getConfig());
-        }
-
-    }
 }

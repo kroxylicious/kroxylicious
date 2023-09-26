@@ -64,7 +64,7 @@ public class FilterChainFactory {
                 .stream()
                 .map(f -> {
                     Context<Object> wrap = context.wrap(f.config());
-                    return (Filter) ContributionManager.INSTANCE.getInstance(FilterContributor.class, f.type(), wrap);
+                    return (Filter) ContributionManager.INSTANCE.createInstance(FilterContributor.class, f.type(), wrap);
                 })
                 .flatMap(filter -> FilterAndInvoker.build(filter).stream())
                 .toList();

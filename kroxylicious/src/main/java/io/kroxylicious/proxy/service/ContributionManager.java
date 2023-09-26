@@ -32,8 +32,8 @@ public class ContributionManager {
         return (ConfigurationDefinition) findContributor(contributorClass, typeName, s -> new ConfigurationDefinition(s.getConfigType(), s.requiresConfiguration()));
     }
 
-    public <T, S extends Contributor> T getInstance(Class<S> contributorClass, String typeName,
-                                                    Context constructionContext) {
+    public <T, S extends Contributor> T createInstance(Class<S> contributorClass, String typeName,
+                                                       Context constructionContext) {
         return (T) findContributor(contributorClass, typeName, contributor -> contributor.createInstance(constructionContext));
     }
 
@@ -41,11 +41,18 @@ public class ContributionManager {
                                                                      Function<S, X> extractor) {
         final Iterable<S> contributorsForClass = this.contributors.computeIfAbsent(contributorClass, loaderFunction);
         for (S contributor : contributorsForClass) {
-            if (contributor.getTypeName().equals(typeName)) {
+            if (matches(typeName, contributor)) {
                 return extractor.apply(contributor);
             }
         }
         throw new IllegalArgumentException("Name '" + typeName + "' is not contributed by any " + contributorClass);
+    }
+
+    private static <T, S extends Contributor<T, ?, ?>> boolean matches(String typeName, S contributor) {
+        Class<? extends Contributor> contributorClass = contributor.getClass();
+        boolean matchesShortNameForTopLevelClass = !contributorClass.isMemberClass() && !contributorClass.isLocalClass() && !contributorClass.isAnonymousClass()
+                && contributorClass.getSimpleName().equals(typeName);
+        return contributorClass.getName().equals(typeName) || matchesShortNameForTopLevelClass;
     }
 
     public record ConfigurationDefinition(Class<?> configurationType, boolean configurationRequired) {}

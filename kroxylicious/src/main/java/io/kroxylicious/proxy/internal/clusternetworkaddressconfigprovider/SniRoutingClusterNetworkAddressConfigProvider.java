@@ -12,12 +12,8 @@ import java.util.regex.Pattern;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import io.kroxylicious.proxy.clusternetworkaddressconfigprovider.ClusterNetworkAddressConfigProviderContributor;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
-import io.kroxylicious.proxy.service.Context;
 import io.kroxylicious.proxy.service.HostPort;
-
-import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.BrokerAddressPatternUtils.EXPECTED_TOKEN_SET;
 import static io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.BrokerAddressPatternUtils.validatePortSpecifier;
@@ -139,31 +135,4 @@ public class SniRoutingClusterNetworkAddressConfigProvider implements ClusterNet
 
     }
 
-    public static class Contributor implements ClusterNetworkAddressConfigProviderContributor<SniRoutingClusterNetworkAddressConfigProviderConfig> {
-
-        @NonNull
-        @Override
-        public String getTypeName() {
-            return "SniRouting";
-        }
-
-        @NonNull
-        @Override
-        public boolean requiresConfiguration() {
-            return true;
-        }
-
-        @NonNull
-        @Override
-        public Class<SniRoutingClusterNetworkAddressConfigProviderConfig> getConfigType() {
-            return SniRoutingClusterNetworkAddressConfigProviderConfig.class;
-        }
-
-        @NonNull
-        @Override
-        public ClusterNetworkAddressConfigProvider createInstance(Context<SniRoutingClusterNetworkAddressConfigProviderConfig> context) {
-            return new SniRoutingClusterNetworkAddressConfigProvider(context.getConfig());
-        }
-
-    }
 }

@@ -13,7 +13,7 @@ virtualClusters:
     targetCluster:
       bootstrap_servers: localhost:9092
     clusterNetworkAddressConfigProvider:
-      type: PortPerBroker
+      type: PortPerBrokerContributor
       config:
         bootstrapAddress: localhost:9192
     logNetwork: false

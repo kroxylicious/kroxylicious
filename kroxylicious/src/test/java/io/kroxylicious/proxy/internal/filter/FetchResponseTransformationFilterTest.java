@@ -21,7 +21,6 @@ class FetchResponseTransformationFilterTest {
     @Test
     void testContributor() {
         Contributor contributor = new Contributor();
-        assertThat(contributor.getTypeName()).isEqualTo("FetchResponseTransformation");
         assertThat(contributor.getConfigType()).isEqualTo(FetchResponseTransformationConfig.class);
         assertThat(contributor.requiresConfiguration()).isEqualTo(true);
         FilterConstructContext constructContext = Mockito.mock(FilterConstructContext.class);

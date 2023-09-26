@@ -81,16 +81,10 @@ public class SampleFetchResponseFilter implements FetchResponseFilter {
     }
 
     public static class Contributor implements FilterContributor<SampleFilterConfig> {
-        public static final String SAMPLE_FETCH = "SampleFetchResponse";
-
-        @Override
-        public String getTypeName() {
-            return SAMPLE_FETCH;
-        }
 
         @Override
         public Filter createInstance(FilterConstructContext<SampleFilterConfig> context) {
-            return new SampleFetchResponseFilter((SampleFilterConfig) context.getConfig());
+            return new SampleFetchResponseFilter(context.getConfig());
         }
 
         @Override

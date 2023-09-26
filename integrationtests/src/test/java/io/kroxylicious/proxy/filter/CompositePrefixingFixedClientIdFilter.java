@@ -52,11 +52,6 @@ public class CompositePrefixingFixedClientIdFilter implements CompositeFilter {
     public static class Contributor implements FilterContributor<CompositePrefixingFixedClientIdFilterConfig> {
 
         @Override
-        public String getTypeName() {
-            return "CompositePrefixingFixedClientId";
-        }
-
-        @Override
         public Class<CompositePrefixingFixedClientIdFilterConfig> getConfigType() {
             return CompositePrefixingFixedClientIdFilterConfig.class;
         }

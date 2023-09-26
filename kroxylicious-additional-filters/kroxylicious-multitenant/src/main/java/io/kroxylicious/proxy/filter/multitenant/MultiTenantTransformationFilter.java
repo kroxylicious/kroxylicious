@@ -505,11 +505,6 @@ public class MultiTenantTransformationFilter
     public static class Contributor implements FilterContributor<Void> {
 
         @Override
-        public String getTypeName() {
-            return "MultiTenant";
-        }
-
-        @Override
         public Class<Void> getConfigType() {
             return Void.class;
         }

@@ -19,7 +19,7 @@ data:
         targetCluster:
           bootstrap_servers: my-cluster-kafka-bootstrap:9092
         clusterNetworkAddressConfigProvider:
-          type: PortPerBroker
+          type: PortPerBrokerContributor
           config:
             bootstrapAddress: localhost:9292
             brokerAddressPattern: kroxylicious-service

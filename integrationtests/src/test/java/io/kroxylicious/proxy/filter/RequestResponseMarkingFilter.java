@@ -114,11 +114,6 @@ public class RequestResponseMarkingFilter implements RequestFilter, ResponseFilt
     public static class Contributor implements FilterContributor<RequestResponseMarkingFilterConfig> {
 
         @Override
-        public String getTypeName() {
-            return "RequestResponseMarking";
-        }
-
-        @Override
         public Filter createInstance(FilterConstructContext<RequestResponseMarkingFilterConfig> context) {
             return new RequestResponseMarkingFilter(context, context.getConfig());
         }

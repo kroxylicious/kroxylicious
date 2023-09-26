@@ -46,10 +46,6 @@ public class FixedClientIdFilter implements RequestFilter, ResponseFilter {
     }
 
     public static class Contributor implements FilterContributor<FixedClientIdFilterConfig> {
-        @Override
-        public String getTypeName() {
-            return "FixedClientId";
-        }
 
         @Override
         public Class<FixedClientIdFilterConfig> getConfigType() {

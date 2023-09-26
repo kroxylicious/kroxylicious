@@ -83,12 +83,6 @@ public class SampleProduceRequestFilter implements ProduceRequestFilter {
     }
 
     public static class Contributor implements FilterContributor<SampleFilterConfig> {
-        public static final String SAMPLE_PRODUCE = "SampleProduceRequest";
-
-        @Override
-        public String getTypeName() {
-            return SAMPLE_PRODUCE;
-        }
 
         @Override
         public Class<SampleFilterConfig> getConfigType() {

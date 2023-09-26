@@ -86,8 +86,7 @@ class StandardBindersHookTest {
 
     @Test
     void testContributor() {
-        StandardBindersHook.Contributor contributor = new StandardBindersHook.Contributor();
-        assertThat(contributor.getTypeName()).isEqualTo("StandardBinders");
+        StandardBindersContributor contributor = new StandardBindersContributor();
         assertThat(contributor.getConfigType()).isEqualTo(StandardBindersHookConfig.class);
         assertThat(contributor.requiresConfiguration()).isTrue();
         MicrometerConfigurationHook hook = contributor.createInstance(() -> new StandardBindersHookConfig(List.of("UptimeMetrics")));

@@ -195,11 +195,6 @@ public class ProduceValidationFilter implements ProduceRequestFilter, ProduceRes
     public static class Contributor implements FilterContributor<ValidationConfig> {
 
         @Override
-        public String getTypeName() {
-            return "ProduceValidator";
-        }
-
-        @Override
         public Class<ValidationConfig> getConfigType() {
             return ValidationConfig.class;
         }

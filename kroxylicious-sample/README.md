@@ -54,7 +54,7 @@ The default configuration for **SampleProduceRequestFilter** is:
 
 ```yaml
 filters:
-  - type: SampleProduceRequest
+  - type: io.kroxylicious.sample.SampleProduceRequestFilter$Contributor
     config:
       findValue: foo
       replacementValue: bar
@@ -66,7 +66,7 @@ The default configuration for **SampleFetchResponseFilter** is:
 
 ```yaml
 filters:
-  - type: SampleFetchResponse
+  - type: io.kroxylicious.sample.SampleFetchResponseFilter$Contributor
     config:
       findValue: bar
       replacementValue: baz

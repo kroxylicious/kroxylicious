@@ -34,6 +34,7 @@ import io.kroxylicious.proxy.config.ClusterNetworkAddressConfigProviderDefinitio
 import io.kroxylicious.proxy.config.ClusterNetworkAddressConfigProviderDefinitionBuilder;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
+import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerContributor;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
@@ -52,7 +53,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class TlsIT extends BaseIT {
     private static final HostPort PROXY_ADDRESS = HostPort.parse("localhost:9192");
     private static final ClusterNetworkAddressConfigProviderDefinition CONFIG_PROVIDER_DEFINITION = new ClusterNetworkAddressConfigProviderDefinitionBuilder(
-            "PortPerBroker")
+            PortPerBrokerContributor.class.getName())
             .withConfig("bootstrapAddress", PROXY_ADDRESS)
             .build();
     private static final String TOPIC = "my-test-topic";

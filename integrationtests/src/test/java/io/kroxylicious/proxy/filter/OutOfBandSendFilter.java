@@ -87,11 +87,6 @@ public class OutOfBandSendFilter implements DescribeClusterRequestFilter, Descri
     public static class Contributor implements FilterContributor<OutOfBandSendFilterConfig> {
 
         @Override
-        public String getTypeName() {
-            return "OutOfBandSend";
-        }
-
-        @Override
         public Class<OutOfBandSendFilterConfig> getConfigType() {
             return OutOfBandSendFilterConfig.class;
         }

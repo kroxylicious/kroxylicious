@@ -53,8 +53,7 @@ class CommonTagsHookTest {
 
     @Test
     void testContributor() {
-        CommonTagsHook.Contributor contributor = new CommonTagsHook.Contributor();
-        assertThat(contributor.getTypeName()).isEqualTo("CommonTags");
+        CommonTagsContributor contributor = new CommonTagsContributor();
         assertThat(contributor.getConfigType()).isEqualTo(CommonTagsHook.CommonTagsHookConfig.class);
         assertThat(contributor.requiresConfiguration()).isTrue();
         MicrometerConfigurationHook hook = contributor.createInstance(() -> new CommonTagsHook.CommonTagsHookConfig(Map.of()));

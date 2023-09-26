@@ -33,8 +33,6 @@ import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.common.BrokerCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
-import static io.kroxylicious.sample.SampleFetchResponseFilter.Contributor.SAMPLE_FETCH;
-import static io.kroxylicious.sample.SampleProduceRequestFilter.Contributor.SAMPLE_PRODUCE;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -46,9 +44,9 @@ class SampleFilterIntegrationTest {
     // Configure filters here
     private static final String FIND_CONFIG_FIELD = "findValue";
     private static final String REPLACE_CONFIG_FIELD = "replacementValue";
-    private static final TestFilter SAMPLE_PRODUCE_REQUEST_FILTER = new TestFilter(SAMPLE_PRODUCE,
+    private static final TestFilter SAMPLE_PRODUCE_REQUEST_FILTER = new TestFilter(SampleProduceRequestFilter.Contributor.class.getName(),
             Map.of(FIND_CONFIG_FIELD, "foo", REPLACE_CONFIG_FIELD, "bar"));
-    private static final TestFilter SAMPLE_FETCH_RESPONSE_FILTER = new TestFilter(SAMPLE_FETCH,
+    private static final TestFilter SAMPLE_FETCH_RESPONSE_FILTER = new TestFilter(SampleFetchResponseFilter.Contributor.class.getName(),
             Map.of(FIND_CONFIG_FIELD, "bar", REPLACE_CONFIG_FIELD, "baz"));
 
     // Configure test input/expected values here

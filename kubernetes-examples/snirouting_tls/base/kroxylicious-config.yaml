@@ -24,7 +24,7 @@ data:
               storePassword:
                 filePath: /opt/kroxylicious/trust/ca.password
         clusterNetworkAddressConfigProvider:
-          type: SniRouting
+          type: SniRoutingContributor
           config:
             bootstrapAddress: mycluster-proxy.kafka:9092
             brokerAddressPattern: broker$(nodeId).mycluster-proxy.kafka

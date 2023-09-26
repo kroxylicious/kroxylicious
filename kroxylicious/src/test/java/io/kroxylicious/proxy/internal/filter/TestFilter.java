@@ -16,25 +16,22 @@ import io.kroxylicious.proxy.filter.FilterConstructContext;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
+import io.kroxylicious.proxy.service.Contributor;
 
 public class TestFilter implements RequestFilter {
-    private final String shortName;
     private final FilterConstructContext context;
     private final ExampleConfig exampleConfig;
+    private final Class<? extends Contributor<?, ?, ?>> contributorClass;
 
-    public TestFilter(String shortName, FilterConstructContext context, ExampleConfig exampleConfig) {
-        this.shortName = shortName;
+    public TestFilter(FilterConstructContext context, ExampleConfig exampleConfig, Class<? extends Contributor<?, ?, ?>> contributorClass) {
         this.context = context;
         this.exampleConfig = exampleConfig;
+        this.contributorClass = contributorClass;
     }
 
     @Override
     public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage request, FilterContext context) {
         throw new IllegalStateException("not implemented!");
-    }
-
-    public String getShortName() {
-        return shortName;
     }
 
     public FilterConstructContext getContext() {
@@ -43,5 +40,9 @@ public class TestFilter implements RequestFilter {
 
     public ExampleConfig getExampleConfig() {
         return exampleConfig;
+    }
+
+    public Class<? extends Contributor<?, ?, ?>> getContributorClass() {
+        return contributorClass;
     }
 }

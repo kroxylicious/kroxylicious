@@ -12,7 +12,7 @@ metadata:
 data:
   config.yaml: |
     filters:
-    - type: MultiTenant
+    - type: io.kroxylicious.proxy.filter.multitenant.MultiTenantTransformationFilter$Contributor
     adminHttp:
       endpoints:
         prometheus: {}
@@ -21,7 +21,7 @@ data:
         targetCluster:
           bootstrap_servers: my-cluster-kafka-bootstrap:9092
         clusterNetworkAddressConfigProvider:
-          type: PortPerBroker
+          type: PortPerBrokerContributor
           config:
             bootstrapAddress: minikube:30192
         logNetwork: false
@@ -30,7 +30,7 @@ data:
         targetCluster:
           bootstrap_servers: my-cluster-kafka-bootstrap:9092
         clusterNetworkAddressConfigProvider:
-          type: PortPerBroker
+          type: PortPerBrokerContributor
           config:
             bootstrapAddress: minikube:30292
         logNetwork: false

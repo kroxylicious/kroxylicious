@@ -81,11 +81,6 @@ public class RejectingCreateTopicFilter implements CreateTopicsRequestFilter {
     public static class Contributor implements FilterContributor<RejectingCreateTopicFilterConfig> {
 
         @Override
-        public String getTypeName() {
-            return "RejectingCreateTopic";
-        }
-
-        @Override
         public Class<RejectingCreateTopicFilterConfig> getConfigType() {
             return RejectingCreateTopicFilterConfig.class;
         }
