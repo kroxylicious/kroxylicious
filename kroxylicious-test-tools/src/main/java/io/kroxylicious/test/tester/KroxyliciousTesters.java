@@ -6,11 +6,14 @@
 
 package io.kroxylicious.test.tester;
 
+import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.test.server.MockServer;
+import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
 
 /**
  * Static Factory for KroxyliciousTester implementations
@@ -25,7 +28,18 @@ public class KroxyliciousTesters {
      * @return KroxyliciousTester
      */
     public static KroxyliciousTester kroxyliciousTester(ConfigurationBuilder builder) {
-        return new DefaultKroxyliciousTester(builder);
+        return new DefaultKroxyliciousTester(new TesterSetup(builder, null));
+    }
+
+    /**
+     * Creates a kroxylicious tester for the given KroxyliciousConfigBuilder.
+     * This will create and start an in-process kroxylicious instance, it is
+     * up to the client to close it.
+     * @param testerSetup settings for how to setup the proxy instance for tests and the clients connecting to it.
+     * @return KroxyliciousTester
+     * */
+    public static KroxyliciousTester kroxyliciousTester(TesterSetup testerSetup) {
+        return new DefaultKroxyliciousTester(testerSetup);
     }
 
     /**
@@ -38,7 +52,8 @@ public class KroxyliciousTesters {
      * @return KroxyliciousTester
      */
     public static KroxyliciousTester kroxyliciousTester(ConfigurationBuilder builder, Function<Configuration, AutoCloseable> kroxyliciousFactory) {
-        return new DefaultKroxyliciousTester(builder, kroxyliciousFactory, (clusterName, bootstrapServers) -> new KroxyliciousClients(bootstrapServers));
+        return new DefaultKroxyliciousTester(new TesterSetup(builder, null), kroxyliciousFactory,
+                (clusterName, bootstrapServers) -> new KroxyliciousClients(bootstrapServers, Map.of()));
     }
 
     /**
@@ -50,5 +65,11 @@ public class KroxyliciousTesters {
      */
     public static MockServerKroxyliciousTester mockKafkaKroxyliciousTester(Function<String, ConfigurationBuilder> configurationForMockBootstrap) {
         return new MockServerKroxyliciousTester(MockServer.startOnRandomPort(), configurationForMockBootstrap);
+    }
+
+    public record TesterSetup(Function<String, ConfigurationBuilder> configurationBuilderFunction, Optional<KeytoolCertificateGenerator> certificateGenerator) {
+        public TesterSetup(ConfigurationBuilder configurationBuilder, KeytoolCertificateGenerator certificateGenerator) {
+            this(ignored -> configurationBuilder, Optional.ofNullable(certificateGenerator));
+        }
     }
 }

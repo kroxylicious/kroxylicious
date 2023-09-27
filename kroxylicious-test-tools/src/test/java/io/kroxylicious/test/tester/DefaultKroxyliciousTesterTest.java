@@ -228,13 +228,13 @@ class DefaultKroxyliciousTesterTest {
 
     @NonNull
     private DefaultKroxyliciousTester buildDefaultTester() {
-        return new DefaultKroxyliciousTester(proxy(backingCluster),
+        return new DefaultKroxyliciousTester(new KroxyliciousTesters.TesterSetup(proxy(backingCluster), null),
                 DefaultKroxyliciousTester::spawnProxy,
                 clientFactory);
     }
 
     private DefaultKroxyliciousTester buildTester() {
-        return new DefaultKroxyliciousTester(proxy(backingCluster, VIRTUAL_CLUSTER_A, VIRTUAL_CLUSTER_B, VIRTUAL_CLUSTER_C),
+        return new DefaultKroxyliciousTester(new KroxyliciousTesters.TesterSetup(proxy(backingCluster, VIRTUAL_CLUSTER_A, VIRTUAL_CLUSTER_B, VIRTUAL_CLUSTER_C), null),
                 DefaultKroxyliciousTester::spawnProxy,
                 clientFactory);
     }

@@ -32,19 +32,21 @@ import io.kroxylicious.testing.kafka.clients.CloseableProducer;
 
 class KroxyliciousClients {
     private final String bootstrapServers;
+    private final Map<String, Object> defaultClientConfiguration;
 
     private final List<Admin> admins;
     private final List<Producer<?, ?>> producers;
     private final List<Consumer<?, ?>> consumers;
     private final ClientFactory clientFactory;
 
-    KroxyliciousClients(String bootstrapServers) {
-        this(bootstrapServers, new ClientFactory() {
+    KroxyliciousClients(String bootstrapServers, Map<String, Object> defaultClientConfiguration) {
+        this(bootstrapServers, defaultClientConfiguration, new ClientFactory() {
         });
     }
 
-    KroxyliciousClients(String bootstrapServers, ClientFactory clientFactory) {
+    KroxyliciousClients(String bootstrapServers, Map<String, Object> defaultClientConfiguration, ClientFactory clientFactory) {
         this.bootstrapServers = bootstrapServers;
+        this.defaultClientConfiguration = defaultClientConfiguration;
         this.admins = new ArrayList<>();
         this.producers = new ArrayList<>();
         this.consumers = new ArrayList<>();
@@ -127,7 +129,7 @@ class KroxyliciousClients {
     }
 
     private Map<String, Object> createConfigMap(String bootstrapServers, Map<String, Object> additionalConfig) {
-        Map<String, Object> config = new HashMap<>();
+        Map<String, Object> config = new HashMap<>(defaultClientConfiguration);
         config.put(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         config.putAll(additionalConfig);
         return config;

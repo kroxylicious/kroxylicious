@@ -50,6 +50,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.test.tester.KroxyliciousTester;
+import io.kroxylicious.test.tester.KroxyliciousTesters;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
@@ -124,69 +125,67 @@ class MultiTenantIT extends BaseMultiTenantIT {
     @Test
     void produceOne(KafkaCluster cluster) throws Exception {
         var config = getConfig(cluster, this.certificateGenerator);
-        try (var tester = kroxyliciousTester(config);
-                var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
-            createTopics(admin, NEW_TOPIC_1);
-            produceAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER, Stream.of(new ProducerRecord<>(TOPIC_1, MY_KEY, MY_VALUE)), Optional.empty());
+        try (var tester = kroxyliciousTester(new KroxyliciousTesters.TesterSetup(config, this.certificateGenerator))) {
+            final String topicName = tester.createTopic(TENANT_1_CLUSTER);
+            produceAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER, Stream.of(new ProducerRecord<>(topicName, MY_KEY, MY_VALUE)), Optional.empty());
         }
     }
 
     @Test
     void consumeOne(KafkaCluster cluster) throws Exception {
         var config = getConfig(cluster, this.certificateGenerator);
-        try (var tester = kroxyliciousTester(config);
-                var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
+        try (var tester = kroxyliciousTester(new KroxyliciousTesters.TesterSetup(config, this.certificateGenerator))) {
             var groupId = testInfo.getDisplayName();
-            createTopics(admin, NEW_TOPIC_1);
-            produceAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER, Stream.of(new ProducerRecord<>(TOPIC_1, MY_KEY, MY_VALUE)), Optional.empty());
-            consumeAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER, TOPIC_1, groupId, new LinkedList<>(List.of(matchesRecord(TOPIC_1, MY_KEY, MY_VALUE))), false);
+            final String topicName = tester.createTopic(TENANT_1_CLUSTER);
+            produceAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER, Stream.of(new ProducerRecord<>(topicName, MY_KEY, MY_VALUE)), Optional.empty());
+            consumeAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER, topicName, groupId, new LinkedList<>(List.of(matchesRecord(topicName, MY_KEY, MY_VALUE))),
+                    false);
         }
     }
 
     @Test
     void consumeOneAndOffsetCommit(KafkaCluster cluster) throws Exception {
         var config = getConfig(cluster, this.certificateGenerator);
-        try (var tester = kroxyliciousTester(config);
-                var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
+        try (var tester = kroxyliciousTester(new KroxyliciousTesters.TesterSetup(config, this.certificateGenerator))) {
             var groupId = testInfo.getDisplayName();
-            createTopics(admin, NEW_TOPIC_1);
+            final String topicName = tester.createTopic(TENANT_1_CLUSTER);
             produceAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER,
-                    Stream.of(new ProducerRecord<>(TOPIC_1, MY_KEY, "1"), new ProducerRecord<>(TOPIC_1, MY_KEY, "2"), inCaseOfFailure()), Optional.empty());
-            consumeAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER, TOPIC_1, groupId, new LinkedList<>(List.of(matchesRecord(TOPIC_1, MY_KEY, "1"))), true);
-            consumeAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER, TOPIC_1, groupId, new LinkedList<>(List.of(matchesRecord(TOPIC_1, MY_KEY, "2"))), true);
+                    Stream.of(new ProducerRecord<>(topicName, MY_KEY, "1"), new ProducerRecord<>(topicName, MY_KEY, "2"), inCaseOfFailure()), Optional.empty());
+            consumeAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER, topicName, groupId, new LinkedList<>(List.of(matchesRecord(topicName, MY_KEY, "1"))), true);
+            consumeAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER, topicName, groupId, new LinkedList<>(List.of(matchesRecord(topicName, MY_KEY, "2"))), true);
         }
     }
 
     @Test
     void alterOffsetCommit(KafkaCluster cluster) throws Exception {
         var config = getConfig(cluster, this.certificateGenerator);
-        try (var tester = kroxyliciousTester(config);
+        try (var tester = kroxyliciousTester(new KroxyliciousTesters.TesterSetup(config, this.certificateGenerator));
                 var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
             var groupId = testInfo.getDisplayName();
-            createTopics(admin, NEW_TOPIC_1);
+            final String topicName = tester.createTopic(TENANT_1_CLUSTER);
             produceAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER,
-                    Stream.of(new ProducerRecord<>(TOPIC_1, MY_KEY, "1"), new ProducerRecord<>(TOPIC_1, MY_KEY, "2"), inCaseOfFailure()), Optional.empty());
-            consumeAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER, TOPIC_1, groupId, new LinkedList<>(List.of(matchesRecord(TOPIC_1, MY_KEY, "1"))), true);
+                    Stream.of(new ProducerRecord<>(topicName, MY_KEY, "1"), new ProducerRecord<>(topicName, MY_KEY, "2"), inCaseOfFailure()), Optional.empty());
+            consumeAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER, topicName, groupId, new LinkedList<>(List.of(matchesRecord(topicName, MY_KEY, "1"))), true);
             var rememberedOffsets = admin.listConsumerGroupOffsets(groupId).partitionsToOffsetAndMetadata().get();
-            consumeAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER, TOPIC_1, groupId, new LinkedList<>(List.of(matchesRecord(TOPIC_1, MY_KEY, "2"))), true);
+            consumeAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER, topicName, groupId, new LinkedList<>(List.of(matchesRecord(topicName, MY_KEY, "2"))), true);
 
             admin.alterConsumerGroupOffsets(groupId, rememberedOffsets).all().get();
-            consumeAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER, TOPIC_1, groupId, new LinkedList<>(List.of(matchesRecord(TOPIC_1, MY_KEY, "2"))), true);
+            consumeAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER, topicName, groupId, new LinkedList<>(List.of(matchesRecord(topicName, MY_KEY, "2"))), true);
         }
     }
 
     @Test
     void deleteConsumerGroupOffsets(KafkaCluster cluster) throws Exception {
         var config = getConfig(cluster, this.certificateGenerator);
-        try (var tester = kroxyliciousTester(config);
+        try (var tester = kroxyliciousTester(new KroxyliciousTesters.TesterSetup(config, this.certificateGenerator));
                 var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
             var groupId = testInfo.getDisplayName();
-            createTopics(admin, NEW_TOPIC_1);
-            produceAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER, Stream.of(new ProducerRecord<>(TOPIC_1, MY_KEY, "1"), inCaseOfFailure()), Optional.empty());
-            consumeAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER, TOPIC_1, groupId, new LinkedList<>(List.of(matchesRecord(TOPIC_1, MY_KEY, "1"))), true);
+            final String topicName = tester.createTopic(TENANT_1_CLUSTER);
+            produceAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER, Stream.of(new ProducerRecord<>(topicName, MY_KEY, "1"), inCaseOfFailure()), Optional.empty());
+            consumeAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER, topicName, groupId, new LinkedList<>(List.of(matchesRecord(topicName, MY_KEY, "1"))), true);
 
-            admin.deleteConsumerGroupOffsets(groupId, Set.of(new TopicPartition(NEW_TOPIC_1.name(), 0))).all().get();
-            consumeAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER, TOPIC_1, groupId, new LinkedList<>(List.of(matchesRecord(TOPIC_1, MY_KEY, "1"))), true);
+            admin.deleteConsumerGroupOffsets(groupId, Set.of(new TopicPartition(topicName, 0))).all().get();
+            consumeAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER, topicName, groupId, new LinkedList<>(List.of(matchesRecord(topicName, MY_KEY, "1"))), true);
         }
     }
 

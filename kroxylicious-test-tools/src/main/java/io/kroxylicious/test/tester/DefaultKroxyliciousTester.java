@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -18,26 +19,33 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.producer.Producer;
+import org.apache.kafka.common.config.SslConfigs;
+import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.kafka.common.serialization.Serde;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import info.schnatterer.mobynamesgenerator.MobyNamesGenerator;
 
 import io.kroxylicious.proxy.KafkaProxy;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
+import io.kroxylicious.proxy.config.VirtualCluster;
+import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.test.client.KafkaClient;
+import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
+import info.schnatterer.mobynamesgenerator.MobyNamesGenerator;
 
 public class DefaultKroxyliciousTester implements KroxyliciousTester {
     private AutoCloseable proxy;
     private final Configuration kroxyliciousConfig;
+
+    private final Optional<KeytoolCertificateGenerator> possibleKeytoolCertificateGenerator;
 
     private final Map<String, KroxyliciousClients> clients;
 
@@ -45,12 +53,18 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DefaultKroxyliciousTester.class);
 
-    DefaultKroxyliciousTester(ConfigurationBuilder configurationBuilder) {
-        this(configurationBuilder, DefaultKroxyliciousTester::spawnProxy, (clusterName, bootstrapServers) -> new KroxyliciousClients(bootstrapServers));
+    DefaultKroxyliciousTester(KroxyliciousTesters.TesterSetup testerSetup) {
+        this(testerSetup, DefaultKroxyliciousTester::spawnProxy, (clusterName, bootstrapServers) -> new KroxyliciousClients(bootstrapServers, Map.of()));
     }
 
-    DefaultKroxyliciousTester(ConfigurationBuilder configuration, Function<Configuration, AutoCloseable> kroxyliciousFactory, ClientFactory clientFactory) {
-        kroxyliciousConfig = configuration.build();
+    DefaultKroxyliciousTester(ConfigurationBuilder configurationBuilder) {
+        this(new KroxyliciousTesters.TesterSetup(ignored -> configurationBuilder, null), DefaultKroxyliciousTester::spawnProxy,
+                (clusterName, bootstrapServers) -> new KroxyliciousClients(bootstrapServers, Map.of()));
+    }
+
+    DefaultKroxyliciousTester(KroxyliciousTesters.TesterSetup testerSetup, Function<Configuration, AutoCloseable> kroxyliciousFactory, ClientFactory clientFactory) {
+        kroxyliciousConfig = testerSetup.configurationBuilderFunction().apply("").build();
+        this.possibleKeytoolCertificateGenerator = testerSetup.certificateGenerator();
         proxy = kroxyliciousFactory.apply(kroxyliciousConfig);
         clients = new HashMap<>();
         this.clientFactory = clientFactory;
@@ -69,12 +83,29 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     }
 
     private KroxyliciousClients clients(String virtualCluster) {
-        return clients.computeIfAbsent(virtualCluster, this::buildKroxyliciousClients);
+        Map<String, Object> defaultClientConfig = new HashMap<>();
+        configureClientTls(virtualCluster, defaultClientConfig);
+        return clients.computeIfAbsent(virtualCluster,
+                k -> buildKroxyliciousClients(k, defaultClientConfig));
     }
 
-    @NonNull
-    private KroxyliciousClients buildKroxyliciousClients(String clusterName) {
-        return this.clientFactory.build(clusterName, KroxyliciousConfigUtils.bootstrapServersFor(clusterName, kroxyliciousConfig));
+    @NotNull
+    private KroxyliciousClients buildKroxyliciousClients(String k, Map<String, Object> defaultClientConfig) {
+        return new KroxyliciousClients(KroxyliciousConfigUtils.bootstrapServersFor(k, kroxyliciousConfig), defaultClientConfig);
+    }
+
+    private void configureClientTls(String virtualCluster, Map<String, Object> defaultClientConfig) {
+        final VirtualCluster definedCluster = kroxyliciousConfig.virtualClusters().get(virtualCluster);
+        if (definedCluster != null) {
+            final Optional<Tls> tls = definedCluster.tls();
+            if (tls.isPresent() && possibleKeytoolCertificateGenerator.isPresent()) {
+                final KeytoolCertificateGenerator certificateGenerator = possibleKeytoolCertificateGenerator.get();
+                defaultClientConfig.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name);
+                defaultClientConfig.put(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, certificateGenerator.getTrustStoreLocation());
+                defaultClientConfig.put(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, certificateGenerator.getPassword());
+            }
+            // Technically tls present and possibleKeytoolCertificateGenerator being empty is an error condition. But debatable if we should prevent that here
+        }
     }
 
     @Override

@@ -81,7 +81,7 @@ public abstract class BaseMultiTenantIT extends BaseIT {
         this.certificateGenerator = new KeytoolCertificateGenerator();
         this.certificateGenerator.generateSelfSignedCertificateEntry("test@redhat.com", IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName("*"),
                 "KI", "RedHat", null, null, "US");
-        Path clientTrustStore = certsDirectory.resolve("kafka.truststore.jks");
+        Path clientTrustStore = certsDirectory.resolve(certificateGenerator.getTrustStoreLocation());
         this.certificateGenerator.generateTrustStore(this.certificateGenerator.getCertFilePath(), "client", clientTrustStore.toAbsolutePath().toString());
         this.clientConfig = Map.of(CommonClientConfigs.CLIENT_ID_CONFIG, testInfo.getDisplayName(),
                 CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name,

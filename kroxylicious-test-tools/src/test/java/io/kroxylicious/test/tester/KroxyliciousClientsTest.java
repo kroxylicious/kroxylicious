@@ -41,7 +41,7 @@ class KroxyliciousClientsTest {
 
     @BeforeEach
     void setUp() {
-        kroxyliciousClients = new KroxyliciousClients("kroxylicious.example.com:9091", new KroxyliciousClients.ClientFactory() {
+        kroxyliciousClients = new KroxyliciousClients("kroxylicious.example.com:9091", Map.of(), new KroxyliciousClients.ClientFactory() {
             @Override
             public Admin newAdmin(Map<String, Object> clientConfiguration) {
                 return Mockito.mock(Admin.class);
