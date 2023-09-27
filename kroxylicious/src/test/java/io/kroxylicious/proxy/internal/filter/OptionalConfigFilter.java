@@ -64,10 +64,9 @@ public class OptionalConfigFilter implements RequestFilter {
             return ExampleConfig.class;
         }
 
-        @NonNull
         @Override
-        public boolean requiresConfiguration() {
-            return false;
+        public void validateConfiguration(ExampleConfig config) {
+            // any config object is valid
         }
 
         @Override

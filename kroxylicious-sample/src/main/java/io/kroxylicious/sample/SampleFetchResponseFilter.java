@@ -88,11 +88,6 @@ public class SampleFetchResponseFilter implements FetchResponseFilter {
         }
 
         @Override
-        public boolean requiresConfiguration() {
-            return true;
-        }
-
-        @Override
         public Class<? extends Filter> getServiceType() {
             return SampleFetchResponseFilter.class;
         }

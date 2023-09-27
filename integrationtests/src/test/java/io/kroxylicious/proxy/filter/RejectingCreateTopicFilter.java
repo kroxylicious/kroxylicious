@@ -91,8 +91,8 @@ public class RejectingCreateTopicFilter implements CreateTopicsRequestFilter {
         }
 
         @Override
-        public boolean requiresConfiguration() {
-            return false;
+        public void validateConfiguration(RejectingCreateTopicFilterConfig config) {
+            // null configuration is allowed, by default null config is invalid
         }
 
         @Override

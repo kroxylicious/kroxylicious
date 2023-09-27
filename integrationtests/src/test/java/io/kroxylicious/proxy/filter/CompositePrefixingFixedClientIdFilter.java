@@ -62,11 +62,6 @@ public class CompositePrefixingFixedClientIdFilter implements CompositeFilter {
         }
 
         @Override
-        public boolean requiresConfiguration() {
-            return true;
-        }
-
-        @Override
         public Filter createInstance(FilterConstructContext<CompositePrefixingFixedClientIdFilterConfig> context) {
             return new CompositePrefixingFixedClientIdFilter(context.getConfig());
         }

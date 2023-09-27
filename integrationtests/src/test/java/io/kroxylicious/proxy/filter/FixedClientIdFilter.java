@@ -58,11 +58,6 @@ public class FixedClientIdFilter implements RequestFilter, ResponseFilter {
         }
 
         @Override
-        public boolean requiresConfiguration() {
-            return true;
-        }
-
-        @Override
         public Filter createInstance(FilterConstructContext<FixedClientIdFilterConfig> context) {
             return new FixedClientIdFilter(context.getConfig());
         }

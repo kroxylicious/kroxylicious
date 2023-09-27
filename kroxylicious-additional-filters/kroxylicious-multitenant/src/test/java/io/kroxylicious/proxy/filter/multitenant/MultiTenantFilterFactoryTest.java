@@ -18,14 +18,14 @@ class MultiTenantFilterFactoryTest {
 
     @Test
     void testGetConfigTypeViaConfigurationDefinition() {
-        MultiTenantTransformationFilter.Factory contributor = new MultiTenantTransformationFilter.Factory();
-        assertThat(contributor.getConfigType()).isEqualTo(Void.class);
+        MultiTenantTransformationFilter.Factory factory = new MultiTenantTransformationFilter.Factory();
+        assertThat(factory.getConfigType()).isEqualTo(Void.class);
     }
 
     @Test
     void testGetInstance() {
-        MultiTenantTransformationFilter.Factory contributor = new MultiTenantTransformationFilter.Factory();
-        Filter filter = contributor.createInstance(Mockito.mock(FilterConstructContext.class));
+        MultiTenantTransformationFilter.Factory factory = new MultiTenantTransformationFilter.Factory();
+        Filter filter = factory.createInstance(Mockito.mock(FilterConstructContext.class));
         assertThat(filter).isNotNull().isInstanceOf(MultiTenantTransformationFilter.class);
     }
 

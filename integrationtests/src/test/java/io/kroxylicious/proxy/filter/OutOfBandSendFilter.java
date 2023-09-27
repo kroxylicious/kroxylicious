@@ -97,11 +97,6 @@ public class OutOfBandSendFilter implements DescribeClusterRequestFilter, Descri
         }
 
         @Override
-        public boolean requiresConfiguration() {
-            return true;
-        }
-
-        @Override
         public Filter createInstance(FilterConstructContext<OutOfBandSendFilterConfig> context) {
             return new OutOfBandSendFilter(context.getConfig());
         }

@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.proxy.filter;
 
+import io.kroxylicious.proxy.InvalidConfigurationException;
 import io.kroxylicious.proxy.service.Contributor;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -12,6 +13,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 /**
  * FilterContributor is a pluggable source of Kroxylicious filter implementations.
  * @see Contributor
+ * @param <B> the configuration type for the Filter (use {@link Void} if the Filter is not configurable)
  */
 public interface FilterFactory<B> {
 
@@ -35,15 +37,16 @@ public interface FilterFactory<B> {
     Class<B> getConfigType();
 
     /**
-     * If requiresConfiguration returns true and getConfigType returns a non-Void
-     * type, then the framework will enforce that the config object passed to createInstance
-     * within the context is non-null. If set to false then null configuration can be passed
-     * in the context.
-     * @return true if the configuration must be non-null, false if it is allowed to be null
+     * Validate the configuration. By default, the configuration is considered invalid if
+     * the config type is not {@link Void} and the configuration is null.
+     * @param config configuration
+     * @throws InvalidConfigurationException when the configuration is invalid
      */
-    @NonNull
-    default boolean requiresConfiguration() {
-        return false;
+    default void validateConfiguration(B config) {
+        boolean requiresConfiguration = getConfigType() != Void.class;
+        if (requiresConfiguration && config == null) {
+            throw new InvalidConfigurationException(getServiceType().getSimpleName() + " requires configuration, but config object is null");
+        }
     }
 
     /**

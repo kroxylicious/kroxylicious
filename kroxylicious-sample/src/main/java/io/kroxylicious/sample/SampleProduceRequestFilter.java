@@ -95,11 +95,6 @@ public class SampleProduceRequestFilter implements ProduceRequestFilter {
         }
 
         @Override
-        public boolean requiresConfiguration() {
-            return true;
-        }
-
-        @Override
         public Filter createInstance(FilterConstructContext<SampleFilterConfig> context) {
             return new SampleProduceRequestFilter(context.getConfig());
         }

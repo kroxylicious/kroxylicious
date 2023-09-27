@@ -128,10 +128,6 @@ public class RequestResponseMarkingFilter implements RequestFilter, ResponseFilt
             return RequestResponseMarkingFilterConfig.class;
         }
 
-        @Override
-        public boolean requiresConfiguration() {
-            return true;
-        }
     }
 
 }

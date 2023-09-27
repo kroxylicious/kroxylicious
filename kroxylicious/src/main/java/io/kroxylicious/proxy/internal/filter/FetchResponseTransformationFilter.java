@@ -149,11 +149,6 @@ public class FetchResponseTransformationFilter implements FetchResponseFilter {
         }
 
         @Override
-        public boolean requiresConfiguration() {
-            return true;
-        }
-
-        @Override
         public Filter createInstance(FilterConstructContext<FetchResponseTransformationConfig> context) {
             return new FetchResponseTransformationFilter(context.getConfig());
         }

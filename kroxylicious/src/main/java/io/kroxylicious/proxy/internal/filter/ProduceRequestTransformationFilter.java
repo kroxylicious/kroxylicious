@@ -116,11 +116,6 @@ public class ProduceRequestTransformationFilter implements ProduceRequestFilter 
         }
 
         @Override
-        public boolean requiresConfiguration() {
-            return true;
-        }
-
-        @Override
         public Filter createInstance(FilterConstructContext<ProduceRequestTransformationConfig> context) {
             return new ProduceRequestTransformationFilter(context.getConfig());
         }
