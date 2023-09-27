@@ -35,7 +35,7 @@ public class FilterFactoryManager {
             names.forEach(name -> {
                 FilterFactory<?> previous = nameToFactory.put(name, factory);
                 if (previous != null) {
-                    throw new IllegalStateException("more than one FilterContributor offers Filter named: " + name);
+                    throw new IllegalStateException("more than one FilterFactory offers Filter named: " + name);
                 }
             });
         }

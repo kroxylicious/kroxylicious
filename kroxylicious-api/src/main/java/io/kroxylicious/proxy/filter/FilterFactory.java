@@ -6,13 +6,11 @@
 package io.kroxylicious.proxy.filter;
 
 import io.kroxylicious.proxy.InvalidConfigurationException;
-import io.kroxylicious.proxy.service.Contributor;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
- * FilterContributor is a pluggable source of Kroxylicious filter implementations.
- * @see Contributor
+ * FilterFactory is a pluggable source of Kroxylicious filter implementations.
  * @param <B> the configuration type for the Filter (use {@link Void} if the Filter is not configurable)
  */
 public interface FilterFactory<B> {
