@@ -18,18 +18,18 @@ import io.kroxylicious.proxy.filter.schema.config.ValidationConfig;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class ProduceRequestValidationFilterContributorTest {
+class ProduceRequestValidationFilterFactoryTest {
 
     @Test
     void testGetConfigTypeViaConfigurationDefinition() {
-        ProduceValidationFilter.Contributor contributor = new ProduceValidationFilter.Contributor();
+        ProduceValidationFilter.Factory contributor = new ProduceValidationFilter.Factory();
         assertThat(contributor.getConfigType()).isEqualTo(ValidationConfig.class);
         assertThat(contributor.requiresConfiguration()).isTrue();
     }
 
     @Test
     void testGetInstance() {
-        ProduceValidationFilter.Contributor contributor = new ProduceValidationFilter.Contributor();
+        ProduceValidationFilter.Factory contributor = new ProduceValidationFilter.Factory();
         ValidationConfig config = new ValidationConfig(true, List.of(), new RecordValidationRule(null, null));
         Filter filter = contributor.createInstance(FilterConstructContext.wrap(config, () -> Executors.newScheduledThreadPool(1)));
         assertThat(filter).isNotNull().isInstanceOf(ProduceValidationFilter.class);

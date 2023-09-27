@@ -71,7 +71,7 @@ import io.kroxylicious.proxy.filter.FetchResponseFilter;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterConstructContext;
 import io.kroxylicious.proxy.filter.FilterContext;
-import io.kroxylicious.proxy.filter.FilterContributor;
+import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.FindCoordinatorRequestFilter;
 import io.kroxylicious.proxy.filter.FindCoordinatorResponseFilter;
 import io.kroxylicious.proxy.filter.HeartbeatRequestFilter;
@@ -502,7 +502,7 @@ public class MultiTenantTransformationFilter
     public MultiTenantTransformationFilter() {
     }
 
-    public static class Contributor implements FilterContributor<Void> {
+    public static class Factory implements FilterFactory<Void> {
 
         @Override
         public Class<? extends Filter> getServiceType() {

@@ -13,7 +13,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * FilterContributor is a pluggable source of Kroxylicious filter implementations.
  * @see Contributor
  */
-public interface FilterContributor<B> {
+public interface FilterFactory<B> {
 
     /**
      * The concrete type of the service this Contributor can instantiate

@@ -45,7 +45,7 @@ public class FixedClientIdFilter implements RequestFilter, ResponseFilter {
         return context.forwardResponse(header, response);
     }
 
-    public static class Contributor implements FilterContributor<FixedClientIdFilterConfig> {
+    public static class Factory implements FilterFactory<FixedClientIdFilterConfig> {
 
         @Override
         public Class<? extends Filter> getServiceType() {

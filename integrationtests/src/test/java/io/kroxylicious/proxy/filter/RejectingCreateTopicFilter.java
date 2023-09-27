@@ -78,7 +78,7 @@ public class RejectingCreateTopicFilter implements CreateTopicsRequestFilter {
         }
     }
 
-    public static class Contributor implements FilterContributor<RejectingCreateTopicFilterConfig> {
+    public static class Factory implements FilterFactory<RejectingCreateTopicFilterConfig> {
 
         @Override
         public Class<? extends Filter> getServiceType() {

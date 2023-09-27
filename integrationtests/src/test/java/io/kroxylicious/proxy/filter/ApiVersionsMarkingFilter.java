@@ -40,7 +40,7 @@ public class ApiVersionsMarkingFilter implements RequestFilter {
         });
     }
 
-    public static class Contributor implements FilterContributor<Void> {
+    public static class Factory implements FilterFactory<Void> {
 
         @Override
         public Class<? extends Filter> getServiceType() {

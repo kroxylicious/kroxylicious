@@ -1,6 +1,0 @@
-io.kroxylicious.proxy.filter.FixedClientIdFilter$Contributor
-io.kroxylicious.proxy.filter.ApiVersionsMarkingFilter$Contributor
-io.kroxylicious.proxy.filter.RequestResponseMarkingFilter$Contributor
-io.kroxylicious.proxy.filter.OutOfBandSendFilter$Contributor
-io.kroxylicious.proxy.filter.CompositePrefixingFixedClientIdFilter$Contributor
-io.kroxylicious.proxy.filter.RejectingCreateTopicFilter$Contributor

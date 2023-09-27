@@ -34,7 +34,7 @@ import io.kroxylicious.proxy.filter.FetchResponseFilter;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterConstructContext;
 import io.kroxylicious.proxy.filter.FilterContext;
-import io.kroxylicious.proxy.filter.FilterContributor;
+import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.internal.util.MemoryRecordsHelper;
 
@@ -135,7 +135,7 @@ public class FetchResponseTransformationFilter implements FetchResponseFilter {
         }
     }
 
-    public static class Contributor implements FilterContributor<FetchResponseTransformationConfig> {
+    public static class Factory implements FilterFactory<FetchResponseTransformationConfig> {
 
         @NonNull
         @Override

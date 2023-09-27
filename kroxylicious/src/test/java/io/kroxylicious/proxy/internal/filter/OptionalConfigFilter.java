@@ -16,7 +16,7 @@ import org.jetbrains.annotations.NotNull;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterConstructContext;
 import io.kroxylicious.proxy.filter.FilterContext;
-import io.kroxylicious.proxy.filter.FilterContributor;
+import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.RequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 
@@ -25,9 +25,9 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 public class OptionalConfigFilter implements RequestFilter {
     private final FilterConstructContext context;
     private final ExampleConfig exampleConfig;
-    private final Class<? extends FilterContributor> contributorClass;
+    private final Class<? extends FilterFactory> contributorClass;
 
-    public OptionalConfigFilter(FilterConstructContext context, ExampleConfig exampleConfig, Class<? extends FilterContributor> contributorClass) {
+    public OptionalConfigFilter(FilterConstructContext context, ExampleConfig exampleConfig, Class<? extends FilterFactory> contributorClass) {
         this.context = context;
         this.exampleConfig = exampleConfig;
         this.contributorClass = contributorClass;
@@ -46,11 +46,11 @@ public class OptionalConfigFilter implements RequestFilter {
         return exampleConfig;
     }
 
-    public Class<? extends FilterContributor> getContributorClass() {
+    public Class<? extends FilterFactory> getContributorClass() {
         return contributorClass;
     }
 
-    public static class OptionalConfigContributor implements FilterContributor<ExampleConfig> {
+    public static class OptionalConfigFactory implements FilterFactory<ExampleConfig> {
 
         @NotNull
         @Override

@@ -13,21 +13,21 @@ import java.util.Set;
 
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterConstructContext;
-import io.kroxylicious.proxy.filter.FilterContributor;
+import io.kroxylicious.proxy.filter.FilterFactory;
 
 public class FilterContributionManager {
 
     public static final FilterContributionManager INSTANCE = new FilterContributionManager();
-    private final Map<String, FilterContributor<?>> filterContributors;
+    private final Map<String, FilterFactory<?>> filterContributors;
 
     private FilterContributionManager() {
-        ServiceLoader<FilterContributor> contributors = ServiceLoader.load(FilterContributor.class);
-        HashMap<String, FilterContributor<?>> nameToContributor = new HashMap<>();
-        for (FilterContributor<?> contributor : contributors) {
+        ServiceLoader<FilterFactory> contributors = ServiceLoader.load(FilterFactory.class);
+        HashMap<String, FilterFactory<?>> nameToContributor = new HashMap<>();
+        for (FilterFactory<?> contributor : contributors) {
             Class<?> serviceType = contributor.getServiceType();
             Set<String> names = Set.of(serviceType.getName(), serviceType.getSimpleName());
             names.forEach(name -> {
-                FilterContributor<?> previous = nameToContributor.put(name, contributor);
+                FilterFactory<?> previous = nameToContributor.put(name, contributor);
                 if (previous != null) {
                     throw new IllegalStateException("more than one FilterContributor offers Filter named: " + name);
                 }
@@ -45,12 +45,12 @@ public class FilterContributionManager {
     }
 
     public boolean validateConfig(String typeName, Object config) {
-        FilterContributor<?> contributor = getContributor(typeName);
+        FilterFactory<?> contributor = getContributor(typeName);
         return !contributor.requiresConfiguration() || config != null;
     }
 
-    private FilterContributor<?> getContributor(String typeName) {
-        FilterContributor<?> contributor = filterContributors.get(typeName);
+    private FilterFactory<?> getContributor(String typeName) {
+        FilterFactory<?> contributor = filterContributors.get(typeName);
         if (contributor == null) {
             throw new IllegalArgumentException("no FilterContributor registered for typeName: " + typeName);
         }

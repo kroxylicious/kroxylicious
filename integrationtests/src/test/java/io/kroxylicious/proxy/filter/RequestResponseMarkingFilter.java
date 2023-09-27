@@ -111,7 +111,7 @@ public class RequestResponseMarkingFilter implements RequestFilter, ResponseFilt
         }
     }
 
-    public static class Contributor implements FilterContributor<RequestResponseMarkingFilterConfig> {
+    public static class Factory implements FilterFactory<RequestResponseMarkingFilterConfig> {
 
         @Override
         public Filter createInstance(FilterConstructContext<RequestResponseMarkingFilterConfig> context) {

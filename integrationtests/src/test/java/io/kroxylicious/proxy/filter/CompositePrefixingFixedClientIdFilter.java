@@ -49,7 +49,7 @@ public class CompositePrefixingFixedClientIdFilter implements CompositeFilter {
         }
     }
 
-    public static class Contributor implements FilterContributor<CompositePrefixingFixedClientIdFilterConfig> {
+    public static class Factory implements FilterFactory<CompositePrefixingFixedClientIdFilterConfig> {
 
         @Override
         public Class<? extends Filter> getServiceType() {

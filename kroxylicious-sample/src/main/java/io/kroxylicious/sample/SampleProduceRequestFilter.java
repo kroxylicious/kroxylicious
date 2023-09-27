@@ -18,7 +18,7 @@ import io.micrometer.core.instrument.Timer;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterConstructContext;
 import io.kroxylicious.proxy.filter.FilterContext;
-import io.kroxylicious.proxy.filter.FilterContributor;
+import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.sample.config.SampleFilterConfig;
@@ -82,7 +82,7 @@ public class SampleProduceRequestFilter implements ProduceRequestFilter {
         });
     }
 
-    public static class Contributor implements FilterContributor<SampleFilterConfig> {
+    public static class Factory implements FilterFactory<SampleFilterConfig> {
 
         @Override
         public Class<? extends Filter> getServiceType() {

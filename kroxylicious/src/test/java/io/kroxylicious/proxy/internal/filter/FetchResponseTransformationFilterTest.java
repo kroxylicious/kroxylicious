@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import io.kroxylicious.proxy.filter.FilterConstructContext;
-import io.kroxylicious.proxy.internal.filter.FetchResponseTransformationFilter.Contributor;
+import io.kroxylicious.proxy.internal.filter.FetchResponseTransformationFilter.Factory;
 import io.kroxylicious.proxy.internal.filter.FetchResponseTransformationFilter.FetchResponseTransformationConfig;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -20,7 +20,7 @@ class FetchResponseTransformationFilterTest {
 
     @Test
     void testContributor() {
-        Contributor contributor = new Contributor();
+        Factory contributor = new Factory();
         assertThat(contributor.getConfigType()).isEqualTo(FetchResponseTransformationConfig.class);
         assertThat(contributor.requiresConfiguration()).isEqualTo(true);
         FilterConstructContext constructContext = Mockito.mock(FilterConstructContext.class);

@@ -27,7 +27,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterConstructContext;
 import io.kroxylicious.proxy.filter.FilterContext;
-import io.kroxylicious.proxy.filter.FilterContributor;
+import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.internal.util.MemoryRecordsHelper;
@@ -102,7 +102,7 @@ public class ProduceRequestTransformationFilter implements ProduceRequestFilter 
         });
     }
 
-    public static class Contributor implements FilterContributor<ProduceRequestTransformationConfig> {
+    public static class Factory implements FilterFactory<ProduceRequestTransformationConfig> {
 
         @NonNull
         @Override

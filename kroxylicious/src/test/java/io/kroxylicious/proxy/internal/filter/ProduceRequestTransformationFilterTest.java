@@ -17,7 +17,7 @@ import static org.mockito.Mockito.when;
 class ProduceRequestTransformationFilterTest {
     @Test
     void testContributor() {
-        ProduceRequestTransformationFilter.Contributor contributor = new ProduceRequestTransformationFilter.Contributor();
+        ProduceRequestTransformationFilter.Factory contributor = new ProduceRequestTransformationFilter.Factory();
         assertThat(contributor.getConfigType()).isEqualTo(ProduceRequestTransformationFilter.ProduceRequestTransformationConfig.class);
         assertThat(contributor.requiresConfiguration()).isTrue();
         FilterConstructContext constructContext = Mockito.mock(FilterConstructContext.class);

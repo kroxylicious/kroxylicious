@@ -18,7 +18,7 @@ import io.kroxylicious.proxy.filter.FetchResponseFilter;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterConstructContext;
 import io.kroxylicious.proxy.filter.FilterContext;
-import io.kroxylicious.proxy.filter.FilterContributor;
+import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.sample.config.SampleFilterConfig;
 import io.kroxylicious.sample.util.SampleFilterTransformer;
@@ -80,7 +80,7 @@ public class SampleFetchResponseFilter implements FetchResponseFilter {
         });
     }
 
-    public static class Contributor implements FilterContributor<SampleFilterConfig> {
+    public static class Factory implements FilterFactory<SampleFilterConfig> {
 
         @Override
         public Filter createInstance(FilterConstructContext<SampleFilterConfig> context) {

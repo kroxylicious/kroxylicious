@@ -1,0 +1,3 @@
+io.kroxylicious.proxy.internal.filter.TestFilter$FactoryA
+io.kroxylicious.proxy.internal.filter.OptionalConfigFilter$OptionalConfigFactory
+io.kroxylicious.proxy.internal.filter.RequiresConfigFilter$RequiresConfigFactory
