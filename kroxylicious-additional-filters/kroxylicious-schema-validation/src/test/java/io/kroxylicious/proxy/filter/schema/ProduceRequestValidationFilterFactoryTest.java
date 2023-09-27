@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterConstructContext;
+import io.kroxylicious.proxy.filter.FilterExecutors;
 import io.kroxylicious.proxy.filter.schema.config.RecordValidationRule;
 import io.kroxylicious.proxy.filter.schema.config.ValidationConfig;
 
@@ -31,7 +32,17 @@ class ProduceRequestValidationFilterFactoryTest {
     void testGetInstance() {
         ProduceValidationFilter.Factory contributor = new ProduceValidationFilter.Factory();
         ValidationConfig config = new ValidationConfig(true, List.of(), new RecordValidationRule(null, null));
-        Filter filter = contributor.createInstance(FilterConstructContext.wrap(config, () -> Executors.newScheduledThreadPool(1)));
+        Filter filter = contributor.createInstance(new FilterConstructContext<>() {
+            @Override
+            public FilterExecutors executors() {
+                return () -> Executors.newScheduledThreadPool(1);
+            }
+
+            @Override
+            public ValidationConfig getConfig() {
+                return config;
+            }
+        });
         assertThat(filter).isNotNull().isInstanceOf(ProduceValidationFilter.class);
     }
 

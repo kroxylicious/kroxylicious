@@ -14,7 +14,6 @@ import java.util.stream.Collectors;
 
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.FilterDefinition;
-import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.FilterConstructContext;
 import io.kroxylicious.proxy.internal.filter.NettyFilterContext;
@@ -63,7 +62,7 @@ public class FilterChainFactory {
                 .stream()
                 .map(f -> {
                     FilterConstructContext<Object> wrap = context.wrap(f.config());
-                    return (Filter) FilterContributionManager.INSTANCE.createInstance(f.type(), wrap);
+                    return FilterContributionManager.INSTANCE.createInstance(f.type(), wrap);
                 })
                 .flatMap(filter -> FilterAndInvoker.build(filter).stream())
                 .toList();
