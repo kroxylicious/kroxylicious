@@ -9,12 +9,10 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.kafka.common.message.ApiVersionsRequestData;
@@ -36,6 +34,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import io.kroxylicious.proxy.filter.ApiVersionsRequestFilter;
 import io.kroxylicious.proxy.filter.ApiVersionsResponseFilter;
 import io.kroxylicious.proxy.filter.FetchRequestFilter;
+import io.kroxylicious.proxy.filter.FetchResponseFilter;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
@@ -51,15 +50,13 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
-public class FilterHandlerTest extends FilterHarness {
+class FilterHandlerTest extends FilterHarness {
 
-    public static final int ARBITRARY_TAG = 500;
+    private static final int ARBITRARY_TAG = 500;
+    private static final RawTaggedField MARK = createTag(ARBITRARY_TAG, "mark");
 
     @Test
     void testForwardRequest() {
@@ -322,7 +319,7 @@ public class FilterHandlerTest extends FilterHarness {
         var filterFuture = new CompletableFuture<RequestFilterResult>();
         ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> filterFuture;
         long timeoutMs = 50L;
-        buildChannel(filter, timeoutMs);
+        timeout(timeoutMs).buildChannel(filter);
         channel.freezeTime();
         writeRequest(new ApiVersionsRequestData());
         channel.advanceTimeBy(timeoutMs - 1, TimeUnit.MILLISECONDS);
@@ -341,7 +338,7 @@ public class FilterHandlerTest extends FilterHarness {
         var filterFuture = new CompletableFuture<ResponseFilterResult>();
         ApiVersionsResponseFilter filter = (apiVersion, header, request, context) -> filterFuture;
         long timeoutMs = 50L;
-        buildChannel(filter, timeoutMs);
+        timeout(timeoutMs).buildChannel(filter);
         channel.freezeTime();
         writeResponse(new ApiVersionsResponseData());
         channel.advanceTimeBy(timeoutMs - 1, TimeUnit.MILLISECONDS);
@@ -358,7 +355,7 @@ public class FilterHandlerTest extends FilterHarness {
     @Test
     void testUserResponseFilterReturnsNullFuture() {
         ApiVersionsResponseFilter filter = (apiVersion, header, request, context) -> null;
-        buildChannel(filter, 50L);
+        timeout(50L).buildChannel(filter);
         writeResponse(new ApiVersionsResponseData());
         assertThat(channel.isOpen()).isFalse();
     }
@@ -367,7 +364,7 @@ public class FilterHandlerTest extends FilterHarness {
     void testUserResponseFilterReturnsEmptyFuture() {
         CompletableFuture<ResponseFilterResult> filterFuture = CompletableFuture.completedFuture(null);
         ApiVersionsResponseFilter filter = (apiVersion, header, request, context) -> filterFuture;
-        buildChannel(filter, 50L);
+        timeout(50L).buildChannel(filter);
         writeResponse(new ApiVersionsResponseData());
         assertThat(channel.isOpen()).isFalse();
     }
@@ -375,7 +372,7 @@ public class FilterHandlerTest extends FilterHarness {
     @Test
     void testUserRequestFilterReturnsNullFuture() {
         ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> null;
-        buildChannel(filter, 50L);
+        timeout(50L).buildChannel(filter);
         writeRequest(new ApiVersionsRequestData());
         assertThat(channel.isOpen()).isFalse();
     }
@@ -384,7 +381,7 @@ public class FilterHandlerTest extends FilterHarness {
     void testUserRequestFilterReturnsEmptyFuture() {
         CompletableFuture<RequestFilterResult> filterFuture = CompletableFuture.completedFuture(null);
         ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> filterFuture;
-        buildChannel(filter, 50L);
+        timeout(50L).buildChannel(filter);
         writeRequest(new ApiVersionsRequestData());
         assertThat(channel.isOpen()).isFalse();
     }
@@ -572,34 +569,6 @@ public class FilterHandlerTest extends FilterHarness {
     }
 
     @Test
-    void testOtherFiltersInChainCanFilterOutOfBandResponse() {
-        ApiVersionsResponseFilter recipientFilter = taggingApiVersionsResponseFilter("recipient");
-        String filterName = "other-interested-filter";
-        ApiVersionsResponseFilter filterUnderTest = taggingApiVersionsResponseFilter(filterName);
-        buildChannel(filterUnderTest);
-        CompletableFuture<Object> future = new CompletableFuture<>();
-        var frame = writeInternalResponse(new ApiVersionsResponseData(), future, recipientFilter);
-        var propagated = channel.readInbound();
-        assertEquals(frame, propagated, "Expect it to be the frame that was sent");
-        assertResponseMessageTaggedWith(filterName, (InternalResponseFrame<?>) propagated);
-        assertFalse(future.isDone());
-    }
-
-    @Test
-    void testOtherFiltersInChainCanFilterOutOfBandRequest() {
-        ApiVersionsRequestFilter recipientFilter = taggingApiVersionsRequestFilter("recipient");
-        String filterName = "other-interested-filter";
-        ApiVersionsRequestFilter filterUnderTest = taggingApiVersionsRequestFilter(filterName);
-        buildChannel(filterUnderTest);
-        CompletableFuture<Object> future = new CompletableFuture<>();
-        var frame = writeInternalRequest(new ApiVersionsRequestData(), future, recipientFilter);
-        var propagated = channel.readOutbound();
-        assertEquals(frame, propagated, "Expect it to be the frame that was sent");
-        assertRequestMessageTaggedWith(filterName, (DecodedRequestFrame<?>) propagated);
-        assertFalse(future.isDone());
-    }
-
-    @Test
     void testShouldNotDeserializeResponse() {
         ApiVersionsResponseFilter filter = new ApiVersionsResponseFilter() {
             @Override
@@ -632,74 +601,73 @@ public class FilterHandlerTest extends FilterHarness {
 
     }
 
+    /**
+     * Tests that a filter is capable of marking an out-of-band (oob) request and the
+     * result is delayed until the out-of-band response is received.
+     */
     @Test
-    void testSendRequest() {
-        FetchRequestData body = new FetchRequestData();
-        InternalCompletionStage<ApiMessage>[] fut = new InternalCompletionStage[]{ null };
+    void sendRequest() {
+        var oobRequestBody = new FetchRequestData();
+        var snoopedOobRequestResponseStage = new AtomicReference<CompletionStage<ApiMessage>>();
         ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> {
-            assertNull(fut[0],
-                    "Expected to only be called once");
-            fut[0] = (InternalCompletionStage<ApiMessage>) context.sendRequest((short) 3, body);
+            assertNull(snoopedOobRequestResponseStage.get(), "Expected to only be called once");
+            snoopedOobRequestResponseStage.set(context.sendRequest((short) 3, oobRequestBody));
+            return snoopedOobRequestResponseStage.get()
+                    .thenCompose(u -> context.forwardRequest(header, request));
+        };
+
+        buildChannel(filter);
+
+        // trigger filter
+        var requestFrame = writeRequest(new ApiVersionsRequestData());
+
+        // verify filter has sent the send request.
+        InternalRequestFrame<?> propagatedOobRequest = channel.readOutbound();
+        assertThat(propagatedOobRequest.body()).isEqualTo(oobRequestBody);
+        assertThat(propagatedOobRequest.header()).isNotNull();
+
+        // verify oob request response future is in the expected state
+        assertThat(snoopedOobRequestResponseStage).isNotNull();
+        var snoopedOobRequestResponseFuture = toCompletableFuture(snoopedOobRequestResponseStage.get());
+        assertThat(snoopedOobRequestResponseFuture).withFailMessage("expected out-of-band request response future to be incomplete but it was done").isNotDone();
+
+        // mimic the broker sending the oob response
+        var responseFrame = writeInternalResponse(propagatedOobRequest.header().correlationId(), new FetchResponseData());
+        assertThat(snoopedOobRequestResponseFuture).isCompletedWithValue(responseFrame.body());
+
+        // verify the filter has forwarded the request showing the that OOB request future completed.
+        var propagated = channel.readOutbound();
+        assertThat(propagated).isEqualTo(requestFrame);
+    }
+
+    @Test
+    void sendRequestCompletionStageCannotBeConvertedToFuture() {
+        var oobRequestBody = new FetchRequestData();
+        var snoopedOobRequestResponseStage = new AtomicReference<CompletionStage<ApiMessage>>();
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> {
+            snoopedOobRequestResponseStage.set(context.sendRequest((short) 3, oobRequestBody));
+            // TODO - it'd be a better test if the filter made the call to toCompletableFuture and the filter failed.
+            // We'd then assert that the filter had closed the connection for the right reason. However we currently
+            // don't have a way to trap the exception that causes a filter to close.
             return context.requestFilterResultBuilder().drop().completed();
         };
 
         buildChannel(filter);
 
-        var frame = writeRequest(new ApiVersionsRequestData());
-        var propagated = channel.readOutbound();
-        assertTrue(propagated instanceof InternalRequestFrame);
-        assertEquals(body, ((InternalRequestFrame<?>) propagated).body(),
-                "Expect the body to be the Fetch request");
+        // trigger filter
+        writeRequest(new ApiVersionsRequestData());
 
-        InternalCompletionStage<ApiMessage> completionStage = fut[0];
-        CompletableFuture<ApiMessage> future = toCompletableFuture(completionStage);
-        assertFalse(future.isDone(),
-                "Future should not be finished yet");
+        // verify filter has sent the send request.
+        InternalRequestFrame<?> propagatedAsyncRequest = channel.readOutbound();
+        assertThat(propagatedAsyncRequest.body()).isEqualTo(oobRequestBody);
 
-        // test the response path
-        CompletableFuture<ApiMessage> futu = new CompletableFuture<>();
-        var responseFrame = writeInternalResponse(new FetchResponseData(), futu);
-        assertTrue(futu.isDone(),
-                "Future should be finished now");
-        assertEquals(responseFrame.body(), futu.getNow(null),
-                "Expect the body that was sent");
-    }
+        // verify async request response future is in the expected state
+        assertThat(snoopedOobRequestResponseStage).doesNotHaveValue(null);
 
-    private static CompletableFuture<ApiMessage> toCompletableFuture(CompletionStage<ApiMessage> completionStage) {
-        CompletableFuture<ApiMessage> future = new CompletableFuture<>();
-        completionStage.whenComplete((o, throwable) -> {
-            if (throwable != null) {
-                future.completeExceptionally(throwable);
-            }
-            else {
-                future.complete(o);
-            }
-        });
-        return future;
-    }
-
-    @Test
-    void testSendRequestCompletionStageCannotBeConvertedToFuture() {
-        FetchRequestData body = new FetchRequestData();
-        CompletionStage<?>[] fut = { null };
-        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> {
-            assertNull(fut[0],
-                    "Expected to only be called once");
-            fut[0] = context.sendRequest((short) 3, body);
-            return CompletableFuture.completedStage(null);
-        };
-
-        buildChannel(filter);
-
-        var frame = writeRequest(new ApiVersionsRequestData());
-        var propagated = channel.readOutbound();
-        assertTrue(propagated instanceof InternalRequestFrame);
-        assertEquals(body, ((InternalRequestFrame<?>) propagated).body(),
-                "Expect the body to be the Fetch request");
-
-        assertThrows(UnsupportedOperationException.class, () -> {
-            fut[0].toCompletableFuture();
-        });
+        var apiMessageCompletionStage = snoopedOobRequestResponseStage.get();
+        assertThatThrownBy(apiMessageCompletionStage::toCompletableFuture)
+                .isInstanceOf(UnsupportedOperationException.class)
+                .hasMessageContaining("CompletableFuture usage disallowed");
     }
 
     /**
@@ -708,84 +676,70 @@ public class FilterHandlerTest extends FilterHarness {
      * with acks=0 Produce requests.
      */
     @Test
-    void testSendAcklessProduceRequest() throws ExecutionException, InterruptedException {
-        ProduceRequestData body = new ProduceRequestData().setAcks((short) 0);
-        CompletionStage<ApiMessage>[] fut = new CompletionStage[]{ null };
-        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> {
-            assertNull(fut[0],
-                    "Expected to only be called once");
-            fut[0] = context.sendRequest((short) 3, body);
-            return CompletableFuture.completedStage(null);
-        };
+    void sendAcklessProduceRequest() {
+        var oobRequestBody = new ProduceRequestData().setAcks((short) 0);
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> context.sendRequest((short) 3, oobRequestBody)
+                .thenCompose(u -> context.forwardRequest(header, request));
 
         buildChannel(filter);
 
-        var frame = writeRequest(new ApiVersionsRequestData());
-        var propagated = channel.readOutbound();
-        assertTrue(propagated instanceof InternalRequestFrame);
-        assertEquals(body, ((InternalRequestFrame<?>) propagated).body(),
-                "Expect the body to be the Fetch request");
+        // trigger filter
+        var requestFrame = writeRequest(new ApiVersionsRequestData());
 
-        CompletableFuture<ApiMessage> future = toCompletableFuture(fut[0]);
-        assertTrue(future.isDone(),
-                "Future should be done");
-        assertFalse(future.isCompletedExceptionally(),
-                "Future should be successful");
-        CompletableFuture<Object> blocking = new CompletableFuture<>();
-        fut[0].thenApply(blocking::complete);
-        assertNull(blocking.get(),
-                "Value should be null");
+        // verify filter has sent the send request.
+        InternalRequestFrame<?> propagatedAsyncRequest = channel.readOutbound();
+        assertThat(propagatedAsyncRequest.body()).isEqualTo(oobRequestBody);
+
+        // verify the filter has forwarded the request showing the that OOB request future completed.
+        var propagated = channel.readOutbound();
+        assertThat(propagated).isEqualTo(requestFrame);
     }
 
     @Test
-    void testSendRequestTimeout() {
-        FetchRequestData body = new FetchRequestData();
-        CompletionStage<ApiMessage>[] fut = new CompletionStage[]{ null };
+    void sendRequestTimeout() {
+        var oobRequestBody = new FetchRequestData();
+        var snoopedOobRequestResponseStage = new AtomicReference<CompletionStage<ApiMessage>>();
         ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> {
-            assertNull(fut[0],
-                    "Expected to only be called once");
-            fut[0] = context.sendRequest((short) 3, body);
-            return CompletableFuture.completedStage(null);
+            snoopedOobRequestResponseStage.set(context.sendRequest((short) 3, oobRequestBody));
+            return context.requestFilterResultBuilder().drop().completed();
         };
 
-        buildChannel(filter, 50L);
+        timeout(50L).buildChannel(filter);
         channel.freezeTime();
 
-        var frame = writeRequest(new ApiVersionsRequestData());
-        var propagated = channel.readOutbound();
-        assertTrue(propagated instanceof InternalRequestFrame);
-        assertEquals(body, ((InternalRequestFrame<?>) propagated).body(),
-                "Expect the body to be the Fetch request");
+        // trigger filter
+        writeRequest(new ApiVersionsRequestData());
 
-        CompletionStage<ApiMessage> p = fut[0];
-        CompletableFuture<ApiMessage> q = toCompletableFuture(p);
-        assertFalse(q.isDone(),
-                "Future should not be finished yet");
+        // verify filter has sent the send request.
+        InternalRequestFrame<?> propagatedAsyncRequest = channel.readOutbound();
+        assertThat(propagatedAsyncRequest.body()).isEqualTo(oobRequestBody);
+
+        // verify async request response future is in the expected state
+        assertThat(snoopedOobRequestResponseStage).isNotNull();
+        var snoopedOobRequestResponseFuture = toCompletableFuture(snoopedOobRequestResponseStage.get());
+        assertThat(snoopedOobRequestResponseFuture).withFailMessage("out-of-band request response future in wrong state").isNotDone();
 
         // advance to 1ms before timeout
         channel.advanceTimeBy(49, TimeUnit.MILLISECONDS);
         channel.runPendingTasks();
-        assertThat(q).isNotDone();
+        assertThat(snoopedOobRequestResponseFuture).withFailMessage("out-of-band request response future in wrong state").isNotDone();
 
         // advance to timeout
         channel.advanceTimeBy(1, TimeUnit.MILLISECONDS);
         channel.runPendingTasks();
 
-        assertTrue(q.isDone(),
-                "Future should be finished yet");
-        assertTrue(q.isCompletedExceptionally(),
-                "Future should be finished yet");
-        assertThrows(ExecutionException.class, q::get);
+        assertThat(snoopedOobRequestResponseFuture).withFailMessage("Future should be finished").isCompletedExceptionally();
+        assertThatThrownBy(snoopedOobRequestResponseFuture::get).hasCauseInstanceOf(TimeoutException.class).hasMessageContaining("was timed-out");
     }
 
     @Test
     void sendRequestChainedActionsRunOnNettyEventLoop() {
         var eventLoopThreadFuture = new CompletableFuture<Thread>();
 
-        var asyncRequestBody = new FetchRequestData();
+        var oobRequestBody = new FetchRequestData();
         var applyActionThread = new AtomicReference<Thread>();
         var applyAsyncActionThread = new AtomicReference<Thread>();
-        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> context.sendRequest((short) 3, asyncRequestBody)
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> context.sendRequest((short) 3, oobRequestBody)
                 .thenApply(u1 -> {
                     applyActionThread.set(Thread.currentThread());
                     return null;
@@ -796,16 +750,20 @@ public class FilterHandlerTest extends FilterHarness {
 
         buildChannel(filter);
 
+        // trigger filter
+        var requestFrame = writeRequest(new ApiVersionsRequestData());
+
         // capture the thread used by the embedded channel
         channel.eventLoop().submit(() -> eventLoopThreadFuture.complete(Thread.currentThread()));
         channel.runPendingTasks();
         assertThat(eventLoopThreadFuture).isCompleted();
 
-        var frame = writeRequest(new ApiVersionsRequestData());
+        // verify filter has sent the send request.
+        InternalRequestFrame<?> propagatedOobRequest = channel.readOutbound();
+        assertThat(propagatedOobRequest.body()).isEqualTo(oobRequestBody);
 
-        // Process the async request and write response
-        var propagated = channel.readOutbound();
-        writeInternalResponse(new FetchResponseData(), ((InternalRequestFrame<?>) propagated).promise());
+        // mimic the broker sending the response
+        var responseFrame = writeInternalResponse(propagatedOobRequest.header().correlationId(), new FetchResponseData());
 
         // Running the tasks will run the actions chained to the async response
         channel.runPendingTasks();
@@ -820,37 +778,81 @@ public class FilterHandlerTest extends FilterHarness {
                 .hasValue(eventLoopThreadFuture.getNow(null));
 
         // Verify the filtered request arrived at outcome.
-        propagated = channel.readOutbound();
-        assertThat(propagated).isEqualTo(frame);
+        var propagated = channel.readOutbound();
+        assertThat(propagated).isEqualTo(requestFrame);
     }
 
-    private static void assertResponseMessageTaggedWith(String filterName, DecodedResponseFrame<?> propagated) {
-        String tag = collectTagsToStrings(propagated.body(), ARBITRARY_TAG);
-        assertEquals(tag, filterName);
-    }
+    @Test
+    void upstreamFiltersCanFilterOutOfBandRequest() {
+        var oobRequestBody = new FetchRequestData();
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> context.sendRequest((short) 3, oobRequestBody)
+                .thenCompose(outOfBandResponse -> context.requestFilterResultBuilder().drop().completed());
 
-    private static void assertRequestMessageTaggedWith(String filterName, DecodedRequestFrame<?> propagated) {
-        String tag = collectTagsToStrings(propagated.body(), ARBITRARY_TAG);
-        assertEquals(tag, filterName);
-    }
-
-    private static ApiVersionsResponseFilter taggingApiVersionsResponseFilter(String tag) {
-        return (apiVersion, header, response, context) -> {
-            response.unknownTaggedFields().add(new RawTaggedField(ARBITRARY_TAG, tag.getBytes(UTF_8)));
-            return context.responseFilterResultBuilder().forward(header, response).completed();
+        // this filter will intercept the out-of-band request and add the mark
+        FetchRequestFilter markingFilter = (apiVersion, header, request, context) -> {
+            request.unknownTaggedFields().add(MARK);
+            return context.forwardRequest(header, request);
         };
+
+        buildChannel(filter, markingFilter);
+
+        // trigger first filter
+        writeRequest(new ApiVersionsRequestData());
+
+        // verify filter has sent the out-of-band request.
+        InternalRequestFrame<?> propagatedOobRequest = channel.readOutbound();
+        assertThat(propagatedOobRequest.body()).isEqualTo(oobRequestBody);
+        // and ensure that it carries the expected mark added by the intercepting filter
+        assertThat(propagatedOobRequest.body().unknownTaggedFields()).containsExactly(MARK);
     }
 
-    private static String collectTagsToStrings(ApiMessage body, int tag) {
-        return body.unknownTaggedFields().stream().filter(f -> f.tag() == tag)
-                .map(RawTaggedField::data).map(f -> new String(f, UTF_8)).collect(Collectors.joining(","));
-    }
+    @Test
+    void upstreamFiltersCanFilterOutOfBandResponse() {
+        var oobRequestBody = new FetchRequestData();
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> context.sendRequest((short) 3, oobRequestBody)
+                .thenCompose(outOfBandResponse -> {
+                    assertThat(outOfBandResponse.unknownTaggedFields()).containsExactly(MARK);
+                    return context.forwardRequest(header, request);
+                });
 
-    private static ApiVersionsRequestFilter taggingApiVersionsRequestFilter(String tag) {
-        return (apiVersion, header, request, context) -> {
-            request.unknownTaggedFields().add(new RawTaggedField(ARBITRARY_TAG, tag.getBytes(UTF_8)));
-            return context.requestFilterResultBuilder().forward(header, request).completed();
+        // this filter will intercept the response to the out-of-band request and add the mark
+        FetchResponseFilter markingFilter = (apiVersion, header, response, context) -> {
+            response.unknownTaggedFields().add(MARK);
+            return context.forwardResponse(header, response);
         };
+
+        buildChannel(filter, markingFilter);
+
+        // trigger first filter
+        var requestFrame = writeRequest(new ApiVersionsRequestData());
+
+        // verify filter has sent the out-of-band request.
+        InternalRequestFrame<?> propagatedOobRequest = channel.readOutbound();
+        assertThat(propagatedOobRequest.body()).isEqualTo(oobRequestBody);
+
+        // mimic the broker sending the out-of-band response
+        writeInternalResponse(propagatedOobRequest.header().correlationId(), new FetchResponseData());
+        channel.runPendingTasks();
+
+        // Verify the filtered response arrived at inbound.
+        var propagated = channel.readOutbound();
+        assertThat(propagated).isEqualTo(requestFrame);
     }
 
+    private static RawTaggedField createTag(int arbitraryTag, String data) {
+        return new RawTaggedField(arbitraryTag, data.getBytes(UTF_8));
+    }
+
+    private static <T> CompletableFuture<T> toCompletableFuture(CompletionStage<T> completionStage) {
+        var future = new CompletableFuture<T>();
+        completionStage.whenComplete((o, throwable) -> {
+            if (throwable != null) {
+                future.completeExceptionally(throwable);
+            }
+            else {
+                future.complete(o);
+            }
+        });
+        return future;
+    }
 }
