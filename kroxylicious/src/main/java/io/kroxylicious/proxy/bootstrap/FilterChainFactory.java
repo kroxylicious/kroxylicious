@@ -16,10 +16,9 @@ import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.FilterDefinition;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
-import io.kroxylicious.proxy.filter.FilterContributor;
+import io.kroxylicious.proxy.filter.FilterConstructContext;
 import io.kroxylicious.proxy.internal.filter.NettyFilterContext;
-import io.kroxylicious.proxy.service.Context;
-import io.kroxylicious.proxy.service.ContributionManager;
+import io.kroxylicious.proxy.service.FilterContributionManager;
 
 /**
  * Abstracts the creation of a chain of filter instances, hiding the configuration
@@ -63,8 +62,8 @@ public class FilterChainFactory {
         return filters
                 .stream()
                 .map(f -> {
-                    Context<Object> wrap = context.wrap(f.config());
-                    return (Filter) ContributionManager.INSTANCE.createInstance(FilterContributor.class, f.type(), wrap);
+                    FilterConstructContext<Object> wrap = context.wrap(f.config());
+                    return (Filter) FilterContributionManager.INSTANCE.createInstance(f.type(), wrap);
                 })
                 .flatMap(filter -> FilterAndInvoker.build(filter).stream())
                 .toList();

@@ -8,8 +8,7 @@ package io.kroxylicious.proxy.config;
 
 import java.util.Map;
 
-import io.kroxylicious.proxy.filter.FilterContributor;
-import io.kroxylicious.proxy.service.ContributionManager;
+import io.kroxylicious.proxy.service.FilterContributionManager;
 
 public class FilterDefinitionBuilder extends AbstractDefinitionBuilder<FilterDefinition> {
     public FilterDefinitionBuilder(String type) {
@@ -18,8 +17,7 @@ public class FilterDefinitionBuilder extends AbstractDefinitionBuilder<FilterDef
 
     @Override
     protected FilterDefinition buildInternal(String type, Map<String, Object> config) {
-        var configType = ContributionManager.INSTANCE.getDefinition(FilterContributor.class, type)
-                .configurationType();
+        var configType = FilterContributionManager.INSTANCE.getConfigType(type);
         return new FilterDefinition(type, mapper.convertValue(config, configType));
     }
 }

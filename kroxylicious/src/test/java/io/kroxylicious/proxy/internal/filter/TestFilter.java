@@ -19,16 +19,15 @@ import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.FilterContributor;
 import io.kroxylicious.proxy.filter.RequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
-import io.kroxylicious.proxy.service.Contributor;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 public class TestFilter implements RequestFilter {
     private final FilterConstructContext context;
     private final ExampleConfig exampleConfig;
-    private final Class<? extends Contributor<?, ?, ?>> contributorClass;
+    private final Class<? extends FilterContributor> contributorClass;
 
-    public TestFilter(FilterConstructContext context, ExampleConfig exampleConfig, Class<? extends Contributor<?, ?, ?>> contributorClass) {
+    public TestFilter(FilterConstructContext context, ExampleConfig exampleConfig, Class<? extends FilterContributor> contributorClass) {
         this.context = context;
         this.exampleConfig = exampleConfig;
         this.contributorClass = contributorClass;
@@ -47,7 +46,7 @@ public class TestFilter implements RequestFilter {
         return exampleConfig;
     }
 
-    public Class<? extends Contributor<?, ?, ?>> getContributorClass() {
+    public Class<? extends FilterContributor> getContributorClass() {
         return contributorClass;
     }
 
