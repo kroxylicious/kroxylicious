@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.service;
 
 /**
  * Context in which a Contributor is getting an instance, this includes the user-supplied configuration.
+ * @param <B> config type
  */
 public interface Context<B> {
 
@@ -17,6 +18,12 @@ public interface Context<B> {
      */
     B getConfig();
 
+    /**
+     * Wrap a config in a Context
+     * @param config config
+     * @return config
+     * @param <B> config type
+     */
     static <B> Context<B> wrap(B config) {
         return () -> config;
     }

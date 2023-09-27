@@ -11,6 +11,7 @@ import io.kroxylicious.proxy.service.Contributor;
 
 /**
  * ClusterNetworkAddressConfigProviderContributor is a pluggable source of network address information.
+ * @param <B> config type
  * @see Contributor
  */
 public interface ClusterNetworkAddressConfigProviderContributor<B> extends Contributor<ClusterNetworkAddressConfigProvider, B, Context<B>> {

@@ -15,7 +15,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ContributorTest {
 
     @Test
-    void testDefaultFilterConfiguration() {
+    void testDefaultConfiguration() {
         Contributor<Object, Void, Context<Void>> contributor = new Contributor<>() {
             @Override
             public @NonNull Class<?> getServiceType() {

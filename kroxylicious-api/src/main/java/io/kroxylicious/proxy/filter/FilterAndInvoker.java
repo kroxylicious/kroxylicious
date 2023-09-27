@@ -16,6 +16,12 @@ import static java.util.Objects.requireNonNull;
  * @param invoker invoker
  */
 public record FilterAndInvoker(Filter filter, FilterInvoker invoker) {
+
+    /**
+     * A Filter and it's respective invoker
+     * @param filter filter (non-nullable)
+     * @param invoker invoker (non-nullable)
+     */
     public FilterAndInvoker {
         requireNonNull(filter, "filter cannot be null");
         requireNonNull(invoker, "invoker cannot be null");
