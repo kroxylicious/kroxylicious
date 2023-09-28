@@ -38,4 +38,5 @@
  * the communication between the client and broker.</p>
  *
  */
+@ApiMaturity.Unstable
 package io.kroxylicious.proxy;
