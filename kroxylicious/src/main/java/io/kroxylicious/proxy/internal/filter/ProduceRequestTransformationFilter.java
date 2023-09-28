@@ -31,7 +31,7 @@ import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.internal.util.MemoryRecordsHelper;
 
 /**
- * An filter for modifying the key/value/header/topic of {@link ApiKeys#PRODUCE} requests.
+ * A filter for modifying the key/value/header/topic of {@link ApiKeys#PRODUCE} requests.
  */
 public class ProduceRequestTransformationFilter implements ProduceRequestFilter {
 
