@@ -58,8 +58,8 @@ public class FixedClientIdFilter implements RequestFilter, ResponseFilter {
         }
 
         @Override
-        public FixedClientIdFilter createFilter(FilterCreationContext<FixedClientIdFilterConfig> context) {
-            return new FixedClientIdFilter(context.getConfig());
+        public FixedClientIdFilter createFilter(FilterCreationContext context, FixedClientIdFilterConfig configuration) {
+            return new FixedClientIdFilter(configuration);
         }
     }
 }

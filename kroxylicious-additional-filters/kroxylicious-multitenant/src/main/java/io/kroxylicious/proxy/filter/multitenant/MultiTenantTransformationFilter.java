@@ -514,7 +514,7 @@ public class MultiTenantTransformationFilter
         }
 
         @Override
-        public MultiTenantTransformationFilter createFilter(FilterCreationContext<Void> context) {
+        public MultiTenantTransformationFilter createFilter(FilterCreationContext context, Void configuration) {
             return new MultiTenantTransformationFilter();
         }
     }

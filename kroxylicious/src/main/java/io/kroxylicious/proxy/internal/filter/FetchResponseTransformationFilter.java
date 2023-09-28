@@ -148,8 +148,9 @@ public class FetchResponseTransformationFilter implements FetchResponseFilter {
         }
 
         @Override
-        public FetchResponseTransformationFilter createFilter(FilterCreationContext<FetchResponseTransformationConfig> context) {
-            return new FetchResponseTransformationFilter(context.getConfig());
+        public FetchResponseTransformationFilter createFilter(FilterCreationContext context,
+                                                              FetchResponseTransformationConfig configuration) {
+            return new FetchResponseTransformationFilter(configuration);
         }
     }
 }

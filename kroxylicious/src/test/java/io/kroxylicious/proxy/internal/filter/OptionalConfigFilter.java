@@ -69,8 +69,8 @@ public class OptionalConfigFilter implements RequestFilter {
         }
 
         @Override
-        public OptionalConfigFilter createFilter(FilterCreationContext<ExampleConfig> context) {
-            return new OptionalConfigFilter(context, context.getConfig(), this.getClass());
+        public OptionalConfigFilter createFilter(FilterCreationContext context, ExampleConfig configuration) {
+            return new OptionalConfigFilter(context, configuration, this.getClass());
         }
     }
 }

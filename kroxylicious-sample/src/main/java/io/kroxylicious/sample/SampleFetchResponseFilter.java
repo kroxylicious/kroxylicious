@@ -82,8 +82,8 @@ public class SampleFetchResponseFilter implements FetchResponseFilter {
     public static class Factory implements FilterFactory<SampleFetchResponseFilter, SampleFilterConfig> {
 
         @Override
-        public SampleFetchResponseFilter createFilter(FilterCreationContext<SampleFilterConfig> context) {
-            return new SampleFetchResponseFilter(context.getConfig());
+        public SampleFetchResponseFilter createFilter(FilterCreationContext context, SampleFilterConfig configuration) {
+            return new SampleFetchResponseFilter(configuration);
         }
 
         @Override

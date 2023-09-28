@@ -16,7 +16,6 @@ import io.kroxylicious.proxy.internal.filter.FetchResponseTransformationFilter.F
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.when;
 
 class FetchResponseTransformationFilterTest {
 
@@ -27,8 +26,8 @@ class FetchResponseTransformationFilterTest {
         assertThatThrownBy(() -> factory.validateConfiguration(null)).isInstanceOf(InvalidFilterConfigurationException.class)
                 .hasMessage("FetchResponseTransformationFilter requires configuration, but config object is null");
         FilterCreationContext constructContext = Mockito.mock(FilterCreationContext.class);
-        when(constructContext.getConfig()).thenReturn(new FetchResponseTransformationConfig(ProduceRequestTransformationFilter.UpperCasing.class.getName()));
-        assertThat(factory.createFilter(constructContext)).isInstanceOf(FetchResponseTransformationFilter.class);
+        FetchResponseTransformationConfig config = new FetchResponseTransformationConfig(ProduceRequestTransformationFilter.UpperCasing.class.getName());
+        assertThat(factory.createFilter(constructContext, config)).isInstanceOf(FetchResponseTransformationFilter.class);
     }
 
 }

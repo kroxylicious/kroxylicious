@@ -8,10 +8,9 @@ package io.kroxylicious.proxy.filter;
 
 /**
  * Construction context for Filters. Used to pass the filter configuration and enviromental resources
- * to the FilterFactory when it is creating a new instance of the Filter. see {@link FilterFactory#createFilter(FilterCreationContext)}
- * @param <B> the configuration type used by the filter.
+ * to the FilterFactory when it is creating a new instance of the Filter. see {@link FilterFactory#createFilter(FilterCreationContext, Object)}
  */
-public interface FilterCreationContext<B> {
+public interface FilterCreationContext {
 
     /**
      * Offers Executors for doing asynchronous work
@@ -19,9 +18,4 @@ public interface FilterCreationContext<B> {
      */
     FilterExecutors executors();
 
-    /**
-     * service configuration which may be null if the service instance does not accept configuration.
-     * @return config
-     */
-    B getConfig();
 }

@@ -96,8 +96,8 @@ public class RejectingCreateTopicFilter implements CreateTopicsRequestFilter {
         }
 
         @Override
-        public RejectingCreateTopicFilter createFilter(FilterCreationContext<RejectingCreateTopicFilterConfig> context) {
-            return new RejectingCreateTopicFilter(context, context.getConfig());
+        public RejectingCreateTopicFilter createFilter(FilterCreationContext context, RejectingCreateTopicFilterConfig configuration) {
+            return new RejectingCreateTopicFilter(context, configuration);
         }
     }
 

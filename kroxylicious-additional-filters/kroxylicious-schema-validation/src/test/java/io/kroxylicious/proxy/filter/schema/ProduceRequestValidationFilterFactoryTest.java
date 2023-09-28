@@ -35,17 +35,13 @@ class ProduceRequestValidationFilterFactoryTest {
     void testGetInstance() {
         ProduceValidationFilter.Factory factory = new ProduceValidationFilter.Factory();
         ValidationConfig config = new ValidationConfig(true, List.of(), new RecordValidationRule(null, null));
-        Filter filter = factory.createFilter(new FilterCreationContext<>() {
+        Filter filter = factory.createFilter(new FilterCreationContext() {
             @Override
             public FilterExecutors executors() {
                 return () -> Executors.newScheduledThreadPool(1);
             }
 
-            @Override
-            public ValidationConfig getConfig() {
-                return config;
-            }
-        });
+        }, config);
         assertThat(filter).isNotNull().isInstanceOf(ProduceValidationFilter.class);
     }
 

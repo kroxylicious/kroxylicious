@@ -14,7 +14,6 @@ import io.kroxylicious.proxy.filter.InvalidFilterConfigurationException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.when;
 
 class ProduceRequestTransformationFilterTest {
     @Test
@@ -24,8 +23,8 @@ class ProduceRequestTransformationFilterTest {
         assertThatThrownBy(() -> factory.validateConfiguration(null)).isInstanceOf(InvalidFilterConfigurationException.class)
                 .hasMessage("ProduceRequestTransformationFilter requires configuration, but config object is null");
         FilterCreationContext constructContext = Mockito.mock(FilterCreationContext.class);
-        when(constructContext.getConfig()).thenReturn(
-                new ProduceRequestTransformationFilter.ProduceRequestTransformationConfig(ProduceRequestTransformationFilter.UpperCasing.class.getName()));
-        assertThat(factory.createFilter(constructContext)).isInstanceOf(ProduceRequestTransformationFilter.class);
+        ProduceRequestTransformationFilter.ProduceRequestTransformationConfig config = new ProduceRequestTransformationFilter.ProduceRequestTransformationConfig(
+                ProduceRequestTransformationFilter.UpperCasing.class.getName());
+        assertThat(factory.createFilter(constructContext, config)).isInstanceOf(ProduceRequestTransformationFilter.class);
     }
 }

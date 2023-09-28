@@ -34,9 +34,5 @@ public class NettyFilterContext {
             return () -> eventLoop;
         }
 
-        @Override
-        public Object getConfig() {
-            return filterConfig;
-        }
     }
 }

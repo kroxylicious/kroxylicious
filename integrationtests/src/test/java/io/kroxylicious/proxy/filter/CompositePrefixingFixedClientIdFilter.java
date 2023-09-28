@@ -62,8 +62,9 @@ public class CompositePrefixingFixedClientIdFilter implements CompositeFilter {
         }
 
         @Override
-        public CompositePrefixingFixedClientIdFilter createFilter(FilterCreationContext<CompositePrefixingFixedClientIdFilterConfig> context) {
-            return new CompositePrefixingFixedClientIdFilter(context.getConfig());
+        public CompositePrefixingFixedClientIdFilter createFilter(FilterCreationContext context,
+                                                                  CompositePrefixingFixedClientIdFilterConfig configuration) {
+            return new CompositePrefixingFixedClientIdFilter(configuration);
         }
     }
 }

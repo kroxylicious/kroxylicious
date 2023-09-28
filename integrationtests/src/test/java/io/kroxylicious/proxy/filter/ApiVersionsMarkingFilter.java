@@ -53,7 +53,7 @@ public class ApiVersionsMarkingFilter implements RequestFilter {
         }
 
         @Override
-        public ApiVersionsMarkingFilter createFilter(FilterCreationContext<Void> context) {
+        public ApiVersionsMarkingFilter createFilter(FilterCreationContext context, Void configuration) {
             return new ApiVersionsMarkingFilter();
         }
     }

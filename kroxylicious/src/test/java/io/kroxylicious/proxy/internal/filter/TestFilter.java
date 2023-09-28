@@ -64,8 +64,8 @@ public class TestFilter implements RequestFilter {
         }
 
         @Override
-        public TestFilter createFilter(FilterCreationContext<ExampleConfig> context) {
-            return new TestFilter(context, context.getConfig(), this.getClass());
+        public TestFilter createFilter(FilterCreationContext context, ExampleConfig configuration) {
+            return new TestFilter(context, configuration, this.getClass());
         }
     }
 }

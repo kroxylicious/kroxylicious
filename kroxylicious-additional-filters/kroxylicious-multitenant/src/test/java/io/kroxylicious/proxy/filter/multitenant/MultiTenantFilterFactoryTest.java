@@ -25,7 +25,7 @@ class MultiTenantFilterFactoryTest {
     @Test
     void testGetInstance() {
         MultiTenantTransformationFilter.Factory factory = new MultiTenantTransformationFilter.Factory();
-        Filter filter = factory.createFilter(Mockito.mock(FilterCreationContext.class));
+        Filter filter = factory.createFilter(Mockito.mock(FilterCreationContext.class), null);
         assertThat(filter).isNotNull().isInstanceOf(MultiTenantTransformationFilter.class);
     }
 

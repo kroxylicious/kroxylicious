@@ -64,8 +64,8 @@ public class RequiresConfigFilter implements RequestFilter {
         }
 
         @Override
-        public RequiresConfigFilter createFilter(FilterCreationContext<ExampleConfig> context) {
-            return new RequiresConfigFilter(context, context.getConfig(), this.getClass());
+        public RequiresConfigFilter createFilter(FilterCreationContext context, ExampleConfig configuration) {
+            return new RequiresConfigFilter(context, configuration, this.getClass());
         }
     }
 }
