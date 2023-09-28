@@ -777,6 +777,9 @@
                                     <formats>
                                         <format>XML</format>
                                     </formats>
+                                    <excludes>
+                                        <exclude>io.kroxylicious.proxy.ApiMaturity</exclude>
+                                    </excludes>
                                 </configuration>
                             </execution>
                         </executions>
