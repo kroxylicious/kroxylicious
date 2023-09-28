@@ -12,7 +12,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.PosixFilePermissions;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -26,6 +25,7 @@ import io.kroxylicious.systemtests.executor.Exec;
 import io.kroxylicious.systemtests.executor.ExecResult;
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
+import io.kroxylicious.systemtests.utils.TestUtils;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 
@@ -55,6 +55,7 @@ public class Kroxy {
 
     /**
      * Deploy.
+     * @throws IOException the io exception
      */
     public void deploy() throws IOException {
         LOGGER.info("Deploy cert manager in cert-manager namespace");
@@ -66,7 +67,7 @@ public class Kroxy {
         File dest = new File(String.valueOf(kustomizeTmpdir));
         FileUtils.copyDirectory(source, dest);
 
-        List<File> listFiles = findDirectoriesByName("minikube", kustomizeTmpdir.toFile());
+        List<File> listFiles = TestUtils.findDirectoriesByName("minikube", kustomizeTmpdir.toFile());
         File overlayDir = !listFiles.isEmpty() ? listFiles.get(0).getAbsoluteFile() : null;
         if (overlayDir == null || !overlayDir.exists()) {
             throw new KubeClusterException.NotFound(new ExecResult(1, "", ""), "Cannot find minikube overlay within sample");
@@ -86,6 +87,7 @@ public class Kroxy {
 
     /**
      * Delete.
+     * @throws IOException the io exception
      */
     public void delete() throws IOException {
         LOGGER.info("Deleting Kroxy in {} namespace", deploymentNamespace);
@@ -94,21 +96,5 @@ public class Kroxy {
         kubeClient().getClient().services().inNamespace(deploymentNamespace).withGracePeriod(0).delete();
         DeploymentUtils.waitForDeploymentDeletion(deploymentNamespace, Constants.KROXY_DEPLOYMENT_NAME);
         kustomizeTmpdir.toFile().deleteOnExit();
-    }
-
-    private static List<File> findDirectoriesByName(String name, File root) {
-        List<File> result = new ArrayList<>();
-
-        for (File file : Objects.requireNonNull(root.listFiles())) {
-            if (file.isDirectory()) {
-                if (file.getName().equals(name)) {
-                    result.add(file);
-                }
-
-                result.addAll(findDirectoriesByName(name, file));
-            }
-        }
-
-        return result;
     }
 }
