@@ -152,7 +152,7 @@ class MultiTenantTransformationFilterTest {
 
     @Test
     void testContributor() {
-        MultiTenantTransformationFilter.Factory factory = new MultiTenantTransformationFilter.Factory();
+        MultiTenantTransformationFilterFactory factory = new MultiTenantTransformationFilterFactory();
         assertThat(factory.createFilter(Mockito.mock(FilterCreationContext.class), null)).isInstanceOf(MultiTenantTransformationFilter.class);
     }
 }

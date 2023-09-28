@@ -18,7 +18,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class ProduceRequestTransformationFilterTest {
     @Test
     void testContributor() {
-        ProduceRequestTransformationFilter.Factory factory = new ProduceRequestTransformationFilter.Factory();
+        ProduceRequestTransformationFilterFactory factory = new ProduceRequestTransformationFilterFactory();
         assertThat(factory.configType()).isEqualTo(ProduceRequestTransformationFilter.ProduceRequestTransformationConfig.class);
         assertThatThrownBy(() -> factory.validateConfiguration(null)).isInstanceOf(InvalidFilterConfigurationException.class)
                 .hasMessage("ProduceRequestTransformationFilter requires configuration, but config object is null");

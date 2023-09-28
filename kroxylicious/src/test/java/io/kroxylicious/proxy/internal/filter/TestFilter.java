@@ -11,15 +11,12 @@ import java.util.concurrent.CompletionStage;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
-import org.jetbrains.annotations.NotNull;
 
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.FilterCreationContext;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.RequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
-
-import edu.umd.cs.findbugs.annotations.NonNull;
 
 public class TestFilter implements RequestFilter {
     private final FilterCreationContext context;
@@ -49,23 +46,4 @@ public class TestFilter implements RequestFilter {
         return contributorClass;
     }
 
-    public static class FactoryA implements FilterFactory<TestFilter, ExampleConfig> {
-
-        @NotNull
-        @Override
-        public Class<TestFilter> filterType() {
-            return TestFilter.class;
-        }
-
-        @NonNull
-        @Override
-        public Class<ExampleConfig> configType() {
-            return ExampleConfig.class;
-        }
-
-        @Override
-        public TestFilter createFilter(FilterCreationContext context, ExampleConfig configuration) {
-            return new TestFilter(context, configuration, this.getClass());
-        }
-    }
 }

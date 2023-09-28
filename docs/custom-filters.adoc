@@ -509,8 +509,8 @@ populate (using Jackson) when loading your custom Filter. The module must packag
 file containing the classnames of each filter factory implementation into the JAR file.
 
 For example in the kroxylicious-samples we have the {github}/blob/main/kroxylicious-sample/src/main/java/io/kroxylicious/sample/config/SampleFilterConfig.java[SampleFilterConfig] class.
-This is used in the {github}/blob/main/kroxylicious-sample/src/main/java/io/kroxylicious/sample/SampleFetchResponseFilter.java[SampleFetchResponseFilter]) when configuring the
-Contributor inner class.
+This is used in the {github}/blob/main/kroxylicious-sample/src/main/java/io/kroxylicious/sample/SampleFetchResponseFilter.java[SampleFetchResponseFilter]). The configuration is routed to the Filter instance via the 
+{github}/blob/main/kroxylicious-sample/src/main/java/io/kroxylicious/sample/SampleFetchResponseFilterFactory.java[SampleFetchResponseFilterFactory].
 
 Then, when we configure a filter in Kroxylicious configuration like:
 

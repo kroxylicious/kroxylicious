@@ -25,13 +25,9 @@ import org.apache.kafka.common.record.TimestampType;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.kroxylicious.proxy.filter.FilterContext;
-import io.kroxylicious.proxy.filter.FilterCreationContext;
-import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.internal.util.MemoryRecordsHelper;
-
-import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
  * An filter for modifying the key/value/header/topic of {@link ApiKeys#PRODUCE} requests.
@@ -101,23 +97,4 @@ public class ProduceRequestTransformationFilter implements ProduceRequestFilter 
         });
     }
 
-    public static class Factory implements FilterFactory<ProduceRequestTransformationFilter, ProduceRequestTransformationConfig> {
-
-        @NonNull
-        @Override
-        public Class<ProduceRequestTransformationFilter> filterType() {
-            return ProduceRequestTransformationFilter.class;
-        }
-
-        @Override
-        public Class<ProduceRequestTransformationConfig> configType() {
-            return ProduceRequestTransformationConfig.class;
-        }
-
-        @Override
-        public ProduceRequestTransformationFilter createFilter(FilterCreationContext context,
-                                                               ProduceRequestTransformationConfig configuration) {
-            return new ProduceRequestTransformationFilter(configuration);
-        }
-    }
 }

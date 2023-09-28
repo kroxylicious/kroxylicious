@@ -40,21 +40,4 @@ public class ApiVersionsMarkingFilter implements RequestFilter {
         });
     }
 
-    public static class Factory implements FilterFactory<ApiVersionsMarkingFilter, Void> {
-
-        @Override
-        public Class<ApiVersionsMarkingFilter> filterType() {
-            return ApiVersionsMarkingFilter.class;
-        }
-
-        @Override
-        public Class<Void> configType() {
-            return Void.class;
-        }
-
-        @Override
-        public ApiVersionsMarkingFilter createFilter(FilterCreationContext context, Void configuration) {
-            return new ApiVersionsMarkingFilter();
-        }
-    }
 }

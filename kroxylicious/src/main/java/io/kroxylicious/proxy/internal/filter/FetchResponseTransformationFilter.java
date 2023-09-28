@@ -32,12 +32,8 @@ import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.filter.FetchResponseFilter;
 import io.kroxylicious.proxy.filter.FilterContext;
-import io.kroxylicious.proxy.filter.FilterCreationContext;
-import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.internal.util.MemoryRecordsHelper;
-
-import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
  * An filter for modifying the key/value/header/topic of {@link ApiKeys#FETCH} responses.
@@ -134,23 +130,4 @@ public class FetchResponseTransformationFilter implements FetchResponseFilter {
         }
     }
 
-    public static class Factory implements FilterFactory<FetchResponseTransformationFilter, FetchResponseTransformationConfig> {
-
-        @NonNull
-        @Override
-        public Class<FetchResponseTransformationFilter> filterType() {
-            return FetchResponseTransformationFilter.class;
-        }
-
-        @Override
-        public Class<FetchResponseTransformationConfig> configType() {
-            return FetchResponseTransformationConfig.class;
-        }
-
-        @Override
-        public FetchResponseTransformationFilter createFilter(FilterCreationContext context,
-                                                              FetchResponseTransformationConfig configuration) {
-            return new FetchResponseTransformationFilter(configuration);
-        }
-    }
 }

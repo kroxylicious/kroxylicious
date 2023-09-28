@@ -49,22 +49,4 @@ public class CompositePrefixingFixedClientIdFilter implements CompositeFilter {
         }
     }
 
-    public static class Factory implements FilterFactory<CompositePrefixingFixedClientIdFilter, CompositePrefixingFixedClientIdFilterConfig> {
-
-        @Override
-        public Class<CompositePrefixingFixedClientIdFilter> filterType() {
-            return CompositePrefixingFixedClientIdFilter.class;
-        }
-
-        @Override
-        public Class<CompositePrefixingFixedClientIdFilterConfig> configType() {
-            return CompositePrefixingFixedClientIdFilterConfig.class;
-        }
-
-        @Override
-        public CompositePrefixingFixedClientIdFilter createFilter(FilterCreationContext context,
-                                                                  CompositePrefixingFixedClientIdFilterConfig configuration) {
-            return new CompositePrefixingFixedClientIdFilter(configuration);
-        }
-    }
 }

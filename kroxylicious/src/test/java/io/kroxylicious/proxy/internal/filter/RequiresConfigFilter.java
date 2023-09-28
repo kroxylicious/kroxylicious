@@ -11,15 +11,12 @@ import java.util.concurrent.CompletionStage;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
-import org.jetbrains.annotations.NotNull;
 
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.FilterCreationContext;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.RequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
-
-import edu.umd.cs.findbugs.annotations.NonNull;
 
 public class RequiresConfigFilter implements RequestFilter {
     private final FilterCreationContext context;
@@ -49,23 +46,4 @@ public class RequiresConfigFilter implements RequestFilter {
         return contributorClass;
     }
 
-    public static class RequiresConfigFactory implements FilterFactory<RequiresConfigFilter, ExampleConfig> {
-
-        @NotNull
-        @Override
-        public Class<RequiresConfigFilter> filterType() {
-            return RequiresConfigFilter.class;
-        }
-
-        @NonNull
-        @Override
-        public Class<ExampleConfig> configType() {
-            return ExampleConfig.class;
-        }
-
-        @Override
-        public RequiresConfigFilter createFilter(FilterCreationContext context, ExampleConfig configuration) {
-            return new RequiresConfigFilter(context, configuration, this.getClass());
-        }
-    }
 }

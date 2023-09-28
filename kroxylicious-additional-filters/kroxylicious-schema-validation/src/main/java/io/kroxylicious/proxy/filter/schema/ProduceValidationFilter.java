@@ -19,13 +19,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.filter.FilterContext;
-import io.kroxylicious.proxy.filter.FilterCreationContext;
-import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
 import io.kroxylicious.proxy.filter.ProduceResponseFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
-import io.kroxylicious.proxy.filter.schema.config.ValidationConfig;
 import io.kroxylicious.proxy.filter.schema.validation.request.ProduceRequestValidationResult;
 import io.kroxylicious.proxy.filter.schema.validation.request.ProduceRequestValidator;
 import io.kroxylicious.proxy.filter.schema.validation.topic.PartitionValidationResult;
@@ -191,22 +188,4 @@ public class ProduceValidationFilter implements ProduceRequestFilter, ProduceRes
         });
     }
 
-    public static class Factory implements FilterFactory<ProduceValidationFilter, ValidationConfig> {
-
-        @Override
-        public Class<ProduceValidationFilter> filterType() {
-            return ProduceValidationFilter.class;
-        }
-
-        @Override
-        public Class<ValidationConfig> configType() {
-            return ValidationConfig.class;
-        }
-
-        @Override
-        public ProduceValidationFilter createFilter(FilterCreationContext context, ValidationConfig configuration) {
-            ProduceRequestValidator validator = ProduceValidationFilterBuilder.build(configuration);
-            return new ProduceValidationFilter(configuration.isForwardPartialRequests(), validator);
-        }
-    }
 }

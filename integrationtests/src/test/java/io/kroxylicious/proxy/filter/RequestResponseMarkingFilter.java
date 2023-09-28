@@ -111,24 +111,4 @@ public class RequestResponseMarkingFilter implements RequestFilter, ResponseFilt
         }
     }
 
-    public static class Factory implements FilterFactory<RequestResponseMarkingFilter, RequestResponseMarkingFilterConfig> {
-
-        @Override
-        public RequestResponseMarkingFilter createFilter(FilterCreationContext context,
-                                                         RequestResponseMarkingFilterConfig configuration) {
-            return new RequestResponseMarkingFilter(context, configuration);
-        }
-
-        @Override
-        public Class<RequestResponseMarkingFilter> filterType() {
-            return RequestResponseMarkingFilter.class;
-        }
-
-        @Override
-        public Class<RequestResponseMarkingFilterConfig> configType() {
-            return RequestResponseMarkingFilterConfig.class;
-        }
-
-    }
-
 }

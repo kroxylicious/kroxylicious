@@ -16,8 +16,6 @@ import io.micrometer.core.instrument.Timer;
 
 import io.kroxylicious.proxy.filter.FetchResponseFilter;
 import io.kroxylicious.proxy.filter.FilterContext;
-import io.kroxylicious.proxy.filter.FilterCreationContext;
-import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.sample.config.SampleFilterConfig;
 import io.kroxylicious.sample.util.SampleFilterTransformer;
@@ -79,21 +77,4 @@ public class SampleFetchResponseFilter implements FetchResponseFilter {
         });
     }
 
-    public static class Factory implements FilterFactory<SampleFetchResponseFilter, SampleFilterConfig> {
-
-        @Override
-        public SampleFetchResponseFilter createFilter(FilterCreationContext context, SampleFilterConfig configuration) {
-            return new SampleFetchResponseFilter(configuration);
-        }
-
-        @Override
-        public Class<SampleFetchResponseFilter> filterType() {
-            return SampleFetchResponseFilter.class;
-        }
-
-        @Override
-        public Class<SampleFilterConfig> configType() {
-            return SampleFilterConfig.class;
-        }
-    }
 }

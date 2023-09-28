@@ -23,7 +23,7 @@ class ProduceRequestValidationFilterFactoryTest {
 
     @Test
     void testGetConfigTypeViaConfigurationDefinition() {
-        ProduceValidationFilter.Factory factory = new ProduceValidationFilter.Factory();
+        ProduceValidationFilterFactory factory = new ProduceValidationFilterFactory();
         assertThat(factory.configType()).isEqualTo(ValidationConfig.class);
         assertThatThrownBy(() -> factory.validateConfiguration(null)).isInstanceOf(InvalidFilterConfigurationException.class)
                 .hasMessage("ProduceValidationFilter requires configuration, but config object is null");
@@ -31,7 +31,7 @@ class ProduceRequestValidationFilterFactoryTest {
 
     @Test
     void testGetInstance() {
-        ProduceValidationFilter.Factory factory = new ProduceValidationFilter.Factory();
+        ProduceValidationFilterFactory factory = new ProduceValidationFilterFactory();
         ValidationConfig config = new ValidationConfig(true, List.of(), new RecordValidationRule(null, null));
         Filter filter = factory.createFilter(() -> Executors.newScheduledThreadPool(1), config);
         assertThat(filter).isNotNull().isInstanceOf(ProduceValidationFilter.class);

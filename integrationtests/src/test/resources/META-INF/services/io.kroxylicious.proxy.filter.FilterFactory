@@ -1,6 +1,6 @@
-io.kroxylicious.proxy.filter.FixedClientIdFilter$Factory
-io.kroxylicious.proxy.filter.ApiVersionsMarkingFilter$Factory
-io.kroxylicious.proxy.filter.RequestResponseMarkingFilter$Factory
-io.kroxylicious.proxy.filter.OutOfBandSendFilter$Factory
-io.kroxylicious.proxy.filter.CompositePrefixingFixedClientIdFilter$Factory
-io.kroxylicious.proxy.filter.RejectingCreateTopicFilter$Factory
+io.kroxylicious.proxy.filter.FixedClientIdFilterFactory
+io.kroxylicious.proxy.filter.ApiVersionsMarkingFilterFactory
+io.kroxylicious.proxy.filter.RequestResponseMarkingFilterFactory
+io.kroxylicious.proxy.filter.OutOfBandSendFilterFactory
+io.kroxylicious.proxy.filter.CompositePrefixingFixedClientIdFilterFactory
+io.kroxylicious.proxy.filter.RejectingCreateTopicFilterFactory

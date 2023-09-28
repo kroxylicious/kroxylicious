@@ -69,8 +69,6 @@ import io.kroxylicious.proxy.filter.EndTxnRequestFilter;
 import io.kroxylicious.proxy.filter.FetchRequestFilter;
 import io.kroxylicious.proxy.filter.FetchResponseFilter;
 import io.kroxylicious.proxy.filter.FilterContext;
-import io.kroxylicious.proxy.filter.FilterCreationContext;
-import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.FindCoordinatorRequestFilter;
 import io.kroxylicious.proxy.filter.FindCoordinatorResponseFilter;
 import io.kroxylicious.proxy.filter.HeartbeatRequestFilter;
@@ -501,21 +499,4 @@ public class MultiTenantTransformationFilter
     public MultiTenantTransformationFilter() {
     }
 
-    public static class Factory implements FilterFactory<MultiTenantTransformationFilter, Void> {
-
-        @Override
-        public Class<MultiTenantTransformationFilter> filterType() {
-            return MultiTenantTransformationFilter.class;
-        }
-
-        @Override
-        public Class<Void> configType() {
-            return Void.class;
-        }
-
-        @Override
-        public MultiTenantTransformationFilter createFilter(FilterCreationContext context, Void configuration) {
-            return new MultiTenantTransformationFilter();
-        }
-    }
 }
