@@ -10,7 +10,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 /**
  * FilterFactory is a pluggable source of {@link Filter} instances.
  * @param <F> the {@code Filter} type.
- * @param <C> the configuration type for the Filter (use {@link Void} if the Filter is not configurable)
+ * @param <C> the type of configuration used to create the {@code Filter}. Use {@link Void} if the {@code Filter} is not configurable.
  */
 public interface FilterFactory<F extends Filter, C> {
 
@@ -21,7 +21,7 @@ public interface FilterFactory<F extends Filter, C> {
     Class<F> filterType();
 
     /**
-     * The type of config expected by the Filter.
+     * The type of configuration used to create the {@code Filter}.
      * <br/>
      * The type must be deserializable with Jackson
      * If the Filter has no configuration, return {@link Void} instead.
