@@ -52,17 +52,17 @@ public class CompositePrefixingFixedClientIdFilter implements CompositeFilter {
     public static class Factory implements FilterFactory<CompositePrefixingFixedClientIdFilterConfig> {
 
         @Override
-        public Class<? extends Filter> getServiceType() {
+        public Class<? extends Filter> filterType() {
             return CompositePrefixingFixedClientIdFilter.class;
         }
 
         @Override
-        public Class<CompositePrefixingFixedClientIdFilterConfig> getConfigType() {
+        public Class<CompositePrefixingFixedClientIdFilterConfig> configType() {
             return CompositePrefixingFixedClientIdFilterConfig.class;
         }
 
         @Override
-        public Filter createInstance(FilterConstructContext<CompositePrefixingFixedClientIdFilterConfig> context) {
+        public Filter createFilter(FilterCreationContext<CompositePrefixingFixedClientIdFilterConfig> context) {
             return new CompositePrefixingFixedClientIdFilter(context.getConfig());
         }
     }

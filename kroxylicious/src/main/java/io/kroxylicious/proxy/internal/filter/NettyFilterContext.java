@@ -8,7 +8,7 @@ package io.kroxylicious.proxy.internal.filter;
 
 import java.util.concurrent.ScheduledExecutorService;
 
-import io.kroxylicious.proxy.filter.FilterConstructContext;
+import io.kroxylicious.proxy.filter.FilterCreationContext;
 import io.kroxylicious.proxy.filter.FilterExecutors;
 
 public class NettyFilterContext {
@@ -18,11 +18,11 @@ public class NettyFilterContext {
         this.eventLoop = eventLoop;
     }
 
-    public FilterConstructContext wrap(Object config) {
+    public FilterCreationContext wrap(Object config) {
         return new NettyFilterConfigContext(config);
     }
 
-    class NettyFilterConfigContext implements FilterConstructContext {
+    class NettyFilterConfigContext implements FilterCreationContext {
         private final Object filterConfig;
 
         NettyFilterConfigContext(Object filterConfig) {

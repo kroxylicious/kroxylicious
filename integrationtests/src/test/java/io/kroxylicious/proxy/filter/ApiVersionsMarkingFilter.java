@@ -43,17 +43,17 @@ public class ApiVersionsMarkingFilter implements RequestFilter {
     public static class Factory implements FilterFactory<Void> {
 
         @Override
-        public Class<? extends Filter> getServiceType() {
+        public Class<? extends Filter> filterType() {
             return ApiVersionsMarkingFilter.class;
         }
 
         @Override
-        public Class<Void> getConfigType() {
+        public Class<Void> configType() {
             return Void.class;
         }
 
         @Override
-        public Filter createInstance(FilterConstructContext<Void> context) {
+        public Filter createFilter(FilterCreationContext<Void> context) {
             return new ApiVersionsMarkingFilter();
         }
     }

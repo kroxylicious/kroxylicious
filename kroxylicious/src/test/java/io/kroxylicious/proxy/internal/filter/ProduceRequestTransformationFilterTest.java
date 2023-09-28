@@ -9,8 +9,8 @@ package io.kroxylicious.proxy.internal.filter;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
-import io.kroxylicious.proxy.InvalidConfigurationException;
-import io.kroxylicious.proxy.filter.FilterConstructContext;
+import io.kroxylicious.proxy.filter.FilterCreationContext;
+import io.kroxylicious.proxy.filter.InvalidFilterConfigurationException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -20,12 +20,12 @@ class ProduceRequestTransformationFilterTest {
     @Test
     void testContributor() {
         ProduceRequestTransformationFilter.Factory factory = new ProduceRequestTransformationFilter.Factory();
-        assertThat(factory.getConfigType()).isEqualTo(ProduceRequestTransformationFilter.ProduceRequestTransformationConfig.class);
-        assertThatThrownBy(() -> factory.validateConfiguration(null)).isInstanceOf(InvalidConfigurationException.class)
+        assertThat(factory.configType()).isEqualTo(ProduceRequestTransformationFilter.ProduceRequestTransformationConfig.class);
+        assertThatThrownBy(() -> factory.validateConfiguration(null)).isInstanceOf(InvalidFilterConfigurationException.class)
                 .hasMessage("ProduceRequestTransformationFilter requires configuration, but config object is null");
-        FilterConstructContext constructContext = Mockito.mock(FilterConstructContext.class);
+        FilterCreationContext constructContext = Mockito.mock(FilterCreationContext.class);
         when(constructContext.getConfig()).thenReturn(
                 new ProduceRequestTransformationFilter.ProduceRequestTransformationConfig(ProduceRequestTransformationFilter.UpperCasing.class.getName()));
-        assertThat(factory.createInstance(constructContext)).isInstanceOf(ProduceRequestTransformationFilter.class);
+        assertThat(factory.createFilter(constructContext)).isInstanceOf(ProduceRequestTransformationFilter.class);
     }
 }

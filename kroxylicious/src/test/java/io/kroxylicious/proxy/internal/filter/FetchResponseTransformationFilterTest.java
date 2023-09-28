@@ -9,8 +9,8 @@ package io.kroxylicious.proxy.internal.filter;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
-import io.kroxylicious.proxy.InvalidConfigurationException;
-import io.kroxylicious.proxy.filter.FilterConstructContext;
+import io.kroxylicious.proxy.filter.FilterCreationContext;
+import io.kroxylicious.proxy.filter.InvalidFilterConfigurationException;
 import io.kroxylicious.proxy.internal.filter.FetchResponseTransformationFilter.Factory;
 import io.kroxylicious.proxy.internal.filter.FetchResponseTransformationFilter.FetchResponseTransformationConfig;
 
@@ -23,12 +23,12 @@ class FetchResponseTransformationFilterTest {
     @Test
     void testContributor() {
         Factory factory = new Factory();
-        assertThat(factory.getConfigType()).isEqualTo(FetchResponseTransformationConfig.class);
-        assertThatThrownBy(() -> factory.validateConfiguration(null)).isInstanceOf(InvalidConfigurationException.class)
+        assertThat(factory.configType()).isEqualTo(FetchResponseTransformationConfig.class);
+        assertThatThrownBy(() -> factory.validateConfiguration(null)).isInstanceOf(InvalidFilterConfigurationException.class)
                 .hasMessage("FetchResponseTransformationFilter requires configuration, but config object is null");
-        FilterConstructContext constructContext = Mockito.mock(FilterConstructContext.class);
+        FilterCreationContext constructContext = Mockito.mock(FilterCreationContext.class);
         when(constructContext.getConfig()).thenReturn(new FetchResponseTransformationConfig(ProduceRequestTransformationFilter.UpperCasing.class.getName()));
-        assertThat(factory.createInstance(constructContext)).isInstanceOf(FetchResponseTransformationFilter.class);
+        assertThat(factory.createFilter(constructContext)).isInstanceOf(FetchResponseTransformationFilter.class);
     }
 
 }

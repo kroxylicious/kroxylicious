@@ -48,17 +48,17 @@ public class FixedClientIdFilter implements RequestFilter, ResponseFilter {
     public static class Factory implements FilterFactory<FixedClientIdFilterConfig> {
 
         @Override
-        public Class<? extends Filter> getServiceType() {
+        public Class<? extends Filter> filterType() {
             return FixedClientIdFilter.class;
         }
 
         @Override
-        public Class<FixedClientIdFilterConfig> getConfigType() {
+        public Class<FixedClientIdFilterConfig> configType() {
             return FixedClientIdFilterConfig.class;
         }
 
         @Override
-        public Filter createInstance(FilterConstructContext<FixedClientIdFilterConfig> context) {
+        public Filter createFilter(FilterCreationContext<FixedClientIdFilterConfig> context) {
             return new FixedClientIdFilter(context.getConfig());
         }
     }

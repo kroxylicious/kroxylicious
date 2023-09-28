@@ -8,10 +8,10 @@ package io.kroxylicious.proxy.filter;
 
 /**
  * Construction context for Filters. Used to pass the filter configuration and enviromental resources
- * to the FilterFactory when it is creating a new instance of the Filter. see {@link FilterFactory#createInstance(FilterConstructContext)}
+ * to the FilterFactory when it is creating a new instance of the Filter. see {@link FilterFactory#createFilter(FilterCreationContext)}
  * @param <B> the configuration type used by the filter.
  */
-public interface FilterConstructContext<B> {
+public interface FilterCreationContext<B> {
 
     /**
      * Offers Executors for doing asynchronous work

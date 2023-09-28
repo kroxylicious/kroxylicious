@@ -25,9 +25,9 @@ public class RejectingCreateTopicFilter implements CreateTopicsRequestFilter {
     public static final String ERROR_MESSAGE = "rejecting all topics";
     private final ForwardingStyle forwardingStyle;
     private final boolean withCloseConnection;
-    private final FilterConstructContext constructionContext;
+    private final FilterCreationContext constructionContext;
 
-    public RejectingCreateTopicFilter(FilterConstructContext constructionContext, RejectingCreateTopicFilterConfig config) {
+    public RejectingCreateTopicFilter(FilterCreationContext constructionContext, RejectingCreateTopicFilterConfig config) {
         this.constructionContext = constructionContext;
         config = config == null ? new RejectingCreateTopicFilterConfig(false, ForwardingStyle.SYNCHRONOUS) : config;
         this.withCloseConnection = config.withCloseConnection;
@@ -81,12 +81,12 @@ public class RejectingCreateTopicFilter implements CreateTopicsRequestFilter {
     public static class Factory implements FilterFactory<RejectingCreateTopicFilterConfig> {
 
         @Override
-        public Class<? extends Filter> getServiceType() {
+        public Class<? extends Filter> filterType() {
             return RejectingCreateTopicFilter.class;
         }
 
         @Override
-        public Class<RejectingCreateTopicFilterConfig> getConfigType() {
+        public Class<RejectingCreateTopicFilterConfig> configType() {
             return RejectingCreateTopicFilterConfig.class;
         }
 
@@ -96,7 +96,7 @@ public class RejectingCreateTopicFilter implements CreateTopicsRequestFilter {
         }
 
         @Override
-        public Filter createInstance(FilterConstructContext<RejectingCreateTopicFilterConfig> context) {
+        public Filter createFilter(FilterCreationContext<RejectingCreateTopicFilterConfig> context) {
             return new RejectingCreateTopicFilter(context, context.getConfig());
         }
     }

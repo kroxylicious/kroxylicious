@@ -87,17 +87,17 @@ public class OutOfBandSendFilter implements DescribeClusterRequestFilter, Descri
     public static class Factory implements FilterFactory<OutOfBandSendFilterConfig> {
 
         @Override
-        public Class<? extends Filter> getServiceType() {
+        public Class<? extends Filter> filterType() {
             return OutOfBandSendFilter.class;
         }
 
         @Override
-        public Class<OutOfBandSendFilterConfig> getConfigType() {
+        public Class<OutOfBandSendFilterConfig> configType() {
             return OutOfBandSendFilterConfig.class;
         }
 
         @Override
-        public Filter createInstance(FilterConstructContext<OutOfBandSendFilterConfig> context) {
+        public Filter createFilter(FilterCreationContext<OutOfBandSendFilterConfig> context) {
             return new OutOfBandSendFilter(context.getConfig());
         }
     }

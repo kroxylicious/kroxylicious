@@ -39,13 +39,13 @@ public class RequestResponseMarkingFilter implements RequestFilter, ResponseFilt
     }
 
     public static final int FILTER_NAME_TAG = 500;
-    private final FilterConstructContext constructionContext;
+    private final FilterCreationContext constructionContext;
     private final String name;
     private final Set<ApiKeys> keysToMark;
     private final Set<Direction> direction;
     private final ForwardingStyle forwardingStyle;
 
-    public RequestResponseMarkingFilter(FilterConstructContext constructionContext, RequestResponseMarkingFilterConfig config) {
+    public RequestResponseMarkingFilter(FilterCreationContext constructionContext, RequestResponseMarkingFilterConfig config) {
         this.constructionContext = constructionContext;
         name = config.name;
         keysToMark = config.keysToMark;
@@ -114,17 +114,17 @@ public class RequestResponseMarkingFilter implements RequestFilter, ResponseFilt
     public static class Factory implements FilterFactory<RequestResponseMarkingFilterConfig> {
 
         @Override
-        public Filter createInstance(FilterConstructContext<RequestResponseMarkingFilterConfig> context) {
+        public Filter createFilter(FilterCreationContext<RequestResponseMarkingFilterConfig> context) {
             return new RequestResponseMarkingFilter(context, context.getConfig());
         }
 
         @Override
-        public Class<? extends Filter> getServiceType() {
+        public Class<? extends Filter> filterType() {
             return RequestResponseMarkingFilter.class;
         }
 
         @Override
-        public Class<RequestResponseMarkingFilterConfig> getConfigType() {
+        public Class<RequestResponseMarkingFilterConfig> configType() {
             return RequestResponseMarkingFilterConfig.class;
         }
 

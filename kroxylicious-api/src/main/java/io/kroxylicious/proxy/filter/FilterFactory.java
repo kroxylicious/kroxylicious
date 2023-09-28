@@ -5,15 +5,13 @@
  */
 package io.kroxylicious.proxy.filter;
 
-import io.kroxylicious.proxy.InvalidConfigurationException;
-
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
  * FilterFactory is a pluggable source of Kroxylicious filter implementations.
- * @param <B> the configuration type for the Filter (use {@link Void} if the Filter is not configurable)
+ * @param <C> the configuration type for the Filter (use {@link Void} if the Filter is not configurable)
  */
-public interface FilterFactory<B> {
+public interface FilterFactory<C> {
 
     /**
      * The concrete type of the service this Contributor can instantiate
@@ -21,29 +19,29 @@ public interface FilterFactory<B> {
      * @return type of the service this Contributor offers.
      */
     @NonNull
-    Class<? extends Filter> getServiceType();
+    Class<? extends Filter> filterType();
 
     /**
      * The type of config expected by the service.
      * <br/>
-     * The type must have a constructor annotated with the JsonCreator annotation.
+     * The type must be deserializable with Jackson
      * If the service has no configuration, return {@link Void} instead.
      *
      * @return type of config expected by the service.
      */
     @NonNull
-    Class<B> getConfigType();
+    Class<C> configType();
 
     /**
      * Validate the configuration. By default, the configuration is considered invalid if
      * the config type is not {@link Void} and the configuration is null.
      * @param config configuration
-     * @throws InvalidConfigurationException when the configuration is invalid
+     * @throws InvalidFilterConfigurationException when the configuration is invalid
      */
-    default void validateConfiguration(B config) {
-        boolean requiresConfiguration = getConfigType() != Void.class;
+    default void validateConfiguration(C config) {
+        boolean requiresConfiguration = configType() != Void.class;
         if (requiresConfiguration && config == null) {
-            throw new InvalidConfigurationException(getServiceType().getSimpleName() + " requires configuration, but config object is null");
+            throw new InvalidFilterConfigurationException(filterType().getSimpleName() + " requires configuration, but config object is null");
         }
     }
 
@@ -54,6 +52,6 @@ public interface FilterFactory<B> {
      * @return the service instance.
      */
     @NonNull
-    Filter createInstance(FilterConstructContext<B> context);
+    Filter createFilter(FilterCreationContext<C> context);
 
 }

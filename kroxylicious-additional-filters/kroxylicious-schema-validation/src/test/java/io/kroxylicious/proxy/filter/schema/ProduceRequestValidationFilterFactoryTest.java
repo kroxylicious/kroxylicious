@@ -11,10 +11,10 @@ import java.util.concurrent.Executors;
 
 import org.junit.jupiter.api.Test;
 
-import io.kroxylicious.proxy.InvalidConfigurationException;
 import io.kroxylicious.proxy.filter.Filter;
-import io.kroxylicious.proxy.filter.FilterConstructContext;
+import io.kroxylicious.proxy.filter.FilterCreationContext;
 import io.kroxylicious.proxy.filter.FilterExecutors;
+import io.kroxylicious.proxy.filter.InvalidFilterConfigurationException;
 import io.kroxylicious.proxy.filter.schema.config.RecordValidationRule;
 import io.kroxylicious.proxy.filter.schema.config.ValidationConfig;
 
@@ -26,8 +26,8 @@ class ProduceRequestValidationFilterFactoryTest {
     @Test
     void testGetConfigTypeViaConfigurationDefinition() {
         ProduceValidationFilter.Factory factory = new ProduceValidationFilter.Factory();
-        assertThat(factory.getConfigType()).isEqualTo(ValidationConfig.class);
-        assertThatThrownBy(() -> factory.validateConfiguration(null)).isInstanceOf(InvalidConfigurationException.class)
+        assertThat(factory.configType()).isEqualTo(ValidationConfig.class);
+        assertThatThrownBy(() -> factory.validateConfiguration(null)).isInstanceOf(InvalidFilterConfigurationException.class)
                 .hasMessage("ProduceValidationFilter requires configuration, but config object is null");
     }
 
@@ -35,7 +35,7 @@ class ProduceRequestValidationFilterFactoryTest {
     void testGetInstance() {
         ProduceValidationFilter.Factory factory = new ProduceValidationFilter.Factory();
         ValidationConfig config = new ValidationConfig(true, List.of(), new RecordValidationRule(null, null));
-        Filter filter = factory.createInstance(new FilterConstructContext<>() {
+        Filter filter = factory.createFilter(new FilterCreationContext<>() {
             @Override
             public FilterExecutors executors() {
                 return () -> Executors.newScheduledThreadPool(1);

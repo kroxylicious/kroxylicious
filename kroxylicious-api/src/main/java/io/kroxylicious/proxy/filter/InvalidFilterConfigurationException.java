@@ -4,18 +4,18 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.proxy;
+package io.kroxylicious.proxy.filter;
 
 /**
- * Thrown when configuration is invalid
+ * Thrown when filter configuration is invalid
  */
-public class InvalidConfigurationException extends RuntimeException {
+public class InvalidFilterConfigurationException extends RuntimeException {
 
     /**
      * Creates InvalidConfigurationException
      * @param message message
      */
-    public InvalidConfigurationException(String message) {
+    public InvalidFilterConfigurationException(String message) {
         super(message);
     }
 
@@ -24,7 +24,7 @@ public class InvalidConfigurationException extends RuntimeException {
      * @param message message
      * @param cause cause
      */
-    public InvalidConfigurationException(String message, Throwable cause) {
+    public InvalidFilterConfigurationException(String message, Throwable cause) {
         super(message, cause);
     }
 }

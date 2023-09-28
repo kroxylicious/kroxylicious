@@ -25,8 +25,8 @@ import org.apache.kafka.common.record.TimestampType;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.kroxylicious.proxy.filter.Filter;
-import io.kroxylicious.proxy.filter.FilterConstructContext;
 import io.kroxylicious.proxy.filter.FilterContext;
+import io.kroxylicious.proxy.filter.FilterCreationContext;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
@@ -106,17 +106,17 @@ public class ProduceRequestTransformationFilter implements ProduceRequestFilter 
 
         @NonNull
         @Override
-        public Class<? extends Filter> getServiceType() {
+        public Class<? extends Filter> filterType() {
             return ProduceRequestTransformationFilter.class;
         }
 
         @Override
-        public Class<ProduceRequestTransformationConfig> getConfigType() {
+        public Class<ProduceRequestTransformationConfig> configType() {
             return ProduceRequestTransformationConfig.class;
         }
 
         @Override
-        public Filter createInstance(FilterConstructContext<ProduceRequestTransformationConfig> context) {
+        public Filter createFilter(FilterCreationContext<ProduceRequestTransformationConfig> context) {
             return new ProduceRequestTransformationFilter(context.getConfig());
         }
     }

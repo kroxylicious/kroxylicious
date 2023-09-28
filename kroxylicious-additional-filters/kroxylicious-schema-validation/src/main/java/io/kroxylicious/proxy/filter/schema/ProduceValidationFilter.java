@@ -19,8 +19,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.filter.Filter;
-import io.kroxylicious.proxy.filter.FilterConstructContext;
 import io.kroxylicious.proxy.filter.FilterContext;
+import io.kroxylicious.proxy.filter.FilterCreationContext;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
 import io.kroxylicious.proxy.filter.ProduceResponseFilter;
@@ -195,17 +195,17 @@ public class ProduceValidationFilter implements ProduceRequestFilter, ProduceRes
     public static class Factory implements FilterFactory<ValidationConfig> {
 
         @Override
-        public Class<? extends Filter> getServiceType() {
+        public Class<? extends Filter> filterType() {
             return ProduceValidationFilter.class;
         }
 
         @Override
-        public Class<ValidationConfig> getConfigType() {
+        public Class<ValidationConfig> configType() {
             return ValidationConfig.class;
         }
 
         @Override
-        public Filter createInstance(FilterConstructContext<ValidationConfig> context) {
+        public Filter createFilter(FilterCreationContext<ValidationConfig> context) {
             ProduceRequestValidator validator = ProduceValidationFilterBuilder.build(context.getConfig());
             return new ProduceValidationFilter(context.getConfig().isForwardPartialRequests(), validator);
         }

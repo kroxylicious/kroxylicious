@@ -14,8 +14,8 @@ import org.apache.kafka.common.protocol.ApiMessage;
 import org.jetbrains.annotations.NotNull;
 
 import io.kroxylicious.proxy.filter.Filter;
-import io.kroxylicious.proxy.filter.FilterConstructContext;
 import io.kroxylicious.proxy.filter.FilterContext;
+import io.kroxylicious.proxy.filter.FilterCreationContext;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.RequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
@@ -23,11 +23,11 @@ import io.kroxylicious.proxy.filter.RequestFilterResult;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 public class OptionalConfigFilter implements RequestFilter {
-    private final FilterConstructContext context;
+    private final FilterCreationContext context;
     private final ExampleConfig exampleConfig;
     private final Class<? extends FilterFactory> contributorClass;
 
-    public OptionalConfigFilter(FilterConstructContext context, ExampleConfig exampleConfig, Class<? extends FilterFactory> contributorClass) {
+    public OptionalConfigFilter(FilterCreationContext context, ExampleConfig exampleConfig, Class<? extends FilterFactory> contributorClass) {
         this.context = context;
         this.exampleConfig = exampleConfig;
         this.contributorClass = contributorClass;
@@ -38,7 +38,7 @@ public class OptionalConfigFilter implements RequestFilter {
         throw new IllegalStateException("not implemented!");
     }
 
-    public FilterConstructContext getContext() {
+    public FilterCreationContext getContext() {
         return context;
     }
 
@@ -54,13 +54,13 @@ public class OptionalConfigFilter implements RequestFilter {
 
         @NotNull
         @Override
-        public Class<? extends Filter> getServiceType() {
+        public Class<? extends Filter> filterType() {
             return OptionalConfigFilter.class;
         }
 
         @NonNull
         @Override
-        public Class<ExampleConfig> getConfigType() {
+        public Class<ExampleConfig> configType() {
             return ExampleConfig.class;
         }
 
@@ -70,7 +70,7 @@ public class OptionalConfigFilter implements RequestFilter {
         }
 
         @Override
-        public Filter createInstance(FilterConstructContext<ExampleConfig> context) {
+        public Filter createFilter(FilterCreationContext<ExampleConfig> context) {
             return new OptionalConfigFilter(context, context.getConfig(), this.getClass());
         }
     }
