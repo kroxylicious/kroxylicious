@@ -782,6 +782,7 @@
                                         <exclude>io.kroxylicious.proxy.ApiMaturity.Unstable</exclude>
                                         <exclude>io.kroxylicious.proxy.ApiMaturity.Evolving</exclude>
                                         <exclude>io.kroxylicious.proxy.ApiMaturity.Stable</exclude>
+                                        <exclude>io.kroxylicious.proxy.package-info</exclude>
                                     </excludes>
                                 </configuration>
                             </execution>
