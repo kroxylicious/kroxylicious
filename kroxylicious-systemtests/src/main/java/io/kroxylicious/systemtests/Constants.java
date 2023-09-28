@@ -114,4 +114,6 @@ public interface Constants {
      * The constant KROXY_BOOTSTRAP.
      */
     String KROXY_BOOTSTRAP = KROXY_SERVICE_NAME + ":9292";
+
+    String CERT_MANAGER_URL = "https://github.com/cert-manager/cert-manager/releases/latest/download/cert-manager.yaml";
 }

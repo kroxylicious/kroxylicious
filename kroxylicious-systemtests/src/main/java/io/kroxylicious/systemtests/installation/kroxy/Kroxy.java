@@ -38,7 +38,6 @@ public class Kroxy {
     private final String deploymentNamespace;
     private final String sampleDir;
     private final Path kustomizeTmpdir;
-    private final String CERT_MANAGER_URL;
 
     /**
      * Instantiates a new Kroxy.
@@ -52,7 +51,6 @@ public class Kroxy {
         this.sampleDir = sampleDir;
         kustomizeTmpdir = Files.createTempDirectory(Paths.get("/tmp"), "kustomize", PosixFilePermissions.asFileAttribute(
                 PosixFilePermissions.fromString("rwx------")));
-        CERT_MANAGER_URL = "https://github.com/cert-manager/cert-manager/releases/latest/download/cert-manager.yaml";
     }
 
     /**
@@ -60,7 +58,7 @@ public class Kroxy {
      */
     public void deploy() throws IOException {
         LOGGER.info("Deploy cert manager in cert-manager namespace");
-        kubeClient().getClient().load(DeploymentUtils.getDeploymentFileFromURL(CERT_MANAGER_URL)).create();
+        kubeClient().getClient().load(DeploymentUtils.getDeploymentFileFromURL(Constants.CERT_MANAGER_URL)).create();
         DeploymentUtils.waitForDeploymentReady("cert-manager", "cert-manager-webhook");
 
         LOGGER.debug("Copying {} directory to {}", sampleDir, kustomizeTmpdir);
@@ -91,7 +89,7 @@ public class Kroxy {
      */
     public void delete() throws IOException {
         LOGGER.info("Deleting Kroxy in {} namespace", deploymentNamespace);
-        kubeClient().getClient().load(DeploymentUtils.getDeploymentFileFromURL(CERT_MANAGER_URL)).withGracePeriod(0).delete();
+        kubeClient().getClient().load(DeploymentUtils.getDeploymentFileFromURL(Constants.CERT_MANAGER_URL)).withGracePeriod(0).delete();
         kubeClient().getClient().pods().inNamespace(deploymentNamespace).withGracePeriod(0).delete();
         kubeClient().getClient().services().inNamespace(deploymentNamespace).withGracePeriod(0).delete();
         DeploymentUtils.waitForDeploymentDeletion(deploymentNamespace, Constants.KROXY_DEPLOYMENT_NAME);
