@@ -6,7 +6,5 @@
 
 package io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider;
 
-import io.kroxylicious.proxy.config.BaseConfig;
-
-public class Config extends BaseConfig {
+public class Config {
 }

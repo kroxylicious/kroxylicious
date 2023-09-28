@@ -13,17 +13,17 @@ virtualClusters:
     targetCluster:
       bootstrap_servers: localhost:9092
     clusterNetworkAddressConfigProvider:
-      type: PortPerBroker
+      type: PortPerBrokerClusterNetworkAddressConfigProvider
       config:
         bootstrapAddress: localhost:9192
     logNetwork: false
     logFrames: false
 filters:
-  - type: SampleProduceRequest
+  - type: SampleProduceRequestFilter
     config:
       findValue: foo
       replacementValue: bar
-  - type: SampleFetchResponse
+  - type: SampleFetchResponseFilter
     config:
       findValue: bar
       replacementValue: baz

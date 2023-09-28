@@ -7,15 +7,15 @@
 package io.kroxylicious.proxy.service;
 
 import java.util.List;
-import java.util.Objects;
 import java.util.function.Function;
 
+import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import io.kroxylicious.proxy.config.BaseConfig;
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -27,12 +27,12 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class ContributionManagerTest {
 
-    private List<Contributor<?, ? super Context>> contributingContributors;
+    private List<Contributor> contributingContributors;
 
     @BeforeEach
     void setUp() {
-        contributingContributors = List.of(new StringContributor("one", "v1"), new StringContributor("two", "v2", StringyConfig.class),
-                new LongContributor("three", 3));
+        contributingContributors = List.of(new StringContributor("v1"),
+                new LongContributor(3), new IntContributor());
     }
 
     @SuppressWarnings({ "rawtypes", "unchecked" })
@@ -40,27 +40,40 @@ class ContributionManagerTest {
     void shouldLoadServicesOfType() {
         // Given
         final Function<Class, Iterable> supplier = mock(Function.class);
-        when(supplier.apply(StringContributor.class)).thenReturn(List.of(new StringContributor("testType", "testValue")));
+        when(supplier.apply(StringContributor.class)).thenReturn(List.of(new StringContributor("testValue")));
         final ContributionManager contributionManager = new ContributionManager(supplier);
 
         // When
-        contributionManager.getDefinition(StringContributor.class, "testType");
+        contributionManager.getDefinition(StringContributor.class, String.class.getName());
 
         // Then
         verify(supplier).apply(any());
+    }
+
+    @SuppressWarnings({ "rawtypes", "unchecked" })
+    @Test
+    void shouldLoadServicesOfTopLevelClassByShortName() {
+        // Given
+        ContributionManager manager = new ContributionManager(clazz -> contributingContributors);
+
+        // When
+        ContributionManager.ConfigurationDefinition definition = manager.getDefinition(IntContributor.class, "Integer");
+
+        // Then
+        assertThat(definition.configurationType()).isEqualTo(Void.class);
     }
 
     @Test
     void shouldLoadServicesOfMultipleType() {
         // Given
         final ContributionManager contributionManager = new ContributionManager(clazz -> contributingContributors);
-        final ConfigurationDefinition stringConfigDef = contributionManager.getDefinition(StringContributor.class, "two");
+        final ContributionManager.ConfigurationDefinition stringConfigDef = contributionManager.getDefinition(StringContributor.class, "String");
 
         // When
-        final ConfigurationDefinition longConfigDef = contributionManager.getDefinition(LongContributor.class, "three");
+        final ContributionManager.ConfigurationDefinition longConfigDef = contributionManager.getDefinition(LongContributor.class, "Long");
 
         // Then
-        assertThat(stringConfigDef).hasFieldOrProperty("configurationType").extracting("configurationType").isEqualTo(StringyConfig.class);
+        assertThat(stringConfigDef).hasFieldOrProperty("configurationType").extracting("configurationType").isEqualTo(StringConfig.class);
         assertThat(longConfigDef).hasFieldOrProperty("configurationType").extracting("configurationType").isEqualTo(LongConfig.class);
     }
 
@@ -76,116 +89,98 @@ class ContributionManagerTest {
     }
 
     @Test
-    void shouldFindConfigDefinitionByShortName() {
+    void shouldFindConfigDefinitionByClassName() {
         // Given
         final ContributionManager contributionManager = new ContributionManager(clazz -> contributingContributors);
 
         // When
-        final ConfigurationDefinition configurationDefinition = contributionManager.getDefinition(StringContributor.class, "two");
+        final ContributionManager.ConfigurationDefinition configurationDefinition = contributionManager.getDefinition(StringContributor.class,
+                "String");
 
         // Then
-        assertThat(configurationDefinition).hasFieldOrProperty("configurationType").extracting("configurationType").isEqualTo(StringyConfig.class);
+        assertThat(configurationDefinition).hasFieldOrProperty("configurationType").extracting("configurationType").isEqualTo(StringConfig.class);
     }
 
     @Test
-    void shouldThrowExceptionIfShortNameIsUnknownForInstance() {
+    void shouldThrowExceptionIfNameIsUnknownForInstance() {
         // Given
         final ContributionManager contributionManager = new ContributionManager(clazz -> contributingContributors);
 
         // When
-        assertThrows(IllegalArgumentException.class, () -> contributionManager.getInstance(StringContributor.class, "unknown", () -> null));
+        assertThrows(IllegalArgumentException.class, () -> contributionManager.createInstance(StringContributor.class, "unknown", () -> null));
 
         // Then
     }
 
     @Test
-    void shouldGetInstanceByShortName() {
+    void shouldCreateInstanceByClassName() {
         // Given
         final ContributionManager contributionManager = new ContributionManager(clazz -> contributingContributors);
 
         // When
-        final String actualInstance = contributionManager.getInstance(StringContributor.class, "two", () -> null);
+        final String actualInstance = contributionManager.createInstance(StringContributor.class, "String", () -> null);
 
         // Then
-        assertThat(actualInstance).isEqualTo("v2");
+        assertThat(actualInstance).isEqualTo("v1");
     }
 
-    private static class LongContributor implements Contributor<Long, Context> {
-        private final String myTypeName;
+    private static class LongContributor implements Contributor<Long, LongConfig, Context<LongConfig>> {
         private final long value;
 
-        private LongContributor(String typeName, long value) {
-            this.myTypeName = typeName;
+        private LongContributor(long value) {
             this.value = value;
         }
 
+        @NotNull
         @Override
-        public boolean contributes(String typeName) {
-            return Objects.equals(this.myTypeName, typeName);
+        public Class<? extends Long> getServiceType() {
+            return Long.class;
         }
 
+        @NonNull
         @Override
-        public Class<? extends BaseConfig> getConfigType(String shortName) {
+        public Class<LongConfig> getConfigType() {
             return LongConfig.class;
         }
 
         @Override
-        public ConfigurationDefinition getConfigDefinition(String shortName) {
-            return new ConfigurationDefinition(LongConfig.class, true);
-        }
-
-        @Override
-        public Long getInstance(String shortName, Context context) {
+        public Long createInstance(Context<LongConfig> context) {
             return value;
         }
     }
 
-    private static class StringContributor implements Contributor<String, Context> {
-
-        private final String myTypeName;
+    private static class StringContributor implements Contributor<String, StringConfig, Context<StringConfig>> {
         private final String value;
-        private final Class<? extends BaseConfig> configurationType;
+        private final Class<StringConfig> configurationType;
 
-        private StringContributor(String typeName, String value) {
-            this(typeName, value, StringConfig.class);
-        }
-
-        private StringContributor(String typeName, String value, Class<? extends BaseConfig> configurationType) {
-            this.myTypeName = typeName;
+        private StringContributor(String value) {
             this.value = value;
-            this.configurationType = configurationType;
+            this.configurationType = StringConfig.class;
+        }
+
+        @NotNull
+        @Override
+        public Class<? extends String> getServiceType() {
+            return String.class;
+        }
+
+        @NonNull
+        @Override
+        public Class<StringConfig> getConfigType() {
+            return configurationType;
         }
 
         @Override
-        public boolean contributes(String typeName) {
-            return Objects.equals(this.myTypeName, typeName);
-        }
-
-        @Override
-        public Class<? extends BaseConfig> getConfigType(String shortName) {
-            return getConfigDefinition(shortName).configurationType();
-        }
-
-        @Override
-        public ConfigurationDefinition getConfigDefinition(String shortName) {
-            return new ConfigurationDefinition(configurationType, true);
-        }
-
-        @Override
-        public String getInstance(String shortName, Context context) {
+        public String createInstance(Context<StringConfig> context) {
             return value;
         }
     }
 
-    private static class StringConfig extends BaseConfig {
+    private static class StringConfig {
 
     }
 
-    private static class LongConfig extends BaseConfig {
-
-    }
-
-    private static class StringyConfig extends BaseConfig {
+    private static class LongConfig {
 
     }
 }

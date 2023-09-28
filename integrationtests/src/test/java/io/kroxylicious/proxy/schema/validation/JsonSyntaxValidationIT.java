@@ -28,6 +28,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 
 import io.kroxylicious.proxy.BaseIT;
 import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
+import io.kroxylicious.proxy.filter.schema.ProduceValidationFilter;
 import io.kroxylicious.test.tester.KroxyliciousTester;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
@@ -56,7 +57,7 @@ class JsonSyntaxValidationIT extends BaseIT {
         createTopic(admin, TOPIC_1, 1);
 
         var config = proxy(cluster)
-                .addToFilters(new FilterDefinitionBuilder("ProduceValidator").withConfig("rules",
+                .addToFilters(new FilterDefinitionBuilder(ProduceValidationFilter.class.getName()).withConfig("rules",
                         List.of(Map.of("topicNames", List.of(TOPIC_1), "valueRule",
                                 Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true)))))
                         .build());
@@ -73,7 +74,7 @@ class JsonSyntaxValidationIT extends BaseIT {
         createTopics(admin, new NewTopic(TOPIC_1, 1, (short) 1), new NewTopic(TOPIC_2, 1, (short) 1));
 
         var config = proxy(cluster)
-                .addToFilters(new FilterDefinitionBuilder("ProduceValidator").withConfig("rules",
+                .addToFilters(new FilterDefinitionBuilder(ProduceValidationFilter.class.getName()).withConfig("rules",
                         List.of(Map.of("topicNames", List.of(TOPIC_1), "valueRule",
                                 Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true)))))
                         .build());
@@ -96,7 +97,7 @@ class JsonSyntaxValidationIT extends BaseIT {
         createTopics(admin, new NewTopic(TOPIC_1, 1, (short) 1), new NewTopic(TOPIC_2, 1, (short) 1));
 
         var config = proxy(cluster)
-                .addToFilters(new FilterDefinitionBuilder("ProduceValidator").withConfig("forwardPartialRequests", true, "rules",
+                .addToFilters(new FilterDefinitionBuilder(ProduceValidationFilter.class.getName()).withConfig("forwardPartialRequests", true, "rules",
                         List.of(Map.of("topicNames", List.of(TOPIC_1, TOPIC_2), "valueRule",
                                 Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true)))))
                         .build());
@@ -121,9 +122,10 @@ class JsonSyntaxValidationIT extends BaseIT {
 
         boolean forwardPartialRequests = false;
         var config = proxy(cluster)
-                .addToFilters(new FilterDefinitionBuilder("ProduceValidator").withConfig("forwardPartialRequests", forwardPartialRequests, "rules",
-                        List.of(Map.of("topicNames", List.of(TOPIC_1, TOPIC_2), "valueRule",
-                                Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true)))))
+                .addToFilters(new FilterDefinitionBuilder(ProduceValidationFilter.class.getName())
+                        .withConfig("forwardPartialRequests", forwardPartialRequests, "rules",
+                                List.of(Map.of("topicNames", List.of(TOPIC_1, TOPIC_2), "valueRule",
+                                        Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true)))))
                         .build());
 
         try (var tester = kroxyliciousTester(config);
@@ -142,7 +144,7 @@ class JsonSyntaxValidationIT extends BaseIT {
         createTopics(admin, new NewTopic(TOPIC_1, 1, (short) 1), new NewTopic(TOPIC_2, 1, (short) 1));
 
         var config = proxy(cluster)
-                .addToFilters(new FilterDefinitionBuilder("ProduceValidator")
+                .addToFilters(new FilterDefinitionBuilder(ProduceValidationFilter.class.getName())
                         .withConfig("forwardPartialRequests", true,
                                 "rules", List.of(Map.of("topicNames", List.of(TOPIC_1, TOPIC_2), "valueRule",
                                         Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true)))))
@@ -171,7 +173,7 @@ class JsonSyntaxValidationIT extends BaseIT {
         createTopic(admin, TOPIC_1, 2);
 
         var config = proxy(cluster)
-                .addToFilters(new FilterDefinitionBuilder("ProduceValidator")
+                .addToFilters(new FilterDefinitionBuilder(ProduceValidationFilter.class.getName())
                         .withConfig("forwardPartialRequests", true,
                                 "rules", List.of(Map.of("topicNames", List.of(TOPIC_1), "valueRule",
                                         Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true)))))
@@ -200,7 +202,7 @@ class JsonSyntaxValidationIT extends BaseIT {
         createTopic(admin, TOPIC_1, 1);
 
         var config = proxy(cluster)
-                .addToFilters(new FilterDefinitionBuilder("ProduceValidator").withConfig("forwardPartialRequests", true, "rules",
+                .addToFilters(new FilterDefinitionBuilder(ProduceValidationFilter.class.getName()).withConfig("forwardPartialRequests", true, "rules",
                         List.of(Map.of("topicNames", List.of(TOPIC_1), "valueRule",
                                 Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true)))))
                         .build());
@@ -224,7 +226,7 @@ class JsonSyntaxValidationIT extends BaseIT {
         createTopic(admin, TOPIC_1, 1);
 
         var config = proxy(cluster)
-                .addToFilters(new FilterDefinitionBuilder("ProduceValidator").withConfig("rules",
+                .addToFilters(new FilterDefinitionBuilder(ProduceValidationFilter.class.getName()).withConfig("rules",
                         List.of(Map.of("topicNames", List.of(TOPIC_1), "valueRule",
                                 Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true)))))
                         .build());

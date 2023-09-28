@@ -38,16 +38,20 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.stubbing.Answer;
 
 import io.kroxylicious.proxy.filter.FilterContext;
+import io.kroxylicious.proxy.filter.FilterCreationContext;
+import io.kroxylicious.proxy.filter.InvalidFilterConfigurationException;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResultBuilder;
 import io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage;
 import io.kroxylicious.proxy.internal.filter.FetchResponseTransformationFilter.FetchResponseTransformationConfig;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyShort;
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.when;
@@ -101,6 +105,17 @@ class FetchResponseTransformationFilterTest {
                     Integer size = (Integer) args[0];
                     return new ByteBufferOutputStream(size);
                 });
+    }
+
+    @Test
+    void testFactory() {
+        FetchResponseTransformationFilterFactory factory = new FetchResponseTransformationFilterFactory();
+        assertThat(factory.configType()).isEqualTo(FetchResponseTransformationConfig.class);
+        assertThatThrownBy(() -> factory.validateConfiguration(null)).isInstanceOf(InvalidFilterConfigurationException.class)
+                .hasMessage("FetchResponseTransformationFilter requires configuration, but config object is null");
+        FilterCreationContext constructContext = Mockito.mock(FilterCreationContext.class);
+        FetchResponseTransformationConfig config = new FetchResponseTransformationConfig(ProduceRequestTransformationFilter.UpperCasing.class.getName());
+        assertThat(factory.createFilter(constructContext, config)).isInstanceOf(FetchResponseTransformationFilter.class);
     }
 
     @Test

@@ -12,20 +12,21 @@ import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 
-import io.kroxylicious.proxy.filter.FilterConstructContext;
 import io.kroxylicious.proxy.filter.FilterContext;
+import io.kroxylicious.proxy.filter.FilterCreationContext;
+import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.RequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 
 public class TestFilter implements RequestFilter {
-    private final String shortName;
-    private final FilterConstructContext context;
+    private final FilterCreationContext context;
     private final ExampleConfig exampleConfig;
+    private final Class<? extends FilterFactory> contributorClass;
 
-    public TestFilter(String shortName, FilterConstructContext context, ExampleConfig exampleConfig) {
-        this.shortName = shortName;
+    public TestFilter(FilterCreationContext context, ExampleConfig exampleConfig, Class<? extends FilterFactory> contributorClass) {
         this.context = context;
         this.exampleConfig = exampleConfig;
+        this.contributorClass = contributorClass;
     }
 
     @Override
@@ -33,15 +34,16 @@ public class TestFilter implements RequestFilter {
         throw new IllegalStateException("not implemented!");
     }
 
-    public String getShortName() {
-        return shortName;
-    }
-
-    public FilterConstructContext getContext() {
+    public FilterCreationContext getContext() {
         return context;
     }
 
     public ExampleConfig getExampleConfig() {
         return exampleConfig;
     }
+
+    public Class<? extends FilterFactory> getContributorClass() {
+        return contributorClass;
+    }
+
 }

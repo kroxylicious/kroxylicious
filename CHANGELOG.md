@@ -5,7 +5,7 @@ Please enumerate **all user-facing** changes using format `<githib issue/pr numb
 ## 1.0.0
 
 ## 0.3.0
-
+* [#623](https://github.com/kroxylicious/kroxylicious/pull/623): [Breaking] Refactor how Filters are Created
 * [#633](https://github.com/kroxylicious/kroxylicious/pull/633): Address missing exception handling in FetchResponseTransformationFilter (and add unit tests)
 * [#537](https://github.com/kroxylicious/kroxylicious/issues/537): Computation stages chained to the CompletionStage return by #sendRequest using the default executor async methods now run on the Netty Event Loop.
 * [#612](https://github.com/kroxylicious/kroxylicious/pull/612): [Breaking] Allow filter authors to declare when their filter requires configuration. Note this includes a backwards incompatible change to the contract of the `Contributor`. `getInstance` will now throw exceptions rather than returning `null` to mean there was a problem or this contributor does not know about the requested type.
@@ -55,3 +55,22 @@ present on the brokerAddressPattern parameter. Previously, it was accepted but w
 
 Kroxylicious configuration no longer requires a non empty `filters` list, users can leave it unset or configure in an empty
 list of filters and Kroxylicious will proxy to the cluster successfully.
+
+The Contributor API for creating filters has been significantly changed. 
+
+- `FilterContributor` is renamed `FilterFactory`. 
+- Filter Authors will now implement one FilterFactory implementation for each Filter implementation. So the cardinality is now one-to-one.
+- We now identify which filter we want to load using it's class name or simple class name,
+for example `io.kroxylicious.filter.SpecialFilter` or `SpecialFilter`.
+- `FilterConstructContext` is renamed `FilterCreateContext`
+- FilterExecutors is removed from FilterCreateContext and the `eventloop()` method is pulled up to FilterCreateContext.
+- BaseConfig is removed and any Jackson deserializable type can be used as config.
+- configuration is no longer part of the FilterCreateContext, it is supplied as a parameter to the `FilterFactory#createFilter(..)` method.
+
+The names used to identify port-per-broker and sni-routing schemes in the Kroxylicious configuration have changed:
+- `PortPerBroker` -> `PortPerBrokerClusterNetworkAddressConfigProvider`
+- `SniRouting` -> `SniRoutingClusterNetworkAddressConfigProvider`
+
+The names used to identify micrometer configuration hooks in configuration have changed:
+- `CommonTagsContributor` -> `CommonTagsHook`
+- `StandardBindersContributor` -> `StandardBindersHook`

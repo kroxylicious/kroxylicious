@@ -1,0 +1,2 @@
+io.kroxylicious.proxy.internal.filter.ProduceRequestTransformationFilterFactory
+io.kroxylicious.proxy.internal.filter.FetchResponseTransformationFilterFactory

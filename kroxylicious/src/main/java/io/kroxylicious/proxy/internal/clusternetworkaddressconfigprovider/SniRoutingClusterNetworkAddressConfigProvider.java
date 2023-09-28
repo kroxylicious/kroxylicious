@@ -12,7 +12,6 @@ import java.util.regex.Pattern;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import io.kroxylicious.proxy.config.BaseConfig;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 
@@ -95,7 +94,7 @@ public class SniRoutingClusterNetworkAddressConfigProvider implements ClusterNet
     /**
      * Creates the configuration for this provider.
      */
-    public static class SniRoutingClusterNetworkAddressConfigProviderConfig extends BaseConfig {
+    public static class SniRoutingClusterNetworkAddressConfigProviderConfig {
 
         private final HostPort bootstrapAddress;
 
@@ -135,4 +134,5 @@ public class SniRoutingClusterNetworkAddressConfigProvider implements ClusterNet
         }
 
     }
+
 }

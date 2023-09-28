@@ -42,6 +42,8 @@ import io.kroxylicious.net.IntegrationTestInetAddressResolverProvider;
 import io.kroxylicious.proxy.config.ClusterNetworkAddressConfigProviderDefinitionBuilder;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
+import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider;
+import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.SniRoutingClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.test.tester.KroxyliciousTester;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
@@ -117,7 +119,8 @@ class ExpositionIT extends BaseIT {
             var bootstrap = clusterProxyAddresses.get(i);
             var virtualCluster = new VirtualClusterBuilder(base)
                     .withClusterNetworkAddressConfigProvider(
-                            new ClusterNetworkAddressConfigProviderDefinitionBuilder("PortPerBroker").withConfig("bootstrapAddress", bootstrap)
+                            new ClusterNetworkAddressConfigProviderDefinitionBuilder(PortPerBrokerClusterNetworkAddressConfigProvider.class.getName())
+                                    .withConfig("bootstrapAddress", bootstrap)
                                     .build())
                     .build();
             builder.addToVirtualClusters("cluster" + i, virtualCluster);
@@ -157,8 +160,9 @@ class ExpositionIT extends BaseIT {
 
             var virtualCluster = new VirtualClusterBuilder(base)
                     .withClusterNetworkAddressConfigProvider(
-                            new ClusterNetworkAddressConfigProviderDefinitionBuilder("SniRouting").withConfig("bootstrapAddress", virtualClusterFQDN + ":9192",
-                                    "brokerAddressPattern", virtualClusterBrokerAddressPattern.formatted(i))
+                            new ClusterNetworkAddressConfigProviderDefinitionBuilder(SniRoutingClusterNetworkAddressConfigProvider.class.getName())
+                                    .withConfig("bootstrapAddress", virtualClusterFQDN + ":9192",
+                                            "brokerAddressPattern", virtualClusterBrokerAddressPattern.formatted(i))
                                     .build())
                     .withNewTls()
                     .withNewKeyStoreKey()
@@ -194,7 +198,8 @@ class ExpositionIT extends BaseIT {
                         .withBootstrapServers(cluster.getBootstrapServers())
                         .endTargetCluster()
                         .withClusterNetworkAddressConfigProvider(
-                                new ClusterNetworkAddressConfigProviderDefinitionBuilder("PortPerBroker").withConfig("bootstrapAddress", PROXY_ADDRESS)
+                                new ClusterNetworkAddressConfigProviderDefinitionBuilder(PortPerBrokerClusterNetworkAddressConfigProvider.class.getName())
+                                        .withConfig("bootstrapAddress", PROXY_ADDRESS)
                                         .build())
                         .build());
 
@@ -218,7 +223,7 @@ class ExpositionIT extends BaseIT {
         var sniKeystoreTrustStorePair = buildKeystoreTrustStorePair("*." + SNI_BASE_ADDRESS);
 
         return Stream.of(
-                Arguments.of("PortPerBroker",
+                Arguments.of(PortPerBrokerClusterNetworkAddressConfigProvider.class.getName(),
                         new VirtualClusterBuilder()
                                 .withNewTls()
                                 .withNewKeyStoreKey()
@@ -229,13 +234,14 @@ class ExpositionIT extends BaseIT {
                                 .withNewTargetCluster()
                                 .endTargetCluster()
                                 .withClusterNetworkAddressConfigProvider(
-                                        new ClusterNetworkAddressConfigProviderDefinitionBuilder("PortPerBroker")
+                                        new ClusterNetworkAddressConfigProviderDefinitionBuilder(
+                                                PortPerBrokerClusterNetworkAddressConfigProvider.class.getName())
                                                 .withConfig("bootstrapAddress", PROXY_ADDRESS)
                                                 .build()),
                         Map.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name,
                                 SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, portPerBrokerKeystoreTrustStorePair.clientTrustStore(),
                                 SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, portPerBrokerKeystoreTrustStorePair.password())),
-                Arguments.of("SniRouting",
+                Arguments.of(SniRoutingClusterNetworkAddressConfigProvider.class.getName(),
                         new VirtualClusterBuilder()
                                 .withNewTls()
                                 .withNewKeyStoreKey()
@@ -246,7 +252,8 @@ class ExpositionIT extends BaseIT {
                                 .withNewTargetCluster()
                                 .endTargetCluster()
                                 .withClusterNetworkAddressConfigProvider(
-                                        new ClusterNetworkAddressConfigProviderDefinitionBuilder("SniRouting")
+                                        new ClusterNetworkAddressConfigProviderDefinitionBuilder(
+                                                SniRoutingClusterNetworkAddressConfigProvider.class.getName())
                                                 .withConfig("bootstrapAddress", SNI_BOOTSTRAP)
                                                 .withConfig("brokerAddressPattern", SNI_BROKER_ADDRESS_PATTERN)
                                                 .build()),
@@ -356,7 +363,7 @@ class ExpositionIT extends BaseIT {
 
         final HostPort discoveryBrokerAddressToProbe;
         var provider = virtualClusterBuilder.getClusterNetworkAddressConfigProvider();
-        if (provider.type().equals("SniRouting")) {
+        if (provider.type().equals(SniRoutingClusterNetworkAddressConfigProvider.class.getName())) {
             discoveryBrokerAddressToProbe = new HostPort(SNI_BROKER_ADDRESS_PATTERN.replace("$(nodeId)", Integer.toString(cluster.getNumOfBrokers())),
                     SNI_BOOTSTRAP.port());
         }
@@ -408,7 +415,8 @@ class ExpositionIT extends BaseIT {
                         .withBootstrapServers(cluster.getBootstrapServers())
                         .endTargetCluster()
                         .withClusterNetworkAddressConfigProvider(
-                                new ClusterNetworkAddressConfigProviderDefinitionBuilder("PortPerBroker").withConfig("bootstrapAddress", PROXY_ADDRESS)
+                                new ClusterNetworkAddressConfigProviderDefinitionBuilder(PortPerBrokerClusterNetworkAddressConfigProvider.class.getName())
+                                        .withConfig("bootstrapAddress", PROXY_ADDRESS)
                                         .build())
                         .build());
 
@@ -440,7 +448,8 @@ class ExpositionIT extends BaseIT {
                         .withBootstrapServers(cluster.getBootstrapServers())
                         .endTargetCluster()
                         .withClusterNetworkAddressConfigProvider(
-                                new ClusterNetworkAddressConfigProviderDefinitionBuilder("PortPerBroker").withConfig("bootstrapAddress", PROXY_ADDRESS)
+                                new ClusterNetworkAddressConfigProviderDefinitionBuilder(PortPerBrokerClusterNetworkAddressConfigProvider.class.getName())
+                                        .withConfig("bootstrapAddress", PROXY_ADDRESS)
                                         .build())
                         .build());
 

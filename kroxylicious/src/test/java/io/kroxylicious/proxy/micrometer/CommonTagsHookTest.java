@@ -51,6 +51,15 @@ class CommonTagsHookTest {
         thenTagsEmpty(meter);
     }
 
+    @Test
+    void testContributor() {
+        CommonTagsContributor contributor = new CommonTagsContributor();
+        assertThat(contributor.getConfigType()).isEqualTo(CommonTagsHook.CommonTagsHookConfig.class);
+        assertThat(contributor.requiresConfiguration()).isTrue();
+        MicrometerConfigurationHook hook = contributor.createInstance(() -> new CommonTagsHook.CommonTagsHookConfig(Map.of()));
+        assertThat(hook).isNotNull().isInstanceOf(CommonTagsHook.class);
+    }
+
     private static void thenTagsEmpty(Meter counter) {
         Meter.Id id = counter.getId();
         assertThat(id.getTags()).isEmpty();
