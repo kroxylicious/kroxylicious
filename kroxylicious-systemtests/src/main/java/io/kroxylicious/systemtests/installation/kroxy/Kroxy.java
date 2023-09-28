@@ -60,7 +60,6 @@ public class Kroxy {
      */
     public void deploy() throws IOException {
         LOGGER.info("Deploy cert manager in cert-manager namespace");
-        // Exec.exec("kubectl", "apply", "-f", "https://github.com/cert-manager/cert-manager/releases/latest/download/cert-manager.yaml");
         kubeClient().getClient().load(DeploymentUtils.getDeploymentFileFromURL(CERT_MANAGER_URL)).create();
         DeploymentUtils.waitForDeploymentReady("cert-manager", "cert-manager-webhook");
 
@@ -83,8 +82,6 @@ public class Kroxy {
 
         LOGGER.info("Deploy Kroxy in {} namespace", deploymentNamespace);
         Exec.exec("kubectl", "apply", "-k", overlayDir.getAbsolutePath());
-        // kubeClient().getClient().load(overlayDir.getAbsolutePath()).create();
-
         DeploymentUtils.waitForDeploymentReady(deploymentNamespace, Constants.KROXY_DEPLOYMENT_NAME);
         DeploymentUtils.waitForPodToBeReadyByLabel(deploymentNamespace, "strimzi.io/name", "my-cluster-kafka");
     }
@@ -95,8 +92,6 @@ public class Kroxy {
     public void delete() throws IOException {
         LOGGER.info("Deleting Kroxy in {} namespace", deploymentNamespace);
         kubeClient().getClient().load(DeploymentUtils.getDeploymentFileFromURL(CERT_MANAGER_URL)).withGracePeriod(0).delete();
-        // Exec.exec("kubectl", "delete", "-f", "https://github.com/cert-manager/cert-manager/releases/latest/download/cert-manager.yaml");
-        // Exec.exec("kubectl", "delete", "pod,svc", "-n", deploymentNamespace, "--all");
         kubeClient().getClient().pods().inNamespace(deploymentNamespace).withGracePeriod(0).delete();
         kubeClient().getClient().services().inNamespace(deploymentNamespace).withGracePeriod(0).delete();
         DeploymentUtils.waitForDeploymentDeletion(deploymentNamespace, Constants.KROXY_DEPLOYMENT_NAME);
