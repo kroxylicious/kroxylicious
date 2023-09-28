@@ -15,7 +15,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 public interface FilterFactory<F extends Filter, C> {
 
     /**
-     * @return The concrete class of {@code Filter} this factory {@linkplain #createFilter(FilterCreationContext, C) creates}. 
+     * @return The concrete class of {@code Filter} this factory {@linkplain #createFilter(FilterCreationContext, C) creates}.
      */
     @NonNull
     Class<F> filterType();
@@ -32,12 +32,12 @@ public interface FilterFactory<F extends Filter, C> {
     Class<C> configType();
 
     /**
-     * Validates the configuration. 
+     * Validates the configuration.
      * By default, the configuration is considered valid if configuration is non-null
-     * or the {@link #configType()} is {@link Void}. 
+     * or the {@link #configType()} is {@link Void}.
      * In other words, configuration is required unless the factory doesn't support configuration at all.
-     * This method should be overridden to provide extra semantic validation of the config, 
-     * checking for required configuration properties or bounds checking numerical configuration properties. 
+     * This method should be overridden to provide extra semantic validation of the config,
+     * checking for required configuration properties or bounds checking numerical configuration properties.
      * @param config configuration
      * @throws InvalidFilterConfigurationException when the configuration is invalid
      */
