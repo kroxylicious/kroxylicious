@@ -50,8 +50,8 @@ public class AbstractST {
         if (kubeClient().getNamespace(Constants.KROXY_DEFAULT_NAMESPACE) != null) {
             NamespaceUtils.deleteNamespaceWithWait(Constants.KROXY_DEFAULT_NAMESPACE);
         }
-        if (kubeClient().getNamespace("cert-manager") != null) {
-            NamespaceUtils.deleteNamespaceWithWait("cert-manager");
+        if (kubeClient().getNamespace(Constants.CERT_MANAGER_NAMESPACE) != null) {
+            NamespaceUtils.deleteNamespaceWithWait(Constants.CERT_MANAGER_NAMESPACE);
         }
 
         kubeClient().createNamespace(Constants.KROXY_DEFAULT_NAMESPACE);
@@ -70,7 +70,7 @@ public class AbstractST {
         strimziOperator.delete();
         kroxy.delete();
         NamespaceUtils.deleteNamespaceWithWait(Constants.KROXY_DEFAULT_NAMESPACE);
-        NamespaceUtils.deleteNamespaceWithWait("cert-manager");
+        NamespaceUtils.deleteNamespaceWithWait(Constants.CERT_MANAGER_NAMESPACE);
     }
 
     @AfterEach

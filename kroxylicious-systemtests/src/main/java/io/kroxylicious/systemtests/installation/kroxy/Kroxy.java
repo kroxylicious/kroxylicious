@@ -58,9 +58,9 @@ public class Kroxy {
      * @throws IOException the io exception
      */
     public void deploy() throws IOException {
-        LOGGER.info("Deploy cert manager in cert-manager namespace");
+        LOGGER.info("Deploy cert manager in {} namespace", Constants.CERT_MANAGER_NAMESPACE);
         kubeClient().getClient().load(DeploymentUtils.getDeploymentFileFromURL(Constants.CERT_MANAGER_URL)).create();
-        DeploymentUtils.waitForDeploymentReady("cert-manager", "cert-manager-webhook");
+        DeploymentUtils.waitForDeploymentReady(Constants.CERT_MANAGER_NAMESPACE, "cert-manager-webhook");
 
         LOGGER.debug("Copying {} directory to {}", sampleDir, kustomizeTmpdir);
         File source = new File(sampleDir);

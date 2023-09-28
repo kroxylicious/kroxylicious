@@ -33,6 +33,11 @@ public interface Constants {
     String KROXY_DEFAULT_NAMESPACE = "kafka";
 
     /**
+     * The constant CERT_MANAGER_NAMESPACE.
+     */
+    String CERT_MANAGER_NAMESPACE = "cert-manager";
+
+    /**
      * API versions of Strimzi CustomResources
      */
     String KAFKA_API_VERSION_V1BETA2 = "kafka.strimzi.io/v1beta2";
@@ -115,5 +120,8 @@ public interface Constants {
      */
     String KROXY_BOOTSTRAP = KROXY_SERVICE_NAME + ":9292";
 
+    /**
+     * The constant CERT_MANAGER_URL.
+     */
     String CERT_MANAGER_URL = "https://github.com/cert-manager/cert-manager/releases/latest/download/cert-manager.yaml";
 }
