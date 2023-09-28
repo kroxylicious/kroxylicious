@@ -26,7 +26,7 @@ public class ApiMaturity {
     @Target({ ElementType.TYPE, ElementType.CONSTRUCTOR, ElementType.METHOD, ElementType.ANNOTATION_TYPE, ElementType.PACKAGE })
     @Retention(RetentionPolicy.SOURCE)
     @Documented
-    @interface Unstable {
+    public @interface Unstable {
     }
 
     /**
@@ -38,7 +38,7 @@ public class ApiMaturity {
     @Target({ ElementType.TYPE, ElementType.CONSTRUCTOR, ElementType.METHOD, ElementType.ANNOTATION_TYPE, ElementType.PACKAGE })
     @Retention(RetentionPolicy.SOURCE)
     @Documented
-    @interface Evolving {
+    public @interface Evolving {
     }
 
     /**
@@ -51,6 +51,6 @@ public class ApiMaturity {
     @Target({ ElementType.TYPE, ElementType.CONSTRUCTOR, ElementType.METHOD, ElementType.ANNOTATION_TYPE, ElementType.PACKAGE })
     @Retention(RetentionPolicy.SOURCE)
     @Documented
-    @interface Stable {
+    public @interface Stable {
     }
 }
