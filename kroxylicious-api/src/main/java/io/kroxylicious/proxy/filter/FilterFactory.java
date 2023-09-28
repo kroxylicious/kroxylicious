@@ -15,20 +15,20 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 public interface FilterFactory<F extends Filter, C> {
 
     /**
-     * The concrete type of the service this Contributor can instantiate
+     * The concrete type of the Filter this Contributor can instantiate
      *
-     * @return type of the service this Contributor offers.
+     * @return type of the Filter this Contributor offers.
      */
     @NonNull
     Class<F> filterType();
 
     /**
-     * The type of config expected by the service.
+     * The type of config expected by the Filter.
      * <br/>
      * The type must be deserializable with Jackson
-     * If the service has no configuration, return {@link Void} instead.
+     * If the Filter has no configuration, return {@link Void} instead.
      *
-     * @return type of config expected by the service.
+     * @return type of config expected by the Filter.
      */
     @NonNull
     Class<C> configType();
@@ -47,11 +47,11 @@ public interface FilterFactory<F extends Filter, C> {
     }
 
     /**
-     * Creates an instance of the service.
+     * Creates an instance of the Filter.
      *
-     * @param context context containing service configuration which may be null if the service instance does not accept configuration.
+     * @param context context containing Filter configuration which may be null if the Filter instance does not accept configuration.
      * @param configuration configuration
-     * @return the service instance.
+     * @return the Filter instance.
      */
     @NonNull
     F createFilter(FilterCreationContext context, C configuration);
