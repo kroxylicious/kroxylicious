@@ -779,6 +779,9 @@
                                     </formats>
                                     <excludes>
                                         <exclude>io.kroxylicious.proxy.ApiMaturity</exclude>
+                                        <exclude>io.kroxylicious.proxy.ApiMaturity.Unstable</exclude>
+                                        <exclude>io.kroxylicious.proxy.ApiMaturity.Evolving</exclude>
+                                        <exclude>io.kroxylicious.proxy.ApiMaturity.Stable</exclude>
                                     </excludes>
                                 </configuration>
                             </execution>
