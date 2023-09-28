@@ -504,7 +504,7 @@ public class FetchFilter implements FetchRequestFilter {
 === Filter Construction and Configuration
 For Kroxylicious to instantiate and configure your custom filter we use Java's {java-17-javadoc}/java.base/java/util/ServiceLoader.html[ServiceLoader] API.
 Each Custom Filter should provide a corresponding {api-javadoc}/io/kroxylicious/proxy/filter/FilterFactory.html[FilterFactory]
-implementation that can contribute an instance of your custom Filter and optionally declare a configuration class that Kroxylicious will
+implementation that can create an instance of your custom Filter. The factory can optionally declare a configuration class that Kroxylicious will
 populate (using Jackson) when loading your custom Filter. The module must package a `META-INF/services/io.kroxylicious.proxy.filter.FilterFactory`
 file containing the classnames of each contributor into the JAR file.
 
