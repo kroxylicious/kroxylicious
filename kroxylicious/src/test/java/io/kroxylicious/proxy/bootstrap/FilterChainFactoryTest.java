@@ -63,7 +63,7 @@ class FilterChainFactoryTest {
         final ListAssert<FilterAndInvoker> listAssert = assertFiltersCreated(List.of(new FilterDefinition(TestFilter.class.getName(), config)));
         listAssert.first().extracting(FilterAndInvoker::filter).isInstanceOfSatisfying(TestFilter.class, testFilter -> {
             assertThat(testFilter.getContributorClass()).isEqualTo(TestFilter.FactoryA.class);
-            assertThat(testFilter.getContext().executors().eventLoop()).isSameAs(eventLoop);
+            assertThat(testFilter.getContext().eventLoop()).isSameAs(eventLoop);
             assertThat(testFilter.getExampleConfig()).isSameAs(config);
         });
     }
@@ -74,12 +74,12 @@ class FilterChainFactoryTest {
                 new FilterDefinition(TestFilter.class.getName(), config)));
         listAssert.element(0).extracting(FilterAndInvoker::filter).isInstanceOfSatisfying(TestFilter.class, testFilter -> {
             assertThat(testFilter.getContributorClass()).isEqualTo(TestFilter.FactoryA.class);
-            assertThat(testFilter.getContext().executors().eventLoop()).isSameAs(eventLoop);
+            assertThat(testFilter.getContext().eventLoop()).isSameAs(eventLoop);
             assertThat(testFilter.getExampleConfig()).isSameAs(config);
         });
         listAssert.element(1).extracting(FilterAndInvoker::filter).isInstanceOfSatisfying(TestFilter.class, testFilter -> {
             assertThat(testFilter.getContributorClass()).isEqualTo(TestFilter.FactoryA.class);
-            assertThat(testFilter.getContext().executors().eventLoop()).isSameAs(eventLoop);
+            assertThat(testFilter.getContext().eventLoop()).isSameAs(eventLoop);
             assertThat(testFilter.getExampleConfig()).isSameAs(config);
         });
     }
