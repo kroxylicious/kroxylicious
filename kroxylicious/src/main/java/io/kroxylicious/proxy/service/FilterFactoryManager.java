@@ -57,7 +57,7 @@ public class FilterFactoryManager {
             return true;
         }
         catch (InvalidFilterConfigurationException e) {
-            logger.warn("Filter with type: {}, failed to validate configuration", typeName, e);
+            logger.warn("Invalid configuration supplied for {}", typeName, e);
             return false;
         }
     }
