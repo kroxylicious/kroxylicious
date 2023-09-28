@@ -104,7 +104,7 @@ class FetchResponseTransformationFilterTest {
     }
 
     @Test
-    void filterHandlesResponseBasedOnTopicNames() throws Exception {
+    void filterHandlesPreV13ResponseBasedOnTopicNames() throws Exception {
 
         var fetchResponse = new FetchResponseData();
         fetchResponse.responses().add(createFetchableTopicResponseWithOneRecord(RECORD_KEY, ORIGINAL_RECORD_VALUE).setTopic(TOPIC_NAME)); // Version 12
@@ -125,10 +125,9 @@ class FetchResponseTransformationFilterTest {
     }
 
     @Test
-    void filterHandlesResponseBasedOnTopicIds() throws Exception {
+    void filterHandlesV13OrHigherResponseBasedOnTopicIds() throws Exception {
 
         var fetchResponse = new FetchResponseData();
-        // Version 13 switched to topic id rather than topic names.
         fetchResponse.responses().add(createFetchableTopicResponseWithOneRecord(RECORD_KEY, ORIGINAL_RECORD_VALUE).setTopicId(TOPIC_ID));
 
         var metadataResponse = new MetadataResponseData();
