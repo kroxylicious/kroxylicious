@@ -506,7 +506,7 @@ For Kroxylicious to instantiate and configure your custom filter we use Java's {
 Each Custom Filter should provide a corresponding {api-javadoc}/io/kroxylicious/proxy/filter/FilterFactory.html[FilterFactory]
 implementation that can create an instance of your custom Filter. The factory can optionally declare a configuration class that Kroxylicious will
 populate (using Jackson) when loading your custom Filter. The module must package a `META-INF/services/io.kroxylicious.proxy.filter.FilterFactory`
-file containing the classnames of each contributor into the JAR file.
+file containing the classnames of each filter factory implementation into the JAR file.
 
 For example in the kroxylicious-samples we have the {github}/blob/main/kroxylicious-sample/src/main/java/io/kroxylicious/sample/config/SampleFilterConfig.java[SampleFilterConfig] class.
 This is used in the {github}/blob/main/kroxylicious-sample/src/main/java/io/kroxylicious/sample/SampleFetchResponseFilter.java[SampleFetchResponseFilter]) when configuring the

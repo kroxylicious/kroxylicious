@@ -9,7 +9,7 @@ package io.kroxylicious.proxy.filter;
 import java.util.concurrent.ScheduledExecutorService;
 
 /**
- * Construction context for Filters. Used to pass the filter configuration and enviromental resources
+ * Construction context for Filters. Used to pass the filter configuration and environmental resources
  * to the FilterFactory when it is creating a new instance of the Filter. see {@link FilterFactory#createFilter(FilterCreationContext, Object)}
  */
 public interface FilterCreationContext {
