@@ -9,7 +9,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
 
@@ -36,7 +35,7 @@ import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.internal.util.MemoryRecordsHelper;
 
 /**
- * An filter for modifying the key/value/header/topic of {@link ApiKeys#FETCH} responses.
+ * A filter for modifying the key/value/header/topic of {@link ApiKeys#FETCH} responses.
  */
 public class FetchResponseTransformationFilter implements FetchResponseFilter {
 
@@ -85,14 +84,13 @@ public class FetchResponseTransformationFilter implements FetchResponseFilter {
                 .collect(Collectors.toList());
         if (!requestTopics.isEmpty()) {
             LOGGER.debug("Fetch response contains {} unknown topic ids, lookup via Metadata request: {}", requestTopics.size(), requestTopics);
-            var future = new CompletableFuture<ResponseFilterResult>();
-            // TODO Can't necessarily use HIGHEST_SUPPORTED_VERSION, must use highest supported version
-            context.<MetadataResponseData> sendRequest(MetadataRequestData.HIGHEST_SUPPORTED_VERSION,
-                    new MetadataRequestData()
-                            .setTopics(requestTopics))
-                    .thenAccept(metadataResponse -> {
-                        Map<Uuid, String> uidToName = metadataResponse.topics().stream().collect(Collectors.toMap(MetadataResponseData.MetadataResponseTopic::topicId,
-                                MetadataResponseData.MetadataResponseTopic::name));
+            // Version 12 required for topic id support.
+            var metadataRequest = new MetadataRequestData().setTopics(requestTopics);
+            return context.<MetadataResponseData> sendRequest(MetadataRequestData.HIGHEST_SUPPORTED_VERSION, metadataRequest)
+                    .thenCompose(metadataResponse -> {
+                        Map<Uuid, String> uidToName = metadataResponse.topics().stream()
+                                .collect(Collectors.toMap(MetadataResponseData.MetadataResponseTopic::topicId,
+                                        MetadataResponseData.MetadataResponseTopic::name));
                         LOGGER.debug("Metadata response yields {}, updating original Fetch response", uidToName);
                         for (var fetchableTopicResponse : fetchResponse.responses()) {
                             fetchableTopicResponse.setTopic(uidToName.get(fetchableTopicResponse.topicId()));
@@ -100,10 +98,8 @@ public class FetchResponseTransformationFilter implements FetchResponseFilter {
                         applyTransformation(context, fetchResponse);
                         LOGGER.debug("Forwarding original Fetch response");
 
-                        var value = context.responseFilterResultBuilder().forward(header, fetchResponse).build();
-                        future.complete(value);
+                        return context.responseFilterResultBuilder().forward(header, fetchResponse).completed();
                     });
-            return future;
         }
         else {
             applyTransformation(context, fetchResponse);
