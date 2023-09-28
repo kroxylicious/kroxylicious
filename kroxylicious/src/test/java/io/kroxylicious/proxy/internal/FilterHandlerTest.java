@@ -645,6 +645,37 @@ class FilterHandlerTest extends FilterHarness {
         assertThat(propagated).isEqualTo(requestFrame);
     }
 
+    static Stream<Arguments> sendRequestRejectsNulls() {
+        return Stream.of(
+                Arguments.of(new RequestHeaderData(), null),
+                Arguments.of(null, new FetchRequestData()));
+    }
+
+    @ParameterizedTest
+    @MethodSource
+    void sendRequestRejectsNulls(RequestHeaderData oobRequestHeader, FetchRequestData oobRequest) {
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> {
+            assertThatThrownBy(() -> {
+                context.sendRequest(oobRequestHeader, oobRequest);
+            }).isInstanceOf(NullPointerException.class);
+            return null;
+        };
+
+        buildChannel(filter);
+
+        // trigger filter
+        var requestFrame = writeRequest(new ApiVersionsRequestData());
+
+        // verify filter has not sent the send request.
+        InternalRequestFrame<?> propagatedOobRequest = channel.readOutbound();
+        assertThat(propagatedOobRequest).isNull();
+
+        // verify that the filter has propagated nothing
+        var propagated = channel.readInbound();
+        assertThat(propagated).isNull();
+        assertThat(channel.isOpen()).isFalse();
+    }
+
     static Stream<Arguments> sendRequestHeaderHandling() {
         ApiMessageType fetch = ApiMessageType.FETCH;
         return Stream.of(
