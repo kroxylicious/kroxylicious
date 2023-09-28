@@ -100,6 +100,7 @@ class FilterIT {
             (byte) 0x64, (byte) 0x67, (byte) 0x61, (byte) 0x59, (byte) 0x16 };
     private static final byte[] TOPIC_2_CIPHERTEXT = { (byte) 0xffffffa7, (byte) 0xffffffc4, (byte) 0xffffffcb, (byte) 0xffffffcb, (byte) 0xffffffce, (byte) 0xffffff8b,
             (byte) 0x7f, (byte) 0xffffffd6, (byte) 0xffffffce, (byte) 0xffffffd1, (byte) 0xffffffcb, (byte) 0xffffffc3, (byte) 0xffffff80 };
+    private static final FilterDefinitionBuilder REJECTING_CREATE_TOPIC_FILTER = new FilterDefinitionBuilder(RejectingCreateTopicFilter.class.getName());
     private static NettyLeakLogAppender appender;
 
     @BeforeAll
@@ -186,7 +187,7 @@ class FilterIT {
     @SuppressWarnings("java:S5841") // java:S5841 warns that doesNotContain passes for the empty case. Which is what we want here.
     void requestFiltersCanRespondWithoutProxying(KafkaCluster cluster, Admin admin) throws Exception {
         var config = proxy(cluster)
-                .addToFilters(new FilterDefinitionBuilder(RejectingCreateTopicFilter.class.getName()).build());
+                .addToFilters(REJECTING_CREATE_TOPIC_FILTER.build());
 
         try (var tester = kroxyliciousTester(config);
                 var proxyAdmin = tester.admin()) {
@@ -209,7 +210,7 @@ class FilterIT {
     @ParameterizedTest(name = "{0}")
     @MethodSource
     void requestFilterCanShortCircuitResponse(String name, boolean withCloseConnection, ForwardingStyle forwardingStyle) {
-        var rejectFilter = new FilterDefinitionBuilder(RejectingCreateTopicFilter.class.getName())
+        var rejectFilter = REJECTING_CREATE_TOPIC_FILTER
                 .withConfig("withCloseConnection", withCloseConnection,
                         "forwardingStyle", forwardingStyle)
                 .build();
@@ -318,7 +319,7 @@ class FilterIT {
     @SuppressWarnings("java:S5841") // java:S5841 warns that doesNotContain passes for the empty case. Which is what we want here.
     void requestFiltersCanRespondWithoutProxyingDoesntLeakBuffers(KafkaCluster cluster, Admin admin) throws Exception {
         var config = proxy(cluster)
-                .addToFilters(new FilterDefinitionBuilder(RejectingCreateTopicFilter.class.getName()).build());
+                .addToFilters(REJECTING_CREATE_TOPIC_FILTER.build());
 
         try (var tester = kroxyliciousTester(config);
                 var proxyAdmin = tester.admin()) {
@@ -412,7 +413,7 @@ class FilterIT {
     void requestFiltersCanRespondWithoutProxyingRespondsInCorrectOrder() throws Exception {
 
         try (var tester = mockKafkaKroxyliciousTester(
-                s -> proxy(s).addToFilters(new FilterDefinitionBuilder(RejectingCreateTopicFilter.class.getName()).build()));
+                s -> proxy(s).addToFilters(REJECTING_CREATE_TOPIC_FILTER.build()));
                 var client = tester.simpleTestClient()) {
             tester.addMockResponseForApiKey(new ResponsePayload(METADATA, METADATA.latestVersion(), new MetadataResponseData()));
             tester.addMockResponseForApiKey(new ResponsePayload(API_VERSIONS, API_VERSIONS.latestVersion(), new ApiVersionsResponseData()));
@@ -434,7 +435,7 @@ class FilterIT {
     void clientsCanSendMultipleMessagesImmediately() {
 
         try (var tester = mockKafkaKroxyliciousTester(
-                s -> proxy(s).addToFilters(new FilterDefinitionBuilder(RejectingCreateTopicFilter.class.getName()).build()));
+                s -> proxy(s).addToFilters(REJECTING_CREATE_TOPIC_FILTER.build()));
                 var client = tester.simpleTestClient()) {
             tester.addMockResponseForApiKey(new ResponsePayload(METADATA, METADATA.latestVersion(), new MetadataResponseData()));
             tester.addMockResponseForApiKey(new ResponsePayload(API_VERSIONS, API_VERSIONS.latestVersion(), new ApiVersionsResponseData()));
@@ -451,7 +452,7 @@ class FilterIT {
     void zeroAckProduceRequestsDoNotInterfereWithResponseReorderingLogic() throws Exception {
 
         try (var tester = mockKafkaKroxyliciousTester(
-                s -> proxy(s).addToFilters(new FilterDefinitionBuilder(RejectingCreateTopicFilter.class.getName()).build()));
+                s -> proxy(s).addToFilters(REJECTING_CREATE_TOPIC_FILTER.build()));
                 var client = tester.simpleTestClient()) {
             tester.addMockResponseForApiKey(new ResponsePayload(METADATA, METADATA.latestVersion(), new MetadataResponseData()));
             tester.dropWhen(zeroAckProduceRequestMatcher());
