@@ -8,16 +8,14 @@ package io.kroxylicious.proxy.filter;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
- * FilterFactory is a pluggable source of Kroxylicious filter implementations.
- * @param <F> the {@link Filter} type
+ * FilterFactory is a pluggable source of {@link Filter} instances.
+ * @param <F> the {@code Filter} type.
  * @param <C> the configuration type for the Filter (use {@link Void} if the Filter is not configurable)
  */
 public interface FilterFactory<F extends Filter, C> {
 
     /**
-     * The concrete type of the Filter this Contributor can instantiate
-     *
-     * @return type of the Filter this Contributor offers.
+     * @return The concrete class of {@code Filter} this factory {@linkplain #createFilter(FilterCreationContext, C) creates}. 
      */
     @NonNull
     Class<F> filterType();
@@ -34,8 +32,12 @@ public interface FilterFactory<F extends Filter, C> {
     Class<C> configType();
 
     /**
-     * Validate the configuration. By default, the configuration is considered invalid if
-     * the config type is not {@link Void} and the configuration is null.
+     * Validates the configuration. 
+     * By default, the configuration is considered valid if configuration is non-null
+     * or the {@link #configType()} is {@link Void}. 
+     * In other words, configuration is required unless the factory doesn't support configuration at all.
+     * This method should be overridden to provide extra semantic validation of the config, 
+     * checking for required configuration properties or bounds checking numerical configuration properties. 
      * @param config configuration
      * @throws InvalidFilterConfigurationException when the configuration is invalid
      */
@@ -49,8 +51,8 @@ public interface FilterFactory<F extends Filter, C> {
     /**
      * Creates an instance of the Filter.
      *
-     * @param context context containing Filter configuration which may be null if the Filter instance does not accept configuration.
-     * @param configuration configuration
+     * @param context The runtime context for the filter's creation.
+     * @param configuration configuration, which will be null if no configuration was provided or the {@link #configType()} is {@code Void}.
      * @return the Filter instance.
      */
     @NonNull
