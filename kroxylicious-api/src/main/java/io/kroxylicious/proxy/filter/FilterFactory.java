@@ -11,7 +11,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * FilterFactory is a pluggable source of Kroxylicious filter implementations.
  * @param <C> the configuration type for the Filter (use {@link Void} if the Filter is not configurable)
  */
-public interface FilterFactory<C> {
+public interface FilterFactory<F extends Filter, C> {
 
     /**
      * The concrete type of the service this Contributor can instantiate
@@ -19,7 +19,7 @@ public interface FilterFactory<C> {
      * @return type of the service this Contributor offers.
      */
     @NonNull
-    Class<? extends Filter> filterType();
+    Class<F> filterType();
 
     /**
      * The type of config expected by the service.
@@ -52,6 +52,6 @@ public interface FilterFactory<C> {
      * @return the service instance.
      */
     @NonNull
-    Filter createFilter(FilterCreationContext<C> context);
+    F createFilter(FilterCreationContext<C> context);
 
 }

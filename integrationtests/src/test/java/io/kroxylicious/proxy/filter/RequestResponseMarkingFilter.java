@@ -111,15 +111,15 @@ public class RequestResponseMarkingFilter implements RequestFilter, ResponseFilt
         }
     }
 
-    public static class Factory implements FilterFactory<RequestResponseMarkingFilterConfig> {
+    public static class Factory implements FilterFactory<RequestResponseMarkingFilter, RequestResponseMarkingFilterConfig> {
 
         @Override
-        public Filter createFilter(FilterCreationContext<RequestResponseMarkingFilterConfig> context) {
+        public RequestResponseMarkingFilter createFilter(FilterCreationContext<RequestResponseMarkingFilterConfig> context) {
             return new RequestResponseMarkingFilter(context, context.getConfig());
         }
 
         @Override
-        public Class<? extends Filter> filterType() {
+        public Class<RequestResponseMarkingFilter> filterType() {
             return RequestResponseMarkingFilter.class;
         }
 

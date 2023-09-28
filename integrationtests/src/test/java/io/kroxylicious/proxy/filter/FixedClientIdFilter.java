@@ -45,10 +45,10 @@ public class FixedClientIdFilter implements RequestFilter, ResponseFilter {
         return context.forwardResponse(header, response);
     }
 
-    public static class Factory implements FilterFactory<FixedClientIdFilterConfig> {
+    public static class Factory implements FilterFactory<FixedClientIdFilter, FixedClientIdFilterConfig> {
 
         @Override
-        public Class<? extends Filter> filterType() {
+        public Class<FixedClientIdFilter> filterType() {
             return FixedClientIdFilter.class;
         }
 
@@ -58,7 +58,7 @@ public class FixedClientIdFilter implements RequestFilter, ResponseFilter {
         }
 
         @Override
-        public Filter createFilter(FilterCreationContext<FixedClientIdFilterConfig> context) {
+        public FixedClientIdFilter createFilter(FilterCreationContext<FixedClientIdFilterConfig> context) {
             return new FixedClientIdFilter(context.getConfig());
         }
     }

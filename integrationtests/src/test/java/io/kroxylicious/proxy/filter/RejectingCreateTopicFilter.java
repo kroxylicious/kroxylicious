@@ -78,10 +78,10 @@ public class RejectingCreateTopicFilter implements CreateTopicsRequestFilter {
         }
     }
 
-    public static class Factory implements FilterFactory<RejectingCreateTopicFilterConfig> {
+    public static class Factory implements FilterFactory<RejectingCreateTopicFilter, RejectingCreateTopicFilterConfig> {
 
         @Override
-        public Class<? extends Filter> filterType() {
+        public Class<RejectingCreateTopicFilter> filterType() {
             return RejectingCreateTopicFilter.class;
         }
 
@@ -96,7 +96,7 @@ public class RejectingCreateTopicFilter implements CreateTopicsRequestFilter {
         }
 
         @Override
-        public Filter createFilter(FilterCreationContext<RejectingCreateTopicFilterConfig> context) {
+        public RejectingCreateTopicFilter createFilter(FilterCreationContext<RejectingCreateTopicFilterConfig> context) {
             return new RejectingCreateTopicFilter(context, context.getConfig());
         }
     }

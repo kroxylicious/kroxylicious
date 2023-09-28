@@ -15,7 +15,6 @@ import org.apache.kafka.common.message.RequestHeaderData;
 import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.Timer;
 
-import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.FilterCreationContext;
 import io.kroxylicious.proxy.filter.FilterFactory;
@@ -82,10 +81,10 @@ public class SampleProduceRequestFilter implements ProduceRequestFilter {
         });
     }
 
-    public static class Factory implements FilterFactory<SampleFilterConfig> {
+    public static class Factory implements FilterFactory<SampleProduceRequestFilter, SampleFilterConfig> {
 
         @Override
-        public Class<? extends Filter> filterType() {
+        public Class<SampleProduceRequestFilter> filterType() {
             return SampleProduceRequestFilter.class;
         }
 
@@ -95,7 +94,7 @@ public class SampleProduceRequestFilter implements ProduceRequestFilter {
         }
 
         @Override
-        public Filter createFilter(FilterCreationContext<SampleFilterConfig> context) {
+        public SampleProduceRequestFilter createFilter(FilterCreationContext<SampleFilterConfig> context) {
             return new SampleProduceRequestFilter(context.getConfig());
         }
     }

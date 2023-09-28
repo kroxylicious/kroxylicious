@@ -31,7 +31,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.filter.FetchResponseFilter;
-import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.FilterCreationContext;
 import io.kroxylicious.proxy.filter.FilterFactory;
@@ -135,11 +134,11 @@ public class FetchResponseTransformationFilter implements FetchResponseFilter {
         }
     }
 
-    public static class Factory implements FilterFactory<FetchResponseTransformationConfig> {
+    public static class Factory implements FilterFactory<FetchResponseTransformationFilter, FetchResponseTransformationConfig> {
 
         @NonNull
         @Override
-        public Class<? extends Filter> filterType() {
+        public Class<FetchResponseTransformationFilter> filterType() {
             return FetchResponseTransformationFilter.class;
         }
 
@@ -149,7 +148,7 @@ public class FetchResponseTransformationFilter implements FetchResponseFilter {
         }
 
         @Override
-        public Filter createFilter(FilterCreationContext<FetchResponseTransformationConfig> context) {
+        public FetchResponseTransformationFilter createFilter(FilterCreationContext<FetchResponseTransformationConfig> context) {
             return new FetchResponseTransformationFilter(context.getConfig());
         }
     }

@@ -49,10 +49,10 @@ public class CompositePrefixingFixedClientIdFilter implements CompositeFilter {
         }
     }
 
-    public static class Factory implements FilterFactory<CompositePrefixingFixedClientIdFilterConfig> {
+    public static class Factory implements FilterFactory<CompositePrefixingFixedClientIdFilter, CompositePrefixingFixedClientIdFilterConfig> {
 
         @Override
-        public Class<? extends Filter> filterType() {
+        public Class<CompositePrefixingFixedClientIdFilter> filterType() {
             return CompositePrefixingFixedClientIdFilter.class;
         }
 
@@ -62,7 +62,7 @@ public class CompositePrefixingFixedClientIdFilter implements CompositeFilter {
         }
 
         @Override
-        public Filter createFilter(FilterCreationContext<CompositePrefixingFixedClientIdFilterConfig> context) {
+        public CompositePrefixingFixedClientIdFilter createFilter(FilterCreationContext<CompositePrefixingFixedClientIdFilterConfig> context) {
             return new CompositePrefixingFixedClientIdFilter(context.getConfig());
         }
     }

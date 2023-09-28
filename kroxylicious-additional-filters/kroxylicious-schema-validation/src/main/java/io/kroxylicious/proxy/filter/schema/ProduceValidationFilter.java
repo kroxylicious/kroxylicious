@@ -18,7 +18,6 @@ import org.apache.kafka.common.protocol.Errors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.FilterCreationContext;
 import io.kroxylicious.proxy.filter.FilterFactory;
@@ -192,10 +191,10 @@ public class ProduceValidationFilter implements ProduceRequestFilter, ProduceRes
         });
     }
 
-    public static class Factory implements FilterFactory<ValidationConfig> {
+    public static class Factory implements FilterFactory<ProduceValidationFilter, ValidationConfig> {
 
         @Override
-        public Class<? extends Filter> filterType() {
+        public Class<ProduceValidationFilter> filterType() {
             return ProduceValidationFilter.class;
         }
 
@@ -205,7 +204,7 @@ public class ProduceValidationFilter implements ProduceRequestFilter, ProduceRes
         }
 
         @Override
-        public Filter createFilter(FilterCreationContext<ValidationConfig> context) {
+        public ProduceValidationFilter createFilter(FilterCreationContext<ValidationConfig> context) {
             ProduceRequestValidator validator = ProduceValidationFilterBuilder.build(context.getConfig());
             return new ProduceValidationFilter(context.getConfig().isForwardPartialRequests(), validator);
         }

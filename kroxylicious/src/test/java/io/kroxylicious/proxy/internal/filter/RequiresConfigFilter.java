@@ -13,7 +13,6 @@ import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.jetbrains.annotations.NotNull;
 
-import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.FilterCreationContext;
 import io.kroxylicious.proxy.filter.FilterFactory;
@@ -50,11 +49,11 @@ public class RequiresConfigFilter implements RequestFilter {
         return contributorClass;
     }
 
-    public static class RequiresConfigFactory implements FilterFactory<ExampleConfig> {
+    public static class RequiresConfigFactory implements FilterFactory<RequiresConfigFilter, ExampleConfig> {
 
         @NotNull
         @Override
-        public Class<? extends Filter> filterType() {
+        public Class<RequiresConfigFilter> filterType() {
             return RequiresConfigFilter.class;
         }
 
@@ -65,7 +64,7 @@ public class RequiresConfigFilter implements RequestFilter {
         }
 
         @Override
-        public Filter createFilter(FilterCreationContext<ExampleConfig> context) {
+        public RequiresConfigFilter createFilter(FilterCreationContext<ExampleConfig> context) {
             return new RequiresConfigFilter(context, context.getConfig(), this.getClass());
         }
     }

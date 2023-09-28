@@ -84,10 +84,10 @@ public class OutOfBandSendFilter implements DescribeClusterRequestFilter, Descri
         return message;
     }
 
-    public static class Factory implements FilterFactory<OutOfBandSendFilterConfig> {
+    public static class Factory implements FilterFactory<OutOfBandSendFilter, OutOfBandSendFilterConfig> {
 
         @Override
-        public Class<? extends Filter> filterType() {
+        public Class<OutOfBandSendFilter> filterType() {
             return OutOfBandSendFilter.class;
         }
 
@@ -97,7 +97,7 @@ public class OutOfBandSendFilter implements DescribeClusterRequestFilter, Descri
         }
 
         @Override
-        public Filter createFilter(FilterCreationContext<OutOfBandSendFilterConfig> context) {
+        public OutOfBandSendFilter createFilter(FilterCreationContext<OutOfBandSendFilterConfig> context) {
             return new OutOfBandSendFilter(context.getConfig());
         }
     }
