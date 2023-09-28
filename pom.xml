@@ -274,7 +274,7 @@
         <module>integrationtests</module>
         <module>kroxylicious-additional-filters</module>
         <module>kroxylicious-sample</module>
-        <module>systemtests</module>
+        <module>kroxylicious-systemtests</module>
     </modules>
 
 
