@@ -6,13 +6,13 @@
 
 package io.kroxylicious.proxy.filter;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
+import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.junit.jupiter.api.Test;
 
-import java.util.concurrent.CompletionStage;
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -27,7 +27,7 @@ class FilterFactoryTest {
     }
 
     private class MyFactory<C> extends FilterFactory<MyFilter, C> {
-        public MyFactory(Class<C> configType) {
+        MyFactory(Class<C> configType) {
             super(configType, MyFilter.class);
         }
 
