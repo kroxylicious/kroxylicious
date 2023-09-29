@@ -65,6 +65,9 @@ public abstract class FilterFactory<F extends Filter, C> {
         if (requiresConfiguration && config == null) {
             throw new InvalidFilterConfigurationException(filterType().getSimpleName() + " requires configuration, but config object is null");
         }
+        if (!requiresConfiguration && config != null) {
+            throw new InvalidFilterConfigurationException(filterType().getSimpleName() + " accepts no configuration, but config object is non-null");
+        }
     }
 
     /**
