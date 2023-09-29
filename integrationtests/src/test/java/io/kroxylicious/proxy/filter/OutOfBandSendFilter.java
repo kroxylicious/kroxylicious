@@ -58,11 +58,10 @@ public class OutOfBandSendFilter implements DescribeClusterRequestFilter, Descri
                                                                          FilterContext context) {
         ApiKeys apiKeyToSend = config.apiKeyToSend;
         ApiMessage message = createApiMessage(apiKeyToSend);
-        context.sendRequest(apiKeyToSend.latestVersion(), message).thenAccept(apiMessage -> {
-            // expected to execute before onDescribeClusterResponse becase sendRequest called before forwardRequest
+        return context.sendRequest(new RequestHeaderData().setRequestApiVersion(message.highestSupportedVersion()), message).thenCompose(apiMessage -> {
             values = unknownTaggedFieldsToStrings(apiMessage, config.tagIdToCollect).collect(Collectors.joining(","));
+            return context.forwardRequest(header, request);
         });
-        return context.forwardRequest(header, request);
     }
 
     @Override

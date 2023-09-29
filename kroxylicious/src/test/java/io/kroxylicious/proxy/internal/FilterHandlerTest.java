@@ -740,42 +740,6 @@ class FilterHandlerTest extends FilterHarness {
     }
 
     @Test
-    @Deprecated
-    void sendRequestOldApi() {
-        var oobRequestBody = new FetchRequestData();
-        var snoopedOobRequestResponseStage = new AtomicReference<CompletionStage<ApiMessage>>();
-        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> {
-            assertNull(snoopedOobRequestResponseStage.get(), "Expected to only be called once");
-            snoopedOobRequestResponseStage.set(context.sendRequest((short) 3, oobRequestBody));
-            return snoopedOobRequestResponseStage.get()
-                    .thenCompose(u -> context.forwardRequest(header, request));
-        };
-
-        buildChannel(filter);
-
-        // trigger filter
-        var requestFrame = writeRequest(new ApiVersionsRequestData());
-
-        // verify filter has sent the send request.
-        InternalRequestFrame<?> propagatedOobRequest = channel.readOutbound();
-        assertThat(propagatedOobRequest.body()).isEqualTo(oobRequestBody);
-        assertThat(propagatedOobRequest.header()).isNotNull();
-
-        // verify oob request response future is in the expected state
-        assertThat(snoopedOobRequestResponseStage).isNotNull();
-        var snoopedOobRequestResponseFuture = toCompletableFuture(snoopedOobRequestResponseStage.get());
-        assertThat(snoopedOobRequestResponseFuture).withFailMessage("expected out-of-band request response future to be incomplete but it was done").isNotDone();
-
-        // mimic the broker sending the oob response
-        var responseFrame = writeInternalResponse(propagatedOobRequest.header().correlationId(), new FetchResponseData());
-        assertThat(snoopedOobRequestResponseFuture).isCompletedWithValue(responseFrame.body());
-
-        // verify the filter has forwarded the request showing the that OOB request future completed.
-        var propagated = channel.readOutbound();
-        assertThat(propagated).isEqualTo(requestFrame);
-    }
-
-    @Test
     void sendRequestCompletionStageCannotBeConvertedToFuture() {
         var oobRequestBody = new FetchRequestData();
         var snoopedOobRequestResponseStage = new AtomicReference<CompletionStage<FetchResponseData>>();

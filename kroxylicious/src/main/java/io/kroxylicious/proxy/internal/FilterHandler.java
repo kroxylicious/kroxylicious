@@ -480,13 +480,6 @@ public class FilterHandler extends ChannelDuplexHandler {
 
         @NonNull
         @Override
-        public <T extends ApiMessage> CompletionStage<T> sendRequest(short apiVersion, @NonNull ApiMessage request) {
-            return sendRequest(new RequestHeaderData().setRequestApiVersion(apiVersion), request)
-                    .thenApply(r -> (T) r);
-        }
-
-        @NonNull
-        @Override
         public <M extends ApiMessage> CompletionStage<M> sendRequest(@NonNull RequestHeaderData header,
                                                                      @NonNull ApiMessage request) {
             Objects.requireNonNull(header);

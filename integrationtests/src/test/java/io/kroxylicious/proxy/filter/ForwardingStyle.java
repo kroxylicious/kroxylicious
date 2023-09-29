@@ -15,7 +15,7 @@ import java.util.function.Function;
 
 import org.apache.kafka.common.message.ListGroupsRequestData;
 import org.apache.kafka.common.message.ListGroupsResponseData;
-import org.apache.kafka.common.protocol.ApiKeys;
+import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.Errors;
 
@@ -60,7 +60,8 @@ public enum ForwardingStyle implements Function<ForwardingContext, CompletionSta
         }
 
         private CompletionStage<ListGroupsResponseData> sendAsyncRequestAndCheckForResponseErrors(FilterContext filterContext) {
-            return filterContext.<ListGroupsResponseData> sendRequest(ApiKeys.LIST_GROUPS.latestVersion(), new ListGroupsRequestData())
+            var request = new ListGroupsRequestData();
+            return filterContext.<ListGroupsResponseData> sendRequest(new RequestHeaderData().setRequestApiVersion(request.highestSupportedVersion()), request)
                     .thenApply(r -> {
                         if (r.errorCode() != Errors.NONE.code()) {
                             throw new RuntimeException("Async request unexpected failed (errorCode: %d)".formatted(r.errorCode()));

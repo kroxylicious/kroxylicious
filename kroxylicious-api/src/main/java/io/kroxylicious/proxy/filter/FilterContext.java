@@ -73,32 +73,6 @@ public interface FilterContext {
     CompletionStage<RequestFilterResult> forwardRequest(@NonNull RequestHeaderData header, @NonNull ApiMessage request);
 
     /**
-     * Send a message from a filter towards the broker.   The response to the requests will be
-     * made available to the filter asynchronously, by way of the {@link CompletionStage}.  The
-     * CompletionStage will contain the response object, or null of the request does not have a
-     * response.
-     * <br>
-     * The request will pass through all filters upstream of the filter that invoked the operation,
-     * invoking them, but not itself.  Similarly, the response will pass through all filters upstream
-     * of the filter that invoked the operation, invoking them. The response does not
-     * pass through filter downstream.
-     * <br/>
-     * Default and asynchronous default computation stages chained to the returned
-     * {@link java.util.concurrent.CompletionStage} are guaranteed to be executed by the thread associated with the
-     * connection. See {@link io.kroxylicious.proxy.filter} for more details.
-     *
-     * @param apiVersion The version of the request to use
-     * @param request The request to send.
-     * @param <T> The type of the response
-     * @return CompletionStage that will yield the response.
-     * @see io.kroxylicious.proxy.filter Thread Safety
-     * @deprecated use {@link FilterContext#sendRequest(RequestHeaderData, ApiMessage)} instead.
-     */
-    @NonNull
-    @Deprecated(forRemoval = true, since = "0.3.0")
-    <T extends ApiMessage> CompletionStage<T> sendRequest(short apiVersion, @NonNull ApiMessage request);
-
-    /**
      * Send a request from a filter towards the broker.   The response to the request will be made available to the
      * filter asynchronously, by way of the {@link CompletionStage}.  The CompletionStage will contain the response
      * object, or null of the request does not have a response.
