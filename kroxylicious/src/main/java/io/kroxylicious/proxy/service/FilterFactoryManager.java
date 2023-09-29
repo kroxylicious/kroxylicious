@@ -42,12 +42,12 @@ public class FilterFactoryManager {
         filterFactories = nameToFactory;
     }
 
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings({ "unchecked", "rawtypes" })
     private static ServiceLoader<FilterFactory<?, ?>> serviceLoader() {
         return (ServiceLoader<FilterFactory<?, ?>>) (ServiceLoader) ServiceLoader.load(FilterFactory.class);
     }
 
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings({ "unchecked", "rawtypes" })
     public Filter createInstance(String typeName, FilterCreationContext constructionContext, Object config) {
         return ((FilterFactory) getFactory(typeName)).createFilter(constructionContext, config);
     }
@@ -56,7 +56,7 @@ public class FilterFactoryManager {
         return getFactory(typeName).configType();
     }
 
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings({ "unchecked", "rawtypes" })
     public boolean validateConfig(String typeName, Object config) {
         try {
             FilterFactory factory = filterFactories.get(typeName);
