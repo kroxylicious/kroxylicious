@@ -31,6 +31,7 @@ public abstract class FilterFactory<F extends Filter, C> {
     }
 
     /**
+     * The type of filter.
      * @return The concrete class of {@code Filter} this factory {@linkplain #createFilter(FilterCreationContext, C) creates}.
      */
     public final Class<F> filterType() {
