@@ -40,7 +40,6 @@ import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResultBuilder;
-import io.kroxylicious.proxy.filter.ResponseHeaderAndApiMessage;
 import io.kroxylicious.proxy.frame.DecodedFrame;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
@@ -411,9 +410,9 @@ public class FilterHandler extends ChannelDuplexHandler {
             LOGGER.debug("{}: Completing {} response for request sent by this filter{}: {}",
                     channelDescriptor(), decodedFrame.apiKey(), filterDescriptor(), decodedFrame);
         }
-        CompletableFuture<ResponseHeaderAndApiMessage<ApiMessage>> p = (CompletableFuture<ResponseHeaderAndApiMessage<ApiMessage>>) decodedFrame
+        CompletableFuture<ApiMessage> p = (CompletableFuture<ApiMessage>) decodedFrame
                 .promise();
-        p.complete(new ResponseHeaderAndApiMessage<>(decodedFrame.header(), decodedFrame.body()));
+        p.complete(decodedFrame.body());
     }
 
     private static <F extends FilterResult> F validateFilterResultNonNull(F f) {
@@ -483,13 +482,13 @@ public class FilterHandler extends ChannelDuplexHandler {
         @Override
         public <T extends ApiMessage> CompletionStage<T> sendRequest(short apiVersion, @NonNull ApiMessage request) {
             return sendRequest(new RequestHeaderData().setRequestApiVersion(apiVersion), request)
-                    .thenApply(r -> r == null ? null : (T) r.message());
+                    .thenApply(r -> (T) r);
         }
 
         @NonNull
         @Override
-        public <M extends ApiMessage> CompletionStage<ResponseHeaderAndApiMessage<M>> sendRequest(@NonNull RequestHeaderData header,
-                                                                                                  @NonNull ApiMessage request) {
+        public <M extends ApiMessage> CompletionStage<M> sendRequest(@NonNull RequestHeaderData header,
+                                                                     @NonNull ApiMessage request) {
             Objects.requireNonNull(header);
             Objects.requireNonNull(request);
 
@@ -498,7 +497,7 @@ public class FilterHandler extends ChannelDuplexHandler {
             header.setCorrelationId(-1);
 
             var hasResponse = apiKey != ApiKeys.PRODUCE || ((ProduceRequestData) request).acks() != 0;
-            var filterPromise = new InternalCompletableFuture<ResponseHeaderAndApiMessage<M>>(ctx.executor());
+            var filterPromise = new InternalCompletableFuture<M>(ctx.executor());
             var frame = new InternalRequestFrame<>(
                     header.requestApiVersion(), header.correlationId(), hasResponse,
                     filter, filterPromise, header, request);

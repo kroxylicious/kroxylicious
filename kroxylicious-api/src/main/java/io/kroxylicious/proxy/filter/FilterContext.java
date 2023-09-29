@@ -99,10 +99,9 @@ public interface FilterContext {
     <T extends ApiMessage> CompletionStage<T> sendRequest(short apiVersion, @NonNull ApiMessage request);
 
     /**
-     * Send a request from a filter towards the broker.   The response to the request will be
-     * made available to the filter asynchronously, by way of the {@link CompletionStage}.  The
-     * CompletionStage will contain the response header and response body, or null of the
-     * request does not have a response.
+     * Send a request from a filter towards the broker.   The response to the request will be made available to the
+     * filter asynchronously, by way of the {@link CompletionStage}.  The CompletionStage will contain the response
+     * object, or null of the request does not have a response.
      * <h4>Header</h4>
      * <p>The caller is required to provide a {@link RequestHeaderData}. It is recommended that the
      * caller specify the {@link RequestHeaderData#requestApiVersion()}. This can be done conveniently
@@ -131,8 +130,8 @@ public interface FilterContext {
      * @see io.kroxylicious.proxy.filter Thread Safety
      */
     @NonNull
-    <M extends ApiMessage> CompletionStage<ResponseHeaderAndApiMessage<M>> sendRequest(@NonNull RequestHeaderData header,
-                                                                                       @NonNull ApiMessage request);
+    <M extends ApiMessage> CompletionStage<M> sendRequest(@NonNull RequestHeaderData header,
+                                                          @NonNull ApiMessage request);
 
     /**
      * Generates a completed filter results containing the given header and response.  When

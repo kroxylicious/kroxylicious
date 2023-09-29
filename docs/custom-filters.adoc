@@ -449,7 +449,7 @@ public class FetchFilter implements FetchRequestFilter {
         topic.setTopicId(Uuid.randomUuid());
         metadataRequest.topics().add(topic);
         var stage = context.sendRequest(metadataRequestHeader, metadataRequest); // <3>
-        return stage.thenApply(metadataResponse -> mutateFetchRequest(metadataResponse.message(), request)) // <4>
+        return stage.thenApply(metadataResponse -> mutateFetchRequest(metadataResponse, request)) // <4>
                     .thenCompose(mutatedFetchRequest -> context.forwardRequest(header, mutatedFetchRequest)); // <5>
     }
 }

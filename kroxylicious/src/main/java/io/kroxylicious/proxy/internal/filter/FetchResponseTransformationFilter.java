@@ -90,7 +90,7 @@ public class FetchResponseTransformationFilter implements FetchResponseFilter {
             var metadataRequest = new MetadataRequestData().setTopics(requestTopics);
             return context.<MetadataResponseData> sendRequest(metadataHeader, metadataRequest)
                     .thenCompose(metadataResponse -> {
-                        Map<Uuid, String> uidToName = metadataResponse.message().topics().stream()
+                        Map<Uuid, String> uidToName = metadataResponse.topics().stream()
                                 .collect(Collectors.toMap(MetadataResponseData.MetadataResponseTopic::topicId,
                                         MetadataResponseData.MetadataResponseTopic::name));
                         LOGGER.debug("Metadata response yields {}, updating original Fetch response", uidToName);

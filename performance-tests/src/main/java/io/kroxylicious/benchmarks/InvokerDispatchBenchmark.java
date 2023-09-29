@@ -43,7 +43,6 @@ import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResultBuilder;
-import io.kroxylicious.proxy.filter.ResponseHeaderAndApiMessage;
 import io.kroxylicious.proxy.filter.SpecificFilterInvoker;
 
 // try hard to make shouldHandleXYZ to observe different receivers concrete types, saving unrolling to bias a specific call-site to a specific concrete type
@@ -191,7 +190,7 @@ public class InvokerDispatchBenchmark {
         }
 
         @Override
-        public <M extends ApiMessage> CompletionStage<ResponseHeaderAndApiMessage<M>> sendRequest(RequestHeaderData header, ApiMessage request) {
+        public <M extends ApiMessage> CompletionStage<M> sendRequest(RequestHeaderData header, ApiMessage request) {
             return null;
         }
 

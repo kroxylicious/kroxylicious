@@ -16,7 +16,6 @@ import org.apache.kafka.common.message.MetadataRequestData.MetadataRequestTopic;
 import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.message.SaslAuthenticateRequestData;
 import org.apache.kafka.common.message.SaslHandshakeRequestData;
 import org.apache.kafka.common.protocol.ApiKeys;
@@ -36,7 +35,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.kroxylicious.proxy.filter.FilterContext;
-import io.kroxylicious.proxy.filter.ResponseHeaderAndApiMessage;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.eq;
@@ -88,7 +86,7 @@ class EagerMetadataLearnerTest {
 
         when(context.requestFilterResultBuilder()).thenReturn(new RequestFilterResultBuilderImpl());
         when(context.sendRequest(isA(RequestHeaderData.class), isA(MetadataRequestData.class)))
-                .thenReturn(CompletableFuture.completedStage(new ResponseHeaderAndApiMessage<>(new ResponseHeaderData(), metadataResponse)));
+                .thenReturn(CompletableFuture.completedStage(metadataResponse));
         var stage = learner.onRequest(apiKey, header, request, context);
         assertThat(stage).isCompleted();
         var result = stage.toCompletableFuture().get();

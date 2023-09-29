@@ -11,14 +11,12 @@ import java.util.concurrent.CompletableFuture;
 
 import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import io.kroxylicious.proxy.ApiVersionsService;
 import io.kroxylicious.proxy.filter.FilterContext;
-import io.kroxylicious.proxy.filter.ResponseHeaderAndApiMessage;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -47,7 +45,7 @@ class ApiVersionsServiceImplTest {
                 (short) (ApiKeys.METADATA.latestVersion() - 1));
         FilterContext filterContext = Mockito.mock(FilterContext.class);
         Mockito.when(filterContext.sendRequest(any(RequestHeaderData.class), any()))
-                .thenReturn(CompletableFuture.completedFuture(new ResponseHeaderAndApiMessage<>(new ResponseHeaderData(), upstreamApiVersions)));
+                .thenReturn(CompletableFuture.completedFuture(upstreamApiVersions));
         ApiVersionsService.ApiVersionRanges range = apiVersionsService.getApiVersionRanges(ApiKeys.METADATA, filterContext).toCompletableFuture()
                 .getNow(Optional.empty()).orElse(null);
         assertThat(range).isNotNull();

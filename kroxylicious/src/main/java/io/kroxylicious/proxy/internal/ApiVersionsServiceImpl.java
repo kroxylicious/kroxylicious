@@ -105,8 +105,7 @@ public class ApiVersionsServiceImpl {
             var data = new ApiVersionsRequestData();
             var header = new RequestHeaderData().setRequestApiVersion(data.highestSupportedVersion());
             return context.<ApiVersionsResponseData> sendRequest(header, data).thenApply(response -> {
-                var apiVersionsResponseData = response.message();
-                updateVersions(context.channelDescriptor(), apiVersionsResponseData);
+                updateVersions(context.channelDescriptor(), response);
                 return apiVersions;
             });
         }

@@ -66,7 +66,7 @@ public class EagerMetadataLearner implements RequestFilter {
                         if (useClientRequest) {
                             // The client's request matched our out-of-band message, so we may as well return the
                             // response.
-                            future.complete(builder.shortCircuitResponse(metadataResponse.message()).withCloseConnection().build());
+                            future.complete(builder.shortCircuitResponse(metadataResponse).withCloseConnection().build());
                         }
                         else {
                             future.complete(builder.withCloseConnection().build());

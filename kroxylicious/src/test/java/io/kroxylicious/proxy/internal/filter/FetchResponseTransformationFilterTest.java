@@ -48,7 +48,6 @@ import io.kroxylicious.proxy.filter.FilterCreationContext;
 import io.kroxylicious.proxy.filter.InvalidFilterConfigurationException;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResultBuilder;
-import io.kroxylicious.proxy.filter.ResponseHeaderAndApiMessage;
 import io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage;
 import io.kroxylicious.proxy.internal.filter.FetchResponseTransformationFilter.FetchResponseTransformationConfig;
 
@@ -150,7 +149,7 @@ class FetchResponseTransformationFilterTest {
         metadataResponse.topics().add(new MetadataResponseData.MetadataResponseTopic().setTopicId(TOPIC_ID).setName(TOPIC_NAME));
 
         when(context.sendRequest(isA(RequestHeaderData.class), isA(MetadataRequestData.class)))
-                .thenReturn(CompletableFuture.completedStage(new ResponseHeaderAndApiMessage<>(new ResponseHeaderData(), metadataResponse)));
+                .thenReturn(CompletableFuture.completedStage(metadataResponse));
 
         var stage = filter.onFetchResponse(fetchResponse.apiKey(), new ResponseHeaderData(), fetchResponse, context);
         assertThat(stage).isCompleted();
