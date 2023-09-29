@@ -10,16 +10,10 @@ import io.kroxylicious.proxy.filter.FilterCreationContext;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.sample.config.SampleFilterConfig;
 
-public class SampleProduceRequestFilterFactory implements FilterFactory<SampleProduceRequestFilter, SampleFilterConfig> {
+public class SampleProduceRequestFilterFactory extends FilterFactory<SampleProduceRequestFilter, SampleFilterConfig> {
 
-    @Override
-    public Class<SampleProduceRequestFilter> filterType() {
-        return SampleProduceRequestFilter.class;
-    }
-
-    @Override
-    public Class<SampleFilterConfig> configType() {
-        return SampleFilterConfig.class;
+    public SampleProduceRequestFilterFactory() {
+        super(SampleFilterConfig.class, SampleProduceRequestFilter.class);
     }
 
     @Override

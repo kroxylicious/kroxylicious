@@ -8,16 +8,10 @@ package io.kroxylicious.proxy.filter;
 
 import io.kroxylicious.proxy.filter.RejectingCreateTopicFilter.RejectingCreateTopicFilterConfig;
 
-public class RejectingCreateTopicFilterFactory implements FilterFactory<RejectingCreateTopicFilter, RejectingCreateTopicFilterConfig> {
+public class RejectingCreateTopicFilterFactory extends FilterFactory<RejectingCreateTopicFilter, RejectingCreateTopicFilterConfig> {
 
-    @Override
-    public Class<RejectingCreateTopicFilter> filterType() {
-        return RejectingCreateTopicFilter.class;
-    }
-
-    @Override
-    public Class<RejectingCreateTopicFilterConfig> configType() {
-        return RejectingCreateTopicFilterConfig.class;
+    public RejectingCreateTopicFilterFactory() {
+        super(RejectingCreateTopicFilterConfig.class, RejectingCreateTopicFilter.class);
     }
 
     @Override

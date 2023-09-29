@@ -6,25 +6,13 @@
 
 package io.kroxylicious.proxy.internal.filter;
 
-import org.jetbrains.annotations.NotNull;
-
 import io.kroxylicious.proxy.filter.FilterCreationContext;
 import io.kroxylicious.proxy.filter.FilterFactory;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
+public class OptionalConfigFactory extends FilterFactory<OptionalConfigFilter, ExampleConfig> {
 
-public class OptionalConfigFactory implements FilterFactory<OptionalConfigFilter, ExampleConfig> {
-
-    @NotNull
-    @Override
-    public Class<OptionalConfigFilter> filterType() {
-        return OptionalConfigFilter.class;
-    }
-
-    @NonNull
-    @Override
-    public Class<ExampleConfig> configType() {
-        return ExampleConfig.class;
+    public OptionalConfigFactory() {
+        super(ExampleConfig.class, OptionalConfigFilter.class);
     }
 
     @Override

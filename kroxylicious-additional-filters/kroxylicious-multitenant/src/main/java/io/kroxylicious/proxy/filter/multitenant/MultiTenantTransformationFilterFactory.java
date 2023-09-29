@@ -9,16 +9,10 @@ package io.kroxylicious.proxy.filter.multitenant;
 import io.kroxylicious.proxy.filter.FilterCreationContext;
 import io.kroxylicious.proxy.filter.FilterFactory;
 
-public class MultiTenantTransformationFilterFactory implements FilterFactory<MultiTenantTransformationFilter, Void> {
+public class MultiTenantTransformationFilterFactory extends FilterFactory<MultiTenantTransformationFilter, Void> {
 
-    @Override
-    public Class<MultiTenantTransformationFilter> filterType() {
-        return MultiTenantTransformationFilter.class;
-    }
-
-    @Override
-    public Class<Void> configType() {
-        return Void.class;
+    public MultiTenantTransformationFilterFactory() {
+        super(Void.class, MultiTenantTransformationFilter.class);
     }
 
     @Override

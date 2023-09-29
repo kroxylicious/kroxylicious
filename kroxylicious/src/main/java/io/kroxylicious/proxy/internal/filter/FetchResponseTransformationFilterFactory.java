@@ -10,20 +10,11 @@ import io.kroxylicious.proxy.filter.FilterCreationContext;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.internal.filter.FetchResponseTransformationFilter.FetchResponseTransformationConfig;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 public class FetchResponseTransformationFilterFactory
-        implements FilterFactory<FetchResponseTransformationFilter, FetchResponseTransformationConfig> {
+        extends FilterFactory<FetchResponseTransformationFilter, FetchResponseTransformationConfig> {
 
-    @NonNull
-    @Override
-    public Class<FetchResponseTransformationFilter> filterType() {
-        return FetchResponseTransformationFilter.class;
-    }
-
-    @Override
-    public Class<FetchResponseTransformationConfig> configType() {
-        return FetchResponseTransformationConfig.class;
+    public FetchResponseTransformationFilterFactory() {
+        super(FetchResponseTransformationConfig.class, FetchResponseTransformationFilter.class);
     }
 
     @Override

@@ -5,6 +5,8 @@
  */
 package io.kroxylicious.proxy.filter;
 
+import java.util.Objects;
+
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
@@ -12,13 +14,28 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * @param <F> the {@code Filter} type.
  * @param <C> the type of configuration used to create the {@code Filter}. Use {@link Void} if the {@code Filter} is not configurable.
  */
-public interface FilterFactory<F extends Filter, C> {
+public abstract class FilterFactory<F extends Filter, C> {
+
+    private final Class<C> configType;
+    private final Class<F> filterType;
+
+    /**
+     * Constructor
+     * @param configType The concrete class of {@code Filter} this factory {@linkplain #createFilter(FilterCreationContext, C) creates}.
+     * @param filterType The type of configuration this factory requires.
+     * Use {@code Void.class} if the factory does not support configuration.
+     */
+    public FilterFactory(Class<C> configType, Class<F> filterType) {
+        this.configType = Objects.requireNonNull(configType);
+        this.filterType = Objects.requireNonNull(filterType);
+    }
 
     /**
      * @return The concrete class of {@code Filter} this factory {@linkplain #createFilter(FilterCreationContext, C) creates}.
      */
-    @NonNull
-    Class<F> filterType();
+    public final Class<F> filterType() {
+        return filterType;
+    }
 
     /**
      * The type of configuration used to create the {@code Filter}.
@@ -28,8 +45,9 @@ public interface FilterFactory<F extends Filter, C> {
      *
      * @return type of config expected by the Filter.
      */
-    @NonNull
-    Class<C> configType();
+    public final Class<C> configType() {
+        return configType;
+    }
 
     /**
      * Validates the configuration.
@@ -41,7 +59,7 @@ public interface FilterFactory<F extends Filter, C> {
      * @param config configuration
      * @throws InvalidFilterConfigurationException when the configuration is invalid
      */
-    default void validateConfiguration(C config) {
+    public void validateConfiguration(C config) {
         boolean requiresConfiguration = configType() != Void.class;
         if (requiresConfiguration && config == null) {
             throw new InvalidFilterConfigurationException(filterType().getSimpleName() + " requires configuration, but config object is null");
@@ -56,6 +74,6 @@ public interface FilterFactory<F extends Filter, C> {
      * @return the Filter instance.
      */
     @NonNull
-    F createFilter(FilterCreationContext context, C configuration);
+    public abstract F createFilter(FilterCreationContext context, C configuration);
 
 }

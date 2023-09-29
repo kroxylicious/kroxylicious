@@ -9,16 +9,10 @@ package io.kroxylicious.proxy.filter;
 import io.kroxylicious.proxy.filter.CompositePrefixingFixedClientIdFilter.CompositePrefixingFixedClientIdFilterConfig;
 
 public class CompositePrefixingFixedClientIdFilterFactory
-        implements FilterFactory<CompositePrefixingFixedClientIdFilter, CompositePrefixingFixedClientIdFilterConfig> {
+        extends FilterFactory<CompositePrefixingFixedClientIdFilter, CompositePrefixingFixedClientIdFilterConfig> {
 
-    @Override
-    public Class<CompositePrefixingFixedClientIdFilter> filterType() {
-        return CompositePrefixingFixedClientIdFilter.class;
-    }
-
-    @Override
-    public Class<CompositePrefixingFixedClientIdFilterConfig> configType() {
-        return CompositePrefixingFixedClientIdFilterConfig.class;
+    public CompositePrefixingFixedClientIdFilterFactory() {
+        super(CompositePrefixingFixedClientIdFilterConfig.class, CompositePrefixingFixedClientIdFilter.class);
     }
 
     @Override

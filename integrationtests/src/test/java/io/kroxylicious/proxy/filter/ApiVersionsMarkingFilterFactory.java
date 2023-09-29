@@ -6,16 +6,10 @@
 
 package io.kroxylicious.proxy.filter;
 
-public class ApiVersionsMarkingFilterFactory implements FilterFactory<ApiVersionsMarkingFilter, Void> {
+public class ApiVersionsMarkingFilterFactory extends FilterFactory<ApiVersionsMarkingFilter, Void> {
 
-    @Override
-    public Class<ApiVersionsMarkingFilter> filterType() {
-        return ApiVersionsMarkingFilter.class;
-    }
-
-    @Override
-    public Class<Void> configType() {
-        return Void.class;
+    public ApiVersionsMarkingFilterFactory() {
+        super(Void.class, ApiVersionsMarkingFilter.class);
     }
 
     @Override

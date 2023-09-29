@@ -8,16 +8,10 @@ package io.kroxylicious.proxy.filter;
 
 import io.kroxylicious.proxy.filter.OutOfBandSendFilter.OutOfBandSendFilterConfig;
 
-public class OutOfBandSendFilterFactory implements FilterFactory<OutOfBandSendFilter, OutOfBandSendFilterConfig> {
+public class OutOfBandSendFilterFactory extends FilterFactory<OutOfBandSendFilter, OutOfBandSendFilterConfig> {
 
-    @Override
-    public Class<OutOfBandSendFilter> filterType() {
-        return OutOfBandSendFilter.class;
-    }
-
-    @Override
-    public Class<OutOfBandSendFilterConfig> configType() {
-        return OutOfBandSendFilterConfig.class;
+    public OutOfBandSendFilterFactory() {
+        super(OutOfBandSendFilterConfig.class, OutOfBandSendFilter.class);
     }
 
     @Override

@@ -10,20 +10,15 @@ import io.kroxylicious.proxy.filter.FilterCreationContext;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.sample.config.SampleFilterConfig;
 
-public class SampleFetchResponseFilterFactory implements FilterFactory<SampleFetchResponseFilter, SampleFilterConfig> {
+public class SampleFetchResponseFilterFactory extends FilterFactory<SampleFetchResponseFilter, SampleFilterConfig> {
+
+    public SampleFetchResponseFilterFactory() {
+        super(SampleFilterConfig.class, SampleFetchResponseFilter.class);
+    }
 
     @Override
     public SampleFetchResponseFilter createFilter(FilterCreationContext context, SampleFilterConfig configuration) {
         return new SampleFetchResponseFilter(configuration);
     }
 
-    @Override
-    public Class<SampleFetchResponseFilter> filterType() {
-        return SampleFetchResponseFilter.class;
-    }
-
-    @Override
-    public Class<SampleFilterConfig> configType() {
-        return SampleFilterConfig.class;
-    }
 }

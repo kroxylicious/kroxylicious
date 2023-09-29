@@ -10,20 +10,11 @@ import io.kroxylicious.proxy.filter.FilterCreationContext;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.internal.filter.ProduceRequestTransformationFilter.ProduceRequestTransformationConfig;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 public class ProduceRequestTransformationFilterFactory
-        implements FilterFactory<ProduceRequestTransformationFilter, ProduceRequestTransformationConfig> {
+        extends FilterFactory<ProduceRequestTransformationFilter, ProduceRequestTransformationConfig> {
 
-    @NonNull
-    @Override
-    public Class<ProduceRequestTransformationFilter> filterType() {
-        return ProduceRequestTransformationFilter.class;
-    }
-
-    @Override
-    public Class<ProduceRequestTransformationConfig> configType() {
-        return ProduceRequestTransformationConfig.class;
+    public ProduceRequestTransformationFilterFactory() {
+        super(ProduceRequestTransformationConfig.class, ProduceRequestTransformationFilter.class);
     }
 
     @Override

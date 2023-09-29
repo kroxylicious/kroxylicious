@@ -11,16 +11,10 @@ import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.schema.config.ValidationConfig;
 import io.kroxylicious.proxy.filter.schema.validation.request.ProduceRequestValidator;
 
-public class ProduceValidationFilterFactory implements FilterFactory<ProduceValidationFilter, ValidationConfig> {
+public class ProduceValidationFilterFactory extends FilterFactory<ProduceValidationFilter, ValidationConfig> {
 
-    @Override
-    public Class<ProduceValidationFilter> filterType() {
-        return ProduceValidationFilter.class;
-    }
-
-    @Override
-    public Class<ValidationConfig> configType() {
-        return ValidationConfig.class;
+    public ProduceValidationFilterFactory() {
+        super(ValidationConfig.class, ProduceValidationFilter.class);
     }
 
     @Override

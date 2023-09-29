@@ -8,16 +8,10 @@ package io.kroxylicious.proxy.filter;
 
 import io.kroxylicious.proxy.filter.FixedClientIdFilter.FixedClientIdFilterConfig;
 
-public class FixedClientIdFilterFactory implements FilterFactory<FixedClientIdFilter, FixedClientIdFilterConfig> {
+public class FixedClientIdFilterFactory extends FilterFactory<FixedClientIdFilter, FixedClientIdFilterConfig> {
 
-    @Override
-    public Class<FixedClientIdFilter> filterType() {
-        return FixedClientIdFilter.class;
-    }
-
-    @Override
-    public Class<FixedClientIdFilterConfig> configType() {
-        return FixedClientIdFilterConfig.class;
+    public FixedClientIdFilterFactory() {
+        super(FixedClientIdFilterConfig.class, FixedClientIdFilter.class);
     }
 
     @Override
