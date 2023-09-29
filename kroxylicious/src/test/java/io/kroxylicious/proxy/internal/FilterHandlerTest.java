@@ -663,7 +663,33 @@ class FilterHandlerTest extends FilterHarness {
         buildChannel(filter);
 
         // trigger filter
-        var requestFrame = writeRequest(new ApiVersionsRequestData());
+        writeRequest(new ApiVersionsRequestData());
+
+        // verify filter has not sent the send request.
+        InternalRequestFrame<?> propagatedOobRequest = channel.readOutbound();
+        assertThat(propagatedOobRequest).isNull();
+
+        // verify that the filter has propagated nothing
+        var propagated = channel.readInbound();
+        assertThat(propagated).isNull();
+        assertThat(channel.isOpen()).isFalse();
+    }
+
+    @Test
+    void sendRequestRejectsRequestVersionThatIsOutOfRange() {
+        var oobRequest = new FetchRequestData();
+        RequestHeaderData oobRequestHeader = new RequestHeaderData().setRequestApiVersion((short) (oobRequest.highestSupportedVersion() + 1));
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> {
+            assertThatThrownBy(() -> {
+                context.sendRequest(oobRequestHeader, oobRequest);
+            }).isInstanceOf(IllegalArgumentException.class);
+            return null;
+        };
+
+        buildChannel(filter);
+
+        // trigger filter
+        writeRequest(new ApiVersionsRequestData());
 
         // verify filter has not sent the send request.
         InternalRequestFrame<?> propagatedOobRequest = channel.readOutbound();

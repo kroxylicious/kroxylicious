@@ -496,6 +496,11 @@ public class FilterHandler extends ChannelDuplexHandler {
             header.setRequestApiKey(apiKey.id);
             header.setCorrelationId(-1);
 
+            if (!apiKey.isVersionSupported(header.requestApiVersion())) {
+                throw new IllegalArgumentException("apiKey %s does not support version %d. the supported version range for this api key is %d...%d (inclusive)."
+                        .formatted(apiKey, header.requestApiVersion(), apiKey.oldestVersion(), apiKey.latestVersion()));
+            }
+
             var hasResponse = apiKey != ApiKeys.PRODUCE || ((ProduceRequestData) request).acks() != 0;
             var filterPromise = new InternalCompletableFuture<M>(ctx.executor());
             var frame = new InternalRequestFrame<>(
