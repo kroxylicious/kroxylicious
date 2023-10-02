@@ -633,7 +633,7 @@ class FilterHandlerTest extends FilterHarness {
         // verify oob request response future is in the expected state
         assertThat(snoopedOobRequestResponseStage).isNotNull();
         var snoopedOobRequestResponseFuture = toCompletableFuture(snoopedOobRequestResponseStage.get());
-        assertThat(snoopedOobRequestResponseFuture).withFailMessage("out-of-band request response future in wrong state").isNotDone();
+        assertThat(snoopedOobRequestResponseFuture).withFailMessage("out-of-band request response future was expected to be pending but it is done.").isNotDone();
 
         // mimic the broker sending the oob response
         var responseFrame = writeInternalResponse(propagatedOobRequest.header().correlationId(), new FetchResponseData());
