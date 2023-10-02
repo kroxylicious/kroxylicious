@@ -6,7 +6,8 @@ Please enumerate **all user-facing** changes using format `<githib issue/pr numb
 
 ## 0.3.0
 
-* [#518](https://github.com/kroxylicious/kroxylicious/issues/518): #sendRequest ought to accept request header.
+* [#648](https://github.com/kroxylicious/kroxylicious/pull/648): Bump io.sundr:builder-annotations from 0.100.3 to 0.101.0
+* [#518](https://github.com/kroxylicious/kroxylicious/issues/518): [Breaking] #sendRequest ought to accept request header.
 * [#623](https://github.com/kroxylicious/kroxylicious/pull/623): [Breaking] Refactor how Filters are Created
 * [#633](https://github.com/kroxylicious/kroxylicious/pull/633): Address missing exception handling in FetchResponseTransformationFilter (and add unit tests)
 * [#537](https://github.com/kroxylicious/kroxylicious/issues/537): Computation stages chained to the CompletionStage return by #sendRequest using the default executor async methods now run on the Netty Event Loop.
