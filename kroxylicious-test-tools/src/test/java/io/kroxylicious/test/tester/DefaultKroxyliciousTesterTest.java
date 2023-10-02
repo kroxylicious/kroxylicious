@@ -7,6 +7,9 @@
 package io.kroxylicious.test.tester;
 
 import org.apache.kafka.clients.admin.Admin;
+import org.apache.kafka.clients.consumer.MockConsumer;
+import org.apache.kafka.clients.consumer.OffsetResetStrategy;
+import org.apache.kafka.clients.producer.MockProducer;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -15,7 +18,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
-import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -23,13 +25,16 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-@ExtendWith({ KafkaClusterExtension.class, MockitoExtension.class })
+@ExtendWith(MockitoExtension.class)
 class DefaultKroxyliciousTesterTest {
+
+    @Mock
+    KafkaCluster backingCluster;
 
     @Mock
     DefaultKroxyliciousTester.ClientFactory clientFactory;
 
-    @Mock
+    @Mock(strictness = Mock.Strictness.LENIENT)
     KroxyliciousClients kroxyliciousClients;
 
     @Mock
@@ -41,6 +46,7 @@ class DefaultKroxyliciousTesterTest {
 
     @BeforeEach
     void setUp() {
+        when(backingCluster.getBootstrapServers()).thenReturn("broker01.example.com:9090");
         when(clientFactory.build(anyString(), anyString())).thenReturn(kroxyliciousClients);
         when(kroxyliciousClients.admin()).thenReturn(admin);
         when(kroxyliciousClients.producer()).thenReturn(producer);
@@ -49,7 +55,7 @@ class DefaultKroxyliciousTesterTest {
 
     @SuppressWarnings("resource")
     @Test
-    void shouldCreateAdminForVirtualCluster(KafkaCluster backingCluster) {
+    void shouldCreateAdminForVirtualCluster() {
         // Given
         try (var tester = buildTester(backingCluster)) {
 
@@ -57,7 +63,7 @@ class DefaultKroxyliciousTesterTest {
             tester.admin("demo");
 
             // Then
-            //In theory the bootstrap address is predicable but asserting it is  not part of this test
+            // In theory the bootstrap address is predicable but asserting it is not part of this test
             verify(clientFactory).build(eq("demo"), anyString());
             verify(kroxyliciousClients).admin();
         }
@@ -65,7 +71,7 @@ class DefaultKroxyliciousTesterTest {
 
     @SuppressWarnings("resource")
     @Test
-    void shouldCreateAdminForDefaultVirtualCluster(KafkaCluster backingCluster) {
+    void shouldCreateAdminForDefaultVirtualCluster() {
         // Given
         try (var tester = buildTester(backingCluster)) {
 
@@ -73,7 +79,7 @@ class DefaultKroxyliciousTesterTest {
             tester.admin();
 
             // Then
-            //In theory the bootstrap address is predicable but asserting it is  not part of this test
+            // In theory the bootstrap address is predicable but asserting it is not part of this test
             verify(clientFactory).build(eq("demo"), anyString());
             verify(kroxyliciousClients).admin();
         }
@@ -81,7 +87,7 @@ class DefaultKroxyliciousTesterTest {
 
     @SuppressWarnings("resource")
     @Test
-    void shouldCreateProducerForVirtualCluster(KafkaCluster backingCluster) {
+    void shouldCreateProducerForVirtualCluster() {
         // Given
         try (var tester = buildTester(backingCluster)) {
 
@@ -89,7 +95,7 @@ class DefaultKroxyliciousTesterTest {
             tester.producer("demo");
 
             // Then
-            //In theory the bootstrap address is predicable but asserting it is  not part of this test
+            // In theory the bootstrap address is predicable but asserting it is not part of this test
             verify(clientFactory).build(eq("demo"), anyString());
             verify(kroxyliciousClients).producer();
         }
@@ -97,7 +103,7 @@ class DefaultKroxyliciousTesterTest {
 
     @SuppressWarnings("resource")
     @Test
-    void shouldCreateProducerForDefaultVirtualCluster(KafkaCluster backingCluster) {
+    void shouldCreateProducerForDefaultVirtualCluster() {
         // Given
         try (var tester = buildTester(backingCluster)) {
 
@@ -105,7 +111,7 @@ class DefaultKroxyliciousTesterTest {
             tester.producer();
 
             // Then
-            //In theory the bootstrap address is predicable but asserting it is  not part of this test
+            // In theory the bootstrap address is predicable but asserting it is not part of this test
             verify(clientFactory).build(eq("demo"), anyString());
             verify(kroxyliciousClients).producer();
         }
@@ -113,7 +119,7 @@ class DefaultKroxyliciousTesterTest {
 
     @SuppressWarnings("resource")
     @Test
-    void shouldCreateConsumerForVirtualCluster(KafkaCluster backingCluster) {
+    void shouldCreateConsumerForVirtualCluster() {
         // Given
         try (var tester = buildTester(backingCluster)) {
 
@@ -121,7 +127,7 @@ class DefaultKroxyliciousTesterTest {
             tester.consumer("demo");
 
             // Then
-            //In theory the bootstrap address is predicable but asserting it is  not part of this test
+            // In theory the bootstrap address is predicable but asserting it is not part of this test
             verify(clientFactory).build(eq("demo"), anyString());
             verify(kroxyliciousClients).consumer();
         }
@@ -129,7 +135,7 @@ class DefaultKroxyliciousTesterTest {
 
     @SuppressWarnings("resource")
     @Test
-    void shouldCreateConsumerForDefaultVirtualCluster(KafkaCluster backingCluster) {
+    void shouldCreateConsumerForDefaultVirtualCluster() {
         // Given
         try (var tester = buildTester(backingCluster)) {
 
@@ -137,7 +143,7 @@ class DefaultKroxyliciousTesterTest {
             tester.consumer();
 
             // Then
-            //In theory the bootstrap address is predicable but asserting it is  not part of this test
+            // In theory the bootstrap address is predicable but asserting it is not part of this test
             verify(clientFactory).build(eq("demo"), anyString());
             verify(kroxyliciousClients).consumer();
         }
