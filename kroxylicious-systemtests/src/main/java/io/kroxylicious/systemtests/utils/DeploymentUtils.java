@@ -48,6 +48,13 @@ public class DeploymentUtils {
         LOGGER.info("Deployment: {}/{} is ready", namespaceName, deploymentName);
     }
 
+    /**
+     * Wait for pod to be ready by label.
+     *
+     * @param namespaceName the namespace name
+     * @param labelKey the label key
+     * @param labelValue the label value
+     */
     public static void waitForPodToBeReadyByLabel(String namespaceName, String labelKey, String labelValue) {
         LOGGER.info("Waiting for Pods: {}/{} to be ready", namespaceName, labelValue);
         TestUtils.waitFor("readiness of Pod: " + namespaceName + "/" + labelValue,

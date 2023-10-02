@@ -15,10 +15,22 @@ import io.kroxylicious.systemtests.Constants;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 
+/**
+ * The type Kafka utils.
+ */
 public class KafkaUtils {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaUtils.class);
 
+    /**
+     * Consume message string.
+     *
+     * @param deployNamespace the deploy namespace
+     * @param topicName the topic name
+     * @param bootstrap the bootstrap
+     * @param timeoutMilliseconds the timeout milliseconds
+     * @return the string
+     */
     public static String ConsumeMessage(String deployNamespace, String topicName, String bootstrap, int timeoutMilliseconds) {
         LOGGER.debug("Consuming messages from '{}' topic", topicName);
 
@@ -48,6 +60,14 @@ public class KafkaUtils {
         return log;
     }
 
+    /**
+     * Produce message.
+     *
+     * @param deployNamespace the deploy namespace
+     * @param topicName the topic name
+     * @param message the message
+     * @param bootstrap the bootstrap
+     */
     public static void ProduceMessage(String deployNamespace, String topicName, String message, String bootstrap) {
         kubeClient().getClient().run().inNamespace(deployNamespace).withNewRunConfig()
                 .withImage(Constants.STRIMZI_KAFKA_IMAGE)

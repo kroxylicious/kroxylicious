@@ -16,9 +16,17 @@ import io.kroxylicious.systemtests.utils.KafkaUtils;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+/**
+ * The type Acceptance st.
+ */
 public class AcceptanceST extends AbstractST {
     private static final Logger LOGGER = LoggerFactory.getLogger(AcceptanceST.class);
 
+    /**
+     * Produce and consume message.
+     *
+     * @param testInfo the test info
+     */
     @Test
     public void produceAndConsumeMessage(TestInfo testInfo) {
         String topicName = "my-topic";

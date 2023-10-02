@@ -37,6 +37,7 @@ public class Strimzi {
 
     /**
      * Deploy.
+     * @throws IOException the io exception
      */
     public void deploy() throws IOException {
         LOGGER.info("Deploy Strimzi in {} namespace", deploymentNamespace);
@@ -48,6 +49,7 @@ public class Strimzi {
 
     /**
      * Delete.
+     * @throws IOException the io exception
      */
     public void delete() throws IOException {
         LOGGER.info("Deleting Strimzi in {} namespace", deploymentNamespace);
