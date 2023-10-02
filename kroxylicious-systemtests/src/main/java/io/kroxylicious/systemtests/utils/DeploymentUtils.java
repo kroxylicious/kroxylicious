@@ -86,14 +86,14 @@ public class DeploymentUtils {
      * @throws IOException the io exception
      */
     public static FileInputStream getDeploymentFileFromURL(String url) throws IOException {
-        String deploymentFile = "deploy.yaml";
+        String deploymentFile = "/tmp/deploy.yaml";
         File file = new File(deploymentFile);
-        file.delete();
         FileUtils.copyURLToFile(
                 new URL(url),
                 file,
                 2000,
                 5000);
+        file.deleteOnExit();
 
         return new FileInputStream(deploymentFile);
     }

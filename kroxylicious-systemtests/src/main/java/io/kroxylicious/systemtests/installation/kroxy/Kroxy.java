@@ -50,7 +50,7 @@ public class Kroxy {
         this.deploymentNamespace = deploymentNamespace;
         this.sampleDir = sampleDir;
         kustomizeTmpdir = Files.createTempDirectory(Paths.get("/tmp"), "kustomize", PosixFilePermissions.asFileAttribute(
-                PosixFilePermissions.fromString("rwx------")));
+                PosixFilePermissions.fromString("rwxr--r--")));
     }
 
     /**

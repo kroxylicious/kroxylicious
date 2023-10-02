@@ -27,7 +27,7 @@ public class TestUtils {
 
     /**
      * Poll the given {@code ready} function every {@code pollIntervalMs} milliseconds until it returns true,
-     * or throw a WaitException if it doesn't returns true within {@code timeoutMs} milliseconds.
+     * or throw a WaitException if it doesn't return true within {@code timeoutMs} milliseconds.
      * @param description the description
      * @param pollIntervalMs the poll interval ms
      * @param timeoutMs the timeout ms

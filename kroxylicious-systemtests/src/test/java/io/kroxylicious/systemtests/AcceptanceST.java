@@ -6,14 +6,11 @@
 
 package io.kroxylicious.systemtests;
 
-import java.io.IOException;
-
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.kroxylicious.systemtests.executor.ExecResult;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaTopicTemplates;
 import io.kroxylicious.systemtests.utils.KafkaUtils;
 
@@ -23,7 +20,7 @@ public class AcceptanceST extends AbstractST {
     private static final Logger LOGGER = LoggerFactory.getLogger(AcceptanceST.class);
 
     @Test
-    public void produceAndConsumeMessage(TestInfo testInfo) throws IOException {
+    public void produceAndConsumeMessage(TestInfo testInfo) {
         String topicName = "my-topic";
         String message = "Hello, world!";
 
@@ -31,11 +28,12 @@ public class AcceptanceST extends AbstractST {
         resourceManager.createResourceWithWait(testInfo, KafkaTopicTemplates.defaultTopic(Constants.KROXY_DEFAULT_NAMESPACE, "my-cluster", topicName, 1, 1, 1).build());
 
         LOGGER.info("When the message '{}' is sent to the topic '{}'", message, topicName);
-        KafkaUtils.ProduceMessage(topicName, message);
-        ExecResult result = KafkaUtils.ConsumeMessage(topicName, 10000);
+        KafkaUtils.ProduceMessage(Constants.KROXY_DEFAULT_NAMESPACE, topicName, message, Constants.KROXY_BOOTSTRAP);
+        String result = KafkaUtils.ConsumeMessage(Constants.KROXY_DEFAULT_NAMESPACE, topicName, Constants.KROXY_BOOTSTRAP, 20000);
 
         LOGGER.info("Then the message is consumed");
-        assertTrue(result.out().contains(message), "'" + message + "' message not consumed!");
+        LOGGER.info("Received: " + result);
+        assertTrue(result.contains(message), "'" + message + "' message not consumed!");
     }
 
     // @BeforeAll

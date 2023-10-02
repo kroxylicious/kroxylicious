@@ -30,7 +30,7 @@ public class Strimzi {
      * @param deploymentNamespace the deployment namespace
      * @throws IOException the io exception
      */
-    public Strimzi(String deploymentNamespace) {
+    public Strimzi(String deploymentNamespace) throws IOException {
         this.deploymentNamespace = deploymentNamespace;
         installationUrl = "https://strimzi.io/install/latest?namespace=" + deploymentNamespace;
     }
