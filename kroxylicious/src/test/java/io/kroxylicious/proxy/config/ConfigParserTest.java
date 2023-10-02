@@ -45,7 +45,7 @@ class ConfigParserTest {
                             targetCluster:
                               bootstrap_servers: kafka.example:1234
                             clusterNetworkAddressConfigProvider:
-                              type: PortPerBroker
+                              type: PortPerBrokerClusterNetworkAddressConfigProvider
                               config:
                                 bootstrapAddress: cluster1:9192
                                 numberOfBrokerPorts: 1
@@ -58,7 +58,7 @@ class ConfigParserTest {
                             targetCluster:
                               bootstrap_servers: kafka.example:1234
                             clusterNetworkAddressConfigProvider:
-                              type: SniRouting
+                              type: SniRoutingClusterNetworkAddressConfigProvider
                               config:
                                 bootstrapAddress: cluster1:9192
                                 brokerAddressPattern: broker-$(nodeId)
@@ -81,14 +81,14 @@ class ConfigParserTest {
                                    password: password
                                  storeType: JKS
                             clusterNetworkAddressConfigProvider:
-                              type: SniRouting
+                              type: SniRoutingClusterNetworkAddressConfigProvider
                               config:
                                 bootstrapAddress: cluster1:9192
                                 brokerAddressPattern: broker-$(nodeId)
                         """),
                 Arguments.of("Filters", """
                         filters:
-                        - type: ProduceRequestTransformation
+                        - type: ProduceRequestTransformationFilter
                           config:
                             transformation: io.kroxylicious.proxy.internal.filter.ProduceRequestTransformationFilter$UpperCasing
                         """),
@@ -100,7 +100,7 @@ class ConfigParserTest {
                         """),
                 Arguments.of("Micrometer", """
                         micrometer:
-                        - type: CommonTags
+                        - type: CommonTagsHook
                           config:
                             commonTags:
                               zone: "euc-1a"
@@ -144,7 +144,7 @@ class ConfigParserTest {
         assertThat(cluster.targetCluster().bootstrapServers()).isEqualTo("localhost:9092");
         ClusterNetworkAddressConfigProviderDefinition provider = cluster.clusterNetworkAddressConfigProvider();
         assertThat(provider).isNotNull();
-        assertThat(provider.type()).isEqualTo("PortPerBroker");
+        assertThat(provider.type()).isEqualTo("PortPerBrokerClusterNetworkAddressConfigProvider");
         assertThat(provider.config()).isInstanceOf(PortPerBrokerClusterNetworkAddressConfigProviderConfig.class);
         assertThat(((PortPerBrokerClusterNetworkAddressConfigProviderConfig) provider.config()).getBootstrapAddress()).isEqualTo(HostPort.parse("localhost:9192"));
     }
@@ -177,7 +177,7 @@ class ConfigParserTest {
                     targetCluster:
                       bootstrap_servers: kafka.example:1234
                     clusterNetworkAddressConfigProvider:
-                      type: PortPerBroker
+                      type: PortPerBrokerClusterNetworkAddressConfigProvider
                       config:
                         bootstrapAddress: cluster1:9192
                         numberOfBrokerPorts: 1
@@ -202,7 +202,7 @@ class ConfigParserTest {
                     targetCluster:
                       bootstrap_servers: kafka.example:1234
                     clusterNetworkAddressConfigProvider:
-                      type: PortPerBroker
+                      type: PortPerBrokerClusterNetworkAddressConfigProvider
                       config:
                         bootstrapAddress: cluster1:9192
                         numberOfBrokerPorts: 1
@@ -212,7 +212,7 @@ class ConfigParserTest {
                     targetCluster:
                       bootstrap_servers: magic-kafka.example:1234
                     clusterNetworkAddressConfigProvider:
-                      type: PortPerBroker
+                      type: PortPerBrokerClusterNetworkAddressConfigProvider
                       config:
                         bootstrapAddress: cluster2:9193
                         numberOfBrokerPorts: 1

@@ -1,0 +1,6 @@
+io.kroxylicious.proxy.filter.FixedClientIdFilterFactory
+io.kroxylicious.proxy.filter.ApiVersionsMarkingFilterFactory
+io.kroxylicious.proxy.filter.RequestResponseMarkingFilterFactory
+io.kroxylicious.proxy.filter.OutOfBandSendFilterFactory
+io.kroxylicious.proxy.filter.CompositePrefixingFixedClientIdFilterFactory
+io.kroxylicious.proxy.filter.RejectingCreateTopicFilterFactory

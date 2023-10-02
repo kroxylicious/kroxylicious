@@ -37,7 +37,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import io.kroxylicious.proxy.filter.FilterContext;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.anyShort;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.verify;
@@ -86,18 +85,19 @@ class EagerMetadataLearnerTest {
         metadataResponse.brokers().add(new MetadataResponseData.MetadataResponseBroker().setNodeId(1).setHost("localhost").setPort(1234));
 
         when(context.requestFilterResultBuilder()).thenReturn(new RequestFilterResultBuilderImpl());
-        when(context.sendRequest(anyShort(), isA(MetadataRequestData.class))).thenReturn(CompletableFuture.completedStage(metadataResponse));
+        when(context.sendRequest(isA(RequestHeaderData.class), isA(MetadataRequestData.class)))
+                .thenReturn(CompletableFuture.completedStage(metadataResponse));
         var stage = learner.onRequest(apiKey, header, request, context);
         assertThat(stage).isCompleted();
         var result = stage.toCompletableFuture().get();
 
         if (apiKey == ApiKeys.METADATA) {
             // if caller's request is a metadata request, then the filter must forward it with fidelity
-            verify(context).sendRequest(eq(header.requestApiVersion()), eq(request));
+            verify(context).sendRequest(header, request);
             assertThat(result.message()).isEqualTo(metadataResponse);
         }
         else {
-            verify(context).sendRequest(anyShort(), isA(MetadataRequestData.class));
+            verify(context).sendRequest(eq(new RequestHeaderData().setRequestApiVersion(MetadataRequestData.LOWEST_SUPPORTED_VERSION)), isA(MetadataRequestData.class));
         }
         assertThat(result.closeConnection()).isTrue();
     }

@@ -12,14 +12,12 @@ import java.util.Objects;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import io.kroxylicious.proxy.config.BaseConfig;
-
 /**
  * Configuration for Produce Request validation. Contains a description of the rules for validating
  * the data for all topic-partitions with a ProduceRequest and how to handle partial failures (where
  * some topic-partitions are valid and others are invalid within a single ProduceRequest)
  */
-public class ValidationConfig extends BaseConfig {
+public class ValidationConfig {
 
     /**
      * If this is enabled then the proxy will (for non-transactional requests):

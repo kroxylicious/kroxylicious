@@ -59,10 +59,18 @@ public final class HostPort {
         return host + ":" + port;
     }
 
+    /**
+     * host
+     * @return host
+     */
     public String host() {
         return host;
     }
 
+    /**
+     * port
+     * @return port
+     */
     public int port() {
         return port;
     }

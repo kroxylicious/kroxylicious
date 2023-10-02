@@ -8,8 +8,6 @@ package io.kroxylicious.sample.config;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import io.kroxylicious.proxy.config.BaseConfig;
-
 /**
  * The Jackson configuration object for both the sample filters.<br />
  * Both filters perform the same transformation process (though on different types of messages and at
@@ -19,7 +17,7 @@ import io.kroxylicious.proxy.config.BaseConfig;
  * This configuration class accepts two String arguments: the value to be replaced, and the value it will be
  * replaced with.
  */
-public class SampleFilterConfig extends BaseConfig {
+public class SampleFilterConfig {
 
     private final String findValue;
     private final String replacementValue;

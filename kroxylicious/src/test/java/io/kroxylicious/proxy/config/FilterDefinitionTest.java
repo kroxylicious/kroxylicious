@@ -9,9 +9,9 @@ package io.kroxylicious.proxy.config;
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.proxy.internal.filter.ExampleConfig;
+import io.kroxylicious.proxy.internal.filter.OptionalConfigFilter;
+import io.kroxylicious.proxy.internal.filter.RequiresConfigFilter;
 
-import static io.kroxylicious.proxy.internal.filter.TestFilterContributor.OPTIONAL_CONFIG_FILTER;
-import static io.kroxylicious.proxy.internal.filter.TestFilterContributor.REQUIRED_CONFIG_FILTER;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class FilterDefinitionTest {
@@ -19,7 +19,7 @@ class FilterDefinitionTest {
     @Test
     void shouldFailValidationIfRequireConfigMissing() {
         // Given
-        final FilterDefinition requiredConfig = new FilterDefinition(REQUIRED_CONFIG_FILTER, null);
+        final FilterDefinition requiredConfig = new FilterDefinition(RequiresConfigFilter.class.getName(), null);
 
         // When
         final boolean actual = requiredConfig.isDefinitionValid();
@@ -31,7 +31,7 @@ class FilterDefinitionTest {
     @Test
     void shouldPassValidationIfRequireConfigSupplied() {
         // Given
-        final FilterDefinition requiredConfig = new FilterDefinition(REQUIRED_CONFIG_FILTER, new ExampleConfig());
+        final FilterDefinition requiredConfig = new FilterDefinition(RequiresConfigFilter.class.getName(), new ExampleConfig());
 
         // When
         final boolean actual = requiredConfig.isDefinitionValid();
@@ -43,7 +43,7 @@ class FilterDefinitionTest {
     @Test
     void shouldPassValidationIfOptionalConfigSupplied() {
         // Given
-        final FilterDefinition requiredConfig = new FilterDefinition(OPTIONAL_CONFIG_FILTER, new ExampleConfig());
+        final FilterDefinition requiredConfig = new FilterDefinition(OptionalConfigFilter.class.getName(), new ExampleConfig());
 
         // When
         final boolean actual = requiredConfig.isDefinitionValid();
@@ -55,7 +55,7 @@ class FilterDefinitionTest {
     @Test
     void shouldPassValidationIfOptionalConfigIsMissing() {
         // Given
-        final FilterDefinition requiredConfig = new FilterDefinition(OPTIONAL_CONFIG_FILTER, null);
+        final FilterDefinition requiredConfig = new FilterDefinition(OptionalConfigFilter.class.getName(), null);
 
         // When
         final boolean actual = requiredConfig.isDefinitionValid();

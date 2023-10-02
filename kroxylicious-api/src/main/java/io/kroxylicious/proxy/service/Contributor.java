@@ -5,48 +5,55 @@
  */
 package io.kroxylicious.proxy.service;
 
-import io.kroxylicious.proxy.config.BaseConfig;
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
- * Support loading an Instance of a service, optionally providing it with configuration obtained
- * from the Kroxylicious configuration file.
+ * Support creating an instance of a service, optionally providing it with configuration.
  *
- * @param <T> the service type
+ * @param <S> the service type
+ * @param <C> the type of config provided to the service, or {@link Void} for config-less service implementations.
+ * @param <X> the context type
  */
-public interface Contributor<T, S extends Context> {
+public interface Contributor<S, C, X extends Context<C>> {
 
     /**
-     * Identifies if this Contributor instance can create instances for the provided short name.
-     * @param typeName The type name to test for.
-     * @return <code>true</code> if the <code>typeName</code> is supported by this contributor.
-     */
-    boolean contributes(String typeName);
-
-    /**
-     * @deprecated subsumed into {@link ConfigurationDefinition} and thus {@link Contributor#getConfigDefinition(String)}
+     * The concrete type of the service this Contributor can instantiate
      *
-     * Gets the concrete type of the configuration required by this service instance.
-     * @param typeName service short name
-     *
-     * @return class of a concrete type, or null if this contributor does not offer this short name.
+     * @return type of the service this Contributor offers.
      */
-    @Deprecated(forRemoval = true, since = "0.3.0")
-    Class<? extends BaseConfig> getConfigType(String typeName);
+    @NonNull
+    Class<? extends S> getServiceType();
 
     /**
-     * Defines the configuration requirements of this contributor for the given short name.
-     * @param typeName the name of the type.
-     * @return the ConfigurationDefinition for the short name
+     * The type of config expected by the service.
+     * <br/>
+     * The type must have a constructor annotated with the JsonCreator annotation.
+     * If the service has no configuration, return {@link Void} instead.
+     *
+     * @return type of config expected by the service.
      */
-    ConfigurationDefinition getConfigDefinition(String typeName);
+    @NonNull
+    Class<C> getConfigType();
+
+    /**
+     * If requiresConfiguration returns true and getConfigType returns a non-Void
+     * type, then the framework will enforce that the config object passed to createInstance
+     * within the context is non-null. If set to false then null configuration can be passed
+     * in the context.
+     * @return true if the configuration must be non-null, false if it is allowed to be null
+     */
+    @NonNull
+    default boolean requiresConfiguration() {
+        return false;
+    }
 
     /**
      * Creates an instance of the service.
      *
-     * @param typeName service short name
      * @param context   context containing service configuration which may be null if the service instance does not accept configuration.
-     * @return the service instance, or null if this contributor does not offer this short name.
+     * @return the service instance.
      */
-    T getInstance(String typeName, S context);
+    @NonNull
+    S createInstance(X context);
 
 }

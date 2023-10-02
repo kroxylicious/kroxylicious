@@ -26,14 +26,12 @@ import io.micrometer.core.instrument.binder.system.FileDescriptorMetrics;
 import io.micrometer.core.instrument.binder.system.ProcessorMetrics;
 import io.micrometer.core.instrument.binder.system.UptimeMetrics;
 
-import io.kroxylicious.proxy.config.BaseConfig;
-
 public class StandardBindersHook implements MicrometerConfigurationHook {
     private static final Logger log = LoggerFactory.getLogger(StandardBindersHook.class);
     private final StandardBindersHookConfig config;
     private final List<AutoCloseable> closeableBinders = new CopyOnWriteArrayList<>();
 
-    public static class StandardBindersHookConfig extends BaseConfig {
+    public static class StandardBindersHookConfig {
         private final List<String> binderNames;
 
         @JsonCreator
@@ -89,4 +87,5 @@ public class StandardBindersHook implements MicrometerConfigurationHook {
             default -> throw new IllegalArgumentException("no binder available for " + binderName);
         };
     }
+
 }

@@ -185,7 +185,7 @@ public class InvokerDispatchBenchmark {
         }
 
         @Override
-        public <T extends ApiMessage> CompletionStage<T> sendRequest(short apiVersion, ApiMessage request) {
+        public <M extends ApiMessage> CompletionStage<M> sendRequest(RequestHeaderData header, ApiMessage request) {
             return null;
         }
 

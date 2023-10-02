@@ -48,7 +48,7 @@
  *   <li>Construction of the filter instance and dispatch of the filter methods {@code onXxxRequest} and
  *       {@code onXxxResponse} takes place on that same thread.</li>
  *   <li>Any computation stages chained to the {@link java.util.concurrent.CompletionStage} returned by
- *       {@link io.kroxylicious.proxy.filter.FilterContext#sendRequest(short, org.apache.kafka.common.protocol.ApiMessage)}
+ *       {@link io.kroxylicious.proxy.filter.FilterContext#sendRequest(org.apache.kafka.common.message.RequestHeaderData, org.apache.kafka.common.protocol.ApiMessage)}
  *       using the default execution methods (using methods without the suffix async) or default asynchronous execution
  *       (using methods with suffix async that employ the stage's default asynchronous execution facility)
  *       are guaranteed to be performed by that same thread.  Computation stages chained using custom asynchronous
@@ -56,5 +56,10 @@
  *  </ol>
  *  <p>Filter implementations are free to rely on these guarantees to safely maintain state within fields
  *     of the Filter without employing additional synchronization.</p>
+ *  <p>If a Filter needs to do some asynchronous work and mutate members of the Filter, they can access
+ *  the thread for the connection via {@link io.kroxylicious.proxy.filter.FilterCreationContext#eventLoop()},
+ *  which is available in {@link io.kroxylicious.proxy.filter.FilterFactory#createFilter(io.kroxylicious.proxy.filter.FilterCreationContext, java.lang.Object)}
+ *  when it is creating an instance of a Filter. Ensure that any work executes quickly as this is the IO thread for potentially
+ *  many connections.</p>
  */
 package io.kroxylicious.proxy.filter;

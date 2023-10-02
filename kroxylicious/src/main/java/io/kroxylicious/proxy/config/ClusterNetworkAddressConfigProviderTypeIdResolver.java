@@ -40,7 +40,7 @@ public class ClusterNetworkAddressConfigProviderTypeIdResolver extends TypeIdRes
 
     @Override
     public JavaType typeFromId(DatabindContext context, String id) throws IOException {
-        Class<? extends BaseConfig> result = ContributionManager.INSTANCE.getDefinition(ClusterNetworkAddressConfigProviderContributor.class, id).configurationType();
+        Class<?> result = ContributionManager.INSTANCE.getDefinition(ClusterNetworkAddressConfigProviderContributor.class, id).configurationType();
         return context.constructSpecializedType(superType, result);
     }
 }

@@ -31,16 +31,17 @@ class KafkaProxyTest {
                             targetCluster:
                               bootstrap_servers: kafka.example:1234
                             clusterNetworkAddressConfigProvider:
-                              type: PortPerBroker
+                              type: PortPerBrokerClusterNetworkAddressConfigProvider
                               config:
                                 bootstrapAddress: localhost:9192
                                 brokerStartPort: 9193
                                 numberOfBrokerPorts: 2
                     filters:
-                       - type: ProduceRequestTransformation
+                       - type: ProduceRequestTransformationFilter
                 """;
         try (var kafkaProxy = new KafkaProxy(new ConfigParser().parseConfiguration(config))) {
-            assertThatThrownBy(kafkaProxy::startup).isInstanceOf(IllegalStateException.class).hasMessage("Missing required config for [ProduceRequestTransformation]");
+            assertThatThrownBy(kafkaProxy::startup).isInstanceOf(IllegalStateException.class)
+                    .hasMessage("Missing required config for [ProduceRequestTransformationFilter]");
         }
     }
 
@@ -51,7 +52,7 @@ class KafkaProxyTest {
                     targetCluster:
                       bootstrap_servers: kafka.example:1234
                     clusterNetworkAddressConfigProvider:
-                      type: PortPerBroker
+                      type: PortPerBrokerClusterNetworkAddressConfigProvider
                       config:
                         bootstrapAddress: localhost:9192
                         numberOfBrokerPorts: 1
@@ -59,7 +60,7 @@ class KafkaProxyTest {
                     targetCluster:
                       bootstrap_servers: kafka.example:1234
                     clusterNetworkAddressConfigProvider:
-                      type: PortPerBroker
+                      type: PortPerBrokerClusterNetworkAddressConfigProvider
                       config:
                         bootstrapAddress: localhost:9192 # Conflict
                         numberOfBrokerPorts: 1
@@ -70,7 +71,7 @@ class KafkaProxyTest {
                             targetCluster:
                               bootstrap_servers: kafka.example:1234
                             clusterNetworkAddressConfigProvider:
-                              type: PortPerBroker
+                              type: PortPerBrokerClusterNetworkAddressConfigProvider
                               config:
                                 bootstrapAddress: localhost:9192
                                 brokerStartPort: 9193
@@ -79,7 +80,7 @@ class KafkaProxyTest {
                             targetCluster:
                               bootstrap_servers: kafka.example:1234
                             clusterNetworkAddressConfigProvider:
-                              type: PortPerBroker
+                              type: PortPerBrokerClusterNetworkAddressConfigProvider
                               config:
                                 bootstrapAddress: localhost:8192
                                 brokerStartPort: 9193 # Conflict
@@ -101,7 +102,7 @@ class KafkaProxyTest {
                 virtualClusters:
                   demo1:
                     clusterNetworkAddressConfigProvider:
-                      type: SniRouting
+                      type: SniRoutingClusterNetworkAddressConfigProvider
                       config:
                         bootstrapAddress: cluster1:9192
                         brokerAddressPattern:  broker-$(nodeId)

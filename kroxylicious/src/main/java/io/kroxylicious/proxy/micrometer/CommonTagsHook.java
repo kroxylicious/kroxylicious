@@ -17,13 +17,11 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tag;
 
-import io.kroxylicious.proxy.config.BaseConfig;
-
 public class CommonTagsHook implements MicrometerConfigurationHook {
 
     private static final Logger log = LoggerFactory.getLogger(CommonTagsHook.class);
 
-    public static class CommonTagsHookConfig extends BaseConfig {
+    public static class CommonTagsHookConfig {
         private final Map<String, String> commonTags;
 
         @JsonCreator

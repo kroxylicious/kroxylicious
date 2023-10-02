@@ -1,0 +1,2 @@
+io.kroxylicious.sample.SampleProduceRequestFilterFactory
+io.kroxylicious.sample.SampleFetchResponseFilterFactory

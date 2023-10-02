@@ -22,8 +22,6 @@ import org.apache.kafka.common.protocol.Errors;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import io.kroxylicious.proxy.config.BaseConfig;
-
 import static io.kroxylicious.UnknownTaggedFields.unknownTaggedFieldsToStrings;
 
 /**
@@ -42,7 +40,7 @@ public class OutOfBandSendFilter implements DescribeClusterRequestFilter, Descri
         this.config = config;
     }
 
-    public static class OutOfBandSendFilterConfig extends BaseConfig {
+    public static class OutOfBandSendFilterConfig {
         private final ApiKeys apiKeyToSend;
         private final int tagIdToCollect;
 
@@ -60,11 +58,10 @@ public class OutOfBandSendFilter implements DescribeClusterRequestFilter, Descri
                                                                          FilterContext context) {
         ApiKeys apiKeyToSend = config.apiKeyToSend;
         ApiMessage message = createApiMessage(apiKeyToSend);
-        context.sendRequest(apiKeyToSend.latestVersion(), message).thenAccept(apiMessage -> {
-            // expected to execute before onDescribeClusterResponse becase sendRequest called before forwardRequest
+        return context.sendRequest(new RequestHeaderData().setRequestApiVersion(message.highestSupportedVersion()), message).thenCompose(apiMessage -> {
             values = unknownTaggedFieldsToStrings(apiMessage, config.tagIdToCollect).collect(Collectors.joining(","));
+            return context.forwardRequest(header, request);
         });
-        return context.forwardRequest(header, request);
     }
 
     @Override
@@ -85,4 +82,5 @@ public class OutOfBandSendFilter implements DescribeClusterRequestFilter, Descri
         }
         return message;
     }
+
 }

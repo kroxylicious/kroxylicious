@@ -21,6 +21,7 @@ import org.apache.kafka.common.message.FetchResponseData.FetchableTopicResponse;
 import org.apache.kafka.common.message.FetchResponseData.PartitionData;
 import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.MetadataResponseData;
+import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.record.CompressionType;
@@ -38,17 +39,20 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.stubbing.Answer;
 
 import io.kroxylicious.proxy.filter.FilterContext;
+import io.kroxylicious.proxy.filter.FilterCreationContext;
+import io.kroxylicious.proxy.filter.InvalidFilterConfigurationException;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResultBuilder;
 import io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage;
 import io.kroxylicious.proxy.internal.filter.FetchResponseTransformationFilter.FetchResponseTransformationConfig;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.anyShort;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.when;
 
@@ -104,6 +108,17 @@ class FetchResponseTransformationFilterTest {
     }
 
     @Test
+    void testFactory() {
+        FetchResponseTransformationFilterFactory factory = new FetchResponseTransformationFilterFactory();
+        assertThat(factory.configType()).isEqualTo(FetchResponseTransformationConfig.class);
+        assertThatThrownBy(() -> factory.validateConfiguration(null)).isInstanceOf(InvalidFilterConfigurationException.class)
+                .hasMessage("FetchResponseTransformationFilter requires configuration, but config object is null");
+        FilterCreationContext constructContext = Mockito.mock(FilterCreationContext.class);
+        FetchResponseTransformationConfig config = new FetchResponseTransformationConfig(ProduceRequestTransformationFilter.UpperCasing.class.getName());
+        assertThat(factory.createFilter(constructContext, config)).isInstanceOf(FetchResponseTransformationFilter.class);
+    }
+
+    @Test
     void filterHandlesPreV13ResponseBasedOnTopicNames() throws Exception {
 
         var fetchResponse = new FetchResponseData();
@@ -133,7 +148,7 @@ class FetchResponseTransformationFilterTest {
         var metadataResponse = new MetadataResponseData();
         metadataResponse.topics().add(new MetadataResponseData.MetadataResponseTopic().setTopicId(TOPIC_ID).setName(TOPIC_NAME));
 
-        when(context.sendRequest(anyShort(), isA(MetadataRequestData.class)))
+        when(context.sendRequest(isA(RequestHeaderData.class), isA(MetadataRequestData.class)))
                 .thenReturn(CompletableFuture.completedStage(metadataResponse));
 
         var stage = filter.onFetchResponse(fetchResponse.apiKey(), new ResponseHeaderData(), fetchResponse, context);
@@ -171,7 +186,7 @@ class FetchResponseTransformationFilterTest {
         var metadataResponse = new MetadataResponseData();
         metadataResponse.topics().add(new MetadataResponseData.MetadataResponseTopic().setTopicId(TOPIC_ID).setName(TOPIC_NAME));
 
-        when(context.sendRequest(anyShort(), isA(MetadataRequestData.class)))
+        when(context.sendRequest(isA(RequestHeaderData.class), isA(MetadataRequestData.class)))
                 .thenReturn(CompletableFuture.failedStage(new IllegalStateException("out-of-band request exception")));
 
         var stage = filter.onFetchResponse(fetchResponse.apiKey(), new ResponseHeaderData(), fetchResponse, context);

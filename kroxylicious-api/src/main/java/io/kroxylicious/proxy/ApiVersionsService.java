@@ -14,6 +14,11 @@ import org.apache.kafka.common.protocol.ApiKeys;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+/**
+ * Service used to obtain the upstream cluster's ApiVersions and intersect them with the versions
+ * supported by the proxy. Filter Authors can then use this information when sending extra requests
+ * to the upstream cluster.
+ */
 public interface ApiVersionsService {
 
     /**

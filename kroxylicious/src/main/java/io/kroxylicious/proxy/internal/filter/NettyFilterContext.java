@@ -8,36 +8,17 @@ package io.kroxylicious.proxy.internal.filter;
 
 import java.util.concurrent.ScheduledExecutorService;
 
-import io.kroxylicious.proxy.config.BaseConfig;
-import io.kroxylicious.proxy.filter.FilterConstructContext;
-import io.kroxylicious.proxy.filter.FilterExecutors;
+import io.kroxylicious.proxy.filter.FilterCreationContext;
 
-public class NettyFilterContext {
+public class NettyFilterContext implements FilterCreationContext {
     private final ScheduledExecutorService eventLoop;
 
     public NettyFilterContext(ScheduledExecutorService eventLoop) {
         this.eventLoop = eventLoop;
     }
 
-    public FilterConstructContext wrap(BaseConfig config) {
-        return new NettyFilterConfigContext(config);
-    }
-
-    class NettyFilterConfigContext implements FilterConstructContext {
-        private final BaseConfig filterConfig;
-
-        NettyFilterConfigContext(BaseConfig filterConfig) {
-            this.filterConfig = filterConfig;
-        }
-
-        @Override
-        public FilterExecutors executors() {
-            return () -> eventLoop;
-        }
-
-        @Override
-        public BaseConfig getConfig() {
-            return filterConfig;
-        }
+    @Override
+    public ScheduledExecutorService eventLoop() {
+        return eventLoop;
     }
 }

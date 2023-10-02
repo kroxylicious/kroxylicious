@@ -15,7 +15,7 @@ import java.util.stream.Stream;
  */
 public class FilterInvokers {
 
-    public static final int RECURSION_DEPTH_LIMIT = 2;
+    private static final int RECURSION_DEPTH_LIMIT = 2;
 
     private FilterInvokers() {
 

@@ -18,7 +18,7 @@ public class MicrometerDefinitionBuilder extends AbstractDefinitionBuilder<Micro
 
     @Override
     protected MicrometerDefinition buildInternal(String type, Map<String, Object> config) {
-        Class<? extends BaseConfig> result = ContributionManager.INSTANCE.getDefinition(MicrometerConfigurationHookContributor.class, type).configurationType();
+        Class<?> result = ContributionManager.INSTANCE.getDefinition(MicrometerConfigurationHookContributor.class, type).configurationType();
 
         return new MicrometerDefinition(type, mapper.convertValue(config, result));
     }

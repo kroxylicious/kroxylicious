@@ -76,4 +76,5 @@ public class SampleFetchResponseFilter implements FetchResponseFilter {
             }
         });
     }
+
 }
