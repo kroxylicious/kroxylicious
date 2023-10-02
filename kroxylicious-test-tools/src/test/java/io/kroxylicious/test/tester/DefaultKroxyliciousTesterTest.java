@@ -149,6 +149,21 @@ class DefaultKroxyliciousTesterTest {
         }
     }
 
+    @Test
+    void closingTesterShouldCloseClients() {
+        // Given
+        try (var tester = buildTester(backingCluster)) {
+            tester.consumer();
+
+            // When
+            tester.close();
+
+            // Then
+            //In theory the bootstrap address is predicable but asserting it is  not part of this test
+            verify(kroxyliciousClients).close();
+        }
+    }
+
     @NotNull
     private DefaultKroxyliciousTester buildTester(KafkaCluster backingCluster) {
         return new DefaultKroxyliciousTester(proxy(backingCluster),
