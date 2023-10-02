@@ -40,6 +40,9 @@ import io.kroxylicious.proxy.internal.util.MemoryRecordsHelper;
  */
 public class FetchResponseTransformationFilter implements FetchResponseFilter {
 
+    // Version 12 was the first version that uses topic ids.
+    private static final short METADATA_API_VER_WITH_TOPIC_ID_SUPPORT = (short) 12;
+
     public static class FetchResponseTransformationConfig {
 
         private final String transformation;
@@ -85,8 +88,7 @@ public class FetchResponseTransformationFilter implements FetchResponseFilter {
                 .collect(Collectors.toList());
         if (!requestTopics.isEmpty()) {
             LOGGER.debug("Fetch response contains {} unknown topic ids, lookup via Metadata request: {}", requestTopics.size(), requestTopics);
-            // Version 12 required for topic id support.
-            var metadataHeader = new RequestHeaderData().setRequestApiVersion((short) 12);
+            var metadataHeader = new RequestHeaderData().setRequestApiVersion(METADATA_API_VER_WITH_TOPIC_ID_SUPPORT);
             var metadataRequest = new MetadataRequestData().setTopics(requestTopics);
             return context.<MetadataResponseData> sendRequest(metadataHeader, metadataRequest)
                     .thenCompose(metadataResponse -> {
