@@ -455,7 +455,7 @@ public class FetchFilter implements FetchRequestFilter {
 }
 ----
 <1> We construct a header object for the asynchronous request.  It is important to specify the API version of the request
-that is to be used.  The version chosen must be a version know to the Kafka Client used by Kroxylicious
+that is to be used.  The version chosen must be a version known to the Kafka Client used by Kroxylicious
 and must be an API version supported by the Target Cluster.
 <2> We construct a new request object. When constructing the request object, take care to populate  the fields known to
 the request object at the API version you have chosen.  Refer to the {kafka-protocol}[Kafka Protocol Guide] for more details.
