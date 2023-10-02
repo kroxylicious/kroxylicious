@@ -34,9 +34,8 @@ public class InternalResponseFrame<B extends ApiMessage> extends DecodedResponse
         return recipient;
     }
 
-    @SuppressWarnings("unchecked")
-    public <T extends ApiMessage> CompletableFuture<T> promise() {
-        return (CompletableFuture<T>) future;
+    public CompletableFuture<?> promise() {
+        return future;
     }
 
     @Override

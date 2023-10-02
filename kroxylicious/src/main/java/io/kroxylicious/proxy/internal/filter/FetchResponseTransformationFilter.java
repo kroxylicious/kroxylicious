@@ -18,6 +18,7 @@ import org.apache.kafka.common.message.FetchResponseData.FetchableTopicResponse;
 import org.apache.kafka.common.message.FetchResponseData.PartitionData;
 import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.MetadataResponseData;
+import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.record.CompressionType;
@@ -38,6 +39,9 @@ import io.kroxylicious.proxy.internal.util.MemoryRecordsHelper;
  * A filter for modifying the key/value/header/topic of {@link ApiKeys#FETCH} responses.
  */
 public class FetchResponseTransformationFilter implements FetchResponseFilter {
+
+    // Version 12 was the first version that uses topic ids.
+    private static final short METADATA_API_VER_WITH_TOPIC_ID_SUPPORT = (short) 12;
 
     public static class FetchResponseTransformationConfig {
 
@@ -84,9 +88,9 @@ public class FetchResponseTransformationFilter implements FetchResponseFilter {
                 .collect(Collectors.toList());
         if (!requestTopics.isEmpty()) {
             LOGGER.debug("Fetch response contains {} unknown topic ids, lookup via Metadata request: {}", requestTopics.size(), requestTopics);
-            // Version 12 required for topic id support.
+            var metadataHeader = new RequestHeaderData().setRequestApiVersion(METADATA_API_VER_WITH_TOPIC_ID_SUPPORT);
             var metadataRequest = new MetadataRequestData().setTopics(requestTopics);
-            return context.<MetadataResponseData> sendRequest(MetadataRequestData.HIGHEST_SUPPORTED_VERSION, metadataRequest)
+            return context.<MetadataResponseData> sendRequest(metadataHeader, metadataRequest)
                     .thenCompose(metadataResponse -> {
                         Map<Uuid, String> uidToName = metadataResponse.topics().stream()
                                 .collect(Collectors.toMap(MetadataResponseData.MetadataResponseTopic::topicId,

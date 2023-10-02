@@ -52,6 +52,8 @@ import io.kroxylicious.proxy.internal.util.Assertions;
 import io.kroxylicious.proxy.internal.util.ByteBufOutputStream;
 import io.kroxylicious.proxy.model.VirtualCluster;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 /**
  * A {@code ChannelInboundHandler} (for handling requests from downstream)
  * that applies a single {@link Filter}.
@@ -402,12 +404,14 @@ public class FilterHandler extends ChannelDuplexHandler {
         return ctx.channel().toString();
     }
 
+    @SuppressWarnings("unchecked")
     private void completeInternalResponse(InternalResponseFrame<?> decodedFrame) {
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("{}: Completing {} response for request sent by this filter{}: {}",
                     channelDescriptor(), decodedFrame.apiKey(), filterDescriptor(), decodedFrame);
         }
-        CompletableFuture<ApiMessage> p = decodedFrame.promise();
+        CompletableFuture<ApiMessage> p = (CompletableFuture<ApiMessage>) decodedFrame
+                .promise();
         p.complete(decodedFrame.body());
     }
 
@@ -474,23 +478,26 @@ public class FilterHandler extends ChannelDuplexHandler {
             return responseFilterResultBuilder().forward(header, response).completed();
         }
 
+        @NonNull
         @Override
-        public <T extends ApiMessage> CompletionStage<T> sendRequest(short apiVersion, ApiMessage request) {
-            short key = request.apiKey();
-            var apiKey = ApiKeys.forId(key);
-            short headerVersion = apiKey.requestHeaderVersion(apiVersion);
-            var header = new RequestHeaderData()
-                    .setCorrelationId(-1)
-                    .setRequestApiKey(key)
-                    .setRequestApiVersion(apiVersion);
-            if (headerVersion > 1) {
-                header.setClientId(filter.getClass().getSimpleName() + "@" + System.identityHashCode(filter));
+        public <M extends ApiMessage> CompletionStage<M> sendRequest(@NonNull RequestHeaderData header,
+                                                                     @NonNull ApiMessage request) {
+            Objects.requireNonNull(header);
+            Objects.requireNonNull(request);
+
+            var apiKey = ApiKeys.forId(request.apiKey());
+            header.setRequestApiKey(apiKey.id);
+            header.setCorrelationId(-1);
+
+            if (!apiKey.isVersionSupported(header.requestApiVersion())) {
+                throw new IllegalArgumentException("apiKey %s does not support version %d. the supported version range for this api key is %d...%d (inclusive)."
+                        .formatted(apiKey, header.requestApiVersion(), apiKey.oldestVersion(), apiKey.latestVersion()));
             }
-            boolean hasResponse = apiKey != ApiKeys.PRODUCE
-                    || ((ProduceRequestData) request).acks() != 0;
-            var filterPromise = new InternalCompletableFuture<T>(ctx.executor());
+
+            var hasResponse = apiKey != ApiKeys.PRODUCE || ((ProduceRequestData) request).acks() != 0;
+            var filterPromise = new InternalCompletableFuture<M>(ctx.executor());
             var frame = new InternalRequestFrame<>(
-                    apiVersion, -1, hasResponse,
+                    header.requestApiVersion(), header.correlationId(), hasResponse,
                     filter, filterPromise, header, request);
 
             if (LOGGER.isDebugEnabled()) {
@@ -517,7 +524,8 @@ public class FilterHandler extends ChannelDuplexHandler {
             ctx.executor().schedule(() -> {
                 LOGGER.debug("{}: Timing out {} request after {}ms", ctx, apiKey, timeoutMs);
                 filterPromise
-                        .completeExceptionally(new TimeoutException("Asynchronous %s request made by filter %s was timed-out.".formatted(apiKey, filterDescriptor())));
+                        .completeExceptionally(
+                                new TimeoutException("Asynchronous %s request made by filter %s was timed-out.".formatted(apiKey, filterDescriptor())));
             }, timeoutMs, TimeUnit.MILLISECONDS);
             return filterPromise.minimalCompletionStage();
         }

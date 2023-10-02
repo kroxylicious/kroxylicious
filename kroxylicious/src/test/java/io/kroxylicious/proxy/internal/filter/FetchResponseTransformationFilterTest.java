@@ -21,6 +21,7 @@ import org.apache.kafka.common.message.FetchResponseData.FetchableTopicResponse;
 import org.apache.kafka.common.message.FetchResponseData.PartitionData;
 import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.MetadataResponseData;
+import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.record.CompressionType;
@@ -52,7 +53,6 @@ import io.kroxylicious.proxy.internal.filter.FetchResponseTransformationFilter.F
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.anyShort;
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.when;
 
@@ -148,7 +148,7 @@ class FetchResponseTransformationFilterTest {
         var metadataResponse = new MetadataResponseData();
         metadataResponse.topics().add(new MetadataResponseData.MetadataResponseTopic().setTopicId(TOPIC_ID).setName(TOPIC_NAME));
 
-        when(context.sendRequest(anyShort(), isA(MetadataRequestData.class)))
+        when(context.sendRequest(isA(RequestHeaderData.class), isA(MetadataRequestData.class)))
                 .thenReturn(CompletableFuture.completedStage(metadataResponse));
 
         var stage = filter.onFetchResponse(fetchResponse.apiKey(), new ResponseHeaderData(), fetchResponse, context);
@@ -186,7 +186,7 @@ class FetchResponseTransformationFilterTest {
         var metadataResponse = new MetadataResponseData();
         metadataResponse.topics().add(new MetadataResponseData.MetadataResponseTopic().setTopicId(TOPIC_ID).setName(TOPIC_NAME));
 
-        when(context.sendRequest(anyShort(), isA(MetadataRequestData.class)))
+        when(context.sendRequest(isA(RequestHeaderData.class), isA(MetadataRequestData.class)))
                 .thenReturn(CompletableFuture.failedStage(new IllegalStateException("out-of-band request exception")));
 
         var stage = filter.onFetchResponse(fetchResponse.apiKey(), new ResponseHeaderData(), fetchResponse, context);
