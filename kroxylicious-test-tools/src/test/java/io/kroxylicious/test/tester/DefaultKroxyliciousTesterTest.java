@@ -10,7 +10,6 @@ import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.consumer.MockConsumer;
 import org.apache.kafka.clients.consumer.OffsetResetStrategy;
 import org.apache.kafka.clients.producer.MockProducer;
-import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -18,6 +17,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -159,12 +160,12 @@ class DefaultKroxyliciousTesterTest {
             tester.close();
 
             // Then
-            //In theory the bootstrap address is predicable but asserting it is  not part of this test
+            // In theory the bootstrap address is predicable but asserting it is not part of this test
             verify(kroxyliciousClients).close();
         }
     }
 
-    @NotNull
+    @NonNull
     private DefaultKroxyliciousTester buildTester(KafkaCluster backingCluster) {
         return new DefaultKroxyliciousTester(proxy(backingCluster),
                 DefaultKroxyliciousTester::spawnProxy,

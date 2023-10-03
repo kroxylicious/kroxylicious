@@ -16,7 +16,6 @@ import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.common.serialization.Serde;
-import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,6 +23,8 @@ import io.kroxylicious.proxy.KafkaProxy;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.test.client.KafkaClient;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 public class DefaultKroxyliciousTester implements KroxyliciousTester {
     private AutoCloseable proxy;
@@ -62,7 +63,7 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
         return clients.computeIfAbsent(virtualCluster, this::buildKroxyliciousClients);
     }
 
-    @NotNull
+    @NonNull
     private KroxyliciousClients buildKroxyliciousClients(String clusterName) {
         return this.clientFactory.build(clusterName, KroxyliciousConfigUtils.bootstrapServersFor(clusterName, kroxyliciousConfig));
     }
