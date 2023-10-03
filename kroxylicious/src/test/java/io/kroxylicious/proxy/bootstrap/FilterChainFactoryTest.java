@@ -113,10 +113,10 @@ class FilterChainFactoryTest {
                 new FilterDefinition(TestFilter.class.getName(), config));
 
         // When
-        new FilterChainFactory(filterDefinitions);
 
         // Then
         // no exception thrown;
+        assertThat(new FilterChainFactory(filterDefinitions)).isNotNull();
     }
 
     @Test
@@ -127,10 +127,9 @@ class FilterChainFactoryTest {
                 new FilterDefinition(OptionalConfigFilter.class.getName(), null));
 
         // When
-        new FilterChainFactory(filterDefinitions);
 
         // Then
-        // no exception thrown
+        assertThat(new FilterChainFactory(filterDefinitions)).isNotNull();
     }
 
     private ListAssert<FilterAndInvoker> assertFiltersCreated(List<FilterDefinition> filterDefinitions) {
