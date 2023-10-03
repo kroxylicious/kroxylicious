@@ -8,11 +8,10 @@ package io.kroxylicious.proxy;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -77,7 +76,7 @@ public final class KafkaProxy implements AutoCloseable {
     private Channel metricsChannel;
 
     public KafkaProxy(Configuration config) {
-        this.config = config;
+        this.config = Objects.requireNonNull(config);
         this.virtualClusters = config.virtualClusterModel();
         this.adminHttpConfig = config.adminHttpConfig();
         this.micrometerConfig = config.getMicrometer();
@@ -104,16 +103,13 @@ public final class KafkaProxy implements AutoCloseable {
 
         maybeStartMetricsListener(adminEventGroup, meterRegistries);
 
-        var tlsServerBootstrap = buildServerBootstrap(serverEventGroup, new KafkaProxyInitializer(config, true, endpointRegistry, endpointRegistry, false, Map.of()));
-        var plainServerBootstrap = buildServerBootstrap(serverEventGroup, new KafkaProxyInitializer(config, false, endpointRegistry, endpointRegistry, false, Map.of()));
+        var filterChainFactory = new FilterChainFactory(config.filters());
+        var tlsServerBootstrap = buildServerBootstrap(serverEventGroup,
+                new KafkaProxyInitializer(filterChainFactory, true, endpointRegistry, endpointRegistry, false, Map.of()));
+        var plainServerBootstrap = buildServerBootstrap(serverEventGroup,
+                new KafkaProxyInitializer(filterChainFactory, false, endpointRegistry, endpointRegistry, false, Map.of()));
 
         bindingOperationProcessor.start(plainServerBootstrap, tlsServerBootstrap);
-
-        final Set<String> invalidFilters = FilterChainFactory.validateFilterConfiguration(config.filters());
-        if (!invalidFilters.isEmpty()) {
-            throw new IllegalStateException(invalidFilters.stream()
-                    .collect(Collectors.joining(", ", "Missing required config for [", "]")));
-        }
 
         // TODO: startup/shutdown should return a completionstage
         CompletableFuture.allOf(virtualClusters.stream().map(vc -> endpointRegistry.registerVirtualCluster(vc).toCompletableFuture()).toArray(CompletableFuture[]::new))
