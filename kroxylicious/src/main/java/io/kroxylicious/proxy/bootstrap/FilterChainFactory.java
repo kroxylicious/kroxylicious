@@ -51,7 +51,7 @@ public class FilterChainFactory {
     }
 
     /**
-     * Create a new chain of filter instances
+     * Creates and returns a new chain of filter instances.
      *
      * @return the new chain.
      */
