@@ -14,6 +14,7 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
+import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -42,6 +43,9 @@ import io.kroxylicious.test.Request;
 import io.kroxylicious.test.ResponsePayload;
 import io.kroxylicious.test.client.KafkaClient;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
+import io.kroxylicious.testing.kafka.clients.CloseableAdmin;
+import io.kroxylicious.testing.kafka.clients.CloseableConsumer;
+import io.kroxylicious.testing.kafka.clients.CloseableProducer;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -68,6 +72,109 @@ class KroxyliciousTestersTest {
             assertNotNull(tester.admin().describeCluster().clusterId().get(10, TimeUnit.SECONDS));
             assertNotNull(tester.admin(Map.of()).describeCluster().clusterId().get(10, TimeUnit.SECONDS));
             assertNotNull(tester.admin(DEFAULT_VIRTUAL_CLUSTER, Map.of()).describeCluster().clusterId().get(10, TimeUnit.SECONDS));
+        }
+    }
+
+    @Test
+    void shouldReturnDifferentInstancesOfAdmin(KafkaCluster cluster) {
+        // Given
+        try (var tester = kroxyliciousTester(proxy(cluster))) {
+            // Then
+            assertDistinctInstanceOf(tester::admin);
+            assertDistinctInstanceOf(() -> tester.admin(DEFAULT_VIRTUAL_CLUSTER));
+            assertDistinctInstanceOf(() -> tester.admin(Map.of()));
+            assertDistinctInstanceOf(() -> tester.admin(DEFAULT_VIRTUAL_CLUSTER, Map.of()));
+        }
+    }
+
+    @Test
+    void shouldReturnClosableAdmin(KafkaCluster cluster) {
+        // Given
+        try (var tester = kroxyliciousTester(proxy(cluster))) {
+            // Then
+            assertClientIsInstanceOf(CloseableAdmin.class, tester::admin);
+            assertClientIsInstanceOf(CloseableAdmin.class, () -> tester.admin(DEFAULT_VIRTUAL_CLUSTER));
+            assertClientIsInstanceOf(CloseableAdmin.class, () -> tester.admin(Map.of()));
+            assertClientIsInstanceOf(CloseableAdmin.class, () -> tester.admin(DEFAULT_VIRTUAL_CLUSTER, Map.of()));
+        }
+    }
+    
+    @Test
+    void shouldReturnDifferentInstancesOfProducer(KafkaCluster cluster) {
+        // Given
+        try (var tester = kroxyliciousTester(proxy(cluster))) {
+            // Then
+            assertDistinctInstanceOf(tester::producer);
+            assertDistinctInstanceOf(() -> tester.producer(DEFAULT_VIRTUAL_CLUSTER));
+            assertDistinctInstanceOf(() -> tester.producer(Map.of()));
+            assertDistinctInstanceOf(() -> tester.producer(DEFAULT_VIRTUAL_CLUSTER, Map.of()));
+            assertDistinctInstanceOf(() -> {
+                final Serdes.StringSerde stringSerde = new Serdes.StringSerde();
+                return tester.producer(stringSerde, stringSerde, Map.of());
+            } );
+            assertDistinctInstanceOf(() -> {
+                final Serdes.StringSerde stringSerde = new Serdes.StringSerde();
+                return tester.producer(DEFAULT_VIRTUAL_CLUSTER, stringSerde, stringSerde, Map.of());
+            } );
+        }
+    }
+
+    @Test
+    void shouldReturnClosableProducer(KafkaCluster cluster) {
+        // Given
+        try (var tester = kroxyliciousTester(proxy(cluster))) {
+            // Then
+            assertClientIsInstanceOf(CloseableProducer.class, tester::producer);
+            assertClientIsInstanceOf(CloseableProducer.class, () -> tester.producer(DEFAULT_VIRTUAL_CLUSTER));
+            assertClientIsInstanceOf(CloseableProducer.class, () -> tester.producer(Map.of()));
+            assertClientIsInstanceOf(CloseableProducer.class, () -> tester.producer(DEFAULT_VIRTUAL_CLUSTER, Map.of()));
+            assertClientIsInstanceOf(CloseableProducer.class, () -> {
+                final Serdes.StringSerde stringSerde = new Serdes.StringSerde();
+                return tester.producer(stringSerde, stringSerde, Map.of());
+            } );
+            assertClientIsInstanceOf(CloseableProducer.class, () -> {
+                final Serdes.StringSerde stringSerde = new Serdes.StringSerde();
+                return tester.producer(DEFAULT_VIRTUAL_CLUSTER, stringSerde, stringSerde, Map.of());
+            } );
+        }
+    }
+    
+    @Test
+    void shouldReturnDifferentInstancesOfConsumer(KafkaCluster cluster) {
+        // Given
+        try (var tester = kroxyliciousTester(proxy(cluster))) {
+            assertDistinctInstanceOf(tester::consumer);
+            assertDistinctInstanceOf(() -> tester.consumer(DEFAULT_VIRTUAL_CLUSTER));
+            assertDistinctInstanceOf(() -> tester.consumer(Map.of()));
+            assertDistinctInstanceOf(() -> tester.consumer(DEFAULT_VIRTUAL_CLUSTER, Map.of()));
+            assertDistinctInstanceOf(() -> {
+                final Serdes.StringSerde stringSerde = new Serdes.StringSerde();
+                return tester.consumer(stringSerde, stringSerde, Map.of());
+            } );
+            assertDistinctInstanceOf(() -> {
+                final Serdes.StringSerde stringSerde = new Serdes.StringSerde();
+                return tester.consumer(DEFAULT_VIRTUAL_CLUSTER, stringSerde, stringSerde, Map.of());
+            } );
+        }
+    }
+
+    @Test
+    void shouldReturnClosableConsumer(KafkaCluster cluster) {
+        // Given
+        try (var tester = kroxyliciousTester(proxy(cluster))) {
+            // Then
+            assertClientIsInstanceOf(CloseableConsumer.class, tester::consumer);
+            assertClientIsInstanceOf(CloseableConsumer.class, () -> tester.consumer(DEFAULT_VIRTUAL_CLUSTER));
+            assertClientIsInstanceOf(CloseableConsumer.class, () -> tester.consumer(Map.of()));
+            assertClientIsInstanceOf(CloseableConsumer.class, () -> tester.consumer(DEFAULT_VIRTUAL_CLUSTER, Map.of()));
+            assertClientIsInstanceOf(CloseableConsumer.class, () -> {
+                final Serdes.StringSerde stringSerde = new Serdes.StringSerde();
+                return tester.consumer(stringSerde, stringSerde, Map.of());
+            } );
+            assertClientIsInstanceOf(CloseableConsumer.class, () -> {
+                final Serdes.StringSerde stringSerde = new Serdes.StringSerde();
+                return tester.consumer(DEFAULT_VIRTUAL_CLUSTER, stringSerde, stringSerde, Map.of());
+            } );
         }
     }
 
@@ -274,4 +381,15 @@ class KroxyliciousTestersTest {
         assertEquals(1, records.count());
     }
 
+    private <T> void assertClientIsInstanceOf(Class<? extends T> expectedClass, Supplier<? extends T> clientSupplier) {
+        final T client = clientSupplier.get();
+        assertThat(client).isInstanceOf(expectedClass);
+    }
+
+    private <T> void assertDistinctInstanceOf(Supplier<? extends T> clientSupplier) {
+        final T client = clientSupplier.get();
+        final T otherClient = clientSupplier.get();
+        assertThat(otherClient).isNotNull();
+        assertThat(client).isNotNull().isNotSameAs(otherClient);
+    }
 }
