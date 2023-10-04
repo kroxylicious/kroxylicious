@@ -20,8 +20,10 @@ import io.kroxylicious.proxy.filter.InvalidFilterConfigurationException;
 import io.kroxylicious.proxy.internal.filter.ExampleConfig;
 import io.kroxylicious.proxy.internal.filter.NettyFilterContext;
 import io.kroxylicious.proxy.internal.filter.OptionalConfigFilter;
+import io.kroxylicious.proxy.internal.filter.RequiresConfigFilter;
 import io.kroxylicious.proxy.internal.filter.TestFilter;
 import io.kroxylicious.proxy.internal.filter.TestFilterFactory;
+import io.kroxylicious.proxy.service.FilterFactoryManager;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -33,16 +35,19 @@ class FilterChainFactoryTest {
     private ScheduledExecutorService eventLoop;
     private ExampleConfig config;
 
+    private FilterFactoryManager ffm;
+
     @BeforeEach
     void setUp() {
         eventLoop = Executors.newScheduledThreadPool(1);
         config = new ExampleConfig();
+        ffm = FilterFactoryManager.INSTANCE;
     }
 
     @Test
     void testNullFiltersInConfigResultsInEmptyList() {
         ScheduledExecutorService eventLoop = Executors.newScheduledThreadPool(1);
-        FilterChainFactory filterChainFactory = new FilterChainFactory(null);
+        FilterChainFactory filterChainFactory = new FilterChainFactory(ffm, null);
         List<FilterAndInvoker> filters = filterChainFactory.createFilters(new NettyFilterContext(eventLoop));
         assertNotNull(filters, "Filters list should not be null");
         assertTrue(filters.isEmpty(), "Filters list should be empty");
@@ -86,7 +91,7 @@ class FilterChainFactoryTest {
                 new FilterDefinition(TestFilter.class.getName(), null));
 
         // When
-        var ex = assertThrows(InvalidFilterConfigurationException.class, () -> new FilterChainFactory(filters));
+        var ex = assertThrows(InvalidFilterConfigurationException.class, () -> new FilterChainFactory(ffm, filters));
 
         // Then
         assertThat(ex.getMessage()).contains(TestFilter.class.getName());
@@ -100,7 +105,7 @@ class FilterChainFactoryTest {
                 new FilterDefinition(OptionalConfigFilter.class.getName(), null));
 
         // When
-        var ex = assertThrows(InvalidFilterConfigurationException.class, () -> new FilterChainFactory(filters));
+        var ex = assertThrows(InvalidFilterConfigurationException.class, () -> new FilterChainFactory(ffm, filters));
 
         // Then
         assertThat(ex.getMessage()).contains(TestFilter.class.getName());
@@ -116,7 +121,7 @@ class FilterChainFactoryTest {
 
         // Then
         // no exception thrown;
-        assertThat(new FilterChainFactory(filterDefinitions)).isNotNull();
+        assertThat(new FilterChainFactory(ffm, filterDefinitions)).isNotNull();
     }
 
     @Test
@@ -129,14 +134,58 @@ class FilterChainFactoryTest {
         // When
 
         // Then
-        assertThat(new FilterChainFactory(filterDefinitions)).isNotNull();
+        assertThat(new FilterChainFactory(ffm, filterDefinitions)).isNotNull();
     }
 
     private ListAssert<FilterAndInvoker> assertFiltersCreated(List<FilterDefinition> filterDefinitions) {
-        FilterChainFactory filterChainFactory = new FilterChainFactory(filterDefinitions);
+        FilterChainFactory filterChainFactory = new FilterChainFactory(ffm, filterDefinitions);
         NettyFilterContext context = new NettyFilterContext(eventLoop);
         List<FilterAndInvoker> filters = filterChainFactory.createFilters(context);
         return assertThat(filters).isNotNull().hasSize(filterDefinitions.size());
+    }
+
+    @Test
+    void shouldFailValidationIfRequireConfigMissing() {
+        // Given
+        final FilterDefinition requiredConfig = new FilterDefinition(RequiresConfigFilter.class.getName(), null);
+
+        // When
+
+        // Then
+        assertThrows(InvalidFilterConfigurationException.class, () -> FilterChainFactory.validateFilterDefinitions(ffm, List.of(requiredConfig)));
+    }
+
+    @Test
+    void shouldPassValidationIfRequireConfigSupplied() {
+        // Given
+        final FilterDefinition requiredConfig = new FilterDefinition(RequiresConfigFilter.class.getName(), new ExampleConfig());
+
+        // When
+
+        // Then
+        FilterChainFactory.validateFilterDefinitions(ffm, List.of(requiredConfig));
+    }
+
+    @Test
+    void shouldPassValidationIfOptionalConfigSupplied() {
+        // Given
+        final FilterDefinition requiredConfig = new FilterDefinition(OptionalConfigFilter.class.getName(), new ExampleConfig());
+
+        // When
+
+        // Then
+        FilterChainFactory.validateFilterDefinitions(ffm, List.of(requiredConfig));
+    }
+
+    @Test
+    void shouldPassValidationIfOptionalConfigIsMissing() {
+        // Given
+        final FilterDefinition requiredConfig = new FilterDefinition(OptionalConfigFilter.class.getName(), null);
+
+        // When
+
+        // Then
+        FilterChainFactory.validateFilterDefinitions(ffm, List.of(requiredConfig));
     }
 
 }

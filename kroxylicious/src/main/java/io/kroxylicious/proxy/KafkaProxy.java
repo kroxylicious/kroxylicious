@@ -47,6 +47,7 @@ import io.kroxylicious.proxy.internal.net.EndpointRegistry;
 import io.kroxylicious.proxy.internal.net.NetworkBindingOperationProcessor;
 import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.model.VirtualCluster;
+import io.kroxylicious.proxy.service.FilterFactoryManager;
 import io.kroxylicious.proxy.service.HostPort;
 
 public final class KafkaProxy implements AutoCloseable {
@@ -103,7 +104,8 @@ public final class KafkaProxy implements AutoCloseable {
 
         maybeStartMetricsListener(adminEventGroup, meterRegistries);
 
-        var filterChainFactory = new FilterChainFactory(config.filters());
+        var ffm = FilterFactoryManager.INSTANCE;
+        var filterChainFactory = new FilterChainFactory(ffm, config.filters());
         var tlsServerBootstrap = buildServerBootstrap(serverEventGroup,
                 new KafkaProxyInitializer(filterChainFactory, true, endpointRegistry, endpointRegistry, false, Map.of()));
         var plainServerBootstrap = buildServerBootstrap(serverEventGroup,

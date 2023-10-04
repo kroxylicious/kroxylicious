@@ -7,8 +7,8 @@ package io.kroxylicious.proxy.bootstrap;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import io.kroxylicious.proxy.config.FilterDefinition;
@@ -25,9 +25,11 @@ import io.kroxylicious.proxy.service.FilterFactoryManager;
  */
 public class FilterChainFactory {
     private final List<FilterDefinition> filterDefinitions;
+    private final FilterFactoryManager ffm;
 
-    public FilterChainFactory(List<FilterDefinition> filterDefinitions) {
-        validateFilterDefinitions(filterDefinitions);
+    public FilterChainFactory(FilterFactoryManager ffm, List<FilterDefinition> filterDefinitions) {
+        validateFilterDefinitions(ffm, filterDefinitions);
+        this.ffm = ffm;
         this.filterDefinitions = Optional.ofNullable(filterDefinitions).orElse(List.of());
     }
 
@@ -36,17 +38,25 @@ public class FilterChainFactory {
      * @param filterDefinitions the candidates to validate.
      * @throws InvalidFilterConfigurationException If there are problems.
      */
-    public static void validateFilterDefinitions(Collection<FilterDefinition> filterDefinitions) {
+    public static void validateFilterDefinitions(FilterFactoryManager ffm, Collection<FilterDefinition> filterDefinitions) {
         if (filterDefinitions == null || filterDefinitions.isEmpty()) {
             return;
         }
         var invalidFilters = filterDefinitions.stream()
-                .filter(Predicate.not(FilterDefinition::isDefinitionValid))
-                .map(FilterDefinition::type)
+                .map(fd -> {
+                    try {
+                        ffm.validateConfig(fd.type(), fd.config());
+                        return null;
+                    }
+                    catch (InvalidFilterConfigurationException e) {
+                        return "[filter type: " + fd.type() + " error: " + e.getMessage() + "]";
+                    }
+                })
+                .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
         if (!invalidFilters.isEmpty()) {
             throw new InvalidFilterConfigurationException(invalidFilters.stream()
-                    .collect(Collectors.joining(", ", "Invalid config for [", "]")));
+                    .collect(Collectors.joining(", ", "Invalid filters: ", "")));
         }
     }
 
@@ -60,7 +70,7 @@ public class FilterChainFactory {
                 .stream()
                 .map(f -> {
                     FilterCreationContext wrap = context;
-                    return FilterFactoryManager.INSTANCE.createInstance(f.type(), wrap, f.config());
+                    return ffm.createInstance(f.type(), wrap, f.config());
                 })
                 .flatMap(filter -> FilterAndInvoker.build(filter).stream())
                 .toList();

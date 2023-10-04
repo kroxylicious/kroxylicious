@@ -50,16 +50,15 @@ public class FilterFactoryManager {
         return getFactory(typeName).configType();
     }
 
-    public boolean validateConfig(String typeName, Object config) {
-        try {
-            FilterFactory factory = filterFactories.get(typeName);
-            factory.validateConfiguration(config);
-            return true;
-        }
-        catch (InvalidFilterConfigurationException e) {
-            logger.warn("Invalid configuration supplied for {}", typeName, e);
-            return false;
-        }
+    /**
+     * Validates the config for a filter factory with the given name
+     * @param typeName The name
+     * @param config The config
+     * @throws InvalidFilterConfigurationException If the factory rejects the given config
+     */
+    public void validateConfig(String typeName, Object config) {
+        FilterFactory factory = filterFactories.get(typeName);
+        factory.validateConfiguration(config);
     }
 
     private FilterFactory getFactory(String typeName) {

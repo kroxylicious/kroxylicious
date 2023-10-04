@@ -6,6 +6,10 @@
 
 package io.kroxylicious.proxy.filter;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
+import java.util.Objects;
+
 /**
  * Thrown when filter configuration is invalid
  */
@@ -15,8 +19,8 @@ public class InvalidFilterConfigurationException extends RuntimeException {
      * Creates InvalidConfigurationException
      * @param message message
      */
-    public InvalidFilterConfigurationException(String message) {
-        super(message);
+    public InvalidFilterConfigurationException(@NonNull String message) {
+        super(Objects.requireNonNull(message));
     }
 
     /**
@@ -24,7 +28,7 @@ public class InvalidFilterConfigurationException extends RuntimeException {
      * @param message message
      * @param cause cause
      */
-    public InvalidFilterConfigurationException(String message, Throwable cause) {
-        super(message, cause);
+    public InvalidFilterConfigurationException(@NonNull String message, Throwable cause) {
+        super(Objects.requireNonNull(message), cause);
     }
 }

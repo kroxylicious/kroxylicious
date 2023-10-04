@@ -42,7 +42,8 @@ class KafkaProxyTest {
                 """;
         try (var kafkaProxy = new KafkaProxy(new ConfigParser().parseConfiguration(config))) {
             assertThatThrownBy(kafkaProxy::startup).isInstanceOf(InvalidFilterConfigurationException.class)
-                    .hasMessage("Invalid config for [ProduceRequestTransformationFilter]");
+                    .hasMessage(
+                            "Invalid filters: [filter type: ProduceRequestTransformationFilter error: ProduceRequestTransformationFilter requires configuration, but config object is null]");
         }
     }
 
