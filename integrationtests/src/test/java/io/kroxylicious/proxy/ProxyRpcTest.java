@@ -15,7 +15,6 @@ import java.util.stream.Stream;
 import org.apache.kafka.common.message.ApiMessageType;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
-import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -31,6 +30,8 @@ import io.kroxylicious.test.Response;
 import io.kroxylicious.test.ResponsePayload;
 import io.kroxylicious.test.client.KafkaClient;
 import io.kroxylicious.test.tester.MockServerKroxyliciousTester;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.mockKafkaKroxyliciousTester;
@@ -82,7 +83,7 @@ public class ProxyRpcTest {
         }
     }
 
-    @NotNull
+    @NonNull
     private static Stream<Scenario> scenarios() {
         Map<ApiAndVersion, ApiMessage> requestSamples = ApiMessageSampleGenerator.createRequestSamples();
         Map<ApiAndVersion, ApiMessage> responseSamples = ApiMessageSampleGenerator.createResponseSamples();
@@ -92,7 +93,7 @@ public class ProxyRpcTest {
 
     private static final ApiAndVersion v0HeaderVersion = new ApiAndVersion(CONTROLLED_SHUTDOWN, (short) 0);
 
-    private static @NotNull Stream<Scenario> toScenario(Map<ApiAndVersion, ApiMessage> requestSamples, Map<ApiAndVersion, ApiMessage> responseSample, ApiKeys apiKeys) {
+    private static @NonNull Stream<Scenario> toScenario(Map<ApiAndVersion, ApiMessage> requestSamples, Map<ApiAndVersion, ApiMessage> responseSample, ApiKeys apiKeys) {
         ApiMessageType messageType = apiKeys.messageType;
         IntStream supported = IntStream.range(messageType.lowestSupportedVersion(), apiKeys.messageType.highestSupportedVersion(true) + 1);
         return supported.mapToObj(version -> new ApiAndVersion(apiKeys, (short) version)).map(apiAndVersion -> {
@@ -113,12 +114,12 @@ public class ProxyRpcTest {
         });
     }
 
-    @NotNull
+    @NonNull
     private static ResponsePayload createResponseDefinition(ApiAndVersion apiAndVersion, ApiMessage message) {
         return new ResponsePayload(apiAndVersion.keys(), apiAndVersion.apiVersion(), message);
     }
 
-    @NotNull
+    @NonNull
     private static Request createRequestDefinition(ApiAndVersion apiKeys, String clientId, ApiMessage requestBody) {
         return new Request(apiKeys.keys(), apiKeys.apiVersion(), clientId, requestBody);
     }

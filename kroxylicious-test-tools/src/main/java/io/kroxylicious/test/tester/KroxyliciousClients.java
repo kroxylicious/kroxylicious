@@ -20,8 +20,10 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
+import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
+import org.apache.kafka.common.serialization.Serializer;
 
 import io.kroxylicious.test.client.KafkaClient;
 import io.kroxylicious.testing.kafka.clients.CloseableAdmin;
@@ -32,19 +34,26 @@ class KroxyliciousClients {
     private final String bootstrapServers;
 
     private final List<Admin> admins;
-    private final List<Producer> producers;
-    private final List<Consumer> consumers;
+    private final List<Producer<?, ?>> producers;
+    private final List<Consumer<?, ?>> consumers;
+    private final ClientFactory clientFactory;
 
     KroxyliciousClients(String bootstrapServers) {
+        this(bootstrapServers, new ClientFactory() {
+        });
+    }
+
+    KroxyliciousClients(String bootstrapServers, ClientFactory clientFactory) {
         this.bootstrapServers = bootstrapServers;
         this.admins = new ArrayList<>();
         this.producers = new ArrayList<>();
         this.consumers = new ArrayList<>();
+        this.clientFactory = clientFactory;
     }
 
     public Admin admin(Map<String, Object> additionalConfig) {
         Map<String, Object> config = createConfigMap(bootstrapServers, additionalConfig);
-        Admin admin = CloseableAdmin.create(config);
+        Admin admin = clientFactory.newAdmin(config);
         admins.add(admin);
         return admin;
     }
@@ -63,7 +72,7 @@ class KroxyliciousClients {
 
     public <U, V> Producer<U, V> producer(Serde<U> keySerde, Serde<V> valueSerde, Map<String, Object> additionalConfig) {
         Map<String, Object> config = createConfigMap(bootstrapServers, additionalConfig);
-        Producer<U, V> producer = CloseableProducer.wrap(new KafkaProducer<>(config, keySerde.serializer(), valueSerde.serializer()));
+        Producer<U, V> producer = this.clientFactory.newProducer(config, keySerde.serializer(), valueSerde.serializer());
         producers.add(producer);
         return producer;
     }
@@ -78,7 +87,7 @@ class KroxyliciousClients {
 
     public <U, V> Consumer<U, V> consumer(Serde<U> keySerde, Serde<V> valueSerde, Map<String, Object> additionalConfig) {
         Map<String, Object> config = createConfigMap(bootstrapServers, additionalConfig);
-        Consumer<U, V> consumer = CloseableConsumer.wrap(new KafkaConsumer<>(config, keySerde.deserializer(), valueSerde.deserializer()));
+        Consumer<U, V> consumer = clientFactory.newConsumer(config, keySerde.deserializer(), valueSerde.deserializer());
         consumers.add(consumer);
         return consumer;
     }
@@ -124,4 +133,17 @@ class KroxyliciousClients {
         return config;
     }
 
+    interface ClientFactory {
+        default Admin newAdmin(Map<String, Object> clientConfiguration) {
+            return CloseableAdmin.wrap(Admin.create(clientConfiguration));
+        }
+
+        default <K, V> Consumer<K, V> newConsumer(Map<String, Object> clientConfiguration, Deserializer<K> keyDeserializer, Deserializer<V> valueDeserializer) {
+            return CloseableConsumer.wrap(new KafkaConsumer<>(clientConfiguration, keyDeserializer, valueDeserializer));
+        }
+
+        default <K, V> Producer<K, V> newProducer(Map<String, Object> clientConfiguration, Serializer<K> keySerializer, Serializer<V> valueSerializer) {
+            return CloseableProducer.wrap(new KafkaProducer<>(clientConfiguration, keySerializer, valueSerializer));
+        }
+    }
 }
