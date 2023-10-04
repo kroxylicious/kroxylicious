@@ -14,7 +14,6 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
-import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -98,7 +97,7 @@ class KroxyliciousTestersTest {
             assertClientIsInstanceOf(CloseableAdmin.class, () -> tester.admin(DEFAULT_VIRTUAL_CLUSTER, Map.of()));
         }
     }
-    
+
     @Test
     void shouldReturnDifferentInstancesOfProducer(KafkaCluster cluster) {
         // Given
@@ -111,11 +110,11 @@ class KroxyliciousTestersTest {
             assertDistinctInstanceOf(() -> {
                 final Serdes.StringSerde stringSerde = new Serdes.StringSerde();
                 return tester.producer(stringSerde, stringSerde, Map.of());
-            } );
+            });
             assertDistinctInstanceOf(() -> {
                 final Serdes.StringSerde stringSerde = new Serdes.StringSerde();
                 return tester.producer(DEFAULT_VIRTUAL_CLUSTER, stringSerde, stringSerde, Map.of());
-            } );
+            });
         }
     }
 
@@ -131,14 +130,14 @@ class KroxyliciousTestersTest {
             assertClientIsInstanceOf(CloseableProducer.class, () -> {
                 final Serdes.StringSerde stringSerde = new Serdes.StringSerde();
                 return tester.producer(stringSerde, stringSerde, Map.of());
-            } );
+            });
             assertClientIsInstanceOf(CloseableProducer.class, () -> {
                 final Serdes.StringSerde stringSerde = new Serdes.StringSerde();
                 return tester.producer(DEFAULT_VIRTUAL_CLUSTER, stringSerde, stringSerde, Map.of());
-            } );
+            });
         }
     }
-    
+
     @Test
     void shouldReturnDifferentInstancesOfConsumer(KafkaCluster cluster) {
         // Given
@@ -150,11 +149,11 @@ class KroxyliciousTestersTest {
             assertDistinctInstanceOf(() -> {
                 final Serdes.StringSerde stringSerde = new Serdes.StringSerde();
                 return tester.consumer(stringSerde, stringSerde, Map.of());
-            } );
+            });
             assertDistinctInstanceOf(() -> {
                 final Serdes.StringSerde stringSerde = new Serdes.StringSerde();
                 return tester.consumer(DEFAULT_VIRTUAL_CLUSTER, stringSerde, stringSerde, Map.of());
-            } );
+            });
         }
     }
 
@@ -170,11 +169,11 @@ class KroxyliciousTestersTest {
             assertClientIsInstanceOf(CloseableConsumer.class, () -> {
                 final Serdes.StringSerde stringSerde = new Serdes.StringSerde();
                 return tester.consumer(stringSerde, stringSerde, Map.of());
-            } );
+            });
             assertClientIsInstanceOf(CloseableConsumer.class, () -> {
                 final Serdes.StringSerde stringSerde = new Serdes.StringSerde();
                 return tester.consumer(DEFAULT_VIRTUAL_CLUSTER, stringSerde, stringSerde, Map.of());
-            } );
+            });
         }
     }
 
