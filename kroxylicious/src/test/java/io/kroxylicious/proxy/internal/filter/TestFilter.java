@@ -13,37 +13,51 @@ import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 
 import io.kroxylicious.proxy.filter.FilterContext;
-import io.kroxylicious.proxy.filter.FilterCreationContext;
 import io.kroxylicious.proxy.filter.FilterFactory;
+import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.filter.RequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
+import io.kroxylicious.proxy.plugin.Plugins;
 
-public class TestFilter implements RequestFilter {
-    private final FilterCreationContext context;
-    private final ExampleConfig exampleConfig;
-    private final Class<? extends FilterFactory> contributorClass;
+public class TestFilter implements FilterFactory<ExampleConfig, ExampleConfig> {
 
-    public TestFilter(FilterCreationContext context, ExampleConfig exampleConfig, Class<? extends FilterFactory> contributorClass) {
-        this.context = context;
-        this.exampleConfig = exampleConfig;
-        this.contributorClass = contributorClass;
+    @Override
+    public ExampleConfig initialize(FilterFactoryContext context, ExampleConfig config) {
+        return Plugins.requireConfig(this, config);
     }
 
     @Override
-    public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage request, FilterContext context) {
-        throw new IllegalStateException("not implemented!");
+    public TestFilterImpl createFilter(FilterFactoryContext context, ExampleConfig configuration) {
+        return new TestFilterImpl(context, configuration, this.getClass());
     }
 
-    public FilterCreationContext getContext() {
-        return context;
-    }
+    public static class TestFilterImpl implements RequestFilter {
+        private final FilterFactoryContext context;
+        private final ExampleConfig exampleConfig;
+        private final Class<? extends FilterFactory> contributorClass;
 
-    public ExampleConfig getExampleConfig() {
-        return exampleConfig;
-    }
+        public TestFilterImpl(FilterFactoryContext context, ExampleConfig exampleConfig, Class<? extends FilterFactory> contributorClass) {
+            this.context = context;
+            this.exampleConfig = exampleConfig;
+            this.contributorClass = contributorClass;
+        }
 
-    public Class<? extends FilterFactory> getContributorClass() {
-        return contributorClass;
-    }
+        @Override
+        public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage request, FilterContext context) {
+            throw new IllegalStateException("not implemented!");
+        }
 
+        public FilterFactoryContext getContext() {
+            return context;
+        }
+
+        public ExampleConfig getExampleConfig() {
+            return exampleConfig;
+        }
+
+        public Class<? extends FilterFactory> getContributorClass() {
+            return contributorClass;
+        }
+
+    }
 }

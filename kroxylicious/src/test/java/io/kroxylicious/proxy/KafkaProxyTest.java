@@ -15,7 +15,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.config.Configuration;
-import io.kroxylicious.proxy.filter.InvalidFilterConfigurationException;
+import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -38,11 +38,13 @@ class KafkaProxyTest {
                                 brokerStartPort: 9193
                                 numberOfBrokerPorts: 2
                     filters:
-                       - type: ProduceRequestTransformationFilter
+                       - type: ProduceRequestTransformation
                 """;
-        try (var kafkaProxy = new KafkaProxy(new ConfigParser().parseConfiguration(config))) {
-            assertThatThrownBy(kafkaProxy::startup).isInstanceOf(InvalidFilterConfigurationException.class)
-                    .hasMessage("Invalid config for [ProduceRequestTransformationFilter]");
+        ConfigParser configParser = new ConfigParser();
+        try (var kafkaProxy = new KafkaProxy(configParser, configParser.parseConfiguration(config))) {
+            assertThatThrownBy(kafkaProxy::startup).isInstanceOf(PluginConfigurationException.class)
+                    .hasMessage(
+                            "Exception initializing filter factory ProduceRequestTransformation with config null: ProduceRequestTransformation requires configuration, but config object is null");
         }
     }
 
@@ -92,7 +94,8 @@ class KafkaProxyTest {
     @ParameterizedTest(name = "{0}")
     @MethodSource
     void detectsConflictingPorts(String name, String config, String expectedMessage) throws Exception {
-        try (var kafkaProxy = new KafkaProxy(new ConfigParser().parseConfiguration(config))) {
+        ConfigParser configParser = new ConfigParser();
+        try (var kafkaProxy = new KafkaProxy(configParser, configParser.parseConfiguration(config))) {
             var illegalStateException = assertThrows(IllegalStateException.class, kafkaProxy::startup);
             assertThat(illegalStateException).hasStackTraceContaining(expectedMessage);
         }
@@ -114,11 +117,12 @@ class KafkaProxyTest {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource
-    void missingTls(String name, String config, String expectedMessage) throws Exception {
+    void missingTls(String name, String config, String expectedMessage) {
 
-        final Configuration parsedConfiguration = new ConfigParser().parseConfiguration(config);
+        ConfigParser configParser = new ConfigParser();
+        final Configuration parsedConfiguration = configParser.parseConfiguration(config);
         var illegalStateException = assertThrows(IllegalStateException.class, () -> {
-            try (var ignored = new KafkaProxy(parsedConfiguration)) {
+            try (var ignored = new KafkaProxy(configParser, parsedConfiguration)) {
                 fail("The proxy started, but a failure was expected.");
             }
         });

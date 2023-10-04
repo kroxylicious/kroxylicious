@@ -43,7 +43,7 @@ import io.kroxylicious.proxy.config.ClusterNetworkAddressConfigProviderDefinitio
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
-import io.kroxylicious.proxy.filter.multitenant.MultiTenantTransformationFilter;
+import io.kroxylicious.proxy.filter.multitenant.MultiTenantTransformation;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.test.tester.KroxyliciousTester;
@@ -121,7 +121,7 @@ public abstract class BaseMultiTenantIT extends BaseIT {
                         .endKeyStoreKey()
                         .endTls()
                         .build())
-                .addToFilters(new FilterDefinitionBuilder(MultiTenantTransformationFilter.class.getName()).build());
+                .addToFilters(new FilterDefinitionBuilder(MultiTenantTransformation.class.getName()).build());
     }
 
     Consumer<String, String> getConsumerWithConfig(KroxyliciousTester tester, String virtualCluster, String groupId, Map<String, Object> baseConfig,

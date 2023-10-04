@@ -22,13 +22,25 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.flipkart.zjsonpatch.JsonDiff;
 
+import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.config.admin.AdminHttpConfiguration;
+import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig;
+import io.kroxylicious.proxy.internal.filter.ByteBufferTransformationFactory;
+import io.kroxylicious.proxy.internal.filter.ConstructorInjectionConfig;
+import io.kroxylicious.proxy.internal.filter.FactoryMethodConfig;
+import io.kroxylicious.proxy.internal.filter.FieldInjectionConfig;
+import io.kroxylicious.proxy.internal.filter.ProduceRequestTransformation;
+import io.kroxylicious.proxy.internal.filter.RecordConfig;
+import io.kroxylicious.proxy.internal.filter.SetterInjectionConfig;
+import io.kroxylicious.proxy.internal.filter.UpperCasing;
 import io.kroxylicious.proxy.service.HostPort;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.Assert.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ConfigParserTest {
     private static final ObjectMapper MAPPER = new ObjectMapper(new YAMLFactory());
@@ -86,11 +98,14 @@ class ConfigParserTest {
                                 bootstrapAddress: cluster1:9192
                                 brokerAddressPattern: broker-$(nodeId)
                         """),
+
                 Arguments.of("Filters", """
                         filters:
-                        - type: ProduceRequestTransformationFilter
+                        - type: ProduceRequestTransformation
                           config:
-                            transformation: io.kroxylicious.proxy.internal.filter.ProduceRequestTransformationFilter$UpperCasing
+                            transformation: io.kroxylicious.proxy.internal.filter.UpperCasing
+                            transformationConfig:
+                              charset: UTF-8
                         """),
                 Arguments.of("Admin", """
                         adminHttp:
@@ -225,6 +240,95 @@ class ConfigParserTest {
                 .cause()
                 .hasMessageStartingWith("Duplicate field 'demo1'");
 
+    }
+
+    @Test
+    void testNestedPlugins() {
+        ConfigParser cp = new ConfigParser();
+        var config = cp.parseConfiguration("""
+                filters:
+                - type: ProduceRequestTransformation
+                  config:
+                    transformation: UpperCasing
+                    transformationConfig:
+                      charset: UTF-8
+                      """);
+        assertThat(config.filters()).hasSize(1);
+
+        FilterDefinition fd = config.filters().get(0);
+        assertEquals("ProduceRequestTransformation", fd.type());
+        FilterFactory<?, ?> ff = cp.pluginFactory(FilterFactory.class).pluginInstance(fd.type());
+        assertThat(ff).isNotNull();
+        assertThat(fd.config()).isInstanceOf(ProduceRequestTransformation.Config.class);
+
+        var prtc = (ProduceRequestTransformation.Config) fd.config();
+        assertThat(prtc.transformationConfig()).isInstanceOf(UpperCasing.Config.class);
+        assertEquals("UpperCasing", prtc.transformation());
+        ByteBufferTransformationFactory<?> tm = cp.pluginFactory(ByteBufferTransformationFactory.class).pluginInstance(prtc.transformation());
+        assertThat(tm).isNotNull();
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource
+    void shouldWorkWithDifferentConfigCreators(String name, String yaml, Class<?> expectedConfigType) {
+        // Given
+        ConfigParser cp = new ConfigParser();
+        var config = cp.parseConfiguration(yaml);
+
+        // When
+
+        // Then
+        for (FilterDefinition fd : config.filters()) {
+            var pluginFactory = cp.pluginFactory(FilterChainFactory.TYPE);
+            var filterFactory = pluginFactory.pluginInstance(fd.type());
+            Class<?> configType = pluginFactory.configType(fd.type());
+            assertEquals(expectedConfigType, configType);
+            assertTrue(configType.isInstance(fd.config()));
+            assertEquals("hello, world", filterFactory.initialize(null, fd.config()));
+        }
+    }
+
+    public static Stream<Arguments> shouldWorkWithDifferentConfigCreators() {
+        return Stream.of(Arguments.of("constructor injection",
+                """
+                        filters:
+                        - type: ConstructorInjection
+                          config:
+                            str: hello, world
+                              """,
+                ConstructorInjectionConfig.class),
+                Arguments.of("factory method",
+                        """
+                                filters:
+                                - type: FactoryMethod
+                                  config:
+                                    str: hello, world
+                                      """,
+                        FactoryMethodConfig.class),
+                Arguments.of("field injection",
+                        """
+                                filters:
+                                - type: FieldInjection
+                                  config:
+                                    str: hello, world
+                                      """,
+                        FieldInjectionConfig.class),
+                Arguments.of("record",
+                        """
+                                filters:
+                                - type: Record
+                                  config:
+                                    str: hello, world
+                                      """,
+                        RecordConfig.class),
+                Arguments.of("setter injection",
+                        """
+                                filters:
+                                - type: SetterInjection
+                                  config:
+                                    str: hello, world
+                                      """,
+                        SetterInjectionConfig.class));
     }
 
 }

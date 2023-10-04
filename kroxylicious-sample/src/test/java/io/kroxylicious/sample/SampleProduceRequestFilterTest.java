@@ -64,14 +64,14 @@ class SampleProduceRequestFilterTest {
     @Captor
     private ArgumentCaptor<RequestHeaderData> requestHeaderDataCaptor;
 
-    private SampleProduceRequestFilter filter;
+    private SampleProduceRequest.Filter filter;
     private RequestHeaderData headerData;
 
     @BeforeEach
     public void beforeEach() {
         setupContextMock();
         SampleFilterConfig config = new SampleFilterConfig(CONFIG_FIND_VALUE, CONFIG_REPLACE_VALUE);
-        this.filter = new SampleProduceRequestFilter(config);
+        this.filter = new SampleProduceRequest.Filter(config);
         this.headerData = new RequestHeaderData();
     }
 

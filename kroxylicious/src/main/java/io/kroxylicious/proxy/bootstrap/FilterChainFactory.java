@@ -7,16 +7,18 @@ package io.kroxylicious.proxy.bootstrap;
 
 import java.util.Collection;
 import java.util.List;
-import java.util.Optional;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
+import java.util.concurrent.ScheduledExecutorService;
 
 import io.kroxylicious.proxy.config.FilterDefinition;
+import io.kroxylicious.proxy.config.PluginFactory;
+import io.kroxylicious.proxy.config.PluginFactoryRegistry;
+import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
-import io.kroxylicious.proxy.filter.FilterCreationContext;
-import io.kroxylicious.proxy.filter.InvalidFilterConfigurationException;
-import io.kroxylicious.proxy.internal.filter.NettyFilterContext;
-import io.kroxylicious.proxy.service.FilterFactoryManager;
+import io.kroxylicious.proxy.filter.FilterFactory;
+import io.kroxylicious.proxy.filter.FilterFactoryContext;
+import io.kroxylicious.proxy.plugin.PluginConfigurationException;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
  * Abstracts the creation of a chain of filter instances, hiding the configuration
@@ -24,29 +26,76 @@ import io.kroxylicious.proxy.service.FilterFactoryManager;
  * New instances are created during initialization of a downstream channel.
  */
 public class FilterChainFactory {
-    private final List<FilterDefinition> filterDefinitions;
 
-    public FilterChainFactory(List<FilterDefinition> filterDefinitions) {
-        validateFilterDefinitions(filterDefinitions);
-        this.filterDefinitions = Optional.ofNullable(filterDefinitions).orElse(List.of());
+    record UninitializedFilterFactory(String pluginName, FilterFactory<? super Object, ? super Object> filterFactory, Object config) {
+
+        public static UninitializedFilterFactory xx(String type, FilterFactory<? super Object, ? super Object> filterFactory, Object config) {
+            return new UninitializedFilterFactory(type, filterFactory, config);
+        }
+
+        private InitializedFilterFactory initialize(FilterFactoryContext context) {
+            Object result;
+            try {
+                result = filterFactory.initialize(context, config);
+            }
+            catch (Exception e) {
+                throw new PluginConfigurationException("Exception initializing filter factory " + pluginName + " with config " + config + ": " + e.getMessage(), e);
+            }
+            return new InitializedFilterFactory(filterFactory, result);
+        }
+    }
+
+    record InitializedFilterFactory(FilterFactory<? super Object, ? super Object> filterFactory, Object initResult) {
+        public Filter create(FilterFactoryContext context) {
+            try {
+                return filterFactory().createFilter(context, initResult);
+            }
+            catch (Exception e) {
+                throw new PluginConfigurationException("Exception instantiating filter using factory " + filterFactory, e);
+            }
+        }
     }
 
     /**
-     * Validate that a collection of FilterDefinitions contains all the required configuration to configure the filter.
-     * @param filterDefinitions the candidates to validate.
-     * @throws InvalidFilterConfigurationException If there are problems.
+     * A constant Class type with non-raw {@code FilterFactory} type parameter,
+     * for the avoidance of raw type warnings.
      */
-    public static void validateFilterDefinitions(Collection<FilterDefinition> filterDefinitions) {
-        if (filterDefinitions == null || filterDefinitions.isEmpty()) {
-            return;
+    @SuppressWarnings({ "unchecked", "rawtypes" })
+    public static final Class<FilterFactory<? super Object, ? super Object>> TYPE = (Class) FilterFactory.class;
+
+    private final List<InitializedFilterFactory> initialized;
+
+    public FilterChainFactory(PluginFactoryRegistry pfr, List<FilterDefinition> filterDefinitions) {
+        PluginFactory<FilterFactory<? super Object, ? super Object>> pluginFactory = pfr.pluginFactory(TYPE);
+        if (filterDefinitions == null || ((Collection<FilterDefinition>) filterDefinitions).isEmpty()) {
+            this.initialized = List.of();
         }
-        var invalidFilters = filterDefinitions.stream()
-                .filter(Predicate.not(FilterDefinition::isDefinitionValid))
-                .map(FilterDefinition::type)
-                .collect(Collectors.toSet());
-        if (!invalidFilters.isEmpty()) {
-            throw new InvalidFilterConfigurationException(invalidFilters.stream()
-                    .collect(Collectors.joining(", ", "Invalid config for [", "]")));
+        else {
+            FilterFactoryContext context = new FilterFactoryContext() {
+                @Override
+                public ScheduledExecutorService eventLoop() {
+                    return null;
+                }
+
+                @Override
+                public <P> @NonNull P pluginInstance(@NonNull Class<P> pluginClass, @NonNull String pluginName) {
+                    return pfr.pluginFactory(pluginClass).pluginInstance(pluginName);
+                }
+            };
+            this.initialized = filterDefinitions.stream()
+                    .map(fd -> {
+                        FilterFactory<? super Object, ? super Object> filterFactory = pluginFactory.pluginInstance(fd.type());
+                        Class<?> configType = pluginFactory.configType(fd.type());
+                        if (fd.config() == null || configType.isInstance(fd.config())) {
+                            return UninitializedFilterFactory.xx(fd.type(), filterFactory, fd.config());
+                        }
+                        else {
+                            throw new PluginConfigurationException("accepts config of type " +
+                                    configType.getName() + " but provided with config of type " + fd.config().getClass().getName() + "]");
+                        }
+                    })
+                    .map(uff -> uff.initialize(context))
+                    .toList();
         }
     }
 
@@ -55,13 +104,10 @@ public class FilterChainFactory {
      *
      * @return the new chain.
      */
-    public List<FilterAndInvoker> createFilters(NettyFilterContext context) {
-        return filterDefinitions
+    public List<FilterAndInvoker> createFilters(FilterFactoryContext context) {
+        return initialized
                 .stream()
-                .map(f -> {
-                    FilterCreationContext wrap = context;
-                    return FilterFactoryManager.INSTANCE.createInstance(f.type(), wrap, f.config());
-                })
+                .map(pair -> pair.create(context))
                 .flatMap(filter -> FilterAndInvoker.build(filter).stream())
                 .toList();
     }

@@ -17,7 +17,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.flipkart.zjsonpatch.JsonDiff;
 
-import io.kroxylicious.proxy.internal.filter.ProduceRequestTransformationFilter;
+import io.kroxylicious.proxy.internal.filter.UpperCasing;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -31,17 +31,20 @@ class ConfigurationTest {
                 new ConfigurationBuilder().withUseIoUring(true).build(),
                 """
                         useIoUring: true"""),
-
                 Arguments.of("With filter",
                         new ConfigurationBuilder()
-                                .addToFilters(new FilterDefinitionBuilder("ProduceRequestTransformationFilter")
-                                        .withConfig("transformation", ProduceRequestTransformationFilter.UpperCasing.class.getName()).build())
+                                .addToFilters(new FilterDefinitionBuilder("ProduceRequestTransformation")
+                                        .withConfig("transformation", UpperCasing.class.getName(),
+                                                "transformationConfig", new UpperCasing.Config("UTF-8"))
+                                        .build())
                                 .build(),
                         """
-                                filters:
-                                - type: ProduceRequestTransformationFilter
-                                  config:
-                                    transformation: "io.kroxylicious.proxy.internal.filter.ProduceRequestTransformationFilter$UpperCasing"
+                                    filters:
+                                    - type: ProduceRequestTransformation
+                                      config:
+                                        transformation: "io.kroxylicious.proxy.internal.filter.UpperCasing"
+                                        transformationConfig:
+                                          charset: UTF-8
                                 """),
                 Arguments.of("With Virtual Cluster",
                         new ConfigurationBuilder()

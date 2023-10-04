@@ -49,14 +49,13 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
-import io.kroxylicious.proxy.filter.ApiVersionsMarkingFilter;
-import io.kroxylicious.proxy.filter.CompositePrefixingFixedClientIdFilter;
+import io.kroxylicious.proxy.filter.ApiVersionsMarking;
+import io.kroxylicious.proxy.filter.CompositePrefixingFixedClientId;
 import io.kroxylicious.proxy.filter.ForwardingStyle;
-import io.kroxylicious.proxy.filter.RejectingCreateTopicFilter;
-import io.kroxylicious.proxy.filter.RequestResponseMarkingFilter;
-import io.kroxylicious.proxy.internal.filter.ByteBufferTransformation;
-import io.kroxylicious.proxy.internal.filter.FetchResponseTransformationFilter;
-import io.kroxylicious.proxy.internal.filter.ProduceRequestTransformationFilter;
+import io.kroxylicious.proxy.filter.RejectingCreateTopic;
+import io.kroxylicious.proxy.filter.RequestResponseMarking;
+import io.kroxylicious.proxy.internal.filter.FetchResponseTransformation;
+import io.kroxylicious.proxy.internal.filter.ProduceRequestTransformation;
 import io.kroxylicious.test.Request;
 import io.kroxylicious.test.Response;
 import io.kroxylicious.test.ResponsePayload;
@@ -65,9 +64,9 @@ import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
 import static io.kroxylicious.UnknownTaggedFields.unknownTaggedFieldsToStrings;
-import static io.kroxylicious.proxy.filter.ApiVersionsMarkingFilter.INTERSECTED_API_VERSION_RANGE_TAG;
-import static io.kroxylicious.proxy.filter.ApiVersionsMarkingFilter.UPSTREAM_API_VERSION_RANGE_TAG;
-import static io.kroxylicious.proxy.filter.RequestResponseMarkingFilter.FILTER_NAME_TAG;
+import static io.kroxylicious.proxy.filter.ApiVersionsMarking.Filter.INTERSECTED_API_VERSION_RANGE_TAG;
+import static io.kroxylicious.proxy.filter.ApiVersionsMarking.Filter.UPSTREAM_API_VERSION_RANGE_TAG;
+import static io.kroxylicious.proxy.filter.RequestResponseMarking.Filter.FILTER_NAME_TAG;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.mockKafkaKroxyliciousTester;
@@ -100,7 +99,7 @@ class FilterIT {
             (byte) 0x64, (byte) 0x67, (byte) 0x61, (byte) 0x59, (byte) 0x16 };
     private static final byte[] TOPIC_2_CIPHERTEXT = { (byte) 0xffffffa7, (byte) 0xffffffc4, (byte) 0xffffffcb, (byte) 0xffffffcb, (byte) 0xffffffce, (byte) 0xffffff8b,
             (byte) 0x7f, (byte) 0xffffffd6, (byte) 0xffffffce, (byte) 0xffffffd1, (byte) 0xffffffcb, (byte) 0xffffffc3, (byte) 0xffffff80 };
-    private static final FilterDefinitionBuilder REJECTING_CREATE_TOPIC_FILTER = new FilterDefinitionBuilder(RejectingCreateTopicFilter.class.getName());
+    private static final FilterDefinitionBuilder REJECTING_CREATE_TOPIC_FILTER = new FilterDefinitionBuilder(RejectingCreateTopic.class.getName());
     private static NettyLeakLogAppender appender;
 
     @BeforeAll
@@ -128,15 +127,7 @@ class FilterIT {
         appender.verifyNoLeaks();
     }
 
-    public static class TestEncoder implements ByteBufferTransformation {
-
-        @Override
-        public ByteBuffer transform(String topicName, ByteBuffer in) {
-            return encode(topicName, in);
-        }
-    }
-
-    private static ByteBuffer encode(String topicName, ByteBuffer in) {
+    static ByteBuffer encode(String topicName, ByteBuffer in) {
         var out = ByteBuffer.allocate(in.limit());
         byte rot = (byte) (topicName.hashCode() % Byte.MAX_VALUE);
         for (int index = 0; index < in.limit(); index++) {
@@ -147,15 +138,7 @@ class FilterIT {
         return out;
     }
 
-    public static class TestDecoder implements ByteBufferTransformation {
-
-        @Override
-        public ByteBuffer transform(String topicName, ByteBuffer in) {
-            return decode(topicName, in);
-        }
-    }
-
-    private static ByteBuffer decode(String topicName, ByteBuffer in) {
+    static ByteBuffer decode(String topicName, ByteBuffer in) {
         var out = ByteBuffer.allocate(in.limit());
         out.limit(in.limit());
         byte rot = (byte) -(topicName.hashCode() % Byte.MAX_VALUE);
@@ -245,8 +228,8 @@ class FilterIT {
      * @param direction direction of the flow
      */
     @ParameterizedTest
-    @EnumSource(value = RequestResponseMarkingFilter.Direction.class)
-    void supportsForwardDeferredByAsynchronousAction(RequestResponseMarkingFilter.Direction direction) {
+    @EnumSource(value = RequestResponseMarking.Direction.class)
+    void supportsForwardDeferredByAsynchronousAction(RequestResponseMarking.Direction direction) {
         doSupportsForwardDeferredByAsynchronousRequest(direction,
                 "supportsForwardDeferredByAsynchronousAction",
                 ForwardingStyle.ASYNCHRONOUS_DELAYED);
@@ -258,8 +241,8 @@ class FilterIT {
      * @param direction direction of the flow
      */
     @ParameterizedTest
-    @EnumSource(value = RequestResponseMarkingFilter.Direction.class)
-    void supportsForwardDeferredByAsynchronousActionOnEventLoop(RequestResponseMarkingFilter.Direction direction) {
+    @EnumSource(value = RequestResponseMarking.Direction.class)
+    void supportsForwardDeferredByAsynchronousActionOnEventLoop(RequestResponseMarking.Direction direction) {
         doSupportsForwardDeferredByAsynchronousRequest(direction,
                 "supportsForwardDeferredByAsynchronousActionOnEventLoop",
                 ForwardingStyle.ASYNCHRONOUS_DELAYED_ON_EVENTlOOP);
@@ -271,16 +254,16 @@ class FilterIT {
      * @param direction direction of the flow
      */
     @ParameterizedTest
-    @EnumSource(value = RequestResponseMarkingFilter.Direction.class)
-    void supportsForwardDeferredByAsynchronousBrokerRequest(RequestResponseMarkingFilter.Direction direction) {
+    @EnumSource(value = RequestResponseMarking.Direction.class)
+    void supportsForwardDeferredByAsynchronousBrokerRequest(RequestResponseMarking.Direction direction) {
         doSupportsForwardDeferredByAsynchronousRequest(direction,
                 "supportsForwardDeferredByAsynchronousBrokerRequest",
                 ForwardingStyle.ASYNCHRONOUS_REQUEST_TO_BROKER);
     }
 
-    private void doSupportsForwardDeferredByAsynchronousRequest(RequestResponseMarkingFilter.Direction direction, String name,
+    private void doSupportsForwardDeferredByAsynchronousRequest(RequestResponseMarking.Direction direction, String name,
                                                                 ForwardingStyle forwardingStyle) {
-        var markingFilter = new FilterDefinitionBuilder(RequestResponseMarkingFilter.class.getName())
+        var markingFilter = new FilterDefinitionBuilder(RequestResponseMarking.class.getName())
                 .withConfig("keysToMark", Set.of(LIST_TRANSACTIONS),
                         "direction", Set.of(direction),
                         "name", name,
@@ -309,9 +292,9 @@ class FilterIT {
             assertThat(requestMessageReceivedByBroker).isInstanceOf(ListTransactionsRequestData.class);
             assertThat(responseMessageReceivedByClient).isInstanceOf(ListTransactionsResponseData.class);
 
-            var target = direction == RequestResponseMarkingFilter.Direction.REQUEST ? requestMessageReceivedByBroker : responseMessageReceivedByClient;
+            var target = direction == RequestResponseMarking.Direction.REQUEST ? requestMessageReceivedByBroker : responseMessageReceivedByClient;
             assertThat(unknownTaggedFieldsToStrings(target, FILTER_NAME_TAG)).containsExactly(
-                    "RequestResponseMarkingFilter-%s-%s".formatted(name, direction.toString().toLowerCase(Locale.ROOT)));
+                    "RequestResponseMarking.Filter-%s-%s".formatted(name, direction.toString().toLowerCase(Locale.ROOT)));
         }
     }
 
@@ -343,13 +326,13 @@ class FilterIT {
                 .isThrownBy(() -> proxyAdmin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1))).all().get())
                 .withCauseInstanceOf(InvalidTopicException.class)
                 .havingCause()
-                .withMessage(RejectingCreateTopicFilter.ERROR_MESSAGE);
+                .withMessage(RejectingCreateTopic.Filter.ERROR_MESSAGE);
     }
 
     @Test
     void testCompositeFilter() {
         try (MockServerKroxyliciousTester tester = mockKafkaKroxyliciousTester((mockBootstrap) -> proxy(mockBootstrap)
-                .addToFilters(new FilterDefinitionBuilder(CompositePrefixingFixedClientIdFilter.class.getName())
+                .addToFilters(new FilterDefinitionBuilder(CompositePrefixingFixedClientId.class.getName())
                         .withConfig("clientId", "banana", "prefix", "123").build()));
                 var kafkaClient = tester.simpleTestClient()) {
             tester.addMockResponseForApiKey(new ResponsePayload(METADATA, METADATA.latestVersion(), new MetadataResponseData()));
@@ -361,7 +344,7 @@ class FilterIT {
     @Test
     void testApiVersionsAvailableToFilter() {
         try (MockServerKroxyliciousTester tester = mockKafkaKroxyliciousTester((mockBootstrap) -> proxy(mockBootstrap)
-                .addToFilters(new FilterDefinitionBuilder(ApiVersionsMarkingFilter.class.getName()).build()));
+                .addToFilters(new FilterDefinitionBuilder(ApiVersionsMarking.class.getName()).build()));
                 var kafkaClient = tester.simpleTestClient()) {
             ApiVersionsResponseData apiVersionsResponseData = new ApiVersionsResponseData();
             short kroxyliciousLatestVersion = METADATA.latestVersion();
@@ -384,8 +367,8 @@ class FilterIT {
                 new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
 
         var config = proxy(cluster)
-                .addToFilters(new FilterDefinitionBuilder(ProduceRequestTransformationFilter.class.getName())
-                        .withConfig("transformation", TestEncoder.class.getName()).build());
+                .addToFilters(new FilterDefinitionBuilder(ProduceRequestTransformation.class.getName())
+                        .withConfig("transformation", TestEncoderFactory.class.getName()).build());
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer(Map.of(CLIENT_ID_CONFIG, "shouldModifyProduceMessage", DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000));
@@ -480,8 +463,8 @@ class FilterIT {
         admin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1))).all().get();
 
         var config = proxy(cluster)
-                .addToFilters(new FilterDefinitionBuilder(ProduceRequestTransformationFilter.class.getName())
-                        .withConfig("transformation", TestEncoder.class.getName()).build());
+                .addToFilters(new FilterDefinitionBuilder(ProduceRequestTransformation.class.getName())
+                        .withConfig("transformation", TestEncoderFactory.class.getName()).build());
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer(Map.of(CLIENT_ID_CONFIG, "shouldModifyProduceMessage", DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000, ACKS_CONFIG, "0"));
@@ -529,8 +512,8 @@ class FilterIT {
                 new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
 
         var config = proxy(cluster)
-                .addToFilters(new FilterDefinitionBuilder(FetchResponseTransformationFilter.class.getName())
-                        .withConfig("transformation", TestDecoder.class.getName()).build());
+                .addToFilters(new FilterDefinitionBuilder(FetchResponseTransformation.class.getName())
+                        .withConfig("transformation", TestDecoderFactory.class.getName()).build());
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer(Serdes.String(), Serdes.ByteArray(),

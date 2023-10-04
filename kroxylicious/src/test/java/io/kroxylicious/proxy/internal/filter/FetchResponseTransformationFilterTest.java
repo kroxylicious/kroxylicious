@@ -43,18 +43,20 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.stubbing.Answer;
 
 import io.kroxylicious.proxy.filter.FilterContext;
-import io.kroxylicious.proxy.filter.FilterCreationContext;
-import io.kroxylicious.proxy.filter.InvalidFilterConfigurationException;
+import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResultBuilder;
 import io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage;
-import io.kroxylicious.proxy.internal.filter.FetchResponseTransformationFilter.FetchResponseTransformationConfig;
+import io.kroxylicious.proxy.internal.filter.FetchResponseTransformation.Config;
+import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.isA;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -65,7 +67,7 @@ class FetchResponseTransformationFilterTest {
     private static final String ORIGINAL_RECORD_VALUE = "lowercasevalue";
     private static final String EXPECTED_TRANSFORMED_RECORD_VALUE = ORIGINAL_RECORD_VALUE.toUpperCase(Locale.ROOT);
     private static final String RECORD_KEY = "key";
-    private FetchResponseTransformationFilter filter;
+    private FetchResponseTransformation.Filter filter;
     @Mock(strictness = Mock.Strictness.LENIENT)
     FilterContext context;
 
@@ -87,7 +89,8 @@ class FetchResponseTransformationFilterTest {
     @BeforeEach
     @SuppressWarnings("unchecked")
     void setUp() {
-        filter = new FetchResponseTransformationFilter(new FetchResponseTransformationConfig(ProduceRequestTransformationFilter.UpperCasing.class.getName()));
+        filter = new FetchResponseTransformation.Filter(new UpperCasing.Transformation(
+                new UpperCasing.Config("UTF-8")));
 
         when(context.forwardResponse(responseHeaderDataCaptor.capture(), apiMessageCaptor.capture())).thenAnswer(
                 invocation -> CompletableFuture.completedStage(responseFilterResult));
@@ -110,13 +113,14 @@ class FetchResponseTransformationFilterTest {
 
     @Test
     void testFactory() {
-        FetchResponseTransformationFilterFactory factory = new FetchResponseTransformationFilterFactory();
-        assertThat(factory.configType()).isEqualTo(FetchResponseTransformationConfig.class);
-        assertThatThrownBy(() -> factory.validateConfiguration(null)).isInstanceOf(InvalidFilterConfigurationException.class)
-                .hasMessage("FetchResponseTransformationFilter requires configuration, but config object is null");
-        FilterCreationContext constructContext = Mockito.mock(FilterCreationContext.class);
-        FetchResponseTransformationConfig config = new FetchResponseTransformationConfig(ProduceRequestTransformationFilter.UpperCasing.class.getName());
-        assertThat(factory.createFilter(constructContext, config)).isInstanceOf(FetchResponseTransformationFilter.class);
+        FetchResponseTransformation factory = new FetchResponseTransformation();
+        assertThatThrownBy(() -> factory.initialize(null, null)).isInstanceOf(PluginConfigurationException.class)
+                .hasMessage("FetchResponseTransformation requires configuration, but config object is null");
+        FilterFactoryContext constructContext = Mockito.mock(FilterFactoryContext.class);
+        doReturn(new UpperCasing()).when(constructContext).pluginInstance(any(), any());
+        Config config = new Config(UpperCasing.class.getName(),
+                new UpperCasing.Config("UTF-8"));
+        assertThat(factory.createFilter(constructContext, config)).isInstanceOf(FetchResponseTransformation.Filter.class);
     }
 
     @Test

@@ -10,22 +10,16 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import io.kroxylicious.proxy.filter.Filter;
-import io.kroxylicious.proxy.filter.FilterCreationContext;
+import io.kroxylicious.proxy.filter.FilterFactoryContext;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class MultiTenantFilterFactoryTest {
 
     @Test
-    void testGetConfigTypeViaConfigurationDefinition() {
-        MultiTenantTransformationFilterFactory factory = new MultiTenantTransformationFilterFactory();
-        assertThat(factory.configType()).isEqualTo(Void.class);
-    }
-
-    @Test
     void testGetInstance() {
-        MultiTenantTransformationFilterFactory factory = new MultiTenantTransformationFilterFactory();
-        Filter filter = factory.createFilter(Mockito.mock(FilterCreationContext.class), null);
+        MultiTenantTransformation factory = new MultiTenantTransformation();
+        Filter filter = factory.createFilter(Mockito.mock(FilterFactoryContext.class), null);
         assertThat(filter).isNotNull().isInstanceOf(MultiTenantTransformationFilter.class);
     }
 

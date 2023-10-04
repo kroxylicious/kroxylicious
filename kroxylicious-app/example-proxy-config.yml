@@ -21,4 +21,4 @@ virtualClusters:
 filters:
 #- type: ProduceRequestTransformationFilter
 #  config:
-#    transformation: io.kroxylicious.proxy.internal.filter.ProduceRequestTransformationFilter$UpperCasing
+#    transformation: io.kroxylicious.proxy.internal.filter.ProduceRequestTransformationFilterFactory.ProduceRequestTransformationFilter$UpperCasing

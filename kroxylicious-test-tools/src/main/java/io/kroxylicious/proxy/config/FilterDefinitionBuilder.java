@@ -8,7 +8,7 @@ package io.kroxylicious.proxy.config;
 
 import java.util.Map;
 
-import io.kroxylicious.proxy.service.FilterFactoryManager;
+import io.kroxylicious.proxy.filter.FilterFactory;
 
 public class FilterDefinitionBuilder extends AbstractDefinitionBuilder<FilterDefinition> {
     public FilterDefinitionBuilder(String type) {
@@ -17,7 +17,7 @@ public class FilterDefinitionBuilder extends AbstractDefinitionBuilder<FilterDef
 
     @Override
     protected FilterDefinition buildInternal(String type, Map<String, Object> config) {
-        var configType = FilterFactoryManager.INSTANCE.getConfigType(type);
+        var configType = new ServiceBasedPluginFactoryRegistry().load(FilterFactory.class).get(type).config();
         return new FilterDefinition(type, mapper.convertValue(config, configType));
     }
 }

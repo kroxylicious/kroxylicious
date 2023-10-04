@@ -63,14 +63,14 @@ class SampleFetchResponseFilterTest {
 
     @Captor
     private ArgumentCaptor<ApiMessage> apiMessageCaptor;
-    private SampleFetchResponseFilter filter;
+    private SampleFetchResponse.Filter filter;
     private ResponseHeaderData headerData;
 
     @BeforeEach
     public void beforeEach() {
         setupContextMock();
         SampleFilterConfig config = new SampleFilterConfig(CONFIG_FIND_VALUE, CONFIG_REPLACE_VALUE);
-        this.filter = new SampleFetchResponseFilter(config);
+        this.filter = new SampleFetchResponse.Filter(config);
         this.headerData = new ResponseHeaderData();
     }
 

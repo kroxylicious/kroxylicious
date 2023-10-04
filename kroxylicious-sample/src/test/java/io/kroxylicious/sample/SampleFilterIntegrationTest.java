@@ -44,9 +44,9 @@ class SampleFilterIntegrationTest {
     // Configure filters here
     private static final String FIND_CONFIG_FIELD = "findValue";
     private static final String REPLACE_CONFIG_FIELD = "replacementValue";
-    private static final TestFilter SAMPLE_PRODUCE_REQUEST_FILTER = new TestFilter(SampleProduceRequestFilter.class.getName(),
+    private static final TestFilter SAMPLE_PRODUCE_REQUEST_FILTER = new TestFilter(SampleProduceRequest.class.getName(),
             Map.of(FIND_CONFIG_FIELD, "foo", REPLACE_CONFIG_FIELD, "bar"));
-    private static final TestFilter SAMPLE_FETCH_RESPONSE_FILTER = new TestFilter(SampleFetchResponseFilter.class.getName(),
+    private static final TestFilter SAMPLE_FETCH_RESPONSE_FILTER = new TestFilter(SampleFetchResponse.class.getName(),
             Map.of(FIND_CONFIG_FIELD, "bar", REPLACE_CONFIG_FIELD, "baz"));
 
     // Configure test input/expected values here
