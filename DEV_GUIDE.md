@@ -24,6 +24,7 @@ This document gives a detailed breakdown of the various build processes and opti
     * [Linux](#linux)
     * [Verify that the fix is effective](#verify-that-the-fix-is-effective)
   * [Rendering documentation](#rendering-documentation)
+  * [Using the GitHub CI workflows against a fork](#using-the-github-ci-workflows-against-a-fork)
 <!-- TOC -->
 
 ## Build status
@@ -317,4 +318,9 @@ mvn org.asciidoctor:asciidoctor-maven-plugin:process-asciidoc@convert-to-html
 ```
 
 The output will be in `target/html/master.html`. 
+
+## Using the GitHub CI workflows against a fork
+
+All CI [workflows](.github/workflows) defined within  will execute against your fork, apart from [docker workflow](.github/workflows/docker.yml).
+To enable the docker worklflow,  configure the secrets `QUAY_USER` and `QUAY_TOKEN` within your fork.
 
