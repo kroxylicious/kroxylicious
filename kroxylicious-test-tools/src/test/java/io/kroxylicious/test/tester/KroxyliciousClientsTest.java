@@ -141,13 +141,13 @@ class KroxyliciousClientsTest {
     void shouldCloseMultipleProducers() {
         // Given
         final ProducerRecord<String, String> record = new ProducerRecord<>("topic", "Value");
-        final Set<Producer<String, String>> producers = Set.of(kroxyliciousClients.producer(), kroxyliciousClients.producer(), kroxyliciousClients.producer());
+        final Set<Producer<String, String>> clients = Set.of(kroxyliciousClients.producer(), kroxyliciousClients.producer(), kroxyliciousClients.producer());
 
         // When
         kroxyliciousClients.close();
 
         // Then
-        for (Producer<String, String> producer : producers) {
+        for (Producer<String, String> producer : clients) {
             assertThatThrownBy(() -> producer.send(record))
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessage("MockProducer is already closed.");
@@ -157,16 +157,30 @@ class KroxyliciousClientsTest {
     @Test
     void shouldCloseMultipleConsumers() {
         // Given
-        final Set<Consumer<String, String>> consumers = Set.of(kroxyliciousClients.consumer(), kroxyliciousClients.consumer(), kroxyliciousClients.consumer());
+        final Set<Consumer<String, String>> clients = Set.of(kroxyliciousClients.consumer(), kroxyliciousClients.consumer(), kroxyliciousClients.consumer());
 
         // When
         kroxyliciousClients.close();
 
         // Then
-        for (Consumer<String, String> consumer : consumers) {
+        for (Consumer<String, String> consumer : clients) {
             assertThatThrownBy(() -> consumer.poll(Duration.ZERO))
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessage("This consumer has already been closed.");
+        }
+    }
+
+    @Test
+    void shouldCloseMultipleAdmins() {
+        // Given
+        final Set<Admin> clients = Set.of(kroxyliciousClients.admin(), kroxyliciousClients.admin(), kroxyliciousClients.admin());
+
+        // When
+        kroxyliciousClients.close();
+
+        // Then
+        for (Admin admin : clients) {
+            verify(admin).close();
         }
     }
 
