@@ -107,14 +107,8 @@ class KroxyliciousTestersTest {
             assertDistinctInstanceOf(() -> tester.producer(DEFAULT_VIRTUAL_CLUSTER));
             assertDistinctInstanceOf(() -> tester.producer(Map.of()));
             assertDistinctInstanceOf(() -> tester.producer(DEFAULT_VIRTUAL_CLUSTER, Map.of()));
-            assertDistinctInstanceOf(() -> {
-                final Serdes.StringSerde stringSerde = new Serdes.StringSerde();
-                return tester.producer(stringSerde, stringSerde, Map.of());
-            });
-            assertDistinctInstanceOf(() -> {
-                final Serdes.StringSerde stringSerde = new Serdes.StringSerde();
-                return tester.producer(DEFAULT_VIRTUAL_CLUSTER, stringSerde, stringSerde, Map.of());
-            });
+            assertDistinctInstanceOf(() -> tester.producer(Serdes.String(), Serdes.String(), Map.of()));
+            assertDistinctInstanceOf(() -> tester.producer(DEFAULT_VIRTUAL_CLUSTER, Serdes.String(), Serdes.String(), Map.of()));
         }
     }
 
@@ -127,14 +121,8 @@ class KroxyliciousTestersTest {
             assertClientIsInstanceOf(CloseableProducer.class, () -> tester.producer(DEFAULT_VIRTUAL_CLUSTER));
             assertClientIsInstanceOf(CloseableProducer.class, () -> tester.producer(Map.of()));
             assertClientIsInstanceOf(CloseableProducer.class, () -> tester.producer(DEFAULT_VIRTUAL_CLUSTER, Map.of()));
-            assertClientIsInstanceOf(CloseableProducer.class, () -> {
-                final Serdes.StringSerde stringSerde = new Serdes.StringSerde();
-                return tester.producer(stringSerde, stringSerde, Map.of());
-            });
-            assertClientIsInstanceOf(CloseableProducer.class, () -> {
-                final Serdes.StringSerde stringSerde = new Serdes.StringSerde();
-                return tester.producer(DEFAULT_VIRTUAL_CLUSTER, stringSerde, stringSerde, Map.of());
-            });
+            assertClientIsInstanceOf(CloseableProducer.class, () -> tester.producer(Serdes.String(), Serdes.String(), Map.of()));
+            assertClientIsInstanceOf(CloseableProducer.class, () -> tester.producer(DEFAULT_VIRTUAL_CLUSTER, Serdes.String(), Serdes.String(), Map.of()));
         }
     }
 
@@ -146,14 +134,8 @@ class KroxyliciousTestersTest {
             assertDistinctInstanceOf(() -> tester.consumer(DEFAULT_VIRTUAL_CLUSTER));
             assertDistinctInstanceOf(() -> tester.consumer(Map.of()));
             assertDistinctInstanceOf(() -> tester.consumer(DEFAULT_VIRTUAL_CLUSTER, Map.of()));
-            assertDistinctInstanceOf(() -> {
-                final Serdes.StringSerde stringSerde = new Serdes.StringSerde();
-                return tester.consumer(stringSerde, stringSerde, Map.of());
-            });
-            assertDistinctInstanceOf(() -> {
-                final Serdes.StringSerde stringSerde = new Serdes.StringSerde();
-                return tester.consumer(DEFAULT_VIRTUAL_CLUSTER, stringSerde, stringSerde, Map.of());
-            });
+            assertDistinctInstanceOf(() -> tester.consumer(Serdes.String(), Serdes.String(), Map.of()));
+            assertDistinctInstanceOf(() -> tester.consumer(DEFAULT_VIRTUAL_CLUSTER, Serdes.String(), Serdes.String(), Map.of()));
         }
     }
 
@@ -166,14 +148,8 @@ class KroxyliciousTestersTest {
             assertClientIsInstanceOf(CloseableConsumer.class, () -> tester.consumer(DEFAULT_VIRTUAL_CLUSTER));
             assertClientIsInstanceOf(CloseableConsumer.class, () -> tester.consumer(Map.of()));
             assertClientIsInstanceOf(CloseableConsumer.class, () -> tester.consumer(DEFAULT_VIRTUAL_CLUSTER, Map.of()));
-            assertClientIsInstanceOf(CloseableConsumer.class, () -> {
-                final Serdes.StringSerde stringSerde = new Serdes.StringSerde();
-                return tester.consumer(stringSerde, stringSerde, Map.of());
-            });
-            assertClientIsInstanceOf(CloseableConsumer.class, () -> {
-                final Serdes.StringSerde stringSerde = new Serdes.StringSerde();
-                return tester.consumer(DEFAULT_VIRTUAL_CLUSTER, stringSerde, stringSerde, Map.of());
-            });
+            assertClientIsInstanceOf(CloseableConsumer.class, () -> tester.consumer(Serdes.String(), Serdes.String(), Map.of()));
+            assertClientIsInstanceOf(CloseableConsumer.class, () -> tester.consumer(DEFAULT_VIRTUAL_CLUSTER, Serdes.String(), Serdes.String(), Map.of()));
         }
     }
 
