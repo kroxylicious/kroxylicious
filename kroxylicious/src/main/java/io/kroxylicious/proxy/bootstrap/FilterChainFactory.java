@@ -38,7 +38,7 @@ public class FilterChainFactory {
      * @param filterDefinitions the candidates to validate.
      * @throws InvalidFilterConfigurationException If there are problems.
      */
-    public static void validateFilterDefinitions(FilterFactoryManager ffm, Collection<FilterDefinition> filterDefinitions) {
+    private static void validateFilterDefinitions(FilterFactoryManager ffm, Collection<FilterDefinition> filterDefinitions) {
         if (filterDefinitions == null || filterDefinitions.isEmpty()) {
             return;
         }

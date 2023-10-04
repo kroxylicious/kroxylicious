@@ -152,7 +152,7 @@ class FilterChainFactoryTest {
         // When
 
         // Then
-        assertThrows(InvalidFilterConfigurationException.class, () -> FilterChainFactory.validateFilterDefinitions(ffm, List.of(requiredConfig)));
+        assertThrows(InvalidFilterConfigurationException.class, () -> new FilterChainFactory(ffm, List.of(requiredConfig)));
     }
 
     @Test
@@ -163,7 +163,7 @@ class FilterChainFactoryTest {
         // When
 
         // Then
-        FilterChainFactory.validateFilterDefinitions(ffm, List.of(requiredConfig));
+        assertThat(new FilterChainFactory(ffm, List.of(requiredConfig))).isNotNull();
     }
 
     @Test
@@ -174,7 +174,7 @@ class FilterChainFactoryTest {
         // When
 
         // Then
-        FilterChainFactory.validateFilterDefinitions(ffm, List.of(requiredConfig));
+        assertThat(new FilterChainFactory(ffm, List.of(requiredConfig))).isNotNull();
     }
 
     @Test
@@ -185,7 +185,7 @@ class FilterChainFactoryTest {
         // When
 
         // Then
-        FilterChainFactory.validateFilterDefinitions(ffm, List.of(requiredConfig));
+        assertThat(new FilterChainFactory(ffm, List.of(requiredConfig))).isNotNull();
     }
 
 }
