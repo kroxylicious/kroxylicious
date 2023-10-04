@@ -7,7 +7,6 @@
 package io.kroxylicious.proxy.bootstrap;
 
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -15,9 +14,9 @@ import org.assertj.core.api.ListAssert;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.FilterDefinition;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
+import io.kroxylicious.proxy.filter.InvalidFilterConfigurationException;
 import io.kroxylicious.proxy.internal.filter.ExampleConfig;
 import io.kroxylicious.proxy.internal.filter.NettyFilterContext;
 import io.kroxylicious.proxy.internal.filter.OptionalConfigFilter;
@@ -25,8 +24,8 @@ import io.kroxylicious.proxy.internal.filter.TestFilter;
 import io.kroxylicious.proxy.internal.filter.TestFilterFactory;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class FilterChainFactoryTest {
@@ -43,15 +42,10 @@ class FilterChainFactoryTest {
     @Test
     void testNullFiltersInConfigResultsInEmptyList() {
         ScheduledExecutorService eventLoop = Executors.newScheduledThreadPool(1);
-        FilterChainFactory filterChainFactory = new FilterChainFactory(new Configuration(null, null, null, null, true));
+        FilterChainFactory filterChainFactory = new FilterChainFactory(null);
         List<FilterAndInvoker> filters = filterChainFactory.createFilters(new NettyFilterContext(eventLoop));
         assertNotNull(filters, "Filters list should not be null");
         assertTrue(filters.isEmpty(), "Filters list should be empty");
-    }
-
-    @Test
-    void testConfigurationNotNullable() {
-        assertThatThrownBy(() -> new FilterChainFactory(null)).isInstanceOf(NullPointerException.class);
     }
 
     @Test
@@ -92,10 +86,10 @@ class FilterChainFactoryTest {
                 new FilterDefinition(TestFilter.class.getName(), null));
 
         // When
-        final Set<String> invalidFilters = FilterChainFactory.validateFilterConfiguration(filters);
+        var ex = assertThrows(InvalidFilterConfigurationException.class, () -> new FilterChainFactory(filters));
 
         // Then
-        assertThat(invalidFilters).containsOnly(TestFilter.class.getName());
+        assertThat(ex.getMessage()).contains(TestFilter.class.getName());
     }
 
     @Test
@@ -106,11 +100,10 @@ class FilterChainFactoryTest {
                 new FilterDefinition(OptionalConfigFilter.class.getName(), null));
 
         // When
-        final Set<String> invalidFilters = FilterChainFactory.validateFilterConfiguration(filters);
+        var ex = assertThrows(InvalidFilterConfigurationException.class, () -> new FilterChainFactory(filters));
 
         // Then
-        assertThat(invalidFilters).containsOnly(TestFilter.class.getName(),
-                TestFilter.class.getName());
+        assertThat(ex.getMessage()).contains(TestFilter.class.getName());
     }
 
     @Test
@@ -120,10 +113,10 @@ class FilterChainFactoryTest {
                 new FilterDefinition(TestFilter.class.getName(), config));
 
         // When
-        final Set<String> invalidFilters = FilterChainFactory.validateFilterConfiguration(filterDefinitions);
 
         // Then
-        assertThat(invalidFilters).isEmpty();
+        // no exception thrown;
+        assertThat(new FilterChainFactory(filterDefinitions)).isNotNull();
     }
 
     @Test
@@ -134,14 +127,13 @@ class FilterChainFactoryTest {
                 new FilterDefinition(OptionalConfigFilter.class.getName(), null));
 
         // When
-        final Set<String> invalidFilters = FilterChainFactory.validateFilterConfiguration(filterDefinitions);
 
         // Then
-        assertThat(invalidFilters).isEmpty();
+        assertThat(new FilterChainFactory(filterDefinitions)).isNotNull();
     }
 
     private ListAssert<FilterAndInvoker> assertFiltersCreated(List<FilterDefinition> filterDefinitions) {
-        FilterChainFactory filterChainFactory = new FilterChainFactory(new Configuration(null, null, filterDefinitions, null, true));
+        FilterChainFactory filterChainFactory = new FilterChainFactory(filterDefinitions);
         NettyFilterContext context = new NettyFilterContext(eventLoop);
         List<FilterAndInvoker> filters = filterChainFactory.createFilters(context);
         return assertThat(filters).isNotNull().hasSize(filterDefinitions.size());

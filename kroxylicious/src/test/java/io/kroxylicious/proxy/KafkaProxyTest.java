@@ -15,6 +15,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.config.Configuration;
+import io.kroxylicious.proxy.filter.InvalidFilterConfigurationException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -40,8 +41,8 @@ class KafkaProxyTest {
                        - type: ProduceRequestTransformationFilter
                 """;
         try (var kafkaProxy = new KafkaProxy(new ConfigParser().parseConfiguration(config))) {
-            assertThatThrownBy(kafkaProxy::startup).isInstanceOf(IllegalStateException.class)
-                    .hasMessage("Missing required config for [ProduceRequestTransformationFilter]");
+            assertThatThrownBy(kafkaProxy::startup).isInstanceOf(InvalidFilterConfigurationException.class)
+                    .hasMessage("Invalid config for [ProduceRequestTransformationFilter]");
         }
     }
 
