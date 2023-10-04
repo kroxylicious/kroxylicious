@@ -322,5 +322,11 @@ The output will be in `target/html/master.html`.
 ## Using the GitHub CI workflows against a fork
 
 All CI [workflows](.github/workflows) defined within  will execute against your fork, apart from [docker workflow](.github/workflows/docker.yml).
-To enable the docker worklflow,  configure the secrets `QUAY_USER` and `QUAY_TOKEN` within your fork.
+To enable the docker worklflow, you need to configure two repository [variables](https://docs.github.com/en/actions/learn-github-actions/variables)
+and one respository [secret](https://docs.github.com/en/actions/security-guides/using-secrets-in-github-actions).
 
+* `QUAY_ORG` variable - your Quay organisation.
+* `QUAY_USER` variable - your Quay username (or robot account).
+* `QUAY_TOKEN` secret - the token that corresponds to `QUAY_USER`.
+
+The workflow will push to `${QUAY_ORG}/kroxylicious-developer` so ensure that the Quay user has sufficient privileges. 
