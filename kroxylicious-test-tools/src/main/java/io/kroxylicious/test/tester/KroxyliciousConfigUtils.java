@@ -39,8 +39,8 @@ public class KroxyliciousConfigUtils {
     }
 
     /**
-     * Create a KroxyliciousConfigBuilder with a single virtual cluster configured to
-     * proxy an externally provided bootstrap server.
+     * Create a KroxyliciousConfigBuilder with a virtual cluster for each supplied name configured to
+     * proxy an externally provided single bootstrap server. I.e. many virtual clusters on a single target cluster.
      *
      * @param clusterBootstrapServers external bootstrap server
      * @param virtualClusterNames the name to use for the virtual cluster
