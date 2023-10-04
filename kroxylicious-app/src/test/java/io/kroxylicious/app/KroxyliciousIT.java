@@ -26,6 +26,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.config.Configuration;
+import io.kroxylicious.proxy.service.FilterFactoryManager;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
@@ -79,7 +80,7 @@ class KroxyliciousIT {
         public AutoCloseable apply(Configuration config) {
             try {
                 Path configPath = tempDir.resolve("config.yaml");
-                Files.writeString(configPath, new ConfigParser().toYaml(config));
+                Files.writeString(configPath, new ConfigParser(new FilterFactoryManager()).toYaml(config));
                 String java = System.getProperty("java.home") + File.separator + "bin" + File.separator + "java";
                 String classpath = System.getProperty("java.class.path");
                 var processBuilder = new ProcessBuilder(java, "-cp", classpath, "io.kroxylicious.app.Kroxylicious", "-c", configPath.toString()).inheritIO();

@@ -41,7 +41,7 @@ class FilterChainFactoryTest {
     void setUp() {
         eventLoop = Executors.newScheduledThreadPool(1);
         config = new ExampleConfig();
-        ffm = FilterFactoryManager.INSTANCE;
+        ffm = new FilterFactoryManager();
     }
 
     @Test

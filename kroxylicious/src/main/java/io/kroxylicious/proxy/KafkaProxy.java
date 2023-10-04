@@ -57,6 +57,7 @@ public final class KafkaProxy implements AutoCloseable {
 
     private final NetworkBindingOperationProcessor bindingOperationProcessor = new DefaultNetworkBindingOperationProcessor();
     private final EndpointRegistry endpointRegistry = new EndpointRegistry(bindingOperationProcessor);
+    private final FilterFactoryManager ffm;
     private MeterRegistries meterRegistries;
 
     private record EventGroupConfig(String name, EventLoopGroup bossGroup, EventLoopGroup workerGroup, Class<? extends ServerChannel> clazz) {
@@ -76,7 +77,8 @@ public final class KafkaProxy implements AutoCloseable {
     private EventGroupConfig serverEventGroup;
     private Channel metricsChannel;
 
-    public KafkaProxy(Configuration config) {
+    public KafkaProxy(FilterFactoryManager ffm, Configuration config) {
+        this.ffm = Objects.requireNonNull(ffm);
         this.config = Objects.requireNonNull(config);
         this.virtualClusters = config.virtualClusterModel();
         this.adminHttpConfig = config.adminHttpConfig();
@@ -104,7 +106,6 @@ public final class KafkaProxy implements AutoCloseable {
 
         maybeStartMetricsListener(adminEventGroup, meterRegistries);
 
-        var ffm = FilterFactoryManager.INSTANCE;
         var filterChainFactory = new FilterChainFactory(ffm, config.filters());
         var tlsServerBootstrap = buildServerBootstrap(serverEventGroup,
                 new KafkaProxyInitializer(filterChainFactory, true, endpointRegistry, endpointRegistry, false, Map.of()));

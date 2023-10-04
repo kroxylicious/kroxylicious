@@ -6,9 +6,9 @@
 
 package io.kroxylicious.proxy.filter;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import java.util.Objects;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
  * Thrown when filter configuration is invalid

@@ -16,6 +16,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.filter.InvalidFilterConfigurationException;
+import io.kroxylicious.proxy.service.FilterFactoryManager;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -23,6 +24,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.fail;
 
 class KafkaProxyTest {
+
+    private static final FilterFactoryManager FFM = new FilterFactoryManager();
 
     @Test
     void shouldFailToStartIfRequireFilterConfigIsMissing() throws Exception {
@@ -40,7 +43,7 @@ class KafkaProxyTest {
                     filters:
                        - type: ProduceRequestTransformationFilter
                 """;
-        try (var kafkaProxy = new KafkaProxy(new ConfigParser().parseConfiguration(config))) {
+        try (var kafkaProxy = new KafkaProxy(FFM, new ConfigParser(FFM).parseConfiguration(config))) {
             assertThatThrownBy(kafkaProxy::startup).isInstanceOf(InvalidFilterConfigurationException.class)
                     .hasMessage(
                             "Invalid filters: [filter type: ProduceRequestTransformationFilter error: ProduceRequestTransformationFilter requires configuration, but config object is null]");
@@ -93,7 +96,7 @@ class KafkaProxyTest {
     @ParameterizedTest(name = "{0}")
     @MethodSource
     void detectsConflictingPorts(String name, String config, String expectedMessage) throws Exception {
-        try (var kafkaProxy = new KafkaProxy(new ConfigParser().parseConfiguration(config))) {
+        try (var kafkaProxy = new KafkaProxy(FFM, new ConfigParser(FFM).parseConfiguration(config))) {
             var illegalStateException = assertThrows(IllegalStateException.class, kafkaProxy::startup);
             assertThat(illegalStateException).hasStackTraceContaining(expectedMessage);
         }
@@ -115,11 +118,11 @@ class KafkaProxyTest {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource
-    void missingTls(String name, String config, String expectedMessage) throws Exception {
+    void missingTls(String name, String config, String expectedMessage) {
 
-        final Configuration parsedConfiguration = new ConfigParser().parseConfiguration(config);
+        final Configuration parsedConfiguration = new ConfigParser(FFM).parseConfiguration(config);
         var illegalStateException = assertThrows(IllegalStateException.class, () -> {
-            try (var ignored = new KafkaProxy(parsedConfiguration)) {
+            try (var ignored = new KafkaProxy(FFM, parsedConfiguration)) {
                 fail("The proxy started, but a failure was expected.");
             }
         });

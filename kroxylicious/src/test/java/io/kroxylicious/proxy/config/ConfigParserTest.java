@@ -24,6 +24,7 @@ import com.flipkart.zjsonpatch.JsonDiff;
 
 import io.kroxylicious.proxy.config.admin.AdminHttpConfiguration;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig;
+import io.kroxylicious.proxy.service.FilterFactoryManager;
 import io.kroxylicious.proxy.service.HostPort;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -33,7 +34,7 @@ import static org.junit.Assert.assertThrows;
 class ConfigParserTest {
     private static final ObjectMapper MAPPER = new ObjectMapper(new YAMLFactory());
     // Given
-    private ConfigParser configParser = new ConfigParser();
+    private ConfigParser configParser = new ConfigParser(new FilterFactoryManager());
 
     public static Stream<Arguments> yamlDeserializeSerializeFidelity() {
         return Stream.of(Arguments.of("Top level flags", """

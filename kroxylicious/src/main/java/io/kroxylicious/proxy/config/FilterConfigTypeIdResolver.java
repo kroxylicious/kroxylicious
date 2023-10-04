@@ -13,6 +13,7 @@ import com.fasterxml.jackson.databind.jsontype.impl.TypeIdResolverBase;
 import io.kroxylicious.proxy.service.FilterFactoryManager;
 
 public class FilterConfigTypeIdResolver extends TypeIdResolverBase {
+    public static final Object FFM = new Object();
     private JavaType superType;
 
     @Override
@@ -37,7 +38,8 @@ public class FilterConfigTypeIdResolver extends TypeIdResolverBase {
 
     @Override
     public JavaType typeFromId(DatabindContext context, String id) {
-        Class<?> subType = FilterFactoryManager.INSTANCE.getConfigType(id);
+        FilterFactoryManager ffm = (FilterFactoryManager) context.getAttribute(FFM);
+        Class<?> subType = ffm.getConfigType(id);
         return context.constructSpecializedType(superType, subType);
     }
 }

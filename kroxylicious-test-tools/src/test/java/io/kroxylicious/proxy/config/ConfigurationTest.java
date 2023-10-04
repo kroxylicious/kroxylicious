@@ -18,13 +18,14 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.flipkart.zjsonpatch.JsonDiff;
 
 import io.kroxylicious.proxy.internal.filter.ProduceRequestTransformationFilter;
+import io.kroxylicious.proxy.service.FilterFactoryManager;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class ConfigurationTest {
 
     private static final ObjectMapper MAPPER = new ObjectMapper(new YAMLFactory());
-    private final ConfigParser configParser = new ConfigParser();
+    private final ConfigParser configParser = new ConfigParser(FilterFactoryManager.INSTANCE);
 
     public static Stream<Arguments> fluentApiConfigYamlFidelity() {
         return Stream.of(Arguments.of("Top level",

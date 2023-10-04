@@ -15,6 +15,7 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.cfg.ConstructorDetector;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
@@ -22,26 +23,30 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
 
+import io.kroxylicious.proxy.service.FilterFactoryManager;
 import io.kroxylicious.proxy.service.HostPort;
 
 public class ConfigParser {
 
     private static final ObjectMapper MAPPER = createObjectMapper();
+    private final ObjectReader reader;
+
+    public ConfigParser(FilterFactoryManager ffm) {
+        this.reader = MAPPER.reader().withAttribute(FilterConfigTypeIdResolver.FFM, ffm);
+    }
 
     public Configuration parseConfiguration(String configuration) {
-
         try {
-            return MAPPER.readValue(configuration, Configuration.class);
+            return reader.readValue(configuration, Configuration.class);
         }
-        catch (JsonProcessingException e) {
+        catch (IOException e) {
             throw new IllegalArgumentException("Couldn't parse configuration", e);
         }
     }
 
     public Configuration parseConfiguration(InputStream configuration) {
-
         try {
-            return MAPPER.readValue(configuration, Configuration.class);
+            return reader.readValue(configuration, Configuration.class);
         }
         catch (IOException e) {
             throw new IllegalArgumentException("Couldn't parse configuration", e);

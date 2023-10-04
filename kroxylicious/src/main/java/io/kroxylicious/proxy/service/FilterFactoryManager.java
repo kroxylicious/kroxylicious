@@ -11,22 +11,18 @@ import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.Set;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import io.kroxylicious.proxy.config.FilterDefinition;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterCreationContext;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.InvalidFilterConfigurationException;
 
 public class FilterFactoryManager {
-    private static final Logger logger = LoggerFactory.getLogger(FilterDefinition.class);
 
+    @Deprecated
     public static final FilterFactoryManager INSTANCE = new FilterFactoryManager();
     private final Map<String, FilterFactory> filterFactories;
 
-    private FilterFactoryManager() {
+    public FilterFactoryManager() {
         ServiceLoader<FilterFactory> factories = ServiceLoader.load(FilterFactory.class);
         HashMap<String, FilterFactory> nameToFactory = new HashMap<>();
         for (FilterFactory factory : factories) {
