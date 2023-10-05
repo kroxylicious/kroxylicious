@@ -1,0 +1,38 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  labels:
+    app: kafka-consumer-client
+    user-test-app: kafka-clients
+  name: kafka-consumer-client
+spec:
+  backoffLimit: 0
+  completions: 1
+  parallelism: 1
+  template:
+    metadata:
+      labels:
+        app: kafka-consumer-client
+        job-name: kafka-consumer-client
+        user-test-app: kafka-clients
+      name: kafka-consumer-client
+      namespace: kafka
+    spec:
+      containers:
+        - env:
+            - name: BOOTSTRAP_SERVERS
+              value: kroxylicious-service:9292
+            - name: TOPIC
+              value: my-topic
+            - name: MESSAGE_COUNT
+              value: "10"
+            - name: GROUP_ID
+              value: my-group
+            - name: LOG_LEVEL
+              value: INFO
+            - name: CLIENT_TYPE
+              value: KafkaConsumer
+          image: quay.io/strimzi-test-clients/test-clients:latest-kafka-3.5.1
+          imagePullPolicy: IfNotPresent
+          name: kafka-consumer-client
+      restartPolicy: "Never"

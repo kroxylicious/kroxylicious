@@ -32,20 +32,11 @@ public class ResourceOperation {
      * @return the timeout for resource readiness
      */
     public static long getTimeoutForResourceReadiness(String kind) {
-        long timeout;
-
-        switch (kind) {
-            case Kafka.RESOURCE_KIND:
-                timeout = Duration.ofMinutes(14).toMillis();
-                break;
-            case Constants.DEPLOYMENT:
-                timeout = Duration.ofMinutes(8).toMillis();
-                break;
-            default:
-                timeout = Duration.ofMinutes(3).toMillis();
-        }
-
-        return timeout;
+        return switch (kind) {
+            case Kafka.RESOURCE_KIND -> Duration.ofMinutes(14).toMillis();
+            case Constants.DEPLOYMENT -> Duration.ofMinutes(8).toMillis();
+            default -> Duration.ofMinutes(3).toMillis();
+        };
     }
 
     /**
@@ -74,17 +65,9 @@ public class ResourceOperation {
      * @return the timeout for resource deletion
      */
     public static long getTimeoutForResourceDeletion(String kind) {
-        long timeout;
-
-        switch (kind) {
-            case Kafka.RESOURCE_KIND:
-            case Constants.POD_KIND:
-                timeout = Duration.ofMinutes(5).toMillis();
-                break;
-            default:
-                timeout = Duration.ofMinutes(3).toMillis();
-        }
-
-        return timeout;
+        return switch (kind) {
+            case Kafka.RESOURCE_KIND, Constants.POD_KIND -> Duration.ofMinutes(5).toMillis();
+            default -> Duration.ofMinutes(3).toMillis();
+        };
     }
 }
