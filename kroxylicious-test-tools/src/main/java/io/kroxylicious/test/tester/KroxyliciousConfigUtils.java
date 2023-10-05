@@ -22,6 +22,9 @@ import static io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider
  */
 public class KroxyliciousConfigUtils {
 
+    private KroxyliciousConfigUtils() {
+    }
+
     public static final String DEFAULT_VIRTUAL_CLUSTER = "demo";
     private static final HostPort DEFAULT_PROXY_BOOTSTRAP = new HostPort("localhost", 9192);
 
@@ -32,15 +35,33 @@ public class KroxyliciousConfigUtils {
      * @return builder
      */
     public static ConfigurationBuilder proxy(String clusterBootstrapServers) {
-        return new ConfigurationBuilder().addToVirtualClusters(DEFAULT_VIRTUAL_CLUSTER, new VirtualClusterBuilder()
-                .withNewTargetCluster()
-                .withBootstrapServers(clusterBootstrapServers)
-                .endTargetCluster()
-                .withClusterNetworkAddressConfigProvider(
-                        new ClusterNetworkAddressConfigProviderDefinitionBuilder(PortPerBrokerClusterNetworkAddressConfigProvider.class.getName())
-                                .withConfig("bootstrapAddress", DEFAULT_PROXY_BOOTSTRAP)
-                                .build())
-                .build());
+        return proxy(clusterBootstrapServers, DEFAULT_VIRTUAL_CLUSTER);
+    }
+
+    /**
+     * Create a KroxyliciousConfigBuilder with a virtual cluster for each supplied name configured to
+     * proxy an externally provided single bootstrap server. I.e. many virtual clusters on a single target cluster.
+     *
+     * @param clusterBootstrapServers external bootstrap server
+     * @param virtualClusterNames the name to use for the virtual cluster
+     * @return builder
+     */
+    public static ConfigurationBuilder proxy(String clusterBootstrapServers, String... virtualClusterNames) {
+        final ConfigurationBuilder configurationBuilder = new ConfigurationBuilder();
+        for (int i = 0; i < virtualClusterNames.length; i++) {
+            String virtualClusterName = virtualClusterNames[i];
+            var vcb = new VirtualClusterBuilder()
+                    .withNewTargetCluster()
+                    .withBootstrapServers(clusterBootstrapServers)
+                    .endTargetCluster()
+                    .withClusterNetworkAddressConfigProvider(
+                            new ClusterNetworkAddressConfigProviderDefinitionBuilder(PortPerBrokerClusterNetworkAddressConfigProvider.class.getName())
+                                    .withConfig("bootstrapAddress", new HostPort(DEFAULT_PROXY_BOOTSTRAP.host(), DEFAULT_PROXY_BOOTSTRAP.port() + i * 10))
+                                    .build());
+            configurationBuilder
+                    .addToVirtualClusters(virtualClusterName, vcb.build());
+        }
+        return configurationBuilder;
     }
 
     /**

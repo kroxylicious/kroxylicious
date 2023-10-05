@@ -39,7 +39,9 @@ import org.apache.kafka.common.protocol.ApiMessage;
  *     <li>That invokers in the same chain execute on the same thread. Thus inter-filter communication/state
  *     transfer needs to be thread-safe</li>
  * </ol>
+ * @deprecated intend to move this to the kroxylicious runtime and not have it public
  */
+@Deprecated(since = "0.3.0")
 public interface FilterInvoker {
 
     /**

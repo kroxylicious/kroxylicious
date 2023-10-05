@@ -9,7 +9,6 @@ package io.kroxylicious.proxy.service;
 import java.util.List;
 import java.util.function.Function;
 
-import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -131,7 +130,7 @@ class ContributionManagerTest {
             this.value = value;
         }
 
-        @NotNull
+        @NonNull
         @Override
         public Class<? extends Long> getServiceType() {
             return Long.class;
@@ -158,7 +157,7 @@ class ContributionManagerTest {
             this.configurationType = StringConfig.class;
         }
 
-        @NotNull
+        @NonNull
         @Override
         public Class<? extends String> getServiceType() {
             return String.class;

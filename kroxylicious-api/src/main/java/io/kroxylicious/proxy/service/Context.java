@@ -9,7 +9,9 @@ package io.kroxylicious.proxy.service;
 /**
  * Context in which a Contributor is getting an instance, this includes the user-supplied configuration.
  * @param <B> config type
+ * @deprecated we plan to remove the generic Contributor
  */
+@Deprecated(since = "0.3.0")
 public interface Context<B> {
 
     /**

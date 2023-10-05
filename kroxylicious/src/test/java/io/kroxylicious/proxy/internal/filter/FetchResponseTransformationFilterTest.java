@@ -32,7 +32,6 @@ import org.apache.kafka.common.record.RecordBatch;
 import org.apache.kafka.common.record.Records;
 import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
-import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -50,6 +49,8 @@ import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResultBuilder;
 import io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage;
 import io.kroxylicious.proxy.internal.filter.FetchResponseTransformationFilter.FetchResponseTransformationConfig;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -207,7 +208,7 @@ class FetchResponseTransformationFilterTest {
                 .flatMap(si -> StreamSupport.stream(si, false));
     }
 
-    @NotNull
+    @NonNull
     private static FetchableTopicResponse createFetchableTopicResponseWithOneRecord(String key, String value) {
         var fetchableTopicResponse = new FetchableTopicResponse();
         var partitionData1 = new PartitionData();
@@ -225,7 +226,7 @@ class FetchResponseTransformationFilterTest {
         }
     }
 
-    @NotNull
+    @NonNull
     private String decodeUtf8Value(Record record) {
         return StandardCharsets.UTF_8.decode(record.value()).toString();
     }

@@ -11,7 +11,9 @@ import java.util.Set;
 
 /**
  * Provides the addresses of the network endpoints required by a virtual cluster.
+ * @deprecated this class is going to be made internal to kroxylicious until we decide to document/offer it as a plugin
  */
+@Deprecated
 public interface ClusterNetworkAddressConfigProvider {
 
     /**

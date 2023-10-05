@@ -16,8 +16,9 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
  * Represents a host port pair.
- *
+ * @deprecated this class is going to be made internal to kroxylicious until we decide to document/offer ClusterNetworkAddressConfigProvider as a plugin
  */
+@Deprecated
 public final class HostPort {
     private static final Pattern IPV6_WITH_PORT = Pattern.compile("^(\\[.+]):(.+)$");
     private static final Pattern PORT_SEPARATOR = Pattern.compile(":");
