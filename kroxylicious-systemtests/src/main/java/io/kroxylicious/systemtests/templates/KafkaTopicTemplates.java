@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.systemtests.templates.strimzi;
+package io.kroxylicious.systemtests.templates;
 
 import io.strimzi.api.kafka.model.KafkaTopicBuilder;
 

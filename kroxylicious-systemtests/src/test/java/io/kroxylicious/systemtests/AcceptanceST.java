@@ -13,7 +13,7 @@ import org.junit.jupiter.api.TestInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.kroxylicious.systemtests.templates.strimzi.KafkaTopicTemplates;
+import io.kroxylicious.systemtests.templates.KafkaTopicTemplates;
 import io.kroxylicious.systemtests.utils.KafkaUtils;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;

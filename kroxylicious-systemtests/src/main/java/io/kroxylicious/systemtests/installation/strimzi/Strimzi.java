@@ -28,9 +28,8 @@ public class Strimzi {
      * Instantiates a new Strimzi.
      *
      * @param deploymentNamespace the deployment namespace
-     * @throws IOException the io exception
      */
-    public Strimzi(String deploymentNamespace) throws IOException {
+    public Strimzi(String deploymentNamespace) {
         this.deploymentNamespace = deploymentNamespace;
         installationUrl = "https://strimzi.io/install/latest?namespace=" + deploymentNamespace;
     }

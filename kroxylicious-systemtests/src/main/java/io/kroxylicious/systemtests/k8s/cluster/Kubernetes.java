@@ -12,10 +12,7 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.fabric8.kubernetes.client.KubernetesClientBuilder;
-
 import io.kroxylicious.systemtests.executor.Exec;
-import io.kroxylicious.systemtests.k8s.KubeClient;
 import io.kroxylicious.systemtests.k8s.cmd.KubeCmdClient;
 import io.kroxylicious.systemtests.k8s.cmd.Kubectl;
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
@@ -52,11 +49,6 @@ public class Kubernetes implements KubeCluster {
     @Override
     public KubeCmdClient defaultCmdClient() {
         return new Kubectl();
-    }
-
-    @Override
-    public KubeClient defaultClient() {
-        return new KubeClient(new KubernetesClientBuilder().build(), "default");
     }
 
     public String toString() {

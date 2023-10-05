@@ -55,7 +55,7 @@ public class Exec {
     private StreamGobbler stdOutReader;
     private StreamGobbler stdErrReader;
     private Path logPath;
-    private boolean appendLineSeparator;
+    private final boolean appendLineSeparator;
 
     /**
      * Instantiates a new Exec.
@@ -354,8 +354,8 @@ public class Exec {
         if (logPath != null) {
             try {
                 Files.createDirectories(logPath);
-                Files.write(Paths.get(logPath.toString(), "stdOutput.log"), stdOut.getBytes(Charset.defaultCharset()));
-                Files.write(Paths.get(logPath.toString(), "stdError.log"), stdErr.getBytes(Charset.defaultCharset()));
+                Files.writeString(Paths.get(logPath.toString(), "stdOutput.log"), stdOut, Charset.defaultCharset());
+                Files.writeString(Paths.get(logPath.toString(), "stdError.log"), stdErr, Charset.defaultCharset());
             }
             catch (Exception ex) {
                 LOGGER.warn("Cannot save output of execution: " + ex.getMessage());
@@ -394,8 +394,8 @@ public class Exec {
      * Class represent async reader
      */
     class StreamGobbler {
-        private InputStream is;
-        private StringBuilder data = new StringBuilder();
+        private final InputStream is;
+        private final StringBuilder data = new StringBuilder();
 
         /**
          * Constructor of StreamGobbler
@@ -422,8 +422,7 @@ public class Exec {
          */
         public Future<String> read() {
             return CompletableFuture.supplyAsync(() -> {
-                Scanner scanner = new Scanner(is, StandardCharsets.UTF_8.name());
-                try {
+                try (Scanner scanner = new Scanner(is, StandardCharsets.UTF_8)) {
                     while (scanner.hasNextLine()) {
                         data.append(scanner.nextLine());
                         if (appendLineSeparator) {
@@ -435,9 +434,6 @@ public class Exec {
                 }
                 catch (Exception e) {
                     throw new CompletionException(e);
-                }
-                finally {
-                    scanner.close();
                 }
             }, runnable -> new Thread(runnable).start());
         }

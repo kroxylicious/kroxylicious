@@ -134,6 +134,5 @@ public class KafkaUtils {
         File file = new File(Objects.requireNonNull(KafkaUtils.class
                 .getClassLoader().getResource("kafka-producer.yaml")).getFile());
         kubeClient().getClient().load(new FileInputStream(file)).inNamespace(deployNamespace).create();
-        // kubeClient().getClient().apps().deployments().inNamespace(deployNamespace).withName("kafka-producer-client").waitUntilReady(10, TimeUnit.SECONDS);
     }
 }
