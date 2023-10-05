@@ -6,11 +6,10 @@
 
 package io.kroxylicious.test.tester;
 
-import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 
-import org.apache.kafka.clients.CommonClientConfigs;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
@@ -55,7 +54,7 @@ public class KroxyliciousTesters {
      */
     public static KroxyliciousTester kroxyliciousTester(ConfigurationBuilder builder, Function<Configuration, AutoCloseable> kroxyliciousFactory) {
         return new DefaultKroxyliciousTester(new TesterSetup(builder, null), kroxyliciousFactory,
-                (clusterName, bootstrapServers) -> new KroxyliciousClients(Map.of(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers)));
+                (clusterName, defaultClientConfiguration) -> new KroxyliciousClients(defaultClientConfiguration));
     }
 
     /**
@@ -70,7 +69,7 @@ public class KroxyliciousTesters {
     }
 
     public record TesterSetup(Function<String, ConfigurationBuilder> configurationBuilderFunction, Optional<KeytoolCertificateGenerator> certificateGenerator) {
-        public TesterSetup(ConfigurationBuilder configurationBuilder, KeytoolCertificateGenerator certificateGenerator) {
+        public TesterSetup(ConfigurationBuilder configurationBuilder, @Nullable KeytoolCertificateGenerator certificateGenerator) {
             this(ignored -> configurationBuilder, Optional.ofNullable(certificateGenerator));
         }
     }

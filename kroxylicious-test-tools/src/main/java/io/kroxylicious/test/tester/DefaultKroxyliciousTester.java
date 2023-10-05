@@ -38,6 +38,7 @@ import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.test.client.KafkaClient;
 import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
 import info.schnatterer.mobynamesgenerator.MobyNamesGenerator;
 
 public class DefaultKroxyliciousTester implements KroxyliciousTester {
@@ -82,11 +83,16 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     }
 
     private KroxyliciousClients clients(String virtualCluster) {
+        return clients.computeIfAbsent(virtualCluster,
+                k -> clientFactory.build(virtualCluster, buildDefaultClientConfiguration(virtualCluster)));
+    }
+
+    @NonNull
+    private Map<String, Object> buildDefaultClientConfiguration(String virtualCluster) {
         Map<String, Object> defaultClientConfig = new HashMap<>();
         defaultClientConfig.put(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, KroxyliciousConfigUtils.bootstrapServersFor(virtualCluster, kroxyliciousConfig));
         configureClientTls(virtualCluster, defaultClientConfig);
-        return clients.computeIfAbsent(virtualCluster,
-                k -> new KroxyliciousClients(defaultClientConfig));
+        return defaultClientConfig;
     }
 
     private void configureClientTls(String virtualCluster, Map<String, Object> defaultClientConfig) {
@@ -259,7 +265,7 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
 
     @FunctionalInterface
     interface ClientFactory {
-        KroxyliciousClients build(String clusterName, String bootstrapServers);
+        KroxyliciousClients build(String clusterName, Map<String, Object> bootstrapServers);
     }
 
 }

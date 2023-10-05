@@ -22,7 +22,7 @@ import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.DEFAULT_VIRTUA
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.fail;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mock.Strictness.LENIENT;
 import static org.mockito.Mockito.doThrow;
@@ -63,10 +63,10 @@ class DefaultKroxyliciousTesterTest {
 
     @BeforeEach
     void setUp() {
-        when(clientFactory.build(eq(DEFAULT_VIRTUAL_CLUSTER), anyString())).thenReturn(kroxyliciousClients);
-        when(clientFactory.build(eq(VIRTUAL_CLUSTER_A), anyString())).thenReturn(kroxyliciousClientsA);
-        when(clientFactory.build(eq(VIRTUAL_CLUSTER_B), anyString())).thenReturn(kroxyliciousClientsB);
-        when(clientFactory.build(eq(VIRTUAL_CLUSTER_C), anyString())).thenReturn(kroxyliciousClientsC);
+        when(clientFactory.build(eq(DEFAULT_VIRTUAL_CLUSTER), anyMap())).thenReturn(kroxyliciousClients);
+        when(clientFactory.build(eq(VIRTUAL_CLUSTER_A), anyMap())).thenReturn(kroxyliciousClientsA);
+        when(clientFactory.build(eq(VIRTUAL_CLUSTER_B), anyMap())).thenReturn(kroxyliciousClientsB);
+        when(clientFactory.build(eq(VIRTUAL_CLUSTER_C), anyMap())).thenReturn(kroxyliciousClientsC);
         when(kroxyliciousClients.admin()).thenReturn(admin);
         when(kroxyliciousClients.producer()).thenReturn(producer);
         when(kroxyliciousClients.consumer()).thenReturn(consumer);
@@ -83,7 +83,7 @@ class DefaultKroxyliciousTesterTest {
 
             // Then
             // In theory the bootstrap address is predicable but asserting it is not part of this test
-            verify(clientFactory).build(eq(DEFAULT_CLUSTER), anyString());
+            verify(clientFactory).build(eq(DEFAULT_CLUSTER), anyMap());
             verify(kroxyliciousClients).admin();
         }
     }
@@ -99,7 +99,7 @@ class DefaultKroxyliciousTesterTest {
 
             // Then
             // In theory the bootstrap address is predicable but asserting it is not part of this test
-            verify(clientFactory).build(eq(DEFAULT_CLUSTER), anyString());
+            verify(clientFactory).build(eq(DEFAULT_CLUSTER), anyMap());
             verify(kroxyliciousClients).admin();
         }
     }
@@ -115,7 +115,7 @@ class DefaultKroxyliciousTesterTest {
 
             // Then
             // In theory the bootstrap address is predicable but asserting it is not part of this test
-            verify(clientFactory).build(eq(DEFAULT_CLUSTER), anyString());
+            verify(clientFactory).build(eq(DEFAULT_CLUSTER), anyMap());
             verify(kroxyliciousClients).producer();
         }
     }
@@ -131,7 +131,7 @@ class DefaultKroxyliciousTesterTest {
 
             // Then
             // In theory the bootstrap address is predicable but asserting it is not part of this test
-            verify(clientFactory).build(eq(DEFAULT_CLUSTER), anyString());
+            verify(clientFactory).build(eq(DEFAULT_CLUSTER), anyMap());
             verify(kroxyliciousClients).producer();
         }
     }
@@ -147,7 +147,7 @@ class DefaultKroxyliciousTesterTest {
 
             // Then
             // In theory the bootstrap address is predicable but asserting it is not part of this test
-            verify(clientFactory).build(eq(DEFAULT_CLUSTER), anyString());
+            verify(clientFactory).build(eq(DEFAULT_CLUSTER), anyMap());
             verify(kroxyliciousClients).consumer();
         }
     }
@@ -163,7 +163,7 @@ class DefaultKroxyliciousTesterTest {
 
             // Then
             // In theory the bootstrap address is predicable but asserting it is not part of this test
-            verify(clientFactory).build(eq(DEFAULT_CLUSTER), anyString());
+            verify(clientFactory).build(eq(DEFAULT_CLUSTER), anyMap());
             verify(kroxyliciousClients).consumer();
         }
     }
@@ -178,7 +178,6 @@ class DefaultKroxyliciousTesterTest {
             tester.close();
 
             // Then
-            // In theory the bootstrap address is predicable but asserting it is not part of this test
             verify(kroxyliciousClients).close();
         }
     }

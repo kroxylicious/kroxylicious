@@ -188,14 +188,14 @@ class KroxyliciousClientsTest {
     public Stream<Arguments> producers() {
         return Stream.of(Arguments.of((Supplier<Producer<String, String>>) () -> kroxyliciousClients.producer(),
                 (Supplier<Producer<String, String>>) () -> kroxyliciousClients.producer(Map.of("configKey", "configValue")),
-                (Supplier<Producer<String, String>>) () -> kroxyliciousClients.producer(new Serdes.StringSerde(), new Serdes.StringSerde(),
+                (Supplier<Producer<String, String>>) () -> kroxyliciousClients.producer(Serdes.String(), Serdes.String(),
                         Map.of("configKey", "configValue"))));
     }
 
     public Stream<Arguments> consumers() {
         return Stream.of(Arguments.of((Supplier<Consumer<String, String>>) () -> kroxyliciousClients.consumer(),
                 (Supplier<Consumer<String, String>>) () -> kroxyliciousClients.consumer(Map.of("configKey", "configValue")),
-                (Supplier<Consumer<String, String>>) () -> kroxyliciousClients.consumer(new Serdes.StringSerde(), new Serdes.StringSerde(),
+                (Supplier<Consumer<String, String>>) () -> kroxyliciousClients.consumer(Serdes.String(), Serdes.String(),
                         Map.of("configKey", "configValue"))));
     }
 }
