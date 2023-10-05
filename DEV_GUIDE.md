@@ -321,7 +321,7 @@ The output will be in `target/html/master.html`.
 
 ## Using the GitHub CI workflows against a fork
 
-All CI [workflows](.github/workflows) defined within  will execute against your fork, apart from [docker workflow](.github/workflows/docker.yml).
+All CI [workflows](.github/workflows) defined by the project are expected to execute within the context of a fork, apart from [docker workflow](.github/workflows/docker.yml).
 To enable the docker worklflow, you need to configure two repository [variables](https://docs.github.com/en/actions/learn-github-actions/variables)
 and one respository [secret](https://docs.github.com/en/actions/security-guides/using-secrets-in-github-actions).
 
