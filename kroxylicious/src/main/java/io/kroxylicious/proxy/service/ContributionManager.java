@@ -11,7 +11,11 @@ import java.util.ServiceLoader;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
+/**
+ * @deprecated We want to remove the generic Contributor type so this has to be rethought/reimplemented.
+ */
 @SuppressWarnings({ "rawtypes", "unchecked" })
+@Deprecated(since = "0.3.0", forRemoval = true)
 public class ContributionManager {
     public static final ContributionManager INSTANCE = new ContributionManager();
 
