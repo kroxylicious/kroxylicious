@@ -27,7 +27,6 @@ import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.common.config.SslConfigs;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.kafka.common.serialization.Serde;
-import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,12 +53,12 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     private static final Logger LOGGER = LoggerFactory.getLogger(DefaultKroxyliciousTester.class);
 
     DefaultKroxyliciousTester(KroxyliciousTesters.TesterSetup testerSetup) {
-        this(testerSetup, DefaultKroxyliciousTester::spawnProxy, (clusterName, bootstrapServers) -> new KroxyliciousClients(bootstrapServers, Map.of()));
+        this(testerSetup, DefaultKroxyliciousTester::spawnProxy, (clusterName, bootstrapServers) -> new KroxyliciousClients(Map.of(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers)));
     }
 
     DefaultKroxyliciousTester(ConfigurationBuilder configurationBuilder) {
         this(new KroxyliciousTesters.TesterSetup(ignored -> configurationBuilder, null), DefaultKroxyliciousTester::spawnProxy,
-                (clusterName, bootstrapServers) -> new KroxyliciousClients(bootstrapServers, Map.of()));
+                (clusterName, bootstrapServers) -> new KroxyliciousClients(Map.of(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers)));
     }
 
     DefaultKroxyliciousTester(KroxyliciousTesters.TesterSetup testerSetup, Function<Configuration, AutoCloseable> kroxyliciousFactory, ClientFactory clientFactory) {
@@ -84,14 +83,10 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
 
     private KroxyliciousClients clients(String virtualCluster) {
         Map<String, Object> defaultClientConfig = new HashMap<>();
+        defaultClientConfig.put(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, KroxyliciousConfigUtils.bootstrapServersFor(virtualCluster, kroxyliciousConfig));
         configureClientTls(virtualCluster, defaultClientConfig);
         return clients.computeIfAbsent(virtualCluster,
-                k -> buildKroxyliciousClients(k, defaultClientConfig));
-    }
-
-    @NotNull
-    private KroxyliciousClients buildKroxyliciousClients(String k, Map<String, Object> defaultClientConfig) {
-        return new KroxyliciousClients(KroxyliciousConfigUtils.bootstrapServersFor(k, kroxyliciousConfig), defaultClientConfig);
+                k -> new KroxyliciousClients(defaultClientConfig));
     }
 
     private void configureClientTls(String virtualCluster, Map<String, Object> defaultClientConfig) {

@@ -12,6 +12,7 @@ import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
+import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.MockConsumer;
@@ -41,7 +42,7 @@ class KroxyliciousClientsTest {
 
     @BeforeEach
     void setUp() {
-        kroxyliciousClients = new KroxyliciousClients("kroxylicious.example.com:9091", Map.of(), new KroxyliciousClients.ClientFactory() {
+        kroxyliciousClients = new KroxyliciousClients(Map.of(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, "kroxylicious.example.com:9091"), new KroxyliciousClients.ClientFactory() {
             @Override
             public Admin newAdmin(Map<String, Object> clientConfiguration) {
                 return Mockito.mock(Admin.class);

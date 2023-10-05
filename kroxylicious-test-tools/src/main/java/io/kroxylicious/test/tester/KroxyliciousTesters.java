@@ -10,6 +10,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 
+import org.apache.kafka.clients.CommonClientConfigs;
+
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.test.server.MockServer;
@@ -53,7 +55,7 @@ public class KroxyliciousTesters {
      */
     public static KroxyliciousTester kroxyliciousTester(ConfigurationBuilder builder, Function<Configuration, AutoCloseable> kroxyliciousFactory) {
         return new DefaultKroxyliciousTester(new TesterSetup(builder, null), kroxyliciousFactory,
-                (clusterName, bootstrapServers) -> new KroxyliciousClients(bootstrapServers, Map.of()));
+                (clusterName, bootstrapServers) -> new KroxyliciousClients(Map.of(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers)));
     }
 
     /**
