@@ -24,6 +24,7 @@ This document gives a detailed breakdown of the various build processes and opti
     * [Linux](#linux)
     * [Verify that the fix is effective](#verify-that-the-fix-is-effective)
   * [Rendering documentation](#rendering-documentation)
+  * [Using the GitHub CI workflows against a fork](#using-the-github-ci-workflows-against-a-fork)
 <!-- TOC -->
 
 ## Build status
@@ -31,7 +32,7 @@ This document gives a detailed breakdown of the various build processes and opti
 
 ## Build Prerequisites
 
-- [JDK](https://openjdk.org/projects/jdk/17/) (version 17 and above) - Maven CLI
+- [JDK](https://openjdk.org/projects/jdk/17/) (version 17 and above) - JDK
 - [`mvn`](https://maven.apache.org/index.html) (version 3.5 and above) - Maven CLI
 - [`docker`](https://docs.docker.com/install/) or [`podman`](https://podman.io/docs/installation) - Docker or Podman
 
@@ -318,3 +319,16 @@ mvn org.asciidoctor:asciidoctor-maven-plugin:process-asciidoc@convert-to-html
 
 The output will be in `target/html/master.html`. 
 
+## Using the GitHub CI workflows against a fork
+
+All CI [workflows](.github/workflows) defined by the project are expected to execute within the context of a fork, apart from [docker workflow](.github/workflows/docker.yml).
+To enable the docker workflow, you need to configure three repository [variables](https://docs.github.com/en/actions/learn-github-actions/variables)
+and one repository [secret](https://docs.github.com/en/actions/security-guides/using-secrets-in-github-actions).
+
+* `REGISTRY_SERVER` variable - the server of the container registry service e.g. `quay.io` or `docker.io`
+* `REGISTRY_USERNAME` variable - your username on the service (or username of your robot account)
+* `REGISTRY_DESTINATION` variable - the push destination (without tag portion) e.g. `quay.io/<my org>/kroxylicious-developer`
+
+* `REGISTRY_TOKEN` secret - the access token that corresponds to `REGISTRY_USERNAME` 
+
+The workflow will push the container image to `${REGISTRY_DESTINATION}` so ensure that the `${REGISTRY_USERNAME}` user has sufficient write privileges. 
