@@ -327,8 +327,8 @@ and one repository [secret](https://docs.github.com/en/actions/security-guides/u
 
 * `REGISTRY_SERVER` variable - the server of the container registry service e.g. `quay.io` or `docker.io`
 * `REGISTRY_USERNAME` variable - your username on the service (or username of your robot account)
-* `REGISTRY_DESTINATION` variable - the push destination (without tag portion) e.g. quay.io/<my org>/kroxylicious-developer
+* `REGISTRY_DESTINATION` variable - the push destination (without tag portion) e.g. `quay.io/<my org>/kroxylicious-developer`
 
 * `REGISTRY_TOKEN` secret - the access token that corresponds to `REGISTRY_USERNAME` 
 
-The workflow will push the container image to `${REGISTRY_DESTINATION}/` so ensure that the `${REGISTRY_USERNAME}` user has sufficient write privileges. 
+The workflow will push the container image to `${REGISTRY_DESTINATION}` so ensure that the `${REGISTRY_USERNAME}` user has sufficient write privileges. 
