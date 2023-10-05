@@ -52,4 +52,4 @@ jobs:
           push: true
           build-args: |
             KROXYLICIOUS_VERSION=${{ env.RELEASE_VERSION }} 
-          tags: ${REGISTRY_DESTINATION}:${{ env.RELEASE_VERSION }}
+          tags: ${{ vars.REGISTRY_DESTINATION }}:${{ env.RELEASE_VERSION }}
