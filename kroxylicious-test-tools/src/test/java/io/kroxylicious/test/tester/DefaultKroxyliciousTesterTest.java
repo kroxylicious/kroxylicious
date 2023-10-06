@@ -6,20 +6,41 @@
 
 package io.kroxylicious.test.tester;
 
+import java.io.IOException;
+import java.nio.file.Path;
+import java.security.GeneralSecurityException;
+import java.util.Map;
+import java.util.function.Consumer;
+
+import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.consumer.MockConsumer;
 import org.apache.kafka.clients.consumer.OffsetResetStrategy;
 import org.apache.kafka.clients.producer.MockProducer;
+import org.apache.kafka.common.config.SslConfigs;
+import org.apache.kafka.common.security.auth.SecurityProtocol;
+import org.assertj.core.matcher.AssertionMatcher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 import org.mockito.Mock;
+import org.mockito.hamcrest.MockitoHamcrest;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+import io.kroxylicious.proxy.config.ClusterNetworkAddressConfigProviderDefinitionBuilder;
+import io.kroxylicious.proxy.config.ConfigurationBuilder;
+import io.kroxylicious.proxy.config.VirtualClusterBuilder;
+import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider;
+import io.kroxylicious.proxy.service.HostPort;
+import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
+
+import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.DEFAULT_PROXY_BOOTSTRAP;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.DEFAULT_VIRTUAL_CLUSTER;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.anyMap;
@@ -37,6 +58,7 @@ class DefaultKroxyliciousTesterTest {
     private static final String VIRTUAL_CLUSTER_C = "clusterC";
     private static final String EXCEPTION_MESSAGE = "KaBOOM!!";
     private static final String DEFAULT_CLUSTER = "demo";
+    private static final String TLS_CLUSTER = "secureCluster";
     String backingCluster = "broker01.example.com:9090";
 
     @Mock(strictness = LENIENT)
@@ -64,6 +86,7 @@ class DefaultKroxyliciousTesterTest {
     @BeforeEach
     void setUp() {
         when(clientFactory.build(eq(DEFAULT_VIRTUAL_CLUSTER), anyMap())).thenReturn(kroxyliciousClients);
+        when(clientFactory.build(eq(TLS_CLUSTER), anyMap())).thenReturn(kroxyliciousClients);
         when(clientFactory.build(eq(VIRTUAL_CLUSTER_A), anyMap())).thenReturn(kroxyliciousClientsA);
         when(clientFactory.build(eq(VIRTUAL_CLUSTER_B), anyMap())).thenReturn(kroxyliciousClientsB);
         when(clientFactory.build(eq(VIRTUAL_CLUSTER_C), anyMap())).thenReturn(kroxyliciousClientsC);
@@ -225,6 +248,75 @@ class DefaultKroxyliciousTesterTest {
         }
     }
 
+    @Test
+    void shouldConfigureTlsForConsumer(@TempDir Path certsDirectory) throws IOException {
+        // Given
+
+        final String certFilePath = certsDirectory.resolve(Path.of("cert-file")).toAbsolutePath().toString();
+        final String trustStorePath = certsDirectory.resolve(Path.of("trust-store")).toAbsolutePath().toString();
+        var keytoolCertificateGenerator = new KeytoolCertificateGenerator(certFilePath, trustStorePath);
+        try (var tester = buildSecureTester(keytoolCertificateGenerator)) {
+
+            // When
+            tester.consumer(TLS_CLUSTER);
+
+            // Then
+            verify(clientFactory).build(eq(TLS_CLUSTER), argThat(actual -> assertThat(actual)
+                    .contains(
+                            Map.entry(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name()),
+                            Map.entry(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, trustStorePath)
+                    )
+                    .containsKey(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG)
+            ));
+        }
+    }
+
+    @Test
+    void shouldConfigureTlsForProducer(@TempDir Path certsDirectory) throws IOException {
+        // Given
+
+        final String certFilePath = certsDirectory.resolve(Path.of("cert-file")).toAbsolutePath().toString();
+        final String trustStorePath = certsDirectory.resolve(Path.of("trust-store")).toAbsolutePath().toString();
+        var keytoolCertificateGenerator = new KeytoolCertificateGenerator(certFilePath, trustStorePath);
+        try (var tester = buildSecureTester(keytoolCertificateGenerator)) {
+
+            // When
+            tester.producer(TLS_CLUSTER);
+
+            // Then
+            verify(clientFactory).build(eq(TLS_CLUSTER), argThat(actual -> assertThat(actual)
+                    .contains(
+                            Map.entry(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name()),
+                            Map.entry(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, trustStorePath)
+                    )
+                    .containsKey(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG)
+            ));
+        }
+    }
+
+    @Test
+    void shouldConfigureTlsForAdmin(@TempDir Path certsDirectory) throws IOException {
+        // Given
+
+        final String certFilePath = certsDirectory.resolve(Path.of("cert-file")).toAbsolutePath().toString();
+        final String trustStorePath = certsDirectory.resolve(Path.of("trust-store")).toAbsolutePath().toString();
+        var keytoolCertificateGenerator = new KeytoolCertificateGenerator(certFilePath, trustStorePath);
+        try (var tester = buildSecureTester(keytoolCertificateGenerator)) {
+
+            // When
+            tester.admin(TLS_CLUSTER);
+
+            // Then
+            verify(clientFactory).build(eq(TLS_CLUSTER), argThat(actual -> assertThat(actual)
+                    .contains(
+                            Map.entry(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name()),
+                            Map.entry(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, trustStorePath)
+                    )
+                    .containsKey(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG)
+            ));
+        }
+    }
+
     @NonNull
     private DefaultKroxyliciousTester buildDefaultTester() {
         return new DefaultKroxyliciousTester(new KroxyliciousTesters.TesterSetup(proxy(backingCluster), null),
@@ -232,9 +324,52 @@ class DefaultKroxyliciousTesterTest {
                 clientFactory);
     }
 
+    @NonNull
+    private DefaultKroxyliciousTester buildSecureTester(KeytoolCertificateGenerator keytoolCertificateGenerator) {
+        generateSecurityCert(keytoolCertificateGenerator);
+        final ConfigurationBuilder configurationBuilder = new ConfigurationBuilder();
+        var vcb = new VirtualClusterBuilder()
+                .withNewTargetCluster()
+                .withBootstrapServers(backingCluster)
+                .endTargetCluster()
+                .withNewTls()
+                .withNewKeyStoreKey()
+                .withStoreFile(keytoolCertificateGenerator.getKeyStoreLocation())
+                .withNewInlinePasswordStoreProvider(keytoolCertificateGenerator.getPassword())
+                .endKeyStoreKey()
+                .endTls()
+                .withClusterNetworkAddressConfigProvider(
+                        new ClusterNetworkAddressConfigProviderDefinitionBuilder(PortPerBrokerClusterNetworkAddressConfigProvider.class.getName())
+                                .withConfig("bootstrapAddress", new HostPort(DEFAULT_PROXY_BOOTSTRAP.host(), DEFAULT_PROXY_BOOTSTRAP.port())).build());
+        configurationBuilder
+                .addToVirtualClusters(TLS_CLUSTER, vcb.build());
+
+        return new DefaultKroxyliciousTester(new KroxyliciousTesters.TesterSetup(configurationBuilder, keytoolCertificateGenerator),
+                DefaultKroxyliciousTester::spawnProxy,
+                clientFactory);
+    }
+
+    private static void generateSecurityCert(KeytoolCertificateGenerator keytoolCertificateGenerator) {
+        try {
+            keytoolCertificateGenerator.generateSelfSignedCertificateEntry("webmaster@example.com", "example.com", "Engineering", "kroxylicious.io", null, null, "NZ");
+        }
+        catch (GeneralSecurityException | IOException e) {
+            fail("unable to generate security certificate", e);
+        }
+    }
+
     private DefaultKroxyliciousTester buildTester() {
         return new DefaultKroxyliciousTester(new KroxyliciousTesters.TesterSetup(proxy(backingCluster, VIRTUAL_CLUSTER_A, VIRTUAL_CLUSTER_B, VIRTUAL_CLUSTER_C), null),
                 DefaultKroxyliciousTester::spawnProxy,
                 clientFactory);
+    }
+
+    public static <T> T argThat(Consumer<T> assertions) {
+        return MockitoHamcrest.argThat(new AssertionMatcher<>() {
+            @Override
+            public void assertion(T actual) throws AssertionError {
+                assertions.accept(actual);
+            }
+        });
     }
 }
