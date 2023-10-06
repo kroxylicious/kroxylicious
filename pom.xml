@@ -801,6 +801,7 @@
             </activation>
             <properties>
                 <skipTests>true</skipTests>
+                <maven.javadoc.skip>true</maven.javadoc.skip>
             </properties>
         </profile>
         <profile>
