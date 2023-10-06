@@ -29,10 +29,10 @@ import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.mockito.Mockito;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -42,22 +42,27 @@ class KroxyliciousClientsTest {
 
     @BeforeEach
     void setUp() {
-        kroxyliciousClients = new KroxyliciousClients(Map.of(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, "kroxylicious.example.com:9091"), new KroxyliciousClients.ClientFactory() {
-            @Override
-            public Admin newAdmin(Map<String, Object> clientConfiguration) {
-                return Mockito.mock(Admin.class);
-            }
+        kroxyliciousClients = new KroxyliciousClients(Map.of(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, "kroxylicious.example.com:9091"),
+                new KroxyliciousClients.ClientFactory() {
+                    @Override
+                    public Admin newAdmin(Map<String, Object> clientConfiguration) {
+                        assertThat(clientConfiguration).contains(Map.entry(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, "kroxylicious.example.com:9091"));
+                        return mock(Admin.class);
+                    }
 
-            @Override
-            public <K, V> Consumer<K, V> newConsumer(Map<String, Object> clientConfiguration, Deserializer<K> keyDeserializer, Deserializer<V> valueDeserializer) {
-                return new MockConsumer<>(OffsetResetStrategy.LATEST);
-            }
+                    @Override
+                    public <K, V> Consumer<K, V> newConsumer(Map<String, Object> clientConfiguration, Deserializer<K> keyDeserializer,
+                                                             Deserializer<V> valueDeserializer) {
+                        assertThat(clientConfiguration).contains(Map.entry(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, "kroxylicious.example.com:9091"));
+                        return new MockConsumer<>(OffsetResetStrategy.LATEST);
+                    }
 
-            @Override
-            public <K, V> Producer<K, V> newProducer(Map<String, Object> clientConfiguration, Serializer<K> keySerializer, Serializer<V> valueSerializer) {
-                return new MockProducer<>();
-            }
-        });
+                    @Override
+                    public <K, V> Producer<K, V> newProducer(Map<String, Object> clientConfiguration, Serializer<K> keySerializer, Serializer<V> valueSerializer) {
+                        assertThat(clientConfiguration).contains(Map.entry(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, "kroxylicious.example.com:9091"));
+                        return new MockProducer<>();
+                    }
+                });
     }
 
     @ParameterizedTest

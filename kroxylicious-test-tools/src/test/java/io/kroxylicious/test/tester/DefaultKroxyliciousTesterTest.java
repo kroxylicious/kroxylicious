@@ -249,7 +249,7 @@ class DefaultKroxyliciousTesterTest {
     }
 
     @Test
-    void shouldConfigureTlsForConsumer(@TempDir Path certsDirectory) throws IOException {
+    void shouldConfigureConsumerForTls(@TempDir Path certsDirectory) throws IOException {
         // Given
 
         final String certFilePath = certsDirectory.resolve(Path.of("cert-file")).toAbsolutePath().toString();
@@ -259,20 +259,24 @@ class DefaultKroxyliciousTesterTest {
 
             // When
             tester.consumer(TLS_CLUSTER);
+            tester.producer(TLS_CLUSTER);
+            tester.admin(TLS_CLUSTER);
 
             // Then
-            verify(clientFactory).build(eq(TLS_CLUSTER), argThat(actual -> assertThat(actual)
-                    .contains(
-                            Map.entry(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name()),
-                            Map.entry(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, trustStorePath)
-                    )
-                    .containsKey(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG)
-            ));
+
+            verify(clientFactory).build(eq(TLS_CLUSTER), argThat(actual -> {
+                assertThat(actual)
+                        .contains(
+                                Map.entry(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name()),
+                                Map.entry(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, trustStorePath)
+                        )
+                        .containsKey(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG);
+            }));
         }
     }
 
     @Test
-    void shouldConfigureTlsForProducer(@TempDir Path certsDirectory) throws IOException {
+    void shouldConfigureProducerForTls(@TempDir Path certsDirectory) throws IOException {
         // Given
 
         final String certFilePath = certsDirectory.resolve(Path.of("cert-file")).toAbsolutePath().toString();
@@ -295,7 +299,7 @@ class DefaultKroxyliciousTesterTest {
     }
 
     @Test
-    void shouldConfigureTlsForAdmin(@TempDir Path certsDirectory) throws IOException {
+    void shouldConfigureAdminForTls(@TempDir Path certsDirectory) throws IOException {
         // Given
 
         final String certFilePath = certsDirectory.resolve(Path.of("cert-file")).toAbsolutePath().toString();
@@ -318,14 +322,13 @@ class DefaultKroxyliciousTesterTest {
     }
 
     @NonNull
-    private DefaultKroxyliciousTester buildDefaultTester() {
-        return new DefaultKroxyliciousTester(new KroxyliciousTesters.TesterSetup(proxy(backingCluster), null),
-                DefaultKroxyliciousTester::spawnProxy,
-                clientFactory);
+    private KroxyliciousTester buildDefaultTester() {
+        return new KroxyliciousTesterBuilder().setConfigurationBuilder(proxy(backingCluster))
+                .setKroxyliciousFactory(DefaultKroxyliciousTester::spawnProxy).setClientFactory(clientFactory).createDefaultKroxyliciousTester();
     }
 
     @NonNull
-    private DefaultKroxyliciousTester buildSecureTester(KeytoolCertificateGenerator keytoolCertificateGenerator) {
+    private KroxyliciousTester buildSecureTester(KeytoolCertificateGenerator keytoolCertificateGenerator) {
         generateSecurityCert(keytoolCertificateGenerator);
         final ConfigurationBuilder configurationBuilder = new ConfigurationBuilder();
         var vcb = new VirtualClusterBuilder()
@@ -344,9 +347,10 @@ class DefaultKroxyliciousTesterTest {
         configurationBuilder
                 .addToVirtualClusters(TLS_CLUSTER, vcb.build());
 
-        return new DefaultKroxyliciousTester(new KroxyliciousTesters.TesterSetup(configurationBuilder, keytoolCertificateGenerator),
-                DefaultKroxyliciousTester::spawnProxy,
-                clientFactory);
+        return new KroxyliciousTesterBuilder().setConfigurationBuilder(configurationBuilder)
+                .setTrustStoreLocation(keytoolCertificateGenerator.getTrustStoreLocation())
+                .setTrustStorePassword(keytoolCertificateGenerator.getPassword())
+                .setKroxyliciousFactory(DefaultKroxyliciousTester::spawnProxy).setClientFactory(clientFactory).createDefaultKroxyliciousTester();
     }
 
     private static void generateSecurityCert(KeytoolCertificateGenerator keytoolCertificateGenerator) {
@@ -358,10 +362,10 @@ class DefaultKroxyliciousTesterTest {
         }
     }
 
-    private DefaultKroxyliciousTester buildTester() {
-        return new DefaultKroxyliciousTester(new KroxyliciousTesters.TesterSetup(proxy(backingCluster, VIRTUAL_CLUSTER_A, VIRTUAL_CLUSTER_B, VIRTUAL_CLUSTER_C), null),
-                DefaultKroxyliciousTester::spawnProxy,
-                clientFactory);
+    private KroxyliciousTester buildTester() {
+        return new KroxyliciousTesterBuilder()
+                .setConfigurationBuilder(proxy(backingCluster, VIRTUAL_CLUSTER_A, VIRTUAL_CLUSTER_B, VIRTUAL_CLUSTER_C))
+                .setKroxyliciousFactory(DefaultKroxyliciousTester::spawnProxy).setClientFactory(clientFactory).createDefaultKroxyliciousTester();
     }
 
     public static <T> T argThat(Consumer<T> assertions) {

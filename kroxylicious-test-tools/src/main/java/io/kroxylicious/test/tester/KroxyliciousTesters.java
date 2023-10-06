@@ -6,15 +6,11 @@
 
 package io.kroxylicious.test.tester;
 
-import java.util.Optional;
 import java.util.function.Function;
-
-import edu.umd.cs.findbugs.annotations.Nullable;
 
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.test.server.MockServer;
-import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
 
 /**
  * Static Factory for KroxyliciousTester implementations
@@ -29,18 +25,18 @@ public class KroxyliciousTesters {
      * @return KroxyliciousTester
      */
     public static KroxyliciousTester kroxyliciousTester(ConfigurationBuilder builder) {
-        return new DefaultKroxyliciousTester(new TesterSetup(builder, null));
+        return new KroxyliciousTesterBuilder().setConfigurationBuilder(builder).createDefaultKroxyliciousTester();
     }
 
     /**
-     * Creates a kroxylicious tester for the given KroxyliciousConfigBuilder.
+     * Creates a builder of kroxylicious testers with given KroxyliciousConfigBuilder.
      * This will create and start an in-process kroxylicious instance, it is
      * up to the client to close it.
-     * @param testerSetup settings for how to setup the proxy instance for tests and the clients connecting to it.
+     * @param builder configuration builder for the kroxylicious instance
      * @return KroxyliciousTester
-     * */
-    public static KroxyliciousTester kroxyliciousTester(TesterSetup testerSetup) {
-        return new DefaultKroxyliciousTester(testerSetup);
+     */
+    public static KroxyliciousTesterBuilder newBuilder(ConfigurationBuilder builder) {
+        return new KroxyliciousTesterBuilder().setConfigurationBuilder(builder);
     }
 
     /**
@@ -48,13 +44,13 @@ public class KroxyliciousTesters {
      * a function to build an AutoClosable. This is to enable clients to provide their
      * own custom code to create and start a Kroxylicious instance (for example to
      * create it as a sub-process instead of in-process).
-     * @param builder configuration builder for the kroxylicious instance
+     * @param configurationBuilder configuration builder for the kroxylicious instance
      * @param kroxyliciousFactory factory that takes a KroxyliciousConfig and is responsible for starting a Kroxylicious instance for that config
      * @return KroxyliciousTester
      */
-    public static KroxyliciousTester kroxyliciousTester(ConfigurationBuilder builder, Function<Configuration, AutoCloseable> kroxyliciousFactory) {
-        return new DefaultKroxyliciousTester(new TesterSetup(builder, null), kroxyliciousFactory,
-                (clusterName, defaultClientConfiguration) -> new KroxyliciousClients(defaultClientConfiguration));
+    public static KroxyliciousTester kroxyliciousTester(ConfigurationBuilder configurationBuilder, Function<Configuration, AutoCloseable> kroxyliciousFactory) {
+        return new KroxyliciousTesterBuilder().setConfigurationBuilder(configurationBuilder).setKroxyliciousFactory(kroxyliciousFactory)
+                .setClientFactory((clusterName, defaultClientConfiguration) -> new KroxyliciousClients(defaultClientConfiguration)).createDefaultKroxyliciousTester();
     }
 
     /**
@@ -68,9 +64,4 @@ public class KroxyliciousTesters {
         return new MockServerKroxyliciousTester(MockServer.startOnRandomPort(), configurationForMockBootstrap);
     }
 
-    public record TesterSetup(Function<String, ConfigurationBuilder> configurationBuilderFunction, Optional<KeytoolCertificateGenerator> certificateGenerator) {
-        public TesterSetup(ConfigurationBuilder configurationBuilder, @Nullable KeytoolCertificateGenerator certificateGenerator) {
-            this(ignored -> configurationBuilder, Optional.ofNullable(certificateGenerator));
-        }
-    }
 }

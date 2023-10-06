@@ -30,22 +30,24 @@ import org.apache.kafka.common.serialization.Serde;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
+import info.schnatterer.mobynamesgenerator.MobyNamesGenerator;
+
 import io.kroxylicious.proxy.KafkaProxy;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.test.client.KafkaClient;
-import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
-
-import edu.umd.cs.findbugs.annotations.NonNull;
-import info.schnatterer.mobynamesgenerator.MobyNamesGenerator;
 
 public class DefaultKroxyliciousTester implements KroxyliciousTester {
     private AutoCloseable proxy;
-    private final Configuration kroxyliciousConfig;
 
-    private final Optional<KeytoolCertificateGenerator> possibleKeytoolCertificateGenerator;
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+    private final Optional<KroxyliciousTesterBuilder.TrustStoreConfiguration> trustStoreConfiguration;
+
+    private final Configuration kroxyliciousConfig;
 
     private final Map<String, KroxyliciousClients> clients;
 
@@ -53,20 +55,12 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DefaultKroxyliciousTester.class);
 
-    DefaultKroxyliciousTester(KroxyliciousTesters.TesterSetup testerSetup) {
-        this(testerSetup, DefaultKroxyliciousTester::spawnProxy, (clusterName, bootstrapServers) -> new KroxyliciousClients(Map.of(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers)));
-    }
-
-    DefaultKroxyliciousTester(ConfigurationBuilder configurationBuilder) {
-        this(new KroxyliciousTesters.TesterSetup(ignored -> configurationBuilder, null), DefaultKroxyliciousTester::spawnProxy,
-                (clusterName, bootstrapServers) -> new KroxyliciousClients(Map.of(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers)));
-    }
-
-    DefaultKroxyliciousTester(KroxyliciousTesters.TesterSetup testerSetup, Function<Configuration, AutoCloseable> kroxyliciousFactory, ClientFactory clientFactory) {
-        kroxyliciousConfig = testerSetup.configurationBuilderFunction().apply("").build();
-        this.possibleKeytoolCertificateGenerator = testerSetup.certificateGenerator();
-        proxy = kroxyliciousFactory.apply(kroxyliciousConfig);
-        clients = new HashMap<>();
+    DefaultKroxyliciousTester(ConfigurationBuilder configurationBuilder, Function<Configuration, AutoCloseable> kroxyliciousFactory, ClientFactory clientFactory,
+                              @Nullable KroxyliciousTesterBuilder.TrustStoreConfiguration trustStoreConfiguration) {
+        this.kroxyliciousConfig = configurationBuilder.build();
+        this.proxy = kroxyliciousFactory.apply(kroxyliciousConfig);
+        this.trustStoreConfiguration = Optional.ofNullable(trustStoreConfiguration);
+        this.clients = new HashMap<>();
         this.clientFactory = clientFactory;
     }
 
@@ -99,11 +93,11 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
         final VirtualCluster definedCluster = kroxyliciousConfig.virtualClusters().get(virtualCluster);
         if (definedCluster != null) {
             final Optional<Tls> tls = definedCluster.tls();
-            if (tls.isPresent() && possibleKeytoolCertificateGenerator.isPresent()) {
-                final KeytoolCertificateGenerator certificateGenerator = possibleKeytoolCertificateGenerator.get();
+            if (tls.isPresent() && trustStoreConfiguration.isPresent()) {
+                final KroxyliciousTesterBuilder.TrustStoreConfiguration storeConfiguration = trustStoreConfiguration.get();
                 defaultClientConfig.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name);
-                defaultClientConfig.put(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, certificateGenerator.getTrustStoreLocation());
-                defaultClientConfig.put(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, certificateGenerator.getPassword());
+                defaultClientConfig.put(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, storeConfiguration.trustStoreLocation());
+                defaultClientConfig.put(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, storeConfiguration.trustStorePassword());
             }
             // Technically tls present and possibleKeytoolCertificateGenerator being empty is an error condition. But debatable if we should prevent that here
         }

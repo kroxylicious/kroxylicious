@@ -49,12 +49,13 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
+import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.test.tester.KroxyliciousTester;
 import io.kroxylicious.test.tester.KroxyliciousTesters;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
-
-import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.assertj.core.api.Assertions.allOf;
@@ -107,7 +108,7 @@ class MultiTenantIT extends BaseMultiTenantIT {
     }
 
     @Test
-    void describeTopic(KafkaCluster cluster) throws Exception {
+    void describeTopic(KafkaCluster cluster) {
         var config = getConfig(cluster, this.certificateGenerator);
         try (var tester = kroxyliciousTester(config);
                 var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
@@ -123,18 +124,25 @@ class MultiTenantIT extends BaseMultiTenantIT {
     }
 
     @Test
-    void produceOne(KafkaCluster cluster) throws Exception {
+    void produceOne(KafkaCluster cluster) {
         var config = getConfig(cluster, this.certificateGenerator);
-        try (var tester = kroxyliciousTester(new KroxyliciousTesters.TesterSetup(config, this.certificateGenerator))) {
+        try (var tester = buildTester(config)) {
             final String topicName = tester.createTopic(TENANT_1_CLUSTER);
             produceAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER, Stream.of(new ProducerRecord<>(topicName, MY_KEY, MY_VALUE)), Optional.empty());
         }
     }
 
+    private KroxyliciousTester buildTester(ConfigurationBuilder config) {
+        return KroxyliciousTesters.newBuilder(config)
+                .setTrustStoreLocation(this.certificateGenerator.getTrustStoreLocation())
+                .setTrustStorePassword(this.certificateGenerator.getPassword())
+                .createDefaultKroxyliciousTester();
+    }
+
     @Test
-    void consumeOne(KafkaCluster cluster) throws Exception {
+    void consumeOne(KafkaCluster cluster) {
         var config = getConfig(cluster, this.certificateGenerator);
-        try (var tester = kroxyliciousTester(new KroxyliciousTesters.TesterSetup(config, this.certificateGenerator))) {
+        try (var tester = buildTester(config)) {
             var groupId = testInfo.getDisplayName();
             final String topicName = tester.createTopic(TENANT_1_CLUSTER);
             produceAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER, Stream.of(new ProducerRecord<>(topicName, MY_KEY, MY_VALUE)), Optional.empty());
@@ -144,9 +152,9 @@ class MultiTenantIT extends BaseMultiTenantIT {
     }
 
     @Test
-    void consumeOneAndOffsetCommit(KafkaCluster cluster) throws Exception {
+    void consumeOneAndOffsetCommit(KafkaCluster cluster) {
         var config = getConfig(cluster, this.certificateGenerator);
-        try (var tester = kroxyliciousTester(new KroxyliciousTesters.TesterSetup(config, this.certificateGenerator))) {
+        try (var tester = buildTester(config)) {
             var groupId = testInfo.getDisplayName();
             final String topicName = tester.createTopic(TENANT_1_CLUSTER);
             produceAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER,
@@ -159,7 +167,7 @@ class MultiTenantIT extends BaseMultiTenantIT {
     @Test
     void alterOffsetCommit(KafkaCluster cluster) throws Exception {
         var config = getConfig(cluster, this.certificateGenerator);
-        try (var tester = kroxyliciousTester(new KroxyliciousTesters.TesterSetup(config, this.certificateGenerator));
+        try (var tester = buildTester(config);
                 var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
             var groupId = testInfo.getDisplayName();
             final String topicName = tester.createTopic(TENANT_1_CLUSTER);
@@ -177,7 +185,7 @@ class MultiTenantIT extends BaseMultiTenantIT {
     @Test
     void deleteConsumerGroupOffsets(KafkaCluster cluster) throws Exception {
         var config = getConfig(cluster, this.certificateGenerator);
-        try (var tester = kroxyliciousTester(new KroxyliciousTesters.TesterSetup(config, this.certificateGenerator));
+        try (var tester = buildTester(config);
                 var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
             var groupId = testInfo.getDisplayName();
             final String topicName = tester.createTopic(TENANT_1_CLUSTER);
@@ -249,7 +257,7 @@ class MultiTenantIT extends BaseMultiTenantIT {
     }
 
     @Test
-    void produceInTransaction(KafkaCluster cluster) throws Exception {
+    void produceInTransaction(KafkaCluster cluster) {
         var config = getConfig(cluster, this.certificateGenerator);
         try (var tester = kroxyliciousTester(config);
                 var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
@@ -307,9 +315,9 @@ class MultiTenantIT extends BaseMultiTenantIT {
 
             // now verify that output contains the expected values.
             consumeAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER, outputTopic, groupId, new LinkedList<>(
-                    List.of(matchesRecord(outputTopic, MY_KEY, "1"),
-                            matchesRecord(outputTopic, MY_KEY, "2"),
-                            matchesRecord(outputTopic, MY_KEY, "3"))),
+                            List.of(matchesRecord(outputTopic, MY_KEY, "1"),
+                                    matchesRecord(outputTopic, MY_KEY, "2"),
+                                    matchesRecord(outputTopic, MY_KEY, "3"))),
                     true);
 
         }
