@@ -10,7 +10,6 @@ import java.util.function.Function;
 
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
-import io.kroxylicious.test.server.MockServer;
 
 /**
  * Static Factory for KroxyliciousTester implementations
@@ -61,8 +60,8 @@ public class KroxyliciousTesters {
      * @return KroxyliciousTester
      */
     public static MockServerKroxyliciousTester mockKafkaKroxyliciousTester(Function<String, ConfigurationBuilder> configurationForMockBootstrap) {
-        return new MockServerKroxyliciousTester(MockServer.startOnRandomPort(), configurationForMockBootstrap, DefaultKroxyliciousTester::spawnProxy,
-                (clusterName, defaultClientConfiguration) -> new KroxyliciousClients(defaultClientConfiguration), null);
+        return new KroxyliciousTesterBuilder().setMockConfigurationFunction(configurationForMockBootstrap, DefaultKroxyliciousTester::spawnProxy,
+                (clusterName, defaultClientConfiguration) -> new KroxyliciousClients(defaultClientConfiguration), null).createMockKroxyliciousTester();
     }
 
 }

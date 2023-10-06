@@ -29,12 +29,12 @@ import io.kroxylicious.test.Request;
 import io.kroxylicious.test.Response;
 import io.kroxylicious.test.ResponsePayload;
 import io.kroxylicious.test.client.KafkaClient;
+import io.kroxylicious.test.tester.KroxyliciousTesterBuilder;
 import io.kroxylicious.test.tester.MockServerKroxyliciousTester;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
-import static io.kroxylicious.test.tester.KroxyliciousTesters.mockKafkaKroxyliciousTester;
 import static org.apache.kafka.common.protocol.ApiKeys.API_VERSIONS;
 import static org.apache.kafka.common.protocol.ApiKeys.CONTROLLED_SHUTDOWN;
 import static org.apache.kafka.common.protocol.ApiKeys.DESCRIBE_CLUSTER;
@@ -56,8 +56,8 @@ public class ProxyRpcTest {
 
     @BeforeAll
     public static void beforeAll() {
-        mockTester = mockKafkaKroxyliciousTester((mockBootstrap) -> proxy(mockBootstrap)
-                .addToFilters(new FilterDefinitionBuilder(FixedClientIdFilterFactory.class.getName()).withConfig("clientId", "fixed").build()));
+        mockTester = new KroxyliciousTesterBuilder().setMockConfigurationFunction((mockBootstrap) -> proxy(mockBootstrap)
+                .addToFilters(new FilterDefinitionBuilder(FixedClientIdFilterFactory.class.getName()).withConfig("clientId", "fixed").build())).createMockKroxyliciousTester();
     }
 
     @BeforeEach

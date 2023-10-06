@@ -29,7 +29,7 @@ import io.kroxylicious.test.Response;
 import io.kroxylicious.test.ResponsePayload;
 import io.kroxylicious.test.client.KafkaClient;
 import io.kroxylicious.test.tester.KroxyliciousConfigUtils;
-import io.kroxylicious.test.tester.KroxyliciousTesters;
+import io.kroxylicious.test.tester.KroxyliciousTesterBuilder;
 import io.kroxylicious.test.tester.MockServerKroxyliciousTester;
 
 import static io.kroxylicious.UnknownTaggedFields.unknownTaggedFieldsToStrings;
@@ -76,7 +76,7 @@ public class OutOfBandRequestIT {
 
     private static MockServerKroxyliciousTester createMockTesterWithFilters(FilterDefinition... definitions) {
         List<FilterDefinition> filterDefs = Arrays.stream(definitions).toList();
-        return KroxyliciousTesters.mockKafkaKroxyliciousTester(s -> KroxyliciousConfigUtils.proxy(s).addAllToFilters(filterDefs));
+        return new KroxyliciousTesterBuilder().setMockConfigurationFunction(s -> KroxyliciousConfigUtils.proxy(s).addAllToFilters(filterDefs)).createMockKroxyliciousTester();
     }
 
     private static FilterDefinition outOfBandSender(ApiKeys apiKeyToSend, int tagToCollect) {

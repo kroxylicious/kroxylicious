@@ -48,6 +48,8 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
 import io.kroxylicious.proxy.filter.ApiVersionsMarkingFilterFactory;
 import io.kroxylicious.proxy.filter.CompositePrefixingFixedClientIdFilterFactory;
@@ -61,6 +63,7 @@ import io.kroxylicious.proxy.internal.filter.ProduceRequestTransformationFilterF
 import io.kroxylicious.test.Request;
 import io.kroxylicious.test.Response;
 import io.kroxylicious.test.ResponsePayload;
+import io.kroxylicious.test.tester.KroxyliciousTesterBuilder;
 import io.kroxylicious.test.tester.MockServerKroxyliciousTester;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
@@ -169,7 +172,8 @@ class FilterIT {
     }
 
     @Test
-    @SuppressWarnings("java:S5841") // java:S5841 warns that doesNotContain passes for the empty case. Which is what we want here.
+    @SuppressWarnings("java:S5841")
+        // java:S5841 warns that doesNotContain passes for the empty case. Which is what we want here.
     void requestFiltersCanRespondWithoutProxying(KafkaCluster cluster, Admin admin) throws Exception {
         var config = proxy(cluster)
                 .addToFilters(REJECTING_CREATE_TOPIC_FILTER.build());
@@ -301,7 +305,8 @@ class FilterIT {
     }
 
     @Test
-    @SuppressWarnings("java:S5841") // java:S5841 warns that doesNotContain passes for the empty case. Which is what we want here.
+    @SuppressWarnings("java:S5841")
+        // java:S5841 warns that doesNotContain passes for the empty case. Which is what we want here.
     void requestFiltersCanRespondWithoutProxyingDoesntLeakBuffers(KafkaCluster cluster, Admin admin) throws Exception {
         var config = proxy(cluster)
                 .addToFilters(REJECTING_CREATE_TOPIC_FILTER.build());
@@ -333,11 +338,14 @@ class FilterIT {
 
     @Test
     void testCompositeFilter() {
-        try (MockServerKroxyliciousTester tester = mockKafkaKroxyliciousTester((mockBootstrap) -> proxy(mockBootstrap)
-                .addToFilters(new FilterDefinitionBuilder(CompositePrefixingFixedClientIdFilterFactory.class.getName())
-                        .withConfig("clientId", "banana", "prefix", "123").build()));
+        final KroxyliciousTesterBuilder testerBuilder = new KroxyliciousTesterBuilder()
+                .addMockResponse(new ResponsePayload(METADATA, METADATA.latestVersion(), new MetadataResponseData()))
+                .setMockConfigurationFunction((mockBootstrap) ->
+                        proxy(mockBootstrap)
+                                .addToFilters(new FilterDefinitionBuilder(CompositePrefixingFixedClientIdFilterFactory.class.getName())
+                                        .withConfig("clientId", "banana", "prefix", "123").build()));
+        try (MockServerKroxyliciousTester tester = testerBuilder.createMockKroxyliciousTester();
                 var kafkaClient = tester.simpleTestClient()) {
-            tester.addMockResponseForApiKey(new ResponsePayload(METADATA, METADATA.latestVersion(), new MetadataResponseData()));
             kafkaClient.getSync(new Request(METADATA, METADATA.latestVersion(), "client", new MetadataRequestData()));
             assertEquals("123banana", tester.getOnlyRequest().clientIdHeader());
         }
@@ -345,21 +353,32 @@ class FilterIT {
 
     @Test
     void testApiVersionsAvailableToFilter() {
-        try (MockServerKroxyliciousTester tester = mockKafkaKroxyliciousTester((mockBootstrap) -> proxy(mockBootstrap)
-                .addToFilters(new FilterDefinitionBuilder(ApiVersionsMarkingFilterFactory.class.getName()).build()));
+        short kroxyliciousLatestVersion = METADATA.latestVersion();
+        int upstreamLatestVersion = kroxyliciousLatestVersion + 1;
+        final KroxyliciousTesterBuilder testerBuilder = new KroxyliciousTesterBuilder()
+                .setMockConfigurationFunction((mockBootstrap) -> proxy(mockBootstrap)
+                        .addToFilters(new FilterDefinitionBuilder(ApiVersionsMarkingFilterFactory.class.getName()).build()))
+                .addMockResponse(new ResponsePayload(METADATA, METADATA.latestVersion(), new MetadataResponseData()))
+                .addMockResponse(buildApiVersionsResponsePayload((short) upstreamLatestVersion));
+
+        try (MockServerKroxyliciousTester tester = testerBuilder.createMockKroxyliciousTester();
                 var kafkaClient = tester.simpleTestClient()) {
-            ApiVersionsResponseData apiVersionsResponseData = new ApiVersionsResponseData();
-            short kroxyliciousLatestVersion = METADATA.latestVersion();
-            int upstreamLatestVersion = kroxyliciousLatestVersion + 1;
-            apiVersionsResponseData.apiKeys().add(new ApiVersionsResponseData.ApiVersion().setApiKey(METADATA.id).setMinVersion(METADATA.oldestVersion()).setMaxVersion(
-                    (short) upstreamLatestVersion));
-            tester.addMockResponseForApiKey(new ResponsePayload(API_VERSIONS, API_VERSIONS.latestVersion(), apiVersionsResponseData));
-            tester.addMockResponseForApiKey(new ResponsePayload(METADATA, METADATA.latestVersion(), new MetadataResponseData()));
             kafkaClient.getSync(new Request(METADATA, METADATA.latestVersion(), "client", new MetadataRequestData()));
+
             ApiMessage message = tester.getOnlyRequestForApiKey(METADATA).message();
             assertThat(unknownTaggedFieldsToStrings(message, INTERSECTED_API_VERSION_RANGE_TAG)).containsExactly("0-" + kroxyliciousLatestVersion);
             assertThat(unknownTaggedFieldsToStrings(message, UPSTREAM_API_VERSION_RANGE_TAG)).containsExactly("0-" + upstreamLatestVersion);
         }
+    }
+
+    @NonNull
+    private static ResponsePayload buildApiVersionsResponsePayload(short upstreamLatestVersion) {
+        ApiVersionsResponseData apiVersionsResponseData = new ApiVersionsResponseData();
+        apiVersionsResponseData.apiKeys().add(new ApiVersionsResponseData.ApiVersion().setApiKey(METADATA.id).setMinVersion(METADATA.oldestVersion()).setMaxVersion(
+                upstreamLatestVersion));
+
+        final ResponsePayload responsePayload = new ResponsePayload(API_VERSIONS, API_VERSIONS.latestVersion(), apiVersionsResponseData);
+        return responsePayload;
     }
 
     @Test
