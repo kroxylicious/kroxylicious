@@ -8,15 +8,14 @@ package io.kroxylicious.test.tester;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 import java.util.function.Function;
-
-import edu.umd.cs.findbugs.annotations.Nullable;
 
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.test.ResponsePayload;
 import io.kroxylicious.test.server.MockServer;
+
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 public class KroxyliciousTesterBuilder {
 
@@ -93,6 +92,5 @@ public class KroxyliciousTesterBuilder {
         }
     }
 
-    public record TrustStoreConfiguration(String trustStoreLocation, @Nullable String trustStorePassword) {
-    }
+    public record TrustStoreConfiguration(String trustStoreLocation, @Nullable String trustStorePassword) {}
 }

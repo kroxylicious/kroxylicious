@@ -277,7 +277,7 @@ class DefaultKroxyliciousTesterTest {
 
             // Then
 
-            verify(clientFactory).build(eq(TLS_CLUSTER), argThat(assertSslConfiguration(trustStorePath)));
+            verify(clientFactory).build(eq(TLS_CLUSTER), argThat(assertSslConfiguration( trustStorePath)));
         }
     }
 
@@ -293,7 +293,7 @@ class DefaultKroxyliciousTesterTest {
             tester.producer(TLS_CLUSTER);
 
             // Then
-            verify(clientFactory).build(eq(TLS_CLUSTER), argThat(assertSslConfiguration(trustStorePath)));
+            verify(clientFactory).build(eq(TLS_CLUSTER), argThat(assertSslConfiguration( trustStorePath)));
         }
     }
 
@@ -497,11 +497,11 @@ class DefaultKroxyliciousTesterTest {
 
     @NonNull
     private static Consumer<Map<String, Object>> assertSslConfiguration(String trustStorePath) {
-        return actual -> assertThat(actual)
-                .contains(
-                        Map.entry(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name()),
-                        Map.entry(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, trustStorePath))
-                .containsKey(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG);
+        returnactual -> assertThat(actual)
+                    .contains(
+                            Map.entry(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name()),
+                            Map.entry(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, trustStorePath))
+                    .containsKey(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG);
     }
 
     @NonNull

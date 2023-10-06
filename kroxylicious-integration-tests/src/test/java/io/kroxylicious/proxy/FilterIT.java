@@ -48,8 +48,6 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
 import io.kroxylicious.proxy.filter.ApiVersionsMarkingFilterFactory;
 import io.kroxylicious.proxy.filter.CompositePrefixingFixedClientIdFilterFactory;
@@ -67,6 +65,8 @@ import io.kroxylicious.test.tester.KroxyliciousTesterBuilder;
 import io.kroxylicious.test.tester.MockServerKroxyliciousTester;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.UnknownTaggedFields.unknownTaggedFieldsToStrings;
 import static io.kroxylicious.proxy.filter.ApiVersionsMarkingFilter.INTERSECTED_API_VERSION_RANGE_TAG;
@@ -173,7 +173,7 @@ class FilterIT {
 
     @Test
     @SuppressWarnings("java:S5841")
-        // java:S5841 warns that doesNotContain passes for the empty case. Which is what we want here.
+    // java:S5841 warns that doesNotContain passes for the empty case. Which is what we want here.
     void requestFiltersCanRespondWithoutProxying(KafkaCluster cluster, Admin admin) throws Exception {
         var config = proxy(cluster)
                 .addToFilters(REJECTING_CREATE_TOPIC_FILTER.build());
@@ -306,7 +306,7 @@ class FilterIT {
 
     @Test
     @SuppressWarnings("java:S5841")
-        // java:S5841 warns that doesNotContain passes for the empty case. Which is what we want here.
+    // java:S5841 warns that doesNotContain passes for the empty case. Which is what we want here.
     void requestFiltersCanRespondWithoutProxyingDoesntLeakBuffers(KafkaCluster cluster, Admin admin) throws Exception {
         var config = proxy(cluster)
                 .addToFilters(REJECTING_CREATE_TOPIC_FILTER.build());
@@ -340,10 +340,9 @@ class FilterIT {
     void testCompositeFilter() {
         final KroxyliciousTesterBuilder testerBuilder = new KroxyliciousTesterBuilder()
                 .addMockResponse(new ResponsePayload(METADATA, METADATA.latestVersion(), new MetadataResponseData()))
-                .setMockConfigurationFunction((mockBootstrap) ->
-                        proxy(mockBootstrap)
-                                .addToFilters(new FilterDefinitionBuilder(CompositePrefixingFixedClientIdFilterFactory.class.getName())
-                                        .withConfig("clientId", "banana", "prefix", "123").build()));
+                .setMockConfigurationFunction((mockBootstrap) -> proxy(mockBootstrap)
+                        .addToFilters(new FilterDefinitionBuilder(CompositePrefixingFixedClientIdFilterFactory.class.getName())
+                                .withConfig("clientId", "banana", "prefix", "123").build()));
         try (MockServerKroxyliciousTester tester = testerBuilder.createMockKroxyliciousTester();
                 var kafkaClient = tester.simpleTestClient()) {
             kafkaClient.getSync(new Request(METADATA, METADATA.latestVersion(), "client", new MetadataRequestData()));

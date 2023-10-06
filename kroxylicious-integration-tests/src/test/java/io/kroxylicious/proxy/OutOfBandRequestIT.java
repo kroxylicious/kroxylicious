@@ -76,7 +76,8 @@ public class OutOfBandRequestIT {
 
     private static MockServerKroxyliciousTester createMockTesterWithFilters(FilterDefinition... definitions) {
         List<FilterDefinition> filterDefs = Arrays.stream(definitions).toList();
-        return new KroxyliciousTesterBuilder().setMockConfigurationFunction(s -> KroxyliciousConfigUtils.proxy(s).addAllToFilters(filterDefs)).createMockKroxyliciousTester();
+        return new KroxyliciousTesterBuilder().setMockConfigurationFunction(s -> KroxyliciousConfigUtils.proxy(s).addAllToFilters(filterDefs))
+                .createMockKroxyliciousTester();
     }
 
     private static FilterDefinition outOfBandSender(ApiKeys apiKeyToSend, int tagToCollect) {
