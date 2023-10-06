@@ -30,6 +30,8 @@
         <skipITs>${skipTests}</skipITs>
         <skipUTs>${skipTests}</skipUTs>
 
+        <impsort-maven-plugin.goal>sort</impsort-maven-plugin.goal>
+
         <freemarker.version>2.3.32</freemarker.version>
         <guava.version>32.1.2-jre</guava.version>
         <hamcrest.version>2.2</hamcrest.version>
@@ -356,6 +358,14 @@
                         <!-- use langauge level 17, see https://github.com/javaparser/javaparser/issues/3833 -->
                         <compliance>17</compliance>
                     </configuration>
+                    <executions>
+                        <execution>
+                            <id>sort-imports</id>
+                            <goals>
+                                <goal>${impsort-maven-plugin.goal}</goal>
+                            </goals>
+                        </execution>
+                    </executions>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -622,15 +632,6 @@
                     <plugin>
                         <groupId>net.revelc.code</groupId>
                         <artifactId>impsort-maven-plugin</artifactId>
-                        <executions>
-                            <execution>
-                                <id>sort-imports</id>
-                                <goals>
-                                    <goal>sort</goal>
-                                </goals>
-                                <phase>process-sources</phase>
-                            </execution>
-                        </executions>
                     </plugin>
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
@@ -710,6 +711,7 @@
             <properties>
                 <sonar.organization>kroxylicious</sonar.organization>
                 <sonar.host.url>https://sonarcloud.io</sonar.host.url>
+                <impsort-maven-plugin.goal>check</impsort-maven-plugin.goal>
             </properties>
             <build>
                 <plugins>
