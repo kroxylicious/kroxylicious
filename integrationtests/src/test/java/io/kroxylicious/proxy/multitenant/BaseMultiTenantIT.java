@@ -133,7 +133,7 @@ public abstract class BaseMultiTenantIT extends BaseIT {
         return getConsumerWithConfig(tester, Optional.of(virtualCluster), baseConfig, standardConfig, additionalConfig);
     }
 
-    void consumeAndVerify(KroxyliciousTester tester, Map<String, Object> clientConfig, String virtualCluster, String topicName, String groupId,
+    void consumeAndAssert(KroxyliciousTester tester, Map<String, Object> clientConfig, String virtualCluster, String topicName, String groupId,
                           Deque<Predicate<ConsumerRecord<String, String>>> expected, boolean offsetCommit) {
         try (var consumer = getConsumerWithConfig(tester, virtualCluster, groupId, clientConfig, Map.of(
                 ConsumerConfig.MAX_POLL_RECORDS_CONFIG, String.format("%d", expected.size())))) {
@@ -157,7 +157,7 @@ public abstract class BaseMultiTenantIT extends BaseIT {
         }
     }
 
-    void produceAndVerify(KroxyliciousTester tester, Map<String, Object> clientConfig, String virtualCluster,
+    void produceAndAssert(KroxyliciousTester tester, Map<String, Object> clientConfig, String virtualCluster,
                           Stream<ProducerRecord<String, String>> records, Optional<String> transactionalId) {
 
         Map<String, Object> config = new HashMap<>();

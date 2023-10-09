@@ -128,7 +128,7 @@ class MultiTenantIT extends BaseMultiTenantIT {
         var config = getConfig(cluster, this.certificateGenerator);
         try (var tester = buildTester(config)) {
             final String topicName = tester.createTopic(TENANT_1_CLUSTER);
-            produceAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER, Stream.of(new ProducerRecord<>(topicName, MY_KEY, MY_VALUE)), Optional.empty());
+            produceAndAssert(tester, this.clientConfig, TENANT_1_CLUSTER, Stream.of(new ProducerRecord<>(topicName, MY_KEY, MY_VALUE)), Optional.empty());
         }
     }
 
@@ -145,8 +145,8 @@ class MultiTenantIT extends BaseMultiTenantIT {
         try (var tester = buildTester(config)) {
             var groupId = testInfo.getDisplayName();
             final String topicName = tester.createTopic(TENANT_1_CLUSTER);
-            produceAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER, Stream.of(new ProducerRecord<>(topicName, MY_KEY, MY_VALUE)), Optional.empty());
-            consumeAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER, topicName, groupId, new LinkedList<>(List.of(matchesRecord(topicName, MY_KEY, MY_VALUE))),
+            produceAndAssert(tester, this.clientConfig, TENANT_1_CLUSTER, Stream.of(new ProducerRecord<>(topicName, MY_KEY, MY_VALUE)), Optional.empty());
+            consumeAndAssert(tester, this.clientConfig, TENANT_1_CLUSTER, topicName, groupId, new LinkedList<>(List.of(matchesRecord(topicName, MY_KEY, MY_VALUE))),
                     false);
         }
     }
@@ -157,10 +157,10 @@ class MultiTenantIT extends BaseMultiTenantIT {
         try (var tester = buildTester(config)) {
             var groupId = testInfo.getDisplayName();
             final String topicName = tester.createTopic(TENANT_1_CLUSTER);
-            produceAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER,
+            produceAndAssert(tester, this.clientConfig, TENANT_1_CLUSTER,
                     Stream.of(new ProducerRecord<>(topicName, MY_KEY, "1"), new ProducerRecord<>(topicName, MY_KEY, "2"), inCaseOfFailure()), Optional.empty());
-            consumeAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER, topicName, groupId, new LinkedList<>(List.of(matchesRecord(topicName, MY_KEY, "1"))), true);
-            consumeAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER, topicName, groupId, new LinkedList<>(List.of(matchesRecord(topicName, MY_KEY, "2"))), true);
+            consumeAndAssert(tester, this.clientConfig, TENANT_1_CLUSTER, topicName, groupId, new LinkedList<>(List.of(matchesRecord(topicName, MY_KEY, "1"))), true);
+            consumeAndAssert(tester, this.clientConfig, TENANT_1_CLUSTER, topicName, groupId, new LinkedList<>(List.of(matchesRecord(topicName, MY_KEY, "2"))), true);
         }
     }
 
@@ -171,14 +171,14 @@ class MultiTenantIT extends BaseMultiTenantIT {
                 var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
             var groupId = testInfo.getDisplayName();
             final String topicName = tester.createTopic(TENANT_1_CLUSTER);
-            produceAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER,
+            produceAndAssert(tester, this.clientConfig, TENANT_1_CLUSTER,
                     Stream.of(new ProducerRecord<>(topicName, MY_KEY, "1"), new ProducerRecord<>(topicName, MY_KEY, "2"), inCaseOfFailure()), Optional.empty());
-            consumeAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER, topicName, groupId, new LinkedList<>(List.of(matchesRecord(topicName, MY_KEY, "1"))), true);
+            consumeAndAssert(tester, this.clientConfig, TENANT_1_CLUSTER, topicName, groupId, new LinkedList<>(List.of(matchesRecord(topicName, MY_KEY, "1"))), true);
             var rememberedOffsets = admin.listConsumerGroupOffsets(groupId).partitionsToOffsetAndMetadata().get();
-            consumeAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER, topicName, groupId, new LinkedList<>(List.of(matchesRecord(topicName, MY_KEY, "2"))), true);
+            consumeAndAssert(tester, this.clientConfig, TENANT_1_CLUSTER, topicName, groupId, new LinkedList<>(List.of(matchesRecord(topicName, MY_KEY, "2"))), true);
 
             admin.alterConsumerGroupOffsets(groupId, rememberedOffsets).all().get();
-            consumeAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER, topicName, groupId, new LinkedList<>(List.of(matchesRecord(topicName, MY_KEY, "2"))), true);
+            consumeAndAssert(tester, this.clientConfig, TENANT_1_CLUSTER, topicName, groupId, new LinkedList<>(List.of(matchesRecord(topicName, MY_KEY, "2"))), true);
         }
     }
 
@@ -189,11 +189,11 @@ class MultiTenantIT extends BaseMultiTenantIT {
                 var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
             var groupId = testInfo.getDisplayName();
             final String topicName = tester.createTopic(TENANT_1_CLUSTER);
-            produceAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER, Stream.of(new ProducerRecord<>(topicName, MY_KEY, "1"), inCaseOfFailure()), Optional.empty());
-            consumeAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER, topicName, groupId, new LinkedList<>(List.of(matchesRecord(topicName, MY_KEY, "1"))), true);
+            produceAndAssert(tester, this.clientConfig, TENANT_1_CLUSTER, Stream.of(new ProducerRecord<>(topicName, MY_KEY, "1"), inCaseOfFailure()), Optional.empty());
+            consumeAndAssert(tester, this.clientConfig, TENANT_1_CLUSTER, topicName, groupId, new LinkedList<>(List.of(matchesRecord(topicName, MY_KEY, "1"))), true);
 
             admin.deleteConsumerGroupOffsets(groupId, Set.of(new TopicPartition(topicName, 0))).all().get();
-            consumeAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER, topicName, groupId, new LinkedList<>(List.of(matchesRecord(topicName, MY_KEY, "1"))), true);
+            consumeAndAssert(tester, this.clientConfig, TENANT_1_CLUSTER, topicName, groupId, new LinkedList<>(List.of(matchesRecord(topicName, MY_KEY, "1"))), true);
         }
     }
 
@@ -262,7 +262,7 @@ class MultiTenantIT extends BaseMultiTenantIT {
         try (var tester = kroxyliciousTester(config);
                 var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
             createTopics(admin, NEW_TOPIC_1);
-            produceAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER,
+            produceAndAssert(tester, this.clientConfig, TENANT_1_CLUSTER,
                     Stream.of(new ProducerRecord<>(TOPIC_1, MY_KEY, "1")),
                     Optional.of("12345"));
         }
@@ -278,7 +278,7 @@ class MultiTenantIT extends BaseMultiTenantIT {
             var outputTopic = "output";
             createTopics(admin, new NewTopic(inputTopic, 1, (short) 1),
                     new NewTopic(outputTopic, 1, (short) 1));
-            produceAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER,
+            produceAndAssert(tester, this.clientConfig, TENANT_1_CLUSTER,
                     Stream.of(new ProducerRecord<>(inputTopic, MY_KEY, "1"),
                             new ProducerRecord<>(inputTopic, MY_KEY, "2"),
                             new ProducerRecord<>(inputTopic, MY_KEY, "3")),
@@ -314,7 +314,7 @@ class MultiTenantIT extends BaseMultiTenantIT {
             }
 
             // now verify that output contains the expected values.
-            consumeAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER, outputTopic, groupId, new LinkedList<>(
+            consumeAndAssert(tester, this.clientConfig, TENANT_1_CLUSTER, outputTopic, groupId, new LinkedList<>(
                     List.of(matchesRecord(outputTopic, MY_KEY, "1"),
                             matchesRecord(outputTopic, MY_KEY, "2"),
                             matchesRecord(outputTopic, MY_KEY, "3"))),
@@ -330,7 +330,7 @@ class MultiTenantIT extends BaseMultiTenantIT {
             try (var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
                 createTopics(admin, NEW_TOPIC_1);
                 var transactionalId = "12345";
-                produceAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER,
+                produceAndAssert(tester, this.clientConfig, TENANT_1_CLUSTER,
                         Stream.of(new ProducerRecord<>(TOPIC_1, MY_KEY, "1")),
                         Optional.of(transactionalId));
 
@@ -350,14 +350,14 @@ class MultiTenantIT extends BaseMultiTenantIT {
                 var adminTenant2 = tester.admin(TENANT_2_CLUSTER, this.clientConfig)) {
             createTopics(adminTenant1, NEW_TOPIC_1);
             var tenant1TransactionId = "12345";
-            produceAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER,
+            produceAndAssert(tester, this.clientConfig, TENANT_1_CLUSTER,
                     Stream.of(new ProducerRecord<>(TOPIC_1, MY_KEY, "1")),
                     Optional.of(tenant1TransactionId));
             verifyTransactionsWithList(adminTenant1, Set.of(tenant1TransactionId));
 
             createTopics(adminTenant2, NEW_TOPIC_2);
             var tenant2TransactionId = "54321";
-            produceAndVerify(tester, this.clientConfig, TENANT_2_CLUSTER,
+            produceAndAssert(tester, this.clientConfig, TENANT_2_CLUSTER,
                     Stream.of(new ProducerRecord<>(TOPIC_2, MY_KEY, "1")),
                     Optional.of(tenant2TransactionId));
             verifyTransactionsWithList(adminTenant2, Set.of(tenant2TransactionId));
