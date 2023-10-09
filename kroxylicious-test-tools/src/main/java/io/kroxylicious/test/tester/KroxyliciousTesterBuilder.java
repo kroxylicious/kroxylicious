@@ -8,10 +8,10 @@ package io.kroxylicious.test.tester;
 
 import java.util.function.Function;
 
-import edu.umd.cs.findbugs.annotations.Nullable;
-
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
+
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 public class KroxyliciousTesterBuilder {
 
@@ -51,6 +51,5 @@ public class KroxyliciousTesterBuilder {
         return new DefaultKroxyliciousTester(configurationBuilder, kroxyliciousFactory, clientFactory, trustStoreConfiguration);
     }
 
-    public record TrustStoreConfiguration(String trustStoreLocation, @Nullable String trustStorePassword) {
-    }
+    public record TrustStoreConfiguration(String trustStoreLocation, @Nullable String trustStorePassword) {}
 }

@@ -15,10 +15,13 @@ import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeMatcher;
 
+import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.test.Request;
 import io.kroxylicious.test.ResponsePayload;
 import io.kroxylicious.test.server.MockServer;
+
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static org.apache.kafka.common.protocol.ApiKeys.PRODUCE;
 
@@ -33,8 +36,10 @@ public class MockServerKroxyliciousTester extends DefaultKroxyliciousTester {
 
     private final MockServer mockServer;
 
-    MockServerKroxyliciousTester(MockServer mockServer, Function<String, ConfigurationBuilder> configurationForMockBootstrap) {
-        super(configurationForMockBootstrap.apply("localhost:" + mockServer.port()), null, null, null);
+    MockServerKroxyliciousTester(MockServer mockServer, Function<String, ConfigurationBuilder> configurationForMockBootstrap,
+                                 Function<Configuration, AutoCloseable> kroxyliciousFactory, ClientFactory clientFactory,
+                                 @Nullable KroxyliciousTesterBuilder.TrustStoreConfiguration trustStoreConfiguration) {
+        super(configurationForMockBootstrap.apply("localhost:" + mockServer.port()), kroxyliciousFactory, clientFactory, trustStoreConfiguration);
         this.mockServer = mockServer;
     }
 

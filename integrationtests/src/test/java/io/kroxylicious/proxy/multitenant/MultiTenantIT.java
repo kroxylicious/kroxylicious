@@ -49,13 +49,13 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.test.tester.KroxyliciousTester;
 import io.kroxylicious.test.tester.KroxyliciousTesters;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.assertj.core.api.Assertions.allOf;
@@ -315,9 +315,9 @@ class MultiTenantIT extends BaseMultiTenantIT {
 
             // now verify that output contains the expected values.
             consumeAndVerify(tester, this.clientConfig, TENANT_1_CLUSTER, outputTopic, groupId, new LinkedList<>(
-                            List.of(matchesRecord(outputTopic, MY_KEY, "1"),
-                                    matchesRecord(outputTopic, MY_KEY, "2"),
-                                    matchesRecord(outputTopic, MY_KEY, "3"))),
+                    List.of(matchesRecord(outputTopic, MY_KEY, "1"),
+                            matchesRecord(outputTopic, MY_KEY, "2"),
+                            matchesRecord(outputTopic, MY_KEY, "3"))),
                     true);
 
         }

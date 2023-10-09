@@ -28,14 +28,14 @@ import org.mockito.Mock;
 import org.mockito.hamcrest.MockitoHamcrest;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import io.kroxylicious.proxy.config.ClusterNetworkAddressConfigProviderDefinitionBuilder;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.DEFAULT_PROXY_BOOTSTRAP;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.DEFAULT_VIRTUAL_CLUSTER;
@@ -268,8 +268,7 @@ class DefaultKroxyliciousTesterTest {
                 assertThat(actual)
                         .contains(
                                 Map.entry(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name()),
-                                Map.entry(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, trustStorePath)
-                        )
+                                Map.entry(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, trustStorePath))
                         .containsKey(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG);
             }));
         }
@@ -291,10 +290,8 @@ class DefaultKroxyliciousTesterTest {
             verify(clientFactory).build(eq(TLS_CLUSTER), argThat(actual -> assertThat(actual)
                     .contains(
                             Map.entry(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name()),
-                            Map.entry(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, trustStorePath)
-                    )
-                    .containsKey(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG)
-            ));
+                            Map.entry(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, trustStorePath))
+                    .containsKey(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG)));
         }
     }
 
@@ -314,10 +311,8 @@ class DefaultKroxyliciousTesterTest {
             verify(clientFactory).build(eq(TLS_CLUSTER), argThat(actual -> assertThat(actual)
                     .contains(
                             Map.entry(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name()),
-                            Map.entry(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, trustStorePath)
-                    )
-                    .containsKey(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG)
-            ));
+                            Map.entry(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, trustStorePath))
+                    .containsKey(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG)));
         }
     }
 

@@ -61,7 +61,8 @@ public class KroxyliciousTesters {
      * @return KroxyliciousTester
      */
     public static MockServerKroxyliciousTester mockKafkaKroxyliciousTester(Function<String, ConfigurationBuilder> configurationForMockBootstrap) {
-        return new MockServerKroxyliciousTester(MockServer.startOnRandomPort(), configurationForMockBootstrap);
+        return new MockServerKroxyliciousTester(MockServer.startOnRandomPort(), configurationForMockBootstrap, DefaultKroxyliciousTester::spawnProxy,
+                (clusterName, defaultClientConfiguration) -> new KroxyliciousClients(defaultClientConfiguration), null);
     }
 
 }
