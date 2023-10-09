@@ -41,9 +41,9 @@ fi
 export SED
 
 #
-# Parses a registry server from registry destination such as quay.io/podman/stable
+# Extracts a registry server from registry destination such as quay.io/podman/stable
 # Works with remote address forms described by https://docs.podman.io/en/stable/markdown/podman-push.1.html
 #
-parseRegistryServer () {
+extractRegistryServer () {
   echo $1 | ${SED} -e 's#\([^:]*:\)\?\(//\)\?\([^/]*\).*#\3#'
 }
