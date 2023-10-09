@@ -7,6 +7,7 @@
 
 set -euo pipefail
 DEFAULT_REGISTRY_DESTINATION='quay.io/kroxylicious/kroxylicious-developer'
+REGISTRY_DESTINATION=${REGISTRY_DESTINATION:-${DEFAULT_REGISTRY_DESTINATION}}
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 . "${SCRIPT_DIR}/common.sh"
@@ -28,13 +29,8 @@ function cleanTmpDir {
 }
 trap cleanTmpDir EXIT
 
-if [[ -z "${REGISTRY_DESTINATION:-}" ]]; then
-  echo "Please set REGISTRY_DESTINATION to a value like 'quay.io/<myorg>/kroxylicious', exiting"
-  exit 1
-fi
-
 if [[ "${REGISTRY_DESTINATION}" != "${DEFAULT_REGISTRY_DESTINATION}" ]]; then
-  echo "building and pushing image to quay.io"
+  echo "building and pushing image to ${REGISTRY_DESTINATION}"
   PUSH_IMAGE=y "${SCRIPT_DIR}/deploy-image.sh"
 else
   echo "REGISTRY_DESTINATION is ${REGISTRY_DESTINATION}, not building/deploying image"
