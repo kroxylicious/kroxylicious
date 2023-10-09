@@ -251,7 +251,6 @@ class DefaultKroxyliciousTesterTest {
     @Test
     void shouldConfigureConsumerForTls(@TempDir Path certsDirectory) throws IOException {
         // Given
-
         final String certFilePath = certsDirectory.resolve(Path.of("cert-file")).toAbsolutePath().toString();
         final String trustStorePath = certsDirectory.resolve(Path.of("trust-store")).toAbsolutePath().toString();
         var keytoolCertificateGenerator = new KeytoolCertificateGenerator(certFilePath, trustStorePath);
@@ -264,20 +263,13 @@ class DefaultKroxyliciousTesterTest {
 
             // Then
 
-            verify(clientFactory).build(eq(TLS_CLUSTER), argThat(actual -> {
-                assertThat(actual)
-                        .contains(
-                                Map.entry(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name()),
-                                Map.entry(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, trustStorePath))
-                        .containsKey(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG);
-            }));
+            verify(clientFactory).build(eq(TLS_CLUSTER), argThat(assertSslConfiguration(trustStorePath)));
         }
     }
 
     @Test
     void shouldConfigureProducerForTls(@TempDir Path certsDirectory) throws IOException {
         // Given
-
         final String certFilePath = certsDirectory.resolve(Path.of("cert-file")).toAbsolutePath().toString();
         final String trustStorePath = certsDirectory.resolve(Path.of("trust-store")).toAbsolutePath().toString();
         var keytoolCertificateGenerator = new KeytoolCertificateGenerator(certFilePath, trustStorePath);
@@ -287,18 +279,13 @@ class DefaultKroxyliciousTesterTest {
             tester.producer(TLS_CLUSTER);
 
             // Then
-            verify(clientFactory).build(eq(TLS_CLUSTER), argThat(actual -> assertThat(actual)
-                    .contains(
-                            Map.entry(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name()),
-                            Map.entry(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, trustStorePath))
-                    .containsKey(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG)));
+            verify(clientFactory).build(eq(TLS_CLUSTER), argThat(assertSslConfiguration(trustStorePath)));
         }
     }
 
     @Test
     void shouldConfigureAdminForTls(@TempDir Path certsDirectory) throws IOException {
         // Given
-
         final String certFilePath = certsDirectory.resolve(Path.of("cert-file")).toAbsolutePath().toString();
         final String trustStorePath = certsDirectory.resolve(Path.of("trust-store")).toAbsolutePath().toString();
         var keytoolCertificateGenerator = new KeytoolCertificateGenerator(certFilePath, trustStorePath);
@@ -308,12 +295,17 @@ class DefaultKroxyliciousTesterTest {
             tester.admin(TLS_CLUSTER);
 
             // Then
-            verify(clientFactory).build(eq(TLS_CLUSTER), argThat(actual -> assertThat(actual)
-                    .contains(
-                            Map.entry(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name()),
-                            Map.entry(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, trustStorePath))
-                    .containsKey(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG)));
+            verify(clientFactory).build(eq(TLS_CLUSTER), argThat(assertSslConfiguration(trustStorePath)));
         }
+    }
+
+    @NonNull
+    private static Consumer<Map<String, Object>> assertSslConfiguration(String trustStorePath) {
+        return actual -> assertThat(actual)
+                .contains(
+                        Map.entry(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name()),
+                        Map.entry(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, trustStorePath))
+                .containsKey(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG);
     }
 
     @NonNull
