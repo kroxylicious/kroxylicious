@@ -27,7 +27,7 @@ echo "kubectl -n kafka run java-kafka-consumer -ti --image=${STRIMZI_KAFKA} --rm
 echo -e "${GREEN}Edenhill Kcat (librdkafka)${NOCOLOUR}"
 
 echo "Note: kcat 1.7 -P will send each line as a separate record, but you need to press ^D to actually get kcat to start sending - see  https://github.com/edenhill/kcat/issues/322"
-echo "quay.io/kroxylicious/kcat:1.6.0 will send each line as a record the newline."
+echo "quay.io/kroxylicious/kcat:1.6.0 will send each line as a record on pressing enter."
 
 echo "To produce to kroxylicious:"
 echo "kubectl -n kafka run kcat-kafka-producer -ti --image=${KCAT} --rm=true --restart=Never -- -P -t ${TOPIC} -b ${BOOTSTRAP}"
