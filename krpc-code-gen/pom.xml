@@ -25,7 +25,7 @@
     <properties>
         <maven-plugin-api.version>3.9.4</maven-plugin-api.version>
         <maven-plugin-annotations.version>3.9.0</maven-plugin-annotations.version>
-        <maven-core.version>3.9.4</maven-core.version>
+        <maven-core.version>3.9.5</maven-core.version>
         <plexus-build-api.version>1.2.0</plexus-build-api.version>
     </properties>
 
