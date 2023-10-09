@@ -204,7 +204,7 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
             proxy = spawnProxy(kroxyliciousConfig);
         }
         catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new IllegalStateException(e);
         }
     }
 
@@ -213,12 +213,7 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
         try {
             List<Exception> exceptions = new ArrayList<>();
             for (KroxyliciousClients c : clients.values()) {
-                try {
-                    c.close();
-                }
-                catch (Exception e) {
-                    exceptions.add(e);
-                }
+                closeClient(c).ifPresent(exceptions::add);
             }
             proxy.close();
             if (!exceptions.isEmpty()) {
@@ -228,7 +223,17 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
             }
         }
         catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new IllegalStateException(e);
+        }
+    }
+
+    private static Optional<Exception> closeClient(KroxyliciousClients c) {
+        try {
+            c.close();
+            return Optional.empty();
+        }
+        catch (Exception e) {
+            return Optional.of(e);
         }
     }
 
