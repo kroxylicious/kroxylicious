@@ -8,10 +8,12 @@ package io.kroxylicious.test.tester;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -21,6 +23,7 @@ import java.util.stream.IntStream;
 
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.admin.Admin;
+import org.apache.kafka.clients.admin.CreateTopicsResult;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.producer.Producer;
@@ -50,6 +53,7 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     private final Configuration kroxyliciousConfig;
 
     private final Map<String, KroxyliciousClients> clients;
+    private final Map<String, Set<String>> topicsPerVirtialCluster;
 
     private final ClientFactory clientFactory;
 
@@ -60,8 +64,9 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
         this.kroxyliciousConfig = configurationBuilder.build();
         this.proxy = kroxyliciousFactory.apply(kroxyliciousConfig);
         this.trustStoreConfiguration = Optional.ofNullable(trustStoreConfiguration);
-        this.clients = new HashMap<>();
+        this.clients = new ConcurrentHashMap<>();
         this.clientFactory = clientFactory;
+        topicsPerVirtialCluster = new ConcurrentHashMap<>();
     }
 
     private KroxyliciousClients clients() {
@@ -243,10 +248,15 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
         try (Admin admin = clients(virtualCluster).admin()) {
             final List<NewTopic> newTopics = IntStream.range(0, numberOfTopics).mapToObj(ignored -> {
                 final String topicName = MobyNamesGenerator.getRandomName();
-                return new NewTopic(topicName, (short) 1, (short) 1); // We should be able to
+                return new NewTopic(topicName, (short) 1, (short) 1);
             }).toList();
-            admin.createTopics(newTopics).all().get(30, TimeUnit.SECONDS);
-            return newTopics.stream().map(NewTopic::name).collect(Collectors.toSet());
+            final CreateTopicsResult createTopicsResult = admin.createTopics(newTopics);
+            createTopicsResult.all().get(30, TimeUnit.SECONDS);
+
+            // TODO should this be driven by result of the createTopic call?
+            final Set<String> topicNames = newTopics.stream().map(NewTopic::name).collect(Collectors.toSet());
+            topicsForVirtualCluster(virtualCluster).addAll(topicNames);
+            return topicNames;
         }
         catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -255,6 +265,26 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
         catch (ExecutionException | TimeoutException e) {
             throw new IllegalStateException("failed to create topics on " + virtualCluster, e);
         }
+    }
+
+    @Override
+    public void deleteTopics(String virtualCluster) {
+        try (Admin admin = clients(virtualCluster).admin()) {
+            admin.deleteTopics(topicsForVirtualCluster(virtualCluster))
+                    .all()
+                    .get(30, TimeUnit.SECONDS);
+        }
+        catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("failed to delete topics on " + virtualCluster, e);
+        }
+        catch (ExecutionException | TimeoutException e) {
+            throw new IllegalStateException("failed to delete topics on " + virtualCluster, e);
+        }
+    }
+
+    private Set<String> topicsForVirtualCluster(String clusterName) {
+        return topicsPerVirtialCluster.computeIfAbsent(clusterName, key -> new HashSet<>());
     }
 
     @FunctionalInterface

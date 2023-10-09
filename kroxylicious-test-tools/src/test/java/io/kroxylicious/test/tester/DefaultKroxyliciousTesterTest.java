@@ -9,14 +9,19 @@ package io.kroxylicious.test.tester;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.security.GeneralSecurityException;
+import java.util.Collection;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Consumer;
 
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.admin.Admin;
+import org.apache.kafka.clients.admin.CreateTopicsResult;
+import org.apache.kafka.clients.admin.DeleteTopicsResult;
 import org.apache.kafka.clients.consumer.MockConsumer;
 import org.apache.kafka.clients.consumer.OffsetResetStrategy;
 import org.apache.kafka.clients.producer.MockProducer;
+import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.config.SslConfigs;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.assertj.core.matcher.AssertionMatcher;
@@ -43,10 +48,12 @@ import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.fail;
+import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mock.Strictness.LENIENT;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -59,6 +66,7 @@ class DefaultKroxyliciousTesterTest {
     private static final String EXCEPTION_MESSAGE = "KaBOOM!!";
     private static final String DEFAULT_CLUSTER = "demo";
     private static final String TLS_CLUSTER = "secureCluster";
+    public static final int TOPIC_COUNT = 5;
     String backingCluster = "broker01.example.com:9090";
 
     @Mock(strictness = LENIENT)
@@ -299,6 +307,85 @@ class DefaultKroxyliciousTesterTest {
         }
     }
 
+    @Test
+    void shouldCreateSingleTopic() {
+        // Given
+        final CreateTopicsResult createTopicsResult = mock(CreateTopicsResult.class);
+        when(admin.createTopics(anyCollection())).thenReturn(createTopicsResult);
+        when(createTopicsResult.all()).thenReturn(KafkaFuture.completedFuture(null));
+        try (KroxyliciousTester tester = buildDefaultTester()) {
+
+            // When
+            final String actualTopicName = tester.createTopic(DEFAULT_CLUSTER);
+
+            // Then
+            verify(admin).createTopics(argThat(topics -> assertThat(topics).hasSize(1)));
+            assertThat(actualTopicName).isNotBlank();
+        }
+    }
+
+    @Test
+    void shouldCreateMultipleTopics() {
+        // Given
+        final CreateTopicsResult createTopicsResult = mock(CreateTopicsResult.class);
+        when(admin.createTopics(anyCollection())).thenReturn(createTopicsResult);
+        when(createTopicsResult.all()).thenReturn(KafkaFuture.completedFuture(null));
+        try (KroxyliciousTester tester = buildDefaultTester()) {
+
+            // When
+            final Set<String> actualTopicName = tester.createTopics(DEFAULT_CLUSTER, TOPIC_COUNT);
+
+            // Then
+            verify(admin).createTopics(argThat(topics -> assertThat(topics).hasSize(TOPIC_COUNT)));
+            assertThat(actualTopicName).isNotEmpty().hasSize(TOPIC_COUNT);
+        }
+    }
+
+    @Test
+    void shouldTrackTopicsForCluster() {
+        // Given
+        final Admin adminB = mock(Admin.class);
+        allowCreateTopic(kroxyliciousClientsA, admin);
+        allowCreateTopic(kroxyliciousClientsB, adminB);
+
+        try (KroxyliciousTester tester = buildTester()) {
+            tester.createTopics(VIRTUAL_CLUSTER_A, TOPIC_COUNT);
+
+            // When
+            tester.createTopics(VIRTUAL_CLUSTER_B, TOPIC_COUNT);
+
+            // Then
+            verify(admin).createTopics(argThat(topics -> assertThat(topics).hasSize(TOPIC_COUNT)));
+            verify(adminB).createTopics(argThat(topics -> assertThat(topics).hasSize(TOPIC_COUNT)));
+        }
+    }
+
+    @Test
+    void shouldDeleteTopicsForCluster() {
+        // Given
+        allowCreateTopic(kroxyliciousClientsA, admin);
+        final DeleteTopicsResult deleteTopicsResult = mock(DeleteTopicsResult.class);
+        when(admin.deleteTopics(anyCollection())).thenReturn(deleteTopicsResult);
+        when(deleteTopicsResult.all()).thenReturn(KafkaFuture.completedFuture(null));
+
+        try (KroxyliciousTester tester = buildTester()) {
+            tester.createTopics(VIRTUAL_CLUSTER_A, TOPIC_COUNT);
+
+            // When
+            tester.deleteTopics(VIRTUAL_CLUSTER_A);
+
+            // Then
+            verify(admin).deleteTopics(DefaultKroxyliciousTesterTest.<Collection<String>> argThat(topics -> assertThat(topics).hasSize(TOPIC_COUNT)));
+        }
+    }
+
+    private void allowCreateTopic(KroxyliciousClients kroxyliciousClients, Admin admin) {
+        final CreateTopicsResult createTopicsResultA = mock(CreateTopicsResult.class);
+        when(kroxyliciousClients.admin()).thenReturn(admin);
+        when(admin.createTopics(anyCollection())).thenReturn(createTopicsResultA);
+        when(createTopicsResultA.all()).thenReturn(KafkaFuture.completedFuture(null));
+    }
+
     @NonNull
     private static Consumer<Map<String, Object>> assertSslConfiguration(String trustStorePath) {
         return actual -> assertThat(actual)
@@ -311,7 +398,9 @@ class DefaultKroxyliciousTesterTest {
     @NonNull
     private KroxyliciousTester buildDefaultTester() {
         return new KroxyliciousTesterBuilder().setConfigurationBuilder(proxy(backingCluster))
-                .setKroxyliciousFactory(DefaultKroxyliciousTester::spawnProxy).setClientFactory(clientFactory).createDefaultKroxyliciousTester();
+                .setKroxyliciousFactory(DefaultKroxyliciousTester::spawnProxy)
+                .setClientFactory(clientFactory)
+                .createDefaultKroxyliciousTester();
     }
 
     @NonNull

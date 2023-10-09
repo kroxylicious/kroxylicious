@@ -230,4 +230,6 @@ public interface KroxyliciousTester extends Closeable {
     }
 
     Set<String> createTopics(String clusterName, int numberOfTopics);
+
+    void deleteTopics(String clusterName);
 }
