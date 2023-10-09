@@ -229,7 +229,17 @@ public interface KroxyliciousTester extends Closeable {
         return createTopics(clusterName, 1).stream().findFirst().orElseThrow(() -> new IllegalStateException("Failed to create topic"));
     }
 
+    /**
+     * Creates N topics with a fixed partition count and replication factor.
+     * @param clusterName the name of the virtual cluster on which to create the topic
+     * @param numberOfTopics the number of topics to create on the cluster
+     * @return the Set of topic names which have been created.
+     */
     Set<String> createTopics(String clusterName, int numberOfTopics);
 
+    /**
+     * Asks the tester to delete all topics <strong>created by</strong> the tester on a specific virtual cluster.
+     * @param clusterName the name of the virtual cluster from which to delete the topics.
+     */
     void deleteTopics(String clusterName);
 }

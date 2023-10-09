@@ -270,9 +270,12 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     @Override
     public void deleteTopics(String virtualCluster) {
         try (Admin admin = clients(virtualCluster).admin()) {
-            admin.deleteTopics(topicsForVirtualCluster(virtualCluster))
-                    .all()
-                    .get(30, TimeUnit.SECONDS);
+            final Set<String> topics = topicsForVirtualCluster(virtualCluster);
+            if (!topics.isEmpty()) {
+                admin.deleteTopics(topics)
+                        .all()
+                        .get(30, TimeUnit.SECONDS);
+            }
         }
         catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -289,7 +292,7 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
 
     @FunctionalInterface
     interface ClientFactory {
-        KroxyliciousClients build(String clusterName, Map<String, Object> bootstrapServers);
+        KroxyliciousClients build(String clusterName, Map<String, Object> defaultClientConfig);
     }
 
 }

@@ -37,7 +37,6 @@ import io.kroxylicious.proxy.config.ClusterNetworkAddressConfigProviderDefinitio
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider;
-import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -54,6 +53,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mock.Strictness.LENIENT;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -379,9 +379,24 @@ class DefaultKroxyliciousTesterTest {
         }
     }
 
+    @Test
+    void shouldNotThrowWhenNoTopicsCreated() {
+        // Given
+        when(kroxyliciousClientsA.admin()).thenReturn(admin);
+
+        try (KroxyliciousTester tester = buildTester()) {
+            // When
+            tester.deleteTopics(VIRTUAL_CLUSTER_A);
+
+            // Then
+            //We can't use verifyNoInteractions or verifyNoMoreInteractions here as the try-with-resource block will trigger admin.close()
+            verify(admin, times(0)).deleteTopics(anyCollection());
+        }
+    }
+
     private void allowCreateTopic(KroxyliciousClients kroxyliciousClients, Admin admin) {
-        final CreateTopicsResult createTopicsResultA = mock(CreateTopicsResult.class);
         when(kroxyliciousClients.admin()).thenReturn(admin);
+        final CreateTopicsResult createTopicsResultA = mock(CreateTopicsResult.class);
         when(admin.createTopics(anyCollection())).thenReturn(createTopicsResultA);
         when(createTopicsResultA.all()).thenReturn(KafkaFuture.completedFuture(null));
     }
@@ -419,7 +434,7 @@ class DefaultKroxyliciousTesterTest {
                 .endTls()
                 .withClusterNetworkAddressConfigProvider(
                         new ClusterNetworkAddressConfigProviderDefinitionBuilder(PortPerBrokerClusterNetworkAddressConfigProvider.class.getName())
-                                .withConfig("bootstrapAddress", new HostPort(DEFAULT_PROXY_BOOTSTRAP.host(), DEFAULT_PROXY_BOOTSTRAP.port())).build());
+                                .withConfig("bootstrapAddress", DEFAULT_PROXY_BOOTSTRAP).build());
         configurationBuilder
                 .addToVirtualClusters(TLS_CLUSTER, vcb.build());
 
