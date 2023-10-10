@@ -53,7 +53,7 @@
         <sundr-builder-annotations.version>0.101.0</sundr-builder-annotations.version>
         <spotbugs-annotations.version>4.7.3</spotbugs-annotations.version>
         <zjsonpatch.version>0.4.14</zjsonpatch.version>
-
+        <moby-names-generator.version>20.10.0-r0</moby-names-generator.version>
         <jacoco-maven-plugin.version>0.8.10</jacoco-maven-plugin.version>
     </properties>
 
@@ -253,6 +253,11 @@
                 <version>${mockito.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>info.schnatterer.moby-names-generator</groupId>
+                <artifactId>moby-names-generator</artifactId>
+                <version>${moby-names-generator.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

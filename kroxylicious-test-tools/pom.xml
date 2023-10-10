@@ -22,10 +22,6 @@
     <artifactId>kroxylicious-test-tools</artifactId>
     <name>Testing tools</name>
 
-    <properties>
-        <moby-names-generator.version>20.10.0-r0</moby-names-generator.version>
-    </properties>
-
     <dependencies>
 
         <!-- project dependencies - runtime and compile -->
@@ -98,7 +94,6 @@
         <dependency>
             <groupId>info.schnatterer.moby-names-generator</groupId>
             <artifactId>moby-names-generator</artifactId>
-            <version>${moby-names-generator.version}</version>
         </dependency>
 
         <!-- third party dependencies - test -->
