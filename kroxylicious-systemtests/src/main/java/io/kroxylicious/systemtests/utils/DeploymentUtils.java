@@ -11,7 +11,6 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.URL;
 import java.time.Duration;
-import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,22 +48,6 @@ public class DeploymentUtils {
     }
 
     /**
-     * Wait for pod to be ready by label.
-     *
-     * @param namespaceName the namespace name
-     * @param labelKey the label key
-     * @param labelValue the label value
-     */
-    public static void waitForPodToBeReadyByLabel(String namespaceName, String labelKey, String labelValue) {
-        LOGGER.info("Waiting for Pods: {}/{} to be ready", namespaceName, labelValue);
-        TestUtils.waitFor("readiness of Pod: " + namespaceName + "/" + labelValue,
-                Constants.POLL_INTERVAL_FOR_RESOURCE_READINESS_MILLIS, READINESS_TIMEOUT,
-                () -> !kubeClient().getClient().pods().inNamespace(namespaceName).withLabel(labelKey, labelValue).list().getItems().isEmpty());
-        kubeClient().getClient().pods().inNamespace(namespaceName).withLabel(labelKey, labelValue).waitUntilReady(READINESS_TIMEOUT, TimeUnit.MILLISECONDS);
-        LOGGER.info("Pod: {}/{} is ready", namespaceName, labelValue);
-    }
-
-    /**
      * Wait until the given Deployment has been deleted.
      * @param namespaceName Namespace name
      * @param name The name of the Deployment.
@@ -93,7 +76,7 @@ public class DeploymentUtils {
      * @throws IOException the io exception
      */
     public static FileInputStream getDeploymentFileFromURL(String url) throws IOException {
-        String deploymentFile = "/tmp/deploy.yaml";
+        String deploymentFile = "/tmp/deployPortPerBrokerPlain.yaml";
         File file = new File(deploymentFile);
         FileUtils.copyURLToFile(
                 new URL(url),

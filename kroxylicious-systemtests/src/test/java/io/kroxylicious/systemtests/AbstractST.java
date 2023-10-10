@@ -7,7 +7,6 @@
 package io.kroxylicious.systemtests;
 
 import java.io.IOException;
-import java.nio.file.Path;
 import java.util.Collections;
 
 import org.junit.jupiter.api.AfterAll;
@@ -19,6 +18,7 @@ import org.junit.jupiter.api.TestInstance;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.kroxylicious.systemtests.installation.kroxy.CertManager;
 import io.kroxylicious.systemtests.installation.kroxy.Kroxy;
 import io.kroxylicious.systemtests.installation.strimzi.Strimzi;
 import io.kroxylicious.systemtests.k8s.KubeClusterResource;
@@ -46,6 +46,11 @@ public class AbstractST {
      * The constant kroxy.
      */
     protected static Kroxy kroxy;
+
+    /**
+     * The constant certManager.
+     */
+    protected static CertManager certManager;
     /**
      * The Resource manager.
      */
@@ -55,9 +60,10 @@ public class AbstractST {
      * Before each test.
      *
      * @param testInfo the test info
+     * @throws IOException the io exception
      */
     @BeforeEach
-    void beforeEachTest(TestInfo testInfo) {
+    void beforeEachTest(TestInfo testInfo) throws IOException {
         LOGGER.info(String.join("", Collections.nCopies(76, "#")));
         LOGGER.info(String.format("%s.%s - STARTED", testInfo.getTestClass().get().getName(), testInfo.getTestMethod().get().getName()));
     }
@@ -84,21 +90,21 @@ public class AbstractST {
         strimziOperator = new Strimzi(Constants.KROXY_DEFAULT_NAMESPACE);
         strimziOperator.deploy();
 
-        // start kroxy
-        Path path = Path.of(System.getProperty("user.dir")).getParent();
-        kroxy = new Kroxy(Constants.KROXY_DEFAULT_NAMESPACE, path + Constants.KROXY_KUBE_DIR_PORTPERBROKER);
-        kroxy.deploy();
+        certManager = new CertManager();
+        certManager.deploy();
     }
 
     /**
      * Teardown.
      *
+     * @param testInfo the test info
      * @throws IOException the io exception
      */
     @AfterAll
-    static void teardown() throws IOException {
+    static void teardown(TestInfo testInfo) throws IOException {
         strimziOperator.delete();
-        kroxy.delete();
+        kroxy.delete(testInfo);
+        certManager.delete();
         NamespaceUtils.deleteNamespaceWithWait(Constants.KROXY_DEFAULT_NAMESPACE);
         NamespaceUtils.deleteNamespaceWithWait(Constants.CERT_MANAGER_NAMESPACE);
     }

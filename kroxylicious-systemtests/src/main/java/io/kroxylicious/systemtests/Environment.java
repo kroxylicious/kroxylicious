@@ -25,6 +25,10 @@ public class Environment {
      * The constant QUAY_ORG_ENV.
      */
     public static final String QUAY_ORG_ENV = "QUAY_ORG";
+    /**
+     * The constant KROXY_VERSION_ENV.
+     */
+    public static final String KROXY_VERSION_ENV = "KROXY_VERSION";
 
     /**
      * Env. variables defaults
@@ -36,6 +40,11 @@ public class Environment {
     public static final String QUAY_ORG_DEFAULT = "kroxylicious";
 
     /**
+     * The constant KROXY_VERSION_DEFAULT.
+     */
+    public static final String KROXY_VERSION_DEFAULT = "0.3.0-SNAPSHOT";
+
+    /**
      * Env. variables assignment
      */
     public static final String KAFKA_VERSION = getOrDefault(KAFKA_VERSION_ENV, KAFKA_VERSION_DEFAULT);
@@ -43,6 +52,10 @@ public class Environment {
      * The constant QUAY_ORG.
      */
     public static final String QUAY_ORG = getOrDefault(QUAY_ORG_ENV, QUAY_ORG_DEFAULT);
+    /**
+     * The constant KROXY_VERSION.
+     */
+    public static final String KROXY_VERSION = getOrDefault(KROXY_VERSION_ENV, KROXY_VERSION_DEFAULT);
 
     private static String getOrDefault(String varName, String defaultValue) {
         return getOrDefault(varName, String::toString, defaultValue);

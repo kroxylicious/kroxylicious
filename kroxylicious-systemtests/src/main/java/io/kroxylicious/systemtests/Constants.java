@@ -64,6 +64,16 @@ public interface Constants {
     String POD_KIND = "Pod";
 
     /**
+     * The constant CONFIG_MAP_KIND.
+     */
+    String CONFIG_MAP_KIND = "ConfigMap";
+
+    /**
+     * The constant SERVICE_KIND.
+     */
+    String SERVICE_KIND = "Service";
+
+    /**
      * Listener names for Kafka cluster
      */
     String PLAIN_LISTENER_NAME = "plain";

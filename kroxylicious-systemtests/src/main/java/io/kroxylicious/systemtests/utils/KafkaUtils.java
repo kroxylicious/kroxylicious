@@ -30,7 +30,7 @@ public class KafkaUtils {
     /**
      * Consume message string.
      *
-     * @param deployNamespace the deploy namespace
+     * @param deployNamespace the deployPortPerBrokerPlain namespace
      * @param topicName the topic name
      * @param bootstrap the bootstrap
      * @param timeoutMilliseconds the timeout milliseconds
@@ -68,7 +68,7 @@ public class KafkaUtils {
     /**
      * Consume message from yaml string.
      *
-     * @param deployNamespace the deploy namespace
+     * @param deployNamespace the deployPortPerBrokerPlain namespace
      * @param topicName the topic name
      * @param bootstrap the bootstrap
      * @param numOfMessages the num of messages
@@ -76,7 +76,7 @@ public class KafkaUtils {
      * @return the string
      * @throws FileNotFoundException the file not found exception
      */
-    public static String ConsumeMessageFromYaml(String deployNamespace, String topicName, String bootstrap, int numOfMessages, int timeoutMilliseconds)
+    public static String ConsumeMessageFromYaml(String deployNamespace, String topicName, String bootstrap, int numOfMessages, long timeoutMilliseconds)
             throws FileNotFoundException {
         LOGGER.debug("Consuming messages from '{}' topic", topicName);
 
@@ -92,7 +92,7 @@ public class KafkaUtils {
         return kubeClient().getClient().pods().inNamespace(deployNamespace).withName(podName).getLog();
     }
 
-    private static String getPodNameByLabel(String deployNamespace, String labelKey, String labelValue, int timeoutMilliseconds) {
+    private static String getPodNameByLabel(String deployNamespace, String labelKey, String labelValue, long timeoutMilliseconds) {
         TestUtils.waitFor("Waiting for Pod with label " + labelKey + "=" + labelValue + " to appear", 1000, timeoutMilliseconds,
                 () -> {
                     var podList = kubeClient().getClient().pods().inNamespace(deployNamespace).withLabel(labelKey, labelValue);
@@ -105,7 +105,7 @@ public class KafkaUtils {
     /**
      * Produce message.
      *
-     * @param deployNamespace the deploy namespace
+     * @param deployNamespace the deployPortPerBrokerPlain namespace
      * @param topicName the topic name
      * @param message the message
      * @param bootstrap the bootstrap
@@ -123,7 +123,7 @@ public class KafkaUtils {
     /**
      * Produce message from yaml.
      *
-     * @param deployNamespace the deploy namespace
+     * @param deployNamespace the deployPortPerBrokerPlain namespace
      * @param topicName the topic name
      * @param message the message
      * @param bootstrap the bootstrap
