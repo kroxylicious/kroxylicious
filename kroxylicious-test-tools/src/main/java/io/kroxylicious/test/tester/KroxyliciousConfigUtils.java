@@ -26,7 +26,7 @@ public class KroxyliciousConfigUtils {
     }
 
     public static final String DEFAULT_VIRTUAL_CLUSTER = "demo";
-    public static final HostPort DEFAULT_PROXY_BOOTSTRAP = new HostPort("localhost", 9192);
+    static final HostPort DEFAULT_PROXY_BOOTSTRAP = new HostPort("localhost", 9192);
 
     /**
      * Create a KroxyliciousConfigBuilder with a single virtual cluster configured to
