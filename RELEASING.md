@@ -36,6 +36,10 @@ scripts/release-api.sh ${RELEASE_VERSION}
 scripts/release-framework.sh ${RELEASE_VERSION}
 ```
 
+Once the release is completed, use the [Nexus UI](https://s01.oss.sonatype.org/) to close the staging repository, then release it. That will push the Maven artefacts available
+on Maven Central.  The artefacts will take a while to reach all the Maven Central mirrors.
+
+
 ## Releasing via the build server
 **TBD**
 
