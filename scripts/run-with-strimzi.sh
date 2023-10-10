@@ -6,7 +6,8 @@
 #
 
 set -euo pipefail
-DEFAULT_QUAY_ORG='kroxylicious'
+DEFAULT_REGISTRY_DESTINATION='quay.io/kroxylicious/kroxylicious-developer'
+REGISTRY_DESTINATION=${REGISTRY_DESTINATION:-${DEFAULT_REGISTRY_DESTINATION}}
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 . "${SCRIPT_DIR}/common.sh"
@@ -28,16 +29,11 @@ function cleanTmpDir {
 }
 trap cleanTmpDir EXIT
 
-if [[ -z "${QUAY_ORG:-}" ]]; then
-  echo "Please set QUAY_ORG, exiting"
-  exit 1
-fi
-
-if [[ "${QUAY_ORG}" != "${DEFAULT_QUAY_ORG}" ]]; then
-  echo "building and pushing image to quay.io"
+if [[ "${REGISTRY_DESTINATION}" != "${DEFAULT_REGISTRY_DESTINATION}" ]]; then
+  echo "building and pushing image to ${REGISTRY_DESTINATION}"
   PUSH_IMAGE=y "${SCRIPT_DIR}/deploy-image.sh"
 else
-  echo "QUAY_ORG is ${QUAY_ORG}, not building/deploying image"
+  echo "REGISTRY_DESTINATION is ${REGISTRY_DESTINATION}, not building/deploying image"
 fi
 
 set +e
@@ -70,8 +66,8 @@ fi
 
 pushd "${OVERLAY_DIR}"
 ${KUSTOMIZE} edit set namespace ${NAMESPACE}
-if [[ "${QUAY_ORG}" != "${DEFAULT_QUAY_ORG}" ]]; then
-  ${KUSTOMIZE} edit set image "quay.io/${DEFAULT_QUAY_ORG}/kroxylicious-developer=quay.io/${QUAY_ORG}/kroxylicious"
+if [[ "${REGISTRY_DESTINATION}" != "${DEFAULT_REGISTRY_DESTINATION}" ]]; then
+  ${KUSTOMIZE} edit set image "${DEFAULT_REGISTRY_DESTINATION}=${REGISTRY_DESTINATION}"
 fi
 popd
 
