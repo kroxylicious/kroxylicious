@@ -104,7 +104,7 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
                 defaultClientConfig.put(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, storeConfiguration.trustStoreLocation());
                 defaultClientConfig.put(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, storeConfiguration.trustStorePassword());
             }
-            // Technically tls present and possibleKeytoolCertificateGenerator being empty is an error condition. But debatable if we should prevent that here
+            // Technically tls present and trustStoreConfiguration being empty is an error condition. But debatable if we should prevent that here
         }
     }
 
