@@ -8,7 +8,6 @@ package io.kroxylicious.test.tester;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -53,7 +52,7 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     private final Configuration kroxyliciousConfig;
 
     private final Map<String, KroxyliciousClients> clients;
-    private final Map<String, Set<String>> topicsPerVirtialCluster;
+    private final Map<String, Set<String>> topicsPerVirtualCluster;
 
     private final ClientFactory clientFactory;
 
@@ -66,7 +65,7 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
         this.trustStoreConfiguration = Optional.ofNullable(trustStoreConfiguration);
         this.clients = new ConcurrentHashMap<>();
         this.clientFactory = clientFactory;
-        topicsPerVirtialCluster = new ConcurrentHashMap<>();
+        topicsPerVirtualCluster = new ConcurrentHashMap<>();
     }
 
     private KroxyliciousClients clients() {
@@ -292,7 +291,7 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     }
 
     private Set<String> topicsForVirtualCluster(String clusterName) {
-        return topicsPerVirtialCluster.computeIfAbsent(clusterName, key -> new HashSet<>());
+        return topicsPerVirtualCluster.computeIfAbsent(clusterName, key -> ConcurrentHashMap.newKeySet());
     }
 
     @FunctionalInterface
