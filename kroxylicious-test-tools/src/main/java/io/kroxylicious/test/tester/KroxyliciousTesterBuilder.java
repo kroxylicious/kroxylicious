@@ -15,7 +15,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * Kroxylicious strives to offer high quality testing tools which allow filter authors to focus on their business logic.
- * However, as Kroxylicious is very configurable the so is the Tester. Most of the time users do not care about a lot of the configuration options
+ * However, as Kroxylicious is very configurable so is the Tester. Most of the time users do not care about a lot of the configuration options
  * and thus a builder, which can provide sensible defaults, provides the simplest API to configure things.
  */
 public class KroxyliciousTesterBuilder {
