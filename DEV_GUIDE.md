@@ -24,6 +24,7 @@ This document gives a detailed breakdown of the various build processes and opti
     * [Linux](#linux)
     * [Verify that the fix is effective](#verify-that-the-fix-is-effective)
   * [Rendering documentation](#rendering-documentation)
+  * [Using the GitHub CI workflows against a fork](#using-the-github-ci-workflows-against-a-fork)
 <!-- TOC -->
 
 ## Build status
@@ -31,7 +32,7 @@ This document gives a detailed breakdown of the various build processes and opti
 
 ## Build Prerequisites
 
-- [JDK](https://openjdk.org/projects/jdk/17/) (version 17 and above) - Maven CLI
+- [JDK](https://openjdk.org/projects/jdk/17/) (version 17 and above) - JDK
 - [`mvn`](https://maven.apache.org/index.html) (version 3.5 and above) - Maven CLI
 - [`docker`](https://docs.docker.com/install/) or [`podman`](https://podman.io/docs/installation) - Docker or Podman
 
@@ -39,7 +40,8 @@ This document gives a detailed breakdown of the various build processes and opti
 
 ## Prerequisites to run the kubernetes-examples
 
-* User must have a [quay.io](https://www.quay.io) account and create a public repository named `kroxylicious`
+* User must have access to a container registry such as [quay.io](https://quay.io) or [docker.io](https://docker.io).
+  Create a public accessible repository within the registry named `kroxylicious`.
 * Minikube [installed](https://minikube.sigs.k8s.io/docs/start)
 * kubectl [installed](https://kubernetes.io/docs/tasks/tools)
 * kustomize [installed](https://kubectl.docs.kubernetes.io/installation/kustomize/)
@@ -154,12 +156,12 @@ Kroxylicious can be containerised and run on Minikube against a [Strimzi](https:
 Running:
 
 ```shell
-minikube delete && QUAY_ORG=${your_quay_username} ./scripts/run-with-strimzi.sh ${kubernetes_example_directory}
+minikube delete && REGISTRY_DESTINATION=quay.io/$your_quay_org$/kroxylicious ./scripts/run-with-strimzi.sh ${kubernetes_example_directory}
 ```
 where `${kubernetes_example_directory}` is replaced by a path to an example directory e.g. `./kubernetes-examples/portperbroker_plain`.
 
 This `run-with-strimzi.sh` script does the following:
-1. builds and pushes a kroxylicious image to quay.io
+1. builds and pushes a kroxylicious image to specified container registry
 2. starts minikube
 3. installs cert manager and strimzi
 4. installs a 3-node Kafka cluster using Strimzi into minikube
@@ -168,7 +170,7 @@ This `run-with-strimzi.sh` script does the following:
 > NOTE: If the kroxylicious pod doesn't come up, but it's stuck on ImagePullBackOff with "unauthorized: access to the requested resource is not authorized" error, 
 it could mean you have to make the Quay image as public.
 
-If you want to only build and push an image to quay.io you can run `PUSH_IMAGE=y QUAY_ORG=$your_quay_username$ ./scripts/deploy-image.sh`
+If you want to only build and push an image to the container registry you can run `PUSH_IMAGE=y REGISTRY_DESTINATION=quay.io/$your_quay_org$/kroxylicious ./scripts/deploy-image.sh`
 
 To change the container engine to podman set `CONTAINER_ENGINE=podman`
 
@@ -318,3 +320,16 @@ mvn org.asciidoctor:asciidoctor-maven-plugin:process-asciidoc@convert-to-html
 
 The output will be in `target/html/master.html`. 
 
+## Using the GitHub CI workflows against a fork
+
+All CI [workflows](.github/workflows) defined by the project are expected to execute within the context of a fork, apart from [docker workflow](.github/workflows/docker.yml).
+To enable the docker workflow, you need to configure three repository [variables](https://docs.github.com/en/actions/learn-github-actions/variables)
+and one repository [secret](https://docs.github.com/en/actions/security-guides/using-secrets-in-github-actions).
+
+* `REGISTRY_SERVER` variable - the server of the container registry service e.g. `quay.io` or `docker.io`
+* `REGISTRY_USERNAME` variable - your username on the service (or username of your robot account)
+* `REGISTRY_DESTINATION` variable - the push destination (without tag portion) e.g. `quay.io/<my org>/kroxylicious-developer`
+
+* `REGISTRY_TOKEN` secret - the access token that corresponds to `REGISTRY_USERNAME` 
+
+The workflow will push the container image to `${REGISTRY_DESTINATION}` so ensure that the `${REGISTRY_USERNAME}` user has sufficient write privileges. 

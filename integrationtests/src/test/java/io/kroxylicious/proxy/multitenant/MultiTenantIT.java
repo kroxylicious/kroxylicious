@@ -42,7 +42,6 @@ import org.apache.kafka.common.IsolationLevel;
 import org.apache.kafka.common.TopicCollection;
 import org.apache.kafka.common.TopicCollection.TopicNameCollection;
 import org.apache.kafka.common.TopicPartition;
-import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -53,6 +52,8 @@ import org.slf4j.LoggerFactory;
 import io.kroxylicious.test.tester.KroxyliciousTester;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.assertj.core.api.Assertions.allOf;
@@ -364,7 +365,7 @@ class MultiTenantIT extends BaseMultiTenantIT {
         ASSIGN
     }
 
-    @NotNull
+    @NonNull
     private ProducerRecord<String, String> inCaseOfFailure() {
         return new ProducerRecord<>(TOPIC_1, MY_KEY, "unexpected - should never be consumed");
     }
@@ -381,7 +382,7 @@ class MultiTenantIT extends BaseMultiTenantIT {
         assertThat(actualAbsent).allSatisfy((s, consumerGroupDescription) -> assertThat(consumerGroupDescription.state()).isIn(ConsumerGroupState.DEAD));
     }
 
-    @NotNull
+    @NonNull
     private Map<String, ConsumerGroupDescription> retainKeySubset(Map<String, ConsumerGroupDescription> groups, Set<String> retainedKeys) {
         var copy = new HashMap<>(groups);
         copy.keySet().retainAll(retainedKeys);

@@ -28,7 +28,6 @@ import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.config.SslConfigs;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.kafka.common.security.plain.PlainLoginModule;
-import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
@@ -52,6 +51,8 @@ import io.kroxylicious.testing.kafka.common.BrokerCluster;
 import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
 import io.kroxylicious.testing.kafka.common.SaslPlainAuth;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -509,7 +510,7 @@ class ExpositionIT extends BaseIT {
 
     private record KeystoreTrustStorePair(String brokerKeyStore, String clientTrustStore, String password) {}
 
-    @NotNull
+    @NonNull
     private static ExpositionIT.KeystoreTrustStorePair buildKeystoreTrustStorePair(String domain) throws Exception {
         var brokerCertificateGenerator = new KeytoolCertificateGenerator();
         brokerCertificateGenerator.generateSelfSignedCertificateEntry("test@redhat.com", domain, "KI", "kroxylicious.io", null, null, "US");

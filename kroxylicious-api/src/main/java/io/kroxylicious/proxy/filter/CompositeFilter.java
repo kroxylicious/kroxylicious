@@ -24,7 +24,9 @@ import java.util.List;
  * classes. The CompositeFilter enables you to install both filters with a single
  * user configuration.
  *</p>
+ * @deprecated additional complexity not worth it at this point
  */
+@Deprecated(since = "0.3.0", forRemoval = true)
 public interface CompositeFilter extends Filter {
 
     /**

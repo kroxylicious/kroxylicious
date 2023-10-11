@@ -11,17 +11,18 @@ SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 cd "${SCRIPT_DIR}/.."
 KROXYLICIOUS_VERSION=$(./mvnw org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=project.version -q -DforceStdout)
 
-if [[ -z $QUAY_ORG ]]; then
-  echo "Please set QUAY_ORG, exiting"
+if [[ -z ${REGISTRY_DESTINATION:-} ]]; then
+  echo "Please set REGISTRY_DESTINATION to a value like 'quay.io/<myorg>/kroxylicious', exiting"
   exit 1
 fi
 
-IMAGE="quay.io/${QUAY_ORG}/kroxylicious:${KROXYLICIOUS_VERSION}"
+IMAGE="${REGISTRY_DESTINATION}:${KROXYLICIOUS_VERSION}"
 ${CONTAINER_ENGINE} build -t "${IMAGE}" --build-arg "KROXYLICIOUS_VERSION=${KROXYLICIOUS_VERSION}" .
-if [[ -n $PUSH_IMAGE ]]; then
-  echo "Pushing image to quay.io"
-  ${CONTAINER_ENGINE} login quay.io
+if [[ -n ${PUSH_IMAGE:-} ]]; then
+  REGISTRY_SERVER=${REGISTRY_SERVER:-$(extractRegistryServer "${REGISTRY_DESTINATION}")}
+  echo "Pushing image to ${REGISTRY_SERVER}"
+  ${CONTAINER_ENGINE} login ${REGISTRY_SERVER}""
   ${CONTAINER_ENGINE} push "${IMAGE}"
 else
-  echo "PUSH_IMAGE not set, not pushing to quay.io"
+  echo "PUSH_IMAGE not set, not pushing to container registry"
 fi

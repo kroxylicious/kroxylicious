@@ -13,6 +13,8 @@ import io.kroxylicious.proxy.service.Contributor;
  * ClusterNetworkAddressConfigProviderContributor is a pluggable source of network address information.
  * @param <B> config type
  * @see Contributor
+ * @deprecated this class is going to be made internal to kroxylicious until we decide to document/offer it as a plugin
  */
+@Deprecated
 public interface ClusterNetworkAddressConfigProviderContributor<B> extends Contributor<ClusterNetworkAddressConfigProvider, B, Context<B>> {
 }

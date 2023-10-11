@@ -24,21 +24,27 @@ import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.test.client.KafkaClient;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 public class DefaultKroxyliciousTester implements KroxyliciousTester {
     private AutoCloseable proxy;
     private final Configuration kroxyliciousConfig;
 
     private final Map<String, KroxyliciousClients> clients;
+
+    private final ClientFactory clientFactory;
+
     private static final Logger LOGGER = LoggerFactory.getLogger(DefaultKroxyliciousTester.class);
 
     DefaultKroxyliciousTester(ConfigurationBuilder configurationBuilder) {
-        this(configurationBuilder, DefaultKroxyliciousTester::spawnProxy);
+        this(configurationBuilder, DefaultKroxyliciousTester::spawnProxy, (clusterName, bootstrapServers) -> new KroxyliciousClients(bootstrapServers));
     }
 
-    DefaultKroxyliciousTester(ConfigurationBuilder configuration, Function<Configuration, AutoCloseable> kroxyliciousFactory) {
+    DefaultKroxyliciousTester(ConfigurationBuilder configuration, Function<Configuration, AutoCloseable> kroxyliciousFactory, ClientFactory clientFactory) {
         kroxyliciousConfig = configuration.build();
         proxy = kroxyliciousFactory.apply(kroxyliciousConfig);
         clients = new HashMap<>();
+        this.clientFactory = clientFactory;
     }
 
     private KroxyliciousClients clients() {
@@ -54,7 +60,12 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     }
 
     private KroxyliciousClients clients(String virtualCluster) {
-        return clients.computeIfAbsent(virtualCluster, k -> new KroxyliciousClients(KroxyliciousConfigUtils.bootstrapServersFor(k, kroxyliciousConfig)));
+        return clients.computeIfAbsent(virtualCluster, this::buildKroxyliciousClients);
+    }
+
+    @NonNull
+    private KroxyliciousClients buildKroxyliciousClients(String clusterName) {
+        return this.clientFactory.build(clusterName, KroxyliciousConfigUtils.bootstrapServersFor(clusterName, kroxyliciousConfig));
     }
 
     @Override
@@ -181,7 +192,7 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
         }
     }
 
-    private static KafkaProxy spawnProxy(Configuration config) {
+    static KafkaProxy spawnProxy(Configuration config) {
         KafkaProxy kafkaProxy = new KafkaProxy(config);
         try {
             kafkaProxy.startup();
@@ -190,6 +201,11 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
             Thread.currentThread().interrupt();
         }
         return kafkaProxy;
+    }
+
+    @FunctionalInterface
+    interface ClientFactory {
+        KroxyliciousClients build(String clusterName, String bootstrapServers);
     }
 
 }

@@ -58,6 +58,11 @@
             <artifactId>testing-junit5-extension</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>com.github.spotbugs</groupId>
+            <artifactId>spotbugs-annotations</artifactId>
+        </dependency>
+
 
         <!-- third party dependencies - runtime and compile -->
         <dependency>

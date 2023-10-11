@@ -18,14 +18,18 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * Service used to obtain the upstream cluster's ApiVersions and intersect them with the versions
  * supported by the proxy. Filter Authors can then use this information when sending extra requests
  * to the upstream cluster.
+ * @deprecated functionality to be moved up into FilterContext
  */
+@Deprecated(since = "0.3.0", forRemoval = true)
 public interface ApiVersionsService {
 
     /**
      * Information about version ranges for an ApiKey supported by the upstream and Kroxylicious
      * @param upstream the version range supported by the upstream server, or null if this key is not supported by upstream
      * @param intersected the version range supported by both Kroxylicious and the upstream server, or null if this ApiKey is not supported
+     * @deprecated upstream versions not very useful, so can be replaced with a return type of ApiVersion and only return intersected
      */
+    @Deprecated(since = "0.3.0", forRemoval = true)
     record ApiVersionRanges(@NonNull ApiVersion upstream, @NonNull ApiVersion intersected) {}
 
     /**

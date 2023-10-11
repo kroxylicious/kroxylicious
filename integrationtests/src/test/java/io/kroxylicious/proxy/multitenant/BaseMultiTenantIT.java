@@ -32,7 +32,6 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.config.SslConfigs;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.assertj.core.api.Condition;
-import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -51,6 +50,8 @@ import io.kroxylicious.test.tester.KroxyliciousTester;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
@@ -188,12 +189,12 @@ public abstract class BaseMultiTenantIT extends BaseIT {
         }
     }
 
-    @NotNull
+    @NonNull
     static <T, V> Condition<T> matches(Function<T, V> extractor, V expectedValue) {
         return new Condition<>(item -> Objects.equals(extractor.apply(item), expectedValue), "unexpected entry");
     }
 
-    @NotNull
+    @NonNull
     static <K, V> Predicate<ConsumerRecord<K, V>> matchesRecord(final String expectedTopic, final K expectedKey, final V expectedValue) {
         return new Predicate<>() {
             @Override

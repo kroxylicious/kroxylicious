@@ -6,6 +6,8 @@ Please enumerate **all user-facing** changes using format `<githib issue/pr numb
 
 ## 0.3.0
 
+* [#665](https://github.com/kroxylicious/kroxylicious/pull/665): Bump org.apache.kafka:kafka-clients from 3.5.1 to 3.6.0
+* [#660](https://github.com/kroxylicious/kroxylicious/pull/660): Use container registry neutral terminology in docs/scripts #660
 * [#648](https://github.com/kroxylicious/kroxylicious/pull/648): Bump io.netty.incubator:netty-incubator-transport-native-io_uring from 0.0.22.Final to 0.0.23.Final
 * [#649](https://github.com/kroxylicious/kroxylicious/pull/649): Bump io.netty:netty-bom from 4.1.97.Final to 4.1.99.Final
 * [#650](https://github.com/kroxylicious/kroxylicious/pull/650): Bump io.sundr:builder-annotations from 0.100.3 to 0.101.0

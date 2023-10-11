@@ -14,7 +14,9 @@ import static java.util.Objects.requireNonNull;
  * A Filter and it's respective invoker
  * @param filter filter
  * @param invoker invoker
+ * @deprecated we plan to move this into the internal runtime, not have it public in the API
  */
+@Deprecated(since = "0.3.0")
 public record FilterAndInvoker(Filter filter, FilterInvoker invoker) {
 
     /**

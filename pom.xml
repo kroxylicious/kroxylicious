@@ -33,13 +33,15 @@
         <skipUTs>${skipTests}</skipUTs>
         <skipSTs>${skipTests}</skipSTs>
 
+        <impsort-maven-plugin.goal>sort</impsort-maven-plugin.goal>
+
         <freemarker.version>2.3.32</freemarker.version>
         <guava.version>32.1.2-jre</guava.version>
         <hamcrest.version>2.2</hamcrest.version>
         <jackson.version>2.15.2</jackson.version>
         <junit.version>5.10.0</junit.version>
-        <kafka.version>3.5.1</kafka.version>
-        <kroxy.extension.version>0.5.0</kroxy.extension.version>
+        <kafka.version>3.6.0</kafka.version>
+        <kroxy.extension.version>0.6.0</kroxy.extension.version>
         <log4j.version>2.20.0</log4j.version>
         <picocli.version>4.7.5</picocli.version>
         <netty.version>4.1.99.Final</netty.version>
@@ -48,7 +50,7 @@
         <netty.io_uring.classifier>linux-x86_64</netty.io_uring.classifier>
         <netty.kqueue.classifier>osx-x86_64</netty.kqueue.classifier>
         <assertj-core.version>3.24.2</assertj-core.version>
-        <mockito.version>5.5.0</mockito.version>
+        <mockito.version>5.6.0</mockito.version>
         <micrometer.version>1.11.4</micrometer.version>
         <slf4j.version>2.0.9</slf4j.version>
         <sundr-builder-annotations.version>0.101.0</sundr-builder-annotations.version>
@@ -365,6 +367,14 @@
                         <!-- use langauge level 17, see https://github.com/javaparser/javaparser/issues/3833 -->
                         <compliance>17</compliance>
                     </configuration>
+                    <executions>
+                        <execution>
+                            <id>sort-imports</id>
+                            <goals>
+                                <goal>${impsort-maven-plugin.goal}</goal>
+                            </goals>
+                        </execution>
+                    </executions>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -633,15 +643,6 @@
                     <plugin>
                         <groupId>net.revelc.code</groupId>
                         <artifactId>impsort-maven-plugin</artifactId>
-                        <executions>
-                            <execution>
-                                <id>sort-imports</id>
-                                <goals>
-                                    <goal>sort</goal>
-                                </goals>
-                                <phase>process-sources</phase>
-                            </execution>
-                        </executions>
                     </plugin>
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
@@ -722,6 +723,7 @@
                 <sonar.organization>kroxylicious</sonar.organization>
                 <sonar.host.url>https://sonarcloud.io</sonar.host.url>
                 <skipSTs>true</skipSTs>
+                <impsort-maven-plugin.goal>check</impsort-maven-plugin.goal>
             </properties>
             <build>
                 <plugins>
@@ -813,6 +815,7 @@
             </activation>
             <properties>
                 <skipTests>true</skipTests>
+                <maven.javadoc.skip>true</maven.javadoc.skip>
             </properties>
         </profile>
         <profile>

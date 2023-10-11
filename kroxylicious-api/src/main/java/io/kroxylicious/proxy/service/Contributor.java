@@ -13,7 +13,9 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * @param <S> the service type
  * @param <C> the type of config provided to the service, or {@link Void} for config-less service implementations.
  * @param <X> the context type
+ * @deprecated we plan to remove the generic Contributor
  */
+@Deprecated(since = "0.3.0", forRemoval = true)
 public interface Contributor<S, C, X extends Context<C>> {
 
     /**

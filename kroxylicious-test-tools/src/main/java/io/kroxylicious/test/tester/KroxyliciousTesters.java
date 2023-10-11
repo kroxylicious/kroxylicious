@@ -38,7 +38,7 @@ public class KroxyliciousTesters {
      * @return KroxyliciousTester
      */
     public static KroxyliciousTester kroxyliciousTester(ConfigurationBuilder builder, Function<Configuration, AutoCloseable> kroxyliciousFactory) {
-        return new DefaultKroxyliciousTester(builder, kroxyliciousFactory);
+        return new DefaultKroxyliciousTester(builder, kroxyliciousFactory, (clusterName, bootstrapServers) -> new KroxyliciousClients(bootstrapServers));
     }
 
     /**

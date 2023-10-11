@@ -14,7 +14,6 @@ import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
-import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
@@ -23,6 +22,8 @@ import io.netty.buffer.Unpooled;
 
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -97,7 +98,7 @@ public class RequestEncoderTest extends AbstractCodecTest {
         new KafkaRequestEncoder(correlationManager).encode(null, result.frame(), out);
     }
 
-    @NotNull
+    @NonNull
     private static givenRequestFrame createRequestFrame(boolean hasResponse) {
         short produceVersion = ApiKeys.PRODUCE.latestVersion();
         var header = new RequestHeaderData()

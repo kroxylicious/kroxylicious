@@ -6,25 +6,25 @@
 
 package io.kroxylicious.proxy.service;
 
-import org.jetbrains.annotations.NotNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 public class IntContributor implements Contributor<Integer, Void, Context<Void>> {
 
     public static final int VALUE = 6;
 
-    @NotNull
+    @NonNull
     @Override
     public Class<? extends Integer> getServiceType() {
         return Integer.class;
     }
 
-    @NotNull
+    @NonNull
     @Override
     public Class<Void> getConfigType() {
         return Void.class;
     }
 
-    @NotNull
+    @NonNull
     @Override
     public Integer createInstance(Context<Void> context) {
         return VALUE;
