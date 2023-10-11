@@ -163,6 +163,11 @@
                 <version>${picocli.version}</version>
             </dependency>
             <dependency>
+                <groupId>info.schnatterer.moby-names-generator</groupId>
+                <artifactId>moby-names-generator</artifactId>
+                <version>${moby-names-generator.version}</version>
+            </dependency>
+            <dependency>
                 <groupId>io.micrometer</groupId>
                 <artifactId>micrometer-bom</artifactId>
                 <version>${micrometer.version}</version>
@@ -253,11 +258,6 @@
                 <version>${mockito.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
-            </dependency>
-            <dependency>
-                <groupId>info.schnatterer.moby-names-generator</groupId>
-                <artifactId>moby-names-generator</artifactId>
-                <version>${moby-names-generator.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
