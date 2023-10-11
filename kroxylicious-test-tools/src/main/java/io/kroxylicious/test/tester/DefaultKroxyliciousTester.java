@@ -97,13 +97,14 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
         final VirtualCluster definedCluster = kroxyliciousConfig.virtualClusters().get(virtualCluster);
         if (definedCluster != null) {
             final Optional<Tls> tls = definedCluster.tls();
-            if (tls.isPresent() && trustStoreConfiguration.isPresent()) {
-                final KroxyliciousTesterBuilder.TrustStoreConfiguration storeConfiguration = trustStoreConfiguration.get();
+            if (tls.isPresent()) {
                 defaultClientConfig.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name);
-                defaultClientConfig.put(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, storeConfiguration.trustStoreLocation());
-                defaultClientConfig.put(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, storeConfiguration.trustStorePassword());
+                if (trustStoreConfiguration.isPresent()) {
+                    final KroxyliciousTesterBuilder.TrustStoreConfiguration storeConfiguration = trustStoreConfiguration.get();
+                    defaultClientConfig.put(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, storeConfiguration.trustStoreLocation());
+                    defaultClientConfig.put(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, storeConfiguration.trustStorePassword());
+                }
             }
-            // Technically tls present and trustStoreConfiguration being empty is an error condition. But debatable if we should prevent that here
         }
     }
 
