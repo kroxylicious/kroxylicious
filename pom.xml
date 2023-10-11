@@ -13,11 +13,11 @@
 
     <groupId>io.kroxylicious</groupId>
     <artifactId>kroxylicious-parent</artifactId>
-    <version>0.3.0-SNAPSHOT</version>
+    <version>0.3.0</version>
     <packaging>pom</packaging>
 
     <properties>
-        <kroxyliciousApi.version>0.3.0-SNAPSHOT</kroxyliciousApi.version>
+        <kroxyliciousApi.version>0.3.0</kroxyliciousApi.version>
         <java.version>17</java.version>
         <java.test.version>17</java.test.version>
         <maven.compiler.parameters>true</maven.compiler.parameters>
@@ -336,7 +336,7 @@
                 <plugin>
                     <groupId>io.kroxylicious</groupId>
                     <artifactId>kroxylicious-krpc-plugin</artifactId>
-                    <version>0.3.0-SNAPSHOT</version>
+                    <version>0.3.0</version>
                 </plugin>
                 <plugin>
                     <groupId>net.revelc.code.formatter</groupId>
