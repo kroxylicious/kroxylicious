@@ -26,6 +26,7 @@ import org.apache.kafka.clients.admin.CreateTopicsResult;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.producer.Producer;
+import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.config.SslConfigs;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.kafka.common.serialization.Serde;
@@ -265,10 +266,13 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
         }
         catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new IllegalStateException("failed to create topics on " + virtualCluster, e);
+            throw new IllegalStateException("Failed to create topics on " + virtualCluster, e);
         }
-        catch (ExecutionException | TimeoutException e) {
-            throw new IllegalStateException("failed to create topics on " + virtualCluster, e);
+        catch (TimeoutException e) {
+            throw new IllegalStateException("Timed out creating topics on " + virtualCluster, e);
+        }
+        catch (ExecutionException e) {
+            throw new IllegalStateException("Failed to create topics on " + virtualCluster, e.getCause());
         }
     }
 
@@ -284,10 +288,13 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
         }
         catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new IllegalStateException("failed to delete topics on " + virtualCluster, e);
+            throw new IllegalStateException("Failed to delete topics on " + virtualCluster, e);
         }
-        catch (ExecutionException | TimeoutException e) {
-            throw new IllegalStateException("failed to delete topics on " + virtualCluster, e);
+        catch (ExecutionException e) {
+            throw new IllegalStateException("Failed to delete topics on " + virtualCluster, e.getCause());
+        }
+        catch (TimeoutException e) {
+            throw new IllegalStateException("Timed out deleting topics on " + virtualCluster, e);
         }
     }
 

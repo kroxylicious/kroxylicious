@@ -12,6 +12,9 @@ import java.security.GeneralSecurityException;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 
 import org.apache.kafka.clients.CommonClientConfigs;
@@ -21,6 +24,7 @@ import org.apache.kafka.clients.admin.DeleteTopicsResult;
 import org.apache.kafka.clients.consumer.MockConsumer;
 import org.apache.kafka.clients.consumer.OffsetResetStrategy;
 import org.apache.kafka.clients.producer.MockProducer;
+import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.config.SslConfigs;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
@@ -47,7 +51,9 @@ import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.fail;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mock.Strictness.LENIENT;
@@ -393,6 +399,95 @@ class DefaultKroxyliciousTesterTest {
             verify(admin, times(0)).deleteTopics(anyCollection());
         }
     }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void shouldPropagateErrorsCreatingTopics() throws ExecutionException, InterruptedException, TimeoutException {
+        // Given
+        final CreateTopicsResult createTopicsResult = mock(CreateTopicsResult.class);
+        final KafkaFuture<Void> kafkaFuture = mock(KafkaFuture.class);
+        when(admin.createTopics(anyCollection())).thenReturn(createTopicsResult);
+        when(createTopicsResult.all()).thenReturn(kafkaFuture);
+        when(kafkaFuture.get(anyLong(), any(TimeUnit.class))).thenThrow(new ExecutionException("Kafka is nae working pal", new KafkaException("KaBoom")));
+
+        try (KroxyliciousTester tester = buildDefaultTester()) {
+
+            // When
+            assertThatThrownBy(() -> tester.createTopic(DEFAULT_CLUSTER))
+                    // Then
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessage("Failed to create topics on " + DEFAULT_CLUSTER)
+                    .hasCauseInstanceOf(KafkaException.class);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void shouldPropagateTimeoutCreatingTopics() throws ExecutionException, InterruptedException, TimeoutException {
+        // Given
+        final CreateTopicsResult createTopicsResult = mock(CreateTopicsResult.class);
+        final KafkaFuture<Void> kafkaFuture = mock(KafkaFuture.class);
+        when(admin.createTopics(anyCollection())).thenReturn(createTopicsResult);
+        when(createTopicsResult.all()).thenReturn(kafkaFuture);
+        when(kafkaFuture.get(anyLong(), any(TimeUnit.class))).thenThrow(new TimeoutException("Kafka fell asleep"));
+
+        try (KroxyliciousTester tester = buildDefaultTester()) {
+
+            // When
+            assertThatThrownBy(() -> tester.createTopic(DEFAULT_CLUSTER))
+                    // Then
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessage("Timed out creating topics on " + DEFAULT_CLUSTER);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void shouldPropagateErrorsDeletingTopics() throws ExecutionException, InterruptedException, TimeoutException {
+        // Given
+        allowCreateTopic(kroxyliciousClientsA, admin);
+
+        final KafkaFuture<Void> kafkaFuture = mock(KafkaFuture.class);
+        final DeleteTopicsResult deleteTopicsResult = mock(DeleteTopicsResult.class);
+        when(admin.deleteTopics(anyCollection())).thenReturn(deleteTopicsResult);
+        when(deleteTopicsResult.all()).thenReturn(kafkaFuture);
+        when(kafkaFuture.get(anyLong(), any(TimeUnit.class))).thenThrow(new ExecutionException("Kafka is nae working pal", new KafkaException("KaBoom")));
+
+        try (KroxyliciousTester tester = buildTester()) {
+            tester.createTopics(VIRTUAL_CLUSTER_A, TOPIC_COUNT);
+
+            // When
+            assertThatThrownBy(() -> tester.deleteTopics(VIRTUAL_CLUSTER_A))
+                    // Then
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessage("Failed to delete topics on " + VIRTUAL_CLUSTER_A)
+                    .hasCauseInstanceOf(KafkaException.class);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void shouldPropagateTimeoutDeletingTopics() throws ExecutionException, InterruptedException, TimeoutException {
+        // Given
+        allowCreateTopic(kroxyliciousClientsA, admin);
+
+        final KafkaFuture<Void> kafkaFuture = mock(KafkaFuture.class);
+        final DeleteTopicsResult deleteTopicsResult = mock(DeleteTopicsResult.class);
+        when(admin.deleteTopics(anyCollection())).thenReturn(deleteTopicsResult);
+        when(deleteTopicsResult.all()).thenReturn(kafkaFuture);
+        when(kafkaFuture.get(anyLong(), any(TimeUnit.class))).thenThrow(new TimeoutException("Kafka fell asleep"));
+
+        try (KroxyliciousTester tester = buildTester()) {
+            tester.createTopics(VIRTUAL_CLUSTER_A, TOPIC_COUNT);
+
+            // When
+            assertThatThrownBy(() -> tester.deleteTopics(VIRTUAL_CLUSTER_A))
+                    // Then
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessage("Timed out deleting topics on " + VIRTUAL_CLUSTER_A);
+        }
+    }
+
 
     private void allowCreateTopic(KroxyliciousClients kroxyliciousClients, Admin admin) {
         when(kroxyliciousClients.admin()).thenReturn(admin);
