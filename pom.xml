@@ -262,20 +262,6 @@
         </dependencies>
     </dependencyManagement>
 
-    <modules>
-        <module>kroxylicious-bom</module>
-        <module>kroxylicious-api</module>
-        <module>kroxylicious-app</module>
-        <module>krpc-code-gen</module>
-        <module>kroxylicious-test-tools</module>
-        <module>kroxylicious-unit-test</module>
-        <module>kroxylicious</module>
-        <module>integrationtests</module>
-        <module>kroxylicious-additional-filters</module>
-        <module>kroxylicious-sample</module>
-    </modules>
-
-
     <build>
         <!-- Keep alphabetic order -->
         <pluginManagement>
@@ -584,6 +570,36 @@
     </distributionManagement>
 
     <profiles>
+        <profile>
+            <id>api</id>
+            <activation>
+                <property>
+                    <name>!skipApi</name>
+                </property>
+            </activation>
+            <modules>
+                <module>kroxylicious-bom</module>
+                <module>kroxylicious-api</module>
+            </modules>
+        </profile>
+        <profile>
+            <id>framework</id>
+            <activation>
+                <property>
+                    <name>!skipFramework</name>
+                </property>
+            </activation>
+            <modules>
+                <module>kroxylicious-app</module>
+                <module>krpc-code-gen</module>
+                <module>kroxylicious-test-tools</module>
+                <module>kroxylicious-unit-test</module>
+                <module>kroxylicious</module>
+                <module>integrationtests</module>
+                <module>kroxylicious-additional-filters</module>
+                <module>kroxylicious-sample</module>
+            </modules>
+        </profile>
         <profile>
             <id>qa</id>
             <activation>

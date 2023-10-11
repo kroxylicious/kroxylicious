@@ -6,14 +6,17 @@
 #
 
 set -e
-
 REPOSITORY="origin"
 BRANCH_FROM="main"
-while getopts ":a:f:b:r:k:" opt; do
+RELEASE_API=true
+RELEASE_FRAMEWORK=true
+while getopts ":a:f:v:b:r:k:" opt; do
   case $opt in
-    a) RELEASE_API_VERSION="${OPTARG}"
+    a) RELEASE_API=${OPTARG}
     ;;
-    f) RELEASE_VERSION="${OPTARG}"
+    f) RELEASE_FRAMEWORK=${OPTARG}
+    ;;
+    v) RELEASE_VERSION="${OPTARG}"
     ;;
     b) BRANCH_FROM="${OPTARG}"
     ;;
@@ -38,43 +41,84 @@ while getopts ":a:f:b:r:k:" opt; do
   esac
 done
 
-if [[ -z ${RELEASE_API_VERSION} && -z ${RELEASE_VERSION} ]]; then
-  echo "No versions specified aborting"
+skips=()
+
+if [[ ${RELEASE_API:-false} != 'true' ]]; then
+    skips+=("-DskipApi")
+fi
+
+if [[ ${RELEASE_FRAMEWORK:-false} != 'true' ]]; then
+    skips+=("-DskipFramework")
+fi
+
+if [[ ${#skips[@]} = 2 ]]; then
+  echo "Both api and framework releases are skipped. Nothing to do."
   exit 1
 fi
 
 GREEN='\033[0;32m'
 NC='\033[0m' # No Color
 
+ORIGINAL_WORKING_BRANCH=$(git branch --show-current)
+
+cleanup() {
+    if [[ -n ${ORIGINAL_WORKING_BRANCH} ]]; then
+        git checkout "${ORIGINAL_WORKING_BRANCH}" || true
+    fi
+
+    if [[ ${TEMPORARY_RELEASE_BRANCH} ]]; then
+        git branch -D "${TEMPORARY_RELEASE_BRANCH}" || true
+    fi
+
+    if [[ ${RELEASE_TAG} ]]; then
+      git tag --delete "${RELEASE_TAG}" || true
+    fi
+}
+
+trap cleanup EXIT
+
 git stash --all
 echo "Creating release branch from ${BRANCH_FROM}"
 git fetch -q "${REPOSITORY}"
 RELEASE_DATE=$(date -u '+%Y-%m-%d')
+TEMPORARY_RELEASE_BRANCH="prepare-release-${RELEASE_DATE}"
 git checkout -b "prepare-release-${RELEASE_DATE}" "${REPOSITORY}/${BRANCH_FROM}"
 
+if [[ "${DRY_RUN:-false}" != true ]]; then
+    printf "Dry-run mode: no remote tags or PRs will be created, artefacts will be deployed to /tmp/dryrun"
+    GIT_DRYRUN='--dry-run'
+    MVN_DEPLOY_DRYRUN='-DaltDeploymentRepository=ossrh::file:/tmp/dryrun'
+fi
+
 if [[ "${SKIP_VALIDATION:-false}" != true ]]; then
-  #Disable the shell check as the colour codes only work with interpolation.
-  # shellcheck disable=SC2059
-  printf "Validating the build is ${GREEN}green${NC}"
-  mvn -q clean verify
+    #Disable the shell check as the colour codes only work with interpolation.
+    # shellcheck disable=SC2059
+    printf "Validating the build is ${GREEN}green${NC}"
+    mvn -q clean verify
 fi
 
-if [[ -n ${RELEASE_API_VERSION} ]]; then
-  echo "Versioning Public APIs as ${RELEASE_API_VERSION}"
-  ./scripts/release-api.sh "${RELEASE_API_VERSION}"
-  echo "Versioned the public API"
-fi
+mvn -q versions:set -DnewVersion="${RELEASE_VERSION}" -DgenerateBackupPoms=false "${skips[@]}"
 
-if [[ -n ${RELEASE_VERSION} ]]; then
-  echo "Versioning Kroxylicious as ${RELEASE_VERSION}"
-  ./scripts/release-framework.sh "${RELEASE_VERSION}"
-  echo "Versioned the Framework"
-fi
+echo "Validating things still build"
+mvn -q clean install -Pquick
 
-git push --tags
+# KWTODO make commit message descriptive
+
+echo "Committing release to git"
+git add '**/pom.xml' 'pom.xml'
+git commit --message "Release version v${RELEASE_VERSION}" --signoff
+
+RELEASE_TAG="v${RELEASE_VERSION}"
+git tag -f "${RELEASE_TAG}"
+
+git push --tags ${GIT_DRYRUN:-}
 
 echo "Deploying release to maven central"
-mvn deploy -Prelease -DskipTests=true -DreleaseSigningKey="${GPG_KEY}"
+echo mvn deploy -Prelease -DskipTests=true -DreleaseSigningKey="${GPG_KEY}" "${skips[@]}" ${MVN_DEPLOY_DRYRUN:-}
+
+if [[ "${DRY_RUN:-false}" != true ]]; then
+    exit 0
+fi
 
 if ! command -v gh &> /dev/null
 then
