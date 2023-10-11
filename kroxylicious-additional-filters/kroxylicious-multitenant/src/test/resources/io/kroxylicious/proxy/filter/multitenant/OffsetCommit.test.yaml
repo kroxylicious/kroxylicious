@@ -9,7 +9,7 @@
   request:
     payload:
       groupId: mygroup
-      generationId: 0
+      generationIdOrMemberEpoch: 0
       memberId: mymemberid
       groupInstanceId: mygroupinstanceid
       topics:
