@@ -6,12 +6,8 @@
 
 package io.kroxylicious.systemtests.utils;
 
-import java.io.File;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
 import java.util.function.BooleanSupplier;
 
 import org.slf4j.Logger;
@@ -101,28 +97,5 @@ public class TestUtils {
                 return deadline - System.currentTimeMillis();
             }
         }
-    }
-
-    /**
-     * Find directories by name list.
-     *
-     * @param name the name
-     * @param root the root
-     * @return the list
-     */
-    public static List<File> findDirectoriesByName(String name, File root) {
-        List<File> result = new ArrayList<>();
-
-        for (File file : Objects.requireNonNull(root.listFiles())) {
-            if (file.isDirectory()) {
-                if (file.getName().equals(name)) {
-                    result.add(file);
-                }
-
-                result.addAll(findDirectoriesByName(name, file));
-            }
-        }
-
-        return result;
     }
 }

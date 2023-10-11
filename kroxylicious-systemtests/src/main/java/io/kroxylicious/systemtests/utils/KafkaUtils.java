@@ -8,8 +8,17 @@ package io.kroxylicious.systemtests.utils;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.Duration;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,7 +39,7 @@ public class KafkaUtils {
     /**
      * Consume message string.
      *
-     * @param deployNamespace the deployPortPerBrokerPlain namespace
+     * @param deployNamespace the deploy namespace
      * @param topicName the topic name
      * @param bootstrap the bootstrap
      * @param timeoutMilliseconds the timeout milliseconds
@@ -66,22 +75,28 @@ public class KafkaUtils {
     }
 
     /**
-     * Consume message from yaml string.
+     * Consume message using test clients.
      *
-     * @param deployNamespace the deployPortPerBrokerPlain namespace
+     * @param deployNamespace the deploy namespace
      * @param topicName the topic name
      * @param bootstrap the bootstrap
      * @param numOfMessages the num of messages
      * @param timeoutMilliseconds the timeout milliseconds
      * @return the string
-     * @throws FileNotFoundException the file not found exception
+     * @throws IOException the io exception
      */
-    public static String ConsumeMessageFromYaml(String deployNamespace, String topicName, String bootstrap, int numOfMessages, long timeoutMilliseconds)
-            throws FileNotFoundException {
-        LOGGER.debug("Consuming messages from '{}' topic", topicName);
+    public static String ConsumeMessageWithTestClients(String deployNamespace, String topicName, String bootstrap, int numOfMessages, long timeoutMilliseconds)
+            throws IOException {
 
-        File file = new File(Objects.requireNonNull(KafkaUtils.class
-                .getClassLoader().getResource("kafka-consumer.yaml")).getFile());
+        LOGGER.debug("Consuming messages from '{}' topic", topicName);
+        File file = replaceStringInResourceFile("kafka-consumer-template.yaml", "kafka-consumer.yaml", new HashMap<>() {
+            {
+                put("%BOOTSTRAP_SERVERS%", bootstrap);
+                put("%TOPIC_NAME%", topicName);
+                put("%MESSAGE_COUNT%", "\"" + numOfMessages + "\"");
+            }
+        });
+
         kubeClient().getClient().load(new FileInputStream(file)).inNamespace(deployNamespace).create();
         String podName = getPodNameByLabel(deployNamespace, "app", "kafka-consumer-client", timeoutMilliseconds);
         TestUtils.waitFor("", 1000, timeoutMilliseconds,
@@ -99,13 +114,13 @@ public class KafkaUtils {
                     return !podList.list().getItems().isEmpty();
                 });
         var pods = kubeClient().getClient().pods().inNamespace(deployNamespace).withLabel(labelKey, labelValue);
-        return pods.list().getItems().get(0).getMetadata().getName();
+        return pods.list().getItems().get(pods.list().getItems().size() - 1).getMetadata().getName();
     }
 
     /**
      * Produce message.
      *
-     * @param deployNamespace the deployPortPerBrokerPlain namespace
+     * @param deployNamespace the deploy namespace
      * @param topicName the topic name
      * @param message the message
      * @param bootstrap the bootstrap
@@ -121,18 +136,79 @@ public class KafkaUtils {
     }
 
     /**
-     * Produce message from yaml.
+     * Produce message using test clients.
      *
-     * @param deployNamespace the deployPortPerBrokerPlain namespace
+     * @param deployNamespace the deploy namespace
      * @param topicName the topic name
-     * @param message the message
      * @param bootstrap the bootstrap
-     * @throws FileNotFoundException the file not found exception
+     * @param message the message
+     * @param numOfMessages the num of messages
+     * @return the string
+     * @throws IOException the io exception
      */
-    public static void ProduceMessageFromYaml(String deployNamespace, String topicName, String message, String bootstrap) throws FileNotFoundException {
-        LOGGER.debug("Producing messages in '{}' topic", topicName);
-        File file = new File(Objects.requireNonNull(KafkaUtils.class
-                .getClassLoader().getResource("kafka-producer.yaml")).getFile());
+    public static String produceMessageWithTestClients(String deployNamespace, String topicName, String bootstrap, String message, int numOfMessages) throws IOException {
+        LOGGER.debug("Producing {} messages in '{}' topic", numOfMessages, topicName);
+        File file = replaceStringInResourceFile("kafka-producer-template.yaml", "kafka-producer.yaml", new HashMap<>() {
+            {
+                put("%BOOTSTRAP_SERVERS%", bootstrap);
+                put("%TOPIC_NAME%", topicName);
+                put("%MESSAGE_COUNT%", "\"" + numOfMessages + "\"");
+                put("%MESSAGE%", message);
+            }
+        });
         kubeClient().getClient().load(new FileInputStream(file)).inNamespace(deployNamespace).create();
+        return getPodNameByLabel(deployNamespace, "app", "kafka-producer-client", Duration.ofSeconds(10).toMillis());
+    }
+
+    private static File replaceStringInResourceFile(String resourceTemplateFileName, String newResourceFileName, Map<String, String> replacements) throws IOException {
+        Path path = Path.of(Objects.requireNonNull(KafkaUtils.class
+                .getClassLoader().getResource(resourceTemplateFileName)).getPath());
+        Charset charset = StandardCharsets.UTF_8;
+
+        String content = new String(Files.readAllBytes(path), charset);
+        for (Map.Entry<String, String> entry : replacements.entrySet()) {
+            content = content.replaceAll(entry.getKey(), entry.getValue());
+        }
+        String resourceFile = "/tmp/" + newResourceFileName;
+
+        Files.writeString(Path.of(resourceFile), content, charset);
+        File file = new File(resourceFile);
+        file.deleteOnExit();
+        return file;
+    }
+
+    /**
+     * Delete all jobs.
+     *
+     * @param deployNamespace the deploy namespace
+     */
+    public static void deleteAllJobs(String deployNamespace) {
+        LOGGER.info("Deleting producer and consumer jobs in {} namespace", deployNamespace);
+        kubeClient().getClient().batch().v1().jobs().inNamespace(deployNamespace).delete();
+        kubeClient().getClient().pods().inNamespace(deployNamespace).withLabel("app", "kafka-producer-client").delete();
+        kubeClient().getClient().pods().inNamespace(deployNamespace).withLabel("app", "kafka-consumer-client").delete();
+        kubeClient().getClient().pods().inNamespace(deployNamespace).withLabel("app", "kafka-consumer-client").waitUntilCondition(x -> x == null, 10, TimeUnit.SECONDS);
+    }
+
+    /**
+     * Restart broker boolean.
+     *
+     * @param deployNamespace the deploy namespace
+     * @param clusterName the cluster name
+     * @return the boolean
+     */
+    public static boolean restartBroker(String deployNamespace, String clusterName) {
+        String podName = "";
+        List<Pod> kafkaPods = kubeClient().getClient().pods().inNamespace(Constants.KROXY_DEFAULT_NAMESPACE).list().getItems();
+        int numOfBrokers = kafkaPods.size();
+        for (Pod pod : kafkaPods) {
+            String tmpName = pod.getMetadata().getName();
+            if (tmpName.startsWith(clusterName)) {
+                podName = pod.getMetadata().getName();
+            }
+        }
+        kubeClient().getClient().pods().inNamespace(deployNamespace).withName(podName).delete();
+        kubeClient().getClient().pods().inNamespace(deployNamespace).withName(podName).waitUntilCondition(Objects::isNull, 10, TimeUnit.SECONDS);
+        return numOfBrokers - 1 == kubeClient().getClient().pods().inNamespace(deployNamespace).list().getItems().size();
     }
 }

@@ -20,6 +20,9 @@ import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 
 import io.kroxylicious.systemtests.Constants;
 
+/**
+ * The type Kroxy deployment templates.
+ */
 public class KroxyDeploymentTemplates {
 
     private static Map<String, String> getKroxyLabelsSelector() {
@@ -30,7 +33,15 @@ public class KroxyDeploymentTemplates {
         };
     }
 
-    public static DeploymentBuilder defaultKroxyDeployment(String namespaceName, String containerImage) {
+    /**
+     * Default kroxy deployment deployment builder.
+     *
+     * @param namespaceName the namespace name
+     * @param containerImage the container image
+     * @param replicas the replicas
+     * @return the deployment builder
+     */
+    public static DeploymentBuilder defaultKroxyDeployment(String namespaceName, String containerImage, int replicas) {
         return new DeploymentBuilder()
                 .withApiVersion("apps/v1")
                 .withKind(Constants.DEPLOYMENT)
@@ -40,7 +51,7 @@ public class KroxyDeploymentTemplates {
                 .addToLabels(getKroxyLabelsSelector())
                 .endMetadata()
                 .withNewSpec()
-                .withReplicas(1)
+                .withReplicas(replicas)
                 .withNewSelector()
                 .addToMatchLabels(getKroxyLabelsSelector())
                 .endSelector()

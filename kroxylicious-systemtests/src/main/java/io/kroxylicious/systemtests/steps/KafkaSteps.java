@@ -11,6 +11,9 @@ import org.junit.jupiter.api.TestInfo;
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.templates.KafkaTopicTemplates;
+import io.kroxylicious.systemtests.utils.KafkaUtils;
+
+import static org.junit.Assert.assertTrue;
 
 /**
  * The type Kafka steps.
@@ -32,5 +35,25 @@ public class KafkaSteps {
                                    int partitions, int replicas, int minIsr) {
         resourceManager.createResourceWithWait(testInfo,
                 KafkaTopicTemplates.defaultTopic(Constants.KROXY_DEFAULT_NAMESPACE, clusterName, topicName, partitions, replicas, minIsr).build());
+    }
+
+    /**
+     * Restart kakfa broker.
+     *
+     * @param clusterName the cluster name
+     */
+    public static void restartKakfaBroker(String clusterName) {
+        clusterName = clusterName + "-kafka";
+        assertTrue(KafkaUtils.restartBroker(Constants.KROXY_DEFAULT_NAMESPACE, clusterName));
+    }
+
+    /**
+     * Restart zookeeper broker.
+     *
+     * @param clusterName the cluster name
+     */
+    public static void restartZookeeperBroker(String clusterName) {
+        clusterName = clusterName + "-zookeeper";
+        assertTrue(KafkaUtils.restartBroker(Constants.KROXY_DEFAULT_NAMESPACE, clusterName));
     }
 }

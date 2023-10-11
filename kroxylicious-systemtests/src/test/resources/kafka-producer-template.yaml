@@ -27,22 +27,22 @@ spec:
       containers:
         - env:
             - name: BOOTSTRAP_SERVERS
-              value: kroxylicious-service:9292
+              value: %BOOTSTRAP_SERVERS%
             - name: DELAY_MS
               value: "1000"
             - name: TOPIC
-              value: my-topic
+              value: %TOPIC_NAME%
             - name: MESSAGE_COUNT
-              value: "10"
+              value: %MESSAGE_COUNT%
             - name: MESSAGE
-              value: Hello-world
+              value: %MESSAGE%
             - name: PRODUCER_ACKS
               value: all
             - name: LOG_LEVEL
               value: DEBUG
             - name: CLIENT_TYPE
               value: KafkaProducer
-          image: quay.io/strimzi-test-clients/test-clients:latest-kafka-3.5.1
+          image: quay.io/strimzi-test-clients/test-clients:latest-kafka-3.6.0
           imagePullPolicy: IfNotPresent
           name: kafka-producer-client
       restartPolicy: "Never"

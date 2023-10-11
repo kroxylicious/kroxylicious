@@ -6,18 +6,40 @@
 
 package io.kroxylicious.systemtests.steps;
 
-import java.io.FileNotFoundException;
+import java.io.IOException;
 
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.utils.KafkaUtils;
 
+/**
+ * The type Kroxy steps.
+ */
 public class KroxySteps {
 
-    public static void produceMessages(String topicName, String message, int numberOfMessages) throws FileNotFoundException {
-        KafkaUtils.ProduceMessageFromYaml(Constants.KROXY_DEFAULT_NAMESPACE, topicName, message, Constants.KROXY_BOOTSTRAP);
+    /**
+     * Produce messages.
+     *
+     * @param topicName the topic name
+     * @param bootstrap the bootstrap
+     * @param message the message
+     * @param numberOfMessages the number of messages
+     * @throws IOException the io exception
+     */
+    public static void produceMessages(String topicName, String bootstrap, String message, int numberOfMessages) throws IOException {
+        KafkaUtils.produceMessageWithTestClients(Constants.KROXY_DEFAULT_NAMESPACE, topicName, bootstrap, message, numberOfMessages);
     }
 
-    public static String consumeMessages(String topicName, int numberOfMessages, long timoutMillis) throws FileNotFoundException {
-        return KafkaUtils.ConsumeMessageFromYaml(Constants.KROXY_DEFAULT_NAMESPACE, topicName, Constants.KROXY_BOOTSTRAP, numberOfMessages, timoutMillis);
+    /**
+     * Consume messages string.
+     *
+     * @param topicName the topic name
+     * @param bootstrap the bootstrap
+     * @param numberOfMessages the number of messages
+     * @param timeoutMillis the timeout millis
+     * @return the string
+     * @throws IOException the io exception
+     */
+    public static String consumeMessages(String topicName, String bootstrap, int numberOfMessages, long timeoutMillis) throws IOException {
+        return KafkaUtils.ConsumeMessageWithTestClients(Constants.KROXY_DEFAULT_NAMESPACE, topicName, bootstrap, numberOfMessages, timeoutMillis);
     }
 }

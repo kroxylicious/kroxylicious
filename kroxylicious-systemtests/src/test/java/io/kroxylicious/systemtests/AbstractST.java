@@ -23,6 +23,7 @@ import io.kroxylicious.systemtests.installation.kroxy.Kroxy;
 import io.kroxylicious.systemtests.installation.strimzi.Strimzi;
 import io.kroxylicious.systemtests.k8s.KubeClusterResource;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
+import io.kroxylicious.systemtests.utils.KafkaUtils;
 import io.kroxylicious.systemtests.utils.NamespaceUtils;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
@@ -119,5 +120,6 @@ public class AbstractST {
         LOGGER.info(String.join("", Collections.nCopies(76, "#")));
         LOGGER.info(String.format("%s.%s - FINISHED", testInfo.getTestClass().get().getName(), testInfo.getTestMethod().get().getName()));
         resourceManager.deleteResources(testInfo);
+        KafkaUtils.deleteAllJobs(Constants.KROXY_DEFAULT_NAMESPACE);
     }
 }

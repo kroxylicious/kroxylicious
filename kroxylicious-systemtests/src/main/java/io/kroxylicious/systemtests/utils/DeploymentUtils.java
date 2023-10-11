@@ -76,7 +76,7 @@ public class DeploymentUtils {
      * @throws IOException the io exception
      */
     public static FileInputStream getDeploymentFileFromURL(String url) throws IOException {
-        String deploymentFile = "/tmp/deployPortPerBrokerPlain.yaml";
+        String deploymentFile = "/tmp/deploy.yaml";
         File file = new File(deploymentFile);
         FileUtils.copyURLToFile(
                 new URL(url),
