@@ -221,7 +221,12 @@ public interface KroxyliciousTester extends Closeable {
     void close();
 
     /**
-     * Creates a single topic on the default Kafka cluster
+     * Creates a single topic on the default Kafka cluster with a fixed partition count (1) and replication factor (1).
+     * <p>
+     * The number of partitions can be increased via {@link  Admin#createPartitions(Map) Admin.createParitions}.
+     * The number of replicas can be increased via {@link Admin#alterPartitionReassignments(Map) Admin.alterParitionsReassignments} by altering the replica assignments.
+     * See the <a href="https://kafka.apache.org/documentation/#basic_ops_increase_replication_factor"> Kafka docs</a> for details
+     * <p>
      * @param clusterName the name of the virtual cluster on which to create the topic
      * @return the name of the created topic
      */
@@ -230,7 +235,12 @@ public interface KroxyliciousTester extends Closeable {
     }
 
     /**
-     * Creates N topics with a fixed partition count and replication factor.
+     * Creates N topics with a fixed partition count (1) and replication factor (1).
+     * <p>
+     * The number of partitions can be increased via {@link  Admin#createPartitions(Map) Admin.createParitions}.
+     * The number of replicas can be increased via {@link Admin#alterPartitionReassignments(Map) Admin.alterParitionsReassignments} by altering the replica assignments.
+     * See the <a href="https://kafka.apache.org/documentation/#basic_ops_increase_replication_factor"> Kafka docs</a> for details
+     * <p>
      * @param clusterName the name of the virtual cluster on which to create the topic
      * @param numberOfTopics the number of topics to create on the cluster
      * @return the Set of topic names which have been created.
