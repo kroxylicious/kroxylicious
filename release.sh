@@ -99,7 +99,7 @@ if [[ "${SKIP_VALIDATION:-false}" != true ]]; then
     mvn -q clean verify
 fi
 
-mvn -q versions:set -DnewVersion="${RELEASE_VERSION}" -DgenerateBackupPoms=false "${skips[@]}"
+mvn -q versions:set -DnewVersion="${RELEASE_VERSION}" -DgenerateBackupPoms=false "${skips[@]}" -DprocessAllModules=true
 
 echo "Validating things still build"
 mvn -q clean install -Pquick
