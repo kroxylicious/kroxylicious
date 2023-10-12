@@ -84,7 +84,7 @@ RELEASE_DATE=$(date -u '+%Y-%m-%d')
 TEMPORARY_RELEASE_BRANCH="prepare-release-${RELEASE_DATE}"
 git checkout -b "prepare-release-${RELEASE_DATE}" "${REPOSITORY}/${BRANCH_FROM}"
 
-if [[ "${DRY_RUN:-false}" != true ]]; then
+if [[ "${DRY_RUN:-false}" == true ]]; then
     printf "Dry-run mode: no remote tags or PRs will be created, artefacts will be deployed to /tmp/dryrun"
     GIT_DRYRUN='--dry-run'
     MVN_DEPLOY_DRYRUN='-DaltDeploymentRepository=ossrh::file:/tmp/dryrun'
@@ -111,12 +111,12 @@ git commit --message "Release version v${RELEASE_VERSION}" --signoff
 RELEASE_TAG="v${RELEASE_VERSION}"
 git tag -f "${RELEASE_TAG}"
 
-git push --tags ${GIT_DRYRUN:-}
+git push "${REPOSITORY}" "${RELEASE_TAG}"  ${GIT_DRYRUN:-}
 
 echo "Deploying release to maven central"
 echo mvn deploy -Prelease -DskipTests=true -DreleaseSigningKey="${GPG_KEY}" "${skips[@]}" ${MVN_DEPLOY_DRYRUN:-}
 
-if [[ "${DRY_RUN:-false}" != true ]]; then
+if [[ "${DRY_RUN:-false}" == true ]]; then
     exit 0
 fi
 
