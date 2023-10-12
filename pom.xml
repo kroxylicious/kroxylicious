@@ -17,7 +17,7 @@
     <packaging>pom</packaging>
 
     <properties>
-        <kroxyliciousApi.version>0.3.0-SNAPSHOT</kroxyliciousApi.version>
+        <kroxylicious-api.version>0.3.0-SNAPSHOT</kroxylicious-api.version>
         <java.version>17</java.version>
         <java.test.version>17</java.test.version>
         <maven.compiler.parameters>true</maven.compiler.parameters>
