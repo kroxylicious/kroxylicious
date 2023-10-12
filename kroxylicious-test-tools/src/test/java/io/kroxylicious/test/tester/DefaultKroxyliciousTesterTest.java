@@ -6,26 +6,60 @@
 
 package io.kroxylicious.test.tester;
 
+import java.io.IOException;
+import java.nio.file.Path;
+import java.security.GeneralSecurityException;
+import java.util.Collection;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.function.Consumer;
+
+import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.admin.Admin;
+import org.apache.kafka.clients.admin.CreateTopicsResult;
+import org.apache.kafka.clients.admin.DeleteTopicsResult;
 import org.apache.kafka.clients.consumer.MockConsumer;
 import org.apache.kafka.clients.consumer.OffsetResetStrategy;
 import org.apache.kafka.clients.producer.MockProducer;
+import org.apache.kafka.common.KafkaException;
+import org.apache.kafka.common.KafkaFuture;
+import org.apache.kafka.common.config.SslConfigs;
+import org.apache.kafka.common.security.auth.SecurityProtocol;
+import org.assertj.core.matcher.AssertionMatcher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 import org.mockito.Mock;
+import org.mockito.hamcrest.MockitoHamcrest;
 import org.mockito.junit.jupiter.MockitoExtension;
+
+import io.kroxylicious.proxy.config.ClusterNetworkAddressConfigProviderDefinitionBuilder;
+import io.kroxylicious.proxy.config.ConfigurationBuilder;
+import io.kroxylicious.proxy.config.VirtualClusterBuilder;
+import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider;
+import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.DEFAULT_PROXY_BOOTSTRAP;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.DEFAULT_VIRTUAL_CLUSTER;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.fail;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mock.Strictness.LENIENT;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -37,6 +71,8 @@ class DefaultKroxyliciousTesterTest {
     private static final String VIRTUAL_CLUSTER_C = "clusterC";
     private static final String EXCEPTION_MESSAGE = "KaBOOM!!";
     private static final String DEFAULT_CLUSTER = "demo";
+    private static final String TLS_CLUSTER = "secureCluster";
+    public static final int TOPIC_COUNT = 5;
     String backingCluster = "broker01.example.com:9090";
 
     @Mock(strictness = LENIENT)
@@ -63,10 +99,11 @@ class DefaultKroxyliciousTesterTest {
 
     @BeforeEach
     void setUp() {
-        when(clientFactory.build(eq(DEFAULT_VIRTUAL_CLUSTER), anyString())).thenReturn(kroxyliciousClients);
-        when(clientFactory.build(eq(VIRTUAL_CLUSTER_A), anyString())).thenReturn(kroxyliciousClientsA);
-        when(clientFactory.build(eq(VIRTUAL_CLUSTER_B), anyString())).thenReturn(kroxyliciousClientsB);
-        when(clientFactory.build(eq(VIRTUAL_CLUSTER_C), anyString())).thenReturn(kroxyliciousClientsC);
+        when(clientFactory.build(eq(DEFAULT_VIRTUAL_CLUSTER), anyMap())).thenReturn(kroxyliciousClients);
+        when(clientFactory.build(eq(TLS_CLUSTER), anyMap())).thenReturn(kroxyliciousClients);
+        when(clientFactory.build(eq(VIRTUAL_CLUSTER_A), anyMap())).thenReturn(kroxyliciousClientsA);
+        when(clientFactory.build(eq(VIRTUAL_CLUSTER_B), anyMap())).thenReturn(kroxyliciousClientsB);
+        when(clientFactory.build(eq(VIRTUAL_CLUSTER_C), anyMap())).thenReturn(kroxyliciousClientsC);
         when(kroxyliciousClients.admin()).thenReturn(admin);
         when(kroxyliciousClients.producer()).thenReturn(producer);
         when(kroxyliciousClients.consumer()).thenReturn(consumer);
@@ -83,7 +120,7 @@ class DefaultKroxyliciousTesterTest {
 
             // Then
             // In theory the bootstrap address is predicable but asserting it is not part of this test
-            verify(clientFactory).build(eq(DEFAULT_CLUSTER), anyString());
+            verify(clientFactory).build(eq(DEFAULT_CLUSTER), anyMap());
             verify(kroxyliciousClients).admin();
         }
     }
@@ -99,7 +136,7 @@ class DefaultKroxyliciousTesterTest {
 
             // Then
             // In theory the bootstrap address is predicable but asserting it is not part of this test
-            verify(clientFactory).build(eq(DEFAULT_CLUSTER), anyString());
+            verify(clientFactory).build(eq(DEFAULT_CLUSTER), anyMap());
             verify(kroxyliciousClients).admin();
         }
     }
@@ -115,7 +152,7 @@ class DefaultKroxyliciousTesterTest {
 
             // Then
             // In theory the bootstrap address is predicable but asserting it is not part of this test
-            verify(clientFactory).build(eq(DEFAULT_CLUSTER), anyString());
+            verify(clientFactory).build(eq(DEFAULT_CLUSTER), anyMap());
             verify(kroxyliciousClients).producer();
         }
     }
@@ -131,7 +168,7 @@ class DefaultKroxyliciousTesterTest {
 
             // Then
             // In theory the bootstrap address is predicable but asserting it is not part of this test
-            verify(clientFactory).build(eq(DEFAULT_CLUSTER), anyString());
+            verify(clientFactory).build(eq(DEFAULT_CLUSTER), anyMap());
             verify(kroxyliciousClients).producer();
         }
     }
@@ -147,7 +184,7 @@ class DefaultKroxyliciousTesterTest {
 
             // Then
             // In theory the bootstrap address is predicable but asserting it is not part of this test
-            verify(clientFactory).build(eq(DEFAULT_CLUSTER), anyString());
+            verify(clientFactory).build(eq(DEFAULT_CLUSTER), anyMap());
             verify(kroxyliciousClients).consumer();
         }
     }
@@ -163,7 +200,7 @@ class DefaultKroxyliciousTesterTest {
 
             // Then
             // In theory the bootstrap address is predicable but asserting it is not part of this test
-            verify(clientFactory).build(eq(DEFAULT_CLUSTER), anyString());
+            verify(clientFactory).build(eq(DEFAULT_CLUSTER), anyMap());
             verify(kroxyliciousClients).consumer();
         }
     }
@@ -178,7 +215,6 @@ class DefaultKroxyliciousTesterTest {
             tester.close();
 
             // Then
-            // In theory the bootstrap address is predicable but asserting it is not part of this test
             verify(kroxyliciousClients).close();
         }
     }
@@ -226,16 +262,303 @@ class DefaultKroxyliciousTesterTest {
         }
     }
 
-    @NonNull
-    private DefaultKroxyliciousTester buildDefaultTester() {
-        return new DefaultKroxyliciousTester(proxy(backingCluster),
-                DefaultKroxyliciousTester::spawnProxy,
-                clientFactory);
+    @Test
+    void shouldConfigureConsumerForTls(@TempDir Path certsDirectory) throws IOException {
+        // Given
+        final String certFilePath = certsDirectory.resolve(Path.of("cert-file")).toAbsolutePath().toString();
+        final String trustStorePath = certsDirectory.resolve(Path.of("trust-store")).toAbsolutePath().toString();
+        var keytoolCertificateGenerator = new KeytoolCertificateGenerator(certFilePath, trustStorePath);
+        try (var tester = buildSecureTester(keytoolCertificateGenerator)) {
+
+            // When
+            tester.consumer(TLS_CLUSTER);
+            tester.producer(TLS_CLUSTER);
+            tester.admin(TLS_CLUSTER);
+
+            // Then
+
+            verify(clientFactory).build(eq(TLS_CLUSTER), argThat(assertSslConfiguration(trustStorePath)));
+        }
     }
 
-    private DefaultKroxyliciousTester buildTester() {
-        return new DefaultKroxyliciousTester(proxy(backingCluster, VIRTUAL_CLUSTER_A, VIRTUAL_CLUSTER_B, VIRTUAL_CLUSTER_C),
-                DefaultKroxyliciousTester::spawnProxy,
-                clientFactory);
+    @Test
+    void shouldConfigureProducerForTls(@TempDir Path certsDirectory) throws IOException {
+        // Given
+        final String certFilePath = certsDirectory.resolve(Path.of("cert-file")).toAbsolutePath().toString();
+        final String trustStorePath = certsDirectory.resolve(Path.of("trust-store")).toAbsolutePath().toString();
+        var keytoolCertificateGenerator = new KeytoolCertificateGenerator(certFilePath, trustStorePath);
+        try (var tester = buildSecureTester(keytoolCertificateGenerator)) {
+
+            // When
+            tester.producer(TLS_CLUSTER);
+
+            // Then
+            verify(clientFactory).build(eq(TLS_CLUSTER), argThat(assertSslConfiguration(trustStorePath)));
+        }
+    }
+
+    @Test
+    void shouldConfigureAdminForTls(@TempDir Path certsDirectory) throws IOException {
+        // Given
+        final String certFilePath = certsDirectory.resolve(Path.of("cert-file")).toAbsolutePath().toString();
+        final String trustStorePath = certsDirectory.resolve(Path.of("trust-store")).toAbsolutePath().toString();
+        var keytoolCertificateGenerator = new KeytoolCertificateGenerator(certFilePath, trustStorePath);
+        try (var tester = buildSecureTester(keytoolCertificateGenerator)) {
+
+            // When
+            tester.admin(TLS_CLUSTER);
+
+            // Then
+            verify(clientFactory).build(eq(TLS_CLUSTER), argThat(assertSslConfiguration(trustStorePath)));
+        }
+    }
+
+    @Test
+    void shouldCreateSingleTopic() {
+        // Given
+        final CreateTopicsResult createTopicsResult = mock(CreateTopicsResult.class);
+        when(admin.createTopics(anyCollection())).thenReturn(createTopicsResult);
+        when(createTopicsResult.all()).thenReturn(KafkaFuture.completedFuture(null));
+        try (KroxyliciousTester tester = buildDefaultTester()) {
+
+            // When
+            final String actualTopicName = tester.createTopic(DEFAULT_CLUSTER);
+
+            // Then
+            verify(admin).createTopics(argThat(topics -> assertThat(topics).hasSize(1)));
+            assertThat(actualTopicName).isNotBlank();
+        }
+    }
+
+    @Test
+    void shouldCreateMultipleTopics() {
+        // Given
+        final CreateTopicsResult createTopicsResult = mock(CreateTopicsResult.class);
+        when(admin.createTopics(anyCollection())).thenReturn(createTopicsResult);
+        when(createTopicsResult.all()).thenReturn(KafkaFuture.completedFuture(null));
+        try (KroxyliciousTester tester = buildDefaultTester()) {
+
+            // When
+            final Set<String> actualTopicName = tester.createTopics(DEFAULT_CLUSTER, TOPIC_COUNT);
+
+            // Then
+            verify(admin).createTopics(argThat(topics -> assertThat(topics).hasSize(TOPIC_COUNT)));
+            assertThat(actualTopicName).isNotEmpty().hasSize(TOPIC_COUNT);
+        }
+    }
+
+    @Test
+    void shouldTrackTopicsForCluster() {
+        // Given
+        final Admin adminB = mock(Admin.class);
+        allowCreateTopic(kroxyliciousClientsA, admin);
+        allowCreateTopic(kroxyliciousClientsB, adminB);
+
+        try (KroxyliciousTester tester = buildTester()) {
+            tester.createTopics(VIRTUAL_CLUSTER_A, TOPIC_COUNT);
+
+            // When
+            tester.createTopics(VIRTUAL_CLUSTER_B, TOPIC_COUNT);
+
+            // Then
+            verify(admin).createTopics(argThat(topics -> assertThat(topics).hasSize(TOPIC_COUNT)));
+            verify(adminB).createTopics(argThat(topics -> assertThat(topics).hasSize(TOPIC_COUNT)));
+        }
+    }
+
+    @Test
+    void shouldDeleteTopicsForCluster() {
+        // Given
+        allowCreateTopic(kroxyliciousClientsA, admin);
+        final DeleteTopicsResult deleteTopicsResult = mock(DeleteTopicsResult.class);
+        when(admin.deleteTopics(anyCollection())).thenReturn(deleteTopicsResult);
+        when(deleteTopicsResult.all()).thenReturn(KafkaFuture.completedFuture(null));
+
+        try (KroxyliciousTester tester = buildTester()) {
+            tester.createTopics(VIRTUAL_CLUSTER_A, TOPIC_COUNT);
+
+            // When
+            tester.deleteTopics(VIRTUAL_CLUSTER_A);
+
+            // Then
+            verify(admin).deleteTopics(DefaultKroxyliciousTesterTest.<Collection<String>> argThat(topics -> assertThat(topics).hasSize(TOPIC_COUNT)));
+        }
+    }
+
+    @Test
+    void shouldNotThrowWhenNoTopicsCreated() {
+        // Given
+        when(kroxyliciousClientsA.admin()).thenReturn(admin);
+
+        try (KroxyliciousTester tester = buildTester()) {
+            // When
+            tester.deleteTopics(VIRTUAL_CLUSTER_A);
+
+            // Then
+            //We can't use verifyNoInteractions or verifyNoMoreInteractions here as the try-with-resource block will trigger admin.close()
+            verify(admin, times(0)).deleteTopics(anyCollection());
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void shouldPropagateErrorsCreatingTopics() throws ExecutionException, InterruptedException, TimeoutException {
+        // Given
+        final CreateTopicsResult createTopicsResult = mock(CreateTopicsResult.class);
+        final KafkaFuture<Void> kafkaFuture = mock(KafkaFuture.class);
+        when(admin.createTopics(anyCollection())).thenReturn(createTopicsResult);
+        when(createTopicsResult.all()).thenReturn(kafkaFuture);
+        when(kafkaFuture.get(anyLong(), any(TimeUnit.class))).thenThrow(new ExecutionException("Kafka is nae working pal", new KafkaException("KaBoom")));
+
+        try (KroxyliciousTester tester = buildDefaultTester()) {
+
+            // When
+            assertThatThrownBy(() -> tester.createTopic(DEFAULT_CLUSTER))
+                    // Then
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessage("Failed to create topics on " + DEFAULT_CLUSTER)
+                    .hasCauseInstanceOf(KafkaException.class);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void shouldPropagateTimeoutCreatingTopics() throws ExecutionException, InterruptedException, TimeoutException {
+        // Given
+        final CreateTopicsResult createTopicsResult = mock(CreateTopicsResult.class);
+        final KafkaFuture<Void> kafkaFuture = mock(KafkaFuture.class);
+        when(admin.createTopics(anyCollection())).thenReturn(createTopicsResult);
+        when(createTopicsResult.all()).thenReturn(kafkaFuture);
+        when(kafkaFuture.get(anyLong(), any(TimeUnit.class))).thenThrow(new TimeoutException("Kafka fell asleep"));
+
+        try (KroxyliciousTester tester = buildDefaultTester()) {
+
+            // When
+            assertThatThrownBy(() -> tester.createTopic(DEFAULT_CLUSTER))
+                    // Then
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessage("Timed out creating topics on " + DEFAULT_CLUSTER);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void shouldPropagateErrorsDeletingTopics() throws ExecutionException, InterruptedException, TimeoutException {
+        // Given
+        allowCreateTopic(kroxyliciousClientsA, admin);
+
+        final KafkaFuture<Void> kafkaFuture = mock(KafkaFuture.class);
+        final DeleteTopicsResult deleteTopicsResult = mock(DeleteTopicsResult.class);
+        when(admin.deleteTopics(anyCollection())).thenReturn(deleteTopicsResult);
+        when(deleteTopicsResult.all()).thenReturn(kafkaFuture);
+        when(kafkaFuture.get(anyLong(), any(TimeUnit.class))).thenThrow(new ExecutionException("Kafka is nae working pal", new KafkaException("KaBoom")));
+
+        try (KroxyliciousTester tester = buildTester()) {
+            tester.createTopics(VIRTUAL_CLUSTER_A, TOPIC_COUNT);
+
+            // When
+            assertThatThrownBy(() -> tester.deleteTopics(VIRTUAL_CLUSTER_A))
+                    // Then
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessage("Failed to delete topics on " + VIRTUAL_CLUSTER_A)
+                    .hasCauseInstanceOf(KafkaException.class);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void shouldPropagateTimeoutDeletingTopics() throws ExecutionException, InterruptedException, TimeoutException {
+        // Given
+        allowCreateTopic(kroxyliciousClientsA, admin);
+
+        final KafkaFuture<Void> kafkaFuture = mock(KafkaFuture.class);
+        final DeleteTopicsResult deleteTopicsResult = mock(DeleteTopicsResult.class);
+        when(admin.deleteTopics(anyCollection())).thenReturn(deleteTopicsResult);
+        when(deleteTopicsResult.all()).thenReturn(kafkaFuture);
+        when(kafkaFuture.get(anyLong(), any(TimeUnit.class))).thenThrow(new TimeoutException("Kafka fell asleep"));
+
+        try (KroxyliciousTester tester = buildTester()) {
+            tester.createTopics(VIRTUAL_CLUSTER_A, TOPIC_COUNT);
+
+            // When
+            assertThatThrownBy(() -> tester.deleteTopics(VIRTUAL_CLUSTER_A))
+                    // Then
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessage("Timed out deleting topics on " + VIRTUAL_CLUSTER_A);
+        }
+    }
+
+    private void allowCreateTopic(KroxyliciousClients kroxyliciousClients, Admin admin) {
+        when(kroxyliciousClients.admin()).thenReturn(admin);
+        final CreateTopicsResult createTopicsResultA = mock(CreateTopicsResult.class);
+        when(admin.createTopics(anyCollection())).thenReturn(createTopicsResultA);
+        when(createTopicsResultA.all()).thenReturn(KafkaFuture.completedFuture(null));
+    }
+
+    @NonNull
+    private static Consumer<Map<String, Object>> assertSslConfiguration(String trustStorePath) {
+        return actual -> assertThat(actual)
+                .contains(
+                        Map.entry(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name()),
+                        Map.entry(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, trustStorePath))
+                .containsKey(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG);
+    }
+
+    @NonNull
+    private KroxyliciousTester buildDefaultTester() {
+        return new KroxyliciousTesterBuilder().setConfigurationBuilder(proxy(backingCluster))
+                .setKroxyliciousFactory(DefaultKroxyliciousTester::spawnProxy)
+                .setClientFactory(clientFactory)
+                .createDefaultKroxyliciousTester();
+    }
+
+    @NonNull
+    private KroxyliciousTester buildSecureTester(KeytoolCertificateGenerator keytoolCertificateGenerator) {
+        generateSecurityCert(keytoolCertificateGenerator);
+        final ConfigurationBuilder configurationBuilder = new ConfigurationBuilder();
+        var vcb = new VirtualClusterBuilder()
+                .withNewTargetCluster()
+                .withBootstrapServers(backingCluster)
+                .endTargetCluster()
+                .withNewTls()
+                .withNewKeyStoreKey()
+                .withStoreFile(keytoolCertificateGenerator.getKeyStoreLocation())
+                .withNewInlinePasswordStoreProvider(keytoolCertificateGenerator.getPassword())
+                .endKeyStoreKey()
+                .endTls()
+                .withClusterNetworkAddressConfigProvider(
+                        new ClusterNetworkAddressConfigProviderDefinitionBuilder(PortPerBrokerClusterNetworkAddressConfigProvider.class.getName())
+                                .withConfig("bootstrapAddress", DEFAULT_PROXY_BOOTSTRAP).build());
+        configurationBuilder
+                .addToVirtualClusters(TLS_CLUSTER, vcb.build());
+
+        return new KroxyliciousTesterBuilder().setConfigurationBuilder(configurationBuilder)
+                .setTrustStoreLocation(keytoolCertificateGenerator.getTrustStoreLocation())
+                .setTrustStorePassword(keytoolCertificateGenerator.getPassword())
+                .setKroxyliciousFactory(DefaultKroxyliciousTester::spawnProxy).setClientFactory(clientFactory).createDefaultKroxyliciousTester();
+    }
+
+    private static void generateSecurityCert(KeytoolCertificateGenerator keytoolCertificateGenerator) {
+        try {
+            keytoolCertificateGenerator.generateSelfSignedCertificateEntry("webmaster@example.com", "example.com", "Engineering", "kroxylicious.io", null, null, "NZ");
+        }
+        catch (GeneralSecurityException | IOException e) {
+            fail("unable to generate security certificate", e);
+        }
+    }
+
+    private KroxyliciousTester buildTester() {
+        return new KroxyliciousTesterBuilder()
+                .setConfigurationBuilder(proxy(backingCluster, VIRTUAL_CLUSTER_A, VIRTUAL_CLUSTER_B, VIRTUAL_CLUSTER_C))
+                .setKroxyliciousFactory(DefaultKroxyliciousTester::spawnProxy).setClientFactory(clientFactory).createDefaultKroxyliciousTester();
+    }
+
+    public static <T> T argThat(Consumer<T> assertions) {
+        return MockitoHamcrest.argThat(new AssertionMatcher<>() {
+            @Override
+            public void assertion(T actual) throws AssertionError {
+                assertions.accept(actual);
+            }
+        });
     }
 }

@@ -81,7 +81,7 @@ public abstract class BaseMultiTenantIT extends BaseIT {
         this.certificateGenerator = new KeytoolCertificateGenerator();
         this.certificateGenerator.generateSelfSignedCertificateEntry("test@redhat.com", IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName("*"),
                 "KI", "RedHat", null, null, "US");
-        Path clientTrustStore = certsDirectory.resolve("kafka.truststore.jks");
+        Path clientTrustStore = certsDirectory.resolve(certificateGenerator.getTrustStoreLocation());
         this.certificateGenerator.generateTrustStore(this.certificateGenerator.getCertFilePath(), "client", clientTrustStore.toAbsolutePath().toString());
         this.clientConfig = Map.of(CommonClientConfigs.CLIENT_ID_CONFIG, testInfo.getDisplayName(),
                 CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name,
@@ -133,7 +133,7 @@ public abstract class BaseMultiTenantIT extends BaseIT {
         return getConsumerWithConfig(tester, Optional.of(virtualCluster), baseConfig, standardConfig, additionalConfig);
     }
 
-    void consumeAndVerify(KroxyliciousTester tester, Map<String, Object> clientConfig, String virtualCluster, String topicName, String groupId,
+    void consumeAndAssert(KroxyliciousTester tester, Map<String, Object> clientConfig, String virtualCluster, String topicName, String groupId,
                           Deque<Predicate<ConsumerRecord<String, String>>> expected, boolean offsetCommit) {
         try (var consumer = getConsumerWithConfig(tester, virtualCluster, groupId, clientConfig, Map.of(
                 ConsumerConfig.MAX_POLL_RECORDS_CONFIG, String.format("%d", expected.size())))) {
@@ -157,7 +157,7 @@ public abstract class BaseMultiTenantIT extends BaseIT {
         }
     }
 
-    void produceAndVerify(KroxyliciousTester tester, Map<String, Object> clientConfig, String virtualCluster,
+    void produceAndAssert(KroxyliciousTester tester, Map<String, Object> clientConfig, String virtualCluster,
                           Stream<ProducerRecord<String, String>> records, Optional<String> transactionalId) {
 
         Map<String, Object> config = new HashMap<>();
