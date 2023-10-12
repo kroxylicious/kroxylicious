@@ -57,6 +57,7 @@ if [[ ${#skips[@]} = 2 ]]; then
 fi
 
 GREEN='\033[0;32m'
+BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 ORIGINAL_WORKING_BRANCH=$(git branch --show-current)
@@ -85,14 +86,15 @@ TEMPORARY_RELEASE_BRANCH="prepare-release-${RELEASE_DATE}"
 git checkout -b "prepare-release-${RELEASE_DATE}" "${REPOSITORY}/${BRANCH_FROM}"
 
 if [[ "${DRY_RUN:-false}" == true ]]; then
-    printf "Dry-run mode: no remote tags or PRs will be created, artefacts will be deployed to /tmp/dryrun\n"
+    DEPLOY_DRY_RUN_DIR=$(mktemp -d)
+    #Disable the shell check as the colour codes only work with interpolation.
+    # shellcheck disable=SC2059
+    printf "${BLUE}Dry-run${NC} mode: no remote tags or PRs will be created, artefacts will be deployed to ${DEPLOY_DRY_RUN_DIR}\n"
     GIT_DRYRUN='--dry-run'
-    MVN_DEPLOY_DRYRUN='-DaltDeploymentRepository=ossrh::file:/tmp/dryrun'
+    MVN_DEPLOY_DRYRUN='-DaltDeploymentRepository=ossrh::file:${DEPLOY_DRY_RUN_DIR}'
 fi
 
 if [[ "${SKIP_VALIDATION:-false}" != true ]]; then
-    #Disable the shell check as the colour codes only work with interpolation.
-    # shellcheck disable=SC2059
     printf "Validating the build is ${GREEN}green${NC}"
     mvn -q clean verify
 fi
