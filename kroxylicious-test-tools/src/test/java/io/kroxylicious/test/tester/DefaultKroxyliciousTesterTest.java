@@ -488,7 +488,6 @@ class DefaultKroxyliciousTesterTest {
         }
     }
 
-
     private void allowCreateTopic(KroxyliciousClients kroxyliciousClients, Admin admin) {
         when(kroxyliciousClients.admin()).thenReturn(admin);
         final CreateTopicsResult createTopicsResultA = mock(CreateTopicsResult.class);
