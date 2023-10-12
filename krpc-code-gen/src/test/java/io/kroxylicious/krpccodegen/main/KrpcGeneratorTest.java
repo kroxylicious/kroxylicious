@@ -119,10 +119,10 @@ class KrpcGeneratorTest {
     }
 
     @ParameterizedTest
-    @CsvSource({ "AddPartitionsToTxnRequest.json,yes", "FetchRequest.json,no" })
-    void testLatestVersionUnstable(String messageSpec, String expectedContents, @TempDir File tempDir) throws Exception {
-        testSingleGeneration(tempDir, messageSpec, "${messageSpec.latestVersionUnstable.isPresent()?string('yes', 'no')}", expectedContents);
-        testSingleGeneration(tempDir, messageSpec, "${messageSpec.latestVersionUnstable.orElse(false)?string('yes', 'no')}", expectedContents);
+    @CsvSource({ "AddPartitionsToTxnRequest.json,yes,no", "FetchRequest.json,no,no" })
+    void testLatestVersionUnstable(String messageSpec, String expectField, String expectValue, @TempDir File tempDir) throws Exception {
+        testSingleGeneration(tempDir, messageSpec, "${messageSpec.latestVersionUnstable.isPresent()?string('yes', 'no')}", expectField);
+        testSingleGeneration(tempDir, messageSpec, "${messageSpec.latestVersionUnstable.orElse(false)?string('yes', 'no')}", expectValue);
     }
 
     private void assertFileHasExpectedContents(File file, String expectedFile) throws IOException {
