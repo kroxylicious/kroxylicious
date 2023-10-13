@@ -21,14 +21,14 @@ import static org.mockito.Mockito.doReturn;
 class FilterTest {
     @Test
     void testFactory() {
-        ProduceRequestTransformation factory = new ProduceRequestTransformation();
+        ProduceRequestTransformationFilterFactory factory = new ProduceRequestTransformationFilterFactory();
         assertThatThrownBy(() -> factory.initialize(null, null)).isInstanceOf(PluginConfigurationException.class)
-                .hasMessage("ProduceRequestTransformation requires configuration, but config object is null");
+                .hasMessage(ProduceRequestTransformationFilterFactory.class.getSimpleName() + " requires configuration, but config object is null");
         FilterFactoryContext constructContext = Mockito.mock(FilterFactoryContext.class);
         doReturn(new UpperCasing()).when(constructContext).pluginInstance(eq(ByteBufferTransformationFactory.class), any());
-        ProduceRequestTransformation.Config config = new ProduceRequestTransformation.Config(
+        ProduceRequestTransformationFilterFactory.Config config = new ProduceRequestTransformationFilterFactory.Config(
                 UpperCasing.class.getName(),
                 new UpperCasing.Config("UTF-8"));
-        assertThat(factory.createFilter(constructContext, config)).isInstanceOf(ProduceRequestTransformation.Filter.class);
+        assertThat(factory.createFilter(constructContext, config)).isInstanceOf(ProduceRequestTransformationFilterFactory.Filter.class);
     }
 }

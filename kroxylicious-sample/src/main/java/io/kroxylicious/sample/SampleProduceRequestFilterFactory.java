@@ -25,7 +25,7 @@ import io.kroxylicious.sample.config.SampleFilterConfig;
 import io.kroxylicious.sample.util.SampleFilterTransformer;
 
 @PluginConfigType(SampleFilterConfig.class)
-public class SampleProduceRequest implements FilterFactory<SampleFilterConfig, SampleFilterConfig> {
+public class SampleProduceRequestFilterFactory implements FilterFactory<SampleFilterConfig, SampleFilterConfig> {
     @Override
     public SampleFilterConfig initialize(FilterFactoryContext context, SampleFilterConfig config) {
         return Plugins.requireConfig(this, config);

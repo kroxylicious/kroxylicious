@@ -19,7 +19,7 @@ import io.kroxylicious.proxy.filter.RequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.plugin.Plugins;
 
-public class RequiresConfig implements FilterFactory<ExampleConfig, ExampleConfig> {
+public class TestFilterFactory implements FilterFactory<ExampleConfig, ExampleConfig> {
 
     @Override
     public ExampleConfig initialize(FilterFactoryContext context, ExampleConfig config) {
@@ -27,16 +27,16 @@ public class RequiresConfig implements FilterFactory<ExampleConfig, ExampleConfi
     }
 
     @Override
-    public Filter createFilter(FilterFactoryContext context, ExampleConfig configuration) {
-        return new Filter(context, configuration, this.getClass());
+    public TestFilterImpl createFilter(FilterFactoryContext context, ExampleConfig configuration) {
+        return new TestFilterImpl(context, configuration, this.getClass());
     }
 
-    public static class Filter implements RequestFilter {
+    public static class TestFilterImpl implements RequestFilter {
         private final FilterFactoryContext context;
         private final ExampleConfig exampleConfig;
         private final Class<? extends FilterFactory> contributorClass;
 
-        public Filter(FilterFactoryContext context, ExampleConfig exampleConfig, Class<? extends FilterFactory> contributorClass) {
+        public TestFilterImpl(FilterFactoryContext context, ExampleConfig exampleConfig, Class<? extends FilterFactory> contributorClass) {
             this.context = context;
             this.exampleConfig = exampleConfig;
             this.contributorClass = contributorClass;

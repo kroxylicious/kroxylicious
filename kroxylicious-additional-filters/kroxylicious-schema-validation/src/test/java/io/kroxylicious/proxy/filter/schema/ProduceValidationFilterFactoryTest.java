@@ -18,21 +18,21 @@ import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-class ProduceValidationTest {
+class ProduceValidationFilterFactoryTest {
 
     @Test
     void testGetConfigTypeViaConfigurationDefinition() {
-        ProduceValidation factory = new ProduceValidation();
+        ProduceValidationFilterFactory factory = new ProduceValidationFilterFactory();
         assertThatThrownBy(() -> factory.initialize(null, null)).isInstanceOf(PluginConfigurationException.class)
-                .hasMessage("ProduceValidation requires configuration, but config object is null");
+                .hasMessage(ProduceValidationFilterFactory.class.getSimpleName() + " requires configuration, but config object is null");
     }
 
     @Test
     void testGetInstance() {
-        ProduceValidation factory = new ProduceValidation();
+        ProduceValidationFilterFactory factory = new ProduceValidationFilterFactory();
         ValidationConfig config = new ValidationConfig(true, List.of(), new RecordValidationRule(null, null));
         Filter filter = factory.createFilter(null, config);
-        assertThat(filter).isNotNull().isInstanceOf(ProduceValidation.Filter.class);
+        assertThat(filter).isNotNull().isInstanceOf(ProduceValidationFilterFactory.Filter.class);
     }
 
 }

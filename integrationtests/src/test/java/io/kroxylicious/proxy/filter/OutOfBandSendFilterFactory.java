@@ -27,8 +27,8 @@ import io.kroxylicious.proxy.plugin.Plugins;
 
 import static io.kroxylicious.UnknownTaggedFields.unknownTaggedFieldsToStrings;
 
-@PluginConfigType(OutOfBandSend.Config.class)
-public class OutOfBandSend implements FilterFactory<OutOfBandSend.Config, OutOfBandSend.Config> {
+@PluginConfigType(OutOfBandSendFilterFactory.Config.class)
+public class OutOfBandSendFilterFactory implements FilterFactory<OutOfBandSendFilterFactory.Config, OutOfBandSendFilterFactory.Config> {
 
     @Override
     public Config initialize(FilterFactoryContext context, Config config) {
@@ -41,11 +41,11 @@ public class OutOfBandSend implements FilterFactory<OutOfBandSend.Config, OutOfB
     }
 
     /**
-     * Designed to work in tandem with another Filter like {@link RequestResponseMarking.Filter}. This Filter targets
+     * Designed to work in tandem with another Filter like {@link RequestResponseMarkingFilterFactory.Filter}. This Filter targets
      * DescribeClusterRequest and sends an out-of-band request instead. Then, when it gets a response via the sendRequest
      * CompletionStage, it collects the Unknown Tagged Fields for a specified tag and forwards them as an error message in
      * a DescribeClusterResponse. This exposes what unknown tagged fields were added to the out-of-band response by other
-     * filters like {@link RequestResponseMarking.Filter}.
+     * filters like {@link RequestResponseMarkingFilterFactory.Filter}.
      */
     public static class Filter implements DescribeClusterRequestFilter, DescribeClusterResponseFilter {
 

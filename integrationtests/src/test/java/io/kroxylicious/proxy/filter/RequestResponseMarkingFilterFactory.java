@@ -24,8 +24,8 @@ import io.kroxylicious.proxy.plugin.Plugins;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-@PluginConfigType(RequestResponseMarking.Config.class)
-public class RequestResponseMarking implements FilterFactory<RequestResponseMarking.Config, RequestResponseMarking.Config> {
+@PluginConfigType(RequestResponseMarkingFilterFactory.Config.class)
+public class RequestResponseMarkingFilterFactory implements FilterFactory<RequestResponseMarkingFilterFactory.Config, RequestResponseMarkingFilterFactory.Config> {
 
     @Override
     public Config initialize(FilterFactoryContext context, Config config) {
@@ -59,7 +59,7 @@ public class RequestResponseMarking implements FilterFactory<RequestResponseMark
         private final FilterFactoryContext constructionContext;
         private final String name;
         private final Set<ApiKeys> keysToMark;
-        private final Set<RequestResponseMarking.Direction> direction;
+        private final Set<RequestResponseMarkingFilterFactory.Direction> direction;
         private final ForwardingStyle forwardingStyle;
 
         public Filter(FilterFactoryContext constructionContext, Config config) {
@@ -72,27 +72,27 @@ public class RequestResponseMarking implements FilterFactory<RequestResponseMark
 
         @Override
         public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage body, FilterContext context) {
-            if (!(direction.contains(RequestResponseMarking.Direction.REQUEST) && keysToMark.contains(apiKey))) {
+            if (!(direction.contains(RequestResponseMarkingFilterFactory.Direction.REQUEST) && keysToMark.contains(apiKey))) {
                 return context.forwardRequest(header, body);
             }
 
             return forwardingStyle.apply(new ForwardingContext(context, constructionContext, body))
-                    .thenApply(request -> applyTaggedField(request, RequestResponseMarking.Direction.REQUEST, name))
+                    .thenApply(request -> applyTaggedField(request, RequestResponseMarkingFilterFactory.Direction.REQUEST, name))
                     .thenCompose(taggedRequest -> context.forwardRequest(header, taggedRequest));
         }
 
         @Override
         public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, ResponseHeaderData header, ApiMessage response, FilterContext context) {
-            if (!(direction.contains(RequestResponseMarking.Direction.RESPONSE) && keysToMark.contains(apiKey))) {
+            if (!(direction.contains(RequestResponseMarkingFilterFactory.Direction.RESPONSE) && keysToMark.contains(apiKey))) {
                 return context.forwardResponse(header, response);
             }
 
             return forwardingStyle.apply(new ForwardingContext(context, constructionContext, response))
-                    .thenApply(request -> applyTaggedField(request, RequestResponseMarking.Direction.RESPONSE, name))
+                    .thenApply(request -> applyTaggedField(request, RequestResponseMarkingFilterFactory.Direction.RESPONSE, name))
                     .thenCompose(taggedRequest -> context.forwardResponse(header, taggedRequest));
         }
 
-        private ApiMessage applyTaggedField(ApiMessage body, RequestResponseMarking.Direction direction, String name) {
+        private ApiMessage applyTaggedField(ApiMessage body, RequestResponseMarkingFilterFactory.Direction direction, String name) {
             body.unknownTaggedFields().add(createTaggedField(direction.toString().toLowerCase(Locale.ROOT), name));
             return body;
         }

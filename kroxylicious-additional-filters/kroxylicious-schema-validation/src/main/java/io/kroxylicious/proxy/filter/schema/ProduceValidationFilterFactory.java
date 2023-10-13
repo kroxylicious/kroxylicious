@@ -36,7 +36,7 @@ import io.kroxylicious.proxy.plugin.PluginConfigType;
 import io.kroxylicious.proxy.plugin.Plugins;
 
 @PluginConfigType(ValidationConfig.class)
-public class ProduceValidation implements FilterFactory<ValidationConfig, ValidationConfig> {
+public class ProduceValidationFilterFactory implements FilterFactory<ValidationConfig, ValidationConfig> {
 
     @Override
     public ValidationConfig initialize(FilterFactoryContext context, ValidationConfig config) {

@@ -16,8 +16,8 @@ import org.apache.kafka.common.protocol.ApiMessage;
 import io.kroxylicious.proxy.plugin.PluginConfigType;
 import io.kroxylicious.proxy.plugin.Plugins;
 
-@PluginConfigType(FixedClientId.Config.class)
-public class FixedClientId implements FilterFactory<FixedClientId.Config, FixedClientId.Config> {
+@PluginConfigType(FixedClientIdFilterFactory.Config.class)
+public class FixedClientIdFilterFactory implements FilterFactory<FixedClientIdFilterFactory.Config, FixedClientIdFilterFactory.Config> {
 
     @Override
     public Config initialize(FilterFactoryContext context, Config config) {

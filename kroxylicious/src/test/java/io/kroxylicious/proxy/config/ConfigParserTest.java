@@ -30,7 +30,7 @@ import io.kroxylicious.proxy.internal.filter.ByteBufferTransformationFactory;
 import io.kroxylicious.proxy.internal.filter.ConstructorInjectionConfig;
 import io.kroxylicious.proxy.internal.filter.FactoryMethodConfig;
 import io.kroxylicious.proxy.internal.filter.FieldInjectionConfig;
-import io.kroxylicious.proxy.internal.filter.ProduceRequestTransformation;
+import io.kroxylicious.proxy.internal.filter.ProduceRequestTransformationFilterFactory;
 import io.kroxylicious.proxy.internal.filter.RecordConfig;
 import io.kroxylicious.proxy.internal.filter.SetterInjectionConfig;
 import io.kroxylicious.proxy.internal.filter.UpperCasing;
@@ -101,7 +101,7 @@ class ConfigParserTest {
 
                 Arguments.of("Filters", """
                         filters:
-                        - type: ProduceRequestTransformation
+                        - type: ProduceRequestTransformationFilterFactory
                           config:
                             transformation: io.kroxylicious.proxy.internal.filter.UpperCasing
                             transformationConfig:
@@ -247,7 +247,7 @@ class ConfigParserTest {
         ConfigParser cp = new ConfigParser();
         var config = cp.parseConfiguration("""
                 filters:
-                - type: ProduceRequestTransformation
+                - type: ProduceRequestTransformationFilterFactory
                   config:
                     transformation: UpperCasing
                     transformationConfig:
@@ -256,12 +256,12 @@ class ConfigParserTest {
         assertThat(config.filters()).hasSize(1);
 
         FilterDefinition fd = config.filters().get(0);
-        assertEquals("ProduceRequestTransformation", fd.type());
+        assertEquals("ProduceRequestTransformationFilterFactory", fd.type());
         FilterFactory<?, ?> ff = cp.pluginFactory(FilterFactory.class).pluginInstance(fd.type());
         assertThat(ff).isNotNull();
-        assertThat(fd.config()).isInstanceOf(ProduceRequestTransformation.Config.class);
+        assertThat(fd.config()).isInstanceOf(ProduceRequestTransformationFilterFactory.Config.class);
 
-        var prtc = (ProduceRequestTransformation.Config) fd.config();
+        var prtc = (ProduceRequestTransformationFilterFactory.Config) fd.config();
         assertThat(prtc.transformationConfig()).isInstanceOf(UpperCasing.Config.class);
         assertEquals("UpperCasing", prtc.transformation());
         ByteBufferTransformationFactory<?> tm = cp.pluginFactory(ByteBufferTransformationFactory.class).pluginInstance(prtc.transformation());

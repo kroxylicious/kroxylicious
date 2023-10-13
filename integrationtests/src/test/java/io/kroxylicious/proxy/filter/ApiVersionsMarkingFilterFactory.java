@@ -20,7 +20,7 @@ import io.kroxylicious.proxy.plugin.PluginConfigType;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 @PluginConfigType(Void.class)
-public class ApiVersionsMarking implements FilterFactory<Void, Void> {
+public class ApiVersionsMarkingFilterFactory implements FilterFactory<Void, Void> {
 
     @Override
     public Void initialize(FilterFactoryContext context, Void config) {

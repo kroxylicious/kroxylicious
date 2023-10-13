@@ -1,2 +1,2 @@
-io.kroxylicious.sample.SampleProduceRequest
-io.kroxylicious.sample.SampleFetchResponse
+io.kroxylicious.sample.SampleProduceRequestFilterFactory
+io.kroxylicious.sample.SampleFetchResponseFilterFactory

@@ -36,15 +36,15 @@ import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
-import io.kroxylicious.proxy.internal.filter.FetchResponseTransformation.Config;
+import io.kroxylicious.proxy.internal.filter.FetchResponseTransformationFilterFactory.Config;
 import io.kroxylicious.proxy.internal.util.MemoryRecordsHelper;
 import io.kroxylicious.proxy.plugin.PluginConfig;
 import io.kroxylicious.proxy.plugin.PluginConfigType;
 import io.kroxylicious.proxy.plugin.PluginReference;
 import io.kroxylicious.proxy.plugin.Plugins;
 
-@PluginConfigType(FetchResponseTransformation.Config.class)
-public class FetchResponseTransformation
+@PluginConfigType(FetchResponseTransformationFilterFactory.Config.class)
+public class FetchResponseTransformationFilterFactory
         implements FilterFactory<Config, Config> {
 
     @Override
@@ -55,8 +55,6 @@ public class FetchResponseTransformation
     @Override
     public Filter createFilter(FilterFactoryContext context,
                                Config configuration) {
-        // TransformationManager m = new TransformationManager();
-        // TODO ^^ get this from the context
         var factory = context.pluginInstance(ByteBufferTransformationFactory.class, configuration.transformation());
         Objects.requireNonNull(factory, "Violated contract of FilterCreationContext");
         return new Filter(factory.createTransformation(configuration.config()));
@@ -98,7 +96,7 @@ public class FetchResponseTransformation
                         return new MetadataRequestData.MetadataRequestTopic().setName(null).setTopicId(uuid);
                     })
                     .distinct()
-                    .collect(Collectors.toList());
+                    .toList();
             if (!requestTopics.isEmpty()) {
                 LOGGER.debug("Fetch response contains {} unknown topic ids, lookup via Metadata request: {}", requestTopics.size(), requestTopics);
                 var metadataHeader = new RequestHeaderData().setRequestApiVersion(METADATA_API_VER_WITH_TOPIC_ID_SUPPORT);

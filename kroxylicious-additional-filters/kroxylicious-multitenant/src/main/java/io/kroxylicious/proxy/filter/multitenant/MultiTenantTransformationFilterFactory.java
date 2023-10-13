@@ -11,7 +11,7 @@ import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.plugin.PluginConfigType;
 
 @PluginConfigType(Void.class)
-public class MultiTenantTransformation implements FilterFactory<Void, Void> {
+public class MultiTenantTransformationFilterFactory implements FilterFactory<Void, Void> {
 
     @Override
     public Void initialize(FilterFactoryContext context, Void config) {

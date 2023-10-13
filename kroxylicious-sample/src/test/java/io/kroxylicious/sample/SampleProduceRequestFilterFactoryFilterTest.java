@@ -42,7 +42,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class SampleProduceRequestFilterTest {
+class SampleProduceRequestFilterFactoryFilterTest {
 
     private static final short API_VERSION = ApiMessageType.PRODUCE.highestSupportedVersion(true); // this is arbitrary for our filter
     private static final String PRE_TRANSFORM_VALUE = "this is what the value will be transformed from";
@@ -64,14 +64,14 @@ class SampleProduceRequestFilterTest {
     @Captor
     private ArgumentCaptor<RequestHeaderData> requestHeaderDataCaptor;
 
-    private SampleProduceRequest.Filter filter;
+    private SampleProduceRequestFilterFactory.Filter filter;
     private RequestHeaderData headerData;
 
     @BeforeEach
     public void beforeEach() {
         setupContextMock();
         SampleFilterConfig config = new SampleFilterConfig(CONFIG_FIND_VALUE, CONFIG_REPLACE_VALUE);
-        this.filter = new SampleProduceRequest.Filter(config);
+        this.filter = new SampleProduceRequestFilterFactory.Filter(config);
         this.headerData = new RequestHeaderData();
     }
 

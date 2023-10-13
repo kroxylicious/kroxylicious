@@ -17,13 +17,13 @@ import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.filter.RequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
+import io.kroxylicious.proxy.plugin.Plugins;
 
-public class OptionalConfig implements FilterFactory<ExampleConfig, ExampleConfig> {
+public class RequiresConfigFactory implements FilterFactory<ExampleConfig, ExampleConfig> {
 
     @Override
     public ExampleConfig initialize(FilterFactoryContext context, ExampleConfig config) {
-        // any config object is valid
-        return config;
+        return Plugins.requireConfig(this, config);
     }
 
     @Override

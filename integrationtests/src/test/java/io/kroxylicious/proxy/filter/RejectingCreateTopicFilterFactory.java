@@ -18,8 +18,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.kroxylicious.proxy.plugin.PluginConfigType;
 
-@PluginConfigType(RejectingCreateTopic.Config.class)
-public class RejectingCreateTopic implements FilterFactory<RejectingCreateTopic.Config, RejectingCreateTopic.Config> {
+@PluginConfigType(RejectingCreateTopicFilterFactory.Config.class)
+public class RejectingCreateTopicFilterFactory implements FilterFactory<RejectingCreateTopicFilterFactory.Config, RejectingCreateTopicFilterFactory.Config> {
 
     @Override
     public Config initialize(FilterFactoryContext context, Config config) {

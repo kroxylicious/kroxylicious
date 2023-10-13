@@ -38,13 +38,13 @@ class KafkaProxyTest {
                                 brokerStartPort: 9193
                                 numberOfBrokerPorts: 2
                     filters:
-                       - type: ProduceRequestTransformation
+                       - type: ProduceRequestTransformationFilterFactory
                 """;
         ConfigParser configParser = new ConfigParser();
         try (var kafkaProxy = new KafkaProxy(configParser, configParser.parseConfiguration(config))) {
             assertThatThrownBy(kafkaProxy::startup).isInstanceOf(PluginConfigurationException.class)
                     .hasMessage(
-                            "Exception initializing filter factory ProduceRequestTransformation with config null: ProduceRequestTransformation requires configuration, but config object is null");
+                            "Exception initializing filter factory ProduceRequestTransformationFilterFactory with config null: ProduceRequestTransformationFilterFactory requires configuration, but config object is null");
         }
     }
 

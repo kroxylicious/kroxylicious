@@ -25,7 +25,7 @@ import io.kroxylicious.sample.config.SampleFilterConfig;
 import io.kroxylicious.sample.util.SampleFilterTransformer;
 
 @PluginConfigType(SampleFilterConfig.class)
-public class SampleFetchResponse implements FilterFactory<SampleFilterConfig, SampleFilterConfig> {
+public class SampleFetchResponseFilterFactory implements FilterFactory<SampleFilterConfig, SampleFilterConfig> {
 
     @Override
     public SampleFilterConfig initialize(FilterFactoryContext context, SampleFilterConfig config) {

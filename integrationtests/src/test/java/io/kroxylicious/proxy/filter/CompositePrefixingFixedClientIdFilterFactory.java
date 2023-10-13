@@ -20,19 +20,19 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.kroxylicious.proxy.plugin.PluginConfigType;
 import io.kroxylicious.proxy.plugin.Plugins;
 
-@PluginConfigType(CompositePrefixingFixedClientId.Config.class)
-public class CompositePrefixingFixedClientId
-        implements FilterFactory<CompositePrefixingFixedClientId.Config, CompositePrefixingFixedClientId.Config> {
+@PluginConfigType(CompositePrefixingFixedClientIdFilterFactory.Config.class)
+public class CompositePrefixingFixedClientIdFilterFactory
+        implements FilterFactory<CompositePrefixingFixedClientIdFilterFactory.Config, CompositePrefixingFixedClientIdFilterFactory.Config> {
 
     @Override
-    public CompositePrefixingFixedClientId.Config initialize(FilterFactoryContext context, Config config) {
+    public CompositePrefixingFixedClientIdFilterFactory.Config initialize(FilterFactoryContext context, Config config) {
         return Plugins.requireConfig(this, config);
     }
 
     @NotNull
     @Override
     public Filter createFilter(FilterFactoryContext context,
-                               CompositePrefixingFixedClientId.Config configuration) {
+                               CompositePrefixingFixedClientIdFilterFactory.Config configuration) {
         return new Filter(configuration);
     }
 
@@ -46,8 +46,8 @@ public class CompositePrefixingFixedClientId
 
         @Override
         public List<io.kroxylicious.proxy.filter.Filter> getFilters() {
-            FixedClientId.Filter clientIdFilter = new FixedClientId.Filter(new FixedClientId.Config(config.clientId));
-            return List.of(clientIdFilter, new CompositePrefixingFixedClientId.PrefixingFilter(this));
+            FixedClientIdFilterFactory.Filter clientIdFilter = new FixedClientIdFilterFactory.Filter(new FixedClientIdFilterFactory.Config(config.clientId));
+            return List.of(clientIdFilter, new CompositePrefixingFixedClientIdFilterFactory.PrefixingFilter(this));
         }
 
     }

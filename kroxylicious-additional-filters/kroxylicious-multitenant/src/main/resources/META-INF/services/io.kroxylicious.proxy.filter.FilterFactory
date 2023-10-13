@@ -1,1 +1,1 @@
-io.kroxylicious.proxy.filter.multitenant.MultiTenantTransformation
+io.kroxylicious.proxy.filter.multitenant.MultiTenantTransformationFilterFactory

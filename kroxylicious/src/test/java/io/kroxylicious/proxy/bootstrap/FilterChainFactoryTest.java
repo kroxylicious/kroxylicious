@@ -22,9 +22,9 @@ import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.internal.filter.ExampleConfig;
 import io.kroxylicious.proxy.internal.filter.NettyFilterContext;
-import io.kroxylicious.proxy.internal.filter.OptionalConfig;
-import io.kroxylicious.proxy.internal.filter.RequiresConfig;
-import io.kroxylicious.proxy.internal.filter.TestFilter;
+import io.kroxylicious.proxy.internal.filter.OptionalConfigFactory;
+import io.kroxylicious.proxy.internal.filter.RequiresConfigFactory;
+import io.kroxylicious.proxy.internal.filter.TestFilterFactory;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -50,16 +50,16 @@ class FilterChainFactoryTest {
                         @NotNull
                         @Override
                         public FilterFactory pluginInstance(@NotNull String name) {
-                            if (name.endsWith("TestFilter")) {
-                                return new TestFilter();
+                            if (name.endsWith(TestFilterFactory.class.getSimpleName())) {
+                                return new TestFilterFactory();
                             }
-                            else if (name.endsWith("RequiresConfig")) {
-                                return new RequiresConfig();
+                            else if (name.endsWith(RequiresConfigFactory.class.getSimpleName())) {
+                                return new RequiresConfigFactory();
                             }
-                            else if (name.endsWith("OptionalConfig")) {
-                                return new OptionalConfig();
+                            else if (name.endsWith(OptionalConfigFactory.class.getSimpleName())) {
+                                return new OptionalConfigFactory();
                             }
-                            throw new RuntimeException("Unknown FilterFactory" + name);
+                            throw new RuntimeException("Unknown FilterFactory: " + name);
                         }
 
                         @NotNull
@@ -93,9 +93,9 @@ class FilterChainFactoryTest {
 
     @Test
     void testCreateFilter() {
-        final ListAssert<FilterAndInvoker> listAssert = assertFiltersCreated(List.of(new FilterDefinition(TestFilter.class.getName(), config)));
-        listAssert.first().extracting(FilterAndInvoker::filter).isInstanceOfSatisfying(TestFilter.TestFilterImpl.class, testFilterImpl -> {
-            assertThat(testFilterImpl.getContributorClass()).isEqualTo(TestFilter.class);
+        final ListAssert<FilterAndInvoker> listAssert = assertFiltersCreated(List.of(new FilterDefinition(TestFilterFactory.class.getName(), config)));
+        listAssert.first().extracting(FilterAndInvoker::filter).isInstanceOfSatisfying(TestFilterFactory.TestFilterImpl.class, testFilterImpl -> {
+            assertThat(testFilterImpl.getContributorClass()).isEqualTo(TestFilterFactory.class);
             assertThat(testFilterImpl.getContext().eventLoop()).isSameAs(eventLoop);
             assertThat(testFilterImpl.getExampleConfig()).isSameAs(config);
         });
@@ -103,15 +103,15 @@ class FilterChainFactoryTest {
 
     @Test
     void testCreateFilters() {
-        final ListAssert<FilterAndInvoker> listAssert = assertFiltersCreated(List.of(new FilterDefinition(TestFilter.class.getName(), config),
-                new FilterDefinition(TestFilter.class.getName(), config)));
-        listAssert.element(0).extracting(FilterAndInvoker::filter).isInstanceOfSatisfying(TestFilter.TestFilterImpl.class, testFilterImpl -> {
-            assertThat(testFilterImpl.getContributorClass()).isEqualTo(TestFilter.class);
+        final ListAssert<FilterAndInvoker> listAssert = assertFiltersCreated(List.of(new FilterDefinition(TestFilterFactory.class.getName(), config),
+                new FilterDefinition(TestFilterFactory.class.getName(), config)));
+        listAssert.element(0).extracting(FilterAndInvoker::filter).isInstanceOfSatisfying(TestFilterFactory.TestFilterImpl.class, testFilterImpl -> {
+            assertThat(testFilterImpl.getContributorClass()).isEqualTo(TestFilterFactory.class);
             assertThat(testFilterImpl.getContext().eventLoop()).isSameAs(eventLoop);
             assertThat(testFilterImpl.getExampleConfig()).isSameAs(config);
         });
-        listAssert.element(1).extracting(FilterAndInvoker::filter).isInstanceOfSatisfying(TestFilter.TestFilterImpl.class, testFilterImpl -> {
-            assertThat(testFilterImpl.getContributorClass()).isEqualTo(TestFilter.class);
+        listAssert.element(1).extracting(FilterAndInvoker::filter).isInstanceOfSatisfying(TestFilterFactory.TestFilterImpl.class, testFilterImpl -> {
+            assertThat(testFilterImpl.getContributorClass()).isEqualTo(TestFilterFactory.class);
             assertThat(testFilterImpl.getContext().eventLoop()).isSameAs(eventLoop);
             assertThat(testFilterImpl.getExampleConfig()).isSameAs(config);
         });
@@ -120,35 +120,35 @@ class FilterChainFactoryTest {
     @Test
     void shouldReturnInvalidFilterNameIfFilterRequiresConfigAndNoneIsSupplied() {
         // Given
-        final List<FilterDefinition> filters = List.of(new FilterDefinition(TestFilter.class.getName(), config),
-                new FilterDefinition(TestFilter.class.getName(), null));
+        final List<FilterDefinition> filters = List.of(new FilterDefinition(TestFilterFactory.class.getName(), config),
+                new FilterDefinition(TestFilterFactory.class.getName(), null));
 
         // When
         var ex = assertThrows(PluginConfigurationException.class, () -> new FilterChainFactory(pfr, filters));
 
         // Then
-        assertThat(ex.getMessage()).contains(TestFilter.class.getName());
+        assertThat(ex.getMessage()).contains(TestFilterFactory.class.getName());
     }
 
     @Test
     void shouldReturnInvalidFilterNamesForAllFiltersWithoutRequiredConfig() {
         // Given
-        final List<FilterDefinition> filters = List.of(new FilterDefinition(TestFilter.class.getName(), null),
-                new FilterDefinition(TestFilter.class.getName(), null),
-                new FilterDefinition(OptionalConfig.class.getName(), null));
+        final List<FilterDefinition> filters = List.of(new FilterDefinition(TestFilterFactory.class.getName(), null),
+                new FilterDefinition(TestFilterFactory.class.getName(), null),
+                new FilterDefinition(OptionalConfigFactory.class.getName(), null));
 
         // When
         var ex = assertThrows(PluginConfigurationException.class, () -> new FilterChainFactory(pfr, filters));
 
         // Then
-        assertThat(ex.getMessage()).contains(TestFilter.class.getName());
+        assertThat(ex.getMessage()).contains(TestFilterFactory.class.getName());
     }
 
     @Test
     void shouldPassValidationWhenAllFiltersHaveConfiguration() {
         // Given
-        final List<FilterDefinition> filterDefinitions = List.of(new FilterDefinition(TestFilter.class.getName(), config),
-                new FilterDefinition(TestFilter.class.getName(), config));
+        final List<FilterDefinition> filterDefinitions = List.of(new FilterDefinition(TestFilterFactory.class.getName(), config),
+                new FilterDefinition(TestFilterFactory.class.getName(), config));
 
         // When
 
@@ -160,9 +160,9 @@ class FilterChainFactoryTest {
     @Test
     void shouldPassValidationWhenFiltersWithOptionalConfigurationAreMissingConfiguration() {
         // Given
-        final List<FilterDefinition> filterDefinitions = List.of(new FilterDefinition(TestFilter.class.getName(), config),
-                new FilterDefinition(TestFilter.class.getName(), config),
-                new FilterDefinition(OptionalConfig.class.getName(), null));
+        final List<FilterDefinition> filterDefinitions = List.of(new FilterDefinition(TestFilterFactory.class.getName(), config),
+                new FilterDefinition(TestFilterFactory.class.getName(), config),
+                new FilterDefinition(OptionalConfigFactory.class.getName(), null));
 
         // When
 
@@ -180,7 +180,7 @@ class FilterChainFactoryTest {
     @Test
     void shouldFailValidationIfRequireConfigMissing() {
         // Given
-        final FilterDefinition requiredConfig = new FilterDefinition(RequiresConfig.class.getName(), null);
+        final FilterDefinition requiredConfig = new FilterDefinition(RequiresConfigFactory.class.getName(), null);
         List<FilterDefinition> list = List.of(requiredConfig);
 
         // When
@@ -192,7 +192,7 @@ class FilterChainFactoryTest {
     @Test
     void shouldPassValidationIfRequireConfigSupplied() {
         // Given
-        final FilterDefinition requiredConfig = new FilterDefinition(RequiresConfig.class.getName(), new ExampleConfig());
+        final FilterDefinition requiredConfig = new FilterDefinition(RequiresConfigFactory.class.getName(), new ExampleConfig());
 
         // When
 
@@ -203,7 +203,7 @@ class FilterChainFactoryTest {
     @Test
     void shouldPassValidationIfOptionalConfigSupplied() {
         // Given
-        final FilterDefinition requiredConfig = new FilterDefinition(OptionalConfig.class.getName(), new ExampleConfig());
+        final FilterDefinition requiredConfig = new FilterDefinition(OptionalConfigFactory.class.getName(), new ExampleConfig());
 
         // When
 
@@ -214,7 +214,7 @@ class FilterChainFactoryTest {
     @Test
     void shouldPassValidationIfOptionalConfigIsMissing() {
         // Given
-        final FilterDefinition requiredConfig = new FilterDefinition(OptionalConfig.class.getName(), null);
+        final FilterDefinition requiredConfig = new FilterDefinition(OptionalConfigFactory.class.getName(), null);
 
         // When
 

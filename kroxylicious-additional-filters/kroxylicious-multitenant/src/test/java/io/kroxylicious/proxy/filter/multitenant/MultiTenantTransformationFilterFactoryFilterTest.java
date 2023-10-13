@@ -52,13 +52,13 @@ import static org.mockito.Mock.Strictness.LENIENT;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class MultiTenantTransformationFilterTest {
+class MultiTenantTransformationFilterFactoryFilterTest {
     private static final Pattern TEST_RESOURCE_FILTER = Pattern.compile(
-            String.format("%s/.*\\.yaml", MultiTenantTransformationFilterTest.class.getPackageName().replace(".", "/")));
+            String.format("%s/.*\\.yaml", MultiTenantTransformationFilterFactoryFilterTest.class.getPackageName().replace(".", "/")));
     private static final String TENANT_1 = "tenant1";
 
     private static List<ResourceInfo> getTestResources() throws IOException {
-        var resources = ClassPath.from(MultiTenantTransformationFilterTest.class.getClassLoader()).getResources().stream()
+        var resources = ClassPath.from(MultiTenantTransformationFilterFactoryFilterTest.class.getClassLoader()).getResources().stream()
                 .filter(ri -> TEST_RESOURCE_FILTER.matcher(ri.getResourceName()).matches()).toList();
 
         // https://youtrack.jetbrains.com/issue/IDEA-315462: we've seen issues in IDEA in IntelliJ Workspace Model API mode where test resources
@@ -152,7 +152,7 @@ class MultiTenantTransformationFilterTest {
 
     @Test
     void testContributor() {
-        MultiTenantTransformation factory = new MultiTenantTransformation();
+        MultiTenantTransformationFilterFactory factory = new MultiTenantTransformationFilterFactory();
         assertThat(factory.createFilter(Mockito.mock(FilterFactoryContext.class), null)).isInstanceOf(MultiTenantTransformationFilter.class);
     }
 }

@@ -22,7 +22,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
-import io.kroxylicious.proxy.filter.FixedClientId;
+import io.kroxylicious.proxy.filter.FixedClientIdFilterFactory;
 import io.kroxylicious.test.ApiMessageSampleGenerator;
 import io.kroxylicious.test.ApiMessageSampleGenerator.ApiAndVersion;
 import io.kroxylicious.test.Request;
@@ -57,7 +57,7 @@ public class ProxyRpcTest {
     @BeforeAll
     public static void beforeAll() {
         mockTester = mockKafkaKroxyliciousTester((mockBootstrap) -> proxy(mockBootstrap)
-                .addToFilters(new FilterDefinitionBuilder(FixedClientId.class.getName()).withConfig("clientId", "fixed").build()));
+                .addToFilters(new FilterDefinitionBuilder(FixedClientIdFilterFactory.class.getName()).withConfig("clientId", "fixed").build()));
     }
 
     @BeforeEach

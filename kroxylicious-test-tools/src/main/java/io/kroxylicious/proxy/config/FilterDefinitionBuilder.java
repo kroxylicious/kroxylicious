@@ -17,7 +17,7 @@ public class FilterDefinitionBuilder extends AbstractDefinitionBuilder<FilterDef
 
     @Override
     protected FilterDefinition buildInternal(String type, Map<String, Object> config) {
-        var configType = new ServiceBasedPluginFactoryRegistry().load(FilterFactory.class).get(type).config();
+        var configType = new ServiceBasedPluginFactoryRegistry().pluginFactory(FilterFactory.class).configType(type);
         return new FilterDefinition(type, mapper.convertValue(config, configType));
     }
 }
