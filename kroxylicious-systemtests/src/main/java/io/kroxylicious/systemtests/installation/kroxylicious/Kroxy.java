@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.systemtests.installation.kroxy;
+package io.kroxylicious.systemtests.installation.kroxylicious;
 
 import java.io.IOException;
 import java.util.List;
@@ -19,9 +19,9 @@ import io.fabric8.kubernetes.api.model.Pod;
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
-import io.kroxylicious.systemtests.templates.KroxyConfigTemplates;
-import io.kroxylicious.systemtests.templates.KroxyDeploymentTemplates;
-import io.kroxylicious.systemtests.templates.KroxyServiceTemplates;
+import io.kroxylicious.systemtests.templates.kroxylicious.KroxyConfigTemplates;
+import io.kroxylicious.systemtests.templates.kroxylicious.KroxyDeploymentTemplates;
+import io.kroxylicious.systemtests.templates.kroxylicious.KroxyServiceTemplates;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;

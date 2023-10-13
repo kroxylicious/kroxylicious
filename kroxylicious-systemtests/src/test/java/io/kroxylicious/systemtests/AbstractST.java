@@ -18,8 +18,8 @@ import org.junit.jupiter.api.TestInstance;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.kroxylicious.systemtests.installation.kroxy.CertManager;
-import io.kroxylicious.systemtests.installation.kroxy.Kroxy;
+import io.kroxylicious.systemtests.installation.kroxylicious.CertManager;
+import io.kroxylicious.systemtests.installation.kroxylicious.Kroxy;
 import io.kroxylicious.systemtests.installation.strimzi.Strimzi;
 import io.kroxylicious.systemtests.k8s.KubeClusterResource;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;

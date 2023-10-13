@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.systemtests.templates;
+package io.kroxylicious.systemtests.templates.kroxylicious;
 
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 

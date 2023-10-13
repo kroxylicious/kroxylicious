@@ -114,14 +114,6 @@ public interface Constants {
      */
     String DEPLOYMENT = "Deployment";
     /**
-     * The constant KROXY_KUBE_DIR_PORTPERBROKER.
-     */
-    String KROXY_KUBE_DIR_PORTPERBROKER = "/kubernetes-examples/portperbroker_plain";
-    /**
-     * The constant KROXY_KUBE_DIR_MULTITENANT.
-     */
-    String KROXY_KUBE_DIR_MULTITENANT = "/kubernetes-examples/multitenant";
-    /**
      * The constant STRIMZI_KAFKA_IMAGE.
      */
     String STRIMZI_KAFKA_IMAGE = "quay.io/strimzi/kafka:latest-kafka-" + KAFKA_VERSION_DEFAULT;
@@ -134,4 +126,12 @@ public interface Constants {
      * The constant CERT_MANAGER_URL.
      */
     String CERT_MANAGER_URL = "https://github.com/cert-manager/cert-manager/releases/latest/download/cert-manager.yaml";
+    /**
+     * The constant KAFKA_CONSUMER_CLIENT_LABEL.
+     */
+    String KAFKA_CONSUMER_CLIENT_LABEL = "kafka-consumer-client";
+    /**
+     * The constant KAFKA_PRODUCER_CLIENT_LABEL.
+     */
+    String KAFKA_PRODUCER_CLIENT_LABEL = "kafka-producer-client";
 }

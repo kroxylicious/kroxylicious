@@ -15,10 +15,10 @@ import org.junit.jupiter.api.TestInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.kroxylicious.systemtests.installation.kroxy.Kroxy;
+import io.kroxylicious.systemtests.installation.kroxylicious.Kroxy;
 import io.kroxylicious.systemtests.steps.KafkaSteps;
 import io.kroxylicious.systemtests.steps.KroxySteps;
-import io.kroxylicious.systemtests.templates.KafkaTemplates;
+import io.kroxylicious.systemtests.templates.strimzi.KafkaTemplates;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;

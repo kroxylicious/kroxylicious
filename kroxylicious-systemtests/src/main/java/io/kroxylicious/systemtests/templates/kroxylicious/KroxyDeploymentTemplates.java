@@ -4,10 +4,9 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.systemtests.templates;
+package io.kroxylicious.systemtests.templates.kroxylicious;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -25,13 +24,7 @@ import io.kroxylicious.systemtests.Constants;
  */
 public class KroxyDeploymentTemplates {
 
-    private static Map<String, String> getKroxyLabelsSelector() {
-        return new HashMap<>() {
-            {
-                put("app", "kroxylicious");
-            }
-        };
-    }
+    private static Map<String, String> kroxyLabelSelector = Map.of("app", "kroxylicious");
 
     /**
      * Default kroxy deployment deployment builder.
@@ -48,16 +41,16 @@ public class KroxyDeploymentTemplates {
                 .withNewMetadata()
                 .withName("kroxylicious-proxy")
                 .withNamespace(namespaceName)
-                .addToLabels(getKroxyLabelsSelector())
+                .addToLabels(kroxyLabelSelector)
                 .endMetadata()
                 .withNewSpec()
                 .withReplicas(replicas)
                 .withNewSelector()
-                .addToMatchLabels(getKroxyLabelsSelector())
+                .addToMatchLabels(kroxyLabelSelector)
                 .endSelector()
                 .withNewTemplate()
                 .withNewMetadata()
-                .withLabels(getKroxyLabelsSelector())
+                .withLabels(kroxyLabelSelector)
                 .endMetadata()
                 .withNewSpec()
                 .withContainers(new ContainerBuilder()

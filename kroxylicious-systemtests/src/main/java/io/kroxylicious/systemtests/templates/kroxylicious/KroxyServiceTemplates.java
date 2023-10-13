@@ -4,10 +4,9 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.systemtests.templates;
+package io.kroxylicious.systemtests.templates.kroxylicious;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -20,13 +19,7 @@ import io.kroxylicious.systemtests.Constants;
 
 public class KroxyServiceTemplates {
 
-    private static Map<String, String> getKroxyLabelsSelector() {
-        return new HashMap<>() {
-            {
-                put("app", "kroxylicious");
-            }
-        };
-    }
+    private static Map<String, String> kroxyLabelSelector = Map.of("app", "kroxylicious");
 
     public static ServiceBuilder defaultKroxyService(String namespaceName) {
         return new ServiceBuilder()
@@ -37,7 +30,7 @@ public class KroxyServiceTemplates {
                 .withNamespace(namespaceName)
                 .endMetadata()
                 .editSpec()
-                .withSelector(getKroxyLabelsSelector())
+                .withSelector(kroxyLabelSelector)
                 .withPorts(getPlainServicePorts())
                 .endSpec();
     }
