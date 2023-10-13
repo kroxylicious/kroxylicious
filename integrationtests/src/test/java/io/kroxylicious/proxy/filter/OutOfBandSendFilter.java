@@ -41,13 +41,13 @@ public class OutOfBandSendFilter implements DescribeClusterRequestFilter, Descri
     }
 
     public record OutOfBandSendFilterConfig(ApiKeys apiKeyToSend, int tagIdToCollect) {
-            @JsonCreator
-            public OutOfBandSendFilterConfig(@JsonProperty(value = "apiKeyToSend", required = true) ApiKeys apiKeyToSend,
-                                             @JsonProperty(value = "tagToCollect", required = true) int tagIdToCollect) {
-                this.apiKeyToSend = apiKeyToSend;
-                this.tagIdToCollect = tagIdToCollect;
-            }
+        @JsonCreator
+        public OutOfBandSendFilterConfig(@JsonProperty(value = "apiKeyToSend", required = true) ApiKeys apiKeyToSend,
+                                         @JsonProperty(value = "tagToCollect", required = true) int tagIdToCollect) {
+            this.apiKeyToSend = apiKeyToSend;
+            this.tagIdToCollect = tagIdToCollect;
         }
+    }
 
     @Override
     public CompletionStage<RequestFilterResult> onDescribeClusterRequest(short apiVersion, RequestHeaderData header, DescribeClusterRequestData request,
@@ -78,6 +78,5 @@ public class OutOfBandSendFilter implements DescribeClusterRequestFilter, Descri
         }
         return message;
     }
-
 
 }

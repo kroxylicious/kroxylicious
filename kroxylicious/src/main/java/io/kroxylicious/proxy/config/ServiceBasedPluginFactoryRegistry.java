@@ -41,7 +41,7 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
 
     private final Map<Class<?>, Map<String, ProviderAndConfigType<?>>> pluginInterfaceToNameToProvider = new HashMap<>();
 
-    public Map<String, ProviderAndConfigType<?>> load(Class<?> pluginInterface) {
+    Map<String, ProviderAndConfigType<?>> load(Class<?> pluginInterface) {
         return pluginInterfaceToNameToProvider.computeIfAbsent(pluginInterface,
                 i -> loadProviders(pluginInterface));
     }
@@ -87,7 +87,7 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
     public <P> @NonNull PluginFactory<P> pluginFactory(@NonNull Class<P> pluginClass) {
         var nameToProvider = load(pluginClass);
         if (nameToProvider != null && !nameToProvider.isEmpty()) {
-            return new PluginFactory<P>() {
+            return new PluginFactory<>() {
                 @Override
                 public @NonNull P pluginInstance(String instanceName) {
                     var provider = nameToProvider.get(instanceName);

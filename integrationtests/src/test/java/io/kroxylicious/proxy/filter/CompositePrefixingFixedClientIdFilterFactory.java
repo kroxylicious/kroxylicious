@@ -18,10 +18,12 @@ import io.kroxylicious.proxy.plugin.Plugins;
 
 @PluginConfigType(CompositePrefixingFixedClientIdFilter.CompositePrefixingFixedClientIdFilterConfig.class)
 public class CompositePrefixingFixedClientIdFilterFactory
-        implements FilterFactory<CompositePrefixingFixedClientIdFilter.CompositePrefixingFixedClientIdFilterConfig, CompositePrefixingFixedClientIdFilter.CompositePrefixingFixedClientIdFilterConfig> {
+        implements
+        FilterFactory<CompositePrefixingFixedClientIdFilter.CompositePrefixingFixedClientIdFilterConfig, CompositePrefixingFixedClientIdFilter.CompositePrefixingFixedClientIdFilterConfig> {
 
     @Override
-    public CompositePrefixingFixedClientIdFilter.CompositePrefixingFixedClientIdFilterConfig initialize(FilterFactoryContext context, CompositePrefixingFixedClientIdFilter.CompositePrefixingFixedClientIdFilterConfig config) {
+    public CompositePrefixingFixedClientIdFilter.CompositePrefixingFixedClientIdFilterConfig initialize(FilterFactoryContext context,
+                                                                                                        CompositePrefixingFixedClientIdFilter.CompositePrefixingFixedClientIdFilterConfig config) {
         return Plugins.requireConfig(this, config);
     }
 
