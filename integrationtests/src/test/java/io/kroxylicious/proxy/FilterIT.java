@@ -52,7 +52,9 @@ import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
 import io.kroxylicious.proxy.filter.ApiVersionsMarkingFilterFactory;
 import io.kroxylicious.proxy.filter.CompositePrefixingFixedClientIdFilterFactory;
 import io.kroxylicious.proxy.filter.ForwardingStyle;
+import io.kroxylicious.proxy.filter.RejectingCreateTopicFilter;
 import io.kroxylicious.proxy.filter.RejectingCreateTopicFilterFactory;
+import io.kroxylicious.proxy.filter.RequestResponseMarkingFilter;
 import io.kroxylicious.proxy.filter.RequestResponseMarkingFilterFactory;
 import io.kroxylicious.proxy.internal.filter.FetchResponseTransformationFilterFactory;
 import io.kroxylicious.proxy.internal.filter.ProduceRequestTransformationFilterFactory;
@@ -64,9 +66,9 @@ import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
 import static io.kroxylicious.UnknownTaggedFields.unknownTaggedFieldsToStrings;
-import static io.kroxylicious.proxy.filter.ApiVersionsMarkingFilterFactory.Filter.INTERSECTED_API_VERSION_RANGE_TAG;
-import static io.kroxylicious.proxy.filter.ApiVersionsMarkingFilterFactory.Filter.UPSTREAM_API_VERSION_RANGE_TAG;
-import static io.kroxylicious.proxy.filter.RequestResponseMarkingFilterFactory.Filter.FILTER_NAME_TAG;
+import static io.kroxylicious.proxy.filter.ApiVersionsMarkingFilter.INTERSECTED_API_VERSION_RANGE_TAG;
+import static io.kroxylicious.proxy.filter.ApiVersionsMarkingFilter.UPSTREAM_API_VERSION_RANGE_TAG;
+import static io.kroxylicious.proxy.filter.RequestResponseMarkingFilter.FILTER_NAME_TAG;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.mockKafkaKroxyliciousTester;
@@ -294,7 +296,7 @@ class FilterIT {
 
             var target = direction == RequestResponseMarkingFilterFactory.Direction.REQUEST ? requestMessageReceivedByBroker : responseMessageReceivedByClient;
             assertThat(unknownTaggedFieldsToStrings(target, FILTER_NAME_TAG)).containsExactly(
-                    RequestResponseMarkingFilterFactory.class.getSimpleName() + ".Filter-%s-%s".formatted(name, direction.toString().toLowerCase(Locale.ROOT)));
+                    RequestResponseMarkingFilter.class.getSimpleName() + "-%s-%s".formatted(name, direction.toString().toLowerCase(Locale.ROOT)));
         }
     }
 
@@ -326,7 +328,7 @@ class FilterIT {
                 .isThrownBy(() -> proxyAdmin.createTopics(List.of(new NewTopic(TOPIC_1, 1, (short) 1))).all().get())
                 .withCauseInstanceOf(InvalidTopicException.class)
                 .havingCause()
-                .withMessage(RejectingCreateTopicFilterFactory.Filter.ERROR_MESSAGE);
+                .withMessage(RejectingCreateTopicFilter.ERROR_MESSAGE);
     }
 
     @Test

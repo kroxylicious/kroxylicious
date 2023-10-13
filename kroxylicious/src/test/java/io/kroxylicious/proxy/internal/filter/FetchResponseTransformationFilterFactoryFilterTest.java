@@ -67,7 +67,7 @@ class FetchResponseTransformationFilterFactoryFilterTest {
     private static final String ORIGINAL_RECORD_VALUE = "lowercasevalue";
     private static final String EXPECTED_TRANSFORMED_RECORD_VALUE = ORIGINAL_RECORD_VALUE.toUpperCase(Locale.ROOT);
     private static final String RECORD_KEY = "key";
-    private FetchResponseTransformationFilterFactory.Filter filter;
+    private FetchResponseTransformationFilter filter;
     @Mock(strictness = Mock.Strictness.LENIENT)
     FilterContext context;
 
@@ -89,7 +89,7 @@ class FetchResponseTransformationFilterFactoryFilterTest {
     @BeforeEach
     @SuppressWarnings("unchecked")
     void setUp() {
-        filter = new FetchResponseTransformationFilterFactory.Filter(new UpperCasing.Transformation(
+        filter = new FetchResponseTransformationFilter(new UpperCasing.Transformation(
                 new UpperCasing.Config("UTF-8")));
 
         when(context.forwardResponse(responseHeaderDataCaptor.capture(), apiMessageCaptor.capture())).thenAnswer(
@@ -120,7 +120,7 @@ class FetchResponseTransformationFilterFactoryFilterTest {
         doReturn(new UpperCasing()).when(constructContext).pluginInstance(any(), any());
         Config config = new Config(UpperCasing.class.getName(),
                 new UpperCasing.Config("UTF-8"));
-        assertThat(factory.createFilter(constructContext, config)).isInstanceOf(FetchResponseTransformationFilterFactory.Filter.class);
+        assertThat(factory.createFilter(constructContext, config)).isInstanceOf(FetchResponseTransformationFilter.class);
     }
 
     @Test

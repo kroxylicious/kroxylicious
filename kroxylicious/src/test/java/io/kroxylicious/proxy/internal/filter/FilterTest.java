@@ -29,6 +29,6 @@ class FilterTest {
         ProduceRequestTransformationFilterFactory.Config config = new ProduceRequestTransformationFilterFactory.Config(
                 UpperCasing.class.getName(),
                 new UpperCasing.Config("UTF-8"));
-        assertThat(factory.createFilter(constructContext, config)).isInstanceOf(ProduceRequestTransformationFilterFactory.Filter.class);
+        assertThat(factory.createFilter(constructContext, config)).isInstanceOf(ProduceRequestTransformationFilter.class);
     }
 }

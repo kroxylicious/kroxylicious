@@ -32,7 +32,7 @@ class ProduceValidationFilterFactoryTest {
         ProduceValidationFilterFactory factory = new ProduceValidationFilterFactory();
         ValidationConfig config = new ValidationConfig(true, List.of(), new RecordValidationRule(null, null));
         Filter filter = factory.createFilter(null, config);
-        assertThat(filter).isNotNull().isInstanceOf(ProduceValidationFilterFactory.Filter.class);
+        assertThat(filter).isNotNull().isInstanceOf(ProduceValidationFilter.class);
     }
 
 }
