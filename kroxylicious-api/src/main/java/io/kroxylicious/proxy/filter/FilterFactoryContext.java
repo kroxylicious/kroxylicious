@@ -31,11 +31,11 @@ public interface FilterFactoryContext {
     /**
      * Gets a plugin instance for the given plugin type and name
      * @param pluginClass The plugin type
-     * @param pluginName The plugin name
+     * @param instanceName The plugin instance name
      * @return The plugin instance
      * @param <P> The plugin manager type
      * @throws UnknownPluginTypeException
      * @throws UnknownPluginInstanceException
      */
-    <P> @NonNull P pluginInstance(@NonNull Class<P> pluginClass, @NonNull String pluginName);
+    <P> @NonNull P pluginInstance(@NonNull Class<P> pluginClass, @NonNull String instanceName);
 }

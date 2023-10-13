@@ -49,22 +49,22 @@ class FilterChainFactoryTest {
                     return new PluginFactory() {
                         @NotNull
                         @Override
-                        public FilterFactory pluginInstance(@NotNull String name) {
-                            if (name.endsWith(TestFilterFactory.class.getSimpleName())) {
+                        public FilterFactory pluginInstance(@NotNull String instanceName) {
+                            if (instanceName.endsWith(TestFilterFactory.class.getSimpleName())) {
                                 return new TestFilterFactory();
                             }
-                            else if (name.endsWith(RequiresConfigFactory.class.getSimpleName())) {
+                            else if (instanceName.endsWith(RequiresConfigFactory.class.getSimpleName())) {
                                 return new RequiresConfigFactory();
                             }
-                            else if (name.endsWith(OptionalConfigFactory.class.getSimpleName())) {
+                            else if (instanceName.endsWith(OptionalConfigFactory.class.getSimpleName())) {
                                 return new OptionalConfigFactory();
                             }
-                            throw new RuntimeException("Unknown FilterFactory: " + name);
+                            throw new RuntimeException("Unknown FilterFactory: " + instanceName);
                         }
 
                         @NotNull
                         @Override
-                        public Class<?> configType(@NotNull String name) {
+                        public Class<?> configType(@NotNull String instanceName) {
                             return ExampleConfig.class;
                         }
                     };

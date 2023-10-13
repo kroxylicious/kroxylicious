@@ -89,12 +89,12 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
         if (nameToProvider != null && !nameToProvider.isEmpty()) {
             return new PluginFactory<P>() {
                 @Override
-                public @NonNull P pluginInstance(String name) {
-                    var provider = nameToProvider.get(name);
+                public @NonNull P pluginInstance(String instanceName) {
+                    var provider = nameToProvider.get(instanceName);
                     if (provider != null) {
                         return pluginClass.cast(provider.provider().get());
                     }
-                    throw unknownPluginInstanceException(name);
+                    throw unknownPluginInstanceException(instanceName);
                 }
 
                 private UnknownPluginInstanceException unknownPluginInstanceException(String name) {
@@ -104,12 +104,12 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
 
                 @NonNull
                 @Override
-                public Class<?> configType(@NonNull String name) {
-                    var providerAndConfigType = nameToProvider.get(name);
+                public Class<?> configType(@NonNull String instanceName) {
+                    var providerAndConfigType = nameToProvider.get(instanceName);
                     if (providerAndConfigType != null) {
                         return providerAndConfigType.config();
                     }
-                    throw unknownPluginInstanceException(name);
+                    throw unknownPluginInstanceException(instanceName);
                 }
             };
         }

@@ -78,8 +78,8 @@ public class FilterChainFactory {
                 }
 
                 @Override
-                public <P> @NonNull P pluginInstance(@NonNull Class<P> pluginClass, @NonNull String pluginName) {
-                    return pfr.pluginFactory(pluginClass).pluginInstance(pluginName);
+                public <P> @NonNull P pluginInstance(@NonNull Class<P> pluginClass, @NonNull String instanceName) {
+                    return pfr.pluginFactory(pluginClass).pluginInstance(instanceName);
                 }
             };
             this.initialized = filterDefinitions.stream()
