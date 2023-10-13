@@ -74,7 +74,7 @@ public class KafkaUtils {
     }
 
     /**
-     * Consume message using test clients.
+     * Consume message with test clients.
      *
      * @param deployNamespace the deploy namespace
      * @param topicName the topic name
@@ -91,8 +91,7 @@ public class KafkaUtils {
         File file = replaceStringInResourceFile("kafka-consumer-template.yaml", "kafka-consumer.yaml", Map.of(
                 "%BOOTSTRAP_SERVERS%", bootstrap,
                 "%TOPIC_NAME%", topicName,
-                "%MESSAGE_COUNT%", "\"" + numOfMessages + "\""
-        ));
+                "%MESSAGE_COUNT%", "\"" + numOfMessages + "\""));
 
         kubeClient().getClient().load(new FileInputStream(file)).inNamespace(deployNamespace).create();
         String podName = getPodNameByLabel(deployNamespace, "app", Constants.KAFKA_CONSUMER_CLIENT_LABEL, timeoutMilliseconds);
@@ -133,7 +132,7 @@ public class KafkaUtils {
     }
 
     /**
-     * Produce message using test clients.
+     * Produce message with test clients.
      *
      * @param deployNamespace the deploy namespace
      * @param topicName the topic name
@@ -149,8 +148,7 @@ public class KafkaUtils {
                 "%BOOTSTRAP_SERVERS%", bootstrap,
                 "%TOPIC_NAME%", topicName,
                 "%MESSAGE_COUNT%", "\"" + numOfMessages + "\"",
-                "%MESSAGE%", message
-            ));
+                "%MESSAGE%", message));
         kubeClient().getClient().load(new FileInputStream(file)).inNamespace(deployNamespace).create();
         return getPodNameByLabel(deployNamespace, "app", Constants.KAFKA_PRODUCER_CLIENT_LABEL, Duration.ofSeconds(10).toMillis());
     }
@@ -182,7 +180,8 @@ public class KafkaUtils {
         kubeClient().getClient().batch().v1().jobs().inNamespace(deployNamespace).delete();
         kubeClient().getClient().pods().inNamespace(deployNamespace).withLabel("app", Constants.KAFKA_PRODUCER_CLIENT_LABEL).delete();
         kubeClient().getClient().pods().inNamespace(deployNamespace).withLabel("app", Constants.KAFKA_CONSUMER_CLIENT_LABEL).delete();
-        kubeClient().getClient().pods().inNamespace(deployNamespace).withLabel("app", Constants.KAFKA_CONSUMER_CLIENT_LABEL).waitUntilCondition(x -> x == null, 10, TimeUnit.SECONDS);
+        kubeClient().getClient().pods().inNamespace(deployNamespace).withLabel("app", Constants.KAFKA_CONSUMER_CLIENT_LABEL).waitUntilCondition(x -> x == null, 10,
+                TimeUnit.SECONDS);
     }
 
     /**
