@@ -16,7 +16,7 @@ import io.kroxylicious.proxy.plugin.PluginReference;
 
 public record FilterDefinition(
                                @PluginReference(FilterFactory.class) @JsonProperty(required = true) String type,
-                               @PluginConfig(pluginNameProperty = "type") Object config) {
+                               @PluginConfig(instanceNameProperty = "type") Object config) {
 
     @JsonCreator
     public FilterDefinition {

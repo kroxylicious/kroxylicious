@@ -161,7 +161,7 @@ public class ConfigParser implements PluginFactoryRegistry {
             }
             var ctors = ((AnnotatedClass) af.getTypeContext()).getConstructors();
             for (var ctor : ctors) {
-                pluginReference = findPluginNameAnnotation(ctor, pcAnno.pluginNameProperty());
+                pluginReference = findPluginNameAnnotation(ctor, pcAnno.instanceNameProperty());
                 if (pluginReference != null) {
                     break;
                 }
@@ -177,8 +177,7 @@ public class ConfigParser implements PluginFactoryRegistry {
                 // for properties annotated @PluginConfig
                 throw new PluginDiscoveryException(annotated + " lacked the @" + PluginConfig.class.getName() + " annotation");
             }
-            var pluginNameProperty = pcAnno.pluginNameProperty();
-            pluginReference = findPluginNameAnnotation(ap.getOwner(), pluginNameProperty);
+            pluginReference = findPluginReferenceAnnotation(ap.getOwner(), pcAnno.instanceNameProperty());
             return pluginReference;
         }
 
@@ -187,23 +186,23 @@ public class ConfigParser implements PluginFactoryRegistry {
             return new PluginConfigTypeIdResolver(providersByName);
         }
 
-        private PluginReference findPluginNameAnnotation(AnnotatedWithParams owner, String pluginNameProperty) {
+        private PluginReference findPluginReferenceAnnotation(AnnotatedWithParams owner, String instanceNameProperty) {
             AnnotatedElement parameterOwner = owner.getAnnotated();
             if (parameterOwner instanceof Constructor<?> ctor) {
-                return findPluginNameAnnotation(pluginNameProperty, ctor);
+                return findPluginReferenceAnnotation(instanceNameProperty, ctor);
             }
             else if (owner instanceof AnnotatedConstructor ac) {
-                return findPluginNameAnnotation(pluginNameProperty, ac);
+                return findPluginReferenceAnnotation(instanceNameProperty, ac);
             }
             else {
                 throw new IllegalStateException("Unsupported owner: " + owner);
             }
         }
 
-        private static PluginReference findPluginNameAnnotation(String pluginNameProperty, AnnotatedConstructor ac) {
+        private static PluginReference findPluginReferenceAnnotation(String instanceNameProperty, AnnotatedConstructor ac) {
             for (int i = 0; i < ac.getParameterCount(); i++) {
                 var oap = ac.getParameter(i);
-                if (pluginNameProperty.equals(oap.getName())) {
+                if (instanceNameProperty.equals(oap.getName())) {
                     PluginReference annotation = oap.getAnnotation(PluginReference.class);
                     if (annotation != null) {
                         return annotation;
@@ -213,10 +212,10 @@ public class ConfigParser implements PluginFactoryRegistry {
             return null;
         }
 
-        private static PluginReference findPluginNameAnnotation(String pluginNameProperty, Constructor<?> ctor) {
+        private static PluginReference findPluginReferenceAnnotation(String instanceNameProperty, Constructor<?> ctor) {
             Parameter[] parameters = ctor.getParameters();
             for (Parameter parameter : parameters) {
-                if (pluginNameProperty.equals(parameter.getName())) {
+                if (instanceNameProperty.equals(parameter.getName())) {
                     PluginReference annotation = parameter.getAnnotation(PluginReference.class);
                     if (annotation != null) {
                         return annotation;

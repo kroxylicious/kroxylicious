@@ -27,11 +27,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  */
 public class FilterChainFactory {
 
-    record UninitializedFilterFactory(String pluginName, FilterFactory<? super Object, ? super Object> filterFactory, Object config) {
-
-        public static UninitializedFilterFactory xx(String type, FilterFactory<? super Object, ? super Object> filterFactory, Object config) {
-            return new UninitializedFilterFactory(type, filterFactory, config);
-        }
+    record UninitializedFilterFactory(String instanceName, FilterFactory<? super Object, ? super Object> filterFactory, Object config) {
 
         private InitializedFilterFactory initialize(FilterFactoryContext context) {
             Object result;
@@ -39,7 +35,7 @@ public class FilterChainFactory {
                 result = filterFactory.initialize(context, config);
             }
             catch (Exception e) {
-                throw new PluginConfigurationException("Exception initializing filter factory " + pluginName + " with config " + config + ": " + e.getMessage(), e);
+                throw new PluginConfigurationException("Exception initializing filter factory " + instanceName + " with config " + config + ": " + e.getMessage(), e);
             }
             return new InitializedFilterFactory(filterFactory, result);
         }
@@ -87,7 +83,7 @@ public class FilterChainFactory {
                         FilterFactory<? super Object, ? super Object> filterFactory = pluginFactory.pluginInstance(fd.type());
                         Class<?> configType = pluginFactory.configType(fd.type());
                         if (fd.config() == null || configType.isInstance(fd.config())) {
-                            return UninitializedFilterFactory.xx(fd.type(), filterFactory, fd.config());
+                            return new UninitializedFilterFactory(fd.type(), filterFactory, fd.config());
                         }
                         else {
                             throw new PluginConfigurationException("accepts config of type " +

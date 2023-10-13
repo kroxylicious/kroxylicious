@@ -69,13 +69,13 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
         var bySingleton = nameToProviders.entrySet().stream().collect(
                 Collectors.partitioningBy(e -> e.getValue().size() == 1));
         if (LOGGER.isWarnEnabled()) {
-            for (Map.Entry<String, Set<ProviderAndConfigType<?>>> ambiguousPluginNameToProviders : bySingleton.get(false)) {
+            for (Map.Entry<String, Set<ProviderAndConfigType<?>>> ambiguousInstanceNameToProviders : bySingleton.get(false)) {
                 LOGGER.warn("'{}' would be an ambiguous reference to a {} provider. "
                         + "It could refer to any of {}"
                         + " so to avoid ambiguous behaviour those fully qualified names must be used",
-                        ambiguousPluginNameToProviders.getKey(),
+                        ambiguousInstanceNameToProviders.getKey(),
                         pluginInterface.getSimpleName(),
-                        ambiguousPluginNameToProviders.getValue().stream().map(p -> p.provider().type().getName()).collect(Collectors.joining(", ")));
+                        ambiguousInstanceNameToProviders.getValue().stream().map(p -> p.provider().type().getName()).collect(Collectors.joining(", ")));
             }
         }
         return bySingleton.get(true).stream().collect(Collectors.toMap(

@@ -42,7 +42,7 @@ public class PluginAnnotationIntrospector extends JacksonAnnotationIntrospector 
      * <pre>{@code
      * @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.EXTERNAL_PROPERTY, property = "type")
      * }</pre>
-     * where "type" is taken from the {@link PluginConfig#pluginNameProperty()}.
+     * where "type" is taken from the {@link PluginConfig#instanceNameProperty()}.
      * @param pc The plugin config annotation
      * @return The fake annotation instance
      */
@@ -66,7 +66,7 @@ public class PluginAnnotationIntrospector extends JacksonAnnotationIntrospector 
 
             @Override
             public String property() {
-                return pc.pluginNameProperty();
+                return pc.instanceNameProperty();
             }
 
             @Override

@@ -36,7 +36,7 @@ public class FetchResponseTransformationFilterFactory
     }
 
     public record Config(@JsonProperty(required = true) @PluginReference(ByteBufferTransformationFactory.class) String transformation,
-                         @PluginConfig(pluginNameProperty = "transformation") Object config) {
+                         @PluginConfig(instanceNameProperty = "transformation") Object config) {
 
     }
 

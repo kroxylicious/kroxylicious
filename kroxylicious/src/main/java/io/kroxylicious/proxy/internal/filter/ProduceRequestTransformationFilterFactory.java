@@ -21,7 +21,7 @@ public class ProduceRequestTransformationFilterFactory
         implements FilterFactory<Config, Config> {
     public record Config(
                          @PluginReference(ByteBufferTransformationFactory.class) @JsonProperty(required = true) String transformation,
-                         @PluginConfig(pluginNameProperty = "transformation") Object transformationConfig) {}
+                         @PluginConfig(instanceNameProperty = "transformation") Object transformationConfig) {}
 
     @Override
     public ProduceRequestTransformationFilter createFilter(FilterFactoryContext context,
