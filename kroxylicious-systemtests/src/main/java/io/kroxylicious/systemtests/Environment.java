@@ -61,10 +61,10 @@ public class Environment {
         return getOrDefault(varName, String::toString, defaultValue);
     }
 
-    private static <T> T getOrDefault(String var, Function<String, T> converter, T defaultValue) {
-        T returnValue = System.getenv(var) != null ? converter.apply(System.getenv(var)) : defaultValue;
+    private static <T> T getOrDefault(String varName, Function<String, T> converter, T defaultValue) {
+        T returnValue = System.getenv(varName) != null ? converter.apply(System.getenv(varName)) : defaultValue;
 
-        VALUES.put(var, String.valueOf(returnValue));
+        VALUES.put(varName, String.valueOf(returnValue));
         return returnValue;
     }
 }

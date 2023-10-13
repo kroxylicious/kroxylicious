@@ -20,13 +20,6 @@ public class CertManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(CertManager.class);
 
     /**
-     * Instantiates a new Cert Manager.
-     *
-     */
-    public CertManager() {
-    }
-
-    /**
      * Deploy.
      * @throws IOException the io exception
      */

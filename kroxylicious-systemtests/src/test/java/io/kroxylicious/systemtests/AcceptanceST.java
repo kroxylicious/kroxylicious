@@ -26,7 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * The type Acceptance st.
  */
-public class AcceptanceST extends AbstractST {
+class AcceptanceST extends AbstractST {
     private static final Logger LOGGER = LoggerFactory.getLogger(AcceptanceST.class);
     private final String clusterName = "my-cluster";
 
@@ -37,7 +37,7 @@ public class AcceptanceST extends AbstractST {
      * @throws IOException the io exception
      */
     @Test
-    public void produceAndConsumeMessage(TestInfo testInfo) throws IOException {
+    void produceAndConsumeMessage(TestInfo testInfo) throws IOException {
         String topicName = "my-topic";
         String message = "Hello-world";
         int numberOfMessages = 1;
@@ -67,7 +67,7 @@ public class AcceptanceST extends AbstractST {
      * @throws IOException the io exception
      */
     @Test
-    public void restartKafkaBrokers(TestInfo testInfo) throws IOException {
+    void restartKafkaBrokers(TestInfo testInfo) throws IOException {
         String topicName = "my-topic2";
         String message = "Hello-world";
         int numberOfMessages = 50;
@@ -99,7 +99,7 @@ public class AcceptanceST extends AbstractST {
      * @throws IOException the io exception
      */
     @Test
-    public void kroxyWithReplicas(TestInfo testInfo) throws IOException {
+    void kroxyWithReplicas(TestInfo testInfo) throws IOException {
         String topicName = "my-topic3";
         String message = "Hello-world";
         int numberOfMessages = 5;

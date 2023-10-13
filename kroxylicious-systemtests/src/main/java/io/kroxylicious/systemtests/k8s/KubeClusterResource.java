@@ -52,9 +52,6 @@ public class KubeClusterResource {
         return kubeClusterResource;
     }
 
-    private KubeClusterResource() {
-    }
-
     private static void initNamespaces() {
         kubeClusterResource.setDefaultNamespace(cmdKubeClient().defaultNamespace());
         kubeClusterResource.setTestNamespace(cmdKubeClient().defaultNamespace());

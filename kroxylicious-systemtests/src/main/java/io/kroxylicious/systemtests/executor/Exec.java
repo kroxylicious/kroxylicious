@@ -49,7 +49,7 @@ public class Exec {
     /**
      * The Process.
      */
-    public Process process;
+    private Process process;
     private String stdOut;
     private String stdErr;
     private StreamGobbler stdOutReader;
@@ -229,15 +229,15 @@ public class Exec {
                         + executor.stdOut + "\n------";
 
                 Matcher matcher = ERROR_PATTERN.matcher(executor.err());
-                KubeClusterException t = null;
+                KubeClusterException kubeClusterException = null;
 
                 if (matcher.find()) {
                     switch (matcher.group(1)) {
                         case "NotFound":
-                            t = new KubeClusterException.NotFound(execResult, msg);
+                            kubeClusterException = new KubeClusterException.NotFound(execResult, msg);
                             break;
                         case "AlreadyExists":
-                            t = new KubeClusterException.AlreadyExists(execResult, msg);
+                            kubeClusterException = new KubeClusterException.AlreadyExists(execResult, msg);
                             break;
                         default:
                             break;
@@ -245,12 +245,12 @@ public class Exec {
                 }
                 matcher = INVALID_PATTERN.matcher(executor.err());
                 if (matcher.find()) {
-                    t = new KubeClusterException.InvalidResource(execResult, msg);
+                    kubeClusterException = new KubeClusterException.InvalidResource(execResult, msg);
                 }
-                if (t == null) {
-                    t = new KubeClusterException(execResult, msg);
+                if (kubeClusterException == null) {
+                    kubeClusterException = new KubeClusterException(execResult, msg);
                 }
-                throw t;
+                throw kubeClusterException;
             }
             return new ExecResult(ret, executor.out(), executor.err());
 
@@ -429,7 +429,6 @@ public class Exec {
                             data.append(System.getProperty("line.separator"));
                         }
                     }
-                    scanner.close();
                     return data.toString();
                 }
                 catch (Exception e) {

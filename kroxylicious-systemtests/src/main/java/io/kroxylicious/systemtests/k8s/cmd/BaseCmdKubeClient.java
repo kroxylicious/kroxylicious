@@ -40,8 +40,6 @@ public abstract class BaseCmdKubeClient<K extends BaseCmdKubeClient<K>> implemen
      */
     String namespace = defaultNamespace();
 
-    public abstract String cmd();
-
     /**
      * The type Context.
      */

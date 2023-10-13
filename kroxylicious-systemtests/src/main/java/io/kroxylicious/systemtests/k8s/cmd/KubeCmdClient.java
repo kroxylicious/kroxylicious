@@ -53,6 +53,8 @@ public interface KubeCmdClient<K extends KubeCmdClient<K>> {
      *
      * @param resourceType the resource type
      * @param resourceName the resource name
+    private KubeClusterResource() {
+    }
      * @return the k
      */
     K deleteByName(String resourceType, String resourceName);
