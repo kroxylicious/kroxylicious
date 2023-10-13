@@ -6,6 +6,9 @@
 
 package io.kroxylicious.proxy.filter;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.util.List;
 
 public class CompositePrefixingFixedClientIdFilter implements CompositeFilter {
@@ -24,5 +27,13 @@ public class CompositePrefixingFixedClientIdFilter implements CompositeFilter {
 
     public CompositePrefixingFixedClientIdFilterConfig config() {
         return config;
+    }
+
+    public record CompositePrefixingFixedClientIdFilterConfig(String prefix, String clientId) {
+        @JsonCreator
+        public CompositePrefixingFixedClientIdFilterConfig(@JsonProperty("prefix") String prefix, @JsonProperty("clientId") String clientId) {
+            this.prefix = prefix;
+            this.clientId = clientId;
+        }
     }
 }

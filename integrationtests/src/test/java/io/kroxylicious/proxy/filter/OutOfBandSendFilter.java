@@ -31,22 +31,31 @@ import static io.kroxylicious.UnknownTaggedFields.unknownTaggedFieldsToStrings;
  * a DescribeClusterResponse. This exposes what unknown tagged fields were added to the out-of-band response by other
  * filters like {@link RequestResponseMarkingFilter}.
  */
-public class OutOfBandFilter implements DescribeClusterRequestFilter, DescribeClusterResponseFilter {
+public class OutOfBandSendFilter implements DescribeClusterRequestFilter, DescribeClusterResponseFilter {
 
     private final OutOfBandSendFilterConfig config;
     private String values = "<initial>";
 
-    public OutOfBandFilter(OutOfBandSendFilterConfig config) {
+    public OutOfBandSendFilter(OutOfBandSendFilterConfig config) {
         this.config = config;
     }
+
+    public record OutOfBandSendFilterConfig(ApiKeys apiKeyToSend, int tagIdToCollect) {
+            @JsonCreator
+            public OutOfBandSendFilterConfig(@JsonProperty(value = "apiKeyToSend", required = true) ApiKeys apiKeyToSend,
+                                             @JsonProperty(value = "tagToCollect", required = true) int tagIdToCollect) {
+                this.apiKeyToSend = apiKeyToSend;
+                this.tagIdToCollect = tagIdToCollect;
+            }
+        }
 
     @Override
     public CompletionStage<RequestFilterResult> onDescribeClusterRequest(short apiVersion, RequestHeaderData header, DescribeClusterRequestData request,
                                                                          FilterContext context) {
-        ApiKeys apiKeyToSend = config.getApiKeyToSend();
+        ApiKeys apiKeyToSend = config.apiKeyToSend();
         ApiMessage message = createApiMessage(apiKeyToSend);
         return context.sendRequest(new RequestHeaderData().setRequestApiVersion(message.highestSupportedVersion()), message).thenCompose(apiMessage -> {
-            values = unknownTaggedFieldsToStrings(apiMessage, config.getTagIdToCollect()).collect(Collectors.joining(","));
+            values = unknownTaggedFieldsToStrings(apiMessage, config.tagIdToCollect()).collect(Collectors.joining(","));
             return context.forwardRequest(header, request);
         });
     }
@@ -70,23 +79,5 @@ public class OutOfBandFilter implements DescribeClusterRequestFilter, DescribeCl
         return message;
     }
 
-    public static class OutOfBandSendFilterConfig {
-        private final ApiKeys apiKeyToSend;
-        private final int tagIdToCollect;
 
-        @JsonCreator
-        public OutOfBandSendFilterConfig(@JsonProperty(value = "apiKeyToSend", required = true) ApiKeys apiKeyToSend,
-                                         @JsonProperty(value = "tagToCollect", required = true) int tagIdToCollect) {
-            this.apiKeyToSend = apiKeyToSend;
-            this.tagIdToCollect = tagIdToCollect;
-        }
-
-        public ApiKeys getApiKeyToSend() {
-            return apiKeyToSend;
-        }
-
-        public int getTagIdToCollect() {
-            return tagIdToCollect;
-        }
-    }
 }

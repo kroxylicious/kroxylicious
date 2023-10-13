@@ -16,19 +16,19 @@ import org.jetbrains.annotations.NotNull;
 import io.kroxylicious.proxy.plugin.PluginConfigType;
 import io.kroxylicious.proxy.plugin.Plugins;
 
-@PluginConfigType(CompositePrefixingFixedClientIdFilterConfig.class)
+@PluginConfigType(CompositePrefixingFixedClientIdFilter.CompositePrefixingFixedClientIdFilterConfig.class)
 public class CompositePrefixingFixedClientIdFilterFactory
-        implements FilterFactory<CompositePrefixingFixedClientIdFilterConfig, CompositePrefixingFixedClientIdFilterConfig> {
+        implements FilterFactory<CompositePrefixingFixedClientIdFilter.CompositePrefixingFixedClientIdFilterConfig, CompositePrefixingFixedClientIdFilter.CompositePrefixingFixedClientIdFilterConfig> {
 
     @Override
-    public CompositePrefixingFixedClientIdFilterConfig initialize(FilterFactoryContext context, CompositePrefixingFixedClientIdFilterConfig config) {
+    public CompositePrefixingFixedClientIdFilter.CompositePrefixingFixedClientIdFilterConfig initialize(FilterFactoryContext context, CompositePrefixingFixedClientIdFilter.CompositePrefixingFixedClientIdFilterConfig config) {
         return Plugins.requireConfig(this, config);
     }
 
     @NotNull
     @Override
     public CompositePrefixingFixedClientIdFilter createFilter(FilterFactoryContext context,
-                                                              CompositePrefixingFixedClientIdFilterConfig configuration) {
+                                                              CompositePrefixingFixedClientIdFilter.CompositePrefixingFixedClientIdFilterConfig configuration) {
         return new CompositePrefixingFixedClientIdFilter(configuration);
     }
 

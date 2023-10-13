@@ -8,6 +8,8 @@ package io.kroxylicious.proxy.filter;
 
 import java.util.concurrent.CompletionStage;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.kafka.common.message.CreateTopicsRequestData;
 import org.apache.kafka.common.message.CreateTopicsResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
@@ -24,9 +26,9 @@ public class RejectingCreateTopicFilter implements CreateTopicsRequestFilter {
     private final boolean withCloseConnection;
     private final FilterFactoryContext constructionContext;
 
-    public RejectingCreateTopicFilter(FilterFactoryContext constructionContext, RejectingCreateTopicFilterFactory.RejectingCreateTopicFilterConfig config) {
+    public RejectingCreateTopicFilter(FilterFactoryContext constructionContext, RejectingCreateTopicFilterConfig config) {
         this.constructionContext = constructionContext;
-        config = config == null ? new RejectingCreateTopicFilterFactory.RejectingCreateTopicFilterConfig(false, ForwardingStyle.SYNCHRONOUS) : config;
+        config = config == null ? new RejectingCreateTopicFilterConfig(false, ForwardingStyle.SYNCHRONOUS) : config;
         this.withCloseConnection = config.withCloseConnection();
         this.forwardingStyle = config.forwardingStyle();
     }
@@ -59,4 +61,16 @@ public class RejectingCreateTopicFilter implements CreateTopicsRequestFilter {
         context.createByteBufferOutputStream(4000);
     }
 
+    /**
+     * @param withCloseConnection
+     * If true, rejection will also close the connection */
+    public record RejectingCreateTopicFilterConfig(boolean withCloseConnection, ForwardingStyle forwardingStyle) {
+
+        @JsonCreator
+        public RejectingCreateTopicFilterConfig(@JsonProperty(value = "withCloseConnection") boolean withCloseConnection,
+                                                @JsonProperty(value = "forwardingStyle") ForwardingStyle forwardingStyle) {
+            this.withCloseConnection = withCloseConnection;
+            this.forwardingStyle = forwardingStyle == null ? ForwardingStyle.SYNCHRONOUS : forwardingStyle;
+        }
+    }
 }

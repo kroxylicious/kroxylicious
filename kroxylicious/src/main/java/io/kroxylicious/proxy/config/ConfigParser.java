@@ -161,7 +161,7 @@ public class ConfigParser implements PluginFactoryRegistry {
             }
             var ctors = ((AnnotatedClass) af.getTypeContext()).getConstructors();
             for (var ctor : ctors) {
-                pluginReference = findPluginNameAnnotation(ctor, pcAnno.instanceNameProperty());
+                pluginReference = findPluginReferenceAnnotation(ctor, pcAnno.instanceNameProperty());
                 if (pluginReference != null) {
                     break;
                 }
