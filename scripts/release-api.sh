@@ -23,7 +23,7 @@ fi
 echo "Setting API version to ${RELEASE_API_VERSION}"
 mvn -q versions:set -DnewVersion="${RELEASE_API_VERSION}" -DprocessAllModules=true -pl :kroxylicious-bom,${API_MODULES} -DgenerateBackupPoms=false
 mvn -q clean install -Pquick -pl :kroxylicious-bom,${API_MODULES}  #quick sanity check to ensure the API modules still build
-mvn -q versions:set-property -Dproperty=kroxyliciousApi.version -DnewVersion="${RELEASE_API_VERSION}" -DgenerateBackupPoms=false
+mvn -q versions:set-property -Dproperty=kroxylicious-api.version -DnewVersion="${RELEASE_API_VERSION}" -DgenerateBackupPoms=false
 
 echo "Validating things still build"
 mvn -q clean install -Pquick
