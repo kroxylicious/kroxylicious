@@ -44,7 +44,7 @@
         <kroxy.extension.version>0.6.0</kroxy.extension.version>
         <log4j.version>2.20.0</log4j.version>
         <picocli.version>4.7.5</picocli.version>
-        <netty.version>4.1.99.Final</netty.version>
+        <netty.version>4.1.100.Final</netty.version>
         <netty.io_uring.version>0.0.23.Final</netty.io_uring.version>
         <netty.epoll.classifier>linux-x86_64</netty.epoll.classifier>
         <netty.io_uring.classifier>linux-x86_64</netty.io_uring.classifier>
@@ -56,7 +56,7 @@
         <sundr-builder-annotations.version>0.101.0</sundr-builder-annotations.version>
         <spotbugs-annotations.version>4.7.3</spotbugs-annotations.version>
         <zjsonpatch.version>0.4.14</zjsonpatch.version>
-
+        <moby-names-generator.version>20.10.0-r0</moby-names-generator.version>
         <jacoco-maven-plugin.version>0.8.10</jacoco-maven-plugin.version>
 
         <!-- Test dependencies -->
@@ -169,6 +169,11 @@
                 <groupId>info.picocli</groupId>
                 <artifactId>picocli</artifactId>
                 <version>${picocli.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>info.schnatterer.moby-names-generator</groupId>
+                <artifactId>moby-names-generator</artifactId>
+                <version>${moby-names-generator.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.micrometer</groupId>

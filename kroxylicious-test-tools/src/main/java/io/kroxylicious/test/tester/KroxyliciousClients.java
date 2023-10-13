@@ -31,20 +31,20 @@ import io.kroxylicious.testing.kafka.clients.CloseableConsumer;
 import io.kroxylicious.testing.kafka.clients.CloseableProducer;
 
 class KroxyliciousClients {
-    private final String bootstrapServers;
+    private final Map<String, Object> defaultClientConfiguration;
 
     private final List<Admin> admins;
     private final List<Producer<?, ?>> producers;
     private final List<Consumer<?, ?>> consumers;
     private final ClientFactory clientFactory;
 
-    KroxyliciousClients(String bootstrapServers) {
-        this(bootstrapServers, new ClientFactory() {
+    KroxyliciousClients(Map<String, Object> defaultClientConfiguration) {
+        this(defaultClientConfiguration, new ClientFactory() {
         });
     }
 
-    KroxyliciousClients(String bootstrapServers, ClientFactory clientFactory) {
-        this.bootstrapServers = bootstrapServers;
+    KroxyliciousClients(Map<String, Object> defaultClientConfiguration, ClientFactory clientFactory) {
+        this.defaultClientConfiguration = defaultClientConfiguration;
         this.admins = new ArrayList<>();
         this.producers = new ArrayList<>();
         this.consumers = new ArrayList<>();
@@ -52,7 +52,7 @@ class KroxyliciousClients {
     }
 
     public Admin admin(Map<String, Object> additionalConfig) {
-        Map<String, Object> config = createConfigMap(bootstrapServers, additionalConfig);
+        Map<String, Object> config = createClientConfig(additionalConfig);
         Admin admin = clientFactory.newAdmin(config);
         admins.add(admin);
         return admin;
@@ -71,7 +71,7 @@ class KroxyliciousClients {
     }
 
     public <U, V> Producer<U, V> producer(Serde<U> keySerde, Serde<V> valueSerde, Map<String, Object> additionalConfig) {
-        Map<String, Object> config = createConfigMap(bootstrapServers, additionalConfig);
+        Map<String, Object> config = createClientConfig(additionalConfig);
         Producer<U, V> producer = this.clientFactory.newProducer(config, keySerde.serializer(), valueSerde.serializer());
         producers.add(producer);
         return producer;
@@ -86,14 +86,14 @@ class KroxyliciousClients {
     }
 
     public <U, V> Consumer<U, V> consumer(Serde<U> keySerde, Serde<V> valueSerde, Map<String, Object> additionalConfig) {
-        Map<String, Object> config = createConfigMap(bootstrapServers, additionalConfig);
+        Map<String, Object> config = createClientConfig(additionalConfig);
         Consumer<U, V> consumer = clientFactory.newConsumer(config, keySerde.deserializer(), valueSerde.deserializer());
         consumers.add(consumer);
         return consumer;
     }
 
     public KafkaClient simpleTestClient() {
-        String[] hostPort = bootstrapServers.split(":");
+        String[] hostPort = defaultClientConfiguration.get(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG).toString().split(":");
         return new KafkaClient(hostPort[0], Integer.parseInt(hostPort[1]));
     }
 
@@ -126,9 +126,8 @@ class KroxyliciousClients {
         return exceptions;
     }
 
-    private Map<String, Object> createConfigMap(String bootstrapServers, Map<String, Object> additionalConfig) {
-        Map<String, Object> config = new HashMap<>();
-        config.put(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+    private Map<String, Object> createClientConfig(Map<String, Object> additionalConfig) {
+        Map<String, Object> config = new HashMap<>(defaultClientConfiguration);
         config.putAll(additionalConfig);
         return config;
     }
