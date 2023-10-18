@@ -7,7 +7,7 @@
 
 set -eo pipefail
 
-STRIMZI_KAFKA=quay.io/strimzi/kafka:0.35.0-kafka-3.4.0
+STRIMZI_KAFKA=quay.io/strimzi/kafka:0.38.0-kafka-3.6.0
 KCAT=quay.io/kroxylicious/kcat:1.7.1
 TOPIC=my-topic
 BOOTSTRAP=kroxylicious-service:9292
