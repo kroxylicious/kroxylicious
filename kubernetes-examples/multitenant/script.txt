@@ -129,11 +129,11 @@ kaf consume billingapp --group billinggroup --commit
 # to query it using the Apache Kafka tooling.
 
 # first the topics
-kubectl -n kafka run listtopics -ti --image=quay.io/strimzi/kafka:0.35.0-kafka-3.4.0 --rm=true --restart=Never -- bin/kafka-topics.sh --bootstrap-server my-cluster-kafka-bootstrap:9092 --list
+kubectl -n kafka run listtopics -ti --image=quay.io/strimzi/kafka:0.38.0-kafka-3.6.0 --rm=true --restart=Never -- bin/kafka-topics.sh --bootstrap-server my-cluster-kafka-bootstrap:9092 --list
 # notice how the topics names are prefixed with the virtual cluster's name.
 
 # now, the groups
-kubectl -n kafka run listgroups -ti --image=quay.io/strimzi/kafka:0.35.0-kafka-3.4.0 --rm=true --restart=Never -- bin/kafka-consumer-groups.sh --bootstrap-server my-cluster-kafka-bootstrap:9092 --list
+kubectl -n kafka run listgroups -ti --image=quay.io/strimzi/kafka:0.38.0-kafka-3.6.0 --rm=true --restart=Never -- bin/kafka-consumer-groups.sh --bootstrap-server my-cluster-kafka-bootstrap:9092 --list
 # notice that the same prefixing has been done.
 
 # let's wrap up.
