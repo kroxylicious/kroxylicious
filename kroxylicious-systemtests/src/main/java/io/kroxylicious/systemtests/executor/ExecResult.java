@@ -35,7 +35,7 @@ public class ExecResult implements Serializable {
     }
 
     /**
-     * Is success boolean.
+     * Return true if the result is success, false otherwise.
      *
      * @return the boolean
      */
@@ -53,7 +53,7 @@ public class ExecResult implements Serializable {
     }
 
     /**
-     * Out string.
+     * Returns the stdOut string.
      *
      * @return the string
      */
@@ -62,7 +62,7 @@ public class ExecResult implements Serializable {
     }
 
     /**
-     * Err string.
+     * Returns the stdErr string.
      *
      * @return the string
      */

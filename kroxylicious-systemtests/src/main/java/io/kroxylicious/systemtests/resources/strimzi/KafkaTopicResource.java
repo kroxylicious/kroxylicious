@@ -12,7 +12,6 @@ import io.strimzi.api.kafka.KafkaTopicList;
 import io.strimzi.api.kafka.model.KafkaTopic;
 
 import io.kroxylicious.systemtests.Constants;
-import io.kroxylicious.systemtests.enums.CustomResourceStatus;
 import io.kroxylicious.systemtests.resources.ResourceOperation;
 import io.kroxylicious.systemtests.resources.ResourceType;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
@@ -52,8 +51,8 @@ public class KafkaTopicResource implements ResourceType<KafkaTopic> {
 
     @Override
     public boolean waitForReadiness(KafkaTopic resource) {
-        return ResourceManager.waitForResourceStatus(kafkaTopicClient(), resource.getKind(), resource.getMetadata().getNamespace(),
-                resource.getMetadata().getName(), CustomResourceStatus.Ready, ResourceOperation.getTimeoutForResourceReadiness(resource.getKind()));
+        return ResourceManager.waitForResourceStatusReady(kafkaTopicClient(), resource.getKind(), resource.getMetadata().getNamespace(),
+                resource.getMetadata().getName(), ResourceOperation.getTimeoutForResourceReadiness(resource.getKind()));
     }
 
     /**

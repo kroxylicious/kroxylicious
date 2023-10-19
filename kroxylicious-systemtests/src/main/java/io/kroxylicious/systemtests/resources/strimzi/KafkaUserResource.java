@@ -12,7 +12,6 @@ import io.strimzi.api.kafka.KafkaUserList;
 import io.strimzi.api.kafka.model.KafkaUser;
 
 import io.kroxylicious.systemtests.Constants;
-import io.kroxylicious.systemtests.enums.CustomResourceStatus;
 import io.kroxylicious.systemtests.resources.ResourceType;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 
@@ -46,7 +45,7 @@ public class KafkaUserResource implements ResourceType<KafkaUser> {
 
     @Override
     public boolean waitForReadiness(KafkaUser resource) {
-        return ResourceManager.waitForResourceStatus(kafkaUserClient(), resource, CustomResourceStatus.Ready);
+        return ResourceManager.waitForResourceStatusReady(kafkaUserClient(), resource);
     }
 
     @Override
