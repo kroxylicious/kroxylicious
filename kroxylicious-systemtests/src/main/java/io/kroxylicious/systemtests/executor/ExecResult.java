@@ -35,11 +35,11 @@ public class ExecResult implements Serializable {
     }
 
     /**
-     * Exit status boolean.
+     * Is success boolean.
      *
      * @return the boolean
      */
-    public boolean exitStatus() {
+    public boolean isSuccess() {
         return returnCode == 0;
     }
 

@@ -37,7 +37,7 @@ public class Kubernetes implements KubeCluster {
     public boolean isClusterUp() {
         List<String> cmd = Arrays.asList(CMD, "cluster-info");
         try {
-            return Exec.exec(cmd).exitStatus();
+            return Exec.exec(cmd).isSuccess();
         }
         catch (KubeClusterException e) {
             LOGGER.debug("'" + String.join(" ", cmd) + "' failed. Please double check connectivity to your cluster!");

@@ -85,7 +85,7 @@ public abstract class BaseCmdKubeClient<K extends BaseCmdKubeClient<K>> implemen
         try (Context context = defaultContext()) {
             Map<File, ExecResult> execResults = execRecursive(APPLY, files, Comparator.comparing(File::getName).reversed());
             for (Map.Entry<File, ExecResult> entry : execResults.entrySet()) {
-                if (!entry.getValue().exitStatus()) {
+                if (!entry.getValue().isSuccess()) {
                     LOGGER.warn("Failed to apply {}!", entry.getKey().getAbsolutePath());
                     LOGGER.debug(entry.getValue().err());
                 }
@@ -100,7 +100,7 @@ public abstract class BaseCmdKubeClient<K extends BaseCmdKubeClient<K>> implemen
         try (Context context = defaultContext()) {
             Map<File, ExecResult> execResults = execRecursive(DELETE, files, Comparator.comparing(File::getName).reversed());
             for (Map.Entry<File, ExecResult> entry : execResults.entrySet()) {
-                if (!entry.getValue().exitStatus()) {
+                if (!entry.getValue().isSuccess()) {
                     LOGGER.warn("Failed to delete {}!", entry.getKey().getAbsolutePath());
                     LOGGER.debug(entry.getValue().err());
                 }
