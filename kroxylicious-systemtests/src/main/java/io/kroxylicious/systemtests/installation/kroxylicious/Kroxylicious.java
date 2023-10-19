@@ -29,8 +29,8 @@ import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 /**
  * The type Kroxy.
  */
-public class Kroxy {
-    private static final Logger LOGGER = LoggerFactory.getLogger(Kroxy.class);
+public class Kroxylicious {
+    private static final Logger LOGGER = LoggerFactory.getLogger(Kroxylicious.class);
     private final String deploymentNamespace;
     private String containerImage = "quay.io/kroxylicious/kroxylicious-developer:" + Environment.KROXY_VERSION;
     private final ResourceManager resourceManager = ResourceManager.getInstance();
@@ -40,7 +40,7 @@ public class Kroxy {
      *
      * @param deploymentNamespace the deployment namespace
      */
-    public Kroxy(String deploymentNamespace) {
+    public Kroxylicious(String deploymentNamespace) {
         this.deploymentNamespace = deploymentNamespace;
         if (!Objects.equals(Environment.QUAY_ORG, Environment.QUAY_ORG_DEFAULT)) {
             containerImage = "quay.io/" + Environment.QUAY_ORG + "/kroxylicious:" + Environment.KROXY_VERSION;

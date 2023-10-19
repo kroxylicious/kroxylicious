@@ -15,7 +15,7 @@ import org.junit.jupiter.api.TestInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.kroxylicious.systemtests.installation.kroxylicious.Kroxy;
+import io.kroxylicious.systemtests.installation.kroxylicious.Kroxylicious;
 import io.kroxylicious.systemtests.steps.KafkaSteps;
 import io.kroxylicious.systemtests.steps.KroxySteps;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaTemplates;
@@ -45,8 +45,8 @@ class AcceptanceST extends AbstractST {
 
         // start kroxy
         LOGGER.info("Given Kroxy in {} namespace with {} replicas", Constants.KROXY_DEFAULT_NAMESPACE, 1);
-        kroxy = new Kroxy(Constants.KROXY_DEFAULT_NAMESPACE);
-        kroxy.deployPortPerBrokerPlain(testInfo, 1);
+        kroxylicious = new Kroxylicious(Constants.KROXY_DEFAULT_NAMESPACE);
+        kroxylicious.deployPortPerBrokerPlain(testInfo, 1);
 
         LOGGER.info("And KafkaTopic in {} namespace", Constants.KROXY_DEFAULT_NAMESPACE);
         KafkaSteps.createTopic(testInfo, topicName, clusterName, 1, 1, 1);
@@ -75,8 +75,8 @@ class AcceptanceST extends AbstractST {
 
         // start kroxy
         LOGGER.info("Given Kroxy in {} namespace with {} replicas", Constants.KROXY_DEFAULT_NAMESPACE, 1);
-        kroxy = new Kroxy(Constants.KROXY_DEFAULT_NAMESPACE);
-        kroxy.deployPortPerBrokerPlain(testInfo, 1);
+        kroxylicious = new Kroxylicious(Constants.KROXY_DEFAULT_NAMESPACE);
+        kroxylicious.deployPortPerBrokerPlain(testInfo, 1);
 
         LOGGER.info("And KafkaTopic in {} namespace", Constants.KROXY_DEFAULT_NAMESPACE);
         KafkaSteps.createTopic(testInfo, topicName, clusterName, 3, 1, 1);
@@ -108,9 +108,9 @@ class AcceptanceST extends AbstractST {
 
         // start kroxy
         LOGGER.info("Given Kroxy in {} namespace with {} replicas", Constants.KROXY_DEFAULT_NAMESPACE, replicas);
-        kroxy = new Kroxy(Constants.KROXY_DEFAULT_NAMESPACE);
-        kroxy.deployPortPerBrokerPlain(testInfo, replicas);
-        int currentReplicas = kroxy.getNumberOfReplicas();
+        kroxylicious = new Kroxylicious(Constants.KROXY_DEFAULT_NAMESPACE);
+        kroxylicious.deployPortPerBrokerPlain(testInfo, replicas);
+        int currentReplicas = kroxylicious.getNumberOfReplicas();
         assertEquals(currentReplicas, replicas, "Current replicas: " + currentReplicas + "; expected: " + replicas);
 
         LOGGER.info("And KafkaTopic in {} namespace", Constants.KROXY_DEFAULT_NAMESPACE);

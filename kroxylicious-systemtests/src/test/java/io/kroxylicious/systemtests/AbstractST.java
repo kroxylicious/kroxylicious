@@ -19,7 +19,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.systemtests.installation.kroxylicious.CertManager;
-import io.kroxylicious.systemtests.installation.kroxylicious.Kroxy;
+import io.kroxylicious.systemtests.installation.kroxylicious.Kroxylicious;
 import io.kroxylicious.systemtests.installation.strimzi.Strimzi;
 import io.kroxylicious.systemtests.k8s.KubeClusterResource;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
@@ -46,7 +46,7 @@ public class AbstractST {
     /**
      * The constant kroxy.
      */
-    protected static Kroxy kroxy;
+    protected static Kroxylicious kroxylicious;
 
     /**
      * The constant certManager.
@@ -104,7 +104,7 @@ public class AbstractST {
     @AfterAll
     static void teardown(TestInfo testInfo) throws IOException {
         strimziOperator.delete();
-        kroxy.delete(testInfo);
+        kroxylicious.delete(testInfo);
         certManager.delete();
         NamespaceUtils.deleteNamespaceWithWait(Constants.KROXY_DEFAULT_NAMESPACE);
         NamespaceUtils.deleteNamespaceWithWait(Constants.CERT_MANAGER_NAMESPACE);
