@@ -6,17 +6,12 @@
 
 package io.kroxylicious.systemtests;
 
-import java.util.HashMap;
-import java.util.Map;
 import java.util.function.Function;
 
 /**
  * The type Environment.
  */
 public class Environment {
-
-    private static final Map<String, String> VALUES = new HashMap<>();
-
     /**
      * Env. variables names
      */
@@ -62,9 +57,6 @@ public class Environment {
     }
 
     private static <T> T getOrDefault(String varName, Function<String, T> converter, T defaultValue) {
-        T returnValue = System.getenv(varName) != null ? converter.apply(System.getenv(varName)) : defaultValue;
-
-        VALUES.put(varName, String.valueOf(returnValue));
-        return returnValue;
+        return System.getenv(varName) != null ? converter.apply(System.getenv(varName)) : defaultValue;
     }
 }

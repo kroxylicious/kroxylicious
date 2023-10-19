@@ -6,17 +6,10 @@
 
 package io.kroxylicious.systemtests.executor;
 
-import java.io.Serial;
-import java.io.Serializable;
-
 /**
  * The type Exec result.
  */
-public class ExecResult implements Serializable {
-
-    @Serial
-    private static final long serialVersionUID = 1L;
-
+public class ExecResult {
     private final int returnCode;
     private final String stdOut;
     private final String stdErr;
