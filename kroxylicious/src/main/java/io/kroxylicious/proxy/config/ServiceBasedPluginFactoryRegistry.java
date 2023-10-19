@@ -41,7 +41,8 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
 
     private final Map<Class<?>, Map<String, ProviderAndConfigType<?>>> pluginInterfaceToNameToProvider = new HashMap<>();
 
-    Map<String, ProviderAndConfigType<?>> load(Class<?> pluginInterface) {
+    Map<String, ProviderAndConfigType<?>> load(@NonNull Class<?> pluginInterface) {
+        Objects.requireNonNull(pluginInterface);
         return pluginInterfaceToNameToProvider.computeIfAbsent(pluginInterface,
                 i -> loadProviders(pluginInterface));
     }
@@ -89,9 +90,16 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
         if (nameToProvider != null && !nameToProvider.isEmpty()) {
             return new PluginFactory<>() {
                 @Override
-                public @NonNull P pluginInstance(String instanceName) {
+                public @NonNull P pluginInstance(@NonNull String instanceName) {
+                    Objects.requireNonNull(instanceName);
                     var provider = nameToProvider.get(instanceName);
                     if (provider != null) {
+                        Class<?> type = provider.provider().type();
+                        if (type.isAnnotationPresent(Deprecated.class)) {
+                            LOGGER.warn("{} plugin with id {} is deprecated",
+                                    pluginClass.getName(),
+                                    instanceName);
+                        }
                         return pluginClass.cast(provider.provider().get());
                     }
                     throw unknownPluginInstanceException(instanceName);
