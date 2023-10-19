@@ -113,6 +113,18 @@
 
             <dependency>
                 <groupId>io.kroxylicious</groupId>
+                <artifactId>kms</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.kroxylicious</groupId>
+                <artifactId>kms-provider-kroxylicious-inmemory</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.kroxylicious</groupId>
                 <artifactId>kroxylicious-multitenant</artifactId>
                 <version>${project.version}</version>
             </dependency>
