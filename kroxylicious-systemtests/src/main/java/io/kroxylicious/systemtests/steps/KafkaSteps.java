@@ -46,14 +46,4 @@ public class KafkaSteps {
         clusterName = clusterName + "-kafka";
         assertTrue(KafkaUtils.restartBroker(Constants.KROXY_DEFAULT_NAMESPACE, clusterName));
     }
-
-    /**
-     * Restart zookeeper broker.
-     *
-     * @param clusterName the cluster name
-     */
-    public static void restartZookeeperBroker(String clusterName) {
-        clusterName = clusterName + "-zookeeper";
-        assertTrue(KafkaUtils.restartBroker(Constants.KROXY_DEFAULT_NAMESPACE, clusterName));
-    }
 }
