@@ -7,7 +7,7 @@
 
 set -eo pipefail
 
-STRIMZI_KAFKA=quay.io/strimzi/kafka:0.35.0-kafka-3.4.0
+STRIMZI_KAFKA=quay.io/strimzi/kafka:0.38.0-kafka-3.6.0
 BOOTSTRAP=my-cluster-kafka-bootstrap:9092
 
 GREEN='\033[0;32m'
