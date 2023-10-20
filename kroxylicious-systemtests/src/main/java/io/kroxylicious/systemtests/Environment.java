@@ -15,40 +15,34 @@ public class Environment {
     /**
      * Env. variables names
      */
-    public static final String KAFKA_VERSION_ENV = "KAFKA_VERSION";
-    /**
-     * The constant QUAY_ORG_ENV.
-     */
-    public static final String QUAY_ORG_ENV = "QUAY_ORG";
-    /**
-     * The constant KROXY_VERSION_ENV.
-     */
-    public static final String KROXY_VERSION_ENV = "KROXY_VERSION";
+    private static final String KAFKA_VERSION_ENV = "KAFKA_VERSION";
+    private static final String QUAY_ORG_ENV = "QUAY_ORG";
+    private static final String KROXY_VERSION_ENV = "KROXY_VERSION";
 
     /**
-     * Env. variables defaults
+     * The kafka version default value
      */
-    public static final String KAFKA_VERSION_DEFAULT = "3.5.1";
+    public static final String KAFKA_VERSION_DEFAULT = "3.6.0";
     /**
-     * The constant QUAY_ORG_DEFAULT.
+     * The quay org default value
      */
     public static final String QUAY_ORG_DEFAULT = "kroxylicious";
 
     /**
-     * The constant KROXY_VERSION_DEFAULT.
+     * The kroxy version default value
      */
     public static final String KROXY_VERSION_DEFAULT = "0.3.0-SNAPSHOT";
 
     /**
-     * Env. variables assignment
+     * KAFKA_VERSION env variable assignment
      */
     public static final String KAFKA_VERSION = getOrDefault(KAFKA_VERSION_ENV, KAFKA_VERSION_DEFAULT);
     /**
-     * The constant QUAY_ORG.
+     * QUAY_ORG env variable assignment
      */
     public static final String QUAY_ORG = getOrDefault(QUAY_ORG_ENV, QUAY_ORG_DEFAULT);
     /**
-     * The constant KROXY_VERSION.
+     * KROXY_VERSION env variable assignment
      */
     public static final String KROXY_VERSION = getOrDefault(KROXY_VERSION_ENV, KROXY_VERSION_DEFAULT);
 

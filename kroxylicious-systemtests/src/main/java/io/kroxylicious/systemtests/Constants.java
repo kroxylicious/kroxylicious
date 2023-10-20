@@ -16,24 +16,24 @@ import static io.kroxylicious.systemtests.Environment.KAFKA_VERSION_DEFAULT;
 public interface Constants {
 
     /**
-     * The constant KROXY_DEPLOYMENT_NAME.
+     * The deployment name for kroxylicous
      */
     String KROXY_DEPLOYMENT_NAME = "kroxylicious-proxy";
     /**
-     * The constant KROXY_SERVICE_NAME.
+     * The service name for kroxylicious. Used for the bootstrap url
      */
     String KROXY_SERVICE_NAME = "kroxylicious-service";
     /**
-     * Strimzi related constants
+     * Strimzi cluster operator deployment name
      */
     String STRIMZI_DEPLOYMENT_NAME = "strimzi-cluster-operator";
     /**
-     * The constant KROXY_DEFAULT_NAMESPACE.
+     * The default namespace used for kubernetes deployment
      */
     String KROXY_DEFAULT_NAMESPACE = "kafka";
 
     /**
-     * The constant CERT_MANAGER_NAMESPACE.
+     * The cert-manager namespace for kubernetes deployment
      */
     String CERT_MANAGER_NAMESPACE = "cert-manager";
 
@@ -47,29 +47,29 @@ public interface Constants {
      */
     String KAFKA_KIND = "Kafka";
     /**
-     * The constant KAFKA_TOPIC_KIND.
+     * Kind of kafka topics
      */
     String KAFKA_TOPIC_KIND = "KafkaTopic";
     /**
-     * The constant KAFKA_USER_KIND.
+     * Kind of kafka users
      */
     String KAFKA_USER_KIND = "KafkaUser";
     /**
-     * The constant KAFKA_NODE_POOL_KIND.
+     * Kind of kafka node pools
      */
     String KAFKA_NODE_POOL_KIND = "KafkaNodePool";
     /**
-     * The constant POD_KIND.
+     * Kind of pods
      */
     String POD_KIND = "Pod";
 
     /**
-     * The constant CONFIG_MAP_KIND.
+     * Kind of config maps
      */
     String CONFIG_MAP_KIND = "ConfigMap";
 
     /**
-     * The constant SERVICE_KIND.
+     * Kind of services
      */
     String SERVICE_KIND = "Service";
 
@@ -78,7 +78,7 @@ public interface Constants {
      */
     String PLAIN_LISTENER_NAME = "plain";
     /**
-     * The constant TLS_LISTENER_NAME.
+     * Listener name for tls
      */
     String TLS_LISTENER_NAME = "tls";
 
@@ -87,7 +87,7 @@ public interface Constants {
      */
     String STRIMZI_DOMAIN = "strimzi.io/";
     /**
-     * The constant STRIMZI_CLUSTER_LABEL.
+     * Strimzi cluster label
      */
     String STRIMZI_CLUSTER_LABEL = STRIMZI_DOMAIN + "cluster";
 
@@ -96,16 +96,16 @@ public interface Constants {
      */
     long POLL_INTERVAL_FOR_RESOURCE_READINESS_MILLIS = Duration.ofSeconds(5).toMillis();
     /**
-     * The constant POLL_INTERVAL_FOR_RESOURCE_DELETION_MILLIS.
+     * Poll interval for resource deletion in milliseconds
      */
     long POLL_INTERVAL_FOR_RESOURCE_DELETION_MILLIS = Duration.ofSeconds(1).toMillis();
 
     /**
-     * The constant GLOBAL_TIMEOUT_MILLIS.
+     * Global timeout in milliseconds
      */
     long GLOBAL_TIMEOUT_MILLIS = Duration.ofMinutes(5).toMillis();
     /**
-     * The constant GLOBAL_POLL_INTERVAL_MILLIS.
+     * Global Poll interval in milliseconds
      */
     long GLOBAL_POLL_INTERVAL_MILLIS = Duration.ofSeconds(1).toMillis();
 
@@ -114,24 +114,24 @@ public interface Constants {
      */
     String DEPLOYMENT = "Deployment";
     /**
-     * The constant STRIMZI_KAFKA_IMAGE.
+     * Strimzi kafka image url in quay
      */
     String STRIMZI_KAFKA_IMAGE = "quay.io/strimzi/kafka:latest-kafka-" + KAFKA_VERSION_DEFAULT;
     /**
-     * The constant KROXY_BOOTSTRAP.
+     * The default bootstrap used by kroxylicious
      */
     String KROXY_BOOTSTRAP = KROXY_SERVICE_NAME + ":9292";
 
     /**
-     * The constant CERT_MANAGER_URL.
+     * The cert manager url to install it on kubernetes
      */
     String CERT_MANAGER_URL = "https://github.com/cert-manager/cert-manager/releases/latest/download/cert-manager.yaml";
     /**
-     * The constant KAFKA_CONSUMER_CLIENT_LABEL.
+     * kafka consumer client label to identify the consumer test client
      */
     String KAFKA_CONSUMER_CLIENT_LABEL = "kafka-consumer-client";
     /**
-     * The constant KAFKA_PRODUCER_CLIENT_LABEL.
+     * kafka producer client label to identify the producer test client
      */
     String KAFKA_PRODUCER_CLIENT_LABEL = "kafka-producer-client";
 }
