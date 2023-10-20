@@ -11,7 +11,7 @@ import java.util.Objects;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
- * Thrown when filter configuration is invalid
+ * Thrown when a plugin configuration is invalid
  */
 public class PluginConfigurationException extends RuntimeException {
 

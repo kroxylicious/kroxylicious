@@ -12,9 +12,8 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Annotates a reference, by name, to a plugin interface at a plugin point within the configuration.
- * This annotation is applied to a property of a "config class" (i.e. the Java class representing the JSON config definition).,
- * The {@link #value()} points to the plugin interface (e.g. {@link io.kroxylicious.proxy.filter.FilterFactory}.
+ * Annotates a property (within a "config record") that names a plugin implementation with the plugin interface.
+ * @see io.kroxylicious.proxy.plugin
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ ElementType.PARAMETER })

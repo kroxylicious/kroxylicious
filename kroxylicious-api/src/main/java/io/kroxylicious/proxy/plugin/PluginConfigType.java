@@ -12,9 +12,10 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * An annotation that identifies the config type consumed by a specific plugin implementation.
- * This is applied to the class implementing a plugin interface.
- * Use @PluginConfigType(Void.class) if a plugin implementation class doesn't require configuration.
+ * An annotation, on a plugin implementation class, that identifies the class of "config record"
+ * consumed by that implementation.
+ * Use {@code @PluginConfigType(Void.class)} if a plugin implementation class doesn't require configuration.
+ * @see io.kroxylicious.proxy.plugin
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
