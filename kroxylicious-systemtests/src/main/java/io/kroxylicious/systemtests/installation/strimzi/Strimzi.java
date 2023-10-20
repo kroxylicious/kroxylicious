@@ -11,6 +11,9 @@ import java.io.IOException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.fabric8.kubernetes.api.model.HasMetadata;
+import io.fabric8.kubernetes.client.dsl.NamespaceListVisitFromServerGetDeleteRecreateWaitApplicable;
+
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
@@ -23,14 +26,16 @@ import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 public class Strimzi {
     private static final Logger LOGGER = LoggerFactory.getLogger(Strimzi.class);
     private final String deploymentNamespace;
+    private final NamespaceListVisitFromServerGetDeleteRecreateWaitApplicable<HasMetadata> strimzi;
 
     /**
      * Instantiates a new Strimzi.
      *
      * @param deploymentNamespace the deployment namespace
      */
-    public Strimzi(String deploymentNamespace) {
+    public Strimzi(String deploymentNamespace) throws IOException {
         this.deploymentNamespace = deploymentNamespace;
+        strimzi = kubeClient().getClient().load(DeploymentUtils.getDeploymentFileFromURL(Environment.STRIMZI_URL));
     }
 
     /**
@@ -39,9 +44,7 @@ public class Strimzi {
      */
     public void deploy() throws IOException {
         LOGGER.info("Deploy Strimzi in {} namespace", deploymentNamespace);
-        kubeClient().getClient().load(DeploymentUtils.getDeploymentFileFromURL(Environment.STRIMZI_URL))
-                .inNamespace(deploymentNamespace)
-                .create();
+        strimzi.inNamespace(deploymentNamespace).create();
         DeploymentUtils.waitForDeploymentReady(deploymentNamespace, Constants.STRIMZI_DEPLOYMENT_NAME);
     }
 
@@ -51,9 +54,7 @@ public class Strimzi {
      */
     public void delete() throws IOException {
         LOGGER.info("Deleting Strimzi in {} namespace", deploymentNamespace);
-        kubeClient().getClient().load(DeploymentUtils.getDeploymentFileFromURL(Environment.STRIMZI_URL))
-                .inNamespace(deploymentNamespace)
-                .delete();
+        strimzi.inNamespace(deploymentNamespace).delete();
         DeploymentUtils.waitForDeploymentDeletion(deploymentNamespace, Constants.STRIMZI_DEPLOYMENT_NAME);
     }
 }

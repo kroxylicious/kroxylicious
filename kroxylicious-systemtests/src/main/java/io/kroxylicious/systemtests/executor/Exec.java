@@ -210,14 +210,14 @@ public class Exec {
                     }
                     LOGGER.info("RETURN code: {}", ret);
                     if (!executor.out().isEmpty()) {
-                        LOGGER.info("======STDOUT START=======");
-                        LOGGER.info("{}", cutExecutorLog(executor.out().trim()));
-                        LOGGER.info("======STDOUT END======");
+                        LOGGER.debug("======STDOUT START=======");
+                        LOGGER.debug("{}", cutExecutorLog(executor.out().trim()));
+                        LOGGER.debug("======STDOUT END======");
                     }
                     if (!executor.err().isEmpty()) {
-                        LOGGER.info("======STDERR START=======");
-                        LOGGER.info("{}", cutExecutorLog(executor.err().trim()));
-                        LOGGER.info("======STDERR END======");
+                        LOGGER.debug("======STDERR START=======");
+                        LOGGER.debug("{}", cutExecutorLog(executor.err().trim()));
+                        LOGGER.debug("======STDERR END======");
                     }
                 }
             }

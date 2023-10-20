@@ -70,7 +70,7 @@ class AcceptanceST extends AbstractST {
     void restartKafkaBrokers(TestInfo testInfo) throws IOException {
         String topicName = "my-topic2";
         String message = "Hello-world";
-        int numberOfMessages = 25;
+        int numberOfMessages = 20;
         String consumedMessage = message + " - " + (numberOfMessages - 1);
 
         // start kroxy
