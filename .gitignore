@@ -32,6 +32,9 @@ dependency-reduced-pom.xml
  # Generated files
 .idea/**/contentModel.xml
 
+ # Plugins
+.idea/**/intellij-javadocs-*.xml
+
  # Sensitive or high-churn files
 .idea/**/dataSources/
 .idea/**/dataSources.ids
