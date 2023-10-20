@@ -13,9 +13,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.internal.filter.FetchResponseTransformationFilterFactory.Config;
-import io.kroxylicious.proxy.plugin.PluginConfig;
 import io.kroxylicious.proxy.plugin.PluginConfigType;
-import io.kroxylicious.proxy.plugin.PluginReference;
+import io.kroxylicious.proxy.plugin.PluginImplConfig;
+import io.kroxylicious.proxy.plugin.PluginImplName;
 import io.kroxylicious.proxy.plugin.Plugins;
 
 @PluginConfigType(FetchResponseTransformationFilterFactory.Config.class)
@@ -35,8 +35,8 @@ public class FetchResponseTransformationFilterFactory
         return new FetchResponseTransformationFilter(factory.createTransformation(configuration.config()));
     }
 
-    public record Config(@JsonProperty(required = true) @PluginReference(ByteBufferTransformationFactory.class) String transformation,
-                         @PluginConfig(instanceNameProperty = "transformation") Object config) {
+    public record Config(@JsonProperty(required = true) @PluginImplName(ByteBufferTransformationFactory.class) String transformation,
+                         @PluginImplConfig(implNameProperty = "transformation") Object config) {
 
     }
 

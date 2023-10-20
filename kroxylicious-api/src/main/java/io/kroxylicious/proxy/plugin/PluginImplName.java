@@ -17,7 +17,7 @@ import java.lang.annotation.Target;
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ ElementType.PARAMETER })
-public @interface PluginReference {
+public @interface PluginImplName {
     /**
      * The class reflecting the plugin interface (e.g. {@link io.kroxylicious.proxy.filter.FilterFactory}).
      * @return The class reflecting the plugin interface

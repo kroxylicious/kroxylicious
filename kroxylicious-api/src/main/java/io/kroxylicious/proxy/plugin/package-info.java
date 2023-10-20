@@ -7,6 +7,7 @@
 /**
  * API for defining plugins within configurtion.
  *
+ * <h2>Terminology</h2>
  * <p>A <em>plugin interface</em> is a Java {@code interface} (or possibly a {@code class)} that can be used
  * in the implementation of a component of the proxy.
  * {@link io.kroxylicious.proxy.filter.FilterFactory} is one example of a plugin interface.</p>
@@ -24,7 +25,7 @@
  * The configuration is represented in Java using a "config record", or "config class".
  * Different plugin implementations will generally use different config records.</p>
  *
- * <h3>Using a plugin implementation</h3>
+ * <h2>Using a plugin implementation</h2>
  *
  * <p>The author of a {@code FooFilter} that wants to use a {@code HttpGetter} to make an HTTP GET request,
  * but doesn't want to depend directly on any particular HTTP client. {@code HttpGetter} is the plugin interface.</p>
@@ -41,14 +42,14 @@
  *
  * <pre><code>
  * record FooFilterConfig(
- *   {@link io.kroxylicious.proxy.plugin.PluginReference @PluginReference}(HttpGetter.class)
+ *   {@link io.kroxylicious.proxy.plugin.PluginImplName @PluginImplName}(HttpGetter.class)
  *   String httpGetterPluginImplName,
- *   {@link io.kroxylicious.proxy.plugin.PluginConfig @PluginConfig}(instanceNameProperty="httpGetterPluginImplName")
+ *   {@link io.kroxylicious.proxy.plugin.PluginImplConfig @PluginImplConfig}(implNameProperty="httpGetterPluginImplName")
  *   Object httpGetterConfig
  * ) { }
  * </code></pre>
  *
- * <p>The {@link io.kroxylicious.proxy.plugin.PluginConfig#instanceNameProperty()} names the property of the config object that holds the
+ * <p>The {@link io.kroxylicious.proxy.plugin.PluginImplConfig#implNameProperty()} names the property of the config object that holds the
  * plugin implementation name. In practice the author of {@code FooFilter} might want to chose config property names which are intuitive to someone
  * writing a configuration file, such as {@code httpImpl} and {@code httpConfig}.</p>
  *
@@ -68,7 +69,7 @@
  * }
  * }</pre>
  *
- * <h3>Implementing a plugin</h3>
+ * <h2>Implementing a plugin</h2>
  *
  * <p>Someone can write an implementation of {@code HttpGetter} using Netty. They need to annotate their
  * implementation with {@link io.kroxylicious.proxy.plugin.PluginConfigType @PluginConfigType} to indicate

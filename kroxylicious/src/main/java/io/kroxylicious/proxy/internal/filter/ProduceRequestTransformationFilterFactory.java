@@ -11,17 +11,17 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.internal.filter.ProduceRequestTransformationFilterFactory.Config;
-import io.kroxylicious.proxy.plugin.PluginConfig;
 import io.kroxylicious.proxy.plugin.PluginConfigType;
-import io.kroxylicious.proxy.plugin.PluginReference;
+import io.kroxylicious.proxy.plugin.PluginImplConfig;
+import io.kroxylicious.proxy.plugin.PluginImplName;
 import io.kroxylicious.proxy.plugin.Plugins;
 
 @PluginConfigType(ProduceRequestTransformationFilterFactory.Config.class)
 public class ProduceRequestTransformationFilterFactory
         implements FilterFactory<Config, Config> {
     public record Config(
-                         @PluginReference(ByteBufferTransformationFactory.class) @JsonProperty(required = true) String transformation,
-                         @PluginConfig(instanceNameProperty = "transformation") Object transformationConfig) {}
+                         @PluginImplName(ByteBufferTransformationFactory.class) @JsonProperty(required = true) String transformation,
+                         @PluginImplConfig(implNameProperty = "transformation") Object transformationConfig) {}
 
     @Override
     public ProduceRequestTransformationFilter createFilter(FilterFactoryContext context,

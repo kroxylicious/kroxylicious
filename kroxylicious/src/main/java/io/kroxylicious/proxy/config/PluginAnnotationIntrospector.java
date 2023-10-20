@@ -14,7 +14,7 @@ import com.fasterxml.jackson.databind.introspect.Annotated;
 import com.fasterxml.jackson.databind.introspect.JacksonAnnotationIntrospector;
 import com.fasterxml.jackson.databind.jsontype.TypeIdResolver;
 
-import io.kroxylicious.proxy.plugin.PluginConfig;
+import io.kroxylicious.proxy.plugin.PluginImplConfig;
 
 public class PluginAnnotationIntrospector extends JacksonAnnotationIntrospector {
 
@@ -22,13 +22,13 @@ public class PluginAnnotationIntrospector extends JacksonAnnotationIntrospector 
     protected <A extends Annotation> A _findAnnotation(Annotated ann,
                                                        Class<A> annoClass) {
         if (annoClass == JsonTypeIdResolver.class) {
-            var pc = _findAnnotation(ann, PluginConfig.class);
+            var pc = _findAnnotation(ann, PluginImplConfig.class);
             if (pc != null) {
                 return (A) synthesizeJsonTypeIdResolver();
             }
         }
         else if (annoClass == JsonTypeInfo.class) {
-            var pc = _findAnnotation(ann, PluginConfig.class);
+            var pc = _findAnnotation(ann, PluginImplConfig.class);
             if (pc != null) {
                 return (A) synthesizeJsonTypeInfo(pc);
             }
@@ -42,11 +42,11 @@ public class PluginAnnotationIntrospector extends JacksonAnnotationIntrospector 
      * <pre>{@code
      * @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.EXTERNAL_PROPERTY, property = "type")
      * }</pre>
-     * where "type" is taken from the {@link PluginConfig#instanceNameProperty()}.
+     * where "type" is taken from the {@link PluginImplConfig#implNameProperty()}.
      * @param pc The plugin config annotation
      * @return The fake annotation instance
      */
-    private static JsonTypeInfo synthesizeJsonTypeInfo(PluginConfig pc) {
+    private static JsonTypeInfo synthesizeJsonTypeInfo(PluginImplConfig pc) {
         return new JsonTypeInfo() {
 
             @Override
@@ -66,7 +66,7 @@ public class PluginAnnotationIntrospector extends JacksonAnnotationIntrospector 
 
             @Override
             public String property() {
-                return pc.instanceNameProperty();
+                return pc.implNameProperty();
             }
 
             @Override
@@ -89,7 +89,7 @@ public class PluginAnnotationIntrospector extends JacksonAnnotationIntrospector 
      * }</pre>
      * The {@link io.kroxylicious.proxy.config.ConfigParser}'s HandlerInstantiator will be responsible for instantiating this,
      * passing it the plugin manager to use to look up the plugin named
-     * by the id in the synthetic @JsonTypeInfo returned by {@link #synthesizeJsonTypeInfo(PluginConfig)}
+     * by the id in the synthetic @JsonTypeInfo returned by {@link #synthesizeJsonTypeInfo(PluginImplConfig)}
      * @return The annotation instance.
      */
     private static JsonTypeIdResolver synthesizeJsonTypeIdResolver() {

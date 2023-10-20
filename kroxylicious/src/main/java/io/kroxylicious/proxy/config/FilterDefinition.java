@@ -11,12 +11,12 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.kroxylicious.proxy.filter.FilterFactory;
-import io.kroxylicious.proxy.plugin.PluginConfig;
-import io.kroxylicious.proxy.plugin.PluginReference;
+import io.kroxylicious.proxy.plugin.PluginImplConfig;
+import io.kroxylicious.proxy.plugin.PluginImplName;
 
 public record FilterDefinition(
-                               @PluginReference(FilterFactory.class) @JsonProperty(required = true) String type,
-                               @PluginConfig(instanceNameProperty = "type") Object config) {
+                               @PluginImplName(FilterFactory.class) @JsonProperty(required = true) String type,
+                               @PluginImplConfig(implNameProperty = "type") Object config) {
 
     @JsonCreator
     public FilterDefinition {

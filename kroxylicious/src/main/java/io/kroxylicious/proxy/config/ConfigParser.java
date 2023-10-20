@@ -40,8 +40,8 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
 
-import io.kroxylicious.proxy.plugin.PluginConfig;
-import io.kroxylicious.proxy.plugin.PluginReference;
+import io.kroxylicious.proxy.plugin.PluginImplConfig;
+import io.kroxylicious.proxy.plugin.PluginImplName;
 import io.kroxylicious.proxy.service.HostPort;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -136,49 +136,49 @@ public class ConfigParser implements PluginFactoryRegistry {
         @Override
         public TypeIdResolver typeIdResolverInstance(MapperConfig<?> config, Annotated annotated, Class<?> resolverClass) {
             if (resolverClass == PluginConfigTypeIdResolver.class) {
-                PluginReference pluginReference = null;
+                PluginImplName pluginImplName = null;
                 if (annotated instanceof AnnotatedParameter ap) {
-                    pluginReference = pluginReferenceFromParameter(annotated, ap);
+                    pluginImplName = pluginReferenceFromParameter(annotated, ap);
                 }
                 else if (annotated instanceof AnnotatedField af) {
-                    pluginReference = pluginReferenceFromField(annotated, af);
+                    pluginImplName = pluginReferenceFromField(annotated, af);
                 }
-                if (pluginReference == null) {
-                    throw new PluginDiscoveryException("Couldn't find @" + PluginReference.class.getSimpleName() + " on " + annotated);
+                if (pluginImplName == null) {
+                    throw new PluginDiscoveryException("Couldn't find @" + PluginImplName.class.getSimpleName() + " on " + annotated);
                 }
-                return newResolver(pluginReference.value());
+                return newResolver(pluginImplName.value());
             }
             return null;
         }
 
-        private PluginReference pluginReferenceFromField(Annotated annotated, AnnotatedField af) {
-            PluginReference pluginReference = null;
-            var pcAnno = af.getAnnotation(PluginConfig.class);
+        private PluginImplName pluginReferenceFromField(Annotated annotated, AnnotatedField af) {
+            PluginImplName pluginImplName = null;
+            var pcAnno = af.getAnnotation(PluginImplConfig.class);
             if (pcAnno == null) {
                 // pcAnno is guaranteed non-null because PluginAnnotationIntrospector will only return the PluginConfigTypeIdResolver.class
                 // for properties annotated @PluginConfig
-                throw new PluginDiscoveryException(annotated + " lacked the @" + PluginConfig.class.getName() + " annotation");
+                throw new PluginDiscoveryException(annotated + " lacked the @" + PluginImplConfig.class.getName() + " annotation");
             }
             var ctors = ((AnnotatedClass) af.getTypeContext()).getConstructors();
             for (var ctor : ctors) {
-                pluginReference = findPluginReferenceAnnotation(ctor, pcAnno.instanceNameProperty());
-                if (pluginReference != null) {
+                pluginImplName = findPluginReferenceAnnotation(ctor, pcAnno.implNameProperty());
+                if (pluginImplName != null) {
                     break;
                 }
             }
-            return pluginReference;
+            return pluginImplName;
         }
 
-        private PluginReference pluginReferenceFromParameter(Annotated annotated, AnnotatedParameter ap) {
-            PluginReference pluginReference;
-            var pcAnno = ap.getAnnotation(PluginConfig.class);
+        private PluginImplName pluginReferenceFromParameter(Annotated annotated, AnnotatedParameter ap) {
+            PluginImplName pluginImplName;
+            var pcAnno = ap.getAnnotation(PluginImplConfig.class);
             if (pcAnno == null) {
                 // pcAnno is guaranteed non-null because MyAnnotationIntrospector will only return the PluginConfigTypeIdResolver.class
                 // for properties annotated @PluginConfig
-                throw new PluginDiscoveryException(annotated + " lacked the @" + PluginConfig.class.getName() + " annotation");
+                throw new PluginDiscoveryException(annotated + " lacked the @" + PluginImplConfig.class.getName() + " annotation");
             }
-            pluginReference = findPluginReferenceAnnotation(ap.getOwner(), pcAnno.instanceNameProperty());
-            return pluginReference;
+            pluginImplName = findPluginReferenceAnnotation(ap.getOwner(), pcAnno.implNameProperty());
+            return pluginImplName;
         }
 
         private static PluginConfigTypeIdResolver newResolver(Class<?> pluginInterface) {
@@ -186,7 +186,7 @@ public class ConfigParser implements PluginFactoryRegistry {
             return new PluginConfigTypeIdResolver(providersByName);
         }
 
-        private PluginReference findPluginReferenceAnnotation(AnnotatedWithParams owner, String instanceNameProperty) {
+        private PluginImplName findPluginReferenceAnnotation(AnnotatedWithParams owner, String instanceNameProperty) {
             AnnotatedElement parameterOwner = owner.getAnnotated();
             if (parameterOwner instanceof Constructor<?> ctor) {
                 return findPluginReferenceAnnotation(instanceNameProperty, ctor);
@@ -199,11 +199,11 @@ public class ConfigParser implements PluginFactoryRegistry {
             }
         }
 
-        private static PluginReference findPluginReferenceAnnotation(String instanceNameProperty, AnnotatedConstructor ac) {
+        private static PluginImplName findPluginReferenceAnnotation(String instanceNameProperty, AnnotatedConstructor ac) {
             for (int i = 0; i < ac.getParameterCount(); i++) {
                 var oap = ac.getParameter(i);
                 if (instanceNameProperty.equals(oap.getName())) {
-                    PluginReference annotation = oap.getAnnotation(PluginReference.class);
+                    PluginImplName annotation = oap.getAnnotation(PluginImplName.class);
                     if (annotation != null) {
                         return annotation;
                     }
@@ -212,11 +212,11 @@ public class ConfigParser implements PluginFactoryRegistry {
             return null;
         }
 
-        private static PluginReference findPluginReferenceAnnotation(String instanceNameProperty, Constructor<?> ctor) {
+        private static PluginImplName findPluginReferenceAnnotation(String instanceNameProperty, Constructor<?> ctor) {
             Parameter[] parameters = ctor.getParameters();
             for (Parameter parameter : parameters) {
                 if (instanceNameProperty.equals(parameter.getName())) {
-                    PluginReference annotation = parameter.getAnnotation(PluginReference.class);
+                    PluginImplName annotation = parameter.getAnnotation(PluginImplName.class);
                     if (annotation != null) {
                         return annotation;
                     }
