@@ -9,7 +9,6 @@ package io.kroxylicious.proxy.filter;
 import java.util.concurrent.ScheduledExecutorService;
 
 import io.kroxylicious.proxy.plugin.UnknownPluginInstanceException;
-import io.kroxylicious.proxy.plugin.UnknownPluginTypeException;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -34,7 +33,6 @@ public interface FilterFactoryContext {
      * @param instanceName The plugin instance name
      * @return The plugin instance
      * @param <P> The plugin manager type
-     * @throws UnknownPluginTypeException
      * @throws UnknownPluginInstanceException
      */
     <P> @NonNull P pluginInstance(@NonNull Class<P> pluginClass, @NonNull String instanceName);

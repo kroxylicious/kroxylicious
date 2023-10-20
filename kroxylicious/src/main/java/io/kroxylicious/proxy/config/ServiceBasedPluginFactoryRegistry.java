@@ -20,7 +20,6 @@ import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.plugin.PluginConfigType;
 import io.kroxylicious.proxy.plugin.UnknownPluginInstanceException;
-import io.kroxylicious.proxy.plugin.UnknownPluginTypeException;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -41,6 +40,7 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
 
     private final Map<Class<?>, Map<String, ProviderAndConfigType<?>>> pluginInterfaceToNameToProvider = new HashMap<>();
 
+    @NonNull
     Map<String, ProviderAndConfigType<?>> load(@NonNull Class<?> pluginInterface) {
         Objects.requireNonNull(pluginInterface);
         return pluginInterfaceToNameToProvider.computeIfAbsent(pluginInterface,
@@ -87,40 +87,39 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
     @Override
     public <P> @NonNull PluginFactory<P> pluginFactory(@NonNull Class<P> pluginClass) {
         var nameToProvider = load(pluginClass);
-        if (nameToProvider != null && !nameToProvider.isEmpty()) {
-            return new PluginFactory<>() {
-                @Override
-                public @NonNull P pluginInstance(@NonNull String instanceName) {
-                    Objects.requireNonNull(instanceName);
-                    var provider = nameToProvider.get(instanceName);
-                    if (provider != null) {
-                        Class<?> type = provider.provider().type();
-                        if (type.isAnnotationPresent(Deprecated.class)) {
-                            LOGGER.warn("{} plugin with id {} is deprecated",
-                                    pluginClass.getName(),
-                                    instanceName);
-                        }
-                        return pluginClass.cast(provider.provider().get());
+        return new PluginFactory<>() {
+            @Override
+            public @NonNull P pluginInstance(@NonNull String instanceName) {
+                if (Objects.requireNonNull(instanceName).isEmpty()) {
+                    throw new IllegalArgumentException();
+                }
+                var provider = nameToProvider.get(instanceName);
+                if (provider != null) {
+                    Class<?> type = provider.provider().type();
+                    if (type.isAnnotationPresent(Deprecated.class)) {
+                        LOGGER.warn("{} plugin with id {} is deprecated",
+                                pluginClass.getName(),
+                                instanceName);
                     }
-                    throw unknownPluginInstanceException(instanceName);
+                    return pluginClass.cast(provider.provider().get());
                 }
+                throw unknownPluginInstanceException(instanceName);
+            }
 
-                private UnknownPluginInstanceException unknownPluginInstanceException(String name) {
-                    return new UnknownPluginInstanceException("Unknown " + pluginClass.getName() + " plugin instance for name '" + name + "'. "
-                            + "Known plugin instances are " + nameToProvider.keySet());
-                }
+            private UnknownPluginInstanceException unknownPluginInstanceException(String name) {
+                return new UnknownPluginInstanceException("Unknown " + pluginClass.getName() + " plugin instance for name '" + name + "'. "
+                        + "Known plugin instances are " + nameToProvider.keySet());
+            }
 
-                @NonNull
-                @Override
-                public Class<?> configType(@NonNull String instanceName) {
-                    var providerAndConfigType = nameToProvider.get(instanceName);
-                    if (providerAndConfigType != null) {
-                        return providerAndConfigType.config();
-                    }
-                    throw unknownPluginInstanceException(instanceName);
+            @NonNull
+            @Override
+            public Class<?> configType(@NonNull String instanceName) {
+                var providerAndConfigType = nameToProvider.get(instanceName);
+                if (providerAndConfigType != null) {
+                    return providerAndConfigType.config();
                 }
-            };
-        }
-        throw new UnknownPluginTypeException("Unknown plugin type " + pluginClass.getName());
+                throw unknownPluginInstanceException(instanceName);
+            }
+        };
     }
 }

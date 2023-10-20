@@ -9,7 +9,6 @@ package io.kroxylicious.proxy.config;
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.proxy.plugin.UnknownPluginInstanceException;
-import io.kroxylicious.proxy.plugin.UnknownPluginTypeException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -18,10 +17,37 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 class ServiceBasedPluginFactoryRegistryTest {
 
     @Test
-    void shouldThrowIfUnknownPluginType() {
+    void shouldThrowIfNullPluginType() {
         ServiceBasedPluginFactoryRegistry reg = new ServiceBasedPluginFactoryRegistry();
-        assertThrows(UnknownPluginTypeException.class, () -> {
-            reg.pluginFactory(NotAService.class);
+        assertThrows(NullPointerException.class, () -> {
+            reg.pluginFactory(null);
+        });
+    }
+
+    @Test
+    void shouldThrowIfNullPluginInstance() {
+        ServiceBasedPluginFactoryRegistry reg = new ServiceBasedPluginFactoryRegistry();
+        var f = reg.pluginFactory(NotAService.class);
+        assertThrows(NullPointerException.class, () -> {
+            f.pluginInstance(null);
+        });
+    }
+
+    @Test
+    void shouldThrowIfEmptyPluginInstance() {
+        ServiceBasedPluginFactoryRegistry reg = new ServiceBasedPluginFactoryRegistry();
+        var f = reg.pluginFactory(NotAService.class);
+        assertThrows(IllegalArgumentException.class, () -> {
+            f.pluginInstance("");
+        });
+    }
+
+    @Test
+    void shouldThrowIfUnknownPluginInstance() {
+        ServiceBasedPluginFactoryRegistry reg = new ServiceBasedPluginFactoryRegistry();
+        var f = reg.pluginFactory(NotAService.class);
+        assertThrows(UnknownPluginInstanceException.class, () -> {
+            f.pluginInstance("unheardof");
         });
     }
 

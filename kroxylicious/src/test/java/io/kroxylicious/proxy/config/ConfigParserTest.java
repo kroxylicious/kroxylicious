@@ -11,10 +11,6 @@ import java.io.InputStream;
 import java.util.List;
 import java.util.stream.Stream;
 
-import com.fasterxml.jackson.databind.exc.ValueInstantiationException;
-
-import io.kroxylicious.proxy.plugin.UnknownPluginInstanceException;
-
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -23,6 +19,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.exc.ValueInstantiationException;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.flipkart.zjsonpatch.JsonDiff;
 
@@ -38,6 +35,7 @@ import io.kroxylicious.proxy.internal.filter.ProduceRequestTransformationFilterF
 import io.kroxylicious.proxy.internal.filter.RecordConfig;
 import io.kroxylicious.proxy.internal.filter.SetterInjectionConfig;
 import io.kroxylicious.proxy.internal.filter.UpperCasing;
+import io.kroxylicious.proxy.plugin.UnknownPluginInstanceException;
 import io.kroxylicious.proxy.service.HostPort;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -285,13 +283,13 @@ class ConfigParserTest {
                       charset: UTF-8
                       """));
         var vie = assertInstanceOf(ValueInstantiationException.class, iae.getCause());
-        var upie = assertInstanceOf(UnknownPluginInstanceException.class ,vie.getCause());
+        var upie = assertInstanceOf(UnknownPluginInstanceException.class, vie.getCause());
         assertEquals("Unknown io.kroxylicious.proxy.internal.filter.ByteBufferTransformationFactory plugin instance "
                 + "for name 'NotAKnownPlugin'. "
                 + "Known plugin instances are [UpperCasing, io.kroxylicious.proxy.internal.filter.UpperCasing]",
                 upie.getMessage());
     }
-    
+
     @ParameterizedTest(name = "{0}")
     @MethodSource
     void shouldWorkWithDifferentConfigCreators(String name, String yaml, Class<?> expectedConfigType) {

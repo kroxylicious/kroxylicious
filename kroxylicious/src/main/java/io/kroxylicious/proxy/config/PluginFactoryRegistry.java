@@ -6,8 +6,6 @@
 
 package io.kroxylicious.proxy.config;
 
-import io.kroxylicious.proxy.plugin.UnknownPluginTypeException;
-
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 public interface PluginFactoryRegistry {
@@ -17,7 +15,6 @@ public interface PluginFactoryRegistry {
      * @param pluginClass The plugin interface type.
      * @return The factory for that type of plugin
      * @param <P> The type of plugin
-     * @throws UnknownPluginTypeException If the given pluginClass is unknown to this registry.
      */
     <P> @NonNull PluginFactory<P> pluginFactory(@NonNull Class<P> pluginClass);
 }
