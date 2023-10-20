@@ -18,6 +18,7 @@ public class Environment {
     private static final String KAFKA_VERSION_ENV = "KAFKA_VERSION";
     private static final String QUAY_ORG_ENV = "QUAY_ORG";
     private static final String KROXY_VERSION_ENV = "KROXY_VERSION";
+    private static final String STRIMZI_URL_ENV = "STRIMZI_URL";
 
     /**
      * The kafka version default value
@@ -34,6 +35,11 @@ public class Environment {
     public static final String KROXY_VERSION_DEFAULT = "0.3.0-SNAPSHOT";
 
     /**
+     * The strimzi installation url for kubernetes.
+     */
+    public static final String STRIMZI_URL_DEFAULT = "https://strimzi.io/install/latest?namespace=" + Constants.KROXY_DEFAULT_NAMESPACE;
+
+    /**
      * KAFKA_VERSION env variable assignment
      */
     public static final String KAFKA_VERSION = getOrDefault(KAFKA_VERSION_ENV, KAFKA_VERSION_DEFAULT);
@@ -45,6 +51,10 @@ public class Environment {
      * KROXY_VERSION env variable assignment
      */
     public static final String KROXY_VERSION = getOrDefault(KROXY_VERSION_ENV, KROXY_VERSION_DEFAULT);
+    /**
+     * STRIMZI_URL env variable assignment
+     */
+    public static final String STRIMZI_URL = getOrDefault(STRIMZI_URL_ENV, STRIMZI_URL_DEFAULT);
 
     private static String getOrDefault(String varName, String defaultValue) {
         return getOrDefault(varName, String::toString, defaultValue);
