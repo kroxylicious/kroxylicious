@@ -34,7 +34,7 @@ public class Strimzi {
     }
 
     /**
-     * Deploy.
+     * Deploy strimzi.
      * @throws IOException the io exception
      */
     public void deploy() throws IOException {
@@ -46,7 +46,7 @@ public class Strimzi {
     }
 
     /**
-     * Delete.
+     * Delete strimzi.
      * @throws IOException the io exception
      */
     public void delete() throws IOException {

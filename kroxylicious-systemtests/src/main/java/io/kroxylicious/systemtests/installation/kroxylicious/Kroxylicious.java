@@ -32,7 +32,7 @@ import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 public class Kroxylicious {
     private static final Logger LOGGER = LoggerFactory.getLogger(Kroxylicious.class);
     private final String deploymentNamespace;
-    private String containerImage = "quay.io/kroxylicious/kroxylicious-developer:" + Environment.KROXY_VERSION;
+    private String containerImage;
     private final ResourceManager resourceManager = ResourceManager.getInstance();
 
     /**
@@ -42,6 +42,7 @@ public class Kroxylicious {
      */
     public Kroxylicious(String deploymentNamespace) {
         this.deploymentNamespace = deploymentNamespace;
+        containerImage = Environment.KROXY_URL;
         if (!Objects.equals(Environment.QUAY_ORG, Environment.QUAY_ORG_DEFAULT)) {
             containerImage = "quay.io/" + Environment.QUAY_ORG + "/kroxylicious:" + Environment.KROXY_VERSION;
         }
@@ -50,6 +51,7 @@ public class Kroxylicious {
     /**
      * Deploy - Port per broker plain config
      * @param testInfo the test info
+     * @param replicas the replicas
      */
     public void deployPortPerBrokerPlain(TestInfo testInfo, int replicas) {
         LOGGER.info("Deploy Kroxy in {} namespace", deploymentNamespace);
@@ -69,6 +71,11 @@ public class Kroxylicious {
         DeploymentUtils.waitForDeploymentDeletion(deploymentNamespace, Constants.KROXY_DEPLOYMENT_NAME);
     }
 
+    /**
+     * Gets number of replicas.
+     *
+     * @return the number of replicas
+     */
     public int getNumberOfReplicas() {
         LOGGER.info("Getting number of replicas..");
         int count = 0;
