@@ -19,6 +19,8 @@ virtualClusters:
     logNetwork: false
     logFrames: false
 filters:
-#- type: ProduceRequestTransformationFilter
+#- type: ProduceRequestTransformationFilterFactory
 #  config:
-#    transformation: io.kroxylicious.proxy.internal.filter.ProduceRequestTransformationFilterFactory.ProduceRequestTransformationFilter$UpperCasing
+#    transformation: UpperCasing
+#    transformationConfig:
+#      charset: UTF-8
