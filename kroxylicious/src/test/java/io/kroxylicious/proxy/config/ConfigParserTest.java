@@ -11,6 +11,10 @@ import java.io.InputStream;
 import java.util.List;
 import java.util.stream.Stream;
 
+import com.fasterxml.jackson.databind.exc.ValueInstantiationException;
+
+import io.kroxylicious.proxy.plugin.UnknownPluginInstanceException;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -39,6 +43,7 @@ import io.kroxylicious.proxy.service.HostPort;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -268,6 +273,25 @@ class ConfigParserTest {
         assertThat(tm).isNotNull();
     }
 
+    @Test
+    void testUnknownPlugin() {
+        ConfigParser cp = new ConfigParser();
+        var iae = assertThrows(IllegalArgumentException.class, () -> cp.parseConfiguration("""
+                filters:
+                - type: ProduceRequestTransformationFilterFactory
+                  config:
+                    transformation: NotAKnownPlugin
+                    transformationConfig:
+                      charset: UTF-8
+                      """));
+        var vie = assertInstanceOf(ValueInstantiationException.class, iae.getCause());
+        var upie = assertInstanceOf(UnknownPluginInstanceException.class ,vie.getCause());
+        assertEquals("Unknown io.kroxylicious.proxy.internal.filter.ByteBufferTransformationFactory plugin instance "
+                + "for name 'NotAKnownPlugin'. "
+                + "Known plugin instances are [UpperCasing, io.kroxylicious.proxy.internal.filter.UpperCasing]",
+                upie.getMessage());
+    }
+    
     @ParameterizedTest(name = "{0}")
     @MethodSource
     void shouldWorkWithDifferentConfigCreators(String name, String yaml, Class<?> expectedConfigType) {

@@ -6,8 +6,6 @@
 
 package io.kroxylicious.proxy.config;
 
-import java.util.Map;
-
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.DatabindContext;
 import com.fasterxml.jackson.databind.JavaType;
@@ -15,10 +13,10 @@ import com.fasterxml.jackson.databind.jsontype.impl.TypeIdResolverBase;
 
 public class PluginConfigTypeIdResolver extends TypeIdResolverBase {
 
-    private final Map<String, ServiceBasedPluginFactoryRegistry.ProviderAndConfigType<?>> providers;
+    private final PluginFactory<?> providers;
     private JavaType superType;
 
-    PluginConfigTypeIdResolver(Map<String, ServiceBasedPluginFactoryRegistry.ProviderAndConfigType<?>> providers) {
+    PluginConfigTypeIdResolver(PluginFactory<?> providers) {
         this.providers = providers;
     }
 
@@ -44,7 +42,6 @@ public class PluginConfigTypeIdResolver extends TypeIdResolverBase {
 
     @Override
     public JavaType typeFromId(DatabindContext context, String id) {
-        var provider = providers.get(id);
-        return context.constructSpecializedType(superType, provider.config());
+        return context.constructSpecializedType(superType, providers.configType(id));
     }
 }
