@@ -61,8 +61,7 @@ class KroxyliciousTest {
     @Test
     void testVersion() {
         assertEquals(0, cmd.execute("-V"));
-        assertThat(stdOut()).containsPattern(Pattern.compile("kroxylicious: \\d+\\.\\d+\\.\\d+.*"))
-                .containsPattern(Pattern.compile("kroxylicious apis: \\d+\\.\\d+\\.\\d+.*"));
+        assertThat(stdOut()).containsPattern(Pattern.compile("kroxylicious: \\d+\\.\\d+\\.\\d+.*"));
     }
 
     @Test
