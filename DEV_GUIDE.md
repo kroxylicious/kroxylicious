@@ -51,10 +51,10 @@ This document gives a detailed breakdown of the various build processes and opti
 
 ## Build
 
-JDK version 20 or newer, and Apache Maven are required for building this project.
+JDK version 21 or newer, and Apache Maven are required for building this project.
 
 Kroxylicious targets language level 17, except for the `integrationtests` module
-which targets 20 to access some new language features.
+which targets 21 to access some new language features.
 
 Build the project like this:
 
@@ -178,15 +178,15 @@ To change the container engine to podman set `CONTAINER_ENGINE=podman`
 
 ### Intellij
 
-The project requires JDK-20 to build and run the `integrationtests` module and the IDEA project is configured to build against an SDK
-named `temurin-20`. A suggested way to install this is with [skdman](https://sdkman.io/) using `sdk install java 20-tem`.
+The project requires JDK-21 to build and run the `integrationtests` module and the IDEA project is configured to build against an SDK
+named `temurin-21`. A suggested way to install this is with [skdman](https://sdkman.io/) using `sdk install java 21-tem`.
 
 Run `mvn clean install -DskipTests` to install the project into your local maven repository (in `~/.m2`). This is necessary because
 IDEA fails to synchronise the project if the kroxylicious maven plugin isn't available to maven.
 
 Open the root `pom.xml` as a project.
 
-Then navigate to `File > Project Structure > Project Settings` and update `SDK` to point at your install JDK 20 (it should be populated
+Then navigate to `File > Project Structure > Project Settings` and update `SDK` to point at your install JDK 21 (it should be populated
 as a suggestion if you used sdkman to install it).
 
 In the IDEA Maven dialogue click on `Generate Sources and Update Folders For All Projects`.

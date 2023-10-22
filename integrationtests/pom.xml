@@ -21,8 +21,8 @@
     <description>Integration tests where Kroxylicious is tested end-to-end with a real Kafka cluster.</description>
 
     <properties>
-        <java.version>20</java.version>
-        <java.test.version>20</java.test.version>
+        <java.version>21</java.version>
+        <java.test.version>21</java.test.version>
     </properties>
 
     <dependencies>

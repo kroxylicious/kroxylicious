@@ -6,6 +6,7 @@ Please enumerate **all user-facing** changes using format `<githib issue/pr numb
 
 ## 0.3.0
 
+* [#634](https://github.com/kroxylicious/kroxylicious/issues/634): Update integration tests JDK dependency to 21.
 * [#632](https://github.com/kroxylicious/kroxylicious/pull/632): Kroxylicious tester now supports creating & deleting topics on specific virtual clusters.
 * [#675](https://github.com/kroxylicious/kroxylicious/pull/675): Bump to Netty 4.1.100.Final to mitigate the Rapid Reset Attack (CVE-2023-44487)
 * [#665](https://github.com/kroxylicious/kroxylicious/pull/665): Bump org.apache.kafka:kafka-clients from 3.5.1 to 3.6.0
