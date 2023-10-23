@@ -30,25 +30,25 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ServiceBasedPluginFactoryRegistry.class);
 
-    public record ProviderAndConfigType<P>(@NonNull ServiceLoader.Provider<P> provider,
-                                           @NonNull Class<?> config) {
+    public record ProviderAndConfigType(@NonNull ServiceLoader.Provider<?> provider,
+                                        @NonNull Class<?> config) {
         public ProviderAndConfigType {
             Objects.requireNonNull(provider);
             Objects.requireNonNull(config);
         }
     }
 
-    private final Map<Class<?>, Map<String, ProviderAndConfigType<?>>> pluginInterfaceToNameToProvider = new HashMap<>();
+    private final Map<Class<?>, Map<String, ProviderAndConfigType>> pluginInterfaceToNameToProvider = new HashMap<>();
 
     @NonNull
-    Map<String, ProviderAndConfigType<?>> load(@NonNull Class<?> pluginInterface) {
+    Map<String, ProviderAndConfigType> load(@NonNull Class<?> pluginInterface) {
         Objects.requireNonNull(pluginInterface);
         return pluginInterfaceToNameToProvider.computeIfAbsent(pluginInterface,
                 i -> loadProviders(pluginInterface));
     }
 
-    private static Map<String, ProviderAndConfigType<?>> loadProviders(Class<?> pluginInterface) {
-        HashMap<String, Set<ProviderAndConfigType<?>>> nameToProviders = new HashMap<>();
+    private static Map<String, ProviderAndConfigType> loadProviders(Class<?> pluginInterface) {
+        HashMap<String, Set<ProviderAndConfigType>> nameToProviders = new HashMap<>();
         ServiceLoader<?> load = ServiceLoader.load(pluginInterface);
         load.stream().forEach(provider -> {
             Class<?> providerType = provider.type();
@@ -57,7 +57,7 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
                 LOGGER.warn("Failed to find a @PluginConfigType on provider {} of service {}", providerType, pluginInterface);
             }
             else {
-                ProviderAndConfigType<?> providerAndConfigType = new ProviderAndConfigType<>(provider, annotation.value());
+                ProviderAndConfigType providerAndConfigType = new ProviderAndConfigType(provider, annotation.value());
                 Stream.of(providerType.getName(), providerType.getSimpleName()).forEach(name2 -> nameToProviders.compute(name2, (k2, v) -> {
                     if (v == null) {
                         v = new HashSet<>();
@@ -70,7 +70,7 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
         var bySingleton = nameToProviders.entrySet().stream().collect(
                 Collectors.partitioningBy(e -> e.getValue().size() == 1));
         if (LOGGER.isWarnEnabled()) {
-            for (Map.Entry<String, Set<ProviderAndConfigType<?>>> ambiguousInstanceNameToProviders : bySingleton.get(false)) {
+            for (Map.Entry<String, Set<ProviderAndConfigType>> ambiguousInstanceNameToProviders : bySingleton.get(false)) {
                 LOGGER.warn("'{}' would be an ambiguous reference to a {} provider. "
                         + "It could refer to any of {}"
                         + " so to avoid ambiguous behaviour those fully qualified names must be used",
