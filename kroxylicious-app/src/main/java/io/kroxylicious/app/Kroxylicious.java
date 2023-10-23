@@ -97,10 +97,9 @@ public class Kroxylicious implements Callable<Integer> {
                     Properties properties = new Properties();
                     properties.load(resource);
                     String version = properties.getProperty("kroxylicious.version", UNKNOWN);
-                    String apiVersion = properties.getProperty("kroxylicious.api.version", UNKNOWN);
                     String commitId = properties.getProperty("git.commit.id", UNKNOWN);
                     String commitMessage = properties.getProperty("git.commit.message.short", UNKNOWN);
-                    return new String[]{ "kroxylicious: " + version, "kroxylicious apis: " + apiVersion, "commit id: " + commitId, "commit message: " + commitMessage };
+                    return new String[]{ "kroxylicious: " + version, "commit id: " + commitId, "commit message: " + commitMessage };
                 }
             }
             return new String[]{ UNKNOWN };
