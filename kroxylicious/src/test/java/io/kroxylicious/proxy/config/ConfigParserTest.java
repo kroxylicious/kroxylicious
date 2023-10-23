@@ -301,7 +301,7 @@ class ConfigParserTest {
 
         // Then
         for (FilterDefinition fd : config.filters()) {
-            var pluginFactory = cp.pluginFactory(FilterChainFactory.TYPE);
+            var pluginFactory = cp.pluginFactory((Class<FilterFactory<? super Object, ? super Object>>) (Class) FilterFactory.class);
             var filterFactory = pluginFactory.pluginInstance(fd.type());
             Class<?> configType = pluginFactory.configType(fd.type());
             assertEquals(expectedConfigType, configType);

@@ -56,13 +56,14 @@ public class FilterChainFactory {
      * A constant Class type with non-raw {@code FilterFactory} type parameter,
      * for the avoidance of raw type warnings.
      */
-    @SuppressWarnings({ "unchecked", "rawtypes" })
-    public static final Class<FilterFactory<? super Object, ? super Object>> TYPE = (Class) FilterFactory.class;
+
 
     private final List<InitializedFilterFactory> initialized;
 
     public FilterChainFactory(PluginFactoryRegistry pfr, List<FilterDefinition> filterDefinitions) {
-        PluginFactory<FilterFactory<? super Object, ? super Object>> pluginFactory = pfr.pluginFactory(TYPE);
+        @SuppressWarnings({ "unchecked", "rawtypes" })
+        Class<FilterFactory<? super Object, ? super Object>> type = (Class) FilterFactory.class;
+        PluginFactory<FilterFactory<? super Object, ? super Object>> pluginFactory = pfr.pluginFactory(type);
         if (filterDefinitions == null || ((Collection<FilterDefinition>) filterDefinitions).isEmpty()) {
             this.initialized = List.of();
         }
