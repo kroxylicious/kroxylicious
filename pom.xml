@@ -57,7 +57,7 @@
         <jacoco-maven-plugin.version>0.8.10</jacoco-maven-plugin.version>
 
         <!-- Required for JDK 21 compatibility, remove dependency management for byte-buddy once assertj bumps to a newer bytebuddy -->
-        <byte-buddy.version>1.14.8</byte-buddy.version>
+        <byte-buddy.version>1.14.9</byte-buddy.version>
     </properties>
 
     <name>Kroxylicious Parent</name>
