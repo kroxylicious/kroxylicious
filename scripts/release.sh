@@ -8,9 +8,13 @@
 set -e
 REPOSITORY="origin"
 BRANCH_FROM="main"
+SNAPSHOT_INCREMENT_INDEX=2
 DRY_RUN="false"
 SKIP_VALIDATION="false"
-while getopts ":v:b:k:r:dsh" opt; do
+TEMPORARY_RELEASE_BRANCH=""
+PREPARE_DEVELOPMENT_BRANCH=""
+ORIGINAL_GH_DEFAULT_REPO=""
+while getopts ":v:b:k:r:n:dsh" opt; do
   case $opt in
     v) RELEASE_VERSION="${OPTARG}"
     ;;
@@ -24,6 +28,8 @@ while getopts ":v:b:k:r:dsh" opt; do
           exit 1
       fi
     ;;
+    n) SNAPSHOT_INCREMENT_INDEX="${OPTARG}"
+    ;;
     d) DRY_RUN="true"
     ;;
     s) SKIP_VALIDATION="true"
@@ -34,7 +40,8 @@ usage: $0 -k keyid -v version [-b branch] [-r repository] [-s] [-d] [-h]
  -k short key id used to sign the release
  -v version number e.g. 0.3.0
  -b branch to release from (defaults to 'main')
- -r the remote name of the kroxylicious repository (defaults to `origin`)
+ -n snapshot index to increment when opening main for new development (defaults to '2')
+ -r the remote name of the kroxylicious repository (defaults to 'origin')
  -s skips validation
  -d dry-run mode
  -h this help message
@@ -64,15 +71,23 @@ cleanup() {
         git checkout "${ORIGINAL_WORKING_BRANCH}" || true
     fi
 
+    if [[ ${ORIGINAL_GH_DEFAULT_REPO} ]]; then
+      gh repo set-default ${ORIGINAL_GH_DEFAULT_REPO}
+    fi
+
+    if [[ ${RELEASE_TAG} ]]; then
+      git tag --delete "${RELEASE_TAG}" || true
+    fi
+
+    # Note that git branch -D echos the sha of the deleted branch to
+    # stdout.  This is great for debugging the release process as it
+    # lets the developer restore to the state of the tree.
     if [[ "${DRY_RUN:-false}" == true && ${TEMPORARY_RELEASE_BRANCH} ]]; then
-        # Note that git branch -D echos the sha of the deleted branch to
-        # stdout.  This is great for debugging the release process as it
-        # lets the developer restore to the state of the tree.
         git branch -D "${TEMPORARY_RELEASE_BRANCH}" || true
     fi
 
-    if [[ "${DRY_RUN:-false}" == true && ${RELEASE_TAG} ]]; then
-      git tag --delete "${RELEASE_TAG}" || true
+    if [[ "${DRY_RUN:-false}" == true && ${PREPARE_DEVELOPMENT_BRANCH} ]]; then
+        git branch -D "${PREPARE_DEVELOPMENT_BRANCH}" || true
     fi
 }
 
@@ -109,7 +124,7 @@ RELEASE_TAG="v${RELEASE_VERSION}"
 
 echo "Committing release to git"
 git add '**/pom.xml' 'pom.xml'
-git commit --message "Release version v${RELEASE_TAG}" --signoff
+git commit --message "Release version ${RELEASE_TAG}" --signoff
 
 git tag -f "${RELEASE_TAG}"
 
@@ -117,6 +132,13 @@ git push "${REPOSITORY}" "${RELEASE_TAG}" ${GIT_DRYRUN:-}
 
 echo "Deploying release to maven central"
 mvn deploy -Prelease -DskipTests=true -DreleaseSigningKey="${GPG_KEY}" ${MVN_DEPLOY_DRYRUN:-}
+
+PREPARE_DEVELOPMENT_BRANCH="prepare-development-${RELEASE_DATE}"
+git checkout -b ${PREPARE_DEVELOPMENT_BRANCH} ${TEMPORARY_RELEASE_BRANCH}
+mvn versions:set -DnextSnapshot=true -DnextSnapshotIndexToIncrement="${SNAPSHOT_INCREMENT_INDEX}" -DgenerateBackupPoms=false -DprocessAllModules=true
+
+git add '**/pom.xml' 'pom.xml'
+git commit --message "Start next development version" --signoff
 
 if [[ "${DRY_RUN:-false}" == true ]]; then
     exit 0
@@ -127,6 +149,9 @@ then
     echo "gh command could not be found. Please create a pull request by hand https://github.com/kroxylicious/kroxylicious/compare"
     exit
 fi
+
+ORIGINAL_GH_DEFAULT_REPO=$(gh repo set-default -v | grep 'no default repository')
+gh repo set-default $(git remote get-url ${REPOSITORY})
 
 BODY="Release version ${RELEASE_VERSION}"
 
