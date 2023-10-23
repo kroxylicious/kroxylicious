@@ -26,19 +26,20 @@ TIP: To get the short ID for your key `gpg2 --show-keys --keyid-format short ${Y
 
 ## Running a release
 
-The project is release is two parts, the API and the Framework. There are separate release scripts beneath `./scripts` for each of these.
+Use the release script to actually perform the release and prepare main for the next development version.
 
 ```shell
-scripts/release-api.sh ${RELEASE_VERSION}
+./scripts/release.sh -k <YOUR_KEY_SHORT_ID> -v <RELEASE_VERSION> [-b <BRANCH_FROM>] [-r <REPOSITORY>]
 ```
 
-```shell
-scripts/release-framework.sh ${RELEASE_VERSION}
-```
+where
+* `<YOUR_KEY_SHORT_ID>` is the short id of your PGP key 
+* `<RELEASE_VERSION>` is a release number such as 0.6.0
+* `<BRANCH_FROM>` is the branch to release (defaults to `main`)
+* `<REPOSITORY>` is the remote name of the kroxylicious repository (defaults to `origin`)
 
 Once the release is completed, use the [Nexus UI](https://s01.oss.sonatype.org/) to close the staging repository, then release it. That will push the Maven artefacts available
 on Maven Central.  The artefacts will take a while to reach all the Maven Central mirrors.
-
 
 ## Releasing via the build server
 **TBD**
