@@ -26,7 +26,9 @@ public class ProduceRequestTransformationFilterFactory
     @Override
     public ProduceRequestTransformationFilter createFilter(FilterFactoryContext context,
                                                            Config configuration) {
-        ByteBufferTransformationFactory factory = context.pluginInstance(ByteBufferTransformationFactory.class, configuration.transformation());
+        @SuppressWarnings({"unchecked", "rawtypes"})
+        Class<ByteBufferTransformationFactory<?>> pluginClass = (Class) ByteBufferTransformationFactory.class;
+        ByteBufferTransformationFactory<?> factory = context.pluginInstance(pluginClass, configuration.transformation());
         return new ProduceRequestTransformationFilter(factory.createTransformation(configuration.transformationConfig()));
     }
 
