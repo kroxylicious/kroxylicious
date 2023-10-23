@@ -6,9 +6,10 @@
 
 package io.kroxylicious.systemtests.utils;
 
-import java.io.File;
-import java.io.FileInputStream;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -82,18 +83,16 @@ public class KafkaUtils {
      * @param numOfMessages the num of messages
      * @param timeoutMilliseconds the timeout milliseconds
      * @return the string
-     * @throws IOException the io exception
      */
-    public static String ConsumeMessageWithTestClients(String deployNamespace, String topicName, String bootstrap, int numOfMessages, long timeoutMilliseconds)
-            throws IOException {
+    public static String ConsumeMessageWithTestClients(String deployNamespace, String topicName, String bootstrap, int numOfMessages, long timeoutMilliseconds) {
 
         LOGGER.debug("Consuming messages from '{}' topic", topicName);
-        File file = replaceStringInResourceFile("kafka-consumer-template.yaml", "kafka-consumer.yaml", Map.of(
+        InputStream file = replaceStringInResourceFile("kafka-consumer-template.yaml", Map.of(
                 "%BOOTSTRAP_SERVERS%", bootstrap,
                 "%TOPIC_NAME%", topicName,
                 "%MESSAGE_COUNT%", "\"" + numOfMessages + "\""));
 
-        kubeClient().getClient().load(new FileInputStream(file)).inNamespace(deployNamespace).create();
+        kubeClient().getClient().load(file).inNamespace(deployNamespace).create();
         String podName = getPodNameByLabel(deployNamespace, "app", Constants.KAFKA_CONSUMER_CLIENT_LABEL, timeoutMilliseconds);
         TestUtils.waitFor("", 1000, timeoutMilliseconds,
                 () -> {
@@ -140,34 +139,34 @@ public class KafkaUtils {
      * @param message the message
      * @param numOfMessages the num of messages
      * @return the string
-     * @throws IOException the io exception
      */
-    public static String produceMessageWithTestClients(String deployNamespace, String topicName, String bootstrap, String message, int numOfMessages) throws IOException {
+    public static String produceMessageWithTestClients(String deployNamespace, String topicName, String bootstrap, String message, int numOfMessages) {
         LOGGER.debug("Producing {} messages in '{}' topic", numOfMessages, topicName);
-        File file = replaceStringInResourceFile("kafka-producer-template.yaml", "kafka-producer.yaml", Map.of(
+        InputStream file = replaceStringInResourceFile("kafka-producer-template.yaml", Map.of(
                 "%BOOTSTRAP_SERVERS%", bootstrap,
                 "%TOPIC_NAME%", topicName,
                 "%MESSAGE_COUNT%", "\"" + numOfMessages + "\"",
                 "%MESSAGE%", message));
-        kubeClient().getClient().load(new FileInputStream(file)).inNamespace(deployNamespace).create();
+        kubeClient().getClient().load(file).inNamespace(deployNamespace).create();
         return getPodNameByLabel(deployNamespace, "app", Constants.KAFKA_PRODUCER_CLIENT_LABEL, Duration.ofSeconds(10).toMillis());
     }
 
-    private static File replaceStringInResourceFile(String resourceTemplateFileName, String newResourceFileName, Map<String, String> replacements) throws IOException {
+    private static InputStream replaceStringInResourceFile(String resourceTemplateFileName, Map<String, String> replacements) {
         Path path = Path.of(Objects.requireNonNull(KafkaUtils.class
                 .getClassLoader().getResource(resourceTemplateFileName)).getPath());
         Charset charset = StandardCharsets.UTF_8;
 
-        String content = new String(Files.readAllBytes(path), charset);
+        String content;
+        try {
+            content = Files.readString(path, charset);
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
         for (Map.Entry<String, String> entry : replacements.entrySet()) {
             content = content.replaceAll(entry.getKey(), entry.getValue());
         }
-        String resourceFile = "/tmp/" + newResourceFileName;
-
-        Files.writeString(Path.of(resourceFile), content, charset);
-        File file = new File(resourceFile);
-        file.deleteOnExit();
-        return file;
+        return new ByteArrayInputStream(content.getBytes());
     }
 
     /**
@@ -180,7 +179,7 @@ public class KafkaUtils {
         kubeClient().getClient().batch().v1().jobs().inNamespace(deployNamespace).delete();
         kubeClient().getClient().pods().inNamespace(deployNamespace).withLabel("app", Constants.KAFKA_PRODUCER_CLIENT_LABEL).delete();
         kubeClient().getClient().pods().inNamespace(deployNamespace).withLabel("app", Constants.KAFKA_CONSUMER_CLIENT_LABEL).delete();
-        kubeClient().getClient().pods().inNamespace(deployNamespace).withLabel("app", Constants.KAFKA_CONSUMER_CLIENT_LABEL).waitUntilCondition(x -> x == null, 10,
+        kubeClient().getClient().pods().inNamespace(deployNamespace).withLabel("app", Constants.KAFKA_CONSUMER_CLIENT_LABEL).waitUntilCondition(Objects::isNull, 10,
                 TimeUnit.SECONDS);
     }
 

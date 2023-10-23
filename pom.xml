@@ -63,6 +63,8 @@
         <strimzi.version>0.37.0</strimzi.version>
         <fabric8.kubernetes.version>6.8.1</fabric8.kubernetes.version>
         <testcontainers.version>1.19.0</testcontainers.version>
+        <enforcer.api.version>3.4.1</enforcer.api.version>
+        <maven.core.version>3.9.5</maven.core.version>
     </properties>
 
     <name>Kroxylicious Parent</name>
@@ -304,12 +306,12 @@
             <dependency>
                 <groupId>org.apache.maven.enforcer</groupId>
                 <artifactId>enforcer-api</artifactId>
-                <version>3.4.1</version>
+                <version>${enforcer.api.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.maven</groupId>
                 <artifactId>maven-core</artifactId>
-                <version>3.9.5</version>
+                <version>${maven.core.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

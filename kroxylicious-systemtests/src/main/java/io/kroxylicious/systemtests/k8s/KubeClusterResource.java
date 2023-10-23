@@ -37,6 +37,9 @@ public class KubeClusterResource {
     private String namespace;
     private String testNamespace;
 
+    private KubeClusterResource() {
+    }
+
     /**
      * Gets instance.
      *
@@ -122,7 +125,7 @@ public class KubeClusterResource {
      *
      * @return the kube cmd client
      */
-    public KubeCmdClient cmdClient() {
+    public synchronized KubeCmdClient cmdClient() {
         if (cmdClient == null) {
             cmdClient = cluster().defaultCmdClient();
         }
@@ -134,7 +137,7 @@ public class KubeClusterResource {
      *
      * @return the kube client
      */
-    public KubeClient client() {
+    public synchronized KubeClient client() {
         if (client == null) {
             this.client = cluster().defaultClient();
         }
@@ -146,7 +149,7 @@ public class KubeClusterResource {
      *
      * @return the kube cluster
      */
-    public KubeCluster cluster() {
+    public synchronized KubeCluster cluster() {
         if (kubeCluster == null) {
             kubeCluster = KubeCluster.bootstrap();
         }

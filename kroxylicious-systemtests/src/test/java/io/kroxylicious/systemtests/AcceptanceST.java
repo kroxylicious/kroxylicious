@@ -6,7 +6,6 @@
 
 package io.kroxylicious.systemtests;
 
-import java.io.IOException;
 import java.time.Duration;
 
 import org.junit.jupiter.api.BeforeAll;
@@ -20,8 +19,8 @@ import io.kroxylicious.systemtests.steps.KafkaSteps;
 import io.kroxylicious.systemtests.steps.KroxySteps;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaTemplates;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * The type Acceptance st.
@@ -34,10 +33,9 @@ class AcceptanceST extends AbstractST {
      * Produce and consume message.
      *
      * @param testInfo the test info
-     * @throws IOException the io exception
      */
     @Test
-    void produceAndConsumeMessage(TestInfo testInfo) throws IOException {
+    void produceAndConsumeMessage(TestInfo testInfo) {
         String topicName = "my-topic";
         String message = "Hello-world";
         int numberOfMessages = 1;
@@ -57,17 +55,16 @@ class AcceptanceST extends AbstractST {
         LOGGER.info("Then the {} messages are consumed", numberOfMessages);
         String result = KroxySteps.consumeMessages(topicName, Constants.KROXY_BOOTSTRAP, numberOfMessages, Duration.ofMinutes(2).toMillis());
         LOGGER.info("Received: " + result);
-        assertTrue(result.contains(consumedMessage), "'" + consumedMessage + "' message not consumed!");
+        assertThat("'" + consumedMessage + "' message not consumed!", result.contains(consumedMessage));
     }
 
     /**
      * Restart kafka brokers.
      *
      * @param testInfo the test info
-     * @throws IOException the io exception
      */
     @Test
-    void restartKafkaBrokers(TestInfo testInfo) throws IOException {
+    void restartKafkaBrokers(TestInfo testInfo) {
         String topicName = "my-topic2";
         String message = "Hello-world";
         int numberOfMessages = 20;
@@ -89,17 +86,16 @@ class AcceptanceST extends AbstractST {
         LOGGER.info("Then the {} messages are consumed", numberOfMessages);
         String result = KroxySteps.consumeMessages(topicName, Constants.KROXY_BOOTSTRAP, numberOfMessages, Duration.ofMinutes(10).toMillis());
         LOGGER.info("Received: " + result);
-        assertTrue(result.contains(consumedMessage), "'" + consumedMessage + "' message not consumed!");
+        assertThat("'" + consumedMessage + "' message not consumed!", result.contains(consumedMessage));
     }
 
     /**
      * Kroxy with replicas.
      *
      * @param testInfo the test info
-     * @throws IOException the io exception
      */
     @Test
-    void kroxyWithReplicas(TestInfo testInfo) throws IOException {
+    void kroxyWithReplicas(TestInfo testInfo) {
         String topicName = "my-topic3";
         String message = "Hello-world";
         int numberOfMessages = 5;
@@ -122,7 +118,7 @@ class AcceptanceST extends AbstractST {
         LOGGER.info("Then the {} messages are consumed", numberOfMessages);
         String result = KroxySteps.consumeMessages(topicName, Constants.KROXY_BOOTSTRAP, numberOfMessages, Duration.ofMinutes(2).toMillis());
         LOGGER.info("Received: " + result);
-        assertTrue(result.contains(consumedMessage), "'" + consumedMessage + "' message not consumed!");
+        assertThat("'" + consumedMessage + "' message not consumed!", result.contains(consumedMessage));
     }
 
     /**
