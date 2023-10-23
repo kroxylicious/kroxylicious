@@ -16,6 +16,8 @@ import io.kroxylicious.proxy.plugin.PluginImplConfig;
 import io.kroxylicious.proxy.plugin.PluginImplName;
 import io.kroxylicious.proxy.plugin.Plugins;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 @PluginConfigType(ProduceRequestTransformationFilterFactory.Config.class)
 public class ProduceRequestTransformationFilterFactory
         implements FilterFactory<Config, Config> {
@@ -23,16 +25,17 @@ public class ProduceRequestTransformationFilterFactory
                          @PluginImplName(ByteBufferTransformationFactory.class) @JsonProperty(required = true) String transformation,
                          @PluginImplConfig(implNameProperty = "transformation") Object transformationConfig) {}
 
+    @NonNull
     @Override
+    @SuppressWarnings({ "rawtypes", "unchecked" })
     public ProduceRequestTransformationFilter createFilter(FilterFactoryContext context,
                                                            Config configuration) {
-        @SuppressWarnings({"unchecked", "rawtypes"})
-        Class<ByteBufferTransformationFactory<?>> pluginClass = (Class) ByteBufferTransformationFactory.class;
-        ByteBufferTransformationFactory<?> factory = context.pluginInstance(pluginClass, configuration.transformation());
+        ByteBufferTransformationFactory factory = context.pluginInstance(ByteBufferTransformationFactory.class, configuration.transformation());
         return new ProduceRequestTransformationFilter(factory.createTransformation(configuration.transformationConfig()));
     }
 
     @Override
+    @SuppressWarnings({ "unchecked" })
     public Config initialize(FilterFactoryContext context, Config config) {
         Plugins.requireConfig(this, config);
         var transformationFactory = context.pluginInstance(ByteBufferTransformationFactory.class, config.transformation());

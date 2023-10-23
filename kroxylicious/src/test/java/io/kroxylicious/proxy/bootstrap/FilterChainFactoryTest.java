@@ -214,11 +214,12 @@ class FilterChainFactoryTest {
     @Test
     void shouldPassValidationIfOptionalConfigIsMissing() {
         // Given
-        final FilterDefinition requiredConfig = new FilterDefinition(OptionalConfigFactory.class.getName(), null);
+        final FilterDefinition missingConfig = new FilterDefinition(OptionalConfigFactory.class.getName(), null);
 
         // When
 
         // Then
+        assertThat(new FilterChainFactory(pfr, List.of(missingConfig))).isNotNull();
     }
 
 }
