@@ -28,6 +28,7 @@ import io.fabric8.kubernetes.api.model.Pod;
 import io.kroxylicious.systemtests.Constants;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
+import static org.testcontainers.shaded.org.awaitility.Awaitility.await;
 
 /**
  * The type Kafka utils.
@@ -184,7 +185,7 @@ public class KafkaUtils {
     }
 
     /**
-     * Restart broker boolean.
+     * Restart broker
      *
      * @param deployNamespace the deploy namespace
      * @param clusterName the cluster name
@@ -193,15 +194,17 @@ public class KafkaUtils {
     public static boolean restartBroker(String deployNamespace, String clusterName) {
         String podName = "";
         List<Pod> kafkaPods = kubeClient().getClient().pods().inNamespace(Constants.KROXY_DEFAULT_NAMESPACE).list().getItems();
-        int numOfBrokers = kafkaPods.size();
         for (Pod pod : kafkaPods) {
             String tmpName = pod.getMetadata().getName();
             if (tmpName.startsWith(clusterName)) {
                 podName = pod.getMetadata().getName();
             }
         }
-        kubeClient().getClient().pods().inNamespace(deployNamespace).withName(podName).delete();
-        kubeClient().getClient().pods().inNamespace(deployNamespace).withName(podName).waitUntilCondition(Objects::isNull, 10, TimeUnit.SECONDS);
-        return numOfBrokers - 1 == kubeClient().getClient().pods().inNamespace(deployNamespace).list().getItems().size();
+        String podUid = kubeClient().getClient().pods().inNamespace(deployNamespace).withName(podName).get().getMetadata().getUid();
+        kubeClient().getClient().pods().inNamespace(deployNamespace).withName(podName).withGracePeriod(0).delete();
+        kubeClient().getClient().pods().inNamespace(deployNamespace).withName(podName).waitUntilCondition(Objects::isNull, 20, TimeUnit.SECONDS);
+        String finalPodName = podName;
+        await().atMost(Duration.ofMinutes(1)).until(() -> kubeClient().getClient().pods().inNamespace(deployNamespace).withName(finalPodName) != null);
+        return !Objects.equals(podUid, kubeClient().getClient().pods().inNamespace(deployNamespace).withName(podName).get().getMetadata().getUid());
     }
 }
