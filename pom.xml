@@ -38,7 +38,7 @@
         <junit.version>5.10.0</junit.version>
         <kafka.version>3.6.0</kafka.version>
         <kroxy.extension.version>0.6.0</kroxy.extension.version>
-        <log4j.version>2.20.0</log4j.version>
+        <log4j.version>2.21.0</log4j.version>
         <picocli.version>4.7.5</picocli.version>
         <netty.version>4.1.100.Final</netty.version>
         <netty.io_uring.version>0.0.23.Final</netty.io_uring.version>
@@ -56,7 +56,7 @@
         <jacoco-maven-plugin.version>0.8.10</jacoco-maven-plugin.version>
 
         <!-- Required for JDK 21 compatibility, remove dependency management for byte-buddy once assertj bumps to a newer bytebuddy -->
-        <byte-buddy.version>1.14.8</byte-buddy.version>
+        <byte-buddy.version>1.14.9</byte-buddy.version>
     </properties>
 
     <name>Kroxylicious Parent</name>
