@@ -53,7 +53,7 @@
         <spotbugs-annotations.version>4.8.0</spotbugs-annotations.version>
         <zjsonpatch.version>0.4.14</zjsonpatch.version>
         <moby-names-generator.version>20.10.1-r0</moby-names-generator.version>
-        <jacoco-maven-plugin.version>0.8.10</jacoco-maven-plugin.version>
+        <jacoco-maven-plugin.version>0.8.11</jacoco-maven-plugin.version>
 
         <!-- Required for JDK 21 compatibility, remove dependency management for byte-buddy once assertj bumps to a newer bytebuddy -->
         <byte-buddy.version>1.14.9</byte-buddy.version>
