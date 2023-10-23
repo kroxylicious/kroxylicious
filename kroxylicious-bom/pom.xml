@@ -97,7 +97,7 @@
             <dependency>
                 <groupId>io.kroxylicious</groupId>
                 <artifactId>kroxylicious-api</artifactId>
-                <version>${kroxylicious-api.version}</version>
+                <version>${project.version}</version>
             </dependency>
 
             <dependency>

@@ -17,7 +17,6 @@
     <packaging>pom</packaging>
 
     <properties>
-        <kroxylicious-api.version>0.3.0-SNAPSHOT</kroxylicious-api.version>
         <java.version>17</java.version>
         <java.test.version>17</java.test.version>
         <maven.exec.version>3.1.0</maven.exec.version>
@@ -42,7 +41,7 @@
         <junit.version>5.10.0</junit.version>
         <kafka.version>3.6.0</kafka.version>
         <kroxy.extension.version>0.6.0</kroxy.extension.version>
-        <log4j.version>2.20.0</log4j.version>
+        <log4j.version>2.21.0</log4j.version>
         <picocli.version>4.7.5</picocli.version>
         <netty.version>4.1.100.Final</netty.version>
         <netty.io_uring.version>0.0.23.Final</netty.io_uring.version>
@@ -58,13 +57,16 @@
         <zjsonpatch.version>0.4.14</zjsonpatch.version>
         <moby-names-generator.version>20.10.1-r0</moby-names-generator.version>
         <jacoco-maven-plugin.version>0.8.10</jacoco-maven-plugin.version>
+        
+        <!-- Required for JDK 21 compatibility, remove dependency management for byte-buddy once assertj bumps to a newer bytebuddy -->
+        <byte-buddy.version>1.14.9</byte-buddy.version>
 
         <!-- Test dependencies -->
         <strimzi.version>0.37.0</strimzi.version>
         <fabric8.kubernetes.version>6.8.1</fabric8.kubernetes.version>
         <testcontainers.version>1.19.0</testcontainers.version>
         <enforcer.api.version>3.4.1</enforcer.api.version>
-        <maven.core.version>3.9.5</maven.core.version>
+        <maven.core.version>3.9.5</maven.core.version>        
     </properties>
 
     <name>Kroxylicious Parent</name>
@@ -312,6 +314,12 @@
                 <groupId>org.apache.maven</groupId>
                 <artifactId>maven-core</artifactId>
                 <version>${maven.core.version}</version>
+             </dependency>
+             <dependency>
+                <groupId>net.bytebuddy</groupId>
+                <artifactId>byte-buddy</artifactId>
+                <version>${byte-buddy.version}</version>
+                <scope>test</scope>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -364,7 +372,7 @@
                 <plugin>
                     <groupId>io.github.git-commit-id</groupId>
                     <artifactId>git-commit-id-maven-plugin</artifactId>
-                    <version>6.0.0</version>
+                    <version>7.0.0</version>
                 </plugin>
                 <plugin>
                     <groupId>com.mycila</groupId>
@@ -478,7 +486,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-plugin-plugin</artifactId>
-                    <version>3.9.0</version>
+                    <version>3.10.1</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
