@@ -21,9 +21,6 @@
         deploying the project to have a simple, consistent and co-ordinated view of the various modules involved.
     </description>
 
-    <properties>
-        <kroxylicious-api.version>0.3.0-SNAPSHOT</kroxylicious-api.version>
-    </properties>
     <licenses>
         <license>
             <name>Apache-2.0</name>
