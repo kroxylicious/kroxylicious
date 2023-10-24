@@ -20,6 +20,7 @@
         A bill of materials for the kroxylicious project. To support filter authors and people building and
         deploying the project to have a simple, consistent and co-ordinated view of the various modules involved.
     </description>
+    <url>https://kroxylicious.io/kroxylicious/</url>
 
     <licenses>
         <license>
