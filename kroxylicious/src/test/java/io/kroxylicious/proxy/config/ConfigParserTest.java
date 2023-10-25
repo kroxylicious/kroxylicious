@@ -11,8 +11,6 @@ import java.io.InputStream;
 import java.util.List;
 import java.util.stream.Stream;
 
-import io.kroxylicious.proxy.plugin.PluginImplName;
-
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -376,8 +374,9 @@ class ConfigParserTest {
                 """));
         var vie = assertInstanceOf(ValueInstantiationException.class, iae.getCause());
         var pde = assertInstanceOf(PluginDiscoveryException.class, vie.getCause());
-        assertEquals("Couldn't find @PluginImplName on member referred to by @PluginImplConfig on [parameter #1, annotations: {interface io.kroxylicious.proxy.plugin.PluginImplConfig=@io.kroxylicious.proxy.plugin.PluginImplConfig(implNameProperty=\"id\")}]", pde.getMessage());
+        assertEquals(
+                "Couldn't find @PluginImplName on member referred to by @PluginImplConfig on [parameter #1, annotations: {interface io.kroxylicious.proxy.plugin.PluginImplConfig=@io.kroxylicious.proxy.plugin.PluginImplConfig(implNameProperty=\"id\")}]",
+                pde.getMessage());
     }
-
 
 }

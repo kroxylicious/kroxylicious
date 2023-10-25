@@ -144,7 +144,8 @@ public class ConfigParser implements PluginFactoryRegistry {
                     pluginImplName = pluginReferenceFromField(annotated, af);
                 }
                 if (pluginImplName == null) {
-                    throw new PluginDiscoveryException("Couldn't find @" + PluginImplName.class.getSimpleName() + " on member referred to by @" + PluginImplConfig.class.getSimpleName() + " on " + annotated);
+                    throw new PluginDiscoveryException("Couldn't find @" + PluginImplName.class.getSimpleName() + " on member referred to by @"
+                            + PluginImplConfig.class.getSimpleName() + " on " + annotated);
                 }
                 return newResolver(pluginImplName.value());
             }
