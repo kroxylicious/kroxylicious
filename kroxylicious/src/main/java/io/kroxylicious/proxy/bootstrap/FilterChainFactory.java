@@ -57,7 +57,6 @@ public class FilterChainFactory {
      * for the avoidance of raw type warnings.
      */
 
-
     private final List<InitializedFilterFactory> initialized;
 
     public FilterChainFactory(PluginFactoryRegistry pfr, List<FilterDefinition> filterDefinitions) {

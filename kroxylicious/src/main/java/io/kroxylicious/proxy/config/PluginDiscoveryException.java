@@ -14,5 +14,5 @@ public class PluginDiscoveryException extends RuntimeException {
     public PluginDiscoveryException(String message) {
         super(message);
     }
-    
+
 }
