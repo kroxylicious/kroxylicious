@@ -28,7 +28,6 @@ import com.fasterxml.jackson.databind.cfg.HandlerInstantiator;
 import com.fasterxml.jackson.databind.cfg.MapperConfig;
 import com.fasterxml.jackson.databind.introspect.Annotated;
 import com.fasterxml.jackson.databind.introspect.AnnotatedClass;
-import com.fasterxml.jackson.databind.introspect.AnnotatedConstructor;
 import com.fasterxml.jackson.databind.introspect.AnnotatedField;
 import com.fasterxml.jackson.databind.introspect.AnnotatedParameter;
 import com.fasterxml.jackson.databind.introspect.AnnotatedWithParams;
@@ -192,25 +191,9 @@ public class ConfigParser implements PluginFactoryRegistry {
             if (parameterOwner instanceof Constructor<?> ctor) {
                 return findPluginReferenceAnnotation(instanceNameProperty, ctor);
             }
-            else if (owner instanceof AnnotatedConstructor ac) {
-                return findPluginReferenceAnnotation(instanceNameProperty, ac);
-            }
             else {
                 throw new IllegalStateException("Unsupported owner: " + owner);
             }
-        }
-
-        private static PluginImplName findPluginReferenceAnnotation(String instanceNameProperty, AnnotatedConstructor ac) {
-            for (int i = 0; i < ac.getParameterCount(); i++) {
-                var oap = ac.getParameter(i);
-                if (instanceNameProperty.equals(oap.getName())) {
-                    PluginImplName annotation = oap.getAnnotation(PluginImplName.class);
-                    if (annotation != null) {
-                        return annotation;
-                    }
-                }
-            }
-            return null;
         }
 
         private static PluginImplName findPluginReferenceAnnotation(String instanceNameProperty, Constructor<?> ctor) {
