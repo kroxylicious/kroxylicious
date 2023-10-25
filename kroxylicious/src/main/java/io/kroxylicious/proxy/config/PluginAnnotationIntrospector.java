@@ -16,7 +16,7 @@ import com.fasterxml.jackson.databind.jsontype.TypeIdResolver;
 
 import io.kroxylicious.proxy.plugin.PluginImplConfig;
 
-public class PluginAnnotationIntrospector extends JacksonAnnotationIntrospector {
+class PluginAnnotationIntrospector extends JacksonAnnotationIntrospector {
 
     @Override
     protected <A extends Annotation> A _findAnnotation(Annotated ann,

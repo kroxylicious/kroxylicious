@@ -6,3 +6,4 @@ io.kroxylicious.proxy.internal.filter.FieldInjection
 io.kroxylicious.proxy.internal.filter.Record
 io.kroxylicious.proxy.internal.filter.SetterInjection
 io.kroxylicious.proxy.internal.filter.FactoryMethod
+io.kroxylicious.proxy.internal.filter.MissingPluginImplName

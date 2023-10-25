@@ -11,6 +11,8 @@ import java.io.InputStream;
 import java.util.List;
 import java.util.stream.Stream;
 
+import io.kroxylicious.proxy.plugin.PluginImplName;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -285,7 +287,7 @@ class ConfigParserTest {
         var upie = assertInstanceOf(UnknownPluginInstanceException.class, vie.getCause());
         assertEquals("Unknown io.kroxylicious.proxy.internal.filter.ByteBufferTransformationFactory plugin instance "
                 + "for name 'NotAKnownPlugin'. "
-                + "Known plugin instances are [UpperCasing, io.kroxylicious.proxy.internal.filter.UpperCasing]",
+                + "Known plugin instances are [UpperCasing, io.kroxylicious.proxy.internal.filter.UpperCasing]. Plugins must be loadable by java.util.ServiceLoader.",
                 upie.getMessage());
     }
 
@@ -351,5 +353,31 @@ class ConfigParserTest {
                                       """,
                         SetterInjectionConfig.class));
     }
+
+    @Test
+    void shouldThrowWhenSerializingUnserializableObject() {
+        var config = new Configuration(null, null, List.of(new FilterDefinition("", new Object())), null, false);
+
+        ConfigParser cp = new ConfigParser();
+        assertThrows(IllegalArgumentException.class, () -> cp.toYaml(config));
+    }
+
+    @Test
+    void shouldThrowIfMissingPluginImplName() {
+        ConfigParser cp = new ConfigParser();
+
+        var iae = assertThrows(IllegalArgumentException.class, () -> cp.parseConfiguration("""
+                filters:
+                - type: MissingPluginImplName
+                  config:
+                    id: NotAKnownPlugin
+                    config:
+                      foo: bar
+                """));
+        var vie = assertInstanceOf(ValueInstantiationException.class, iae.getCause());
+        var pde = assertInstanceOf(PluginDiscoveryException.class, vie.getCause());
+        assertEquals("Couldn't find @PluginImplName on member referred to by @PluginImplConfig on [parameter #1, annotations: {interface io.kroxylicious.proxy.plugin.PluginImplConfig=@io.kroxylicious.proxy.plugin.PluginImplConfig(implNameProperty=\"id\")}]", pde.getMessage());
+    }
+
 
 }

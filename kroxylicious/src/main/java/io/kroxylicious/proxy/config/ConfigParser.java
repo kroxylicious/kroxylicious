@@ -144,11 +144,23 @@ public class ConfigParser implements PluginFactoryRegistry {
                     pluginImplName = pluginReferenceFromField(annotated, af);
                 }
                 if (pluginImplName == null) {
-                    throw new PluginDiscoveryException("Couldn't find @" + PluginImplName.class.getSimpleName() + " on " + annotated);
+                    throw new PluginDiscoveryException("Couldn't find @" + PluginImplName.class.getSimpleName() + " on member referred to by @" + PluginImplConfig.class.getSimpleName() + " on " + annotated);
                 }
                 return newResolver(pluginImplName.value());
             }
             return null;
+        }
+
+        private PluginImplName pluginReferenceFromParameter(Annotated annotated, AnnotatedParameter ap) {
+            PluginImplName pluginImplName;
+            var pcAnno = ap.getAnnotation(PluginImplConfig.class);
+            if (pcAnno == null) {
+                // pcAnno is guaranteed non-null because PluginAnnotationIntrospector will only return the PluginConfigTypeIdResolver.class
+                // for properties annotated @PluginConfig
+                throw new PluginDiscoveryException(annotated + " lacked the @" + PluginImplConfig.class.getName() + " annotation");
+            }
+            pluginImplName = findPluginReferenceAnnotation(ap.getOwner(), pcAnno.implNameProperty());
+            return pluginImplName;
         }
 
         private PluginImplName pluginReferenceFromField(Annotated annotated, AnnotatedField af) {
@@ -166,18 +178,6 @@ public class ConfigParser implements PluginFactoryRegistry {
                     break;
                 }
             }
-            return pluginImplName;
-        }
-
-        private PluginImplName pluginReferenceFromParameter(Annotated annotated, AnnotatedParameter ap) {
-            PluginImplName pluginImplName;
-            var pcAnno = ap.getAnnotation(PluginImplConfig.class);
-            if (pcAnno == null) {
-                // pcAnno is guaranteed non-null because MyAnnotationIntrospector will only return the PluginConfigTypeIdResolver.class
-                // for properties annotated @PluginConfig
-                throw new PluginDiscoveryException(annotated + " lacked the @" + PluginImplConfig.class.getName() + " annotation");
-            }
-            pluginImplName = findPluginReferenceAnnotation(ap.getOwner(), pcAnno.implNameProperty());
             return pluginImplName;
         }
 
