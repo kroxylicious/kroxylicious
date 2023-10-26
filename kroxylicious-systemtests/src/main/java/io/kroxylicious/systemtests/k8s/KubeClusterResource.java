@@ -26,16 +26,12 @@ import io.kroxylicious.systemtests.k8s.cmd.KubeCmdClient;
  * </code></pre>
  */
 public class KubeClusterResource {
-
     private static final Logger LOGGER = LoggerFactory.getLogger(KubeClusterResource.class);
-
     private KubeCluster kubeCluster;
     private KubeCmdClient cmdClient;
     private KubeClient client;
     private static KubeClusterResource kubeClusterResource;
-
     private String namespace;
-    private String testNamespace;
 
     private KubeClusterResource() {
     }
@@ -50,23 +46,12 @@ public class KubeClusterResource {
             kubeClusterResource = new KubeClusterResource();
             initNamespaces();
             LOGGER.info("Cluster default namespace is {}", kubeClusterResource.getNamespace());
-            LOGGER.info("Cluster command line client default namespace is {}", kubeClusterResource.getTestNamespace());
         }
         return kubeClusterResource;
     }
 
     private static void initNamespaces() {
         kubeClusterResource.setDefaultNamespace(cmdKubeClient().defaultNamespace());
-        kubeClusterResource.setTestNamespace(cmdKubeClient().defaultNamespace());
-    }
-
-    /**
-     * Sets test namespace.
-     *
-     * @param testNamespace the test namespace
-     */
-    public void setTestNamespace(String testNamespace) {
-        this.testNamespace = testNamespace;
     }
 
     /**
@@ -154,14 +139,5 @@ public class KubeClusterResource {
             kubeCluster = KubeCluster.bootstrap();
         }
         return kubeCluster;
-    }
-
-    /**
-     * Gets test namespace.
-     *
-     * @return the test namespace
-     */
-    public String getTestNamespace() {
-        return testNamespace;
     }
 }
