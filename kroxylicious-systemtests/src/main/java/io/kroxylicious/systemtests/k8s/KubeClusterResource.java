@@ -44,14 +44,10 @@ public class KubeClusterResource {
     public static synchronized KubeClusterResource getInstance() {
         if (kubeClusterResource == null) {
             kubeClusterResource = new KubeClusterResource();
-            initNamespaces();
+            kubeClusterResource.setDefaultNamespace(cmdKubeClient().defaultNamespace());
             LOGGER.info("Cluster default namespace is {}", kubeClusterResource.getNamespace());
         }
         return kubeClusterResource;
-    }
-
-    private static void initNamespaces() {
-        kubeClusterResource.setDefaultNamespace(cmdKubeClient().defaultNamespace());
     }
 
     /**

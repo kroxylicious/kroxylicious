@@ -105,7 +105,7 @@ public class ResourceManager {
             LOGGER.info("Creating/Updating {} {}",
                     resource.getKind(), resource.getMetadata().getName());
 
-            assertNotNull(type);
+            assert type != null;
             type.create(resource);
 
             synchronized (this) {
