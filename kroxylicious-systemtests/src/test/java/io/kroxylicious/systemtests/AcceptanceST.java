@@ -28,8 +28,8 @@ import static org.hamcrest.MatcherAssert.assertThat;
  */
 class AcceptanceST extends AbstractST {
     private static final Logger LOGGER = LoggerFactory.getLogger(AcceptanceST.class);
-    private final String clusterName = "my-cluster";
     private static Kroxylicious kroxylicious;
+    private final String clusterName = "my-cluster";
 
     /**
      * Produce and consume message.
@@ -48,10 +48,10 @@ class AcceptanceST extends AbstractST {
         // start kroxy
         LOGGER.info("Given Kroxy in {} namespace with {} replicas", namespace, 1);
         kroxylicious = new Kroxylicious(namespace);
-        kroxylicious.deployPortPerBrokerPlain(testInfo.getDisplayName(), clusterName,1);
+        kroxylicious.deployPortPerBrokerPlain(testInfo.getDisplayName(), clusterName, 1);
 
         LOGGER.info("And KafkaTopic in {} namespace", namespace);
-        KafkaSteps.createTopic(testInfo.getDisplayName(), topicName, clusterName, namespace,1, 1, 1);
+        KafkaSteps.createTopic(testInfo.getDisplayName(), topicName, clusterName, namespace, 1, 1, 1);
 
         String bootstrap = kroxylicious.getBootstrap();
 
