@@ -184,7 +184,7 @@ public class KafkaUtils {
         List<Pod> kafkaPods = kubeClient().listPods(Constants.KROXY_DEFAULT_NAMESPACE);
         for (Pod pod : kafkaPods) {
             String tmpName = pod.getMetadata().getName();
-            if (tmpName.startsWith(clusterName)) {
+            if (tmpName.startsWith(clusterName) && tmpName.endsWith("0")) {
                 podName = pod.getMetadata().getName();
             }
         }
