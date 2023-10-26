@@ -14,6 +14,7 @@ import io.fabric8.kubernetes.api.model.LabelSelector;
 import io.fabric8.kubernetes.api.model.Namespace;
 import io.fabric8.kubernetes.api.model.NamespaceBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
 
@@ -194,8 +195,19 @@ public class KubeClient {
      * @param deploymentName the deployment name
      * @return the deployment status
      */
-    public boolean getDeploymentStatus(String namespaceName, String deploymentName) {
+    public boolean isDeploymentReady(String namespaceName, String deploymentName) {
         return client.apps().deployments().inNamespace(namespaceName).withName(deploymentName).isReady();
+    }
+
+    /**
+     * Gets service.
+     *
+     * @param namespaceName the namespace name
+     * @param deploymentName the deployment name
+     * @return the service
+     */
+    public Service getService(String namespaceName, String deploymentName) {
+        return client.services().inNamespace(namespaceName).withName(deploymentName).get();
     }
 
     /**

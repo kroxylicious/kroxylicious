@@ -47,7 +47,7 @@ public class DeploymentUtils {
 
         TestUtils.waitFor("readiness of Deployment: " + namespaceName + "/" + deploymentName,
                 Constants.POLL_INTERVAL_FOR_RESOURCE_READINESS_MILLIS, READINESS_TIMEOUT,
-                () -> kubeClient(namespaceName).getDeploymentStatus(namespaceName, deploymentName));
+                () -> kubeClient(namespaceName).isDeploymentReady(namespaceName, deploymentName));
 
         LOGGER.info("Deployment: {}/{} is ready", namespaceName, deploymentName);
     }

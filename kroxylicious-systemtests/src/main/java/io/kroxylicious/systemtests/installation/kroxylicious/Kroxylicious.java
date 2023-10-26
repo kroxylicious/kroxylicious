@@ -29,7 +29,7 @@ import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 public class Kroxylicious {
     private static final Logger LOGGER = LoggerFactory.getLogger(Kroxylicious.class);
     private final String deploymentNamespace;
-    private String containerImage;
+    private final String containerImage;
     private final ResourceManager resourceManager = ResourceManager.getInstance();
 
     /**
@@ -77,7 +77,7 @@ public class Kroxylicious {
      */
     public int getNumberOfReplicas() {
         LOGGER.info("Getting number of replicas..");
-        return kubeClient().getClient().apps().deployments().inNamespace(deploymentNamespace).withName(Constants.KROXY_DEPLOYMENT_NAME).get().getStatus().getReplicas();
+        return kubeClient().getDeployment(deploymentNamespace, Constants.KROXY_DEPLOYMENT_NAME).getStatus().getReplicas();
     }
 
     /**
@@ -86,7 +86,7 @@ public class Kroxylicious {
      * @return the bootstrap
      */
     public String getBootstrap(){
-        String clusterIP = kubeClient().getClient().services().inNamespace(deploymentNamespace).withName(Constants.KROXY_SERVICE_NAME).get().getSpec().getClusterIP();
+        String clusterIP = kubeClient().getService(deploymentNamespace, Constants.KROXY_SERVICE_NAME).getSpec().getClusterIP();
         return clusterIP + ":9292";
     }
 }
