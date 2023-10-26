@@ -6,8 +6,6 @@
 
 package io.kroxylicious.systemtests.steps;
 
-import org.junit.jupiter.api.TestInfo;
-
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaTopicTemplates;
@@ -24,17 +22,18 @@ public class KafkaSteps {
     /**
      * Create topic.
      *
-     * @param testInfo the test info
+     * @param displayName the display name
      * @param clusterName the cluster name
      * @param topicName the topic name
+     * @param namespace the namespace
      * @param partitions the partitions
      * @param replicas the replicas
      * @param minIsr the min isr
      */
-    public static void createTopic(TestInfo testInfo, String clusterName, String topicName,
+    public static void createTopic(String displayName, String clusterName, String topicName, String namespace,
                                    int partitions, int replicas, int minIsr) {
-        resourceManager.createResourceWithWait(testInfo,
-                KafkaTopicTemplates.defaultTopic(Constants.KROXY_DEFAULT_NAMESPACE, clusterName, topicName, partitions, replicas, minIsr).build());
+        resourceManager.createResourceWithWait(displayName,
+                KafkaTopicTemplates.defaultTopic(namespace, clusterName, topicName, partitions, replicas, minIsr).build());
     }
 
     /**

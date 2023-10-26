@@ -90,6 +90,7 @@ public class KafkaUtils {
         LOGGER.debug("Consuming messages from '{}' topic", topicName);
         InputStream file = replaceStringInResourceFile("kafka-consumer-template.yaml", Map.of(
                 "%BOOTSTRAP_SERVERS%", bootstrap,
+                "%NAMESPACE%", deployNamespace,
                 "%TOPIC_NAME%", topicName,
                 "%MESSAGE_COUNT%", "\"" + numOfMessages + "\""));
 
@@ -145,6 +146,7 @@ public class KafkaUtils {
         LOGGER.debug("Producing {} messages in '{}' topic", numOfMessages, topicName);
         InputStream file = replaceStringInResourceFile("kafka-producer-template.yaml", Map.of(
                 "%BOOTSTRAP_SERVERS%", bootstrap,
+                "%NAMESPACE%", deployNamespace,
                 "%TOPIC_NAME%", topicName,
                 "%MESSAGE_COUNT%", "\"" + numOfMessages + "\"",
                 "%MESSAGE%", message));
@@ -175,14 +177,14 @@ public class KafkaUtils {
      *
      * @param deployNamespace the deploy namespace
      */
-    public static void deleteAllJobs(String deployNamespace) {
-        LOGGER.info("Deleting producer and consumer jobs in {} namespace", deployNamespace);
-        kubeClient().getClient().batch().v1().jobs().inNamespace(deployNamespace).delete();
-        kubeClient().getClient().pods().inNamespace(deployNamespace).withLabel("app", Constants.KAFKA_PRODUCER_CLIENT_LABEL).delete();
-        kubeClient().getClient().pods().inNamespace(deployNamespace).withLabel("app", Constants.KAFKA_CONSUMER_CLIENT_LABEL).delete();
-        kubeClient().getClient().pods().inNamespace(deployNamespace).withLabel("app", Constants.KAFKA_CONSUMER_CLIENT_LABEL).waitUntilCondition(Objects::isNull, 10,
-                TimeUnit.SECONDS);
-    }
+//    public static void deleteAllJobs(String deployNamespace) {
+//        LOGGER.info("Deleting producer and consumer jobs in {} namespace", deployNamespace);
+//        kubeClient().getClient().batch().v1().jobs().inNamespace(deployNamespace).delete();
+//        kubeClient().getClient().pods().inNamespace(deployNamespace).withLabel("app", Constants.KAFKA_PRODUCER_CLIENT_LABEL).delete();
+//        kubeClient().getClient().pods().inNamespace(deployNamespace).withLabel("app", Constants.KAFKA_CONSUMER_CLIENT_LABEL).delete();
+//        kubeClient().getClient().pods().inNamespace(deployNamespace).withLabel("app", Constants.KAFKA_CONSUMER_CLIENT_LABEL).waitUntilCondition(Objects::isNull, 10,
+//                TimeUnit.SECONDS);
+//    }
 
     /**
      * Restart broker

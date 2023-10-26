@@ -33,4 +33,22 @@ public class NamespaceUtils {
 
         LOGGER.info("Namespace: {} deleted", namespace);
     }
+
+    /**
+     * Create namespace with wait.
+     *
+     * @param namespace the namespace
+     */
+    public static void createNamespaceWithWait(String namespace) {
+        LOGGER.info("Creating namespace: {}", namespace);
+        if(kubeClient().getNamespace(namespace) != null) {
+            LOGGER.warn("Namespace was already created!");
+            return;
+        }
+        kubeClient().createNamespace(namespace);
+        TestUtils.waitFor("namespace to be created", Constants.GLOBAL_POLL_INTERVAL_MILLIS, Constants.GLOBAL_TIMEOUT_MILLIS,
+                () -> kubeClient().getNamespace(namespace) != null);
+
+        LOGGER.info("Namespace: {} created", namespace);
+    }
 }

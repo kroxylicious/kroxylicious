@@ -6,7 +6,6 @@
 
 package io.kroxylicious.systemtests.steps;
 
-import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.utils.KafkaUtils;
 
 /**
@@ -22,8 +21,8 @@ public class KroxySteps {
      * @param message the message
      * @param numberOfMessages the number of messages
      */
-    public static void produceMessages(String topicName, String bootstrap, String message, int numberOfMessages) {
-        KafkaUtils.produceMessageWithTestClients(Constants.KROXY_DEFAULT_NAMESPACE, topicName, bootstrap, message, numberOfMessages);
+    public static void produceMessages(String namespace, String topicName, String bootstrap, String message, int numberOfMessages) {
+        KafkaUtils.produceMessageWithTestClients(namespace, topicName, bootstrap, message, numberOfMessages);
     }
 
     /**
@@ -35,7 +34,7 @@ public class KroxySteps {
      * @param timeoutMillis the timeout millis
      * @return the string
      */
-    public static String consumeMessages(String topicName, String bootstrap, int numberOfMessages, long timeoutMillis) {
-        return KafkaUtils.ConsumeMessageWithTestClients(Constants.KROXY_DEFAULT_NAMESPACE, topicName, bootstrap, numberOfMessages, timeoutMillis);
+    public static String consumeMessages(String namespace, String topicName, String bootstrap, int numberOfMessages, long timeoutMillis) {
+        return KafkaUtils.ConsumeMessageWithTestClients(namespace, topicName, bootstrap, numberOfMessages, timeoutMillis);
     }
 }

@@ -24,7 +24,8 @@ import io.kroxylicious.systemtests.Constants;
  */
 public class KroxyDeploymentTemplates {
 
-    private static Map<String, String> kroxyLabelSelector = Map.of("app", "kroxylicious");
+    private static final Map<String, String> kroxyLabelSelector = Map.of("app", "kroxylicious");
+    private static final String CONFIG_VOLUME_NAME = "config-volume";
 
     /**
      * Default kroxy deployment deployment builder.
@@ -39,7 +40,7 @@ public class KroxyDeploymentTemplates {
                 .withApiVersion("apps/v1")
                 .withKind(Constants.DEPLOYMENT)
                 .withNewMetadata()
-                .withName("kroxylicious-proxy")
+                .withName(Constants.KROXY_DEPLOYMENT_NAME)
                 .withNamespace(namespaceName)
                 .addToLabels(kroxyLabelSelector)
                 .endMetadata()
@@ -55,16 +56,16 @@ public class KroxyDeploymentTemplates {
                 .withNewSpec()
                 .withContainers(new ContainerBuilder()
                         .withName("kroxylicious")
-                        .withImage(containerImage) // "quay.io/kroxylicious/kroxylicious-developer:0.3.0-SNAPSHOT")
+                        .withImage(containerImage)
                         .withImagePullPolicy("Always")
                         .withArgs("--config", "/opt/kroxylicious/config/config.yaml")
                         .withPorts(getPlainContainerPortList())
                         .withVolumeMounts(getPlainVolumeMountList())
                         .build())
                 .addNewVolume()
-                .withName("config-volume")
+                .withName(CONFIG_VOLUME_NAME)
                 .withNewConfigMap()
-                .withName("kroxylicious-config")
+                .withName(Constants.KROXY_CONFIG_NAME)
                 .endConfigMap()
                 .endVolume()
                 .endSpec()
@@ -75,7 +76,7 @@ public class KroxyDeploymentTemplates {
     private static List<VolumeMount> getPlainVolumeMountList() {
         List<VolumeMount> volumeMountList = new ArrayList<>();
         volumeMountList.add(new VolumeMountBuilder()
-                .withName("config-volume")
+                .withName(CONFIG_VOLUME_NAME)
                 .withMountPath("/opt/kroxylicious/config/config.yaml")
                 .withSubPath("config.yaml")
                 .build());

@@ -18,7 +18,7 @@ public class Environment {
     private static final String KAFKA_VERSION_ENV = "KAFKA_VERSION";
     private static final String QUAY_ORG_ENV = "QUAY_ORG";
     private static final String KROXY_VERSION_ENV = "KROXY_VERSION";
-    private static final String KROXY_URL_ENV = "KROXY_URL";
+    private static final String KROXY_IMAGE_REPO_ENV = "KROXY_IMAGE_REPO";
     private static final String STRIMZI_URL_ENV = "STRIMZI_URL";
 
     /**
@@ -33,11 +33,11 @@ public class Environment {
     /**
      * The kroxy version default value
      */
-    public static final String KROXY_VERSION_DEFAULT = "0.3.0-SNAPSHOT";
+    public static final String KROXY_VERSION_DEFAULT = "0.4.0-SNAPSHOT";
     /**
      * The url where kroxylicious image lives to be downloaded.
      */
-    public static final String KROXY_URL_DEFAULT = "quay.io/kroxylicious/kroxylicious-developer:" + Environment.KROXY_VERSION;
+    public static final String KROXY_IMAGE_REPO_DEFAULT = "quay.io/kroxylicious/kroxylicious-developer";
 
     /**
      * The strimzi installation url for kubernetes.
@@ -61,9 +61,9 @@ public class Environment {
      */
     public static final String STRIMZI_URL = getOrDefault(STRIMZI_URL_ENV, STRIMZI_URL_DEFAULT);
     /**
-     * KROXY_URL env variable assignment
+     * KROXY_IMAGE_REPO env variable assignment
      */
-    public static final String KROXY_URL = getOrDefault(KROXY_URL_ENV, KROXY_URL_DEFAULT);
+    public static final String KROXY_IMAGE_REPO = getOrDefault(KROXY_IMAGE_REPO_ENV, KROXY_IMAGE_REPO_DEFAULT);
 
     private static String getOrDefault(String varName, String defaultValue) {
         return getOrDefault(varName, String::toString, defaultValue);

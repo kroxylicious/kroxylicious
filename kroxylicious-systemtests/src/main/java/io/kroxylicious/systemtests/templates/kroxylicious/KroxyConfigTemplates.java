@@ -12,12 +12,12 @@ import io.kroxylicious.systemtests.Constants;
 
 public class KroxyConfigTemplates {
 
-    public static ConfigMapBuilder defaultKroxyConfig(String namespaceName) {
+    public static ConfigMapBuilder defaultKroxyConfig(String clusterName, String namespaceName) {
         return new ConfigMapBuilder()
                 .withApiVersion("v1")
                 .withKind(Constants.CONFIG_MAP_KIND)
                 .editMetadata()
-                .withName("kroxylicious-config")
+                .withName(Constants.KROXY_CONFIG_NAME)
                 .withNamespace(namespaceName)
                 .endMetadata()
                 .addToData("config.yaml", """
@@ -27,14 +27,17 @@ public class KroxyConfigTemplates {
                         virtualClusters:
                           demo:
                             targetCluster:
-                              bootstrap_servers: my-cluster-kafka-bootstrap:9092
+                              bootstrap_servers: %CLUSTER_NAME%-kafka-bootstrap.%NAMESPACE%.svc.cluster.local:9092
                             clusterNetworkAddressConfigProvider:
                               type: PortPerBrokerClusterNetworkAddressConfigProvider
                               config:
                                 bootstrapAddress: localhost:9292
-                                brokerAddressPattern: kroxylicious-service
+                                brokerAddressPattern: %KROXY_SERVICE_NAME%
                             logNetwork: false
                             logFrames: false
-                        """);
+                        """
+                        .replace("%NAMESPACE%", Constants.KROXY_DEFAULT_NAMESPACE)
+                        .replace("%CLUSTER_NAME%", clusterName)
+                        .replace("%KROXY_SERVICE_NAME%", Constants.KROXY_SERVICE_NAME));
     }
 }

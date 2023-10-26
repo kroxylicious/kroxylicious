@@ -19,14 +19,14 @@ import io.kroxylicious.systemtests.Constants;
 
 public class KroxyServiceTemplates {
 
-    private static Map<String, String> kroxyLabelSelector = Map.of("app", "kroxylicious");
+    private static final Map<String, String> kroxyLabelSelector = Map.of("app", "kroxylicious");
 
     public static ServiceBuilder defaultKroxyService(String namespaceName) {
         return new ServiceBuilder()
                 .withApiVersion("v1")
                 .withKind(Constants.SERVICE_KIND)
                 .withNewMetadata()
-                .withName("kroxylicious-service")
+                .withName(Constants.KROXY_SERVICE_NAME)
                 .withNamespace(namespaceName)
                 .endMetadata()
                 .editSpec()

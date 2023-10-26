@@ -22,7 +22,7 @@ spec:
         job-name: kafka-consumer-client
         user-test-app: kafka-clients
       name: kafka-consumer-client
-      namespace: kafka
+      namespace: %NAMESPACE%
     spec:
       containers:
         - env:

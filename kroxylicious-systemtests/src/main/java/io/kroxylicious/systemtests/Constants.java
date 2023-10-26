@@ -23,6 +23,7 @@ public interface Constants {
      * The service name for kroxylicious. Used for the bootstrap url
      */
     String KROXY_SERVICE_NAME = "kroxylicious-service";
+    String KROXY_CONFIG_NAME = "kroxylicious-config";
     /**
      * Strimzi cluster operator deployment name
      */
@@ -117,10 +118,6 @@ public interface Constants {
      * Strimzi kafka image url in quay
      */
     String STRIMZI_KAFKA_IMAGE = "quay.io/strimzi/kafka:latest-kafka-" + KAFKA_VERSION_DEFAULT;
-    /**
-     * The default bootstrap used by kroxylicious
-     */
-    String KROXY_BOOTSTRAP = KROXY_SERVICE_NAME + ":9292";
 
     /**
      * The cert manager url to install it on kubernetes

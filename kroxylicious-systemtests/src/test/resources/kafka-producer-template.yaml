@@ -22,7 +22,7 @@ spec:
         job-name: kafka-producer-client
         user-test-app: kafka-clients
       name: kafka-producer-client
-      namespace: kafka
+      namespace: %NAMESPACE%
     spec:
       containers:
         - env:

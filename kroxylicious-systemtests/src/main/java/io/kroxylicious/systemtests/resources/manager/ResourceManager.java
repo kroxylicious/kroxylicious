@@ -13,7 +13,6 @@ import java.util.Objects;
 import java.util.Stack;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.junit.jupiter.api.TestInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -78,40 +77,40 @@ public class ResourceManager {
      * Create resource without wait.
      *
      * @param <T>  the type parameter
-     * @param testInfo the test info
+     * @param displayName the display name
      * @param resources the resources
      */
     @SafeVarargs
-    public final <T extends HasMetadata> void createResourceWithoutWait(TestInfo testInfo, T... resources) {
-        createResource(testInfo, false, resources);
+    public final <T extends HasMetadata> void createResourceWithoutWait(String displayName, T... resources) {
+        createResource(displayName, false, resources);
     }
 
     /**
      * Create resource with wait.
      *
-     * @param <T>  the type parameter
-     * @param testInfo the test info
+     * @param <T>   the type parameter
+     * @param displayName the display name
      * @param resources the resources
      */
     @SafeVarargs
-    public final <T extends HasMetadata> void createResourceWithWait(TestInfo testInfo, T... resources) {
-        createResource(testInfo, true, resources);
+    public final <T extends HasMetadata> void createResourceWithWait(String displayName, T... resources) {
+        createResource(displayName, true, resources);
     }
 
     @SafeVarargs
-    private final <T extends HasMetadata> void createResource(TestInfo testInfo, boolean waitReady, T... resources) {
+    private final <T extends HasMetadata> void createResource(String displayName, boolean waitReady, T... resources) {
         for (T resource : resources) {
             ResourceType<T> type = findResourceType(resource);
 
             LOGGER.info("Creating/Updating {} {}",
                     resource.getKind(), resource.getMetadata().getName());
 
-            assert type != null;
+            assertNotNull(type);
             type.create(resource);
 
             synchronized (this) {
-                STORED_RESOURCES.computeIfAbsent(testInfo.getDisplayName(), k -> new Stack<>());
-                STORED_RESOURCES.get(testInfo.getDisplayName()).push(
+                STORED_RESOURCES.computeIfAbsent(displayName, k -> new Stack<>());
+                STORED_RESOURCES.get(displayName).push(
                         new Resource<T>(
                                 () -> deleteResource(resource),
                                 resource));
@@ -135,7 +134,7 @@ public class ResourceManager {
     /**
      * Delete resource.
      *
-     * @param <T>  the type parameter
+     * @param <T>     the type parameter
      * @param resources the resources
      */
     @SafeVarargs
@@ -167,25 +166,25 @@ public class ResourceManager {
     /**
      * Delete resources.
      *
-     * @param testInfo the test info
+     * @param displayName the display name
      */
-    public void deleteResources(TestInfo testInfo) {
+    public void deleteResources(String displayName) {
         LOGGER.info(String.join("", Collections.nCopies(76, "#")));
-        if (!STORED_RESOURCES.containsKey(testInfo.getDisplayName()) || STORED_RESOURCES.get(testInfo.getDisplayName()).isEmpty()) {
-            LOGGER.info("For test {} is everything deleted", testInfo.getDisplayName());
+        if (!STORED_RESOURCES.containsKey(displayName) || STORED_RESOURCES.get(displayName).isEmpty()) {
+            LOGGER.info("For test {} is everything deleted", displayName);
         }
         else {
-            LOGGER.info("Deleting all resources for {}", testInfo.getDisplayName());
+            LOGGER.info("Deleting all resources for {}", displayName);
         }
 
         // if stack is created for specific test suite or test case
-        AtomicInteger numberOfResources = STORED_RESOURCES.get(testInfo.getDisplayName()) != null
-                ? new AtomicInteger(STORED_RESOURCES.get(testInfo.getDisplayName()).size())
+        AtomicInteger numberOfResources = STORED_RESOURCES.get(displayName) != null
+                ? new AtomicInteger(STORED_RESOURCES.get(displayName).size())
                 :
                 // stack has no elements
                 new AtomicInteger(0);
-        while (STORED_RESOURCES.containsKey(testInfo.getDisplayName()) && numberOfResources.get() > 0) {
-            Stack<Resource> s = STORED_RESOURCES.get(testInfo.getDisplayName());
+        while (STORED_RESOURCES.containsKey(displayName) && numberOfResources.get() > 0) {
+            Stack<Resource> s = STORED_RESOURCES.get(displayName);
 
             while (!s.isEmpty()) {
                 Resource resource = s.pop();
@@ -199,14 +198,14 @@ public class ResourceManager {
                 numberOfResources.decrementAndGet();
             }
         }
-        STORED_RESOURCES.remove(testInfo.getDisplayName());
+        STORED_RESOURCES.remove(displayName);
         LOGGER.info(String.join("", Collections.nCopies(76, "#")));
     }
 
     /**
      * Wait resource condition boolean.
      *
-     * @param <T>  the type parameter
+     * @param <T>     the type parameter
      * @param resource the resource
      * @param condition the condition
      * @return the boolean
@@ -247,7 +246,7 @@ public class ResourceManager {
 
     /**
      * Wait until the CR is in desired state
-     * @param <T>  the type parameter
+     * @param <T>     the type parameter
      * @param operation - client of CR - for example kafkaClient()
      * @param resource - custom resource
      * @param resourceTimeout the resource timeout
@@ -262,7 +261,7 @@ public class ResourceManager {
     /**
      * Wait for resource status boolean.
      *
-     * @param <T>  the type parameter
+     * @param <T>     the type parameter
      * @param operation the operation
      * @param kind the kind
      * @param namespace the namespace
@@ -279,7 +278,7 @@ public class ResourceManager {
     /**
      * Wait for resource status boolean.
      *
-     * @param <T>  the type parameter
+     * @param <T>     the type parameter
      * @param operation the operation
      * @param kind the kind
      * @param namespace the namespace
@@ -308,7 +307,7 @@ public class ResourceManager {
     /**
      * Wait for resource status ready.
      *
-     * @param <T>  the type parameter
+     * @param <T>     the type parameter
      * @param operation the operation
      * @param resource the resource
      * @return the boolean

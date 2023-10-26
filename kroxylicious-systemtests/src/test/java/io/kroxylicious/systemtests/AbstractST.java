@@ -19,11 +19,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.systemtests.installation.kroxylicious.CertManager;
-import io.kroxylicious.systemtests.installation.kroxylicious.Kroxylicious;
 import io.kroxylicious.systemtests.installation.strimzi.Strimzi;
 import io.kroxylicious.systemtests.k8s.KubeClusterResource;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
-import io.kroxylicious.systemtests.utils.KafkaUtils;
 import io.kroxylicious.systemtests.utils.NamespaceUtils;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
@@ -43,10 +41,6 @@ public class AbstractST {
      * The constant strimziOperator.
      */
     protected static Strimzi strimziOperator;
-    /**
-     * The constant kroxy.
-     */
-    protected static Kroxylicious kroxylicious;
 
     /**
      * The constant certManager.
@@ -61,10 +55,9 @@ public class AbstractST {
      * Before each test.
      *
      * @param testInfo the test info
-     * @throws IOException the io exception
      */
     @BeforeEach
-    void beforeEachTest(TestInfo testInfo) throws IOException {
+    void beforeEachTest(TestInfo testInfo) {
         LOGGER.info(String.join("", Collections.nCopies(76, "#")));
         LOGGER.info(String.format("%s.%s - STARTED", testInfo.getTestClass().get().getName(), testInfo.getTestMethod().get().getName()));
     }
@@ -77,34 +70,30 @@ public class AbstractST {
     @BeforeAll
     static void setup() throws IOException {
         cluster = KubeClusterResource.getInstance();
+        certManager = new CertManager();
+        strimziOperator = new Strimzi(Constants.KROXY_DEFAULT_NAMESPACE);
 
         // simple teardown before all tests
         if (kubeClient().getNamespace(Constants.KROXY_DEFAULT_NAMESPACE) != null) {
             NamespaceUtils.deleteNamespaceWithWait(Constants.KROXY_DEFAULT_NAMESPACE);
         }
         if (kubeClient().getNamespace(Constants.CERT_MANAGER_NAMESPACE) != null) {
+            certManager.delete();
             NamespaceUtils.deleteNamespaceWithWait(Constants.CERT_MANAGER_NAMESPACE);
         }
-
-        kubeClient().createNamespace(Constants.KROXY_DEFAULT_NAMESPACE);
-
-        strimziOperator = new Strimzi(Constants.KROXY_DEFAULT_NAMESPACE);
+        NamespaceUtils.createNamespaceWithWait(Constants.KROXY_DEFAULT_NAMESPACE);
         strimziOperator.deploy();
-
-        certManager = new CertManager();
         certManager.deploy();
     }
 
     /**
      * Teardown.
      *
-     * @param testInfo the test info
      * @throws IOException the io exception
      */
     @AfterAll
-    static void teardown(TestInfo testInfo) throws IOException {
+    static void teardown() throws IOException {
         strimziOperator.delete();
-        kroxylicious.delete(testInfo);
         certManager.delete();
         NamespaceUtils.deleteNamespaceWithWait(Constants.KROXY_DEFAULT_NAMESPACE);
         NamespaceUtils.deleteNamespaceWithWait(Constants.CERT_MANAGER_NAMESPACE);
@@ -119,7 +108,5 @@ public class AbstractST {
     void afterEachTest(TestInfo testInfo) {
         LOGGER.info(String.join("", Collections.nCopies(76, "#")));
         LOGGER.info(String.format("%s.%s - FINISHED", testInfo.getTestClass().get().getName(), testInfo.getTestMethod().get().getName()));
-        resourceManager.deleteResources(testInfo);
-        KafkaUtils.deleteAllJobs(Constants.KROXY_DEFAULT_NAMESPACE);
     }
 }

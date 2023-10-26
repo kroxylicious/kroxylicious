@@ -11,16 +11,17 @@ import java.time.Duration;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.kroxylicious.systemtests.extensions.KroxyliciousExtension;
 import io.kroxylicious.systemtests.installation.kroxylicious.Kroxylicious;
 import io.kroxylicious.systemtests.steps.KafkaSteps;
 import io.kroxylicious.systemtests.steps.KroxySteps;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaTemplates;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * The type Acceptance st.
@@ -28,32 +29,37 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class AcceptanceST extends AbstractST {
     private static final Logger LOGGER = LoggerFactory.getLogger(AcceptanceST.class);
     private final String clusterName = "my-cluster";
+    private static Kroxylicious kroxylicious;
 
     /**
      * Produce and consume message.
      *
      * @param testInfo the test info
+     * @param namespace the namespace
      */
     @Test
-    void produceAndConsumeMessage(TestInfo testInfo) {
+    @ExtendWith(KroxyliciousExtension.class)
+    void produceAndConsumeMessage(TestInfo testInfo, String namespace) {
         String topicName = "my-topic";
         String message = "Hello-world";
         int numberOfMessages = 1;
         String consumedMessage = message + " - " + (numberOfMessages - 1);
 
         // start kroxy
-        LOGGER.info("Given Kroxy in {} namespace with {} replicas", Constants.KROXY_DEFAULT_NAMESPACE, 1);
-        kroxylicious = new Kroxylicious(Constants.KROXY_DEFAULT_NAMESPACE);
-        kroxylicious.deployPortPerBrokerPlain(testInfo, 1);
+        LOGGER.info("Given Kroxy in {} namespace with {} replicas", namespace, 1);
+        kroxylicious = new Kroxylicious(namespace);
+        kroxylicious.deployPortPerBrokerPlain(testInfo.getDisplayName(), clusterName,1);
 
-        LOGGER.info("And KafkaTopic in {} namespace", Constants.KROXY_DEFAULT_NAMESPACE);
-        KafkaSteps.createTopic(testInfo, topicName, clusterName, 1, 1, 1);
+        LOGGER.info("And KafkaTopic in {} namespace", namespace);
+        KafkaSteps.createTopic(testInfo.getDisplayName(), topicName, clusterName, namespace,1, 1, 1);
+
+        String bootstrap = kroxylicious.getBootstrap();
 
         LOGGER.info("When {} messages '{}' are sent to the topic '{}'", numberOfMessages, message, topicName);
-        KroxySteps.produceMessages(topicName, Constants.KROXY_BOOTSTRAP, message, numberOfMessages);
+        KroxySteps.produceMessages(namespace, topicName, bootstrap, message, numberOfMessages);
 
         LOGGER.info("Then the {} messages are consumed", numberOfMessages);
-        String result = KroxySteps.consumeMessages(topicName, Constants.KROXY_BOOTSTRAP, numberOfMessages, Duration.ofMinutes(2).toMillis());
+        String result = KroxySteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2).toMillis());
         LOGGER.info("Received: " + result);
         assertThat("'" + consumedMessage + "' message not consumed!", result.contains(consumedMessage));
     }
@@ -62,29 +68,32 @@ class AcceptanceST extends AbstractST {
      * Restart kafka brokers.
      *
      * @param testInfo the test info
+     * @param namespace the namespace
      */
     @Test
-    void restartKafkaBrokers(TestInfo testInfo) {
+    @ExtendWith(KroxyliciousExtension.class)
+    void restartKafkaBrokers(TestInfo testInfo, String namespace) {
         String topicName = "my-topic2";
         String message = "Hello-world";
         int numberOfMessages = 20;
         String consumedMessage = message + " - " + (numberOfMessages - 1);
 
         // start kroxy
-        LOGGER.info("Given Kroxy in {} namespace with {} replicas", Constants.KROXY_DEFAULT_NAMESPACE, 1);
-        kroxylicious = new Kroxylicious(Constants.KROXY_DEFAULT_NAMESPACE);
-        kroxylicious.deployPortPerBrokerPlain(testInfo, 1);
+        LOGGER.info("Given Kroxy in {} namespace with {} replicas", namespace, 1);
+        kroxylicious = new Kroxylicious(namespace);
+        kroxylicious.deployPortPerBrokerPlain(testInfo.getDisplayName(), clusterName, 1);
+        String bootstrap = kroxylicious.getBootstrap();
 
-        LOGGER.info("And KafkaTopic in {} namespace", Constants.KROXY_DEFAULT_NAMESPACE);
-        KafkaSteps.createTopic(testInfo, topicName, clusterName, 3, 1, 1);
+        LOGGER.info("And KafkaTopic in {} namespace", namespace);
+        KafkaSteps.createTopic(testInfo.getDisplayName(), topicName, clusterName, namespace, 3, 1, 1);
 
         LOGGER.info("When {} messages '{}' are sent to the topic '{}'", numberOfMessages, message, topicName);
-        KroxySteps.produceMessages(topicName, Constants.KROXY_BOOTSTRAP, message, numberOfMessages);
+        KroxySteps.produceMessages(namespace, topicName, bootstrap, message, numberOfMessages);
         LOGGER.info("And a kafka broker is restarted");
         KafkaSteps.restartKakfaBroker(clusterName);
 
         LOGGER.info("Then the {} messages are consumed", numberOfMessages);
-        String result = KroxySteps.consumeMessages(topicName, Constants.KROXY_BOOTSTRAP, numberOfMessages, Duration.ofMinutes(10).toMillis());
+        String result = KroxySteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(10).toMillis());
         LOGGER.info("Received: " + result);
         assertThat("'" + consumedMessage + "' message not consumed!", result.contains(consumedMessage));
     }
@@ -93,30 +102,33 @@ class AcceptanceST extends AbstractST {
      * Kroxy with replicas.
      *
      * @param testInfo the test info
+     * @param namespace the namespace
      */
     @Test
-    void kroxyWithReplicas(TestInfo testInfo) {
+    @ExtendWith(KroxyliciousExtension.class)
+    void kroxyWithReplicas(TestInfo testInfo, String namespace) {
         String topicName = "my-topic3";
         String message = "Hello-world";
-        int numberOfMessages = 5;
+        int numberOfMessages = 3;
         int replicas = 3;
         String consumedMessage = message + " - " + (numberOfMessages - 1);
 
         // start kroxy
-        LOGGER.info("Given Kroxy in {} namespace with {} replicas", Constants.KROXY_DEFAULT_NAMESPACE, replicas);
-        kroxylicious = new Kroxylicious(Constants.KROXY_DEFAULT_NAMESPACE);
-        kroxylicious.deployPortPerBrokerPlain(testInfo, replicas);
+        LOGGER.info("Given Kroxy in {} namespace with {} replicas", namespace, replicas);
+        kroxylicious = new Kroxylicious(namespace);
+        kroxylicious.deployPortPerBrokerPlain(testInfo.getDisplayName(), clusterName, replicas);
+        String bootstrap = kroxylicious.getBootstrap();
         int currentReplicas = kroxylicious.getNumberOfReplicas();
-        assertEquals(currentReplicas, replicas, "Current replicas: " + currentReplicas + "; expected: " + replicas);
+        assertThat("Current replicas: " + currentReplicas + "; expected: " + replicas, currentReplicas == replicas);
 
-        LOGGER.info("And KafkaTopic in {} namespace", Constants.KROXY_DEFAULT_NAMESPACE);
-        KafkaSteps.createTopic(testInfo, topicName, clusterName, 3, 1, 1);
+        LOGGER.info("And KafkaTopic in {} namespace", namespace);
+        KafkaSteps.createTopic(testInfo.getDisplayName(), topicName, clusterName, namespace, 3, 1, 1);
 
         LOGGER.info("When {} messages '{}' are sent to the topic '{}'", numberOfMessages, message, topicName);
-        KroxySteps.produceMessages(topicName, Constants.KROXY_BOOTSTRAP, message, numberOfMessages);
+        KroxySteps.produceMessages(namespace, topicName, bootstrap, message, numberOfMessages);
 
         LOGGER.info("Then the {} messages are consumed", numberOfMessages);
-        String result = KroxySteps.consumeMessages(topicName, Constants.KROXY_BOOTSTRAP, numberOfMessages, Duration.ofMinutes(2).toMillis());
+        String result = KroxySteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2).toMillis());
         LOGGER.info("Received: " + result);
         assertThat("'" + consumedMessage + "' message not consumed!", result.contains(consumedMessage));
     }
@@ -129,6 +141,6 @@ class AcceptanceST extends AbstractST {
     @BeforeAll
     void setupBefore(TestInfo testInfo) {
         LOGGER.info("Deploying Kafka in {} namespace", Constants.KROXY_DEFAULT_NAMESPACE);
-        resourceManager.createResourceWithWait(testInfo, KafkaTemplates.kafkaPersistent(Constants.KROXY_DEFAULT_NAMESPACE, clusterName, 3, 3).build());
+        resourceManager.createResourceWithWait(testInfo.getDisplayName(), KafkaTemplates.kafkaPersistent(Constants.KROXY_DEFAULT_NAMESPACE, clusterName, 3, 3).build());
     }
 }

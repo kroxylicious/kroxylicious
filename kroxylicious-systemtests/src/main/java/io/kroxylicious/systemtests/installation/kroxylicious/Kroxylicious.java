@@ -7,14 +7,11 @@
 package io.kroxylicious.systemtests.installation.kroxylicious;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.Objects;
 
 import org.junit.jupiter.api.TestInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import io.fabric8.kubernetes.api.model.Pod;
 
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
@@ -36,28 +33,30 @@ public class Kroxylicious {
     private final ResourceManager resourceManager = ResourceManager.getInstance();
 
     /**
-     * Instantiates a new Kroxy.
+     * Instantiates a new Kroxylicious.
      *
      * @param deploymentNamespace the deployment namespace
      */
     public Kroxylicious(String deploymentNamespace) {
         this.deploymentNamespace = deploymentNamespace;
-        containerImage = Environment.KROXY_URL;
+        String kroxyUrl = Environment.KROXY_IMAGE_REPO + (Environment.KROXY_IMAGE_REPO.endsWith(":") ? "" : ":");
         if (!Objects.equals(Environment.QUAY_ORG, Environment.QUAY_ORG_DEFAULT)) {
-            containerImage = "quay.io/" + Environment.QUAY_ORG + "/kroxylicious:" + Environment.KROXY_VERSION;
+            kroxyUrl = "quay.io/" + Environment.QUAY_ORG + "/kroxylicious:";
         }
+        containerImage = kroxyUrl + Environment.KROXY_VERSION;
     }
 
     /**
      * Deploy - Port per broker plain config
-     * @param testInfo the test info
+     * @param displayName the display name
+     * @param clusterName the cluster name
      * @param replicas the replicas
      */
-    public void deployPortPerBrokerPlain(TestInfo testInfo, int replicas) {
+    public void deployPortPerBrokerPlain(String displayName, String clusterName, int replicas) {
         LOGGER.info("Deploy Kroxy in {} namespace", deploymentNamespace);
-        resourceManager.createResourceWithWait(testInfo, KroxyConfigTemplates.defaultKroxyConfig(deploymentNamespace).build());
-        resourceManager.createResourceWithWait(testInfo, KroxyDeploymentTemplates.defaultKroxyDeployment(deploymentNamespace, containerImage, replicas).build());
-        resourceManager.createResourceWithoutWait(testInfo, KroxyServiceTemplates.defaultKroxyService(deploymentNamespace).build());
+        resourceManager.createResourceWithWait(displayName, KroxyConfigTemplates.defaultKroxyConfig(clusterName, deploymentNamespace).build());
+        resourceManager.createResourceWithWait(displayName, KroxyDeploymentTemplates.defaultKroxyDeployment(deploymentNamespace, containerImage, replicas).build());
+        resourceManager.createResourceWithoutWait(displayName, KroxyServiceTemplates.defaultKroxyService(deploymentNamespace).build());
     }
 
     /**
@@ -67,7 +66,7 @@ public class Kroxylicious {
      */
     public void delete(TestInfo testInfo) throws IOException {
         LOGGER.info("Deleting Kroxy in {} namespace", deploymentNamespace);
-        resourceManager.deleteResources(testInfo);
+        resourceManager.deleteResources(testInfo.getDisplayName());
         DeploymentUtils.waitForDeploymentDeletion(deploymentNamespace, Constants.KROXY_DEPLOYMENT_NAME);
     }
 
@@ -78,14 +77,16 @@ public class Kroxylicious {
      */
     public int getNumberOfReplicas() {
         LOGGER.info("Getting number of replicas..");
-        int count = 0;
-        List<Pod> kroxyPods = kubeClient().getClient().pods().inNamespace(deploymentNamespace).withLabel("app", "kroxylicious").list().getItems();
-        for (Pod pod : kroxyPods) {
-            if (pod.getMetadata().getName().contains(Constants.KROXY_DEPLOYMENT_NAME)) {
-                count++;
-            }
-        }
-        LOGGER.info("Found {} replicas", count);
-        return count;
+        return kubeClient().getClient().apps().deployments().inNamespace(deploymentNamespace).withName(Constants.KROXY_DEPLOYMENT_NAME).get().getStatus().getReplicas();
+    }
+
+    /**
+     * Get bootstrap string.
+     *
+     * @return the bootstrap
+     */
+    public String getBootstrap(){
+        String clusterIP = kubeClient().getClient().services().inNamespace(deploymentNamespace).withName(Constants.KROXY_SERVICE_NAME).get().getSpec().getClusterIP();
+        return clusterIP + ":9292";
     }
 }
