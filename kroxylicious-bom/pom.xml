@@ -12,7 +12,7 @@
 
     <groupId>io.kroxylicious</groupId>
     <artifactId>kroxylicious-bom</artifactId>
-    <version>0.3.0-SNAPSHOT</version>
+    <version>0.4.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <name>kroxylicious-bom</name>
@@ -20,6 +20,7 @@
         A bill of materials for the kroxylicious project. To support filter authors and people building and
         deploying the project to have a simple, consistent and co-ordinated view of the various modules involved.
     </description>
+    <url>https://kroxylicious.io/kroxylicious/</url>
 
     <licenses>
         <license>
@@ -182,4 +183,56 @@
             </plugin>
         </plugins>
     </build>
+    <profiles>
+        <profile>
+            <id>release</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                                <configuration>
+                                    <!--suppress UnresolvedMavenProperty -->
+                                    <keyname>${releaseSigningKey}</keyname>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-enforcer-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>enforce-property</id>
+                                <goals>
+                                    <goal>enforce</goal>
+                                </goals>
+                                <configuration>
+                                    <rules>
+                                        <requireProperty>
+                                            <property>releaseSigningKey</property>
+                                            <message>You must specify your GPG key when running a release</message>
+                                        </requireProperty>
+                                        <requireReleaseDeps>
+                                            <message>No Snapshots Allowed!</message>
+                                        </requireReleaseDeps>
+                                        <requireReleaseVersion>
+                                            <message>Ensure all modules have a release version</message>
+                                        </requireReleaseVersion>
+                                    </rules>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

@@ -131,7 +131,7 @@ git tag -f "${RELEASE_TAG}"
 git push "${REPOSITORY}" "${RELEASE_TAG}" ${GIT_DRYRUN:-}
 
 echo "Deploying release to maven central"
-mvn deploy -Prelease -DskipTests=true -DreleaseSigningKey="${GPG_KEY}" ${MVN_DEPLOY_DRYRUN:-}
+mvn deploy -Prelease -DskipTests=true -DreleaseSigningKey="${GPG_KEY}" -DprocessAllModules=true ${MVN_DEPLOY_DRYRUN:-}
 
 PREPARE_DEVELOPMENT_BRANCH="prepare-development-${RELEASE_DATE}"
 git checkout -b ${PREPARE_DEVELOPMENT_BRANCH} ${TEMPORARY_RELEASE_BRANCH}
@@ -150,10 +150,10 @@ then
     exit
 fi
 
-ORIGINAL_GH_DEFAULT_REPO=$(gh repo set-default -v | grep 'no default repository')
+ORIGINAL_GH_DEFAULT_REPO=$(gh repo set-default -v | (grep -v 'no default repository' || true))
 gh repo set-default $(git remote get-url ${REPOSITORY})
 
 BODY="Release version ${RELEASE_VERSION}"
 
 echo "Create pull request to merge the released version."
-gh pr create --base main --title "Kroxylicious Release ${RELEASE_DATE}" --body "${BODY}"
+gh pr create --base main --title "Kroxylicious Release ${RELEASE_DATE}" --body "${BODY}" --repo $(gh repo set-default -v)
