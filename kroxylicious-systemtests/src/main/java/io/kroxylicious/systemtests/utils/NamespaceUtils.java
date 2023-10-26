@@ -41,7 +41,7 @@ public class NamespaceUtils {
      */
     public static void createNamespaceWithWait(String namespace) {
         LOGGER.info("Creating namespace: {}", namespace);
-        if(kubeClient().getNamespace(namespace) != null) {
+        if (kubeClient().getNamespace(namespace) != null) {
             LOGGER.warn("Namespace was already created!");
             return;
         }
