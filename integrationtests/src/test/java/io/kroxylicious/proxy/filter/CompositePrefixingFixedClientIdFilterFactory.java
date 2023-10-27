@@ -8,14 +8,14 @@ package io.kroxylicious.proxy.filter;
 
 import java.util.concurrent.CompletionStage;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 
 import io.kroxylicious.proxy.plugin.PluginConfigType;
 import io.kroxylicious.proxy.plugin.Plugins;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 @PluginConfigType(CompositePrefixingFixedClientIdFilter.CompositePrefixingFixedClientIdFilterConfig.class)
 public class CompositePrefixingFixedClientIdFilterFactory

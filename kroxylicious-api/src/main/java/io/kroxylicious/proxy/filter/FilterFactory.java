@@ -17,6 +17,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * <li>called by the proxy runtime to create instances of filters</li>
  * </ul>
  * @param <C> the type of configuration used to create the {@code Filter}. Use {@link Void} if the {@code Filter} is not configurable.
+ * @param <I> The type of the initialization data
  */
 public interface FilterFactory<C, I> {
 

@@ -42,7 +42,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class SampleProduceRequestFilterFactoryFilterTest {
+class SampleProduceRequestFilterTest {
 
     private static final short API_VERSION = ApiMessageType.PRODUCE.highestSupportedVersion(true); // this is arbitrary for our filter
     private static final String PRE_TRANSFORM_VALUE = "this is what the value will be transformed from";

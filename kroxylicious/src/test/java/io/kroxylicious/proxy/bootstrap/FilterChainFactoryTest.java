@@ -10,8 +10,6 @@ import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import org.assertj.core.api.ListAssert;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -27,6 +25,8 @@ import io.kroxylicious.proxy.internal.filter.OptionalConfigFactory;
 import io.kroxylicious.proxy.internal.filter.RequiresConfigFactory;
 import io.kroxylicious.proxy.internal.filter.TestFilterFactory;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertNotNull;

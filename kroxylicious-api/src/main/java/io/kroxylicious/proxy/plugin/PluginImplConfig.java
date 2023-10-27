@@ -14,7 +14,7 @@ import java.lang.annotation.Target;
 /**
  * An annotation that identifies a plugin instance name at a plugin point within the configuration.
  * This should be applied to the property of the class representing the plugin point, and should name the
- * corresponding {@link PluginImplName @PluginReference}-annotated sibling property.
+ * corresponding {@link PluginImplName @PluginImplName}-annotated sibling property.
  * @see io.kroxylicious.proxy.plugin
  */
 @Target(ElementType.PARAMETER)
@@ -22,7 +22,7 @@ import java.lang.annotation.Target;
 public @interface PluginImplConfig {
 
     /**
-     * @return The name of the {@link PluginImplName @PluginReference}-annotated sibling property.
+     * @return The name of the {@link PluginImplName @PluginImplName}-annotated sibling property.
      */
     String implNameProperty();
 }

@@ -283,9 +283,11 @@ class ConfigParserTest {
                       """));
         var vie = assertInstanceOf(ValueInstantiationException.class, iae.getCause());
         var upie = assertInstanceOf(UnknownPluginInstanceException.class, vie.getCause());
-        assertEquals("Unknown io.kroxylicious.proxy.internal.filter.ByteBufferTransformationFactory plugin instance "
-                + "for name 'NotAKnownPlugin'. "
-                + "Known plugin instances are [UpperCasing, io.kroxylicious.proxy.internal.filter.UpperCasing]. Plugins must be loadable by java.util.ServiceLoader.",
+        assertEquals("Unknown io.kroxylicious.proxy.internal.filter.ByteBufferTransformationFactory plugin instance for "
+                + "name 'NotAKnownPlugin'. "
+                + "Known plugin instances are [UpperCasing, io.kroxylicious.proxy.internal.filter.UpperCasing]. "
+                + "Plugins must be loadable by java.util.ServiceLoader and annotated with "
+                + "@PluginConfigType.",
                 upie.getMessage());
     }
 

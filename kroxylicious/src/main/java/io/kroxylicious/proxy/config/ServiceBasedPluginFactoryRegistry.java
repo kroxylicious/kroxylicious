@@ -109,7 +109,7 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
             private UnknownPluginInstanceException unknownPluginInstanceException(String name) {
                 return new UnknownPluginInstanceException("Unknown " + pluginClass.getName() + " plugin instance for name '" + name + "'. "
                         + "Known plugin instances are " + nameToProvider.keySet() + ". "
-                        + "Plugins must be loadable by java.util.ServiceLoader.");
+                        + "Plugins must be loadable by java.util.ServiceLoader and annotated with @" + PluginConfigType.class.getSimpleName() + ".");
             }
 
             @NonNull

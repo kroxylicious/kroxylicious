@@ -16,7 +16,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 public class PluginConfigurationException extends RuntimeException {
 
     /**
-     * Creates InvalidConfigurationException
+     * Initializes a new instance
      * @param message message
      */
     public PluginConfigurationException(@NonNull String message) {
@@ -24,7 +24,7 @@ public class PluginConfigurationException extends RuntimeException {
     }
 
     /**
-     * Creates InvalidConfigurationException
+     * Initializes a new instance
      * @param message message
      * @param cause cause
      */

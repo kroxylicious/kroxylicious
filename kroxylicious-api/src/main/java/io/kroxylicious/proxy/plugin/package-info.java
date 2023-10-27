@@ -37,6 +37,9 @@
  * }
  * }</pre>
  *
+ * <p>Note that this plugin interface doesn't know the concrete type of the configuration that an implementation requires.
+ * In this case it is using a type parameter {@code C} to represent that.</p>
+ *
  * <p>The config record for {@code FooFilter} would express its dependence on a {@code HttpGetter}, and also
  * provide a property to hold the {@code HttpGetter} implementation's own configuration, like this</p>
  *
@@ -58,7 +61,10 @@
  * <pre>{@code
  * class FooFilterFactory implements FilterFactory<FooFilterConfig, Void> {
  *     Void initialize(FilterFactoryContext context, FooFilterConfig config) {
+ *       // get the configured HttpGetter
  *       this.httpGetter = context.pluginInstance(HttpGetter.class, config.httpGetterPluginImplName());
+ *       // initialize it
+ *       this.httpGetter.configure(config.httpGetterConfig());
  *       return null;
  *     }
  *     Filter createFilter(FilterFactoryContext context, Void v) {
@@ -73,7 +79,7 @@
  *
  * <p>Someone can write an implementation of {@code HttpGetter} using Netty. They need to annotate their
  * implementation with {@link io.kroxylicious.proxy.plugin.PluginConfigType @PluginConfigType} to indicate
- * the type of configuration it uses</p>
+ * the type of configuration it uses.</p>
  *
  * <pre><code>
  * {@link io.kroxylicious.proxy.plugin.PluginConfigType @PluginConfigType}(NettyConfig.class)
