@@ -6,12 +6,12 @@
 
 package io.kroxylicious.proxy.plugin;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
+import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
 
-import java.util.function.BiConsumer;
-import java.util.function.BiFunction;
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 public class Plugins {
     private Plugins() {
