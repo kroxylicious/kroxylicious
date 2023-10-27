@@ -10,8 +10,9 @@ import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 import org.assertj.core.api.ListAssert;
-import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -47,9 +48,9 @@ class FilterChainFactoryTest {
             public <P> PluginFactory<P> pluginFactory(Class<P> pluginClass) {
                 if (pluginClass == FilterFactory.class) {
                     return new PluginFactory() {
-                        @NotNull
+                        @NonNull
                         @Override
-                        public FilterFactory pluginInstance(@NotNull String instanceName) {
+                        public FilterFactory pluginInstance(@NonNull String instanceName) {
                             if (instanceName.endsWith(TestFilterFactory.class.getSimpleName())) {
                                 return new TestFilterFactory();
                             }
@@ -62,9 +63,9 @@ class FilterChainFactoryTest {
                             throw new RuntimeException("Unknown FilterFactory: " + instanceName);
                         }
 
-                        @NotNull
+                        @NonNull
                         @Override
-                        public Class<?> configType(@NotNull String instanceName) {
+                        public Class<?> configType(@NonNull String instanceName) {
                             return ExampleConfig.class;
                         }
                     };
