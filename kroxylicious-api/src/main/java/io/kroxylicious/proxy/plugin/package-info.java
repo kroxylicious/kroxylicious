@@ -57,7 +57,7 @@
  * {@link io.kroxylicious.proxy.filter.FilterFactoryContext}, like this:</p>
  * <pre>{@code
  * class FooFilterFactory implements FilterFactory<FooFilterConfig, Void> {
- *     Void initialize(FilterFactoryContext context, FoofilterConfig config) {
+ *     Void initialize(FilterFactoryContext context, FooFilterConfig config) {
  *       this.httpGetter = context.pluginInstance(HttpGetter.class, config.httpGetterPluginImplName());
  *       return null;
  *     }
