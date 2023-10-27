@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import io.fabric8.kubernetes.api.model.DeletionPropagation;
-import io.fabric8.kubernetes.api.model.LabelSelector;
 import io.fabric8.kubernetes.api.model.Namespace;
 import io.fabric8.kubernetes.api.model.NamespaceBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
@@ -111,16 +110,16 @@ public class KubeClient {
     // =========================
     // ---------> POD <---------
     // =========================
-
     /**
      * List pods list.
      *
      * @param namespaceName the namespace name
-     * @param selector the selector
+     * @param labelKey the label key
+     * @param labelValue the label value
      * @return the list
      */
-    public List<Pod> listPods(String namespaceName, LabelSelector selector) {
-        return client.pods().inNamespace(namespaceName).withLabelSelector(selector).list().getItems();
+    public List<Pod> listPods(String namespaceName, String labelKey, String labelValue) {
+        return client.pods().inNamespace(namespaceName).withLabel(labelKey, labelValue).list().getItems();
     }
 
     /**

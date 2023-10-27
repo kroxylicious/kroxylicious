@@ -10,7 +10,6 @@ import java.time.Duration;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,12 +33,11 @@ class AcceptanceST extends AbstractST {
     /**
      * Produce and consume message.
      *
-     * @param testInfo the test info
      * @param namespace the namespace
      */
     @Test
     @ExtendWith(KroxyliciousExtension.class)
-    void produceAndConsumeMessage(TestInfo testInfo, String namespace) {
+    void produceAndConsumeMessage(String namespace) {
         String topicName = "my-topic";
         String message = "Hello-world";
         int numberOfMessages = 1;
@@ -48,10 +46,10 @@ class AcceptanceST extends AbstractST {
         // start kroxy
         LOGGER.info("Given Kroxy in {} namespace with {} replicas", namespace, 1);
         kroxylicious = new Kroxylicious(namespace);
-        kroxylicious.deployPortPerBrokerPlain(testInfo.getDisplayName(), clusterName, 1);
+        kroxylicious.deployPortPerBrokerPlain(clusterName, 1);
 
         LOGGER.info("And KafkaTopic in {} namespace", namespace);
-        KafkaSteps.createTopic(testInfo.getDisplayName(), topicName, clusterName, namespace, 1, 1, 1);
+        KafkaSteps.createTopic(topicName, clusterName, namespace, 1, 1, 1);
 
         String bootstrap = kroxylicious.getBootstrap();
 
@@ -67,12 +65,11 @@ class AcceptanceST extends AbstractST {
     /**
      * Restart kafka brokers.
      *
-     * @param testInfo the test info
      * @param namespace the namespace
      */
     @Test
     @ExtendWith(KroxyliciousExtension.class)
-    void restartKafkaBrokers(TestInfo testInfo, String namespace) {
+    void restartKafkaBrokers(String namespace) {
         String topicName = "my-topic2";
         String message = "Hello-world";
         int numberOfMessages = 20;
@@ -81,16 +78,16 @@ class AcceptanceST extends AbstractST {
         // start kroxy
         LOGGER.info("Given Kroxy in {} namespace with {} replicas", namespace, 1);
         kroxylicious = new Kroxylicious(namespace);
-        kroxylicious.deployPortPerBrokerPlain(testInfo.getDisplayName(), clusterName, 1);
+        kroxylicious.deployPortPerBrokerPlain(clusterName, 1);
         String bootstrap = kroxylicious.getBootstrap();
 
         LOGGER.info("And KafkaTopic in {} namespace", namespace);
-        KafkaSteps.createTopic(testInfo.getDisplayName(), topicName, clusterName, namespace, 3, 1, 1);
+        KafkaSteps.createTopic(topicName, clusterName, namespace, 3, 1, 1);
 
         LOGGER.info("When {} messages '{}' are sent to the topic '{}'", numberOfMessages, message, topicName);
         KroxySteps.produceMessages(namespace, topicName, bootstrap, message, numberOfMessages);
         LOGGER.info("And a kafka broker is restarted");
-        KafkaSteps.restartKakfaBroker(clusterName);
+        KafkaSteps.restartKafkaBroker(clusterName);
 
         LOGGER.info("Then the {} messages are consumed", numberOfMessages);
         String result = KroxySteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(10).toMillis());
@@ -101,12 +98,11 @@ class AcceptanceST extends AbstractST {
     /**
      * Kroxy with replicas.
      *
-     * @param testInfo the test info
      * @param namespace the namespace
      */
     @Test
     @ExtendWith(KroxyliciousExtension.class)
-    void kroxyWithReplicas(TestInfo testInfo, String namespace) {
+    void kroxyWithReplicas(String namespace) {
         String topicName = "my-topic3";
         String message = "Hello-world";
         int numberOfMessages = 3;
@@ -116,13 +112,13 @@ class AcceptanceST extends AbstractST {
         // start kroxy
         LOGGER.info("Given Kroxy in {} namespace with {} replicas", namespace, replicas);
         kroxylicious = new Kroxylicious(namespace);
-        kroxylicious.deployPortPerBrokerPlain(testInfo.getDisplayName(), clusterName, replicas);
+        kroxylicious.deployPortPerBrokerPlain(clusterName, replicas);
         String bootstrap = kroxylicious.getBootstrap();
         int currentReplicas = kroxylicious.getNumberOfReplicas();
         assertThat("Current replicas: " + currentReplicas + "; expected: " + replicas, currentReplicas == replicas);
 
         LOGGER.info("And KafkaTopic in {} namespace", namespace);
-        KafkaSteps.createTopic(testInfo.getDisplayName(), topicName, clusterName, namespace, 3, 1, 1);
+        KafkaSteps.createTopic(topicName, clusterName, namespace, 3, 1, 1);
 
         LOGGER.info("When {} messages '{}' are sent to the topic '{}'", numberOfMessages, message, topicName);
         KroxySteps.produceMessages(namespace, topicName, bootstrap, message, numberOfMessages);
@@ -134,13 +130,11 @@ class AcceptanceST extends AbstractST {
     }
 
     /**
-     * Sets before.
-     *
-     * @param testInfo the test info
+     * Sets before all.
      */
     @BeforeAll
-    void setupBefore(TestInfo testInfo) {
+    void setupBefore() {
         LOGGER.info("Deploying Kafka in {} namespace", Constants.KROXY_DEFAULT_NAMESPACE);
-        resourceManager.createResourceWithWait(testInfo.getDisplayName(), KafkaTemplates.kafkaPersistent(Constants.KROXY_DEFAULT_NAMESPACE, clusterName, 3, 3).build());
+        resourceManager.createResourceWithWait(KafkaTemplates.kafkaPersistent(Constants.KROXY_DEFAULT_NAMESPACE, clusterName, 3, 3).build());
     }
 }

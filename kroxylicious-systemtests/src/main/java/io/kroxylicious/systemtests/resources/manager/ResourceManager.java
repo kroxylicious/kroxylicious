@@ -6,12 +6,7 @@
 
 package io.kroxylicious.systemtests.resources.manager;
 
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.Map;
 import java.util.Objects;
-import java.util.Stack;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,7 +20,6 @@ import io.strimzi.api.kafka.model.status.Status;
 
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.enums.ConditionStatus;
-import io.kroxylicious.systemtests.resources.Resource;
 import io.kroxylicious.systemtests.resources.ResourceCondition;
 import io.kroxylicious.systemtests.resources.ResourceOperation;
 import io.kroxylicious.systemtests.resources.ResourceType;
@@ -45,11 +39,10 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
  */
 public class ResourceManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(ResourceManager.class);
-    /**
-     * The constant STORED_RESOURCES.
-     */
-    public static final Map<String, Stack<Resource>> STORED_RESOURCES = new LinkedHashMap<>();
     private static ResourceManager instance;
+
+    private ResourceManager() {
+    }
 
     /**
      * Gets instance.
@@ -77,28 +70,26 @@ public class ResourceManager {
      * Create resource without wait.
      *
      * @param <T>  the type parameter
-     * @param displayName the display name
      * @param resources the resources
      */
     @SafeVarargs
-    public final <T extends HasMetadata> void createResourceWithoutWait(String displayName, T... resources) {
-        createResource(displayName, false, resources);
+    public final <T extends HasMetadata> void createResourceWithoutWait(T... resources) {
+        createResource(false, resources);
     }
 
     /**
      * Create resource with wait.
      *
      * @param <T>   the type parameter
-     * @param displayName the display name
      * @param resources the resources
      */
     @SafeVarargs
-    public final <T extends HasMetadata> void createResourceWithWait(String displayName, T... resources) {
-        createResource(displayName, true, resources);
+    public final <T extends HasMetadata> void createResourceWithWait(T... resources) {
+        createResource(true, resources);
     }
 
     @SafeVarargs
-    private final <T extends HasMetadata> void createResource(String displayName, boolean waitReady, T... resources) {
+    private final <T extends HasMetadata> void createResource(boolean waitReady, T... resources) {
         for (T resource : resources) {
             ResourceType<T> type = findResourceType(resource);
 
@@ -107,14 +98,6 @@ public class ResourceManager {
 
             assert type != null;
             type.create(resource);
-
-            synchronized (this) {
-                STORED_RESOURCES.computeIfAbsent(displayName, k -> new Stack<>());
-                STORED_RESOURCES.get(displayName).push(
-                        new Resource<T>(
-                                () -> deleteResource(resource),
-                                resource));
-            }
         }
 
         if (waitReady) {
@@ -161,45 +144,6 @@ public class ResourceManager {
                 LOGGER.error("Failed to delete {} {}/{}", resource.getKind(), resource.getMetadata().getNamespace(), resource.getMetadata().getName(), e);
             }
         }
-    }
-
-    /**
-     * Delete resources.
-     *
-     * @param displayName the display name
-     */
-    public void deleteResources(String displayName) {
-        LOGGER.info(String.join("", Collections.nCopies(76, "#")));
-        if (!STORED_RESOURCES.containsKey(displayName) || STORED_RESOURCES.get(displayName).isEmpty()) {
-            LOGGER.info("For test {} is everything deleted", displayName);
-        }
-        else {
-            LOGGER.info("Deleting all resources for {}", displayName);
-        }
-
-        // if stack is created for specific test suite or test case
-        AtomicInteger numberOfResources = STORED_RESOURCES.get(displayName) != null
-                ? new AtomicInteger(STORED_RESOURCES.get(displayName).size())
-                :
-                // stack has no elements
-                new AtomicInteger(0);
-        while (STORED_RESOURCES.containsKey(displayName) && numberOfResources.get() > 0) {
-            Stack<Resource> s = STORED_RESOURCES.get(displayName);
-
-            while (!s.isEmpty()) {
-                Resource resource = s.pop();
-
-                try {
-                    resource.getThrowableRunner().run();
-                }
-                catch (Exception e) {
-                    LOGGER.trace(e.getMessage());
-                }
-                numberOfResources.decrementAndGet();
-            }
-        }
-        STORED_RESOURCES.remove(displayName);
-        LOGGER.info(String.join("", Collections.nCopies(76, "#")));
     }
 
     /**
@@ -307,7 +251,7 @@ public class ResourceManager {
     /**
      * Wait for resource status ready.
      *
-     * @param <T>     the type parameter
+     * @param <T> the type parameter
      * @param operation the operation
      * @param resource the resource
      * @return the boolean

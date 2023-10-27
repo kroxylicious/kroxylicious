@@ -70,7 +70,7 @@ public class KafkaUtils {
                 LOGGER.trace(e.getMessage());
             }
         }
-        String log = kubeClient().getClient().pods().inNamespace(deployNamespace).withName("java-kafka-consumer").getLog();
+        String log = kubeClient().logsInSpecificNamespace(deployNamespace, "java-kafka-consumer");
         kubeClient().getClient().pods().inNamespace(deployNamespace).withName("java-kafka-consumer").delete();
         return log;
     }
@@ -86,7 +86,6 @@ public class KafkaUtils {
      * @return the string
      */
     public static String ConsumeMessageWithTestClients(String deployNamespace, String topicName, String bootstrap, int numOfMessages, long timeoutMilliseconds) {
-
         LOGGER.debug("Consuming messages from '{}' topic", topicName);
         InputStream file = replaceStringInResourceFile("kafka-consumer-template.yaml", Map.of(
                 "%BOOTSTRAP_SERVERS%", bootstrap,
@@ -107,11 +106,11 @@ public class KafkaUtils {
     private static String getPodNameByLabel(String deployNamespace, String labelKey, String labelValue, long timeoutMilliseconds) {
         TestUtils.waitFor("Waiting for Pod with label " + labelKey + "=" + labelValue + " to appear", 1000, timeoutMilliseconds,
                 () -> {
-                    var podList = kubeClient().getClient().pods().inNamespace(deployNamespace).withLabel(labelKey, labelValue);
-                    return !podList.list().getItems().isEmpty();
+                    var podList = kubeClient().listPods(deployNamespace, labelKey, labelValue);
+                    return !podList.isEmpty();
                 });
-        var pods = kubeClient().getClient().pods().inNamespace(deployNamespace).withLabel(labelKey, labelValue);
-        return pods.list().getItems().get(pods.list().getItems().size() - 1).getMetadata().getName();
+        var pods = kubeClient().listPods(deployNamespace, labelKey, labelValue);
+        return pods.get(pods.size() - 1).getMetadata().getName();
     }
 
     /**
@@ -190,7 +189,7 @@ public class KafkaUtils {
         }
         String podUid = kubeClient().getPod(deployNamespace, podName).getMetadata().getUid();
         kubeClient().getClient().pods().inNamespace(deployNamespace).withName(podName).withGracePeriod(0).delete();
-        kubeClient().getClient().pods().inNamespace(deployNamespace).withName(podName).waitUntilCondition(Objects::isNull, 20, TimeUnit.SECONDS);
+        kubeClient().getClient().pods().inNamespace(deployNamespace).withName(podName).waitUntilCondition(Objects::isNull, 60, TimeUnit.SECONDS);
         String finalPodName = podName;
         await().atMost(Duration.ofMinutes(1)).until(() -> kubeClient().getClient().pods().inNamespace(deployNamespace).withName(finalPodName) != null);
         return !Objects.equals(podUid, kubeClient().getPod(deployNamespace, podName).getMetadata().getUid());

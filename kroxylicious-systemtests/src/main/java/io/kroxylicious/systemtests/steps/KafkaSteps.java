@@ -22,7 +22,6 @@ public class KafkaSteps {
     /**
      * Create topic.
      *
-     * @param displayName the display name
      * @param clusterName the cluster name
      * @param topicName the topic name
      * @param namespace the namespace
@@ -30,18 +29,18 @@ public class KafkaSteps {
      * @param replicas the replicas
      * @param minIsr the min isr
      */
-    public static void createTopic(String displayName, String clusterName, String topicName, String namespace,
+    public static void createTopic(String clusterName, String topicName, String namespace,
                                    int partitions, int replicas, int minIsr) {
-        resourceManager.createResourceWithWait(displayName,
+        resourceManager.createResourceWithWait(
                 KafkaTopicTemplates.defaultTopic(namespace, clusterName, topicName, partitions, replicas, minIsr).build());
     }
 
     /**
-     * Restart kakfa broker.
+     * Restart kafka broker.
      *
      * @param clusterName the cluster name
      */
-    public static void restartKakfaBroker(String clusterName) {
+    public static void restartKafkaBroker(String clusterName) {
         clusterName = clusterName + "-kafka";
         assertTrue(KafkaUtils.restartBroker(Constants.KROXY_DEFAULT_NAMESPACE, clusterName));
     }

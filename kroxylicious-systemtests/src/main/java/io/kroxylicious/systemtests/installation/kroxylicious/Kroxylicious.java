@@ -6,10 +6,8 @@
 
 package io.kroxylicious.systemtests.installation.kroxylicious;
 
-import java.io.IOException;
 import java.util.Objects;
 
-import org.junit.jupiter.api.TestInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,7 +17,6 @@ import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyConfigTemplates;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyDeploymentTemplates;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyServiceTemplates;
-import io.kroxylicious.systemtests.utils.DeploymentUtils;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 
@@ -34,6 +31,14 @@ public class Kroxylicious {
 
     /**
      * Instantiates a new Kroxylicious.
+     */
+    public Kroxylicious() {
+        this.deploymentNamespace = null;
+        this.containerImage = null;
+    }
+
+    /**
+     * Instantiates a new Kroxylicious to be used in kubernetes.
      *
      * @param deploymentNamespace the deployment namespace
      */
@@ -43,31 +48,24 @@ public class Kroxylicious {
         if (!Objects.equals(Environment.QUAY_ORG, Environment.QUAY_ORG_DEFAULT)) {
             kroxyUrl = "quay.io/" + Environment.QUAY_ORG + "/kroxylicious:";
         }
-        containerImage = kroxyUrl + Environment.KROXY_VERSION;
+        this.containerImage = kroxyUrl + Environment.KROXY_VERSION;
+    }
+
+    public void runKroxyliciousApp(String configPath) {
+        // env.KROXY_START = sh(script: "find kroxylicious-app/target -name 'kroxylicious-start.sh'", returnStdout: true).toString().trim()
+        // sh(script: "nohup ${env.KROXY_START} -c kroxylicious-app/example-proxy-config.yml &")
     }
 
     /**
      * Deploy - Port per broker plain config
-     * @param displayName the display name
      * @param clusterName the cluster name
      * @param replicas the replicas
      */
-    public void deployPortPerBrokerPlain(String displayName, String clusterName, int replicas) {
+    public void deployPortPerBrokerPlain(String clusterName, int replicas) {
         LOGGER.info("Deploy Kroxy in {} namespace", deploymentNamespace);
-        resourceManager.createResourceWithWait(displayName, KroxyConfigTemplates.defaultKroxyConfig(clusterName, deploymentNamespace).build());
-        resourceManager.createResourceWithWait(displayName, KroxyDeploymentTemplates.defaultKroxyDeployment(deploymentNamespace, containerImage, replicas).build());
-        resourceManager.createResourceWithoutWait(displayName, KroxyServiceTemplates.defaultKroxyService(deploymentNamespace).build());
-    }
-
-    /**
-     * Delete.
-     * @param testInfo the test info
-     * @throws IOException the io exception
-     */
-    public void delete(TestInfo testInfo) throws IOException {
-        LOGGER.info("Deleting Kroxy in {} namespace", deploymentNamespace);
-        resourceManager.deleteResources(testInfo.getDisplayName());
-        DeploymentUtils.waitForDeploymentDeletion(deploymentNamespace, Constants.KROXY_DEPLOYMENT_NAME);
+        resourceManager.createResourceWithWait(KroxyConfigTemplates.defaultKroxyConfig(clusterName, deploymentNamespace).build());
+        resourceManager.createResourceWithWait(KroxyDeploymentTemplates.defaultKroxyDeployment(deploymentNamespace, containerImage, replicas).build());
+        resourceManager.createResourceWithoutWait(KroxyServiceTemplates.defaultKroxyService(deploymentNamespace).build());
     }
 
     /**
