@@ -287,7 +287,7 @@ class ConfigParserTest {
                 + "name 'NotAKnownPlugin'. "
                 + "Known plugin instances are [UpperCasing, io.kroxylicious.proxy.internal.filter.UpperCasing]. "
                 + "Plugins must be loadable by java.util.ServiceLoader and annotated with "
-                + "@PluginConfigType.",
+                + "@Plugin.",
                 upie.getMessage());
     }
 
