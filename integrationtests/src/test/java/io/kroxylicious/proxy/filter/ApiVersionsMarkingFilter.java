@@ -31,8 +31,9 @@ public class ApiVersionsMarkingFilter implements RequestFilter {
             }
             ApiVersionsService.ApiVersionRanges versionRanges = apiVersionRanges.get();
             ApiVersionsResponseData.ApiVersion intersected = versionRanges.intersected();
-            request.unknownTaggedFields().add(new RawTaggedField(INTERSECTED_API_VERSION_RANGE_TAG, (intersected.minVersion() + "-" + intersected.maxVersion()).getBytes(
-                    UTF_8)));
+            request.unknownTaggedFields()
+                    .add(new RawTaggedField(INTERSECTED_API_VERSION_RANGE_TAG, (intersected.minVersion() + "-" + intersected.maxVersion()).getBytes(
+                            UTF_8)));
             ApiVersionsResponseData.ApiVersion upstream = versionRanges.upstream();
             request.unknownTaggedFields().add(new RawTaggedField(UPSTREAM_API_VERSION_RANGE_TAG, (upstream.minVersion() + "-" + upstream.maxVersion()).getBytes(
                     UTF_8)));

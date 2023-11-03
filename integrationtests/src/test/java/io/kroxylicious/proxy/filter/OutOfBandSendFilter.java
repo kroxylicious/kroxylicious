@@ -40,26 +40,22 @@ public class OutOfBandSendFilter implements DescribeClusterRequestFilter, Descri
         this.config = config;
     }
 
-    public static class OutOfBandSendFilterConfig {
-        private final ApiKeys apiKeyToSend;
-        private final int tagIdToCollect;
-
+    public record OutOfBandSendFilterConfig(ApiKeys apiKeyToSend, int tagIdToCollect) {
         @JsonCreator
         public OutOfBandSendFilterConfig(@JsonProperty(value = "apiKeyToSend", required = true) ApiKeys apiKeyToSend,
                                          @JsonProperty(value = "tagToCollect", required = true) int tagIdToCollect) {
             this.apiKeyToSend = apiKeyToSend;
             this.tagIdToCollect = tagIdToCollect;
         }
-
     }
 
     @Override
     public CompletionStage<RequestFilterResult> onDescribeClusterRequest(short apiVersion, RequestHeaderData header, DescribeClusterRequestData request,
                                                                          FilterContext context) {
-        ApiKeys apiKeyToSend = config.apiKeyToSend;
+        ApiKeys apiKeyToSend = config.apiKeyToSend();
         ApiMessage message = createApiMessage(apiKeyToSend);
         return context.sendRequest(new RequestHeaderData().setRequestApiVersion(message.highestSupportedVersion()), message).thenCompose(apiMessage -> {
-            values = unknownTaggedFieldsToStrings(apiMessage, config.tagIdToCollect).collect(Collectors.joining(","));
+            values = unknownTaggedFieldsToStrings(apiMessage, config.tagIdToCollect()).collect(Collectors.joining(","));
             return context.forwardRequest(header, request);
         });
     }

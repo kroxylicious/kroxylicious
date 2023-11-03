@@ -6,26 +6,25 @@
 
 package io.kroxylicious.proxy.filter.schema;
 
-import io.kroxylicious.proxy.filter.FilterCreationContext;
 import io.kroxylicious.proxy.filter.FilterFactory;
+import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.filter.schema.config.ValidationConfig;
 import io.kroxylicious.proxy.filter.schema.validation.request.ProduceRequestValidator;
+import io.kroxylicious.proxy.plugin.Plugin;
+import io.kroxylicious.proxy.plugin.Plugins;
 
-public class ProduceValidationFilterFactory implements FilterFactory<ProduceValidationFilter, ValidationConfig> {
+@Plugin(configType = ValidationConfig.class)
+public class ProduceValidationFilterFactory implements FilterFactory<ValidationConfig, ValidationConfig> {
 
     @Override
-    public Class<ProduceValidationFilter> filterType() {
-        return ProduceValidationFilter.class;
+    public ValidationConfig initialize(FilterFactoryContext context, ValidationConfig config) {
+        return Plugins.requireConfig(this, config);
     }
 
     @Override
-    public Class<ValidationConfig> configType() {
-        return ValidationConfig.class;
-    }
-
-    @Override
-    public ProduceValidationFilter createFilter(FilterCreationContext context, ValidationConfig configuration) {
+    public ProduceValidationFilter createFilter(FilterFactoryContext context, ValidationConfig configuration) {
         ProduceRequestValidator validator = ProduceValidationFilterBuilder.build(configuration);
         return new ProduceValidationFilter(configuration.isForwardPartialRequests(), validator);
     }
+
 }

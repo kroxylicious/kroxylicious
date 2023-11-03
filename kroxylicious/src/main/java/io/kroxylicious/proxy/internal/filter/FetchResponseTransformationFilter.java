@@ -3,9 +3,9 @@
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
+
 package io.kroxylicious.proxy.internal.filter;
 
-import java.lang.reflect.InvocationTargetException;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -14,8 +14,6 @@ import java.util.stream.Collectors;
 
 import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.FetchResponseData;
-import org.apache.kafka.common.message.FetchResponseData.FetchableTopicResponse;
-import org.apache.kafka.common.message.FetchResponseData.PartitionData;
 import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
@@ -43,19 +41,6 @@ public class FetchResponseTransformationFilter implements FetchResponseFilter {
     // Version 12 was the first version that uses topic ids.
     private static final short METADATA_API_VER_WITH_TOPIC_ID_SUPPORT = (short) 12;
 
-    public static class FetchResponseTransformationConfig {
-
-        private final String transformation;
-
-        public FetchResponseTransformationConfig(String transformation) {
-            this.transformation = transformation;
-        }
-
-        public String transformation() {
-            return transformation;
-        }
-    }
-
     private static final Logger LOGGER = LoggerFactory.getLogger(FetchResponseTransformationFilter.class);
 
     /**
@@ -65,14 +50,8 @@ public class FetchResponseTransformationFilter implements FetchResponseFilter {
 
     // TODO: add transformation support for key/header/topic
 
-    public FetchResponseTransformationFilter(FetchResponseTransformationConfig config) {
-        try {
-            this.valueTransformation = (ByteBufferTransformation) Class.forName(config.transformation()).getConstructor().newInstance();
-        }
-        catch (InstantiationException | IllegalAccessException | IllegalArgumentException | InvocationTargetException | NoSuchMethodException | SecurityException
-                | ClassNotFoundException e) {
-            throw new IllegalArgumentException("Couldn't instantiate transformation class: " + config.transformation(), e);
-        }
+    public FetchResponseTransformationFilter(ByteBufferTransformation valueTransformation) {
+        this.valueTransformation = valueTransformation;
     }
 
     @Override
@@ -85,7 +64,7 @@ public class FetchResponseTransformationFilter implements FetchResponseFilter {
                     return new MetadataRequestData.MetadataRequestTopic().setName(null).setTopicId(uuid);
                 })
                 .distinct()
-                .collect(Collectors.toList());
+                .toList();
         if (!requestTopics.isEmpty()) {
             LOGGER.debug("Fetch response contains {} unknown topic ids, lookup via Metadata request: {}", requestTopics.size(), requestTopics);
             var metadataHeader = new RequestHeaderData().setRequestApiVersion(METADATA_API_VER_WITH_TOPIC_ID_SUPPORT);
@@ -112,8 +91,8 @@ public class FetchResponseTransformationFilter implements FetchResponseFilter {
     }
 
     private void applyTransformation(FilterContext context, FetchResponseData responseData) {
-        for (FetchableTopicResponse topicData : responseData.responses()) {
-            for (PartitionData partitionData : topicData.partitions()) {
+        for (FetchResponseData.FetchableTopicResponse topicData : responseData.responses()) {
+            for (FetchResponseData.PartitionData partitionData : topicData.partitions()) {
                 MemoryRecords records = (MemoryRecords) partitionData.records();
                 MemoryRecordsBuilder newRecords = MemoryRecordsHelper.builder(context.createByteBufferOutputStream(records.sizeInBytes()), CompressionType.NONE,
                         TimestampType.CREATE_TIME, 0);

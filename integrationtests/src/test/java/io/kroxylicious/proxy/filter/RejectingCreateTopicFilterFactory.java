@@ -6,27 +6,22 @@
 
 package io.kroxylicious.proxy.filter;
 
-import io.kroxylicious.proxy.filter.RejectingCreateTopicFilter.RejectingCreateTopicFilterConfig;
+import io.kroxylicious.proxy.plugin.Plugin;
 
-public class RejectingCreateTopicFilterFactory implements FilterFactory<RejectingCreateTopicFilter, RejectingCreateTopicFilterConfig> {
-
-    @Override
-    public Class<RejectingCreateTopicFilter> filterType() {
-        return RejectingCreateTopicFilter.class;
-    }
+@Plugin(configType = RejectingCreateTopicFilter.RejectingCreateTopicFilterConfig.class)
+public class RejectingCreateTopicFilterFactory
+        implements FilterFactory<RejectingCreateTopicFilter.RejectingCreateTopicFilterConfig, RejectingCreateTopicFilter.RejectingCreateTopicFilterConfig> {
 
     @Override
-    public Class<RejectingCreateTopicFilterConfig> configType() {
-        return RejectingCreateTopicFilterConfig.class;
-    }
-
-    @Override
-    public void validateConfiguration(RejectingCreateTopicFilterConfig config) {
+    public RejectingCreateTopicFilter.RejectingCreateTopicFilterConfig initialize(FilterFactoryContext context,
+                                                                                  RejectingCreateTopicFilter.RejectingCreateTopicFilterConfig config) {
         // null configuration is allowed, by default null config is invalid
+        return config;
     }
 
     @Override
-    public RejectingCreateTopicFilter createFilter(FilterCreationContext context, RejectingCreateTopicFilterConfig configuration) {
+    public RejectingCreateTopicFilter createFilter(FilterFactoryContext context, RejectingCreateTopicFilter.RejectingCreateTopicFilterConfig configuration) {
         return new RejectingCreateTopicFilter(context, configuration);
     }
+
 }

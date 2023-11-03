@@ -27,7 +27,7 @@ import io.sundr.builder.annotations.ExternalBuildables;
         "io.kroxylicious.proxy.config.tls.KeyPair"
 })
 public final class BuilderConfig {
-    public static final String TARGET_CONFIG_PACKAGE = "io.kroxylicious.proxy.config";
+    public static final String TARGET_CONFIG_PACKAGE = "io.kroxylicious.proxy.config.model";
 
     private BuilderConfig() {
         throw new IllegalStateException();

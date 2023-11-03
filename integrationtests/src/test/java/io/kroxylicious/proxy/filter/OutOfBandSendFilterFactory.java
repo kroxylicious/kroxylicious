@@ -7,21 +7,20 @@
 package io.kroxylicious.proxy.filter;
 
 import io.kroxylicious.proxy.filter.OutOfBandSendFilter.OutOfBandSendFilterConfig;
+import io.kroxylicious.proxy.plugin.Plugin;
+import io.kroxylicious.proxy.plugin.Plugins;
 
-public class OutOfBandSendFilterFactory implements FilterFactory<OutOfBandSendFilter, OutOfBandSendFilterConfig> {
+@Plugin(configType = OutOfBandSendFilterConfig.class)
+public class OutOfBandSendFilterFactory implements FilterFactory<OutOfBandSendFilterConfig, OutOfBandSendFilterConfig> {
 
     @Override
-    public Class<OutOfBandSendFilter> filterType() {
-        return OutOfBandSendFilter.class;
+    public OutOfBandSendFilterConfig initialize(FilterFactoryContext context, OutOfBandSendFilterConfig config) {
+        return Plugins.requireConfig(this, config);
     }
 
     @Override
-    public Class<OutOfBandSendFilterConfig> configType() {
-        return OutOfBandSendFilterConfig.class;
-    }
-
-    @Override
-    public OutOfBandSendFilter createFilter(FilterCreationContext context, OutOfBandSendFilterConfig configuration) {
+    public OutOfBandSendFilter createFilter(FilterFactoryContext context, OutOfBandSendFilterConfig configuration) {
         return new OutOfBandSendFilter(configuration);
     }
+
 }

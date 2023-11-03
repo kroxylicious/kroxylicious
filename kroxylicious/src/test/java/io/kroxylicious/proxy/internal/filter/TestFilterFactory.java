@@ -6,27 +6,58 @@
 
 package io.kroxylicious.proxy.internal.filter;
 
-import io.kroxylicious.proxy.filter.FilterCreationContext;
+import java.util.concurrent.CompletionStage;
+
+import org.apache.kafka.common.message.RequestHeaderData;
+import org.apache.kafka.common.protocol.ApiKeys;
+import org.apache.kafka.common.protocol.ApiMessage;
+
+import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.FilterFactory;
+import io.kroxylicious.proxy.filter.FilterFactoryContext;
+import io.kroxylicious.proxy.filter.RequestFilter;
+import io.kroxylicious.proxy.filter.RequestFilterResult;
+import io.kroxylicious.proxy.plugin.Plugins;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
+public class TestFilterFactory implements FilterFactory<ExampleConfig, ExampleConfig> {
 
-public class TestFilterFactory implements FilterFactory<TestFilter, ExampleConfig> {
-
-    @NonNull
     @Override
-    public Class<TestFilter> filterType() {
-        return TestFilter.class;
-    }
-
-    @NonNull
-    @Override
-    public Class<ExampleConfig> configType() {
-        return ExampleConfig.class;
+    public ExampleConfig initialize(FilterFactoryContext context, ExampleConfig config) {
+        return Plugins.requireConfig(this, config);
     }
 
     @Override
-    public TestFilter createFilter(FilterCreationContext context, ExampleConfig configuration) {
-        return new TestFilter(context, configuration, this.getClass());
+    public TestFilterImpl createFilter(FilterFactoryContext context, ExampleConfig configuration) {
+        return new TestFilterImpl(context, configuration, this.getClass());
+    }
+
+    public static class TestFilterImpl implements RequestFilter {
+        private final FilterFactoryContext context;
+        private final ExampleConfig exampleConfig;
+        private final Class<? extends FilterFactory> contributorClass;
+
+        public TestFilterImpl(FilterFactoryContext context, ExampleConfig exampleConfig, Class<? extends FilterFactory> contributorClass) {
+            this.context = context;
+            this.exampleConfig = exampleConfig;
+            this.contributorClass = contributorClass;
+        }
+
+        @Override
+        public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage request, FilterContext context) {
+            throw new IllegalStateException("not implemented!");
+        }
+
+        public FilterFactoryContext getContext() {
+            return context;
+        }
+
+        public ExampleConfig getExampleConfig() {
+            return exampleConfig;
+        }
+
+        public Class<? extends FilterFactory> getContributorClass() {
+            return contributorClass;
+        }
+
     }
 }

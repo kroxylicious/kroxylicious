@@ -12,7 +12,7 @@ metadata:
 data:
   config.yaml: |
     filters:
-    - type: MultiTenantTransformationFilter
+    - type: MultiTenantTransformationFilterFactory
     adminHttp:
       endpoints:
         prometheus: {}

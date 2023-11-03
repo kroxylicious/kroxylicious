@@ -21,8 +21,9 @@ import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.proxy.config.FilterDefinition;
 import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
-import io.kroxylicious.proxy.filter.OutOfBandSendFilter;
+import io.kroxylicious.proxy.filter.OutOfBandSendFilterFactory;
 import io.kroxylicious.proxy.filter.RequestResponseMarkingFilter;
+import io.kroxylicious.proxy.filter.RequestResponseMarkingFilterFactory;
 import io.kroxylicious.test.Request;
 import io.kroxylicious.test.Response;
 import io.kroxylicious.test.ResponsePayload;
@@ -79,23 +80,24 @@ public class OutOfBandRequestIT {
     }
 
     private static FilterDefinition outOfBandSender(ApiKeys apiKeyToSend, int tagToCollect) {
-        return new FilterDefinitionBuilder(OutOfBandSendFilter.class.getName()).withConfig(Map.of("apiKeyToSend", apiKeyToSend, "tagToCollect", tagToCollect))
+        return new FilterDefinitionBuilder(OutOfBandSendFilterFactory.class.getName()).withConfig(Map.of("apiKeyToSend", apiKeyToSend, "tagToCollect", tagToCollect))
                 .build();
     }
 
     private static FilterDefinition addAddUnknownTaggedFieldToMessagesWithApiKey(String name, ApiKeys apiKeys) {
-        return new FilterDefinitionBuilder(RequestResponseMarkingFilter.class.getName()).withConfig("name", name, "keysToMark", Set.of(apiKeys)).build();
+        return new FilterDefinitionBuilder(RequestResponseMarkingFilterFactory.class.getName()).withConfig("name", name, "keysToMark", Set.of(apiKeys)).build();
     }
 
     private static void andMessageFromOutOfBandRequestToMockHadTagAddedByUpstreamFilterOnly(MockServerKroxyliciousTester tester) {
         Request request = tester.getOnlyRequestForApiKey(CREATE_TOPICS);
         String tags = unknownTaggedFieldsToStrings(request.message(), FILTER_NAME_TAG)
                 .collect(Collectors.joining(","));
-        assertEquals("RequestResponseMarkingFilter-upstreamOfOutOfBandFilter-request", tags);
+        assertEquals(RequestResponseMarkingFilter.class.getSimpleName() + "-upstreamOfOutOfBandFilter-request", tags);
     }
 
     private static void thenResponseContainsTagsAugmentedInByUpstreamFilterOnly(DescribeClusterResponseData responseData) {
-        assertEquals("filterNameTaggedFieldsFromOutOfBandResponse: RequestResponseMarkingFilter-upstreamOfOutOfBandFilter-response", responseData.errorMessage());
+        assertEquals("filterNameTaggedFieldsFromOutOfBandResponse: " + RequestResponseMarkingFilter.class.getSimpleName()
+                + "-upstreamOfOutOfBandFilter-response", responseData.errorMessage());
     }
 
     private static DescribeClusterResponseData whenDescribeCluster(KafkaClient client) {

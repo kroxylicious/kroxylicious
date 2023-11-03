@@ -1,3 +1,9 @@
 io.kroxylicious.proxy.internal.filter.TestFilterFactory
 io.kroxylicious.proxy.internal.filter.OptionalConfigFactory
 io.kroxylicious.proxy.internal.filter.RequiresConfigFactory
+io.kroxylicious.proxy.internal.filter.ConstructorInjection
+io.kroxylicious.proxy.internal.filter.FieldInjection
+io.kroxylicious.proxy.internal.filter.Record
+io.kroxylicious.proxy.internal.filter.SetterInjection
+io.kroxylicious.proxy.internal.filter.FactoryMethod
+io.kroxylicious.proxy.internal.filter.MissingPluginImplName

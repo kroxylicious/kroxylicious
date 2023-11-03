@@ -6,29 +6,38 @@
 
 package io.kroxylicious.proxy.internal.filter;
 
-import io.kroxylicious.proxy.filter.FilterCreationContext;
+import java.util.Objects;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import io.kroxylicious.proxy.filter.FilterFactory;
-import io.kroxylicious.proxy.internal.filter.FetchResponseTransformationFilter.FetchResponseTransformationConfig;
+import io.kroxylicious.proxy.filter.FilterFactoryContext;
+import io.kroxylicious.proxy.internal.filter.FetchResponseTransformationFilterFactory.Config;
+import io.kroxylicious.proxy.plugin.Plugin;
+import io.kroxylicious.proxy.plugin.PluginImplConfig;
+import io.kroxylicious.proxy.plugin.PluginImplName;
+import io.kroxylicious.proxy.plugin.Plugins;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
+@Plugin(configType = FetchResponseTransformationFilterFactory.Config.class)
 public class FetchResponseTransformationFilterFactory
-        implements FilterFactory<FetchResponseTransformationFilter, FetchResponseTransformationConfig> {
+        implements FilterFactory<Config, Config> {
 
-    @NonNull
     @Override
-    public Class<FetchResponseTransformationFilter> filterType() {
-        return FetchResponseTransformationFilter.class;
+    public Config initialize(FilterFactoryContext context, Config config) {
+        return Plugins.requireConfig(this, config);
     }
 
     @Override
-    public Class<FetchResponseTransformationConfig> configType() {
-        return FetchResponseTransformationConfig.class;
+    public FetchResponseTransformationFilter createFilter(FilterFactoryContext context,
+                                                          Config configuration) {
+        var factory = context.pluginInstance(ByteBufferTransformationFactory.class, configuration.transformation());
+        Objects.requireNonNull(factory, "Violated contract of FilterCreationContext");
+        return new FetchResponseTransformationFilter(factory.createTransformation(configuration.config()));
     }
 
-    @Override
-    public FetchResponseTransformationFilter createFilter(FilterCreationContext context,
-                                                          FetchResponseTransformationConfig configuration) {
-        return new FetchResponseTransformationFilter(configuration);
+    public record Config(@JsonProperty(required = true) @PluginImplName(ByteBufferTransformationFactory.class) String transformation,
+                         @PluginImplConfig(implNameProperty = "transformation") Object config) {
+
     }
+
 }
