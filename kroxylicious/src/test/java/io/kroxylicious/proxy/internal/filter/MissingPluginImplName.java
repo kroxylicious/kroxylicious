@@ -9,13 +9,13 @@ package io.kroxylicious.proxy.internal.filter;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
-import io.kroxylicious.proxy.plugin.PluginConfigType;
+import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import io.kroxylicious.proxy.plugin.PluginImplConfig;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-@PluginConfigType(MissingPluginImplName.Config.class)
+@Plugin(configType = MissingPluginImplName.Config.class)
 public class MissingPluginImplName implements FilterFactory<MissingPluginImplName.Config, Void> {
 
     record Config(

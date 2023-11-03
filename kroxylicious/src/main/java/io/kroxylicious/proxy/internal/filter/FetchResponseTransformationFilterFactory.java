@@ -13,12 +13,12 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.internal.filter.FetchResponseTransformationFilterFactory.Config;
-import io.kroxylicious.proxy.plugin.PluginConfigType;
+import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginImplConfig;
 import io.kroxylicious.proxy.plugin.PluginImplName;
 import io.kroxylicious.proxy.plugin.Plugins;
 
-@PluginConfigType(FetchResponseTransformationFilterFactory.Config.class)
+@Plugin(configType = FetchResponseTransformationFilterFactory.Config.class)
 public class FetchResponseTransformationFilterFactory
         implements FilterFactory<Config, Config> {
 

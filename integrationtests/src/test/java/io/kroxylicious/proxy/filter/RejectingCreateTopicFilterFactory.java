@@ -6,9 +6,9 @@
 
 package io.kroxylicious.proxy.filter;
 
-import io.kroxylicious.proxy.plugin.PluginConfigType;
+import io.kroxylicious.proxy.plugin.Plugin;
 
-@PluginConfigType(RejectingCreateTopicFilter.RejectingCreateTopicFilterConfig.class)
+@Plugin(configType = RejectingCreateTopicFilter.RejectingCreateTopicFilterConfig.class)
 public class RejectingCreateTopicFilterFactory
         implements FilterFactory<RejectingCreateTopicFilter.RejectingCreateTopicFilterConfig, RejectingCreateTopicFilter.RejectingCreateTopicFilterConfig> {
 

@@ -8,9 +8,9 @@ package io.kroxylicious.proxy.filter.multitenant;
 
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
-import io.kroxylicious.proxy.plugin.PluginConfigType;
+import io.kroxylicious.proxy.plugin.Plugin;
 
-@PluginConfigType(Void.class)
+@Plugin(configType = Void.class)
 public class MultiTenantTransformationFilterFactory implements FilterFactory<Void, Void> {
 
     @Override

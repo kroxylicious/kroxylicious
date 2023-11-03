@@ -14,11 +14,11 @@ import java.lang.annotation.Target;
 /**
  * An annotation, on a plugin implementation class, that identifies the class of "config record"
  * consumed by that implementation.
- * Use {@code @PluginConfigType(Void.class)} if a plugin implementation class doesn't require configuration.
+ * Use {@code @Plugin(configType=Void.class)} if a plugin implementation class doesn't require configuration.
  * @see io.kroxylicious.proxy.plugin
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
-public @interface PluginConfigType {
-    Class<?> value();
+public @interface Plugin {
+    Class<?> configType();
 }

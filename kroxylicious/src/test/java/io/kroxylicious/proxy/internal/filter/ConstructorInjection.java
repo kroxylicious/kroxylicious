@@ -9,14 +9,14 @@ package io.kroxylicious.proxy.internal.filter;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
-import io.kroxylicious.proxy.plugin.PluginConfigType;
+import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-@PluginConfigType(ConstructorInjectionConfig.class)
+@Plugin(configType = ConstructorInjectionConfig.class)
 public class ConstructorInjection implements FilterFactory<ConstructorInjectionConfig, String> {
     @Override
     public String initialize(FilterFactoryContext context, ConstructorInjectionConfig config) throws PluginConfigurationException {

@@ -7,10 +7,10 @@
 package io.kroxylicious.proxy.filter;
 
 import io.kroxylicious.proxy.filter.OutOfBandSendFilter.OutOfBandSendFilterConfig;
-import io.kroxylicious.proxy.plugin.PluginConfigType;
+import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.Plugins;
 
-@PluginConfigType(OutOfBandSendFilterConfig.class)
+@Plugin(configType = OutOfBandSendFilterConfig.class)
 public class OutOfBandSendFilterFactory implements FilterFactory<OutOfBandSendFilterConfig, OutOfBandSendFilterConfig> {
 
     @Override

@@ -8,11 +8,11 @@ package io.kroxylicious.sample;
 
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
-import io.kroxylicious.proxy.plugin.PluginConfigType;
+import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.Plugins;
 import io.kroxylicious.sample.config.SampleFilterConfig;
 
-@PluginConfigType(SampleFilterConfig.class)
+@Plugin(configType = SampleFilterConfig.class)
 public class SampleProduceRequestFilterFactory implements FilterFactory<SampleFilterConfig, SampleFilterConfig> {
     @Override
     public SampleFilterConfig initialize(FilterFactoryContext context, SampleFilterConfig config) {

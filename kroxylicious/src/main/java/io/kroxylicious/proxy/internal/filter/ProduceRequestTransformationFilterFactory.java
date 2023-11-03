@@ -11,14 +11,14 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.internal.filter.ProduceRequestTransformationFilterFactory.Config;
-import io.kroxylicious.proxy.plugin.PluginConfigType;
+import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginImplConfig;
 import io.kroxylicious.proxy.plugin.PluginImplName;
 import io.kroxylicious.proxy.plugin.Plugins;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-@PluginConfigType(ProduceRequestTransformationFilterFactory.Config.class)
+@Plugin(configType = ProduceRequestTransformationFilterFactory.Config.class)
 public class ProduceRequestTransformationFilterFactory
         implements FilterFactory<Config, Config> {
     public record Config(

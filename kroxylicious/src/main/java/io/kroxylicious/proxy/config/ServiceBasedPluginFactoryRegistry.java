@@ -18,7 +18,7 @@ import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.kroxylicious.proxy.plugin.PluginConfigType;
+import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.UnknownPluginInstanceException;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -52,12 +52,12 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
         ServiceLoader<?> load = ServiceLoader.load(pluginInterface);
         load.stream().forEach(provider -> {
             Class<?> providerType = provider.type();
-            PluginConfigType annotation = providerType.getAnnotation(PluginConfigType.class);
+            Plugin annotation = providerType.getAnnotation(Plugin.class);
             if (annotation == null) {
                 LOGGER.warn("Failed to find a @PluginConfigType on provider {} of service {}", providerType, pluginInterface);
             }
             else {
-                ProviderAndConfigType providerAndConfigType = new ProviderAndConfigType(provider, annotation.value());
+                ProviderAndConfigType providerAndConfigType = new ProviderAndConfigType(provider, annotation.configType());
                 Stream.of(providerType.getName(), providerType.getSimpleName()).forEach(name2 -> nameToProviders.compute(name2, (k2, v) -> {
                     if (v == null) {
                         v = new HashSet<>();
@@ -109,7 +109,7 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
             private UnknownPluginInstanceException unknownPluginInstanceException(String name) {
                 return new UnknownPluginInstanceException("Unknown " + pluginClass.getName() + " plugin instance for name '" + name + "'. "
                         + "Known plugin instances are " + nameToProvider.keySet() + ". "
-                        + "Plugins must be loadable by java.util.ServiceLoader and annotated with @" + PluginConfigType.class.getSimpleName() + ".");
+                        + "Plugins must be loadable by java.util.ServiceLoader and annotated with @" + Plugin.class.getSimpleName() + ".");
             }
 
             @NonNull

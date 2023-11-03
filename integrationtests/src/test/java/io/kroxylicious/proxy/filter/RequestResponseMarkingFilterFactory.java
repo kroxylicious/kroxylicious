@@ -6,10 +6,10 @@
 
 package io.kroxylicious.proxy.filter;
 
-import io.kroxylicious.proxy.plugin.PluginConfigType;
+import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.Plugins;
 
-@PluginConfigType(RequestResponseMarkingFilter.RequestResponseMarkingFilterConfig.class)
+@Plugin(configType = RequestResponseMarkingFilter.RequestResponseMarkingFilterConfig.class)
 public class RequestResponseMarkingFilterFactory
         implements FilterFactory<RequestResponseMarkingFilter.RequestResponseMarkingFilterConfig, RequestResponseMarkingFilter.RequestResponseMarkingFilterConfig> {
 

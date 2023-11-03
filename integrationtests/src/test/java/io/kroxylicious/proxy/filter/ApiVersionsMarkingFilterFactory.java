@@ -6,9 +6,9 @@
 
 package io.kroxylicious.proxy.filter;
 
-import io.kroxylicious.proxy.plugin.PluginConfigType;
+import io.kroxylicious.proxy.plugin.Plugin;
 
-@PluginConfigType(Void.class)
+@Plugin(configType = Void.class)
 public class ApiVersionsMarkingFilterFactory implements FilterFactory<Void, Void> {
 
     @Override

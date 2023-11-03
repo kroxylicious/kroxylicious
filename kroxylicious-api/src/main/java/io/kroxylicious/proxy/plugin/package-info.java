@@ -78,11 +78,11 @@
  * <h2>Implementing a plugin</h2>
  *
  * <p>Someone can write an implementation of {@code HttpGetter} using Netty. They need to annotate their
- * implementation with {@link io.kroxylicious.proxy.plugin.PluginConfigType @PluginConfigType} to indicate
+ * implementation with {@link io.kroxylicious.proxy.plugin.Plugin @Plugin} to indicate
  * the type of configuration it uses.</p>
  *
  * <pre><code>
- * {@link io.kroxylicious.proxy.plugin.PluginConfigType @PluginConfigType}(NettyConfig.class)
+ * {@link io.kroxylicious.proxy.plugin.Plugin @Plugin}(configType=NettyConfig.class)
  * class NettyHttpGetter implements HttpGetter&lt;NettyConfig&gt; {
  *     // ...
  * }

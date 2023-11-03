@@ -10,10 +10,10 @@ import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.filter.schema.config.ValidationConfig;
 import io.kroxylicious.proxy.filter.schema.validation.request.ProduceRequestValidator;
-import io.kroxylicious.proxy.plugin.PluginConfigType;
+import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.Plugins;
 
-@PluginConfigType(ValidationConfig.class)
+@Plugin(configType = ValidationConfig.class)
 public class ProduceValidationFilterFactory implements FilterFactory<ValidationConfig, ValidationConfig> {
 
     @Override

@@ -10,10 +10,10 @@ import java.nio.ByteBuffer;
 
 import io.kroxylicious.proxy.internal.filter.ByteBufferTransformation;
 import io.kroxylicious.proxy.internal.filter.ByteBufferTransformationFactory;
-import io.kroxylicious.proxy.plugin.PluginConfigType;
+import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
-@PluginConfigType(Void.class)
+@Plugin(configType = Void.class)
 public class TestDecoderFactory implements ByteBufferTransformationFactory<Void> {
 
     @Override

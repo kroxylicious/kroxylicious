@@ -7,8 +7,8 @@
 package io.kroxylicious.proxy.config.ambiguous1;
 
 import io.kroxylicious.proxy.config.ServiceWithAmbiguousImpls;
-import io.kroxylicious.proxy.plugin.PluginConfigType;
+import io.kroxylicious.proxy.plugin.Plugin;
 
-@PluginConfigType(Void.class)
+@Plugin(configType = Void.class)
 public class Ambiguous implements ServiceWithAmbiguousImpls {
 }

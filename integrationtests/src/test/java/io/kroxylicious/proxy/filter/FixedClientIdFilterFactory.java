@@ -7,10 +7,10 @@
 package io.kroxylicious.proxy.filter;
 
 import io.kroxylicious.proxy.filter.FixedClientIdFilter.FixedClientIdFilterConfig;
-import io.kroxylicious.proxy.plugin.PluginConfigType;
+import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.Plugins;
 
-@PluginConfigType(FixedClientIdFilterConfig.class)
+@Plugin(configType = FixedClientIdFilterConfig.class)
 public class FixedClientIdFilterFactory implements FilterFactory<FixedClientIdFilterConfig, FixedClientIdFilterConfig> {
 
     @Override
