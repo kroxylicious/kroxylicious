@@ -27,26 +27,19 @@ public class ProduceRequestTransformationFilterFactory
 
     @NonNull
     @Override
-    @SuppressWarnings({ "unchecked" })
+    @SuppressWarnings({ "rawtypes", "unchecked" })
     public ProduceRequestTransformationFilter createFilter(FilterFactoryContext context,
                                                            Config configuration) {
-        var transformation = Plugins.applyConfiguration(context,
-                ByteBufferTransformationFactory.class,
-                configuration.transformation(),
-                configuration.transformationConfig(),
-                ByteBufferTransformationFactory::createTransformation);
-        return new ProduceRequestTransformationFilter(transformation);
+        ByteBufferTransformationFactory factory = context.pluginInstance(ByteBufferTransformationFactory.class, configuration.transformation());
+        return new ProduceRequestTransformationFilter(factory.createTransformation(configuration.transformationConfig()));
     }
 
     @Override
     @SuppressWarnings({ "unchecked" })
     public Config initialize(FilterFactoryContext context, Config config) {
         Plugins.requireConfig(this, config);
-        Plugins.acceptConfiguration(context,
-                ByteBufferTransformationFactory.class,
-                config.transformation(),
-                config.transformationConfig(),
-                ByteBufferTransformationFactory::validateConfiguration);
+        var transformationFactory = context.pluginInstance(ByteBufferTransformationFactory.class, config.transformation());
+        transformationFactory.validateConfiguration(config.transformationConfig());
         return config;
     }
 
