@@ -64,7 +64,7 @@ public class KroxyliciousApp implements Runnable {
             throw new RuntimeException(e);
         }
         pid = Exec.execWithoutWait(kroxyStart.toString(), "-c", file.getAbsolutePath());
-        while(!thread.isInterrupted()) {
+        while (!thread.isInterrupted()) {
             try {
                 Thread.sleep(1000);
             }
@@ -83,11 +83,11 @@ public class KroxyliciousApp implements Runnable {
         String clusterIP = null;
         try {
             var nis = NetworkInterface.getNetworkInterfaces();
-            for (Iterator<NetworkInterface> it = nis.asIterator(); it.hasNext(); ) {
+            for (Iterator<NetworkInterface> it = nis.asIterator(); it.hasNext();) {
                 var ni = it.next();
-                for (Iterator<InetAddress> iter = ni.getInetAddresses().asIterator(); iter.hasNext(); ) {
+                for (Iterator<InetAddress> iter = ni.getInetAddresses().asIterator(); iter.hasNext();) {
                     var i = iter.next();
-                    if(i.getHostAddress().startsWith("10")) {
+                    if (i.getHostAddress().startsWith("10")) {
                         clusterIP = i.getHostAddress();
                     }
                 }
@@ -107,7 +107,7 @@ public class KroxyliciousApp implements Runnable {
      * @return the boolean
      */
     public boolean isRunning() {
-        if(thread.isAlive()) {
+        if (thread.isAlive()) {
             TestUtils.waitFor("Waiting for process being launched", 500, 3000, () -> ProcessHandle.of(pid).isPresent());
         }
         return thread.isAlive() && ProcessHandle.of(pid).isPresent();
@@ -116,8 +116,7 @@ public class KroxyliciousApp implements Runnable {
     /**
      * Stop.
      */
-    public void stop()
-    {
+    public void stop() {
         LOGGER.info("Stopping kroxylicious");
         thread.interrupt();
         ProcessHandle.of(pid).ifPresent(ProcessHandle::destroy);
