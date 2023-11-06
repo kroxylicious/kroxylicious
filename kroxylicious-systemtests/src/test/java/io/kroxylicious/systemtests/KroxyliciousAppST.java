@@ -54,8 +54,8 @@ public class KroxyliciousAppST extends AbstractST {
      * Tear down.
      */
     @AfterEach
-    void tearDown(){
-        if(kroxyliciousApp != null) {
+    void tearDown() {
+        if (kroxyliciousApp != null) {
             LOGGER.info("Removing kroxylicious app");
             kroxyliciousApp.stop();
         }
