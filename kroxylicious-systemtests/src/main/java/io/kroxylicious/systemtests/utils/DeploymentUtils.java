@@ -124,7 +124,7 @@ public class DeploymentUtils {
         try {
             isWorking = TestUtils.waitFor("Waiting for the ingress IP to be available", 500, 5000,
                     () -> !kubeClient().getService(namespace, "test-load-balancer").getStatus().getLoadBalancer().getIngress().isEmpty()
-                          && kubeClient().getService(namespace, "test-load-balancer").getStatus().getLoadBalancer().getIngress().get(0).getIp() != null) > 0;
+                            && kubeClient().getService(namespace, "test-load-balancer").getStatus().getLoadBalancer().getIngress().get(0).getIp() != null) > 0;
         }
         catch (Exception e) {
             LOGGER.trace(e.getMessage());
