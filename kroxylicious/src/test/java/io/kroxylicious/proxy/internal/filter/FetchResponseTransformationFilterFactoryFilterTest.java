@@ -43,22 +43,24 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.stubbing.Answer;
 
 import io.kroxylicious.proxy.filter.FilterContext;
-import io.kroxylicious.proxy.filter.FilterCreationContext;
-import io.kroxylicious.proxy.filter.InvalidFilterConfigurationException;
+import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResultBuilder;
 import io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage;
-import io.kroxylicious.proxy.internal.filter.FetchResponseTransformationFilter.FetchResponseTransformationConfig;
+import io.kroxylicious.proxy.internal.filter.FetchResponseTransformationFilterFactory.Config;
+import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.isA;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class FetchResponseTransformationFilterTest {
+class FetchResponseTransformationFilterFactoryFilterTest {
 
     private static final String TOPIC_NAME = "mytopic";
     private static final Uuid TOPIC_ID = Uuid.randomUuid();
@@ -87,7 +89,8 @@ class FetchResponseTransformationFilterTest {
     @BeforeEach
     @SuppressWarnings("unchecked")
     void setUp() {
-        filter = new FetchResponseTransformationFilter(new FetchResponseTransformationConfig(ProduceRequestTransformationFilter.UpperCasing.class.getName()));
+        filter = new FetchResponseTransformationFilter(new UpperCasing.Transformation(
+                new UpperCasing.Config("UTF-8")));
 
         when(context.forwardResponse(responseHeaderDataCaptor.capture(), apiMessageCaptor.capture())).thenAnswer(
                 invocation -> CompletableFuture.completedStage(responseFilterResult));
@@ -111,11 +114,12 @@ class FetchResponseTransformationFilterTest {
     @Test
     void testFactory() {
         FetchResponseTransformationFilterFactory factory = new FetchResponseTransformationFilterFactory();
-        assertThat(factory.configType()).isEqualTo(FetchResponseTransformationConfig.class);
-        assertThatThrownBy(() -> factory.validateConfiguration(null)).isInstanceOf(InvalidFilterConfigurationException.class)
-                .hasMessage("FetchResponseTransformationFilter requires configuration, but config object is null");
-        FilterCreationContext constructContext = Mockito.mock(FilterCreationContext.class);
-        FetchResponseTransformationConfig config = new FetchResponseTransformationConfig(ProduceRequestTransformationFilter.UpperCasing.class.getName());
+        assertThatThrownBy(() -> factory.initialize(null, null)).isInstanceOf(PluginConfigurationException.class)
+                .hasMessage(FetchResponseTransformationFilterFactory.class.getSimpleName() + " requires configuration, but config object is null");
+        FilterFactoryContext constructContext = Mockito.mock(FilterFactoryContext.class);
+        doReturn(new UpperCasing()).when(constructContext).pluginInstance(any(), any());
+        Config config = new Config(UpperCasing.class.getName(),
+                new UpperCasing.Config("UTF-8"));
         assertThat(factory.createFilter(constructContext, config)).isInstanceOf(FetchResponseTransformationFilter.class);
     }
 

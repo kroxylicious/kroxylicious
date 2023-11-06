@@ -6,24 +6,23 @@
 
 package io.kroxylicious.sample;
 
-import io.kroxylicious.proxy.filter.FilterCreationContext;
 import io.kroxylicious.proxy.filter.FilterFactory;
+import io.kroxylicious.proxy.filter.FilterFactoryContext;
+import io.kroxylicious.proxy.plugin.Plugin;
+import io.kroxylicious.proxy.plugin.Plugins;
 import io.kroxylicious.sample.config.SampleFilterConfig;
 
-public class SampleFetchResponseFilterFactory implements FilterFactory<SampleFetchResponseFilter, SampleFilterConfig> {
+@Plugin(configType = SampleFilterConfig.class)
+public class SampleFetchResponseFilterFactory implements FilterFactory<SampleFilterConfig, SampleFilterConfig> {
 
     @Override
-    public SampleFetchResponseFilter createFilter(FilterCreationContext context, SampleFilterConfig configuration) {
+    public SampleFilterConfig initialize(FilterFactoryContext context, SampleFilterConfig config) {
+        return Plugins.requireConfig(this, config);
+    }
+
+    @Override
+    public SampleFetchResponseFilter createFilter(FilterFactoryContext context, SampleFilterConfig configuration) {
         return new SampleFetchResponseFilter(configuration);
     }
 
-    @Override
-    public Class<SampleFetchResponseFilter> filterType() {
-        return SampleFetchResponseFilter.class;
-    }
-
-    @Override
-    public Class<SampleFilterConfig> configType() {
-        return SampleFilterConfig.class;
-    }
 }

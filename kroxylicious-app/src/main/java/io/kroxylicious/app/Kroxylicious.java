@@ -10,7 +10,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.util.Properties;
 import java.util.concurrent.Callable;
-import java.util.function.Function;
+import java.util.function.BiFunction;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,6 +18,7 @@ import org.slf4j.LoggerFactory;
 import io.kroxylicious.proxy.KafkaProxy;
 import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.config.Configuration;
+import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
@@ -34,13 +35,13 @@ public class Kroxylicious implements Callable<Integer> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("io.kroxylicious.proxy.StartupShutdownLogger");
     private static final String UNKNOWN = "unknown";
-    private final Function<Configuration, KafkaProxy> proxyBuilder;
+    private final BiFunction<PluginFactoryRegistry, Configuration, KafkaProxy> proxyBuilder;
 
     Kroxylicious() {
         this(KafkaProxy::new);
     }
 
-    Kroxylicious(Function<Configuration, KafkaProxy> proxyBuilder) {
+    Kroxylicious(BiFunction<PluginFactoryRegistry, Configuration, KafkaProxy> proxyBuilder) {
         this.proxyBuilder = proxyBuilder;
     }
 
@@ -56,9 +57,11 @@ public class Kroxylicious implements Callable<Integer> {
             throw new ParameterException(spec.commandLine(), String.format("Given configuration file does not exist: %s", configFile.toPath().toAbsolutePath()));
         }
 
+        ConfigParser configParser = new ConfigParser();
         try (InputStream stream = Files.newInputStream(configFile.toPath())) {
-            Configuration config = new ConfigParser().parseConfiguration(stream);
-            try (KafkaProxy kafkaProxy = proxyBuilder.apply(config)) {
+
+            Configuration config = configParser.parseConfiguration(stream);
+            try (KafkaProxy kafkaProxy = proxyBuilder.apply(configParser, config)) {
                 kafkaProxy.startup();
                 printBannerAndVersions();
                 kafkaProxy.block();

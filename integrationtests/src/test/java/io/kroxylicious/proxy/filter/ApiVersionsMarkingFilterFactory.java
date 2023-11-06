@@ -6,20 +6,19 @@
 
 package io.kroxylicious.proxy.filter;
 
-public class ApiVersionsMarkingFilterFactory implements FilterFactory<ApiVersionsMarkingFilter, Void> {
+import io.kroxylicious.proxy.plugin.Plugin;
+
+@Plugin(configType = Void.class)
+public class ApiVersionsMarkingFilterFactory implements FilterFactory<Void, Void> {
 
     @Override
-    public Class<ApiVersionsMarkingFilter> filterType() {
-        return ApiVersionsMarkingFilter.class;
+    public Void initialize(FilterFactoryContext context, Void config) {
+        return null;
     }
 
     @Override
-    public Class<Void> configType() {
-        return Void.class;
-    }
-
-    @Override
-    public ApiVersionsMarkingFilter createFilter(FilterCreationContext context, Void configuration) {
+    public ApiVersionsMarkingFilter createFilter(FilterFactoryContext context, Void configuration) {
         return new ApiVersionsMarkingFilter();
     }
+
 }

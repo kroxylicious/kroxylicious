@@ -6,23 +6,20 @@
 
 package io.kroxylicious.proxy.filter.multitenant;
 
-import io.kroxylicious.proxy.filter.FilterCreationContext;
 import io.kroxylicious.proxy.filter.FilterFactory;
+import io.kroxylicious.proxy.filter.FilterFactoryContext;
+import io.kroxylicious.proxy.plugin.Plugin;
 
-public class MultiTenantTransformationFilterFactory implements FilterFactory<MultiTenantTransformationFilter, Void> {
+@Plugin(configType = Void.class)
+public class MultiTenantTransformationFilterFactory implements FilterFactory<Void, Void> {
 
     @Override
-    public Class<MultiTenantTransformationFilter> filterType() {
-        return MultiTenantTransformationFilter.class;
+    public Void initialize(FilterFactoryContext context, Void config) {
+        return null;
     }
 
     @Override
-    public Class<Void> configType() {
-        return Void.class;
-    }
-
-    @Override
-    public MultiTenantTransformationFilter createFilter(FilterCreationContext context, Void configuration) {
+    public MultiTenantTransformationFilter createFilter(FilterFactoryContext context, Void configuration) {
         return new MultiTenantTransformationFilter();
     }
 }

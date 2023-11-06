@@ -9,7 +9,6 @@ package io.kroxylicious.sample;
 import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.message.ProduceRequestData;
-import org.apache.kafka.common.message.ProduceRequestData.PartitionProduceData;
 import org.apache.kafka.common.message.RequestHeaderData;
 
 import io.micrometer.core.instrument.Metrics;
@@ -73,7 +72,7 @@ public class SampleProduceRequestFilter implements ProduceRequestFilter {
      */
     private void applyTransformation(ProduceRequestData request, FilterContext context) {
         request.topicData().forEach(topicData -> {
-            for (PartitionProduceData partitionData : topicData.partitionData()) {
+            for (ProduceRequestData.PartitionProduceData partitionData : topicData.partitionData()) {
                 SampleFilterTransformer.transform(partitionData, context, this.config);
             }
         });

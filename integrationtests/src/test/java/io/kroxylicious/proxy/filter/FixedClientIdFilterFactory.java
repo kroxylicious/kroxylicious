@@ -7,21 +7,20 @@
 package io.kroxylicious.proxy.filter;
 
 import io.kroxylicious.proxy.filter.FixedClientIdFilter.FixedClientIdFilterConfig;
+import io.kroxylicious.proxy.plugin.Plugin;
+import io.kroxylicious.proxy.plugin.Plugins;
 
-public class FixedClientIdFilterFactory implements FilterFactory<FixedClientIdFilter, FixedClientIdFilterConfig> {
+@Plugin(configType = FixedClientIdFilterConfig.class)
+public class FixedClientIdFilterFactory implements FilterFactory<FixedClientIdFilterConfig, FixedClientIdFilterConfig> {
 
     @Override
-    public Class<FixedClientIdFilter> filterType() {
-        return FixedClientIdFilter.class;
+    public FixedClientIdFilterConfig initialize(FilterFactoryContext context, FixedClientIdFilterConfig config) {
+        return Plugins.requireConfig(this, config);
     }
 
     @Override
-    public Class<FixedClientIdFilterConfig> configType() {
-        return FixedClientIdFilterConfig.class;
-    }
-
-    @Override
-    public FixedClientIdFilter createFilter(FilterCreationContext context, FixedClientIdFilterConfig configuration) {
+    public FixedClientIdFilter createFilter(FilterFactoryContext context, FixedClientIdFilterConfig configuration) {
         return new FixedClientIdFilter(configuration);
     }
+
 }

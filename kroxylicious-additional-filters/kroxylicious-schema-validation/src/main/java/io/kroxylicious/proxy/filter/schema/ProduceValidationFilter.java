@@ -3,6 +3,7 @@
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
+
 package io.kroxylicious.proxy.filter.schema;
 
 import java.util.HashMap;
@@ -113,7 +114,8 @@ public class ProduceValidationFilter implements ProduceRequestFilter, ProduceRes
         return response;
     }
 
-    private static ProduceResponseData.TopicProduceResponse createInvalidatedTopicProduceResponse(String topicName, ProduceRequestData.TopicProduceData topicProduceData,
+    private static ProduceResponseData.TopicProduceResponse createInvalidatedTopicProduceResponse(String topicName,
+                                                                                                  ProduceRequestData.TopicProduceData topicProduceData,
                                                                                                   TopicValidationResult topicValidationResult) {
         ProduceResponseData.TopicProduceResponse response = new ProduceResponseData.TopicProduceResponse();
         response.setName(topicName);

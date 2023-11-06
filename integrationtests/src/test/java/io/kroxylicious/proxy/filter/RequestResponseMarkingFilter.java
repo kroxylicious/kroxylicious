@@ -33,82 +33,69 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  */
 public class RequestResponseMarkingFilter implements RequestFilter, ResponseFilter {
 
-    public enum Direction {
-        REQUEST,
-        RESPONSE;
-    }
-
     public static final int FILTER_NAME_TAG = 500;
-    private final FilterCreationContext constructionContext;
+    private final FilterFactoryContext constructionContext;
     private final String name;
     private final Set<ApiKeys> keysToMark;
-    private final Set<Direction> direction;
+    private final Set<RequestResponseMarkingFilterFactory.Direction> direction;
     private final ForwardingStyle forwardingStyle;
 
-    public RequestResponseMarkingFilter(FilterCreationContext constructionContext, RequestResponseMarkingFilterConfig config) {
+    public RequestResponseMarkingFilter(FilterFactoryContext constructionContext, RequestResponseMarkingFilterConfig config) {
         this.constructionContext = constructionContext;
-        name = config.name;
-        keysToMark = config.keysToMark;
-        direction = config.direction;
-        forwardingStyle = config.forwardingStyle;
+        name = config.name();
+        keysToMark = config.keysToMark();
+        direction = config.direction();
+        forwardingStyle = config.forwardingStyle();
     }
 
     @Override
     public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage body, FilterContext context) {
-        if (!(direction.contains(Direction.REQUEST) && keysToMark.contains(apiKey))) {
+        if (!(direction.contains(RequestResponseMarkingFilterFactory.Direction.REQUEST) && keysToMark.contains(apiKey))) {
             return context.forwardRequest(header, body);
         }
 
         return forwardingStyle.apply(new ForwardingContext(context, constructionContext, body))
-                .thenApply(request -> applyTaggedField(request, Direction.REQUEST, name))
+                .thenApply(request -> applyTaggedField(request, RequestResponseMarkingFilterFactory.Direction.REQUEST, name))
                 .thenCompose(taggedRequest -> context.forwardRequest(header, taggedRequest));
     }
 
     @Override
     public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, ResponseHeaderData header, ApiMessage response, FilterContext context) {
-        if (!(direction.contains(Direction.RESPONSE) && keysToMark.contains(apiKey))) {
+        if (!(direction.contains(RequestResponseMarkingFilterFactory.Direction.RESPONSE) && keysToMark.contains(apiKey))) {
             return context.forwardResponse(header, response);
         }
 
         return forwardingStyle.apply(new ForwardingContext(context, constructionContext, response))
-                .thenApply(request -> applyTaggedField(request, Direction.RESPONSE, name))
+                .thenApply(request -> applyTaggedField(request, RequestResponseMarkingFilterFactory.Direction.RESPONSE, name))
                 .thenCompose(taggedRequest -> context.forwardResponse(header, taggedRequest));
     }
 
-    private ApiMessage applyTaggedField(ApiMessage body, Direction direction, String name) {
+    private ApiMessage applyTaggedField(ApiMessage body, RequestResponseMarkingFilterFactory.Direction direction, String name) {
         body.unknownTaggedFields().add(createTaggedField(direction.toString().toLowerCase(Locale.ROOT), name));
         return body;
     }
 
     private RawTaggedField createTaggedField(String type, String name) {
-        return new RawTaggedField(FILTER_NAME_TAG, (this.getClass().getSimpleName() + "-" + name + "-" + type).getBytes(UTF_8));
+        return new RawTaggedField(FILTER_NAME_TAG,
+                (this.getClass().getSimpleName() + "-" + name + "-" + type).getBytes(UTF_8));
     }
 
-    public static class RequestResponseMarkingFilterConfig {
-        private final String name;
-
-        private final Set<ApiKeys> keysToMark;
-
-        /**
-         * Direction(s) to which the filter is applied
-         */
-        private final Set<Direction> direction;
-
-        /*
-         * If true, forward will occur after an asynchronous request is made and a response received from the broker.
-         */
-        private final ForwardingStyle forwardingStyle;
-
+    /**
+     * @param forwardingStyle
+     * If true, forward will occur after an asynchronous request is made and a response received from the broker. */
+    public record RequestResponseMarkingFilterConfig(String name, Set<ApiKeys> keysToMark, Set<RequestResponseMarkingFilterFactory.Direction> direction,
+                                                     ForwardingStyle forwardingStyle) {
         @JsonCreator
         public RequestResponseMarkingFilterConfig(@JsonProperty(value = "name", required = true) String name,
                                                   @JsonProperty(value = "keysToMark", required = true) Set<ApiKeys> keysToMark,
-                                                  @JsonProperty(value = "direction") Set<Direction> direction,
+                                                  @JsonProperty(value = "direction") Set<RequestResponseMarkingFilterFactory.Direction> direction,
                                                   @JsonProperty(value = "forwardingStyle") ForwardingStyle forwardingStyle) {
             this.name = name;
             this.keysToMark = keysToMark;
-            this.direction = direction == null || direction.isEmpty() ? Set.of(Direction.RESPONSE, Direction.REQUEST) : direction;
+            this.direction = direction == null || direction.isEmpty()
+                    ? Set.of(RequestResponseMarkingFilterFactory.Direction.RESPONSE, RequestResponseMarkingFilterFactory.Direction.REQUEST)
+                    : direction;
             this.forwardingStyle = forwardingStyle == null ? ForwardingStyle.SYNCHRONOUS : forwardingStyle;
         }
     }
-
 }

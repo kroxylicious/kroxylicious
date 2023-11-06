@@ -6,24 +6,28 @@
 
 package io.kroxylicious.proxy.filter;
 
-import io.kroxylicious.proxy.filter.RequestResponseMarkingFilter.RequestResponseMarkingFilterConfig;
+import io.kroxylicious.proxy.plugin.Plugin;
+import io.kroxylicious.proxy.plugin.Plugins;
 
-public class RequestResponseMarkingFilterFactory implements FilterFactory<RequestResponseMarkingFilter, RequestResponseMarkingFilterConfig> {
+@Plugin(configType = RequestResponseMarkingFilter.RequestResponseMarkingFilterConfig.class)
+public class RequestResponseMarkingFilterFactory
+        implements FilterFactory<RequestResponseMarkingFilter.RequestResponseMarkingFilterConfig, RequestResponseMarkingFilter.RequestResponseMarkingFilterConfig> {
 
     @Override
-    public RequestResponseMarkingFilter createFilter(FilterCreationContext context,
-                                                     RequestResponseMarkingFilterConfig configuration) {
+    public RequestResponseMarkingFilter.RequestResponseMarkingFilterConfig initialize(FilterFactoryContext context,
+                                                                                      RequestResponseMarkingFilter.RequestResponseMarkingFilterConfig config) {
+        return Plugins.requireConfig(this, config);
+    }
+
+    @Override
+    public RequestResponseMarkingFilter createFilter(FilterFactoryContext context,
+                                                     RequestResponseMarkingFilter.RequestResponseMarkingFilterConfig configuration) {
         return new RequestResponseMarkingFilter(context, configuration);
     }
 
-    @Override
-    public Class<RequestResponseMarkingFilter> filterType() {
-        return RequestResponseMarkingFilter.class;
-    }
-
-    @Override
-    public Class<RequestResponseMarkingFilterConfig> configType() {
-        return RequestResponseMarkingFilterConfig.class;
+    public enum Direction {
+        REQUEST,
+        RESPONSE;
     }
 
 }

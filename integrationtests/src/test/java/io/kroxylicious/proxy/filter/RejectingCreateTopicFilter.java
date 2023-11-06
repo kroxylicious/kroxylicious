@@ -25,13 +25,13 @@ public class RejectingCreateTopicFilter implements CreateTopicsRequestFilter {
     public static final String ERROR_MESSAGE = "rejecting all topics";
     private final ForwardingStyle forwardingStyle;
     private final boolean withCloseConnection;
-    private final FilterCreationContext constructionContext;
+    private final FilterFactoryContext constructionContext;
 
-    public RejectingCreateTopicFilter(FilterCreationContext constructionContext, RejectingCreateTopicFilterConfig config) {
+    public RejectingCreateTopicFilter(FilterFactoryContext constructionContext, RejectingCreateTopicFilterConfig config) {
         this.constructionContext = constructionContext;
         config = config == null ? new RejectingCreateTopicFilterConfig(false, ForwardingStyle.SYNCHRONOUS) : config;
-        this.withCloseConnection = config.withCloseConnection;
-        this.forwardingStyle = config.forwardingStyle;
+        this.withCloseConnection = config.withCloseConnection();
+        this.forwardingStyle = config.forwardingStyle();
     }
 
     @Override
@@ -62,13 +62,10 @@ public class RejectingCreateTopicFilter implements CreateTopicsRequestFilter {
         context.createByteBufferOutputStream(4000);
     }
 
-    public static class RejectingCreateTopicFilterConfig {
-
-        /*
-         * If true, rejection will also close the connection
-         */
-        private final boolean withCloseConnection;
-        private final ForwardingStyle forwardingStyle;
+    /**
+     * @param withCloseConnection
+     * If true, rejection will also close the connection */
+    public record RejectingCreateTopicFilterConfig(boolean withCloseConnection, ForwardingStyle forwardingStyle) {
 
         @JsonCreator
         public RejectingCreateTopicFilterConfig(@JsonProperty(value = "withCloseConnection") boolean withCloseConnection,
@@ -77,5 +74,4 @@ public class RejectingCreateTopicFilter implements CreateTopicsRequestFilter {
             this.forwardingStyle = forwardingStyle == null ? ForwardingStyle.SYNCHRONOUS : forwardingStyle;
         }
     }
-
 }

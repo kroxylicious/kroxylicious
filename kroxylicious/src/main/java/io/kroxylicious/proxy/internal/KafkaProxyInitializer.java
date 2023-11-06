@@ -27,6 +27,8 @@ import io.netty.handler.ssl.SslContext;
 import io.netty.util.concurrent.Future;
 
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
+import io.kroxylicious.proxy.config.FilterDefinition;
+import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.internal.codec.KafkaRequestDecoder;
 import io.kroxylicious.proxy.internal.codec.KafkaResponseEncoder;
@@ -48,18 +50,22 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
     private final boolean tls;
     private final VirtualClusterBindingResolver virtualClusterBindingResolver;
     private final EndpointReconciler endpointReconciler;
+    private final PluginFactoryRegistry pfr;
     private final FilterChainFactory filterChainFactory;
 
-    public KafkaProxyInitializer(FilterChainFactory filterChainFactory, boolean tls,
+    public KafkaProxyInitializer(List<FilterDefinition> filters,
+                                 PluginFactoryRegistry pfr,
+                                 boolean tls,
                                  VirtualClusterBindingResolver virtualClusterBindingResolver, EndpointReconciler endpointReconciler,
                                  boolean haproxyProtocol,
                                  Map<KafkaAuthnHandler.SaslMechanism, AuthenticateCallbackHandler> authnMechanismHandlers) {
+        this.pfr = pfr;
         this.endpointReconciler = endpointReconciler;
         this.haproxyProtocol = haproxyProtocol;
         this.authnHandlers = authnMechanismHandlers != null ? authnMechanismHandlers : Map.of();
         this.tls = tls;
         this.virtualClusterBindingResolver = virtualClusterBindingResolver;
-        this.filterChainFactory = filterChainFactory;
+        this.filterChainFactory = new FilterChainFactory(pfr, filters);
     }
 
     @Override
@@ -174,7 +180,9 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
         var frontendHandler = new KafkaProxyFrontendHandler(context -> {
             List<FilterAndInvoker> apiVersionFilters = dp.isAuthenticationOffloadEnabled() ? List.of()
                     : FilterAndInvoker.build(new ApiVersionsIntersectFilter(apiVersionService));
-            List<FilterAndInvoker> customProtocolFilters = filterChainFactory.createFilters(new NettyFilterContext(ch.eventLoop()));
+
+            NettyFilterContext filterContext = new NettyFilterContext(ch.eventLoop(), pfr);
+            List<FilterAndInvoker> customProtocolFilters = filterChainFactory.createFilters(filterContext);
             List<FilterAndInvoker> brokerAddressFilters = FilterAndInvoker.build(new BrokerAddressFilter(virtualCluster, endpointReconciler));
             var filters = new ArrayList<>(apiVersionFilters);
             filters.addAll(customProtocolFilters);

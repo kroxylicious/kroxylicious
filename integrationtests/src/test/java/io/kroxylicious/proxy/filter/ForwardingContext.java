@@ -8,4 +8,4 @@ package io.kroxylicious.proxy.filter;
 
 import org.apache.kafka.common.protocol.ApiMessage;
 
-public record ForwardingContext(FilterContext filterContext, FilterCreationContext constructionContext, ApiMessage body) {}
+public record ForwardingContext(FilterContext filterContext, FilterFactoryContext constructionContext, ApiMessage body) {}

@@ -17,21 +17,8 @@ public class FixedClientIdFilter implements RequestFilter, ResponseFilter {
 
     private final String clientId;
 
-    public static class FixedClientIdFilterConfig {
-
-        private final String clientId;
-
-        public FixedClientIdFilterConfig(String clientId) {
-            this.clientId = clientId;
-        }
-
-        public String getClientId() {
-            return clientId;
-        }
-    }
-
     FixedClientIdFilter(FixedClientIdFilterConfig config) {
-        this.clientId = config.getClientId();
+        this.clientId = config.clientId();
     }
 
     @Override
@@ -45,4 +32,7 @@ public class FixedClientIdFilter implements RequestFilter, ResponseFilter {
         return context.forwardResponse(header, response);
     }
 
+    public record FixedClientIdFilterConfig(String clientId) {
+
+    }
 }

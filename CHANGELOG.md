@@ -4,8 +4,11 @@ Please enumerate **all user-facing** changes using format `<githib issue/pr numb
 
 ## 1.0.0
 
-## 0.3.0
+## 0.4.0
 
+* [#701](https://github.com/kroxylicious/kroxylicious/pull/701): Bump org.apache.logging.log4j:log4j-bom from 2.21.0 to 2.21.1 #701
+
+## 0.3.0
 
 * [#686](https://github.com/kroxylicious/kroxylicious/pull/686): Bump org.apache.logging.log4j:log4j-bom from 2.20.0 to 2.21.0.
 * [#634](https://github.com/kroxylicious/kroxylicious/issues/634): Update integration tests JDK dependency to 21.

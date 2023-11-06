@@ -19,11 +19,11 @@ virtualClusters:
     logNetwork: false
     logFrames: false
 filters:
-  - type: SampleProduceRequestFilter
+  - type: SampleProduceRequestFilterFactory
     config:
       findValue: foo
       replacementValue: bar
-  - type: SampleFetchResponseFilter
+  - type: SampleFetchResponseFilterFactory
     config:
       findValue: bar
       replacementValue: baz
