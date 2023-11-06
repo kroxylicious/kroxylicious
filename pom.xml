@@ -38,7 +38,7 @@
         <guava.version>32.1.3-jre</guava.version>
         <hamcrest.version>2.2</hamcrest.version>
         <jackson.version>2.15.3</jackson.version>
-        <junit.version>5.10.0</junit.version>
+        <junit.version>5.10.1</junit.version>
         <kafka.version>3.6.0</kafka.version>
         <kroxy.extension.version>0.6.0</kroxy.extension.version>
         <log4j.version>2.21.1</log4j.version>
@@ -458,7 +458,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-checkstyle-plugin</artifactId>
-                    <version>3.3.0</version>
+                    <version>3.3.1</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
