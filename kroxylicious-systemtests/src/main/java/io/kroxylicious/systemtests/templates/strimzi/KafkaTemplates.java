@@ -9,6 +9,7 @@ package io.kroxylicious.systemtests.templates.strimzi;
 import io.strimzi.api.kafka.model.KafkaBuilder;
 import io.strimzi.api.kafka.model.listener.arraylistener.GenericKafkaListenerBuilder;
 import io.strimzi.api.kafka.model.listener.arraylistener.KafkaListenerType;
+import io.strimzi.api.kafka.model.template.ExternalTrafficPolicy;
 
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
@@ -46,6 +47,34 @@ public class KafkaTemplates {
                 .endSpec();
     }
 
+    /**
+     * Kafka persistent with external ip kafka builder.
+     *
+     * @param namespaceName the namespace name
+     * @param clusterName the cluster name
+     * @param kafkaReplicas the kafka replicas
+     * @param zkReplicas the zk replicas
+     * @return the kafka builder
+     */
+    public static KafkaBuilder kafkaPersistentWithExternalIp(String namespaceName, String clusterName, int kafkaReplicas, int zkReplicas) {
+        return kafkaPersistent(namespaceName, clusterName, kafkaReplicas, zkReplicas)
+                .editSpec()
+                .editKafka()
+                .addToListeners(new GenericKafkaListenerBuilder()
+                        .withName("external")
+                        .withTls(false)
+                        .withPort(9094)
+                        .withType(KafkaListenerType.LOADBALANCER)
+                        .editOrNewConfiguration()
+                        .withExternalTrafficPolicy(ExternalTrafficPolicy.LOCAL)
+                        .withLoadBalancerSourceRanges("10.0.0.0/8")
+                        .endConfiguration()
+                        .build()
+                )
+                .endKafka()
+                .endSpec();
+    }
+
     private static KafkaBuilder defaultKafka(String namespaceName, String clusterName, int kafkaReplicas, int zkReplicas) {
         return new KafkaBuilder()
                 .withApiVersion(Constants.KAFKA_API_VERSION_V1BETA2)
@@ -76,7 +105,8 @@ public class KafkaTemplates {
                                 .withPort(9093)
                                 .withType(KafkaListenerType.INTERNAL)
                                 .withTls(true)
-                                .build())
+                                .build()
+                )
                 .withNewInlineLogging()
                 .addToLoggers("kafka.root.logger.level", "DEBUG")
                 .endInlineLogging()

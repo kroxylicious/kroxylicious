@@ -15,7 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.systemtests.extensions.KroxyliciousExtension;
-import io.kroxylicious.systemtests.installation.kroxylicious.Kroxylicious;
+import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousService;
 import io.kroxylicious.systemtests.steps.KafkaSteps;
 import io.kroxylicious.systemtests.steps.KroxySteps;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaTemplates;
@@ -25,9 +25,9 @@ import static org.hamcrest.MatcherAssert.assertThat;
 /**
  * The type Acceptance st.
  */
-class AcceptanceST extends AbstractST {
-    private static final Logger LOGGER = LoggerFactory.getLogger(AcceptanceST.class);
-    private static Kroxylicious kroxylicious;
+class KroxyliciousServiceST extends AbstractST {
+    private static final Logger LOGGER = LoggerFactory.getLogger(KroxyliciousServiceST.class);
+    private static KroxyliciousService kroxyliciousService;
     private final String clusterName = "my-cluster";
 
     /**
@@ -45,13 +45,13 @@ class AcceptanceST extends AbstractST {
 
         // start kroxy
         LOGGER.info("Given Kroxy in {} namespace with {} replicas", namespace, 1);
-        kroxylicious = new Kroxylicious(namespace);
-        kroxylicious.deployPortPerBrokerPlain(clusterName, 1);
+        kroxyliciousService = new KroxyliciousService(namespace);
+        kroxyliciousService.deployPortPerBrokerPlain(clusterName, 1);
 
         LOGGER.info("And KafkaTopic in {} namespace", namespace);
         KafkaSteps.createTopic(topicName, clusterName, namespace, 1, 1, 1);
 
-        String bootstrap = kroxylicious.getBootstrap();
+        String bootstrap = kroxyliciousService.getBootstrap();
 
         LOGGER.info("When {} messages '{}' are sent to the topic '{}'", numberOfMessages, message, topicName);
         KroxySteps.produceMessages(namespace, topicName, bootstrap, message, numberOfMessages);
@@ -77,9 +77,9 @@ class AcceptanceST extends AbstractST {
 
         // start kroxy
         LOGGER.info("Given Kroxy in {} namespace with {} replicas", namespace, 1);
-        kroxylicious = new Kroxylicious(namespace);
-        kroxylicious.deployPortPerBrokerPlain(clusterName, 1);
-        String bootstrap = kroxylicious.getBootstrap();
+        kroxyliciousService = new KroxyliciousService(namespace);
+        kroxyliciousService.deployPortPerBrokerPlain(clusterName, 1);
+        String bootstrap = kroxyliciousService.getBootstrap();
 
         LOGGER.info("And KafkaTopic in {} namespace", namespace);
         KafkaSteps.createTopic(topicName, clusterName, namespace, 3, 1, 1);
@@ -111,10 +111,10 @@ class AcceptanceST extends AbstractST {
 
         // start kroxy
         LOGGER.info("Given Kroxy in {} namespace with {} replicas", namespace, replicas);
-        kroxylicious = new Kroxylicious(namespace);
-        kroxylicious.deployPortPerBrokerPlain(clusterName, replicas);
-        String bootstrap = kroxylicious.getBootstrap();
-        int currentReplicas = kroxylicious.getNumberOfReplicas();
+        kroxyliciousService = new KroxyliciousService(namespace);
+        kroxyliciousService.deployPortPerBrokerPlain(clusterName, replicas);
+        String bootstrap = kroxyliciousService.getBootstrap();
+        int currentReplicas = kroxyliciousService.getNumberOfReplicas();
         assertThat("Current replicas: " + currentReplicas + "; expected: " + replicas, currentReplicas == replicas);
 
         LOGGER.info("And KafkaTopic in {} namespace", namespace);

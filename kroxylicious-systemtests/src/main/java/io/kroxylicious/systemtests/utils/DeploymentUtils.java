@@ -15,11 +15,15 @@ import java.nio.file.attribute.FileAttribute;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Duration;
+import java.util.Collections;
 import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.shaded.org.apache.commons.io.FileUtils;
+
+import io.fabric8.kubernetes.api.model.Service;
+import io.fabric8.kubernetes.api.model.ServiceBuilder;
 
 import io.kroxylicious.systemtests.Constants;
 
@@ -91,5 +95,34 @@ public class DeploymentUtils {
         deploymentFile.deleteOnExit();
 
         return new FileInputStream(deploymentFile);
+    }
+
+    /**
+     * Check load balancer is working.
+     *
+     * @param namespace the namespace
+     * @return the boolean
+     */
+    public static boolean checkLoadBalancerIsWorking(String namespace) {
+        Service service = new ServiceBuilder()
+                .withKind(Constants.SERVICE_KIND)
+                .withNewMetadata()
+                .withName("test-load-balancer")
+                .withNamespace(namespace)
+                .addToLabels("app", "loadbalancer")
+                .endMetadata()
+                .withNewSpec()
+                .addNewPort()
+                .withPort(8080)
+                .endPort()
+                .withSelector(Collections.singletonMap("app", "loadbalancer"))
+                .withType(Constants.LOAD_BALANCER_TYPE)
+                .endSpec()
+                .build();
+        kubeClient().getClient().services().inNamespace(namespace).resource(service).create();
+        boolean isWorking = TestUtils.waitFor("Waiting for the service to be ready", 500, 5000,
+                () -> kubeClient().getService(namespace, "test-load-balancer").getStatus().getLoadBalancer().getIngress().get(0).getIp() != null) > 0;
+        kubeClient().getClient().apps().deployments().inNamespace(namespace).withName("test-load-balancer").delete();
+        return isWorking;
     }
 }

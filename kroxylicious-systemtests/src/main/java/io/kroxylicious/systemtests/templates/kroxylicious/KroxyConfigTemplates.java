@@ -10,8 +10,18 @@ import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 
 import io.kroxylicious.systemtests.Constants;
 
+/**
+ * The type Kroxy config templates.
+ */
 public class KroxyConfigTemplates {
 
+    /**
+     * Default kroxy config config map builder.
+     *
+     * @param clusterName the cluster name
+     * @param namespaceName the namespace name
+     * @return the config map builder
+     */
     public static ConfigMapBuilder defaultKroxyConfig(String clusterName, String namespaceName) {
         return new ConfigMapBuilder()
                 .withApiVersion("v1")
@@ -20,24 +30,59 @@ public class KroxyConfigTemplates {
                 .withName(Constants.KROXY_CONFIG_NAME)
                 .withNamespace(namespaceName)
                 .endMetadata()
-                .addToData("config.yaml", """
-                        adminHttp:
-                          endpoints:
-                            prometheus: {}
-                        virtualClusters:
-                          demo:
-                            targetCluster:
-                              bootstrap_servers: %CLUSTER_NAME%-kafka-bootstrap.%NAMESPACE%.svc.cluster.local:9092
-                            clusterNetworkAddressConfigProvider:
-                              type: PortPerBrokerClusterNetworkAddressConfigProvider
-                              config:
-                                bootstrapAddress: localhost:9292
-                                brokerAddressPattern: %KROXY_SERVICE_NAME%
-                            logNetwork: false
-                            logFrames: false
-                        """
-                        .replace("%NAMESPACE%", Constants.KROXY_DEFAULT_NAMESPACE)
-                        .replace("%CLUSTER_NAME%", clusterName)
-                        .replace("%KROXY_SERVICE_NAME%", Constants.KROXY_SERVICE_NAME));
+                .addToData("config.yaml", getDefaultKroxyConfigMap(clusterName));
+    }
+
+    /**
+     * Gets default kroxy config map.
+     *
+     * @param clusterName the cluster name
+     * @return the default kroxy config map
+     */
+    public static String getDefaultKroxyConfigMap(String clusterName) {
+        return """
+                adminHttp:
+                  endpoints:
+                    prometheus: {}
+                virtualClusters:
+                  demo:
+                    targetCluster:
+                      bootstrap_servers: %CLUSTER_NAME%-kafka-bootstrap.%NAMESPACE%.svc.cluster.local:9092
+                    clusterNetworkAddressConfigProvider:
+                      type: PortPerBrokerClusterNetworkAddressConfigProvider
+                      config:
+                        bootstrapAddress: localhost:9292
+                        brokerAddressPattern: %KROXY_SERVICE_NAME%
+                    logNetwork: false
+                    logFrames: false
+                """
+                .replace("%NAMESPACE%", Constants.KROXY_DEFAULT_NAMESPACE)
+                .replace("%CLUSTER_NAME%", clusterName)
+                .replace("%KROXY_SERVICE_NAME%", Constants.KROXY_SERVICE_NAME);
+    }
+
+    /**
+     * Gets default external kroxy config map.
+     *
+     * @param clusterExternalIP the cluster external ip
+     * @return the default external kroxy config map
+     */
+    public static String getDefaultExternalKroxyConfigMap(String clusterExternalIP) {
+        return """
+                adminHttp:
+                  endpoints:
+                    prometheus: {}
+                virtualClusters:
+                  demo:
+                    targetCluster:
+                      bootstrap_servers: %CLUSTER_EXTERNAL_IP%:9094
+                    clusterNetworkAddressConfigProvider:
+                      type: PortPerBrokerClusterNetworkAddressConfigProvider
+                      config:
+                        bootstrapAddress: localhost:9292
+                    logNetwork: false
+                    logFrames: false
+                """
+                .replace("%CLUSTER_EXTERNAL_IP%", clusterExternalIP);
     }
 }

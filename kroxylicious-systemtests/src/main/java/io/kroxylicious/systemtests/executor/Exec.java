@@ -49,7 +49,7 @@ public class Exec {
     /**
      * The Process.
      */
-    private Process process;
+    private static Process process;
     private String stdOut;
     private String stdErr;
     private StreamGobbler stdOutReader;
@@ -128,6 +128,16 @@ public class Exec {
     }
 
     /**
+     * Exec without wait.
+     *
+     * @param command the command
+     * @return the pid
+     */
+    public static long execWithoutWait(String... command) {
+        return execWithoutWait(Arrays.asList(command));
+    }
+
+    /**
      * Method executes external command
      *
      * @param command arguments for command
@@ -170,6 +180,17 @@ public class Exec {
      */
     public static ExecResult exec(String input, List<String> command, int timeout, boolean logToOutput, File dir) {
         return exec(input, command, timeout, logToOutput, true, dir);
+    }
+
+    /**
+     * Exec without wait exec result.
+     *
+     * @param command the command
+     * @return the pid
+     * @throws IOException the io exception
+     */
+    public static long execWithoutWait(List<String> command) {
+        return executeWithoutWait(command, null);
     }
 
     /**
@@ -325,6 +346,28 @@ public class Exec {
         storeOutputsToFile();
 
         return retCode;
+    }
+
+    /**
+     * Execute without waiting for response.
+     *
+     * @param commands the commands
+     * @param dir the dir
+     * @return the pid
+     */
+    public static long executeWithoutWait(List<String> commands, File dir) {
+        LOGGER.trace("Running command - " + join(" ", commands.toArray(new String[0])));
+        ProcessBuilder builder = new ProcessBuilder();
+        builder.command(commands);
+        dir = dir == null ? new File(System.getProperty("user.dir")) : dir;
+        builder.directory(dir);
+        try {
+            process = builder.start();
+        }
+        catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        return process.pid();
     }
 
     /**

@@ -33,8 +33,8 @@ public class ResourceOperation {
      */
     public static long getTimeoutForResourceReadiness(String kind) {
         return switch (kind) {
-            case Kafka.RESOURCE_KIND -> Duration.ofMinutes(14).toMillis();
-            case Constants.DEPLOYMENT -> Duration.ofMinutes(8).toMillis();
+            case Kafka.RESOURCE_KIND -> Duration.ofMinutes(10).toMillis();
+            case Constants.DEPLOYMENT -> Duration.ofMinutes(6).toMillis();
             default -> Duration.ofMinutes(3).toMillis();
         };
     }

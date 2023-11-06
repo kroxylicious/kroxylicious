@@ -23,37 +23,24 @@ import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 /**
  * The type Kroxy.
  */
-public class Kroxylicious {
-    private static final Logger LOGGER = LoggerFactory.getLogger(Kroxylicious.class);
+public class KroxyliciousService {
+    private static final Logger LOGGER = LoggerFactory.getLogger(KroxyliciousService.class);
     private final String deploymentNamespace;
     private final String containerImage;
     private final ResourceManager resourceManager = ResourceManager.getInstance();
 
     /**
-     * Instantiates a new Kroxylicious.
-     */
-    public Kroxylicious() {
-        this.deploymentNamespace = null;
-        this.containerImage = null;
-    }
-
-    /**
-     * Instantiates a new Kroxylicious to be used in kubernetes.
+     * Instantiates a new KroxyliciousService to be used in kubernetes.
      *
      * @param deploymentNamespace the deployment namespace
      */
-    public Kroxylicious(String deploymentNamespace) {
+    public KroxyliciousService(String deploymentNamespace) {
         this.deploymentNamespace = deploymentNamespace;
         String kroxyUrl = Environment.KROXY_IMAGE_REPO + (Environment.KROXY_IMAGE_REPO.endsWith(":") ? "" : ":");
         if (!Objects.equals(Environment.QUAY_ORG, Environment.QUAY_ORG_DEFAULT)) {
             kroxyUrl = "quay.io/" + Environment.QUAY_ORG + "/kroxylicious:";
         }
         this.containerImage = kroxyUrl + Environment.KROXY_VERSION;
-    }
-
-    public void runKroxyliciousApp(String configPath) {
-        // env.KROXY_START = sh(script: "find kroxylicious-app/target -name 'kroxylicious-start.sh'", returnStdout: true).toString().trim()
-        // sh(script: "nohup ${env.KROXY_START} -c kroxylicious-app/example-proxy-config.yml &")
     }
 
     /**
@@ -85,6 +72,8 @@ public class Kroxylicious {
      */
     public String getBootstrap() {
         String clusterIP = kubeClient().getService(deploymentNamespace, Constants.KROXY_SERVICE_NAME).getSpec().getClusterIP();
-        return clusterIP + ":9292";
+        String bootstrap = clusterIP + ":9292";
+        LOGGER.debug("Kroxylicious bootstrap: " + bootstrap);
+        return bootstrap;
     }
 }
