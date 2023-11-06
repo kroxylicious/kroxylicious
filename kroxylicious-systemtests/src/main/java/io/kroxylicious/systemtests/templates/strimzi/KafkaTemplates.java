@@ -95,11 +95,11 @@ public class KafkaTemplates {
                 .addToConfig("default.replication.factor", Math.min(kafkaReplicas, 3))
                 .addToConfig("min.insync.replicas", Math.min(Math.max(kafkaReplicas - 1, 1), 2))
                 .withListeners(new GenericKafkaListenerBuilder()
-                        .withName(Constants.PLAIN_LISTENER_NAME)
-                        .withPort(9092)
-                        .withType(KafkaListenerType.INTERNAL)
-                        .withTls(false)
-                        .build(),
+                                .withName(Constants.PLAIN_LISTENER_NAME)
+                                .withPort(9092)
+                                .withType(KafkaListenerType.INTERNAL)
+                                .withTls(false)
+                                .build(),
                         new GenericKafkaListenerBuilder()
                                 .withName(Constants.TLS_LISTENER_NAME)
                                 .withPort(9093)
