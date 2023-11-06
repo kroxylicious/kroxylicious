@@ -120,8 +120,15 @@ public class DeploymentUtils {
                 .endSpec()
                 .build();
         kubeClient().getClient().services().inNamespace(namespace).resource(service).create();
-        boolean isWorking = TestUtils.waitFor("Waiting for the service to be ready", 500, 5000,
-                () -> kubeClient().getService(namespace, "test-load-balancer").getStatus().getLoadBalancer().getIngress().get(0).getIp() != null) > 0;
+        boolean isWorking = false;
+        try {
+            isWorking = TestUtils.waitFor("Waiting for the ingress IP to be available", 500, 5000,
+                    () -> !kubeClient().getService(namespace, "test-load-balancer").getStatus().getLoadBalancer().getIngress().isEmpty()
+                          && kubeClient().getService(namespace, "test-load-balancer").getStatus().getLoadBalancer().getIngress().get(0).getIp() != null) > 0;
+        }
+        catch (Exception e) {
+            LOGGER.trace(e.getMessage());
+        }
         kubeClient().getClient().apps().deployments().inNamespace(namespace).withName("test-load-balancer").delete();
         return isWorking;
     }
