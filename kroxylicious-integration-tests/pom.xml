@@ -16,9 +16,9 @@
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
-    <artifactId>integrationtests</artifactId>
-    <name>Kroxylicious Integration tests</name>
-    <description>Integration tests where Kroxylicious is tested end-to-end with a real Kafka cluster.</description>
+    <artifactId>kroxylicious-integration-tests</artifactId>
+    <name>Kroxylicious integration tests</name>
+    <description>Integration tests where the runtime and filters are tested end-to-end with a real Kafka cluster.</description>
 
     <properties>
         <java.version>21</java.version>

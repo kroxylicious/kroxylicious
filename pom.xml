@@ -280,7 +280,7 @@
         <module>kroxylicious-test-tools</module>
         <module>kroxylicious-unit-test</module>
         <module>kroxylicious</module>
-        <module>integrationtests</module>
+        <module>kroxylicious-integration-tests</module>
         <module>kroxylicious-additional-filters</module>
         <module>kroxylicious-sample</module>
     </modules>
