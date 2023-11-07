@@ -15,7 +15,7 @@
     <version>0.4.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
-    <name>kroxylicious-bom</name>
+    <name>Kroxylicious Bill of Materials</name>
     <description>
         A bill of materials for the kroxylicious project. To support filter authors and people building and
         deploying the project to have a simple, consistent and co-ordinated view of the various modules involved.
@@ -94,7 +94,7 @@
             <!-- Core Production dependencies -->
             <dependency>
                 <groupId>io.kroxylicious</groupId>
-                <artifactId>kroxylicious-api</artifactId>
+                <artifactId>kroxylicious-filter-api</artifactId>
                 <version>${project.version}</version>
             </dependency>
 

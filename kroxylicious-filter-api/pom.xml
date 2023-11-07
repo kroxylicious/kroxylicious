@@ -18,7 +18,7 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>kroxylicious-api</artifactId>
+    <artifactId>kroxylicious-filter-api</artifactId>
     <version>0.4.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
@@ -26,8 +26,8 @@
         <libs.dir>libs</libs.dir>
     </properties>
 
-    <name>Kroxylicious API</name>
-    <description>generic APIs used throughout Kroxylicious</description>
+    <name>Kroxylicious filter API</name>
+    <description>The API for implementing filters</description>
 
     <dependencies>
         <!-- third party dependencies - runtime and compile -->

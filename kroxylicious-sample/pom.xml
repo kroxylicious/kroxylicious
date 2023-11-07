@@ -28,7 +28,7 @@
         <!-- project dependencies - runtime and compile -->
         <dependency>
             <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious-api</artifactId>
+            <artifactId>kroxylicious-filter-api</artifactId>
             <scope>provided</scope>
         </dependency>
 

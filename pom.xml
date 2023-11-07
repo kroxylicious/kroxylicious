@@ -274,7 +274,7 @@
         <module>kroxylicious-kms</module>
         <module>kroxylicious-kms-provider-kroxylicious-inmemory</module>
         <module>kroxylicious-bom</module>
-        <module>kroxylicious-api</module>
+        <module>kroxylicious-filter-api</module>
         <module>kroxylicious-app</module>
         <module>krpc-code-gen</module>
         <module>kroxylicious-test-tools</module>
