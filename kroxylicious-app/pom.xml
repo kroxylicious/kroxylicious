@@ -21,7 +21,8 @@
     <artifactId>kroxylicious-app</artifactId>
     <packaging>jar</packaging>
 
-    <name>Kroxylicious Proxy Application</name>
+    <name>Proxy application</name>
+    <description>A runnable proxy application. Provides the main() method.</description>
 
     <dependencyManagement>
         <dependencies>
