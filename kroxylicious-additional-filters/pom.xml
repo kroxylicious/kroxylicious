@@ -46,7 +46,7 @@
                                     </excludes>
                                     <includes>
                                         <include>io.kroxylicious:kroxylicious-filter-api</include>
-                                        <include>io.kroxylicious:kroxylicious-unit-test</include>
+                                        <include>io.kroxylicious:kroxylicious-filter-test-support</include>
                                     </includes>
                                 </bannedDependencies>
                             </rules>

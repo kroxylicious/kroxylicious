@@ -278,7 +278,7 @@
         <module>kroxylicious-app</module>
         <module>krpc-code-gen</module>
         <module>kroxylicious-integration-test-support</module>
-        <module>kroxylicious-unit-test</module>
+        <module>kroxylicious-filter-test-support</module>
         <module>kroxylicious-runtime</module>
         <module>kroxylicious-integration-tests</module>
         <module>kroxylicious-additional-filters</module>

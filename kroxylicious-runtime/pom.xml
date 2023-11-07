@@ -38,7 +38,7 @@
         <!-- project dependencies - test -->
         <dependency>
             <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious-unit-test</artifactId>
+            <artifactId>kroxylicious-filter-test-support</artifactId>
             <scope>test</scope>
         </dependency>
 

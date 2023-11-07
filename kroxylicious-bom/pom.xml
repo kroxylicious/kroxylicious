@@ -139,7 +139,7 @@
             <!-- note scope is *not* set at this level -->
             <dependency>
                 <groupId>io.kroxylicious</groupId>
-                <artifactId>kroxylicious-unit-test</artifactId>
+                <artifactId>kroxylicious-filter-test-support</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
