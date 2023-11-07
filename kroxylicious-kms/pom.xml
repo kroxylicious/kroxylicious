@@ -26,7 +26,7 @@
     <dependencies>
         <dependency>
             <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious-api</artifactId>
+            <artifactId>kroxylicious-filter-api</artifactId>
         </dependency>
 
         <dependency>

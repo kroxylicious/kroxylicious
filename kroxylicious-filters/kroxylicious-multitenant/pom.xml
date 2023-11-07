@@ -12,17 +12,17 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>io.kroxylicious</groupId>
-        <artifactId>kroxylicious-additional-filters</artifactId>
+        <groupId>io.kroxylicious.filter</groupId>
+        <artifactId>kroxylicious-filter-parent</artifactId>
         <version>0.4.0-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>kroxylicious-schema-validation</artifactId>
+    <artifactId>kroxylicious-multitenant</artifactId>
     <packaging>jar</packaging>
 
-    <name>Kroxylicious Schema Validation</name>
-    <description>Kroxylicious Filters and other plugins required to validate the schema of messages
+    <name>Multitenancy filter</name>
+    <description>A filter to implement transparent multitenancy for Apache Kafka
     </description>
 
     <dependencies>
@@ -32,21 +32,22 @@
             <artifactId>kroxylicious-filter-api</artifactId>
         </dependency>
 
-        <!-- third party dependencies - runtime and compile -->
+        <!-- project dependencies - test -->
         <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-filter-test-support</artifactId>
+            <scope>test</scope>
         </dependency>
 
         <!-- third party dependencies - test -->
         <dependency>
-            <groupId>com.fasterxml.jackson.dataformat</groupId>
-            <artifactId>jackson-dataformat-yaml</artifactId>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>com.flipkart.zjsonpatch</groupId>
-            <artifactId>zjsonpatch</artifactId>
+            <groupId>com.fasterxml.jackson.dataformat</groupId>
+            <artifactId>jackson-dataformat-yaml</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -79,5 +80,37 @@
             <artifactId>mockito-core</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.flipkart.zjsonpatch</groupId>
+            <artifactId>zjsonpatch</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>unpack-message-specs</id>
+                        <goals>
+                            <goal>unpack</goal>
+                        </goals>
+                        <phase>generate-sources</phase>
+                        <configuration>
+                            <artifact>org.apache.kafka:kafka-clients:${kafka.version}</artifact>
+                            <includes>common/message/*.json</includes>
+                            <outputDirectory>${project.build.directory}/message-specs</outputDirectory>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 </project>

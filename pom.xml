@@ -281,7 +281,7 @@
         <module>kroxylicious-filter-test-support</module>
         <module>kroxylicious-runtime</module>
         <module>kroxylicious-integration-tests</module>
-        <module>kroxylicious-additional-filters</module>
+        <module>kroxylicious-filters</module>
         <module>kroxylicious-sample</module>
     </modules>
 
