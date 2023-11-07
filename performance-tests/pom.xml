@@ -35,7 +35,7 @@
         </dependency>
         <dependency>
             <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious-test-tools</artifactId>
+            <artifactId>kroxylicious-integration-test-support</artifactId>
         </dependency>
 
         <!-- third party dependencies - runtime and compile -->

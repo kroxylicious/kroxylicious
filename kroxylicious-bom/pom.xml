@@ -145,7 +145,7 @@
 
             <dependency>
                 <groupId>io.kroxylicious</groupId>
-                <artifactId>kroxylicious-test-tools</artifactId>
+                <artifactId>kroxylicious-integration-test-support</artifactId>
                 <version>${project.version}</version>
             </dependency>
 

@@ -35,7 +35,7 @@
         <!-- project dependencies - test -->
         <dependency>
             <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious-test-tools</artifactId>
+            <artifactId>kroxylicious-integration-test-support</artifactId>
             <scope>test</scope>
         </dependency>
 
