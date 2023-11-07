@@ -18,17 +18,25 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>kms-provider-kroxylicious-inmemory</artifactId>
+    <artifactId>kroxylicious-kms</artifactId>
     <packaging>jar</packaging>
-    <name>In-memory KMS</name>
-    <description>An in-memory KMS provider for test purposes</description>
+
+    <description>An API for interacting with Key Management Systems (KMSes).</description>
 
     <dependencies>
         <dependency>
             <groupId>io.kroxylicious</groupId>
-            <artifactId>kms</artifactId>
+            <artifactId>kroxylicious-api</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.kafka</groupId>
+            <artifactId>kafka-clients</artifactId>
+        </dependency>
         <dependency>
             <groupId>com.github.spotbugs</groupId>
             <artifactId>spotbugs-annotations</artifactId>
@@ -37,11 +45,6 @@
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.assertj</groupId>
-            <artifactId>assertj-core</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
