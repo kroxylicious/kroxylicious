@@ -100,7 +100,7 @@
 
             <dependency>
                 <groupId>io.kroxylicious</groupId>
-                <artifactId>kroxylicious</artifactId>
+                <artifactId>kroxylicious-runtime</artifactId>
                 <version>${project.version}</version>
             </dependency>
 

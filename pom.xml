@@ -279,7 +279,7 @@
         <module>krpc-code-gen</module>
         <module>kroxylicious-test-tools</module>
         <module>kroxylicious-unit-test</module>
-        <module>kroxylicious</module>
+        <module>kroxylicious-runtime</module>
         <module>kroxylicious-integration-tests</module>
         <module>kroxylicious-additional-filters</module>
         <module>kroxylicious-sample</module>

@@ -30,7 +30,7 @@
         <!-- project dependencies - test -->
         <dependency>
             <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious</artifactId>
+            <artifactId>kroxylicious-runtime</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>

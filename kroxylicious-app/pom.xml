@@ -50,7 +50,7 @@
         </dependency>
         <dependency>
             <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious</artifactId>
+            <artifactId>kroxylicious-runtime</artifactId>
         </dependency>
 
         <!-- project dependencies - test -->
