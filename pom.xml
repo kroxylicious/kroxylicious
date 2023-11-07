@@ -59,10 +59,10 @@
         <byte-buddy.version>1.14.9</byte-buddy.version>
     </properties>
 
-    <name>Kroxylicious Parent</name>
-    <description>A proof-of-concept for a Kafka wire protocol proxy</description>
+    <name>Parent POM</name>
+    <description>A Kafka wire protocol proxy</description>
     <inceptionYear>2021</inceptionYear>
-    <url>https://kroxylicious.io/kroxylicious/</url>
+    <url>https://kroxylicious.io</url>
 
     <licenses>
         <license>

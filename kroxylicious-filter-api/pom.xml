@@ -26,7 +26,7 @@
         <libs.dir>libs</libs.dir>
     </properties>
 
-    <name>Kroxylicious filter API</name>
+    <name>Filter API</name>
     <description>The API for implementing filters</description>
 
     <dependencies>

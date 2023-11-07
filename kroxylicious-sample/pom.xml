@@ -22,7 +22,8 @@
     <artifactId>kroxylicious-sample</artifactId>
     <packaging>jar</packaging>
 
-    <name>Kroxylicious Sample</name>
+    <name>Sample filters</name>
+    <description>Some exemplar filters</description>
 
     <dependencies>
         <!-- project dependencies - runtime and compile -->
