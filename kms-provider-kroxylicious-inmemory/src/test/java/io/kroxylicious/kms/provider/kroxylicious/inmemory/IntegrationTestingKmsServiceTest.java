@@ -7,6 +7,7 @@
 package io.kroxylicious.kms.provider.kroxylicious.inmemory;
 
 import java.nio.ByteBuffer;
+import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -18,9 +19,9 @@ import io.kroxylicious.kms.service.Serde;
 import io.kroxylicious.kms.service.UnknownAliasException;
 import io.kroxylicious.kms.service.UnknownKeyException;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -45,7 +46,7 @@ class IntegrationTestingKmsServiceTest {
     }
 
     @Test
-    void shouldSerializeAndDeserialiseKeks() {
+    void shouldWorkAcrossServiceInstances() {
         // given
         var kmsId = UUID.randomUUID().toString();
         var kms = service.buildKms(new IntegrationTestingKmsService.Config(kmsId));
@@ -63,7 +64,7 @@ class IntegrationTestingKmsServiceTest {
     }
 
     @Test
-    void shouldWorkAcrossServiceInstances() {
+    void shouldSerializeAndDeserialiseKeks() {
         // given
         var kmsId = UUID.randomUUID().toString();
         var kms = service.buildKms(new IntegrationTestingKmsService.Config(kmsId));
@@ -96,12 +97,12 @@ class IntegrationTestingKmsServiceTest {
         assertNotNull(key2);
 
         // when
-        CompletableFuture<InMemoryEdek> gen1 = kms1.generateDek(key2);
-        CompletableFuture<InMemoryEdek> gen2 = kms2.generateDek(key1);
+        CompletableFuture<InMemoryEdek> gen1 = kms1.generateDek(key1);
+        CompletableFuture<InMemoryEdek> gen2 = kms2.generateDek(key2);
 
         // then
-        assertNotNull(kms1.generateDek(key1), "Expect kms to be able to generate deks for its own key");
-        assertNotNull(kms2.generateDek(key2), "Expect kms to be able to generate deks for its own key");
+        assertThat(gen1).isCompleted();
+        assertThat(gen2).isCompleted();
 
         IntegrationTestingKmsService.delete(kms1Id);
         IntegrationTestingKmsService.delete(kms2Id);
@@ -124,33 +125,34 @@ class IntegrationTestingKmsServiceTest {
         CompletableFuture<InMemoryEdek> gen2 = kms2.generateDek(key1);
 
         // then
+        assertThat(gen1).failsWithin(Duration.ZERO)
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(UnknownKeyException.class)
+                .withMessage("io.kroxylicious.kms.service.UnknownKeyException");
 
-        var e1 = assertThrows(ExecutionException.class, gen1::get,
-                "Expect kms to not generate dek for another kms's key");
-        assertInstanceOf(UnknownKeyException.class, e1.getCause());
-
-        var e2 = assertThrows(ExecutionException.class, gen2::get,
-                "Expect kms to not generate dek for another kms's key");
-        assertInstanceOf(UnknownKeyException.class, e2.getCause());
+        assertThat(gen2).failsWithin(Duration.ZERO)
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(UnknownKeyException.class)
+                .withMessage("io.kroxylicious.kms.service.UnknownKeyException");
 
         IntegrationTestingKmsService.delete(kms1Id);
         IntegrationTestingKmsService.delete(kms2Id);
     }
 
     @Test
-    void shouldDecryptDeks() throws ExecutionException, InterruptedException {
+    void shouldDecryptDeks() {
         // given
         var kmsId = UUID.randomUUID().toString();
         var kms = service.buildKms(new IntegrationTestingKmsService.Config(kmsId));
         var kek = kms.generateKey();
         assertNotNull(kek);
-        var pair = kms.generateDekPair(kek).get();
+        var pair = kms.generateDekPair(kek).join();
         assertNotNull(pair);
         assertNotNull(pair.edek());
         assertNotNull(pair.dek());
 
         // when
-        var decryptedDek = kms.decryptEdek(kek, pair.edek()).get();
+        var decryptedDek = kms.decryptEdek(kek, pair.edek()).join();
 
         // then
         assertEquals(pair.dek(), decryptedDek, "Expect the decrypted DEK to equal the originally generated DEK");
@@ -159,12 +161,12 @@ class IntegrationTestingKmsServiceTest {
     }
 
     @Test
-    void shouldSerializeAndDeserializeEdeks() throws ExecutionException, InterruptedException {
+    void shouldSerializeAndDeserializeEdeks() {
         var kmsId = UUID.randomUUID().toString();
         var kms = service.buildKms(new IntegrationTestingKmsService.Config(kmsId));
         var kek = kms.generateKey();
 
-        var edek = kms.generateDek(kek).get();
+        var edek = kms.generateDek(kek).join();
 
         var serde = kms.edekSerde();
         var buffer = ByteBuffer.allocate(serde.sizeOf(edek));
@@ -180,23 +182,27 @@ class IntegrationTestingKmsServiceTest {
     }
 
     @Test
-    void shouldLookupByAlias() throws ExecutionException, InterruptedException {
+    void shouldLookupByAlias() {
         var kmsId = UUID.randomUUID().toString();
         var kms = service.buildKms(new IntegrationTestingKmsService.Config(kmsId));
         var kek = kms.generateKey();
 
         var lookup = kms.resolveAlias("bob");
-        var ee = assertThrows(ExecutionException.class, lookup::get);
-        assertInstanceOf(UnknownAliasException.class, ee.getCause());
+        assertThat(lookup).failsWithin(Duration.ZERO)
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(UnknownAliasException.class)
+                .withMessage("io.kroxylicious.kms.service.UnknownAliasException: bob");
 
         kms.createAlias(kek, "bob");
-        var gotFromAlias = kms.resolveAlias("bob").get();
+        var gotFromAlias = kms.resolveAlias("bob").join();
         assertEquals(kek, gotFromAlias);
 
         kms.deleteAlias("bob");
         lookup = kms.resolveAlias("bob");
-        ee = assertThrows(ExecutionException.class, lookup::get);
-        assertInstanceOf(UnknownAliasException.class, ee.getCause());
+        assertThat(lookup).failsWithin(Duration.ZERO)
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(UnknownAliasException.class)
+                .withMessage("io.kroxylicious.kms.service.UnknownAliasException: bob");
 
         IntegrationTestingKmsService.delete(kmsId);
     }

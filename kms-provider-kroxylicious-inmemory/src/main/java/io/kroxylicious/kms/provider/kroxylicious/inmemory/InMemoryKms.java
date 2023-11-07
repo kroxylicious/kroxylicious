@@ -35,13 +35,13 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 /**
  * An in-memory KMS to be used only for testing.
  * Note that this exposes public methods that are not part of the {@link Kms} interface which are used for those
- * KMS operations which are outside the scope of Kroxy itself (such as key provisioning).
+ * KMS operations which are outside the scope of Kroxylicious itself (such as key provisioning).
  */
 public class InMemoryKms implements
         Kms<UUID, InMemoryEdek> {
 
-    private static final String WRAP_ALGO = "AES_256/GCM/NoPadding";
-    public static final String KEY_ALGO = "AES";
+    private static final String AES_WRAP_ALGO = "AES_256/GCM/NoPadding";
+    public static final String AES_KEY_ALGO = "AES";
     private final Map<UUID, SecretKey> keys;
     private final KeyGenerator aes;
     private final int numIvBytes;
@@ -62,7 +62,7 @@ public class InMemoryKms implements
         this.numIvBytes = numIvBytes;
         this.numAuthBits = numAuthBits;
         try {
-            this.aes = KeyGenerator.getInstance(KEY_ALGO);
+            this.aes = KeyGenerator.getInstance(AES_KEY_ALGO);
         }
         catch (NoSuchAlgorithmException e) {
             // This should be impossible, because JCA guarantees that AES is available
@@ -180,7 +180,7 @@ public class InMemoryKms implements
 
     private static SecretKey unwrap(@NonNull InMemoryEdek edek, Cipher aesCipher) {
         try {
-            return (SecretKey) aesCipher.unwrap(edek.edek(), KEY_ALGO, Cipher.SECRET_KEY);
+            return (SecretKey) aesCipher.unwrap(edek.edek(), AES_KEY_ALGO, Cipher.SECRET_KEY);
         }
         catch (GeneralSecurityException e) {
             throw new KmsException("Error unwrapping DEK", e);
@@ -199,7 +199,7 @@ public class InMemoryKms implements
 
     private static Cipher aesGcm() {
         try {
-            return Cipher.getInstance(WRAP_ALGO);
+            return Cipher.getInstance(AES_WRAP_ALGO);
         }
         catch (GeneralSecurityException e) {
             throw new KmsException(e);
