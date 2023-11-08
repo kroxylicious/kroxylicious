@@ -39,12 +39,12 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>io.kroxylicious.filter</groupId>
+            <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-multitenant</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>io.kroxylicious.filter</groupId>
+            <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-record-validation</artifactId>
             <scope>test</scope>
         </dependency>
