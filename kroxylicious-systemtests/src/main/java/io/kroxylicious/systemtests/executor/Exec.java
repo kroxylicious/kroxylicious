@@ -187,7 +187,6 @@ public class Exec {
      *
      * @param command the command
      * @return the pid
-     * @throws IOException the io exception
      */
     public static long execWithoutWait(List<String> command) {
         return executeWithoutWait(command, null);
