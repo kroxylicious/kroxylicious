@@ -180,18 +180,30 @@ public class KafkaUtils {
      */
     public static boolean restartBroker(String deployNamespace, String clusterName) {
         String podName = "";
+        String podUid = "";
         List<Pod> kafkaPods = kubeClient().listPods(Constants.KROXY_DEFAULT_NAMESPACE);
         for (Pod pod : kafkaPods) {
             String tmpName = pod.getMetadata().getName();
             if (tmpName.startsWith(clusterName) && tmpName.endsWith("0")) {
                 podName = pod.getMetadata().getName();
+                podUid = pod.getMetadata().getUid();
+                break;
             }
         }
-        String podUid = kubeClient().getPod(deployNamespace, podName).getMetadata().getUid();
         kubeClient().getClient().pods().inNamespace(deployNamespace).withName(podName).withGracePeriod(0).delete();
         kubeClient().getClient().pods().inNamespace(deployNamespace).withName(podName).waitUntilCondition(Objects::isNull, 60, TimeUnit.SECONDS);
         String finalPodName = podName;
         await().atMost(Duration.ofMinutes(1)).until(() -> kubeClient().getClient().pods().inNamespace(deployNamespace).withName(finalPodName) != null);
-        return !Objects.equals(podUid, kubeClient().getPod(deployNamespace, podName).getMetadata().getUid());
+        return !Objects.equals(podUid, getPodUid(deployNamespace, podName));
+    }
+
+    private static String getPodUid(String deployNamespace, String podName) {
+        final Pod pod = kubeClient().getPod(deployNamespace, podName);
+        if (pod != null) {
+            return pod.getMetadata().getUid();
+        }
+        else {
+            return "";
+        }
     }
 }

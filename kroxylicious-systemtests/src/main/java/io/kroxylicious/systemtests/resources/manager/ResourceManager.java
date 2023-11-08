@@ -239,10 +239,17 @@ public class ResourceManager {
 
         TestUtils.waitFor(String.format("%s: %s#%s will have desired state 'Ready'", kind, namespace, name),
                 Constants.POLL_INTERVAL_FOR_RESOURCE_READINESS_MILLIS, resourceTimeoutMs,
-                () -> operation.inNamespace(namespace)
-                        .withName(name)
-                        .get().getStatus().getConditions().stream()
-                        .anyMatch(condition -> condition.getType().equals("Ready") && condition.getStatus().equals(conditionStatus.toString())));
+                () -> {
+                    final Status status = operation.inNamespace(namespace)
+                            .withName(name)
+                            .get()
+                            .getStatus();
+                    if (status != null) {
+                        return status.getConditions().stream()
+                                .anyMatch(condition -> condition.getType().equals("Ready") && condition.getStatus().equals(conditionStatus.toString()));
+                    }
+                    return false;
+                });
 
         LOGGER.info("{}: {}/{} is in desired state 'Ready'", kind, namespace, name);
         return true;
