@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.ServiceLoader;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -38,7 +39,7 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
         }
     }
 
-    private final Map<Class<?>, Map<String, ProviderAndConfigType>> pluginInterfaceToNameToProvider = new HashMap<>();
+    private final Map<Class<?>, Map<String, ProviderAndConfigType>> pluginInterfaceToNameToProvider = new ConcurrentHashMap<>();
 
     @NonNull
     Map<String, ProviderAndConfigType> load(@NonNull Class<?> pluginInterface) {
