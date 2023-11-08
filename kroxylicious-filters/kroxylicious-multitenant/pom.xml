@@ -12,7 +12,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>io.kroxylicious.filter</groupId>
+        <groupId>io.kroxylicious</groupId>
         <artifactId>kroxylicious-filter-parent</artifactId>
         <version>0.4.0-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
