@@ -271,6 +271,8 @@
     </dependencyManagement>
 
     <modules>
+        <module>kroxylicious-kms</module>
+        <module>kroxylicious-kms-provider-kroxylicious-inmemory</module>
         <module>kroxylicious-bom</module>
         <module>kroxylicious-api</module>
         <module>kroxylicious-app</module>
