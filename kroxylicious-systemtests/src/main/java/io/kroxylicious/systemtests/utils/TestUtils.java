@@ -61,7 +61,7 @@ public class TestUtils {
                 exceptionMessage = e.getMessage();
                 if (++exceptionCount == 1 && exceptionMessage != null) {
                     // Log the first exception as soon as it occurs
-                    LOGGER.error("Exception waiting for {}, {}", description, exceptionMessage);
+                    LOGGER.error("Exception waiting for {}, {}", description, exceptionMessage, e);
                     // log the stacktrace
                     e.printStackTrace(new PrintWriter(stackTraceError));
                 }
