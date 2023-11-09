@@ -13,6 +13,7 @@ import io.strimzi.api.kafka.model.template.ExternalTrafficPolicy;
 
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
+import io.kroxylicious.systemtests.enums.LogLevel;
 import io.kroxylicious.systemtests.utils.KafkaVersionUtils;
 
 /**
@@ -67,7 +68,6 @@ public class KafkaTemplates {
                         .withType(KafkaListenerType.LOADBALANCER)
                         .editOrNewConfiguration()
                         .withExternalTrafficPolicy(ExternalTrafficPolicy.LOCAL)
-                        // .withLoadBalancerSourceRanges("10.0.0.0/8")
                         .endConfiguration()
                         .build())
                 .endKafka()
@@ -106,24 +106,24 @@ public class KafkaTemplates {
                                 .withTls(true)
                                 .build())
                 .withNewInlineLogging()
-                .addToLoggers("kafka.root.logger.level", "DEBUG")
+                .addToLoggers("kafka.root.logger.level", LogLevel.INFO.name())
                 .endInlineLogging()
                 .endKafka()
                 .editZookeeper()
                 .withReplicas(zkReplicas)
                 .withNewInlineLogging()
-                .addToLoggers("zookeeper.root.logger", "DEBUG")
+                .addToLoggers("zookeeper.root.logger", LogLevel.INFO.name())
                 .endInlineLogging()
                 .endZookeeper()
                 .editEntityOperator()
                 .editUserOperator()
                 .withNewInlineLogging()
-                .addToLoggers("rootLogger.level", "DEBUG")
+                .addToLoggers("rootLogger.level", LogLevel.INFO.name())
                 .endInlineLogging()
                 .endUserOperator()
                 .editTopicOperator()
                 .withNewInlineLogging()
-                .addToLoggers("rootLogger.level", "DEBUG")
+                .addToLoggers("rootLogger.level", LogLevel.INFO.name())
                 .endInlineLogging()
                 .endTopicOperator()
                 .endEntityOperator()

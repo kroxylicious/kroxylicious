@@ -49,7 +49,7 @@ public class Exec {
     /**
      * The Process.
      */
-    private static Process process;
+    private Process process;
     private String stdOut;
     private String stdErr;
     private StreamGobbler stdOutReader;
@@ -189,7 +189,8 @@ public class Exec {
      * @return the pid
      */
     public static long execWithoutWait(List<String> command) {
-        return executeWithoutWait(command, null);
+        Exec executor = new Exec();
+        return executor.executeWithoutWait(command, null);
     }
 
     /**
@@ -216,29 +217,14 @@ public class Exec {
      * @return execution results
      */
     public static ExecResult exec(String input, List<String> command, int timeout, boolean logToOutput, boolean throwErrors, File dir) {
-        int ret = 1;
+        int ret;
         ExecResult execResult;
         try {
             Exec executor = new Exec();
             ret = executor.execute(input, command, timeout, dir);
             synchronized (LOCK) {
                 if (logToOutput || ret != 0) {
-                    String log = ret != 0 ? "Failed to exec command" : "Command";
-                    LOGGER.info("{}: {}", log, String.join(" ", command));
-                    if (input != null && !input.contains("CustomResourceDefinition")) {
-                        LOGGER.info("Input: {}", input.trim());
-                    }
-                    LOGGER.info("RETURN code: {}", ret);
-                    if (!executor.out().isEmpty()) {
-                        LOGGER.debug("======STDOUT START=======");
-                        LOGGER.debug("{}", cutExecutorLog(executor.out().trim()));
-                        LOGGER.debug("======STDOUT END======");
-                    }
-                    if (!executor.err().isEmpty()) {
-                        LOGGER.debug("======STDERR START=======");
-                        LOGGER.debug("{}", cutExecutorLog(executor.err().trim()));
-                        LOGGER.debug("======STDERR END======");
-                    }
+                    logExecutor(ret, input, command, executor.out(), executor.err());
                 }
             }
 
@@ -248,31 +234,9 @@ public class Exec {
                 String msg = "`" + join(" ", command) + "` got status code " + ret + " and stderr:\n------\n" + executor.stdErr + "\n------\nand stdout:\n------\n"
                         + executor.stdOut + "\n------";
 
-                Matcher matcher = ERROR_PATTERN.matcher(executor.err());
-                KubeClusterException kubeClusterException = null;
-
-                if (matcher.find()) {
-                    switch (matcher.group(1)) {
-                        case "NotFound":
-                            kubeClusterException = new KubeClusterException.NotFound(execResult, msg);
-                            break;
-                        case "AlreadyExists":
-                            kubeClusterException = new KubeClusterException.AlreadyExists(execResult, msg);
-                            break;
-                        default:
-                            break;
-                    }
-                }
-                matcher = INVALID_PATTERN.matcher(executor.err());
-                if (matcher.find()) {
-                    kubeClusterException = new KubeClusterException.InvalidResource(execResult, msg);
-                }
-                if (kubeClusterException == null) {
-                    kubeClusterException = new KubeClusterException(execResult, msg);
-                }
-                throw kubeClusterException;
+                throwExceptionForErrorPattern(msg, executor.err(), execResult);
             }
-            return new ExecResult(ret, executor.out(), executor.err());
+            return execResult;
 
         }
         catch (IOException | ExecutionException e) {
@@ -281,6 +245,49 @@ public class Exec {
         catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new KubeClusterException(e);
+        }
+    }
+
+    private static void throwExceptionForErrorPattern(String msg, String err, ExecResult execResult) {
+        Matcher matcher = ERROR_PATTERN.matcher(err);
+        KubeClusterException kubeClusterException = new KubeClusterException(execResult, msg);
+
+        if (matcher.find()) {
+            switch (matcher.group(1)) {
+                case "NotFound":
+                    kubeClusterException = new KubeClusterException.NotFound(execResult, msg);
+                    break;
+                case "AlreadyExists":
+                    kubeClusterException = new KubeClusterException.AlreadyExists(execResult, msg);
+                    break;
+                default:
+                    break;
+            }
+        }
+        matcher = INVALID_PATTERN.matcher(err);
+        if (matcher.find()) {
+            kubeClusterException = new KubeClusterException.InvalidResource(execResult, msg);
+        }
+        throw kubeClusterException;
+    }
+
+    private static void logExecutor(int ret, String input, List<String> command, String execOut, String execErr) {
+        String log = ret != 0 ? "Failed to exec command" : "Command";
+        String commandLine = command == null || command.isEmpty() ? "" : String.join(" ", command);
+        LOGGER.info("{}: {}", log, commandLine);
+        if (input != null && !input.contains("CustomResourceDefinition")) {
+            LOGGER.info("Input: {}", input);
+        }
+        LOGGER.info("RETURN code: {}", ret);
+        if (!execOut.isEmpty()) {
+            LOGGER.debug("======STDOUT START=======");
+            LOGGER.debug("{}", cutExecutorLog(execOut));
+            LOGGER.debug("======STDOUT END======");
+        }
+        if (!execErr.isEmpty()) {
+            LOGGER.debug("======STDERR START=======");
+            LOGGER.debug("{}", cutExecutorLog(execErr));
+            LOGGER.debug("======STDERR END======");
         }
     }
 
@@ -297,7 +304,7 @@ public class Exec {
      * @throws ExecutionException the execution exception
      */
     public int execute(String input, List<String> commands, long timeoutMs, File dir) throws IOException, InterruptedException, ExecutionException {
-        LOGGER.trace("Running command - " + join(" ", commands.toArray(new String[0])));
+        LOGGER.debug("Running command - {}", String.join(" ", commands.toArray(new String[0])));
         ProcessBuilder builder = new ProcessBuilder();
         builder.command(commands);
         dir = dir == null ? new File(System.getProperty("user.dir")) : dir;
@@ -305,7 +312,7 @@ public class Exec {
         process = builder.start();
         OutputStream outputStream = process.getOutputStream();
         if (input != null) {
-            LOGGER.trace("With stdin {}", input);
+            LOGGER.debug("With stdin {}", input);
             outputStream.write(input.getBytes(Charset.defaultCharset()));
         }
         // Close subprocess' stdin
@@ -354,8 +361,8 @@ public class Exec {
      * @param dir the dir
      * @return the pid
      */
-    public static long executeWithoutWait(List<String> commands, File dir) {
-        LOGGER.trace("Running command - " + join(" ", commands.toArray(new String[0])));
+    public long executeWithoutWait(List<String> commands, File dir) {
+        LOGGER.debug("Running command - {}", String.join(" ", commands.toArray(new String[0])));
         ProcessBuilder builder = new ProcessBuilder();
         builder.command(commands);
         dir = dir == null ? new File(System.getProperty("user.dir")) : dir;
@@ -400,7 +407,7 @@ public class Exec {
                 Files.writeString(Paths.get(logPath.toString(), "stdError.log"), stdErr, Charset.defaultCharset());
             }
             catch (Exception ex) {
-                LOGGER.warn("Cannot save output of execution: " + ex.getMessage());
+                LOGGER.warn("Cannot save output of execution: {}", ex.getMessage());
             }
         }
     }
@@ -425,11 +432,11 @@ public class Exec {
      * @return updated log if size is too big
      */
     public static String cutExecutorLog(String log) {
-        if (log.length() > MAXIMUM_EXEC_LOG_CHARACTER_SIZE) {
+        if (log.trim().length() > MAXIMUM_EXEC_LOG_CHARACTER_SIZE) {
             LOGGER.warn("Executor log is too long. Going to strip it and print only first {} characters", MAXIMUM_EXEC_LOG_CHARACTER_SIZE);
-            return log.substring(0, MAXIMUM_EXEC_LOG_CHARACTER_SIZE);
+            return log.trim().substring(0, MAXIMUM_EXEC_LOG_CHARACTER_SIZE);
         }
-        return log;
+        return log.trim();
     }
 
     /**

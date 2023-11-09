@@ -35,6 +35,7 @@ public class DeploymentUtils {
 
     private static final long READINESS_TIMEOUT = Duration.ofMinutes(6).toMillis();
     private static final long DELETION_TIMEOUT = Duration.ofMinutes(5).toMillis();
+    private static final String TEST_LOAD_BALANCER_NAME = "test-load-balancer";
 
     /**
      * Wait for deployment ready.
@@ -102,7 +103,7 @@ public class DeploymentUtils {
         Service service = new ServiceBuilder()
                 .withKind(Constants.SERVICE_KIND)
                 .withNewMetadata()
-                .withName("test-load-balancer")
+                .withName(TEST_LOAD_BALANCER_NAME)
                 .withNamespace(namespace)
                 .addToLabels("app", "loadbalancer")
                 .endMetadata()
@@ -118,13 +119,13 @@ public class DeploymentUtils {
         boolean isWorking = false;
         try {
             isWorking = TestUtils.waitFor("Waiting for the ingress IP to be available", 500, 10000,
-                    () -> !kubeClient().getService(namespace, "test-load-balancer").getStatus().getLoadBalancer().getIngress().isEmpty()
-                            && kubeClient().getService(namespace, "test-load-balancer").getStatus().getLoadBalancer().getIngress().get(0).getIp() != null) > 0;
+                    () -> !kubeClient().getService(namespace, TEST_LOAD_BALANCER_NAME).getStatus().getLoadBalancer().getIngress().isEmpty()
+                            && kubeClient().getService(namespace, TEST_LOAD_BALANCER_NAME).getStatus().getLoadBalancer().getIngress().get(0).getIp() != null) > 0;
         }
         catch (Exception e) {
             LOGGER.trace(e.getMessage());
         }
-        kubeClient().getClient().apps().deployments().inNamespace(namespace).withName("test-load-balancer").delete();
+        kubeClient().getClient().apps().deployments().inNamespace(namespace).withName(TEST_LOAD_BALANCER_NAME).delete();
         return isWorking;
     }
 }
