@@ -96,8 +96,11 @@ public class KafkaUtils {
         kubeClient().getClient().load(file).inNamespace(deployNamespace).create();
         String podName = getPodNameByLabel(deployNamespace, "app", Constants.KAFKA_CONSUMER_CLIENT_LABEL, timeoutMilliseconds);
         await().atMost(Duration.ofMillis(timeoutMilliseconds)).until(() -> {
-            var log = kubeClient().logsInSpecificNamespace(deployNamespace, podName);
-            return log.contains(" - " + (numOfMessages - 1));
+            if (kubeClient().getClient().pods().inNamespace(deployNamespace).withName(podName).get() != null ) {
+                var log = kubeClient().logsInSpecificNamespace(deployNamespace, podName);
+                return log.contains(" - " + (numOfMessages - 1));
+            }
+            return false;
         });
         return kubeClient().logsInSpecificNamespace(deployNamespace, podName);
     }
