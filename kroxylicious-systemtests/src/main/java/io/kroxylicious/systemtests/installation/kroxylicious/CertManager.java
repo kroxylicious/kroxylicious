@@ -25,7 +25,7 @@ import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 public class CertManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(CertManager.class);
 
-    private final NamespaceListVisitFromServerGetDeleteRecreateWaitApplicable<HasMetadata> certManager;
+    private final NamespaceListVisitFromServerGetDeleteRecreateWaitApplicable<HasMetadata> deployment;
 
     /**
      * Instantiates a new Cert manager.
@@ -33,7 +33,7 @@ public class CertManager {
      * @throws IOException the io exception
      */
     public CertManager() throws IOException {
-        certManager = kubeClient().getClient()
+        deployment = kubeClient().getClient()
                 .load(DeploymentUtils.getDeploymentFileFromURL(Constants.CERT_MANAGER_URL));
     }
 
@@ -42,7 +42,7 @@ public class CertManager {
      */
     public void deploy() {
         LOGGER.info("Deploy cert manager in {} namespace", Constants.CERT_MANAGER_NAMESPACE);
-        certManager.create();
+        deployment.create();
         DeploymentUtils.waitForDeploymentReady(Constants.CERT_MANAGER_NAMESPACE, "cert-manager-webhook");
     }
 
@@ -52,6 +52,6 @@ public class CertManager {
      */
     public void delete() throws IOException {
         LOGGER.info("Deleting Cert Manager in {} namespace", Constants.CERT_MANAGER_NAMESPACE);
-        certManager.withGracePeriod(0).delete();
+        deployment.withGracePeriod(0).delete();
     }
 }
