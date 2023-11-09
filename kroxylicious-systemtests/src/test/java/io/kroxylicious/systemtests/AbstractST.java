@@ -65,10 +65,13 @@ public class AbstractST {
     /**
      * Sets up the tests.
      *
+     * @param testInfo the test info
      * @throws IOException the io exception
      */
     @BeforeAll
-    static void setup() throws IOException {
+    static void setup(TestInfo testInfo) throws IOException {
+        LOGGER.info(String.join("", Collections.nCopies(76, "#")));
+        LOGGER.info(String.format("%s Test Suite - STARTED", testInfo.getTestClass().get().getName()));
         cluster = KubeClusterResource.getInstance();
         certManager = new CertManager();
         strimziOperator = new Strimzi(Constants.KROXY_DEFAULT_NAMESPACE);
@@ -89,14 +92,17 @@ public class AbstractST {
     /**
      * Teardown.
      *
+     * @param testInfo the test info
      * @throws IOException the io exception
      */
     @AfterAll
-    static void teardown() throws IOException {
+    static void teardown(TestInfo testInfo) throws IOException {
         strimziOperator.delete();
         certManager.delete();
         NamespaceUtils.deleteNamespaceWithWait(Constants.KROXY_DEFAULT_NAMESPACE);
         NamespaceUtils.deleteNamespaceWithWait(Constants.CERT_MANAGER_NAMESPACE);
+        LOGGER.info(String.join("", Collections.nCopies(76, "#")));
+        LOGGER.info(String.format("%s Test Suite - FINISHED", testInfo.getTestClass().get().getName()));
     }
 
     /**
