@@ -95,20 +95,18 @@ public class KafkaUtils {
 
         kubeClient().getClient().load(file).inNamespace(deployNamespace).create();
         String podName = getPodNameByLabel(deployNamespace, "app", Constants.KAFKA_CONSUMER_CLIENT_LABEL, timeoutMilliseconds);
-        TestUtils.waitFor("", 1000, timeoutMilliseconds,
-                () -> {
-                    var log = kubeClient().logsInSpecificNamespace(deployNamespace, podName);
-                    return log.contains(" - " + (numOfMessages - 1));
-                });
+        await().atMost(Duration.ofMillis(timeoutMilliseconds)).until(() -> {
+            var log = kubeClient().logsInSpecificNamespace(deployNamespace, podName);
+            return log.contains(" - " + (numOfMessages - 1));
+        });
         return kubeClient().logsInSpecificNamespace(deployNamespace, podName);
     }
 
     private static String getPodNameByLabel(String deployNamespace, String labelKey, String labelValue, long timeoutMilliseconds) {
-        TestUtils.waitFor("Waiting for Pod with label " + labelKey + "=" + labelValue + " to appear", 1000, timeoutMilliseconds,
-                () -> {
-                    var podList = kubeClient().listPods(deployNamespace, labelKey, labelValue);
-                    return !podList.isEmpty();
-                });
+        await().atMost(Duration.ofMillis(timeoutMilliseconds)).until(() -> {
+            var podList = kubeClient().listPods(deployNamespace, labelKey, labelValue);
+            return !podList.isEmpty();
+        });
         var pods = kubeClient().listPods(deployNamespace, labelKey, labelValue);
         return pods.get(pods.size() - 1).getMetadata().getName();
     }
