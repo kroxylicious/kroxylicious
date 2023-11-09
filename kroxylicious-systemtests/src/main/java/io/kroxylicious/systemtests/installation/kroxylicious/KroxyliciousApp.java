@@ -6,7 +6,6 @@
 
 package io.kroxylicious.systemtests.installation.kroxylicious;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
@@ -15,7 +14,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Iterator;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 import org.slf4j.Logger;
@@ -48,24 +47,12 @@ public class KroxyliciousApp implements Runnable {
 
     public void run() {
         LOGGER.info("Launching kroxylicious app");
-        Path path = Path.of(System.getProperty("user.dir")).getParent();
-        File dir = new File(path.toString() + File.separator + "kroxylicious-app/target");
-        AtomicReference<Path> kroxyStart = new AtomicReference<>();
-        File file;
-        try (Stream<Path> walkStream = Files.walk(dir.toPath())) {
-            walkStream.filter(p -> p.toFile().isFile()).forEach(f -> {
-                if (f.toString().endsWith("kroxylicious-start.sh")) {
-                    kroxyStart.set(f);
-                }
-            });
-            file = File.createTempFile("config", ".yaml");
-            Files.writeString(file.toPath(), KroxyConfigTemplates.getDefaultExternalKroxyConfigMap(clusterIp));
-            file.deleteOnExit();
-        }
-        catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-        pid = Exec.execWithoutWait(kroxyStart.toString(), "-c", file.getAbsolutePath());
+        Path parentPath = Path.of(System.getProperty("user.dir")).getParent();
+        final Path targetPath = parentPath.resolve("kroxylicious-app").resolve("target");
+
+        final Path startScript = resolveStartScript(targetPath);
+        final Path configFile = generateKroxyliciousConfiguration();
+        pid = Exec.execWithoutWait(startScript.toAbsolutePath().toString(), "-c", configFile.toAbsolutePath().toString());
         while (!thread.isInterrupted()) {
             try {
                 Thread.sleep(1000);
@@ -73,6 +60,33 @@ public class KroxyliciousApp implements Runnable {
             catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
+        }
+    }
+
+    private Path generateKroxyliciousConfiguration() {
+        try {
+            final Path configDir = Files.createTempDirectory("kroxylicious-app");
+            final Path configFile = Files.writeString(configDir.resolve("config.yaml"), KroxyConfigTemplates.getDefaultExternalKroxyConfigMap(clusterIp));
+            configFile.toFile().deleteOnExit();
+            return configFile;
+        }
+        catch (IOException e) {
+            throw new IllegalStateException("Unable to generate kroxylicious configuration file", e);
+        }
+    }
+
+    private static Path resolveStartScript(Path targetPath) {
+        try (Stream<Path> walkStream = Files.walk(targetPath)) {
+            final Optional<Path> startScript = walkStream.filter(Files::isRegularFile).filter(f -> f.endsWith("kroxylicious-start.sh")).findFirst();
+            if (startScript.isEmpty()) {
+                throw new IllegalStateException("unable to find kroxylicious-start.sh");
+            }
+            else {
+                return startScript.get();
+            }
+        }
+        catch (IOException e) {
+            throw new IllegalStateException("unable to find kroxylicious-start.sh", e);
         }
     }
 
@@ -85,9 +99,9 @@ public class KroxyliciousApp implements Runnable {
         String clusterIP = null;
         try {
             var nis = NetworkInterface.getNetworkInterfaces();
-            for (Iterator<NetworkInterface> it = nis.asIterator(); it.hasNext();) {
+            for (Iterator<NetworkInterface> it = nis.asIterator(); it.hasNext(); ) {
                 var ni = it.next();
-                for (Iterator<InetAddress> iter = ni.getInetAddresses().asIterator(); iter.hasNext();) {
+                for (Iterator<InetAddress> iter = ni.getInetAddresses().asIterator(); iter.hasNext(); ) {
                     var i = iter.next();
                     if (i.getHostAddress().startsWith("10")) {
                         clusterIP = i.getHostAddress();
@@ -96,10 +110,10 @@ public class KroxyliciousApp implements Runnable {
             }
         }
         catch (SocketException e) {
-            throw new RuntimeException(e);
+            throw new IllegalStateException("unable to determine bootstrap address", e);
         }
         String bootstrap = clusterIP + ":9292";
-        LOGGER.debug("Kroxylicious bootstrap: " + bootstrap);
+        LOGGER.debug("Kroxylicious bootstrap: {}", bootstrap);
         return bootstrap;
     }
 
