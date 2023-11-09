@@ -13,8 +13,8 @@ import java.net.SocketException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Iterator;
-import java.util.concurrent.TimeUnit;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
 import org.slf4j.Logger;
@@ -23,7 +23,7 @@ import org.slf4j.LoggerFactory;
 import io.kroxylicious.systemtests.executor.Exec;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyConfigTemplates;
 
-import static org.testcontainers.shaded.org.awaitility.Awaitility.await;
+import static org.awaitility.Awaitility.await;
 
 /**
  * The type Kroxylicious app.
@@ -99,9 +99,9 @@ public class KroxyliciousApp implements Runnable {
         String clusterIP = null;
         try {
             var nis = NetworkInterface.getNetworkInterfaces();
-            for (Iterator<NetworkInterface> it = nis.asIterator(); it.hasNext(); ) {
+            for (Iterator<NetworkInterface> it = nis.asIterator(); it.hasNext();) {
                 var ni = it.next();
-                for (Iterator<InetAddress> iter = ni.getInetAddresses().asIterator(); iter.hasNext(); ) {
+                for (Iterator<InetAddress> iter = ni.getInetAddresses().asIterator(); iter.hasNext();) {
                     var i = iter.next();
                     if (i.getHostAddress().startsWith("10")) {
                         clusterIP = i.getHostAddress();

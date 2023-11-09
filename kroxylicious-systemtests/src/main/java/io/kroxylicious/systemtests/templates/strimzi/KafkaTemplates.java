@@ -67,7 +67,7 @@ public class KafkaTemplates {
                         .withType(KafkaListenerType.LOADBALANCER)
                         .editOrNewConfiguration()
                         .withExternalTrafficPolicy(ExternalTrafficPolicy.LOCAL)
-                        .withLoadBalancerSourceRanges("10.0.0.0/8")
+                        // .withLoadBalancerSourceRanges("10.0.0.0/8")
                         .endConfiguration()
                         .build())
                 .endKafka()

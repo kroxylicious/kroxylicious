@@ -29,7 +29,7 @@ import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.kroxylicious.systemtests.Constants;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
-import static org.testcontainers.shaded.org.awaitility.Awaitility.await;
+import static org.awaitility.Awaitility.await;
 
 /**
  * The type Kafka utils.
@@ -97,7 +97,7 @@ public class KafkaUtils {
         kubeClient().getClient().load(file).inNamespace(deployNamespace).create();
         String podName = getPodNameByLabel(deployNamespace, "app", Constants.KAFKA_CONSUMER_CLIENT_LABEL, timeoutMilliseconds);
         await().ignoreException(KubernetesClientException.class).atMost(Duration.ofMillis(timeoutMilliseconds)).until(() -> {
-            if (kubeClient().getClient().pods().inNamespace(deployNamespace).withName(podName).get() != null ) {
+            if (kubeClient().getClient().pods().inNamespace(deployNamespace).withName(podName).get() != null) {
                 var log = kubeClient().logsInSpecificNamespace(deployNamespace, podName);
                 return log.contains(" - " + (numOfMessages - 1));
             }
