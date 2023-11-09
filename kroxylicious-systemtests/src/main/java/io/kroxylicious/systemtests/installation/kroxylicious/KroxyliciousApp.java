@@ -14,6 +14,7 @@ import java.net.SocketException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Iterator;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 
@@ -22,7 +23,8 @@ import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.systemtests.executor.Exec;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyConfigTemplates;
-import io.kroxylicious.systemtests.utils.TestUtils;
+
+import static org.testcontainers.shaded.org.awaitility.Awaitility.await;
 
 /**
  * The type Kroxylicious app.
@@ -57,8 +59,8 @@ public class KroxyliciousApp implements Runnable {
                 }
             });
             file = File.createTempFile("config", ".yaml");
-            file.deleteOnExit();
             Files.writeString(file.toPath(), KroxyConfigTemplates.getDefaultExternalKroxyConfigMap(clusterIp));
+            file.deleteOnExit();
         }
         catch (IOException e) {
             throw new RuntimeException(e);
@@ -108,7 +110,7 @@ public class KroxyliciousApp implements Runnable {
      */
     public boolean isRunning() {
         if (thread.isAlive()) {
-            TestUtils.waitFor("Waiting for process being launched", 500, 3000, () -> ProcessHandle.of(pid).isPresent());
+            await().atMost(5, TimeUnit.SECONDS).until(() -> ProcessHandle.of(pid).isPresent());
         }
         return thread.isAlive() && ProcessHandle.of(pid).isPresent();
     }
