@@ -82,7 +82,7 @@ public class TestUtils {
                 }
                 onTimeout.run();
                 WaitException waitException = new WaitException("Timeout after " + timeoutMs + " ms waiting for " + description);
-                LOGGER.trace(waitException.getMessage());
+                LOGGER.error(waitException.getMessage());
                 throw waitException;
             }
             long sleepTime = Math.min(pollIntervalMs, timeLeft);
