@@ -26,7 +26,7 @@ import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 public class Strimzi {
     private static final Logger LOGGER = LoggerFactory.getLogger(Strimzi.class);
     private final String deploymentNamespace;
-    private final NamespaceListVisitFromServerGetDeleteRecreateWaitApplicable<HasMetadata> strimzi;
+    private final NamespaceListVisitFromServerGetDeleteRecreateWaitApplicable<HasMetadata> deployment;
 
     /**
      * Instantiates a new Strimzi.
@@ -35,7 +35,7 @@ public class Strimzi {
      */
     public Strimzi(String deploymentNamespace) throws IOException {
         this.deploymentNamespace = deploymentNamespace;
-        strimzi = kubeClient().getClient().load(DeploymentUtils.getDeploymentFileFromURL(Environment.STRIMZI_URL));
+        deployment = kubeClient().getClient().load(DeploymentUtils.getDeploymentFileFromURL(Environment.STRIMZI_URL));
     }
 
     /**
@@ -44,7 +44,7 @@ public class Strimzi {
      */
     public void deploy() throws IOException {
         LOGGER.info("Deploy Strimzi in {} namespace", deploymentNamespace);
-        strimzi.inNamespace(deploymentNamespace).create();
+        deployment.inNamespace(deploymentNamespace).create();
         DeploymentUtils.waitForDeploymentReady(deploymentNamespace, Constants.STRIMZI_DEPLOYMENT_NAME);
     }
 
@@ -54,7 +54,7 @@ public class Strimzi {
      */
     public void delete() throws IOException {
         LOGGER.info("Deleting Strimzi in {} namespace", deploymentNamespace);
-        strimzi.inNamespace(deploymentNamespace).delete();
+        deployment.inNamespace(deploymentNamespace).delete();
         DeploymentUtils.waitForDeploymentDeletion(deploymentNamespace, Constants.STRIMZI_DEPLOYMENT_NAME);
     }
 }
