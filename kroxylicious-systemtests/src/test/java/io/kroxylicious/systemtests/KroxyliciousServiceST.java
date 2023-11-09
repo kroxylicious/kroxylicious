@@ -25,6 +25,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 /**
  * The type Acceptance st.
  */
+@ExtendWith(KroxyliciousExtension.class)
 class KroxyliciousServiceST extends AbstractST {
     private static final Logger LOGGER = LoggerFactory.getLogger(KroxyliciousServiceST.class);
     private static KroxyliciousService kroxyliciousService;
@@ -36,7 +37,6 @@ class KroxyliciousServiceST extends AbstractST {
      * @param namespace the namespace
      */
     @Test
-    @ExtendWith(KroxyliciousExtension.class)
     void produceAndConsumeMessage(String namespace) {
         String topicName = "my-topic";
         String message = "Hello-world";
@@ -68,7 +68,6 @@ class KroxyliciousServiceST extends AbstractST {
      * @param namespace the namespace
      */
     @Test
-    @ExtendWith(KroxyliciousExtension.class)
     void restartKafkaBrokers(String namespace) {
         String topicName = "my-topic2";
         String message = "Hello-world";
@@ -101,7 +100,6 @@ class KroxyliciousServiceST extends AbstractST {
      * @param namespace the namespace
      */
     @Test
-    @ExtendWith(KroxyliciousExtension.class)
     void kroxyWithReplicas(String namespace) {
         String topicName = "my-topic3";
         String message = "Hello-world";
