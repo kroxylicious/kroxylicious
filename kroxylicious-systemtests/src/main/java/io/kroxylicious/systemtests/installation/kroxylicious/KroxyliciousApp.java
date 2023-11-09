@@ -6,6 +6,7 @@
 
 package io.kroxylicious.systemtests.installation.kroxylicious;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
@@ -22,6 +23,7 @@ import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.systemtests.executor.Exec;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyConfigTemplates;
+import io.kroxylicious.systemtests.utils.TestUtils;
 
 import static org.awaitility.Awaitility.await;
 
@@ -65,10 +67,10 @@ public class KroxyliciousApp implements Runnable {
 
     private Path generateKroxyliciousConfiguration() {
         try {
-            final Path configDir = Files.createTempDirectory("kroxylicious-app");
-            final Path configFile = Files.writeString(configDir.resolve("config.yaml"), KroxyConfigTemplates.getDefaultExternalKroxyConfigMap(clusterIp));
-            configFile.toFile().deleteOnExit();
-            return configFile;
+            File configFile = Files.createTempFile("config", ".yaml", TestUtils.getDefaultPosixFilePermissions()).toFile();
+            Files.writeString(configFile.toPath(), KroxyConfigTemplates.getDefaultExternalKroxyConfigMap(clusterIp));
+            configFile.deleteOnExit();
+            return configFile.toPath();
         }
         catch (IOException e) {
             throw new IllegalStateException("Unable to generate kroxylicious configuration file", e);

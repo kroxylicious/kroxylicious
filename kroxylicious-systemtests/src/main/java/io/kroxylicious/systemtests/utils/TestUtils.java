@@ -8,6 +8,10 @@ package io.kroxylicious.systemtests.utils;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.nio.file.attribute.FileAttribute;
+import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
+import java.util.Set;
 import java.util.function.BooleanSupplier;
 
 import org.slf4j.Logger;
@@ -97,5 +101,14 @@ public class TestUtils {
                 return deadline - System.currentTimeMillis();
             }
         }
+    }
+
+    /**
+     * Gets default posix file permissions.
+     *
+     * @return the default posix file permissions
+     */
+    public static FileAttribute<Set<PosixFilePermission>> getDefaultPosixFilePermissions() {
+        return PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------"));
     }
 }

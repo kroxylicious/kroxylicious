@@ -11,12 +11,8 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Files;
-import java.nio.file.attribute.FileAttribute;
-import java.nio.file.attribute.PosixFilePermission;
-import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Duration;
 import java.util.Collections;
-import java.util.Set;
 
 import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
@@ -85,8 +81,7 @@ public class DeploymentUtils {
      * @throws IOException the io exception
      */
     public static FileInputStream getDeploymentFileFromURL(String url) throws IOException {
-        FileAttribute<Set<PosixFilePermission>> attr = PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------"));
-        File deploymentFile = Files.createTempFile("deploy", ".yaml", attr).toFile();
+        File deploymentFile = Files.createTempFile("deploy", ".yaml", TestUtils.getDefaultPosixFilePermissions()).toFile();
         FileUtils.copyURLToFile(
                 new URL(url),
                 deploymentFile,
