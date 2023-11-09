@@ -24,6 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.client.KubernetesClientException;
 
 import io.kroxylicious.systemtests.Constants;
 
@@ -95,7 +96,7 @@ public class KafkaUtils {
 
         kubeClient().getClient().load(file).inNamespace(deployNamespace).create();
         String podName = getPodNameByLabel(deployNamespace, "app", Constants.KAFKA_CONSUMER_CLIENT_LABEL, timeoutMilliseconds);
-        await().atMost(Duration.ofMillis(timeoutMilliseconds)).until(() -> {
+        await().ignoreException(KubernetesClientException.class).atMost(Duration.ofMillis(timeoutMilliseconds)).until(() -> {
             if (kubeClient().getClient().pods().inNamespace(deployNamespace).withName(podName).get() != null ) {
                 var log = kubeClient().logsInSpecificNamespace(deployNamespace, podName);
                 return log.contains(" - " + (numOfMessages - 1));
