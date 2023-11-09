@@ -237,7 +237,7 @@ public class ResourceManager {
                                                                                                                   long resourceTimeoutMs) {
         LOGGER.info("Waiting for {}: {}/{} will have desired state 'Ready'", kind, namespace, name);
 
-        TestUtils.waitFor(String.format("%s: %s#%s will have desired state 'Ready'", kind, namespace, name),
+        TestUtils.waitFor(String.format("%s: %s/%s will have desired state 'Ready'", kind, namespace, name),
                 Constants.POLL_INTERVAL_FOR_RESOURCE_READINESS_MILLIS, resourceTimeoutMs,
                 () -> {
                     final Status status = operation.inNamespace(namespace)
