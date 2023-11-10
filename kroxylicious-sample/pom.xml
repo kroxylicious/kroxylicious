@@ -22,7 +22,8 @@
     <artifactId>kroxylicious-sample</artifactId>
     <packaging>jar</packaging>
 
-    <name>Kroxylicious Sample</name>
+    <name>Sample filters</name>
+    <description>Some exemplar filters</description>
 
     <dependencies>
         <!-- project dependencies - runtime and compile -->
@@ -35,7 +36,7 @@
         <!-- project dependencies - test -->
         <dependency>
             <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious-test-tools</artifactId>
+            <artifactId>kroxylicious-integration-test-support</artifactId>
             <scope>test</scope>
         </dependency>
 

@@ -19,15 +19,16 @@
         <version>0.4.0-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
-    <artifactId>kroxylicious-test-tools</artifactId>
-    <name>Testing tools</name>
+    <artifactId>kroxylicious-integration-test-support</artifactId>
+    <name>Integration test support</name>
+    <description>Support code to simplfy writing integration tests for filters</description>
 
     <dependencies>
 
         <!-- project dependencies - runtime and compile -->
         <dependency>
             <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious</artifactId>
+            <artifactId>kroxylicious-runtime</artifactId>
         </dependency>
 
         <!-- project dependencies - test -->

@@ -18,9 +18,9 @@
         <version>0.4.0-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
-    <artifactId>kroxylicious-unit-test</artifactId>
-    <name>Filter Unit Test tooling</name>
-    <description>Classes to help unit test Filter implementations</description>
+    <artifactId>kroxylicious-filter-test-support</artifactId>
+    <name>Filter unit test support</name>
+    <description>Support code to simplify writing unit tests for filter implementations</description>
 
     <dependencies>
         <dependency>

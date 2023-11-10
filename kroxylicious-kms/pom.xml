@@ -24,10 +24,6 @@
     <description>An API for interacting with Key Management Systems (KMSes).</description>
 
     <dependencies>
-        <dependency>
-            <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious-api</artifactId>
-        </dependency>
 
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>

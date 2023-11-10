@@ -13,7 +13,7 @@
 
     <parent>
         <groupId>io.kroxylicious</groupId>
-        <artifactId>kroxylicious-additional-filters</artifactId>
+        <artifactId>kroxylicious-filter-parent</artifactId>
         <version>0.4.0-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
@@ -21,8 +21,8 @@
     <artifactId>kroxylicious-multitenant</artifactId>
     <packaging>jar</packaging>
 
-    <name>Kroxylicious Multitenant</name>
-    <description>Kroxylicious Filters and other plugins required to implement Multitenancy over Apache Kafka
+    <name>Multitenancy filter</name>
+    <description>A filter to implement transparent multitenancy for Apache Kafka
     </description>
 
     <dependencies>
@@ -35,7 +35,7 @@
         <!-- project dependencies - test -->
         <dependency>
             <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious-unit-test</artifactId>
+            <artifactId>kroxylicious-filter-test-support</artifactId>
             <scope>test</scope>
         </dependency>
 
