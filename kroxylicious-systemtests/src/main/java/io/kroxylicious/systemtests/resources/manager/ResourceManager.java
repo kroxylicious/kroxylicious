@@ -199,7 +199,7 @@ public class ResourceManager {
     public static <T extends CustomResource<? extends Spec, ? extends Status>> boolean waitForResourceStatusReady(MixedOperation<T, ?, ?> operation, T resource,
                                                                                                                   long resourceTimeout) {
         return waitForResourceStatusReady(operation, resource.getKind(), resource.getMetadata().getNamespace(), resource.getMetadata().getName(),
-                ConditionStatus.True, resourceTimeout);
+                ConditionStatus.TRUE, resourceTimeout);
     }
 
     /**
@@ -216,7 +216,7 @@ public class ResourceManager {
     public static <T extends CustomResource<? extends Spec, ? extends Status>> boolean waitForResourceStatusReady(MixedOperation<T, ?, ?> operation, String kind,
                                                                                                                   String namespace, String name,
                                                                                                                   long resourceTimeoutMs) {
-        return waitForResourceStatusReady(operation, kind, namespace, name, ConditionStatus.True, resourceTimeoutMs);
+        return waitForResourceStatusReady(operation, kind, namespace, name, ConditionStatus.TRUE, resourceTimeoutMs);
     }
 
     /**

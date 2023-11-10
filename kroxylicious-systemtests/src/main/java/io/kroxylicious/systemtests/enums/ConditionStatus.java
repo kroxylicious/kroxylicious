@@ -13,9 +13,9 @@ public enum ConditionStatus {
     /**
      *True condition status.
      */
-    True,
+    TRUE,
     /**
      *False condition status.
      */
-    False
+    FALSE
 }

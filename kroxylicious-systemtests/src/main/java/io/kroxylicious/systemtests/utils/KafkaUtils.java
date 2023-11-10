@@ -50,9 +50,10 @@ public class KafkaUtils {
     public static String ConsumeMessage(String deployNamespace, String topicName, String bootstrap, int timeoutMilliseconds) {
         LOGGER.debug("Consuming messages from '{}' topic", topicName);
 
+        String kafkaConsumerName = "java-kafka-consumer";
         Pod pod = kubeClient().getClient().run().inNamespace(deployNamespace).withNewRunConfig()
                 .withImage(Constants.STRIMZI_KAFKA_IMAGE)
-                .withName("java-kafka-consumer")
+                .withName(kafkaConsumerName)
                 .withRestartPolicy("Never")
                 .withCommand("/bin/sh")
                 .withArgs("-c",
@@ -71,8 +72,8 @@ public class KafkaUtils {
                 LOGGER.trace(e.getMessage());
             }
         }
-        String log = kubeClient().logsInSpecificNamespace(deployNamespace, "java-kafka-consumer");
-        kubeClient().getClient().pods().inNamespace(deployNamespace).withName("java-kafka-consumer").delete();
+        String log = kubeClient().logsInSpecificNamespace(deployNamespace, kafkaConsumerName);
+        kubeClient().getClient().pods().inNamespace(deployNamespace).withName(kafkaConsumerName).delete();
         return log;
     }
 

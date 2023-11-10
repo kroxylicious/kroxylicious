@@ -6,10 +6,13 @@
 
 package io.kroxylicious.systemtests.executor;
 
+import java.io.Serializable;
+
 /**
  * The type Exec result.
+ * It is serializable because it is used in KubeClusterException that is serializable
  */
-public class ExecResult {
+public class ExecResult implements Serializable {
     private final int returnCode;
     private final String stdOut;
     private final String stdErr;
