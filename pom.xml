@@ -59,10 +59,10 @@
         <byte-buddy.version>1.14.9</byte-buddy.version>
     </properties>
 
-    <name>Kroxylicious Parent</name>
-    <description>A proof-of-concept for a Kafka wire protocol proxy</description>
+    <name>Parent POM</name>
+    <description>A Kafka wire protocol proxy</description>
     <inceptionYear>2021</inceptionYear>
-    <url>https://kroxylicious.io/kroxylicious/</url>
+    <url>https://kroxylicious.io</url>
 
     <licenses>
         <license>
@@ -276,12 +276,12 @@
         <module>kroxylicious-bom</module>
         <module>kroxylicious-api</module>
         <module>kroxylicious-app</module>
-        <module>krpc-code-gen</module>
-        <module>kroxylicious-test-tools</module>
-        <module>kroxylicious-unit-test</module>
-        <module>kroxylicious</module>
-        <module>integrationtests</module>
-        <module>kroxylicious-additional-filters</module>
+        <module>kroxylicious-krpc-plugin</module>
+        <module>kroxylicious-integration-test-support</module>
+        <module>kroxylicious-filter-test-support</module>
+        <module>kroxylicious-runtime</module>
+        <module>kroxylicious-integration-tests</module>
+        <module>kroxylicious-filters</module>
         <module>kroxylicious-sample</module>
     </modules>
 

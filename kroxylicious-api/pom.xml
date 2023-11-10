@@ -27,7 +27,7 @@
     </properties>
 
     <name>Kroxylicious API</name>
-    <description>generic APIs used throughout Kroxylicious</description>
+    <description>API for filters, and some dependant APIs</description>
 
     <dependencies>
         <!-- third party dependencies - runtime and compile -->

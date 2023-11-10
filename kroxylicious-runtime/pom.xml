@@ -18,14 +18,15 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>kroxylicious</artifactId>
+    <artifactId>kroxylicious-runtime</artifactId>
     <packaging>jar</packaging>
 
     <properties>
         <libs.dir>libs</libs.dir>
     </properties>
 
-    <name>Kroxylicious Proxy</name>
+    <name>Proxy runtime</name>
+    <description>The proxy code which provides the runtime environment in which filters execute</description>
 
     <dependencies>
         <!-- project dependencies - runtime and compile -->
@@ -37,7 +38,7 @@
         <!-- project dependencies - test -->
         <dependency>
             <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious-unit-test</artifactId>
+            <artifactId>kroxylicious-filter-test-support</artifactId>
             <scope>test</scope>
         </dependency>
 
@@ -286,7 +287,7 @@
                 </dependency>
                 <dependency>
                     <groupId>io.kroxylicious</groupId>
-                    <artifactId>kroxylicious-schema-validation</artifactId>
+                    <artifactId>kroxylicious-record-validation</artifactId>
                 </dependency>
             </dependencies>
         </profile>

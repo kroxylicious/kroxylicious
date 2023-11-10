@@ -16,15 +16,15 @@
         <version>0.4.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>kroxylicious-additional-filters</artifactId>
+    <artifactId>kroxylicious-filter-parent</artifactId>
 
-    <name>Additional Filters</name>
-    <description>Optional filters provided by the kroxylicious project</description>
+    <name>Filter implementations</name>
+    <description>Filter implementations</description>
     <packaging>pom</packaging>
 
     <modules>
         <module>kroxylicious-multitenant</module>
-        <module>kroxylicious-schema-validation</module>
+        <module>kroxylicious-record-validation</module>
     </modules>
 
     <build>
@@ -46,7 +46,7 @@
                                     </excludes>
                                     <includes>
                                         <include>io.kroxylicious:kroxylicious-api</include>
-                                        <include>io.kroxylicious:kroxylicious-unit-test</include>
+                                        <include>io.kroxylicious:kroxylicious-filter-test-support</include>
                                     </includes>
                                 </bannedDependencies>
                             </rules>
