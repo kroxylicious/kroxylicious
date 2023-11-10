@@ -294,6 +294,9 @@
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-javadoc-plugin</artifactId>
                     <version>3.6.0</version>
+                    <configuration>
+                        <breakiterator>true</breakiterator>
+                    </configuration>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -781,6 +784,15 @@
                                 <goals>
                                     <goal>prepare-agent</goal>
                                 </goals>
+                                <configuration>
+                                    <excludes>
+                                        <exclude>io.kroxylicious.proxy.ApiMaturity</exclude>
+                                        <exclude>io.kroxylicious.proxy.ApiMaturity.Unstable</exclude>
+                                        <exclude>io.kroxylicious.proxy.ApiMaturity.Evolving</exclude>
+                                        <exclude>io.kroxylicious.proxy.ApiMaturity.Stable</exclude>
+                                        <exclude>io.kroxylicious.proxy.package-info</exclude>
+                                    </excludes>
+                                </configuration>
                             </execution>
                             <execution>
                                 <id>report</id>
