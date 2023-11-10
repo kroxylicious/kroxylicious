@@ -73,7 +73,7 @@ public class KroxyliciousService {
     public String getBootstrap() {
         String clusterIP = kubeClient().getService(deploymentNamespace, Constants.KROXY_SERVICE_NAME).getSpec().getClusterIP();
         String bootstrap = clusterIP + ":9292";
-        LOGGER.debug("Kroxylicious bootstrap: " + bootstrap);
+        LOGGER.debug("Kroxylicious bootstrap: {}", bootstrap);
         return bootstrap;
     }
 }

@@ -12,6 +12,10 @@ import java.util.function.Function;
  * The type Environment.
  */
 public class Environment {
+
+    private Environment() {
+    }
+
     /**
      * Env. variables names
      */

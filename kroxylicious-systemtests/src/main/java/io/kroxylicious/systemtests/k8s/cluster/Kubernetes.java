@@ -40,7 +40,8 @@ public class Kubernetes implements KubeCluster {
             return Exec.exec(cmd).isSuccess();
         }
         catch (KubeClusterException e) {
-            LOGGER.debug("'" + String.join(" ", cmd) + "' failed. Please double check connectivity to your cluster!");
+            String commandLine = String.join(" ", cmd);
+            LOGGER.debug("'{}' failed. Please double check connectivity to your cluster!", commandLine);
             LOGGER.debug(String.valueOf(e));
             return false;
         }

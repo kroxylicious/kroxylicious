@@ -46,6 +46,7 @@ public abstract class BaseCmdKubeClient<K extends BaseCmdKubeClient<K>> implemen
     protected static class Context implements AutoCloseable {
         @Override
         public void close() {
+            // Do nothing
         }
     }
 

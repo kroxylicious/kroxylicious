@@ -246,7 +246,7 @@ public class ResourceManager {
                             .getStatus();
                     if (status != null) {
                         return status.getConditions().stream()
-                                .anyMatch(condition -> condition.getType().equals("Ready") && condition.getStatus().equals(conditionStatus.toString()));
+                                .anyMatch(condition -> condition.getType().equals("Ready") && condition.getStatus().toUpperCase().equals(conditionStatus.toString()));
                     }
                     return false;
                 });
