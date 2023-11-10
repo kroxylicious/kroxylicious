@@ -40,6 +40,16 @@
         </dependency>
         <dependency>
             <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-encryption</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-kms-provider-kroxylicious-inmemory</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-multitenant</artifactId>
             <scope>test</scope>
         </dependency>
