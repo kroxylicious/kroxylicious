@@ -26,8 +26,8 @@
         <libs.dir>libs</libs.dir>
     </properties>
 
-    <name>Filter API</name>
-    <description>The API for implementing filters</description>
+    <name>Kroxylicious API</name>
+    <description>API for filters, and some dependant APIs</description>
 
     <dependencies>
         <!-- third party dependencies - runtime and compile -->
