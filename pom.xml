@@ -343,7 +343,6 @@
     </dependencyManagement>
 
     <modules>
-        <module>kroxylicious-enforcer-rules</module>
         <module>kroxylicious-kms</module>
         <module>kroxylicious-kms-provider-kroxylicious-inmemory</module>
         <module>kroxylicious-bom</module>
@@ -651,6 +650,27 @@
                         <phase>initialize</phase>
                         <configuration>
                             <property>rootdir</property>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>enforce-systemtest-isolation</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <bannedDependencies>
+                                    <excludes>
+                                        <exclude>io.kroxylicious:kroxylicious-systemtests</exclude>
+                                    </excludes>
+                                </bannedDependencies>
+                            </rules>
                         </configuration>
                     </execution>
                 </executions>
