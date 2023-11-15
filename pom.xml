@@ -283,6 +283,7 @@
         <module>kroxylicious-integration-tests</module>
         <module>kroxylicious-filters</module>
         <module>kroxylicious-sample</module>
+        <module>kroxylicious-wasm-sample-poc</module>
     </modules>
 
 
@@ -343,6 +344,10 @@
                                     <exclude>src/test/resources/io/kroxylicious/proxy/config/tls/*.pem</exclude>
                                     <exclude>src/test/resources/io/kroxylicious/proxy/config/tls/*.crt</exclude>
                                     <exclude>src/test/resources/io/kroxylicious/proxy/config/tls/*.password</exclude>
+                                    <!-- Exclude testing material -->
+                                    <exclude>src/main/resources/rust/*.rs</exclude>
+                                    <exclude>src/main/resources/rust/*.sh</exclude>
+                                    <exclude>src/main/resources/wasm/*.wasm</exclude>
                                 </excludes>
                             </licenseSet>
                         </licenseSets>
