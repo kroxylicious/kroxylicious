@@ -17,7 +17,7 @@ mvn verify
 #### To build the sample on its own:
 
 ```shell
-mvn verify -pl :kroxylicious-sample --also-make
+mvn verify -pl :kroxylicious-wasm-sample-poc --also-make
 ```
 
 > *__Note:__ If you build just the `kroxylicious-sample` module, you will need to also build the `kroxylicious-app` module separately (with `dist` profile, as shown below) in order to run the sample.*
