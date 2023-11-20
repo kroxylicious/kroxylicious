@@ -9,6 +9,7 @@ package io.kroxylicious.proxy.config;
 import java.lang.annotation.Annotation;
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.annotation.OptBoolean;
 import com.fasterxml.jackson.databind.annotation.JsonTypeIdResolver;
 import com.fasterxml.jackson.databind.introspect.Annotated;
 import com.fasterxml.jackson.databind.introspect.JacksonAnnotationIntrospector;
@@ -77,6 +78,11 @@ class PluginAnnotationIntrospector extends JacksonAnnotationIntrospector {
             @Override
             public boolean visible() {
                 return false;
+            }
+
+            @Override
+            public OptBoolean requireTypeIdForSubtypes() {
+                return OptBoolean.DEFAULT;
             }
         };
     }
