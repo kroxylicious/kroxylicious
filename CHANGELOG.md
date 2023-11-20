@@ -6,6 +6,7 @@ Please enumerate **all user-facing** changes using format `<githib issue/pr numb
 
 ## 0.4.0
 
+* [#725](https://github.com/kroxylicious/kroxylicious/pull/725): Bump io.netty:netty-bom from 4.1.100.Final to 4.1.101.Final #725
 * [#701](https://github.com/kroxylicious/kroxylicious/pull/701): Bump org.apache.logging.log4j:log4j-bom from 2.21.0 to 2.21.1 #701
 
 ## 0.3.0
