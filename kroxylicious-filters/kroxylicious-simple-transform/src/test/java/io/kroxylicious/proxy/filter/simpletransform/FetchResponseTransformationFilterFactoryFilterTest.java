@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.proxy.internal.filter;
+package io.kroxylicious.proxy.filter.simpletransform;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -46,7 +46,6 @@ import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResultBuilder;
 import io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage;
-import io.kroxylicious.proxy.internal.filter.FetchResponseTransformationFilterFactory.Config;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -118,7 +117,7 @@ class FetchResponseTransformationFilterFactoryFilterTest {
                 .hasMessage(FetchResponseTransformationFilterFactory.class.getSimpleName() + " requires configuration, but config object is null");
         FilterFactoryContext constructContext = mock(FilterFactoryContext.class);
         doReturn(new UpperCasing()).when(constructContext).pluginInstance(any(), any());
-        Config config = new Config(UpperCasing.class.getName(),
+        FetchResponseTransformationFilterFactory.Config config = new FetchResponseTransformationFilterFactory.Config(UpperCasing.class.getName(),
                 new UpperCasing.Config("UTF-8"));
         assertThat(factory.createFilter(constructContext, config)).isInstanceOf(FetchResponseTransformationFilter.class);
     }
