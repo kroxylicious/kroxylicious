@@ -21,7 +21,7 @@
     </parent>
     <artifactId>kroxylicious-integration-test-support</artifactId>
     <name>Integration test support</name>
-    <description>Support code to simplfy writing integration tests for filters</description>
+    <description>Support code to simplify writing integration tests for filters</description>
 
     <dependencies>
 

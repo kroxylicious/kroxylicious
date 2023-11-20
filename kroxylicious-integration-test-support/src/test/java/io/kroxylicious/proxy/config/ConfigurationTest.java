@@ -6,6 +6,7 @@
 
 package io.kroxylicious.proxy.config;
 
+import java.util.Map;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.params.ParameterizedTest;
@@ -16,9 +17,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.flipkart.zjsonpatch.JsonDiff;
-
-import io.kroxylicious.proxy.internal.filter.ProduceRequestTransformationFilterFactory;
-import io.kroxylicious.proxy.internal.filter.UpperCasing;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -34,18 +32,18 @@ class ConfigurationTest {
                         useIoUring: true"""),
                 Arguments.of("With filter",
                         new ConfigurationBuilder()
-                                .addToFilters(new FilterDefinitionBuilder(ProduceRequestTransformationFilterFactory.class.getSimpleName())
-                                        .withConfig("transformation", UpperCasing.class.getName(),
-                                                "transformationConfig", new UpperCasing.Config("UTF-8"))
+                                .addToFilters(new FilterDefinitionBuilder(ExampleFilterFactory.class.getSimpleName())
+                                        .withConfig("examplePlugin", "ExamplePluginInstance",
+                                                "examplePluginConfig", Map.of("pluginKey", "pluginValue"))
                                         .build())
                                 .build(),
                         """
                                     filters:
-                                    - type: ProduceRequestTransformationFilterFactory
+                                    - type: ExampleFilterFactory
                                       config:
-                                        transformation: "io.kroxylicious.proxy.internal.filter.UpperCasing"
-                                        transformationConfig:
-                                          charset: UTF-8
+                                        examplePlugin: ExamplePluginInstance
+                                        examplePluginConfig:
+                                          pluginKey: pluginValue
                                 """),
                 Arguments.of("With Virtual Cluster",
                         new ConfigurationBuilder()

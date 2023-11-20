@@ -27,24 +27,23 @@ class KafkaProxyTest {
     @Test
     void shouldFailToStartIfRequireFilterConfigIsMissing() throws Exception {
         var config = """
-                    virtualClusters:
-                        demo1:
-                            targetCluster:
-                              bootstrap_servers: kafka.example:1234
-                            clusterNetworkAddressConfigProvider:
-                              type: PortPerBrokerClusterNetworkAddressConfigProvider
-                              config:
-                                bootstrapAddress: localhost:9192
-                                brokerStartPort: 9193
-                                numberOfBrokerPorts: 2
-                    filters:
-                       - type: ProduceRequestTransformationFilterFactory
+                   virtualClusters:
+                     demo1:
+                       targetCluster:
+                         bootstrap_servers: kafka.example:1234
+                       clusterNetworkAddressConfigProvider:
+                         type: PortPerBrokerClusterNetworkAddressConfigProvider
+                         config:
+                           bootstrapAddress: localhost:9192
+                           numberOfBrokerPorts: 1
+                   filters:
+                   - type: RequiresConfigFactory
                 """;
-        ConfigParser configParser = new ConfigParser();
+        var configParser = new ConfigParser();
         try (var kafkaProxy = new KafkaProxy(configParser, configParser.parseConfiguration(config))) {
             assertThatThrownBy(kafkaProxy::startup).isInstanceOf(PluginConfigurationException.class)
                     .hasMessage(
-                            "Exception initializing filter factory ProduceRequestTransformationFilterFactory with config null: ProduceRequestTransformationFilterFactory requires configuration, but config object is null");
+                            "Exception initializing filter factory RequiresConfigFactory with config null: RequiresConfigFactory requires configuration, but config object is null");
         }
     }
 

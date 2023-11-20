@@ -38,7 +38,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.stubbing.Answer;
 
@@ -57,6 +56,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -116,7 +116,7 @@ class FetchResponseTransformationFilterFactoryFilterTest {
         FetchResponseTransformationFilterFactory factory = new FetchResponseTransformationFilterFactory();
         assertThatThrownBy(() -> factory.initialize(null, null)).isInstanceOf(PluginConfigurationException.class)
                 .hasMessage(FetchResponseTransformationFilterFactory.class.getSimpleName() + " requires configuration, but config object is null");
-        FilterFactoryContext constructContext = Mockito.mock(FilterFactoryContext.class);
+        FilterFactoryContext constructContext = mock(FilterFactoryContext.class);
         doReturn(new UpperCasing()).when(constructContext).pluginInstance(any(), any());
         Config config = new Config(UpperCasing.class.getName(),
                 new UpperCasing.Config("UTF-8"));
