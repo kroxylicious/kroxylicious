@@ -35,7 +35,7 @@ mvn verify -Pdist -Dquick
 Build both `kroxylicious-sample` and `kroxylicious-app` with the `dist` profile as above, then run the following command:
 
 ```shell
-KROXYLICIOUS_CLASSPATH="kroxylicious-sample/target/*" kroxylicious-app/target/kroxylicious-app-*-bin/kroxylicious-app-*/bin/kroxylicious-start.sh --config kroxylicious-sample/sample-proxy-config.yml
+KROXYLICIOUS_CLASSPATH="kroxylicious-wasm-sample-poc/target/*" kroxylicious-app/target/kroxylicious-app-*-bin/kroxylicious-app-*/bin/kroxylicious-start.sh --config kroxylicious-wasm-sample-poc/sample-proxy-config.yml
 ```
 
 ### Configure
