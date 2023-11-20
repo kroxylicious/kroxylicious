@@ -11,7 +11,7 @@ import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaTopicTemplates;
 import io.kroxylicious.systemtests.utils.KafkaUtils;
 
-import static org.junit.Assert.assertTrue;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /**
  * The type Kafka steps.
@@ -42,6 +42,6 @@ public class KafkaSteps {
      */
     public static void restartKafkaBroker(String clusterName) {
         clusterName = clusterName + "-kafka";
-        assertTrue(KafkaUtils.restartBroker(Constants.KROXY_DEFAULT_NAMESPACE, clusterName));
+        assertThat("Broker has not been restarted successfully!", KafkaUtils.restartBroker(Constants.KROXY_DEFAULT_NAMESPACE, clusterName));
     }
 }

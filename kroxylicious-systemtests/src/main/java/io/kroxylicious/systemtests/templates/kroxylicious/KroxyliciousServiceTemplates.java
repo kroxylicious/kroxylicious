@@ -17,7 +17,7 @@ import io.fabric8.kubernetes.api.model.ServicePortBuilder;
 
 import io.kroxylicious.systemtests.Constants;
 
-public class KroxyServiceTemplates {
+public class KroxyliciousServiceTemplates {
 
     private static final Map<String, String> kroxyLabelSelector = Map.of("app", "kroxylicious");
 

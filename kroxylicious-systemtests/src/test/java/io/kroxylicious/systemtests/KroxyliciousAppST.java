@@ -30,13 +30,14 @@ public class KroxyliciousAppST extends AbstractST {
     private final String clusterName = "my-external-cluster";
 
     /**
-     * Kroxy app is running.
+     * Kroxylicious app is running.
      */
     @Test
     void kroxyAppIsRunning() {
-        LOGGER.info("Given local Kroxy");
+        LOGGER.info("Given local Kroxylicious");
         String clusterIp = kubeClient().getService(Constants.KROXY_DEFAULT_NAMESPACE, clusterName + "-kafka-external-bootstrap").getSpec().getClusterIP();
         kroxyliciousApp = new KroxyliciousApp(clusterIp);
+        kroxyliciousApp.waitForKroxyliciousProcess();
         assertThat("Kroxylicious app is not running!", kroxyliciousApp.isRunning());
     }
 

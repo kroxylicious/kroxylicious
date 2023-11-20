@@ -20,15 +20,15 @@ import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.kroxylicious.systemtests.Constants;
 
 /**
- * The type Kroxy deployment templates.
+ * The type Kroxylicious deployment templates.
  */
-public class KroxyDeploymentTemplates {
+public class KroxyliciousDeploymentTemplates {
 
     private static final Map<String, String> kroxyLabelSelector = Map.of("app", "kroxylicious");
     private static final String CONFIG_VOLUME_NAME = "config-volume";
 
     /**
-     * Default kroxy deployment deployment builder.
+     * Default kroxylicious deployment deployment builder.
      *
      * @param namespaceName the namespace name
      * @param containerImage the container image

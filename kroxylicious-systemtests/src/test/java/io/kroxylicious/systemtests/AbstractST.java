@@ -97,8 +97,12 @@ public class AbstractST {
      */
     @AfterAll
     static void teardown(TestInfo testInfo) throws IOException {
-        strimziOperator.delete();
-        certManager.delete();
+        if (strimziOperator != null) {
+            strimziOperator.delete();
+        }
+        if (certManager != null) {
+            certManager.delete();
+        }
         NamespaceUtils.deleteNamespaceWithWait(Constants.KROXY_DEFAULT_NAMESPACE);
         NamespaceUtils.deleteNamespaceWithWait(Constants.CERT_MANAGER_NAMESPACE);
         LOGGER.info(String.join("", Collections.nCopies(76, "#")));

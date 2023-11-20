@@ -9,9 +9,9 @@ package io.kroxylicious.systemtests.steps;
 import io.kroxylicious.systemtests.utils.KafkaUtils;
 
 /**
- * The type Kroxy steps.
+ * The type Kroxylicious steps.
  */
-public class KroxySteps {
+public class KroxyliciousSteps {
 
     /**
      * Produce messages.
