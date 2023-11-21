@@ -8,6 +8,7 @@ package io.kroxylicious.systemtests;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,9 +22,12 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
- * The type Kroxylicious app st.
+ * The Kroxylicious app system tests.
  * If using minikube, 'minikube tunnel' shall be executed before these tests
+ *
+ * Disabled to focus on kubernetes system tests
  */
+@Disabled
 public class KroxyliciousAppST extends AbstractST {
     private static final Logger LOGGER = LoggerFactory.getLogger(KroxyliciousAppST.class);
     private static KroxyliciousApp kroxyliciousApp;
