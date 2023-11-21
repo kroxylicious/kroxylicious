@@ -121,30 +121,6 @@
                     </execution>
                 </executions>
             </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-enforcer-plugin</artifactId>
-                <dependencies>
-                    <dependency>
-                        <groupId>io.kroxylicious</groupId>
-                        <artifactId>kroxylicious-enforcer-rules</artifactId>
-                        <version>${project.version}</version>
-                    </dependency>
-                </dependencies>
-                <executions>
-                    <execution>
-                        <id>enforce-systemtest-isolation</id>
-                        <configuration>
-                            <rules>
-                                <systemTestIsolationRule implementation="io.kroxylicious.enforcer.rules.SystemTestIsolationRule"/>
-                            </rules>
-                        </configuration>
-                        <goals>
-                            <goal>enforce</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
         </plugins>
         <resources>
             <resource>
