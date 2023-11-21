@@ -13,4 +13,8 @@ public class UnknownKeyException extends KmsException {
     public UnknownKeyException() {
         super();
     }
+
+    public UnknownKeyException(String message) {
+        super(message);
+    }
 }

@@ -210,6 +210,14 @@
                     <groupId>io.kroxylicious</groupId>
                     <artifactId>kroxylicious-simple-transform</artifactId>
                 </dependency>
+                <dependency>
+                    <groupId>io.kroxylicious</groupId>
+                    <artifactId>kroxylicious-encryption</artifactId>
+                </dependency>
+                <dependency>
+                    <groupId>io.kroxylicious</groupId>
+                    <artifactId>kroxylicious-kms-provider-hashicorp-vault</artifactId>
+                </dependency>
             </dependencies>
         </profile>
     </profiles>

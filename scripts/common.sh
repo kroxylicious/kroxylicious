@@ -30,6 +30,8 @@ MINIKUBE=$(resolveCommand minikube)
 export MINIKUBE
 KUSTOMIZE=$(resolveCommand kustomize)
 export KUSTOMIZE
+HELM=$(resolveCommand helm)
+export HELM
 
 if [ "$OS" = 'Darwin' ]; then
   # for MacOS
