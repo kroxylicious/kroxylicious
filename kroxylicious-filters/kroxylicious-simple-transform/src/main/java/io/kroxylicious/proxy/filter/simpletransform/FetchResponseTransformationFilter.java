@@ -6,7 +6,6 @@
 
 package io.kroxylicious.proxy.filter.simpletransform;
 
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletionStage;
@@ -24,18 +23,21 @@ import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.record.MemoryRecordsBuilder;
 import org.apache.kafka.common.record.MutableRecordBatch;
 import org.apache.kafka.common.record.Record;
+import org.apache.kafka.common.record.RecordBatch;
 import org.apache.kafka.common.record.TimestampType;
+import org.apache.kafka.common.utils.ByteBufferOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.filter.FetchResponseFilter;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
-import io.kroxylicious.proxy.internal.util.MemoryRecordsHelper;
 
 /**
  * A filter for modifying the key/value/header/topic of {@link ApiKeys#FETCH} responses.
- */
+ * <p>
+ * <strong>Not intended to production use.</strong>
+ * </p> */
 public class FetchResponseTransformationFilter implements FetchResponseFilter {
 
     // Version 12 was the first version that uses topic ids.
@@ -94,12 +96,14 @@ public class FetchResponseTransformationFilter implements FetchResponseFilter {
         for (FetchResponseData.FetchableTopicResponse topicData : responseData.responses()) {
             for (FetchResponseData.PartitionData partitionData : topicData.partitions()) {
                 MemoryRecords records = (MemoryRecords) partitionData.records();
-                MemoryRecordsBuilder newRecords = MemoryRecordsHelper.builder(context.createByteBufferOutputStream(records.sizeInBytes()), CompressionType.NONE,
-                        TimestampType.CREATE_TIME, 0);
+                ByteBufferOutputStream stream = context.createByteBufferOutputStream(records.sizeInBytes());
+                var newRecords = new MemoryRecordsBuilder(stream, RecordBatch.CURRENT_MAGIC_VALUE, CompressionType.NONE, TimestampType.CREATE_TIME, 0,
+                        System.currentTimeMillis(), RecordBatch.NO_PRODUCER_ID, RecordBatch.NO_PRODUCER_EPOCH, RecordBatch.NO_SEQUENCE, false, false,
+                        RecordBatch.NO_PARTITION_LEADER_EPOCH,
+                        stream.remaining());
 
                 for (MutableRecordBatch batch : records.batches()) {
-                    for (Iterator<Record> batchRecords = batch.iterator(); batchRecords.hasNext();) {
-                        Record batchRecord = batchRecords.next();
+                    for (Record batchRecord : batch) {
                         newRecords.append(batchRecord.timestamp(), batchRecord.key(), valueTransformation.transform(topicData.topic(), batchRecord.value()));
                     }
                 }

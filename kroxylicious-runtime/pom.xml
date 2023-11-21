@@ -289,6 +289,10 @@
                     <groupId>io.kroxylicious</groupId>
                     <artifactId>kroxylicious-record-validation</artifactId>
                 </dependency>
+                <dependency>
+                    <groupId>io.kroxylicious</groupId>
+                    <artifactId>kroxylicious-simple-transform</artifactId>
+                </dependency>
             </dependencies>
         </profile>
         <profile>
