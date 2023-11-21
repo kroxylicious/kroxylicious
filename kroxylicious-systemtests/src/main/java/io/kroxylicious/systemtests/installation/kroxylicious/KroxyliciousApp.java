@@ -8,12 +8,8 @@ package io.kroxylicious.systemtests.installation.kroxylicious;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.NetworkInterface;
-import java.net.SocketException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Iterator;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
@@ -90,33 +86,6 @@ public class KroxyliciousApp implements Runnable {
         catch (IOException e) {
             throw new IllegalStateException("unable to find kroxylicious-start.sh", e);
         }
-    }
-
-    /**
-     * Gets bootstrap.
-     *
-     * @return the bootstrap
-     */
-    public String getBootstrap() {
-        String clusterIP = null;
-        try {
-            var nis = NetworkInterface.getNetworkInterfaces();
-            for (Iterator<NetworkInterface> it = nis.asIterator(); it.hasNext();) {
-                var ni = it.next();
-                for (Iterator<InetAddress> iter = ni.getInetAddresses().asIterator(); iter.hasNext();) {
-                    var i = iter.next();
-                    if (i.getHostAddress().startsWith("10")) {
-                        clusterIP = i.getHostAddress();
-                    }
-                }
-            }
-        }
-        catch (SocketException e) {
-            throw new IllegalStateException("unable to determine bootstrap address", e);
-        }
-        String bootstrap = clusterIP + ":9292";
-        LOGGER.debug("Kroxylicious bootstrap: {}", bootstrap);
-        return bootstrap;
     }
 
     /**
