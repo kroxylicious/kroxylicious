@@ -25,7 +25,6 @@ import org.apache.kafka.common.record.MutableRecordBatch;
 import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.record.RecordBatch;
 import org.apache.kafka.common.record.TimestampType;
-import org.apache.kafka.common.utils.ByteBufferOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -95,20 +94,21 @@ public class FetchResponseTransformationFilter implements FetchResponseFilter {
     private void applyTransformation(FilterContext context, FetchResponseData responseData) {
         for (FetchResponseData.FetchableTopicResponse topicData : responseData.responses()) {
             for (FetchResponseData.PartitionData partitionData : topicData.partitions()) {
-                MemoryRecords records = (MemoryRecords) partitionData.records();
-                ByteBufferOutputStream stream = context.createByteBufferOutputStream(records.sizeInBytes());
-                var newRecords = new MemoryRecordsBuilder(stream, RecordBatch.CURRENT_MAGIC_VALUE, CompressionType.NONE, TimestampType.CREATE_TIME, 0,
+                var records = (MemoryRecords) partitionData.records();
+                var stream = context.createByteBufferOutputStream(records.sizeInBytes());
+                try (var newRecords = new MemoryRecordsBuilder(stream, RecordBatch.CURRENT_MAGIC_VALUE, CompressionType.NONE, TimestampType.CREATE_TIME, 0,
                         System.currentTimeMillis(), RecordBatch.NO_PRODUCER_ID, RecordBatch.NO_PRODUCER_EPOCH, RecordBatch.NO_SEQUENCE, false, false,
                         RecordBatch.NO_PARTITION_LEADER_EPOCH,
-                        stream.remaining());
+                        stream.remaining())) {
 
-                for (MutableRecordBatch batch : records.batches()) {
-                    for (Record batchRecord : batch) {
-                        newRecords.append(batchRecord.timestamp(), batchRecord.key(), valueTransformation.transform(topicData.topic(), batchRecord.value()));
+                    for (MutableRecordBatch batch : records.batches()) {
+                        for (Record batchRecord : batch) {
+                            newRecords.append(batchRecord.timestamp(), batchRecord.key(), valueTransformation.transform(topicData.topic(), batchRecord.value()));
+                        }
                     }
-                }
 
-                partitionData.setRecords(newRecords.build());
+                    partitionData.setRecords(newRecords.build());
+                }
             }
         }
     }
