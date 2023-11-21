@@ -14,17 +14,17 @@ import org.slf4j.LoggerFactory;
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
-import io.kroxylicious.systemtests.templates.kroxylicious.KroxyConfigTemplates;
-import io.kroxylicious.systemtests.templates.kroxylicious.KroxyDeploymentTemplates;
-import io.kroxylicious.systemtests.templates.kroxylicious.KroxyServiceTemplates;
+import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousConfigTemplates;
+import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousDeploymentTemplates;
+import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousServiceTemplates;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 
 /**
- * The type Kroxy.
+ * The type Kroxylicious.
  */
-public class KroxyliciousService {
-    private static final Logger LOGGER = LoggerFactory.getLogger(KroxyliciousService.class);
+public class Kroxylicious {
+    private static final Logger LOGGER = LoggerFactory.getLogger(Kroxylicious.class);
     private final String deploymentNamespace;
     private final String containerImage;
     private final ResourceManager resourceManager = ResourceManager.getInstance();
@@ -34,7 +34,7 @@ public class KroxyliciousService {
      *
      * @param deploymentNamespace the deployment namespace
      */
-    public KroxyliciousService(String deploymentNamespace) {
+    public Kroxylicious(String deploymentNamespace) {
         this.deploymentNamespace = deploymentNamespace;
         String kroxyUrl = Environment.KROXY_IMAGE_REPO + (Environment.KROXY_IMAGE_REPO.endsWith(":") ? "" : ":");
         if (!Objects.equals(Environment.QUAY_ORG, Environment.QUAY_ORG_DEFAULT)) {
@@ -49,10 +49,10 @@ public class KroxyliciousService {
      * @param replicas the replicas
      */
     public void deployPortPerBrokerPlain(String clusterName, int replicas) {
-        LOGGER.info("Deploy Kroxy in {} namespace", deploymentNamespace);
-        resourceManager.createResourceWithWait(KroxyConfigTemplates.defaultKroxyConfig(clusterName, deploymentNamespace).build());
-        resourceManager.createResourceWithWait(KroxyDeploymentTemplates.defaultKroxyDeployment(deploymentNamespace, containerImage, replicas).build());
-        resourceManager.createResourceWithoutWait(KroxyServiceTemplates.defaultKroxyService(deploymentNamespace).build());
+        LOGGER.info("Deploy Kroxylicious in {} namespace", deploymentNamespace);
+        resourceManager.createResourceWithWait(KroxyliciousConfigTemplates.defaultKroxyConfig(clusterName, deploymentNamespace).build());
+        resourceManager.createResourceWithWait(KroxyliciousDeploymentTemplates.defaultKroxyDeployment(deploymentNamespace, containerImage, replicas).build());
+        resourceManager.createResourceWithoutWait(KroxyliciousServiceTemplates.defaultKroxyService(deploymentNamespace).build());
     }
 
     /**

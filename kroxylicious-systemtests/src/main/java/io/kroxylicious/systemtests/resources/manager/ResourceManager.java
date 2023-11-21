@@ -23,9 +23,9 @@ import io.kroxylicious.systemtests.enums.ConditionStatus;
 import io.kroxylicious.systemtests.resources.ResourceCondition;
 import io.kroxylicious.systemtests.resources.ResourceOperation;
 import io.kroxylicious.systemtests.resources.ResourceType;
-import io.kroxylicious.systemtests.resources.kroxylicious.KroxyConfigResource;
-import io.kroxylicious.systemtests.resources.kroxylicious.KroxyDeploymentResource;
-import io.kroxylicious.systemtests.resources.kroxylicious.KroxyServiceResource;
+import io.kroxylicious.systemtests.resources.kroxylicious.KroxyliciousConfigResource;
+import io.kroxylicious.systemtests.resources.kroxylicious.KroxyliciousDeploymentResource;
+import io.kroxylicious.systemtests.resources.kroxylicious.KroxyliciousServiceResource;
 import io.kroxylicious.systemtests.resources.strimzi.KafkaNodePoolResource;
 import io.kroxylicious.systemtests.resources.strimzi.KafkaResource;
 import io.kroxylicious.systemtests.resources.strimzi.KafkaTopicResource;
@@ -61,9 +61,9 @@ public class ResourceManager {
             new KafkaTopicResource(),
             new KafkaUserResource(),
             new KafkaNodePoolResource(),
-            new KroxyServiceResource(),
-            new KroxyConfigResource(),
-            new KroxyDeploymentResource()
+            new KroxyliciousServiceResource(),
+            new KroxyliciousConfigResource(),
+            new KroxyliciousDeploymentResource()
     };
 
     /**

@@ -11,12 +11,12 @@ import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.kroxylicious.systemtests.Constants;
 
 /**
- * The type Kroxy config templates.
+ * The type Kroxylicous config templates.
  */
-public class KroxyConfigTemplates {
+public class KroxyliciousConfigTemplates {
 
     /**
-     * Default kroxy config config map builder.
+     * Default kroxylicious config map builder.
      *
      * @param clusterName the cluster name
      * @param namespaceName the namespace name
@@ -34,10 +34,10 @@ public class KroxyConfigTemplates {
     }
 
     /**
-     * Gets default kroxy config map.
+     * Gets default kroxylicious config map.
      *
      * @param clusterName the cluster name
-     * @return the default kroxy config map
+     * @return the default kroxylicious config map
      */
     public static String getDefaultKroxyConfigMap(String clusterName) {
         return """
@@ -62,10 +62,10 @@ public class KroxyConfigTemplates {
     }
 
     /**
-     * Gets default external kroxy config map.
+     * Gets default external kroxylicious config map.
      *
      * @param clusterExternalIP the cluster external ip
-     * @return the default external kroxy config map
+     * @return the default external kroxylicious config map
      */
     public static String getDefaultExternalKroxyConfigMap(String clusterExternalIP) {
         return """

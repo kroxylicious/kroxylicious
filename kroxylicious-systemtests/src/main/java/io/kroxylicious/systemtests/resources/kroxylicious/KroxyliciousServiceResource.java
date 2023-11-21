@@ -21,9 +21,9 @@ import io.kroxylicious.systemtests.resources.ResourceType;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 
 /**
- * The type Kroxy service resource.
+ * The type Kroxylicious service resource.
  */
-public class KroxyServiceResource implements ResourceType<Service> {
+public class KroxyliciousServiceResource implements ResourceType<Service> {
     @Override
     public String getKind() {
         return Constants.SERVICE_KIND;
@@ -58,7 +58,7 @@ public class KroxyServiceResource implements ResourceType<Service> {
     }
 
     /**
-     * Kroxy service client mixed operation.
+     * Kroxylicious service client mixed operation.
      *
      * @return the mixed operation
      */

@@ -176,7 +176,6 @@
                             <descriptors>
                                 <descriptor>src/assembly/binary-distribution.xml</descriptor>
                             </descriptors>
-                            <tarLongFileMode>posix</tarLongFileMode>
                         </configuration>
                         <executions>
                             <execution>

@@ -21,8 +21,8 @@ public class Environment {
      */
     private static final String KAFKA_VERSION_ENV = "KAFKA_VERSION";
     private static final String QUAY_ORG_ENV = "QUAY_ORG";
-    private static final String KROXY_VERSION_ENV = "KROXY_VERSION";
-    private static final String KROXY_IMAGE_REPO_ENV = "KROXY_IMAGE_REPO";
+    private static final String KROXY_VERSION_ENV = "KROXYLICIOUS_VERSION";
+    private static final String KROXY_IMAGE_REPO_ENV = "KROXYLICIOUS_IMAGE_REPO";
     private static final String STRIMZI_URL_ENV = "STRIMZI_URL";
 
     /**

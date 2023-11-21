@@ -22,7 +22,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.systemtests.executor.Exec;
-import io.kroxylicious.systemtests.templates.kroxylicious.KroxyConfigTemplates;
+import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousConfigTemplates;
 import io.kroxylicious.systemtests.utils.TestUtils;
 
 import static org.awaitility.Awaitility.await;
@@ -68,7 +68,7 @@ public class KroxyliciousApp implements Runnable {
     private Path generateKroxyliciousConfiguration() {
         try {
             File configFile = Files.createTempFile("config", ".yaml", TestUtils.getDefaultPosixFilePermissions()).toFile();
-            Files.writeString(configFile.toPath(), KroxyConfigTemplates.getDefaultExternalKroxyConfigMap(clusterIp));
+            Files.writeString(configFile.toPath(), KroxyliciousConfigTemplates.getDefaultExternalKroxyConfigMap(clusterIp));
             configFile.deleteOnExit();
             return configFile.toPath();
         }
@@ -125,10 +125,14 @@ public class KroxyliciousApp implements Runnable {
      * @return the boolean
      */
     public boolean isRunning() {
-        if (thread.isAlive()) {
-            await().atMost(5, TimeUnit.SECONDS).until(() -> ProcessHandle.of(pid).isPresent());
-        }
         return thread.isAlive() && ProcessHandle.of(pid).isPresent();
+    }
+
+    /**
+     * Wait for kroxylicious process.
+     */
+    public void waitForKroxyliciousProcess() {
+        await().atMost(5, TimeUnit.SECONDS).until(() -> ProcessHandle.of(pid).isPresent());
     }
 
     /**
