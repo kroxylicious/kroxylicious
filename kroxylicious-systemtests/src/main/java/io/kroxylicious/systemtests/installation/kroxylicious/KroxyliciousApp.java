@@ -132,9 +132,7 @@ public class KroxyliciousApp implements Runnable {
      * Wait for kroxylicious process.
      */
     public void waitForKroxyliciousProcess() {
-        if (thread.isAlive()) {
-            await().atMost(5, TimeUnit.SECONDS).until(() -> ProcessHandle.of(pid).isPresent());
-        }
+        await().atMost(5, TimeUnit.SECONDS).until(() -> ProcessHandle.of(pid).isPresent());
     }
 
     /**
