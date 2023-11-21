@@ -37,23 +37,23 @@
         <freemarker.version>2.3.32</freemarker.version>
         <guava.version>32.1.3-jre</guava.version>
         <hamcrest.version>2.2</hamcrest.version>
-        <jackson.version>2.15.3</jackson.version>
-        <junit.jupiter.version>5.10.1</junit.jupiter.version>
+        <jackson.version>2.16.0</jackson.version>
+        <junit.version>5.10.1</junit.version>
         <kafka.version>3.6.0</kafka.version>
         <kroxy.extension.version>0.6.0</kroxy.extension.version>
         <log4j.version>2.21.1</log4j.version>
         <picocli.version>4.7.5</picocli.version>
-        <netty.version>4.1.100.Final</netty.version>
-        <netty.io_uring.version>0.0.23.Final</netty.io_uring.version>
+        <netty.version>4.1.101.Final</netty.version>
+        <netty.io_uring.version>0.0.24.Final</netty.io_uring.version>
         <netty.epoll.classifier>linux-x86_64</netty.epoll.classifier>
         <netty.io_uring.classifier>linux-x86_64</netty.io_uring.classifier>
         <netty.kqueue.classifier>osx-x86_64</netty.kqueue.classifier>
         <assertj-core.version>3.24.2</assertj-core.version>
         <mockito.version>5.7.0</mockito.version>
-        <micrometer.version>1.11.5</micrometer.version>
+        <micrometer.version>1.12.0</micrometer.version>
         <slf4j.version>2.0.9</slf4j.version>
         <sundr-builder-annotations.version>0.101.3</sundr-builder-annotations.version>
-        <spotbugs-annotations.version>4.8.0</spotbugs-annotations.version>
+        <spotbugs-annotations.version>4.8.1</spotbugs-annotations.version>
         <zjsonpatch.version>0.4.14</zjsonpatch.version>
         <moby-names-generator.version>20.10.1-r0</moby-names-generator.version>
         <jacoco-maven-plugin.version>0.8.10</jacoco-maven-plugin.version>
@@ -360,7 +360,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-javadoc-plugin</artifactId>
-                    <version>3.6.0</version>
+                    <version>3.6.2</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -480,7 +480,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-failsafe-plugin</artifactId>
-                    <version>3.2.1</version>
+                    <version>3.2.2</version>
                     <configuration>
                         <skipTests>${skipITs}</skipTests>
                         <failIfNoTests>false</failIfNoTests>
@@ -499,7 +499,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-plugin-plugin</artifactId>
-                    <version>3.10.1</version>
+                    <version>3.10.2</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -517,7 +517,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-surefire-plugin</artifactId>
-                    <version>3.2.1</version>
+                    <version>3.2.2</version>
                     <configuration>
                         <skipTests>${skipUTs}</skipTests>
                         <failIfNoTests>false</failIfNoTests>

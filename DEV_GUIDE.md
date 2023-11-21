@@ -180,7 +180,7 @@ To change the container engine to podman set `CONTAINER_ENGINE=podman`
 ### Intellij
 
 The project requires JDK-21 to build and run the `integrationtests` module and the IDEA project is configured to build against an SDK
-named `temurin-21`. A suggested way to install this is with [skdman](https://sdkman.io/) using `sdk install java 21-tem`.
+named `temurin-21`. A suggested way to install this is with [sdkman](https://sdkman.io/) using `sdk install java 21-tem`.
 
 Run `mvn clean install -DskipTests` to install the project into your local maven repository (in `~/.m2`). This is necessary because
 IDEA fails to synchronise the project if the kroxylicious maven plugin isn't available to maven.
