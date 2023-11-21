@@ -329,7 +329,8 @@ First of all, the code must be compiled and the distribution artifacts created:
 mvn clean install -Dquick -Pdist
 ```
 
-Upload your package to the `kroxylicious` repository in the container registry:
+If the tests are going to be run against local changes, 
+upload your package to the `kroxylicious` repository in the container registry:
 
 ```shell
 REGISTRY_DESTINATION=<container_registry>/<myorg>/kroxylicious ./scripts/deploy-image.sh 
@@ -353,6 +354,8 @@ mvn clean test
 ```shell
 mvn clean verify -DskiptITs=true -DskiptUTs=true -DskipSTs=false
 ```
+
+**NOTE**: Don't forget to use the `KROXYLICIOUS_IMAGE_REPO` variable pointing to the kroxylicious image into your container registry.
 
 ## Rendering documentation
 

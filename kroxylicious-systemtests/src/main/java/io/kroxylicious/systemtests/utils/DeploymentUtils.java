@@ -25,6 +25,7 @@ import io.kroxylicious.systemtests.Constants;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.cmdKubeClient;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
+import static org.awaitility.Awaitility.await;
 
 /**
  * The type Deployment utils.
@@ -116,14 +117,18 @@ public class DeploymentUtils {
                 .endSpec()
                 .build();
         kubeClient().getClient().services().inNamespace(namespace).resource(service).create();
-        boolean isWorking = false;
+        boolean isWorking;
         try {
-            isWorking = TestUtils.waitFor("Waiting for the ingress IP to be available", 500, 10000,
-                    () -> !kubeClient().getService(namespace, TEST_LOAD_BALANCER_NAME).getStatus().getLoadBalancer().getIngress().isEmpty()
-                            && kubeClient().getService(namespace, TEST_LOAD_BALANCER_NAME).getStatus().getLoadBalancer().getIngress().get(0).getIp() != null) > 0;
+            LOGGER.debug("Waiting for the ingress IP to be available...");
+            await().atMost(Duration.ofSeconds(10))
+                    .until(() -> !kubeClient().getService(namespace, TEST_LOAD_BALANCER_NAME).getStatus().getLoadBalancer().getIngress().isEmpty()
+                            && kubeClient().getService(namespace, TEST_LOAD_BALANCER_NAME).getStatus().getLoadBalancer().getIngress().get(0).getIp() != null);
+            isWorking = true;
         }
         catch (Exception e) {
-            LOGGER.trace(e.getMessage());
+            isWorking = false;
+            LOGGER.warn("The ingress IP is not available!");
+            LOGGER.warn(e.getMessage());
         }
         kubeClient().getClient().apps().deployments().inNamespace(namespace).withName(TEST_LOAD_BALANCER_NAME).delete();
         return isWorking;
