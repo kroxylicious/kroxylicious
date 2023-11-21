@@ -9,7 +9,7 @@ FROM registry.access.redhat.com/ubi9/openjdk-17:1.15 AS builder
 USER root
 WORKDIR /opt/kroxylicious
 COPY . .
-RUN ./mvnw -B clean verify -Pdist,withAdditionalFilters -Dquick -pl :kroxylicious-bom,:kroxylicious-app,:kroxylicious-multitenant,:kroxylicious-record-validation,:kroxylicious-simple-transform -am
+RUN ./mvnw -B clean verify -Pdist,withAdditionalFilters -Dquick -am
 USER 185
 FROM registry.access.redhat.com/ubi9/ubi-minimal:9.2
 
