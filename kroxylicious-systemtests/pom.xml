@@ -94,38 +94,31 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
-                    <skipTests>${skipSTs}</skipTests>
-                    <includes>
-                        <include>**/ST*.java</include>
-                        <include>**/*ST.java</include>
-                    </includes>
+                    <excludes>
+                        <exclude>**/ST*.java</exclude>
+                        <exclude>**/*ST.java</exclude>
+                    </excludes>
                 </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>${maven.compiler.version}</version>
                 <executions>
                     <execution>
-                        <id>default-compile</id>
-                        <phase>compile</phase>
+                        <id>integration-test</id>
                         <goals>
-                            <goal>compile</goal>
+                            <goal>test</goal>
                         </goals>
+                        <phase>integration-test</phase>
                         <configuration>
-                            <useIncrementalCompilation>false</useIncrementalCompilation>
-                            <compilerArgs combine.self="override">
-                                <arg>-Xlint:deprecation</arg>
-                            </compilerArgs>
+                            <skipTests>${skipSTs}</skipTests>
+                            <excludes>
+                                <exclude>none</exclude>
+                            </excludes>
+                            <includes>
+                                <include>**/ST*.java</include>
+                                <include>**/*ST.java</include>
+                            </includes>
                         </configuration>
                     </execution>
                 </executions>
             </plugin>
         </plugins>
-        <resources>
-            <resource>
-                <directory>src/main/resources</directory>
-            </resource>
-        </resources>
     </build>
 </project>

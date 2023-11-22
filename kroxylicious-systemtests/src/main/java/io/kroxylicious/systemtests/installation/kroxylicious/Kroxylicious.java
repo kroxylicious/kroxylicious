@@ -6,8 +6,6 @@
 
 package io.kroxylicious.systemtests.installation.kroxylicious;
 
-import java.util.Objects;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,9 +35,6 @@ public class Kroxylicious {
     public Kroxylicious(String deploymentNamespace) {
         this.deploymentNamespace = deploymentNamespace;
         String kroxyUrl = Environment.KROXY_IMAGE_REPO + (Environment.KROXY_IMAGE_REPO.endsWith(":") ? "" : ":");
-        if (!Objects.equals(Environment.QUAY_ORG, Environment.QUAY_ORG_DEFAULT)) {
-            kroxyUrl = "quay.io/" + Environment.QUAY_ORG + "/kroxylicious:";
-        }
         this.containerImage = kroxyUrl + Environment.KROXY_VERSION;
     }
 

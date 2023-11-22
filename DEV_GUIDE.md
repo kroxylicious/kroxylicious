@@ -316,10 +316,9 @@ has been applied ineffectively.
      Create a public accessible repository within the registry named `kroxylicious`.
 
 ### Environment variables
-* `QUAY_ORG`: in case quay is used and the default image `kroxylicious-developer` is not used, the quay organisation must be indicated here.
-* `KROXYLICIOUS_IMAGE_REPO`: url to the image of kroxylicious to be used. Default value: `quay.io/kroxylicious/kroxylicious-developer-0.4.0-SNAPSHOT`
-* `KAFKA_VERSION`: kafka version to be used. Default value: `3.6.0`
+* `KROXYLICIOUS_IMAGE_REPO`: url to the image of kroxylicious to be used. Default value: `quay.io/kroxylicious/kroxylicious-developer`
 * `KROXYLICIOUS_VERSION`: version of kroxylicious to be used. Default value: `0.4.0-SNAPSHOT`
+* `KAFKA_VERSION`: kafka version to be used. Default value: `3.6.0`
 * `STRIMZI_URL`: url where to download strimzi. Default value: `khttps://strimzi.io/install/latest?namespace=kafka`
 
 ### Launch system tests
