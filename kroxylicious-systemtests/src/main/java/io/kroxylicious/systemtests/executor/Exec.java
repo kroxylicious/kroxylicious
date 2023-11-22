@@ -10,6 +10,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.UncheckedIOException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -17,9 +18,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Scanner;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -471,17 +470,11 @@ public class Exec {
          */
         public Future<String> read() {
             return CompletableFuture.supplyAsync(() -> {
-                try (Scanner scanner = new Scanner(is, StandardCharsets.UTF_8)) {
-                    while (scanner.hasNextLine()) {
-                        data.append(scanner.nextLine());
-                        if (appendLineSeparator) {
-                            data.append(System.getProperty("line.separator"));
-                        }
-                    }
-                    return data.toString();
+                try {
+                    return new String(is.readAllBytes(), StandardCharsets.UTF_8);
                 }
-                catch (Exception e) {
-                    throw new CompletionException(e);
+                catch (IOException e) {
+                    throw new UncheckedIOException(e);
                 }
             }, runnable -> new Thread(runnable).start());
         }

@@ -51,14 +51,6 @@ public class KroxyliciousApp implements Runnable {
         final Path startScript = resolveStartScript(targetPath);
         final Path configFile = generateKroxyliciousConfiguration();
         pid = Exec.execWithoutWait(startScript.toAbsolutePath().toString(), "-c", configFile.toAbsolutePath().toString());
-        while (!thread.isInterrupted()) {
-            try {
-                Thread.sleep(1000);
-            }
-            catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-        }
     }
 
     private Path generateKroxyliciousConfiguration() {
@@ -89,12 +81,12 @@ public class KroxyliciousApp implements Runnable {
     }
 
     /**
-     * Is running boolean.
+     * Check if Kroxylicious process is running.
      *
      * @return the boolean
      */
     public boolean isRunning() {
-        return thread.isAlive() && ProcessHandle.of(pid).isPresent();
+        return ProcessHandle.of(pid).isPresent();
     }
 
     /**
