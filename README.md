@@ -1,7 +1,6 @@
 # Kroxylicious
 
-Kroxylicious is an exploration for building a Kafka protocol proxy,
-addressing use cases such as multi-tenancy, schema validation, or encryption.
+Kroxylicious is a Kafka protocol proxy, addressing use cases such as encryption, multi-tenancy and schema validation.
 
 <!-- TOC -->
 * [Kroxylicious](#kroxylicious)

@@ -39,7 +39,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.fail;
 
 @ExtendWith(KafkaClusterExtension.class)
-class SampleFilterIntegrationTest {
+class SampleFilterIT {
 
     // Configure filters here
     private static final String FIND_CONFIG_FIELD = "findValue";
