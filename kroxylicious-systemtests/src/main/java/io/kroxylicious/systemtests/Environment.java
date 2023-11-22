@@ -28,10 +28,6 @@ public class Environment {
      * The kafka version default value
      */
     public static final String KAFKA_VERSION_DEFAULT = "3.6.0";
-    /**
-     * The quay org default value
-     */
-    public static final String QUAY_ORG_DEFAULT = "kroxylicious";
 
     /**
      * The kroxy version default value
