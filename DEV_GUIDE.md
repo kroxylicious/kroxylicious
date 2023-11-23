@@ -332,7 +332,7 @@ If the tests are going to be run against local changes,
 upload your package to the `kroxylicious` repository in the container registry:
 
 ```shell
-REGISTRY_DESTINATION=<container_registry>/<myorg>/kroxylicious ./scripts/deploy-image.sh 
+PUSH_IMAGE=true REGISTRY_DESTINATION=<container_registry>/<myorg>/kroxylicious ./scripts/deploy-image.sh 
 ```
 
 Start minikube:
@@ -345,16 +345,14 @@ Then, you can run them from system test or root folder:
 * Run the system tests from [kroxylicious-systemtests](kroxylicious-systemtests) folder:
 
 ```shell
-mvn clean test
+KROXYLICIOUS_IMAGE_REPO=<container_registry>/<myorg>/kroxylicious mvn clean integration-test
 ```
 
 * Run them from root folder of kroxylicious project:
 
 ```shell
-mvn clean verify -DskiptITs=true -DskiptUTs=true -DskipSTs=false
+KROXYLICIOUS_IMAGE_REPO=<container_registry>/<myorg>/kroxylicious mvn clean verify -DskiptITs=true -DskiptUTs=true -DskipSTs=false
 ```
-
-**NOTE**: Don't forget to use the `KROXYLICIOUS_IMAGE_REPO` variable pointing to the kroxylicious image into your container registry.
 
 ## Rendering documentation
 
