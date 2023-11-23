@@ -68,6 +68,7 @@ The running of the tests can be controlled with the following Maven properties:
 |--------------------|-------------------------------------------------------------------------------------------|
 | `-DskipUTs=true`   | skip unit tests                                                                           |
 | `-DskipITs=true`   | skip integration tests                                                                    |
+| `-DskipSTs=true`   | skip system tests                                                                         |
 | `-DskipTests=true` | skip all tests                                                                            |
 | `-Pdebug`          | enables logging so you can see what the Kafka clients, Proxy and in VM brokers are up to. |
 
@@ -308,6 +309,50 @@ You'll see an API response.  If the service_timeout change is effective, the soc
 will continue for 3 minutes.  If `socat` terminates after about 10 seconds, the workaround
 has been applied ineffectively.
 
+## Running system tests locally
+### Prerequisites
+* minikube
+* User must have access to a container registry such as [quay.io](https://quay.io) or [docker.io](https://docker.io).
+     Create a public accessible repository within the registry named `kroxylicious`.
+
+### Environment variables
+* `KROXYLICIOUS_IMAGE_REPO`: url to the image of kroxylicious to be used. Default value: `quay.io/kroxylicious/kroxylicious-developer`
+* `KROXYLICIOUS_VERSION`: version of kroxylicious to be used. Default value: `0.4.0-SNAPSHOT`
+* `KAFKA_VERSION`: kafka version to be used. Default value: `3.6.0`
+* `STRIMZI_URL`: url where to download strimzi. Default value: `khttps://strimzi.io/install/latest?namespace=kafka`
+
+### Launch system tests
+First of all, the code must be compiled and the distribution artifacts created:
+
+```shell
+mvn clean install -Dquick -Pdist
+```
+
+If the tests are going to be run against local changes, 
+upload your package to the `kroxylicious` repository in the container registry:
+
+```shell
+PUSH_IMAGE=true REGISTRY_DESTINATION=<container_registry>/<myorg>/kroxylicious ./scripts/deploy-image.sh 
+```
+
+Start minikube:
+```shell
+minikube start
+```
+
+Then, you can run them from system test or root folder:
+
+* Run the system tests from [kroxylicious-systemtests](kroxylicious-systemtests) folder:
+
+```shell
+KROXYLICIOUS_IMAGE_REPO=<container_registry>/<myorg>/kroxylicious mvn clean integration-test
+```
+
+* Run them from root folder of kroxylicious project:
+
+```shell
+KROXYLICIOUS_IMAGE_REPO=<container_registry>/<myorg>/kroxylicious mvn clean verify -DskiptITs=true -DskiptUTs=true -DskipSTs=false
+```
 
 ## Rendering documentation
 

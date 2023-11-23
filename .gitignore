@@ -74,6 +74,9 @@ out/
 # mpeltonen/sbt-idea plugin
 .idea_modules/
 
+ # Javadoc plugin
+.idea/**/intellij-javadocs-*.xml
+
 # JIRA plugin
 atlassian-ide-plugin.xml
 

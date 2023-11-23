@@ -1,0 +1,44 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  labels:
+    app: kafka-consumer-client
+    user-test-app: kafka-clients
+  name: kafka-consumer-client
+spec:
+  backoffLimit: 0
+  completions: 1
+  parallelism: 1
+  template:
+    metadata:
+      labels:
+        app: kafka-consumer-client
+        job-name: kafka-consumer-client
+        user-test-app: kafka-clients
+      name: kafka-consumer-client
+      namespace: %NAMESPACE%
+    spec:
+      containers:
+        - env:
+            - name: BOOTSTRAP_SERVERS
+              value: %BOOTSTRAP_SERVERS%
+            - name: TOPIC
+              value: %TOPIC_NAME%
+            - name: MESSAGE_COUNT
+              value: %MESSAGE_COUNT%
+            - name: GROUP_ID
+              value: my-group
+            - name: LOG_LEVEL
+              value: INFO
+            - name: CLIENT_TYPE
+              value: KafkaConsumer
+          image: quay.io/strimzi-test-clients/test-clients:latest-kafka-3.6.0
+          imagePullPolicy: IfNotPresent
+          name: kafka-consumer-client
+      restartPolicy: "Never"

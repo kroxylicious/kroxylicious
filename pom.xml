@@ -19,6 +19,8 @@
     <properties>
         <java.version>17</java.version>
         <java.test.version>17</java.test.version>
+        <maven.exec.version>3.1.0</maven.exec.version>
+        <maven.compiler.version>3.10.1</maven.compiler.version>
         <maven.compiler.parameters>true</maven.compiler.parameters>
         <maven.compiler.release>${java.version}</maven.compiler.release>
         <maven.compiler.testRelease>${java.test.version}</maven.compiler.testRelease>
@@ -28,6 +30,7 @@
         <skipTests>false</skipTests>
         <skipITs>${skipTests}</skipITs>
         <skipUTs>${skipTests}</skipUTs>
+        <skipSTs>${skipTests}</skipSTs>
 
         <impsort-maven-plugin.goal>sort</impsort-maven-plugin.goal>
 
@@ -54,9 +57,17 @@
         <zjsonpatch.version>0.4.14</zjsonpatch.version>
         <moby-names-generator.version>20.10.1-r0</moby-names-generator.version>
         <jacoco-maven-plugin.version>0.8.11</jacoco-maven-plugin.version>
-
+        
         <!-- Required for JDK 21 compatibility, remove dependency management for byte-buddy once assertj bumps to a newer bytebuddy -->
         <byte-buddy.version>1.14.9</byte-buddy.version>
+
+        <!-- Test dependencies -->
+        <strimzi.version>0.37.0</strimzi.version>
+        <fabric8.kubernetes.version>6.8.1</fabric8.kubernetes.version>
+        <enforcer.api.version>3.4.1</enforcer.api.version>
+        <maven.core.version>3.9.5</maven.core.version>
+        <awaitility.version>4.2.0</awaitility.version>
+        <commons.io.version>2.15.0</commons.io.version>
     </properties>
 
     <name>Parent POM</name>
@@ -255,6 +266,18 @@
                 <scope>import</scope>
             </dependency>
             <dependency>
+                <groupId>org.junit.jupiter</groupId>
+                <artifactId>junit-jupiter-engine</artifactId>
+                <scope>test</scope>
+                <version>${junit.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.junit.jupiter</groupId>
+                <artifactId>junit-jupiter-params</artifactId>
+                <scope>test</scope>
+                <version>${junit.version}</version>
+            </dependency>
+            <dependency>
                 <groupId>org.mockito</groupId>
                 <artifactId>mockito-bom</artifactId>
                 <version>${mockito.version}</version>
@@ -262,10 +285,52 @@
                 <scope>import</scope>
             </dependency>
             <dependency>
+                <groupId>io.fabric8</groupId>
+                <artifactId>kubernetes-client-api</artifactId>
+                <version>${fabric8.kubernetes.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.fabric8</groupId>
+                <artifactId>kubernetes-client</artifactId>
+                <scope>runtime</scope>
+                <version>${fabric8.kubernetes.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.fabric8</groupId>
+                <artifactId>kubernetes-httpclient-jdk</artifactId>
+                <scope>runtime</scope>
+                <version>${fabric8.kubernetes.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.strimzi</groupId>
+                <artifactId>api</artifactId>
+                <version>${strimzi.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.maven.enforcer</groupId>
+                <artifactId>enforcer-api</artifactId>
+                <version>${enforcer.api.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.maven</groupId>
+                <artifactId>maven-core</artifactId>
+                <version>${maven.core.version}</version>
+             </dependency>
+             <dependency>
                 <groupId>net.bytebuddy</groupId>
                 <artifactId>byte-buddy</artifactId>
                 <version>${byte-buddy.version}</version>
                 <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.awaitility</groupId>
+                <artifactId>awaitility</artifactId>
+                <version>${awaitility.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>commons-io</groupId>
+                <artifactId>commons-io</artifactId>
+                <version>${commons.io.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -283,6 +348,7 @@
         <module>kroxylicious-integration-tests</module>
         <module>kroxylicious-filters</module>
         <module>kroxylicious-sample</module>
+        <module>kroxylicious-systemtests</module>
     </modules>
 
 
@@ -416,6 +482,7 @@
                     <version>3.2.2</version>
                     <configuration>
                         <skipTests>${skipITs}</skipTests>
+                        <failIfNoTests>false</failIfNoTests>
                         <environmentVariables>
                             <!-- https://github.com/containers/podman/issues/7927#issuecomment-731525556 - required for testcontainers/podman support -->
                             <TESTCONTAINERS_RYUK_DISABLED>true</TESTCONTAINERS_RYUK_DISABLED>
@@ -475,6 +542,7 @@
                     <version>3.2.2</version>
                     <configuration>
                         <skipTests>${skipUTs}</skipTests>
+                        <failIfNoTests>false</failIfNoTests>
                         <runOrder>random</runOrder>
                         <statelessTestsetReporter
                                 implementation="org.apache.maven.plugin.surefire.extensions.junit5.JUnit5Xml30StatelessReporter">
@@ -598,6 +666,27 @@
                         <phase>initialize</phase>
                         <configuration>
                             <property>rootdir</property>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>enforce-systemtest-isolation</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <bannedDependencies>
+                                    <excludes>
+                                        <exclude>io.kroxylicious:kroxylicious-systemtests</exclude>
+                                    </excludes>
+                                </bannedDependencies>
+                            </rules>
                         </configuration>
                     </execution>
                 </executions>
@@ -749,6 +838,7 @@
             <properties>
                 <sonar.organization>kroxylicious</sonar.organization>
                 <sonar.host.url>https://sonarcloud.io</sonar.host.url>
+                <skipSTs>true</skipSTs>
                 <impsort-maven-plugin.goal>check</impsort-maven-plugin.goal>
             </properties>
             <build>
