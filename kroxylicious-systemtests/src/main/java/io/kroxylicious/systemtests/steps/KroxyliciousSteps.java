@@ -13,6 +13,8 @@ import io.kroxylicious.systemtests.utils.KafkaUtils;
  */
 public class KroxyliciousSteps {
 
+    private KroxyliciousSteps() {}
+
     /**
      * Produce messages.
      *

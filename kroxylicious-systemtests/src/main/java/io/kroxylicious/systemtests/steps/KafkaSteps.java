@@ -19,6 +19,8 @@ import static org.hamcrest.MatcherAssert.assertThat;
 public class KafkaSteps {
     private static final ResourceManager resourceManager = ResourceManager.getInstance();
 
+    private KafkaSteps(){}
+
     /**
      * Create topic.
      *
