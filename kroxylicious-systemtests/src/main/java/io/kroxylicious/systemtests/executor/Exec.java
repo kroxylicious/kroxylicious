@@ -54,13 +54,11 @@ public class Exec {
     private StreamGobbler stdOutReader;
     private StreamGobbler stdErrReader;
     private Path logPath;
-    private final boolean appendLineSeparator;
 
     /**
      * Instantiates a new Exec.
      */
     public Exec() {
-        this.appendLineSeparator = true;
     }
 
     /**
