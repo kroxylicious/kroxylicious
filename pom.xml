@@ -40,7 +40,7 @@
         <jackson.version>2.16.0</jackson.version>
         <junit.version>5.10.1</junit.version>
         <kafka.version>3.6.0</kafka.version>
-        <kroxy.extension.version>0.6.0</kroxy.extension.version>
+        <kroxy.extension.version>0.7.0</kroxy.extension.version>
         <log4j.version>2.21.1</log4j.version>
         <picocli.version>4.7.5</picocli.version>
         <netty.version>4.1.101.Final</netty.version>
@@ -332,6 +332,12 @@
                 <artifactId>commons-io</artifactId>
                 <version>${commons.io.version}</version>
             </dependency>
+            <dependency>
+                <groupId>org.apache.kafka</groupId>
+                <artifactId>kafka_2.13</artifactId>
+                <version>${kafka.version}</version>
+                <scope>test</scope>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -436,7 +442,7 @@
                         <groups>java.,javax.,org.,com.,io.,io.kroxylicious</groups>
                         <removeUnused>true</removeUnused>
                         <staticAfter>true</staticAfter>
-                        <!-- use langauge level 17, see https://github.com/javaparser/javaparser/issues/3833 -->
+                        <!-- use language level 17, see https://github.com/javaparser/javaparser/issues/3833 -->
                         <compliance>17</compliance>
                     </configuration>
                     <executions>
