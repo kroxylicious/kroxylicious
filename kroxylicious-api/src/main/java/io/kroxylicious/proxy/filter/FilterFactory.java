@@ -28,7 +28,7 @@ public interface FilterFactory<C, I> {
      * This method may provide extra semantic validation of the config,
      * and returns some object (which may be the config, or some other object) which will be passed to {@link #createFilter(FilterFactoryContext, Object)}
      *
-     * @param context
+     * @param context context
      * @param config configuration
      * @throws PluginConfigurationException when the configuration is invalid
      */

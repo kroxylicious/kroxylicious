@@ -52,7 +52,7 @@
         <mockito.version>5.7.0</mockito.version>
         <micrometer.version>1.12.0</micrometer.version>
         <slf4j.version>2.0.9</slf4j.version>
-        <sundr-builder-annotations.version>0.103.0</sundr-builder-annotations.version>
+        <sundr-builder-annotations.version>0.101.3</sundr-builder-annotations.version>
         <spotbugs-annotations.version>4.8.1</spotbugs-annotations.version>
         <zjsonpatch.version>0.4.14</zjsonpatch.version>
         <moby-names-generator.version>20.10.1-r0</moby-names-generator.version>
@@ -63,7 +63,7 @@
 
         <!-- Test dependencies -->
         <strimzi.version>0.37.0</strimzi.version>
-        <fabric8.kubernetes.version>6.8.1</fabric8.kubernetes.version>
+        <kubernetes-client.version>6.9.2</kubernetes-client.version>
         <enforcer.api.version>3.4.1</enforcer.api.version>
         <maven.core.version>3.9.5</maven.core.version>
         <awaitility.version>4.2.0</awaitility.version>
@@ -241,6 +241,14 @@
 
             <!-- third party dependencies - test -->
             <dependency>
+                <groupId>io.fabric8</groupId>
+                <artifactId>kubernetes-client-bom</artifactId>
+                <version>${kubernetes-client.version}</version>
+                <scope>import</scope>
+                <type>pom</type>
+            </dependency>
+
+            <dependency>
                 <groupId>com.flipkart.zjsonpatch</groupId>
                 <artifactId>zjsonpatch</artifactId>
                 <version>${zjsonpatch.version}</version>
@@ -283,23 +291,6 @@
                 <version>${mockito.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
-            </dependency>
-            <dependency>
-                <groupId>io.fabric8</groupId>
-                <artifactId>kubernetes-client-api</artifactId>
-                <version>${fabric8.kubernetes.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.fabric8</groupId>
-                <artifactId>kubernetes-client</artifactId>
-                <scope>runtime</scope>
-                <version>${fabric8.kubernetes.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.fabric8</groupId>
-                <artifactId>kubernetes-httpclient-jdk</artifactId>
-                <scope>runtime</scope>
-                <version>${fabric8.kubernetes.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.strimzi</groupId>

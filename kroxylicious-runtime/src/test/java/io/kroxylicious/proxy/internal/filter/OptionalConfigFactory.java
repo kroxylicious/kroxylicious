@@ -17,7 +17,9 @@ import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.filter.RequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
+import io.kroxylicious.proxy.plugin.Plugin;
 
+@Plugin(configType = ExampleConfig.class)
 public class OptionalConfigFactory implements FilterFactory<ExampleConfig, ExampleConfig> {
 
     @Override

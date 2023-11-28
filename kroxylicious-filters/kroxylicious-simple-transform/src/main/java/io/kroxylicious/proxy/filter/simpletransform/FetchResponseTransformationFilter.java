@@ -4,9 +4,8 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.proxy.internal.filter;
+package io.kroxylicious.proxy.filter.simpletransform;
 
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletionStage;
@@ -24,6 +23,7 @@ import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.record.MemoryRecordsBuilder;
 import org.apache.kafka.common.record.MutableRecordBatch;
 import org.apache.kafka.common.record.Record;
+import org.apache.kafka.common.record.RecordBatch;
 import org.apache.kafka.common.record.TimestampType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,11 +31,12 @@ import org.slf4j.LoggerFactory;
 import io.kroxylicious.proxy.filter.FetchResponseFilter;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
-import io.kroxylicious.proxy.internal.util.MemoryRecordsHelper;
 
 /**
  * A filter for modifying the key/value/header/topic of {@link ApiKeys#FETCH} responses.
- */
+ * <p>
+ * <strong>Not intended to production use.</strong>
+ * </p> */
 public class FetchResponseTransformationFilter implements FetchResponseFilter {
 
     // Version 12 was the first version that uses topic ids.
@@ -93,18 +94,21 @@ public class FetchResponseTransformationFilter implements FetchResponseFilter {
     private void applyTransformation(FilterContext context, FetchResponseData responseData) {
         for (FetchResponseData.FetchableTopicResponse topicData : responseData.responses()) {
             for (FetchResponseData.PartitionData partitionData : topicData.partitions()) {
-                MemoryRecords records = (MemoryRecords) partitionData.records();
-                MemoryRecordsBuilder newRecords = MemoryRecordsHelper.builder(context.createByteBufferOutputStream(records.sizeInBytes()), CompressionType.NONE,
-                        TimestampType.CREATE_TIME, 0);
+                var records = (MemoryRecords) partitionData.records();
+                var stream = context.createByteBufferOutputStream(records.sizeInBytes());
+                try (var newRecords = new MemoryRecordsBuilder(stream, RecordBatch.CURRENT_MAGIC_VALUE, CompressionType.NONE, TimestampType.CREATE_TIME, 0,
+                        System.currentTimeMillis(), RecordBatch.NO_PRODUCER_ID, RecordBatch.NO_PRODUCER_EPOCH, RecordBatch.NO_SEQUENCE, false, false,
+                        RecordBatch.NO_PARTITION_LEADER_EPOCH,
+                        stream.remaining())) {
 
-                for (MutableRecordBatch batch : records.batches()) {
-                    for (Iterator<Record> batchRecords = batch.iterator(); batchRecords.hasNext();) {
-                        Record batchRecord = batchRecords.next();
-                        newRecords.append(batchRecord.timestamp(), batchRecord.key(), valueTransformation.transform(topicData.topic(), batchRecord.value()));
+                    for (MutableRecordBatch batch : records.batches()) {
+                        for (Record batchRecord : batch) {
+                            newRecords.append(batchRecord.timestamp(), batchRecord.key(), valueTransformation.transform(topicData.topic(), batchRecord.value()));
+                        }
                     }
-                }
 
-                partitionData.setRecords(newRecords.build());
+                    partitionData.setRecords(newRecords.build());
+                }
             }
         }
     }

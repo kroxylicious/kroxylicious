@@ -4,20 +4,13 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.proxy.internal.filter;
+package io.kroxylicious.proxy.config;
 
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-public interface ByteBufferTransformationFactory<C> {
-
-    /**
-     * Validates the configuration.
-     * @param config configuration
-     * @throws PluginConfigurationException when the configuration is invalid
-     */
-    void validateConfiguration(C config) throws PluginConfigurationException;
+public interface ExamplePluginFactory<C> {
 
     @NonNull
     default C requireConfig(C config) {
@@ -27,6 +20,10 @@ public interface ByteBufferTransformationFactory<C> {
         return config;
     }
 
-    ByteBufferTransformation createTransformation(C configuration);
+    ExamplePlugin createExamplePlugin(C configuration);
 
+    @FunctionalInterface
+    interface ExamplePlugin {
+        void foo();
+    }
 }

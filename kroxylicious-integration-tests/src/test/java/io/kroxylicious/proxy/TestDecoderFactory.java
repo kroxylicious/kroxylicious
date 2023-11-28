@@ -8,8 +8,8 @@ package io.kroxylicious.proxy;
 
 import java.nio.ByteBuffer;
 
-import io.kroxylicious.proxy.internal.filter.ByteBufferTransformation;
-import io.kroxylicious.proxy.internal.filter.ByteBufferTransformationFactory;
+import io.kroxylicious.proxy.filter.simpletransform.ByteBufferTransformation;
+import io.kroxylicious.proxy.filter.simpletransform.ByteBufferTransformationFactory;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
@@ -26,7 +26,7 @@ public class TestDecoderFactory implements ByteBufferTransformationFactory<Void>
         return new TestDecoder();
     }
 
-    public class TestDecoder implements ByteBufferTransformation {
+    public static class TestDecoder implements ByteBufferTransformation {
 
         @Override
         public ByteBuffer transform(String topicName, ByteBuffer in) {
