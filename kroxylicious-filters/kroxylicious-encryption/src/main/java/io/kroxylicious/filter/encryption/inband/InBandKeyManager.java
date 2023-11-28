@@ -224,6 +224,7 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
         }
         else {
             ByteBuffer plaintext = kafkaRecord.value();
+            keyContext.encodedSize(kafkaRecord.valueSize());
             keyContext.encode(plaintext, valueCiphertext);
             valueCiphertext.flip();
             transformedValue = valueCiphertext;
