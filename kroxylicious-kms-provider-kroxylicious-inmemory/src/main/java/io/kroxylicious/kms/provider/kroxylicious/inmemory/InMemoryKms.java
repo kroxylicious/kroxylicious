@@ -100,19 +100,6 @@ public class InMemoryKms implements
         return numDeksGenerated.get();
     }
 
-    @NonNull
-    @Override
-    public CompletableFuture<InMemoryEdek> generateDek(@NonNull UUID kekRef) {
-        try {
-            CompletableFuture<InMemoryEdek> result = CompletableFuture.completedFuture(wrap(kekRef, this.aes::generateKey));
-            numDeksGenerated.incrementAndGet();
-            return result;
-        }
-        catch (KmsException e) {
-            return CompletableFuture.failedFuture(e);
-        }
-    }
-
     private InMemoryEdek wrap(UUID kekRef, Supplier<SecretKey> generator) {
         SecretKey kek = lookupKey(kekRef);
         Cipher aesCipher = aesGcm();
