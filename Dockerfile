@@ -9,7 +9,7 @@ FROM registry.access.redhat.com/ubi9/openjdk-17:1.15 AS builder
 USER root
 WORKDIR /opt/kroxylicious
 COPY . .
-RUN ./mvnw -B clean verify -Pdist,withAdditionalFilters -Dquick -am -pl !kroxylicious-integration-tests
+RUN ./mvnw -B clean verify -Pdist,withAdditionalFilters -Dquick
 USER 185
 FROM registry.access.redhat.com/ubi9/ubi-minimal:9.2
 
@@ -52,6 +52,4 @@ RUN set -ex; \
         chmod +x /usr/bin/tini; \
     fi
 COPY --from=builder /opt/kroxylicious/kroxylicious-app/target/kroxylicious-app-${KROXYLICIOUS_VERSION}-bin/kroxylicious-app-${KROXYLICIOUS_VERSION}/ /opt/kroxylicious/
-COPY --from=builder /opt/kroxylicious/kroxylicious-filters/kroxylicious-multitenant/target/kroxylicious-multitenant-${KROXYLICIOUS_VERSION}.jar /opt/kroxylicious/libs/
-COPY --from=builder /opt/kroxylicious/kroxylicious-filters/kroxylicious-record-validation/target/kroxylicious-record-validation-${KROXYLICIOUS_VERSION}.jar /opt/kroxylicious/libs/
 ENTRYPOINT ["/usr/bin/tini", "--", "/opt/kroxylicious/bin/kroxylicious-start.sh" ]

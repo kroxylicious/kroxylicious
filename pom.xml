@@ -342,10 +342,8 @@
         <module>kroxylicious-integration-test-support</module>
         <module>kroxylicious-filter-test-support</module>
         <module>kroxylicious-runtime</module>
-        <module>kroxylicious-integration-tests</module>
         <module>kroxylicious-filters</module>
         <module>kroxylicious-sample</module>
-        <module>kroxylicious-systemtests</module>
     </modules>
 
 
@@ -667,27 +665,6 @@
                     </execution>
                 </executions>
             </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-enforcer-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <id>enforce-systemtest-isolation</id>
-                        <goals>
-                            <goal>enforce</goal>
-                        </goals>
-                        <configuration>
-                            <rules>
-                                <bannedDependencies>
-                                    <excludes>
-                                        <exclude>io.kroxylicious:kroxylicious-systemtests</exclude>
-                                    </excludes>
-                                </bannedDependencies>
-                            </rules>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
         </plugins>
     </build>
 
@@ -820,6 +797,21 @@
                                     </rules>
                                 </configuration>
                             </execution>
+                            <execution>
+                                <id>enforce-systemtest-isolation</id>
+                                <goals>
+                                    <goal>enforce</goal>
+                                </goals>
+                                <configuration>
+                                    <rules>
+                                        <bannedDependencies>
+                                            <excludes>
+                                                <exclude>io.kroxylicious:kroxylicious-systemtests</exclude>
+                                            </excludes>
+                                        </bannedDependencies>
+                                    </rules>
+                                </configuration>
+                            </execution>
                         </executions>
                     </plugin>
                 </plugins>
@@ -909,13 +901,15 @@
             </build>
         </profile>
         <profile>
-            <id>performance</id>
+            <id>test-suites</id>
             <activation>
                 <property>
                     <name>!quick</name>
                 </property>
             </activation>
             <modules>
+                <module>kroxylicious-integration-tests</module>
+                <module>kroxylicious-systemtests</module>
                 <module>performance-tests</module>
             </modules>
         </profile>
