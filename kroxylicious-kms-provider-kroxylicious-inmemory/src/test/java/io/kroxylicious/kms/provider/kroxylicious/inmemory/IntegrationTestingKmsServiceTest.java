@@ -15,6 +15,7 @@ import java.util.concurrent.ExecutionException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import io.kroxylicious.kms.service.DekPair;
 import io.kroxylicious.kms.service.Serde;
 import io.kroxylicious.kms.service.UnknownAliasException;
 import io.kroxylicious.kms.service.UnknownKeyException;
@@ -97,8 +98,8 @@ class IntegrationTestingKmsServiceTest {
         assertNotNull(key2);
 
         // when
-        CompletableFuture<InMemoryEdek> gen1 = kms1.generateDek(key1);
-        CompletableFuture<InMemoryEdek> gen2 = kms2.generateDek(key2);
+        CompletableFuture<DekPair<InMemoryEdek>> gen1 = kms1.generateDekPair(key1);
+        CompletableFuture<DekPair<InMemoryEdek>> gen2 = kms2.generateDekPair(key2);
 
         // then
         assertThat(gen1).isCompleted();
@@ -121,8 +122,8 @@ class IntegrationTestingKmsServiceTest {
         assertNotNull(key2);
 
         // when
-        CompletableFuture<InMemoryEdek> gen1 = kms1.generateDek(key2);
-        CompletableFuture<InMemoryEdek> gen2 = kms2.generateDek(key1);
+        CompletableFuture<DekPair<InMemoryEdek>> gen1 = kms1.generateDekPair(key2);
+        CompletableFuture<DekPair<InMemoryEdek>> gen2 = kms2.generateDekPair(key1);
 
         // then
         assertThat(gen1).failsWithin(Duration.ZERO)
@@ -166,7 +167,7 @@ class IntegrationTestingKmsServiceTest {
         var kms = service.buildKms(new IntegrationTestingKmsService.Config(kmsId));
         var kek = kms.generateKey();
 
-        var edek = kms.generateDek(kek).join();
+        var edek = kms.generateDekPair(kek).join().edek();
 
         var serde = kms.edekSerde();
         var buffer = ByteBuffer.allocate(serde.sizeOf(edek));
