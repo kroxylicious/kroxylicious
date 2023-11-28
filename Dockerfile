@@ -20,7 +20,6 @@ ARG KROXYLICIOUS_VERSION
 
 RUN microdnf -y update \
     && microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y java-${JAVA_VERSION}-openjdk-headless openssl shadow-utils \
-    && microdnf reinstall -y tzdata \
     && microdnf clean all
 
 ENV JAVA_HOME /usr/lib/jvm/jre-17
