@@ -1,3 +1,8 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
 io.kroxylicious.proxy.internal.filter.TestFilterFactory
 io.kroxylicious.proxy.internal.filter.OptionalConfigFactory
 io.kroxylicious.proxy.internal.filter.RequiresConfigFactory
@@ -7,3 +12,4 @@ io.kroxylicious.proxy.internal.filter.Record
 io.kroxylicious.proxy.internal.filter.SetterInjection
 io.kroxylicious.proxy.internal.filter.FactoryMethod
 io.kroxylicious.proxy.internal.filter.MissingPluginImplName
+io.kroxylicious.proxy.internal.filter.NestedPluginConfigFactory

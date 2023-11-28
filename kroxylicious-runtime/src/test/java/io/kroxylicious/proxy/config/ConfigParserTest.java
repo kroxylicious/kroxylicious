@@ -26,14 +26,13 @@ import com.flipkart.zjsonpatch.JsonDiff;
 import io.kroxylicious.proxy.config.admin.AdminHttpConfiguration;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig;
-import io.kroxylicious.proxy.internal.filter.ByteBufferTransformationFactory;
 import io.kroxylicious.proxy.internal.filter.ConstructorInjectionConfig;
+import io.kroxylicious.proxy.internal.filter.ExamplePluginFactory;
 import io.kroxylicious.proxy.internal.filter.FactoryMethodConfig;
 import io.kroxylicious.proxy.internal.filter.FieldInjectionConfig;
-import io.kroxylicious.proxy.internal.filter.ProduceRequestTransformationFilterFactory;
+import io.kroxylicious.proxy.internal.filter.NestedPluginConfigFactory;
 import io.kroxylicious.proxy.internal.filter.RecordConfig;
 import io.kroxylicious.proxy.internal.filter.SetterInjectionConfig;
-import io.kroxylicious.proxy.internal.filter.UpperCasing;
 import io.kroxylicious.proxy.plugin.UnknownPluginInstanceException;
 import io.kroxylicious.proxy.service.HostPort;
 
@@ -47,7 +46,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ConfigParserTest {
     private static final ObjectMapper MAPPER = new ObjectMapper(new YAMLFactory());
     // Given
-    private ConfigParser configParser = new ConfigParser();
+    private final ConfigParser configParser = new ConfigParser();
 
     public static Stream<Arguments> yamlDeserializeSerializeFidelity() {
         return Stream.of(Arguments.of("Top level flags", """
@@ -103,11 +102,7 @@ class ConfigParserTest {
 
                 Arguments.of("Filters", """
                         filters:
-                        - type: ProduceRequestTransformationFilterFactory
-                          config:
-                            transformation: io.kroxylicious.proxy.internal.filter.UpperCasing
-                            transformationConfig:
-                              charset: UTF-8
+                        - type: TestFilterFactory
                         """),
                 Arguments.of("Admin", """
                         adminHttp:
@@ -249,25 +244,22 @@ class ConfigParserTest {
         ConfigParser cp = new ConfigParser();
         var config = cp.parseConfiguration("""
                 filters:
-                - type: ProduceRequestTransformationFilterFactory
+                - type: NestedPluginConfigFactory
                   config:
-                    transformation: UpperCasing
-                    transformationConfig:
-                      charset: UTF-8
+                    examplePlugin: ExamplePluginInstance
                       """);
         assertThat(config.filters()).hasSize(1);
 
         FilterDefinition fd = config.filters().get(0);
-        assertEquals("ProduceRequestTransformationFilterFactory", fd.type());
+        assertThat(fd.type()).isEqualTo("NestedPluginConfigFactory");
         FilterFactory<?, ?> ff = cp.pluginFactory(FilterFactory.class).pluginInstance(fd.type());
         assertThat(ff).isNotNull();
-        assertThat(fd.config()).isInstanceOf(ProduceRequestTransformationFilterFactory.Config.class);
+        assertThat(fd.config()).isInstanceOf(NestedPluginConfigFactory.NestedPluginConfig.class);
 
-        var prtc = (ProduceRequestTransformationFilterFactory.Config) fd.config();
-        assertThat(prtc.transformationConfig()).isInstanceOf(UpperCasing.Config.class);
-        assertEquals("UpperCasing", prtc.transformation());
-        ByteBufferTransformationFactory<?> tm = cp.pluginFactory(ByteBufferTransformationFactory.class).pluginInstance(prtc.transformation());
-        assertThat(tm).isNotNull();
+        var npc = (NestedPluginConfigFactory.NestedPluginConfig) fd.config();
+        assertThat(npc.examplePlugin()).isEqualTo("ExamplePluginInstance");
+        var ep = cp.pluginFactory(ExamplePluginFactory.class).pluginInstance(npc.examplePlugin());
+        assertThat(ep).isNotNull();
     }
 
     @Test
@@ -275,17 +267,16 @@ class ConfigParserTest {
         ConfigParser cp = new ConfigParser();
         var iae = assertThrows(IllegalArgumentException.class, () -> cp.parseConfiguration("""
                 filters:
-                - type: ProduceRequestTransformationFilterFactory
+                - type: NestedPluginConfigFactory
                   config:
-                    transformation: NotAKnownPlugin
-                    transformationConfig:
-                      charset: UTF-8
+                    examplePlugin: NotAKnownPlugin
+
                       """));
         var vie = assertInstanceOf(ValueInstantiationException.class, iae.getCause());
         var upie = assertInstanceOf(UnknownPluginInstanceException.class, vie.getCause());
-        assertEquals("Unknown io.kroxylicious.proxy.internal.filter.ByteBufferTransformationFactory plugin instance for "
+        assertEquals("Unknown io.kroxylicious.proxy.internal.filter.ExamplePluginFactory plugin instance for "
                 + "name 'NotAKnownPlugin'. "
-                + "Known plugin instances are [UpperCasing, io.kroxylicious.proxy.internal.filter.UpperCasing]. "
+                + "Known plugin instances are [ExamplePluginInstance, io.kroxylicious.proxy.internal.filter.ExamplePluginInstance]. "
                 + "Plugins must be loadable by java.util.ServiceLoader and annotated with "
                 + "@Plugin.",
                 upie.getMessage());

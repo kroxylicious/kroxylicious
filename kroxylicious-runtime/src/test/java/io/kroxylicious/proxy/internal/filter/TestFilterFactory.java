@@ -17,8 +17,10 @@ import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.filter.RequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
+import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.Plugins;
 
+@Plugin(configType = ExampleConfig.class)
 public class TestFilterFactory implements FilterFactory<ExampleConfig, ExampleConfig> {
 
     @Override
