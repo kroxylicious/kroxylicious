@@ -6,12 +6,18 @@ Please enumerate **all user-facing** changes using format `<githib issue/pr numb
 
 ## 0.4.0
 
-
+* [#727](https://github.com/kroxylicious/kroxylicious/pull/727): Tease out simple transform filters into their own module
 * [#738](https://github.com/kroxylicious/kroxylicious/pull/738): Update to Kroxylicious Junit Ext 0.7.0
 * [#723](https://github.com/kroxylicious/kroxylicious/pull/723): Bump com.fasterxml.jackson:jackson-bom from 2.15.3 to 2.16.0 #723
 * [#724](https://github.com/kroxylicious/kroxylicious/pull/724): Bump io.netty.incubator:netty-incubator-transport-native-io_uring from 0.0.23.Final to 0.0.24.Final
 * [#725](https://github.com/kroxylicious/kroxylicious/pull/725): Bump io.netty:netty-bom from 4.1.100.Final to 4.1.101.Final #725
 * [#701](https://github.com/kroxylicious/kroxylicious/pull/701): Bump org.apache.logging.log4j:log4j-bom from 2.21.0 to 2.21.1 #701
+
+### Changes, deprecations and removals
+
+* The `ProduceRequestTransformationFilter` and `FetchResponseTransformationFilter` have been moved to their own module kroxylicious-simple-transform.
+  If you were depending on these filters, you must ensure that the kroxylicious-simple-transform JAR file is added to your classpath.  The
+  Javadoc of these classes has been updated to convey the fact that these filters are *not* intended for production use.
 
 ## 0.3.0
 
