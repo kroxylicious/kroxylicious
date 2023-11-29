@@ -34,7 +34,7 @@ public class ApiMessageCondition<X extends ApiMessage> extends Condition<X> {
     }
 
     public ApiMessageCondition(Predicate<X> predicate) {
-        this(predicate, new TextDescription("an Api Message matching a custom predicate" ));
+        this(predicate, new TextDescription("an Api Message matching a custom predicate"));
     }
 
     @Override

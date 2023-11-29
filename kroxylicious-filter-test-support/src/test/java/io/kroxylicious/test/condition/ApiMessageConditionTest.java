@@ -71,7 +71,7 @@ class ApiMessageConditionTest {
         final Description description = apiMessageCondition.description();
 
         // Then
-        assertThat(description).extracting(Description::value).asString().isNotBlank().isEqualTo("an Api Message matching a custom predicate" );
+        assertThat(description).extracting(Description::value).asString().isNotBlank().isEqualTo("an Api Message matching a custom predicate");
     }
 
     @ParameterizedTest
