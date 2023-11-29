@@ -43,11 +43,11 @@ import org.mockito.Mock;
 import org.mockito.hamcrest.MockitoHamcrest;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import io.kroxylicious.filter.encryption.inband.TestingRecord;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.filter.encryption.ProduceRequestDataCondition.hasRecordsForTopic;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -125,7 +125,7 @@ class EnvelopeEncryptionFilterTest {
     @Test
     void shouldNotEncryptTopicWithoutKeyId() {
         // Given
-        final ProduceRequestData produceRequestData = buildProduceRequestData(new Payload(UNENCRYPTED_TOPIC, "Hello World!" ));
+        final ProduceRequestData produceRequestData = buildProduceRequestData(new Payload(UNENCRYPTED_TOPIC, "Hello World!"));
 
         // When
         encryptionFilter.onProduceRequest(ProduceRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), produceRequestData, context);
@@ -137,7 +137,7 @@ class EnvelopeEncryptionFilterTest {
     @Test
     void shouldEncryptTopicWithKeyId() {
         // Given
-        final ProduceRequestData produceRequestData = buildProduceRequestData(new Payload(ENCRYPTED_TOPIC, "Hello World!" ));
+        final ProduceRequestData produceRequestData = buildProduceRequestData(new Payload(ENCRYPTED_TOPIC, "Hello World!"));
 
         // When
         encryptionFilter.onProduceRequest(ProduceRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), produceRequestData, context);
@@ -149,9 +149,9 @@ class EnvelopeEncryptionFilterTest {
     @Test
     void shouldOnlyEncryptTopicWithKeyId() {
         // Given
-        final Payload encryptedPayload = new Payload(ENCRYPTED_TOPIC, "Hello Ciphertext World!" );
+        final Payload encryptedPayload = new Payload(ENCRYPTED_TOPIC, "Hello Ciphertext World!");
         final ProduceRequestData produceRequestData = buildProduceRequestData(encryptedPayload,
-                new Payload(UNENCRYPTED_TOPIC, "Hello Plaintext World!" ));
+                new Payload(UNENCRYPTED_TOPIC, "Hello Plaintext World!"));
 
         // When
         encryptionFilter.onProduceRequest(ProduceRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), produceRequestData, context);
@@ -167,7 +167,7 @@ class EnvelopeEncryptionFilterTest {
     @Test
     void shouldPassThroughUnEncryptedRecords() {
         // Given
-        final FetchResponseData fetchResponseData = buildFetchResponseData(new Payload(UNENCRYPTED_TOPIC, "Hello Plaintext World!" ));
+        final FetchResponseData fetchResponseData = buildFetchResponseData(new Payload(UNENCRYPTED_TOPIC, "Hello Plaintext World!"));
 
         // When
         encryptionFilter.onFetchResponse(ProduceResponseData.HIGHEST_SUPPORTED_VERSION,
@@ -175,15 +175,14 @@ class EnvelopeEncryptionFilterTest {
 
         // Then
         verify(context).forwardResponse(any(ResponseHeaderData.class), assertArg(actualFetchResponse -> assertThat(actualFetchResponse)
-                .isInstanceOf(FetchResponseData.class).
-                isEqualTo(fetchResponseData)));
+                .isInstanceOf(FetchResponseData.class).isEqualTo(fetchResponseData)));
     }
 
     @Test
     void shouldDecryptEncryptedRecords() {
         // Given
         final FetchResponseData encryptedFetchResponse = buildFetchResponseData(new Payload(ENCRYPTED_TOPIC, ENCRYPTED_MESSAGE));
-        final Payload plainTextPayload = new Payload(ENCRYPTED_TOPIC, "Hello Plaintext World!" );
+        final Payload plainTextPayload = new Payload(ENCRYPTED_TOPIC, "Hello Plaintext World!");
 
         when(keyManager.decrypt(assertArg(records -> assertThat(records).hasSize(1)), any(Receiver.class))).thenAnswer(invocationOnMock -> {
             final Receiver receiver = invocationOnMock.getArgument(1);
@@ -200,26 +199,24 @@ class EnvelopeEncryptionFilterTest {
         verify(context).forwardResponse(any(ResponseHeaderData.class), assertArg(actualFetchResponse -> assertThat(actualFetchResponse)
                 .isInstanceOf(FetchResponseData.class)
                 .asInstanceOf(InstanceOfAssertFactories.type(FetchResponseData.class))
-//                .has(new FetchResponseDataCondition(fetchResponseData -> true)) //This is where the new conditions from https://github.com/kroxylicious/kroxylicious/pull/756 come in
+        // .has(new FetchResponseDataCondition(fetchResponseData -> true)) //This is where the new conditions from https://github.com/kroxylicious/kroxylicious/pull/756 come in
         ));
     }
 
     @Test
     void shouldEncryptTopic() {
         // Given
-        final Payload encryptedPayload = new Payload(ENCRYPTED_TOPIC, "Hello Ciphertext World!" );
+        final Payload encryptedPayload = new Payload(ENCRYPTED_TOPIC, "Hello Ciphertext World!");
         final ProduceRequestData produceRequestData = buildProduceRequestData(encryptedPayload,
-                new Payload(UNENCRYPTED_TOPIC, "Hello Plaintext World!" ));
+                new Payload(UNENCRYPTED_TOPIC, "Hello Plaintext World!"));
 
         // When
         encryptionFilter.onProduceRequest(ProduceRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), produceRequestData, context);
 
         // Then
-        verify(context).forwardRequest(any(), argThat(request ->
-                assertThat(request).isInstanceOf(ProduceRequestData.class)
-                        .asInstanceOf(InstanceOfAssertFactories.type(ProduceRequestData.class))
-                        .is(hasRecordsForTopic(ENCRYPTED_TOPIC))
-        ));
+        verify(context).forwardRequest(any(), argThat(request -> assertThat(request).isInstanceOf(ProduceRequestData.class)
+                .asInstanceOf(InstanceOfAssertFactories.type(ProduceRequestData.class))
+                .is(hasRecordsForTopic(ENCRYPTED_TOPIC))));
     }
 
     private static FetchResponseData buildFetchResponseData(Payload... payloads) {
@@ -300,7 +297,7 @@ class EnvelopeEncryptionFilterTest {
             @Override
             public void describeTo(org.hamcrest.Description description) {
                 super.describeTo(description);
-                description.appendValue(Objects.requireNonNullElse(underlyingDescription, "custom argument matcher" ));
+                description.appendValue(Objects.requireNonNullElse(underlyingDescription, "custom argument matcher"));
             }
         });
     }

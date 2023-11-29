@@ -99,8 +99,8 @@ public class EnvelopeEncryptionFilter<K>
                     }).toList();
                     return join(futures).thenApply(x -> request);
                 }).exceptionallyCompose(throwable -> {
-                   log.warn("failed to encrypt records", throwable);
-                   return CompletableFuture.failedStage(throwable);
+                    log.warn("failed to encrypt records", throwable);
+                    return CompletableFuture.failedStage(throwable);
                 });
     }
 
