@@ -13,7 +13,7 @@ import java.util.Objects;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.record.TimestampType;
 
-class TestingRecord implements org.apache.kafka.common.record.Record {
+public record TestingRecord(ByteBuffer value, Header... headers) implements org.apache.kafka.common.record.Record {
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -39,14 +39,6 @@ class TestingRecord implements org.apache.kafka.common.record.Record {
                 "value=" + value +
                 ", headers=" + Arrays.toString(headers) +
                 '}';
-    }
-
-    private final ByteBuffer value;
-    private final Header[] headers;
-
-    TestingRecord(ByteBuffer value, Header... headers) {
-        this.value = value;
-        this.headers = headers;
     }
 
     @Override
@@ -100,11 +92,6 @@ class TestingRecord implements org.apache.kafka.common.record.Record {
     }
 
     @Override
-    public ByteBuffer value() {
-        return value;
-    }
-
-    @Override
     public boolean hasMagic(byte magic) {
         return false;
     }
@@ -117,10 +104,5 @@ class TestingRecord implements org.apache.kafka.common.record.Record {
     @Override
     public boolean hasTimestampType(TimestampType timestampType) {
         return false;
-    }
-
-    @Override
-    public Header[] headers() {
-        return headers;
     }
 }

@@ -27,6 +27,7 @@ import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.record.MemoryRecordsBuilder;
 import org.apache.kafka.common.record.RecordBatch;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
+import org.slf4j.Logger;
 
 import io.kroxylicious.proxy.filter.FetchResponseFilter;
 import io.kroxylicious.proxy.filter.FilterContext;
@@ -36,12 +37,15 @@ import io.kroxylicious.proxy.filter.ResponseFilterResult;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+import static org.slf4j.LoggerFactory.getLogger;
+
 /**
  * A filter for encrypting and decrypting records using envelope encryption
  * @param <K> The type of KEK reference
  */
 public class EnvelopeEncryptionFilter<K>
         implements ProduceRequestFilter, FetchResponseFilter {
+    private static final Logger log = getLogger(EnvelopeEncryptionFilter.class);
     private final TopicNameBasedKekSelector<K> kekSelector;
 
     private final KeyManager<K> keyManager;
@@ -94,6 +98,9 @@ public class EnvelopeEncryptionFilter<K>
                         });
                     }).toList();
                     return join(futures).thenApply(x -> request);
+                }).exceptionallyCompose(throwable -> {
+                   log.warn("failed to encrypt records", throwable);
+                   return CompletableFuture.failedStage(throwable);
                 });
     }
 
@@ -106,7 +113,11 @@ public class EnvelopeEncryptionFilter<K>
     @Override
     public CompletionStage<ResponseFilterResult> onFetchResponse(short apiVersion, ResponseHeaderData header, FetchResponseData response, FilterContext context) {
         return maybeDecodeFetch(response.responses(), context)
-                .thenCompose(responses -> context.forwardResponse(header, response.setResponses(responses)));
+                .thenCompose(responses -> context.forwardResponse(header, response.setResponses(responses)))
+                .exceptionallyCompose(throwable -> {
+                    log.warn("failed to decrypt records", throwable);
+                    return CompletableFuture.failedStage(throwable);
+                });
     }
 
     private CompletionStage<List<FetchableTopicResponse>> maybeDecodeFetch(List<FetchableTopicResponse> topics, FilterContext context) {
