@@ -7,10 +7,9 @@
 package io.kroxylicious.test.condition;
 
 import org.apache.kafka.common.message.ProduceRequestData;
-import org.apache.kafka.common.message.ProduceResponseData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
-import org.apache.kafka.common.requests.ProduceRequest;
+import org.assertj.core.description.Description;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -63,6 +62,18 @@ class ApiMessageConditionTest {
         assertThat(matches).isFalse();
     }
 
+    @Test
+    void shouldSupportCustomDescriptions() {
+        // Given
+        ApiMessageCondition<ProduceRequestData> apiMessageCondition = new ApiMessageCondition<>(o -> false);
+
+        // When
+        final Description description = apiMessageCondition.description();
+
+        // Then
+        assertThat(description).extracting(Description::value).asString().isNotBlank().isEqualTo("an Api Message matching a custom predicate" );
+    }
+
     @ParameterizedTest
     @EnumSource(ApiKeys.class)
     void shouldCreateConditionForApiKeyEnum(ApiKeys apiKey) {
@@ -73,7 +84,7 @@ class ApiMessageConditionTest {
         final boolean matches = apiMessageCondition.matches(produceRequestData);
 
         // Then
-        assertThat(matches).describedAs("expected %s (%s) to return %s for ProduceRequestData", apiKey,  ApiKeys.PRODUCE == apiKey).isEqualTo(ApiKeys.PRODUCE == apiKey);
+        assertThat(matches).describedAs("expected %s (%s) to return %s for ProduceRequestData", apiKey, ApiKeys.PRODUCE == apiKey).isEqualTo(ApiKeys.PRODUCE == apiKey);
     }
 
     @ParameterizedTest
@@ -86,6 +97,42 @@ class ApiMessageConditionTest {
         final boolean matches = apiMessageCondition.matches(produceRequestData);
 
         // Then
-        assertThat(matches).describedAs("expected %s (%s) to return %s for ProduceRequestData", apiKey, apiKey.id,  ApiKeys.PRODUCE == apiKey).isEqualTo(ApiKeys.PRODUCE == apiKey);
+        assertThat(matches).describedAs("expected %s (%s) to return %s for ProduceRequestData", apiKey, apiKey.id, ApiKeys.PRODUCE == apiKey)
+                .isEqualTo(ApiKeys.PRODUCE == apiKey);
     }
+
+    @ParameterizedTest
+    @EnumSource(ApiKeys.class)
+    void shouldCreateCustomDescriptionForApiKeyEnum(ApiKeys apiKey) {
+        // Given
+        ApiMessageCondition<ApiMessage> apiMessageCondition = ApiMessageCondition.forApiKey(apiKey);
+
+        // When
+        final Description description = apiMessageCondition.description();
+
+        // Then
+        assertThat(description).extracting(Description::value)
+                .asString()
+                .isNotBlank()
+                .contains(apiKey.name())
+                .contains(String.valueOf(apiKey.id));
+    }
+
+    @ParameterizedTest
+    @EnumSource(ApiKeys.class)
+    void shouldCreateCustomDescriptionForApiKeyShort(ApiKeys apiKey) {
+        // Given
+        ApiMessageCondition<ApiMessage> apiMessageCondition = ApiMessageCondition.forApiKey(apiKey.id);
+
+        // When
+        final Description description = apiMessageCondition.description();
+
+        // Then
+        assertThat(description).extracting(Description::value)
+                .asString()
+                .isNotBlank()
+                .contains(apiKey.name())
+                .contains(String.valueOf(apiKey.id));
+    }
+
 }
