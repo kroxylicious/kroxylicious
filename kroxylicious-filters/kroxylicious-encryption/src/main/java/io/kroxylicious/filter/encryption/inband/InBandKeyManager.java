@@ -16,16 +16,13 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Supplier;
+import java.util.function.Function;
 
-import javax.security.auth.DestroyFailedException;
 import javax.security.auth.Destroyable;
 
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.record.Record;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.filter.encryption.EncryptionScheme;
 import io.kroxylicious.filter.encryption.KeyManager;
@@ -45,7 +42,6 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  */
 public class InBandKeyManager<K, E> implements KeyManager<K> {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(InBandKeyManager.class);
     private static final Map<Class<? extends Destroyable>, Boolean> LOGGED_DESTROY_FAILED = new ConcurrentHashMap<>();
 
     private static final String FIELDS_HEADER_NAME = "kroxylicious.io/encrypted";
@@ -56,73 +52,46 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
     private final Serde<K> kekIdSerde;
     private final Serde<E> edekSerde;
     // TODO cache expiry, with key descruction
-    private final ConcurrentHashMap<K, CompletionStage<KeyContext>> keyContextCache;
+    private final ConcurrentHashMap<K, KeyContextAllocator> keyContextCache;
     private final ConcurrentHashMap<RecordHeader, CompletionStage<AesGcmEncryptor>> decryptorCache;
     private final long dekTtlNanos;
     private final int maxEncryptionsPerDek;
 
     public InBandKeyManager(Kms<K, E> kms,
-                            BufferPool bufferPool) {
+                            BufferPool bufferPool,
+                            int maxEncryptionsPerDek) {
         this.kms = kms;
         this.bufferPool = bufferPool;
         this.edekSerde = kms.edekSerde();
         this.kekIdSerde = kms.keyIdSerde();
         this.dekTtlNanos = 5_000_000_000L;
-        this.maxEncryptionsPerDek = 500_000;
+        this.maxEncryptionsPerDek = maxEncryptionsPerDek;
         // TODO This ^^ must be > the maximum size of a batch to avoid an infinite loop
         this.keyContextCache = new ConcurrentHashMap<>();
         this.decryptorCache = new ConcurrentHashMap<>();
     }
 
     private CompletionStage<KeyContext> getKeyContext(K key,
-                                                      Supplier<CompletionStage<KeyContext>> valueSupplier) {
+                                                      Function<Runnable, CompletionStage<KeyContext>> valueSupplier,
+                                                      int numRecordsToEncrypt) {
         return keyContextCache.compute(key, (k, v) -> {
             if (v == null) {
-                return valueSupplier.get();
+                return new KeyContextAllocator(valueSupplier, maxEncryptionsPerDek, dekTtlNanos);
                 // TODO what happens if the CS complete exceptionally
                 // TODO what happens if the CS doesn't complete at all in a reasonably time frame?
             }
             else {
                 return v;
             }
-        });
+        }).allocate(numRecordsToEncrypt);
     }
 
     private CompletionStage<KeyContext> currentDekContext(@NonNull K kekId, int numRecords) {
-        return getKeyContext(kekId, makeKeyContext(kekId))
-                .thenCompose(cachedContext -> {
-                    if (!cachedContext.isExpiredForEncryption(System.nanoTime())
-                            && cachedContext.hasAtLeastRemainingEncryptions(numRecords)) {
-                        // TODO pre-populate decryptorCache?
-                        return CompletableFuture.completedFuture(cachedContext);
-                    }
-                    else {
-                        destroy(cachedContext);
-                        return currentDekContext(kekId, numRecords);
-                    }
-                });
+        return getKeyContext(kekId, onFree -> makeKeyContext(onFree, kekId), numRecords);
     }
 
-    static void destroy(Destroyable destroyable) {
-        try {
-            destroyable.destroy();
-        }
-        catch (DestroyFailedException e) {
-            var cls = destroyable.getClass();
-            LOGGED_DESTROY_FAILED.compute(cls, (k, logged) -> {
-                if (logged == null) {
-                    LOGGER.warn("Failed to destroy an instance of {}. "
-                            + "Note: this message is logged once per class even though there may be many occurrences of this event. "
-                            + "This event can happen because the JRE's SecretKeySpec class does not override destroy().",
-                            cls, e);
-                }
-                return Boolean.TRUE;
-            });
-        }
-    }
-
-    private Supplier<CompletionStage<KeyContext>> makeKeyContext(@NonNull K kekId) {
-        return () -> kms.generateDekPair(kekId)
+    private CompletionStage<KeyContext> makeKeyContext(Runnable onFree, @NonNull K kekId) {
+        return kms.generateDekPair(kekId)
                 .thenApply(dekPair -> {
                     E edek = dekPair.edek();
                     short kekIdSize = (short) kekIdSerde.sizeOf(kekId);
@@ -144,7 +113,7 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
                             // Either we have a different Aes encryptor for each thread
                             // or we need mutex
                             // or we externalize the state
-                            AesGcmEncryptor.forEncrypt(new AesGcmIvGenerator(new SecureRandom()), dekPair.dek()));
+                            AesGcmEncryptor.forEncrypt(new AesGcmIvGenerator(new SecureRandom()), dekPair.dek()), onFree);
                 });
     }
 
@@ -157,20 +126,25 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
 
         var fieldsHeader = createEncryptedFieldsHeader(encryptionScheme.recordFields());
         return currentDekContext(encryptionScheme.kekId(), records.size()).thenAccept(keyContext -> {
-            var dekHeader = createEdekHeader(keyContext);
-            var maxValuePlaintextSize = encryptionScheme.recordFields().contains(RecordField.RECORD_VALUE)
-                    ? records.stream().mapToInt(Record::valueSize).max().orElse(-1)
-                    : -1;
-            synchronized (keyContext) {
-                var valueCiphertext = maxValuePlaintextSize >= 0 ? bufferPool.acquire(keyContext.encodedSize(maxValuePlaintextSize)) : null;
-                try {
-                    encryptRecords(encryptionScheme, keyContext, records, fieldsHeader, dekHeader, valueCiphertext, receiver);
-                }
-                finally {
-                    if (maxValuePlaintextSize >= 0) {
-                        bufferPool.release(valueCiphertext);
+            try {
+                var dekHeader = createEdekHeader(keyContext);
+                var maxValuePlaintextSize = encryptionScheme.recordFields().contains(RecordField.RECORD_VALUE)
+                        ? records.stream().mapToInt(Record::valueSize).max().orElse(-1)
+                        : -1;
+                synchronized (keyContext) {
+                    var valueCiphertext = maxValuePlaintextSize >= 0 ? bufferPool.acquire(keyContext.encodedSize(maxValuePlaintextSize)) : null;
+                    try {
+                        encryptRecords(encryptionScheme, keyContext, records, fieldsHeader, dekHeader, valueCiphertext, receiver);
+                    }
+                    finally {
+                        if (maxValuePlaintextSize >= 0) {
+                            bufferPool.release(valueCiphertext);
+                        }
                     }
                 }
+            }
+            finally {
+                keyContext.free();
             }
         });
     }

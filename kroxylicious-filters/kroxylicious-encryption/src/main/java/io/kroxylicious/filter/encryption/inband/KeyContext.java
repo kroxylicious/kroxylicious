@@ -23,10 +23,14 @@ final class KeyContext implements Destroyable {
     private final long encryptionExpiryNanos;
     private final AtomicInteger remainingEncryptions;
 
+    private final Runnable onFree;
+
     KeyContext(@NonNull ByteBuffer prefix,
                long encryptionExpiryNanos,
                int maxEncryptions,
-               @NonNull AesGcmEncryptor encryptor) {
+               @NonNull AesGcmEncryptor encryptor,
+               Runnable onFree) {
+        this.onFree = onFree;
         if (maxEncryptions <= 0) {
             throw new IllegalArgumentException();
         }
@@ -76,5 +80,9 @@ final class KeyContext implements Destroyable {
     @Override
     public void destroy() throws DestroyFailedException {
         encryptor.destroy();
+    }
+
+    public void free() {
+        onFree.run();
     }
 }

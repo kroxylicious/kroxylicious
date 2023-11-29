@@ -27,8 +27,10 @@ class KeyContextTest {
 
     @Test
     void shouldRejectInvalidNumberOfEncryptions() {
-        assertThrows(IllegalArgumentException.class, () -> new KeyContext(null, 101011, 0, null));
-        assertThrows(IllegalArgumentException.class, () -> new KeyContext(null, 101011, -1, null));
+        assertThrows(IllegalArgumentException.class, () -> new KeyContext(null, 101011, 0, null, () -> {
+        }));
+        assertThrows(IllegalArgumentException.class, () -> new KeyContext(null, 101011, -1, null, () -> {
+        }));
     }
 
     @Test
@@ -38,7 +40,8 @@ class KeyContextTest {
         var pair = kms.generateDekPair(kek).get();
         ByteBuffer prefix = ByteBuffer.wrap(new byte[]{ 1, 2, 3 });
         var context = new KeyContext(prefix, 101011, 2,
-                AesGcmEncryptor.forEncrypt(new AesGcmIvGenerator(new SecureRandom()), pair.dek()));
+                AesGcmEncryptor.forEncrypt(new AesGcmIvGenerator(new SecureRandom()), pair.dek()), () -> {
+                });
 
         assertThrows(IllegalArgumentException.class, () -> context.hasAtLeastRemainingEncryptions(0));
         assertThrows(IllegalArgumentException.class, () -> context.hasAtLeastRemainingEncryptions(-1));
@@ -51,7 +54,8 @@ class KeyContextTest {
         var pair = kms.generateDekPair(kek).get();
         ByteBuffer prefix = ByteBuffer.wrap(new byte[]{ 1, 2, 3 });
         var context = new KeyContext(prefix, 101011, 2,
-                AesGcmEncryptor.forEncrypt(new AesGcmIvGenerator(new SecureRandom()), pair.dek()));
+                AesGcmEncryptor.forEncrypt(new AesGcmIvGenerator(new SecureRandom()), pair.dek()), () -> {
+                });
 
         assertTrue(context.hasAtLeastRemainingEncryptions(1));
 
