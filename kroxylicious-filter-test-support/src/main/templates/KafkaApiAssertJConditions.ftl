@@ -11,7 +11,7 @@
 dataClass="${messageSpec.dataClassName}"
 conditionClassName="${dataClass?cap_first}Condition"
 />
-<#-- there is a missmatch in pluralisation between OffsetsForLeader message spec name and the actual Request type -->
+<#-- there is a mismatch in pluralisation between OffsetsForLeader message spec name and the actual Request type -->
 <#if messageSpec.name?starts_with("OffsetForLeader")>
     <#assign requestName = messageSpec.name?replace("Offset", "Offsets") />
 <#else>
