@@ -17,8 +17,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.kroxylicious.proxy.filter.FilterContext;
 
-import static io.kroxylicious.test.condition.ApiMessageCondition.forApiKey;
-import static io.kroxylicious.test.condition.ProduceRequestDataCondition.produceRequestMatching;
+import static io.kroxylicious.test.condition.kafka.ApiMessageCondition.forApiKey;
+import static io.kroxylicious.test.condition.kafka.ProduceRequestDataCondition.produceRequestMatching;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.assertArg;
@@ -56,7 +56,7 @@ class MultiTenantTransformationFilterTest {
                         .is(produceRequestMatching(produceRequestData -> produceRequestData.topicData()
                                 .stream()
                                 .hasSameSizeAs(request.topicData())
-                                .allMatch(topicProduceData -> topicProduceData.name().equals("vc1-testTopic")))
+                                .allMatch(topicProduceData -> topicProduceData.name().equals("vc1-testTopic" )))
                         )));
 
     }

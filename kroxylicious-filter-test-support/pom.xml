@@ -115,7 +115,7 @@
                             <templateNames>KafkaApiAssertJConditions.ftl</templateNames>
                             <!--suppress MavenModelInspection -->
                             <outputFilePattern>${messageSpecName}DataCondition.java</outputFilePattern>
-                            <outputPackage>io.kroxylicious.test.condition</outputPackage>
+                            <outputPackage>io.kroxylicious.test.condition.kafka</outputPackage>
                             <outputDirectory>${project.build.directory}/generated-sources/krpc</outputDirectory>
                         </configuration>
                     </execution>
