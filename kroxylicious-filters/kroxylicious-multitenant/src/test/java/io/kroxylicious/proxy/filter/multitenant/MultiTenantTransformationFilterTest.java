@@ -55,6 +55,7 @@ class MultiTenantTransformationFilterTest {
                         .is(forApiKey(ApiKeys.PRODUCE))
                         .is(produceRequestMatching(produceRequestData -> produceRequestData.topicData()
                                 .stream()
+                                .hasSameSizeAs(request.topicData())
                                 .allMatch(topicProduceData -> topicProduceData.name().equals("vc1-testTopic")))
                         )));
 
