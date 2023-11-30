@@ -16,7 +16,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.kms.service.DekPair;
-import io.kroxylicious.kms.service.Serde;
 import io.kroxylicious.kms.service.UnknownAliasException;
 import io.kroxylicious.kms.service.UnknownKeyException;
 
@@ -61,27 +60,6 @@ class IntegrationTestingKmsServiceTest {
         // then
         assertEquals(kek, theSameKms.resolveAlias("myAlias").join());
 
-        IntegrationTestingKmsService.delete(kmsId);
-    }
-
-    @Test
-    void shouldSerializeAndDeserialiseKeks() {
-        // given
-        var kmsId = UUID.randomUUID().toString();
-        var kms = service.buildKms(new IntegrationTestingKmsService.Config(kmsId));
-        var kek = kms.generateKey();
-        assertNotNull(kek);
-
-        // when
-        Serde<UUID> keyIdSerde = kms.keyIdSerde();
-        var buffer = ByteBuffer.allocate(keyIdSerde.sizeOf(kek));
-        keyIdSerde.serialize(kek, buffer);
-        assertFalse(buffer.hasRemaining());
-        buffer.flip();
-        var loadedKek = keyIdSerde.deserialize(buffer);
-
-        // then
-        assertEquals(kek, loadedKek, "Expect the deserialized kek to be equal to the original kek");
         IntegrationTestingKmsService.delete(kmsId);
     }
 
@@ -153,7 +131,7 @@ class IntegrationTestingKmsServiceTest {
         assertNotNull(pair.dek());
 
         // when
-        var decryptedDek = kms.decryptEdek(kek, pair.edek()).join();
+        var decryptedDek = kms.decryptEdek(pair.edek()).join();
 
         // then
         assertEquals(pair.dek(), decryptedDek, "Expect the decrypted DEK to equal the originally generated DEK");

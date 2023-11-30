@@ -7,6 +7,7 @@
 package io.kroxylicious.kms.provider.kroxylicious.inmemory;
 
 import java.nio.ByteBuffer;
+import java.util.UUID;
 
 import io.kroxylicious.kms.service.Serde;
 
@@ -14,22 +15,26 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 class InMemoryEdekSerde implements Serde<InMemoryEdek> {
 
+    UUIDSerde uuidSerde = new UUIDSerde();
+
     @Override
     public InMemoryEdek deserialize(@NonNull ByteBuffer buffer) {
         short numAuthBits = Serde.getUnsignedByte(buffer);
         var ivLength = Serde.getUnsignedByte(buffer);
         var iv = new byte[ivLength];
         buffer.get(iv);
+        UUID keyRef = uuidSerde.deserialize(buffer);
         int edekLength = buffer.limit() - buffer.position();
         var edek = new byte[edekLength];
         buffer.get(edek);
-        return new InMemoryEdek(numAuthBits, iv, edek);
+        return new InMemoryEdek(numAuthBits, iv, edek, keyRef);
     }
 
     @Override
     public int sizeOf(InMemoryEdek inMemoryEdek) {
         return Byte.BYTES // Auth tag: NIST.SP.800-38D §5.2.1.2 suggests max tag length is 128
                 + Byte.BYTES // IV length: NIST.SP.800-38D §8.2 certainly doesn't _limit_ IV to 96 bits
+                + uuidSerde.sizeOf(inMemoryEdek.kekRef())
                 + inMemoryEdek.iv().length
                 + inMemoryEdek.edek().length;
     }
@@ -39,6 +44,7 @@ class InMemoryEdekSerde implements Serde<InMemoryEdek> {
         Serde.putUnsignedByte(buffer, inMemoryEdek.numAuthBits());
         Serde.putUnsignedByte(buffer, inMemoryEdek.iv().length);
         buffer.put(inMemoryEdek.iv());
+        uuidSerde.serialize(inMemoryEdek.kekRef(), buffer);
         buffer.put(inMemoryEdek.edek());
     }
 }
