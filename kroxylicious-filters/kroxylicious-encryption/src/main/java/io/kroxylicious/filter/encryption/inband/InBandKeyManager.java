@@ -61,12 +61,13 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
     private final int maxEncryptionsPerDek;
 
     public InBandKeyManager(Kms<K, E> kms,
-                            BufferPool bufferPool) {
+                            BufferPool bufferPool,
+                            int maxEncryptionsPerDek) {
         this.kms = kms;
         this.bufferPool = bufferPool;
         this.edekSerde = kms.edekSerde();
         this.dekTtlNanos = 5_000_000_000L;
-        this.maxEncryptionsPerDek = 500_000;
+        this.maxEncryptionsPerDek = maxEncryptionsPerDek;
         // TODO This ^^ must be > the maximum size of a batch to avoid an infinite loop
         this.keyContextCache = new ConcurrentHashMap<>();
         this.decryptorCache = new ConcurrentHashMap<>();
@@ -86,19 +87,8 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
         });
     }
 
-    private CompletionStage<KeyContext> currentDekContext(@NonNull K kekId, int numRecords) {
-        return getKeyContext(kekId, makeKeyContext(kekId))
-                .thenCompose(cachedContext -> {
-                    if (!cachedContext.isExpiredForEncryption(System.nanoTime())
-                            && cachedContext.hasAtLeastRemainingEncryptions(numRecords)) {
-                        // TODO pre-populate decryptorCache?
-                        return CompletableFuture.completedFuture(cachedContext);
-                    }
-                    else {
-                        destroy(cachedContext);
-                        return currentDekContext(kekId, numRecords);
-                    }
-                });
+    private CompletionStage<KeyContext> currentDekContext(@NonNull K kekId) {
+        return getKeyContext(kekId, makeKeyContext(kekId));
     }
 
     static void destroy(Destroyable destroyable) {
@@ -147,25 +137,50 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
     public CompletionStage<Void> encrypt(@NonNull EncryptionScheme<K> encryptionScheme,
                                          @NonNull List<? extends Record> records,
                                          @NonNull Receiver receiver) {
-
-        var fieldsHeader = createEncryptedFieldsHeader(encryptionScheme.recordFields());
-        return currentDekContext(encryptionScheme.kekId(), records.size()).thenAccept(keyContext -> {
-            var dekHeader = createEdekHeader(keyContext);
-            var maxValuePlaintextSize = encryptionScheme.recordFields().contains(RecordField.RECORD_VALUE)
-                    ? records.stream().mapToInt(Record::valueSize).max().orElse(-1)
-                    : -1;
+        return currentDekContext(encryptionScheme.kekId()).thenCompose(keyContext -> {
+            // access to the key context is synchronized
             synchronized (keyContext) {
-                var valueCiphertext = maxValuePlaintextSize >= 0 ? bufferPool.acquire(keyContext.encodedSize(maxValuePlaintextSize)) : null;
-                try {
-                    encryptRecords(encryptionScheme, keyContext, records, fieldsHeader, dekHeader, valueCiphertext, receiver);
-                }
-                finally {
-                    if (maxValuePlaintextSize >= 0) {
-                        bufferPool.release(valueCiphertext);
+                // if it's not alive we know a previous encrypt call has replaced the stage in the cache and fall through to retry encrypt
+                if (keyContext.isAlive()) {
+                    if (!keyContext.hasAtLeastRemainingEncryptions(records.size())) {
+                        // replace the key context stage in the cache, then call encrypt again
+                        rotateKeyContext(encryptionScheme, keyContext);
+                    }
+                    else {
+                        return encryptUsingSharedCiphertextBuffer(encryptionScheme, records, receiver, keyContext);
                     }
                 }
             }
+            // todo add a recursion limit
+            return encrypt(encryptionScheme, records, receiver);
         });
+    }
+
+    @NonNull
+    private CompletableFuture<Void> encryptUsingSharedCiphertextBuffer(@NonNull EncryptionScheme<K> encryptionScheme, @NonNull List<? extends Record> records,
+                                                                       @NonNull Receiver receiver, KeyContext keyContext) {
+        var fieldsHeader = createEncryptedFieldsHeader(encryptionScheme.recordFields());
+        var dekHeader = createEdekHeader(keyContext);
+        var maxValuePlaintextSize = encryptionScheme.recordFields().contains(RecordField.RECORD_VALUE)
+                ? records.stream().mapToInt(Record::valueSize).max().orElse(-1)
+                : -1;
+        var valueCiphertext = maxValuePlaintextSize >= 0 ? bufferPool.acquire(keyContext.encodedSize(maxValuePlaintextSize)) : null;
+        try {
+            encryptRecords(encryptionScheme, keyContext, records, fieldsHeader, dekHeader, valueCiphertext, receiver);
+        }
+        finally {
+            if (maxValuePlaintextSize >= 0) {
+                bufferPool.release(valueCiphertext);
+            }
+        }
+        keyContext.recordEncryptions(records.size());
+        return CompletableFuture.completedFuture(null);
+    }
+
+    private void rotateKeyContext(@NonNull EncryptionScheme<K> encryptionScheme, KeyContext keyContext) {
+        destroy(keyContext);
+        K kekId = encryptionScheme.kekId();
+        keyContextCache.put(kekId, makeKeyContext(kekId).get());
     }
 
     private void encryptRecords(@NonNull EncryptionScheme<K> encryptionScheme,

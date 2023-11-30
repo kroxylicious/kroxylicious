@@ -8,6 +8,7 @@ package io.kroxylicious.filter.encryption.inband;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.List;
@@ -31,7 +32,9 @@ import io.kroxylicious.kms.provider.kroxylicious.inmemory.UnitTestingKmsService;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -91,7 +94,7 @@ class InBandKeyManagerTest {
     void shouldEncryptRecordValue() {
         var kmsService = UnitTestingKmsService.newInstance();
         InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating());
+        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
 
         var kekId = kms.generateKey();
 
@@ -125,7 +128,7 @@ class InBandKeyManagerTest {
     void shouldEncryptRecordValueForMultipleRecords() throws ExecutionException, InterruptedException, TimeoutException {
         var kmsService = UnitTestingKmsService.newInstance();
         InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating());
+        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
 
         var kekId = kms.generateKey();
 
@@ -154,6 +157,131 @@ class InBandKeyManagerTest {
         assertEquals(initial, decrypted);
     }
 
+    @Test
+    void shouldGenerateNewDekIfOldDekHasNoRemainingEncryptions() throws ExecutionException, InterruptedException, TimeoutException {
+        var kmsService = UnitTestingKmsService.newInstance();
+        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
+        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 2);
+
+        var kekId = kms.generateKey();
+
+        var value = ByteBuffer.wrap(new byte[]{ 1, 2, 3 });
+        TestingRecord record = new TestingRecord(value);
+
+        var value2 = ByteBuffer.wrap(new byte[]{ 3, 4, 5 });
+        TestingRecord record2 = new TestingRecord(value2);
+
+        List<TestingRecord> encrypted = new ArrayList<>();
+        List<TestingRecord> initial = List.of(record, record2);
+        km.encrypt(new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
+                initial,
+                recordReceivedRecord(encrypted)).toCompletableFuture().get(10, TimeUnit.SECONDS);
+        record.value().rewind();
+        record2.value().rewind();
+
+        // at this point we have encrypted 2 records with the manager set to maximum 2 encryptions per dek
+
+        km.encrypt(new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
+                initial,
+                recordReceivedRecord(encrypted)).toCompletableFuture().get(10, TimeUnit.SECONDS);
+
+        record.value().rewind();
+        record2.value().rewind();
+        List<byte[]> deks = encrypted.stream()
+                .map(testingRecord -> Arrays.stream(testingRecord.headers()).filter(header -> header.key().equals("kroxylicious.io/dek")).findFirst().orElseThrow()
+                        .value())
+                .toList();
+        assertEquals(4, encrypted.size());
+        assertEquals(4, deks.size());
+        assertArrayEquals(deks.get(0), deks.get(1));
+        assertArrayEquals(deks.get(2), deks.get(3));
+        assertFalse(Arrays.equals(deks.get(0), deks.get(2)));
+        assertFalse(Arrays.equals(deks.get(0), deks.get(3)));
+    }
+
+    @Test
+    void shouldGenerateNewDekIfOldOneHasSomeRemainingEncryptionsButNotEnoughForWholeBatch() throws ExecutionException, InterruptedException, TimeoutException {
+        var kmsService = UnitTestingKmsService.newInstance();
+        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
+        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 3);
+
+        var kekId = kms.generateKey();
+
+        var value = ByteBuffer.wrap(new byte[]{ 1, 2, 3 });
+        TestingRecord record = new TestingRecord(value);
+
+        var value2 = ByteBuffer.wrap(new byte[]{ 3, 4, 5 });
+        TestingRecord record2 = new TestingRecord(value2);
+
+        List<TestingRecord> encrypted = new ArrayList<>();
+        List<TestingRecord> initial = List.of(record, record2);
+        km.encrypt(new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
+                initial,
+                recordReceivedRecord(encrypted)).toCompletableFuture().get(10, TimeUnit.SECONDS);
+        record.value().rewind();
+        record2.value().rewind();
+
+        // at this point we have encrypted 2 records with the manager set to maximum 3 encryptions per dek, so we need a new dek to encrypt 2 more records
+
+        km.encrypt(new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
+                initial,
+                recordReceivedRecord(encrypted)).toCompletableFuture().get(10, TimeUnit.SECONDS);
+
+        record.value().rewind();
+        record2.value().rewind();
+        List<byte[]> deks = encrypted.stream()
+                .map(testingRecord -> Arrays.stream(testingRecord.headers()).filter(header -> header.key().equals("kroxylicious.io/dek")).findFirst().orElseThrow()
+                        .value())
+                .toList();
+        assertEquals(4, encrypted.size());
+        assertEquals(4, deks.size());
+        assertArrayEquals(deks.get(0), deks.get(1));
+        assertArrayEquals(deks.get(2), deks.get(3));
+        assertFalse(Arrays.equals(deks.get(0), deks.get(2)));
+        assertFalse(Arrays.equals(deks.get(0), deks.get(3)));
+    }
+
+    @Test
+    void shouldUseSameDekForMultipleBatches() throws ExecutionException, InterruptedException, TimeoutException {
+        var kmsService = UnitTestingKmsService.newInstance();
+        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
+        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 4);
+
+        var kekId = kms.generateKey();
+
+        var value = ByteBuffer.wrap(new byte[]{ 1, 2, 3 });
+        TestingRecord record = new TestingRecord(value);
+
+        var value2 = ByteBuffer.wrap(new byte[]{ 3, 4, 5 });
+        TestingRecord record2 = new TestingRecord(value2);
+
+        List<TestingRecord> encrypted = new ArrayList<>();
+        List<TestingRecord> initial = List.of(record, record2);
+        km.encrypt(new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
+                initial,
+                recordReceivedRecord(encrypted)).toCompletableFuture().get(10, TimeUnit.SECONDS);
+        record.value().rewind();
+        record2.value().rewind();
+
+        // at this point we have encrypted 2 records with the manager set to maximum 4 encryptions per dek, so we do not need a new dek to encrypt 2 more records
+
+        km.encrypt(new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
+                initial,
+                recordReceivedRecord(encrypted)).toCompletableFuture().get(10, TimeUnit.SECONDS);
+
+        record.value().rewind();
+        record2.value().rewind();
+        List<byte[]> deks = encrypted.stream()
+                .map(testingRecord -> Arrays.stream(testingRecord.headers()).filter(header -> header.key().equals("kroxylicious.io/dek")).findFirst().orElseThrow()
+                        .value())
+                .toList();
+        assertEquals(4, encrypted.size());
+        assertEquals(4, deks.size());
+        assertArrayEquals(deks.get(0), deks.get(1));
+        assertArrayEquals(deks.get(0), deks.get(2));
+        assertArrayEquals(deks.get(0), deks.get(3));
+    }
+
     @NonNull
     private static ByteBuffer copyBytes(ByteBuffer v) {
         byte[] bytes = new byte[v.remaining()];
@@ -166,7 +294,7 @@ class InBandKeyManagerTest {
     void shouldEncryptRecordHeaders() {
         var kmsService = UnitTestingKmsService.newInstance();
         InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating());
+        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
 
         var kekId = kms.generateKey();
 
@@ -194,7 +322,7 @@ class InBandKeyManagerTest {
     void shouldEncryptRecordHeadersForMultipleRecords() throws ExecutionException, InterruptedException, TimeoutException {
         var kmsService = UnitTestingKmsService.newInstance();
         InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating());
+        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
 
         var kekId = kms.generateKey();
 

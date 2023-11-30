@@ -7,7 +7,6 @@
 package io.kroxylicious.filter.encryption.inband;
 
 import java.nio.ByteBuffer;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.security.auth.DestroyFailedException;
 import javax.security.auth.Destroyable;
@@ -21,7 +20,8 @@ final class KeyContext implements Destroyable {
     private final AesGcmEncryptor encryptor;
     private final byte[] prefix;
     private final long encryptionExpiryNanos;
-    private final AtomicInteger remainingEncryptions;
+    private int remainingEncryptions;
+    private boolean alive = true;
 
     KeyContext(@NonNull ByteBuffer prefix,
                long encryptionExpiryNanos,
@@ -32,7 +32,7 @@ final class KeyContext implements Destroyable {
         }
         this.prefix = prefix.array();
         this.encryptionExpiryNanos = encryptionExpiryNanos;
-        this.remainingEncryptions = new AtomicInteger(maxEncryptions);
+        this.remainingEncryptions = maxEncryptions;
         this.encryptor = encryptor;
     }
 
@@ -48,7 +48,14 @@ final class KeyContext implements Destroyable {
         if (numEncryptions <= 0) {
             throw new IllegalArgumentException();
         }
-        return remainingEncryptions.getAndAdd(-numEncryptions) >= numEncryptions;
+        return remainingEncryptions >= numEncryptions;
+    }
+
+    public void recordEncryptions(int numEncryptions) {
+        if (numEncryptions <= 0) {
+            throw new IllegalArgumentException();
+        }
+        remainingEncryptions -= numEncryptions;
     }
 
     /**
@@ -67,7 +74,7 @@ final class KeyContext implements Destroyable {
      * @param output The output buffer
      */
     public void encode(@NonNull ByteBuffer plaintext, @NonNull ByteBuffer output) {
-        if (remainingEncryptions.get() < 0) {
+        if (remainingEncryptions <= 0) {
             throw new ExhaustedDekException("No more encryptions");
         }
         encryptor.encrypt(plaintext, output);
@@ -75,6 +82,11 @@ final class KeyContext implements Destroyable {
 
     @Override
     public void destroy() throws DestroyFailedException {
+        alive = false;
         encryptor.destroy();
+    }
+
+    public boolean isAlive() {
+        return alive;
     }
 }

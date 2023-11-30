@@ -65,6 +65,7 @@ class KeyContextTest {
         assertFalse(output.hasRemaining());
         output.flip();
         bb.flip();
+        context.recordEncryptions(1);
 
         assertTrue(context.hasAtLeastRemainingEncryptions(1));
         assertFalse(context.isExpiredForEncryption(101010));
@@ -77,6 +78,7 @@ class KeyContextTest {
         assertFalse(output.hasRemaining());
         output.flip();
         bb.flip();
+        context.recordEncryptions(1);
 
         assertFalse(context.hasAtLeastRemainingEncryptions(1));
         context.encodedSize(bb.capacity());
@@ -84,7 +86,9 @@ class KeyContextTest {
         var e = assertThrows(ExhaustedDekException.class, () -> context.encode(bb, output));
         assertEquals("No more encryptions", e.getMessage());
 
+        assertTrue(context.isAlive());
         // destroy
         assertThrows(DestroyFailedException.class, context::destroy);
+        assertFalse(context.isAlive());
     }
 }
