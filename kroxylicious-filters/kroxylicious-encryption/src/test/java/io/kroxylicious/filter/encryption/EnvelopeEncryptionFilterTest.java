@@ -8,13 +8,16 @@ package io.kroxylicious.filter.encryption;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
@@ -54,7 +57,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.ArgumentMatchers.anySet;
 import static org.mockito.ArgumentMatchers.assertArg;
 import static org.mockito.Mock.Strictness.LENIENT;
 import static org.mockito.Mockito.mock;
@@ -74,13 +76,12 @@ class EnvelopeEncryptionFilterTest {
     KeyManager<String> keyManager;
 
     @Mock(strictness = LENIENT)
-    TopicNameBasedKekSelector<String> kekSelector;
-
-    @Mock(strictness = LENIENT)
     private FilterContext context;
 
     @Captor
     private ArgumentCaptor<ApiMessage> apiMessageCaptor;
+
+    private StubKekSelector<String> kekSelector = new StubKekSelector<>();
 
     private EnvelopeEncryptionFilter<String> encryptionFilter;
 
@@ -96,10 +97,8 @@ class EnvelopeEncryptionFilterTest {
             return new ByteBufferOutputStream(capacity);
         });
 
-        final Map<String, String> topicNameToKekId = new HashMap<>();
-        topicNameToKekId.put(UNENCRYPTED_TOPIC, null);
-        topicNameToKekId.put(ENCRYPTED_TOPIC, KEK_ID_1);
-        when(kekSelector.selectKek(anySet())).thenReturn(CompletableFuture.completedFuture(topicNameToKekId));
+        kekSelector.addMapping(UNENCRYPTED_TOPIC, new EncryptionScheme<>("", EnumSet.noneOf(RecordField.class)));
+        kekSelector.addMapping(ENCRYPTED_TOPIC, new EncryptionScheme<>(KEK_ID_1, EnumSet.of(RecordField.RECORD_VALUE)));
 
         when(keyManager.encrypt(any(), anyList(), any(Receiver.class))).thenAnswer(invocationOnMock -> {
             final List<? extends Record> actualRecords = invocationOnMock.getArgument(1);
@@ -256,14 +255,12 @@ class EnvelopeEncryptionFilterTest {
             recordsBuilder.append(RecordBatch.NO_TIMESTAMP, null, payload.messageBytes(), new Header[]{ header });
             var records = recordsBuilder.build();
             // Build partitions from built records
-            var partitions = new ArrayList<ProduceRequestData.PartitionProduceData>();
             var partitionData = new ProduceRequestData.PartitionProduceData();
             partitionData.setRecords(records);
-            partitions.add(partitionData);
             // Build topics from built partitions
 
             var topicData = new ProduceRequestData.TopicProduceData();
-            topicData.setPartitionData(partitions);
+            topicData.partitionData().add(partitionData);
             topicData.setName(payload.topicName);
             topics.add(topicData);
         }
@@ -303,5 +300,22 @@ class EnvelopeEncryptionFilterTest {
                 description.appendValue(Objects.requireNonNullElse(underlyingDescription, "custom argument matcher"));
             }
         });
+    }
+
+    private static class StubKekSelector<K> extends TopicNameBasedKekSelector<K> {
+        private final Map<String, EncryptionScheme<K>> encryptionSchemesByTopicName = new ConcurrentHashMap<>();
+
+        public void addMapping(String topicName, EncryptionScheme<K> encryptionScheme) {
+            encryptionSchemesByTopicName.put(topicName, encryptionScheme);
+        }
+
+        @NonNull
+        @Override
+        public CompletionStage<Map<String, EncryptionScheme<K>>> selectKek(@NonNull Set<String> topicNames) {
+            return CompletableFuture.completedFuture(encryptionSchemesByTopicName.entrySet()
+                    .stream()
+                    .filter(entry -> topicNames.contains(entry.getKey()))
+                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)));
+        }
     }
 }

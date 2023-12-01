@@ -6,23 +6,31 @@
 
 package io.kroxylicious.filter.encryption;
 
+import java.util.EnumSet;
 import java.util.Objects;
 import java.util.Set;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
  * Describes how a record should be encrypted
  * @param kekId The KEK identifier to be used. Not null.
- * @param recordFields The fields of the record that should be encrypted with the given KEK. Neither null nor empty.
+ * @param recordFields The fields of the record that should be encrypted with the given KEK. The empty set indicates that encryption should not be performed.
  * @param <K> The type of KEK identifier.
  */
 public record EncryptionScheme<K>(
-                                  K kekId,
-                                  Set<RecordField> recordFields) {
+                                  @NonNull K kekId,
+                                  @NonNull Set<RecordField> recordFields) {
     public EncryptionScheme {
         Objects.requireNonNull(kekId);
-        if (Objects.requireNonNull(recordFields).isEmpty()) {
-            throw new IllegalArgumentException();
-        }
+        Objects.requireNonNull(recordFields);
     }
 
+    public static <K> EncryptionScheme<K> unencryptedScheme(K kekId) {
+        return new EncryptionScheme<>(kekId, EnumSet.noneOf(RecordField.class));
+    }
+
+    public boolean requiresEncryption() {
+        return !recordFields.isEmpty();
+    }
 }

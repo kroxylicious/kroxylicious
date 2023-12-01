@@ -6,13 +6,14 @@
 
 package io.kroxylicious.filter.encryption;
 
-import java.util.HashMap;
+import java.util.EnumSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.UnknownAliasException;
@@ -52,13 +53,14 @@ public class TemplateKekSelector<K> implements KekSelectorService<TemplateKekSel
 
         @NonNull
         @Override
-        public CompletionStage<Map<String, K>> selectKek(@NonNull Set<String> topicNames) {
+        public CompletionStage<Map<String, EncryptionScheme<K>>> selectKek(@NonNull Set<String> topicNames) {
+            final K unEncryptedKekId = kms.unEncryptedKekId();
             var collect = topicNames.stream()
                     .map(
                             topicName -> kms.resolveAlias(evaluateTemplate(topicName))
                                     .exceptionallyCompose(e -> {
                                         if (e instanceof UnknownAliasException) {
-                                            return CompletableFuture.completedFuture(null);
+                                            return CompletableFuture.completedFuture(unEncryptedKekId);
                                         }
                                         else {
                                             return CompletableFuture.failedFuture(e);
@@ -66,15 +68,9 @@ public class TemplateKekSelector<K> implements KekSelectorService<TemplateKekSel
                                     })
                                     .thenApply(kekId -> new Pair<>(topicName, kekId)))
                     .toList();
-            return EnvelopeEncryptionFilter.join(collect).thenApply(list -> {
-                // Note we can't use `java.util.stream...(Collectors.toMap())` to build the map, because it has null values
-                // which Collectors.toMap() does now allow.
-                Map<String, K> map = new HashMap<>();
-                for (Pair<K> pair : list) {
-                    map.put(pair.topicName(), pair.kekId());
-                }
-                return map;
-            });
+            return EnvelopeEncryptionFilter.join(collect).thenApply(list -> list.stream().collect(Collectors.toMap(Pair::topicName,
+                    kPair -> unEncryptedKekId.equals(kPair.kekId()) ? EncryptionScheme.unencryptedScheme(kPair.kekId())
+                            : new EncryptionScheme<>(kPair.kekId(), EnumSet.of(RecordField.RECORD_VALUE)))));
         }
 
         String evaluateTemplate(String topicName) {

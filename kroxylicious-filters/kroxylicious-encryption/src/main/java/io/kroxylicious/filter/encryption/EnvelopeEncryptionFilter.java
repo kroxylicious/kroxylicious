@@ -7,7 +7,6 @@
 package io.kroxylicious.filter.encryption;
 
 import java.util.ArrayList;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -80,18 +79,18 @@ public class EnvelopeEncryptionFilter<K>
                 .thenCompose(kekMap -> {
                     var futures = kekMap.entrySet().stream().flatMap(e -> {
                         String topicName = e.getKey();
-                        var kekId = e.getValue();
+                        var encryptionScheme = e.getValue();
                         TopicProduceData tpd = topicNameToData.get(topicName);
                         return tpd.partitionData().stream().map(ppd -> {
                             // handle case where this topic is to be left unencrypted
-                            if (kekId == null) {
+                            if (!encryptionScheme.requiresEncryption()) {
                                 return CompletableFuture.completedStage(ppd);
                             }
                             MemoryRecords records = (MemoryRecords) ppd.records();
                             MemoryRecordsBuilder builder = recordsBuilder(allocateBufferForEncode(records, context), records);
                             var encryptionRequests = recordStream(records).toList();
                             return keyManager.encrypt(
-                                    new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
+                                    encryptionScheme,
                                     encryptionRequests,
                                     (kafkaRecord, encryptedValue, headers) -> builder.append(kafkaRecord.timestamp(), kafkaRecord.key(), encryptedValue, headers))
                                     .thenApply(ignored -> ppd.setRecords(builder.build()));

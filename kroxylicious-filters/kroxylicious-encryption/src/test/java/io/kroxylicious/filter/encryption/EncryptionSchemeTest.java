@@ -10,6 +10,7 @@ import java.util.EnumSet;
 
 import org.junit.jupiter.api.Test;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -18,11 +19,9 @@ class EncryptionSchemeTest {
     @Test
     void shouldRejectInvalidConstructorArgs() {
         EnumSet<RecordField> nonEmpty = EnumSet.of(RecordField.RECORD_VALUE);
-        var empty = EnumSet.noneOf(RecordField.class);
         assertThrows(NullPointerException.class, () -> new EncryptionScheme<>(null, nonEmpty));
         Object kekId = new Object();
         assertThrows(NullPointerException.class, () -> new EncryptionScheme<>(kekId, null));
-        assertThrows(IllegalArgumentException.class, () -> new EncryptionScheme<>(kekId, empty));
     }
 
     @Test
@@ -34,4 +33,25 @@ class EncryptionSchemeTest {
         assertEquals(nonEmpty, es.recordFields());
     }
 
+    @Test
+    void shouldRequireEncryption() {
+        // Given
+        final EncryptionScheme<String> encryptionScheme = new EncryptionScheme<>("EncryptMe", EnumSet.of(RecordField.RECORD_VALUE));
+
+        // When
+        assertThat(encryptionScheme.requiresEncryption()).isTrue();
+
+        // Then
+    }
+
+    @Test
+    void shouldNotRequireEncryption() {
+        // Given
+        final EncryptionScheme<String> encryptionScheme = new EncryptionScheme<>("EncryptMe", EnumSet.noneOf(RecordField.class));
+
+        // When
+        assertThat(encryptionScheme.requiresEncryption()).isFalse();
+
+        // Then
+    }
 }

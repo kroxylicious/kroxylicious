@@ -42,6 +42,11 @@ public class InMemoryKms implements
 
     private static final String AES_WRAP_ALGO = "AES_256/GCM/NoPadding";
     public static final String AES_KEY_ALGO = "AES";
+    /**
+     * Marker key to be used where no encryption is required. As defined in <a href="https://www.rfc-editor.org/rfc/rfc4122#section-4.1.7">rfc4122#section-4.1.7</a>
+     */
+    public static final UUID NIL_UUID = new UUID(0, 0);
+
     private final Map<UUID, SecretKey> keys;
     private final KeyGenerator aes;
     private final int numIvBytes;
@@ -207,6 +212,11 @@ public class InMemoryKms implements
             return CompletableFuture.failedFuture(new UnknownAliasException(alias));
         }
         return CompletableFuture.completedFuture(uuid);
+    }
+
+    @Override
+    public UUID unEncryptedKekId() {
+        return NIL_UUID;
     }
 
     @NonNull

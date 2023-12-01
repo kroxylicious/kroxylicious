@@ -6,8 +6,11 @@
 
 package io.kroxylicious.filter.encryption;
 
+import java.util.EnumSet;
+import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ExecutionException;
+import java.util.UUID;
+import java.util.concurrent.CompletionStage;
 
 import org.junit.jupiter.api.Test;
 
@@ -17,8 +20,8 @@ import io.kroxylicious.kms.service.Kms;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class TemplateKekSelectorTest {
@@ -30,23 +33,31 @@ class TemplateKekSelectorTest {
     }
 
     @Test
-    void shouldResolveWhenAliasExists() throws ExecutionException, InterruptedException {
+    void shouldResolveWhenAliasExists() {
+        // Given
         InMemoryKms kms = UnitTestingKmsService.newInstance().buildKms(new UnitTestingKmsService.Config());
         var selector = getSelector(kms, "topic-${topicName}");
 
         var kek = kms.generateKey();
         kms.createAlias(kek, "topic-my-topic");
-        var map = selector.selectKek(Set.of("my-topic")).toCompletableFuture().get();
-        assertEquals(kek, map.get("my-topic"));
+
+        // When
+        final CompletionStage<Map<String, EncryptionScheme<UUID>>> actual = selector.selectKek(Set.of("my-topic"));
+
+        // Then
+        assertThat(actual).isCompletedWithValue(Map.of("my-topic", new EncryptionScheme<>(kek, EnumSet.of(RecordField.RECORD_VALUE))));
     }
 
     @Test
-    void shouldThrowWhenAliasDoesNotExist() throws ExecutionException, InterruptedException {
+    void shouldResolveUnencryptedSchemeWhenAliasDoesNotExist() {
         InMemoryKms kms = UnitTestingKmsService.newInstance().buildKms(new UnitTestingKmsService.Config());
         var selector = getSelector(kms, "topic-${topicName}");
 
-        var map = selector.selectKek(Set.of("my-topic")).toCompletableFuture().get();
-        assertNull(map.get("my-topic"));
+        // When
+        final CompletionStage<Map<String, EncryptionScheme<UUID>>> actual = selector.selectKek(Set.of("my-topic"));
+
+        // Then
+        assertThat(actual).isCompletedWithValue(Map.of("my-topic", new EncryptionScheme<>(new UUID(0, 0), EnumSet.noneOf(RecordField.class))));
     }
 
     @NonNull

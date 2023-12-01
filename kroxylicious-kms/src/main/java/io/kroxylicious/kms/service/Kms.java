@@ -71,4 +71,6 @@ public interface Kms<K, E> {
      */
     @NonNull
     CompletionStage<K> resolveAlias(@NonNull String alias);
+
+    K unEncryptedKekId();
 }
