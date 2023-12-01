@@ -80,17 +80,17 @@ KEK selection refers to how the filter determines which KEK to use for encryptin
 The filter only supports this decision being based on the record (not, for example, based on the identity of the Kafka client), and without
 The filter only supports using a single key for encrypting record data.
 
-=== KEK rotation
-
-TODO
-
-=== DEK generation
-
-TODO Talk about when and how new DEKs get generated
-
-=== DEK rotation
-
-TODO
+// === KEK rotation
+//
+// TODO
+//
+// === DEK generation
+//
+// TODO Talk about when and how new DEKs get generated
+//
+// === DEK rotation
+//
+// TODO
 
 
 == Encryption
@@ -244,3 +244,18 @@ However, as consequence of this design, on the fetch path we have no choice but 
 ==== Proxy compresses a batch of decrypted records, prior to forwarding to the client
 
 The benefits of doing this are unclear. The compression only benefits a single client and only in terms of network bandwidth. It's unclear whether it's worth the CPU. Likely we should only support a single compressor, chosen based on experiment.
+
+// == Kafka protocol considerations
+//
+// === Errors
+//
+// TODO Describe how problems during encryption/decryption map to Kafka error codes
+//
+// == Performance considerations
+//
+// TODO describe the threading model and main perf-related tunables
+// TODO provide some indicative numbers for the effect on produce/fetch throughput and latency (including tail latencies)
+//
+// == Operational considerations
+//
+// TODO describe the metrics/monitoring, memory usage considerations etc.
