@@ -49,7 +49,7 @@ import io.kroxylicious.proxy.filter.RequestFilterResult;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-import static io.kroxylicious.filter.encryption.ProduceRequestDataCondition.hasRecordsForTopic;
+import static io.kroxylicious.test.condition.kafka.ProduceRequestDataCondition.produceRequestMatching;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -214,9 +214,12 @@ class EnvelopeEncryptionFilterTest {
         encryptionFilter.onProduceRequest(ProduceRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), produceRequestData, context);
 
         // Then
-        verify(context).forwardRequest(any(), argThat(request -> assertThat(request).isInstanceOf(ProduceRequestData.class)
-                .asInstanceOf(InstanceOfAssertFactories.type(ProduceRequestData.class))
-                .is(hasRecordsForTopic(ENCRYPTED_TOPIC))));
+        verify(context).forwardRequest(any(),
+                argThat(request -> assertThat(request)
+                        .is(produceRequestMatching(
+                                requestData -> requestData.topicData()
+                                        .stream()
+                                        .anyMatch(produceData -> produceData.name().equals(ENCRYPTED_TOPIC))))));
     }
 
     private static FetchResponseData buildFetchResponseData(Payload... payloads) {
