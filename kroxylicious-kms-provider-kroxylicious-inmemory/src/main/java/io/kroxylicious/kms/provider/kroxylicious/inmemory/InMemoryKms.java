@@ -215,7 +215,7 @@ public class InMemoryKms implements
     }
 
     @Override
-    public UUID unEncryptedKekId() {
+    public UUID unencryptedKekId() {
         return NIL_UUID;
     }
 

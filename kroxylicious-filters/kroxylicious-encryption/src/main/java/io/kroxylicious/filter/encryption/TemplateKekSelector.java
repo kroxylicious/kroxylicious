@@ -54,7 +54,7 @@ public class TemplateKekSelector<K> implements KekSelectorService<TemplateKekSel
         @NonNull
         @Override
         public CompletionStage<Map<String, EncryptionScheme<K>>> selectKek(@NonNull Set<String> topicNames) {
-            final K unEncryptedKekId = kms.unEncryptedKekId();
+            final K unEncryptedKekId = kms.unencryptedKekId();
             var collect = topicNames.stream()
                     .map(
                             topicName -> kms.resolveAlias(evaluateTemplate(topicName))

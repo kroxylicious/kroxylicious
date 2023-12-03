@@ -72,5 +72,9 @@ public interface Kms<K, E> {
     @NonNull
     CompletionStage<K> resolveAlias(@NonNull String alias);
 
-    K unEncryptedKekId();
+    /**
+     * The sentinel value used by the KMS implementation to convey that encryption should not be applied.
+     * @return the sentinel value.
+     */
+    K unencryptedKekId();
 }
