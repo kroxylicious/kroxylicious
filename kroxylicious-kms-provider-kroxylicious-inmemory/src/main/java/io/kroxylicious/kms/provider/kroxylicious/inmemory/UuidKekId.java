@@ -10,6 +10,7 @@ import java.util.Objects;
 import java.util.UUID;
 
 import io.kroxylicious.kms.service.KekId;
+import io.kroxylicious.kms.service.KmsException;
 
 public class UuidKekId implements KekId {
 
@@ -19,9 +20,13 @@ public class UuidKekId implements KekId {
         this.keyId = keyId;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
-    public UUID getId() {
-        return this.keyId;
+    public <K> K getId(Class<K> keyType) {
+        if (!keyType.isAssignableFrom(UUID.class)) {
+            throw new KmsException("Unsupported keyType (" + keyType + ") requested. Only UUID's are supported");
+        }
+        return (K) this.keyId;
     }
 
     @Override

@@ -101,7 +101,7 @@ class EnvelopeEncryptionFilterTest {
         topicNameToKekId.put(UNENCRYPTED_TOPIC, null);
         topicNameToKekId.put(ENCRYPTED_TOPIC, new KekId() {
             @Override
-            public <K> K getId() {
+            public <K> K getId(Class<K> keyType) {
                 return (K) KEK_ID_1;
             }
         });

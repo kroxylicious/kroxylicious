@@ -18,5 +18,5 @@ public interface KekId {
      *
      * @return the underlying key ID
      */
-    <K> K getId();
+    <K> K getId(Class<K> keyType);
 }

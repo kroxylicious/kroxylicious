@@ -24,8 +24,11 @@ class EncryptionSchemeTest {
         var empty = EnumSet.noneOf(RecordField.class);
         assertThrows(NullPointerException.class, () -> new EncryptionScheme(null, nonEmpty));
         Object kekId = new Object();
-        assertThrows(NullPointerException.class, () -> new EncryptionScheme(new MyKekId(kekId), null));
-        assertThrows(IllegalArgumentException.class, () -> new EncryptionScheme(new MyKekId(kekId), empty));
+
+        final MyKekId myKekId = new MyKekId(kekId);
+
+        assertThrows(NullPointerException.class, () -> new EncryptionScheme(myKekId, null));
+        assertThrows(IllegalArgumentException.class, () -> new EncryptionScheme(myKekId, empty));
     }
 
     @Test
@@ -45,7 +48,7 @@ class EncryptionSchemeTest {
         }
 
         @Override
-        public <K> K getId() {
+        public <K> K getId(Class<K> keyType) {
             return (K) kekId;
         }
 

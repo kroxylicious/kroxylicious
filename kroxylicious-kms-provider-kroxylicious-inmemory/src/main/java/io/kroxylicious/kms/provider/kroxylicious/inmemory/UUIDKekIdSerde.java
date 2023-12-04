@@ -34,8 +34,8 @@ class UUIDKekIdSerde implements Serde<KekId> {
     }
 
     @Override
-    public void serialize(KekId uuidKekId, @NonNull ByteBuffer buffer) {
-        final UUID id = uuidKekId.getId();
+    public void serialize(KekId kekId, @NonNull ByteBuffer buffer) {
+        final UUID id = kekId.getId(UUID.class);
         buffer.putLong(id.getMostSignificantBits());
         buffer.putLong(id.getLeastSignificantBits());
     }
