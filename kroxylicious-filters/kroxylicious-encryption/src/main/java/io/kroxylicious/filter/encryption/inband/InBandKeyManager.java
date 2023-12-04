@@ -33,6 +33,7 @@ import io.kroxylicious.filter.encryption.KeyManager;
 import io.kroxylicious.filter.encryption.Receiver;
 import io.kroxylicious.filter.encryption.RecordField;
 import io.kroxylicious.filter.encryption.WrapperVersion;
+import io.kroxylicious.kms.service.KekId;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.Serde;
 
@@ -65,7 +66,7 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
     private final BufferPool bufferPool;
     private final Serde<E> edekSerde;
     // TODO cache expiry, with key descruction
-    private final AsyncLoadingCache<K, KeyContext> keyContextCache;
+    private final AsyncLoadingCache<KekId<K>, KeyContext> keyContextCache;
     private final ConcurrentHashMap<E, CompletionStage<AesGcmEncryptor>> decryptorCache;
     private final long dekTtlNanos;
     private final int maxEncryptionsPerDek;
@@ -97,7 +98,7 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
         return attemptMakeDekContext(kekId, 0);
     }
 
-    private CompletableFuture<KeyContext> attemptMakeDekContext(@NonNull K kekId, int attempt) {
+    private CompletableFuture<KeyContext> attemptMakeDekContext(@NonNull KekId<K> kekId, int attempt) {
         if (attempt >= MAX_ATTEMPTS) {
             return CompletableFuture.failedFuture(new EncryptorCreationException("failed to create encryptor after " + attempt + " attempts"));
         }

@@ -10,6 +10,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletionStage;
 
+import io.kroxylicious.kms.service.KekId;
+
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
@@ -24,5 +26,5 @@ public abstract class TopicNameBasedKekSelector<K> {
      * @param topicNames A set of topic names
      * @return A completion stage for the map form topic name to KEK id.
      */
-    public abstract @NonNull CompletionStage<Map<String, K>> selectKek(@NonNull Set<String> topicNames);
+    public abstract @NonNull CompletionStage<Map<String, KekId<K>>> selectKek(@NonNull Set<String> topicNames);
 }

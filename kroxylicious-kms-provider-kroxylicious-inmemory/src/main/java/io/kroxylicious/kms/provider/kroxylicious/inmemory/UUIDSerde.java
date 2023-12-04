@@ -9,11 +9,12 @@ package io.kroxylicious.kms.provider.kroxylicious.inmemory;
 import java.nio.ByteBuffer;
 import java.util.UUID;
 
+import io.kroxylicious.kms.service.KekId;
 import io.kroxylicious.kms.service.Serde;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-class UUIDSerde implements Serde<UUID> {
+class UUIDSerde implements Serde<KekId<UUID>> {
 
     private static final UUIDSerde UUID_SERDE = new UUIDSerde();
 
@@ -21,21 +22,22 @@ class UUIDSerde implements Serde<UUID> {
     }
 
     @Override
-    public UUID deserialize(@NonNull ByteBuffer buffer) {
+    public KekId<UUID> deserialize(@NonNull ByteBuffer buffer) {
         var msb = buffer.getLong();
         var lsb = buffer.getLong();
-        return new UUID(msb, lsb);
+        return new UuidKekId(new UUID(msb, lsb));
     }
 
     @Override
-    public int sizeOf(UUID uuid) {
+    public int sizeOf(KekId<UUID> uuid) {
         return 16;
     }
 
     @Override
-    public void serialize(UUID uuid, @NonNull ByteBuffer buffer) {
-        buffer.putLong(uuid.getMostSignificantBits());
-        buffer.putLong(uuid.getLeastSignificantBits());
+    public void serialize(KekId<UUID> uuidKekId, @NonNull ByteBuffer buffer) {
+        final UUID id = uuidKekId.getId();
+        buffer.putLong(id.getMostSignificantBits());
+        buffer.putLong(id.getLeastSignificantBits());
     }
 
     public static Serde<UUID> instance() {

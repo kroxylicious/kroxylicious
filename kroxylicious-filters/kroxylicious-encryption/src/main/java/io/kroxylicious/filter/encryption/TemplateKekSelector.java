@@ -15,6 +15,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.regex.Pattern;
 
+import io.kroxylicious.kms.service.KekId;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.UnknownAliasException;
 import io.kroxylicious.proxy.plugin.Plugin;
@@ -53,7 +54,7 @@ public class TemplateKekSelector<K> implements KekSelectorService<TemplateKekSel
 
         @NonNull
         @Override
-        public CompletionStage<Map<String, K>> selectKek(@NonNull Set<String> topicNames) {
+        public CompletionStage<Map<String, KekId<K>>> selectKek(@NonNull Set<String> topicNames) {
             var collect = topicNames.stream()
                     .map(
                             topicName -> kms.resolveAlias(evaluateTemplate(topicName))
@@ -69,8 +70,8 @@ public class TemplateKekSelector<K> implements KekSelectorService<TemplateKekSel
             return EnvelopeEncryptionFilter.join(collect).thenApply(list -> {
                 // Note we can't use `java.util.stream...(Collectors.toMap())` to build the map, because it has null values
                 // which Collectors.toMap() does now allow.
-                Map<String, K> map = new HashMap<>();
-                for (Pair<K> pair : list) {
+                Map<String, KekId<K>> map = new HashMap<>();
+                for (Pair<KekId<K>> pair : list) {
                     map.put(pair.topicName(), pair.kekId());
                 }
                 return map;

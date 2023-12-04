@@ -13,6 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import javax.crypto.SecretKey;
 
+import io.kroxylicious.kms.service.KekId;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.KmsService;
 import io.kroxylicious.proxy.plugin.Plugin;
@@ -60,8 +61,8 @@ public class UnitTestingKmsService implements KmsService<UnitTestingKmsService.C
 
     }
 
-    private final Map<UUID, SecretKey> keys = new ConcurrentHashMap<>();
-    private final Map<String, UUID> aliases = new ConcurrentHashMap<>();
+    private final Map<KekId<UUID>, SecretKey> keys = new ConcurrentHashMap<>();
+    private final Map<String, KekId<UUID>> aliases = new ConcurrentHashMap<>();
 
     @NonNull
     @Override

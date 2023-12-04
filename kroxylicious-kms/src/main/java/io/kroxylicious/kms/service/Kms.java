@@ -31,10 +31,10 @@ public interface Kms<K, E> {
      * @throws KmsException For other exceptions.
      */
     @NonNull
-    CompletionStage<DekPair<E>> generateDekPair(@NonNull K kekRef);
+    CompletionStage<DekPair<E>> generateDekPair(@NonNull KekId<K> kekRef);
 
     /**
-     * Asynchronously decrypts a data encryption key that was {@linkplain #generateDekPair(Object) previously encrypted}.
+     * Asynchronously decrypts a data encryption key that was {@linkplain #generateDekPair(KekId)}  previously encrypted}.
      * @param edek The encrypted data encryption key.
      * @return A completion stage for the data encryption key
      * @throws UnknownKeyException If the edek was not encrypted by a KEK known to this KMS.
@@ -61,5 +61,5 @@ public interface Kms<K, E> {
      * @throws KmsException For other exceptions.
      */
     @NonNull
-    CompletionStage<K> resolveAlias(@NonNull String alias);
+    CompletionStage<KekId<K>> resolveAlias(@NonNull String alias);
 }

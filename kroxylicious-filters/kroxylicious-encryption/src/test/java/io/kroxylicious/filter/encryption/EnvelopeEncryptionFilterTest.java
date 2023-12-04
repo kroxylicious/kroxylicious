@@ -44,6 +44,7 @@ import org.mockito.hamcrest.MockitoHamcrest;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.kroxylicious.filter.encryption.inband.TestingRecord;
+import io.kroxylicious.kms.service.KekId;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 
@@ -96,9 +97,14 @@ class EnvelopeEncryptionFilterTest {
             return new ByteBufferOutputStream(capacity);
         });
 
-        final Map<String, String> topicNameToKekId = new HashMap<>();
+        final Map<String, KekId<String>> topicNameToKekId = new HashMap<>();
         topicNameToKekId.put(UNENCRYPTED_TOPIC, null);
-        topicNameToKekId.put(ENCRYPTED_TOPIC, KEK_ID_1);
+        topicNameToKekId.put(ENCRYPTED_TOPIC, new KekId<String>() {
+            @Override
+            public String getId() {
+                return KEK_ID_1;
+            }
+        });
         when(kekSelector.selectKek(anySet())).thenReturn(CompletableFuture.completedFuture(topicNameToKekId));
 
         when(keyManager.encrypt(any(), anyInt(), any(), anyList(), any(Receiver.class))).thenAnswer(invocationOnMock -> {

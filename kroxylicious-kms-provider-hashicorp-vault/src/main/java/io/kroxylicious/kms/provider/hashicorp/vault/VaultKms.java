@@ -105,12 +105,13 @@ public class VaultKms implements Kms<String, VaultEdek> {
 
         var body = createDecryptPostBody(edek);
 
+        final String kekRef = edek.kekRef().getId(String.class);
         var request = createVaultRequest()
-                .uri(vaultUrl.resolve("v1/transit/decrypt/%s".formatted(encode(edek.kekRef(), UTF_8))))
+                .uri(vaultUrl.resolve("v1/transit/decrypt/%s".formatted(encode(kekRef, UTF_8))))
                 .POST(HttpRequest.BodyPublishers.ofString(body))
                 .build();
 
-        return vaultClient.sendAsync(request, statusHandler(edek.kekRef(), new JsonBodyHandler<VaultResponse<DecryptData>>(new TypeReference<>() {
+        return vaultClient.sendAsync(request, statusHandler(kekRef, new JsonBodyHandler<VaultResponse<DecryptData>>(new TypeReference<>() {
         }), UnknownKeyException::new)).thenApply(HttpResponse::body)
                 .thenApply(Supplier::get)
                 .thenApply(VaultResponse::data)

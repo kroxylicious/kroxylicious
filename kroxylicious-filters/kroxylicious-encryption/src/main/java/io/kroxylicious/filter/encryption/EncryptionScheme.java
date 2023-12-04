@@ -9,6 +9,8 @@ package io.kroxylicious.filter.encryption;
 import java.util.Objects;
 import java.util.Set;
 
+import io.kroxylicious.kms.service.KekId;
+
 /**
  * Describes how a record should be encrypted
  * @param kekId The KEK identifier to be used. Not null.
@@ -16,7 +18,7 @@ import java.util.Set;
  * @param <K> The type of KEK identifier.
  */
 public record EncryptionScheme<K>(
-                                  K kekId,
+                                  KekId<K> kekId,
                                   Set<RecordField> recordFields) {
     public EncryptionScheme {
         Objects.requireNonNull(kekId);

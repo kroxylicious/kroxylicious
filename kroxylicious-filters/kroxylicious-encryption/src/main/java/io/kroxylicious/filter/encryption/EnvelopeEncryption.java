@@ -23,7 +23,6 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
  * A {@link FilterFactory} for {@link EnvelopeEncryptionFilter}.
- * @param <K> The key reference
  * @param <E> The type of encrypted DEK
  */
 @Plugin(configType = EnvelopeEncryption.Config.class)

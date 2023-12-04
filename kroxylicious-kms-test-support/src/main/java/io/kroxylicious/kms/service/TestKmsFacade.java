@@ -43,7 +43,7 @@ public interface TestKmsFacade<C, K, E> extends AutoCloseable {
      *
      * @return service class
      */
-    Class<? extends KmsService<C, K, E>> getKmsServiceClass();
+    Class<? extends KmsService<C, E>> getKmsServiceClass();
 
     /**
      * Gets the configuration Kroxylicious will need to use to connect to the underlying KMS.
@@ -58,7 +58,7 @@ public interface TestKmsFacade<C, K, E> extends AutoCloseable {
      * @return service instance
      * @throws UnsupportedOperationException operation is not supported.
      */
-    default Kms<K, E> getKms() {
+    default Kms<E> getKms() {
         throw new UnsupportedOperationException();
     }
 

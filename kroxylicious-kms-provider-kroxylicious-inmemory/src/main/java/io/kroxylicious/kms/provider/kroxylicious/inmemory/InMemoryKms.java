@@ -25,6 +25,7 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
 
 import io.kroxylicious.kms.service.DekPair;
+import io.kroxylicious.kms.service.KekId;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.kms.service.Serde;
@@ -38,22 +39,21 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * Note that this exposes public methods that are not part of the {@link Kms} interface which are used for those
  * KMS operations which are outside the scope of Kroxylicious itself (such as key provisioning).
  */
-public class InMemoryKms implements
-        Kms<UUID, InMemoryEdek> {
+public class InMemoryKms implements Kms<UUID, InMemoryEdek> {
 
     private static final String AES_WRAP_ALGO = "AES_256/GCM/NoPadding";
     public static final String AES_KEY_ALGO = "AES";
-    private final Map<UUID, SecretKey> keys;
+    private final Map<KekId<UUID>, SecretKey> keys;
     private final KeyGenerator aes;
     private final int numIvBytes;
     private final int numAuthBits;
     private final SecureRandom secureRandom;
-    private final Map<String, UUID> aliases;
+    private final Map<String, KekId<UUID>> aliases;
     private final List<DekPair<InMemoryEdek>> edeksGenerated = new CopyOnWriteArrayList<>();
 
     InMemoryKms(int numIvBytes, int numAuthBits,
-                Map<UUID, SecretKey> keys,
-                Map<String, UUID> aliases) {
+                Map<KekId<UUID>, SecretKey> keys,
+                Map<String, KekId<UUID>> aliases) {
         this.keys = new HashMap<>(keys);
         this.aliases = new HashMap<>(aliases);
         this.secureRandom = new SecureRandom();
@@ -73,14 +73,14 @@ public class InMemoryKms implements
      * Generates a KEK
      * @return The id of the KEK
      */
-    public UUID generateKey() {
+    public KekId<UUID> generateKey() {
         var key = aes.generateKey();
-        var ref = UUID.randomUUID();
+        var ref = new UuidKekId(UUID.randomUUID());
         keys.put(ref, key);
         return ref;
     }
 
-    public void createAlias(UUID keyId, String alias) {
+    public void createAlias(KekId<UUID> keyId, String alias) {
         lookupKey(keyId); // check the key exists in this KMS
         aliases.put(alias, keyId);
     }
@@ -99,7 +99,7 @@ public class InMemoryKms implements
         return edeksGenerated.size();
     }
 
-    private InMemoryEdek wrap(UUID kekRef, Supplier<SecretKey> generator) {
+    private InMemoryEdek wrap(KekId<UUID> kekRef, Supplier<SecretKey> generator) {
         SecretKey kek = lookupKey(kekRef);
         Cipher aesCipher = aesGcm();
         GCMParameterSpec spec = initializeForWrap(kek, aesCipher);
@@ -116,7 +116,7 @@ public class InMemoryKms implements
 
     @NonNull
     @Override
-    public CompletableFuture<DekPair<InMemoryEdek>> generateDekPair(@NonNull UUID kekRef) {
+    public CompletableFuture<DekPair<InMemoryEdek>> generateDekPair(@NonNull KekId<UUID> kekRef) {
         try {
             var dek = this.aes.generateKey();
             var edek = wrap(kekRef, () -> dek);
@@ -142,7 +142,7 @@ public class InMemoryKms implements
         return spec;
     }
 
-    private SecretKey lookupKey(UUID kekRef) {
+    private SecretKey lookupKey(KekId<UUID> kekRef) {
         SecretKey kek = this.keys.get(kekRef);
         if (kek == null) {
             throw new UnknownKeyException();
@@ -195,12 +195,12 @@ public class InMemoryKms implements
 
     @NonNull
     @Override
-    public CompletableFuture<UUID> resolveAlias(@NonNull String alias) {
-        UUID uuid = aliases.get(alias);
-        if (uuid == null) {
+    public CompletableFuture<KekId<UUID>> resolveAlias(@NonNull String alias) {
+        var resolvedKeyId = aliases.get(alias);
+        if (resolvedKeyId == null) {
             return CompletableFuture.failedFuture(new UnknownAliasException(alias));
         }
-        return CompletableFuture.completedFuture(uuid);
+        return CompletableFuture.completedFuture(resolvedKeyId);
     }
 
     @NonNull
