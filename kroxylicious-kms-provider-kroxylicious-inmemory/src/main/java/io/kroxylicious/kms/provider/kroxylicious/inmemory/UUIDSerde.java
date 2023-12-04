@@ -15,6 +15,8 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 class UUIDSerde implements Serde<UUID> {
 
+    private static final UUIDSerde UUID_SERDE = new UUIDSerde();
+
     private UUIDSerde() {
     }
 
@@ -35,8 +37,6 @@ class UUIDSerde implements Serde<UUID> {
         buffer.putLong(uuid.getMostSignificantBits());
         buffer.putLong(uuid.getLeastSignificantBits());
     }
-
-    private static final UUIDSerde UUID_SERDE = new UUIDSerde();
 
     public static Serde<UUID> instance() {
         return UUID_SERDE;

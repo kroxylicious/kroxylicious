@@ -112,7 +112,7 @@ public class InMemoryKms implements
         catch (IllegalBlockSizeException | InvalidKeyException e) {
             throw new KmsException(e);
         }
-        return new InMemoryEdek(spec.getTLen(), spec.getIV(), edek, kekRef);
+        return new InMemoryEdek(spec.getTLen(), spec.getIV(), kekRef, edek);
     }
 
     @NonNull

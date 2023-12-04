@@ -23,7 +23,7 @@ public interface Kms<K, E> {
      * Asynchronously generates a new Data Encryption Key (DEK) and returns it together with the same DEK wrapped by the Key Encryption Key (KEK) given
      * by the {@code kekRef},
      * The returned encrypted DEK can later be decrypted with {@link #decryptEdek(Object)}. It is expected that
-     * the returned EDEK contains everything required for decryption including an immutable referenced to the KEK
+     * the returned EDEK contains everything required for decryption including an immutable reference to the KEK
      * @param kekRef The key encryption key used to encrypt the generated data encryption key.
      * @return A completion stage for the wrapped data encryption key.
      * @throws UnknownKeyException If the kek was not known to this KMS.

@@ -35,7 +35,7 @@ class InMemoryEdekSerde implements Serde<InMemoryEdek> {
         int edekLength = buffer.limit() - buffer.position();
         var edek = new byte[edekLength];
         buffer.get(edek);
-        return new InMemoryEdek(numAuthBits, iv, edek, keyRef);
+        return new InMemoryEdek(numAuthBits, iv, keyRef, edek);
     }
 
     @Override

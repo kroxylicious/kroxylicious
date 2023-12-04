@@ -15,18 +15,18 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 class InMemoryEdekTest {
 
-    public static final UUID KEK_REF = UUID.randomUUID();
+    private static final UUID KEK_REF = UUID.randomUUID();
 
     @Test
     void testEqualsAndHashCode() {
         var edek1 = new InMemoryEdek(96, new byte[]{ (byte) 1, (byte) 2, (byte) 3 },
-                new byte[]{ (byte) 4, (byte) 5, (byte) 6 }, KEK_REF);
+                KEK_REF, new byte[]{ (byte) 4, (byte) 5, (byte) 6 });
 
         var edek2 = new InMemoryEdek(96, new byte[]{ (byte) 1, (byte) 2, (byte) 3 },
-                new byte[]{ (byte) 4, (byte) 5, (byte) 6 }, KEK_REF);
+                KEK_REF, new byte[]{ (byte) 4, (byte) 5, (byte) 6 });
 
         var edek3 = new InMemoryEdek(96, new byte[]{ (byte) 4, (byte) 5, (byte) 6 },
-                new byte[]{ (byte) 1, (byte) 2, (byte) 3 }, KEK_REF);
+                KEK_REF, new byte[]{ (byte) 1, (byte) 2, (byte) 3 });
 
         assertEquals(edek1, edek1);
         assertEquals(edek1, edek2);
@@ -46,7 +46,7 @@ class InMemoryEdekTest {
     @Test
     void testToString() {
         var edek1 = new InMemoryEdek(96, new byte[]{ (byte) 1, (byte) 2, (byte) 3 },
-                new byte[]{ (byte) 4, (byte) 5, (byte) 6 }, KEK_REF);
+                KEK_REF, new byte[]{ (byte) 4, (byte) 5, (byte) 6 });
         assertEquals("InMemoryEdek{numAuthBits=96, iv=[1, 2, 3], edek=[4, 5, 6]}", edek1.toString());
 
     }

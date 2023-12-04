@@ -13,8 +13,8 @@ import java.util.UUID;
 record InMemoryEdek(
                     int numAuthBits,
                     byte[] iv,
-                    byte[] edek,
-                    UUID kekRef) {
+                    UUID kekRef,
+                    byte[] edek) {
 
     InMemoryEdek {
         if (numAuthBits != 128
