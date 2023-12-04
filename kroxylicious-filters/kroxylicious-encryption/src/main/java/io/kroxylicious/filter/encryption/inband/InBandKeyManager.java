@@ -114,6 +114,7 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
         return attemptEncrypt(encryptionScheme, records, receiver, 0);
     }
 
+    @SuppressWarnings("java:S2445")
     private CompletionStage<Void> attemptEncrypt(@NonNull EncryptionScheme<K> encryptionScheme, @NonNull List<? extends Record> records,
                                                  @NonNull Receiver receiver, int attempt) {
         if (attempt >= 3) {
