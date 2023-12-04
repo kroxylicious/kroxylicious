@@ -7,11 +7,13 @@
 package io.kroxylicious.filter.encryption.inband;
 
 import java.nio.ByteBuffer;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -28,6 +30,7 @@ import io.kroxylicious.kms.provider.kroxylicious.inmemory.UnitTestingKmsService;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -96,6 +99,27 @@ class InBandKeyManagerTest {
         km.decrypt(encrypted, recordReceivedRecord(decrypted));
 
         assertEquals(initial, decrypted);
+    }
+
+    @Test
+    void encryptionRetry() {
+        var kmsService = UnitTestingKmsService.newInstance();
+        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
+        var kekId = kms.generateKey();
+        // configure 1 encryption per dek but then try to encrypt 2 records, will destroy and retry
+        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 1);
+
+        var value = ByteBuffer.wrap(new byte[]{ 1, 2, 3 });
+        var value2 = ByteBuffer.wrap(new byte[]{ 4, 5, 6 });
+        TestingRecord record = new TestingRecord(value);
+        TestingRecord record2 = new TestingRecord(value2);
+
+        List<TestingRecord> encrypted = new ArrayList<>();
+        List<TestingRecord> initial = List.of(record, record2);
+        CompletionStage encrypt = km.encrypt(new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
+                initial,
+                recordReceivedRecord(encrypted));
+        assertThat(encrypt).failsWithin(Duration.ZERO).withThrowableThat().withMessageContaining("failed to encrypt records after 3 attempts");
     }
 
     @NonNull

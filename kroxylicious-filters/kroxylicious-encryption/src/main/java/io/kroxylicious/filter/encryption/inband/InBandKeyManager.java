@@ -21,6 +21,7 @@ import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.record.Record;
 
+import io.kroxylicious.filter.encryption.EncryptionException;
 import io.kroxylicious.filter.encryption.EncryptionScheme;
 import io.kroxylicious.filter.encryption.KeyManager;
 import io.kroxylicious.filter.encryption.Receiver;
@@ -110,8 +111,15 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
     public CompletionStage<Void> encrypt(@NonNull EncryptionScheme<K> encryptionScheme,
                                          @NonNull List<? extends Record> records,
                                          @NonNull Receiver receiver) {
+        return attemptEncrypt(encryptionScheme, records, receiver, 0);
+    }
+
+    private CompletionStage<Void> attemptEncrypt(@NonNull EncryptionScheme<K> encryptionScheme, @NonNull List<? extends Record> records,
+                                                 @NonNull Receiver receiver, int attempt) {
+        if (attempt >= 3) {
+            return CompletableFuture.failedFuture(new EncryptionException("failed to encrypt records after " + attempt + " attempts"));
+        }
         return currentDekContext(encryptionScheme.kekId()).thenCompose(keyContext -> {
-            // access to the key context is synchronized
             synchronized (keyContext) {
                 // if it's not alive we know a previous encrypt call has replaced the stage in the cache and fall through to retry encrypt
                 if (!keyContext.isDestroyed()) {
@@ -120,18 +128,17 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
                         rotateKeyContext(encryptionScheme, keyContext);
                     }
                     else {
-                        return encryptUsingSharedCiphertextBuffer(encryptionScheme, records, receiver, keyContext);
+                        return encrypt(encryptionScheme, records, receiver, keyContext);
                     }
                 }
             }
-            // todo add a recursion limit
-            return encrypt(encryptionScheme, records, receiver);
+            return attemptEncrypt(encryptionScheme, records, receiver, attempt + 1);
         });
     }
 
     @NonNull
-    private CompletableFuture<Void> encryptUsingSharedCiphertextBuffer(@NonNull EncryptionScheme<K> encryptionScheme, @NonNull List<? extends Record> records,
-                                                                       @NonNull Receiver receiver, KeyContext keyContext) {
+    private CompletableFuture<Void> encrypt(@NonNull EncryptionScheme<K> encryptionScheme, @NonNull List<? extends Record> records,
+                                            @NonNull Receiver receiver, KeyContext keyContext) {
         var fieldsHeader = createEncryptedFieldsHeader(encryptionScheme.recordFields());
         var dekHeader = createEdekHeader(keyContext);
         var maxValuePlaintextSize = encryptionScheme.recordFields().contains(RecordField.RECORD_VALUE)
@@ -150,6 +157,7 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
         return CompletableFuture.completedFuture(null);
     }
 
+    // this must only be called while holding the lock on this keycontext
     private void rotateKeyContext(@NonNull EncryptionScheme<K> encryptionScheme, KeyContext keyContext) {
         keyContext.destroy();
         K kekId = encryptionScheme.kekId();
