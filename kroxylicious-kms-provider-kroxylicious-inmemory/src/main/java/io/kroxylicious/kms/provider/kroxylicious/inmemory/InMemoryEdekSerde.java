@@ -15,7 +15,15 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 class InMemoryEdekSerde implements Serde<InMemoryEdek> {
 
-    UUIDSerde uuidSerde = new UUIDSerde();
+    private static final InMemoryEdekSerde INSTANCE = new InMemoryEdekSerde();
+    private final Serde<UUID> uuidSerde = UUIDSerde.instance();
+
+    private InMemoryEdekSerde() {
+    }
+
+    public static Serde<InMemoryEdek> instance() {
+        return INSTANCE;
+    }
 
     @Override
     public InMemoryEdek deserialize(@NonNull ByteBuffer buffer) {

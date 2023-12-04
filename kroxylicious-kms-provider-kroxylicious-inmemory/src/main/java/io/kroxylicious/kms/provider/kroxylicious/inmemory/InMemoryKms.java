@@ -206,6 +206,6 @@ public class InMemoryKms implements
     @NonNull
     @Override
     public Serde<InMemoryEdek> edekSerde() {
-        return new InMemoryEdekSerde();
+        return InMemoryEdekSerde.instance();
     }
 }
