@@ -14,10 +14,9 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
  * Abstracts the KMS operations needed for Envelope Encryption
- * @param <K> The type of Key Encryption Key id.
  * @param <E> The type of encrypted Data Encryption Key.
  */
-public interface Kms<K, E> {
+public interface Kms<E> {
 
     /**
      * Asynchronously generates a new Data Encryption Key (DEK) and returns it together with the same DEK wrapped by the Key Encryption Key (KEK) given
@@ -31,7 +30,7 @@ public interface Kms<K, E> {
      * @throws KmsException For other exceptions.
      */
     @NonNull
-    CompletionStage<DekPair<E>> generateDekPair(@NonNull KekId<K> kekRef);
+    CompletionStage<DekPair<E>> generateDekPair(@NonNull KekId kekRef);
 
     /**
      * Asynchronously decrypts a data encryption key that was {@linkplain #generateDekPair(KekId)}  previously encrypted}.
@@ -61,5 +60,5 @@ public interface Kms<K, E> {
      * @throws KmsException For other exceptions.
      */
     @NonNull
-    CompletionStage<KekId<K>> resolveAlias(@NonNull String alias);
+    CompletionStage<KekId> resolveAlias(@NonNull String alias);
 }

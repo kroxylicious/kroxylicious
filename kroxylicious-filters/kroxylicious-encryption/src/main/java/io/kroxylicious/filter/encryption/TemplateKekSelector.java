@@ -23,22 +23,22 @@ import io.kroxylicious.proxy.plugin.Plugin;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 @Plugin(configType = TemplateKekSelector.Config.class)
-public class TemplateKekSelector<K> implements KekSelectorService<TemplateKekSelector.Config, K> {
+public class TemplateKekSelector implements KekSelectorService<TemplateKekSelector.Config> {
     public record Config(String template) {}
 
     @NonNull
     @Override
-    public TopicNameBasedKekSelector<K> buildSelector(@NonNull Kms<K, ?> kms, Config config) {
-        return new KekSelector<>(kms, config.template());
+    public TopicNameBasedKekSelector buildSelector(@NonNull Kms<?> kms, Config config) {
+        return new KekSelector(kms, config.template());
     }
 
-    static class KekSelector<K> extends TopicNameBasedKekSelector<K> {
+    static class KekSelector extends TopicNameBasedKekSelector {
 
         public static final Pattern PATTERN = Pattern.compile("\\$\\{(.*?)}");
         private final String template;
-        private final Kms<K, ?> kms;
+        private final Kms<?> kms;
 
-        KekSelector(@NonNull Kms<K, ?> kms, @NonNull String template) {
+        KekSelector(@NonNull Kms<?> kms, @NonNull String template) {
             var matcher = PATTERN.matcher(Objects.requireNonNull(template));
             while (matcher.find()) {
                 if (matcher.group(1).equals("topicName")) {
@@ -54,7 +54,7 @@ public class TemplateKekSelector<K> implements KekSelectorService<TemplateKekSel
 
         @NonNull
         @Override
-        public CompletionStage<Map<String, KekId<K>>> selectKek(@NonNull Set<String> topicNames) {
+        public CompletionStage<Map<String, KekId>> selectKek(@NonNull Set<String> topicNames) {
             var collect = topicNames.stream()
                     .map(
                             topicName -> kms.resolveAlias(evaluateTemplate(topicName))
@@ -70,8 +70,8 @@ public class TemplateKekSelector<K> implements KekSelectorService<TemplateKekSel
             return EnvelopeEncryptionFilter.join(collect).thenApply(list -> {
                 // Note we can't use `java.util.stream...(Collectors.toMap())` to build the map, because it has null values
                 // which Collectors.toMap() does now allow.
-                Map<String, KekId<K>> map = new HashMap<>();
-                for (Pair<KekId<K>> pair : list) {
+                Map<String, KekId> map = new HashMap<>();
+                for (Pair<KekId> pair : list) {
                     map.put(pair.topicName(), pair.kekId());
                 }
                 return map;

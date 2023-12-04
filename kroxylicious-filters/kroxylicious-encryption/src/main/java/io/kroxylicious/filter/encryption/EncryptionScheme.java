@@ -15,11 +15,10 @@ import io.kroxylicious.kms.service.KekId;
  * Describes how a record should be encrypted
  * @param kekId The KEK identifier to be used. Not null.
  * @param recordFields The fields of the record that should be encrypted with the given KEK. Neither null nor empty.
- * @param <K> The type of KEK identifier.
  */
-public record EncryptionScheme<K>(
-                                  KekId<K> kekId,
-                                  Set<RecordField> recordFields) {
+public record EncryptionScheme(
+                               KekId kekId,
+                               Set<RecordField> recordFields) {
     public EncryptionScheme {
         Objects.requireNonNull(kekId);
         if (Objects.requireNonNull(recordFields).isEmpty()) {

@@ -11,11 +11,10 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 /**
  * Service interface for KMSs
  * @param <C> The config type
- * @param <K> The key reference
  * @param <E> The type of encrypted DEK
  */
-public interface KmsService<C, K, E> {
+public interface KmsService<C, E> {
     @NonNull
-    Kms<K, E> buildKms(C options);
+    Kms<E> buildKms(C options);
 
 }

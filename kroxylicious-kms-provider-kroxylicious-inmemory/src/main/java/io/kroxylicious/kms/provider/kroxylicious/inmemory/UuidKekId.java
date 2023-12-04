@@ -11,7 +11,7 @@ import java.util.UUID;
 
 import io.kroxylicious.kms.service.KekId;
 
-public class UuidKekId implements KekId<UUID> {
+public class UuidKekId implements KekId {
 
     private final UUID keyId;
 

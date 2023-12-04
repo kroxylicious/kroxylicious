@@ -72,10 +72,10 @@ class EnvelopeEncryptionFilterTest {
     public static final String ENCRYPTED_MESSAGE = "xslkajfd;ljsaefjjKLDJlkDSJFLJK';,kSDKF'";
 
     @Mock(strictness = LENIENT)
-    KeyManager<String> keyManager;
+    KeyManager keyManager;
 
     @Mock(strictness = LENIENT)
-    TopicNameBasedKekSelector<String> kekSelector;
+    TopicNameBasedKekSelector kekSelector;
 
     @Mock(strictness = LENIENT)
     private FilterContext context;
@@ -83,7 +83,7 @@ class EnvelopeEncryptionFilterTest {
     @Captor
     private ArgumentCaptor<ApiMessage> apiMessageCaptor;
 
-    private EnvelopeEncryptionFilter<String> encryptionFilter;
+    private EnvelopeEncryptionFilter encryptionFilter;
 
     @BeforeEach
     void setUp() {
@@ -97,12 +97,12 @@ class EnvelopeEncryptionFilterTest {
             return new ByteBufferOutputStream(capacity);
         });
 
-        final Map<String, KekId<String>> topicNameToKekId = new HashMap<>();
+        final Map<String, KekId> topicNameToKekId = new HashMap<>();
         topicNameToKekId.put(UNENCRYPTED_TOPIC, null);
-        topicNameToKekId.put(ENCRYPTED_TOPIC, new KekId<String>() {
+        topicNameToKekId.put(ENCRYPTED_TOPIC, new KekId() {
             @Override
-            public String getId() {
-                return KEK_ID_1;
+            public <K> K getId() {
+                return (K) KEK_ID_1;
             }
         });
         when(kekSelector.selectKek(anySet())).thenReturn(CompletableFuture.completedFuture(topicNameToKekId));
@@ -125,7 +125,7 @@ class EnvelopeEncryptionFilterTest {
             return CompletableFuture.completedFuture(null);
         });
 
-        encryptionFilter = new EnvelopeEncryptionFilter<>(keyManager, kekSelector);
+        encryptionFilter = new EnvelopeEncryptionFilter(keyManager, kekSelector);
     }
 
     @Test

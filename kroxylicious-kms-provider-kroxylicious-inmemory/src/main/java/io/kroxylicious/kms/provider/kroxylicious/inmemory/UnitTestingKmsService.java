@@ -8,7 +8,6 @@ package io.kroxylicious.kms.provider.kroxylicious.inmemory;
 
 import java.util.Map;
 import java.util.ServiceLoader;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 import javax.crypto.SecretKey;
@@ -33,7 +32,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * @see IntegrationTestingKmsService
  */
 @Plugin(configType = UnitTestingKmsService.Config.class)
-public class UnitTestingKmsService implements KmsService<UnitTestingKmsService.Config, UUID, InMemoryEdek> {
+public class UnitTestingKmsService implements KmsService<UnitTestingKmsService.Config, InMemoryEdek> {
 
     public static UnitTestingKmsService newInstance() {
         return (UnitTestingKmsService) ServiceLoader.load(KmsService.class).stream()
@@ -61,8 +60,8 @@ public class UnitTestingKmsService implements KmsService<UnitTestingKmsService.C
 
     }
 
-    private final Map<KekId<UUID>, SecretKey> keys = new ConcurrentHashMap<>();
-    private final Map<String, KekId<UUID>> aliases = new ConcurrentHashMap<>();
+    private final Map<KekId, SecretKey> keys = new ConcurrentHashMap<>();
+    private final Map<String, KekId> aliases = new ConcurrentHashMap<>();
 
     @NonNull
     @Override

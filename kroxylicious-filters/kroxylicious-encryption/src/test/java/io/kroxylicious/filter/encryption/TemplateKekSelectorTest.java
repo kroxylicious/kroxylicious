@@ -93,9 +93,9 @@ class TemplateKekSelectorTest {
     }
 
     @NonNull
-    private <K> TopicNameBasedKekSelector<K> getSelector(Kms<K, ?> kms, String template) {
+    private TopicNameBasedKekSelector getSelector(Kms<?> kms, String template) {
         var config = new TemplateKekSelector.Config(template);
-        return new TemplateKekSelector<K>().buildSelector(kms, config);
+        return new TemplateKekSelector().buildSelector(kms, config);
     }
 
 }

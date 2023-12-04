@@ -10,12 +10,14 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
+import io.kroxylicious.kms.service.KekId;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 class InMemoryEdekTest {
 
-    private static final UUID KEK_REF = UUID.randomUUID();
+    private static final KekId KEK_REF = new UuidKekId(UUID.randomUUID());
 
     @Test
     void testEqualsAndHashCode() {

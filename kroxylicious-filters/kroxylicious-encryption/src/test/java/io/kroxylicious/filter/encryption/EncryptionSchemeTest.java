@@ -22,22 +22,22 @@ class EncryptionSchemeTest {
     void shouldRejectInvalidConstructorArgs() {
         EnumSet<RecordField> nonEmpty = EnumSet.of(RecordField.RECORD_VALUE);
         var empty = EnumSet.noneOf(RecordField.class);
-        assertThrows(NullPointerException.class, () -> new EncryptionScheme<>(null, nonEmpty));
+        assertThrows(NullPointerException.class, () -> new EncryptionScheme(null, nonEmpty));
         Object kekId = new Object();
-        assertThrows(NullPointerException.class, () -> new EncryptionScheme<>(new MyKekId(kekId), null));
-        assertThrows(IllegalArgumentException.class, () -> new EncryptionScheme<>(new MyKekId(kekId), empty));
+        assertThrows(NullPointerException.class, () -> new EncryptionScheme(new MyKekId(kekId), null));
+        assertThrows(IllegalArgumentException.class, () -> new EncryptionScheme(new MyKekId(kekId), empty));
     }
 
     @Test
     void shouldAcceptValidConstructorArgs() {
         EnumSet<RecordField> nonEmpty = EnumSet.of(RecordField.RECORD_VALUE);
         Object kekId = new Object();
-        var es = new EncryptionScheme<>(new MyKekId(kekId), nonEmpty);
+        var es = new EncryptionScheme(new MyKekId(kekId), nonEmpty);
         assertEquals(new MyKekId(kekId), es.kekId());
         assertEquals(nonEmpty, es.recordFields());
     }
 
-    private static class MyKekId implements KekId<Object> {
+    private static class MyKekId implements KekId {
         private final Object kekId;
 
         MyKekId(Object kekId) {
@@ -45,8 +45,8 @@ class EncryptionSchemeTest {
         }
 
         @Override
-        public Object getId() {
-            return kekId;
+        public <K> K getId() {
+            return (K) kekId;
         }
 
         @Override

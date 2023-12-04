@@ -41,16 +41,15 @@ import static org.slf4j.LoggerFactory.getLogger;
 
 /**
  * A filter for encrypting and decrypting records using envelope encryption
- * @param <K> The type of KEK reference
  */
-public class EnvelopeEncryptionFilter<K>
+public class EnvelopeEncryptionFilter
         implements ProduceRequestFilter, FetchResponseFilter {
     private static final Logger log = getLogger(EnvelopeEncryptionFilter.class);
-    private final TopicNameBasedKekSelector<K> kekSelector;
+    private final TopicNameBasedKekSelector kekSelector;
 
-    private final KeyManager<K> keyManager;
+    private final KeyManager keyManager;
 
-    EnvelopeEncryptionFilter(KeyManager<K> keyManager, TopicNameBasedKekSelector<K> kekSelector) {
+    EnvelopeEncryptionFilter(KeyManager keyManager, TopicNameBasedKekSelector kekSelector) {
         this.kekSelector = kekSelector;
         this.keyManager = keyManager;
     }
@@ -93,7 +92,7 @@ public class EnvelopeEncryptionFilter<K>
                             return keyManager.encrypt(
                                     topicName,
                                     ppd.index(),
-                                    new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
+                                    new EncryptionScheme(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
                                     encryptionRequests,
                                     (kafkaRecord, encryptedValue, headers) -> builder.append(kafkaRecord.timestamp(), kafkaRecord.key(), encryptedValue, headers))
                                     .thenApply(ignored -> ppd.setRecords(builder.build()));

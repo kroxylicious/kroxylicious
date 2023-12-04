@@ -26,7 +26,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * @param <E> The type of encrypted DEK
  */
 @Plugin(configType = EnvelopeEncryption.Config.class)
-public class EnvelopeEncryption<K, E> implements FilterFactory<EnvelopeEncryption.Config, EnvelopeEncryption.Config> {
+public class EnvelopeEncryption<E> implements FilterFactory<EnvelopeEncryption.Config, EnvelopeEncryption.Config> {
 
     record Config(
                   @JsonProperty(required = true) @PluginImplName(KmsService.class) String kms,
@@ -44,14 +44,14 @@ public class EnvelopeEncryption<K, E> implements FilterFactory<EnvelopeEncryptio
 
     @NonNull
     @Override
-    public EnvelopeEncryptionFilter<K> createFilter(FilterFactoryContext context, Config configuration) {
-        KmsService<Object, K, E> kmsPlugin = context.pluginInstance(KmsService.class, configuration.kms());
-        Kms<K, E> kms = kmsPlugin.buildKms(configuration.kmsConfig());
+    public EnvelopeEncryptionFilter createFilter(FilterFactoryContext context, Config configuration) {
+        KmsService<Object, E> kmsPlugin = context.pluginInstance(KmsService.class, configuration.kms());
+        Kms<E> kms = kmsPlugin.buildKms(configuration.kmsConfig());
 
         var keyManager = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
 
-        KekSelectorService<Object, K> ksPlugin = context.pluginInstance(KekSelectorService.class, configuration.selector());
-        TopicNameBasedKekSelector<K> kekSelector = ksPlugin.buildSelector(kms, configuration.selectorConfig());
-        return new EnvelopeEncryptionFilter<>(keyManager, kekSelector);
+        KekSelectorService<Object> ksPlugin = context.pluginInstance(KekSelectorService.class, configuration.selector());
+        TopicNameBasedKekSelector kekSelector = ksPlugin.buildSelector(kms, configuration.selectorConfig());
+        return new EnvelopeEncryptionFilter(keyManager, kekSelector);
     }
 }

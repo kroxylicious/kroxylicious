@@ -13,10 +13,9 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 /**
  * KekSelectorService
  * @param <C> The config type
- * @param <K> the type of key
  */
-public interface KekSelectorService<C, K> {
+public interface KekSelectorService<C> {
     @NonNull
-    TopicNameBasedKekSelector<K> buildSelector(@NonNull Kms<K, ?> kms, C options);
+    TopicNameBasedKekSelector buildSelector(@NonNull Kms<?> kms, C options);
 
 }

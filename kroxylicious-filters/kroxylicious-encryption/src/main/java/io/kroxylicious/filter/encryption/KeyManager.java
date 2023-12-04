@@ -16,9 +16,8 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 /**
  * A manager of (data) encryption keys supporting encryption and decryption operations,
  * encapsulating access to the data encryption keys.
- * @param <K> The type of KEK id.
  */
-public interface KeyManager<K> {
+public interface KeyManager {
 
     /**
      * Asynchronously encrypt the given {@code recordRequests} using the current DEK for the given KEK, calling the given receiver for each encrypted record
@@ -30,7 +29,7 @@ public interface KeyManager<K> {
     @NonNull
     CompletionStage<Void> encrypt(@NonNull String topicName,
                                   int partition,
-                                  @NonNull EncryptionScheme<K> encryptionScheme,
+                                  @NonNull EncryptionScheme encryptionScheme,
                                   @NonNull List<? extends Record> records,
                                   @NonNull Receiver receiver);
 

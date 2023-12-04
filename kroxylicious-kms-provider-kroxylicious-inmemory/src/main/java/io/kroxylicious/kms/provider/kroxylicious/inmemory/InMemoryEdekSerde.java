@@ -7,8 +7,8 @@
 package io.kroxylicious.kms.provider.kroxylicious.inmemory;
 
 import java.nio.ByteBuffer;
-import java.util.UUID;
 
+import io.kroxylicious.kms.service.KekId;
 import io.kroxylicious.kms.service.Serde;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -16,7 +16,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 class InMemoryEdekSerde implements Serde<InMemoryEdek> {
 
     private static final InMemoryEdekSerde INSTANCE = new InMemoryEdekSerde();
-    private final Serde<UUID> uuidSerde = UUIDSerde.instance();
+    private final Serde<KekId> uuidSerde = UUIDKekIdSerde.instance();
 
     private InMemoryEdekSerde() {
     }
@@ -31,7 +31,7 @@ class InMemoryEdekSerde implements Serde<InMemoryEdek> {
         var ivLength = Serde.getUnsignedByte(buffer);
         var iv = new byte[ivLength];
         buffer.get(iv);
-        UUID keyRef = uuidSerde.deserialize(buffer);
+        KekId keyRef = uuidSerde.deserialize(buffer);
         int edekLength = buffer.limit() - buffer.position();
         var edek = new byte[edekLength];
         buffer.get(edek);

@@ -8,13 +8,15 @@ package io.kroxylicious.kms.service;
 
 /**
  * A semantic wrapper around KMS specific key id type
- * @param <K> the type of the underlying Key
  */
-public interface KekId<K> {
+public interface KekId {
 
     /**
      * Obtain the underlying key id
+     *
+     * @param <K> the type of the underlying Key
+     *
      * @return the underlying key ID
      */
-    K getId();
+    <K> K getId();
 }

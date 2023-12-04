@@ -14,33 +14,33 @@ import io.kroxylicious.kms.service.Serde;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-class UUIDSerde implements Serde<KekId<UUID>> {
+class UUIDKekIdSerde implements Serde<KekId> {
 
-    private static final UUIDSerde UUID_SERDE = new UUIDSerde();
+    private static final UUIDKekIdSerde UUID_SERDE = new UUIDKekIdSerde();
 
-    private UUIDSerde() {
+    private UUIDKekIdSerde() {
     }
 
     @Override
-    public KekId<UUID> deserialize(@NonNull ByteBuffer buffer) {
+    public KekId deserialize(@NonNull ByteBuffer buffer) {
         var msb = buffer.getLong();
         var lsb = buffer.getLong();
         return new UuidKekId(new UUID(msb, lsb));
     }
 
     @Override
-    public int sizeOf(KekId<UUID> uuid) {
+    public int sizeOf(KekId uuid) {
         return 16;
     }
 
     @Override
-    public void serialize(KekId<UUID> uuidKekId, @NonNull ByteBuffer buffer) {
+    public void serialize(KekId uuidKekId, @NonNull ByteBuffer buffer) {
         final UUID id = uuidKekId.getId();
         buffer.putLong(id.getMostSignificantBits());
         buffer.putLong(id.getLeastSignificantBits());
     }
 
-    public static Serde<UUID> instance() {
+    public static Serde<KekId> instance() {
         return UUID_SERDE;
     }
 }

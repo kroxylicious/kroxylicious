@@ -43,10 +43,9 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 /**
  * An implementation of {@link KeyManager} that uses envelope encryption, AES-GCM and stores the KEK id and encrypted DEK
  * alongside the record ("in-band").
- * @param <K> The type of KEK id.
  * @param <E> The type of the encrypted DEK.
  */
-public class InBandKeyManager<K, E> implements KeyManager<K> {
+public class InBandKeyManager<E> implements KeyManager {
 
     private static final int MAX_ATTEMPTS = 3;
 
@@ -62,18 +61,18 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
      */
     private final EncryptionVersion encryptionVersion;
 
-    private final Kms<K, E> kms;
+    private final Kms<E> kms;
     private final BufferPool bufferPool;
     private final Serde<E> edekSerde;
     // TODO cache expiry, with key descruction
-    private final AsyncLoadingCache<KekId<K>, KeyContext> keyContextCache;
+    private final AsyncLoadingCache<KekId, KeyContext> keyContextCache;
     private final ConcurrentHashMap<E, CompletionStage<AesGcmEncryptor>> decryptorCache;
     private final long dekTtlNanos;
     private final int maxEncryptionsPerDek;
     private final Header[] encryptionHeader;
     private static final Logger LOGGER = LoggerFactory.getLogger(InBandKeyManager.class);
 
-    public InBandKeyManager(Kms<K, E> kms,
+    public InBandKeyManager(Kms<E> kms,
                             BufferPool bufferPool,
                             int maxEncryptionsPerDek) {
         this.kms = kms;
@@ -89,16 +88,16 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
         this.encryptionHeader = new Header[]{ new RecordHeader(ENCRYPTION_HEADER_NAME, new byte[]{ encryptionVersion.code() }) };
     }
 
-    private CompletionStage<KeyContext> currentDekContext(@NonNull K kekId) {
+    private CompletionStage<KeyContext> currentDekContext(@NonNull KekId kekId) {
         // todo should we add some scheduled timeout as well? or should we rely on the KMS to timeout appropriately.
         return keyContextCache.get(kekId);
     }
 
-    private CompletableFuture<KeyContext> makeKeyContext(@NonNull K kekId) {
+    private CompletableFuture<KeyContext> makeKeyContext(@NonNull KekId kekId) {
         return attemptMakeDekContext(kekId, 0);
     }
 
-    private CompletableFuture<KeyContext> attemptMakeDekContext(@NonNull KekId<K> kekId, int attempt) {
+    private CompletableFuture<KeyContext> attemptMakeDekContext(@NonNull KekId kekId, int attempt) {
         if (attempt >= MAX_ATTEMPTS) {
             return CompletableFuture.failedFuture(new EncryptorCreationException("failed to create encryptor after " + attempt + " attempts"));
         }
@@ -130,7 +129,7 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
     @SuppressWarnings("java:S2445")
     public CompletionStage<Void> encrypt(@NonNull String topicName,
                                          int partition,
-                                         @NonNull EncryptionScheme<K> encryptionScheme,
+                                         @NonNull EncryptionScheme encryptionScheme,
                                          @NonNull List<? extends Record> records,
                                          @NonNull Receiver receiver) {
         if (records.isEmpty()) {
@@ -140,7 +139,7 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
     }
 
     @SuppressWarnings("java:S2445")
-    private CompletionStage<Void> attemptEncrypt(String topicName, int partition, @NonNull EncryptionScheme<K> encryptionScheme, @NonNull List<? extends Record> records,
+    private CompletionStage<Void> attemptEncrypt(String topicName, int partition, @NonNull EncryptionScheme encryptionScheme, @NonNull List<? extends Record> records,
                                                  @NonNull Receiver receiver, int attempt) {
         if (attempt >= MAX_ATTEMPTS) {
             return CompletableFuture.failedFuture(
@@ -165,7 +164,7 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
     }
 
     @NonNull
-    private CompletableFuture<Void> encrypt(@NonNull EncryptionScheme<K> encryptionScheme, @NonNull List<? extends Record> records,
+    private CompletableFuture<Void> encrypt(@NonNull EncryptionScheme encryptionScheme, @NonNull List<? extends Record> records,
                                             @NonNull Receiver receiver, KeyContext keyContext) {
         var maxParcelSize = records.stream()
                 .mapToInt(kafkaRecord -> Parcel.sizeOfParcel(
@@ -198,13 +197,13 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
     }
 
     // this must only be called while holding the lock on this keycontext
-    private void rotateKeyContext(@NonNull EncryptionScheme<K> encryptionScheme, KeyContext keyContext) {
+    private void rotateKeyContext(@NonNull EncryptionScheme encryptionScheme, KeyContext keyContext) {
         keyContext.destroy();
-        K kekId = encryptionScheme.kekId();
+        KekId kekId = encryptionScheme.kekId();
         keyContextCache.synchronous().invalidate(kekId);
     }
 
-    private void encryptRecords(@NonNull EncryptionScheme<K> encryptionScheme,
+    private void encryptRecords(@NonNull EncryptionScheme encryptionScheme,
                                 @NonNull KeyContext keyContext,
                                 @NonNull List<? extends Record> records,
                                 @NonNull ByteBuffer parcelBuffer,
@@ -232,7 +231,7 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
         });
     }
 
-    private Header[] transformHeaders(@NonNull EncryptionScheme<K> encryptionScheme, Record kafkaRecord) {
+    private Header[] transformHeaders(@NonNull EncryptionScheme encryptionScheme, Record kafkaRecord) {
         Header[] oldHeaders = kafkaRecord.headers();
         Header[] headers;
         if (encryptionScheme.recordFields().contains(RecordField.RECORD_HEADER_VALUES) || oldHeaders.length == 0) {
