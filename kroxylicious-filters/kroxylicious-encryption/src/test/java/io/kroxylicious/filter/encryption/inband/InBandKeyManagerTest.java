@@ -15,10 +15,6 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicBoolean;
-
-import javax.security.auth.DestroyFailedException;
-import javax.security.auth.Destroyable;
 
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
@@ -36,7 +32,6 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class InBandKeyManagerTest {
 
@@ -74,20 +69,6 @@ class InBandKeyManagerTest {
         var x1 = InBandKeyManager.removeInitialHeaders(r2, 1);
         assertEquals(1, x1.length);
         assertEquals(myHeader, x1[0]);
-    }
-
-    @Test
-    void testDestroy() {
-        AtomicBoolean called = new AtomicBoolean();
-        InBandKeyManager.destroy(new Destroyable() {
-            @Override
-            public void destroy() throws DestroyFailedException {
-                called.set(true);
-                throw new DestroyFailedException("Eeek!");
-            }
-        });
-
-        assertTrue(called.get());
     }
 
     @Test

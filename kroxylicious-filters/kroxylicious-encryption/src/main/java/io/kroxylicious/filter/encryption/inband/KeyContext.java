@@ -7,9 +7,14 @@
 package io.kroxylicious.filter.encryption.inband;
 
 import java.nio.ByteBuffer;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import javax.security.auth.DestroyFailedException;
 import javax.security.auth.Destroyable;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -21,7 +26,10 @@ final class KeyContext implements Destroyable {
     private final byte[] prefix;
     private final long encryptionExpiryNanos;
     private int remainingEncryptions;
-    private boolean alive = true;
+    private boolean destroyed = false;
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(InBandKeyManager.class);
+    private static final Map<Class<? extends Destroyable>, Boolean> LOGGED_DESTROY_FAILED = new ConcurrentHashMap<>();
 
     KeyContext(@NonNull ByteBuffer prefix,
                long encryptionExpiryNanos,
@@ -81,12 +89,31 @@ final class KeyContext implements Destroyable {
     }
 
     @Override
-    public void destroy() throws DestroyFailedException {
-        alive = false;
-        encryptor.destroy();
+    public void destroy() {
+        destroy(encryptor);
+        destroyed = true;
     }
 
-    public boolean isAlive() {
-        return alive;
+    @Override
+    public boolean isDestroyed() {
+        return destroyed;
+    }
+
+    static void destroy(Destroyable destroyable) {
+        try {
+            destroyable.destroy();
+        }
+        catch (DestroyFailedException e) {
+            var cls = destroyable.getClass();
+            LOGGED_DESTROY_FAILED.compute(cls, (k, logged) -> {
+                if (logged == null) {
+                    LOGGER.warn("Failed to destroy an instance of {}. "
+                            + "Note: this message is logged once per class even though there may be many occurrences of this event. "
+                            + "This event can happen because the JRE's SecretKeySpec class does not override destroy().",
+                            cls, e);
+                }
+                return Boolean.TRUE;
+            });
+        }
     }
 }

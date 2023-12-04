@@ -11,21 +11,15 @@ import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
-import javax.security.auth.DestroyFailedException;
-import javax.security.auth.Destroyable;
-
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.record.Record;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.filter.encryption.EncryptionScheme;
 import io.kroxylicious.filter.encryption.KeyManager;
@@ -44,9 +38,6 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param <E> The type of the encrypted DEK.
  */
 public class InBandKeyManager<K, E> implements KeyManager<K> {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(InBandKeyManager.class);
-    private static final Map<Class<? extends Destroyable>, Boolean> LOGGED_DESTROY_FAILED = new ConcurrentHashMap<>();
 
     private static final String FIELDS_HEADER_NAME = "kroxylicious.io/encrypted";
     private static final String DEK_HEADER_NAME = "kroxylicious.io/dek";
@@ -91,24 +82,6 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
         return getKeyContext(kekId, makeKeyContext(kekId));
     }
 
-    static void destroy(Destroyable destroyable) {
-        try {
-            destroyable.destroy();
-        }
-        catch (DestroyFailedException e) {
-            var cls = destroyable.getClass();
-            LOGGED_DESTROY_FAILED.compute(cls, (k, logged) -> {
-                if (logged == null) {
-                    LOGGER.warn("Failed to destroy an instance of {}. "
-                            + "Note: this message is logged once per class even though there may be many occurrences of this event. "
-                            + "This event can happen because the JRE's SecretKeySpec class does not override destroy().",
-                            cls, e);
-                }
-                return Boolean.TRUE;
-            });
-        }
-    }
-
     private Supplier<CompletionStage<KeyContext>> makeKeyContext(@NonNull K kekId) {
         return () -> kms.generateDekPair(kekId)
                 .thenApply(dekPair -> {
@@ -141,7 +114,7 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
             // access to the key context is synchronized
             synchronized (keyContext) {
                 // if it's not alive we know a previous encrypt call has replaced the stage in the cache and fall through to retry encrypt
-                if (keyContext.isAlive()) {
+                if (!keyContext.isDestroyed()) {
                     if (!keyContext.hasAtLeastRemainingEncryptions(records.size())) {
                         // replace the key context stage in the cache, then call encrypt again
                         rotateKeyContext(encryptionScheme, keyContext);
@@ -178,7 +151,7 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
     }
 
     private void rotateKeyContext(@NonNull EncryptionScheme<K> encryptionScheme, KeyContext keyContext) {
-        destroy(keyContext);
+        keyContext.destroy();
         K kekId = encryptionScheme.kekId();
         keyContextCache.put(kekId, makeKeyContext(kekId).get());
     }

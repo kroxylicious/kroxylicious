@@ -10,8 +10,10 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.security.auth.DestroyFailedException;
+import javax.security.auth.Destroyable;
 
 import org.junit.jupiter.api.Test;
 
@@ -42,6 +44,20 @@ class KeyContextTest {
 
         assertThrows(IllegalArgumentException.class, () -> context.hasAtLeastRemainingEncryptions(0));
         assertThrows(IllegalArgumentException.class, () -> context.hasAtLeastRemainingEncryptions(-1));
+    }
+
+    @Test
+    void testDestroy() {
+        AtomicBoolean called = new AtomicBoolean();
+        KeyContext.destroy(new Destroyable() {
+            @Override
+            public void destroy() throws DestroyFailedException {
+                called.set(true);
+                throw new DestroyFailedException("Eeek!");
+            }
+        });
+
+        assertTrue(called.get());
     }
 
     @Test
@@ -86,9 +102,9 @@ class KeyContextTest {
         var e = assertThrows(ExhaustedDekException.class, () -> context.encode(bb, output));
         assertEquals("No more encryptions", e.getMessage());
 
-        assertTrue(context.isAlive());
+        assertFalse(context.isDestroyed());
         // destroy
-        assertThrows(DestroyFailedException.class, context::destroy);
-        assertFalse(context.isAlive());
+        context.destroy();
+        assertTrue(context.isDestroyed());
     }
 }
