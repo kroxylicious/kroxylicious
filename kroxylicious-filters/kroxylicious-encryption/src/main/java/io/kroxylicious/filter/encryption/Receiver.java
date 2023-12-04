@@ -19,7 +19,8 @@ public interface Receiver {
      * Receive the ciphertext (encryption) or the plaintext (decryption) associated with the given record..
      *
      * @param kafkaRecord The record on which to base the revised record
-     * @param value The ciphertext or plaintext buffer.
+     * @param value The ciphertext or plaintext buffer. This buffer may be re-used, the implementor should extract all
+     * the bytes they need from the buffer before the end of the accept call.
      */
     void accept(Record kafkaRecord, ByteBuffer value, Header[] headers);
 }
