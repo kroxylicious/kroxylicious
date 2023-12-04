@@ -137,13 +137,13 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
         var maxValuePlaintextSize = encryptionScheme.recordFields().contains(RecordField.RECORD_VALUE)
                 ? records.stream().mapToInt(Record::valueSize).max().orElse(-1)
                 : -1;
-        var valueCiphertext = maxValuePlaintextSize >= 0 ? bufferPool.acquire(keyContext.encodedSize(maxValuePlaintextSize)) : null;
+        var sharedValueCiphertextBuffer = maxValuePlaintextSize >= 0 ? bufferPool.acquire(keyContext.encodedSize(maxValuePlaintextSize)) : null;
         try {
-            encryptRecords(encryptionScheme, keyContext, records, fieldsHeader, dekHeader, valueCiphertext, receiver);
+            encryptRecords(encryptionScheme, keyContext, records, fieldsHeader, dekHeader, sharedValueCiphertextBuffer, receiver);
         }
         finally {
-            if (maxValuePlaintextSize >= 0) {
-                bufferPool.release(valueCiphertext);
+            if (sharedValueCiphertextBuffer != null) {
+                bufferPool.release(sharedValueCiphertextBuffer);
             }
         }
         keyContext.recordEncryptions(records.size());
