@@ -42,6 +42,7 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
 
     private static final String FIELDS_HEADER_NAME = "kroxylicious.io/encrypted";
     private static final String DEK_HEADER_NAME = "kroxylicious.io/dek";
+    private static final int MAX_ATTEMPTS = 3;
 
     private final Kms<K, E> kms;
     private final BufferPool bufferPool;
@@ -117,7 +118,7 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
     @SuppressWarnings("java:S2445")
     private CompletionStage<Void> attemptEncrypt(@NonNull EncryptionScheme<K> encryptionScheme, @NonNull List<? extends Record> records,
                                                  @NonNull Receiver receiver, int attempt) {
-        if (attempt >= 3) {
+        if (attempt >= MAX_ATTEMPTS) {
             return CompletableFuture.failedFuture(new EncryptionException("failed to encrypt records after " + attempt + " attempts"));
         }
         return currentDekContext(encryptionScheme.kekId()).thenCompose(keyContext -> {
