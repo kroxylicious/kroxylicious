@@ -11,22 +11,17 @@ import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
-import javax.security.auth.DestroyFailedException;
-import javax.security.auth.Destroyable;
-
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.record.Record;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+import io.kroxylicious.filter.encryption.EncryptionException;
 import io.kroxylicious.filter.encryption.EncryptionScheme;
 import io.kroxylicious.filter.encryption.KeyManager;
 import io.kroxylicious.filter.encryption.Receiver;
@@ -45,11 +40,9 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  */
 public class InBandKeyManager<K, E> implements KeyManager<K> {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(InBandKeyManager.class);
-    private static final Map<Class<? extends Destroyable>, Boolean> LOGGED_DESTROY_FAILED = new ConcurrentHashMap<>();
-
     private static final String FIELDS_HEADER_NAME = "kroxylicious.io/encrypted";
     private static final String DEK_HEADER_NAME = "kroxylicious.io/dek";
+    private static final int MAX_ATTEMPTS = 3;
 
     private final Kms<K, E> kms;
     private final BufferPool bufferPool;
@@ -61,12 +54,13 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
     private final int maxEncryptionsPerDek;
 
     public InBandKeyManager(Kms<K, E> kms,
-                            BufferPool bufferPool) {
+                            BufferPool bufferPool,
+                            int maxEncryptionsPerDek) {
         this.kms = kms;
         this.bufferPool = bufferPool;
         this.edekSerde = kms.edekSerde();
         this.dekTtlNanos = 5_000_000_000L;
-        this.maxEncryptionsPerDek = 500_000;
+        this.maxEncryptionsPerDek = maxEncryptionsPerDek;
         // TODO This ^^ must be > the maximum size of a batch to avoid an infinite loop
         this.keyContextCache = new ConcurrentHashMap<>();
         this.decryptorCache = new ConcurrentHashMap<>();
@@ -86,37 +80,8 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
         });
     }
 
-    private CompletionStage<KeyContext> currentDekContext(@NonNull K kekId, int numRecords) {
-        return getKeyContext(kekId, makeKeyContext(kekId))
-                .thenCompose(cachedContext -> {
-                    if (!cachedContext.isExpiredForEncryption(System.nanoTime())
-                            && cachedContext.hasAtLeastRemainingEncryptions(numRecords)) {
-                        // TODO pre-populate decryptorCache?
-                        return CompletableFuture.completedFuture(cachedContext);
-                    }
-                    else {
-                        destroy(cachedContext);
-                        return currentDekContext(kekId, numRecords);
-                    }
-                });
-    }
-
-    static void destroy(Destroyable destroyable) {
-        try {
-            destroyable.destroy();
-        }
-        catch (DestroyFailedException e) {
-            var cls = destroyable.getClass();
-            LOGGED_DESTROY_FAILED.compute(cls, (k, logged) -> {
-                if (logged == null) {
-                    LOGGER.warn("Failed to destroy an instance of {}. "
-                            + "Note: this message is logged once per class even though there may be many occurrences of this event. "
-                            + "This event can happen because the JRE's SecretKeySpec class does not override destroy().",
-                            cls, e);
-                }
-                return Boolean.TRUE;
-            });
-        }
+    private CompletionStage<KeyContext> currentDekContext(@NonNull K kekId) {
+        return getKeyContext(kekId, makeKeyContext(kekId));
     }
 
     private Supplier<CompletionStage<KeyContext>> makeKeyContext(@NonNull K kekId) {
@@ -147,25 +112,58 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
     public CompletionStage<Void> encrypt(@NonNull EncryptionScheme<K> encryptionScheme,
                                          @NonNull List<? extends Record> records,
                                          @NonNull Receiver receiver) {
+        return attemptEncrypt(encryptionScheme, records, receiver, 0);
+    }
 
-        var fieldsHeader = createEncryptedFieldsHeader(encryptionScheme.recordFields());
-        return currentDekContext(encryptionScheme.kekId(), records.size()).thenAccept(keyContext -> {
-            var dekHeader = createEdekHeader(keyContext);
-            var maxValuePlaintextSize = encryptionScheme.recordFields().contains(RecordField.RECORD_VALUE)
-                    ? records.stream().mapToInt(Record::valueSize).max().orElse(-1)
-                    : -1;
+    @SuppressWarnings("java:S2445")
+    private CompletionStage<Void> attemptEncrypt(@NonNull EncryptionScheme<K> encryptionScheme, @NonNull List<? extends Record> records,
+                                                 @NonNull Receiver receiver, int attempt) {
+        if (attempt >= MAX_ATTEMPTS) {
+            return CompletableFuture.failedFuture(new EncryptionException("failed to encrypt records after " + attempt + " attempts"));
+        }
+        return currentDekContext(encryptionScheme.kekId()).thenCompose(keyContext -> {
             synchronized (keyContext) {
-                var valueCiphertext = maxValuePlaintextSize >= 0 ? bufferPool.acquire(keyContext.encodedSize(maxValuePlaintextSize)) : null;
-                try {
-                    encryptRecords(encryptionScheme, keyContext, records, fieldsHeader, dekHeader, valueCiphertext, receiver);
-                }
-                finally {
-                    if (maxValuePlaintextSize >= 0) {
-                        bufferPool.release(valueCiphertext);
+                // if it's not alive we know a previous encrypt call has replaced the stage in the cache and fall through to retry encrypt
+                if (!keyContext.isDestroyed()) {
+                    if (!keyContext.hasAtLeastRemainingEncryptions(records.size())) {
+                        // replace the key context stage in the cache, then call encrypt again
+                        rotateKeyContext(encryptionScheme, keyContext);
+                    }
+                    else {
+                        return encrypt(encryptionScheme, records, receiver, keyContext);
                     }
                 }
             }
+            return attemptEncrypt(encryptionScheme, records, receiver, attempt + 1);
         });
+    }
+
+    @NonNull
+    private CompletableFuture<Void> encrypt(@NonNull EncryptionScheme<K> encryptionScheme, @NonNull List<? extends Record> records,
+                                            @NonNull Receiver receiver, KeyContext keyContext) {
+        var fieldsHeader = createEncryptedFieldsHeader(encryptionScheme.recordFields());
+        var dekHeader = createEdekHeader(keyContext);
+        var maxValuePlaintextSize = encryptionScheme.recordFields().contains(RecordField.RECORD_VALUE)
+                ? records.stream().mapToInt(Record::valueSize).max().orElse(-1)
+                : -1;
+        var sharedValueCiphertextBuffer = maxValuePlaintextSize >= 0 ? bufferPool.acquire(keyContext.encodedSize(maxValuePlaintextSize)) : null;
+        try {
+            encryptRecords(encryptionScheme, keyContext, records, fieldsHeader, dekHeader, sharedValueCiphertextBuffer, receiver);
+        }
+        finally {
+            if (sharedValueCiphertextBuffer != null) {
+                bufferPool.release(sharedValueCiphertextBuffer);
+            }
+        }
+        keyContext.recordEncryptions(records.size());
+        return CompletableFuture.completedFuture(null);
+    }
+
+    // this must only be called while holding the lock on this keycontext
+    private void rotateKeyContext(@NonNull EncryptionScheme<K> encryptionScheme, KeyContext keyContext) {
+        keyContext.destroy();
+        K kekId = encryptionScheme.kekId();
+        keyContextCache.put(kekId, makeKeyContext(kekId).get());
     }
 
     private void encryptRecords(@NonNull EncryptionScheme<K> encryptionScheme,

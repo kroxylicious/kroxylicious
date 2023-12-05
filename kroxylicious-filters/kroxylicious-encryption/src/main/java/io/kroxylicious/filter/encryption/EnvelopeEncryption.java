@@ -47,7 +47,7 @@ public class EnvelopeEncryption<K, E> implements FilterFactory<EnvelopeEncryptio
         KmsService<Object, K, E> kmsPlugin = context.pluginInstance(KmsService.class, configuration.kms());
         Kms<K, E> kms = kmsPlugin.buildKms(configuration.kmsConfig());
 
-        var keyManager = new InBandKeyManager<>(kms, BufferPool.allocating());
+        var keyManager = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
 
         KekSelectorService<Object, K> ksPlugin = context.pluginInstance(KekSelectorService.class, configuration.selector());
         TopicNameBasedKekSelector<K> kekSelector = ksPlugin.buildSelector(kms, configuration.selectorConfig());

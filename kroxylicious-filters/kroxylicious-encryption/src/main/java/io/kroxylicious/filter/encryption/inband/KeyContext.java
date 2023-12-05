@@ -7,21 +7,34 @@
 package io.kroxylicious.filter.encryption.inband;
 
 import java.nio.ByteBuffer;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
+import javax.annotation.concurrent.NotThreadSafe;
 import javax.security.auth.DestroyFailedException;
 import javax.security.auth.Destroyable;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
- * A DekContext encapsulates an encryptor.
+ * A Context encapsulates an encryptor for a DEK.
+ * <p>
+ * KeyContext is not threadsafe and access should be externally co-ordinated.
+ * </p>
  */
+@NotThreadSafe
 final class KeyContext implements Destroyable {
     private final AesGcmEncryptor encryptor;
     private final byte[] prefix;
     private final long encryptionExpiryNanos;
-    private final AtomicInteger remainingEncryptions;
+    private int remainingEncryptions;
+    private boolean destroyed = false;
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(InBandKeyManager.class);
+    private static final Map<Class<? extends Destroyable>, Boolean> LOGGED_DESTROY_FAILED = new ConcurrentHashMap<>();
 
     KeyContext(@NonNull ByteBuffer prefix,
                long encryptionExpiryNanos,
@@ -32,7 +45,7 @@ final class KeyContext implements Destroyable {
         }
         this.prefix = prefix.array();
         this.encryptionExpiryNanos = encryptionExpiryNanos;
-        this.remainingEncryptions = new AtomicInteger(maxEncryptions);
+        this.remainingEncryptions = maxEncryptions;
         this.encryptor = encryptor;
     }
 
@@ -48,7 +61,14 @@ final class KeyContext implements Destroyable {
         if (numEncryptions <= 0) {
             throw new IllegalArgumentException();
         }
-        return remainingEncryptions.getAndAdd(-numEncryptions) >= numEncryptions;
+        return remainingEncryptions >= numEncryptions;
+    }
+
+    public void recordEncryptions(int numEncryptions) {
+        if (numEncryptions <= 0) {
+            throw new IllegalArgumentException();
+        }
+        remainingEncryptions -= numEncryptions;
     }
 
     /**
@@ -67,14 +87,36 @@ final class KeyContext implements Destroyable {
      * @param output The output buffer
      */
     public void encode(@NonNull ByteBuffer plaintext, @NonNull ByteBuffer output) {
-        if (remainingEncryptions.get() < 0) {
+        if (remainingEncryptions <= 0) {
             throw new ExhaustedDekException("No more encryptions");
         }
         encryptor.encrypt(plaintext, output);
     }
 
     @Override
-    public void destroy() throws DestroyFailedException {
-        encryptor.destroy();
+    public void destroy() {
+        destroy(encryptor);
+        destroyed = true;
+    }
+
+    @Override
+    public boolean isDestroyed() {
+        return destroyed;
+    }
+
+    static void destroy(Destroyable destroyable) {
+        try {
+            destroyable.destroy();
+        }
+        catch (DestroyFailedException e) {
+            var cls = destroyable.getClass();
+            LOGGED_DESTROY_FAILED.computeIfAbsent(cls, (c) -> {
+                LOGGER.warn("Failed to destroy an instance of {}. "
+                        + "Note: this message is logged once per class even though there may be many occurrences of this event. "
+                        + "This event can happen because the JRE's SecretKeySpec class does not override destroy().",
+                        c, e);
+                return Boolean.TRUE;
+            });
+        }
     }
 }

@@ -10,8 +10,10 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.security.auth.DestroyFailedException;
+import javax.security.auth.Destroyable;
 
 import org.junit.jupiter.api.Test;
 
@@ -45,6 +47,20 @@ class KeyContextTest {
     }
 
     @Test
+    void testDestroy() {
+        AtomicBoolean called = new AtomicBoolean();
+        KeyContext.destroy(new Destroyable() {
+            @Override
+            public void destroy() throws DestroyFailedException {
+                called.set(true);
+                throw new DestroyFailedException("Eeek!");
+            }
+        });
+
+        assertTrue(called.get());
+    }
+
+    @Test
     void testLifecycle() throws ExecutionException, InterruptedException, DestroyFailedException {
         InMemoryKms kms = UnitTestingKmsService.newInstance().buildKms(new UnitTestingKmsService.Config());
         var kek = kms.generateKey();
@@ -65,6 +81,7 @@ class KeyContextTest {
         assertFalse(output.hasRemaining());
         output.flip();
         bb.flip();
+        context.recordEncryptions(1);
 
         assertTrue(context.hasAtLeastRemainingEncryptions(1));
         assertFalse(context.isExpiredForEncryption(101010));
@@ -77,6 +94,7 @@ class KeyContextTest {
         assertFalse(output.hasRemaining());
         output.flip();
         bb.flip();
+        context.recordEncryptions(1);
 
         assertFalse(context.hasAtLeastRemainingEncryptions(1));
         context.encodedSize(bb.capacity());
@@ -84,7 +102,9 @@ class KeyContextTest {
         var e = assertThrows(ExhaustedDekException.class, () -> context.encode(bb, output));
         assertEquals("No more encryptions", e.getMessage());
 
+        assertFalse(context.isDestroyed());
         // destroy
-        assertThrows(DestroyFailedException.class, context::destroy);
+        context.destroy();
+        assertTrue(context.isDestroyed());
     }
 }

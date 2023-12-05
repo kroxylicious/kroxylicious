@@ -6,6 +6,7 @@ Please enumerate **all user-facing** changes using format `<githib issue/pr numb
 
 ## 0.4.0
 
+* [#764](https://github.com/kroxylicious/kroxylicious/pull/764): Encryption Filter: Rotate to a new DEK when the old one is exhausted
 * [#752](https://github.com/kroxylicious/kroxylicious/issues/752): Remove redudant reinstallation of time-zone data in Dockerfile used for Kroxylicious container image
 * [#727](https://github.com/kroxylicious/kroxylicious/pull/727): Tease out simple transform filters into their own module
 * [#738](https://github.com/kroxylicious/kroxylicious/pull/738): Update to Kroxylicious Junit Ext 0.7.0
