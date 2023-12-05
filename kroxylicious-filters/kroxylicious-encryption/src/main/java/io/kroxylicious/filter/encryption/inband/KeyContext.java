@@ -105,13 +105,11 @@ final class KeyContext implements Destroyable {
         }
         catch (DestroyFailedException e) {
             var cls = destroyable.getClass();
-            LOGGED_DESTROY_FAILED.compute(cls, (k, logged) -> {
-                if (logged == null) {
-                    LOGGER.warn("Failed to destroy an instance of {}. "
-                            + "Note: this message is logged once per class even though there may be many occurrences of this event. "
-                            + "This event can happen because the JRE's SecretKeySpec class does not override destroy().",
-                            cls, e);
-                }
+            LOGGED_DESTROY_FAILED.computeIfAbsent(cls, (c) -> {
+                LOGGER.warn("Failed to destroy an instance of {}. "
+                        + "Note: this message is logged once per class even though there may be many occurrences of this event. "
+                        + "This event can happen because the JRE's SecretKeySpec class does not override destroy().",
+                        c, e);
                 return Boolean.TRUE;
             });
         }
