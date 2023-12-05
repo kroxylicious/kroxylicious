@@ -10,7 +10,6 @@ import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.crypto.SecretKey;
 
@@ -61,8 +60,6 @@ public class UnitTestingKmsService implements KmsService<UnitTestingKmsService.C
 
     }
 
-    private final AtomicInteger numGeneratedDeks = new AtomicInteger();
-
     private final Map<UUID, SecretKey> keys = new ConcurrentHashMap<>();
     private final Map<String, UUID> aliases = new ConcurrentHashMap<>();
 
@@ -72,8 +69,7 @@ public class UnitTestingKmsService implements KmsService<UnitTestingKmsService.C
         return new InMemoryKms(options.numIvBytes(),
                 options.numAuthBits(),
                 keys,
-                aliases,
-                numGeneratedDeks);
+                aliases);
     }
 
 }

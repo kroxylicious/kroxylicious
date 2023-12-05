@@ -11,10 +11,11 @@ import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Supplier;
 
 import javax.crypto.Cipher;
@@ -48,16 +49,13 @@ public class InMemoryKms implements
     private final int numAuthBits;
     private final SecureRandom secureRandom;
     private final Map<String, UUID> aliases;
-
-    private final AtomicInteger numDeksGenerated;
+    private final List<DekPair<InMemoryEdek>> edeksGenerated = new CopyOnWriteArrayList<>();
 
     InMemoryKms(int numIvBytes, int numAuthBits,
                 Map<UUID, SecretKey> keys,
-                Map<String, UUID> aliases,
-                AtomicInteger numDeksGenerated) {
+                Map<String, UUID> aliases) {
         this.keys = new HashMap<>(keys);
         this.aliases = new HashMap<>(aliases);
-        this.numDeksGenerated = numDeksGenerated;
         this.secureRandom = new SecureRandom();
         this.numIvBytes = numIvBytes;
         this.numAuthBits = numAuthBits;
@@ -97,7 +95,7 @@ public class InMemoryKms implements
      * @return the number of DEKs that have been generated.
      */
     public int numDeksGenerated() {
-        return numDeksGenerated.get();
+        return edeksGenerated.size();
     }
 
     private InMemoryEdek wrap(UUID kekRef, Supplier<SecretKey> generator) {
@@ -121,8 +119,9 @@ public class InMemoryKms implements
         try {
             var dek = this.aes.generateKey();
             var edek = wrap(kekRef, () -> dek);
-            numDeksGenerated.incrementAndGet();
-            return CompletableFuture.completedFuture(new DekPair<>(edek, dek));
+            DekPair<InMemoryEdek> dekPair = new DekPair<>(edek, dek);
+            edeksGenerated.add(dekPair);
+            return CompletableFuture.completedFuture(dekPair);
         }
         catch (KmsException e) {
             return CompletableFuture.failedFuture(e);
@@ -207,5 +206,9 @@ public class InMemoryKms implements
     @Override
     public Serde<InMemoryEdek> edekSerde() {
         return InMemoryEdekSerde.instance();
+    }
+
+    public DekPair<InMemoryEdek> getGeneratedEdek(int i) {
+        return edeksGenerated.get(i);
     }
 }

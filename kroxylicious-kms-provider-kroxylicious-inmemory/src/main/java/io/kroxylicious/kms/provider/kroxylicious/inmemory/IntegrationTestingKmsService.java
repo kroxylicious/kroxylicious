@@ -10,7 +10,6 @@ import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.crypto.SecretKey;
 
@@ -65,14 +64,12 @@ public class IntegrationTestingKmsService implements KmsService<IntegrationTesti
     @Override
     public InMemoryKms buildKms(Config options) {
         return KMSES.computeIfAbsent(options.name(), ignored -> {
-            var numGeneratedDeks = new AtomicInteger();
             var keys = new ConcurrentHashMap<UUID, SecretKey>();
             var aliases = new ConcurrentHashMap<String, UUID>();
             return new InMemoryKms(12,
                     128,
                     keys,
-                    aliases,
-                    numGeneratedDeks);
+                    aliases);
         });
     }
 

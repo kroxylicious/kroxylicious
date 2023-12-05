@@ -27,13 +27,13 @@ import io.kroxylicious.filter.encryption.Receiver;
 import io.kroxylicious.filter.encryption.RecordField;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.InMemoryKms;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.UnitTestingKmsService;
+import io.kroxylicious.kms.service.DekPair;
+import io.kroxylicious.kms.service.Serde;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 class InBandKeyManagerTest {
@@ -192,16 +192,13 @@ class InBandKeyManagerTest {
 
         record.value().rewind();
         record2.value().rewind();
-        List<byte[]> deks = encrypted.stream()
-                .map(testingRecord -> Arrays.stream(testingRecord.headers()).filter(header -> header.key().equals("kroxylicious.io/dek")).findFirst().orElseThrow()
-                        .value())
-                .toList();
-        assertEquals(4, encrypted.size());
-        assertEquals(4, deks.size());
-        assertArrayEquals(deks.get(0), deks.get(1));
-        assertArrayEquals(deks.get(2), deks.get(3));
-        assertFalse(Arrays.equals(deks.get(0), deks.get(2)));
-        assertFalse(Arrays.equals(deks.get(0), deks.get(3)));
+
+        assertThat(kms.numDeksGenerated()).isEqualTo(2);
+        var edekOne = getSerializedGeneratedEdek(kms, 0);
+        var edekTwo = getSerializedGeneratedEdek(kms, 1);
+        assertThat(encrypted).hasSize(4);
+        List<TestingDek> deks = extractEdeks(encrypted);
+        assertThat(deks).containsExactly(edekOne, edekOne, edekTwo, edekTwo);
     }
 
     @Test
@@ -234,16 +231,12 @@ class InBandKeyManagerTest {
 
         record.value().rewind();
         record2.value().rewind();
-        List<byte[]> deks = encrypted.stream()
-                .map(testingRecord -> Arrays.stream(testingRecord.headers()).filter(header -> header.key().equals("kroxylicious.io/dek")).findFirst().orElseThrow()
-                        .value())
-                .toList();
-        assertEquals(4, encrypted.size());
-        assertEquals(4, deks.size());
-        assertArrayEquals(deks.get(0), deks.get(1));
-        assertArrayEquals(deks.get(2), deks.get(3));
-        assertFalse(Arrays.equals(deks.get(0), deks.get(2)));
-        assertFalse(Arrays.equals(deks.get(0), deks.get(3)));
+        assertThat(kms.numDeksGenerated()).isEqualTo(2);
+        var edekOne = getSerializedGeneratedEdek(kms, 0);
+        var edekTwo = getSerializedGeneratedEdek(kms, 1);
+        assertThat(encrypted).hasSize(4);
+        List<TestingDek> deks = extractEdeks(encrypted);
+        assertThat(deks).containsExactly(edekOne, edekOne, edekTwo, edekTwo);
     }
 
     @Test
@@ -276,15 +269,11 @@ class InBandKeyManagerTest {
 
         record.value().rewind();
         record2.value().rewind();
-        List<byte[]> deks = encrypted.stream()
-                .map(testingRecord -> Arrays.stream(testingRecord.headers()).filter(header -> header.key().equals("kroxylicious.io/dek")).findFirst().orElseThrow()
-                        .value())
-                .toList();
-        assertEquals(4, encrypted.size());
-        assertEquals(4, deks.size());
-        assertArrayEquals(deks.get(0), deks.get(1));
-        assertArrayEquals(deks.get(0), deks.get(2));
-        assertArrayEquals(deks.get(0), deks.get(3));
+        assertThat(kms.numDeksGenerated()).isEqualTo(1);
+        var edekOne = getSerializedGeneratedEdek(kms, 0);
+        assertThat(encrypted).hasSize(4);
+        List<TestingDek> deks = extractEdeks(encrypted);
+        assertThat(deks).containsExactly(edekOne, edekOne, edekOne, edekOne);
     }
 
     @NonNull
@@ -353,6 +342,30 @@ class InBandKeyManagerTest {
 
         assertEquals(List.of(new TestingRecord(value, new Header[]{ new RecordHeader("foo", new byte[]{ 4, 5, 6 }) }),
                 new TestingRecord(value2, new Header[]{ new RecordHeader("foo", new byte[]{ 10, 11, 12 }) })), decrypted);
+    }
+
+    public TestingDek getSerializedGeneratedEdek(InMemoryKms kms, int i) {
+        DekPair generatedEdek = kms.getGeneratedEdek(i);
+        var edek = generatedEdek.edek();
+        Serde serde = kms.edekSerde();
+        int size = serde.sizeOf(edek);
+        ByteBuffer buffer = ByteBuffer.allocate(size + 2);
+        buffer.putShort((short) size);
+        serde.serialize(edek, buffer);
+        buffer.flip();
+        byte[] bytes = new byte[buffer.remaining()];
+        buffer.get(bytes);
+        return new TestingDek(bytes);
+    }
+
+    @NonNull
+    private static List<TestingDek> extractEdeks(List<TestingRecord> encrypted) {
+        List<TestingDek> deks = encrypted.stream()
+                .map(testingRecord -> Arrays.stream(testingRecord.headers()).filter(header -> header.key().equals("kroxylicious.io/dek")).findFirst().orElseThrow()
+                        .value())
+                .map(TestingDek::new)
+                .toList();
+        return deks;
     }
 
 }
