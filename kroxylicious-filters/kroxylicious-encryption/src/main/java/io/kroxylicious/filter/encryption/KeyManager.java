@@ -24,7 +24,7 @@ public interface KeyManager<K> {
      * Asynchronously encrypt the given {@code recordRequests} using the current DEK for the given KEK, calling the given receiver for each encrypted record
      * @param encryptionScheme The encryption scheme.
      * @param records The requests to be encrypted.
-     * @param receiver The receiver of the encrypted buffers. The receiver will recieve the buffers in the original order and can expect no parallel calls.
+     * @param receiver The receiver of the encrypted buffers. The receiver is guaranteed to receive the encrypted buffers sequentially, in the same order as {@code records}, with no possibility of parallel invocation.
      * @return A completion stage that completes when all the records have been processed.
      */
     @NonNull
@@ -35,7 +35,7 @@ public interface KeyManager<K> {
     /**
      * Asynchronously decrypt the given {@code kafkaRecords} (if they were, in fact, encrypted), calling the given {@code receiver} with the plaintext
      * @param records The records
-     * @param receiver The receiver of the plaintext buffers. The receiver will receive the buffers in the original order and can expect no parallel calls.
+     * @param receiver The receiver of the plaintext buffers. The receiver is guaranteed to receive the decrypted buffers sequentially, in the same order as {@code records}, with no possibility of parallel invocation.
      * @return A completion stage that completes when all the records have been processed.
      */
     @NonNull
