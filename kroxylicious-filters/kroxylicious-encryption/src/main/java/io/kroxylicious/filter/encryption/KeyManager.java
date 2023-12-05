@@ -36,7 +36,7 @@ public interface KeyManager<K> {
      * Asynchronously decrypt the given {@code kafkaRecords} (if they were, in fact, encrypted), calling the given {@code receiver} with the plaintext
      * @param records The records
      * @param receiver The receiver of the plaintext buffers. The receiver will receive the buffers in the original order and can expect no parallel calls.
-     * @return A completion stage that completes when al the records have been processed.
+     * @return A completion stage that completes when all the records have been processed.
      */
     @NonNull
     CompletionStage<Void> decrypt(@NonNull List<? extends Record> records,
