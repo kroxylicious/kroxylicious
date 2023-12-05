@@ -10,6 +10,7 @@ import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import javax.annotation.concurrent.NotThreadSafe;
 import javax.security.auth.DestroyFailedException;
 import javax.security.auth.Destroyable;
 
@@ -19,8 +20,12 @@ import org.slf4j.LoggerFactory;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
- * A DekContext encapsulates an encryptor.
+ * A Context encapsulates an encryptor for a DEK.
+ * <p>
+ * KeyContext is not threadsafe and access should be externally co-ordinated.
+ * </p>
  */
+@NotThreadSafe
 final class KeyContext implements Destroyable {
     private final AesGcmEncryptor encryptor;
     private final byte[] prefix;
