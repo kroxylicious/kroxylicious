@@ -7,39 +7,40 @@
 package io.kroxylicious.kms.provider.hashicorp.vault;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.net.http.HttpResponse;
+import java.util.Objects;
 import java.util.function.Supplier;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 class JsonBodyHandler<T> implements HttpResponse.BodyHandler<Supplier<T>> {
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    @NonNull
+    private final TypeReference<T> typeRef;
 
-    private static <T> Supplier<T> toSupplierOfType(InputStream inputStream) {
-        return () -> {
-            try (InputStream stream = inputStream) {
-                return OBJECT_MAPPER.readValue(stream, new TypeReference<T>() {
-                });
-            }
-            catch (IOException e) {
-                throw new UncheckedIOException(e);
-            }
-        };
-    }
-
-    private static <T> HttpResponse.BodySubscriber<Supplier<T>> asJSON() {
-        return HttpResponse.BodySubscribers.mapping(
-                HttpResponse.BodySubscribers.ofInputStream(),
-                JsonBodyHandler::toSupplierOfType);
+    JsonBodyHandler(@NonNull TypeReference<T> typeRef) {
+        Objects.requireNonNull(typeRef);
+        this.typeRef = typeRef;
     }
 
     @Override
     public HttpResponse.BodySubscriber<Supplier<T>> apply(HttpResponse.ResponseInfo responseInfo) {
-        return JsonBodyHandler.asJSON();
+        return HttpResponse.BodySubscribers.mapping(
+                HttpResponse.BodySubscribers.ofInputStream(),
+                inputStream -> () -> {
+                    try (var stream = inputStream) {
+                        return OBJECT_MAPPER.readValue(stream, typeRef);
+
+                    }
+                    catch (IOException e) {
+                        throw new UncheckedIOException(e);
+                    }
+                });
     }
 
 }

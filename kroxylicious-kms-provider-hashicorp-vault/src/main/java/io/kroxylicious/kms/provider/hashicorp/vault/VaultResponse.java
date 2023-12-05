@@ -10,39 +10,14 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-class VaultResponse {
-    private Data data = null;
-
-    public Data getData() {
-        return data;
-    }
-
-    public void setData(Data data) {
-        this.data = data;
-    }
+record VaultResponse<D>(D data) {
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    static class Data {
+    record ReadKeyData(String name, @JsonProperty("latest_version") int latestVersion) {}
 
-        private String name;
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record DecryptData(String plaintext) {}
 
-        @JsonProperty("latest_version")
-        private int latestVersion;
-
-        public int getLatestVersion() {
-            return latestVersion;
-        }
-
-        public void setLatestVersion(int latestVersion) {
-            this.latestVersion = latestVersion;
-        }
-
-        public String getName() {
-            return name;
-        }
-
-        public void setName(String name) {
-            this.name = name;
-        }
-    }
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record DataKeyData(String plaintext, String ciphertext) {}
 }

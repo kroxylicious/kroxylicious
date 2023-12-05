@@ -19,10 +19,11 @@ import org.junit.jupiter.api.Test;
 import org.testcontainers.DockerClientFactory;
 import org.testcontainers.vault.VaultContainer;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.kroxylicious.kms.provider.hashicorp.vault.VaultKmsService.Config;
-import io.kroxylicious.kms.provider.hashicorp.vault.VaultResponse.Data;
+import io.kroxylicious.kms.provider.hashicorp.vault.VaultResponse.ReadKeyData;
 import io.kroxylicious.kms.service.DekPair;
 import io.kroxylicious.kms.service.UnknownKeyException;
 
@@ -106,14 +107,14 @@ class VaultKmsIT {
     void decryptDekAfterRotate() {
         var key = "mykey";
         var data = createKek(key);
-        var originalVersion = data.getLatestVersion();
+        var originalVersion = data.latestVersion();
 
         var pairStage = service.generateDekPair(key);
         assertThat(pairStage).succeedsWithin(Duration.ofSeconds(5));
         var pair = pairStage.toCompletableFuture().join();
 
-        var updated = rotateKek(data.getName());
-        var versionAfterRotate = updated.getLatestVersion();
+        var updated = rotateKek(data.name());
+        var versionAfterRotate = updated.latestVersion();
         assertThat(versionAfterRotate).isGreaterThan(originalVersion);
 
         var decryptedDekStage = service.decryptEdek(pair.edek());
@@ -156,28 +157,30 @@ class VaultKmsIT {
         buf.flip();
         var output = serde.deserialize(buf);
         assertThat(output).isEqualTo(edek);
-
     }
 
-    private Data readKek(String keyId) {
-        return runVaultCommand("vault", "read", "transit/keys/%s".formatted(keyId));
+    private ReadKeyData readKek(String keyId) {
+        return runVaultCommand(new TypeReference<>() {
+        }, "vault", "read", "transit/keys/%s".formatted(keyId));
     }
 
-    private Data createKek(String keyId) {
-        return runVaultCommand("vault", "write", "-f", "transit/keys/%s".formatted(keyId));
+    private ReadKeyData createKek(String keyId) {
+        return runVaultCommand(new TypeReference<>() {
+        }, "vault", "write", "-f", "transit/keys/%s".formatted(keyId));
     }
 
-    private Data rotateKek(String keyId) {
-        return runVaultCommand("vault", "write", "-f", "transit/keys/%s/rotate".formatted(keyId));
+    private ReadKeyData rotateKek(String keyId) {
+        return runVaultCommand(new TypeReference<>() {
+        }, "vault", "write", "-f", "transit/keys/%s/rotate".formatted(keyId));
     }
 
-    private Data runVaultCommand(String... args) {
+    private <D> D runVaultCommand(TypeReference<VaultResponse<D>> valueTypeRef, String... args) {
         try {
             var execResult = vaultContainer.execInContainer(args);
             int exitCode = execResult.getExitCode();
             assertThat(exitCode).isEqualTo(0);
-            var response = new ObjectMapper().readValue(execResult.getStdout(), VaultResponse.class);
-            return response.getData();
+            var response = new ObjectMapper().readValue(execResult.getStdout(), valueTypeRef);
+            return response.data();
         }
         catch (IOException e) {
             throw new UncheckedIOException("Failed to run vault command: %s".formatted(Arrays.stream(args).toList()), e);

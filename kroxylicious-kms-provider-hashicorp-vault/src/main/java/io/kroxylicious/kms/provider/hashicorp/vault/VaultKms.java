@@ -22,8 +22,12 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import io.kroxylicious.kms.provider.hashicorp.vault.VaultResponse.DataKeyData;
+import io.kroxylicious.kms.provider.hashicorp.vault.VaultResponse.DecryptData;
+import io.kroxylicious.kms.provider.hashicorp.vault.VaultResponse.ReadKeyData;
 import io.kroxylicious.kms.service.DekPair;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.KmsException;
@@ -75,18 +79,14 @@ public class VaultKms implements Kms<String, VaultEdek> {
                 .POST(HttpRequest.BodyPublishers.noBody())
                 .build();
 
-        return vaultClient.sendAsync(request, statusHandler(kekRef, new JsonBodyHandler<Map<String, Map<String, String>>>()))
+        return vaultClient.sendAsync(request, statusHandler(kekRef, new JsonBodyHandler<VaultResponse<DataKeyData>>(new TypeReference<>() {
+        })))
                 .thenApply(HttpResponse::body)
                 .thenApply(Supplier::get)
-                .thenApply(x -> x.get("data"))
+                .thenApply(VaultResponse::data)
                 .thenApply(data -> {
-
-                    var plaintext = data.get("plaintext");
-                    var ciphertext = data.get("ciphertext");
-                    var secretKey = new SecretKeySpec(Base64.getDecoder().decode(plaintext), AES_KEY_ALGO);
-
-                    return new DekPair<>(new VaultEdek(kekRef, ciphertext.getBytes(StandardCharsets.UTF_8)), secretKey);
-
+                    var secretKey = new SecretKeySpec(Base64.getDecoder().decode(data.plaintext()), AES_KEY_ALGO);
+                    return new DekPair<>(new VaultEdek(kekRef, data.ciphertext().getBytes(StandardCharsets.UTF_8)), secretKey);
                 });
 
     }
@@ -100,27 +100,29 @@ public class VaultKms implements Kms<String, VaultEdek> {
     @Override
     public CompletionStage<SecretKey> decryptEdek(@NonNull VaultEdek edek) {
 
-        var body = Map.of("ciphertext", new String(edek.edek(), StandardCharsets.UTF_8));
+        var body = createDecryptPostBody(edek);
 
-        HttpRequest request = null;
+        var request = createVaultRequest()
+                .uri(vaultUrl.resolve("v1/transit/decrypt/%s".formatted(edek.kekRef())))
+                .POST(HttpRequest.BodyPublishers.ofString(body))
+                .build();
+
+        return vaultClient.sendAsync(request, statusHandler(edek.kekRef(), new JsonBodyHandler<VaultResponse<DecryptData>>(new TypeReference<>() {
+        }))).thenApply(HttpResponse::body)
+                .thenApply(Supplier::get)
+                .thenApply(VaultResponse::data)
+                .thenApply(data -> new SecretKeySpec(Base64.getDecoder().decode(data.plaintext()), AES_KEY_ALGO));
+    }
+
+    private String createDecryptPostBody(@NonNull VaultEdek edek) {
+        var map = Map.of("ciphertext", new String(edek.edek(), StandardCharsets.UTF_8));
+
         try {
-            request = createVaultRequest()
-                    .uri(vaultUrl.resolve("v1/transit/decrypt/%s".formatted(edek.kekRef())))
-                    .POST(HttpRequest.BodyPublishers.ofString(new ObjectMapper().writeValueAsString(body)))
-                    .build();
+            return new ObjectMapper().writeValueAsString(map);
         }
         catch (JsonProcessingException e) {
-            return CompletableFuture.failedStage(new KmsException("Failed to build request body for %s".formatted(edek.kekRef())));
+            throw new KmsException("Failed to build request body for %s".formatted(edek.kekRef()));
         }
-
-        return vaultClient.sendAsync(request, statusHandler(edek.kekRef(), new JsonBodyHandler<Map<String, Map<String, String>>>()))
-                .thenApply(HttpResponse::body)
-                .thenApply(Supplier::get)
-                .thenApply(x -> x.get("data"))
-                .thenApply(data -> {
-                    var plaintext = data.get("plaintext");
-                    return new SecretKeySpec(Base64.getDecoder().decode(plaintext), AES_KEY_ALGO);
-                });
     }
 
     /**
@@ -136,11 +138,12 @@ public class VaultKms implements Kms<String, VaultEdek> {
                 .uri(vaultUrl.resolve("v1/transit/keys/%s".formatted(alias)))
                 .build();
 
-        return vaultClient.sendAsync(request, statusHandler(alias, new JsonBodyHandler<Map<String, Map<String, String>>>()))
+        return vaultClient.sendAsync(request, statusHandler(alias, new JsonBodyHandler<VaultResponse<ReadKeyData>>(new TypeReference<>() {
+        })))
                 .thenApply(HttpResponse::body)
                 .thenApply(Supplier::get)
-                .thenApply(x -> x.get("data"))
-                .thenApply(data -> data.get("name"));
+                .thenApply(VaultResponse::data)
+                .thenApply(ReadKeyData::name);
 
     }
 
@@ -158,7 +161,6 @@ public class VaultKms implements Kms<String, VaultEdek> {
 
     private static <T> HttpResponse.BodyHandler<T> statusHandler(String keyRef, HttpResponse.BodyHandler<T> handler) {
         return r -> {
-
             if (r.statusCode() == 404 || r.statusCode() == 400) {
                 throw new UnknownKeyException("key '%s' is not found.".formatted(keyRef));
             }
