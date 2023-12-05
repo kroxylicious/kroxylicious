@@ -133,6 +133,25 @@ git push "${REPOSITORY}" "${RELEASE_TAG}" ${GIT_DRYRUN:-}
 echo "Deploying release to maven central"
 mvn deploy -Prelease -DskipTests=true -DreleaseSigningKey="${GPG_KEY}" -DprocessAllModules=true ${MVN_DEPLOY_DRYRUN:-}
 
+echo "Creating binary distribution"
+mvn package -Pdist -DskipTests=true
+
+if ! command -v gh &> /dev/null
+then
+    echo "gh command could not be found. Please create a release by hand https://github.com/kroxylicious/kroxylicious/releases/new"
+else
+  echo "Creating GitHub release with binary distribution"
+  ORIGINAL_GH_DEFAULT_REPO=$(gh repo set-default -v | (grep -v 'no default repository' || true))
+  gh repo set-default $(git remote get-url ${REPOSITORY})
+  # create GitHub release via CLI https://cli.github.com/manual/gh_release_create
+  if [[ "${DRY_RUN:-false}" == true ]]; then
+    gh release create "${RELEASE_TAG}" ./kroxylicious-*/target/kroxylicious-*-bin.* --title "${RELEASE_TAG}" --notes-file "CHANGELOG.md" --draft
+    echo "Draft release created. This must be manually published."
+  else
+    gh release create "${RELEASE_TAG}" ./kroxylicious-*/target/kroxylicious-*-bin.* --title "${RELEASE_TAG}" --notes-file "CHANGELOG.md"
+  fi
+fi
+
 PREPARE_DEVELOPMENT_BRANCH="prepare-development-${RELEASE_DATE}"
 git checkout -b ${PREPARE_DEVELOPMENT_BRANCH} ${TEMPORARY_RELEASE_BRANCH}
 mvn versions:set -DnextSnapshot=true -DnextSnapshotIndexToIncrement="${SNAPSHOT_INCREMENT_INDEX}" -DgenerateBackupPoms=false -DprocessAllModules=true
