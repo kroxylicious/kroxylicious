@@ -30,7 +30,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThat;
 
 /**
- * Integration tests for Hashicorp Vault.
+ * Integration tests for HashiCorp Vault.
  * <br/>
  * <h4>TODO</h4>
  * <ul>
@@ -42,8 +42,8 @@ class VaultKmsIT {
     private static final String VAULT_TOKEN = "token";
 
     private static final String HASHICORP_VAULT = "hashicorp/vault:1.15";
+    @SuppressWarnings("rawtypes")
     private VaultContainer vaultContainer;
-    private Config config;
     private VaultKms service;
 
     @BeforeEach
@@ -57,7 +57,7 @@ class VaultKmsIT {
                 .withInitCommand(
                         "secrets enable transit");
         vaultContainer.start();
-        config = new Config(URI.create(vaultContainer.getHttpHostAddress()), VAULT_TOKEN);
+        var config = new Config(URI.create(vaultContainer.getHttpHostAddress()), VAULT_TOKEN);
 
         service = new VaultKmsService().buildKms(config);
     }

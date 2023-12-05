@@ -35,7 +35,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 /**
  * {@inheritDoc}
  * <br/>
- * An implementation of the KMS interface backed by a remote instance of Hashicorp Vault (v1).
+ * An implementation of the KMS interface backed by a remote instance of HashiCorp Vault (v1).
  * <br/>
  * <h2>TODO</h2>
  * <ul>

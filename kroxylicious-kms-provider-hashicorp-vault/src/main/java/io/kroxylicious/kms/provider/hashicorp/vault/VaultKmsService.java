@@ -17,7 +17,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 /**
  * {@inheritDoc}
  * <br/>
- * An implementation of the {@link KmsService} interface backed by a remote instance of Hashicorp Vault.
+ * An implementation of the {@link KmsService} interface backed by a remote instance of HashiCorp Vault.
  */
 @Plugin(configType = VaultKmsService.Config.class)
 public class VaultKmsService implements KmsService<VaultKmsService.Config, String, VaultEdek> {
