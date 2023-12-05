@@ -169,9 +169,6 @@ then
     exit
 fi
 
-ORIGINAL_GH_DEFAULT_REPO=$(gh repo set-default -v | (grep -v 'no default repository' || true))
-gh repo set-default $(git remote get-url ${REPOSITORY})
-
 BODY="Release version ${RELEASE_VERSION}"
 
 echo "Create pull request to merge the released version."
