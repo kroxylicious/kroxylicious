@@ -22,7 +22,8 @@ public interface Kms<K, E> {
     /**
      * Asynchronously generates a new Data Encryption Key (DEK) and returns it together with the same DEK wrapped by the Key Encryption Key (KEK) given
      * by the {@code kekRef},
-     * The returned encrypted DEK can later be decrypted with {@link Kms#decryptEdek(Object, Object)}.
+     * The returned encrypted DEK can later be decrypted with {@link #decryptEdek(Object)}. It is expected that
+     * the returned EDEK contains everything required for decryption including an immutable reference to the KEK
      * @param kekRef The key encryption key used to encrypt the generated data encryption key.
      * @return A completion stage for the wrapped data encryption key.
      * @throws UnknownKeyException If the kek was not known to this KMS.
@@ -34,24 +35,14 @@ public interface Kms<K, E> {
 
     /**
      * Asynchronously decrypts a data encryption key that was {@linkplain #generateDekPair(Object) previously encrypted}.
-     * @param kek The key encryption key.
      * @param edek The encrypted data encryption key.
      * @return A completion stage for the data encryption key
-     * @throws UnknownKeyException If the kek was not known to this KMS.
-     * @throws InvalidKeyUsageException If the given kek was not intended for key wrapping.
+     * @throws UnknownKeyException If the edek was not encrypted by a KEK known to this KMS.
+     * @throws InvalidKeyUsageException If the edek refers to a kek that was not intended for key wrapping.
      * @throws KmsException For other exceptions
      */
     @NonNull
-    CompletionStage<SecretKey> decryptEdek(@NonNull K kek, @NonNull E edek);
-
-    /**
-     * Get a serializer for KEK ids.
-     * It is required that {@code deserialize(serialize(kekId)).equals(kekId)}.
-     *
-     * @return A serializer for KEK ids.
-     */
-    @NonNull
-    Serde<K> keyIdSerde();
+    CompletionStage<SecretKey> decryptEdek(@NonNull E edek);
 
     /**
      * Get a serializer for encrypted DEKs.

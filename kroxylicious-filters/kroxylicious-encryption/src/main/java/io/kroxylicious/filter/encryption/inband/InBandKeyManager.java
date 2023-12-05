@@ -53,7 +53,6 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
 
     private final Kms<K, E> kms;
     private final BufferPool bufferPool;
-    private final Serde<K> kekIdSerde;
     private final Serde<E> edekSerde;
     // TODO cache expiry, with key descruction
     private final ConcurrentHashMap<K, CompletionStage<KeyContext>> keyContextCache;
@@ -66,7 +65,6 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
         this.kms = kms;
         this.bufferPool = bufferPool;
         this.edekSerde = kms.edekSerde();
-        this.kekIdSerde = kms.keyIdSerde();
         this.dekTtlNanos = 5_000_000_000L;
         this.maxEncryptionsPerDek = 500_000;
         // TODO This ^^ must be > the maximum size of a batch to avoid an infinite loop
@@ -125,15 +123,10 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
         return () -> kms.generateDekPair(kekId)
                 .thenApply(dekPair -> {
                     E edek = dekPair.edek();
-                    short kekIdSize = (short) kekIdSerde.sizeOf(kekId);
                     short edekSize = (short) edekSerde.sizeOf(edek);
                     ByteBuffer prefix = bufferPool.acquire(
-                            Short.BYTES + // kekId size
-                                    kekIdSize + // the kekId
-                                    Short.BYTES + // DEK size
+                            Short.BYTES + // DEK size
                                     edekSize); // the DEK
-                    prefix.putShort(kekIdSize);
-                    kekIdSerde.serialize(kekId, prefix);
                     prefix.putShort(edekSize);
                     edekSerde.serialize(edek, prefix);
                     prefix.flip();
@@ -285,11 +278,10 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
     }
 
     private CompletionStage<AesGcmEncryptor> getOrCacheDecryptor(RecordHeader dekHeader,
-                                                                 K kekId,
                                                                  E edek) {
         return decryptorCache.compute(dekHeader, (k, v) -> {
             if (v == null) {
-                return kms.decryptEdek(kekId, edek)
+                return kms.decryptEdek(edek)
                         .thenApply(AesGcmEncryptor::forDecrypt).toCompletableFuture();
                 // TODO what happens if the CS complete exceptionally
                 // TODO what happens if the CS doesn't complete at all in a reasonably time frame?
@@ -349,16 +341,11 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
     private CompletionStage<AesGcmEncryptor> resolveEncryptor(Record kafkaRecord) {
         var dekHeader = dek(kafkaRecord);
         var buffer = ByteBuffer.wrap(dekHeader.value());
-        var kekLength = buffer.getShort();
-        int origLimit = buffer.limit();
-        buffer.limit(buffer.position() + kekLength);
-        var kekId = kekIdSerde.deserialize(buffer);
-        buffer.limit(origLimit);
         var edekLength = buffer.getShort();
         buffer.limit(buffer.position() + edekLength);
         var edek = edekSerde.deserialize(buffer);
         buffer.rewind();
-        return getOrCacheDecryptor(dekHeader, kekId, edek);
+        return getOrCacheDecryptor(dekHeader, edek);
     }
 
     private Header decryptRecordHeader(Header header, AesGcmEncryptor encryptor) {

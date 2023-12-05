@@ -15,6 +15,11 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 class UUIDSerde implements Serde<UUID> {
 
+    private static final UUIDSerde UUID_SERDE = new UUIDSerde();
+
+    private UUIDSerde() {
+    }
+
     @Override
     public UUID deserialize(@NonNull ByteBuffer buffer) {
         var msb = buffer.getLong();
@@ -31,5 +36,9 @@ class UUIDSerde implements Serde<UUID> {
     public void serialize(UUID uuid, @NonNull ByteBuffer buffer) {
         buffer.putLong(uuid.getMostSignificantBits());
         buffer.putLong(uuid.getLeastSignificantBits());
+    }
+
+    public static Serde<UUID> instance() {
+        return UUID_SERDE;
     }
 }

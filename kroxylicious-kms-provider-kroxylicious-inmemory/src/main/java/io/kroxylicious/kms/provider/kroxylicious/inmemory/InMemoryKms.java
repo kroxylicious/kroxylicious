@@ -112,7 +112,7 @@ public class InMemoryKms implements
         catch (IllegalBlockSizeException | InvalidKeyException e) {
             throw new KmsException(e);
         }
-        return new InMemoryEdek(spec.getTLen(), spec.getIV(), edek);
+        return new InMemoryEdek(spec.getTLen(), spec.getIV(), kekRef, edek);
     }
 
     @NonNull
@@ -152,9 +152,9 @@ public class InMemoryKms implements
 
     @NonNull
     @Override
-    public CompletableFuture<SecretKey> decryptEdek(@NonNull UUID kekRef, @NonNull InMemoryEdek edek) {
+    public CompletableFuture<SecretKey> decryptEdek(@NonNull InMemoryEdek edek) {
         try {
-            var kek = lookupKey(kekRef);
+            var kek = lookupKey(edek.kekRef());
             Cipher aesCipher = aesGcm();
             initializeforUnwrap(aesCipher, edek, kek);
             SecretKey key = unwrap(edek, aesCipher);
@@ -195,12 +195,6 @@ public class InMemoryKms implements
 
     @NonNull
     @Override
-    public Serde<UUID> keyIdSerde() {
-        return new UUIDSerde();
-    }
-
-    @NonNull
-    @Override
     public CompletableFuture<UUID> resolveAlias(@NonNull String alias) {
         UUID uuid = aliases.get(alias);
         if (uuid == null) {
@@ -212,6 +206,6 @@ public class InMemoryKms implements
     @NonNull
     @Override
     public Serde<InMemoryEdek> edekSerde() {
-        return new InMemoryEdekSerde();
+        return InMemoryEdekSerde.instance();
     }
 }

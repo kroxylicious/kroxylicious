@@ -8,10 +8,12 @@ package io.kroxylicious.kms.provider.kroxylicious.inmemory;
 
 import java.util.Arrays;
 import java.util.Objects;
+import java.util.UUID;
 
 record InMemoryEdek(
                     int numAuthBits,
                     byte[] iv,
+                    UUID kekRef,
                     byte[] edek) {
 
     InMemoryEdek {

@@ -8,7 +8,6 @@ package io.kroxylicious.kms.provider.kroxylicious.inmemory;
 
 import java.nio.ByteBuffer;
 import java.time.Duration;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
@@ -16,7 +15,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.kms.service.DekPair;
-import io.kroxylicious.kms.service.Serde;
 import io.kroxylicious.kms.service.UnknownAliasException;
 import io.kroxylicious.kms.service.UnknownKeyException;
 
@@ -44,25 +42,6 @@ class UnitTestingKmsServiceTest {
     @Test
     void shouldRejectOutOfBoundAuthBits() {
         assertThrows(IllegalArgumentException.class, () -> new UnitTestingKmsService.Config(12, 0));
-    }
-
-    @Test
-    void shouldSerializeAndDeserialiseKeks() {
-        // given
-        var kms = service.buildKms(new UnitTestingKmsService.Config());
-        var kek = kms.generateKey();
-        assertNotNull(kek);
-
-        // when
-        Serde<UUID> keyIdSerde = kms.keyIdSerde();
-        var buffer = ByteBuffer.allocate(keyIdSerde.sizeOf(kek));
-        keyIdSerde.serialize(kek, buffer);
-        assertFalse(buffer.hasRemaining());
-        buffer.flip();
-        var loadedKek = keyIdSerde.deserialize(buffer);
-
-        // then
-        assertEquals(kek, loadedKek, "Expect the deserialized kek to be equal to the original kek");
     }
 
     @Test
@@ -122,7 +101,7 @@ class UnitTestingKmsServiceTest {
         assertNotNull(pair.dek());
 
         // when
-        var decryptedDek = kms.decryptEdek(kek, pair.edek()).join();
+        var decryptedDek = kms.decryptEdek(pair.edek()).join();
 
         // then
         assertEquals(pair.dek(), decryptedDek, "Expect the decrypted DEK to equal the originally generated DEK");
