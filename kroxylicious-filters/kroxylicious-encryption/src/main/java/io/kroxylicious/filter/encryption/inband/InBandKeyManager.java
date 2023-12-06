@@ -13,12 +13,16 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Supplier;
 
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.utils.ByteUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 
 import io.kroxylicious.filter.encryption.AadSpec;
 import io.kroxylicious.filter.encryption.CipherCode;
@@ -61,11 +65,12 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
     private final BufferPool bufferPool;
     private final Serde<E> edekSerde;
     // TODO cache expiry, with key descruction
-    private final ConcurrentHashMap<K, CompletionStage<KeyContext>> keyContextCache;
+    private final AsyncLoadingCache<K, KeyContext> keyContextCache;
     private final ConcurrentHashMap<E, CompletionStage<AesGcmEncryptor>> decryptorCache;
     private final long dekTtlNanos;
     private final int maxEncryptionsPerDek;
     private final Header[] encryptionHeader;
+    private static final Logger LOGGER = LoggerFactory.getLogger(InBandKeyManager.class);
 
     public InBandKeyManager(Kms<K, E> kms,
                             BufferPool bufferPool,
@@ -76,32 +81,27 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
         this.dekTtlNanos = 5_000_000_000L;
         this.maxEncryptionsPerDek = maxEncryptionsPerDek;
         // TODO This ^^ must be > the maximum size of a batch to avoid an infinite loop
-        this.keyContextCache = new ConcurrentHashMap<>();
+        this.keyContextCache = Caffeine.newBuilder()
+                .buildAsync((key, executor) -> makeKeyContext(key));
         this.decryptorCache = new ConcurrentHashMap<>();
         this.encryptionVersion = EncryptionVersion.V1; // TODO read from config
         this.encryptionHeader = new Header[]{ new RecordHeader(ENCRYPTION_HEADER_NAME, new byte[]{ encryptionVersion.code() }) };
     }
 
-    private CompletionStage<KeyContext> getKeyContext(K key,
-                                                      Supplier<CompletionStage<KeyContext>> valueSupplier) {
-        return keyContextCache.compute(key, (k, v) -> {
-            if (v == null) {
-                return valueSupplier.get();
-                // TODO what happens if the CS complete exceptionally
-                // TODO what happens if the CS doesn't complete at all in a reasonably time frame?
-            }
-            else {
-                return v;
-            }
-        });
-    }
-
     private CompletionStage<KeyContext> currentDekContext(@NonNull K kekId) {
-        return getKeyContext(kekId, makeKeyContext(kekId));
+        // todo should we add some scheduled timeout as well? or should we rely on the KMS to timeout appropriately.
+        return keyContextCache.get(kekId);
     }
 
-    private Supplier<CompletionStage<KeyContext>> makeKeyContext(@NonNull K kekId) {
-        return () -> kms.generateDekPair(kekId)
+    private CompletableFuture<KeyContext> makeKeyContext(@NonNull K kekId) {
+        return attemptMakeDekContext(kekId, 0);
+    }
+
+    private CompletableFuture<KeyContext> attemptMakeDekContext(@NonNull K kekId, int attempt) {
+        if (attempt >= MAX_ATTEMPTS) {
+            return CompletableFuture.failedFuture(new EncryptorCreationException("failed to create encryptor after " + attempt + " attempts"));
+        }
+        return kms.generateDekPair(kekId)
                 .thenApply(dekPair -> {
                     E edek = dekPair.edek();
                     short edekSize = (short) edekSerde.sizeOf(edek);
@@ -116,6 +116,11 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
                             // or we need mutex
                             // or we externalize the state
                             AesGcmEncryptor.forEncrypt(new AesGcmIvGenerator(new SecureRandom()), dekPair.dek()));
+                }).toCompletableFuture()
+                // todo wire in a scheduler so we can delay/jitter DEK creation attempts
+                .exceptionallyComposeAsync(throwable -> {
+                    LOGGER.error("failed to create DEK encryption context for {} on attempt {}", kekId, attempt, throwable);
+                    return attemptMakeDekContext(kekId, attempt + 1);
                 });
     }
 
@@ -142,13 +147,14 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
         }
         return currentDekContext(encryptionScheme.kekId()).thenCompose(keyContext -> {
             synchronized (keyContext) {
-                // if it's not alive we know a previous encrypt call has replaced the stage in the cache and fall through to retry encrypt
+                // if it's not alive we know a previous encrypt call has removed this stage from the cache and fall through to retry encrypt
                 if (!keyContext.isDestroyed()) {
                     if (!keyContext.hasAtLeastRemainingEncryptions(records.size())) {
-                        // replace the key context stage in the cache, then call encrypt again
+                        // remove the key context from the cache, then call encrypt again to drive caffeine to recreate it
                         rotateKeyContext(encryptionScheme, keyContext);
                     }
                     else {
+                        // todo ensure that a failure during encryption terminates the entire operation with a failed future
                         return encrypt(encryptionScheme, records, receiver, keyContext);
                     }
                 }
@@ -194,7 +200,7 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
     private void rotateKeyContext(@NonNull EncryptionScheme<K> encryptionScheme, KeyContext keyContext) {
         keyContext.destroy();
         K kekId = encryptionScheme.kekId();
-        keyContextCache.put(kekId, makeKeyContext(kekId).get());
+        keyContextCache.synchronous().invalidate(kekId);
     }
 
     private void encryptRecords(@NonNull EncryptionScheme<K> encryptionScheme,
