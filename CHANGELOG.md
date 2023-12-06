@@ -7,12 +7,17 @@ Please enumerate **all user-facing** changes using format `<githib issue/pr numb
 ## 0.4.0
 
 * [#764](https://github.com/kroxylicious/kroxylicious/pull/764): Encryption Filter: Rotate to a new DEK when the old one is exhausted
+* [#696](https://github.com/kroxylicious/kroxylicious/pull/696): Initial work on an Envelope Encryption Filter
 * [#752](https://github.com/kroxylicious/kroxylicious/issues/752): Remove redudant reinstallation of time-zone data in Dockerfile used for Kroxylicious container image
 * [#727](https://github.com/kroxylicious/kroxylicious/pull/727): Tease out simple transform filters into their own module
+* [#628](https://github.com/kroxylicious/kroxylicious/pull/628): Kroxylicious system tests
 * [#738](https://github.com/kroxylicious/kroxylicious/pull/738): Update to Kroxylicious Junit Ext 0.7.0
 * [#723](https://github.com/kroxylicious/kroxylicious/pull/723): Bump com.fasterxml.jackson:jackson-bom from 2.15.3 to 2.16.0 #723
 * [#724](https://github.com/kroxylicious/kroxylicious/pull/724): Bump io.netty.incubator:netty-incubator-transport-native-io_uring from 0.0.23.Final to 0.0.24.Final
 * [#725](https://github.com/kroxylicious/kroxylicious/pull/725): Bump io.netty:netty-bom from 4.1.100.Final to 4.1.101.Final #725
+* [#710](https://github.com/kroxylicious/kroxylicious/pull/710): Rename modules
+* [#709](https://github.com/kroxylicious/kroxylicious/pull/709): Add a KMS service API and an in-memory implementation
+* [#667](https://github.com/kroxylicious/kroxylicious/pull/667): Nested factories
 * [#701](https://github.com/kroxylicious/kroxylicious/pull/701): Bump org.apache.logging.log4j:log4j-bom from 2.21.0 to 2.21.1 #701
 
 ### Changes, deprecations and removals
