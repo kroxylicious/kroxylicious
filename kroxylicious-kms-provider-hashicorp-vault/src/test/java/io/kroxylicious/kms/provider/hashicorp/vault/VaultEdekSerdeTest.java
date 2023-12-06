@@ -40,7 +40,8 @@ class VaultEdekSerdeTest {
     @ParameterizedTest(name = "{0}")
     @MethodSource
     void serializedBadKek(String name, VaultEdek edek) {
-        assertThatThrownBy(() -> serde.serialize(edek, ByteBuffer.allocate(1000)))
+        var buf = ByteBuffer.allocate(1000);
+        assertThatThrownBy(() -> serde.serialize(edek, buf))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -53,7 +54,8 @@ class VaultEdekSerdeTest {
     @ParameterizedTest(name = "{0}")
     @MethodSource
     void deserializeErrors(String name, byte[] serializedBytes) {
-        assertThatThrownBy(() -> serde.deserialize(ByteBuffer.wrap(serializedBytes)))
+        var buf = ByteBuffer.wrap(serializedBytes);
+        assertThatThrownBy(() -> serde.deserialize(buf))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
