@@ -6,6 +6,7 @@
 #
 
 set -e
+
 REPOSITORY="origin"
 BRANCH_FROM="main"
 SNAPSHOT_INCREMENT_INDEX=2
@@ -59,6 +60,16 @@ EOF
     ;;
   esac
 done
+
+if [[ -z "${GPG_KEY}" ]]; then
+    echo "GPG_KEY not set unable to sign the release. Please specify -k <YOUR_GPG_KEY>" 1>&2
+    exit 1
+fi
+
+if [[ -z ${RELEASE_VERSION} ]]; then
+  echo "No version specified, aborting"
+  exit 1
+fi
 
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
@@ -114,8 +125,9 @@ if [[ "${SKIP_VALIDATION:-false}" != true ]]; then
     mvn -q clean verify
 fi
 
-mvn -q versions:set -DnewVersion="${RELEASE_VERSION}" -DgenerateBackupPoms=false -DprocessAllModules=true
+echo "Versioning Kroxylicious as ${RELEASE_VERSION}"
 
+mvn -q versions:set -DnewVersion="${RELEASE_VERSION}" -DgenerateBackupPoms=false -DprocessAllModules=true
 echo "Validating things still build"
 mvn -q clean install -Pquick
 
@@ -130,27 +142,8 @@ git tag -f "${RELEASE_TAG}"
 
 git push "${REPOSITORY}" "${RELEASE_TAG}" ${GIT_DRYRUN:-}
 
-echo "Deploying release to maven central"
-mvn deploy -Prelease -DskipTests=true -DreleaseSigningKey="${GPG_KEY}" -DprocessAllModules=true ${MVN_DEPLOY_DRYRUN:-}
-
-echo "Creating binary distribution"
-mvn package -Pdist -DskipTests=true
-
-if ! command -v gh &> /dev/null
-then
-    echo "gh command could not be found. Please create a release by hand https://github.com/kroxylicious/kroxylicious/releases/new"
-else
-  echo "Creating GitHub release with binary distribution"
-  ORIGINAL_GH_DEFAULT_REPO=$(gh repo set-default -v | (grep -v 'no default repository' || true))
-  gh repo set-default $(git remote get-url ${REPOSITORY})
-  # create GitHub release via CLI https://cli.github.com/manual/gh_release_create
-  if [[ "${DRY_RUN:-false}" == true ]]; then
-    gh release create "${RELEASE_TAG}" ./kroxylicious-*/target/kroxylicious-*-bin.* --title "${RELEASE_TAG}" --notes-file "CHANGELOG.md" --draft
-    echo "Draft release created. This must be manually published."
-  else
-    gh release create "${RELEASE_TAG}" ./kroxylicious-*/target/kroxylicious-*-bin.* --title "${RELEASE_TAG}" --notes-file "CHANGELOG.md"
-  fi
-fi
+echo "Deploying release"
+mvn -q deploy -Prelease,dist -DskipTests=true -DreleaseSigningKey="${GPG_KEY}" ${MVN_DEPLOY_DRYRUN} -DprocessAllModules=true
 
 PREPARE_DEVELOPMENT_BRANCH="prepare-development-${RELEASE_DATE}"
 git checkout -b ${PREPARE_DEVELOPMENT_BRANCH} ${TEMPORARY_RELEASE_BRANCH}
@@ -169,7 +162,18 @@ then
     exit
 fi
 
+ORIGINAL_GH_DEFAULT_REPO=$(gh repo set-default -v | (grep -v 'no default repository' || true))
+gh repo set-default $(git remote get-url ${REPOSITORY})
+
+# create GitHub release via CLI https://cli.github.com/manual/gh_release_create
+# it is created as a draft, the deploy_release workflow will publish it.
+echo "Creating draft release notes."
+gh release create "${RELEASE_TAG}" ./kroxylicious-*/target/kroxylicious-*-bin.* --title "${RELEASE_TAG}" --notes-file "CHANGELOG.md" --draft
+
 BODY="Release version ${RELEASE_VERSION}"
 
-echo "Create pull request to merge the released version."
-gh pr create --base main --title "Kroxylicious Release ${RELEASE_DATE}" --body "${BODY}" --repo $(gh repo set-default -v)
+# Workaround https://github.com/cli/cli/issues/2691
+git push ${REPOSITORY} HEAD
+
+echo "Creating pull request to merge the released version."
+gh pr create --head ${PREPARE_DEVELOPMENT_BRANCH} --base ${BRANCH_FROM} --title "Kroxylicious development version ${RELEASE_DATE}" --body "${BODY}" --repo $(gh repo set-default -v)
