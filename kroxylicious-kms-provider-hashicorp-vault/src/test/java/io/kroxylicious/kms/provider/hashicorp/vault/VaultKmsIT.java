@@ -178,7 +178,7 @@ class VaultKmsIT {
         try {
             var execResult = vaultContainer.execInContainer(args);
             int exitCode = execResult.getExitCode();
-            assertThat(exitCode).isEqualTo(0);
+            assertThat(exitCode).isZero();
             var response = new ObjectMapper().readValue(execResult.getStdout(), valueTypeRef);
             return response.data();
         }
