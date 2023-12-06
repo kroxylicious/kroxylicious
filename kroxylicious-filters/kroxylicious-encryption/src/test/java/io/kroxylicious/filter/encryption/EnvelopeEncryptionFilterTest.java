@@ -110,9 +110,9 @@ class EnvelopeEncryptionFilterTest {
             return CompletableFuture.completedFuture(null);
         });
 
-        when(keyManager.decrypt(anyList(), any(Receiver.class))).thenAnswer(invocationOnMock -> {
-            final List<? extends Record> actualRecords = invocationOnMock.getArgument(0);
-            final Receiver receiver = invocationOnMock.getArgument(1);
+        when(keyManager.decrypt(any(), anyInt(), anyList(), any(Receiver.class))).thenAnswer(invocationOnMock -> {
+            final List<? extends Record> actualRecords = invocationOnMock.getArgument(2);
+            final Receiver receiver = invocationOnMock.getArgument(3);
             for (Record actualRecord : actualRecords) {
                 receiver.accept(actualRecord, ByteBuffer.allocate(actualRecord.sizeInBytes()), new Header[0]);
             }
@@ -184,8 +184,8 @@ class EnvelopeEncryptionFilterTest {
         final FetchResponseData encryptedFetchResponse = buildFetchResponseData(new Payload(ENCRYPTED_TOPIC, ENCRYPTED_MESSAGE));
         final Payload plainTextPayload = new Payload(ENCRYPTED_TOPIC, "Hello Plaintext World!");
 
-        when(keyManager.decrypt(assertArg(records -> assertThat(records).hasSize(1)), any(Receiver.class))).thenAnswer(invocationOnMock -> {
-            final Receiver receiver = invocationOnMock.getArgument(1);
+        when(keyManager.decrypt(any(), anyInt(), assertArg(records -> assertThat(records).hasSize(1)), any(Receiver.class))).thenAnswer(invocationOnMock -> {
+            final Receiver receiver = invocationOnMock.getArgument(3);
             receiver.accept(new TestingRecord(plainTextPayload.messageBytes()), plainTextPayload.messageBytes(), Record.EMPTY_HEADERS);
 
             return CompletableFuture.completedFuture(null);

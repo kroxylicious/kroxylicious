@@ -114,9 +114,9 @@ The following schema is used:
 [source,abnf]
 .The v1 parcel schema
 ----
-parcel-v1              = num-headers
+parcel-v1              = record-value
+                         num-headers
                          *header
-                         record-value
 num-headers            = 1*OCTET ; unsigned VARINT
 header                 = name-length
                          name
@@ -140,13 +140,13 @@ NOTE: The Kafka record format prevents constructing an AAD schema that prevents 
 
 There are currently two options for the use of Additional Authenticated Data (AAD):
 
-* No AAD
-* "v1 AAD" associates some of the metadata of the batch within which the record is contained
+* None: No AAD
+* Batch: Associates some of the metadata of the batch within which the record is contained
 +
 [source,abnf]
 .v1 AAD schema
 ----
-aad-v1                 = producer-id
+aad-batch              = producer-id
                          producer-epoch
                          producer-sequence-low
                          producer-sequence-high
@@ -177,17 +177,23 @@ First let's define the _wrapping_:
 ----
 wrapping-v1                = edek-length
                              edek
-                             aead-version
-                             iv
+                             aad-code
+                             cipher-code
+                             cipher-specific-data
                              parcel-ciphertext-length
                              parcel-ciphertext
 edek-length                = 1*OCTET      ; unsigned VARINT
 edek                       = *OCTET       ; edek_length bytes
-aead-version               = OCTET
+aad-code                   = OCTET        ; <1>
+cipher-code                = OCTET        ; <2>
+cipher-specific-data       = *OCTET       ; <3>
 iv                         = 12OCTET      ; length implied by v1
 parcel-ciphertext-length   = *OCTET ; VARINT
 parcel-ciphertext          = *OCTET
 ----
+<1> 0 means None, 1 means Batch (see AAD section)
+<2> 0 means AES-GCM with 96 bit IV and 128 bit authentication tag
+<3> The schema depends on the cipher. For `cipher-code=1` this is just the 12 byte IV.
 
 For reference, this is the schema of a Kafka record:
 

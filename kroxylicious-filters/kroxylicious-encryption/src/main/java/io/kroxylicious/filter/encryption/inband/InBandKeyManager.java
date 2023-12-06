@@ -9,28 +9,31 @@ package io.kroxylicious.filter.encryption.inband;
 import java.nio.ByteBuffer;
 import java.security.SecureRandom;
 import java.util.ArrayList;
-import java.util.EnumSet;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
+import io.kroxylicious.filter.encryption.RecordField;
+
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.record.Record;
-
-import io.kroxylicious.filter.encryption.EncryptionException;
-import io.kroxylicious.filter.encryption.EncryptionScheme;
-import io.kroxylicious.filter.encryption.KeyManager;
-import io.kroxylicious.filter.encryption.Receiver;
-import io.kroxylicious.filter.encryption.RecordField;
-import io.kroxylicious.kms.service.Kms;
-import io.kroxylicious.kms.service.Serde;
+import org.apache.kafka.common.utils.ByteUtils;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
+
+import io.kroxylicious.filter.encryption.Aad;
+import io.kroxylicious.filter.encryption.EncryptionException;
+import io.kroxylicious.filter.encryption.EncryptionScheme;
+import io.kroxylicious.filter.encryption.EncryptionVersion;
+import io.kroxylicious.filter.encryption.KeyManager;
+import io.kroxylicious.filter.encryption.Receiver;
+import io.kroxylicious.filter.encryption.WrapperVersion;
+import io.kroxylicious.kms.service.Kms;
+import io.kroxylicious.kms.service.Serde;
 
 /**
  * An implementation of {@link KeyManager} that uses envelope encryption, AES-GCM and stores the KEK id and encrypted DEK
@@ -40,18 +43,29 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  */
 public class InBandKeyManager<K, E> implements KeyManager<K> {
 
-    private static final String FIELDS_HEADER_NAME = "kroxylicious.io/encrypted";
-    private static final String DEK_HEADER_NAME = "kroxylicious.io/dek";
     private static final int MAX_ATTEMPTS = 3;
+
+    /**
+     * The encryption header. The value is the encryption version that was used to serialize the parcel and the wrapper.
+     */
+    static final String ENCRYPTION_HEADER_NAME = "kroxylicious.io/encryption";
+
+    /**
+     * The encryption version used on the produce path.
+     * Note that the encryption version used on the fetch path is read from the
+     * {@link #ENCRYPTION_HEADER_NAME} header.
+     */
+    private final EncryptionVersion encryptionVersion;
 
     private final Kms<K, E> kms;
     private final BufferPool bufferPool;
     private final Serde<E> edekSerde;
     // TODO cache expiry, with key descruction
     private final ConcurrentHashMap<K, CompletionStage<KeyContext>> keyContextCache;
-    private final ConcurrentHashMap<RecordHeader, CompletionStage<AesGcmEncryptor>> decryptorCache;
+    private final ConcurrentHashMap<E, CompletionStage<AesGcmEncryptor>> decryptorCache;
     private final long dekTtlNanos;
     private final int maxEncryptionsPerDek;
+    private final Header[] encryptionHeader;
 
     public InBandKeyManager(Kms<K, E> kms,
                             BufferPool bufferPool,
@@ -64,6 +78,8 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
         // TODO This ^^ must be > the maximum size of a batch to avoid an infinite loop
         this.keyContextCache = new ConcurrentHashMap<>();
         this.decryptorCache = new ConcurrentHashMap<>();
+        this.encryptionVersion = EncryptionVersion.V1; // TODO read from config
+        this.encryptionHeader = new Header[]{new RecordHeader(ENCRYPTION_HEADER_NAME, new byte[]{ encryptionVersion.code() })};
     }
 
     private CompletionStage<KeyContext> getKeyContext(K key,
@@ -90,9 +106,9 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
                     E edek = dekPair.edek();
                     short edekSize = (short) edekSerde.sizeOf(edek);
                     ByteBuffer prefix = bufferPool.acquire(
-                            Short.BYTES + // DEK size
+                            //Short.BYTES + // DEK size
                                     edekSize); // the DEK
-                    prefix.putShort(edekSize);
+                    //prefix.putShort(edekSize);
                     edekSerde.serialize(edek, prefix);
                     prefix.flip();
 
@@ -141,18 +157,30 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
     @NonNull
     private CompletableFuture<Void> encrypt(@NonNull EncryptionScheme<K> encryptionScheme, @NonNull List<? extends Record> records,
                                             @NonNull Receiver receiver, KeyContext keyContext) {
-        var fieldsHeader = createEncryptedFieldsHeader(encryptionScheme.recordFields());
-        var dekHeader = createEdekHeader(keyContext);
-        var maxValuePlaintextSize = encryptionScheme.recordFields().contains(RecordField.RECORD_VALUE)
-                ? records.stream().mapToInt(Record::valueSize).max().orElse(-1)
-                : -1;
-        var sharedValueCiphertextBuffer = maxValuePlaintextSize >= 0 ? bufferPool.acquire(keyContext.encodedSize(maxValuePlaintextSize)) : null;
+        var maxParcelSize = records.stream()
+                .mapToInt(kafkaRecord -> Parcel.sizeOfParcel(
+                        encryptionVersion.parcelVersion(),
+                        encryptionScheme.recordFields(),
+                        kafkaRecord))
+                .max()
+                .orElse(-1);
+        var maxWrapperSize = records.stream()
+                .mapToInt(kafkaRecord -> sizeOfWrapper(keyContext, maxParcelSize))
+                .max()
+                .orElse(-1);
+        ByteBuffer parcelBuffer = null;
+        ByteBuffer wrapperBuffer = null;
         try {
-            encryptRecords(encryptionScheme, keyContext, records, fieldsHeader, dekHeader, sharedValueCiphertextBuffer, receiver);
+            parcelBuffer = maxParcelSize >= 0 ? bufferPool.acquire(maxParcelSize) : null;
+            wrapperBuffer = maxWrapperSize >= 0 ? bufferPool.acquire(maxWrapperSize) : null;
+            encryptRecords(encryptionScheme, keyContext, records, parcelBuffer, wrapperBuffer, receiver);
         }
         finally {
-            if (sharedValueCiphertextBuffer != null) {
-                bufferPool.release(sharedValueCiphertextBuffer);
+            if (wrapperBuffer != null) {
+                bufferPool.release(wrapperBuffer);
+            }
+            if (parcelBuffer != null) {
+                bufferPool.release(parcelBuffer);
             }
         }
         keyContext.recordEncryptions(records.size());
@@ -169,115 +197,92 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
     private void encryptRecords(@NonNull EncryptionScheme<K> encryptionScheme,
                                 @NonNull KeyContext keyContext,
                                 @NonNull List<? extends Record> records,
-                                @NonNull RecordHeader fieldsHeader,
-                                @NonNull RecordHeader dekHeader,
-                                ByteBuffer valueCiphertext,
+                                @NonNull ByteBuffer parcelBuffer,
+                                @Nullable ByteBuffer wrapperBuffer,
                                 @NonNull Receiver receiver) {
         records.forEach(kafkaRecord -> {
-            ByteBuffer transformedValue;
-            Header[] headers = kafkaRecord.headers();
-            if (encryptionScheme.recordFields().contains(RecordField.RECORD_VALUE)) {
-                transformedValue = encryptRecordValue(keyContext, kafkaRecord, valueCiphertext);
-            }
-            else {
-                transformedValue = kafkaRecord.value();
-            }
-            if (encryptionScheme.recordFields().contains(RecordField.RECORD_HEADER_VALUES)) {
-                for (int i = 0; i < headers.length; i++) {
-                    headers[i] = encryptRecordHeaderValue(keyContext, headers[i]);
-                }
-            }
-            Header[] transformedHeaders = prependToHeaders(headers, fieldsHeader, dekHeader);
-            receiver.accept(kafkaRecord, transformedValue, transformedHeaders);
-
-            if (valueCiphertext != null) {
-                valueCiphertext.rewind();
+            parcelBuffer.rewind();
+            Parcel.writeParcel(encryptionVersion.parcelVersion(), encryptionScheme.recordFields(), kafkaRecord, parcelBuffer);
+            parcelBuffer.flip();
+            var transformedValue = writeWrapper(keyContext, parcelBuffer, wrapperBuffer);
+            Header[] headers = transformHeaders(encryptionScheme, kafkaRecord);
+            receiver.accept(kafkaRecord, transformedValue, headers);
+            if (wrapperBuffer != null) {
+                wrapperBuffer.rewind();
             }
         });
     }
 
-    private Header encryptRecordHeaderValue(KeyContext keyContext, Header header) {
-        byte[] headerValue = header.value();
-        ByteBuffer plaintext = ByteBuffer.wrap(headerValue);
-        var ciphertext = ByteBuffer.allocate(keyContext.encodedSize(headerValue.length));
-        keyContext.encode(plaintext, ciphertext);
-        ciphertext.flip();
-        return new RecordHeader(header.key(), ciphertext.array());
+    private Header[] transformHeaders(@NonNull EncryptionScheme<K> encryptionScheme, Record kafkaRecord) {
+        Header[] oldHeaders = kafkaRecord.headers();
+        Header[] headers;
+        if (encryptionScheme.recordFields().contains(RecordField.RECORD_HEADER_VALUES) || oldHeaders.length == 0) {
+            headers = encryptionHeader;
+        } else {
+            headers = new Header[1 + oldHeaders.length];
+            headers[0] = encryptionHeader[0];
+            System.arraycopy(oldHeaders, 0, headers, 1, oldHeaders.length);
+        }
+        return headers;
+    }
+
+    private int sizeOfWrapper(KeyContext keyContext, int parcelSize) {
+        var edek = keyContext.prefix();
+        return ByteUtils.sizeOfUnsignedVarint(edek.length)
+                + edek.length
+                + 1 // aad code
+                + 1 // cipher code
+                + keyContext.encodedSize(parcelSize)
+                ;
+
     }
 
     @Nullable
-    private ByteBuffer encryptRecordValue(KeyContext keyContext,
-                                          Record kafkaRecord,
-                                          ByteBuffer valueCiphertext) {
-        ByteBuffer transformedValue;
-        if (!kafkaRecord.hasValue()) {
-            transformedValue = null;
-        }
-        else {
-            ByteBuffer plaintext = kafkaRecord.value();
-            keyContext.encodedSize(kafkaRecord.valueSize());
-            keyContext.encode(plaintext, valueCiphertext);
-            valueCiphertext.flip();
-            transformedValue = valueCiphertext;
-        }
-        return transformedValue;
-    }
-
-    static @NonNull RecordHeader createEncryptedFieldsHeader(@NonNull Set<RecordField> recordFields) {
-        return new RecordHeader(FIELDS_HEADER_NAME, new byte[]{ RecordField.toBits(recordFields) });
-    }
-
-    static @NonNull RecordHeader createEdekHeader(@NonNull KeyContext keyContext) {
-        return new RecordHeader(DEK_HEADER_NAME, keyContext.prefix());
-    }
-
-    @NonNull
-    static Header[] prependToHeaders(Header[] oldHeaders, @NonNull RecordHeader... additionalHeaders) {
-        if (additionalHeaders.length == 0) {
-            return oldHeaders;
-        }
-        if (oldHeaders == null || oldHeaders.length == 0) {
-            return additionalHeaders;
-        }
-        Header[] newHeaders = new Header[oldHeaders.length + additionalHeaders.length];
-        System.arraycopy(additionalHeaders, 0, newHeaders, 0, additionalHeaders.length);
-        System.arraycopy(oldHeaders, 0, newHeaders, additionalHeaders.length, oldHeaders.length);
-        return newHeaders;
-    }
-
-    @NonNull
-    static Header[] removeInitialHeaders(@NonNull Header[] oldHeaders, int numToRemove) {
-        if (numToRemove < 0) {
-            throw new IllegalArgumentException();
-        }
-        Header[] newHeaders = new Header[oldHeaders.length - numToRemove];
-        if (newHeaders.length > 0) {
-            System.arraycopy(oldHeaders, numToRemove, newHeaders, 0, newHeaders.length);
-        }
-        return newHeaders;
-    }
-
-    static Set<RecordField> encryptedFields(Record kafkaRecord) {
-        for (Header header : kafkaRecord.headers()) {
-            if (FIELDS_HEADER_NAME.equals(header.key())) {
-                return RecordField.fromBits(header.value()[0]);
+    private ByteBuffer writeWrapper(KeyContext keyContext,
+                                    ByteBuffer parcel,
+                                    ByteBuffer wrapper) {
+        switch (encryptionVersion.wrapperVersion()) {
+            case V1 -> {
+                var edek = keyContext.prefix();
+                ByteUtils.writeUnsignedVarint(edek.length, wrapper);
+                wrapper.put(edek);
+                wrapper.put(Aad.NONE.code()); // aadCode
+                wrapper.put(CipherCode.AES_GCM_96_128.code());
+                keyContext.encodedSize(parcel.limit());
+                ByteBuffer aad = ByteUtils.EMPTY_BUF; // TODO pass the AAD to encode
+                keyContext.encode(parcel, wrapper); // iv and ciphertext
             }
         }
-        return EnumSet.noneOf(RecordField.class);
+        wrapper.flip();
+        return wrapper;
     }
 
-    static RecordHeader dek(Record kafkaRecord) {
+    /**
+     * Reads the {@link #ENCRYPTION_HEADER_NAME} header from the record.
+     * @param topicName The topic name.
+     * @param partition The partition.
+     * @param kafkaRecord The record.
+     * @return The encryption header, or null if it's missing (indicating that the record wasn't encrypted).
+     */
+    static EncryptionVersion decryptionVersion(String topicName, int partition, Record kafkaRecord) {
         for (Header header : kafkaRecord.headers()) {
-            if (DEK_HEADER_NAME.equals(header.key())) {
-                return (RecordHeader) header;
+            if (ENCRYPTION_HEADER_NAME.equals(header.key())) {
+                byte[] value = header.value();
+                if (value.length != 1) {
+                    throw new EncryptionException("Invalid value for header with key '" + ENCRYPTION_HEADER_NAME + "' "
+                            + "in record at offset " + kafkaRecord.offset()
+                            + " in partition " + partition
+                            + " of topic " + topicName);
+                }
+                return EncryptionVersion.fromCode(value[0]);
             }
         }
-        throw new IllegalStateException();
+        return null;
     }
 
-    private CompletionStage<AesGcmEncryptor> getOrCacheDecryptor(RecordHeader dekHeader,
-                                                                 E edek) {
-        return decryptorCache.compute(dekHeader, (k, v) -> {
+
+    private CompletionStage<AesGcmEncryptor> getOrCacheDecryptor(E edek) {
+        return decryptorCache.compute(edek, (k, v) -> {
             if (v == null) {
                 return kms.decryptEdek(edek)
                         .thenApply(AesGcmEncryptor::forDecrypt).toCompletableFuture();
@@ -292,21 +297,22 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
 
     @NonNull
     @Override
-    public CompletionStage<Void> decrypt(@NonNull List<? extends Record> records,
+    public CompletionStage<Void> decrypt(String topicName,
+                                         int partition,
+                                         @NonNull List<? extends Record> records,
                                          @NonNull Receiver receiver) {
         List<CompletionStage<Void>> futures = new ArrayList<>(records.size());
         for (var kafkaRecord : records) {
-            var encryptedFields = encryptedFields(kafkaRecord);
-            if (encryptedFields.isEmpty()) {
+            var decryptionVersion = decryptionVersion(topicName, partition, kafkaRecord);
+            if (decryptionVersion == null) {
                 receiver.accept(kafkaRecord, kafkaRecord.value(), kafkaRecord.headers());
                 futures.add(CompletableFuture.completedFuture(null));
-            }
-            else {
-                // right now (because we only support topic name based kek selection) noce we've resolve the first value we
+            } else {
+                // right now (because we only support topic name based kek selection) once we've resolved the first value we
                 // can keep the lock and process all the records
-                var x = resolveEncryptor(kafkaRecord).thenAccept(encryptor -> {
-                    decryptRecord(receiver, kafkaRecord, encryptor, encryptedFields);
-
+                ByteBuffer wrapper = kafkaRecord.value();
+                var x = resolveEncryptor(decryptionVersion.wrapperVersion(), wrapper).thenAccept(encryptor -> {
+                    decryptRecord(decryptionVersion, encryptor, wrapper, kafkaRecord, receiver);
                 });
                 futures.add(x);
             }
@@ -317,56 +323,45 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
     }
 
     @SuppressWarnings("java:S2445")
-    private void decryptRecord(@NonNull Receiver receiver, Record kafkaRecord, AesGcmEncryptor encryptor, Set<RecordField> encryptedFields) {
-        ByteBuffer decryptedValue;
-        var headers = removeInitialHeaders(kafkaRecord.headers(), 2);
+    private void decryptRecord(EncryptionVersion decryptionVersion,
+                               AesGcmEncryptor encryptor,
+                               ByteBuffer wrapper,
+                               Record kafkaRecord,
+                               @NonNull Receiver receiver) {
+        var aadCode = Aad.fromCode(wrapper.get());
+        ByteBuffer aad;
+        switch (aadCode) {
+            case NONE:
+                aad = ByteUtils.EMPTY_BUF;
+                break;
+        }
+
+        var cipherCode = CipherCode.fromCode(wrapper.get());
+
+        ByteBuffer plaintextParcel;
         synchronized (encryptor) {
-            if (encryptedFields.contains(RecordField.RECORD_VALUE)) {
-                decryptedValue = decryptRecordValue(kafkaRecord, encryptor);
-            }
-            else {
-                decryptedValue = kafkaRecord.value();
-            }
-            if (encryptedFields.contains(RecordField.RECORD_HEADER_VALUES)) {
-                for (int i = 0; i < headers.length; i++) {
-                    headers[i] = decryptRecordHeader(headers[i], encryptor);
-                }
-            }
+            plaintextParcel = decryptParcel(wrapper.slice(), encryptor);
         }
-        receiver.accept(kafkaRecord, decryptedValue, headers);
+        Parcel.readParcel(decryptionVersion.parcelVersion(), plaintextParcel, kafkaRecord, receiver);
     }
 
-    private CompletionStage<AesGcmEncryptor> resolveEncryptor(Record kafkaRecord) {
-        var dekHeader = dek(kafkaRecord);
-        var buffer = ByteBuffer.wrap(dekHeader.value());
-        var edekLength = buffer.getShort();
-        buffer.limit(buffer.position() + edekLength);
-        var edek = edekSerde.deserialize(buffer);
-        buffer.rewind();
-        return getOrCacheDecryptor(dekHeader, edek);
+    private CompletionStage<AesGcmEncryptor> resolveEncryptor(WrapperVersion wrapperVersion, ByteBuffer wrapper) {
+        switch (wrapperVersion) {
+            case V1:
+                var edekLength = ByteUtils.readUnsignedVarint(wrapper);
+                ByteBuffer slice = wrapper.slice(wrapper.position(), edekLength);
+                var edek = edekSerde.deserialize(slice);
+                wrapper.position(wrapper.position() + edekLength);
+                return getOrCacheDecryptor(edek);
+        }
+        throw new EncryptionException("Unknown wrapper version " + wrapperVersion);
     }
 
-    private Header decryptRecordHeader(Header header, AesGcmEncryptor encryptor) {
-        var ciphertext = ByteBuffer.wrap(header.value());
-        var plaintext = ciphertext.duplicate();
-        encryptor.decrypt(ciphertext, plaintext);
+    private ByteBuffer decryptParcel(ByteBuffer ciphertextParcel, AesGcmEncryptor encryptor) {
+        ByteBuffer plaintext = ciphertextParcel.duplicate();
+        encryptor.decrypt(ciphertextParcel, plaintext);
         plaintext.flip();
-        byte[] value = new byte[plaintext.limit()];
-        plaintext.get(value);
-        return new RecordHeader(header.key(), value);
-    }
-
-    private ByteBuffer decryptRecordValue(Record kafkaRecord, AesGcmEncryptor encryptor) {
-        if (!kafkaRecord.hasValue()) {
-            return kafkaRecord.value();
-        }
-        else {
-            ByteBuffer ciphertext = kafkaRecord.value();
-            ByteBuffer plaintext = ciphertext.duplicate();
-            encryptor.decrypt(ciphertext, plaintext);
-            plaintext.flip();
-            return plaintext;
-        }
+        return plaintext;
     }
 
 }
