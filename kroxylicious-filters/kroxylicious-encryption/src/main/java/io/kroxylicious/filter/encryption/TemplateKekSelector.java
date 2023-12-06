@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.regex.Pattern;
 
@@ -57,12 +58,11 @@ public class TemplateKekSelector<K> implements KekSelectorService<TemplateKekSel
                     .map(
                             topicName -> kms.resolveAlias(evaluateTemplate(topicName))
                                     .exceptionallyCompose(e -> {
-                                        if (e instanceof UnknownAliasException) {
+                                        if (e instanceof UnknownAliasException
+                                                || (e instanceof CompletionException ce && ce.getCause() instanceof UnknownAliasException)) {
                                             return CompletableFuture.completedFuture(null);
                                         }
-                                        else {
-                                            return CompletableFuture.failedFuture(e);
-                                        }
+                                        return CompletableFuture.failedFuture(e);
                                     })
                                     .thenApply(kekId -> new Pair<>(topicName, kekId)))
                     .toList();
