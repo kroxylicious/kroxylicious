@@ -6,18 +6,37 @@
 
 package io.kroxylicious.kms.provider.hashicorp.vault;
 
+import java.util.Objects;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 record VaultResponse<D>(D data) {
 
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    record ReadKeyData(String name, @JsonProperty("latest_version") int latestVersion) {}
+    VaultResponse {
+        Objects.requireNonNull(data);
+    }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    record DecryptData(String plaintext) {}
+    record ReadKeyData(String name, @JsonProperty("latest_version") int latestVersion) {
+        ReadKeyData {
+            Objects.requireNonNull(name);
+        }
+    }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    record DataKeyData(String plaintext, String ciphertext) {}
+    record DecryptData(String plaintext) {
+        DecryptData {
+            Objects.requireNonNull(plaintext);
+        }
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record DataKeyData(String plaintext, String ciphertext) {
+        DataKeyData {
+            Objects.requireNonNull(plaintext);
+            Objects.requireNonNull(ciphertext);
+        }
+    }
 }
