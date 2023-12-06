@@ -75,8 +75,9 @@ class VaultKmsIT {
         var keyName = "mykey";
         createKek(keyName);
         var resolved = service.resolveAlias(keyName);
-        assertThat(resolved).succeedsWithin(Duration.ofSeconds(5));
-        assertThat(resolved).isCompletedWithValue(keyName);
+        assertThat(resolved)
+                .succeedsWithin(Duration.ofSeconds(5))
+                .isEqualTo(keyName);
     }
 
     @Test
@@ -99,8 +100,9 @@ class VaultKmsIT {
         var pair = pairStage.toCompletableFuture().join();
 
         var decryptedDekStage = service.decryptEdek(pair.edek());
-        assertThat(decryptedDekStage).succeedsWithin(Duration.ofSeconds(5));
-        assertThat(decryptedDekStage).isCompletedWithValue(pair.dek());
+        assertThat(decryptedDekStage)
+                .succeedsWithin(Duration.ofSeconds(5))
+                .isEqualTo(pair.dek());
     }
 
     @Test
@@ -118,8 +120,9 @@ class VaultKmsIT {
         assertThat(versionAfterRotate).isGreaterThan(originalVersion);
 
         var decryptedDekStage = service.decryptEdek(pair.edek());
-        assertThat(decryptedDekStage).succeedsWithin(Duration.ofSeconds(5));
-        assertThat(decryptedDekStage).isCompletedWithValue(pair.dek());
+        assertThat(decryptedDekStage)
+                .succeedsWithin(Duration.ofSeconds(5))
+                .isEqualTo(pair.dek());
     }
 
     @Test
