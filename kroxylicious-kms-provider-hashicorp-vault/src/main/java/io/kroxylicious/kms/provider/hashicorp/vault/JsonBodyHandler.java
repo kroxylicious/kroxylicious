@@ -9,6 +9,7 @@ package io.kroxylicious.kms.provider.hashicorp.vault;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.http.HttpResponse;
+import java.net.http.HttpResponse.BodyHandler;
 import java.util.Objects;
 import java.util.function.Supplier;
 
@@ -17,7 +18,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-class JsonBodyHandler<T> implements HttpResponse.BodyHandler<Supplier<T>> {
+/**
+ * A BodyHandler that deserializes JSON data using a Jackson ObjectMapper yielding an object of
+ * type {@code T}.
+ * @param <T> result type.
+ */
+class JsonBodyHandler<T> implements BodyHandler<Supplier<T>> {
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     @NonNull
@@ -42,5 +48,4 @@ class JsonBodyHandler<T> implements HttpResponse.BodyHandler<Supplier<T>> {
                     }
                 });
     }
-
 }
