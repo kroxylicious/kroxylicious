@@ -17,10 +17,12 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 
 import io.kroxylicious.filter.encryption.EncryptionScheme;
 import io.kroxylicious.filter.encryption.Receiver;
@@ -35,6 +37,9 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class InBandKeyManagerTest {
 
@@ -49,6 +54,31 @@ class InBandKeyManagerTest {
         assertEquals(rh, rh2);
         assertNotEquals(rh, rh3);
         assertNotEquals(rh2, rh3);
+    }
+
+    @Test
+    void prefixBufferShouldBeReleasedAfterGeneratingPrefix() {
+        var kmsService = UnitTestingKmsService.newInstance();
+        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
+        BufferPool pool = Mockito.mock(BufferPool.class);
+        AtomicReference<ByteBuffer> onlyBuffer = new AtomicReference<>();
+        when(pool.acquire(anyInt())).thenAnswer(invocationOnMock -> {
+            int argument = invocationOnMock.getArgument(0);
+            ByteBuffer buffer = ByteBuffer.wrap(new byte[argument]);
+            assertThat(onlyBuffer.compareAndSet(null, buffer)).isTrue();
+            return buffer;
+        });
+
+        var km = new InBandKeyManager<>(kms, pool, 500_000);
+
+        var kekId = kms.generateKey();
+        CompletionStage<KeyContext> keyContextCompletionStage = km.currentDekContext(kekId);
+        assertThat(keyContextCompletionStage).succeedsWithin(Duration.ofSeconds(5L));
+        KeyContext context = keyContextCompletionStage.toCompletableFuture().join();
+        assertThat(context.prefix() != null);
+        assertThat(onlyBuffer).isNotNull();
+        verify(pool).acquire(anyInt());
+        verify(pool).release(onlyBuffer.get());
     }
 
     @Test

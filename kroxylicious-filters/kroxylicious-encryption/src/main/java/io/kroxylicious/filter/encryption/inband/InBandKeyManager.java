@@ -80,7 +80,7 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
         });
     }
 
-    private CompletionStage<KeyContext> currentDekContext(@NonNull K kekId) {
+    /* exposed for testing */ CompletionStage<KeyContext> currentDekContext(@NonNull K kekId) {
         return getKeyContext(kekId, makeKeyContext(kekId));
     }
 
@@ -92,17 +92,24 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
                     ByteBuffer prefix = bufferPool.acquire(
                             Short.BYTES + // DEK size
                                     edekSize); // the DEK
-                    prefix.putShort(edekSize);
-                    edekSerde.serialize(edek, prefix);
-                    prefix.flip();
+                    try {
+                        prefix.putShort(edekSize);
+                        edekSerde.serialize(edek, prefix);
+                        prefix.flip();
 
-                    return new KeyContext(prefix,
-                            System.nanoTime() + dekTtlNanos,
-                            maxEncryptionsPerDek,
-                            // Either we have a different Aes encryptor for each thread
-                            // or we need mutex
-                            // or we externalize the state
-                            AesGcmEncryptor.forEncrypt(new AesGcmIvGenerator(new SecureRandom()), dekPair.dek()));
+                        byte[] prefixCopy = new byte[prefix.remaining()];
+                        prefix.get(prefixCopy);
+                        return new KeyContext(
+                                prefixCopy, System.nanoTime() + dekTtlNanos,
+                                maxEncryptionsPerDek,
+                                // Either we have a different Aes encryptor for each thread
+                                // or we need mutex
+                                // or we externalize the state
+                                AesGcmEncryptor.forEncrypt(new AesGcmIvGenerator(new SecureRandom()), dekPair.dek()));
+                    }
+                    finally {
+                        bufferPool.release(prefix);
+                    }
                 });
     }
 

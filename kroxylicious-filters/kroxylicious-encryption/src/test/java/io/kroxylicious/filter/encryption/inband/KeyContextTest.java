@@ -39,7 +39,7 @@ class KeyContextTest {
         var kek = kms.generateKey();
         var pair = kms.generateDekPair(kek).get();
         ByteBuffer prefix = ByteBuffer.wrap(new byte[]{ 1, 2, 3 });
-        var context = new KeyContext(prefix, 101011, 2,
+        var context = new KeyContext(prefix.array(), 101011, 2,
                 AesGcmEncryptor.forEncrypt(new AesGcmIvGenerator(new SecureRandom()), pair.dek()));
 
         assertThrows(IllegalArgumentException.class, () -> context.hasAtLeastRemainingEncryptions(0));
@@ -66,7 +66,7 @@ class KeyContextTest {
         var kek = kms.generateKey();
         var pair = kms.generateDekPair(kek).get();
         ByteBuffer prefix = ByteBuffer.wrap(new byte[]{ 1, 2, 3 });
-        var context = new KeyContext(prefix, 101011, 2,
+        var context = new KeyContext(prefix.array(), 101011, 2,
                 AesGcmEncryptor.forEncrypt(new AesGcmIvGenerator(new SecureRandom()), pair.dek()));
 
         assertTrue(context.hasAtLeastRemainingEncryptions(1));

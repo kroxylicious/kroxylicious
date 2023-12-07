@@ -36,14 +36,14 @@ final class KeyContext implements Destroyable {
     private static final Logger LOGGER = LoggerFactory.getLogger(InBandKeyManager.class);
     private static final Map<Class<? extends Destroyable>, Boolean> LOGGED_DESTROY_FAILED = new ConcurrentHashMap<>();
 
-    KeyContext(@NonNull ByteBuffer prefix,
+    KeyContext(byte[] prefix,
                long encryptionExpiryNanos,
                int maxEncryptions,
                @NonNull AesGcmEncryptor encryptor) {
         if (maxEncryptions <= 0) {
             throw new IllegalArgumentException();
         }
-        this.prefix = prefix.array();
+        this.prefix = prefix;
         this.encryptionExpiryNanos = encryptionExpiryNanos;
         this.remainingEncryptions = maxEncryptions;
         this.encryptor = encryptor;
