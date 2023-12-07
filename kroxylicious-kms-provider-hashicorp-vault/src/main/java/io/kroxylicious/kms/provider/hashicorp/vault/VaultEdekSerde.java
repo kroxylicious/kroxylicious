@@ -13,6 +13,8 @@ import io.kroxylicious.kms.service.Serde;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+import static org.apache.kafka.common.utils.Utils.utf8Length;
+
 class VaultEdekSerde implements Serde<VaultEdek> {
 
     @Override
@@ -36,7 +38,9 @@ class VaultEdekSerde implements Serde<VaultEdek> {
 
     @Override
     public int sizeOf(VaultEdek edek) {
-        return edek.kekRef().getBytes(StandardCharsets.UTF_8).length + 1 + edek.edek().length;
+        return 1 // Single byte to store length of kek
+                + utf8Length(edek.kekRef()) // n bytes for the utf-8 encoded kek
+                + edek.edek().length; // n bytes for the edek
     }
 
     @Override

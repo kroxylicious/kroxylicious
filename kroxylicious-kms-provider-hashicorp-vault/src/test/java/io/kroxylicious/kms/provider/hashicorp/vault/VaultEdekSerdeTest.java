@@ -31,7 +31,17 @@ class VaultEdekSerdeTest {
         assertThat(deserialized).isEqualTo(edek);
     }
 
-    public static Stream<Arguments> serializedBadKek() {
+    @Test
+    void sizeOf() {
+        var expectedSize = 1 /* byte to store length of kek */
+                + 6 /* utf-8 kek ref bytes */
+                + 3 /* bytes of the edek */;
+        var edek = new VaultEdek("keyref", new byte[]{ 1, 2, 3 });
+        var size = serde.sizeOf(edek);
+        assertThat(size).isEqualTo(expectedSize);
+    }
+
+    static Stream<Arguments> serializedBadKek() {
         return Stream.of(
                 Arguments.of("empty", new VaultEdek("", new byte[]{ 1, 2, 3 })),
                 Arguments.of("toobig", new VaultEdek("x".repeat(256), new byte[]{ 1, 2, 3 })));
@@ -45,7 +55,7 @@ class VaultEdekSerdeTest {
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
-    public static Stream<Arguments> deserializeErrors() {
+    static Stream<Arguments> deserializeErrors() {
         return Stream.of(
                 Arguments.of("emptykek", new byte[]{ 0 }),
                 Arguments.of("noekekbytes", new byte[]{ 3, 'A', 'B', 'C' }));
