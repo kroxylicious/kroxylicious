@@ -8,48 +8,64 @@ package io.kroxylicious.kms.provider.hashicorp.vault;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.Objects;
 
 import io.kroxylicious.kms.service.Serde;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+import static java.lang.Math.toIntExact;
+import static org.apache.kafka.common.utils.ByteUtils.readUnsignedVarint;
+import static org.apache.kafka.common.utils.ByteUtils.sizeOfUnsignedVarint;
+import static org.apache.kafka.common.utils.ByteUtils.writeUnsignedVarint;
+import static org.apache.kafka.common.utils.Utils.utf8;
 import static org.apache.kafka.common.utils.Utils.utf8Length;
 
+/**
+ * Serde for the VaultEdek.
+ * <br/>
+ * The serialization structure is as follows:
+ * <ol>
+ *     <li>Protobuf Unsigned varint to hold the number of bytes required to hold the UTF-8 representation of the kekRef.</li>
+ *     <li>UTF-8 representation of the kefRef.</li>
+ *     <li>Bytes of the edek.</li>
+ * </ol>
+ * <br/>
+ * TODO: consider adding a version byte.
+ * @see <a href="https://protobuf.dev/programming-guides/encoding/">Protobuf Encodings</a>
+ */
 class VaultEdekSerde implements Serde<VaultEdek> {
 
     @Override
     public VaultEdek deserialize(@NonNull ByteBuffer buffer) {
-        // TODO use varints once approach is agreed.
-        short kekRefLength = Serde.getUnsignedByte(buffer);
-        if (kekRefLength < 1) {
-            throw new IllegalArgumentException("Unexpected key ref length (%d) read deserializing VaultEdek :".formatted(kekRefLength));
-        }
-        var buf = new byte[kekRefLength];
-        buffer.get(buf);
-        var keyRef = new String(buf, StandardCharsets.UTF_8);
-        int edekLength = buffer.limit() - buffer.position();
-        if (edekLength == 0) {
-            throw new IllegalArgumentException("unable to deserialize edek as there are zero bytes remaining in the buffer");
-        }
+        Objects.requireNonNull(buffer);
+
+        var kekRefLength = toIntExact(readUnsignedVarint(buffer));
+        var kekRef = utf8(buffer, kekRefLength);
+        buffer.position(buffer.position() + kekRefLength);
+
+        int edekLength = buffer.remaining();
         var edek = new byte[edekLength];
         buffer.get(edek);
-        return new VaultEdek(keyRef, edek);
+
+        return new VaultEdek(kekRef, edek);
     }
 
     @Override
     public int sizeOf(VaultEdek edek) {
-        return 1 // Single byte to store length of kek
-                + utf8Length(edek.kekRef()) // n bytes for the utf-8 encoded kek
-                + edek.edek().length; // n bytes for the edek
+        Objects.requireNonNull(edek);
+        int kekRefLen = utf8Length(edek.kekRef());
+        return sizeOfUnsignedVarint(kekRefLen) // varint to store length of kek
+                + kekRefLen // n bytes for the utf-8 encoded kek
+                + edek.edek().length; // n for the bytes of the edek
     }
 
     @Override
     public void serialize(VaultEdek edek, @NonNull ByteBuffer buffer) {
+        Objects.requireNonNull(edek);
+        Objects.requireNonNull(buffer);
         var keyRefBuf = edek.kekRef().getBytes(StandardCharsets.UTF_8);
-        if (keyRefBuf.length == 0 || keyRefBuf.length > 255) {
-            throw new IllegalArgumentException("Kek ref '%s' is of an unexpected length (%d)".formatted(edek.kekRef(), keyRefBuf.length));
-        }
-        Serde.putUnsignedByte(buffer, keyRefBuf.length);
+        writeUnsignedVarint(keyRefBuf.length, buffer);
         buffer.put(keyRefBuf);
         buffer.put(edek.edek());
     }

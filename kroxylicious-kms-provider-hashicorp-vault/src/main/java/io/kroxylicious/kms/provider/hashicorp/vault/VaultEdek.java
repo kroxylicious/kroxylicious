@@ -14,6 +14,12 @@ record VaultEdek(String kekRef,
     VaultEdek {
         Objects.requireNonNull(kekRef);
         Objects.requireNonNull(edek);
+        if (kekRef.isEmpty()) {
+            throw new IllegalArgumentException("keyRef cannot be empty");
+        }
+        if (edek.length == 0) {
+            throw new IllegalArgumentException("edek cannot be empty");
+        }
     }
 
     /**

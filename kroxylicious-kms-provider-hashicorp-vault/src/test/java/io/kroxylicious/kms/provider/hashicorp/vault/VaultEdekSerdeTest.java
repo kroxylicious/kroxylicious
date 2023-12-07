@@ -9,7 +9,6 @@ package io.kroxylicious.kms.provider.hashicorp.vault;
 import java.nio.ByteBuffer;
 import java.util.stream.Stream;
 
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -21,9 +20,19 @@ class VaultEdekSerdeTest {
 
     private final VaultEdekSerde serde = new VaultEdekSerde();
 
-    @Test
-    void shouldRoundTrip() {
-        var edek = new VaultEdek("keyref", new byte[]{ 1, 2, 3 });
+    static Stream<Arguments> keyRefs() {
+        return Stream.of(
+                Arguments.of("ordinary looking keyref", "mykey"),
+                Arguments.of("short keyref", "k"),
+                Arguments.of("outwith ascii", "k€yr€f"),
+                Arguments.of("longer keyref, len just fits in single byte", "x".repeat(127)),
+                Arguments.of("longer keyref, len requires multiple bytes", "x".repeat(128)));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource(value = "keyRefs")
+    void shouldRoundTrip(String name, String keyRef) {
+        var edek = new VaultEdek(keyRef, new byte[]{ 1, 2, 3 });
         var buf = ByteBuffer.allocate(serde.sizeOf(edek));
         serde.serialize(edek, buf);
         buf.flip();
@@ -31,28 +40,31 @@ class VaultEdekSerdeTest {
         assertThat(deserialized).isEqualTo(edek);
     }
 
-    @Test
-    void sizeOf() {
-        var expectedSize = 1 /* byte to store length of kek */
-                + 6 /* utf-8 kek ref bytes */
-                + 3 /* bytes of the edek */;
-        var edek = new VaultEdek("keyref", new byte[]{ 1, 2, 3 });
+    static Stream<Arguments> sizeOf() {
+        return Stream.of(
+                Arguments.of(
+                        "ordinary",
+                        new VaultEdek("a", new byte[]{ 1 }),
+                        1 + 1 + 1),
+                Arguments.of(
+                        "longer keyref, len just fits in single byte",
+                        new VaultEdek("a".repeat(127), new byte[]{ 1 }),
+                        1 + 127 + 1),
+                Arguments.of(
+                        "longer keyref, len requires multiple bytes",
+                        new VaultEdek("a".repeat(128), new byte[]{ 1 }),
+                        2 + 128 + 1),
+                Arguments.of(
+                        "longer edek",
+                        new VaultEdek("abc", new byte[]{ 1, 2, 3, 4 }),
+                        1 + 3 + 4));
+    }
+
+    @ParameterizedTest
+    @MethodSource
+    void sizeOf(String name, VaultEdek edek, int expectedSize) {
         var size = serde.sizeOf(edek);
         assertThat(size).isEqualTo(expectedSize);
-    }
-
-    static Stream<Arguments> serializedBadKek() {
-        return Stream.of(
-                Arguments.of("empty", new VaultEdek("", new byte[]{ 1, 2, 3 })),
-                Arguments.of("toobig", new VaultEdek("x".repeat(256), new byte[]{ 1, 2, 3 })));
-    }
-
-    @ParameterizedTest(name = "{0}")
-    @MethodSource
-    void serializedBadKek(String name, VaultEdek edek) {
-        var buf = ByteBuffer.allocate(1000);
-        assertThatThrownBy(() -> serde.serialize(edek, buf))
-                .isInstanceOf(IllegalArgumentException.class);
     }
 
     static Stream<Arguments> deserializeErrors() {

@@ -136,7 +136,7 @@ class VaultKmsIT {
 
     @Test
     void decryptEdekWithUnknownKey() {
-        var secretKeyStage = service.decryptEdek(new VaultEdek("unknown", new byte[]{}));
+        var secretKeyStage = service.decryptEdek(new VaultEdek("unknown", new byte[]{ 1 }));
         assertThat(secretKeyStage)
                 .failsWithin(Duration.ofSeconds(5))
                 .withThrowableThat()
