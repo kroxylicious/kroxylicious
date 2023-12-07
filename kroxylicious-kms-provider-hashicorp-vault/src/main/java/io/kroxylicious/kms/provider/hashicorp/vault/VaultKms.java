@@ -39,8 +39,6 @@ import static java.net.URLEncoder.encode;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
- * {@inheritDoc}
- * <br/>
  * An implementation of the KMS interface backed by a remote instance of HashiCorp Vault (v1).
  * <br/>
  * <h2>TODO</h2>

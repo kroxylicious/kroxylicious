@@ -15,12 +15,15 @@ import io.kroxylicious.proxy.plugin.Plugin;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
- * {@inheritDoc}
- * <br/>
  * An implementation of the {@link KmsService} interface backed by a remote instance of HashiCorp Vault.
  */
 @Plugin(configType = VaultKmsService.Config.class)
 public class VaultKmsService implements KmsService<VaultKmsService.Config, String, VaultEdek> {
+    /**
+     * Configuration for the Vault KMS service.
+     * @param vaultUrl vault url
+     * @param vaultToken vault token.
+     */
     public record Config(URI vaultUrl,
                          String vaultToken) {
         public Config {
