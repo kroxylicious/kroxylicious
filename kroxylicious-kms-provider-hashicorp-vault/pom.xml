@@ -35,7 +35,11 @@
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-api</artifactId>
         </dependency>
-
+        <!-- For ByteUtils used by the Serde etc -->
+        <dependency>
+            <groupId>org.apache.kafka</groupId>
+            <artifactId>kafka-clients</artifactId>
+        </dependency>
         <dependency>
             <groupId>com.github.spotbugs</groupId>
             <artifactId>spotbugs-annotations</artifactId>

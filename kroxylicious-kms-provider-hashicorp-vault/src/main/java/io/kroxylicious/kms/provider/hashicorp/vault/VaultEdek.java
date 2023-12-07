@@ -9,6 +9,16 @@ package io.kroxylicious.kms.provider.hashicorp.vault;
 import java.util.Arrays;
 import java.util.Objects;
 
+/**
+ * A HashiCorp Vault Encrypted Dek.
+ * <br/>
+ * Note: HashiCorp Vault restricts the formation of the key name. For the rules, see the
+ * <a href="https://github.com/hashicorp/vault/blob/cd8cc4ed967703b89aa0721bca4fe1c43b214b00/sdk/framework/path.go#L19">GenericNameRegexp</a>
+ * function in the Vault implementation.
+ *
+ * @param kekRef - kek reference. In this implementation it is the key's name.
+ * @param edek - edek bytes
+ */
 record VaultEdek(String kekRef,
                  byte[] edek) {
     VaultEdek {

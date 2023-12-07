@@ -10,7 +10,6 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Base64;
 import java.util.Map;
@@ -36,6 +35,9 @@ import io.kroxylicious.kms.service.UnknownKeyException;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+import static java.net.URLEncoder.encode;
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 /**
  * {@inheritDoc}
  * <br/>
@@ -51,6 +53,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  */
 public class VaultKms implements Kms<String, VaultEdek> {
 
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final String AES_KEY_ALGO = "AES";
 
     private final HttpClient vaultClient = HttpClient.newBuilder()
@@ -75,7 +78,7 @@ public class VaultKms implements Kms<String, VaultEdek> {
     public CompletionStage<DekPair<VaultEdek>> generateDekPair(@NonNull String kekRef) {
 
         var request = createVaultRequest()
-                .uri(vaultUrl.resolve("v1/transit/datakey/plaintext/%s".formatted(kekRef)))
+                .uri(vaultUrl.resolve("v1/transit/datakey/plaintext/%s".formatted(encode(kekRef, UTF_8))))
                 .POST(HttpRequest.BodyPublishers.noBody())
                 .build();
 
@@ -86,7 +89,7 @@ public class VaultKms implements Kms<String, VaultEdek> {
                 .thenApply(VaultResponse::data)
                 .thenApply(data -> {
                     var secretKey = new SecretKeySpec(Base64.getDecoder().decode(data.plaintext()), AES_KEY_ALGO);
-                    return new DekPair<>(new VaultEdek(kekRef, data.ciphertext().getBytes(StandardCharsets.UTF_8)), secretKey);
+                    return new DekPair<>(new VaultEdek(kekRef, data.ciphertext().getBytes(UTF_8)), secretKey);
                 });
 
     }
@@ -103,7 +106,7 @@ public class VaultKms implements Kms<String, VaultEdek> {
         var body = createDecryptPostBody(edek);
 
         var request = createVaultRequest()
-                .uri(vaultUrl.resolve("v1/transit/decrypt/%s".formatted(edek.kekRef())))
+                .uri(vaultUrl.resolve("v1/transit/decrypt/%s".formatted(encode(edek.kekRef(), UTF_8))))
                 .POST(HttpRequest.BodyPublishers.ofString(body))
                 .build();
 
@@ -115,10 +118,10 @@ public class VaultKms implements Kms<String, VaultEdek> {
     }
 
     private String createDecryptPostBody(@NonNull VaultEdek edek) {
-        var map = Map.of("ciphertext", new String(edek.edek(), StandardCharsets.UTF_8));
+        var map = Map.of("ciphertext", new String(edek.edek(), UTF_8));
 
         try {
-            return new ObjectMapper().writeValueAsString(map);
+            return OBJECT_MAPPER.writeValueAsString(map);
         }
         catch (JsonProcessingException e) {
             throw new KmsException("Failed to build request body for %s".formatted(edek.kekRef()));
@@ -135,7 +138,7 @@ public class VaultKms implements Kms<String, VaultEdek> {
     public CompletableFuture<String> resolveAlias(@NonNull String alias) {
 
         var request = createVaultRequest()
-                .uri(vaultUrl.resolve("v1/transit/keys/%s".formatted(alias)))
+                .uri(vaultUrl.resolve("v1/transit/keys/%s".formatted(encode(alias, UTF_8))))
                 .build();
 
         return vaultClient.sendAsync(request, statusHandler(alias, new JsonBodyHandler<VaultResponse<ReadKeyData>>(new TypeReference<>() {
