@@ -75,10 +75,19 @@ popd
 ${KUBECTL} apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.12.0/cert-manager.yaml
 ${KUBECTL} wait deployment/cert-manager-webhook --for=condition=Available=True --timeout=300s -n cert-manager
 
+# Install Vault
+${HELM} repo add hashicorp https://helm.releases.hashicorp.com
+${HELM} install vault hashicorp/vault --namespace vault   --set "injector.enabled=false" --set "server.dev.enabled=true" --set "server.dev.devRootToken=myroottoken" --create-namespace
+${KUBECTL} wait -l statefulset.kubernetes.io/pod-name=vault-0 -n vault --for=condition=ready pod --timeout=300s
+${KUBECTL} expose service -n vault vault --name=vault-host --type=NodePort
+${KUBECTL} exec vault-0 -n vault -- vault secrets enable transit
+
 # Install strimzi
 ${KUBECTL} create namespace kafka 2>/dev/null || true
 ${KUBECTL} apply -f 'https://strimzi.io/install/latest?namespace=kafka' -n kafka
 ${KUBECTL} wait deployment strimzi-cluster-operator --for=condition=Available=True --timeout=300s -n kafka
+${KUBECTL} set env deployment strimzi-cluster-operator -n kafka STRIMZI_FEATURE_GATES=+UseKRaft,+KafkaNodePools
+
 
 # Apply sample using Kustomize
 COUNTER=0
