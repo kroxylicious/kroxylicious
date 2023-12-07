@@ -6,6 +6,9 @@
 
 package io.kroxylicious.filter.encryption;
 
+/**
+ * Exceptions to do with encryption.
+ */
 public class EncryptionException extends RuntimeException {
     public EncryptionException(Throwable e) {
         super(e);
