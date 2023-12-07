@@ -27,7 +27,7 @@ class VaultEdekSerde implements Serde<VaultEdek> {
         var keyRef = new String(buf, StandardCharsets.UTF_8);
         int edekLength = buffer.limit() - buffer.position();
         if (edekLength == 0) {
-            throw new IllegalArgumentException("Zero number of bytes remain in buffer when expecting an edek");
+           throw new IllegalArgumentException("unable to deserialize edek as there are zero bytes remaining in the buffer");
         }
         var edek = new byte[edekLength];
         buffer.get(edek);
