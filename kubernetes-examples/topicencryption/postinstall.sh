@@ -7,7 +7,7 @@
 
 set -eo pipefail
 
-KAF=quay.io/k_wall/kaf
+KAF=quay.io/kroxylicious/kaf
 BOOTSTRAP=my-cluster-kafka-bootstrap:9092
 
 GREEN='\033[0;32m'
