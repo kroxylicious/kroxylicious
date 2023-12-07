@@ -15,15 +15,10 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
-import io.kroxylicious.filter.encryption.RecordField;
-
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.utils.ByteUtils;
-
-import edu.umd.cs.findbugs.annotations.NonNull;
-import edu.umd.cs.findbugs.annotations.Nullable;
 
 import io.kroxylicious.filter.encryption.Aad;
 import io.kroxylicious.filter.encryption.EncryptionException;
@@ -31,9 +26,13 @@ import io.kroxylicious.filter.encryption.EncryptionScheme;
 import io.kroxylicious.filter.encryption.EncryptionVersion;
 import io.kroxylicious.filter.encryption.KeyManager;
 import io.kroxylicious.filter.encryption.Receiver;
+import io.kroxylicious.filter.encryption.RecordField;
 import io.kroxylicious.filter.encryption.WrapperVersion;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.Serde;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * An implementation of {@link KeyManager} that uses envelope encryption, AES-GCM and stores the KEK id and encrypted DEK
@@ -79,7 +78,7 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
         this.keyContextCache = new ConcurrentHashMap<>();
         this.decryptorCache = new ConcurrentHashMap<>();
         this.encryptionVersion = EncryptionVersion.V1; // TODO read from config
-        this.encryptionHeader = new Header[]{new RecordHeader(ENCRYPTION_HEADER_NAME, new byte[]{ encryptionVersion.code() })};
+        this.encryptionHeader = new Header[]{ new RecordHeader(ENCRYPTION_HEADER_NAME, new byte[]{ encryptionVersion.code() }) };
     }
 
     private CompletionStage<KeyContext> getKeyContext(K key,
@@ -106,9 +105,9 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
                     E edek = dekPair.edek();
                     short edekSize = (short) edekSerde.sizeOf(edek);
                     ByteBuffer prefix = bufferPool.acquire(
-                            //Short.BYTES + // DEK size
-                                    edekSize); // the DEK
-                    //prefix.putShort(edekSize);
+                            // Short.BYTES + // DEK size
+                            edekSize); // the DEK
+                    // prefix.putShort(edekSize);
                     edekSerde.serialize(edek, prefix);
                     prefix.flip();
 
@@ -218,7 +217,8 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
         Header[] headers;
         if (encryptionScheme.recordFields().contains(RecordField.RECORD_HEADER_VALUES) || oldHeaders.length == 0) {
             headers = encryptionHeader;
-        } else {
+        }
+        else {
             headers = new Header[1 + oldHeaders.length];
             headers[0] = encryptionHeader[0];
             System.arraycopy(oldHeaders, 0, headers, 1, oldHeaders.length);
@@ -232,8 +232,7 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
                 + edek.length
                 + 1 // aad code
                 + 1 // cipher code
-                + keyContext.encodedSize(parcelSize)
-                ;
+                + keyContext.encodedSize(parcelSize);
 
     }
 
@@ -280,7 +279,6 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
         return null;
     }
 
-
     private CompletionStage<AesGcmEncryptor> getOrCacheDecryptor(E edek) {
         return decryptorCache.compute(edek, (k, v) -> {
             if (v == null) {
@@ -307,7 +305,8 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
             if (decryptionVersion == null) {
                 receiver.accept(kafkaRecord, kafkaRecord.value(), kafkaRecord.headers());
                 futures.add(CompletableFuture.completedFuture(null));
-            } else {
+            }
+            else {
                 // right now (because we only support topic name based kek selection) once we've resolved the first value we
                 // can keep the lock and process all the records
                 ByteBuffer wrapper = kafkaRecord.value();

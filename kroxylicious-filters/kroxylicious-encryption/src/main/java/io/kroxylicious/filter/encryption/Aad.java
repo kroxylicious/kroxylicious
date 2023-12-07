@@ -16,10 +16,10 @@ public enum Aad {
      */
     NONE((byte) 0, EncryptionVersion.V1);
     // TODO we need to constraint which Aad options are allowed in which EncrytionVersions
-//    /**
-//     * AAD consisting of the batch metadata plus the records position within the batch.
-//     */
-//    BATCH_METADATA(1);
+    // /**
+    // * AAD consisting of the batch metadata plus the records position within the batch.
+    // */
+    // BATCH_METADATA(1);
 
     private final byte code;
     private final EncryptionVersion fromVersion;

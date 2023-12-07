@@ -16,13 +16,13 @@ import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.utils.ByteUtils;
 import org.apache.kafka.common.utils.Utils;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-import edu.umd.cs.findbugs.annotations.Nullable;
-
 import io.kroxylicious.filter.encryption.EncryptionException;
 import io.kroxylicious.filter.encryption.ParcelVersion;
 import io.kroxylicious.filter.encryption.Receiver;
 import io.kroxylicious.filter.encryption.RecordField;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 public class Parcel {
 
@@ -36,7 +36,7 @@ public class Parcel {
         switch (parcelVersion) {
             case V1:
                 int size = sizeOfRecordValue(recordFields, kafkaRecord);
-                    size += sizeOfHeaders(recordFields, kafkaRecord);
+                size += sizeOfHeaders(recordFields, kafkaRecord);
 
                 return size;
             default:
@@ -71,10 +71,12 @@ public class Parcel {
                         // need to remove the encryption header
                         usedHeaders = new Header[existingHeaders.length - 1];
                         System.arraycopy(existingHeaders, 1, usedHeaders, 0, usedHeaders.length);
-                    } else {
+                    }
+                    else {
                         usedHeaders = existingHeaders;
                     }
-                } else {
+                }
+                else {
                     usedHeaders = readHeaders;
                 }
                 receiver.accept(encryptedRecord,
@@ -97,7 +99,8 @@ public class Parcel {
                 size += ByteUtils.sizeOfVarint(value.limit()); // value-length
                 size += value.limit(); // value
             }
-        } else {
+        }
+        else {
             size += ByteUtils.sizeOfVarint(ABSENT_MARKER); // value-length
         }
         return size;
@@ -113,7 +116,8 @@ public class Parcel {
                 ByteUtils.writeVarint(value.limit(), parcel); // value-length
                 parcel.put(value); // value
             }
-        } else {
+        }
+        else {
             ByteUtils.writeVarint(ABSENT_MARKER, parcel); // value-length
         }
     }
@@ -122,13 +126,16 @@ public class Parcel {
         var recordValueLength = ByteUtils.readVarint(parcel);
         if (recordValueLength == ABSENT_MARKER) {
             return ABSENT_VALUE;
-        } else if (recordValueLength == NULL_MARKER) {
+        }
+        else if (recordValueLength == NULL_MARKER) {
             return null;
-        } else if (recordValueLength >= 0) {
+        }
+        else if (recordValueLength >= 0) {
             var recordValue = parcel.slice(parcel.position(), recordValueLength);
             parcel.position(parcel.position() + recordValueLength);
             return recordValue;
-        } else {
+        }
+        else {
             throw new EncryptionException("Illegal record value length");
         }
     }
@@ -142,7 +149,8 @@ public class Parcel {
                 size += sizeOfHeaderKey(header);
                 size += sizeOfHeaderValue(header);
             }
-        } else {
+        }
+        else {
             size = ByteUtils.sizeOfVarint(ABSENT_MARKER); // headers-length
         }
         return size;
@@ -153,14 +161,16 @@ public class Parcel {
             var headers = kafkaRecord.headers();
             if (headers == null) {
                 ByteUtils.writeVarint(NULL_MARKER, parcel); // headers-length
-            } else {
+            }
+            else {
                 ByteUtils.writeVarint(headers.length, parcel); // headers-length
                 for (var header : headers) {
                     writeHeaderKey(parcel, header);
                     writeHeaderValue(parcel, header);
                 }
             }
-        } else {
+        }
+        else {
             ByteUtils.writeVarint(ABSENT_MARKER, parcel); // headers-length
         }
     }
@@ -169,9 +179,11 @@ public class Parcel {
         var headersLength = ByteUtils.readVarint(parcel);
         if (headersLength == ABSENT_MARKER) {
             return ABSENT_HEADERS;
-        } else if (headersLength == NULL_MARKER) {
+        }
+        else if (headersLength == NULL_MARKER) {
             return null;
-        } else if (headersLength >= 0) {
+        }
+        else if (headersLength >= 0) {
             Header[] headers = new Header[headersLength];
             for (int i = 0; i < headersLength; i++) {
                 String headerKey = readHeaderKey(parcel);
@@ -179,7 +191,8 @@ public class Parcel {
                 headers[i] = new RecordHeader(headerKey, headerValue);
             }
             return headers;
-        } else {
+        }
+        else {
             throw new EncryptionException("Illegal headers length");
         }
     }
@@ -204,7 +217,6 @@ public class Parcel {
         return s;
     }
 
-
     private static int sizeOfHeaderValue(Header header) {
         byte[] value = header.value();
         int size;
@@ -218,12 +230,12 @@ public class Parcel {
         return size;
     }
 
-
     private static void writeHeaderValue(ByteBuffer parcel, Header header) {
         byte[] value = header.value();
         if (value == null) {
             ByteUtils.writeVarint(NULL_MARKER, parcel); // header-value-length
-        } else {
+        }
+        else {
             ByteUtils.writeVarint(value.length, parcel); // header-value-length
             parcel.put(value); // header-value
         }
@@ -234,11 +246,13 @@ public class Parcel {
         var headerValueLength = ByteUtils.readVarint(parcel);
         if (headerValueLength == NULL_MARKER) {
             return null;
-        } else if (headerValueLength >= 0){
+        }
+        else if (headerValueLength >= 0) {
             byte[] headerValue = new byte[headerValueLength];
             parcel.get(headerValue);
             return headerValue;
-        } else {
+        }
+        else {
             throw new EncryptionException("Illegal header value length");
         }
     }

@@ -16,9 +16,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-import io.kroxylicious.filter.encryption.inband.InBandKeyManager;
-
-import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.message.FetchResponseData;
 import org.apache.kafka.common.message.FetchResponseData.FetchableTopicResponse;
 import org.apache.kafka.common.message.FetchResponseData.PartitionData;
@@ -157,15 +154,15 @@ public class EnvelopeEncryptionFilter<K>
                 fpr.partitionIndex(),
                 recordStream(memoryRecords).toList(),
                 (kafkaRecord, plaintextBuffer, headers) -> {
-//                    Header[] headers1;
-//                    if (headers == ABSENT_HEADERS && InBandKeyManager.ENCRYPTION_HEADER_NAME.equals(encryptedRecord.headers()[0].key())) {
-//                        var headers2 = encryptedRecord.headers();
-//                        // need to remove the encryption header
-//                        headers1 = new Header[headers2.length - 1];
-//                        System.arraycopy(headers2, 1, headers1, 0, headers1.length);
-//                    } else {
-//                        headers1 = headers;
-//                    }
+                    // Header[] headers1;
+                    // if (headers == ABSENT_HEADERS && InBandKeyManager.ENCRYPTION_HEADER_NAME.equals(encryptedRecord.headers()[0].key())) {
+                    // var headers2 = encryptedRecord.headers();
+                    // // need to remove the encryption header
+                    // headers1 = new Header[headers2.length - 1];
+                    // System.arraycopy(headers2, 1, headers1, 0, headers1.length);
+                    // } else {
+                    // headers1 = headers;
+                    // }
                     builder.append(kafkaRecord.timestamp(), kafkaRecord.key(), plaintextBuffer, headers);
                 })
                 .thenApply(ignored -> builder.build())

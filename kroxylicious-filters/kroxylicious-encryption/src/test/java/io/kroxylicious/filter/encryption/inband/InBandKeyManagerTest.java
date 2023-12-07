@@ -9,7 +9,6 @@ package io.kroxylicious.filter.encryption.inband;
 import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.List;
@@ -52,7 +51,6 @@ class InBandKeyManagerTest {
         assertNotEquals(rh, rh3);
         assertNotEquals(rh2, rh3);
     }
-
 
     @Test
     void shouldEncryptRecordValue() {
