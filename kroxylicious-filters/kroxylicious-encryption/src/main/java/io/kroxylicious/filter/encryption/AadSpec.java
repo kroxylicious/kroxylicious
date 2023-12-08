@@ -16,7 +16,7 @@ package io.kroxylicious.filter.encryption;
  * so would expose old versions of the software to ciphers that they don't know
  * about meaning they won't be able to supprt the decryption guarantee.</p>
  */
-public enum Aad {
+public enum AadSpec {
     /**
      * No AAD
      */
@@ -30,7 +30,7 @@ public enum Aad {
     private final byte code;
     private final EncryptionVersion fromVersion;
 
-    Aad(byte code, EncryptionVersion fromVersion) {
+    AadSpec(byte code, EncryptionVersion fromVersion) {
         this.code = code;
         this.fromVersion = fromVersion;
     }
@@ -45,7 +45,7 @@ public enum Aad {
         return code;
     }
 
-    public static Aad fromCode(byte aadCode) {
+    public static AadSpec fromCode(byte aadCode) {
         switch (aadCode) {
             case 0:
                 return NONE;

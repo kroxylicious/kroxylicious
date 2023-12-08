@@ -20,7 +20,7 @@ import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.utils.ByteUtils;
 
-import io.kroxylicious.filter.encryption.Aad;
+import io.kroxylicious.filter.encryption.AadSpec;
 import io.kroxylicious.filter.encryption.CipherCode;
 import io.kroxylicious.filter.encryption.EncryptionException;
 import io.kroxylicious.filter.encryption.EncryptionScheme;
@@ -247,7 +247,7 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
                 var edek = keyContext.prefix();
                 ByteUtils.writeUnsignedVarint(edek.length, wrapper);
                 wrapper.put(edek);
-                wrapper.put(Aad.NONE.code()); // aadCode
+                wrapper.put(AadSpec.NONE.code()); // aadCode
                 wrapper.put(CipherCode.AES_GCM_96_128.code());
                 keyContext.encodedSize(parcel.limit());
                 ByteBuffer aad = ByteUtils.EMPTY_BUF; // TODO pass the AAD to encode
@@ -329,13 +329,10 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
                                ByteBuffer wrapper,
                                Record kafkaRecord,
                                @NonNull Receiver receiver) {
-        var aadCode = Aad.fromCode(wrapper.get());
-        ByteBuffer aad;
-        switch (aadCode) {
-            case NONE:
-                aad = ByteUtils.EMPTY_BUF;
-                break;
-        }
+        var aadSpec = AadSpec.fromCode(wrapper.get());
+        ByteBuffer aad = switch (aadSpec) {
+            case NONE -> ByteUtils.EMPTY_BUF;
+        };
 
         var cipherCode = CipherCode.fromCode(wrapper.get());
 
