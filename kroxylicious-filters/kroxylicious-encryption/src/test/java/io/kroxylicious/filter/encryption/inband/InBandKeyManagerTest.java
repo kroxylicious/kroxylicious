@@ -65,7 +65,7 @@ class InBandKeyManagerTest {
 
         List<TestingRecord> encrypted = new ArrayList<>();
         List<TestingRecord> initial = List.of(record);
-        assertThat(km.encrypt(new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)), initial, recordReceivedRecord(encrypted)))
+        assertThat(km.encrypt("topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)), initial, recordReceivedRecord(encrypted)))
                 .isCompleted();
         record.value().rewind();
         assertEquals(1, encrypted.size());
@@ -92,7 +92,7 @@ class InBandKeyManagerTest {
 
         List<TestingRecord> encrypted = new ArrayList<>();
         List<TestingRecord> initial = List.of(record);
-        assertThat(km.encrypt(new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)), initial, recordReceivedRecord(encrypted)))
+        assertThat(km.encrypt("topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)), initial, recordReceivedRecord(encrypted)))
                 .isCompleted();
         record.value().rewind();
         assertEquals(1, encrypted.size());
@@ -115,7 +115,7 @@ class InBandKeyManagerTest {
 
         List<TestingRecord> encrypted = new ArrayList<>();
         List<TestingRecord> initial = List.of();
-        assertThat(km.encrypt(new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)), initial, recordReceivedRecord(encrypted)))
+        assertThat(km.encrypt("topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)), initial, recordReceivedRecord(encrypted)))
                 .isCompleted();
 
         assertEquals(0, encrypted.size());
@@ -136,10 +136,11 @@ class InBandKeyManagerTest {
 
         List<TestingRecord> encrypted = new ArrayList<>();
         List<TestingRecord> initial = List.of(record, record2);
-        CompletionStage encrypt = km.encrypt(new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
+        CompletionStage encrypt = km.encrypt("topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
                 initial,
                 recordReceivedRecord(encrypted));
-        assertThat(encrypt).failsWithin(Duration.ZERO).withThrowableThat().withMessageContaining("failed to encrypt records after 3 attempts");
+        String expectedMessage = "failed to encrypt records for topic topic partition 1 after 3 attempts";
+        assertThat(encrypt).failsWithin(Duration.ZERO).withThrowableThat().withMessageContaining(expectedMessage);
     }
 
     @NonNull
@@ -165,7 +166,7 @@ class InBandKeyManagerTest {
 
         List<TestingRecord> encrypted = new ArrayList<>();
         List<TestingRecord> initial = List.of(record, record2);
-        km.encrypt(new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
+        km.encrypt("topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
                 initial,
                 (r, v, h) -> {
                     encrypted.add(new TestingRecord(copyBytes(v), h));
@@ -202,7 +203,7 @@ class InBandKeyManagerTest {
 
         List<TestingRecord> encrypted = new ArrayList<>();
         List<TestingRecord> initial = List.of(record, record2);
-        km.encrypt(new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
+        km.encrypt("topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
                 initial,
                 recordReceivedRecord(encrypted)).toCompletableFuture().get(10, TimeUnit.SECONDS);
         record.value().rewind();
@@ -210,7 +211,7 @@ class InBandKeyManagerTest {
 
         // at this point we have encrypted 2 records with the manager set to maximum 2 encryptions per dek
 
-        km.encrypt(new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
+        km.encrypt("topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
                 initial,
                 recordReceivedRecord(encrypted)).toCompletableFuture().get(10, TimeUnit.SECONDS);
 
@@ -241,7 +242,7 @@ class InBandKeyManagerTest {
 
         List<TestingRecord> encrypted = new ArrayList<>();
         List<TestingRecord> initial = List.of(record, record2);
-        km.encrypt(new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
+        km.encrypt("topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
                 initial,
                 recordReceivedRecord(encrypted))
                 .toCompletableFuture()
@@ -251,7 +252,7 @@ class InBandKeyManagerTest {
 
         // at this point we have encrypted 2 records with the manager set to maximum 3 encryptions per dek, so we need a new dek to encrypt 2 more records
 
-        km.encrypt(new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
+        km.encrypt("topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
                 initial,
                 recordReceivedRecord(encrypted)).toCompletableFuture().get(10, TimeUnit.SECONDS);
 
@@ -281,7 +282,7 @@ class InBandKeyManagerTest {
 
         List<TestingRecord> encrypted = new ArrayList<>();
         List<TestingRecord> initial = List.of(record, record2);
-        km.encrypt(new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
+        km.encrypt("topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
                 initial,
                 recordReceivedRecord(encrypted))
                 .toCompletableFuture()
@@ -291,7 +292,7 @@ class InBandKeyManagerTest {
 
         // at this point we have encrypted 2 records with the manager set to maximum 4 encryptions per dek, so we do not need a new dek to encrypt 2 more records
 
-        km.encrypt(new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
+        km.encrypt("topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
                 initial,
                 recordReceivedRecord(encrypted)).toCompletableFuture().get(10, TimeUnit.SECONDS);
 
@@ -326,7 +327,7 @@ class InBandKeyManagerTest {
 
         List<TestingRecord> encrypted = new ArrayList<>();
         List<TestingRecord> initial = List.of(record);
-        assertThat(km.encrypt(new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE, RecordField.RECORD_HEADER_VALUES)),
+        assertThat(km.encrypt("topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE, RecordField.RECORD_HEADER_VALUES)),
                 initial,
                 recordReceivedRecord(encrypted)))
                 .isCompleted();
@@ -359,7 +360,7 @@ class InBandKeyManagerTest {
 
         List<TestingRecord> encrypted = new ArrayList<>();
         List<TestingRecord> initial = List.of(record, record2);
-        km.encrypt(new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE, RecordField.RECORD_HEADER_VALUES)),
+        km.encrypt("topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE, RecordField.RECORD_HEADER_VALUES)),
                 initial,
                 recordReceivedRecord(encrypted)).toCompletableFuture().get(10, TimeUnit.SECONDS);
         value.rewind();

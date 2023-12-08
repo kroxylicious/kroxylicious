@@ -91,6 +91,8 @@ public class EnvelopeEncryptionFilter<K>
                             MemoryRecordsBuilder builder = recordsBuilder(allocateBufferForEncode(records, context), records);
                             var encryptionRequests = recordStream(records).toList();
                             return keyManager.encrypt(
+                                    topicName,
+                                    ppd.index(),
                                     new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
                                     encryptionRequests,
                                     (kafkaRecord, encryptedValue, headers) -> builder.append(kafkaRecord.timestamp(), kafkaRecord.key(), encryptedValue, headers))

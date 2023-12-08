@@ -28,7 +28,9 @@ public interface KeyManager<K> {
      * @return A completion stage that completes when all the records have been processed.
      */
     @NonNull
-    CompletionStage<Void> encrypt(@NonNull EncryptionScheme<K> encryptionScheme,
+    CompletionStage<Void> encrypt(@NonNull String topicName,
+                                  int partition,
+                                  @NonNull EncryptionScheme<K> encryptionScheme,
                                   @NonNull List<? extends Record> records,
                                   @NonNull Receiver receiver);
 

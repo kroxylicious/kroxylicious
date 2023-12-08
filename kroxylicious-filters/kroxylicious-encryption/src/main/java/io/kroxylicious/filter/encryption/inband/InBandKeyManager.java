@@ -125,20 +125,23 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
     @NonNull
     @Override
     @SuppressWarnings("java:S2445")
-    public CompletionStage<Void> encrypt(@NonNull EncryptionScheme<K> encryptionScheme,
+    public CompletionStage<Void> encrypt(@NonNull String topicName,
+                                         int partition,
+                                         @NonNull EncryptionScheme<K> encryptionScheme,
                                          @NonNull List<? extends Record> records,
                                          @NonNull Receiver receiver) {
         if (records.isEmpty()) {
             return CompletableFuture.completedFuture(null);
         }
-        return attemptEncrypt(encryptionScheme, records, receiver, 0);
+        return attemptEncrypt(topicName, partition, encryptionScheme, records, receiver, 0);
     }
 
     @SuppressWarnings("java:S2445")
-    private CompletionStage<Void> attemptEncrypt(@NonNull EncryptionScheme<K> encryptionScheme, @NonNull List<? extends Record> records,
+    private CompletionStage<Void> attemptEncrypt(String topicName, int partition, @NonNull EncryptionScheme<K> encryptionScheme, @NonNull List<? extends Record> records,
                                                  @NonNull Receiver receiver, int attempt) {
         if (attempt >= MAX_ATTEMPTS) {
-            return CompletableFuture.failedFuture(new EncryptionException("failed to encrypt records after " + attempt + " attempts"));
+            return CompletableFuture.failedFuture(
+                    new EncryptionException("failed to encrypt records for topic " + topicName + " partition " + partition + " after " + attempt + " attempts"));
         }
         return currentDekContext(encryptionScheme.kekId()).thenCompose(keyContext -> {
             synchronized (keyContext) {
@@ -153,7 +156,7 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
                     }
                 }
             }
-            return attemptEncrypt(encryptionScheme, records, receiver, attempt + 1);
+            return attemptEncrypt(topicName, partition, encryptionScheme, records, receiver, attempt + 1);
         });
     }
 
