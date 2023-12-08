@@ -105,14 +105,14 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
                 .thenApply(dekPair -> {
                     E edek = dekPair.edek();
                     short edekSize = (short) edekSerde.sizeOf(edek);
-                    ByteBuffer prefix = bufferPool.acquire(
+                    ByteBuffer serializedEdek = bufferPool.acquire(
                             // Short.BYTES + // DEK size
                             edekSize); // the DEK
                     // prefix.putShort(edekSize);
-                    edekSerde.serialize(edek, prefix);
-                    prefix.flip();
+                    edekSerde.serialize(edek, serializedEdek);
+                    serializedEdek.flip();
 
-                    return new KeyContext(prefix,
+                    return new KeyContext(serializedEdek,
                             System.nanoTime() + dekTtlNanos,
                             maxEncryptionsPerDek,
                             // Either we have a different Aes encryptor for each thread
@@ -243,7 +243,7 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
     }
 
     private int sizeOfWrapper(KeyContext keyContext, int parcelSize) {
-        var edek = keyContext.prefix();
+        var edek = keyContext.serializedEdek();
         return ByteUtils.sizeOfUnsignedVarint(edek.length)
                 + edek.length
                 + 1 // aad code
@@ -258,7 +258,7 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
                                     ByteBuffer wrapper) {
         switch (encryptionVersion.wrapperVersion()) {
             case V1 -> {
-                var edek = keyContext.prefix();
+                var edek = keyContext.serializedEdek();
                 ByteUtils.writeUnsignedVarint(edek.length, wrapper);
                 wrapper.put(edek);
                 wrapper.put(AadSpec.NONE.code()); // aadCode
