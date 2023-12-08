@@ -128,6 +128,9 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
     public CompletionStage<Void> encrypt(@NonNull EncryptionScheme<K> encryptionScheme,
                                          @NonNull List<? extends Record> records,
                                          @NonNull Receiver receiver) {
+        if (records.isEmpty()) {
+            return CompletableFuture.completedFuture(null);
+        }
         return attemptEncrypt(encryptionScheme, records, receiver, 0);
     }
 
@@ -162,17 +165,17 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
                         encryptionVersion.parcelVersion(),
                         encryptionScheme.recordFields(),
                         kafkaRecord))
+                .filter(value -> value > 0)
                 .max()
-                .orElse(-1);
+                .orElseThrow();
         var maxWrapperSize = records.stream()
                 .mapToInt(kafkaRecord -> sizeOfWrapper(keyContext, maxParcelSize))
+                .filter(value -> value > 0)
                 .max()
-                .orElse(-1);
-        ByteBuffer parcelBuffer = null;
-        ByteBuffer wrapperBuffer = null;
+                .orElseThrow();
+        ByteBuffer parcelBuffer = bufferPool.acquire(maxParcelSize);
+        ByteBuffer wrapperBuffer = bufferPool.acquire(maxWrapperSize);
         try {
-            parcelBuffer = maxParcelSize >= 0 ? bufferPool.acquire(maxParcelSize) : null;
-            wrapperBuffer = maxWrapperSize >= 0 ? bufferPool.acquire(maxWrapperSize) : null;
             encryptRecords(encryptionScheme, keyContext, records, parcelBuffer, wrapperBuffer, receiver);
         }
         finally {
@@ -198,18 +201,16 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
                                 @NonNull KeyContext keyContext,
                                 @NonNull List<? extends Record> records,
                                 @NonNull ByteBuffer parcelBuffer,
-                                @Nullable ByteBuffer wrapperBuffer,
+                                @NonNull ByteBuffer wrapperBuffer,
                                 @NonNull Receiver receiver) {
         records.forEach(kafkaRecord -> {
-            parcelBuffer.rewind();
             Parcel.writeParcel(encryptionVersion.parcelVersion(), encryptionScheme.recordFields(), kafkaRecord, parcelBuffer);
             parcelBuffer.flip();
             var transformedValue = writeWrapper(keyContext, parcelBuffer, wrapperBuffer);
             Header[] headers = transformHeaders(encryptionScheme, kafkaRecord);
             receiver.accept(kafkaRecord, transformedValue, headers);
-            if (wrapperBuffer != null) {
-                wrapperBuffer.rewind();
-            }
+            wrapperBuffer.rewind();
+            parcelBuffer.rewind();
         });
     }
 

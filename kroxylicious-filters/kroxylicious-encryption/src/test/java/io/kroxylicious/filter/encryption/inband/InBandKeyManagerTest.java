@@ -80,6 +80,48 @@ class InBandKeyManagerTest {
     }
 
     @Test
+    void shouldTolerateEncryptingAndDecryptingEmptyRecordValue() {
+        var kmsService = UnitTestingKmsService.newInstance();
+        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
+        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
+
+        var kekId = kms.generateKey();
+
+        var value = ByteBuffer.wrap(new byte[]{});
+        TestingRecord record = new TestingRecord(value);
+
+        List<TestingRecord> encrypted = new ArrayList<>();
+        List<TestingRecord> initial = List.of(record);
+        assertThat(km.encrypt(new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)), initial, recordReceivedRecord(encrypted)))
+                .isCompleted();
+        record.value().rewind();
+        assertEquals(1, encrypted.size());
+        assertNotEquals(initial, encrypted);
+
+        List<TestingRecord> decrypted = new ArrayList<>();
+        assertThat(km.decrypt("foo", 1, encrypted, recordReceivedRecord(decrypted)))
+                .isCompleted();
+
+        assertEquals(initial, decrypted);
+    }
+
+    @Test
+    void shouldTolerateEncryptingEmptyBatch() {
+        var kmsService = UnitTestingKmsService.newInstance();
+        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
+        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
+
+        var kekId = kms.generateKey();
+
+        List<TestingRecord> encrypted = new ArrayList<>();
+        List<TestingRecord> initial = List.of();
+        assertThat(km.encrypt(new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)), initial, recordReceivedRecord(encrypted)))
+                .isCompleted();
+
+        assertEquals(0, encrypted.size());
+    }
+
+    @Test
     void encryptionRetry() {
         var kmsService = UnitTestingKmsService.newInstance();
         InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
