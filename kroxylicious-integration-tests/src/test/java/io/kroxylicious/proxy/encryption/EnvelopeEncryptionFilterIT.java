@@ -16,13 +16,14 @@ import java.util.stream.Stream;
 
 import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.clients.consumer.Consumer;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.TopicPartition;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -32,6 +33,7 @@ import io.kroxylicious.kms.provider.kroxylicious.inmemory.IntegrationTestingKmsS
 import io.kroxylicious.proxy.config.FilterDefinition;
 import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
+import io.kroxylicious.testing.kafka.common.ClientConfig;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -208,8 +210,9 @@ class EnvelopeEncryptionFilterIT {
     }
 
     @Test
-    @Disabled("InBandKeyManger doesn't handle nulls")
-    void nullValueRecordProducedAndConsumedSuccessfully(KafkaCluster cluster) throws Exception {
+    void nullValueRecordProducedAndConsumedSuccessfully(KafkaCluster cluster,
+                                                        @ClientConfig(name = ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, value = "earliest") @ClientConfig(name = ConsumerConfig.GROUP_ID_CONFIG, value = "test") Consumer<String, String> directConsumer)
+            throws Exception {
         var kmsId = UUID.randomUUID();
         var kms = provisionKms(kmsId);
         generateKekWithAlias(kms);
@@ -231,16 +234,22 @@ class EnvelopeEncryptionFilterIT {
             String message = null;
             producer.send(new ProducerRecord<>(topic, message)).get(5, TimeUnit.SECONDS);
 
-            consumer.subscribe(List.of(topic));
-            var records = consumer.poll(Duration.ofSeconds(2));
-            assertThat(records.iterator())
-                    .toIterable()
-                    .singleElement()
-                    .extracting(ConsumerRecord::value)
-                    .isNull();
+            assertOnlyValueInTopicHasNullValue(consumer, topic);
+            // test that the null-value is preserved in Kafka to keep compaction tombstoning working
+            assertOnlyValueInTopicHasNullValue(directConsumer, topic);
         }
 
         IntegrationTestingKmsService.delete(kmsId.toString());
+    }
+
+    private static void assertOnlyValueInTopicHasNullValue(Consumer<String, String> consumer, String topic) {
+        consumer.subscribe(List.of(topic));
+        var records = consumer.poll(Duration.ofSeconds(2));
+        assertThat(records.iterator())
+                .toIterable()
+                .singleElement()
+                .extracting(ConsumerRecord::value)
+                .isNull();
     }
 
     @Test

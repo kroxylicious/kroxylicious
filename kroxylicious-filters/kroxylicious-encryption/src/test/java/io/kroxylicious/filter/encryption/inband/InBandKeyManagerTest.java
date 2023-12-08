@@ -35,6 +35,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 class InBandKeyManagerTest {
@@ -103,6 +104,47 @@ class InBandKeyManagerTest {
                 .isCompleted();
 
         assertEquals(initial, decrypted);
+    }
+
+    // we do not want to break compaction tombstoning by creating a parcel for the null value case
+    @Test
+    void nullRecordValuesShouldNotBeModifiedAtEncryptTime() {
+        var kmsService = UnitTestingKmsService.newInstance();
+        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
+        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
+
+        var kekId = kms.generateKey();
+
+        TestingRecord record = new TestingRecord(null);
+
+        List<TestingRecord> encrypted = new ArrayList<>();
+        List<TestingRecord> initial = List.of(record);
+        assertThat(km.encrypt("topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)), initial, recordReceivedRecord(encrypted)))
+                .isCompleted();
+        assertEquals(1, encrypted.size());
+        assertFalse(encrypted.get(0).hasValue());
+    }
+
+    // we do not want to break compaction tombstoning by creating a parcel for the null value case,
+    // but currently we do not have a scheme for how to serialize headers when the original record
+    // value is null.
+    @Test
+    void nullRecordValuesAreIncompatibleWithHeaderEncryption() {
+        var kmsService = UnitTestingKmsService.newInstance();
+        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
+        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
+
+        var kekId = kms.generateKey();
+
+        var headers = new Header[]{ new RecordHeader("headerFoo", new byte[]{ 4, 5, 6 }) };
+        TestingRecord record = new TestingRecord(null, headers);
+
+        List<TestingRecord> encrypted = new ArrayList<>();
+        List<TestingRecord> initial = List.of(record);
+        String expectedMessage = "encrypting headers prohibited when original record value null, we must preserve the null for tombstoning";
+        assertThat(km.encrypt("topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_HEADER_VALUES)), initial, recordReceivedRecord(encrypted)))
+                .failsWithin(Duration.ofSeconds(5)).withThrowableThat()
+                .withMessageContaining(expectedMessage);
     }
 
     @Test
@@ -307,6 +349,9 @@ class InBandKeyManagerTest {
 
     @NonNull
     private static ByteBuffer copyBytes(ByteBuffer v) {
+        if (v == null) {
+            return null;
+        }
         byte[] bytes = new byte[v.remaining()];
         v.get(bytes);
         ByteBuffer wrap = ByteBuffer.wrap(bytes);

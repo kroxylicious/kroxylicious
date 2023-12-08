@@ -207,13 +207,24 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
                                 @NonNull ByteBuffer wrapperBuffer,
                                 @NonNull Receiver receiver) {
         records.forEach(kafkaRecord -> {
-            Parcel.writeParcel(encryptionVersion.parcelVersion(), encryptionScheme.recordFields(), kafkaRecord, parcelBuffer);
-            parcelBuffer.flip();
-            var transformedValue = writeWrapper(keyContext, parcelBuffer, wrapperBuffer);
-            Header[] headers = transformHeaders(encryptionScheme, kafkaRecord);
-            receiver.accept(kafkaRecord, transformedValue, headers);
-            wrapperBuffer.rewind();
-            parcelBuffer.rewind();
+            if (encryptionScheme.recordFields().contains(RecordField.RECORD_HEADER_VALUES)
+                    && kafkaRecord.headers().length > 0
+                    && !kafkaRecord.hasValue()) {
+                // todo implement header encryption preserving null record-values
+                throw new IllegalStateException("encrypting headers prohibited when original record value null, we must preserve the null for tombstoning");
+            }
+            if (kafkaRecord.hasValue()) {
+                Parcel.writeParcel(encryptionVersion.parcelVersion(), encryptionScheme.recordFields(), kafkaRecord, parcelBuffer);
+                parcelBuffer.flip();
+                var transformedValue = writeWrapper(keyContext, parcelBuffer, wrapperBuffer);
+                Header[] headers = transformHeaders(encryptionScheme, kafkaRecord);
+                receiver.accept(kafkaRecord, transformedValue, headers);
+                wrapperBuffer.rewind();
+                parcelBuffer.rewind();
+            }
+            else {
+                receiver.accept(kafkaRecord, null, kafkaRecord.headers());
+            }
         });
     }
 
