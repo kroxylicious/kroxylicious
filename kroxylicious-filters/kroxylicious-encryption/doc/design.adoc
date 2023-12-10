@@ -49,7 +49,7 @@ We assume the existence of a key management system (KMS) which has not been subv
 If assumption 1 is violated then all data encrypted with the exposed DEK is exposed (loss of confidentiality).
 If assumption 2 is violated then all data encrypted by DEKs wrapped with those KEKs is exposed (loss of confidentiality).
 If assumption 3 is violated then all data encrypted by DEKs wrapped with those KEKs becomes unreadable (loss of availability).
-If ssumption 4 is violated then all data encrypted by all DEKSs becomes unreadable (loss of availability), for the duration that the KMS is down – possibly forever.
+If assumption 4 is violated then all data encrypted by all DEKSs becomes unreadable (loss of availability), for the duration that the KMS is down – possibly forever.
 
 When we say "data is exposed" we mean "becomes readable and modifiable without detection by the threat actor".
 
@@ -230,7 +230,7 @@ To construct the "ciphertext record":
 Kafka supports compression of record batches (not individual records). This means there are a number of places where compression could be used:
 
 ==== Client sends a compressed batch
-It's _batches_ that are compressed (by the producer), but _records_ that are encrypted, so we have no choice but to decompress the whole batch if we're to encrypt any of the records within it.
+It's the _batches_ that are compressed (by the producer), but it is the _records_ that are to be encrypted, so we have no choice but to decompress the whole batch if we're to encrypt any of the records within it.
 There is the possibility of (re-)compressing records prior to encryption.
 Compress-then-encrypt has been used for cryptanalysis (e.g. the CRIME vulnerability in HTTP). So we don't currently do this.
 
