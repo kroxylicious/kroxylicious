@@ -105,10 +105,7 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
                 .thenApply(dekPair -> {
                     E edek = dekPair.edek();
                     short edekSize = (short) edekSerde.sizeOf(edek);
-                    ByteBuffer serializedEdek = bufferPool.acquire(
-                            // Short.BYTES + // DEK size
-                            edekSize); // the DEK
-                    // prefix.putShort(edekSize);
+                    ByteBuffer serializedEdek = ByteBuffer.allocate(edekSize);
                     edekSerde.serialize(edek, serializedEdek);
                     serializedEdek.flip();
 
