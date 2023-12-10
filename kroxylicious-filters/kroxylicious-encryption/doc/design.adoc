@@ -244,6 +244,7 @@ Kafka supports compression of record batches (not individual records). This mean
 
 ==== Client sends a compressed batch
 It's the _batches_ that are compressed (by the producer), but it is the _records_ that are to be encrypted, so we have no choice but to decompress the whole batch if we're to encrypt any of the records within it.
+// todo: clarify whether this is talking about compressing individual records or batches.
 There is the possibility of (re-)compressing records prior to encryption.
 Compress-then-encrypt has been used for cryptanalysis (e.g. the CRIME vulnerability in HTTP). So we don't currently do this.
 
