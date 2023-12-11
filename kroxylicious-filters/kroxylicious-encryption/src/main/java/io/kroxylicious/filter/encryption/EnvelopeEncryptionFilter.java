@@ -91,6 +91,8 @@ public class EnvelopeEncryptionFilter<K>
                             MemoryRecordsBuilder builder = recordsBuilder(allocateBufferForEncode(records, context), records);
                             var encryptionRequests = recordStream(records).toList();
                             return keyManager.encrypt(
+                                    topicName,
+                                    ppd.index(),
                                     new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
                                     encryptionRequests,
                                     (kafkaRecord, encryptedValue, headers) -> builder.append(kafkaRecord.timestamp(), kafkaRecord.key(), encryptedValue, headers))
@@ -123,7 +125,7 @@ public class EnvelopeEncryptionFilter<K>
     private CompletionStage<List<FetchableTopicResponse>> maybeDecodeFetch(List<FetchableTopicResponse> topics, FilterContext context) {
         List<CompletionStage<FetchableTopicResponse>> result = new ArrayList<>(topics.size());
         for (FetchableTopicResponse topicData : topics) {
-            result.add(maybeDecodePartitions(topicData.partitions(), context).thenApply(kk -> {
+            result.add(maybeDecodePartitions(topicData.topic(), topicData.partitions(), context).thenApply(kk -> {
                 topicData.setPartitions(kk);
                 return topicData;
             }));
@@ -131,23 +133,31 @@ public class EnvelopeEncryptionFilter<K>
         return join(result);
     }
 
-    private CompletionStage<List<PartitionData>> maybeDecodePartitions(List<PartitionData> partitions, FilterContext context) {
+    private CompletionStage<List<PartitionData>> maybeDecodePartitions(String topicName,
+                                                                       List<PartitionData> partitions,
+                                                                       FilterContext context) {
         List<CompletionStage<PartitionData>> result = new ArrayList<>(partitions.size());
         for (PartitionData partitionData : partitions) {
             if (!(partitionData.records() instanceof MemoryRecords)) {
                 throw new IllegalStateException();
             }
-            result.add(maybeDecodeRecords(partitionData, (MemoryRecords) partitionData.records(), context));
+            result.add(maybeDecodeRecords(topicName, partitionData, (MemoryRecords) partitionData.records(), context));
         }
         return join(result);
     }
 
-    private CompletionStage<PartitionData> maybeDecodeRecords(PartitionData fpr,
+    private CompletionStage<PartitionData> maybeDecodeRecords(String topicName,
+                                                              PartitionData fpr,
                                                               MemoryRecords memoryRecords,
                                                               FilterContext context) {
         MemoryRecordsBuilder builder = recordsBuilder(allocateBufferForDecode(memoryRecords, context), memoryRecords);
-        return keyManager.decrypt(recordStream(memoryRecords).toList(),
-                (kafkaRecord, plaintextBuffer, headers) -> builder.append(kafkaRecord.timestamp(), kafkaRecord.key(), plaintextBuffer, headers))
+        return keyManager.decrypt(
+                topicName,
+                fpr.partitionIndex(),
+                recordStream(memoryRecords).toList(),
+                (kafkaRecord, plaintextBuffer, headers) -> {
+                    builder.append(kafkaRecord.timestamp(), kafkaRecord.key(), plaintextBuffer, headers);
+                })
                 .thenApply(ignored -> builder.build())
                 .thenApply(fpr::setRecords);
     }

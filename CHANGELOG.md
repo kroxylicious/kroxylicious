@@ -6,6 +6,7 @@ Please enumerate **all user-facing** changes using format `<githib issue/pr numb
 
 ## 0.4.0
 
+* [#798](https://github.com/kroxylicious/kroxylicious/pull/798): Encryption Filter: Refactor Serialization to new Parcel Scheme
 * [#809](https://github.com/kroxylicious/kroxylicious/pull/809): Bump Kroxylicious Junit Ext from 0.7.0 to 0.8.0
 * [#803](https://github.com/kroxylicious/kroxylicious/pull/803): Bump kafka.version from 3.6.0 to 3.6.1 #803
 * [#741](https://github.com/kroxylicious/kroxylicious/issues/741): Encryption Filter: Implement a HashiCorp Vault KMS 
