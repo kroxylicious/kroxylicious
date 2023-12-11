@@ -831,7 +831,6 @@
             <properties>
                 <sonar.organization>kroxylicious</sonar.organization>
                 <sonar.host.url>https://sonarcloud.io</sonar.host.url>
-                <skipSTs>true</skipSTs>
                 <impsort-maven-plugin.goal>check</impsort-maven-plugin.goal>
             </properties>
             <build>
