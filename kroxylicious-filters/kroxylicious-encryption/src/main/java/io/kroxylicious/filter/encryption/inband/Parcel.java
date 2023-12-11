@@ -61,11 +61,11 @@ public class Parcel {
                            @NonNull Receiver receiver) {
         switch (parcelVersion) {
             case V1:
-                var recordValue = readRecordValue(parcel);
-                Header[] readHeaders = readHeaders(parcel);
+                var parcelledValue = readRecordValue(parcel);
+                Header[] parcelledHeaders = readHeaders(parcel);
                 var existingHeaders = encryptedRecord.headers();
                 Header[] usedHeaders;
-                if (readHeaders == ABSENT_HEADERS) {
+                if (parcelledHeaders == ABSENT_HEADERS) {
                     if (existingHeaders.length > 0
                             && InBandKeyManager.ENCRYPTION_HEADER_NAME.equals(existingHeaders[0].key())) {
                         // need to remove the encryption header
@@ -77,10 +77,10 @@ public class Parcel {
                     }
                 }
                 else {
-                    usedHeaders = readHeaders;
+                    usedHeaders = parcelledHeaders;
                 }
                 receiver.accept(encryptedRecord,
-                        recordValue == ABSENT_VALUE ? encryptedRecord.value() : recordValue,
+                        parcelledValue == ABSENT_VALUE ? encryptedRecord.value() : parcelledValue,
                         usedHeaders);
                 break;
             default:
