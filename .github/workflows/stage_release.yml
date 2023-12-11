@@ -1,0 +1,130 @@
+#
+#  Licensed to the Apache Software Foundation (ASF) under one or more
+#  contributor license agreements. See the NOTICE file distributed with
+#  this work for additional information regarding copyright ownership.
+#  The ASF licenses this file to You under the Apache License, Version 2.0
+#  (the "License"); you may not use this file except in compliance with
+#  the License. You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+#
+name: Stage Release
+
+# This workflow will stage a kroxylicious release.  The release artefacts will be
+# built, signed, and staged on Nexus.  The staging repository will be closed.  A PR will be opened
+# containing commits that versions the release and reopen main for development at the next snapshot version.
+#
+# Once the staged artefacts have been verified, run the workflow deploy_release with the argument `release` to
+# release the artefacts to Maven Central and merge the release PR.
+#
+# It requires the following:
+# variables:
+# KROXYLICIOUS_SONATYPE_TOKEN_USERNAME        - Sonatype Access User Token Username
+# secrets:
+# KROXYLICIOUS_RELEASE_TOKEN                  - GitHub PAT wih content/createPullRequest permission for Kroxylicious repo.
+# KROXYLICIOUS_RELEASE_PRIVATE_KEY            - Private key of the project admin conducting the release
+# KROXYLICIOUS_RELEASE_PRIVATE_KEY_PASSPHRASE - Passphrase used to protect the private key
+# KROXYLICIOUS_SONATYPE_TOKEN_PASSWORD        - Sonatype Access User Token Password
+#
+
+on:
+  workflow_dispatch:
+    inputs:
+      release-version:
+        description: 'The release version, e.g. 0.7.0'
+        required: true
+      branch:
+        description: 'The branch from which the release is cut'
+        required: false
+        default: 'main'
+      skip-tests:
+        description: 'Whether to skip the tests before pushing the tag'
+        type: boolean
+        required: false
+        default: false
+      dry-run:
+        description: 'Dry-run mode, no remote tags or PRs will be created, no artefacts will be staged'
+        type: boolean
+        required: false
+        default: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 'Check out repository'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch }}
+          token: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+
+      - name: 'Configure Git username/email'
+        run: |
+          git config user.name "${GITHUB_ACTOR}"
+          git config user.email "${GITHUB_ACTOR_ID}+${GITHUB_ACTOR}@users.noreply.github.com"
+
+      - name: 'Cache Maven packages'
+        uses: actions/cache@v2
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+
+      - name: 'Set up Java'
+        uses: actions/setup-java@v3
+        with:
+          java-version: 21
+          distribution: temurin
+          server-id: ossrh
+          server-username: SONATYPE_TOKEN_USERNAME # env variable for Sonatype username
+          server-password: SONATYPE_TOKEN_PASSWORD # env variable for Sonatype password
+          gpg-passphrase: MAVEN_GPG_PASSPHRASE # env variable for GPG private key passphrase
+          gpg-private-key: ${{ secrets.KROXYLICIOUS_RELEASE_PRIVATE_KEY }} # Value of the GPG private key to import
+          overwrite-settings: true
+
+      - name: 'Verify no existing staging repository exists'
+        if: ${{ github.event.inputs.dry-run == 'false' }}
+        env:
+          SONATYPE_TOKEN_USERNAME: ${{ vars.KROXYLICIOUS_SONATYPE_TOKEN_USERNAME }}
+          SONATYPE_TOKEN_PASSWORD: ${{ secrets.KROXYLICIOUS_SONATYPE_TOKEN_PASSWORD }}
+        run: ./scripts/transition-staging-repository-state.sh -a
+
+      - name: 'Verify no existing release note exist for tag'
+        env:
+          GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }} # For the gh cmd line tool used by transition-github-release-note-state.sh
+        run: ./scripts/transition-github-release-note-state.sh -v ${{ github.event.inputs.release-version }} -a
+
+      - name: 'Stage Release'
+        run: |
+          SIGNING_KEY_SHORT_NAME=$(gpg --list-public-keys --keyid-format short --with-colons | awk -F: '/^pub:/ {print $5}')
+          ./scripts/stage-release.sh -k ${SIGNING_KEY_SHORT_NAME} \
+                                     -v ${{ github.event.inputs.release-version }} \
+                                     -b ${{ github.event.inputs.branch }} \
+                                     ${{ github.event.inputs.dry-run == 'true' && '-d' || '' }} \
+                                     ${{ github.event.inputs.skip-tests == 'true' && '-s' || '' }}
+        env:
+          SONATYPE_TOKEN_USERNAME: ${{ vars.KROXYLICIOUS_SONATYPE_TOKEN_USERNAME }}
+          SONATYPE_TOKEN_PASSWORD: ${{ secrets.KROXYLICIOUS_SONATYPE_TOKEN_PASSWORD }}
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.KROXYLICIOUS_RELEASE_PRIVATE_KEY_PASSPHRASE }}
+          GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }} # For the gh cmd line tool used by stage-release.sh
+
+      - name: 'Drop stage repository, if failed'
+        if: ${{ failure() && github.event.inputs.dry-run == 'false' }}
+        env:
+          SONATYPE_TOKEN_USERNAME: ${{ vars.KROXYLICIOUS_SONATYPE_TOKEN_USERNAME }}
+          SONATYPE_TOKEN_PASSWORD: ${{ secrets.KROXYLICIOUS_SONATYPE_TOKEN_PASSWORD }}
+        run: ./scripts/transition-staging-repository-state.sh -s drop
+
+      - name: 'Close stage repository'
+        if: ${{ github.event.inputs.dry-run == 'false' }}
+        env:
+          SONATYPE_TOKEN_USERNAME: ${{ vars.KROXYLICIOUS_SONATYPE_TOKEN_USERNAME }}
+          SONATYPE_TOKEN_PASSWORD: ${{ secrets.KROXYLICIOUS_SONATYPE_TOKEN_PASSWORD }}
+        run: ./scripts/transition-staging-repository-state.sh -s close
