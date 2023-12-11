@@ -6,6 +6,7 @@ Please enumerate **all user-facing** changes using format `<githib issue/pr numb
 
 ## 0.4.0
 
+* [#803](https://github.com/kroxylicious/kroxylicious/pull/803): Bump kafka.version from 3.6.0 to 3.6.1 #803
 * [#741](https://github.com/kroxylicious/kroxylicious/issues/741): Encryption Filter: Implement a HashiCorp Vault KMS 
 * [#764](https://github.com/kroxylicious/kroxylicious/pull/764): Encryption Filter: Rotate to a new DEK when the old one is exhausted
 * [#696](https://github.com/kroxylicious/kroxylicious/pull/696): Initial work on an Envelope Encryption Filter
