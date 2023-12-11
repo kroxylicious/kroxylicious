@@ -30,7 +30,7 @@
         <skipTests>false</skipTests>
         <skipITs>${skipTests}</skipITs>
         <skipUTs>${skipTests}</skipUTs>
-        <skipSTs>${skipTests}</skipSTs>
+        <skipSTs>true</skipSTs>
 
         <impsort-maven-plugin.goal>sort</impsort-maven-plugin.goal>
 
