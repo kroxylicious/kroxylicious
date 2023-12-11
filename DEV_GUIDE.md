@@ -345,7 +345,7 @@ Then, you can run them from system test or root folder:
 * Run the system tests from [kroxylicious-systemtests](kroxylicious-systemtests) folder:
 
 ```shell
-KROXYLICIOUS_IMAGE_REPO=<container_registry>/<myorg>/kroxylicious mvn clean integration-test
+KROXYLICIOUS_IMAGE_REPO=<container_registry>/<myorg>/kroxylicious mvn clean integration-test -DskipSTs=false
 ```
 
 * Run them from root folder of kroxylicious project:
