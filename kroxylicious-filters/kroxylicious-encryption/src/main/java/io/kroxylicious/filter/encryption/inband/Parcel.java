@@ -186,15 +186,20 @@ public class Parcel {
         else if (headersLength >= 0) {
             Header[] headers = new Header[headersLength];
             for (int i = 0; i < headersLength; i++) {
-                String headerKey = readHeaderKey(parcel);
-                byte[] headerValue = readHeaderValue(parcel);
-                headers[i] = new RecordHeader(headerKey, headerValue);
+                headers[i] = readHeader(parcel);
             }
             return headers;
         }
         else {
             throw new EncryptionException("Illegal headers length");
         }
+    }
+
+    @NonNull
+    private static RecordHeader readHeader(ByteBuffer parcel) {
+        String headerKey = readHeaderKey(parcel);
+        byte[] headerValue = readHeaderValue(parcel);
+        return new RecordHeader(headerKey, headerValue);
     }
 
     private static int sizeOfHeaderKey(Header header) {
