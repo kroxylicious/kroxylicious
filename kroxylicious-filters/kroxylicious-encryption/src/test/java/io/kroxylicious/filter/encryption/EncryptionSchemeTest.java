@@ -7,7 +7,6 @@
 package io.kroxylicious.filter.encryption;
 
 import java.util.EnumSet;
-import java.util.Objects;
 
 import org.junit.jupiter.api.Test;
 

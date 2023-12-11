@@ -12,13 +12,7 @@ import java.util.UUID;
 import io.kroxylicious.kms.service.KekId;
 import io.kroxylicious.kms.service.KmsException;
 
-public class UuidKekId implements KekId {
-
-    private final UUID keyId;
-
-    public UuidKekId(UUID keyId) {
-        this.keyId = keyId;
-    }
+public record UuidKekId(UUID keyId) implements KekId {
 
     @SuppressWarnings("unchecked")
     @Override

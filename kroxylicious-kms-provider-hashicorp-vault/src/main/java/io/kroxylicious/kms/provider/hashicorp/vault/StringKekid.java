@@ -9,12 +9,7 @@ package io.kroxylicious.kms.provider.hashicorp.vault;
 import io.kroxylicious.kms.service.KekId;
 import io.kroxylicious.kms.service.KmsException;
 
-public class StringKekid implements KekId {
-    private final String keyId;
-
-    public StringKekid(String keyId) {
-        this.keyId = keyId;
-    }
+public record StringKekid(String keyId) implements KekId {
 
     @SuppressWarnings("unchecked")
     @Override
