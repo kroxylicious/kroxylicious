@@ -40,13 +40,9 @@ class EncryptionSchemeTest {
         assertEquals(nonEmpty, es.recordFields());
     }
 
-    private static class MyKekId implements KekId {
-        private final Object kekId;
+    private record MyKekId(Object kekId) implements KekId {
 
-        MyKekId(Object kekId) {
-            this.kekId = kekId;
-        }
-
+        @SuppressWarnings("unchecked")
         @Override
         public <K> K getId(Class<K> keyType) {
             return (K) kekId;
