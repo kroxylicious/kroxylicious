@@ -64,7 +64,7 @@ If assumption 3 is violated then all data encrypted by DEKs wrapped with those K
 
 If assumption 4 is violated then all data encrypted by all DEKSs becomes unreadable (loss of availability), for the duration that the KMS is down – possibly forever.
 
-When we say "data is exposed" we mean "becomes readable and modifiable without detection by the threat actor".
+When we say "data is exposed" we mean "becomes readable and modifiable by the threat actor, without detection".
 
 === Envelope Encryption
 
@@ -81,7 +81,7 @@ There are two ways a DEK might be generated, depending on the capabilities of th
 
 In either case, the DEK is encrypted (in the KMS) using the KEK and this DEK ciphertext (known as the <<edekDef,EDEK>>, or encrypted DEK) is stored with the encrypted record in the log on the (subverted) Kafka broker. Importantly, the secret KEK used to encrypt the DEK is _never_ known to the proxy.
 
-When a record needs to be encrypted, if the DEK plaintext is not already known to the proxy is takes the encrypted DEK that's stored with the encrypted record and asks the KMS to decrypt it, then using the DEK plaintext is decrypted the encrypted record. The DEK plaintext may be kept in the proxy process memory for use decrypting subsequent records, but not indefinitely.
+When a record needs to be encrypted, if the DEK plaintext is not already known to the proxy is takes the encrypted DEK that's stored with the encrypted record and asks the KMS to decrypt it, then using the DEK plaintext is decrypted the encrypted record. The DEK plaintext may be kept in the proxy process memory, for a limited time, for use decrypting subsequent records.
 
 === KEK provisioning
 
@@ -253,7 +253,7 @@ Compress-then-encrypt has been used for cryptanalysis (e.g. the CRIME vulnerabil
 
 It's the proxy's choice about which compression to use. In other words whatever compressor is used a proxied client won't be exposed to the compressed batches.
 
-Since compression is a trade-off between CPU and compression ratio, we should offer compression as a configurable option.
+Since compression is a trade-off between CPU and compression ratio, we offer compression as a configurable option.
 
 ==== Proxy decompresses a batch of records, when receiving from a broker
 
