@@ -7,7 +7,7 @@ The component is released using GitHub automation.
 At a high level, the process is as follows:
 
 1. The developer adds their private key/passphrase as repository secrets
-1. The workflow `stage_release` tags, builds/signs the release, and stages the release on a Nexus staging repository.
+1. The workflow `stage_release` tags, builds/signs the release, and stages the release on a Nexus staging repository. This process uses the GitHub machine account [kroxylicious-robot](https://github.com/kroxylicious-robot) and a user token owned by Sonatype account `kroxylicious` account.
 1. The stage release is verified using manual verification steps.
 1. The workflow `deploy_release` releases from the staged repository to Maven Central.
 1. The developer removes their private key/passphrase as repository secrets.
