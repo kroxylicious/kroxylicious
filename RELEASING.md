@@ -62,7 +62,7 @@ The local changes made to `T`'s POM can be reverted.
 
 1. Run [deploy_workflow](https://github.com/kroxylicious/kroxylicious/actions/workflows/deploy_release.yml)
    setting the `next-state` to `release` to publish the artefact and publish the release notes.
-1. Merge release PR.
+1. Merge release PR (use Rebase and Merge strategy).
 1. Let [Kroxylicious Team Developers](https://kroxylicious.slack.com/archives/C04V1K6EAKZ) know the release is finished.
 
 If anything goes wrong, follow the steps in the next section.
