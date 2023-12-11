@@ -74,11 +74,12 @@ class VaultKmsIT {
     @Test
     void resolveKeyByName() {
         var keyName = "mykey";
-        createKek(keyName);
+        final StringKekid expectedKekId = new StringKekid(keyName);
+        createKek(expectedKekId);
         var resolved = service.resolveAlias(keyName);
         assertThat(resolved)
                 .succeedsWithin(Duration.ofSeconds(5))
-                .isEqualTo(keyName);
+                .isEqualTo(expectedKekId);
     }
 
     @Test
@@ -93,7 +94,7 @@ class VaultKmsIT {
 
     @Test
     void generatedEncryptedDekDecryptsBackToPlain() {
-        String key = "mykey";
+        StringKekid key = new StringKekid("mykey");
         createKek(key);
 
         var pairStage = service.generateDekPair(key);
@@ -108,7 +109,7 @@ class VaultKmsIT {
 
     @Test
     void decryptDekAfterRotate() {
-        var key = "mykey";
+        var key = new StringKekid("mykey");
         var data = createKek(key);
         var originalVersion = data.latestVersion();
 
@@ -128,7 +129,7 @@ class VaultKmsIT {
 
     @Test
     void generatedDekPairWithUnknownKey() {
-        var pairStage = service.generateDekPair("unknown");
+        var pairStage = service.generateDekPair(new StringKekid("unknown"));
         assertThat(pairStage)
                 .failsWithin(Duration.ofSeconds(5))
                 .withThrowableThat()
@@ -146,7 +147,7 @@ class VaultKmsIT {
 
     @Test
     void edekSerdeRoundTrip() {
-        var key = "mykey";
+        var key = new StringKekid("mykey");
         createKek(key);
 
         var pairStage = service.generateDekPair(key);
@@ -168,9 +169,9 @@ class VaultKmsIT {
         }, "vault", "read", "transit/keys/%s".formatted(keyId));
     }
 
-    private ReadKeyData createKek(String keyId) {
+    private ReadKeyData createKek(StringKekid keyId) {
         return runVaultCommand(new TypeReference<>() {
-        }, "vault", "write", "-f", "transit/keys/%s".formatted(keyId));
+        }, "vault", "write", "-f", "transit/keys/%s".formatted(keyId.getId(String.class)));
     }
 
     private ReadKeyData rotateKek(String keyId) {

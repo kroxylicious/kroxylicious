@@ -29,6 +29,7 @@ import io.kroxylicious.kms.provider.hashicorp.vault.VaultResponse.DataKeyData;
 import io.kroxylicious.kms.provider.hashicorp.vault.VaultResponse.DecryptData;
 import io.kroxylicious.kms.provider.hashicorp.vault.VaultResponse.ReadKeyData;
 import io.kroxylicious.kms.service.DekPair;
+import io.kroxylicious.kms.service.KekId;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.kms.service.Serde;
@@ -51,7 +52,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  *    <li>Securely pass vault token</li>
  * </ul>
  */
-public class VaultKms implements Kms<String, VaultEdek> {
+public class VaultKms implements Kms<VaultEdek> {
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final String AES_KEY_ALGO = "AES";
@@ -75,21 +76,22 @@ public class VaultKms implements Kms<String, VaultEdek> {
      */
     @NonNull
     @Override
-    public CompletionStage<DekPair<VaultEdek>> generateDekPair(@NonNull String kekRef) {
+    public CompletionStage<DekPair<VaultEdek>> generateDekPair(@NonNull KekId kekRef) {
 
+        final String kekRefId = kekRef.getId(String.class);
         var request = createVaultRequest()
-                .uri(vaultUrl.resolve("v1/transit/datakey/plaintext/%s".formatted(encode(kekRef, UTF_8))))
+                .uri(vaultUrl.resolve("v1/transit/datakey/plaintext/%s".formatted(encode(kekRefId, UTF_8))))
                 .POST(HttpRequest.BodyPublishers.noBody())
                 .build();
 
-        return vaultClient.sendAsync(request, statusHandler(kekRef, new JsonBodyHandler<VaultResponse<DataKeyData>>(new TypeReference<>() {
+        return vaultClient.sendAsync(request, statusHandler(kekRefId, new JsonBodyHandler<VaultResponse<DataKeyData>>(new TypeReference<>() {
         }), UnknownKeyException::new))
                 .thenApply(HttpResponse::body)
                 .thenApply(Supplier::get)
                 .thenApply(VaultResponse::data)
                 .thenApply(data -> {
                     var secretKey = new SecretKeySpec(Base64.getDecoder().decode(data.plaintext()), AES_KEY_ALGO);
-                    return new DekPair<>(new VaultEdek(kekRef, data.ciphertext().getBytes(UTF_8)), secretKey);
+                    return new DekPair<>(new VaultEdek(kekRefId, data.ciphertext().getBytes(UTF_8)), secretKey);
                 });
 
     }
@@ -136,7 +138,7 @@ public class VaultKms implements Kms<String, VaultEdek> {
      */
     @NonNull
     @Override
-    public CompletableFuture<String> resolveAlias(@NonNull String alias) {
+    public CompletableFuture<KekId> resolveAlias(@NonNull String alias) {
 
         var request = createVaultRequest()
                 .uri(vaultUrl.resolve("v1/transit/keys/%s".formatted(encode(alias, UTF_8))))
@@ -147,7 +149,8 @@ public class VaultKms implements Kms<String, VaultEdek> {
                 .thenApply(HttpResponse::body)
                 .thenApply(Supplier::get)
                 .thenApply(VaultResponse::data)
-                .thenApply(ReadKeyData::name);
+                .thenApply(ReadKeyData::name)
+                .thenApply(StringKekid::new);
 
     }
 
