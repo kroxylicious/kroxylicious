@@ -97,14 +97,7 @@ class EnvelopeEncryptionFilterTest {
             return new ByteBufferOutputStream(capacity);
         });
 
-        final Map<String, KekId> topicNameToKekId = new HashMap<>();
-        topicNameToKekId.put(UNENCRYPTED_TOPIC, null);
-        topicNameToKekId.put(ENCRYPTED_TOPIC, new KekId() {
-            @Override
-            public <K> K getId(Class<K> keyType) {
-                return (K) KEK_ID_1;
-            }
-        });
+        final Map<String, KekId> topicNameToKekId = buildTopicToKekIdMap();
         when(kekSelector.selectKek(anySet())).thenReturn(CompletableFuture.completedFuture(topicNameToKekId));
 
         when(keyManager.encrypt(any(), anyInt(), any(), anyList(), any(Receiver.class))).thenAnswer(invocationOnMock -> {
@@ -223,6 +216,25 @@ class EnvelopeEncryptionFilterTest {
         verify(context).forwardRequest(any(), argThat(request -> assertThat(request).isInstanceOf(ProduceRequestData.class)
                 .asInstanceOf(InstanceOfAssertFactories.type(ProduceRequestData.class))
                 .is(hasRecordsForTopic(ENCRYPTED_TOPIC))));
+    }
+
+    @NonNull
+    private Map<String, KekId> buildTopicToKekIdMap() {
+        final Map<String, KekId> topicNameToKekId = new HashMap<>();
+        topicNameToKekId.put(UNENCRYPTED_TOPIC, new KekId() {
+            @Override
+            public <K> K getId(Class<K> keyType) {
+                throw new UnsupportedOperationException("no key id specified");
+            }
+        });
+        topicNameToKekId.put(ENCRYPTED_TOPIC, new KekId() {
+            @SuppressWarnings("unchecked")
+            @Override
+            public <K> K getId(Class<K> keyType) {
+                return (K) KEK_ID_1;
+            }
+        });
+        return topicNameToKekId;
     }
 
     private static FetchResponseData buildFetchResponseData(Payload... payloads) {
