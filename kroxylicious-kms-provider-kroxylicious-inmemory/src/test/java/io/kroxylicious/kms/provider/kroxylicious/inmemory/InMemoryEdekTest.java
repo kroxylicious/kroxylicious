@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 class InMemoryEdekTest {
 
-    private static final KekId KEK_REF = new UuidKekId(UUID.randomUUID());
+    private static final KekId KEK_REF = new UUIDKekId(UUID.randomUUID());
 
     @Test
     void testEqualsAndHashCode() {

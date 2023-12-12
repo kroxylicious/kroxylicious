@@ -20,22 +20,4 @@ public record StringKekid(String keyId) implements KekId {
         return (K) this.keyId;
     }
 
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (o == null || getClass() != o.getClass()) {
-            return false;
-        }
-
-        StringKekid that = (StringKekid) o;
-
-        return keyId.equals(that.keyId);
-    }
-
-    @Override
-    public int hashCode() {
-        return keyId.hashCode();
-    }
 }

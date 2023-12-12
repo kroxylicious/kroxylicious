@@ -21,7 +21,7 @@ class InMemoryEdekSerdeTest {
     @Test
     void shouldRoundTripAllAllowedAuthBits() {
         for (int bits : new int[]{ 128, 120, 112, 104, 96 }) {
-            var edek = new InMemoryEdek(bits, new byte[0], new UuidKekId(UUID.randomUUID()), new byte[0]);
+            var edek = new InMemoryEdek(bits, new byte[0], new UUIDKekId(UUID.randomUUID()), new byte[0]);
             Serde<InMemoryEdek> serde = InMemoryEdekSerde.instance();
             int size = serde.sizeOf(edek);
             var buffer = ByteBuffer.allocate(size);

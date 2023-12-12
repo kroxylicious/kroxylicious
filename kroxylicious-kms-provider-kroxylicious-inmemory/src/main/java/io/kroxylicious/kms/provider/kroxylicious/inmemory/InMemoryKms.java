@@ -75,7 +75,7 @@ public class InMemoryKms implements Kms<InMemoryEdek> {
      */
     public KekId generateKey() {
         var key = aes.generateKey();
-        var ref = new UuidKekId(UUID.randomUUID());
+        var ref = new UUIDKekId(UUID.randomUUID());
         keys.put(ref, key);
         return ref;
     }

@@ -25,7 +25,7 @@ class UUIDKekIdSerde implements Serde<KekId> {
     public KekId deserialize(@NonNull ByteBuffer buffer) {
         var msb = buffer.getLong();
         var lsb = buffer.getLong();
-        return new UuidKekId(new UUID(msb, lsb));
+        return new UUIDKekId(new UUID(msb, lsb));
     }
 
     @Override
