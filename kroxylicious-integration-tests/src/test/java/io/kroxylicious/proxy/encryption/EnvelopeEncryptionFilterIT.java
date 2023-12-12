@@ -26,6 +26,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import io.kroxylicious.filter.encryption.EnvelopeEncryption;
 import io.kroxylicious.filter.encryption.TemplateKekSelector;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.InMemoryKms;
+import io.kroxylicious.kms.service.TestKmsFacade;
 import io.kroxylicious.proxy.config.FilterDefinition;
 import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
@@ -47,7 +48,7 @@ class EnvelopeEncryptionFilterIT {
     private static final String HELLO_SECRET = "hello secret";
 
     @TestTemplate
-    void roundTrip(KafkaCluster cluster, Topic topic, TestKmsFacade<?, ?> testKmsFacade) throws Exception {
+    void roundTrip(KafkaCluster cluster, Topic topic, TestKmsFacade<?, ?, ?> testKmsFacade) throws Exception {
         var testKekManager = testKmsFacade.getTestKekManager();
         var kekStage = testKekManager.generateKek(topic.name());
         assertThat(kekStage).succeedsWithin(Duration.ofSeconds(5));
@@ -74,7 +75,7 @@ class EnvelopeEncryptionFilterIT {
 
     // This ensures the decrypt-ability guarantee, post kek rotation
     @TestTemplate
-    void decryptionAfterKekRotation(KafkaCluster cluster, Topic topic, TestKmsFacade<?, ?> testKmsFacade) throws Exception {
+    void decryptionAfterKekRotation(KafkaCluster cluster, Topic topic, TestKmsFacade<?, ?, ?> testKmsFacade) throws Exception {
         var testKekManager = testKmsFacade.getTestKekManager();
         testKekManager.generateKek(topic.name());
 
@@ -105,7 +106,7 @@ class EnvelopeEncryptionFilterIT {
     }
 
     @TestTemplate
-    void topicRecordsAreUnreadableOnServer(KafkaCluster cluster, Topic topic, KafkaConsumer<String, String> directConsumer, TestKmsFacade<?, ?> testKmsFacade)
+    void topicRecordsAreUnreadableOnServer(KafkaCluster cluster, Topic topic, KafkaConsumer<String, String> directConsumer, TestKmsFacade<?, ?, ?> testKmsFacade)
             throws Exception {
         var testKekManager = testKmsFacade.getTestKekManager();
         var kekStage = testKekManager.generateKek(topic.name());
@@ -133,7 +134,7 @@ class EnvelopeEncryptionFilterIT {
     }
 
     @TestTemplate
-    void unencryptedRecordsConsumable(KafkaCluster cluster, KafkaProducer<String, String> directProducer, Topic topic, TestKmsFacade<?, ?> testKmsFacade)
+    void unencryptedRecordsConsumable(KafkaCluster cluster, KafkaProducer<String, String> directProducer, Topic topic, TestKmsFacade<?, ?, ?> testKmsFacade)
             throws Exception {
         var testKekManager = testKmsFacade.getTestKekManager();
         var kekStage = testKekManager.generateKek(topic.name());
@@ -164,7 +165,7 @@ class EnvelopeEncryptionFilterIT {
     @TestTemplate
     void nullValueRecordProducedAndConsumedSuccessfully(KafkaCluster cluster,
                                                         @ClientConfig(name = ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, value = "earliest") @ClientConfig(name = ConsumerConfig.GROUP_ID_CONFIG, value = "test") Consumer<String, String> directConsumer,
-                                                        Topic topic, TestKmsFacade<?, ?> testKmsFacade)
+                                                        Topic topic, TestKmsFacade<?, ?, ?> testKmsFacade)
             throws Exception {
         var testKekManager = testKmsFacade.getTestKekManager();
         var kekStage = testKekManager.generateKek(topic.name());
@@ -197,7 +198,7 @@ class EnvelopeEncryptionFilterIT {
     }
 
     @TestTemplate
-    void produceAndConsumeEncryptedAndPlainTopicsAtSameTime(KafkaCluster cluster, Topic encryptedTopic, Topic plainTopic, TestKmsFacade<?, ?> testKmsFacade)
+    void produceAndConsumeEncryptedAndPlainTopicsAtSameTime(KafkaCluster cluster, Topic encryptedTopic, Topic plainTopic, TestKmsFacade<?, ?, ?> testKmsFacade)
             throws Exception {
         var testKekManager = testKmsFacade.getTestKekManager();
         var kekStage = testKekManager.generateKek(encryptedTopic.name());
@@ -225,7 +226,7 @@ class EnvelopeEncryptionFilterIT {
 
     // TODO express this test as a unit test and consider doing away with the test as the IT level.
     @TestTemplate
-    void shouldGenerateOneDek(KafkaCluster cluster, Topic topic, TestKmsFacade<?, ?> testKmsFacade) throws Exception {
+    void shouldGenerateOneDek(KafkaCluster cluster, Topic topic, TestKmsFacade<?, ?, ?> testKmsFacade) throws Exception {
         assumeThatCode(testKmsFacade::getKms).doesNotThrowAnyException();
         assertThat(testKmsFacade.getKms()).isInstanceOf(InMemoryKms.class);
 
@@ -269,7 +270,7 @@ class EnvelopeEncryptionFilterIT {
 
     }
 
-    private FilterDefinition getEncryptionFilterDefinition(TestKmsFacade<?, ?> testKmsFacade) {
+    private FilterDefinition getEncryptionFilterDefinition(TestKmsFacade<?, ?, ?> testKmsFacade) {
         return new FilterDefinitionBuilder(EnvelopeEncryption.class.getSimpleName())
                 .withConfig("kms", testKmsFacade.getKmsServiceClass().getSimpleName())
                 .withConfig("kmsConfig", testKmsFacade.getKmsServiceConfig())

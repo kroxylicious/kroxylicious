@@ -157,6 +157,24 @@
             <!-- note scope is *not* set at this level -->
             <dependency>
                 <groupId>io.kroxylicious</groupId>
+                <artifactId>kroxylicious-kms-test-support</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.kroxylicious</groupId>
+                <artifactId>kroxylicious-kms-provider-hashicorp-vault-test-support</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.kroxylicious</groupId>
+                <artifactId>kroxylicious-kms-provider-kroxylicious-inmemory-test-support</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.kroxylicious</groupId>
                 <artifactId>kroxylicious-filter-test-support</artifactId>
                 <version>${project.version}</version>
             </dependency>

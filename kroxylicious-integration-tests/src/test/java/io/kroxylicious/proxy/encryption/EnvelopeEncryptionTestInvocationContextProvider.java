@@ -20,6 +20,9 @@ import org.junit.jupiter.api.extension.TestTemplateInvocationContext;
 import org.junit.jupiter.api.extension.TestTemplateInvocationContextProvider;
 import org.junit.jupiter.api.extension.support.TypeBasedParameterResolver;
 
+import io.kroxylicious.kms.service.TestKmsFacade;
+import io.kroxylicious.kms.service.TestKmsFacadeFactory;
+
 class EnvelopeEncryptionTestInvocationContextProvider implements TestTemplateInvocationContextProvider {
 
     @Override
@@ -51,9 +54,9 @@ class EnvelopeEncryptionTestInvocationContextProvider implements TestTemplateInv
 
             return List.of(
                     (BeforeTestExecutionCallback) extensionContext -> kmsFacade.start(),
-                    new TypeBasedParameterResolver<TestKmsFacade<?, ?>>() {
+                    new TypeBasedParameterResolver<TestKmsFacade<?, ?, ?>>() {
                         @Override
-                        public TestKmsFacade<?, ?> resolveParameter(ParameterContext parameterContext, ExtensionContext extensionContext) {
+                        public TestKmsFacade<?, ?, ?> resolveParameter(ParameterContext parameterContext, ExtensionContext extensionContext) {
                             return kmsFacade;
                         }
                     },

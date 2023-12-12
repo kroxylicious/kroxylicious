@@ -4,12 +4,13 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.proxy.encryption;
+package io.kroxylicious.kms.service;
 
 import java.util.concurrent.CompletionStage;
 
-import io.kroxylicious.kms.service.UnknownAliasException;
-
+/**
+ * Exposes the ability to manage the KEKs on a KMS implementation.
+ */
 public interface TestKekManager {
     /**
      * Creates a KEK in the KMS with given alias.
@@ -30,7 +31,7 @@ public interface TestKekManager {
     CompletionStage<Void> rotateKek(String alias);
 
     class AlreadyExistsException extends RuntimeException {
-        AlreadyExistsException(String message) {
+        public AlreadyExistsException(String message) {
             super(message);
         }
     }

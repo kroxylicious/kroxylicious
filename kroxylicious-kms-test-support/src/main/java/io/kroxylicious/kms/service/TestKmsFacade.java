@@ -4,15 +4,15 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.proxy.encryption;
-
-import io.kroxylicious.kms.service.Kms;
-import io.kroxylicious.kms.service.KmsService;
+package io.kroxylicious.kms.service;
 
 /**
  * Represents the Kms itself, exposed for test purpose.
+ * @param <C> The config type
+ * @param <K> The key reference
+ * @param <E> The type of encrypted DEK
  */
-public interface TestKmsFacade<C, K> extends AutoCloseable {
+public interface TestKmsFacade<C, K, E> extends AutoCloseable {
 
     /**
      * Returns true of this facade is available, or false otherwise.
@@ -43,7 +43,7 @@ public interface TestKmsFacade<C, K> extends AutoCloseable {
      *
      * @return service class
      */
-    Class<? extends KmsService<C, K, ?>> getKmsServiceClass();
+    Class<? extends KmsService<C, K, E>> getKmsServiceClass();
 
     /**
      * Gets the configuration Kroxylicious will need to use to connect to the underlying KMS.
@@ -53,12 +53,12 @@ public interface TestKmsFacade<C, K> extends AutoCloseable {
 
     /**
      * Returns the actual {@link Kms} in-use by Kroxylicious.  This is an optional method.
-     * It is expected most implementation will throw an {@link UnsupportedOperationException}.
+     * It is expected most implementations will throw an {@link UnsupportedOperationException}.
      *
      * @return service instance
      * @throws UnsupportedOperationException operation is not supported.
      */
-    default <E> Kms<C, E> getKms() {
+    default Kms<K, E> getKms() {
         throw new UnsupportedOperationException();
     }
 

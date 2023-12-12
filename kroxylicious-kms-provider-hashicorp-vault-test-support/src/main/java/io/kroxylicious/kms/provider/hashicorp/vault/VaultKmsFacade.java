@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.proxy.encryption;
+package io.kroxylicious.kms.provider.hashicorp.vault;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -20,13 +20,12 @@ import org.testcontainers.vault.VaultContainer;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import io.kroxylicious.kms.provider.hashicorp.vault.VaultKmsService;
 import io.kroxylicious.kms.provider.hashicorp.vault.VaultKmsService.Config;
-import io.kroxylicious.kms.provider.hashicorp.vault.VaultResponse;
+import io.kroxylicious.kms.provider.hashicorp.vault.VaultResponse.ReadKeyData;
+import io.kroxylicious.kms.service.TestKekManager;
+import io.kroxylicious.kms.service.TestKmsFacade;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
-public class VaultKmsFacade implements TestKmsFacade<Config, String> {
+public class VaultKmsFacade implements TestKmsFacade<Config, String, VaultEdek> {
     private static final String VAULT_TOKEN = "rootToken";
     private static final String HASHICORP_VAULT = "hashicorp/vault:1.15";
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
@@ -40,6 +39,7 @@ public class VaultKmsFacade implements TestKmsFacade<Config, String> {
     }
 
     @Override
+    @SuppressWarnings("resource")
     public void start() {
 
         vaultContainer = new VaultContainer<>(HASHICORP_VAULT)
@@ -52,7 +52,6 @@ public class VaultKmsFacade implements TestKmsFacade<Config, String> {
 
     @Override
     public void stop() {
-
         if (vaultContainer != null) {
             vaultContainer.close();
         }
@@ -88,12 +87,12 @@ public class VaultKmsFacade implements TestKmsFacade<Config, String> {
                 }
             }
 
-            private VaultResponse.ReadKeyData create(String keyId) {
+            private ReadKeyData create(String keyId) {
                 return runVaultCommand(new TypeReference<>() {
                 }, "vault", "write", "-f", "transit/keys/%s".formatted(keyId));
             }
 
-            private VaultResponse.ReadKeyData rotate(String keyId) {
+            private ReadKeyData rotate(String keyId) {
                 return runVaultCommand(new TypeReference<>() {
                 }, "vault", "write", "-f", "transit/keys/%s/rotate".formatted(keyId));
             }
@@ -102,7 +101,9 @@ public class VaultKmsFacade implements TestKmsFacade<Config, String> {
                 try {
                     var execResult = vaultContainer.execInContainer(args);
                     int exitCode = execResult.getExitCode();
-                    assertThat(exitCode).isZero();
+                    if (exitCode != 0) {
+                        throw new RuntimeException("Failed to run vault command: %s, exit code: %d".formatted(Arrays.stream(args).toList(), exitCode));
+                    }
                     var response = OBJECT_MAPPER.readValue(execResult.getStdout(), valueTypeRef);
                     return response.data();
                 }
@@ -114,7 +115,6 @@ public class VaultKmsFacade implements TestKmsFacade<Config, String> {
                     throw new RuntimeException(e);
                 }
             }
-
         };
     }
 
