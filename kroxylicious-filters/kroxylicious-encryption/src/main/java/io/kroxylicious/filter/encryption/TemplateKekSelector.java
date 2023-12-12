@@ -50,7 +50,7 @@ public class TemplateKekSelector implements KekSelectorService<TemplateKekSelect
             this.kms = Objects.requireNonNull(kms);
         }
 
-        private record Pair<K>(String topicName, K kekId) {}
+        private record Pair(String topicName, KekId kekId) {}
 
         @NonNull
         @Override
@@ -65,13 +65,13 @@ public class TemplateKekSelector implements KekSelectorService<TemplateKekSelect
                                         }
                                         return CompletableFuture.failedFuture(e);
                                     })
-                                    .thenApply(kekId -> new Pair<>(topicName, kekId)))
+                                    .thenApply(kekId -> new Pair(topicName, kekId)))
                     .toList();
             return EnvelopeEncryptionFilter.join(collect).thenApply(list -> {
                 // Note we can't use `java.util.stream...(Collectors.toMap())` to build the map, because it has null values
                 // which Collectors.toMap() does now allow.
                 Map<String, KekId> map = new HashMap<>();
-                for (Pair<KekId> pair : list) {
+                for (Pair pair : list) {
                     map.put(pair.topicName(), pair.kekId());
                 }
                 return map;
