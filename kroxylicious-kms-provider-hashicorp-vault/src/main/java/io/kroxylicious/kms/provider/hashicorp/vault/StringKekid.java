@@ -6,10 +6,17 @@
 
 package io.kroxylicious.kms.provider.hashicorp.vault;
 
+import java.util.Objects;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 import io.kroxylicious.kms.service.KekId;
 import io.kroxylicious.kms.service.KmsException;
 
-public record StringKekid(String keyId) implements KekId {
+public record StringKekid(@NonNull String keyId) implements KekId {
+    public StringKekid(String keyId) {
+        this.keyId = Objects.requireNonNull(keyId);
+    }
 
     @SuppressWarnings("unchecked")
     @Override

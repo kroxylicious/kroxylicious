@@ -6,12 +6,18 @@
 
 package io.kroxylicious.kms.provider.kroxylicious.inmemory;
 
+import java.util.Objects;
 import java.util.UUID;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 import io.kroxylicious.kms.service.KekId;
 import io.kroxylicious.kms.service.KmsException;
 
-public record UUIDKekId(UUID keyId) implements KekId {
+public record UUIDKekId(@NonNull UUID keyId) implements KekId {
+    public UUIDKekId(UUID keyId) {
+        this.keyId = Objects.requireNonNull(keyId);
+    }
 
     @SuppressWarnings("unchecked")
     @Override

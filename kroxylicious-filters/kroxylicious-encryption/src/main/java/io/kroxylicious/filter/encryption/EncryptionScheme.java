@@ -9,6 +9,8 @@ package io.kroxylicious.filter.encryption;
 import java.util.Objects;
 import java.util.Set;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 import io.kroxylicious.kms.service.KekId;
 
 /**
@@ -17,8 +19,8 @@ import io.kroxylicious.kms.service.KekId;
  * @param recordFields The fields of the record that should be encrypted with the given KEK. Neither null nor empty.
  */
 public record EncryptionScheme(
-                               KekId kekId,
-                               Set<RecordField> recordFields) {
+                               @NonNull KekId kekId,
+                               @NonNull Set<RecordField> recordFields) {
     public EncryptionScheme {
         Objects.requireNonNull(kekId);
         if (Objects.requireNonNull(recordFields).isEmpty()) {

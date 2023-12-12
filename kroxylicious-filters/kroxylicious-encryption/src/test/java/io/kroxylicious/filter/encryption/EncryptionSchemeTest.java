@@ -40,30 +40,10 @@ class EncryptionSchemeTest {
     }
 
     private record MyKekId(Object kekId) implements KekId {
-
         @SuppressWarnings("unchecked")
         @Override
         public <K> K getId(Class<K> keyType) {
             return (K) kekId;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) {
-                return true;
-            }
-            if (o == null || getClass() != o.getClass()) {
-                return false;
-            }
-
-            MyKekId myKekId = (MyKekId) o;
-
-            return Objects.equals(kekId, myKekId.kekId);
-        }
-
-        @Override
-        public int hashCode() {
-            return kekId != null ? kekId.hashCode() : 0;
         }
     }
 }
