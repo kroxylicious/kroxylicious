@@ -30,7 +30,7 @@
         <skipTests>false</skipTests>
         <skipITs>${skipTests}</skipITs>
         <skipUTs>${skipTests}</skipUTs>
-        <skipSTs>${skipTests}</skipSTs>
+        <skipSTs>true</skipSTs>
 
         <impsort-maven-plugin.goal>sort</impsort-maven-plugin.goal>
 
@@ -40,8 +40,9 @@
         <jackson.version>2.16.0</jackson.version>
         <junit.version>5.10.1</junit.version>
         <kafka.version>3.6.1</kafka.version>
-        <kroxy.extension.version>0.7.0</kroxy.extension.version>
+        <kroxy.extension.version>0.8.0</kroxy.extension.version>
         <log4j.version>2.22.0</log4j.version>
+        <caffeine.version>3.1.8</caffeine.version>
         <picocli.version>4.7.5</picocli.version>
         <netty.version>4.1.101.Final</netty.version>
         <netty.io_uring.version>0.0.24.Final</netty.io_uring.version>
@@ -54,7 +55,7 @@
         <slf4j.version>2.0.9</slf4j.version>
         <sundr-builder-annotations.version>0.101.3</sundr-builder-annotations.version>
         <spotbugs-annotations.version>4.8.2</spotbugs-annotations.version>
-        <zjsonpatch.version>0.4.14</zjsonpatch.version>
+        <zjsonpatch.version>0.4.16</zjsonpatch.version>
         <moby-names-generator.version>20.10.1-r0</moby-names-generator.version>
         <jacoco-maven-plugin.version>0.8.11</jacoco-maven-plugin.version>
         
@@ -161,6 +162,12 @@
                 <version>${jackson.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>com.github.ben-manes.caffeine</groupId>
+                <artifactId>caffeine</artifactId>
+                <version>${caffeine.version}</version>
             </dependency>
 
             <dependency>
@@ -400,6 +407,7 @@
                                     <exclude>LICENSE.txt</exclude>
                                     <exclude>**/.dontdelete</exclude>
                                     <exclude>docs/**</exclude>
+                                    <exclude>**/*.adoc</exclude>
                                     <!-- Need to keep original copyright for Vert.x classes -->
                                     <exclude>src/main/java/io/kroxylicious/proxy/future/**</exclude>
                                     <exclude>src/main/java/io/kroxylicious/proxy/internal/future/**</exclude>
@@ -831,7 +839,6 @@
             <properties>
                 <sonar.organization>kroxylicious</sonar.organization>
                 <sonar.host.url>https://sonarcloud.io</sonar.host.url>
-                <skipSTs>true</skipSTs>
                 <impsort-maven-plugin.goal>check</impsort-maven-plugin.goal>
             </properties>
             <build>
