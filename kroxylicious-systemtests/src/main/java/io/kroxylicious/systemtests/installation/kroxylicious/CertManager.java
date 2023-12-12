@@ -42,6 +42,10 @@ public class CertManager {
      */
     public void deploy() {
         LOGGER.info("Deploy cert manager in {} namespace", Constants.CERT_MANAGER_NAMESPACE);
+        if (kubeClient().getNamespace(Constants.CERT_MANAGER_NAMESPACE) != null) {
+            LOGGER.warn("Skipping cert manager deployment. It is already deployed!");
+            return;
+        }
         deployment.create();
         DeploymentUtils.waitForDeploymentReady(Constants.CERT_MANAGER_NAMESPACE, "cert-manager-webhook");
     }

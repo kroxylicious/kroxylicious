@@ -24,8 +24,6 @@ import io.kroxylicious.systemtests.k8s.KubeClusterResource;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.utils.NamespaceUtils;
 
-import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
-
 /**
  * The type Abstract st.
  */
@@ -76,14 +74,6 @@ public class AbstractST {
         certManager = new CertManager();
         strimziOperator = new Strimzi(Constants.KROXY_DEFAULT_NAMESPACE);
 
-        // simple teardown before all tests
-        if (kubeClient().getNamespace(Constants.KROXY_DEFAULT_NAMESPACE) != null) {
-            NamespaceUtils.deleteNamespaceWithWait(Constants.KROXY_DEFAULT_NAMESPACE);
-        }
-        if (kubeClient().getNamespace(Constants.CERT_MANAGER_NAMESPACE) != null) {
-            certManager.delete();
-            NamespaceUtils.deleteNamespaceWithWait(Constants.CERT_MANAGER_NAMESPACE);
-        }
         NamespaceUtils.createNamespaceWithWait(Constants.KROXY_DEFAULT_NAMESPACE);
         strimziOperator.deploy();
         certManager.deploy();
@@ -97,14 +87,19 @@ public class AbstractST {
      */
     @AfterAll
     static void teardown(TestInfo testInfo) throws IOException {
-        if (strimziOperator != null) {
-            strimziOperator.delete();
+        if (Environment.SKIP_TEARDOWN.equalsIgnoreCase("false")) {
+            if (strimziOperator != null) {
+                strimziOperator.delete();
+            }
+            if (certManager != null) {
+                certManager.delete();
+            }
+            NamespaceUtils.deleteNamespaceWithWait(Constants.KROXY_DEFAULT_NAMESPACE);
+            NamespaceUtils.deleteNamespaceWithWait(Constants.CERT_MANAGER_NAMESPACE);
         }
-        if (certManager != null) {
-            certManager.delete();
+        else {
+            LOGGER.warn("Teardown was skipped because SKIP_TEARDOWN was set to '{}'", Environment.SKIP_TEARDOWN);
         }
-        NamespaceUtils.deleteNamespaceWithWait(Constants.KROXY_DEFAULT_NAMESPACE);
-        NamespaceUtils.deleteNamespaceWithWait(Constants.CERT_MANAGER_NAMESPACE);
         LOGGER.info(String.join("", Collections.nCopies(76, "#")));
         LOGGER.info(String.format("%s Test Suite - FINISHED", testInfo.getTestClass().get().getName()));
     }

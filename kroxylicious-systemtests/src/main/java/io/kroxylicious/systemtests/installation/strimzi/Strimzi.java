@@ -40,10 +40,13 @@ public class Strimzi {
 
     /**
      * Deploy strimzi.
-     * @throws IOException the io exception
      */
-    public void deploy() throws IOException {
+    public void deploy() {
         LOGGER.info("Deploy Strimzi in {} namespace", deploymentNamespace);
+        if (kubeClient().getDeployment(deploymentNamespace, Constants.STRIMZI_DEPLOYMENT_NAME) != null) {
+            LOGGER.warn("Skipping strimzi deployment. It is already deployed!");
+            return;
+        }
         deployment.inNamespace(deploymentNamespace).create();
         DeploymentUtils.waitForDeploymentReady(deploymentNamespace, Constants.STRIMZI_DEPLOYMENT_NAME);
     }
