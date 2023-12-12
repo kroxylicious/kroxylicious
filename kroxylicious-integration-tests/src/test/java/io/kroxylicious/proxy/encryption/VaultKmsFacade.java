@@ -14,6 +14,7 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
+import org.testcontainers.DockerClientFactory;
 import org.testcontainers.vault.VaultContainer;
 
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -31,6 +32,11 @@ public class VaultKmsFacade implements TestKmsFacade {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private VaultContainer vaultContainer;
+
+    @Override
+    public boolean isAvailable() {
+        return DockerClientFactory.instance().isDockerAvailable();
+    }
 
     @Override
     public void start() {

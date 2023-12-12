@@ -8,11 +8,6 @@ package io.kroxylicious.proxy.encryption;
 
 public class InMemoryKmsFacadeFactory implements TestKmsFacadeFactory {
     @Override
-    public boolean isAvailable() {
-        return TestKmsFacadeFactory.super.isAvailable();
-    }
-
-    @Override
     public TestKmsFacade build() {
         return new InMemoryKmsFacade();
     }

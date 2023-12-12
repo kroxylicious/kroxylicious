@@ -11,6 +11,8 @@ import java.util.stream.Stream;
 
 import org.junit.jupiter.api.extension.AfterTestExecutionCallback;
 import org.junit.jupiter.api.extension.BeforeTestExecutionCallback;
+import org.junit.jupiter.api.extension.ConditionEvaluationResult;
+import org.junit.jupiter.api.extension.ExecutionCondition;
 import org.junit.jupiter.api.extension.Extension;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.ParameterContext;
@@ -28,7 +30,6 @@ class EnvelopeEncryptionTestInvocationContextProvider implements TestTemplateInv
     @Override
     public Stream<TestTemplateInvocationContext> provideTestTemplateInvocationContexts(ExtensionContext context) {
         return TestKmsFacadeFactory.getTestKmsFacadeFactories()
-                .filter(TestKmsFacadeFactory::isAvailable)
                 .map(TestKmsFacadeFactory::build)
                 .map(TemplateInvocationContext::new);
     }
@@ -42,10 +43,14 @@ class EnvelopeEncryptionTestInvocationContextProvider implements TestTemplateInv
 
         @Override
         public List<Extension> getAdditionalExtensions() {
+            if (!kmsFacade.isAvailable()) {
+                return List.of(
+                        (ExecutionCondition) extensionContext -> kmsFacade.isAvailable() ? ConditionEvaluationResult.enabled(null)
+                                : ConditionEvaluationResult.disabled(null));
+            }
+
             return List.of(
-                    (BeforeTestExecutionCallback) extensionContext -> {
-                        kmsFacade.start();
-                    },
+                    (BeforeTestExecutionCallback) extensionContext -> kmsFacade.start(),
                     new TypeBasedParameterResolver<TestKmsFacade>() {
                         @Override
                         public TestKmsFacade resolveParameter(ParameterContext parameterContext, ExtensionContext extensionContext) {

@@ -9,15 +9,10 @@ package io.kroxylicious.proxy.encryption;
 import java.util.ServiceLoader;
 import java.util.stream.Stream;
 
+/**
+ * Factory for {@link TestKmsFacade}s.
+ */
 public interface TestKmsFacadeFactory {
-
-    /**
-     * Returns true of the TestKmsFacade is available, or false otherwise.
-     * @return true if available, false otherwise.
-     */
-    default boolean isAvailable() {
-        return true;
-    }
 
     /**
      * Creates a TestKmsFacade instance
@@ -26,6 +21,10 @@ public interface TestKmsFacadeFactory {
      */
     TestKmsFacade build();
 
+    /**
+     * Discovers the available {@link TestKmsFacadeFactory}.
+     * @return factories
+     */
     static Stream<TestKmsFacadeFactory> getTestKmsFacadeFactories() {
         return ServiceLoader.load(TestKmsFacadeFactory.class).stream()
                 .map(ServiceLoader.Provider::get);

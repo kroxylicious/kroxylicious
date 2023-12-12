@@ -6,13 +6,7 @@
 
 package io.kroxylicious.proxy.encryption;
 
-import org.testcontainers.DockerClientFactory;
-
 public class VaultKmsFacadeFactory implements TestKmsFacadeFactory {
-    @Override
-    public boolean isAvailable() {
-        return DockerClientFactory.instance().isDockerAvailable();
-    }
 
     @Override
     public TestKmsFacade build() {
