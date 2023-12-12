@@ -182,7 +182,7 @@ class InBandKeyManagerTest {
 
         List<TestingRecord> encrypted = new ArrayList<>();
         List<TestingRecord> initial = List.of(record, record2);
-        CompletionStage encrypt = km.encrypt("topic", 1, new EncryptionScheme(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
+        var encrypt = km.encrypt("topic", 1, new EncryptionScheme(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
                 initial,
                 recordReceivedRecord(encrypted));
         assertThat(encrypt).failsWithin(Duration.ofSeconds(5)).withThrowableThat()
@@ -205,7 +205,7 @@ class InBandKeyManagerTest {
 
         List<TestingRecord> encrypted = new ArrayList<>();
         List<TestingRecord> initial = List.of(record, record2);
-        CompletionStage encrypt = km.encrypt("topic", 1, new EncryptionScheme(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
+        var encrypt = km.encrypt("topic", 1, new EncryptionScheme(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
                 initial,
                 recordReceivedRecord(encrypted));
         assertThat(encrypt).failsWithin(Duration.ofSeconds(5)).withThrowableThat().withMessageMatching(".*failed to create encryptor after [0-9]+ attempts");
@@ -228,7 +228,7 @@ class InBandKeyManagerTest {
 
         List<TestingRecord> encrypted = new ArrayList<>();
         List<TestingRecord> initial = List.of(record, record2);
-        CompletionStage encrypt = km.encrypt("topic", 1, new EncryptionScheme(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
+        var encrypt = km.encrypt("topic", 1, new EncryptionScheme(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
                 initial,
                 recordReceivedRecord(encrypted));
         assertThat(encrypt).succeedsWithin(Duration.ofSeconds(5));
@@ -252,7 +252,7 @@ class InBandKeyManagerTest {
 
         List<TestingRecord> encrypted = new ArrayList<>();
         List<TestingRecord> initial = List.of(record, record2);
-        CompletionStage encrypt = km.encrypt("topic", 1, new EncryptionScheme(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
+        var encrypt = km.encrypt("topic", 1, new EncryptionScheme(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
                 initial,
                 recordReceivedRecord(encrypted));
         assertThat(encrypt).failsWithin(Duration.ofSeconds(5)).withThrowableThat().withMessageMatching(".*failed to create encryptor after [0-9]+ attempts");
@@ -261,7 +261,7 @@ class InBandKeyManagerTest {
         when(spyKms.generateDekPair(kekId)).thenCallRealMethod();
 
         // when
-        CompletionStage encrypt2 = km.encrypt("topic", 1, new EncryptionScheme(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
+        var encrypt2 = km.encrypt("topic", 1, new EncryptionScheme(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
                 initial,
                 recordReceivedRecord(encrypted));
 
