@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -22,6 +23,7 @@ import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.utils.ByteUtils;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 
 import io.kroxylicious.filter.encryption.EncryptionScheme;
 import io.kroxylicious.filter.encryption.Receiver;
@@ -29,6 +31,7 @@ import io.kroxylicious.filter.encryption.RecordField;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.InMemoryKms;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.UnitTestingKmsService;
 import io.kroxylicious.kms.service.DekPair;
+import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.kms.service.Serde;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -37,6 +40,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.mockito.Mockito.when;
 
 class InBandKeyManagerTest {
 
@@ -181,8 +185,89 @@ class InBandKeyManagerTest {
         CompletionStage encrypt = km.encrypt("topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
                 initial,
                 recordReceivedRecord(encrypted));
-        String expectedMessage = "failed to encrypt records for topic topic partition 1 after 3 attempts";
-        assertThat(encrypt).failsWithin(Duration.ZERO).withThrowableThat().withMessageContaining(expectedMessage);
+        assertThat(encrypt).failsWithin(Duration.ofSeconds(5)).withThrowableThat()
+                .withMessageMatching(".*failed to encrypt records for topic topic partition 1 after [0-9]+ attempts");
+    }
+
+    @Test
+    void dekCreationRetryFailurePropagatedToEncryptCompletionStage() {
+        var kmsService = UnitTestingKmsService.newInstance();
+        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
+        var kekId = kms.generateKey();
+        InMemoryKms spyKms = Mockito.spy(kms);
+        when(spyKms.generateDekPair(kekId)).thenReturn(CompletableFuture.failedFuture(new EncryptorCreationException("failed to create that DEK")));
+        var km = new InBandKeyManager<>(spyKms, BufferPool.allocating(), 500000);
+
+        var value = ByteBuffer.wrap(new byte[]{ 1, 2, 3 });
+        var value2 = ByteBuffer.wrap(new byte[]{ 4, 5, 6 });
+        TestingRecord record = new TestingRecord(value);
+        TestingRecord record2 = new TestingRecord(value2);
+
+        List<TestingRecord> encrypted = new ArrayList<>();
+        List<TestingRecord> initial = List.of(record, record2);
+        CompletionStage encrypt = km.encrypt("topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
+                initial,
+                recordReceivedRecord(encrypted));
+        assertThat(encrypt).failsWithin(Duration.ofSeconds(5)).withThrowableThat().withMessageMatching(".*failed to create encryptor after [0-9]+ attempts");
+    }
+
+    @Test
+    void dekCreationRetrySuccess() {
+        var kmsService = UnitTestingKmsService.newInstance();
+        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
+        var kekId = kms.generateKey();
+        InMemoryKms spyKms = Mockito.spy(kms);
+        when(spyKms.generateDekPair(kekId)).thenReturn(CompletableFuture.failedFuture(new EncryptorCreationException("failed to create that DEK")),
+                CompletableFuture.failedFuture(new EncryptorCreationException("failed to create that DEK"))).thenCallRealMethod();
+        var km = new InBandKeyManager<>(spyKms, BufferPool.allocating(), 50000);
+
+        var value = ByteBuffer.wrap(new byte[]{ 1, 2, 3 });
+        var value2 = ByteBuffer.wrap(new byte[]{ 4, 5, 6 });
+        TestingRecord record = new TestingRecord(value);
+        TestingRecord record2 = new TestingRecord(value2);
+
+        List<TestingRecord> encrypted = new ArrayList<>();
+        List<TestingRecord> initial = List.of(record, record2);
+        CompletionStage encrypt = km.encrypt("topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
+                initial,
+                recordReceivedRecord(encrypted));
+        assertThat(encrypt).succeedsWithin(Duration.ofSeconds(5));
+        assertThat(encrypted).hasSize(2);
+    }
+
+    @Test
+    void afterWeFailToLoadADekTheNextEncryptionAttemptCanSucceed() {
+        var kmsService = UnitTestingKmsService.newInstance();
+        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
+        var kekId = kms.generateKey();
+        InMemoryKms spyKms = Mockito.spy(kms);
+        when(spyKms.generateDekPair(kekId)).thenReturn(CompletableFuture.failedFuture(new KmsException("failed to create that DEK")));
+
+        var km = new InBandKeyManager<>(spyKms, BufferPool.allocating(), 50000);
+
+        var value = ByteBuffer.wrap(new byte[]{ 1, 2, 3 });
+        var value2 = ByteBuffer.wrap(new byte[]{ 4, 5, 6 });
+        TestingRecord record = new TestingRecord(value);
+        TestingRecord record2 = new TestingRecord(value2);
+
+        List<TestingRecord> encrypted = new ArrayList<>();
+        List<TestingRecord> initial = List.of(record, record2);
+        CompletionStage encrypt = km.encrypt("topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
+                initial,
+                recordReceivedRecord(encrypted));
+        assertThat(encrypt).failsWithin(Duration.ofSeconds(5)).withThrowableThat().withMessageMatching(".*failed to create encryptor after [0-9]+ attempts");
+
+        // given KMS is no longer generating failed futures
+        when(spyKms.generateDekPair(kekId)).thenCallRealMethod();
+
+        // when
+        CompletionStage encrypt2 = km.encrypt("topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
+                initial,
+                recordReceivedRecord(encrypted));
+
+        // then
+        assertThat(encrypt2).succeedsWithin(Duration.ofSeconds(5));
+        assertThat(encrypted).hasSize(2);
     }
 
     @NonNull

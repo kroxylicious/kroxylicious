@@ -33,7 +33,7 @@ final class KeyContext implements Destroyable {
     private int remainingEncryptions;
     private boolean destroyed = false;
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(InBandKeyManager.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(KeyContext.class);
     private static final Map<Class<? extends Destroyable>, Boolean> LOGGED_DESTROY_FAILED = new ConcurrentHashMap<>();
 
     KeyContext(@NonNull ByteBuffer serializedEdek,
