@@ -12,7 +12,7 @@ import io.kroxylicious.kms.service.KmsService;
 /**
  * Represents the Kms itself, exposed for test purpose.
  */
-public interface TestKmsFacade extends AutoCloseable {
+public interface TestKmsFacade<C, K> extends AutoCloseable {
 
     /**
      * Returns true of this facade is available, or false otherwise.
@@ -43,13 +43,13 @@ public interface TestKmsFacade extends AutoCloseable {
      *
      * @return service class
      */
-    Class<? extends KmsService<?, ?, ?>> getKmsServiceClass();
+    Class<? extends KmsService<C, K, ?>> getKmsServiceClass();
 
     /**
      * Gets the configuration Kroxylicious will need to use to connect to the underlying KMS.
      * @return service configuration.
      */
-    Object getKmsServiceConfig();
+    C getKmsServiceConfig();
 
     /**
      * Returns the actual {@link Kms} in-use by Kroxylicious.  This is an optional method.
@@ -58,7 +58,7 @@ public interface TestKmsFacade extends AutoCloseable {
      * @return service instance
      * @throws UnsupportedOperationException operation is not supported.
      */
-    default Kms<?, ?> getKms() {
+    default <E> Kms<C, E> getKms() {
         throw new UnsupportedOperationException();
     }
 

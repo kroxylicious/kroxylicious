@@ -21,16 +21,17 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.kroxylicious.kms.provider.hashicorp.vault.VaultKmsService;
+import io.kroxylicious.kms.provider.hashicorp.vault.VaultKmsService.Config;
 import io.kroxylicious.kms.provider.hashicorp.vault.VaultResponse;
-import io.kroxylicious.kms.service.KmsService;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class VaultKmsFacade implements TestKmsFacade {
+public class VaultKmsFacade implements TestKmsFacade<Config, String> {
     private static final String VAULT_TOKEN = "rootToken";
     private static final String HASHICORP_VAULT = "hashicorp/vault:1.15";
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
+    @SuppressWarnings("rawtypes")
     private VaultContainer vaultContainer;
 
     @Override
@@ -118,12 +119,12 @@ public class VaultKmsFacade implements TestKmsFacade {
     }
 
     @Override
-    public Class<? extends KmsService<?, ?, ?>> getKmsServiceClass() {
+    public Class<VaultKmsService> getKmsServiceClass() {
         return VaultKmsService.class;
     }
 
     @Override
-    public Object getKmsServiceConfig() {
-        return new VaultKmsService.Config(URI.create(vaultContainer.getHttpHostAddress()), VAULT_TOKEN);
+    public Config getKmsServiceConfig() {
+        return new Config(URI.create(vaultContainer.getHttpHostAddress()), VAULT_TOKEN);
     }
 }

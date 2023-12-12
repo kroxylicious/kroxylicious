@@ -10,7 +10,7 @@ import java.util.concurrent.CompletionStage;
 
 import io.kroxylicious.kms.service.UnknownAliasException;
 
-interface TestKekManager {
+public interface TestKekManager {
     /**
      * Creates a KEK in the KMS with given alias.
      *

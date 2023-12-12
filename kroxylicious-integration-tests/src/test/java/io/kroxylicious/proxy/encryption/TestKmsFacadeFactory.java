@@ -12,20 +12,20 @@ import java.util.stream.Stream;
 /**
  * Factory for {@link TestKmsFacade}s.
  */
-public interface TestKmsFacadeFactory {
+public interface TestKmsFacadeFactory<C, K> {
 
     /**
      * Creates a TestKmsFacade instance
      *
      * @return instance
      */
-    TestKmsFacade build();
+    TestKmsFacade<C, K> build();
 
     /**
      * Discovers the available {@link TestKmsFacadeFactory}.
      * @return factories
      */
-    static Stream<TestKmsFacadeFactory> getTestKmsFacadeFactories() {
+    static Stream<TestKmsFacadeFactory<?, ?>> getTestKmsFacadeFactories() {
         return ServiceLoader.load(TestKmsFacadeFactory.class).stream()
                 .map(ServiceLoader.Provider::get);
     }

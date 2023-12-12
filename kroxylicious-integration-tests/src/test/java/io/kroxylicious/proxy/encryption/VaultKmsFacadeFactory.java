@@ -6,10 +6,12 @@
 
 package io.kroxylicious.proxy.encryption;
 
-public class VaultKmsFacadeFactory implements TestKmsFacadeFactory {
+import io.kroxylicious.kms.provider.hashicorp.vault.VaultKmsService.Config;
+
+public class VaultKmsFacadeFactory implements TestKmsFacadeFactory<Config, String> {
 
     @Override
-    public TestKmsFacade build() {
+    public TestKmsFacade<Config, String> build() {
         return new VaultKmsFacade();
     }
 }

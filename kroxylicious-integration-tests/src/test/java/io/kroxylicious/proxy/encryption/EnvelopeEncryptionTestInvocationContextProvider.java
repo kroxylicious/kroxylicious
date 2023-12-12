@@ -51,17 +51,13 @@ class EnvelopeEncryptionTestInvocationContextProvider implements TestTemplateInv
 
             return List.of(
                     (BeforeTestExecutionCallback) extensionContext -> kmsFacade.start(),
-                    new TypeBasedParameterResolver<TestKmsFacade>() {
+                    new TypeBasedParameterResolver<TestKmsFacade<?, ?>>() {
                         @Override
-                        public TestKmsFacade resolveParameter(ParameterContext parameterContext, ExtensionContext extensionContext) {
+                        public TestKmsFacade<?, ?> resolveParameter(ParameterContext parameterContext, ExtensionContext extensionContext) {
                             return kmsFacade;
                         }
                     },
-                    (AfterTestExecutionCallback) extensionContext -> {
-                        if (kmsFacade != null) {
-                            kmsFacade.stop();
-                        }
-                    });
+                    (AfterTestExecutionCallback) extensionContext -> kmsFacade.stop());
         }
     }
 }
