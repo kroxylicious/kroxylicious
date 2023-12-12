@@ -69,6 +69,11 @@ public class InMemoryKmsFacade implements TestKmsFacade {
     }
 
     @Override
+    public InMemoryKms getKms() {
+        return kms;
+    }
+
+    @Override
     public Object getKmsServiceConfig() {
         return new IntegrationTestingKmsService.Config(kmsId.toString());
     }

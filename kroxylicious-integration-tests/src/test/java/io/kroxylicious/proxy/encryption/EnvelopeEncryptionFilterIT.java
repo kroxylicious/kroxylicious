@@ -19,11 +19,13 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.TopicPartition;
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import io.kroxylicious.filter.encryption.EnvelopeEncryption;
 import io.kroxylicious.filter.encryption.TemplateKekSelector;
+import io.kroxylicious.kms.provider.kroxylicious.inmemory.InMemoryKms;
 import io.kroxylicious.proxy.config.FilterDefinition;
 import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
@@ -34,6 +36,7 @@ import io.kroxylicious.testing.kafka.junit5ext.Topic;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assumptions.assumeThatCode;
 
 @ExtendWith(KafkaClusterExtension.class)
 @ExtendWith(EnvelopeEncryptionTestInvocationContextProvider.class)
@@ -41,7 +44,7 @@ class EnvelopeEncryptionFilterIT {
 
     private static final String TEMPLATE_KEK_SELECTOR_PATTERN = "${topicName}";
     private static final String HELLO_WORLD = "hello world";
-    public static final String HELLO_SECRET = "hello secret";
+    private static final String HELLO_SECRET = "hello secret";
 
     @TestTemplate
     void roundTrip(KafkaCluster cluster, Topic topic, TestKmsFacade testKmsFacade) throws Exception {
@@ -218,8 +221,12 @@ class EnvelopeEncryptionFilterIT {
         }
     }
 
+    // TODO express this test as a unit test and consider doing away with the test as the IT level.
     @TestTemplate
     void shouldGenerateOneDek(KafkaCluster cluster, Topic topic, TestKmsFacade testKmsFacade) throws Exception {
+        assumeThatCode(testKmsFacade::getKms).doesNotThrowAnyException();
+        assertThat(testKmsFacade.getKms()).isInstanceOf(InMemoryKms.class);
+
         var testKekManager = testKmsFacade.getTestKekManager();
         var kekStage = testKekManager.generateKek(topic.name());
         assertThat(kekStage).succeedsWithin(Duration.ofSeconds(5));
@@ -254,9 +261,9 @@ class EnvelopeEncryptionFilterIT {
                     .isEqualTo(message);
         }
 
-        // FIXME
-        // We expect that only one DEK was generated
-        // assertThat(kms.numDeksGenerated()).isEqualTo(1);
+        assertThat(testKmsFacade.getKms())
+                .asInstanceOf(InstanceOfAssertFactories.type(InMemoryKms.class))
+                .extracting(InMemoryKms::numDeksGenerated).isEqualTo(1);
 
     }
 

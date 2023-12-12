@@ -6,6 +6,7 @@
 
 package io.kroxylicious.proxy.encryption;
 
+import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.KmsService;
 
 /**
@@ -50,8 +51,18 @@ public interface TestKmsFacade extends AutoCloseable {
      */
     Object getKmsServiceConfig();
 
+    /**
+     * Returns the actual {@link Kms} in-use by Kroxylicious.  This is an optional method.
+     * It is expected most implementation will throw an {@link UnsupportedOperationException}.
+     *
+     * @return service instance
+     * @throws UnsupportedOperationException operation is not supported.
+     */
+    default Kms<?, ?> getKms() {
+        throw new UnsupportedOperationException();
+    }
+
     default void close() {
         stop();
     }
-
 }
