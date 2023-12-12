@@ -55,17 +55,24 @@ public class VaultKms implements Kms<String, VaultEdek> {
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final String AES_KEY_ALGO = "AES";
+    private final Duration timeout;
+    private final HttpClient vaultClient;
 
-    private final HttpClient vaultClient = HttpClient.newBuilder()
-            .followRedirects(HttpClient.Redirect.NORMAL)
-            .connectTimeout(Duration.ofSeconds(20))
-            .build();
     private final URI vaultUrl;
     private final String vaultToken;
 
-    VaultKms(URI vaultUrl, String vaultToken) {
+    VaultKms(URI vaultUrl, String vaultToken, Duration timeout) {
         this.vaultUrl = vaultUrl;
         this.vaultToken = vaultToken;
+        this.timeout = timeout;
+        vaultClient = createClient();
+    }
+
+    private HttpClient createClient() {
+        return HttpClient.newBuilder()
+                .followRedirects(HttpClient.Redirect.NORMAL)
+                .connectTimeout(timeout)
+                .build();
     }
 
     /**
@@ -158,6 +165,7 @@ public class VaultKms implements Kms<String, VaultEdek> {
 
     private HttpRequest.Builder createVaultRequest() {
         return HttpRequest.newBuilder()
+                .timeout(timeout)
                 .header("X-Vault-Token", vaultToken)
                 .header("Accept", "application/json");
     }
