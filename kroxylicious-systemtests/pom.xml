@@ -126,4 +126,12 @@
             </plugin>
         </plugins>
     </build>
+    <profiles>
+        <profile>
+            <id>ci</id>
+            <properties>
+                <sonar.coverage.exclusions>**/io/kroxylicious/systemtests/**</sonar.coverage.exclusions>
+            </properties>
+        </profile>
+    </profiles>
 </project>
