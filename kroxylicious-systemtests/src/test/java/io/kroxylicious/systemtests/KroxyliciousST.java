@@ -7,6 +7,7 @@
 package io.kroxylicious.systemtests;
 
 import java.time.Duration;
+import java.util.List;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -14,12 +15,15 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.fabric8.kubernetes.api.model.Pod;
+
 import io.kroxylicious.systemtests.extensions.KroxyliciousExtension;
 import io.kroxylicious.systemtests.installation.kroxylicious.Kroxylicious;
 import io.kroxylicious.systemtests.steps.KafkaSteps;
 import io.kroxylicious.systemtests.steps.KroxyliciousSteps;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaTemplates;
 
+import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 /**
@@ -132,6 +136,11 @@ class KroxyliciousST extends AbstractST {
      */
     @BeforeAll
     void setupBefore() {
+        List<Pod> kafkaPods = kubeClient().listPods(Constants.KROXY_DEFAULT_NAMESPACE);
+        if (!kafkaPods.stream().filter(x -> x.getMetadata().getName().contains(clusterName)).toList().isEmpty()) {
+            LOGGER.warn("Skipping kafka deployment. It is already deployed!");
+            return;
+        }
         LOGGER.info("Deploying Kafka in {} namespace", Constants.KROXY_DEFAULT_NAMESPACE);
         resourceManager.createResourceWithWait(KafkaTemplates.kafkaPersistent(Constants.KROXY_DEFAULT_NAMESPACE, clusterName, 3, 3).build());
     }

@@ -320,6 +320,8 @@ has been applied ineffectively.
 * `KROXYLICIOUS_VERSION`: version of kroxylicious to be used. Default value: `0.4.0-SNAPSHOT`
 * `KAFKA_VERSION`: kafka version to be used. Default value: `3.6.0`
 * `STRIMZI_URL`: url where to download strimzi. Default value: `khttps://strimzi.io/install/latest?namespace=kafka`
+* `SKIP_TEARDOWN`: variable for development purposes to avoid keep deploying and deleting deployments each run. 
+Default value: `false`
 
 ### Launch system tests
 First of all, the code must be compiled and the distribution artifacts created:

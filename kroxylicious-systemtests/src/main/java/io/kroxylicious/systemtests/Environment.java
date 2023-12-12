@@ -23,6 +23,7 @@ public class Environment {
     private static final String KROXY_VERSION_ENV = "KROXYLICIOUS_VERSION";
     private static final String KROXY_IMAGE_REPO_ENV = "KROXYLICIOUS_IMAGE_REPO";
     private static final String STRIMZI_URL_ENV = "STRIMZI_URL";
+    private static final String SKIP_TEARDOWN_ENV = "SKIP_TEARDOWN";
 
     /**
      * The kafka version default value
@@ -42,6 +43,10 @@ public class Environment {
      * The strimzi installation url for kubernetes.
      */
     public static final String STRIMZI_URL_DEFAULT = "https://strimzi.io/install/latest?namespace=" + Constants.KROXY_DEFAULT_NAMESPACE;
+    /**
+     * The default value for skipping the teardown locally.
+     */
+    public static final String SKIP_TEARDOWN_DEFAULT = "false";
 
     /**
      * KAFKA_VERSION env variable assignment
@@ -60,6 +65,10 @@ public class Environment {
      * KROXY_IMAGE_REPO env variable assignment
      */
     public static final String KROXY_IMAGE_REPO = getOrDefault(KROXY_IMAGE_REPO_ENV, KROXY_IMAGE_REPO_DEFAULT);
+    /**
+     * SKIP_TEARDOWN env variable assignment.
+     */
+    public static final String SKIP_TEARDOWN = getOrDefault(SKIP_TEARDOWN_ENV, SKIP_TEARDOWN_DEFAULT);
 
     private static String getOrDefault(String varName, String defaultValue) {
         return getOrDefault(varName, String::toString, defaultValue);
