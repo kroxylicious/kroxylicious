@@ -26,4 +26,11 @@ public record TestingDek(byte[] serializedEdek) {
     public int hashCode() {
         return Arrays.hashCode(serializedEdek);
     }
+
+    @Override
+    public String toString() {
+        return "TestingDek{" +
+                "serializedEdek=" + Arrays.toString(serializedEdek) +
+                '}';
+    }
 }

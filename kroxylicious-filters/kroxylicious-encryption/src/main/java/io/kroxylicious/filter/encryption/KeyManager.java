@@ -28,17 +28,21 @@ public interface KeyManager<K> {
      * @return A completion stage that completes when all the records have been processed.
      */
     @NonNull
-    CompletionStage<Void> encrypt(@NonNull EncryptionScheme<K> encryptionScheme,
+    CompletionStage<Void> encrypt(@NonNull String topicName,
+                                  int partition,
+                                  @NonNull EncryptionScheme<K> encryptionScheme,
                                   @NonNull List<? extends Record> records,
                                   @NonNull Receiver receiver);
 
     /**
      * Asynchronously decrypt the given {@code kafkaRecords} (if they were, in fact, encrypted), calling the given {@code receiver} with the plaintext
+     * @param topicName The topic name
+     * @param partition The partition index
      * @param records The records
      * @param receiver The receiver of the plaintext buffers. The receiver is guaranteed to receive the decrypted buffers sequentially, in the same order as {@code records}, with no possibility of parallel invocation.
      * @return A completion stage that completes when all the records have been processed.
      */
     @NonNull
-    CompletionStage<Void> decrypt(@NonNull List<? extends Record> records,
+    CompletionStage<Void> decrypt(String topicName, int partition, @NonNull List<? extends Record> records,
                                   @NonNull Receiver receiver);
 }

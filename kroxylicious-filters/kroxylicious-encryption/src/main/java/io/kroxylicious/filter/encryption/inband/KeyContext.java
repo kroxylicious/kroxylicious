@@ -28,29 +28,29 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 @NotThreadSafe
 final class KeyContext implements Destroyable {
     private final AesGcmEncryptor encryptor;
-    private final byte[] prefix;
+    private final byte[] serializedEdek;
     private final long encryptionExpiryNanos;
     private int remainingEncryptions;
     private boolean destroyed = false;
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(InBandKeyManager.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(KeyContext.class);
     private static final Map<Class<? extends Destroyable>, Boolean> LOGGED_DESTROY_FAILED = new ConcurrentHashMap<>();
 
-    KeyContext(@NonNull ByteBuffer prefix,
+    KeyContext(@NonNull ByteBuffer serializedEdek,
                long encryptionExpiryNanos,
                int maxEncryptions,
                @NonNull AesGcmEncryptor encryptor) {
         if (maxEncryptions <= 0) {
             throw new IllegalArgumentException();
         }
-        this.prefix = prefix.array();
+        this.serializedEdek = serializedEdek.array();
         this.encryptionExpiryNanos = encryptionExpiryNanos;
         this.remainingEncryptions = maxEncryptions;
         this.encryptor = encryptor;
     }
 
-    public byte[] prefix() {
-        return prefix;
+    public byte[] serializedEdek() {
+        return serializedEdek;
     }
 
     public boolean isExpiredForEncryption(long nanoTime) {
