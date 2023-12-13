@@ -6,8 +6,6 @@
 
 package io.kroxylicious.kms.provider.hashicorp.vault;
 
-import java.time.Duration;
-
 import org.junit.jupiter.api.BeforeEach;
 import org.testcontainers.DockerClientFactory;
 
@@ -18,10 +16,8 @@ import static org.assertj.core.api.Assumptions.assumeThat;
 
 class VaultTestKmsFacadeTest extends AbstractTestKmsFacadeTest<Config, String, VaultEdek> {
 
-    private static final Duration TIMEOUT = Duration.ofSeconds(10);
-
     VaultTestKmsFacadeTest() {
-        super(new VaultTestKmsFacadeFactory(), TIMEOUT);
+        super(new VaultTestKmsFacadeFactory());
     }
 
     @BeforeEach

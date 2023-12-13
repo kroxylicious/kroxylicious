@@ -6,8 +6,6 @@
 
 package io.kroxylicious.kms.service;
 
-import java.util.concurrent.CompletionStage;
-
 /**
  * Exposes the ability to manage the KEKs on a KMS implementation.
  */
@@ -16,19 +14,25 @@ public interface TestKekManager {
      * Creates a KEK in the KMS with given alias.
      *
      * @param alias kek alias
-     * @return completion stage that completes when the KEK exists
-     * and its alias is assigned.
      * @throws AlreadyExistsException alias already exists
      */
-    CompletionStage<Void> generateKek(String alias);
+    void generateKek(String alias);
 
     /**
      * Rotates the kek with the given alias
+     *
      * @param alias kek alias
-     * @return completion stage that completes when the KEK is rotated.
      * @throws UnknownAliasException a KEK with the given alias is not found
      */
-    CompletionStage<Void> rotateKek(String alias);
+    void rotateKek(String alias);
+
+    /**
+     * Tests whether kek with given alias exists.
+     *
+     * @param alias kek alias
+     * @return true if the alias exist, false otherwise.
+     */
+    boolean exists(String alias);
 
     class AlreadyExistsException extends RuntimeException {
         public AlreadyExistsException(String message) {

@@ -11,8 +11,6 @@ import java.io.UncheckedIOException;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
 
 import org.testcontainers.DockerClientFactory;
 import org.testcontainers.vault.VaultContainer;
@@ -62,47 +60,47 @@ public class VaultTestKmsFacade implements TestKmsFacade<Config, String, VaultEd
     public TestKekManager getTestKekManager() {
         return new TestKekManager() {
             @Override
-            public CompletionStage<Void> generateKek(String alias) {
+            public void generateKek(String alias) {
                 Objects.requireNonNull(alias);
 
-                try {
-                    try {
-                        read(alias);
-                        return CompletableFuture.failedStage(new AlreadyExistsException("alias %s already exists.".formatted(alias)));
-                    }
-                    catch (Exception e) {
-                        // PASS
-                    }
-                    create(alias);
-                    return CompletableFuture.completedStage(null);
+                if (exists(alias)) {
+                    throw new AlreadyExistsException("alias %s already exists.".formatted(alias));
                 }
-                catch (Exception e) {
-                    // differentiate exceptions
-                    return CompletableFuture.failedStage(e);
+                else {
+                    create(alias);
                 }
             }
 
             @Override
-            public CompletionStage<Void> rotateKek(String alias) {
+            public void rotateKek(String alias) {
                 Objects.requireNonNull(alias);
-                try {
-                    try {
-                        read(alias);
-                    }
-                    catch (Exception e) {
-                        if (e.getMessage().contains("No value found")) {
-                            return CompletableFuture.failedStage(new UnknownAliasException(alias));
-                        }
-                        else {
-                            return CompletableFuture.failedStage(e);
-                        }
-                    }
+
+                if (exists(alias)) {
                     rotate(alias);
-                    return CompletableFuture.completedStage(null);
                 }
-                catch (Exception e) {
-                    return CompletableFuture.failedStage(e);
+                else {
+                    throw new UnknownAliasException(alias);
                 }
+            }
+
+            @Override
+            public boolean exists(String alias) {
+                try {
+                    read(alias);
+                    return true;
+                }
+                catch (RuntimeException e) {
+                    if (isNoValueFound(e)) {
+                        return false;
+                    }
+                    else {
+                        throw e;
+                    }
+                }
+            }
+
+            private boolean isNoValueFound(Exception e) {
+                return e.getMessage().contains("No value found");
             }
 
             private ReadKeyData create(String keyId) {

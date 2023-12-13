@@ -6,13 +6,12 @@
 
 package io.kroxylicious.kms.service;
 
-import java.time.Duration;
-
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.kms.service.TestKekManager.AlreadyExistsException;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Abstract
@@ -23,12 +22,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 public abstract class AbstractTestKmsFacadeTest<C, K, E> {
 
     private static final String ALIAS = "myalias";
-    private final Duration timeout;
     private final TestKmsFacadeFactory<C, K, E> factory;
 
-    public AbstractTestKmsFacadeTest(TestKmsFacadeFactory<C, K, E> factory, Duration timeout) {
+    public AbstractTestKmsFacadeTest(TestKmsFacadeFactory<C, K, E> factory) {
         this.factory = factory;
-        this.timeout = timeout;
     }
 
     @Test
@@ -46,8 +43,9 @@ public abstract class AbstractTestKmsFacadeTest<C, K, E> {
         try (var facade = factory.build()) {
             facade.start();
             var manager = facade.getTestKekManager();
-            var generate = manager.generateKek(ALIAS);
-            assertThat(generate).succeedsWithin(timeout);
+            assertThat(manager.exists(ALIAS)).isFalse();
+            manager.generateKek(ALIAS);
+            assertThat(manager.exists(ALIAS)).isTrue();
         }
     }
 
@@ -56,13 +54,10 @@ public abstract class AbstractTestKmsFacadeTest<C, K, E> {
         try (var facade = factory.build()) {
             facade.start();
             var manager = facade.getTestKekManager();
-            var generate = manager.generateKek(ALIAS);
-            assertThat(generate).succeedsWithin(timeout);
+            manager.generateKek(ALIAS);
 
-            assertThat(manager.generateKek(ALIAS))
-                    .failsWithin(timeout)
-                    .withThrowableThat()
-                    .withCauseInstanceOf(AlreadyExistsException.class);
+            assertThatThrownBy(() -> manager.generateKek(ALIAS))
+                    .isInstanceOf(AlreadyExistsException.class);
         }
     }
 
@@ -71,11 +66,10 @@ public abstract class AbstractTestKmsFacadeTest<C, K, E> {
         try (var facade = factory.build()) {
             facade.start();
             var manager = facade.getTestKekManager();
-            var generate = manager.generateKek(ALIAS);
-            assertThat(generate).succeedsWithin(timeout);
+            manager.generateKek(ALIAS);
+            assertThat(manager.exists(ALIAS)).isTrue();
 
-            var rotate = manager.rotateKek(ALIAS);
-            assertThat(rotate).succeedsWithin(timeout);
+            manager.rotateKek(ALIAS);
         }
     }
 
@@ -85,10 +79,8 @@ public abstract class AbstractTestKmsFacadeTest<C, K, E> {
             facade.start();
             var manager = facade.getTestKekManager();
 
-            assertThat(manager.rotateKek(ALIAS))
-                    .failsWithin(timeout)
-                    .withThrowableThat()
-                    .withCauseInstanceOf(UnknownAliasException.class);
+            assertThatThrownBy(() -> manager.rotateKek(ALIAS))
+                    .isInstanceOf(UnknownAliasException.class);
         }
     }
 }

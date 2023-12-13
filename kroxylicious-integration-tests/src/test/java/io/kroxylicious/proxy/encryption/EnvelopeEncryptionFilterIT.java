@@ -50,8 +50,7 @@ class EnvelopeEncryptionFilterIT {
     @TestTemplate
     void roundTrip(KafkaCluster cluster, Topic topic, TestKmsFacade<?, ?, ?> testKmsFacade) throws Exception {
         var testKekManager = testKmsFacade.getTestKekManager();
-        var kekStage = testKekManager.generateKek(topic.name());
-        assertThat(kekStage).succeedsWithin(Duration.ofSeconds(5));
+        testKekManager.generateKek(topic.name());
 
         var builder = proxy(cluster);
 
@@ -89,8 +88,7 @@ class EnvelopeEncryptionFilterIT {
             producer.send(new ProducerRecord<>(topic.name(), messageBeforeKeyRotation)).get(5, TimeUnit.SECONDS);
 
             // Now do the Kek rotation
-            var rotateStage = testKekManager.rotateKek(topic.name());
-            assertThat(rotateStage).succeedsWithin(Duration.ofSeconds(5));
+            testKekManager.rotateKek(topic.name());
 
             producer.send(new ProducerRecord<>(topic.name(), messageAfterKeyRotation)).get(5, TimeUnit.SECONDS);
 
@@ -109,8 +107,7 @@ class EnvelopeEncryptionFilterIT {
     void topicRecordsAreUnreadableOnServer(KafkaCluster cluster, Topic topic, KafkaConsumer<String, String> directConsumer, TestKmsFacade<?, ?, ?> testKmsFacade)
             throws Exception {
         var testKekManager = testKmsFacade.getTestKekManager();
-        var kekStage = testKekManager.generateKek(topic.name());
-        assertThat(kekStage).succeedsWithin(Duration.ofSeconds(5));
+        testKekManager.generateKek(topic.name());
 
         var builder = proxy(cluster);
         builder.addToFilters(getEncryptionFilterDefinition(testKmsFacade));
@@ -137,8 +134,7 @@ class EnvelopeEncryptionFilterIT {
     void unencryptedRecordsConsumable(KafkaCluster cluster, KafkaProducer<String, String> directProducer, Topic topic, TestKmsFacade<?, ?, ?> testKmsFacade)
             throws Exception {
         var testKekManager = testKmsFacade.getTestKekManager();
-        var kekStage = testKekManager.generateKek(topic.name());
-        assertThat(kekStage).succeedsWithin(Duration.ofSeconds(5));
+        testKekManager.generateKek(topic.name());
 
         var builder = proxy(cluster);
         builder.addToFilters(getEncryptionFilterDefinition(testKmsFacade));
@@ -168,8 +164,7 @@ class EnvelopeEncryptionFilterIT {
                                                         Topic topic, TestKmsFacade<?, ?, ?> testKmsFacade)
             throws Exception {
         var testKekManager = testKmsFacade.getTestKekManager();
-        var kekStage = testKekManager.generateKek(topic.name());
-        assertThat(kekStage).succeedsWithin(Duration.ofSeconds(5));
+        testKekManager.generateKek(topic.name());
 
         var builder = proxy(cluster);
         builder.addToFilters(getEncryptionFilterDefinition(testKmsFacade));
@@ -201,8 +196,7 @@ class EnvelopeEncryptionFilterIT {
     void produceAndConsumeEncryptedAndPlainTopicsAtSameTime(KafkaCluster cluster, Topic encryptedTopic, Topic plainTopic, TestKmsFacade<?, ?, ?> testKmsFacade)
             throws Exception {
         var testKekManager = testKmsFacade.getTestKekManager();
-        var kekStage = testKekManager.generateKek(encryptedTopic.name());
-        assertThat(kekStage).succeedsWithin(Duration.ofSeconds(5));
+        testKekManager.generateKek(encryptedTopic.name());
 
         var builder = proxy(cluster);
         builder.addToFilters(getEncryptionFilterDefinition(testKmsFacade));
@@ -231,8 +225,7 @@ class EnvelopeEncryptionFilterIT {
         assertThat(testKmsFacade.getKms()).isInstanceOf(InMemoryKms.class);
 
         var testKekManager = testKmsFacade.getTestKekManager();
-        var kekStage = testKekManager.generateKek(topic.name());
-        assertThat(kekStage).succeedsWithin(Duration.ofSeconds(5));
+        testKekManager.generateKek(topic.name());
 
         var builder = proxy(cluster);
         builder.addToFilters(getEncryptionFilterDefinition(testKmsFacade));

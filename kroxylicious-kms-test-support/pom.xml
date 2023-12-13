@@ -36,4 +36,13 @@
             <scope>compile</scope>
         </dependency>
     </dependencies>
+    <profiles>
+        <profile>
+            <id>ci</id>
+            <properties>
+                <sonar.coverage.exclusions>**/AbstractTestKmsFacadeTest.java</sonar.coverage.exclusions>
+            </properties>
+        </profile>
+    </profiles>
+
 </project>
