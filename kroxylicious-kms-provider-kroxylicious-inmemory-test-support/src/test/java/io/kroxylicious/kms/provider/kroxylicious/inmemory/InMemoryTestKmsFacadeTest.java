@@ -8,13 +8,26 @@ package io.kroxylicious.kms.provider.kroxylicious.inmemory;
 
 import java.util.UUID;
 
+import org.junit.jupiter.api.Test;
+
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.IntegrationTestingKmsService.Config;
 import io.kroxylicious.kms.service.AbstractTestKmsFacadeTest;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 class InMemoryTestKmsFacadeTest extends AbstractTestKmsFacadeTest<Config, UUID, InMemoryEdek> {
 
     InMemoryTestKmsFacadeTest() {
         super(new InMemoryTestKmsFacadeFactory());
+    }
+
+    @Test
+    void classAndConfig() {
+        try (var facade = factory.build()) {
+            facade.start();
+            assertThat(facade.getKmsServiceClass()).isEqualTo(IntegrationTestingKmsService.class);
+            assertThat(facade.getKmsServiceConfig()).isInstanceOf(Config.class);
+        }
     }
 
 }

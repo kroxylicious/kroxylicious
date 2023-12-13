@@ -25,7 +25,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 public abstract class AbstractTestKmsFacadeTest<C, K, E> {
 
     private static final String ALIAS = "myalias";
-    private final TestKmsFacadeFactory<C, K, E> factory;
+    protected final TestKmsFacadeFactory<C, K, E> factory;
 
     protected AbstractTestKmsFacadeTest(TestKmsFacadeFactory<C, K, E> factory) {
         Objects.requireNonNull(factory);
