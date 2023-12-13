@@ -24,8 +24,9 @@ import io.kroxylicious.kms.provider.hashicorp.vault.VaultKmsService.Config;
 import io.kroxylicious.kms.provider.hashicorp.vault.VaultResponse.ReadKeyData;
 import io.kroxylicious.kms.service.TestKekManager;
 import io.kroxylicious.kms.service.TestKmsFacade;
+import io.kroxylicious.kms.service.UnknownAliasException;
 
-public class VaultKmsFacade implements TestKmsFacade<Config, String, VaultEdek> {
+public class VaultTestKmsFacade implements TestKmsFacade<Config, String, VaultEdek> {
     private static final String VAULT_TOKEN = "rootToken";
     private static final String HASHICORP_VAULT = "hashicorp/vault:1.15";
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
@@ -65,6 +66,13 @@ public class VaultKmsFacade implements TestKmsFacade<Config, String, VaultEdek> 
                 Objects.requireNonNull(alias);
 
                 try {
+                    try {
+                        read(alias);
+                        return CompletableFuture.failedStage(new AlreadyExistsException("alias %s already exists.".formatted(alias)));
+                    }
+                    catch (Exception e) {
+                        // PASS
+                    }
                     create(alias);
                     return CompletableFuture.completedStage(null);
                 }
@@ -78,11 +86,21 @@ public class VaultKmsFacade implements TestKmsFacade<Config, String, VaultEdek> 
             public CompletionStage<Void> rotateKek(String alias) {
                 Objects.requireNonNull(alias);
                 try {
+                    try {
+                        read(alias);
+                    }
+                    catch (Exception e) {
+                        if (e.getMessage().contains("No value found")) {
+                            return CompletableFuture.failedStage(new UnknownAliasException(alias));
+                        }
+                        else {
+                            return CompletableFuture.failedStage(e);
+                        }
+                    }
                     rotate(alias);
                     return CompletableFuture.completedStage(null);
                 }
                 catch (Exception e) {
-                    // differentiate exceptions
                     return CompletableFuture.failedStage(e);
                 }
             }
@@ -90,6 +108,11 @@ public class VaultKmsFacade implements TestKmsFacade<Config, String, VaultEdek> 
             private ReadKeyData create(String keyId) {
                 return runVaultCommand(new TypeReference<>() {
                 }, "vault", "write", "-f", "transit/keys/%s".formatted(keyId));
+            }
+
+            private ReadKeyData read(String keyId) {
+                return runVaultCommand(new TypeReference<>() {
+                }, "vault", "read", "transit/keys/%s".formatted(keyId));
             }
 
             private ReadKeyData rotate(String keyId) {
@@ -102,7 +125,8 @@ public class VaultKmsFacade implements TestKmsFacade<Config, String, VaultEdek> 
                     var execResult = vaultContainer.execInContainer(args);
                     int exitCode = execResult.getExitCode();
                     if (exitCode != 0) {
-                        throw new RuntimeException("Failed to run vault command: %s, exit code: %d".formatted(Arrays.stream(args).toList(), exitCode));
+                        throw new RuntimeException(
+                                "Failed to run vault command: %s, exit code: %d, stderr: %s".formatted(Arrays.stream(args).toList(), exitCode, execResult.getStderr()));
                     }
                     var response = OBJECT_MAPPER.readValue(execResult.getStdout(), valueTypeRef);
                     return response.data();

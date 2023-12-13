@@ -15,7 +15,7 @@ import io.kroxylicious.kms.service.TestKekManager;
 import io.kroxylicious.kms.service.TestKmsFacade;
 import io.kroxylicious.kms.service.UnknownAliasException;
 
-public class InMemoryKmsFacade implements TestKmsFacade<Config, UUID, InMemoryEdek> {
+public class InMemoryTestKmsFacade implements TestKmsFacade<Config, UUID, InMemoryEdek> {
 
     private final UUID kmsId = UUID.randomUUID();
     private InMemoryKms kms;

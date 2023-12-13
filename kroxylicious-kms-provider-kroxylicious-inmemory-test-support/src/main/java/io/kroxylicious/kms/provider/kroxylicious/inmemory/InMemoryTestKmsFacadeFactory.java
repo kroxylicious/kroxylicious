@@ -12,14 +12,14 @@ import io.kroxylicious.kms.provider.kroxylicious.inmemory.IntegrationTestingKmsS
 import io.kroxylicious.kms.service.TestKmsFacadeFactory;
 
 /**
- * Factory for {@link InMemoryKmsFacade}s.
+ * Factory for {@link InMemoryTestKmsFacade}s.
  */
-public class InMemoryKmsFacadeFactory implements TestKmsFacadeFactory<Config, UUID, InMemoryEdek> {
+public class InMemoryTestKmsFacadeFactory implements TestKmsFacadeFactory<Config, UUID, InMemoryEdek> {
     /**
      * {@inheritDoc}
      */
     @Override
-    public InMemoryKmsFacade build() {
-        return new InMemoryKmsFacade();
+    public InMemoryTestKmsFacade build() {
+        return new InMemoryTestKmsFacade();
     }
 }

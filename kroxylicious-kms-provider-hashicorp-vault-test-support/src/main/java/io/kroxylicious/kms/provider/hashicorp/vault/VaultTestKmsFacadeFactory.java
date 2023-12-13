@@ -10,14 +10,14 @@ import io.kroxylicious.kms.provider.hashicorp.vault.VaultKmsService.Config;
 import io.kroxylicious.kms.service.TestKmsFacadeFactory;
 
 /**
- * Factory for {@link VaultKmsFacade}s.
+ * Factory for {@link VaultTestKmsFacade}s.
  */
-public class VaultKmsFacadeFactory implements TestKmsFacadeFactory<Config, String, VaultEdek> {
+public class VaultTestKmsFacadeFactory implements TestKmsFacadeFactory<Config, String, VaultEdek> {
     /**
      * {@inheritDoc}
      */
     @Override
-    public VaultKmsFacade build() {
-        return new VaultKmsFacade();
+    public VaultTestKmsFacade build() {
+        return new VaultTestKmsFacade();
     }
 }
