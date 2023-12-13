@@ -28,6 +28,7 @@ public class VaultTestKmsFacade implements TestKmsFacade<Config, String, VaultEd
     private static final String VAULT_TOKEN = "rootToken";
     private static final String HASHICORP_VAULT = "hashicorp/vault:1.15";
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final String VAULT_CMD = "vault";
 
     @SuppressWarnings("rawtypes")
     private VaultContainer vaultContainer;
@@ -105,17 +106,17 @@ public class VaultTestKmsFacade implements TestKmsFacade<Config, String, VaultEd
 
             private ReadKeyData create(String keyId) {
                 return runVaultCommand(new TypeReference<>() {
-                }, "vault", "write", "-f", "transit/keys/%s".formatted(keyId));
+                }, VAULT_CMD, "write", "-f", "transit/keys/%s".formatted(keyId));
             }
 
             private ReadKeyData read(String keyId) {
                 return runVaultCommand(new TypeReference<>() {
-                }, "vault", "read", "transit/keys/%s".formatted(keyId));
+                }, VAULT_CMD, "read", "transit/keys/%s".formatted(keyId));
             }
 
             private ReadKeyData rotate(String keyId) {
                 return runVaultCommand(new TypeReference<>() {
-                }, "vault", "write", "-f", "transit/keys/%s/rotate".formatted(keyId));
+                }, VAULT_CMD, "write", "-f", "transit/keys/%s/rotate".formatted(keyId));
             }
 
             private <D> D runVaultCommand(TypeReference<VaultResponse<D>> valueTypeRef, String... args) {

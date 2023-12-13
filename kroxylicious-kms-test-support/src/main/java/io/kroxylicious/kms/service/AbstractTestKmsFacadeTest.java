@@ -6,6 +6,8 @@
 
 package io.kroxylicious.kms.service;
 
+import java.util.Objects;
+
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.kms.service.TestKekManager.AlreadyExistsException;
@@ -25,7 +27,8 @@ public abstract class AbstractTestKmsFacadeTest<C, K, E> {
     private static final String ALIAS = "myalias";
     private final TestKmsFacadeFactory<C, K, E> factory;
 
-    public AbstractTestKmsFacadeTest(TestKmsFacadeFactory<C, K, E> factory) {
+    protected AbstractTestKmsFacadeTest(TestKmsFacadeFactory<C, K, E> factory) {
+        Objects.requireNonNull(factory);
         this.factory = factory;
     }
 
