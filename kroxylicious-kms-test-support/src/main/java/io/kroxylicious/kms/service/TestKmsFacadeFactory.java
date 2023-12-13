@@ -29,7 +29,7 @@ public interface TestKmsFacadeFactory<C, K, E> {
      * @return factories
      */
     @SuppressWarnings("unchecked")
-    static Stream<TestKmsFacadeFactory<?, ?, ?>> getTestKmsFacadeFactories() {
+    static <C, K, E> Stream<TestKmsFacadeFactory<C, K, E>> getTestKmsFacadeFactories() {
         return ServiceLoader.load(TestKmsFacadeFactory.class).stream()
                 .map(ServiceLoader.Provider::get);
     }

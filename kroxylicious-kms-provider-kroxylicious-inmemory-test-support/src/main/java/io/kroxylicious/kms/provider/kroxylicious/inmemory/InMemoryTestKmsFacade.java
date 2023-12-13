@@ -32,54 +32,7 @@ public class InMemoryTestKmsFacade implements TestKmsFacade<Config, UUID, InMemo
 
     @Override
     public TestKekManager getTestKekManager() {
-        return new TestKekManager() {
-            @Override
-            public void generateKek(String alias) {
-                Objects.requireNonNull(alias);
-
-                try {
-                    kms.resolveAlias(alias).toCompletableFuture().join();
-                    throw new AlreadyExistsException("key with alias " + alias + " already exists");
-                }
-                catch (CompletionException e) {
-                    if (e.getCause() instanceof UnknownAliasException) {
-                        var kekId = kms.generateKey();
-                        kms.createAlias(kekId, alias);
-                    }
-                    else {
-                        throw e.getCause() instanceof RuntimeException re ? re : new RuntimeException(e.getCause());
-                    }
-                }
-            }
-
-            @Override
-            public void rotateKek(String alias) {
-                Objects.requireNonNull(alias);
-
-                try {
-                    kms.resolveAlias(alias).toCompletableFuture().join();
-                    var kekId = kms.generateKey();
-                    kms.createAlias(kekId, alias);
-                }
-                catch (CompletionException e) {
-                    throw e.getCause() instanceof RuntimeException re ? re : new RuntimeException(e.getCause());
-                }
-            }
-
-            @Override
-            public boolean exists(String alias) {
-                try {
-                    kms.resolveAlias(alias).toCompletableFuture().join();
-                    return true;
-                }
-                catch (CompletionException e) {
-                    if (e.getCause() instanceof UnknownAliasException) {
-                        return false;
-                    }
-                    throw e.getCause() instanceof RuntimeException re ? re : new RuntimeException(e.getCause());
-                }
-            }
-        };
+        return new InMemoryTestKekManager();
     }
 
     @Override
@@ -95,5 +48,54 @@ public class InMemoryTestKmsFacade implements TestKmsFacade<Config, UUID, InMemo
     @Override
     public Config getKmsServiceConfig() {
         return new Config(kmsId.toString());
+    }
+
+    private class InMemoryTestKekManager implements TestKekManager {
+        @Override
+        public void generateKek(String alias) {
+            Objects.requireNonNull(alias);
+
+            try {
+                kms.resolveAlias(alias).toCompletableFuture().join();
+                throw new AlreadyExistsException(alias);
+            }
+            catch (CompletionException e) {
+                if (e.getCause() instanceof UnknownAliasException) {
+                    var kekId = kms.generateKey();
+                    kms.createAlias(kekId, alias);
+                }
+                else {
+                    throw e.getCause() instanceof RuntimeException re ? re : new RuntimeException(e.getCause());
+                }
+            }
+        }
+
+        @Override
+        public void rotateKek(String alias) {
+            Objects.requireNonNull(alias);
+
+            try {
+                kms.resolveAlias(alias).toCompletableFuture().join();
+                var kekId = kms.generateKey();
+                kms.createAlias(kekId, alias);
+            }
+            catch (CompletionException e) {
+                throw e.getCause() instanceof RuntimeException re ? re : new RuntimeException(e.getCause());
+            }
+        }
+
+        @Override
+        public boolean exists(String alias) {
+            try {
+                kms.resolveAlias(alias).toCompletableFuture().join();
+                return true;
+            }
+            catch (CompletionException e) {
+                if (e.getCause() instanceof UnknownAliasException) {
+                    return false;
+                }
+                throw e.getCause() instanceof RuntimeException re ? re : new RuntimeException(e.getCause());
+            }
+        }
     }
 }

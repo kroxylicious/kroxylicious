@@ -34,9 +34,9 @@ public interface TestKekManager {
      */
     boolean exists(String alias);
 
-    class AlreadyExistsException extends RuntimeException {
-        public AlreadyExistsException(String message) {
-            super(message);
+    class AlreadyExistsException extends KmsException {
+        public AlreadyExistsException(String alias) {
+            super(alias);
         }
     }
 

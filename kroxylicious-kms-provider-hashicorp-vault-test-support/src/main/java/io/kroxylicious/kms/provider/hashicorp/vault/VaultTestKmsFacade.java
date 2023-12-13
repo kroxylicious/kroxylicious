@@ -7,7 +7,6 @@
 package io.kroxylicious.kms.provider.hashicorp.vault;
 
 import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.Objects;
@@ -20,6 +19,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.kroxylicious.kms.provider.hashicorp.vault.VaultKmsService.Config;
 import io.kroxylicious.kms.provider.hashicorp.vault.VaultResponse.ReadKeyData;
+import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.kms.service.TestKekManager;
 import io.kroxylicious.kms.service.TestKmsFacade;
 import io.kroxylicious.kms.service.UnknownAliasException;
@@ -59,86 +59,7 @@ public class VaultTestKmsFacade implements TestKmsFacade<Config, String, VaultEd
 
     @Override
     public TestKekManager getTestKekManager() {
-        return new TestKekManager() {
-            @Override
-            public void generateKek(String alias) {
-                Objects.requireNonNull(alias);
-
-                if (exists(alias)) {
-                    throw new AlreadyExistsException("alias %s already exists.".formatted(alias));
-                }
-                else {
-                    create(alias);
-                }
-            }
-
-            @Override
-            public void rotateKek(String alias) {
-                Objects.requireNonNull(alias);
-
-                if (exists(alias)) {
-                    rotate(alias);
-                }
-                else {
-                    throw new UnknownAliasException(alias);
-                }
-            }
-
-            @Override
-            public boolean exists(String alias) {
-                try {
-                    read(alias);
-                    return true;
-                }
-                catch (RuntimeException e) {
-                    if (isNoValueFound(e)) {
-                        return false;
-                    }
-                    else {
-                        throw e;
-                    }
-                }
-            }
-
-            private boolean isNoValueFound(Exception e) {
-                return e.getMessage().contains("No value found");
-            }
-
-            private ReadKeyData create(String keyId) {
-                return runVaultCommand(new TypeReference<>() {
-                }, VAULT_CMD, "write", "-f", "transit/keys/%s".formatted(keyId));
-            }
-
-            private ReadKeyData read(String keyId) {
-                return runVaultCommand(new TypeReference<>() {
-                }, VAULT_CMD, "read", "transit/keys/%s".formatted(keyId));
-            }
-
-            private ReadKeyData rotate(String keyId) {
-                return runVaultCommand(new TypeReference<>() {
-                }, VAULT_CMD, "write", "-f", "transit/keys/%s/rotate".formatted(keyId));
-            }
-
-            private <D> D runVaultCommand(TypeReference<VaultResponse<D>> valueTypeRef, String... args) {
-                try {
-                    var execResult = vaultContainer.execInContainer(args);
-                    int exitCode = execResult.getExitCode();
-                    if (exitCode != 0) {
-                        throw new RuntimeException(
-                                "Failed to run vault command: %s, exit code: %d, stderr: %s".formatted(Arrays.stream(args).toList(), exitCode, execResult.getStderr()));
-                    }
-                    var response = OBJECT_MAPPER.readValue(execResult.getStdout(), valueTypeRef);
-                    return response.data();
-                }
-                catch (IOException e) {
-                    throw new UncheckedIOException("Failed to run vault command: %s".formatted(Arrays.stream(args).toList()), e);
-                }
-                catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    throw new RuntimeException(e);
-                }
-            }
-        };
+        return new VaultTestKekManager();
     }
 
     @Override
@@ -149,5 +70,100 @@ public class VaultTestKmsFacade implements TestKmsFacade<Config, String, VaultEd
     @Override
     public Config getKmsServiceConfig() {
         return new Config(URI.create(vaultContainer.getHttpHostAddress()), VAULT_TOKEN);
+    }
+
+    private class VaultTestKekManager implements TestKekManager {
+        @Override
+        public void generateKek(String alias) {
+            Objects.requireNonNull(alias);
+
+            if (exists(alias)) {
+                throw new AlreadyExistsException(alias);
+            }
+            else {
+                create(alias);
+            }
+        }
+
+        @Override
+        public void rotateKek(String alias) {
+            Objects.requireNonNull(alias);
+
+            if (exists(alias)) {
+                rotate(alias);
+            }
+            else {
+                throw new UnknownAliasException(alias);
+            }
+        }
+
+        @Override
+        public boolean exists(String alias) {
+            try {
+                read(alias);
+                return true;
+            }
+            catch (RuntimeException e) {
+                if (isNoValueFound(e)) {
+                    return false;
+                }
+                else {
+                    throw e;
+                }
+            }
+        }
+
+        private boolean isNoValueFound(Exception e) {
+            return e.getMessage().contains("No value found");
+        }
+
+        private ReadKeyData create(String keyId) {
+            return runVaultCommand(new TypeReference<>() {
+            }, VAULT_CMD, "write", "-f", "transit/keys/%s".formatted(keyId));
+        }
+
+        private ReadKeyData read(String keyId) {
+            return runVaultCommand(new TypeReference<>() {
+            }, VAULT_CMD, "read", "transit/keys/%s".formatted(keyId));
+        }
+
+        private ReadKeyData rotate(String keyId) {
+            return runVaultCommand(new TypeReference<>() {
+            }, VAULT_CMD, "write", "-f", "transit/keys/%s/rotate".formatted(keyId));
+        }
+
+        private <D> D runVaultCommand(TypeReference<VaultResponse<D>> valueTypeRef, String... args) {
+            try {
+                var execResult = vaultContainer.execInContainer(args);
+                int exitCode = execResult.getExitCode();
+                if (exitCode != 0) {
+                    throw new VaultException(
+                            "Failed to run vault command: %s, exit code: %d, stderr: %s".formatted(Arrays.stream(args).toList(), exitCode, execResult.getStderr()));
+                }
+                var response = OBJECT_MAPPER.readValue(execResult.getStdout(), valueTypeRef);
+                return response.data();
+            }
+            catch (IOException e) {
+                throw new VaultException("Failed to run vault command: %s".formatted(Arrays.stream(args).toList()), e);
+            }
+            catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new VaultException(e);
+            }
+        }
+
+        private static class VaultException extends KmsException {
+            VaultException(String message) {
+                super(message);
+            }
+
+            VaultException(String message, Throwable cause) {
+                super(message, cause);
+            }
+
+            VaultException(Throwable cause) {
+                super(cause);
+            }
+        }
     }
 }
