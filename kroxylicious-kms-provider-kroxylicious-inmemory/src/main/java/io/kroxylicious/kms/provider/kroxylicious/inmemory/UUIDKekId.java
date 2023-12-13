@@ -15,8 +15,9 @@ import io.kroxylicious.kms.service.KekId;
 import io.kroxylicious.kms.service.KmsException;
 
 public record UUIDKekId(@NonNull UUID keyId) implements KekId {
-    public UUIDKekId(UUID keyId) {
-        this.keyId = Objects.requireNonNull(keyId);
+
+    public UUIDKekId {
+        Objects.requireNonNull(keyId);
     }
 
     @SuppressWarnings("unchecked")
