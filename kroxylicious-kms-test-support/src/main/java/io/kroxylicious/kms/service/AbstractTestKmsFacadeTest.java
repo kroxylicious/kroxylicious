@@ -19,6 +19,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * @param <K> The key reference
  * @param <E> The type of encrypted DEK
  */
+@SuppressWarnings("java:S5960") // this is test code, it exists in the main module to facilitate its use by concrete test cases
 public abstract class AbstractTestKmsFacadeTest<C, K, E> {
 
     private static final String ALIAS = "myalias";
