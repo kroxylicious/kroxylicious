@@ -9,10 +9,10 @@ package io.kroxylicious.kms.provider.kroxylicious.inmemory;
 import java.util.Objects;
 import java.util.UUID;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import io.kroxylicious.kms.service.KekId;
 import io.kroxylicious.kms.service.KmsException;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 public record UUIDKekId(@NonNull UUID keyId) implements KekId {
 

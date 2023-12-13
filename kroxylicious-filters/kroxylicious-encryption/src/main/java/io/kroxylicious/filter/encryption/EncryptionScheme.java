@@ -9,9 +9,9 @@ package io.kroxylicious.filter.encryption;
 import java.util.Objects;
 import java.util.Set;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import io.kroxylicious.kms.service.KekId;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
  * Describes how a record should be encrypted

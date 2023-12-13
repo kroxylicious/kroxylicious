@@ -8,10 +8,10 @@ package io.kroxylicious.kms.provider.hashicorp.vault;
 
 import java.util.Objects;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import io.kroxylicious.kms.service.KekId;
 import io.kroxylicious.kms.service.KmsException;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 public record StringKekid(@NonNull String keyId) implements KekId {
 
