@@ -13,13 +13,16 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ScheduledExecutorService;
+
+import io.kroxylicious.filter.encryption.BackoffStrategy;
+import io.kroxylicious.filter.encryption.ExponentialJitterBackoffStrategy;
+import io.kroxylicious.filter.encryption.ResilientKms;
 
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.utils.ByteUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
@@ -70,12 +73,14 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
     private final long dekTtlNanos;
     private final int maxEncryptionsPerDek;
     private final Header[] encryptionHeader;
-    private static final Logger LOGGER = LoggerFactory.getLogger(InBandKeyManager.class);
 
     public InBandKeyManager(Kms<K, E> kms,
                             BufferPool bufferPool,
-                            int maxEncryptionsPerDek) {
-        this.kms = kms;
+                            int maxEncryptionsPerDek,
+                            ScheduledExecutorService executorService,
+                            BackoffStrategy kmsBackoffStrategy) {
+        this.kms = ResilientKms.get(kms, executorService,
+                kmsBackoffStrategy, 3);
         this.bufferPool = bufferPool;
         this.edekSerde = kms.edekSerde();
         this.dekTtlNanos = 5_000_000_000L;
@@ -94,13 +99,6 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
     }
 
     private CompletableFuture<KeyContext> makeKeyContext(@NonNull K kekId) {
-        return attemptMakeDekContext(kekId, 0);
-    }
-
-    private CompletableFuture<KeyContext> attemptMakeDekContext(@NonNull K kekId, int attempt) {
-        if (attempt >= MAX_ATTEMPTS) {
-            return CompletableFuture.failedFuture(new EncryptorCreationException("failed to create encryptor after " + attempt + " attempts"));
-        }
         return kms.generateDekPair(kekId)
                 .thenApply(dekPair -> {
                     E edek = dekPair.edek();
@@ -116,12 +114,7 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
                             // or we need mutex
                             // or we externalize the state
                             AesGcmEncryptor.forEncrypt(new AesGcmIvGenerator(new SecureRandom()), dekPair.dek()));
-                }).toCompletableFuture()
-                // todo wire in a scheduler so we can delay/jitter DEK creation attempts
-                .exceptionallyComposeAsync(throwable -> {
-                    LOGGER.error("failed to create DEK encryption context for {} on attempt {}", kekId, attempt, throwable);
-                    return attemptMakeDekContext(kekId, attempt + 1);
-                });
+                }).toCompletableFuture();
     }
 
     @NonNull
