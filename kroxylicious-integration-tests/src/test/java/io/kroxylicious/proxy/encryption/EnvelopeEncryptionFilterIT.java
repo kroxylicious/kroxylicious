@@ -54,7 +54,7 @@ class EnvelopeEncryptionFilterIT {
 
         var builder = proxy(cluster);
 
-        builder.addToFilters(getEncryptionFilterDefinition(testKmsFacade));
+        builder.addToFilters(buildEncryptionFilterDefinition(testKmsFacade));
 
         try (var tester = kroxyliciousTester(builder);
                 var producer = tester.producer();
@@ -79,7 +79,7 @@ class EnvelopeEncryptionFilterIT {
         testKekManager.generateKek(topic.name());
 
         var builder = proxy(cluster);
-        builder.addToFilters(getEncryptionFilterDefinition(testKmsFacade));
+        builder.addToFilters(buildEncryptionFilterDefinition(testKmsFacade));
 
         var messageBeforeKeyRotation = "hello world, old key";
         var messageAfterKeyRotation = "hello world, new key";
@@ -110,7 +110,7 @@ class EnvelopeEncryptionFilterIT {
         testKekManager.generateKek(topic.name());
 
         var builder = proxy(cluster);
-        builder.addToFilters(getEncryptionFilterDefinition(testKmsFacade));
+        builder.addToFilters(buildEncryptionFilterDefinition(testKmsFacade));
 
         try (var tester = kroxyliciousTester(builder);
                 var producer = tester.producer()) {
@@ -137,7 +137,7 @@ class EnvelopeEncryptionFilterIT {
         testKekManager.generateKek(topic.name());
 
         var builder = proxy(cluster);
-        builder.addToFilters(getEncryptionFilterDefinition(testKmsFacade));
+        builder.addToFilters(buildEncryptionFilterDefinition(testKmsFacade));
 
         try (var tester = kroxyliciousTester(builder);
                 var producer = tester.producer();
@@ -167,7 +167,7 @@ class EnvelopeEncryptionFilterIT {
         testKekManager.generateKek(topic.name());
 
         var builder = proxy(cluster);
-        builder.addToFilters(getEncryptionFilterDefinition(testKmsFacade));
+        builder.addToFilters(buildEncryptionFilterDefinition(testKmsFacade));
 
         try (var tester = kroxyliciousTester(builder);
                 var producer = tester.producer();
@@ -199,7 +199,7 @@ class EnvelopeEncryptionFilterIT {
         testKekManager.generateKek(encryptedTopic.name());
 
         var builder = proxy(cluster);
-        builder.addToFilters(getEncryptionFilterDefinition(testKmsFacade));
+        builder.addToFilters(buildEncryptionFilterDefinition(testKmsFacade));
 
         try (var tester = kroxyliciousTester(builder);
                 var producer = tester.producer(Map.of(ProducerConfig.LINGER_MS_CONFIG, 1000, ProducerConfig.BATCH_SIZE_CONFIG, 2));
@@ -228,7 +228,7 @@ class EnvelopeEncryptionFilterIT {
         testKekManager.generateKek(topic.name());
 
         var builder = proxy(cluster);
-        builder.addToFilters(getEncryptionFilterDefinition(testKmsFacade));
+        builder.addToFilters(buildEncryptionFilterDefinition(testKmsFacade));
 
         try (var tester = kroxyliciousTester(builder);
                 var producer = tester.producer(Map.of(ProducerConfig.LINGER_MS_CONFIG, 0));
@@ -263,7 +263,7 @@ class EnvelopeEncryptionFilterIT {
 
     }
 
-    private FilterDefinition getEncryptionFilterDefinition(TestKmsFacade<?, ?, ?> testKmsFacade) {
+    private FilterDefinition buildEncryptionFilterDefinition(TestKmsFacade<?, ?, ?> testKmsFacade) {
         return new FilterDefinitionBuilder(EnvelopeEncryption.class.getSimpleName())
                 .withConfig("kms", testKmsFacade.getKmsServiceClass().getSimpleName())
                 .withConfig("kmsConfig", testKmsFacade.getKmsServiceConfig())
