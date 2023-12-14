@@ -12,11 +12,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 
 import io.kroxylicious.filter.encryption.BackoffStrategy;
-import io.kroxylicious.filter.encryption.ExponentialJitterBackoffStrategy;
 import io.kroxylicious.filter.encryption.ResilientKms;
 
 import org.apache.kafka.common.header.Header;
@@ -69,7 +67,7 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
     private final Serde<E> edekSerde;
     // TODO cache expiry, with key descruction
     private final AsyncLoadingCache<K, KeyContext> keyContextCache;
-    private final ConcurrentHashMap<E, CompletionStage<AesGcmEncryptor>> decryptorCache;
+    private final AsyncLoadingCache<E, AesGcmEncryptor> decryptorCache;
     private final long dekTtlNanos;
     private final int maxEncryptionsPerDek;
     private final Header[] encryptionHeader;
@@ -88,7 +86,8 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
         // TODO This ^^ must be > the maximum size of a batch to avoid an infinite loop
         this.keyContextCache = Caffeine.newBuilder()
                 .buildAsync((key, executor) -> makeKeyContext(key));
-        this.decryptorCache = new ConcurrentHashMap<>();
+        this.decryptorCache = Caffeine.newBuilder()
+                .buildAsync((edek, executor) -> makeDecryptor(edek));
         this.encryptionVersion = EncryptionVersion.V1; // TODO read from config
         this.encryptionHeader = new Header[]{ new RecordHeader(ENCRYPTION_HEADER_NAME, new byte[]{ encryptionVersion.code() }) };
     }
@@ -291,18 +290,9 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
         return null;
     }
 
-    private CompletionStage<AesGcmEncryptor> getOrCacheDecryptor(E edek) {
-        return decryptorCache.compute(edek, (k, v) -> {
-            if (v == null) {
-                return kms.decryptEdek(edek)
-                        .thenApply(AesGcmEncryptor::forDecrypt).toCompletableFuture();
-                // TODO what happens if the CS complete exceptionally
-                // TODO what happens if the CS doesn't complete at all in a reasonably time frame?
-            }
-            else {
-                return v;
-            }
-        });
+    private CompletableFuture<AesGcmEncryptor> makeDecryptor(E edek) {
+        return kms.decryptEdek(edek)
+                .thenApply(AesGcmEncryptor::forDecrypt).toCompletableFuture();
     }
 
     @NonNull
@@ -360,7 +350,7 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
                 ByteBuffer slice = wrapper.slice(wrapper.position(), edekLength);
                 var edek = edekSerde.deserialize(slice);
                 wrapper.position(wrapper.position() + edekLength);
-                return getOrCacheDecryptor(edek);
+                return decryptorCache.get(edek);
         }
         throw new EncryptionException("Unknown wrapper version " + wrapperVersion);
     }
