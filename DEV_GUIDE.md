@@ -6,12 +6,10 @@ This document gives a detailed breakdown of the various build processes and opti
 * [Development Guide for Kroxylicious](#development-guide-for-kroxylicious)
   * [Build status](#build-status)
   * [Build Prerequisites](#build-prerequisites)
-  * [Prerequisites to run the kubernetes-examples](#prerequisites-to-run-the-kubernetes-examples)
   * [Build](#build)
     * [Formatting the Code](#formatting-the-code)
   * [Run](#run)
     * [Debugging](#debugging)
-  * [Running the kubernetes-examples](#running-the-kubernetes-examples)
   * [IDE setup](#ide-setup)
     * [Intellij](#intellij)
   * [Setting Up in Windows Using WSL](#setting-up-in-windows-using-wsl)
@@ -23,6 +21,10 @@ This document gives a detailed breakdown of the various build processes and opti
     * [MacOS X](#macos-x)
     * [Linux](#linux)
     * [Verify that the fix is effective](#verify-that-the-fix-is-effective)
+  * [Running system tests locally](#running-system-tests-locally)
+    * [Prerequisites](#prerequisites)
+    * [Environment variables](#environment-variables)
+    * [Launch system tests](#launch-system-tests)
   * [Rendering documentation](#rendering-documentation)
   * [Using the GitHub CI workflows against a fork](#using-the-github-ci-workflows-against-a-fork)
 <!-- TOC -->
@@ -38,15 +40,6 @@ This document gives a detailed breakdown of the various build processes and opti
 
 > :warning: **If you are using Podman please see [these notes](#running-integration-tests-on-podman) below**
 
-## Prerequisites to run the kubernetes-examples
-
-* User must have access to a container registry such as [quay.io](https://quay.io) or [docker.io](https://docker.io).
-  Create a public accessible repository within the registry named `kroxylicious`.
-* Minikube [installed](https://minikube.sigs.k8s.io/docs/start)
-* kubectl [installed](https://kubernetes.io/docs/tasks/tools)
-* kustomize [installed](https://kubectl.docs.kubernetes.io/installation/kustomize/)
-* OSX users must have `gsed` [installed](https://formulae.brew.sh/formula/gnu-sed)
-* Docker engine [installed](https://docs.docker.com/engine/install) or [podman](https://podman.io/docs/installation) 
 
 
 ## Build
@@ -149,31 +142,6 @@ Logging is turned off by default for better performance. In case you want to deb
   logNetwork: true
   logFrames: true
 ```
-
-## Running the kubernetes-examples
-
-Kroxylicious can be containerised and run on Minikube against a [Strimzi](https://strimzi.io) managed Kafka cluster.
-
-Running:
-
-```shell
-minikube delete && REGISTRY_DESTINATION=quay.io/$your_quay_org$/kroxylicious ./scripts/run-with-strimzi.sh ${kubernetes_example_directory}
-```
-where `${kubernetes_example_directory}` is replaced by a path to an example directory e.g. `./kubernetes-examples/portperbroker_plain`.
-
-This `run-with-strimzi.sh` script does the following:
-1. builds and pushes a kroxylicious image to specified container registry
-2. starts minikube
-3. installs cert manager and strimzi
-4. installs a 3-node Kafka cluster using Strimzi into minikube
-5. installs kroxylicious into minikube, configured to proxy the cluster
-
-> NOTE: If the kroxylicious pod doesn't come up, but it's stuck on ImagePullBackOff with "unauthorized: access to the requested resource is not authorized" error, 
-it could mean you have to make the Quay image as public.
-
-If you want to only build and push an image to the container registry you can run `PUSH_IMAGE=y REGISTRY_DESTINATION=quay.io/$your_quay_org$/kroxylicious ./scripts/deploy-image.sh`
-
-To change the container engine to podman set `CONTAINER_ENGINE=podman`
 
 ## IDE setup
 
@@ -360,7 +328,7 @@ KROXYLICIOUS_IMAGE_REPO=<container_registry>/<myorg>/kroxylicious mvn clean veri
 
 The `docs` directory has some user documentation written in [AsciiDoc](https://docs.asciidoctor.org/asciidoc/latest/) format.
 You can render it to HTML using:
-
+__
 ```shell
 mvn org.asciidoctor:asciidoctor-maven-plugin:process-asciidoc@convert-to-html
 ```

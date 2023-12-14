@@ -1,0 +1,524 @@
+spawn bash -i
+before[?2004h$ spawn bash -i
+before[?2004h$ spawn bash -i
+couldn't compile regular expression pattern: quantifier operand invalid
+    while executing
+"expect -re $prompt"
+    (file "./test.sh" line 12)
+spawn bash -i
+before[?2004h$ invalid command name "here"
+    while executing
+"here"
+    (file "./test.sh" line 14)
+spawn bash -i
+before[?2004hx beforeinvalid command name "here"
+    while executing
+"here"
+    (file "./test.sh" line 14)
+spawn bash -i
+before[?2004hx beforespawn bash -i
+before[?2004h$ spawn bash -i
+before[?2004h$ wrong # args: should be "eof channelId"
+    while executing
+"eof"
+    (file "./test.sh" line 15)
+spawn bash -i
+before[?2004h$ invalid command name "expect_eof"
+    while executing
+"expect_eof"
+    (file "./test.sh" line 15)
+spawn bash -i
+before[?2004h$ beforetest
+[?2004lbash: beforetest: command not found
+[?2004h$ spawn bash -i
+[?2004h$ test
+[?2004l[?2004h$ spawn bash -i
+[?2004h$ test
+[?2004l[?2004h$ spawn bash -i
+[?2004h$ test
+[?2004l[?2004h$ spawn bash -i
+[?2004h$ echo hello
+[?2004lhello
+[?2004h$ spawn bash -i
+[?2004h$ echo hello
+[?2004lhello
+[?2004h$ exitspawn bash -i
+[?2004h$ echo hello
+[?2004lhello
+[?2004h$ exit
+[?2004lexit
+spawn bash -i
+[?2004h$ echo hello
+[?2004lhello
+[?2004h$ exit
+[?2004lexit
+spawn bash -i
+[?2004h$ echo hello
+[?2004lhello
+[?2004h$ exit
+[?2004lexit
+spawn bash -i
+[?2004hbash-5.2$ echo hello
+[?2004lhello
+[?2004hbash-5.2$ exit
+[?2004lexit
+spawn bash -i
+[?2004hbash-5.2$ echo hello
+[?2004lhello
+[?2004hbash-5.2$ exit
+[?2004lexit
+spawn bash -i
+[?2004hbash-5.2$ echo hello
+[?2004lhello
+[?2004hbash-5.2$ exit
+[?2004lexit
+spawn bash -i
+[?2004hbash-5.2$ send -h: send_human has no value
+    while executing
+"send -h "echo hello\n""
+    (file "./test.sh" line 12)
+spawn bash -i
+[?2004hbash-5.2$ echo hello
+[?2004lhello
+[?2004hbash-5.2$ exit
+[?2004lexit
+spawn bash -i
+[?2004hbash-5.2$ echo hello
+[?2004lhello
+[?2004hbash-5.2$ exit
+[?2004lexit
+spawn bash -i
+[?2004hbash-5.2$ echo hello got prompt
+[?2004lhello got prompt
+[?2004hbash-5.2$ echo hello got another prompt
+[?2004lhello got another prompt
+[?2004hbash-5.2$ exit
+[?2004lexit
+spawn bash -i
+[?2004hbash-5.2$ echo hello got prompt
+[?2004lhello got prompt
+[?2004hbash-5.2$ echo hello got another prompt
+[?2004lhello got another prompt
+[?2004hbash-5.2$ exit
+[?2004lexit
+spawn bash -i
+[?2004hbash-5.2$ spawn bash -i
+[?2004hbash-5.2$ echo hello got prompt
+[?2004lhello got prompt
+[?2004hbash-5.2$ echo hello got another prompt
+[?2004lhello got another prompt
+[?2004hbash-5.2$ exit
+[?2004lexit
+spawn bash -i
+[?2004hbash-5.2$ echo hello got prompt
+[?2004lhello got prompt
+[?2004hbash-5.2$ echo hello got another prompt
+[?2004lhello got another prompt
+[?2004hbash-5.2$ exit
+[?2004lexit
+spawn bash -i
+[?2004hbash-5.2$ echo hello got prompt
+[?2004lhello got prompt
+[?2004hbash-5.2$ echo hello got another prompt
+[?2004lhello got another prompt
+[?2004hbash-5.2$ exit
+[?2004lexit
+spawn bash -i
+[?2004hbash-5.2$ echo hello got prompt
+[?2004lhello got prompt
+[?2004hbash-5.2$ echo hello got another prompt
+[?2004lhello got another prompt
+[?2004hbash-5.2$ exit
+[?2004lexit
+spawn bash -i
+[?2004hbash-5.2$ echo hello got prompt
+[?2004lhello got prompt
+[?2004hbash-5.2$ echo hello got another prompt
+[?2004lhello got another prompt
+[?2004hbash-5.2$ exit
+[?2004lexit
+spawn bash -i
+[?2004hbash-5.2$ echo hello got prompt
+[?2004lhello got prompt
+[?2004hbash-5.2$ echo hello got another prompt
+[?2004lhello got another prompt
+[?2004hbash-5.2$ echo hello got another prompt
+[?2004lhello got another prompt
+[?2004hbash-5.2$ echo hello got another prompt
+[?2004lhello got another prompt
+[?2004hbash-5.2$ echo hello got another prompt
+[?2004lhello got another prompt
+[?2004hbash-5.2$ exit
+[?2004lexit
+spawn bash -i
+[?2004hbash-5.2$ echo hello got prompt
+[?2004lhello got prompt
+[?2004hbash-5.2$ echo hello got another prompt
+[?2004lhello got another prompt
+[?2004hbash-5.2$ echo hello got another prompt
+[?2004lhello got another prompt
+[?2004hbash-5.2$ echo hello got another prompt
+[?2004lhello got another prompt
+[?2004hbash-5.2$ echo hello got another prompt
+[?2004lhello got another prompt
+[?2004hbash-5.2$ exit
+[?2004lexit
+spawn bash -i
+[?2004hbash-5.2$ echo hello got prompt
+[?2004lhello got prompt
+[?2004hbash-5.2$ echo hello got another prompt
+[?2004lhello got another prompt
+[?2004hbash-5.2$ echo hello got another prompt
+[?2004lhello got another prompt
+[?2004hbash-5.2$ echo hello got another prompt
+[?2004lhello got another prompt
+[?2004hbash-5.2$ echo hello got another prompt
+[?2004lhello got another prompt
+[?2004hbash-5.2$ exit
+[?2004lexit
+spawn bash -i
+[?2004hbash-5.2$ spawn bash -i
+[?2004hbash-5.2$ echo hello got prompt
+[?2004lhello got prompt
+[?2004hbash-5.2$ spawn bash -i
+[?2004hbash-5.2$ echo hello got prompt
+[?2004lhello got prompt
+[?2004hbash-5.2$ echo hello got another prompt
+[?2004lhello got another prompt
+[?2004hbash-5.2$ echo hello got another prompt
+[?2004lhello got another prompt
+[?2004hbash-5.2$ echo hello got another prompt
+[?2004lhello got another prompt
+[?2004hbash-5.2$ echo hello got another prompt
+[?2004lhello got another prompt
+[?2004hbash-5.2$ exit
+[?2004lexit
+x
+x
+x
+spawn cat
+echo hello got prompt
+echo hello got prompt
+echo hello got another prompt
+echo hello got another prompt
+echo hello got another prompt
+echo hello got another prompt
+echo hello got another prompt
+echo hello got another prompt
+echo hello got another prompt
+echo hello got another prompt
+exit
+exit
+spawn cat
+echo hello got prompt
+echo hello got prompt
+echo hello got another prompt
+echo hello got another prompt
+echo hello got another prompt
+echo hello got another prompt
+echo hello got another prompt
+echo hello got another prompt
+echo hello got another prompt
+echo hello got another prompt
+exit
+exit
+spawn unbuffer cat
+echo hello got prompt
+echo hello got another prompt
+echo hello got another prompt
+echo hello got another prompt
+echo hello got another prompt
+exit
+spawn unbuffer cat
+echo hello got prompt
+echo hello got another prompt
+echo hello got another prompt
+echo hello got another prompt
+echo hello got another prompt
+exit
+spawn unbuffer cat
+echo hello got prompt
+echo hello got another prompt
+echo hello got another prompt
+echo hello got another prompt
+echo hello got another prompt
+exit
+spawn unbuffer bash -i
+ech[?2004hbash-5.2$ o hello got prompt
+echo hello got another prompt
+echo hello got another prompt
+echo hello got another prompt
+echo hello got another prompt
+exit
+spawn stdbuf -o0 bash -i
+echo hello got prompt
+echo hello got another prompt
+echo hello got another prompt
+echo hello got another prompt
+echo hello got another prompt
+exit
+[?2004hbash-5.2$ echo hello got prompt
+[?2004lhello got prompt
+[?2004hbash-5.2$ echo hello got another prompt
+[?2004lhello got another prompt
+[?2004hbash-5.2$ echo hello got another prompt
+[?2004lhello got another prompt
+[?2004hbash-5.2$ echo hello got another prompt
+[?2004lhello got another prompt
+[?2004hbash-5.2$ echo hello got another prompt
+[?2004lhello got another prompt
+[?2004hbash-5.2$ exit
+[?2004lexit
+spawn stdbuf -o0 bash -i
+echo hello got prompt
+echo hello got another prompt
+echo hello got another prompt
+echo hello got another prompt
+echo hello got another prompt
+exit
+[?2004hbash-5.2$ echo hello got prompt
+[?2004lhello got prompt
+[?2004hbash-5.2$ echo hello got another prompt
+[?2004lhello got another prompt
+[?2004hbash-5.2$ echo hello got another prompt
+[?2004lhello got another prompt
+[?2004hbash-5.2$ echo hello got another prompt
+[?2004lhello got another prompt
+[?2004hbash-5.2$ echo hello got another prompt
+[?2004lhello got another prompt
+[?2004hbash-5.2$ exit
+[?2004lexit
+spawn stdbuf -o0 bash -i --noediting
+ebash: --: invalid option
+Usage:	bash [GNU long option] [option] ...
+	bash [GNU long option] [option] script-file ...
+GNU long options:
+	--debug
+	--debugger
+	--dump-po-strings
+	--dump-strings
+	--help
+	--init-file
+	--login
+	--noediting
+	--noprofile
+	--norc
+	--posix
+	--pretty-print
+	--rcfile
+	--restricted
+	--verbose
+	--version
+Shell options:
+	-ilrsD or -c command or -O shopt_option		(invocation only)
+	-abefhkmnptuvxBCEHPT or -o option
+cho hello got prompt
+echo hello got another prompt
+echo hello got another prompt
+echo hello got another prompt
+echo hello got another prompt
+exit
+spawn stdbuf -o0 bash --noediting -i
+ebash-5.2$ cho hello got prompt
+ehello got prompt
+bash-5.2$ cho hello got another prompt
+ehello got another prompt
+bash-5.2$ cho hello got another prompt
+ehello got another prompt
+bash-5.2$ cho hello got another prompt
+ehello got another prompt
+bash-5.2$ cho hello got another prompt
+exit
+hello got another prompt
+bash-5.2$ exit
+spawn stdbuf -o0 -i0 bash --noediting -i
+ebash-5.2$ cho hello got prompt
+ehello got prompt
+bash-5.2$ cho hello got another prompt
+ehello got another prompt
+bash-5.2$ cho hello got another prompt
+ehello got another prompt
+bash-5.2$ cho hello got another prompt
+ehello got another prompt
+bash-5.2$ cho hello got another prompt
+exit
+hello got another prompt
+bash-5.2$ exit
+spawn bash --noediting -i
+ebash-5.2$ cho hello got prompt
+ehello got prompt
+bash-5.2$ cho hello got another prompt
+ehello got another prompt
+bash-5.2$ cho hello got another prompt
+ehello got another prompt
+bash-5.2$ cho hello got another prompt
+ehello got another prompt
+bash-5.2$ cho hello got another prompt
+exit
+hello got another prompt
+bash-5.2$ exit
+spawn bash -i
+echo hello got prompt
+echo hello got another prompt
+echo hello got another prompt
+echo hello got another prompt
+echo hello got another prompt
+exit
+[?2004hbash-5.2$ echo hello got prompt
+[?2004lhello got prompt
+[?2004hbash-5.2$ echo hello got another prompt
+[?2004lhello got another prompt
+[?2004hbash-5.2$ echo hello got another prompt
+[?2004lhello got another prompt
+[?2004hbash-5.2$ echo hello got another prompt
+[?2004lhello got another prompt
+[?2004hbash-5.2$ echo hello got another prompt
+[?2004lhello got another prompt
+[?2004hbash-5.2$ exit
+[?2004lexit
+spawn bash -i
+echo hello got prompt
+echo hello got another prompt
+echo hello got another prompt
+echo hello got another prompt
+echo hello got another prompt
+exit
+[?2004hbash-5.2$ spawn ssh oslo.local
+echo hello got prompt
+echo hello got another prompt
+spawn ssh oslo.local
+spawn ssh oslo.local
+echo hello got prompt
+echo hello got another prompt
+echo hello got another prompt
+echo hello got another prompt
+echo hello got another prompt
+exit
+echo hello got prompt
+echo hello got another prompt
+echo hello got another prompt
+echo hello got another prompt
+echo hello got another prompt
+exit
+Last login: Thu Dec 14 20:04:45 2023 from ::1
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jkwall@Oslo ~ % [Keecho hello got prompt
+hello got prompt
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jkwall@Oslo ~ % [Keecho hello got another prompt
+hello got another prompt
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jkwall@Oslo ~ % [Keecho hello got another prompt
+hello got another prompt
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jkwall@Oslo ~ % [Keecho hello got another prompt
+hello got another prompt
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jkwall@Oslo ~ % [Keecho hello got another prompt
+hello got another prompt
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jkwall@Oslo ~ % [Keexit
+Connection to oslo.local closed.
+spawn ssh -t oslo.local
+echo hello got prompt
+echo hello got another prompt
+echo hello got another prompt
+echo hello got another prompt
+echo hello got another prompt
+exit
+echo hello got prompt
+echo hello got another prompt
+echo hello got another prompt
+echo hello got another prompt
+echo hello got another prompt
+exit
+Last login: Thu Dec 14 20:05:25 2023 from ::1
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jkwall@Oslo ~ % [Keecho hello got prompt
+hello got prompt
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jkwall@Oslo ~ % [Keecho hello got another prompt
+hello got another prompt
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jkwall@Oslo ~ % [Keecho hello got another prompt
+hello got another prompt
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jkwall@Oslo ~ % [Keecho hello got another prompt
+hello got another prompt
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jkwall@Oslo ~ % [Keecho hello got another prompt
+hello got another prompt
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jkwall@Oslo ~ % [Keexit
+Connection to oslo.local closed.
+spawn ssh -tt oslo.local
+echo hello got prompt
+echo hello got another prompt
+echo hello got another prompt
+echo hello got another prompt
+echo hello got another prompt
+exit
+echo hello got prompt
+echo hello got another prompt
+echo hello got another prompt
+echo hello got another prompt
+echo hello got another prompt
+exit
+Last login: Thu Dec 14 20:07:50 2023 from ::1
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jkwall@Oslo ~ % [Keecho hello got prompt
+hello got prompt
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jkwall@Oslo ~ % [Keecho hello got another prompt
+hello got another prompt
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jkwall@Oslo ~ % [Keecho hello got another prompt
+hello got another prompt
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jkwall@Oslo ~ % [Keecho hello got another prompt
+hello got another prompt
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jkwall@Oslo ~ % [Keecho hello got another prompt
+hello got another prompt
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jkwall@Oslo ~ % [Keexit
+Connection to oslo.local closed.
+spawn ssh -tt oslo.local
+send -s: send_slow has no value
+    while executing
+"send -s "echo hello""
+    (file "test1.sh" line 11)
+spawn ssh -tt oslo.local
+echo hello got prompt
+echo hello got another prompt
+echo hello got another prompt
+echo hello got another prompt
+echo hello got another prompt
+exit
+echo hello got prompt
+echo hello got another prompt
+echo hello got another prompt
+echo hello got another prompt
+echo hello got another prompt
+exit
+Last login: Thu Dec 14 20:08:18 2023 from ::1
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jkwall@Oslo ~ % [Keecho hello got prompt
+hello got prompt
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jkwall@Oslo ~ % [Keecho hello got another prompt
+hello got another prompt
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jkwall@Oslo ~ % [Keecho hello got another prompt
+hello got another prompt
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jkwall@Oslo ~ % [Keecho hello got another prompt
+hello got another prompt
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jkwall@Oslo ~ % [Keecho hello got another prompt
+hello got another prompt
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jkwall@Oslo ~ % [Keexit
+Connection to oslo.local closed.
+spawn ssh -tt oslo.local
+echo hello got prompt
+echo hello got another prompt
+echo hello got another prompt
+echo hello got another prompt
+echo hello got another prompt
+exit
+echo hello got prompt
+echo hello got another prompt
+echo hello got another prompt
+echo hello got another prompt
+echo hello got another prompt
+exit
+Last login: Thu Dec 14 20:16:08 2023 from ::1
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jkwall@Oslo ~ % [Keecho hello got prompt
+hello got prompt
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jkwall@Oslo ~ % [Keecho hello got another prompt
+hello got another prompt
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jkwall@Oslo ~ % [Keecho hello got another prompt
+hello got another prompt
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jkwall@Oslo ~ % [Keecho hello got another prompt
+hello got another prompt
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jkwall@Oslo ~ % [Keecho hello got another prompt
+hello got another prompt
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jkwall@Oslo ~ % [Keexit
+Connection to oslo.local closed.

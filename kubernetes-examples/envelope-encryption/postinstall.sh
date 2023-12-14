@@ -14,13 +14,13 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NOCOLOR='\033[0m'
 
-MINIKUBE_IP=$(minikube ip)
+MINIKUBE_IP=$(minikube ip 2>/dev/null)
 echo -e  "${YELLOW}Please add/update following link to your '/etc/hosts'.${NOCOLOR}"
 echo -e  "${YELLOW}${MINIKUBE_IP} minikube${NOCOLOR}"
 echo
 
-echo "Use the Vault UI (token myroot) to create an aes256-gcm96 key called 'all'"
-minikube service vault-host -n vault --url | head -1
+VAULT_UI_URL=$(minikube service vault -n vault --url 2>/dev/null | head -1)
+echo "Use the Vault UI ${VAULT_UI_URL} (token 'myroottoken') to create an aes256-gcm96 key called 'all'"
 echo "or use this command:"
 echo "kubectl exec -n vault vault-0 -- vault write -f transit/keys/all"
 echo
@@ -41,4 +41,4 @@ echo
 
 echo -e "${GREEN}Finally let's lift the bonnet and take a look at the kafka underneath${NOCOLOR}"
 
-echo "kubectl -n kafka run consumer -ti --image=quay.io/k_wall/kaf --rm=true --restart=Never -- kaf consume billingapp --offset oldest -b ${BOOTSTRAP}"
+echo "kubectl -n kafka run consumer -ti --image=${KEF} --rm=true --restart=Never -- kaf consume billingapp --offset oldest -b ${BOOTSTRAP}"

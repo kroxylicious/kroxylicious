@@ -22,6 +22,10 @@ elif [[ ! -d "${1}"  ]]; then
 fi
 
 SAMPLE_DIR=${1}
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NOCOLOR='\033[0m'
+
 
 KUSTOMIZE_TMP=$(mktemp -d)
 function cleanTmpDir {
@@ -36,22 +40,28 @@ else
   echo "REGISTRY_DESTINATION is ${REGISTRY_DESTINATION}, not building/deploying image"
 fi
 
-set +e
-MINIKUBE_MEM=$(${MINIKUBE} config get memory 2>/dev/null)
-MINIKUBE_MEM_EXIT=$?
-set -e
-MINIKUBE_CONF='--memory=4096'
-if [ $MINIKUBE_MEM_EXIT -eq 0 ]; then
-  if [[ "$MINIKUBE_MEM" -lt 4096 ]]; then
-    echo "minikube memory is configured to below 4096 by user, overriding to 4096"
+
+if ! ${MINIKUBE} status 1>/dev/null 2>/dev/null; then
+  set +e
+  MINIKUBE_MEM=$(${MINIKUBE} config get memory 2>/dev/null)
+  MINIKUBE_MEM_EXIT=$?
+  set -e
+  MINIKUBE_CONF='--memory=4096'
+  if [ $MINIKUBE_MEM_EXIT -eq 0 ]; then
+    if [[ "$MINIKUBE_MEM" -lt 4096 ]]; then
+      echo "minikube memory is configured to below 4096 by user, overriding to 4096"
+    else
+      echo "minikube memory configured by user"
+      MINIKUBE_CONF=''
+    fi
   else
-    echo "minikube memory configured by user"
-    MINIKUBE_CONF=''
+    echo "no minikube memory configuration, defaulting to 4096M"
   fi
+  ${MINIKUBE} start "${MINIKUBE_CONF}"
+  echo -e "${GREEN}minikube started.${NOCOLOR}"
 else
-  echo "no minikube memory configuration, defaulting to 4096M"
+  echo -e "${GREEN}minikube instance already available, we'll use it.${NOCOLOR}"
 fi
-${MINIKUBE} start "${MINIKUBE_CONF}"
 
 NAMESPACE=kafka
 
@@ -64,36 +74,44 @@ if [[ ! -d "${OVERLAY_DIR}" ]]; then
      exit 1
 fi
 
-pushd "${OVERLAY_DIR}"
+pushd "${OVERLAY_DIR}" > /dev/null
 ${KUSTOMIZE} edit set namespace ${NAMESPACE}
 if [[ "${REGISTRY_DESTINATION}" != "${DEFAULT_REGISTRY_DESTINATION}" ]]; then
   ${KUSTOMIZE} edit set image "${DEFAULT_REGISTRY_DESTINATION}=${REGISTRY_DESTINATION}"
 fi
-popd
+popd > /dev/null
 
-# Install certmanager
-${KUBECTL} apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.12.0/cert-manager.yaml
-${KUBECTL} wait deployment/cert-manager-webhook --for=condition=Available=True --timeout=300s -n cert-manager
+# Install cert-manager (if necessary)
+if grep --count --quiet --recursive cert-manager.io "${SAMPLE_DIR}"; then
+  ${KUBECTL} apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.12.0/cert-manager.yaml
+  ${KUBECTL} wait deployment/cert-manager-webhook --for=condition=Available=True --timeout=300s -n cert-manager
+  echo -e "${GREEN}cert-manager installed.${NOCOLOR}"
+fi
 
-# Install Vault
-${HELM} repo add hashicorp https://helm.releases.hashicorp.com
-${HELM} install vault hashicorp/vault --namespace vault   --set "injector.enabled=false" --set "server.dev.enabled=true" --set "server.dev.devRootToken=myroottoken" --create-namespace
-${KUBECTL} wait -l statefulset.kubernetes.io/pod-name=vault-0 -n vault --for=condition=ready pod --timeout=300s
-${KUBECTL} expose service -n vault vault --name=vault-host --type=NodePort
-${KUBECTL} exec vault-0 -n vault -- vault secrets enable transit
+# Install HashiCorp Vault (if necessary)
+if [[ -f ${SAMPLE_DIR}/helm-vault-values.yml ]];
+then
+  ${KUBECTL} create ns vault 2>/dev/null || true
+  ${HELM} repo add hashicorp https://helm.releases.hashicorp.com
+  # use helm's idempotent install technique
+  ${HELM} upgrade --install vault hashicorp/vault --namespace vault --values "${SAMPLE_DIR}/helm-vault-values.yml" --wait
+  ${KUBECTL} exec vault-0 -n vault -- vault secrets enable transit
+  echo -e "${GREEN}HashiCorp Vault installed.${NOCOLOR}"
+fi
 
 # Install strimzi
 ${KUBECTL} create namespace kafka 2>/dev/null || true
 ${KUBECTL} apply -f 'https://strimzi.io/install/latest?namespace=kafka' -n kafka
 ${KUBECTL} wait deployment strimzi-cluster-operator --for=condition=Available=True --timeout=300s -n kafka
 ${KUBECTL} set env deployment strimzi-cluster-operator -n kafka STRIMZI_FEATURE_GATES=+UseKRaft,+KafkaNodePools
+echo -e "${GREEN}Strimzi installed.${NOCOLOR}"
 
 
 # Apply sample using Kustomize
 COUNTER=0
 while ! ${KUBECTL} apply -k "${OVERLAY_DIR}"; do
   echo "Retrying ${KUBECTL} apply -k ${OVERLAY_DIR} .. probably a transient webhook issue."
-  # Sometimes the certmgr's muting webhook is not ready, so retry
+  # Sometimes the cert-manager's muting webhook is not ready, so retry
   (( COUNTER++ )) || true
   sleep 5
   if [[ "${COUNTER}" -gt 10 ]]; then
@@ -101,11 +119,11 @@ while ! ${KUBECTL} apply -k "${OVERLAY_DIR}"; do
     exit 1
   fi
 done
-echo "Config successfully applied."
+echo -e "${GREEN}Kafka and Kroxylicious config successfully applied.${NOCOLOR}"
 
 ${KUBECTL} wait kafka/my-cluster --for=condition=Ready --timeout=300s -n ${NAMESPACE}
 ${KUBECTL} wait deployment/kroxylicious-proxy --for=condition=Available=True --timeout=300s -n ${NAMESPACE}
-echo "Deployments ready."
+echo -e "${GREEN}Kafka and Kroxylicious deployments are ready.${NOCOLOR}"
 
 if [[ -f "${SAMPLE_DIR}"/postinstall.sh ]]; then
    "${SAMPLE_DIR}"/postinstall.sh
