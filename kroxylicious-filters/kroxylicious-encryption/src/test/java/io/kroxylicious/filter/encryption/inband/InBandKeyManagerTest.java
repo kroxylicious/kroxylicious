@@ -21,15 +21,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Stream;
 
-import io.kroxylicious.kms.service.Kms;
-
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.utils.ByteUtils;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
-
-import edu.umd.cs.findbugs.annotations.NonNull;
 
 import io.kroxylicious.filter.encryption.BackoffStrategy;
 import io.kroxylicious.filter.encryption.EncryptionScheme;
@@ -38,10 +34,11 @@ import io.kroxylicious.filter.encryption.RecordField;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.InMemoryKms;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.UnitTestingKmsService;
 import io.kroxylicious.kms.service.DekPair;
+import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.kms.service.Serde;
 
-import javax.crypto.SecretKey;
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -206,7 +203,7 @@ class InBandKeyManagerTest {
                 initial,
                 recordReceivedRecord(encrypted));
         assertThat(encrypt).failsWithin(Duration.ofSeconds(5)).withThrowableThat()
-                .withMessageMatching(".*failed to encrypt records for topic topic partition 1 after [0-9]+ attempts");
+                .withMessageMatching(".*failed to reserve an EDEK to encrypt 2 records for topic topic partition 1 after [0-9]+ attempts");
     }
 
     @Test
@@ -356,7 +353,6 @@ class InBandKeyManagerTest {
 
         // when
         CompletionStage decrypt2 = km.decrypt("topic", 1, encrypted, recordReceivedRecord(decrypted));
-
 
         // then
         assertThat(decrypt2).succeedsWithin(Duration.ofSeconds(5));

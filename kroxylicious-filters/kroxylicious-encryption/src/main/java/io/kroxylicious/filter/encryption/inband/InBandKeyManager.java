@@ -14,9 +14,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ScheduledExecutorService;
 
-import io.kroxylicious.filter.encryption.BackoffStrategy;
-import io.kroxylicious.filter.encryption.ResilientKms;
-
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.record.Record;
@@ -26,6 +23,7 @@ import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 
 import io.kroxylicious.filter.encryption.AadSpec;
+import io.kroxylicious.filter.encryption.BackoffStrategy;
 import io.kroxylicious.filter.encryption.CipherCode;
 import io.kroxylicious.filter.encryption.EncryptionException;
 import io.kroxylicious.filter.encryption.EncryptionScheme;
@@ -33,6 +31,7 @@ import io.kroxylicious.filter.encryption.EncryptionVersion;
 import io.kroxylicious.filter.encryption.KeyManager;
 import io.kroxylicious.filter.encryption.Receiver;
 import io.kroxylicious.filter.encryption.RecordField;
+import io.kroxylicious.filter.encryption.ResilientKms;
 import io.kroxylicious.filter.encryption.WrapperVersion;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.Serde;
@@ -135,7 +134,8 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
                                                  @NonNull Receiver receiver, int attempt) {
         if (attempt >= MAX_ATTEMPTS) {
             return CompletableFuture.failedFuture(
-                    new EncryptionException("failed to encrypt records for topic " + topicName + " partition " + partition + " after " + attempt + " attempts"));
+                    new EdekReservationFailureException("failed to reserve an EDEK to encrypt " + records.size() + " records for topic " + topicName + " partition "
+                            + partition + " after " + attempt + " attempts"));
         }
         return currentDekContext(encryptionScheme.kekId()).thenCompose(keyContext -> {
             synchronized (keyContext) {
