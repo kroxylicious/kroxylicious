@@ -9,6 +9,8 @@ package io.kroxylicious.kms.provider.hashicorp.vault;
 import java.util.Arrays;
 import java.util.Objects;
 
+import io.kroxylicious.kms.service.KekId;
+
 /**
  * A HashiCorp Vault Encrypted Dek.
  * <br/>
@@ -19,14 +21,11 @@ import java.util.Objects;
  * @param kekRef - kek reference. In this implementation it is the key's name.
  * @param edek - edek bytes
  */
-record VaultEdek(String kekRef,
+record VaultEdek(KekId kekRef,
                  byte[] edek) {
     VaultEdek {
         Objects.requireNonNull(kekRef);
         Objects.requireNonNull(edek);
-        if (kekRef.isEmpty()) {
-            throw new IllegalArgumentException("keyRef cannot be empty");
-        }
         if (edek.length == 0) {
             throw new IllegalArgumentException("edek cannot be empty");
         }

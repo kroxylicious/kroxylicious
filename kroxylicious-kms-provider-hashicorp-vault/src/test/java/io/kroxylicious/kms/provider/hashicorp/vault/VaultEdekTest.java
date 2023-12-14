@@ -13,10 +13,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 class VaultEdekTest {
     @Test
     void equalsAndHashCode() {
-        var edek1 = new VaultEdek("keyref", new byte[]{ (byte) 1, (byte) 2, (byte) 3 });
-        var edek2 = new VaultEdek("keyref", new byte[]{ (byte) 1, (byte) 2, (byte) 3 });
-        var keyRefDiffer = new VaultEdek("keyrefX", new byte[]{ (byte) 1, (byte) 2, (byte) 3 });
-        var edekBytesDiffer = new VaultEdek("keyref", new byte[]{ (byte) 1, (byte) 2, (byte) 4 });
+        var edek1 = new VaultEdek(new StringKekid("keyref"), new byte[]{ (byte) 1, (byte) 2, (byte) 3 });
+        var edek2 = new VaultEdek(new StringKekid("keyref"), new byte[]{ (byte) 1, (byte) 2, (byte) 3 });
+        var keyRefDiffer = new VaultEdek(new StringKekid("keyrefX"), new byte[]{ (byte) 1, (byte) 2, (byte) 3 });
+        var edekBytesDiffer = new VaultEdek(new StringKekid("keyref"), new byte[]{ (byte) 1, (byte) 2, (byte) 4 });
 
         assertThat(edek1)
                 .isEqualTo(edek1)
@@ -39,7 +39,7 @@ class VaultEdekTest {
 
     @Test
     void toStringFormation() {
-        var edek = new VaultEdek("keyref", new byte[]{ (byte) 1, (byte) 2, (byte) 3 });
-        assertThat(edek).hasToString("VaultEdek{keyRef=keyref, edek=[1, 2, 3]}");
+        var edek = new VaultEdek(new StringKekid("keyref"), new byte[]{ (byte) 1, (byte) 2, (byte) 3 });
+        assertThat(edek).hasToString("VaultEdek{keyRef=StringKekid[keyRef=keyref], edek=[1, 2, 3]}");
     }
 }

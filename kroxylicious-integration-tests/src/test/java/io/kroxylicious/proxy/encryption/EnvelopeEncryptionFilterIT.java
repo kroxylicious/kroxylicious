@@ -27,7 +27,6 @@ import io.kroxylicious.filter.encryption.EnvelopeEncryption;
 import io.kroxylicious.filter.encryption.TemplateKekSelector;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.InMemoryKms;
 import io.kroxylicious.kms.service.TestKmsFacade;
-import io.kroxylicious.kms.service.KekId;
 import io.kroxylicious.proxy.config.FilterDefinition;
 import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;

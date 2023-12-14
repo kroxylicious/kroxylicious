@@ -13,10 +13,14 @@ import io.kroxylicious.kms.service.KmsException;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-public record StringKekid(@NonNull String keyId) implements KekId {
+public record StringKekid(@NonNull String keyRef) implements KekId {
 
     public StringKekid {
-        Objects.requireNonNull(keyId);
+        Objects.requireNonNull(keyRef);
+        if (keyRef.isEmpty()) {
+            throw new IllegalArgumentException("keyRef cannot be empty");
+        }
+
     }
 
     @SuppressWarnings("unchecked")
@@ -25,7 +29,7 @@ public record StringKekid(@NonNull String keyId) implements KekId {
         if (!keyType.isAssignableFrom(String.class)) {
             throw new KmsException("Unsupported keyType (" + keyType + ") requested. Only Strings are supported");
         }
-        return (K) this.keyId;
+        return (K) this.keyRef;
     }
 
 }

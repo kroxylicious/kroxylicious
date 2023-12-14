@@ -13,6 +13,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import io.kroxylicious.kms.service.KekId;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -22,16 +24,16 @@ class VaultEdekSerdeTest {
 
     static Stream<Arguments> keyRefs() {
         return Stream.of(
-                Arguments.of("ordinary looking keyref", "mykey"),
-                Arguments.of("short keyref", "k"),
-                Arguments.of("outwith ascii", "k€yr€f"),
-                Arguments.of("longer keyref, len just fits in single byte", "x".repeat(127)),
-                Arguments.of("longer keyref, len requires multiple bytes", "x".repeat(128)));
+                Arguments.of("ordinary looking keyref", new StringKekid("mykey")),
+                Arguments.of("short keyref", new StringKekid("k")),
+                Arguments.of("outwith ascii", new StringKekid("k€yr€f")),
+                Arguments.of("longer keyref, len just fits in single byte", new StringKekid("x".repeat(127))),
+                Arguments.of("longer keyref, len requires multiple bytes", new StringKekid("x".repeat(128))));
     }
 
     @ParameterizedTest(name = "{0}")
     @MethodSource(value = "keyRefs")
-    void shouldRoundTrip(String name, String keyRef) {
+    void shouldRoundTrip(String name, KekId keyRef) {
         var edek = new VaultEdek(keyRef, new byte[]{ 1, 2, 3 });
         var buf = ByteBuffer.allocate(serde.sizeOf(edek));
         serde.serialize(edek, buf);
@@ -44,19 +46,19 @@ class VaultEdekSerdeTest {
         return Stream.of(
                 Arguments.of(
                         "ordinary",
-                        new VaultEdek("a", new byte[]{ 1 }),
+                        new VaultEdek(new StringKekid("a"), new byte[]{ 1 }),
                         1 + 1 + 1),
                 Arguments.of(
                         "longer keyref, len just fits in single byte",
-                        new VaultEdek("a".repeat(127), new byte[]{ 1 }),
+                        new VaultEdek(new StringKekid("a".repeat(127)), new byte[]{ 1 }),
                         1 + 127 + 1),
                 Arguments.of(
                         "longer keyref, len requires multiple bytes",
-                        new VaultEdek("a".repeat(128), new byte[]{ 1 }),
+                        new VaultEdek(new StringKekid("a".repeat(128)), new byte[]{ 1 }),
                         2 + 128 + 1),
                 Arguments.of(
                         "longer edek",
-                        new VaultEdek("abc", new byte[]{ 1, 2, 3, 4 }),
+                        new VaultEdek(new StringKekid("abc"), new byte[]{ 1, 2, 3, 4 }),
                         1 + 3 + 4));
     }
 

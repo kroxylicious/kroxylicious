@@ -91,7 +91,7 @@ public class VaultKms implements Kms<VaultEdek> {
                 .thenApply(VaultResponse::data)
                 .thenApply(data -> {
                     var secretKey = new SecretKeySpec(Base64.getDecoder().decode(data.plaintext()), AES_KEY_ALGO);
-                    return new DekPair<>(new VaultEdek(kekRefId, data.ciphertext().getBytes(UTF_8)), secretKey);
+                    return new DekPair<>(new VaultEdek(kekRef, data.ciphertext().getBytes(UTF_8)), secretKey);
                 });
 
     }

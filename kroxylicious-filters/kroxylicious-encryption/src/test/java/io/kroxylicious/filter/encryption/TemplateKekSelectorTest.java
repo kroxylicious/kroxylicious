@@ -8,7 +8,6 @@ package io.kroxylicious.filter.encryption;
 
 import java.time.Duration;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
@@ -16,6 +15,7 @@ import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.InMemoryKms;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.UnitTestingKmsService;
+import io.kroxylicious.kms.service.KekId;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.kms.service.UnknownAliasException;
@@ -65,7 +65,7 @@ class TemplateKekSelectorTest {
     void shouldNotThrowWhenAliasDoesNotExist_UnknownAliasExceptionWrappedInCompletionException() throws ExecutionException, InterruptedException {
         var kms = mock(InMemoryKms.class);
         var result = CompletableFuture.completedFuture(null)
-                .<UUID> thenApply((u) -> {
+                .<KekId> thenApply((u) -> {
                     // this exception will be wrapped by a CompletionException
                     throw new UnknownAliasException("mock alias exception");
                 });
@@ -80,7 +80,7 @@ class TemplateKekSelectorTest {
     @Test
     void serviceExceptionsArePropagated() {
         var kms = mock(InMemoryKms.class);
-        var result = CompletableFuture.<UUID> failedFuture(new KmsException("bang!"));
+        var result = CompletableFuture.<KekId> failedFuture(new KmsException("bang!"));
         when(kms.resolveAlias(anyString())).thenReturn(result);
 
         var selector = getSelector(kms, "topic-${topicName}");
