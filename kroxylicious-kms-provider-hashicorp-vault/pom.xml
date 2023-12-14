@@ -22,10 +22,6 @@
     <packaging>jar</packaging>
     <name>Hashicorp Vault KMS</name>
     <description>A KMS provider backed by a remote instance of Hashicorp Vault</description>
-    <properties>
-        <testcontainers-vault.version>1.19.3</testcontainers-vault.version>
-    </properties>
-
     <dependencies>
         <dependency>
             <groupId>io.kroxylicious</groupId>

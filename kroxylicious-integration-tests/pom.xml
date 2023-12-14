@@ -40,12 +40,22 @@
         </dependency>
         <dependency>
             <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-kms-test-support</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-encryption</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious-kms-provider-kroxylicious-inmemory</artifactId>
+            <artifactId>kroxylicious-kms-provider-kroxylicious-inmemory-test-support</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-kms-provider-hashicorp-vault-test-support</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -89,6 +99,16 @@
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
             <artifactId>log4j-slf4j2-impl</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>

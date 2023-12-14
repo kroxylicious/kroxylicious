@@ -15,6 +15,7 @@ import java.util.Base64;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 import javax.crypto.SecretKey;
@@ -31,6 +32,7 @@ import io.kroxylicious.kms.service.DekPair;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.kms.service.Serde;
+import io.kroxylicious.kms.service.UnknownAliasException;
 import io.kroxylicious.kms.service.UnknownKeyException;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -81,7 +83,7 @@ public class VaultKms implements Kms<String, VaultEdek> {
                 .build();
 
         return vaultClient.sendAsync(request, statusHandler(kekRef, new JsonBodyHandler<VaultResponse<DataKeyData>>(new TypeReference<>() {
-        })))
+        }), UnknownKeyException::new))
                 .thenApply(HttpResponse::body)
                 .thenApply(Supplier::get)
                 .thenApply(VaultResponse::data)
@@ -109,7 +111,7 @@ public class VaultKms implements Kms<String, VaultEdek> {
                 .build();
 
         return vaultClient.sendAsync(request, statusHandler(edek.kekRef(), new JsonBodyHandler<VaultResponse<DecryptData>>(new TypeReference<>() {
-        }))).thenApply(HttpResponse::body)
+        }), UnknownKeyException::new)).thenApply(HttpResponse::body)
                 .thenApply(Supplier::get)
                 .thenApply(VaultResponse::data)
                 .thenApply(data -> new SecretKeySpec(Base64.getDecoder().decode(data.plaintext()), AES_KEY_ALGO));
@@ -140,7 +142,7 @@ public class VaultKms implements Kms<String, VaultEdek> {
                 .build();
 
         return vaultClient.sendAsync(request, statusHandler(alias, new JsonBodyHandler<VaultResponse<ReadKeyData>>(new TypeReference<>() {
-        })))
+        }), UnknownAliasException::new))
                 .thenApply(HttpResponse::body)
                 .thenApply(Supplier::get)
                 .thenApply(VaultResponse::data)
@@ -160,10 +162,10 @@ public class VaultKms implements Kms<String, VaultEdek> {
                 .header("Accept", "application/json");
     }
 
-    private static <T> HttpResponse.BodyHandler<T> statusHandler(String keyRef, HttpResponse.BodyHandler<T> handler) {
+    private static <T> HttpResponse.BodyHandler<T> statusHandler(String keyRef, HttpResponse.BodyHandler<T> handler, Function<String, KmsException> notFound) {
         return r -> {
             if (r.statusCode() == 404 || r.statusCode() == 400) {
-                throw new UnknownKeyException("key '%s' is not found.".formatted(keyRef));
+                throw notFound.apply("key '%s' is not found.".formatted(keyRef));
             }
             else if (r.statusCode() != 200) {
                 throw new KmsException("fail to retrieve key '%s', HTTP status code %d.".formatted(keyRef, r.statusCode()));

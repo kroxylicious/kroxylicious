@@ -25,6 +25,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.kroxylicious.kms.provider.hashicorp.vault.VaultKmsService.Config;
 import io.kroxylicious.kms.provider.hashicorp.vault.VaultResponse.ReadKeyData;
 import io.kroxylicious.kms.service.DekPair;
+import io.kroxylicious.kms.service.UnknownAliasException;
 import io.kroxylicious.kms.service.UnknownKeyException;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -87,7 +88,7 @@ class VaultKmsIT {
         assertThat(resolved)
                 .failsWithin(Duration.ofSeconds(5))
                 .withThrowableThat()
-                .withCauseInstanceOf(UnknownKeyException.class);
+                .withCauseInstanceOf(UnknownAliasException.class);
     }
 
     @Test

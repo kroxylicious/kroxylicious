@@ -69,6 +69,7 @@
         <maven.core.version>3.9.6</maven.core.version>
         <awaitility.version>4.2.0</awaitility.version>
         <commons.io.version>2.15.1</commons.io.version>
+        <testcontainers-vault.version>1.19.3</testcontainers-vault.version>
     </properties>
 
     <name>Parent POM</name>
@@ -305,6 +306,11 @@
                 <version>${strimzi.version}</version>
             </dependency>
             <dependency>
+                <groupId>org.testcontainers</groupId>
+                <artifactId>vault</artifactId>
+                <version>${testcontainers-vault.version}</version>
+            </dependency>
+            <dependency>
                 <groupId>org.apache.maven.enforcer</groupId>
                 <artifactId>enforcer-api</artifactId>
                 <version>${enforcer.api.version}</version>
@@ -341,8 +347,11 @@
 
     <modules>
         <module>kroxylicious-kms</module>
+        <module>kroxylicious-kms-test-support</module>
         <module>kroxylicious-kms-provider-kroxylicious-inmemory</module>
+        <module>kroxylicious-kms-provider-kroxylicious-inmemory-test-support</module>
         <module>kroxylicious-kms-provider-hashicorp-vault</module>
+        <module>kroxylicious-kms-provider-hashicorp-vault-test-support</module>
         <module>kroxylicious-bom</module>
         <module>kroxylicious-api</module>
         <module>kroxylicious-app</module>
