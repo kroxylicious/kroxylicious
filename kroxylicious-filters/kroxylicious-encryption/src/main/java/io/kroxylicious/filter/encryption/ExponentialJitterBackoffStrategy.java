@@ -24,14 +24,19 @@ public class ExponentialJitterBackoffStrategy implements BackoffStrategy {
                                             @NonNull Duration maximumDelay,
                                             double multiplier,
                                             Random random) {
+        if (multiplier <= 1.0d) {
+            throw new IllegalArgumentException("multiplier must be greater than one");
+        }
+        if (initialDelay.compareTo(Duration.ZERO) <= 0) {
+            throw new IllegalArgumentException("initialDelay must be greater than zero");
+        }
+        if (maximumDelay.compareTo(Duration.ZERO) <= 0) {
+            throw new IllegalArgumentException("maximumDelay must be greater than zero");
+        }
         this.initialDelay = initialDelay;
         this.maximumDelay = maximumDelay;
         this.multiplier = multiplier;
         this.random = random;
-        if (multiplier < 1.0) {
-            throw new IllegalArgumentException("multiplier should not reduce the initial delay");
-        }
-
     }
 
     @Override
@@ -47,7 +52,7 @@ public class ExponentialJitterBackoffStrategy implements BackoffStrategy {
     private Duration getRandomJitter(int failures, Duration backoff) {
         Duration prior = getExponentialBackoff(failures - 1);
         long maxJitter = backoff.toMillis() - prior.toMillis();
-        return Duration.ofMillis(this.random.nextLong() % maxJitter);
+        return maxJitter == 0 ? Duration.ZERO : Duration.ofMillis(this.random.nextLong() % maxJitter);
     }
 
     private Duration getExponentialBackoff(int failures) {

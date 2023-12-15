@@ -17,6 +17,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mockito;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
 class ExponentialJitterBackoffStrategyTest {
@@ -101,6 +102,29 @@ class ExponentialJitterBackoffStrategyTest {
                 Duration.of(20, ChronoUnit.SECONDS), 2, mockRandom);
         Duration delay = strategy.getDelay(1);
         assertThat(delay).isEqualTo(expected);
+    }
+
+    private static Stream<Arguments> invalidConfigurations() {
+        Duration negativeDuration = Duration.of(-3, ChronoUnit.SECONDS);
+        Duration oneSecond = Duration.of(1, ChronoUnit.SECONDS);
+        return Stream.of(
+                Arguments.of(negativeDuration, oneSecond, 2.0d),
+                Arguments.of(Duration.ZERO, oneSecond, 2.0d),
+                Arguments.of(oneSecond, negativeDuration, 2.0d),
+                Arguments.of(oneSecond, Duration.ZERO, 2.0d),
+                Arguments.of(oneSecond, oneSecond, 0.0d),
+                Arguments.of(oneSecond, oneSecond, 1.0d),
+                Arguments.of(oneSecond, oneSecond, -1.2d));
+    }
+
+    @ParameterizedTest
+    @MethodSource
+    public void invalidConfigurations(Duration initial, Duration maximum, double multiplier) {
+        Random mockRandom = Mockito.mock(Random.class);
+        assertThatThrownBy(() -> {
+            new ExponentialJitterBackoffStrategy(initial,
+                    maximum, multiplier, mockRandom);
+        }).isInstanceOf(IllegalArgumentException.class);
     }
 
 }
