@@ -116,6 +116,7 @@ while ! ${KUBECTL} apply -k "${OVERLAY_DIR}"; do
   fi
 done
 echo -e "${GREEN}Kafka and Kroxylicious config successfully applied.${NOCOLOR}"
+echo "Waiting for resources to be ready..."
 
 ${KUBECTL} wait kafka/my-cluster --for=condition=Ready --timeout=300s -n kafka
 ${KUBECTL} wait deployment/kroxylicious-proxy --for=condition=Available=True --timeout=300s -n kroxylicious
