@@ -44,7 +44,7 @@ class ExponentialJitterBackoffStrategyTest {
 
     @ParameterizedTest
     @MethodSource
-    public void testBackoffWithNoRandomJitter(double multiplier, Duration initialDelay, int failures, Duration expected) {
+    void testBackoffWithNoRandomJitter(double multiplier, Duration initialDelay, int failures, Duration expected) {
         Random mockRandom = Mockito.mock(Random.class);
         when(mockRandom.nextLong()).thenReturn(0L);
         ExponentialJitterBackoffStrategy strategy = new ExponentialJitterBackoffStrategy(initialDelay,
@@ -53,7 +53,7 @@ class ExponentialJitterBackoffStrategyTest {
         assertThat(delay).isEqualTo(expected);
     }
 
-    private static Stream<Arguments> testCappedToMaximumMaximum() {
+    private static Stream<Arguments> testCappedToMaximumDelay() {
         Duration maxThreeSeconds = Duration.of(3, ChronoUnit.SECONDS);
         Duration maxFiveSeconds = Duration.of(5, ChronoUnit.SECONDS);
         return Stream.of(
@@ -73,7 +73,7 @@ class ExponentialJitterBackoffStrategyTest {
 
     @ParameterizedTest
     @MethodSource
-    public void testCappedToMaximumMaximum(Duration maximum, int failures, Duration expected) {
+    void testCappedToMaximumDelay(Duration maximum, int failures, Duration expected) {
         Random mockRandom = Mockito.mock(Random.class);
         when(mockRandom.nextLong()).thenReturn(0L);
         ExponentialJitterBackoffStrategy strategy = new ExponentialJitterBackoffStrategy(Duration.of(1, ChronoUnit.SECONDS),
@@ -95,7 +95,7 @@ class ExponentialJitterBackoffStrategyTest {
 
     @ParameterizedTest
     @MethodSource
-    public void testRandomJitter(Long randomLong, Duration expected) {
+    void testRandomJitter(Long randomLong, Duration expected) {
         Random mockRandom = Mockito.mock(Random.class);
         when(mockRandom.nextLong()).thenReturn(randomLong);
         ExponentialJitterBackoffStrategy strategy = new ExponentialJitterBackoffStrategy(Duration.of(1, ChronoUnit.SECONDS),
@@ -119,7 +119,7 @@ class ExponentialJitterBackoffStrategyTest {
 
     @ParameterizedTest
     @MethodSource
-    public void invalidConfigurations(Duration initial, Duration maximum, double multiplier, String message) {
+    void invalidConfigurations(Duration initial, Duration maximum, double multiplier, String message) {
         Random mockRandom = Mockito.mock(Random.class);
         assertThatThrownBy(() -> {
             new ExponentialJitterBackoffStrategy(initial,

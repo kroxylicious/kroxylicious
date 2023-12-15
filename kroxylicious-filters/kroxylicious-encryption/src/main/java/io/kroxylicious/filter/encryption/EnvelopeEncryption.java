@@ -48,6 +48,7 @@ public class EnvelopeEncryption<K, E> implements FilterFactory<EnvelopeEncryptio
 
     @NonNull
     @Override
+    @SuppressWarnings("java:S2245") // secure randomization not needed for exponential backoff
     public EnvelopeEncryptionFilter<K> createFilter(FilterFactoryContext context, Config configuration) {
         KmsService<Object, K, E> kmsPlugin = context.pluginInstance(KmsService.class, configuration.kms());
         Kms<K, E> kms = kmsPlugin.buildKms(configuration.kmsConfig());
