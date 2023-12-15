@@ -37,27 +37,3 @@ spec:
     port: 30195
     targetPort: 30195
     nodePort: 30195
-
-  - name: port-30292
-    protocol: TCP
-    port: 30292
-    targetPort: 30292
-    nodePort: 30292
-
-  - name: port-30293
-    protocol: TCP
-    port: 30293
-    targetPort: 30293
-    nodePort: 30293
-
-  - name: port-30294
-    protocol: TCP
-    port: 30294
-    targetPort: 30294
-    nodePort: 30294
-
-  - name: port-30295
-    protocol: TCP
-    port: 30295
-    targetPort: 30295
-    nodePort: 30295

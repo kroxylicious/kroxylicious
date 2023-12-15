@@ -21,10 +21,13 @@ The instructions for running the examples are given below.
 * [kubectl](https://kubernetes.io/docs/tasks/tools)
 * [kustomize](https://kubectl.docs.kubernetes.io/installation/kustomize/)
 * [helm](https://helm.sh/docs/helm/helm_install/)
+* [kaf](https://github.com/birdayz/kaf)
 * Mac OS X users must have [`gsed`](https://formulae.brew.sh/formula/gnu-sed)
+
+If you want build your own kroxylicious images you'll additionally need: 
+
 * [Docker engine](https://docs.docker.com/engine/install) or [podman](https://podman.io/docs/installation) 
-* If you want to run the examples from your own images, you must have access to a container registry such as [quay.io](https://quay.io) or [docker.io](https://docker.io).
-  Create a public accessible repository within the registry named `kroxylicious`.
+* Access to a container registry such as [quay.io](https://quay.io) or [docker.io](https://docker.io) with a public accessible repository within the registry named `kroxylicious`.
 
 
 ## Running the kubernetes-examples

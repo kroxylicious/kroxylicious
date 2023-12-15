@@ -28,17 +28,12 @@ echo
 echo "Then use commands like these to explore topic-encryption."
 echo
 
-echo -e "${GREEN}Configure client ${NOCOLOR}"
-echo "kaf config add-cluster topencenv -b minikube:30192"
-echo
-
-echo -e "${GREEN}Do some work in topencenv${NOCOLOR}"
-echo "kaf config use-cluster topencenv"
-echo "kaf topic create billingapp"
-echo "echo 'hello, world' | kaf produce billingapp"
-echo "kaf consume billingapp --group billinggroup"
+echo -e "${GREEN}Publish and consumer messages via the proxy${NOCOLOR}"
+echo "kaf -b minikube:30192 topic create trades"
+echo "echo 'ibm: 999' | kaf -b minikube:30192 produce trades"
+echo "kaf -b minikube:30192 consume trades"
 echo
 
 echo -e "${GREEN}Finally let's lift the bonnet and take a look at the kafka underneath${NOCOLOR}"
 
-echo "kubectl -n kafka run consumer -ti --image=${KEF} --rm=true --restart=Never -- kaf consume billingapp --offset oldest -b ${BOOTSTRAP}"
+echo "kubectl -n kafka run consumer -ti --image=${KAF} --rm=true --restart=Never -- kaf consume trades -b ${BOOTSTRAP}"
