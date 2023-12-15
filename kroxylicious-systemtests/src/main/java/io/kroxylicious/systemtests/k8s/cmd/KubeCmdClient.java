@@ -8,6 +8,8 @@ package io.kroxylicious.systemtests.k8s.cmd;
 
 import java.io.File;
 
+import io.kroxylicious.systemtests.executor.ExecResult;
+
 import static java.util.Arrays.asList;
 import static java.util.stream.Collectors.toList;
 
@@ -75,4 +77,6 @@ public interface KubeCmdClient<K extends KubeCmdClient<K>> {
      * @return the string
      */
     String cmd();
+
+    ExecResult execInPod(String pod, boolean throwErrors, String... command);
 }

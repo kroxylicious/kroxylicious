@@ -1,0 +1,30 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: admin-client-cli
+  labels:
+    app: admin-client-cli
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: admin-client-cli
+  template:
+    metadata:
+      labels:
+        app: admin-client-cli
+    spec:
+      containers:
+        - env:
+            - name: BOOTSTRAP_SERVERS
+              value: %BOOTSTRAP_SERVERS%
+          name: admin
+          image: quay.io/strimzi-test-clients/test-clients:latest-kafka-3.6.0
+          command: [ "sleep" ]
+          args: [ "infinity" ]

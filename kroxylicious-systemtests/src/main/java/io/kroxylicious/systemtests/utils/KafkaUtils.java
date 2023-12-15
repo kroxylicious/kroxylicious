@@ -97,14 +97,32 @@ public class KafkaUtils {
 
         kubeClient().getClient().load(file).inNamespace(deployNamespace).create();
         String podName = getPodNameByLabel(deployNamespace, "app", Constants.KAFKA_CONSUMER_CLIENT_LABEL, timeoutMilliseconds);
-        await().ignoreException(KubernetesClientException.class).atMost(Duration.ofMillis(timeoutMilliseconds)).until(() -> {
-            if (kubeClient().getClient().pods().inNamespace(deployNamespace).withName(podName).get() != null) {
-                var log = kubeClient().logsInSpecificNamespace(deployNamespace, podName);
-                return log.contains(" - " + (numOfMessages - 1));
-            }
-            return false;
-        });
+        await().alias("Consumer waiting to receive messages").ignoreException(KubernetesClientException.class).atMost(Duration.ofMillis(timeoutMilliseconds))
+                .until(() -> {
+                    if (kubeClient().getClient().pods().inNamespace(deployNamespace).withName(podName).get() != null) {
+                        var log = kubeClient().logsInSpecificNamespace(deployNamespace, podName);
+                        return log.contains(" - " + (numOfMessages - 1));
+                    }
+                    return false;
+                });
         return kubeClient().logsInSpecificNamespace(deployNamespace, podName);
+    }
+
+    /**
+     * Admin test client.
+     *
+     * @param deployNamespace the deploy namespace
+     * @param bootstrap the bootstrap
+     * @return the string
+     */
+    public static String AdminTestClient(String deployNamespace, String bootstrap) {
+        InputStream file = replaceStringInResourceFile("kafka-admin-template.yaml", Map.of(
+                "%BOOTSTRAP_SERVERS%", bootstrap));
+
+        kubeClient().getClient().load(file).inNamespace(deployNamespace).create();
+        String podName = getPodNameByLabel(deployNamespace, "app", "admin-client-cli", Duration.ofSeconds(10).toMillis());
+        DeploymentUtils.waitForDeploymentReady(deployNamespace, "admin-client-cli");
+        return podName;
     }
 
     private static String getPodNameByLabel(String deployNamespace, String labelKey, String labelValue, long timeoutMilliseconds) {
@@ -153,7 +171,9 @@ public class KafkaUtils {
                 "%MESSAGE_COUNT%", "\"" + numOfMessages + "\"",
                 "%MESSAGE%", message));
         kubeClient().getClient().load(file).inNamespace(deployNamespace).create();
-        return getPodNameByLabel(deployNamespace, "app", Constants.KAFKA_PRODUCER_CLIENT_LABEL, Duration.ofSeconds(10).toMillis());
+        String podName = getPodNameByLabel(deployNamespace, "app", Constants.KAFKA_PRODUCER_CLIENT_LABEL, Duration.ofSeconds(10).toMillis());
+        LOGGER.info(kubeClient().logsInSpecificNamespace(deployNamespace, podName));
+        return podName;
     }
 
     private static InputStream replaceStringInResourceFile(String resourceTemplateFileName, Map<String, String> replacements) {

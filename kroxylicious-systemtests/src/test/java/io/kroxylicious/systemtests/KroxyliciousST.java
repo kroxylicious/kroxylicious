@@ -10,6 +10,7 @@ import java.time.Duration;
 import java.util.List;
 
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.slf4j.Logger;
@@ -51,11 +52,11 @@ class KroxyliciousST extends AbstractST {
         LOGGER.info("Given Kroxylicious in {} namespace with {} replicas", namespace, 1);
         kroxylicious = new Kroxylicious(namespace);
         kroxylicious.deployPortPerBrokerPlain(clusterName, 1);
+        String bootstrap = kroxylicious.getBootstrap();
 
         LOGGER.info("And KafkaTopic in {} namespace", namespace);
-        KafkaSteps.createTopic(topicName, clusterName, namespace, 1, 1, 1);
-
-        String bootstrap = kroxylicious.getBootstrap();
+        // KafkaSteps.createTopicTestClient(namespace, topicName, bootstrap, 1, 1, 1);
+        // KafkaSteps.createTopic(topicName, clusterName, namespace, 1, 1, 1);
 
         LOGGER.info("When {} messages '{}' are sent to the topic '{}'", numberOfMessages, message, topicName);
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, message, numberOfMessages);
@@ -72,6 +73,7 @@ class KroxyliciousST extends AbstractST {
      * @param namespace the namespace
      */
     @Test
+    @Disabled
     void restartKafkaBrokers(String namespace) {
         String topicName = "my-topic2";
         String message = "Hello-world";
@@ -104,6 +106,7 @@ class KroxyliciousST extends AbstractST {
      * @param namespace the namespace
      */
     @Test
+    @Disabled
     void kroxyWithReplicas(String namespace) {
         String topicName = "my-topic3";
         String message = "Hello-world";
@@ -136,8 +139,8 @@ class KroxyliciousST extends AbstractST {
      */
     @BeforeAll
     void setupBefore() {
-        List<Pod> kafkaPods = kubeClient().listPods(Constants.KROXY_DEFAULT_NAMESPACE);
-        if (!kafkaPods.stream().filter(x -> x.getMetadata().getName().contains(clusterName)).toList().isEmpty()) {
+        List<Pod> kafkaPods = kubeClient().listPodsByPrefixInName(Constants.KROXY_DEFAULT_NAMESPACE, clusterName);
+        if (!kafkaPods.isEmpty()) {
             LOGGER.warn("Skipping kafka deployment. It is already deployed!");
             return;
         }

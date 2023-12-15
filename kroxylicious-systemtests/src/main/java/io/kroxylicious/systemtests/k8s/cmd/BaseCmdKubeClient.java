@@ -143,4 +143,11 @@ public abstract class BaseCmdKubeClient<K extends BaseCmdKubeClient<K>> implemen
     public String toString() {
         return cmd();
     }
+
+    @Override
+    public ExecResult execInPod(String pod, boolean throwErrors, String... command) {
+        List<String> cmd = namespacedCommand("exec", pod, "--");
+        cmd.addAll(asList(command));
+        return Exec.exec(null, cmd, 0, true, throwErrors, null);
+    }
 }
