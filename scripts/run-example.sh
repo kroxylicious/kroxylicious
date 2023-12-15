@@ -63,8 +63,6 @@ else
   echo -e "${GREEN}minikube instance already available, we'll use it.${NOCOLOR}"
 fi
 
-NAMESPACE=kafka
-
 # Prepare kustomize overlay
 cp -r "${SAMPLE_DIR}" "${KUSTOMIZE_TMP}"
 OVERLAY_DIR=$(find "${KUSTOMIZE_TMP}" -type d -name minikube)
@@ -75,7 +73,6 @@ if [[ ! -d "${OVERLAY_DIR}" ]]; then
 fi
 
 pushd "${OVERLAY_DIR}" > /dev/null
-${KUSTOMIZE} edit set namespace ${NAMESPACE}
 if [[ "${REGISTRY_DESTINATION}" != "${DEFAULT_REGISTRY_DESTINATION}" ]]; then
   ${KUSTOMIZE} edit set image "${DEFAULT_REGISTRY_DESTINATION}=${REGISTRY_DESTINATION}"
 fi
@@ -95,7 +92,7 @@ then
   ${HELM} repo add hashicorp https://helm.releases.hashicorp.com
   # use helm's idempotent install technique
   ${HELM} upgrade --install vault hashicorp/vault --namespace vault --values "${SAMPLE_DIR}/helm-vault-values.yml" --wait
-  ${KUBECTL} exec vault-0 -n vault -- vault secrets enable transit
+  ${KUBECTL} exec vault-0 -n vault -- vault secrets enable transit || true
   echo -e "${GREEN}HashiCorp Vault installed.${NOCOLOR}"
 fi
 
@@ -103,7 +100,6 @@ fi
 ${KUBECTL} create namespace kafka 2>/dev/null || true
 ${KUBECTL} apply -f 'https://strimzi.io/install/latest?namespace=kafka' -n kafka
 ${KUBECTL} wait deployment strimzi-cluster-operator --for=condition=Available=True --timeout=300s -n kafka
-${KUBECTL} set env deployment strimzi-cluster-operator -n kafka STRIMZI_FEATURE_GATES=+UseKRaft,+KafkaNodePools
 echo -e "${GREEN}Strimzi installed.${NOCOLOR}"
 
 
@@ -121,8 +117,8 @@ while ! ${KUBECTL} apply -k "${OVERLAY_DIR}"; do
 done
 echo -e "${GREEN}Kafka and Kroxylicious config successfully applied.${NOCOLOR}"
 
-${KUBECTL} wait kafka/my-cluster --for=condition=Ready --timeout=300s -n ${NAMESPACE}
-${KUBECTL} wait deployment/kroxylicious-proxy --for=condition=Available=True --timeout=300s -n ${NAMESPACE}
+${KUBECTL} wait kafka/my-cluster --for=condition=Ready --timeout=300s -n kafka
+${KUBECTL} wait deployment/kroxylicious-proxy --for=condition=Available=True --timeout=300s -n kroxylicious
 echo -e "${GREEN}Kafka and Kroxylicious deployments are ready.${NOCOLOR}"
 
 if [[ -f "${SAMPLE_DIR}"/postinstall.sh ]]; then

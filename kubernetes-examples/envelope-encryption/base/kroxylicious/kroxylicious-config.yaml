@@ -23,7 +23,7 @@ data:
             bootstrapAddress: minikube:30192
         targetCluster:
           # declares the kafka cluster that is being proxied
-          bootstrap_servers: my-cluster-kafka-bootstrap:9092
+          bootstrap_servers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
         logFrames: false
     filters:
     - type: EnvelopeEncryption

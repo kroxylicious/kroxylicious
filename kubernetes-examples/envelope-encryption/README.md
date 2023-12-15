@@ -43,10 +43,11 @@ The script will first bring up Minikube. It will then deploy Strimzi and HashiCo
 
 It will then deploy a kafka cluster within namespace `kafka` called `my-cluster`.
 
-It will deploy an instance of Kroxylicious (also running within the `kafka` namespace)
-and configure it to target the `my-cluster` kafka cluster. 
+It will deploy an instance of Kroxylicious within namespace `kroxylicious`. 
 
-Kroxylicious is configured  to present a virtual cluster `my-cluster-proxy` using a bootstrap address of `minikube`.
+Kroxylicious is configured  to present a virtual cluster `my-cluster-proxy` using a bootstrap address of `minikube`
+which will _target_ `my-cluster` i.e. the real kafka cluster or the cluster being proxied.
+
 Kafka Clients connect to the virtual cluster and Kroxylicious proxies the traffic to the target cluster.
 A Kubernetes `nodePort` service is used to expose the ports bound by Kroxylicious to your host.
 

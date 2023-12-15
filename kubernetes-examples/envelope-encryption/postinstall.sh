@@ -34,6 +34,6 @@ echo "echo 'ibm: 999' | kaf -b minikube:30192 produce trades"
 echo "kaf -b minikube:30192 consume trades"
 echo
 
-echo -e "${GREEN}Finally let's lift the bonnet and take a look at the kafka underneath${NOCOLOR}"
+echo -e "${GREEN}You lift the bonnet and take a look at the encrypted messages on the cluster${NOCOLOR}"
 
 echo "kubectl -n kafka run consumer -ti --image=${KAF} --rm=true --restart=Never -- kaf consume trades -b ${BOOTSTRAP}"

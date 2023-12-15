@@ -8,7 +8,9 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-resources:
-- kafka
-- kroxylicious
+namespace: kroxylicious
 
+resources:
+- self-signed-issuer.yaml
+- server-certificate.yaml
+- kroxy-server-keystore-password.yaml
