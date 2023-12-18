@@ -9,11 +9,13 @@ package io.kroxylicious.filter.encryption;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.function.Consumer;
 
 import org.apache.kafka.common.header.Header;
@@ -75,7 +77,6 @@ class EnvelopeEncryptionFilterTest {
 
     @Mock(strictness = LENIENT)
     TopicNameBasedKekSelector<String> kekSelector;
-
     @Mock(strictness = LENIENT)
     private FilterContext context;
 
@@ -83,6 +84,15 @@ class EnvelopeEncryptionFilterTest {
     private ArgumentCaptor<ApiMessage> apiMessageCaptor;
 
     private EnvelopeEncryptionFilter<String> encryptionFilter;
+
+    private EncryptionScheme<String> kekPerTopicEncryptionScheme;
+
+    private EncryptionSchemeSelector<String> encryptionSchemeSelector = new EncryptionSchemeSelector<>() {
+        @Override
+        public CompletionStage<EncryptionScheme<String>> selectFor(RequestHeaderData recordHeaders, ProduceRequestData produceRequestData) {
+            return CompletableFuture.completedStage(kekPerTopicEncryptionScheme);
+        }
+    };
 
     @BeforeEach
     void setUp() {
@@ -119,7 +129,8 @@ class EnvelopeEncryptionFilterTest {
             return CompletableFuture.completedFuture(null);
         });
 
-        encryptionFilter = new EnvelopeEncryptionFilter<>(keyManager, kekSelector, null);
+        kekPerTopicEncryptionScheme = new KekPerTopicEncryptionScheme<>(keyManager, topicNameToKekId, EnumSet.of(RecordField.RECORD_VALUE));
+        encryptionFilter = new EnvelopeEncryptionFilter<>(keyManager, kekSelector, encryptionSchemeSelector);
     }
 
     @Test

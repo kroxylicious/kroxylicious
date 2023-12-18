@@ -19,6 +19,6 @@ public interface KekSelectorService<C, K> {
     @NonNull
     TopicNameBasedKekSelector<K> buildSelector(@NonNull Kms<K, ?> kms, C options);
 
-    EncryptionSchemeSelector<K> buildEncryptionSchemeSelector(@NonNull Kms<K, ?> kms, C options);
+    EncryptionSchemeSelector<K> buildEncryptionSchemeSelector(@NonNull Kms<K, ?> kms, @NonNull KeyManager<K> keyManager, C options);
 
 }

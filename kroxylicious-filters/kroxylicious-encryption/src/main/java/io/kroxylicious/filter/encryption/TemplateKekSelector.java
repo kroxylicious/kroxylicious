@@ -36,15 +36,16 @@ public class TemplateKekSelector<K> implements KekSelectorService<TemplateKekSel
     }
 
     @Override
-    public EncryptionSchemeSelector<K> buildEncryptionSchemeSelector(@NonNull Kms<K, ?> kms, Config options) {
+    public EncryptionSchemeSelector<K> buildEncryptionSchemeSelector(@NonNull Kms<K, ?> kms, @NonNull KeyManager<K> keyManager, Config options) {
         // TODO I'm not sure KekSelector has a long term future
         // TODO We want to vary the choice of `KekPerTopicEncryptionScheme` based on config options
+        // TODO move to TopicNameEncryptionSchemeSelector
         final KekSelector<K> kekSelector = new KekSelector<>(kms, options.template());
         return (recordHeaders, produceRequestData) -> {
             var topicNameToData = produceRequestData.topicData().stream().map(ProduceRequestData.TopicProduceData::name).collect(Collectors.toSet());
             return kekSelector.selectKek(topicNameToData)
                     .thenCompose(kekByTopicName -> CompletableFuture.completedStage(
-                            new KekPerTopicEncryptionScheme<>(kekByTopicName, EnumSet.of(RecordField.RECORD_VALUE))));
+                            new KekPerTopicEncryptionScheme<>(keyManager, kekByTopicName, EnumSet.of(RecordField.RECORD_VALUE))));
         };
     }
 
