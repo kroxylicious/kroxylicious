@@ -25,8 +25,9 @@ import org.apache.kafka.common.utils.ByteBufferOutputStream;
  * @param <K> The type of KEK identifier.
  */
 public record SingleKekEncryptionScheme<K>(
-        K kekId,
-        Set<RecordField> recordFields) implements EncryptionScheme<K> {
+                                           K kekId,
+                                           Set<RecordField> recordFields)
+        implements EncryptionScheme<K> {
     public SingleKekEncryptionScheme {
         Objects.requireNonNull(kekId);
         if (Objects.requireNonNull(recordFields).isEmpty()) {

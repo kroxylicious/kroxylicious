@@ -25,8 +25,9 @@ import org.apache.kafka.common.utils.ByteBufferOutputStream;
  * @param <K> The type of KEK identifier.
  */
 public record KekPerTopicEncryptionScheme<K>(
-        Map<String, K> keksByTopicName,
-        Set<RecordField> recordFields) implements EncryptionScheme<K> {
+                                             Map<String, K> keksByTopicName,
+                                             Set<RecordField> recordFields)
+        implements EncryptionScheme<K> {
     public KekPerTopicEncryptionScheme {
         Objects.requireNonNull(keksByTopicName);
         if (Objects.requireNonNull(recordFields).isEmpty()) {

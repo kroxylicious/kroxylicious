@@ -8,8 +8,6 @@ package io.kroxylicious.filter.encryption;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import io.kroxylicious.filter.encryption.inband.BufferPool;
 import io.kroxylicious.filter.encryption.inband.InBandKeyManager;
 import io.kroxylicious.kms.service.Kms;
@@ -21,6 +19,8 @@ import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import io.kroxylicious.proxy.plugin.PluginImplConfig;
 import io.kroxylicious.proxy.plugin.PluginImplName;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 /**
  * A {@link FilterFactory} for {@link EnvelopeEncryptionFilter}.
  * @param <K> The key reference
@@ -30,11 +30,11 @@ import io.kroxylicious.proxy.plugin.PluginImplName;
 public class EnvelopeEncryption<K, E> implements FilterFactory<EnvelopeEncryption.Config, EnvelopeEncryption.Config> {
 
     record Config(
-            @JsonProperty(required = true) @PluginImplName(KmsService.class) String kms,
-            @PluginImplConfig(implNameProperty = "kms") Object kmsConfig,
+                  @JsonProperty(required = true) @PluginImplName(KmsService.class) String kms,
+                  @PluginImplConfig(implNameProperty = "kms") Object kmsConfig,
 
-            @JsonProperty(required = true) @PluginImplName(KekSelectorService.class) String selector,
-            @PluginImplConfig(implNameProperty = "selector") Object selectorConfig) {
+                  @JsonProperty(required = true) @PluginImplName(KekSelectorService.class) String selector,
+                  @PluginImplConfig(implNameProperty = "selector") Object selectorConfig) {
 
     }
 
@@ -53,6 +53,7 @@ public class EnvelopeEncryption<K, E> implements FilterFactory<EnvelopeEncryptio
 
         KekSelectorService<Object, K> ksPlugin = context.pluginInstance(KekSelectorService.class, configuration.selector());
         TopicNameBasedKekSelector<K> kekSelector = ksPlugin.buildSelector(kms, configuration.selectorConfig());
-        return new EnvelopeEncryptionFilter<>(keyManager, kekSelector, null);
+        EncryptionSchemeSelector<K> encryptionSchemeSelector = ksPlugin.buildEncryptionSchemeSelector(kms, configuration.selectorConfig());
+        return new EnvelopeEncryptionFilter<>(keyManager, kekSelector, encryptionSchemeSelector);
     }
 }

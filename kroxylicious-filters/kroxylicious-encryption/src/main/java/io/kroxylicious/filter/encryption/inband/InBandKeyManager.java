@@ -25,9 +25,6 @@ import org.slf4j.LoggerFactory;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-import edu.umd.cs.findbugs.annotations.Nullable;
-
 import io.kroxylicious.filter.encryption.AadSpec;
 import io.kroxylicious.filter.encryption.CipherCode;
 import io.kroxylicious.filter.encryption.EncryptionException;
@@ -40,6 +37,9 @@ import io.kroxylicious.filter.encryption.SingleKekEncryptionScheme;
 import io.kroxylicious.filter.encryption.WrapperVersion;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.Serde;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * An implementation of {@link KeyManager} that uses envelope encryption, AES-GCM and stores the KEK id and encrypted DEK
@@ -143,26 +143,26 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
     @SuppressWarnings("java:S2445")
     private CompletionStage<Void> attemptEncrypt(String topicName, int partition, @NonNull EncryptionScheme<K> encryptionScheme, @NonNull List<? extends Record> records,
                                                  @NonNull Receiver receiver, int attempt) {
-        //        if (attempt >= MAX_ATTEMPTS) {
-        //            return CompletableFuture.failedFuture(
-        //                    new EncryptionException("failed to encrypt records for topic " + topicName + " partition " + partition + " after " + attempt + " attempts"));
-        //        }
-        //        return currentDekContext(encryptionScheme.kekId()).thenCompose(keyContext -> {
-        //            synchronized (keyContext) {
-        //                // if it's not alive we know a previous encrypt call has removed this stage from the cache and fall through to retry encrypt
-        //                if (!keyContext.isDestroyed()) {
-        //                    if (!keyContext.hasAtLeastRemainingEncryptions(records.size())) {
-        //                        // remove the key context from the cache, then call encrypt again to drive caffeine to recreate it
-        //                        rotateKeyContext(encryptionScheme, keyContext);
-        //                    }
-        //                    else {
-        //                        // todo ensure that a failure during encryption terminates the entire operation with a failed future
-        //                        return encrypt(encryptionScheme, records, receiver, keyContext);
-        //                    }
-        //                }
-        //            }
-        //            return attemptEncrypt(topicName, partition, encryptionScheme, records, receiver, attempt + 1);
-        //        });
+        // if (attempt >= MAX_ATTEMPTS) {
+        // return CompletableFuture.failedFuture(
+        // new EncryptionException("failed to encrypt records for topic " + topicName + " partition " + partition + " after " + attempt + " attempts"));
+        // }
+        // return currentDekContext(encryptionScheme.kekId()).thenCompose(keyContext -> {
+        // synchronized (keyContext) {
+        // // if it's not alive we know a previous encrypt call has removed this stage from the cache and fall through to retry encrypt
+        // if (!keyContext.isDestroyed()) {
+        // if (!keyContext.hasAtLeastRemainingEncryptions(records.size())) {
+        // // remove the key context from the cache, then call encrypt again to drive caffeine to recreate it
+        // rotateKeyContext(encryptionScheme, keyContext);
+        // }
+        // else {
+        // // todo ensure that a failure during encryption terminates the entire operation with a failed future
+        // return encrypt(encryptionScheme, records, receiver, keyContext);
+        // }
+        // }
+        // }
+        // return attemptEncrypt(topicName, partition, encryptionScheme, records, receiver, attempt + 1);
+        // });
         return CompletableFuture.completedStage(null);
     }
 

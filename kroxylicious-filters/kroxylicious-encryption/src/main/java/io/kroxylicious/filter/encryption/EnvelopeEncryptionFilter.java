@@ -77,7 +77,8 @@ public class EnvelopeEncryptionFilter<K>
     }
 
     private CompletionStage<ProduceRequestData> maybeEncodeProduce(RequestHeaderData headers, ProduceRequestData request, FilterContext context) {
-        return encryptionSchemeSelector.selectFor(headers, request).thenCompose(encryptionScheme -> encryptionScheme.encrypt(headers, request, size -> context.createByteBufferOutputStream(size) ));
+        return encryptionSchemeSelector.selectFor(headers, request)
+                .thenCompose(encryptionScheme -> encryptionScheme.encrypt(headers, request, context::createByteBufferOutputStream));
     }
 
     private CompletionStage<ProduceRequestData> maybeEncodeProduce(ProduceRequestData request, FilterContext context) {
