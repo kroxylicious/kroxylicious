@@ -94,6 +94,9 @@ then
   ${HELM} upgrade --install vault hashicorp/vault --namespace vault --values "${SAMPLE_DIR}/helm-vault-values.yml" --wait
   ${KUBECTL} exec vault-0 -n vault -- vault secrets enable transit || true
   echo -e "${GREEN}HashiCorp Vault installed.${NOCOLOR}"
+  VAULT_UI_URL=$(${MINIKUBE} service vault -n vault --url 2>/dev/null | head -1)
+  ROOT_TOKEN=$(yq .server.dev.devRootToken "${SAMPLE_DIR}/helm-vault-values.yml")
+  echo -e "${YELLOW}Vault UI available at: ${VAULT_UI_URL} (token '${ROOT_TOKEN}').${NOCOLOR}"
 fi
 
 # Install strimzi
@@ -125,4 +128,6 @@ echo -e "${GREEN}Kafka and Kroxylicious deployments are ready.${NOCOLOR}"
 if [[ -f "${SAMPLE_DIR}"/postinstall.sh ]]; then
    "${SAMPLE_DIR}"/postinstall.sh
 fi
+
+echo  -e  "${GREEN}Example installed successfully, to continue refer to ${SAMPLE_DIR}/README.md.${NOCOLOR}"
 

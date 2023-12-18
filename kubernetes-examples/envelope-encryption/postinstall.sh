@@ -7,9 +7,6 @@
 
 set -eo pipefail
 
-KAF=quay.io/kroxylicious/kaf
-BOOTSTRAP=my-cluster-kafka-bootstrap:9092
-
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NOCOLOR='\033[0m'
@@ -20,7 +17,7 @@ while true
 do
    if grep --quiet "^${MINIKUBE_IP}.*minikube" </etc/hosts; then
       echo
-      echo -e  "${GREEN}Host minikube resolves okay${NOCOLOR}"
+      echo -e  "${GREEN}Host minikube resolves to ${MINIKUBE_IP}${NOCOLOR}"
       break
    else
      if [[ -z "${FIRST_LOOP}" ]]; then
@@ -35,21 +32,3 @@ do
    echo -n .
 done
 
-VAULT_UI_URL=$(minikube service vault -n vault --url 2>/dev/null | head -1)
-echo "Use the Vault UI ${VAULT_UI_URL} (token 'myroottoken') to create an aes256-gcm96 key called 'all'"
-echo "or use this command:"
-echo "kubectl exec -n vault vault-0 -- vault write -f transit/keys/all"
-echo
-
-echo "Then use commands like these to explore topic-encryption."
-echo
-
-echo -e "${GREEN}Publish and consumer messages via the proxy${NOCOLOR}"
-echo "kaf -b minikube:30192 topic create trades"
-echo "echo 'ibm: 999' | kaf -b minikube:30192 produce trades"
-echo "kaf -b minikube:30192 consume trades"
-echo
-
-echo -e "${GREEN}You can take a look at the encrypted messages on the cluster like this${NOCOLOR}"
-
-echo "kubectl -n kafka run consumer -ti --image=${KAF} --rm=true --restart=Never -- kaf consume trades -b ${BOOTSTRAP}"
