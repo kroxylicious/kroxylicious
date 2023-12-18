@@ -134,7 +134,7 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
                                                  @NonNull Receiver receiver, int attempt) {
         if (attempt >= MAX_ATTEMPTS) {
             return CompletableFuture.failedFuture(
-                    new EdekReservationFailureException("failed to reserve an EDEK to encrypt " + records.size() + " records for topic " + topicName + " partition "
+                    new RequestNotSatisfiable("failed to reserve an EDEK to encrypt " + records.size() + " records for topic " + topicName + " partition "
                             + partition + " after " + attempt + " attempts"));
         }
         return currentDekContext(encryptionScheme.kekId()).thenCompose(keyContext -> {
