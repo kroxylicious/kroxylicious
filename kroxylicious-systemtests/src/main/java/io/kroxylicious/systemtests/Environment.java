@@ -33,7 +33,7 @@ public class Environment {
     /**
      * The kroxy version default value
      */
-    public static final String KROXY_VERSION_DEFAULT = "0.4.0-SNAPSHOT";
+    public static final String KROXY_VERSION_DEFAULT = "0.5.0-SNAPSHOT";
     /**
      * The url where kroxylicious image lives to be downloaded.
      */
