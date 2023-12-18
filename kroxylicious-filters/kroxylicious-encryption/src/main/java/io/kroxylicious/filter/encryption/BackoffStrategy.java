@@ -13,8 +13,9 @@ public interface BackoffStrategy {
     /**
      * Decides how long to delay the next attempt at an action given it has failed
      * for N consecutive times in the past.
-     * @param failures count of failures
+     * @param failures count of failures, must be 0 or greater
      * @return how long to delay
+     * @throws IllegalArgumentException if failures < 0
      */
     Duration getDelay(int failures);
 }

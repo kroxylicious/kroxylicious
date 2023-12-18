@@ -11,6 +11,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.Random;
 import java.util.stream.Stream;
 
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -125,6 +126,15 @@ class ExponentialJitterBackoffStrategyTest {
             new ExponentialJitterBackoffStrategy(initial,
                     maximum, multiplier, mockRandom);
         }).isInstanceOf(IllegalArgumentException.class).hasMessageContaining(message);
+    }
+
+    @Test
+    void testNegativeFailuresNotAllowed() {
+        ExponentialJitterBackoffStrategy strategy = new ExponentialJitterBackoffStrategy(Duration.ofSeconds(1),
+                Duration.ofSeconds(1), 2, new Random());
+        assertThatThrownBy(() -> {
+            strategy.getDelay(-1);
+        }).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("failures is negative");
     }
 
 }

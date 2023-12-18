@@ -41,6 +41,9 @@ public class ExponentialJitterBackoffStrategy implements BackoffStrategy {
 
     @Override
     public Duration getDelay(int failures) {
+        if (failures < 0) {
+            throw new IllegalArgumentException("failures is negative");
+        }
         if (failures == 0) {
             return Duration.ZERO;
         }
