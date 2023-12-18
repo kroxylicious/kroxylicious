@@ -26,6 +26,7 @@ This document gives a detailed breakdown of the various build processes and opti
     * [Environment variables](#environment-variables)
     * [Launch system tests](#launch-system-tests)
   * [Rendering documentation](#rendering-documentation)
+  * [Producing an Asciinema Cast](#producing-an-asciinema-cast)
   * [Using the GitHub CI workflows against a fork](#using-the-github-ci-workflows-against-a-fork)
 <!-- TOC -->
 
@@ -334,6 +335,36 @@ mvn org.asciidoctor:asciidoctor-maven-plugin:process-asciidoc@convert-to-html
 ```
 
 The output will be in `target/html/master.html`. 
+
+## Producing an Asciinema Cast
+
+There are some helper scripts that can reduce the manual work when producing an [asciinema](https://asciinema.org)
+terminal cast.  There are a couple of scripts/programs that are used in consort.
+
+* [extract-markdown-fencedcodeblocks.sh](./scripts/extract-markdown-fencedcodeblocks.sh) extracts fenced code blocks from a 
+  Markdown document.  The list of commands is sent to stdout. The script also understands a non-standard extension to 
+  the fenced code-block declaration: `adjunct` assignments are treated as an additional command that will proceed
+  the command specified by fenced code-block. This can be used to pass shell comments to provide some narration.
+  ````
+     Lorem ipsum dolor sit amet
+     ```shell { adjunct="# let's install the starnet client" }
+        dnf install starnet-client
+     ```
+  ````
+* [demoizer.sh](./scripts/demoizer.sh) takes a list of commands and executes each one.  It uses expect(1) to simulate
+  a human typing the commands. It is designed to executed within the asciinema session.
+* [asciinema-edit](https://github.com/cirocosta/asciinema-edit) used to quantise the periods of inactivity
+
+The whole process looks like this:
+
+```shell
+# Extract the commands and narration
+./scripts/extract-markdown-fencedcodeblocks.sh < kubernetes-examples/envelope-encryption/README.md > /tmp/cmds
+asciinema rec --overwrite --command './scripts/demoizer.sh /tmp/cmds .' demo.cast
+# Uses quantize to reduce lengthy periods of inactivity resulting from awaits for resource to come ready etc.
+asciinema-edit quantize --range 5 demo.cast > demo_processed.cast
+asciinema upload demo_processed.cast
+```
 
 ## Using the GitHub CI workflows against a fork
 
