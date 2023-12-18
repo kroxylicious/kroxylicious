@@ -47,12 +47,14 @@ public class EnvelopeEncryptionFilter<K>
         implements ProduceRequestFilter, FetchResponseFilter {
     private static final Logger log = getLogger(EnvelopeEncryptionFilter.class);
     private final TopicNameBasedKekSelector<K> kekSelector;
+    private final EncryptionSchemeSelector<K> encryptionSchemeSelector;
 
     private final KeyManager<K> keyManager;
 
-    EnvelopeEncryptionFilter(KeyManager<K> keyManager, TopicNameBasedKekSelector<K> kekSelector) {
+    EnvelopeEncryptionFilter(KeyManager<K> keyManager, TopicNameBasedKekSelector<K> kekSelector, EncryptionSchemeSelector<K> encryptionSchemeSelector) {
         this.kekSelector = kekSelector;
         this.keyManager = keyManager;
+        this.encryptionSchemeSelector = encryptionSchemeSelector;
     }
 
     @SuppressWarnings("unchecked")
@@ -70,8 +72,12 @@ public class EnvelopeEncryptionFilter<K>
                                                                  RequestHeaderData header,
                                                                  ProduceRequestData request,
                                                                  FilterContext context) {
-        return maybeEncodeProduce(request, context)
+        return maybeEncodeProduce(header, request, context)
                 .thenCompose(yy -> context.forwardRequest(header, request));
+    }
+
+    private CompletionStage<ProduceRequestData> maybeEncodeProduce(RequestHeaderData headers, ProduceRequestData request, FilterContext context) {
+        return encryptionSchemeSelector.selectFor(headers, request).thenCompose(encryptionScheme -> encryptionScheme.encrypt(headers, request, size -> context.createByteBufferOutputStream(size) ));
     }
 
     private CompletionStage<ProduceRequestData> maybeEncodeProduce(ProduceRequestData request, FilterContext context) {
@@ -93,7 +99,7 @@ public class EnvelopeEncryptionFilter<K>
                             return keyManager.encrypt(
                                     topicName,
                                     ppd.index(),
-                                    new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
+                                    new SingleKekEncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
                                     encryptionRequests,
                                     (kafkaRecord, encryptedValue, headers) -> builder.append(kafkaRecord.timestamp(), kafkaRecord.key(), encryptedValue, headers))
                                     .thenApply(ignored -> ppd.setRecords(builder.build()));

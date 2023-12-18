@@ -119,7 +119,7 @@ class EnvelopeEncryptionFilterTest {
             return CompletableFuture.completedFuture(null);
         });
 
-        encryptionFilter = new EnvelopeEncryptionFilter<>(keyManager, kekSelector);
+        encryptionFilter = new EnvelopeEncryptionFilter<>(keyManager, kekSelector, null);
     }
 
     @Test

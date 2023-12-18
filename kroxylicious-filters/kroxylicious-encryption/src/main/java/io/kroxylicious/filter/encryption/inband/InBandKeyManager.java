@@ -10,6 +10,7 @@ import java.nio.ByteBuffer;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
@@ -24,6 +25,9 @@ import org.slf4j.LoggerFactory;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 import io.kroxylicious.filter.encryption.AadSpec;
 import io.kroxylicious.filter.encryption.CipherCode;
 import io.kroxylicious.filter.encryption.EncryptionException;
@@ -32,12 +36,10 @@ import io.kroxylicious.filter.encryption.EncryptionVersion;
 import io.kroxylicious.filter.encryption.KeyManager;
 import io.kroxylicious.filter.encryption.Receiver;
 import io.kroxylicious.filter.encryption.RecordField;
+import io.kroxylicious.filter.encryption.SingleKekEncryptionScheme;
 import io.kroxylicious.filter.encryption.WrapperVersion;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.Serde;
-
-import edu.umd.cs.findbugs.annotations.NonNull;
-import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * An implementation of {@link KeyManager} that uses envelope encryption, AES-GCM and stores the KEK id and encrypted DEK
@@ -141,30 +143,31 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
     @SuppressWarnings("java:S2445")
     private CompletionStage<Void> attemptEncrypt(String topicName, int partition, @NonNull EncryptionScheme<K> encryptionScheme, @NonNull List<? extends Record> records,
                                                  @NonNull Receiver receiver, int attempt) {
-        if (attempt >= MAX_ATTEMPTS) {
-            return CompletableFuture.failedFuture(
-                    new EncryptionException("failed to encrypt records for topic " + topicName + " partition " + partition + " after " + attempt + " attempts"));
-        }
-        return currentDekContext(encryptionScheme.kekId()).thenCompose(keyContext -> {
-            synchronized (keyContext) {
-                // if it's not alive we know a previous encrypt call has removed this stage from the cache and fall through to retry encrypt
-                if (!keyContext.isDestroyed()) {
-                    if (!keyContext.hasAtLeastRemainingEncryptions(records.size())) {
-                        // remove the key context from the cache, then call encrypt again to drive caffeine to recreate it
-                        rotateKeyContext(encryptionScheme, keyContext);
-                    }
-                    else {
-                        // todo ensure that a failure during encryption terminates the entire operation with a failed future
-                        return encrypt(encryptionScheme, records, receiver, keyContext);
-                    }
-                }
-            }
-            return attemptEncrypt(topicName, partition, encryptionScheme, records, receiver, attempt + 1);
-        });
+        //        if (attempt >= MAX_ATTEMPTS) {
+        //            return CompletableFuture.failedFuture(
+        //                    new EncryptionException("failed to encrypt records for topic " + topicName + " partition " + partition + " after " + attempt + " attempts"));
+        //        }
+        //        return currentDekContext(encryptionScheme.kekId()).thenCompose(keyContext -> {
+        //            synchronized (keyContext) {
+        //                // if it's not alive we know a previous encrypt call has removed this stage from the cache and fall through to retry encrypt
+        //                if (!keyContext.isDestroyed()) {
+        //                    if (!keyContext.hasAtLeastRemainingEncryptions(records.size())) {
+        //                        // remove the key context from the cache, then call encrypt again to drive caffeine to recreate it
+        //                        rotateKeyContext(encryptionScheme, keyContext);
+        //                    }
+        //                    else {
+        //                        // todo ensure that a failure during encryption terminates the entire operation with a failed future
+        //                        return encrypt(encryptionScheme, records, receiver, keyContext);
+        //                    }
+        //                }
+        //            }
+        //            return attemptEncrypt(topicName, partition, encryptionScheme, records, receiver, attempt + 1);
+        //        });
+        return CompletableFuture.completedStage(null);
     }
 
     @NonNull
-    private CompletableFuture<Void> encrypt(@NonNull EncryptionScheme<K> encryptionScheme, @NonNull List<? extends Record> records,
+    private CompletableFuture<Void> encrypt(@NonNull SingleKekEncryptionScheme<K> encryptionScheme, @NonNull List<? extends Record> records,
                                             @NonNull Receiver receiver, KeyContext keyContext) {
         var maxParcelSize = records.stream()
                 .mapToInt(kafkaRecord -> Parcel.sizeOfParcel(
@@ -197,30 +200,34 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
     }
 
     // this must only be called while holding the lock on this keycontext
-    private void rotateKeyContext(@NonNull EncryptionScheme<K> encryptionScheme, KeyContext keyContext) {
+    private void rotateKeyContext(@NonNull SingleKekEncryptionScheme<K> encryptionScheme, KeyContext keyContext) {
         keyContext.destroy();
         K kekId = encryptionScheme.kekId();
         keyContextCache.synchronous().invalidate(kekId);
     }
 
-    private void encryptRecords(@NonNull EncryptionScheme<K> encryptionScheme,
+    private void encryptRecords(@NonNull SingleKekEncryptionScheme<K> encryptionScheme,
                                 @NonNull KeyContext keyContext,
                                 @NonNull List<? extends Record> records,
                                 @NonNull ByteBuffer parcelBuffer,
                                 @NonNull ByteBuffer wrapperBuffer,
                                 @NonNull Receiver receiver) {
         records.forEach(kafkaRecord -> {
-            if (encryptionScheme.recordFields().contains(RecordField.RECORD_HEADER_VALUES)
+            final Set<RecordField> recordFields = encryptionScheme.recordFields();
+            if (recordFields.contains(RecordField.RECORD_HEADER_VALUES)
                     && kafkaRecord.headers().length > 0
                     && !kafkaRecord.hasValue()) {
                 // todo implement header encryption preserving null record-values
                 throw new IllegalStateException("encrypting headers prohibited when original record value null, we must preserve the null for tombstoning");
             }
             if (kafkaRecord.hasValue()) {
-                Parcel.writeParcel(encryptionVersion.parcelVersion(), encryptionScheme.recordFields(), kafkaRecord, parcelBuffer);
+                Parcel.writeParcel(encryptionVersion.parcelVersion(), recordFields, kafkaRecord, parcelBuffer);
                 parcelBuffer.flip();
                 var transformedValue = writeWrapper(keyContext, parcelBuffer, wrapperBuffer);
                 Header[] headers = transformHeaders(encryptionScheme, kafkaRecord);
+                for (RecordField recordField : recordFields) {
+
+                }
                 receiver.accept(kafkaRecord, transformedValue, headers);
                 wrapperBuffer.rewind();
                 parcelBuffer.rewind();
@@ -231,7 +238,7 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
         });
     }
 
-    private Header[] transformHeaders(@NonNull EncryptionScheme<K> encryptionScheme, Record kafkaRecord) {
+    private Header[] transformHeaders(@NonNull SingleKekEncryptionScheme<K> encryptionScheme, Record kafkaRecord) {
         Header[] oldHeaders = kafkaRecord.headers();
         Header[] headers;
         if (encryptionScheme.recordFields().contains(RecordField.RECORD_HEADER_VALUES) || oldHeaders.length == 0) {
