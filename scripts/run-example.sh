@@ -6,8 +6,8 @@
 #
 
 set -euo pipefail
-DEFAULT_REGISTRY_DESTINATION='quay.io/kroxylicious/kroxylicious-developer'
-REGISTRY_DESTINATION=${REGISTRY_DESTINATION:-${DEFAULT_REGISTRY_DESTINATION}}
+DEFAULT_KROXYLICIOUS_IMAGE='quay.io/kroxylicious/kroxylicious-developer'
+KROXYLICIOUS_IMAGE=${KROXYLICIOUS_IMAGE:-${DEFAULT_KROXYLICIOUS_IMAGE}}
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 . "${SCRIPT_DIR}/common.sh"
@@ -32,14 +32,6 @@ function cleanTmpDir {
   rm -rf "${KUSTOMIZE_TMP}"
 }
 trap cleanTmpDir EXIT
-
-if [[ "${REGISTRY_DESTINATION}" != "${DEFAULT_REGISTRY_DESTINATION}" ]]; then
-  echo "building and pushing image to ${REGISTRY_DESTINATION}"
-  PUSH_IMAGE=y "${SCRIPT_DIR}/deploy-image.sh"
-else
-  echo "REGISTRY_DESTINATION is ${REGISTRY_DESTINATION}, not building/deploying image"
-fi
-
 
 if ! ${MINIKUBE} status 1>/dev/null 2>/dev/null; then
   set +e
@@ -73,8 +65,8 @@ if [[ ! -d "${OVERLAY_DIR}" ]]; then
 fi
 
 pushd "${OVERLAY_DIR}" > /dev/null
-if [[ "${REGISTRY_DESTINATION}" != "${DEFAULT_REGISTRY_DESTINATION}" ]]; then
-  ${KUSTOMIZE} edit set image "${DEFAULT_REGISTRY_DESTINATION}=${REGISTRY_DESTINATION}"
+if [[ "${KROXYLICIOUS_IMAGE}" != "${DEFAULT_KROXYLICIOUS_IMAGE}" ]]; then
+  ${KUSTOMIZE} edit set image "${DEFAULT_KROXYLICIOUS_IMAGE}=${KROXYLICIOUS_IMAGE}"
 fi
 popd > /dev/null
 

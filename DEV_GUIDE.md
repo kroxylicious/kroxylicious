@@ -10,6 +10,7 @@ This document gives a detailed breakdown of the various build processes and opti
     * [Formatting the Code](#formatting-the-code)
   * [Run](#run)
     * [Debugging](#debugging)
+  * [Building and pushing a Kroxylicious Container Image](#building-and-pushing-a-kroxylicious-container-image)
   * [IDE setup](#ide-setup)
     * [Intellij](#intellij)
   * [Setting Up in Windows Using WSL](#setting-up-in-windows-using-wsl)
@@ -142,6 +143,14 @@ Logging is turned off by default for better performance. In case you want to deb
 ```yaml
   logNetwork: true
   logFrames: true
+```
+
+## Building and pushing a Kroxylicious Container Image
+
+There is a script to build a Kroxylicious Container Image and push it to a container registry of your choice.
+
+```shell
+PUSH_IMAGE=y REGISTRY_DESTINATION=quay.io/$your_quay_org$/kroxylicious ./scripts/build-image.sh
 ```
 
 ## IDE setup
@@ -299,12 +308,8 @@ First of all, the code must be compiled and the distribution artifacts created:
 mvn clean install -Dquick -Pdist
 ```
 
-If the tests are going to be run against local changes, 
-upload your package to the `kroxylicious` repository in the container registry:
-
-```shell
-PUSH_IMAGE=true REGISTRY_DESTINATION=<container_registry>/<myorg>/kroxylicious ./scripts/deploy-image.sh 
-```
+If the tests are going to be run against local changes, use the [deploy-image.sh](./scripts/build-image.sh)
+describe [above](#building-and-pushing-a-kroxylicious-container-image) to create a test image.
 
 Start minikube:
 ```shell

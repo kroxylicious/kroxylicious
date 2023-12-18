@@ -39,23 +39,17 @@ To run using pre-built Kroxylcious images:
 ```shell
 ./scripts/run-example.sh ${kubernetes_example_directory}
 ```
-
-```shell
-REGISTRY_DESTINATION=quay.io/$your_quay_org$/kroxylicious ./scripts/run-example.sh ${kubernetes_example_directory}
-```
 where `${kubernetes_example_directory}` is replaced by a path to an example directory e.g. `./kubernetes-examples/portperbroker_plain`.
 
+To use an alternative image for Kroxylicious, set the `KROXYLICIOUS_IMAGE` environment variable.
+
+```shell
+KROXYLICIOUS_IMAGE=quay.io/kroxylicious/kroxylicious-developer:0.4.0 ./scripts/run-example.sh ${kubernetes_example_directory}
+```
+
 This `run-example.sh` script does the following:
-1. builds and pushes a kroxylicious image to specified container registry
-2. starts minikube
-3. installs cert manager, vault and strimzi
-4. installs a 3-node Kafka cluster using Strimzi into minikube
-5. installs kroxylicious into minikube, configured to proxy the cluster
-
-> NOTE: If the kroxylicious pod doesn't come up, but it's stuck on ImagePullBackOff with "unauthorized: access to the requested resource is not authorized" error,
-it could mean you have to make the Quay image as public.
-
-If you want to only build and push an image to the container registry you can run `PUSH_IMAGE=y REGISTRY_DESTINATION=quay.io/$your_quay_org$/kroxylicious ./scripts/deploy-image.sh`
-
-To change the container engine to podman set `CONTAINER_ENGINE=podman`
+1. starts minikube (if necessary)
+1. installs cert manager, vault and strimzi as necessary.
+1. installs a 3-node Kafka cluster using Strimzi into minikube
+1. installs kroxylicious into minikube, configured to proxy the cluster
 
