@@ -33,6 +33,9 @@ public class ExponentialJitterBackoffStrategy implements BackoffStrategy {
         if (maximumDelay.compareTo(Duration.ZERO) <= 0) {
             throw new IllegalArgumentException("maximumDelay must be greater than zero");
         }
+        if (random == null) {
+            throw new IllegalArgumentException("random must be non-null");
+        }
         this.initialDelay = initialDelay;
         this.maximumDelay = maximumDelay;
         this.multiplier = multiplier;

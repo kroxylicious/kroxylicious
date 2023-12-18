@@ -106,25 +106,26 @@ class ExponentialJitterBackoffStrategyTest {
     }
 
     private static Stream<Arguments> invalidConfigurations() {
+        Random random = Mockito.mock(Random.class);
         Duration negativeDuration = Duration.of(-3, ChronoUnit.SECONDS);
         Duration oneSecond = Duration.of(1, ChronoUnit.SECONDS);
         return Stream.of(
-                Arguments.of(negativeDuration, oneSecond, 2.0d, "initialDelay must be greater than zero"),
-                Arguments.of(Duration.ZERO, oneSecond, 2.0d, "initialDelay must be greater than zero"),
-                Arguments.of(oneSecond, negativeDuration, 2.0d, "maximumDelay must be greater than zero"),
-                Arguments.of(oneSecond, Duration.ZERO, 2.0d, "maximumDelay must be greater than zero"),
-                Arguments.of(oneSecond, oneSecond, 0.0d, "multiplier must be greater than one"),
-                Arguments.of(oneSecond, oneSecond, 1.0d, "multiplier must be greater than one"),
-                Arguments.of(oneSecond, oneSecond, -1.2d, "multiplier must be greater than one"));
+                Arguments.of(negativeDuration, oneSecond, 2.0d, random, "initialDelay must be greater than zero"),
+                Arguments.of(Duration.ZERO, oneSecond, 2.0d, random, "initialDelay must be greater than zero"),
+                Arguments.of(oneSecond, negativeDuration, 2.0d, random, "maximumDelay must be greater than zero"),
+                Arguments.of(oneSecond, Duration.ZERO, 2.0d, random, "maximumDelay must be greater than zero"),
+                Arguments.of(oneSecond, oneSecond, 0.0d, random, "multiplier must be greater than one"),
+                Arguments.of(oneSecond, oneSecond, 1.0d, random, "multiplier must be greater than one"),
+                Arguments.of(oneSecond, oneSecond, 2.0d, null, "random must be non-null"),
+                Arguments.of(oneSecond, oneSecond, -1.2d, random, "multiplier must be greater than one"));
     }
 
     @ParameterizedTest
     @MethodSource
-    void invalidConfigurations(Duration initial, Duration maximum, double multiplier, String message) {
-        Random mockRandom = Mockito.mock(Random.class);
+    void invalidConfigurations(Duration initial, Duration maximum, double multiplier, Random random, String message) {
         assertThatThrownBy(() -> {
             new ExponentialJitterBackoffStrategy(initial,
-                    maximum, multiplier, mockRandom);
+                    maximum, multiplier, random);
         }).isInstanceOf(IllegalArgumentException.class).hasMessageContaining(message);
     }
 
