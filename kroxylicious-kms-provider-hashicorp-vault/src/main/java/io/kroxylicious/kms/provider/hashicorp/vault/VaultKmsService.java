@@ -7,6 +7,7 @@
 package io.kroxylicious.kms.provider.hashicorp.vault;
 
 import java.net.URI;
+import java.time.Duration;
 import java.util.Objects;
 
 import io.kroxylicious.kms.service.KmsService;
@@ -35,7 +36,7 @@ public class VaultKmsService implements KmsService<VaultKmsService.Config, Strin
     @NonNull
     @Override
     public VaultKms buildKms(Config options) {
-        return new VaultKms(options.vaultUrl(), options.vaultToken());
+        return new VaultKms(options.vaultUrl(), options.vaultToken(), Duration.ofSeconds(20));
     }
 
 }
