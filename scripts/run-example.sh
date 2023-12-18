@@ -122,6 +122,11 @@ echo -e "${GREEN}Kafka and Kroxylicious config successfully applied.${NOCOLOR}"
 echo "Waiting for resources to be ready..."
 
 ${KUBECTL} wait kafka/my-cluster --for=condition=Ready --timeout=300s -n kafka
+if grep --extended-regexp --count --quiet --recursive '(cluster-ca|client-ca)' "${SAMPLE_DIR}"; then
+  # Copy CA secrets to Kroxylicious namespace (if necessary)
+  ${KUBECTL} -n kafka get secrets -n kafka -l strimzi.io/component-type=certificate-authority -o json | jq '.items[] |= ( .metadata |= {name} )' | ${KUBECTL} apply -n kroxylicious -f -
+  ${KUBECTL} rollout -n kroxylicious restart deployment kroxylicious-proxy
+fi
 ${KUBECTL} wait deployment/kroxylicious-proxy --for=condition=Available=True --timeout=300s -n kroxylicious
 echo -e "${GREEN}Kafka and Kroxylicious deployments are ready.${NOCOLOR}"
 

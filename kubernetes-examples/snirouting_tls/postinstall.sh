@@ -7,6 +7,10 @@
 
 set -eo pipefail
 
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NOCOLOR='\033[0m'
+
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 . "${SCRIPT_DIR}/../../scripts/common.sh"
 
@@ -17,19 +21,17 @@ if [ "$OS" = 'Darwin'  ]; then
   fi
 fi
 
-DNS_NAMES=$(${KUBECTL} get certificate -n kafka server-certificate -o json | jq -r '.spec.dnsNames | join(" ")')
-BOOTSTRAP=$(${KUBECTL} get certificate -n kafka server-certificate -o json | jq -r '.spec.dnsNames[0]')
+DNS_NAMES=$(${KUBECTL} get certificate -n kroxylicious server-certificate -o json | jq -r '.spec.dnsNames | join(" ")')
+BOOTSTRAP=$(${KUBECTL} get certificate -n kroxylicious server-certificate -o json | jq -r '.spec.dnsNames[0]')
 
 echo 'Please start "minikube tunnel" in another terminal.'
 
+FIRST_LOOP=0
 while true
 do
-   EXTERNAL_IP=$(${KUBECTL} get service/kroxylicious-service -n kafka -o json | jq -r '.status.loadBalancer.ingress[0].ip // empty')
+   EXTERNAL_IP=$(${KUBECTL} get service/kroxylicious-service -n kroxylicious -o json | jq -r '.status.loadBalancer.ingress[0].ip // empty')
    if [[ "${EXTERNAL_IP}" ]]; then
       echo
-      echo -e  "\e[1;33mFound external IP ${EXTERNAL_IP} of load balancer service.\e[0m"
-      echo -e  "\e[1;33mPlease add following link to your '/etc/hosts'.\e[0m"
-      echo -e  "\e[1;33m${EXTERNAL_IP} ${DNS_NAMES}\e[0m"
       break
    else
      if [[ -z "${FIRST_LOOP}" ]]; then
@@ -42,12 +44,17 @@ do
    echo -n .
 done
 
+echo -e  "${GREEN}Found external IP ${EXTERNAL_IP} of load balancer service.${NOCOLOR}"
+
+echo -e  "${YELLOW}Please add following link to your '/etc/hosts'.${NOCOLOR}"
+echo -e  "${YELLOW}${EXTERNAL_IP} ${DNS_NAMES}${NOCOLOR}"
+
 common_args=("--bootstrap-server" "${BOOTSTRAP}:9092" "--topic" "my-topic")
 producer_args=("${common_args[@]}")
 consumer_args=("${common_args[@]}")
 consumer_args+=("--from-beginning")
 
-props=("ssl.truststore.type=PEM" "security.protocol=SSL" 'ssl.truststore.location=<(kubectl get secret -n kafka kroxy-server-key-material -o json | jq -r ".data.\"tls.crt\" | @base64d")')
+props=("ssl.truststore.type=PEM" "security.protocol=SSL" 'ssl.truststore.location=<(kubectl get secret -n kroxylicious kroxy-server-key-material -o json | jq -r ".data.\"tls.crt\" | @base64d")')
 
 for prop in "${props[@]}"
 do
