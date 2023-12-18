@@ -27,7 +27,7 @@ See [prerequistes](../README.md#prerequisites-to-run-the-kubernetes-examples).
 ## Running the example
 
 1. Clone Kroxylicious Repository
-    ```shell { adjunct="# We're going to demonstrate the Envelope Encryption feature of Kroxylicious.\nLet's start by cloning the repo." }
+    ```shell { adjunct="# We're going to demonstrate the Envelope Encryption feature of Kroxylicious.Let's start by cloning the repo." }
     git clone https://github.com/kroxylicious/kroxylicious.git
     ```
 1. Change directory to it. 
@@ -36,7 +36,7 @@ See [prerequistes](../README.md#prerequisites-to-run-the-kubernetes-examples).
     ```
 1. Run the following script.
     ```shell { adjunct="# Now let's bring up minikube and install strimzi and vault. The script will also create a kafka cluster and deploy kroxylicious." }
-    ./scripts/run-example.sh kubernetes-examples/envelope-encryption
+    KROXYLICIOUS_IMAGE=quay.io/kroxylicious/kroxylicious-developer:0.4.0 ./scripts/run-example.sh kubernetes-examples/envelope-encryption
     ```
 
 The script will first bring up Minikube. It will then deploy Strimzi and HashiCorp Vault.
@@ -73,11 +73,11 @@ on the cluster.
    echo "ibm: 99" | kaf -b minikube:30192 produce trades
    ```
 6. Consume a record via the proxy.
-   ```shell
+   ```shell { adjunct="# that's the record produced, now let's consume it." }
    kaf -b minikube:30192 consume trades
    ```
 6. Now to verify that the record is truly encrypted on the Kafka Cluster, let's consume the message directly
    from the Kafka Cluster.
-   ```shell { adjunct="# Finally, let's consume from the topic direct from the cluster showing the record is truly encrypted." }
+   ```shell { adjunct="# Finally, let's consume from the topic *direct from the cluster* showing the record is truly encrypted." }
    kubectl -n kafka run consumer -ti --image=quay.io/kroxylicious/kaf --rm=true --restart=Never -- kaf consume trades -b my-cluster-kafka-bootstrap:9092
    ```
