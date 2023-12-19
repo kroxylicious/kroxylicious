@@ -32,6 +32,8 @@ KUSTOMIZE=$(resolveCommand kustomize)
 export KUSTOMIZE
 HELM=$(resolveCommand helm)
 export HELM
+GAWK=$(resolveCommand gawk)
+export GAWK
 
 if [ "$OS" = 'Darwin' ]; then
   # for MacOS

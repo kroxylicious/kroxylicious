@@ -12,29 +12,29 @@ metadata:
 spec:
   kafka:
     version: 3.6.0
-    replicas: 3
+    replicas: 1
     listeners:
       - name: plain
         port: 9092
         type: internal
         tls: false
     config:
-      offsets.topic.replication.factor: 2
-      transaction.state.log.replication.factor: 2
-      transaction.state.log.min.isr: 2
-      default.replication.factor: 2
-      min.insync.replicas: 2
+      offsets.topic.replication.factor: 1
+      transaction.state.log.replication.factor: 1
+      transaction.state.log.min.isr: 1
+      default.replication.factor: 1
+      min.insync.replicas: 1
       inter.broker.protocol.version: "3.6"
     storage:
       type: jbod
       volumes:
       - id: 0
         type: persistent-claim
-        size: 100Gi
+        size: 10Gi
         deleteClaim: false
   zookeeper:
     replicas: 1
     storage:
       type: persistent-claim
-      size: 100Gi
+      size: 10Gi
       deleteClaim: false
