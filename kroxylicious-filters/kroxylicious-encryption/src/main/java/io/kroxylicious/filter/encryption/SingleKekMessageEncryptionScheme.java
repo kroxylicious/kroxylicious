@@ -24,11 +24,11 @@ import org.apache.kafka.common.utils.ByteBufferOutputStream;
  * @param recordFields The fields of the record that should be encrypted with the given KEK. Neither null nor empty.
  * @param <K> The type of KEK identifier.
  */
-public record SingleKekEncryptionScheme<K>(
-                                           K kekId,
-                                           Set<RecordField> recordFields)
-        implements EncryptionScheme<K> {
-    public SingleKekEncryptionScheme {
+public record SingleKekMessageEncryptionScheme<K>(
+                                                  K kekId,
+                                                  Set<RecordField> recordFields)
+        implements MessageEncryptionScheme<K> {
+    public SingleKekMessageEncryptionScheme {
         Objects.requireNonNull(kekId);
         if (Objects.requireNonNull(recordFields).isEmpty()) {
             throw new IllegalArgumentException();

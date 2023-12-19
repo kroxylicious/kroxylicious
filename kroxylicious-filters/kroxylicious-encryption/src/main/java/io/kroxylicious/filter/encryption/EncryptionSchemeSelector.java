@@ -13,5 +13,7 @@ import org.apache.kafka.common.message.RequestHeaderData;
 
 public interface EncryptionSchemeSelector<K> {
 
-    CompletionStage<EncryptionScheme<K>> selectFor(RequestHeaderData recordHeaders, ProduceRequestData produceRequestData);
+    CompletionStage<MessageEncryptionScheme<K>> selectFor(RequestHeaderData recordHeaders, ProduceRequestData produceRequestData);
+
+    CompletionStage<RecordEncryptionScheme<K>> selectFor(RequestHeaderData recordHeaders, ProduceRequestData.TopicProduceData topicProduceData, String topicName);
 }

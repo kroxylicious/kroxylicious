@@ -6,7 +6,6 @@
 
 package io.kroxylicious.filter.encryption;
 
-import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -15,9 +14,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-
-import org.apache.kafka.common.message.ProduceRequestData;
 
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.UnknownAliasException;
@@ -41,12 +37,7 @@ public class TemplateKekSelector<K> implements KekSelectorService<TemplateKekSel
         // TODO We want to vary the choice of `KekPerTopicEncryptionScheme` based on config options
         // TODO move to TopicNameEncryptionSchemeSelector
         final KekSelector<K> kekSelector = new KekSelector<>(kms, options.template());
-        return (recordHeaders, produceRequestData) -> {
-            var topicNameToData = produceRequestData.topicData().stream().map(ProduceRequestData.TopicProduceData::name).collect(Collectors.toSet());
-            return kekSelector.selectKek(topicNameToData)
-                    .thenCompose(kekByTopicName -> CompletableFuture.completedStage(
-                            new KekPerTopicEncryptionScheme<>(keyManager, kekByTopicName, EnumSet.of(RecordField.RECORD_VALUE))));
-        };
+        return null;
     }
 
     static class KekSelector<K> extends TopicNameBasedKekSelector<K> {

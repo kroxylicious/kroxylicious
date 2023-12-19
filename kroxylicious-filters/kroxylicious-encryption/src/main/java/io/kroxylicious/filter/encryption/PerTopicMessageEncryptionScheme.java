@@ -6,14 +6,12 @@
 
 package io.kroxylicious.filter.encryption;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.function.Function;
 import java.util.function.IntFunction;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -29,56 +27,53 @@ import org.apache.kafka.common.utils.ByteBufferOutputStream;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-/**
- * Describes how a record should be encrypted
- *
- * @param <K> The type of KEK identifier.
- * @param recordFields The fields of the record that should be encrypted with the given KEK. Neither null nor empty.
- */
-public record KekPerTopicEncryptionScheme<K>(
-                                             KeyManager<K> keyManager,
-                                             Map<String, K> keksByTopicName,
-                                             Set<RecordField> recordFields)
-        implements EncryptionScheme<K> {
-    public KekPerTopicEncryptionScheme {
-        Objects.requireNonNull(keksByTopicName);
-        if (Objects.requireNonNull(recordFields).isEmpty()) {
-            throw new IllegalArgumentException();
-        }
+public class PerTopicMessageEncryptionScheme<K> implements MessageEncryptionScheme<K> {
+
+    private final Map<String, RecordEncryptionScheme<K>> encryptionSchemePerTopic;
+    private final RecordEncryptionScheme<K> defaultRecordEncryptionScheme;
+
+    public PerTopicMessageEncryptionScheme(Map<String, RecordEncryptionScheme<K>> encryptionSchemePerTopic, RecordEncryptionScheme<K> defaultRecordEncryptionScheme) {
+        this.encryptionSchemePerTopic = encryptionSchemePerTopic;
+        this.defaultRecordEncryptionScheme = defaultRecordEncryptionScheme;
     }
 
     @Override
     public CompletionStage<ProduceRequestData> encrypt(RequestHeaderData recordHeaders, ProduceRequestData requestData,
                                                        IntFunction<ByteBufferOutputStream> bufferFactory) {
-        var topicNameToData = requestData.topicData().stream().collect(Collectors.toMap(ProduceRequestData.TopicProduceData::name, Function.identity()));
-        var futures = keksByTopicName.entrySet().stream().flatMap(e -> {
-            String topicName = e.getKey();
-            var kekId = e.getValue();
-            ProduceRequestData.TopicProduceData tpd = topicNameToData.get(topicName);
-            return tpd.partitionData().stream().map(ppd -> {
-                // handle case where this topic is to be left unencrypted
-                if (kekId == null) {
-                    return CompletableFuture.completedStage(ppd);
-                }
-                MemoryRecords records = (MemoryRecords) ppd.records();
-                MemoryRecordsBuilder builder = recordsBuilder(allocateBufferForEncode(records, bufferFactory), records);
-                var encryptionRequests = recordStream(records).toList();
-                return keyManager.encrypt(
-                        topicName,
-                        ppd.index(),
-                        new SingleKekEncryptionScheme<>(kekId, recordFields),
-                        encryptionRequests,
-                        (kafkaRecord, encryptedValue, headers) -> builder.append(kafkaRecord.timestamp(), kafkaRecord.key(), encryptedValue, headers))
-                        .thenApply(ignored -> ppd.setRecords(builder.build()));
-            });
-        }).toList();
+        final ProduceRequestData.TopicProduceDataCollection topicProduceData = requestData.topicData();
+        List<CompletionStage<ProduceRequestData.PartitionProduceData>> encryptedPartitionDataStages = new ArrayList<>();
+        for (ProduceRequestData.TopicProduceData produceData : topicProduceData) {
+            for (ProduceRequestData.PartitionProduceData partitionProduceData : produceData.partitionData()) {
+                final String topic = produceData.name();
 
-        return EnvelopeEncryptionFilter.join(futures).thenApply(x -> requestData);
+                MemoryRecords records = (MemoryRecords) partitionProduceData.records();
+                MemoryRecordsBuilder builder = recordsBuilder(allocateBufferForEncode(records, bufferFactory), records);
+                encryptedPartitionDataStages.add(EnvelopeEncryptionFilter.join(recordStream(records)
+                        .map(kafkaRecord -> encryptionSchemePerTopic.getOrDefault(topic, defaultRecordEncryptionScheme)
+                                .encrypt(kafkaRecord, recordHeaders, requestData)
+                                .thenCompose(encryptedRecord -> {
+                                    builder.append(encryptedRecord);
+                                    return CompletableFuture.completedStage(encryptedRecord);
+                                }))
+                        .toList())
+                        .thenCompose(voids -> {
+                            partitionProduceData.setRecords(builder.build());
+                            return CompletableFuture.completedStage(partitionProduceData);
+                        }));
+            }
+        }
+
+        return EnvelopeEncryptionFilter.join(encryptedPartitionDataStages).thenCompose(ignored -> CompletableFuture.completedStage(requestData));
     }
 
     @Override
     public CompletionStage<FetchResponseData> decrypt(ResponseHeaderData header, FetchResponseData response) {
         return null;
+    }
+
+    @NonNull
+    private static Stream<Record> recordStream(MemoryRecords memoryRecords) {
+        return StreamSupport.stream(memoryRecords.records().spliterator(), false);
     }
 
     private ByteBufferOutputStream allocateBufferForEncode(MemoryRecords records, IntFunction<ByteBufferOutputStream> bufferFactory) {
@@ -103,10 +98,4 @@ public record KekPerTopicEncryptionScheme<K>(
                 firstBatch.partitionLeaderEpoch(),
                 0);
     }
-
-    @NonNull
-    private static Stream<Record> recordStream(MemoryRecords memoryRecords) {
-        return StreamSupport.stream(memoryRecords.records().spliterator(), false);
-    }
-
 }

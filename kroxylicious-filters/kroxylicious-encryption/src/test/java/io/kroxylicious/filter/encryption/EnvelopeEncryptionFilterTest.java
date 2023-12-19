@@ -85,12 +85,18 @@ class EnvelopeEncryptionFilterTest {
 
     private EnvelopeEncryptionFilter<String> encryptionFilter;
 
-    private EncryptionScheme<String> kekPerTopicEncryptionScheme;
+    private MessageEncryptionScheme<String> kekPerTopicMessageEncryptionScheme;
 
-    private EncryptionSchemeSelector<String> encryptionSchemeSelector = new EncryptionSchemeSelector<>() {
+    private final EncryptionSchemeSelector<String> encryptionSchemeSelector = new EncryptionSchemeSelector<>() {
         @Override
-        public CompletionStage<EncryptionScheme<String>> selectFor(RequestHeaderData recordHeaders, ProduceRequestData produceRequestData) {
-            return CompletableFuture.completedStage(kekPerTopicEncryptionScheme);
+        public CompletionStage<MessageEncryptionScheme<String>> selectFor(RequestHeaderData recordHeaders, ProduceRequestData produceRequestData) {
+            return CompletableFuture.completedStage(kekPerTopicMessageEncryptionScheme);
+        }
+
+        @Override
+        public CompletionStage<RecordEncryptionScheme<String>> selectFor(RequestHeaderData recordHeaders, ProduceRequestData.TopicProduceData topicProduceData,
+                                                                         String topicName) {
+            return null;
         }
     };
 
@@ -129,7 +135,7 @@ class EnvelopeEncryptionFilterTest {
             return CompletableFuture.completedFuture(null);
         });
 
-        kekPerTopicEncryptionScheme = new KekPerTopicEncryptionScheme<>(keyManager, topicNameToKekId, EnumSet.of(RecordField.RECORD_VALUE));
+        kekPerTopicMessageEncryptionScheme = new KekPerTopicMessageEncryptionScheme<>(keyManager, topicNameToKekId, EnumSet.of(RecordField.RECORD_VALUE));
         encryptionFilter = new EnvelopeEncryptionFilter<>(keyManager, kekSelector, encryptionSchemeSelector);
     }
 

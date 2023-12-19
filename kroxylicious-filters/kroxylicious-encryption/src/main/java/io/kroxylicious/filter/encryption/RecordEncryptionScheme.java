@@ -7,16 +7,16 @@
 package io.kroxylicious.filter.encryption;
 
 import java.util.concurrent.CompletionStage;
-import java.util.function.IntFunction;
 
 import org.apache.kafka.common.message.FetchResponseData;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.utils.ByteBufferOutputStream;
+import org.apache.kafka.common.record.Record;
 
-public interface EncryptionScheme<K> {
-    CompletionStage<ProduceRequestData> encrypt(RequestHeaderData recordHeaders, ProduceRequestData requestData, IntFunction<ByteBufferOutputStream> bufferFactory);
+public interface RecordEncryptionScheme<K> {
 
-    CompletionStage<FetchResponseData> decrypt(ResponseHeaderData header, FetchResponseData response);
+    CompletionStage<Record> encrypt(Record plainTextRecord, RequestHeaderData recordHeaders, ProduceRequestData produceRequestData);
+
+    CompletionStage<Record> decrypt(Record encipheredRecord, ResponseHeaderData responseHeaderData, FetchResponseData fetchResponseData);
 }

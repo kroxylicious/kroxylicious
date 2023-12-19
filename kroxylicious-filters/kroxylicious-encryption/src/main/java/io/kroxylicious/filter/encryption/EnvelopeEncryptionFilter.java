@@ -100,7 +100,7 @@ public class EnvelopeEncryptionFilter<K>
                             return keyManager.encrypt(
                                     topicName,
                                     ppd.index(),
-                                    new SingleKekEncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
+                                    new SingleKekMessageEncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
                                     encryptionRequests,
                                     (kafkaRecord, encryptedValue, headers) -> builder.append(kafkaRecord.timestamp(), kafkaRecord.key(), encryptedValue, headers))
                                     .thenApply(ignored -> ppd.setRecords(builder.build()));

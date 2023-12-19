@@ -22,7 +22,7 @@ public interface KeyManager<K> {
 
     /**
      * Asynchronously encrypt the given {@code recordRequests} using the current DEK for the given KEK, calling the given receiver for each encrypted record
-     * @param encryptionScheme The encryption scheme.
+     * @param messageEncryptionScheme The encryption scheme.
      * @param records The requests to be encrypted.
      * @param receiver The receiver of the encrypted buffers. The receiver is guaranteed to receive the encrypted buffers sequentially, in the same order as {@code records}, with no possibility of parallel invocation.
      * @return A completion stage that completes when all the records have been processed.
@@ -30,7 +30,7 @@ public interface KeyManager<K> {
     @NonNull
     CompletionStage<Void> encrypt(@NonNull String topicName,
                                   int partition,
-                                  @NonNull EncryptionScheme<K> encryptionScheme,
+                                  @NonNull MessageEncryptionScheme<K> messageEncryptionScheme,
                                   @NonNull List<? extends Record> records,
                                   @NonNull Receiver receiver);
 
