@@ -65,19 +65,19 @@ as the topic name.
     kaf -b minikube:30192 topic create trades
     ```
 
-That's the set-up all over. Now let's publish and consume some messages, and confirm they are indeed encrypted
-on the cluster.
+That's the set-up done. Now let's produce a record via the proxy.  We'll then confirm that the record is
+encrypted by consuming it *directly* on the kafka cluster.  Finally, we'll consume it via the proxy showing that it is
+the plain-text that is received.
 
 6. Publish a record via the proxy.
-    ```shell { adjunct="# Great, so let's produce/consume via the proxy demonstrating the fact that encryption is transparent to the kafka application." }
+    ```shell { adjunct="# Time to start producing and consuming records.  First let's produce a record via the proxy."
    echo "ibm: 99" | kaf -b minikube:30192 produce trades
    ```
-6. Consume a record via the proxy.
-   ```shell { adjunct="# that's the record produced, now let's consume it." }
-   kaf -b minikube:30192 consume trades
-   ```
-6. Now to verify that the record is truly encrypted on the Kafka Cluster, let's consume the message directly
-   from the Kafka Cluster.
-   ```shell { adjunct="# Finally, let's consume from the topic *direct from the cluster* showing the record is truly encrypted." }
+6. Now we verify that the record is truly encrypted on the Kafka Cluster by consuming it directly from the Kafka Cluster.
+   ```shell { adjunct="# To show that the record is encrypted on the cluster, let's consume it directly from it. We'll see unintelligible bytes rather than the plain-text record." }
    kubectl -n kafka run consumer -ti --image=quay.io/kroxylicious/kaf --rm=true --restart=Never -- kaf consume trades -b my-cluster-kafka-bootstrap:9092
+   ```
+6. Finally, we consume the same record via the proxy.  We'll get back our original record.
+   ```shell { adjunct="# Now let's consume the same record via the proxy.  This time we'll see the plain-text of the record as Kroxylicious will have decrypted it." }
+   kaf -b minikube:30192 consume trades
    ```
