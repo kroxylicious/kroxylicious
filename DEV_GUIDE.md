@@ -348,11 +348,11 @@ terminal cast.  There are a couple of scripts/programs that are used in consort.
 
 * [extract-markdown-fencedcodeblocks.sh](./scripts/extract-markdown-fencedcodeblocks.sh) extracts fenced code blocks from a 
   Markdown document.  The list of commands is sent to stdout. The script also understands a non-standard extension to 
-  the fenced code-block declaration: `adjunct` assignments are treated as an additional command that will proceed
-  the command specified by fenced code-block. This can be used to pass shell comments to provide some narration.
+  the fenced code-block declaration: `prompt` assignments are treated as a comment that will proceed the command
+  specified by fenced code-block. This can be used to provide narration.
   ````
      Lorem ipsum dolor sit amet
-     ```shell { adjunct="# let's install the starnet client" }
+     ```shell { prompt="let's install the starnet client" }
         dnf install starnet-client
      ```
   ````

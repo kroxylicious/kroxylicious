@@ -27,7 +27,7 @@ See [prerequistes](../README.md#prerequisites-to-run-the-kubernetes-examples).
 ## Running the example
 
 1. Clone Kroxylicious Repository
-    ```shell { adjunct="# We're going to demonstrate the Envelope Encryption feature of Kroxylicious. Let's start by cloning the repo." }
+    ```shell { prompt="We're going to demonstrate the Envelope Encryption feature of Kroxylicious. Let's start by cloning the repo." }
     git clone https://github.com/kroxylicious/kroxylicious.git
     ```
 1. Change directory to it. 
@@ -35,7 +35,7 @@ See [prerequistes](../README.md#prerequisites-to-run-the-kubernetes-examples).
     cd kroxylicious
     ```
 1. Run the following script.
-    ```shell { adjunct="# Now let's bring up minikube and install strimzi and vault. The script will also create a kafka cluster and deploy kroxylicious." }
+    ```shell { prompt="Now let's bring up minikube and install strimzi and vault. The script will also create a kafka cluster and deploy kroxylicious." }
     KROXYLICIOUS_IMAGE=quay.io/kroxylicious/kroxylicious-developer:0.4.0 ./scripts/run-example.sh kubernetes-examples/envelope-encryption
     ```
 
@@ -57,11 +57,11 @@ as the topic name.
 
 4. Now we create an encryption keys in Vault for the topic we will use: `trades`.  You can do this using the Vault
    UI or with a command line like this:
-    ```shell { adjunct="# Now let's create an encryption key within vault.  This'll be used to encypt messages sent to the topic of the same name." }
+    ```shell { prompt="Now let's create an encryption key within vault.  This'll be used to encypt messages sent to the topic of the same name." }
     kubectl exec -n vault vault-0 -- vault write -f transit/keys/trades
     ```
 4. Finally, let's create the topic itself.
-    ```shell { adjunct="# and finally let's create the topic itself." }
+    ```shell { prompt="and finally let's create the topic itself." }
     kaf -b minikube:30192 topic create trades
     ```
 
@@ -70,14 +70,14 @@ encrypted by consuming it *directly* on the kafka cluster.  Finally, we'll consu
 the plain-text that is received.
 
 6. Publish a record via the proxy.
-    ```shell { adjunct="# Time to start producing and consuming records.  First let's produce a record via the proxy."
+    ```shell { prompt="Time to start producing and consuming records.  First let's produce a record via the proxy."
    echo "ibm: 99" | kaf -b minikube:30192 produce trades
    ```
 6. Now we verify that the record is truly encrypted on the Kafka Cluster by consuming it directly from the Kafka Cluster.
-   ```shell { adjunct="# To show that the record is encrypted on the cluster, let's consume it directly from it. We'll see unintelligible bytes rather than the plain-text record." }
+   ```shell { prompt="To show that the record is encrypted on the cluster, let's consume it directly from it. We'll see unintelligible bytes rather than the plain-text record." }
    kubectl -n kafka run consumer -ti --image=quay.io/kroxylicious/kaf --rm=true --restart=Never -- kaf consume trades -b my-cluster-kafka-bootstrap:9092
    ```
 6. Finally, we consume the same record via the proxy.  We'll get back our original record.
-   ```shell { adjunct="# Now let's consume the same record via the proxy.  This time we'll see the plain-text of the record as Kroxylicious will have decrypted it." }
+   ```shell { prompt="Now let's consume the same record via the proxy.  This time we'll see the plain-text of the record as Kroxylicious will have decrypted it." }
    kaf -b minikube:30192 consume trades
    ```

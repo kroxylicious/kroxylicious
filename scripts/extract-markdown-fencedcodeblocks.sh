@@ -21,7 +21,7 @@ BLOCKTYPE=${BLOCKTYPE:-shell}
 ${GAWK} \
 'BEGIN{codeblock = 0}
 
-     /^ *```'${BLOCKTYPE}'/       { codeblock=1; if (match($0, /adjunct="([^"]*)"/, m)) { print m[1]}; next; }
+     /^ *```'${BLOCKTYPE}'/       { codeblock=1; if (match($0, /prompt="([^"]*)"/, m)) { print "# " m[1]}; next; }
      codeblock && /^ *```/        { codeblock=0; next; }
      codeblock                    {gsub(/^ */, "", $0); print}
 '
