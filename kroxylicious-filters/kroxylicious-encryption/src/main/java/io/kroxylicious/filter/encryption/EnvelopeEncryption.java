@@ -6,6 +6,9 @@
 
 package io.kroxylicious.filter.encryption;
 
+import java.time.Duration;
+import java.util.concurrent.ThreadLocalRandom;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.kroxylicious.filter.encryption.inband.BufferPool;
@@ -45,11 +48,13 @@ public class EnvelopeEncryption<K, E> implements FilterFactory<EnvelopeEncryptio
 
     @NonNull
     @Override
+    @SuppressWarnings("java:S2245") // secure randomization not needed for exponential backoff
     public EnvelopeEncryptionFilter<K> createFilter(FilterFactoryContext context, Config configuration) {
         KmsService<Object, K, E> kmsPlugin = context.pluginInstance(KmsService.class, configuration.kms());
         Kms<K, E> kms = kmsPlugin.buildKms(configuration.kmsConfig());
 
-        var keyManager = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
+        var keyManager = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000, context.eventLoop(),
+                new ExponentialJitterBackoffStrategy(Duration.ofMillis(500), Duration.ofSeconds(5), 2d, ThreadLocalRandom.current()));
 
         KekSelectorService<Object, K> ksPlugin = context.pluginInstance(KekSelectorService.class, configuration.selector());
         TopicNameBasedKekSelector<K> kekSelector = ksPlugin.buildSelector(kms, configuration.selectorConfig());
