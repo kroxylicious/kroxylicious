@@ -139,4 +139,8 @@ public interface Constants {
      * kafka producer client label to identify the producer test client
      */
     String KAFKA_PRODUCER_CLIENT_LABEL = "kafka-producer-client";
+    /**
+     * kafka admin client label to identify the admin test client
+     */
+    String KAFKA_ADMIN_CLIENT_LABEL = "admin-client-cli";
 }

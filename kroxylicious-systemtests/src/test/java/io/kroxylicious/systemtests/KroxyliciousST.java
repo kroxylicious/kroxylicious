@@ -10,7 +10,6 @@ import java.time.Duration;
 import java.util.List;
 
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.slf4j.Logger;
@@ -55,8 +54,7 @@ class KroxyliciousST extends AbstractST {
         String bootstrap = kroxylicious.getBootstrap();
 
         LOGGER.info("And KafkaTopic in {} namespace", namespace);
-        // KafkaSteps.createTopicTestClient(namespace, topicName, bootstrap, 1, 1, 1);
-        // KafkaSteps.createTopic(topicName, clusterName, namespace, 1, 1, 1);
+        KafkaSteps.createTopicTestClient(namespace, topicName, bootstrap, 1, 2);
 
         LOGGER.info("When {} messages '{}' are sent to the topic '{}'", numberOfMessages, message, topicName);
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, message, numberOfMessages);
@@ -73,7 +71,6 @@ class KroxyliciousST extends AbstractST {
      * @param namespace the namespace
      */
     @Test
-    @Disabled
     void restartKafkaBrokers(String namespace) {
         String topicName = "my-topic2";
         String message = "Hello-world";
@@ -87,7 +84,7 @@ class KroxyliciousST extends AbstractST {
         String bootstrap = kroxylicious.getBootstrap();
 
         LOGGER.info("And KafkaTopic in {} namespace", namespace);
-        KafkaSteps.createTopic(topicName, clusterName, namespace, 3, 1, 1);
+        KafkaSteps.createTopicTestClient(namespace, topicName, bootstrap, 3, 3);
 
         LOGGER.info("When {} messages '{}' are sent to the topic '{}'", numberOfMessages, message, topicName);
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, message, numberOfMessages);
@@ -106,7 +103,6 @@ class KroxyliciousST extends AbstractST {
      * @param namespace the namespace
      */
     @Test
-    @Disabled
     void kroxyWithReplicas(String namespace) {
         String topicName = "my-topic3";
         String message = "Hello-world";
@@ -123,7 +119,7 @@ class KroxyliciousST extends AbstractST {
         assertThat("Current replicas: " + currentReplicas + "; expected: " + replicas, currentReplicas == replicas);
 
         LOGGER.info("And KafkaTopic in {} namespace", namespace);
-        KafkaSteps.createTopic(topicName, clusterName, namespace, 3, 1, 1);
+        KafkaSteps.createTopicTestClient(namespace, topicName, bootstrap, 3, 3);
 
         LOGGER.info("When {} messages '{}' are sent to the topic '{}'", numberOfMessages, message, topicName);
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, message, numberOfMessages);

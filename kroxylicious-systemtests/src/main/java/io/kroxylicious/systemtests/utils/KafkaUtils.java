@@ -32,7 +32,7 @@ import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.awaitility.Awaitility.await;
 
 /**
- * The type Kafka utils.
+ * The Kafka utils.
  */
 public class KafkaUtils {
 
@@ -45,7 +45,7 @@ public class KafkaUtils {
      * @param topicName the topic name
      * @param bootstrap the bootstrap
      * @param timeoutMilliseconds the timeout milliseconds
-     * @return the string
+     * @return the log of the pod
      */
     public static String ConsumeMessage(String deployNamespace, String topicName, String bootstrap, int timeoutMilliseconds) {
         LOGGER.debug("Consuming messages from '{}' topic", topicName);
@@ -85,7 +85,7 @@ public class KafkaUtils {
      * @param bootstrap the bootstrap
      * @param numOfMessages the num of messages
      * @param timeoutMilliseconds the timeout milliseconds
-     * @return the string
+     * @return the log of the pod
      */
     public static String ConsumeMessageWithTestClients(String deployNamespace, String topicName, String bootstrap, int numOfMessages, long timeoutMilliseconds) {
         LOGGER.debug("Consuming messages from '{}' topic", topicName);
@@ -113,15 +113,15 @@ public class KafkaUtils {
      *
      * @param deployNamespace the deploy namespace
      * @param bootstrap the bootstrap
-     * @return the string
+     * @return the pod name
      */
     public static String AdminTestClient(String deployNamespace, String bootstrap) {
         InputStream file = replaceStringInResourceFile("kafka-admin-template.yaml", Map.of(
                 "%BOOTSTRAP_SERVERS%", bootstrap));
 
         kubeClient().getClient().load(file).inNamespace(deployNamespace).create();
-        String podName = getPodNameByLabel(deployNamespace, "app", "admin-client-cli", Duration.ofSeconds(10).toMillis());
-        DeploymentUtils.waitForDeploymentReady(deployNamespace, "admin-client-cli");
+        String podName = getPodNameByLabel(deployNamespace, "app", Constants.KAFKA_ADMIN_CLIENT_LABEL, Duration.ofSeconds(10).toMillis());
+        DeploymentUtils.waitForDeploymentReady(deployNamespace, Constants.KAFKA_ADMIN_CLIENT_LABEL);
         return podName;
     }
 
@@ -160,7 +160,7 @@ public class KafkaUtils {
      * @param bootstrap the bootstrap
      * @param message the message
      * @param numOfMessages the num of messages
-     * @return the string
+     * @return the name of the pod
      */
     public static String produceMessageWithTestClients(String deployNamespace, String topicName, String bootstrap, String message, int numOfMessages) {
         LOGGER.debug("Producing {} messages in '{}' topic", numOfMessages, topicName);
@@ -171,9 +171,7 @@ public class KafkaUtils {
                 "%MESSAGE_COUNT%", "\"" + numOfMessages + "\"",
                 "%MESSAGE%", message));
         kubeClient().getClient().load(file).inNamespace(deployNamespace).create();
-        String podName = getPodNameByLabel(deployNamespace, "app", Constants.KAFKA_PRODUCER_CLIENT_LABEL, Duration.ofSeconds(10).toMillis());
-        LOGGER.info(kubeClient().logsInSpecificNamespace(deployNamespace, podName));
-        return podName;
+        return getPodNameByLabel(deployNamespace, "app", Constants.KAFKA_PRODUCER_CLIENT_LABEL, Duration.ofSeconds(10).toMillis());
     }
 
     private static InputStream replaceStringInResourceFile(String resourceTemplateFileName, Map<String, String> replacements) {
@@ -199,7 +197,7 @@ public class KafkaUtils {
      *
      * @param deployNamespace the deploy namespace
      * @param clusterName the cluster name
-     * @return the boolean
+     * @return true if the restart has been done successfully, false otherwise
      */
     public static boolean restartBroker(String deployNamespace, String clusterName) {
         String podName = "";

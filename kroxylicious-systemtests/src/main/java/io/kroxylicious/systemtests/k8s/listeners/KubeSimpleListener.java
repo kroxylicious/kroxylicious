@@ -14,8 +14,8 @@ import io.fabric8.kubernetes.client.dsl.ExecListener;
 /**
  * The Kube listener.
  */
-public class KubeListener implements ExecListener {
-    private static final Logger LOGGER = LoggerFactory.getLogger(KubeListener.class);
+public class KubeSimpleListener implements ExecListener {
+    private static final Logger LOGGER = LoggerFactory.getLogger(KubeSimpleListener.class);
 
     @Override
     public void onOpen() {
