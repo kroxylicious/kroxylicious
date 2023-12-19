@@ -65,9 +65,13 @@ as the topic name.
     kaf -b minikube:30192 topic create trades
     ```
 
-That's the set-up done. Now let's produce a record via the proxy.  We'll then confirm that the record is
-encrypted by consuming it *directly* on the kafka cluster.  Finally, we'll consume it via the proxy showing that it is
-the plain-text that is received.
+That's the set-up done.
+
+Now let's produce a record via the proxy.  We'll then confirm that the record is encrypted by consuming it *directly*
+on the Kafka cluster.  Finally, we'll consume it via the proxy showing that it is the plain-text that is received.
+
+These steps use [kaf](https://github.com/birdayz/kaf) to produce and consume messages, but you can use your preferred
+Kafka tooling if you like.
 
 6. Publish a record via the proxy.
     ```shell { prompt="Time to start producing and consuming records.  First let's produce a record via the proxy."
