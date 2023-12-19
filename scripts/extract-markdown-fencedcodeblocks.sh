@@ -13,9 +13,12 @@
 
 set -euo pipefail
 
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+. "${SCRIPT_DIR}/common.sh"
+
 BLOCKTYPE=${BLOCKTYPE:-shell}
 
-gawk \
+${GAWK} \
 'BEGIN{codeblock = 0}
 
      /^ *```'${BLOCKTYPE}'/       { codeblock=1; if (match($0, /adjunct="([^"]*)"/, m)) { print m[1]}; next; }
