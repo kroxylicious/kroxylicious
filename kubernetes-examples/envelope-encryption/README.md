@@ -27,7 +27,7 @@ See [prerequistes](../README.md#prerequisites-to-run-the-kubernetes-examples).
 ## Running the example
 
 1. Clone Kroxylicious Repository
-    ```shell { adjunct="# We're going to demonstrate the Envelope Encryption feature of Kroxylicious.Let's start by cloning the repo." }
+    ```shell { adjunct="# We're going to demonstrate the Envelope Encryption feature of Kroxylicious. Let's start by cloning the repo." }
     git clone https://github.com/kroxylicious/kroxylicious.git
     ```
 1. Change directory to it. 
