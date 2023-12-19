@@ -36,6 +36,11 @@ import static org.awaitility.Awaitility.await;
  */
 public class KafkaUtils {
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaUtils.class);
+    private static final String BOOTSTRAP_SERVERS_VAR = "%BOOTSTRAP_SERVERS%";
+    private static final String NAMESPACE_VAR = "%NAMESPACE%";
+    private static final String TOPIC_NAME_VAR = "%TOPIC_NAME%";
+    private static final String MESSAGE_COUNT_VAR = "%MESSAGE_COUNT%";
+    private static final String MESSAGE_VAR = "%MESSAGE%";
 
     /**
      * Consume message string.
@@ -89,10 +94,10 @@ public class KafkaUtils {
     public static String consumeMessageWithTestClients(String deployNamespace, String topicName, String bootstrap, int numOfMessages, long timeoutMilliseconds) {
         LOGGER.debug("Consuming messages from '{}' topic", topicName);
         InputStream file = replaceStringInResourceFile("kafka-consumer-template.yaml", Map.of(
-                "%BOOTSTRAP_SERVERS%", bootstrap,
-                "%NAMESPACE%", deployNamespace,
-                "%TOPIC_NAME%", topicName,
-                "%MESSAGE_COUNT%", "\"" + numOfMessages + "\""));
+                BOOTSTRAP_SERVERS_VAR, bootstrap,
+                NAMESPACE_VAR, deployNamespace,
+                TOPIC_NAME_VAR, topicName,
+                MESSAGE_COUNT_VAR, "\"" + numOfMessages + "\""));
 
         kubeClient().getClient().load(file).inNamespace(deployNamespace).create();
         String podName = getPodNameByLabel(deployNamespace, "app", Constants.KAFKA_CONSUMER_CLIENT_LABEL, timeoutMilliseconds);
@@ -116,7 +121,7 @@ public class KafkaUtils {
      */
     public static String adminTestClient(String deployNamespace, String bootstrap) {
         InputStream file = replaceStringInResourceFile("kafka-admin-template.yaml", Map.of(
-                "%BOOTSTRAP_SERVERS%", bootstrap));
+                BOOTSTRAP_SERVERS_VAR, bootstrap));
 
         kubeClient().getClient().load(file).inNamespace(deployNamespace).create();
         String podName = getPodNameByLabel(deployNamespace, "app", Constants.KAFKA_ADMIN_CLIENT_LABEL, Duration.ofSeconds(10).toMillis());
@@ -164,11 +169,11 @@ public class KafkaUtils {
     public static String produceMessageWithTestClients(String deployNamespace, String topicName, String bootstrap, String message, int numOfMessages) {
         LOGGER.debug("Producing {} messages in '{}' topic", numOfMessages, topicName);
         InputStream file = replaceStringInResourceFile("kafka-producer-template.yaml", Map.of(
-                "%BOOTSTRAP_SERVERS%", bootstrap,
-                "%NAMESPACE%", deployNamespace,
-                "%TOPIC_NAME%", topicName,
-                "%MESSAGE_COUNT%", "\"" + numOfMessages + "\"",
-                "%MESSAGE%", message));
+                BOOTSTRAP_SERVERS_VAR, bootstrap,
+                NAMESPACE_VAR, deployNamespace,
+                TOPIC_NAME_VAR, topicName,
+                MESSAGE_COUNT_VAR, "\"" + numOfMessages + "\"",
+                MESSAGE_VAR, message));
         kubeClient().getClient().load(file).inNamespace(deployNamespace).create();
         return getPodNameByLabel(deployNamespace, "app", Constants.KAFKA_PRODUCER_CLIENT_LABEL, Duration.ofSeconds(10).toMillis());
     }

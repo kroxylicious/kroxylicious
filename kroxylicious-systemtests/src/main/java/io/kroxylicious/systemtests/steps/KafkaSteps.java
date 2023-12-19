@@ -12,6 +12,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.systemtests.Constants;
+import io.kroxylicious.systemtests.executor.ExecResult;
+import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaTopicTemplates;
 import io.kroxylicious.systemtests.utils.KafkaUtils;
@@ -67,7 +69,7 @@ public class KafkaSteps {
 
         if (exitCode != 0) {
             LOGGER.error(baos.toString());
-            throw new RuntimeException("Topic creation failed! Exit code: " + exitCode);
+            throw new KubeClusterException(new ExecResult(exitCode, baos.toString(), baos.toString()), "Topic creation failed! Exit code: " + exitCode);
         }
         else {
             LOGGER.debug(baos.toString());
