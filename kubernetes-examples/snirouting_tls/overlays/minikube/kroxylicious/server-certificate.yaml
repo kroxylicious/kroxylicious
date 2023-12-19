@@ -9,7 +9,6 @@ apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
   name: server-certificate
-  namespace: kafka
 spec:
   isCA: true
   commonName: mycluster-proxy.kafka

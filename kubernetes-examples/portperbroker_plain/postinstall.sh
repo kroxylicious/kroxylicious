@@ -20,9 +20,9 @@ echo "Here are some commands to try things out. Run the producer and consumer in
 echo -e "${GREEN}Apache Kafka Client${NOCOLOUR}"
 
 echo "To produce to kroxylicious:"
-echo "kubectl -n kafka run java-kafka-producer -ti --image=${STRIMZI_KAFKA} --rm=true --restart=Never -- bin/kafka-console-producer.sh --bootstrap-server ${BOOTSTRAP} --topic ${TOPIC}"
+echo "kubectl -n kroxylicious run java-kafka-producer -ti --image=${STRIMZI_KAFKA} --rm=true --restart=Never -- bin/kafka-console-producer.sh --bootstrap-server ${BOOTSTRAP} --topic ${TOPIC}"
 echo "To consume from kroxylicious:"
-echo "kubectl -n kafka run java-kafka-consumer -ti --image=${STRIMZI_KAFKA} --rm=true --restart=Never -- bin/kafka-console-consumer.sh --bootstrap-server ${BOOTSTRAP} --topic ${TOPIC} --from-beginning"
+echo "kubectl -n kroxylicious run java-kafka-consumer -ti --image=${STRIMZI_KAFKA} --rm=true --restart=Never -- bin/kafka-console-consumer.sh --bootstrap-server ${BOOTSTRAP} --topic ${TOPIC} --from-beginning"
 
 echo -e "${GREEN}Edenhill Kcat (librdkafka)${NOCOLOUR}"
 
@@ -30,7 +30,7 @@ echo "Note: kcat 1.7 -P will send each line as a separate record, but you need t
 echo "quay.io/kroxylicious/kcat:1.6.0 will send each line as a record on pressing enter."
 
 echo "To produce to kroxylicious:"
-echo "kubectl -n kafka run kcat-kafka-producer -ti --image=${KCAT} --rm=true --restart=Never -- -P -t ${TOPIC} -b ${BOOTSTRAP}"
+echo "kubectl -n kroxylicious run kcat-kafka-producer -ti --image=${KCAT} --rm=true --restart=Never -- -P -t ${TOPIC} -b ${BOOTSTRAP}"
 echo "To consume from kroxylicious:"
-echo "kubectl -n kafka run kcat-kafka-consumer -ti --image=${KCAT} --rm=true --restart=Never -- -C -t ${TOPIC} -b ${BOOTSTRAP} -o beginning"
+echo "kubectl -n kroxylicious run kcat-kafka-consumer -ti --image=${KCAT} --rm=true --restart=Never -- -C -t ${TOPIC} -b ${BOOTSTRAP} -o beginning"
 

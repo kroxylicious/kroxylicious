@@ -11,26 +11,17 @@ metadata:
   name: kroxylicious-config
 data:
   config.yaml: |
-    filters:
-    - type: EnvelopeEncryption
-      config:
-        kms: VaultKmsService
-        kmsConfig:
-          vaultUrl: http://vault.vault.svc.cluster.local:8200
-          vaultToken: myroottoken
-        selector: TemplateKekSelector
-        selectorConfig:
-          template: all
     adminHttp:
       endpoints:
         prometheus: {}
     virtualClusters:
-      devenv1:
+      demo:
         targetCluster:
-          bootstrap_servers: my-cluster-kafka-bootstrap:9092
+          bootstrap_servers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
         clusterNetworkAddressConfigProvider:
           type: PortPerBrokerClusterNetworkAddressConfigProvider
           config:
-            bootstrapAddress: minikube:30192
+            bootstrapAddress: localhost:9292
+            brokerAddressPattern: kroxylicious-service
         logNetwork: false
         logFrames: false
