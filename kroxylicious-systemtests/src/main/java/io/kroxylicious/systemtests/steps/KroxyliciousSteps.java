@@ -38,6 +38,6 @@ public class KroxyliciousSteps {
      * @return the string
      */
     public static String consumeMessages(String namespace, String topicName, String bootstrap, int numberOfMessages, long timeoutMillis) {
-        return KafkaUtils.ConsumeMessageWithTestClients(namespace, topicName, bootstrap, numberOfMessages, timeoutMillis);
+        return KafkaUtils.consumeMessageWithTestClients(namespace, topicName, bootstrap, numberOfMessages, timeoutMillis);
     }
 }

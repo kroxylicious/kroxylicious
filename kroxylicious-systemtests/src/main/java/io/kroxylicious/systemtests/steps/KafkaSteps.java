@@ -8,8 +8,10 @@ package io.kroxylicious.systemtests.steps;
 
 import java.io.ByteArrayOutputStream;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.kroxylicious.systemtests.Constants;
-import io.kroxylicious.systemtests.k8s.listeners.KubeSimpleListener;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaTopicTemplates;
 import io.kroxylicious.systemtests.utils.KafkaUtils;
@@ -22,6 +24,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
  */
 public class KafkaSteps {
     private static final ResourceManager resourceManager = ResourceManager.getInstance();
+    private static final Logger LOGGER = LoggerFactory.getLogger(KafkaSteps.class);
 
     private KafkaSteps() {
     }
@@ -51,18 +54,24 @@ public class KafkaSteps {
      * @param replicas the replicas
      */
     public static void createTopicTestClient(String deployNamespace, String topicName, String bootstrap, int partitions, int replicas) {
-        String podName = KafkaUtils.AdminTestClient(deployNamespace, bootstrap);
+        String podName = KafkaUtils.adminTestClient(deployNamespace, bootstrap);
         String command = "admin-client topic create --bootstrap-server=" + bootstrap + " --topic=" + topicName + " --topic-partitions=" + partitions +
                 " --topic-rep-factor=" + replicas;
 
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        kubeClient().getClient().pods().inNamespace(deployNamespace).withName(podName)
+        var exitCode = kubeClient().getClient().pods().inNamespace(deployNamespace).withName(podName)
                 .writingOutput(baos)
                 .writingError(baos)
-                .withTTY()
-                .usingListener(new KubeSimpleListener())
                 .exec("sh", "-c", command)
                 .exitCode().join();
+
+        if (exitCode != 0) {
+            LOGGER.error(baos.toString());
+            throw new RuntimeException("Topic creation failed! Exit code: " + exitCode);
+        }
+        else {
+            LOGGER.debug(baos.toString());
+        }
     }
 
     /**

@@ -35,7 +35,6 @@ import static org.awaitility.Awaitility.await;
  * The Kafka utils.
  */
 public class KafkaUtils {
-
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaUtils.class);
 
     /**
@@ -47,7 +46,7 @@ public class KafkaUtils {
      * @param timeoutMilliseconds the timeout milliseconds
      * @return the log of the pod
      */
-    public static String ConsumeMessage(String deployNamespace, String topicName, String bootstrap, int timeoutMilliseconds) {
+    public static String consumeMessage(String deployNamespace, String topicName, String bootstrap, int timeoutMilliseconds) {
         LOGGER.debug("Consuming messages from '{}' topic", topicName);
 
         String kafkaConsumerName = "java-kafka-consumer";
@@ -87,7 +86,7 @@ public class KafkaUtils {
      * @param timeoutMilliseconds the timeout milliseconds
      * @return the log of the pod
      */
-    public static String ConsumeMessageWithTestClients(String deployNamespace, String topicName, String bootstrap, int numOfMessages, long timeoutMilliseconds) {
+    public static String consumeMessageWithTestClients(String deployNamespace, String topicName, String bootstrap, int numOfMessages, long timeoutMilliseconds) {
         LOGGER.debug("Consuming messages from '{}' topic", topicName);
         InputStream file = replaceStringInResourceFile("kafka-consumer-template.yaml", Map.of(
                 "%BOOTSTRAP_SERVERS%", bootstrap,
@@ -115,7 +114,7 @@ public class KafkaUtils {
      * @param bootstrap the bootstrap
      * @return the pod name
      */
-    public static String AdminTestClient(String deployNamespace, String bootstrap) {
+    public static String adminTestClient(String deployNamespace, String bootstrap) {
         InputStream file = replaceStringInResourceFile("kafka-admin-template.yaml", Map.of(
                 "%BOOTSTRAP_SERVERS%", bootstrap));
 
@@ -142,7 +141,7 @@ public class KafkaUtils {
      * @param message the message
      * @param bootstrap the bootstrap
      */
-    public static void ProduceMessage(String deployNamespace, String topicName, String message, String bootstrap) {
+    public static void produceMessage(String deployNamespace, String topicName, String message, String bootstrap) {
         kubeClient().getClient().run().inNamespace(deployNamespace).withNewRunConfig()
                 .withImage(Constants.STRIMZI_KAFKA_IMAGE)
                 .withName("java-kafka-producer")
