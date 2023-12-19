@@ -6,6 +6,8 @@
 
 package io.kroxylicious.systemtests.steps;
 
+import java.io.ByteArrayOutputStream;
+
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.k8s.listeners.KubeSimpleListener;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
@@ -53,9 +55,10 @@ public class KafkaSteps {
         String command = "admin-client topic create --bootstrap-server=" + bootstrap + " --topic=" + topicName + " --topic-partitions=" + partitions +
                 " --topic-rep-factor=" + replicas;
 
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
         kubeClient().getClient().pods().inNamespace(deployNamespace).withName(podName)
-                .writingOutput(System.out)
-                .writingError(System.err)
+                .writingOutput(baos)
+                .writingError(baos)
                 .withTTY()
                 .usingListener(new KubeSimpleListener())
                 .exec("sh", "-c", command)
