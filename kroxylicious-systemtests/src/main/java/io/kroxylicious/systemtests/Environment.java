@@ -6,6 +6,10 @@
 
 package io.kroxylicious.systemtests;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.util.Objects;
+import java.util.Properties;
 import java.util.function.Function;
 
 /**
@@ -33,7 +37,21 @@ public class Environment {
     /**
      * The kroxy version default value
      */
-    public static final String KROXY_VERSION_DEFAULT = "0.5.0-SNAPSHOT";
+    public static final String KROXY_VERSION_DEFAULT;
+
+    static {
+        var p = new Properties();
+        try (var stream = Environment.class.getResourceAsStream("/metadata.properties");) {
+            Objects.requireNonNull(stream, "/metadata.properties absent");
+            p.load(stream);
+            var version = p.getProperty("kroxylicious.version");
+            Objects.requireNonNull(version, "kroxylicious version key absent in metadata.properties");
+            KROXY_VERSION_DEFAULT = version;
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
     /**
      * The url where kroxylicious image lives to be downloaded.
      */
