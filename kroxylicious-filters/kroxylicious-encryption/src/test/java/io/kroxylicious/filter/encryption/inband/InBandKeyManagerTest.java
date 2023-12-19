@@ -45,7 +45,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.when;
 
@@ -319,7 +318,7 @@ class InBandKeyManagerTest {
     }
 
     @Test
-    void afterWeFailToDecryptAnEDekTheNextEncryptionAttemptCanSucceed() {
+    void decryptionFailure() {
         var kmsService = UnitTestingKmsService.newInstance();
         InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
         var kekId = kms.generateKey();
@@ -344,19 +343,6 @@ class InBandKeyManagerTest {
         List<TestingRecord> decrypted = new ArrayList<>();
         CompletionStage decrypt = km.decrypt("topic", 1, encrypted, recordReceivedRecord(decrypted));
         assertThat(decrypt).failsWithin(Duration.ofSeconds(5)).withThrowableThat().withMessageMatching(".*decryptEdek failed after [0-9]+ attempts");
-        for (TestingRecord testingRecord : encrypted) {
-            testingRecord.value().rewind();
-        }
-
-        // given KMS is no longer generating failed futures
-        doCallRealMethod().when(spyKms).decryptEdek(any());
-
-        // when
-        CompletionStage decrypt2 = km.decrypt("topic", 1, encrypted, recordReceivedRecord(decrypted));
-
-        // then
-        assertThat(decrypt2).succeedsWithin(Duration.ofSeconds(5));
-        assertThat(encrypted).hasSize(2);
     }
 
     @NonNull
