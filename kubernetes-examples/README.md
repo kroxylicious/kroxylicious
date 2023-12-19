@@ -50,6 +50,6 @@ KROXYLICIOUS_IMAGE=quay.io/kroxylicious/kroxylicious-developer:0.4.0 ./scripts/r
 This `run-example.sh` script does the following:
 1. starts minikube (if necessary)
 1. installs cert manager, vault and strimzi as necessary.
-1. installs a 3-node Kafka cluster using Strimzi into minikube
+1. installs a Kafka cluster using Strimzi into minikube
 1. installs kroxylicious into minikube, configured to proxy the cluster
 
