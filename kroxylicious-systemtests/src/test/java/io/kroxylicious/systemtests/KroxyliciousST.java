@@ -54,7 +54,7 @@ class KroxyliciousST extends AbstractST {
         String bootstrap = kroxylicious.getBootstrap();
 
         LOGGER.info("And KafkaTopic in {} namespace", namespace);
-        KafkaSteps.createTopicTestClient(namespace, topicName, bootstrap, 1, 2);
+        KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 2);
 
         LOGGER.info("When {} messages '{}' are sent to the topic '{}'", numberOfMessages, message, topicName);
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, message, numberOfMessages);
@@ -84,7 +84,7 @@ class KroxyliciousST extends AbstractST {
         String bootstrap = kroxylicious.getBootstrap();
 
         LOGGER.info("And KafkaTopic in {} namespace", namespace);
-        KafkaSteps.createTopicTestClient(namespace, topicName, bootstrap, 3, 3);
+        KafkaSteps.createTopic(namespace, topicName, bootstrap, 3, 2);
 
         LOGGER.info("When {} messages '{}' are sent to the topic '{}'", numberOfMessages, message, topicName);
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, message, numberOfMessages);
@@ -119,7 +119,7 @@ class KroxyliciousST extends AbstractST {
         assertThat("Current replicas: " + currentReplicas + "; expected: " + replicas, currentReplicas == replicas);
 
         LOGGER.info("And KafkaTopic in {} namespace", namespace);
-        KafkaSteps.createTopicTestClient(namespace, topicName, bootstrap, 3, 3);
+        KafkaSteps.createTopic(namespace, topicName, bootstrap, 3, 2);
 
         LOGGER.info("When {} messages '{}' are sent to the topic '{}'", numberOfMessages, message, topicName);
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, message, numberOfMessages);

@@ -126,6 +126,10 @@ public interface Constants {
      * Strimzi kafka image url in quay
      */
     String STRIMZI_KAFKA_IMAGE = "quay.io/strimzi/kafka:latest-kafka-" + KAFKA_VERSION_DEFAULT;
+    /**
+     * Test clients image url
+     */
+    String TEST_CLIENTS_IMAGE = "quay.io/strimzi-test-clients/test-clients:latest-kafka-3.6.0";
 
     /**
      * The cert manager url to install it on kubernetes

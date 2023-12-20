@@ -26,6 +26,7 @@ import io.kroxylicious.systemtests.Constants;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.cmdKubeClient;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.awaitility.Awaitility.await;
+import static org.awaitility.Awaitility.with;
 
 /**
  * The type Deployment utils.
@@ -132,5 +133,23 @@ public class DeploymentUtils {
         }
         kubeClient().getClient().apps().deployments().inNamespace(namespace).withName(TEST_LOAD_BALANCER_NAME).delete();
         return isWorking;
+    }
+
+    /**
+     * Wait for run succeeded boolean.
+     *
+     * @param namespaceName the namespace name
+     * @param deploymentName the deployment name
+     * @param timeout the timeout
+     */
+    public static void waitForRunSucceeded(String namespaceName, String deploymentName, Duration timeout) {
+        LOGGER.info("Waiting for Job: {}/{} to be succeeded", namespaceName, deploymentName);
+        with().conditionEvaluationListener(condition -> {
+            if (!condition.isSatisfied() && condition.getRemainingTimeInMS() <= condition.getPollInterval().toMillis()) {
+                LOGGER.error("Run failed! Error: {}", kubeClient().logsInSpecificNamespace(namespaceName, deploymentName));
+            }
+        }).await().atMost(timeout).pollInterval(Duration.ofMillis(200))
+                .until(() -> kubeClient().getPod(namespaceName, deploymentName) != null
+                        && kubeClient().isPodRunSucceeded(namespaceName, deploymentName));
     }
 }

@@ -112,23 +112,6 @@ public class KafkaUtils {
         return kubeClient().logsInSpecificNamespace(deployNamespace, podName);
     }
 
-    /**
-     * Admin test client.
-     *
-     * @param deployNamespace the deploy namespace
-     * @param bootstrap the bootstrap
-     * @return the pod name
-     */
-    public static String adminTestClient(String deployNamespace, String bootstrap) {
-        InputStream file = replaceStringInResourceFile("kafka-admin-template.yaml", Map.of(
-                BOOTSTRAP_SERVERS_VAR, bootstrap));
-
-        kubeClient().getClient().load(file).inNamespace(deployNamespace).create();
-        String podName = getPodNameByLabel(deployNamespace, "app", Constants.KAFKA_ADMIN_CLIENT_LABEL, Duration.ofSeconds(10));
-        DeploymentUtils.waitForDeploymentReady(deployNamespace, Constants.KAFKA_ADMIN_CLIENT_LABEL);
-        return podName;
-    }
-
     private static String getPodNameByLabel(String deployNamespace, String labelKey, String labelValue, Duration timeout) {
         await().atMost(timeout).until(() -> {
             var podList = kubeClient().listPods(deployNamespace, labelKey, labelValue);

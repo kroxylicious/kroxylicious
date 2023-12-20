@@ -110,6 +110,7 @@ public class KubeClient {
     // =========================
     // ---------> POD <---------
     // =========================
+
     /**
      * List pods list.
      *
@@ -189,13 +190,24 @@ public class KubeClient {
     }
 
     /**
-     * Gets deployment status
+     * Gets if the deployment is ready
      * @param namespaceName the namespace name
      * @param deploymentName the deployment name
-     * @return the deployment status
+     * @return true if the deployment is ready, false otherwise
      */
     public boolean isDeploymentReady(String namespaceName, String deploymentName) {
         return client.apps().deployments().inNamespace(namespaceName).withName(deploymentName).isReady();
+    }
+
+    /**
+     * Is the pod run succeeded.
+     *
+     * @param namespaceName the namespace name
+     * @param deploymentName the deployment name
+     * @return true if the job is succeeded. false otherwise
+     */
+    public Boolean isPodRunSucceeded(String namespaceName, String deploymentName) {
+        return client.pods().inNamespace(namespaceName).withName(deploymentName).get().getStatus().getPhase().equalsIgnoreCase("succeeded");
     }
 
     /**
