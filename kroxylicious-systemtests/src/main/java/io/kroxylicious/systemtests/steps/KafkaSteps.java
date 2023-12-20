@@ -60,19 +60,20 @@ public class KafkaSteps {
         String command = "admin-client topic create --bootstrap-server=" + bootstrap + " --topic=" + topicName + " --topic-partitions=" + partitions +
                 " --topic-rep-factor=" + replicas;
 
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        ByteArrayOutputStream baosOut = new ByteArrayOutputStream();
+        ByteArrayOutputStream baosErr = new ByteArrayOutputStream();
         var exitCode = kubeClient().getClient().pods().inNamespace(deployNamespace).withName(podName)
-                .writingOutput(baos)
-                .writingError(baos)
+                .writingOutput(baosOut)
+                .writingError(baosErr)
                 .exec("sh", "-c", command)
                 .exitCode().join();
 
         if (exitCode != 0) {
-            LOGGER.error(baos.toString());
-            throw new KubeClusterException(new ExecResult(exitCode, baos.toString(), baos.toString()), "Topic creation failed! Exit code: " + exitCode);
+            LOGGER.error(baosErr.toString());
+            throw new KubeClusterException(new ExecResult(exitCode, baosOut.toString(), baosErr.toString()), "Topic creation failed! Exit code: " + exitCode);
         }
         else {
-            LOGGER.debug(baos.toString());
+            LOGGER.debug(baosOut.toString());
         }
     }
 
