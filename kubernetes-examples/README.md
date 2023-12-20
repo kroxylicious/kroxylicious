@@ -44,7 +44,7 @@ where `${kubernetes_example_directory}` is replaced by a path to an example dire
 To use an alternative image for Kroxylicious, set the `KROXYLICIOUS_IMAGE` environment variable.
 
 ```shell
-./scripts/run-example.sh ${kubernetes_example_directory}
+KROXYLICIOUS_IMAGE=quay.io/kroxylicious/kroxylicious-developer:x.y.z ./scripts/run-example.sh ${kubernetes_example_directory}
 ```
 
 This `run-example.sh` script does the following:
