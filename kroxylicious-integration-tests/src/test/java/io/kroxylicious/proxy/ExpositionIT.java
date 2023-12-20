@@ -98,7 +98,7 @@ class ExpositionIT extends BaseIT {
 
             var connectionsMetric = admin.metrics().entrySet().stream().filter(metricNameEntry -> "connections".equals(metricNameEntry.getKey().name()))
                     .findFirst();
-            assertThat(connectionsMetric.isPresent()).isTrue();
+            assertThat(connectionsMetric).isPresent();
             var protocol = connectionsMetric.get().getKey().tags().get("protocol");
             assertThat(protocol).startsWith("TLS");
         }
