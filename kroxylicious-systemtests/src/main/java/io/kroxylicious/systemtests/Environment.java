@@ -40,18 +40,30 @@ public class Environment {
     public static final String KROXY_VERSION_DEFAULT;
 
     static {
+        KROXY_VERSION_DEFAULT = determineKroxyliciousVersion();
+    }
+
+    private static String determineKroxyliciousVersion() {
         var p = new Properties();
-        try (var stream = Environment.class.getResourceAsStream("/metadata.properties");) {
-            Objects.requireNonNull(stream, "/metadata.properties absent");
+        var metadataProps = "/metadata.properties";
+        try (var stream = Environment.class.getResourceAsStream(metadataProps)) {
+            Objects.requireNonNull(stream, metadataProps + " is not present on the classpath");
             p.load(stream);
             var version = p.getProperty("kroxylicious.version");
-            Objects.requireNonNull(version, "kroxylicious version key absent in metadata.properties");
-            KROXY_VERSION_DEFAULT = version;
+            if (version == null) {
+                throw new IllegalStateException("kroxylicious version key absent in " + metadataProps);
+            }
+            else if (version.startsWith("$")) {
+                throw new IllegalStateException(
+                        "likely unexpanded property reference found in '" + version + "', check Maven filtering configuration of resource " + metadataProps);
+            }
+            return version;
         }
         catch (IOException e) {
-            throw new UncheckedIOException(e);
+            throw new UncheckedIOException("error while streaming " + metadataProps, e);
         }
     }
+
     /**
      * The url where kroxylicious image lives to be downloaded.
      */
