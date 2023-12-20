@@ -6,6 +6,7 @@ Please enumerate **all user-facing** changes using format `<githib issue/pr numb
 
 ## 0.5.0
 
+* [#827](https://github.com/kroxylicious/kroxylicious/issues/827): Release process should update version number references in container image versions too
 * [#825](https://github.com/kroxylicious/kroxylicious/pull/825): Improve the topic encryption example
 * [#832](https://github.com/kroxylicious/kroxylicious/pull/832): Bump io.netty:netty-bom from 4.1.101.Final to 4.1.104.Final
 * [#828](https://github.com/kroxylicious/kroxylicious/pull/828): Bump io.micrometer:micrometer-bom from 1.12.0 to 1.12.1

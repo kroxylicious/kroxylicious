@@ -6,6 +6,8 @@
 #
 
 set -e
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+. "${SCRIPT_DIR}/common.sh"
 
 REPOSITORY="origin"
 BRANCH_FROM="main"
@@ -107,6 +109,8 @@ trap cleanup EXIT
 git stash --all
 echo "Creating release branch from ${BRANCH_FROM}"
 git fetch -q "${REPOSITORY}"
+CURRENT_VERSION=$(mvn org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=project.version -q -DforceStdout)
+
 RELEASE_DATE=$(date -u '+%Y-%m-%d')
 TEMPORARY_RELEASE_BRANCH="prepare-release-${RELEASE_DATE}"
 git checkout -b "prepare-release-${RELEASE_DATE}" "${REPOSITORY}/${BRANCH_FROM}"
@@ -128,6 +132,10 @@ fi
 echo "Versioning Kroxylicious as ${RELEASE_VERSION}"
 
 mvn -q versions:set -DnewVersion="${RELEASE_VERSION}" -DgenerateBackupPoms=false -DprocessAllModules=true
+
+# Bump version ref in files not controlled by Maven
+${SED} -i -e "s#${CURRENT_VERSION//./\\.}#${RELEASE_VERSION}#g" $(find kubernetes-examples -name "*.yaml" -type f)
+
 echo "Validating things still build"
 mvn -q clean install -Pquick
 
@@ -135,7 +143,7 @@ mvn -q clean install -Pquick
 RELEASE_TAG="v${RELEASE_VERSION}"
 
 echo "Committing release to git"
-git add '**/pom.xml' 'pom.xml'
+git add '**/*.yaml' '**/pom.xml' 'pom.xml'
 git commit --message "Release version ${RELEASE_TAG}" --signoff
 
 git tag -f "${RELEASE_TAG}"
@@ -149,7 +157,11 @@ PREPARE_DEVELOPMENT_BRANCH="prepare-development-${RELEASE_DATE}"
 git checkout -b ${PREPARE_DEVELOPMENT_BRANCH} ${TEMPORARY_RELEASE_BRANCH}
 mvn versions:set -DnextSnapshot=true -DnextSnapshotIndexToIncrement="${SNAPSHOT_INCREMENT_INDEX}" -DgenerateBackupPoms=false -DprocessAllModules=true
 
-git add '**/pom.xml' 'pom.xml'
+# Bump version ref in files not controlled by Maven
+NEXT_SNAPSHOT_VERSION=$(mvn org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=project.version -q -DforceStdout)
+${SED} -i -e "s#${RELEASE_VERSION//./\\.}#${NEXT_SNAPSHOT_VERSION}#g" $(find kubernetes-examples -name "*.yaml" -type f)
+
+git add '**/*.yaml' '**/pom.xml' 'pom.xml'
 git commit --message "Start next development version" --signoff
 
 if [[ "${DRY_RUN:-false}" == true ]]; then
