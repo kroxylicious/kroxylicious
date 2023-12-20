@@ -134,7 +134,7 @@ echo "Versioning Kroxylicious as ${RELEASE_VERSION}"
 mvn -q versions:set -DnewVersion="${RELEASE_VERSION}" -DgenerateBackupPoms=false -DprocessAllModules=true
 
 # Bump version ref in files not controlled by Maven
-${SED} -i -e "s#${CURRENT_VERSION//./\.}#${RELEASE_VERSION}#g" $(find kubernetes-examples -name "*.yaml" -type f)
+${SED} -i -e "s#${CURRENT_VERSION//./\\.}#${RELEASE_VERSION}#g" $(find kubernetes-examples -name "*.yaml" -type f)
 
 echo "Validating things still build"
 mvn -q clean install -Pquick
@@ -159,7 +159,7 @@ mvn versions:set -DnextSnapshot=true -DnextSnapshotIndexToIncrement="${SNAPSHOT_
 
 # Bump version ref in files not controlled by Maven
 NEXT_SNAPSHOT_VERSION=$(mvn org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=project.version -q -DforceStdout)
-${SED} -i -e "s#${RELEASE_VERSION//./\.}#${NEXT_SNAPSHOT_VERSION}#g" $(find kubernetes-examples -name "*.yaml" -type f)
+${SED} -i -e "s#${RELEASE_VERSION//./\\.}#${NEXT_SNAPSHOT_VERSION}#g" $(find kubernetes-examples -name "*.yaml" -type f)
 
 git add '**/*.yaml' '**/pom.xml' 'pom.xml'
 git commit --message "Start next development version" --signoff
