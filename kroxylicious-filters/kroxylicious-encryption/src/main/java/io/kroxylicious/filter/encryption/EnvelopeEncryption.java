@@ -58,8 +58,12 @@ public class EnvelopeEncryption<K, E> implements FilterFactory<EnvelopeEncryptio
         Kms<K, E> kms = kmsPlugin.buildKms(configuration.kmsConfig());
         kms = InstrumentedKms.instrument(kms, kmsMetrics);
 
-        var keyManager = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000, context.eventLoop(),
-                new ExponentialJitterBackoffStrategy(Duration.ofMillis(500), Duration.ofSeconds(5), 2d, ThreadLocalRandom.current()));
+        ExponentialJitterBackoffStrategy backoffStrategy = new ExponentialJitterBackoffStrategy(Duration.ofMillis(500), Duration.ofSeconds(5), 2d,
+                ThreadLocalRandom.current());
+        Kms<K, E> resilientKms = ResilientKms.get(kms, context.eventLoop(), backoffStrategy, 3);
+        Kms<K, E> resilientCachingKms = CachingKms.caching(resilientKms, 1000, Duration.ofHours(1), 1000, Duration.ofMinutes(10), Duration.ofMinutes(8));
+
+        var keyManager = new InBandKeyManager<>(resilientCachingKms, BufferPool.allocating(), 500_000);
 
         KekSelectorService<Object, K> ksPlugin = context.pluginInstance(KekSelectorService.class, configuration.selector());
         TopicNameBasedKekSelector<K> kekSelector = ksPlugin.buildSelector(kms, configuration.selectorConfig());
