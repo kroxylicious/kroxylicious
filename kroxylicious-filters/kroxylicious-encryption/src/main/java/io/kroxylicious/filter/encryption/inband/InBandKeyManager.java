@@ -12,19 +12,18 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ScheduledExecutorService;
 
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.utils.ByteUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 
 import io.kroxylicious.filter.encryption.AadSpec;
+import io.kroxylicious.filter.encryption.BackoffStrategy;
 import io.kroxylicious.filter.encryption.CipherCode;
 import io.kroxylicious.filter.encryption.EncryptionException;
 import io.kroxylicious.filter.encryption.EncryptionScheme;
@@ -32,6 +31,7 @@ import io.kroxylicious.filter.encryption.EncryptionVersion;
 import io.kroxylicious.filter.encryption.KeyManager;
 import io.kroxylicious.filter.encryption.Receiver;
 import io.kroxylicious.filter.encryption.RecordField;
+import io.kroxylicious.filter.encryption.ResilientKms;
 import io.kroxylicious.filter.encryption.WrapperVersion;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.Serde;
@@ -66,16 +66,18 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
     private final Serde<E> edekSerde;
     // TODO cache expiry, with key descruction
     private final AsyncLoadingCache<K, KeyContext> keyContextCache;
-    private final ConcurrentHashMap<E, CompletionStage<AesGcmEncryptor>> decryptorCache;
+    private final AsyncLoadingCache<E, AesGcmEncryptor> decryptorCache;
     private final long dekTtlNanos;
     private final int maxEncryptionsPerDek;
     private final Header[] encryptionHeader;
-    private static final Logger LOGGER = LoggerFactory.getLogger(InBandKeyManager.class);
 
     public InBandKeyManager(Kms<K, E> kms,
                             BufferPool bufferPool,
-                            int maxEncryptionsPerDek) {
-        this.kms = kms;
+                            int maxEncryptionsPerDek,
+                            ScheduledExecutorService executorService,
+                            BackoffStrategy kmsBackoffStrategy) {
+        this.kms = ResilientKms.get(kms, executorService,
+                kmsBackoffStrategy, 3);
         this.bufferPool = bufferPool;
         this.edekSerde = kms.edekSerde();
         this.dekTtlNanos = 5_000_000_000L;
@@ -83,7 +85,8 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
         // TODO This ^^ must be > the maximum size of a batch to avoid an infinite loop
         this.keyContextCache = Caffeine.newBuilder()
                 .buildAsync((key, executor) -> makeKeyContext(key));
-        this.decryptorCache = new ConcurrentHashMap<>();
+        this.decryptorCache = Caffeine.newBuilder()
+                .buildAsync((edek, executor) -> makeDecryptor(edek));
         this.encryptionVersion = EncryptionVersion.V1; // TODO read from config
         this.encryptionHeader = new Header[]{ new RecordHeader(ENCRYPTION_HEADER_NAME, new byte[]{ encryptionVersion.code() }) };
     }
@@ -94,13 +97,6 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
     }
 
     private CompletableFuture<KeyContext> makeKeyContext(@NonNull K kekId) {
-        return attemptMakeDekContext(kekId, 0);
-    }
-
-    private CompletableFuture<KeyContext> attemptMakeDekContext(@NonNull K kekId, int attempt) {
-        if (attempt >= MAX_ATTEMPTS) {
-            return CompletableFuture.failedFuture(new EncryptorCreationException("failed to create encryptor after " + attempt + " attempts"));
-        }
         return kms.generateDekPair(kekId)
                 .thenApply(dekPair -> {
                     E edek = dekPair.edek();
@@ -116,12 +112,7 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
                             // or we need mutex
                             // or we externalize the state
                             AesGcmEncryptor.forEncrypt(new AesGcmIvGenerator(new SecureRandom()), dekPair.dek()));
-                }).toCompletableFuture()
-                // todo wire in a scheduler so we can delay/jitter DEK creation attempts
-                .exceptionallyComposeAsync(throwable -> {
-                    LOGGER.error("failed to create DEK encryption context for {} on attempt {}", kekId, attempt, throwable);
-                    return attemptMakeDekContext(kekId, attempt + 1);
-                });
+                }).toCompletableFuture();
     }
 
     @NonNull
@@ -143,7 +134,8 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
                                                  @NonNull Receiver receiver, int attempt) {
         if (attempt >= MAX_ATTEMPTS) {
             return CompletableFuture.failedFuture(
-                    new EncryptionException("failed to encrypt records for topic " + topicName + " partition " + partition + " after " + attempt + " attempts"));
+                    new RequestNotSatisfiable("failed to reserve an EDEK to encrypt " + records.size() + " records for topic " + topicName + " partition "
+                            + partition + " after " + attempt + " attempts"));
         }
         return currentDekContext(encryptionScheme.kekId()).thenCompose(keyContext -> {
             synchronized (keyContext) {
@@ -298,18 +290,9 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
         return null;
     }
 
-    private CompletionStage<AesGcmEncryptor> getOrCacheDecryptor(E edek) {
-        return decryptorCache.compute(edek, (k, v) -> {
-            if (v == null) {
-                return kms.decryptEdek(edek)
-                        .thenApply(AesGcmEncryptor::forDecrypt).toCompletableFuture();
-                // TODO what happens if the CS complete exceptionally
-                // TODO what happens if the CS doesn't complete at all in a reasonably time frame?
-            }
-            else {
-                return v;
-            }
-        });
+    private CompletableFuture<AesGcmEncryptor> makeDecryptor(E edek) {
+        return kms.decryptEdek(edek)
+                .thenApply(AesGcmEncryptor::forDecrypt).toCompletableFuture();
     }
 
     @NonNull
@@ -367,7 +350,7 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
                 ByteBuffer slice = wrapper.slice(wrapper.position(), edekLength);
                 var edek = edekSerde.deserialize(slice);
                 wrapper.position(wrapper.position() + edekLength);
-                return getOrCacheDecryptor(edek);
+                return decryptorCache.get(edek);
         }
         throw new EncryptionException("Unknown wrapper version " + wrapperVersion);
     }
