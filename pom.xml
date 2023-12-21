@@ -63,7 +63,7 @@
         <byte-buddy.version>1.14.10</byte-buddy.version>
 
         <!-- Test dependencies -->
-        <strimzi.version>0.38.0</strimzi.version>
+        <strimzi.version>0.39.0</strimzi.version>
         <kubernetes-client.version>6.9.2</kubernetes-client.version>
         <enforcer.api.version>3.4.1</enforcer.api.version>
         <maven.core.version>3.9.6</maven.core.version>
