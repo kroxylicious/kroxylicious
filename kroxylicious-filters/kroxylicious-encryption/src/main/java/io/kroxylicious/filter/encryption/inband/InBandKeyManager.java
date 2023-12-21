@@ -28,6 +28,7 @@ import io.kroxylicious.filter.encryption.CipherCode;
 import io.kroxylicious.filter.encryption.EncryptionException;
 import io.kroxylicious.filter.encryption.EncryptionScheme;
 import io.kroxylicious.filter.encryption.EncryptionVersion;
+import io.kroxylicious.filter.encryption.EnvelopeEncryptionFilter;
 import io.kroxylicious.filter.encryption.KeyManager;
 import io.kroxylicious.filter.encryption.Receiver;
 import io.kroxylicious.filter.encryption.RecordField;
@@ -295,32 +296,43 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
                 .thenApply(AesGcmEncryptor::forDecrypt).toCompletableFuture();
     }
 
+    private record DecryptState(@NonNull Record kafkaRecord, @NonNull ByteBuffer valueWrapper, @Nullable EncryptionVersion decryptionVersion,
+                                @Nullable AesGcmEncryptor encryptor) {}
+
     @NonNull
     @Override
     public CompletionStage<Void> decrypt(String topicName,
                                          int partition,
                                          @NonNull List<? extends Record> records,
                                          @NonNull Receiver receiver) {
-        List<CompletionStage<Void>> futures = new ArrayList<>(records.size());
-        for (var kafkaRecord : records) {
+        var decryptStateStages = new ArrayList<CompletionStage<DecryptState>>(records.size());
+
+        for (Record kafkaRecord : records) {
             var decryptionVersion = decryptionVersion(topicName, partition, kafkaRecord);
             if (decryptionVersion == null) {
-                receiver.accept(kafkaRecord, kafkaRecord.value(), kafkaRecord.headers());
-                futures.add(CompletableFuture.completedFuture(null));
+                decryptStateStages.add(CompletableFuture.completedStage(new DecryptState(kafkaRecord, kafkaRecord.value(), null, null)));
             }
             else {
                 // right now (because we only support topic name based kek selection) once we've resolved the first value we
                 // can keep the lock and process all the records
                 ByteBuffer wrapper = kafkaRecord.value();
-                var x = resolveEncryptor(decryptionVersion.wrapperVersion(), wrapper).thenAccept(encryptor -> {
-                    decryptRecord(decryptionVersion, encryptor, wrapper, kafkaRecord, receiver);
-                });
-                futures.add(x);
+                decryptStateStages.add(
+                        resolveEncryptor(decryptionVersion.wrapperVersion(), wrapper).thenApply(enc -> new DecryptState(kafkaRecord, wrapper, decryptionVersion, enc)));
             }
         }
 
-        return io.kroxylicious.filter.encryption.EnvelopeEncryptionFilter.join(futures).thenAccept(list -> {
-        });
+        return EnvelopeEncryptionFilter.join(decryptStateStages)
+                .thenApply(decryptStates -> {
+                    decryptStates.forEach(decryptState -> {
+                        if (decryptState.encryptor() == null) {
+                            receiver.accept(decryptState.kafkaRecord(), decryptState.valueWrapper(), decryptState.kafkaRecord().headers());
+                        }
+                        else {
+                            decryptRecord(decryptState.decryptionVersion(), decryptState.encryptor(), decryptState.valueWrapper(), decryptState.kafkaRecord(), receiver);
+                        }
+                    });
+                    return null;
+                });
     }
 
     @SuppressWarnings("java:S2445")

@@ -6,7 +6,7 @@ Please enumerate **all user-facing** changes using format `<githib issue/pr numb
 
 ## 0.5.0
 
-
+* [#838](https://github.com/kroxylicious/kroxylicious/issues/838): Ensure the decryption maintains record ordering, regardless of completion order of the decryptor.
 * [#837](https://github.com/kroxylicious/kroxylicious/pull/837): refactor: take advantage of the topic injection in several integration tests including (the SampleFilterIT)
 * [#827](https://github.com/kroxylicious/kroxylicious/issues/827): Release process should update version number references in container image versions too
 * [#825](https://github.com/kroxylicious/kroxylicious/pull/825): Improve the topic encryption example
