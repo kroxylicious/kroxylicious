@@ -32,7 +32,11 @@ public class Environment {
     /**
      * The kafka version default value
      */
-    public static final String KAFKA_VERSION_DEFAULT = "3.6.0";
+    public static final String KAFKA_VERSION_DEFAULT;
+
+    static {
+        KAFKA_VERSION_DEFAULT = determineKafkaVersion();
+    }
 
     /**
      * The kroxy version default value
@@ -41,27 +45,6 @@ public class Environment {
 
     static {
         KROXY_VERSION_DEFAULT = determineKroxyliciousVersion();
-    }
-
-    private static String determineKroxyliciousVersion() {
-        var p = new Properties();
-        var metadataProps = "/metadata.properties";
-        try (var stream = Environment.class.getResourceAsStream(metadataProps)) {
-            Objects.requireNonNull(stream, metadataProps + " is not present on the classpath");
-            p.load(stream);
-            var version = p.getProperty("kroxylicious.version");
-            if (version == null) {
-                throw new IllegalStateException("kroxylicious version key absent in " + metadataProps);
-            }
-            else if (version.startsWith("$")) {
-                throw new IllegalStateException(
-                        "likely unexpanded property reference found in '" + version + "', check Maven filtering configuration of resource " + metadataProps);
-            }
-            return version;
-        }
-        catch (IOException e) {
-            throw new UncheckedIOException("error while streaming " + metadataProps, e);
-        }
     }
 
     /**
@@ -106,5 +89,34 @@ public class Environment {
 
     private static <T> T getOrDefault(String varName, Function<String, T> converter, T defaultValue) {
         return System.getenv(varName) != null ? converter.apply(System.getenv(varName)) : defaultValue;
+    }
+
+    private static String readMetadataProperty(String property) {
+        var p = new Properties();
+        var metadataProps = "/metadata.properties";
+        try (var stream = Environment.class.getResourceAsStream(metadataProps)) {
+            Objects.requireNonNull(stream, metadataProps + " is not present on the classpath");
+            p.load(stream);
+            var version = p.getProperty(property);
+            if (version == null) {
+                throw new IllegalStateException(property + " key absent in " + metadataProps);
+            }
+            else if (version.startsWith("$")) {
+                throw new IllegalStateException(
+                        "likely unexpanded property reference found in '" + version + "', check Maven filtering configuration of resource " + metadataProps);
+            }
+            return version;
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException("error while streaming " + metadataProps, e);
+        }
+    }
+
+    private static String determineKroxyliciousVersion() {
+        return readMetadataProperty("kroxylicious.version");
+    }
+
+    private static String determineKafkaVersion() {
+        return readMetadataProperty("kafka.version");
     }
 }

@@ -27,6 +27,7 @@ import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 
 import io.kroxylicious.systemtests.Constants;
+import io.kroxylicious.systemtests.Environment;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.awaitility.Awaitility.await;
@@ -41,6 +42,7 @@ public class KafkaUtils {
     private static final String TOPIC_NAME_VAR = "%TOPIC_NAME%";
     private static final String MESSAGE_COUNT_VAR = "%MESSAGE_COUNT%";
     private static final String MESSAGE_VAR = "%MESSAGE%";
+    private static final String KAFKA_VERSION_VAR = "%KAFKA_VERSION%";
 
     /**
      * Consume message string.
@@ -97,7 +99,8 @@ public class KafkaUtils {
                 BOOTSTRAP_SERVERS_VAR, bootstrap,
                 NAMESPACE_VAR, deployNamespace,
                 TOPIC_NAME_VAR, topicName,
-                MESSAGE_COUNT_VAR, "\"" + numOfMessages + "\""));
+                MESSAGE_COUNT_VAR, "\"" + numOfMessages + "\"",
+                KAFKA_VERSION_VAR, Environment.KAFKA_VERSION));
 
         kubeClient().getClient().load(file).inNamespace(deployNamespace).create();
         String podName = getPodNameByLabel(deployNamespace, "app", Constants.KAFKA_CONSUMER_CLIENT_LABEL, timeout);
@@ -156,7 +159,8 @@ public class KafkaUtils {
                 NAMESPACE_VAR, deployNamespace,
                 TOPIC_NAME_VAR, topicName,
                 MESSAGE_COUNT_VAR, "\"" + numOfMessages + "\"",
-                MESSAGE_VAR, message));
+                MESSAGE_VAR, message,
+                KAFKA_VERSION_VAR, Environment.KAFKA_VERSION));
         kubeClient().getClient().load(file).inNamespace(deployNamespace).create();
         return getPodNameByLabel(deployNamespace, "app", Constants.KAFKA_PRODUCER_CLIENT_LABEL, Duration.ofSeconds(10));
     }
