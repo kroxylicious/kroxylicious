@@ -47,7 +47,7 @@ public class KafkaSteps {
                 .withArgs("-c", command)
                 .done();
 
-        DeploymentUtils.waitForRunSucceeded(deployNamespace, Constants.KAFKA_ADMIN_CLIENT_LABEL, Duration.ofSeconds(10));
+        DeploymentUtils.waitForRunSucceeded(deployNamespace, Constants.KAFKA_ADMIN_CLIENT_LABEL, Duration.ofSeconds(20));
         LOGGER.debug("Admin client pod log: {}", kubeClient().logsInSpecificNamespace(deployNamespace, Constants.KAFKA_ADMIN_CLIENT_LABEL));
     }
 
