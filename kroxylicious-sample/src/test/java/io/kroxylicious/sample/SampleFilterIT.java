@@ -10,11 +10,8 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.kafka.clients.admin.Admin;
-import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -32,6 +29,7 @@ import io.kroxylicious.test.tester.KroxyliciousTester;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.common.BrokerCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
+import io.kroxylicious.testing.kafka.junit5ext.Topic;
 
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
@@ -57,11 +55,11 @@ class SampleFilterIT {
 
     // Configure Cluster/Producer/Consumer values here
     private static final Integer TIMEOUT_SECONDS = 10;
-    private static final Integer TOPIC_PARTITIONS = 1;
-    private static final Short TOPIC_REPLICATION = 1;
 
     @BrokerCluster
     KafkaCluster cluster;
+
+    Topic topic; // Injected by KafkaClusterExtension
 
     FilterIntegrationTest test;
 
@@ -74,10 +72,9 @@ class SampleFilterIT {
      * Test that the SampleProduceRequestFilter will transform when given data containing its findValue.
      */
     @Test
-    void sampleProduceRequestFilterWillTransformIntegrationTest() {
+    void sampleProduceRequestFilterWillTransform() {
         test = new FilterIntegrationTest(SAMPLE_PRODUCE_REQUEST_FILTER);
-        test.withTopic("sampleProduceRequestFilterWillTransformRoundTripTest")
-                .produceMessage(PRE_TRANSFORM_VALUE)
+        test.produceMessage(PRE_TRANSFORM_VALUE)
                 .consumeSingleRecord()
                 .assertConsumerRecordEquals(PRODUCE_TRANSFORM_VALUE);
     }
@@ -86,10 +83,9 @@ class SampleFilterIT {
      * Test that the SampleProduceRequestFilter won't transform when given data that does not contain its findValue.
      */
     @Test
-    void sampleProduceRequestFilterWontTransformIntegrationTest() {
+    void sampleProduceRequestFilterWontTransform() {
         test = new FilterIntegrationTest(SAMPLE_PRODUCE_REQUEST_FILTER);
-        test.withTopic("sampleProduceRequestFilterWontTransformRoundTripTest")
-                .produceMessage(NO_TRANSFORM_VALUE)
+        test.produceMessage(NO_TRANSFORM_VALUE)
                 .consumeSingleRecord()
                 .assertConsumerRecordEquals(NO_TRANSFORM_VALUE);
     }
@@ -98,10 +94,9 @@ class SampleFilterIT {
      * Test that the SampleProduceRequestFilter won't drop a second message produced to a topic.
      */
     @Test
-    void sampleProduceRequestFilterWontDropSecondMessageIntegrationTest() {
+    void sampleProduceRequestFilterWontDropSecondMessage() {
         test = new FilterIntegrationTest(SAMPLE_PRODUCE_REQUEST_FILTER);
-        test.withTopic("sampleProduceRequestFilterWontDropSecondMessageRoundTripTest")
-                .produceMessage(NO_TRANSFORM_VALUE)
+        test.produceMessage(NO_TRANSFORM_VALUE)
                 .consumeSingleRecord()
                 .produceMessage(PRE_TRANSFORM_VALUE)
                 .consumeSingleRecord()
@@ -112,10 +107,9 @@ class SampleFilterIT {
      * Test that the SampleFetchResponseFilter will transform when given data containing its findValue.
      */
     @Test
-    void sampleFetchResponseFilterWillTransformIntegrationTest() {
+    void sampleFetchResponseFilterWillTransform() {
         test = new FilterIntegrationTest(SAMPLE_FETCH_RESPONSE_FILTER);
-        test.withTopic("sampleFetchResponseFilterWillTransformRoundTripTest")
-                .produceMessage(PRE_TRANSFORM_VALUE)
+        test.produceMessage(PRE_TRANSFORM_VALUE)
                 .consumeSingleRecord()
                 .assertConsumerRecordEquals(FETCH_TRANSFORM_VALUE);
     }
@@ -124,10 +118,9 @@ class SampleFilterIT {
      * Test that the SampleFetchResponseFilter won't transform when given data that does not contain its findValue.
      */
     @Test
-    void sampleFetchResponseFilterWontTransformIntegrationTest() {
+    void sampleFetchResponseFilterWontTransform() {
         test = new FilterIntegrationTest(SAMPLE_FETCH_RESPONSE_FILTER);
-        test.withTopic("sampleFetchResponseFilterWontTransformRoundTripTest")
-                .produceMessage(NO_TRANSFORM_VALUE)
+        test.produceMessage(NO_TRANSFORM_VALUE)
                 .consumeSingleRecord()
                 .assertConsumerRecordEquals(NO_TRANSFORM_VALUE);
     }
@@ -136,10 +129,9 @@ class SampleFilterIT {
      * Test that the SampleFetchResponseFilter won't drop a second message produced to a topic.
      */
     @Test
-    void sampleFetchResponseFilterWontDropSecondMessageIntegrationTest() {
+    void sampleFetchResponseFilterWontDropSecondMessage() {
         test = new FilterIntegrationTest(SAMPLE_FETCH_RESPONSE_FILTER);
-        test.withTopic("sampleFetchResponseFilterWontDropSecondMessageRoundTripTest")
-                .produceMessage(NO_TRANSFORM_VALUE)
+        test.produceMessage(NO_TRANSFORM_VALUE)
                 .consumeSingleRecord()
                 .produceMessage(PRE_TRANSFORM_VALUE)
                 .consumeSingleRecord()
@@ -153,8 +145,6 @@ class SampleFilterIT {
         private final KroxyliciousTester tester;
         private final Producer<String, String> producer;
         private final Consumer<String, byte[]> consumer;
-        private final Admin admin;
-        private String topic;
         private ConsumerRecord<String, byte[]> record;
 
         /**
@@ -170,23 +160,6 @@ class SampleFilterIT {
             producer = tester.producer();
             consumer = tester.consumer(Serdes.String(), Serdes.ByteArray(),
                     Map.of(ConsumerConfig.GROUP_ID_CONFIG, "group-id-0", ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"));
-            admin = tester.admin();
-        }
-
-        /**
-         * Create a topic with the given name for this test.
-         * @param name the name of the topic to create
-         * @return the SingleFilterIntegrationTest object (itself)
-         */
-        FilterIntegrationTest withTopic(String name) {
-            try {
-                admin.createTopics(List.of(new NewTopic(name, TOPIC_PARTITIONS, TOPIC_REPLICATION))).all().get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
-            }
-            catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-            this.topic = name;
-            return this;
         }
 
         /**
@@ -195,9 +168,8 @@ class SampleFilterIT {
          * @return the SingleFilterIntegrationTest object (itself)
          */
         FilterIntegrationTest produceMessage(String value) {
-            this.ensureTopicExists();
             try {
-                this.producer.send(new ProducerRecord<>(this.topic, value)).get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+                this.producer.send(new ProducerRecord<>(topic.name(), value)).get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
             }
             catch (Exception e) {
                 throw new RuntimeException(e);
@@ -210,15 +182,12 @@ class SampleFilterIT {
          * @return the SingleFilterIntegrationTest object (itself)
          */
         FilterIntegrationTest consumeSingleRecord() {
-            if (this.topic == null) {
-                fail("Could not consumeSingleRecord - this test has no topic");
-            }
-            this.consumer.subscribe(List.of(this.topic));
+            this.consumer.subscribe(List.of(topic.name()));
             ConsumerRecords<String, byte[]> poll = this.consumer.poll(Duration.ofSeconds(TIMEOUT_SECONDS));
             if (poll.count() == 0) {
-                fail(String.format("No records could be consumed from topic: %s.", this.topic));
+                fail(String.format("No records could be consumed from topic: %s.", topic.name()));
             }
-            this.record = poll.records(this.topic).iterator().next();
+            this.record = poll.records(topic.name()).iterator().next();
             return this;
         }
 
@@ -239,19 +208,10 @@ class SampleFilterIT {
          */
         void close() {
             this.tester.close();
-            this.admin.close();
             this.producer.close();
             this.consumer.close();
         }
 
-        /**
-         * Creates a topic with a random UUID name if none exists for this test.
-         */
-        private void ensureTopicExists() {
-            if (this.topic == null) {
-                this.withTopic(UUID.randomUUID().toString());
-            }
-        }
     }
 
     private record TestFilter(String name, Map<String, Object> config) {}

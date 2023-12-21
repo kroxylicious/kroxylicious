@@ -9,10 +9,8 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -27,6 +25,7 @@ import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.common.BrokerCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
+import io.kroxylicious.testing.kafka.junit5ext.Topic;
 
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
@@ -47,20 +46,16 @@ class ResilienceIT extends BaseIT {
     static @BrokerCluster(numBrokers = 3) KafkaCluster cluster;
 
     @Test
-    void kafkaProducerShouldTolerateKroxyliciousRestarting(Admin admin) throws Exception {
-        String randomTopic = UUID.randomUUID().toString();
-        createTopic(admin, randomTopic, 1);
+    void kafkaProducerShouldTolerateKroxyliciousRestarting(Topic randomTopic) throws Exception {
         testProducerCanSurviveARestart(proxy(cluster), randomTopic);
     }
 
     @Test
-    void kafkaConsumerShouldTolerateKroxyliciousRestarting(Admin admin) throws Exception {
-        String randomTopic = UUID.randomUUID().toString();
-        createTopic(admin, randomTopic, 1);
+    void kafkaConsumerShouldTolerateKroxyliciousRestarting(Topic randomTopic) throws Exception {
         testConsumerCanSurviveKroxyliciousRestart(proxy(cluster), randomTopic);
     }
 
-    private static void testConsumerCanSurviveKroxyliciousRestart(ConfigurationBuilder builder, String topic)
+    private static void testConsumerCanSurviveKroxyliciousRestart(ConfigurationBuilder builder, Topic randomTopic)
             throws Exception {
         var producerConfig = new HashMap<String, Object>(Map.of(CLIENT_ID_CONFIG, "producer",
                 DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000));
@@ -72,15 +67,13 @@ class ResilienceIT extends BaseIT {
         try (var tester = kroxyliciousTester(builder);
                 var producer = tester.producer(producerConfig)) {
             consumer = tester.consumer(consumerConfig);
-            producer.send(new ProducerRecord<>(topic, "my-key", "Hello, world!")).get(10, TimeUnit.SECONDS);
-            consumer.subscribe(Set.of(topic));
+            producer.send(new ProducerRecord<>(randomTopic.name(), "my-key", "Hello, world!")).get(10, TimeUnit.SECONDS);
+            consumer.subscribe(Set.of(randomTopic.name()));
             var firstRecords = consumer.poll(Duration.ofSeconds(10));
             assertThat(firstRecords).hasSize(1);
             assertThat(firstRecords.iterator()).toIterable().map(ConsumerRecord::value).containsExactly("Hello, world!");
 
-            assertThat(firstRecords.count()).isOne();
-            assertThat(firstRecords.iterator().next().value()).isEqualTo("Hello, world!");
-            producer.send(new ProducerRecord<>(topic, "my-key", "Hello, again!")).get(10, TimeUnit.SECONDS);
+            producer.send(new ProducerRecord<>(randomTopic.name(), "my-key", "Hello, again!")).get(10, TimeUnit.SECONDS);
 
             LOGGER.debug("Restarting proxy");
             producer.close();
@@ -93,7 +86,7 @@ class ResilienceIT extends BaseIT {
         }
     }
 
-    private void testProducerCanSurviveARestart(ConfigurationBuilder builder, String topic) throws Exception {
+    private void testProducerCanSurviveARestart(ConfigurationBuilder builder, Topic randomTopic) throws Exception {
 
         var producerConfig = new HashMap<String, Object>(Map.of(CLIENT_ID_CONFIG, "producer",
                 DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000,
@@ -111,15 +104,14 @@ class ResilienceIT extends BaseIT {
             try (var tester = kroxyliciousTester(builder)) {
                 producer = tester.producer(producerConfig);
                 consumer = tester.consumer(consumerConfig);
-                consumer.subscribe(Set.of(topic));
-                var response = producer.send(new ProducerRecord<>(topic, "my-key", "Hello, world!")).get(10, TimeUnit.SECONDS);
-                LOGGER.warn("response {}", response);
+                consumer.subscribe(Set.of(randomTopic.name()));
+                var response = producer.send(new ProducerRecord<>(randomTopic.name(), "my-key", "Hello, world!")).get(10, TimeUnit.SECONDS);
 
                 LOGGER.debug("Restarting proxy");
                 tester.restartProxy();
                 // re-use the existing producer and consumer (made through Kroxylicious's first incarnation). This provides us the assurance
                 // that they were able to reconnect successfully.
-                producer.send(new ProducerRecord<>(topic, "my-key", "Hello, again!")).get(10, TimeUnit.SECONDS);
+                producer.send(new ProducerRecord<>(randomTopic.name(), "my-key", "Hello, again!")).get(10, TimeUnit.SECONDS);
                 producer.close();
                 var records = consumer.poll(Duration.ofSeconds(20));
                 consumer.close();
@@ -138,8 +130,6 @@ class ResilienceIT extends BaseIT {
                     consumer.close();
                 }
             }
-
         }
     }
-
 }
