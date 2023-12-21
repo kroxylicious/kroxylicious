@@ -6,6 +6,10 @@
 
 package io.kroxylicious.systemtests;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.util.Objects;
+import java.util.Properties;
 import java.util.function.Function;
 
 /**
@@ -33,7 +37,33 @@ public class Environment {
     /**
      * The kroxy version default value
      */
-    public static final String KROXY_VERSION_DEFAULT = "0.5.0-SNAPSHOT";
+    public static final String KROXY_VERSION_DEFAULT;
+
+    static {
+        KROXY_VERSION_DEFAULT = determineKroxyliciousVersion();
+    }
+
+    private static String determineKroxyliciousVersion() {
+        var p = new Properties();
+        var metadataProps = "/metadata.properties";
+        try (var stream = Environment.class.getResourceAsStream(metadataProps)) {
+            Objects.requireNonNull(stream, metadataProps + " is not present on the classpath");
+            p.load(stream);
+            var version = p.getProperty("kroxylicious.version");
+            if (version == null) {
+                throw new IllegalStateException("kroxylicious version key absent in " + metadataProps);
+            }
+            else if (version.startsWith("$")) {
+                throw new IllegalStateException(
+                        "likely unexpanded property reference found in '" + version + "', check Maven filtering configuration of resource " + metadataProps);
+            }
+            return version;
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException("error while streaming " + metadataProps, e);
+        }
+    }
+
     /**
      * The url where kroxylicious image lives to be downloaded.
      */
