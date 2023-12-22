@@ -48,7 +48,7 @@ class EnvelopeEncryptionFilterIT {
     private static final String HELLO_SECRET = "hello secret";
 
     @TestTemplate
-    void roundTrip(KafkaCluster cluster, Topic topic, TestKmsFacade<?, ?, ?> testKmsFacade) throws Exception {
+    void roundTripSingleRecord(KafkaCluster cluster, Topic topic, TestKmsFacade<?, ?, ?> testKmsFacade) throws Exception {
         var testKekManager = testKmsFacade.getTestKekManager();
         testKekManager.generateKek(topic.name());
 
@@ -69,6 +69,36 @@ class EnvelopeEncryptionFilterIT {
                     .singleElement()
                     .extracting(ConsumerRecord::value)
                     .isEqualTo(HELLO_WORLD);
+        }
+    }
+
+    @TestTemplate
+    void roundTripManyRecordsFromDifferentProducers(KafkaCluster cluster, Topic topic, TestKmsFacade<?, ?, ?> testKmsFacade) throws Exception {
+        var testKekManager = testKmsFacade.getTestKekManager();
+        testKekManager.generateKek(topic.name());
+
+        var builder = proxy(cluster);
+
+        builder.addToFilters(buildEncryptionFilterDefinition(testKmsFacade));
+
+        try (var tester = kroxyliciousTester(builder);
+                var producer1 = tester.producer();
+                var producer2 = tester.producer();
+                var consumer = tester.consumer()) {
+
+            producer1.send(new ProducerRecord<>(topic.name(), HELLO_WORLD + 1));
+            producer1.send(new ProducerRecord<>(topic.name(), HELLO_WORLD + 2));
+            producer1.send(new ProducerRecord<>(topic.name(), HELLO_WORLD + 3)).get(5, TimeUnit.SECONDS);
+            producer2.send(new ProducerRecord<>(topic.name(), HELLO_WORLD + 4));
+            producer2.send(new ProducerRecord<>(topic.name(), HELLO_WORLD + 5)).get(5, TimeUnit.SECONDS);
+
+            consumer.subscribe(List.of(topic.name()));
+            var records = consumer.poll(Duration.ofSeconds(2));
+            assertThat(records.iterator())
+                    .toIterable()
+                    .hasSize(5)
+                    .extracting(ConsumerRecord::value)
+                    .containsExactly(HELLO_WORLD + 1, HELLO_WORLD + 2, HELLO_WORLD + 3, HELLO_WORLD + 4, HELLO_WORLD + 5);
         }
     }
 

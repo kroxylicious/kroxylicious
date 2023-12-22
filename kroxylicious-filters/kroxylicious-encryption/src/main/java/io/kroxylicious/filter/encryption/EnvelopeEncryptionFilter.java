@@ -57,10 +57,7 @@ public class EnvelopeEncryptionFilter<K>
 
     @SuppressWarnings("unchecked")
     public static <T> CompletionStage<List<T>> join(List<? extends CompletionStage<T>> stages) {
-        CompletableFuture<T>[] futures = new CompletableFuture[stages.size()];
-        for (int i = 0; i < stages.size(); i++) {
-            futures[i] = stages.get(i).toCompletableFuture();
-        }
+        CompletableFuture<T>[] futures = stages.stream().map(CompletionStage::toCompletableFuture).toArray(CompletableFuture[]::new);
         return CompletableFuture.allOf(futures)
                 .thenApply(ignored -> Stream.of(futures).map(CompletableFuture::join).toList());
     }
