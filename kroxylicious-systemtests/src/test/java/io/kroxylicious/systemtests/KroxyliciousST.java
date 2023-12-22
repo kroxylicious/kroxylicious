@@ -51,17 +51,16 @@ class KroxyliciousST extends AbstractST {
         LOGGER.info("Given Kroxylicious in {} namespace with {} replicas", namespace, 1);
         kroxylicious = new Kroxylicious(namespace);
         kroxylicious.deployPortPerBrokerPlain(clusterName, 1);
+        String bootstrap = kroxylicious.getBootstrap();
 
         LOGGER.info("And KafkaTopic in {} namespace", namespace);
-        KafkaSteps.createTopic(topicName, clusterName, namespace, 1, 1, 1);
-
-        String bootstrap = kroxylicious.getBootstrap();
+        KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 2);
 
         LOGGER.info("When {} messages '{}' are sent to the topic '{}'", numberOfMessages, message, topicName);
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, message, numberOfMessages);
 
         LOGGER.info("Then the {} messages are consumed", numberOfMessages);
-        String result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2).toMillis());
+        String result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2));
         LOGGER.info("Received: " + result);
         assertThat("'" + consumedMessage + "' message not consumed!", result.contains(consumedMessage));
     }
@@ -85,7 +84,7 @@ class KroxyliciousST extends AbstractST {
         String bootstrap = kroxylicious.getBootstrap();
 
         LOGGER.info("And KafkaTopic in {} namespace", namespace);
-        KafkaSteps.createTopic(topicName, clusterName, namespace, 3, 1, 1);
+        KafkaSteps.createTopic(namespace, topicName, bootstrap, 3, 2);
 
         LOGGER.info("When {} messages '{}' are sent to the topic '{}'", numberOfMessages, message, topicName);
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, message, numberOfMessages);
@@ -93,7 +92,7 @@ class KroxyliciousST extends AbstractST {
         KafkaSteps.restartKafkaBroker(clusterName);
 
         LOGGER.info("Then the {} messages are consumed", numberOfMessages);
-        String result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(10).toMillis());
+        String result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(10));
         LOGGER.info("Received: " + result);
         assertThat("'" + consumedMessage + "' message not consumed!", result.contains(consumedMessage));
     }
@@ -120,13 +119,13 @@ class KroxyliciousST extends AbstractST {
         assertThat("Current replicas: " + currentReplicas + "; expected: " + replicas, currentReplicas == replicas);
 
         LOGGER.info("And KafkaTopic in {} namespace", namespace);
-        KafkaSteps.createTopic(topicName, clusterName, namespace, 3, 1, 1);
+        KafkaSteps.createTopic(namespace, topicName, bootstrap, 3, 2);
 
         LOGGER.info("When {} messages '{}' are sent to the topic '{}'", numberOfMessages, message, topicName);
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, message, numberOfMessages);
 
         LOGGER.info("Then the {} messages are consumed", numberOfMessages);
-        String result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2).toMillis());
+        String result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2));
         LOGGER.info("Received: " + result);
         assertThat("'" + consumedMessage + "' message not consumed!", result.contains(consumedMessage));
     }
@@ -136,8 +135,8 @@ class KroxyliciousST extends AbstractST {
      */
     @BeforeAll
     void setupBefore() {
-        List<Pod> kafkaPods = kubeClient().listPods(Constants.KROXY_DEFAULT_NAMESPACE);
-        if (!kafkaPods.stream().filter(x -> x.getMetadata().getName().contains(clusterName)).toList().isEmpty()) {
+        List<Pod> kafkaPods = kubeClient().listPodsByPrefixInName(Constants.KROXY_DEFAULT_NAMESPACE, clusterName);
+        if (!kafkaPods.isEmpty()) {
             LOGGER.warn("Skipping kafka deployment. It is already deployed!");
             return;
         }

@@ -6,6 +6,8 @@
 
 package io.kroxylicious.systemtests.steps;
 
+import java.time.Duration;
+
 import io.kroxylicious.systemtests.utils.KafkaUtils;
 
 /**
@@ -34,10 +36,10 @@ public class KroxyliciousSteps {
      * @param topicName the topic name
      * @param bootstrap the bootstrap
      * @param numberOfMessages the number of messages
-     * @param timeoutMillis the timeout millis
+     * @param timeout the timeout
      * @return the string
      */
-    public static String consumeMessages(String namespace, String topicName, String bootstrap, int numberOfMessages, long timeoutMillis) {
-        return KafkaUtils.ConsumeMessageWithTestClients(namespace, topicName, bootstrap, numberOfMessages, timeoutMillis);
+    public static String consumeMessages(String namespace, String topicName, String bootstrap, int numberOfMessages, Duration timeout) {
+        return KafkaUtils.consumeMessageWithTestClients(namespace, topicName, bootstrap, numberOfMessages, timeout);
     }
 }

@@ -8,8 +8,6 @@ package io.kroxylicious.systemtests;
 
 import java.time.Duration;
 
-import static io.kroxylicious.systemtests.Environment.KAFKA_VERSION_DEFAULT;
-
 /**
  * The interface Constants.
  */
@@ -125,7 +123,11 @@ public interface Constants {
     /**
      * Strimzi kafka image url in quay
      */
-    String STRIMZI_KAFKA_IMAGE = "quay.io/strimzi/kafka:latest-kafka-" + KAFKA_VERSION_DEFAULT;
+    String STRIMZI_KAFKA_IMAGE = "quay.io/strimzi/kafka:latest-kafka-" + Environment.KAFKA_VERSION;
+    /**
+     * Test clients image url
+     */
+    String TEST_CLIENTS_IMAGE = "quay.io/strimzi-test-clients/test-clients:latest-kafka-" + Environment.KAFKA_VERSION;
 
     /**
      * The cert manager url to install it on kubernetes
@@ -139,4 +141,8 @@ public interface Constants {
      * kafka producer client label to identify the producer test client
      */
     String KAFKA_PRODUCER_CLIENT_LABEL = "kafka-producer-client";
+    /**
+     * kafka admin client label to identify the admin test client
+     */
+    String KAFKA_ADMIN_CLIENT_LABEL = "admin-client-cli";
 }
