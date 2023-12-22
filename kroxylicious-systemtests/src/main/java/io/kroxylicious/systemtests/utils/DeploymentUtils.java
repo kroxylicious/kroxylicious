@@ -15,6 +15,9 @@ import java.time.Duration;
 import java.util.Collections;
 
 import org.apache.commons.io.FileUtils;
+import org.awaitility.core.ConditionEvaluationListener;
+import org.awaitility.core.EvaluatedCondition;
+import org.awaitility.core.TimeoutEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -139,17 +142,23 @@ public class DeploymentUtils {
      * Wait for run succeeded boolean.
      *
      * @param namespaceName the namespace name
-     * @param deploymentName the deployment name
+     * @param podName the pod name
      * @param timeout the timeout
      */
-    public static void waitForRunSucceeded(String namespaceName, String deploymentName, Duration timeout) {
-        LOGGER.info("Waiting for Job: {}/{} to be succeeded", namespaceName, deploymentName);
-        with().conditionEvaluationListener(condition -> {
-            if (!condition.isSatisfied() && condition.getRemainingTimeInMS() <= condition.getPollInterval().toMillis()) {
-                LOGGER.error("Run failed! Error: {}", kubeClient().logsInSpecificNamespace(namespaceName, deploymentName));
+    public static void waitForPodRunSucceeded(String namespaceName, String podName, Duration timeout) {
+        LOGGER.info("Waiting for pod run: {}/{} to be succeeded", namespaceName, podName);
+        with().conditionEvaluationListener(new ConditionEvaluationListener<>() {
+            @Override
+            public void onTimeout(TimeoutEvent timeoutEvent) {
+                LOGGER.error("Run failed! Error: {}", kubeClient().logsInSpecificNamespace(namespaceName, podName));
+            }
+
+            @Override
+            public void conditionEvaluated(EvaluatedCondition condition) {
+                // unused
             }
         }).await().atMost(timeout).pollInterval(Duration.ofMillis(200))
-                .until(() -> kubeClient().getPod(namespaceName, deploymentName) != null
-                        && kubeClient().isPodRunSucceeded(namespaceName, deploymentName));
+                .until(() -> kubeClient().getPod(namespaceName, podName) != null
+                        && kubeClient().isPodRunSucceeded(namespaceName, podName));
     }
 }

@@ -7,12 +7,14 @@
 package io.kroxylicious.systemtests.k8s;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import io.fabric8.kubernetes.api.model.DeletionPropagation;
 import io.fabric8.kubernetes.api.model.Namespace;
 import io.fabric8.kubernetes.api.model.NamespaceBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.api.model.PodStatus;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
@@ -203,11 +205,12 @@ public class KubeClient {
      * Is the pod run succeeded.
      *
      * @param namespaceName the namespace name
-     * @param deploymentName the deployment name
+     * @param podName the pod name
      * @return true if the job is succeeded. false otherwise
      */
-    public Boolean isPodRunSucceeded(String namespaceName, String deploymentName) {
-        return client.pods().inNamespace(namespaceName).withName(deploymentName).get().getStatus().getPhase().equalsIgnoreCase("succeeded");
+    public Boolean isPodRunSucceeded(String namespaceName, String podName) {
+        return Optional.ofNullable(client.pods().inNamespace(namespaceName).withName(podName).get().getStatus()).map(PodStatus::getPhase)
+                .map(s -> s.equalsIgnoreCase("succeeded")).orElse(false);
     }
 
     /**

@@ -36,18 +36,16 @@ public class KafkaSteps {
      * @param replicas the replicas
      */
     public static void createTopic(String deployNamespace, String topicName, String bootstrap, int partitions, int replicas) {
-        String command = "admin-client topic create --bootstrap-server=" + bootstrap + " --topic=" + topicName + " --topic-partitions=" + partitions +
-                " --topic-rep-factor=" + replicas;
-
         kubeClient().getClient().run().inNamespace(deployNamespace).withNewRunConfig()
                 .withImage(Constants.TEST_CLIENTS_IMAGE)
                 .withName(Constants.KAFKA_ADMIN_CLIENT_LABEL)
                 .withRestartPolicy("Never")
-                .withCommand("/bin/sh")
-                .withArgs("-c", command)
+                .withCommand("admin-client")
+                .withArgs("topic", "create", "--bootstrap-server=" + bootstrap, "--topic=" + topicName, "--topic-partitions=" + partitions,
+                        "--topic-rep-factor=" + replicas)
                 .done();
 
-        DeploymentUtils.waitForRunSucceeded(deployNamespace, Constants.KAFKA_ADMIN_CLIENT_LABEL, Duration.ofSeconds(20));
+        DeploymentUtils.waitForPodRunSucceeded(deployNamespace, Constants.KAFKA_ADMIN_CLIENT_LABEL, Duration.ofSeconds(30));
         LOGGER.debug("Admin client pod log: {}", kubeClient().logsInSpecificNamespace(deployNamespace, Constants.KAFKA_ADMIN_CLIENT_LABEL));
     }
 
