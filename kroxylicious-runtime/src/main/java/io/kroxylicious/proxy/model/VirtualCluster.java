@@ -160,7 +160,7 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
     private Optional<SslContext> buildUpstreamSslContext() {
         return targetCluster.tls().map(tls -> {
             try {
-                var sslContextBuilder = SslContextBuilder.forClient();
+                var sslContextBuilder = tls.key().forClient();
                 Optional.ofNullable(tls.trust()).ifPresent(tp -> tp.apply(sslContextBuilder));
                 return sslContextBuilder.build();
             }

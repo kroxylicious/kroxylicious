@@ -4,3 +4,4 @@
 - Francesco Nigro(https://github.com/franz1981)
 - Sam Barker(https://github.com/SamBarker)
 - Francisco Vila(https://github.com/franvila)
+- Anthony Callaert(https://github.com/callaertanthony)
