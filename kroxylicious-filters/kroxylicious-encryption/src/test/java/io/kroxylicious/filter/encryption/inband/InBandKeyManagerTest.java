@@ -27,6 +27,7 @@ import javax.crypto.SecretKey;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.utils.ByteUtils;
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
@@ -78,23 +79,30 @@ class InBandKeyManagerTest {
 
         var kekId = kms.generateKey();
 
-        var value = ByteBuffer.wrap(new byte[]{ 1, 2, 3 });
-        TestingRecord record = new TestingRecord(value);
+        var value = new byte[]{ 1, 2, 3 };
+        TestingRecord record = new TestingRecord(ByteBuffer.wrap(value));
 
         List<TestingRecord> encrypted = new ArrayList<>();
         List<TestingRecord> initial = List.of(record);
         assertThat(km.encrypt("topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)), initial, recordReceivedRecord(encrypted)))
                 .isCompleted();
-        record.value().rewind();
-        assertEquals(1, encrypted.size());
-        assertNotEquals(initial, encrypted);
-        // TODO add assertion on headers
+        assertThat(encrypted.iterator())
+                .toIterable()
+                .singleElement()
+                .extracting(TestingRecord::value)
+                .extracting(ByteBuffer::array)
+                .isNotEqualTo(value);
 
         List<TestingRecord> decrypted = new ArrayList<>();
         assertThat(km.decrypt("foo", 1, encrypted, recordReceivedRecord(decrypted)))
                 .isCompleted();
 
-        assertEquals(initial, decrypted);
+        assertThat(decrypted.iterator())
+                .toIterable()
+                .singleElement()
+                .extracting(TestingRecord::value)
+                .extracting(ByteBuffer::array)
+                .isEqualTo(value);
     }
 
     @Test
@@ -604,6 +612,43 @@ class InBandKeyManagerTest {
 
         assertEquals(List.of(new TestingRecord(value, new Header[]{ new RecordHeader("foo", new byte[]{ 4, 5, 6 }) }),
                 new TestingRecord(value2, new Header[]{ new RecordHeader("foo", new byte[]{ 10, 11, 12 }) })), decrypted);
+    }
+
+    @Test
+    void shouldPropagateHeadersInClearWhenNotEncryptingHeaders() {
+        var kmsService = UnitTestingKmsService.newInstance();
+        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
+        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000, EXECUTOR_SERVICE,
+                BACKOFF_STRATEGY);
+
+        var kekId = kms.generateKey();
+
+        var value = new byte[]{ 1, 2, 3 };
+        var header = new RecordHeader("myHeader", new byte[]{ 4, 5, 6 });
+        var record = new TestingRecord(ByteBuffer.wrap(value), header);
+
+        List<TestingRecord> encrypted = new ArrayList<>();
+        assertThat(km.encrypt("topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)), List.of(record), recordReceivedRecord(encrypted)))
+                .isCompleted();
+        assertThat(encrypted.iterator())
+                .toIterable()
+                .singleElement()
+                .extracting(TestingRecord::headers)
+                .asInstanceOf(InstanceOfAssertFactories.array(Header[].class))
+                .hasSize(2) /* additional header is the kroxylicious.io/encryption header */
+                .contains(header);
+
+        List<TestingRecord> decrypted = new ArrayList<>();
+        assertThat(km.decrypt("foo", 1, encrypted, recordReceivedRecord(decrypted)))
+                .isCompleted();
+
+        assertThat(decrypted.iterator())
+                .toIterable()
+                .singleElement()
+                .extracting(TestingRecord::headers)
+                .asInstanceOf(InstanceOfAssertFactories.array(Header[].class))
+                .hasSize(1)
+                .containsExactly(header);
     }
 
     @Test
