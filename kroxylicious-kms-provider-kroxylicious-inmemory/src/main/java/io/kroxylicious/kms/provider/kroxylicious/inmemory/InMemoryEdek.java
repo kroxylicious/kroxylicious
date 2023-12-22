@@ -10,13 +10,13 @@ import java.util.Arrays;
 import java.util.Objects;
 import java.util.UUID;
 
-record InMemoryEdek(
-                    int numAuthBits,
-                    byte[] iv,
-                    UUID kekRef,
-                    byte[] edek) {
+public record InMemoryEdek(
+                           int numAuthBits,
+                           byte[] iv,
+                           UUID kekRef,
+                           byte[] edek) {
 
-    InMemoryEdek {
+    public InMemoryEdek {
         if (numAuthBits != 128
                 && numAuthBits != 120
                 && numAuthBits != 112
