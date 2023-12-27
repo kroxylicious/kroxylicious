@@ -53,8 +53,10 @@ import io.kroxylicious.proxy.filter.ResponseFilter;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.frame.BareSaslRequest;
 import io.kroxylicious.proxy.frame.BareSaslResponse;
+import io.kroxylicious.proxy.frame.ByteBufAccessor;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
+import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.internal.KafkaAuthnHandler.SaslMechanism;
 import io.kroxylicious.proxy.internal.codec.CorrelationManager;
 
@@ -543,6 +545,43 @@ public class KafkaAuthnHandlerTest {
         var resp = doSendHandshake(SaslMechanism.SCRAM_SHA_256, SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION);
         assertErrorCode(Errors.UNSUPPORTED_SASL_MECHANISM, resp.errorCode());
         assertEquals(List.of("PLAIN"), resp.mechanisms());
+    }
+
+    @Test
+    void testApiVersionsAfterSuccessfulAuth() {
+        buildChannel(Map.of(
+                SaslMechanism.PLAIN, saslPlainCallbackHandler("fred", "foo")));
+        kafkaAuthnHandler.lastSeen = KafkaAuthnHandler.State.AUTHN_SUCCESS;
+
+        doSendApiVersions(ApiVersionsRequestData.LOWEST_SUPPORTED_VERSION);
+    }
+
+    @Test
+    void testCustomRequestFrameAfterSuccessfulAuth() {
+        buildChannel(Map.of(
+                SaslMechanism.PLAIN, saslPlainCallbackHandler("fred", "foo")));
+        kafkaAuthnHandler.lastSeen = KafkaAuthnHandler.State.AUTHN_SUCCESS;
+
+        RequestFrame frame = new CustomRequestFrame(1);
+        channel.writeInbound(frame);
+        assertEquals(frame, channel.readInbound());
+    }
+
+    record CustomRequestFrame(int correlationId) implements RequestFrame {
+
+        @Override
+        public int estimateEncodedSize() {
+            return 0;
+        }
+
+        @Override
+        public void encode(ByteBufAccessor out) {
+        }
+
+        @Override
+        public boolean decodeResponse() {
+            return false;
+        }
     }
 
     // TODO check that mechanism selection via SaslHandshake actually works

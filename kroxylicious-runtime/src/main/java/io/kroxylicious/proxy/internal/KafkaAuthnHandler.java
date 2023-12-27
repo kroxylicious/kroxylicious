@@ -393,6 +393,9 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
         else if (msg instanceof DecodedRequestFrame) {
             handleFramedRequest(ctx, (DecodedRequestFrame<?>) msg);
         }
+        else if (lastSeen == State.AUTHN_SUCCESS) {
+            ctx.fireChannelRead(msg);
+        }
         else {
             throw new IllegalStateException("Unexpected message " + msg.getClass());
         }
@@ -401,7 +404,9 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
     private void handleFramedRequest(ChannelHandlerContext ctx, DecodedRequestFrame<?> frame) throws SaslException {
         switch (frame.apiKey()) {
             case API_VERSIONS:
-                doTransition(ctx.channel(), State.API_VERSIONS);
+                if (lastSeen != State.AUTHN_SUCCESS) {
+                    doTransition(ctx.channel(), State.API_VERSIONS);
+                }
                 ctx.fireChannelRead(frame);
                 return;
             case SASL_HANDSHAKE:
