@@ -785,7 +785,8 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
                 .setMechanisms(enabledMechanisms)
                 .setErrorCode(error.code());
         writeFramedResponse(ctx, data, body);
-
+        // Request to read the following request
+        ctx.channel().read();
     }
 
     private void onSaslAuthenticateRequest(ChannelHandlerContext ctx,
@@ -814,6 +815,7 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
                 .setAuthBytes(bytes);
         // TODO add support for session lifetime
         writeFramedResponse(ctx, data, body);
+        ctx.channel().read();
     }
 
     private static void writeFramedResponse(ChannelHandlerContext ctx,
