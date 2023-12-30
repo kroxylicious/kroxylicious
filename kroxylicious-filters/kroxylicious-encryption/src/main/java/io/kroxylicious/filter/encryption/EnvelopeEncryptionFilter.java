@@ -92,7 +92,8 @@ public class EnvelopeEncryptionFilter<K>
                                     ppd.index(),
                                     new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
                                     encryptionRequests,
-                                    (kafkaRecord, encryptedValue, headers) -> builder.append(kafkaRecord.timestamp(), kafkaRecord.key(), encryptedValue, headers))
+                                    (kafkaRecord, encryptedValue, headers) -> builder.appendWithOffset(kafkaRecord.offset(), kafkaRecord.timestamp(), kafkaRecord.key(),
+                                            encryptedValue, headers))
                                     .thenApply(ignored -> ppd.setRecords(builder.build()));
                         });
                     }).toList();
@@ -153,7 +154,7 @@ public class EnvelopeEncryptionFilter<K>
                 fpr.partitionIndex(),
                 recordStream(memoryRecords).toList(),
                 (kafkaRecord, plaintextBuffer, headers) -> {
-                    builder.append(kafkaRecord.timestamp(), kafkaRecord.key(), plaintextBuffer, headers);
+                    builder.appendWithOffset(kafkaRecord.offset(), kafkaRecord.timestamp(), kafkaRecord.key(), plaintextBuffer, headers);
                 })
                 .thenApply(ignored -> builder.build())
                 .thenApply(fpr::setRecords);

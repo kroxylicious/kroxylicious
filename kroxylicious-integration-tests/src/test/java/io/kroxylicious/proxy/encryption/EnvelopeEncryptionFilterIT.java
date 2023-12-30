@@ -7,19 +7,23 @@
 package io.kroxylicious.proxy.encryption;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.TopicPartition;
 import org.assertj.core.api.InstanceOfAssertFactories;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -30,14 +34,19 @@ import io.kroxylicious.kms.service.TestKmsFacade;
 import io.kroxylicious.proxy.config.FilterDefinition;
 import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
+import io.kroxylicious.testing.kafka.common.BrokerConfig;
 import io.kroxylicious.testing.kafka.common.ClientConfig;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
+import io.kroxylicious.testing.kafka.junit5ext.TopicConfig;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThatCode;
+import static org.awaitility.Awaitility.await;
 
 @ExtendWith(KafkaClusterExtension.class)
 @ExtendWith(EnvelopeEncryptionTestInvocationContextProvider.class)
@@ -245,6 +254,77 @@ class EnvelopeEncryptionFilterIT {
                     .toIterable()
                     .extracting(ConsumerRecord::value)
                     .contains(HELLO_SECRET, HELLO_WORLD);
+        }
+    }
+
+    /**
+     * Test that ensures that the record offsets returned by the broker are faithfully relayed to the client.
+     * @param cluster underlying kafka cluster
+     * @param compactedTopic topic configured for compaction.
+     * @param directConsumer consumer connected directly to the underlying kafka cluster
+     * @param testKmsFacade kms facade
+     * @throws Exception exception
+     */
+    @TestTemplate
+    @SuppressWarnings("java:S2925")
+    void offsetFidelity(@BrokerConfig(name = "log.cleaner.backoff.ms", value = "500") @BrokerConfig(name = "log.retention.check.interval.ms", value = "500") KafkaCluster cluster,
+                        @TopicConfig(name = "segment.ms", value = "250") @TopicConfig(name = "cleanup.policy", value = "compact") Topic compactedTopic,
+                        Consumer<String, String> directConsumer,
+                        TestKmsFacade<?, ?, ?> testKmsFacade)
+            throws Exception {
+        var testKekManager = testKmsFacade.getTestKekManager();
+        testKekManager.generateKek(compactedTopic.name());
+
+        var builder = proxy(cluster);
+
+        builder.addToFilters(buildEncryptionFilterDefinition(testKmsFacade));
+
+        try (var tester = kroxyliciousTester(builder);
+                var proxyProducer = tester.producer();
+                var proxyConsumer = tester.consumer()) {
+
+            proxyProducer.send(new ProducerRecord<>(compactedTopic.name(), "a", "a1"));
+            // Send two messages for key "b", the first will be eligible for compaction
+            proxyProducer.send(new ProducerRecord<>(compactedTopic.name(), "b", "b1"));
+            proxyProducer.send(new ProducerRecord<>(compactedTopic.name(), "b", "b2")).get(5, TimeUnit.SECONDS);
+
+            // Sleep for > segment.ms to that the next segment will begin and first will become eligible for compaction
+            Thread.sleep(250);
+            proxyProducer.send(new ProducerRecord<>(compactedTopic.name(), "c", "c1")).get(5, TimeUnit.SECONDS);
+
+            // Wait until the topic compaction has coalesced the two b records into one.
+            // This will result in a gap in the offsets.
+            var directlyReadRecords = await().atMost(Duration.ofSeconds(30))
+                    .pollDelay(Duration.ofSeconds(1))
+                    .until(() -> consumeAll(compactedTopic.name(), 0, directConsumer).map(EnvelopeEncryptionFilterIT::stringifyRecordKeyOffset).toList(),
+                            Matchers.contains("a:0", "b:2", "c:3"));
+
+            var proxyReadRecords = consumeAll(compactedTopic.name(), 0, proxyConsumer).map(EnvelopeEncryptionFilterIT::stringifyRecordKeyOffset).toList();
+
+            assertThat(proxyReadRecords).isEqualTo(directlyReadRecords);
+        }
+    }
+
+    private static <K, V> String stringifyRecordKeyOffset(ConsumerRecord<K, V> rec) {
+        return "%s:%d".formatted(rec.key(), rec.offset());
+    }
+
+    @NonNull
+    private Stream<ConsumerRecord<String, String>> consumeAll(String topicName, int partition, Consumer<String, String> consumer) {
+        var partitions = List.of(new TopicPartition(topicName, partition));
+        try {
+            consumer.assign(partitions);
+            List<ConsumerRecord<String, String>> records = new ArrayList<>();
+            consumer.seekToBeginning(partitions);
+            ConsumerRecords<String, String> last;
+            do {
+                last = consumer.poll(Duration.ofSeconds(1));
+                last.forEach(records::add);
+            } while (!last.isEmpty());
+            return records.stream();
+        }
+        finally {
+            consumer.assign(List.of());
         }
     }
 
