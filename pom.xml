@@ -60,7 +60,7 @@
         <jacoco-maven-plugin.version>0.8.11</jacoco-maven-plugin.version>
         
         <!-- Required for JDK 21 compatibility, remove dependency management for byte-buddy once assertj bumps to a newer bytebuddy -->
-        <byte-buddy.version>1.14.10</byte-buddy.version>
+        <byte-buddy.version>1.14.11</byte-buddy.version>
 
         <!-- Test dependencies -->
         <strimzi.version>0.39.0</strimzi.version>
