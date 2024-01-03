@@ -49,7 +49,7 @@
         <netty.epoll.classifier>linux-x86_64</netty.epoll.classifier>
         <netty.io_uring.classifier>linux-x86_64</netty.io_uring.classifier>
         <netty.kqueue.classifier>osx-x86_64</netty.kqueue.classifier>
-        <assertj-core.version>3.24.2</assertj-core.version>
+        <assertj-core.version>3.25.0</assertj-core.version>
         <mockito.version>5.8.0</mockito.version>
         <micrometer.version>1.12.1</micrometer.version>
         <slf4j.version>2.0.9</slf4j.version>
@@ -58,9 +58,6 @@
         <zjsonpatch.version>0.4.16</zjsonpatch.version>
         <moby-names-generator.version>20.10.1-r0</moby-names-generator.version>
         <jacoco-maven-plugin.version>0.8.11</jacoco-maven-plugin.version>
-        
-        <!-- Required for JDK 21 compatibility, remove dependency management for byte-buddy once assertj bumps to a newer bytebuddy -->
-        <byte-buddy.version>1.14.11</byte-buddy.version>
 
         <!-- Test dependencies -->
         <strimzi.version>0.39.0</strimzi.version>
@@ -320,12 +317,6 @@
                 <artifactId>maven-core</artifactId>
                 <version>${maven.core.version}</version>
              </dependency>
-             <dependency>
-                <groupId>net.bytebuddy</groupId>
-                <artifactId>byte-buddy</artifactId>
-                <version>${byte-buddy.version}</version>
-                <scope>test</scope>
-            </dependency>
             <dependency>
                 <groupId>org.awaitility</groupId>
                 <artifactId>awaitility</artifactId>
