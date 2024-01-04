@@ -267,8 +267,8 @@ class EnvelopeEncryptionFilterIT {
      */
     @TestTemplate
     @SuppressWarnings("java:S2925")
-    void offsetFidelity(@BrokerConfig(name = "log.cleaner.backoff.ms", value = "500") @BrokerConfig(name = "log.retention.check.interval.ms", value = "500") KafkaCluster cluster,
-                        @TopicConfig(name = "segment.ms", value = "250") @TopicConfig(name = "cleanup.policy", value = "compact") Topic compactedTopic,
+    void offsetFidelity(@BrokerConfig(name = "log.cleaner.backoff.ms", value = "50") KafkaCluster cluster,
+                        @TopicConfig(name = "segment.ms", value = "125") @TopicConfig(name = "cleanup.policy", value = "compact") Topic compactedTopic,
                         Consumer<String, String> directConsumer,
                         TestKmsFacade<?, ?, ?> testKmsFacade)
             throws Exception {
@@ -288,8 +288,9 @@ class EnvelopeEncryptionFilterIT {
             proxyProducer.send(new ProducerRecord<>(compactedTopic.name(), "b", "b1"));
             proxyProducer.send(new ProducerRecord<>(compactedTopic.name(), "b", "b2")).get(5, TimeUnit.SECONDS);
 
-            // Sleep for > segment.ms so that the next segment will begin and first will become eligible for compaction
-            Thread.sleep(250);
+            // Sleep for segment.ms so that the broker will begin a new segment when the next produce is received.
+            // The records in the first segment will become eligible for compaction.
+            Thread.sleep(125);
             proxyProducer.send(new ProducerRecord<>(compactedTopic.name(), "c", "c1")).get(5, TimeUnit.SECONDS);
 
             // Wait until the topic compaction has coalesced the two b records into one.
