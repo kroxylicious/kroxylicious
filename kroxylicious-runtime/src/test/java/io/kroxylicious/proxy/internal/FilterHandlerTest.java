@@ -333,7 +333,7 @@ class FilterHandlerTest extends FilterHarness {
         channel.runPendingTasks();
 
         assertThat(filterFuture).isCompletedExceptionally().isNotCancelled();
-        assertThatThrownBy(filterFuture::get).hasCauseInstanceOf(TimeoutException.class);
+        assertThatThrownBy(() -> filterFuture.get()).hasCauseInstanceOf(TimeoutException.class);
         assertThat(channel.isOpen()).isFalse();
     }
 
@@ -352,7 +352,7 @@ class FilterHandlerTest extends FilterHarness {
         channel.runPendingTasks();
 
         assertThat(filterFuture).isCompletedExceptionally().isNotCancelled();
-        assertThatThrownBy(filterFuture::get).hasCauseInstanceOf(TimeoutException.class);
+        assertThatThrownBy(() -> filterFuture.get()).hasCauseInstanceOf(TimeoutException.class);
         assertThat(channel.isOpen()).isFalse();
     }
 
@@ -828,7 +828,7 @@ class FilterHandlerTest extends FilterHarness {
         channel.runPendingTasks();
 
         assertThat(snoopedOobRequestResponseFuture).withFailMessage("Future should be finished").isCompletedExceptionally();
-        assertThatThrownBy(snoopedOobRequestResponseFuture::get).hasCauseInstanceOf(TimeoutException.class).hasMessageContaining("was timed-out");
+        assertThatThrownBy(() -> snoopedOobRequestResponseFuture.get()).hasCauseInstanceOf(TimeoutException.class).hasMessageContaining("was timed-out");
     }
 
     @Test
