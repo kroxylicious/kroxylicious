@@ -288,7 +288,7 @@ class EnvelopeEncryptionFilterIT {
             proxyProducer.send(new ProducerRecord<>(compactedTopic.name(), "b", "b1"));
             proxyProducer.send(new ProducerRecord<>(compactedTopic.name(), "b", "b2")).get(5, TimeUnit.SECONDS);
 
-            // Sleep for > segment.ms to that the next segment will begin and first will become eligible for compaction
+            // Sleep for > segment.ms so that the next segment will begin and first will become eligible for compaction
             Thread.sleep(250);
             proxyProducer.send(new ProducerRecord<>(compactedTopic.name(), "c", "c1")).get(5, TimeUnit.SECONDS);
 
