@@ -7,28 +7,32 @@
 package io.kroxylicious.filter.encryption;
 
 import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.message.FetchResponseData;
+import org.apache.kafka.common.message.FetchResponseData.FetchableTopicResponse;
+import org.apache.kafka.common.message.FetchResponseData.PartitionData;
 import org.apache.kafka.common.message.ProduceRequestData;
+import org.apache.kafka.common.message.ProduceRequestData.PartitionProduceData;
+import org.apache.kafka.common.message.ProduceRequestData.TopicProduceData;
 import org.apache.kafka.common.message.ProduceResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.record.CompressionType;
+import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.record.MemoryRecordsBuilder;
 import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.record.RecordBatch;
-import org.apache.kafka.common.record.SimpleRecord;
 import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 import org.assertj.core.api.AbstractAssert;
@@ -46,10 +50,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import io.kroxylicious.filter.encryption.inband.TestingRecord;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
+import io.kroxylicious.proxy.filter.ResponseFilterResult;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.filter.encryption.ProduceRequestDataCondition.hasRecordsForTopic;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -65,10 +71,13 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class EnvelopeEncryptionFilterTest {
 
-    public static final String UNENCRYPTED_TOPIC = "unencrypted";
-    public static final String ENCRYPTED_TOPIC = "encrypt_me";
-    public static final String KEK_ID_1 = "KEK_ID_1";
-    public static final String ENCRYPTED_MESSAGE = "xslkajfd;ljsaefjjKLDJlkDSJFLJK';,kSDKF'";
+    private static final String UNENCRYPTED_TOPIC = "unencrypted";
+    private static final String ENCRYPTED_TOPIC = "encrypt_me";
+    private static final String KEK_ID_1 = "KEK_ID_1";
+    private static final byte[] HELLO_PLAIN_WORLD = "Hello World".getBytes(UTF_8);
+    private static final byte[] HELLO_CIPHER_WORLD = "Hello Ciphertext World!".getBytes(UTF_8);
+
+    private static final byte[] ENCRYPTED_MESSAGE_BYTES = "xslkajfd;ljsaefjjKLDJlkDSJFLJK';,kSDKF'".getBytes(UTF_8);
 
     @Mock(strictness = LENIENT)
     KeyManager<String> keyManager;
@@ -91,6 +100,11 @@ class EnvelopeEncryptionFilterTest {
             return CompletableFuture.completedFuture(filterResult);
         });
 
+        when(context.forwardResponse(any(ResponseHeaderData.class), apiMessageCaptor.capture())).then(invocationOnMock -> {
+            final ResponseFilterResult filterResult = mock(ResponseFilterResult.class);
+            return CompletableFuture.completedFuture(filterResult);
+        });
+
         when(context.createByteBufferOutputStream(anyInt())).thenAnswer(invocationOnMock -> {
             final int capacity = invocationOnMock.getArgument(0);
             return new ByteBufferOutputStream(capacity);
@@ -99,7 +113,13 @@ class EnvelopeEncryptionFilterTest {
         final Map<String, String> topicNameToKekId = new HashMap<>();
         topicNameToKekId.put(UNENCRYPTED_TOPIC, null);
         topicNameToKekId.put(ENCRYPTED_TOPIC, KEK_ID_1);
-        when(kekSelector.selectKek(anySet())).thenReturn(CompletableFuture.completedFuture(topicNameToKekId));
+
+        when(kekSelector.selectKek(anySet())).thenAnswer(invocationOnMock -> {
+            Set<String> wanted = invocationOnMock.getArgument(0);
+            var copy = new HashMap<>(topicNameToKekId);
+            copy.keySet().retainAll(wanted);
+            return CompletableFuture.completedFuture(copy);
+        });
 
         when(keyManager.encrypt(any(), anyInt(), any(), anyList(), any(Receiver.class))).thenAnswer(invocationOnMock -> {
             final List<? extends Record> actualRecords = invocationOnMock.getArgument(3);
@@ -125,7 +145,9 @@ class EnvelopeEncryptionFilterTest {
     @Test
     void shouldNotEncryptTopicWithoutKeyId() {
         // Given
-        final ProduceRequestData produceRequestData = buildProduceRequestData(new Payload(UNENCRYPTED_TOPIC, "Hello World!"));
+        var produceRequestData = buildProduceRequestData(new TopicProduceData()
+                .setName(UNENCRYPTED_TOPIC)
+                .setPartitionData(List.of(new PartitionProduceData().setRecords(makeRecord(HELLO_PLAIN_WORLD)))));
 
         // When
         encryptionFilter.onProduceRequest(ProduceRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), produceRequestData, context);
@@ -137,7 +159,9 @@ class EnvelopeEncryptionFilterTest {
     @Test
     void shouldEncryptTopicWithKeyId() {
         // Given
-        final ProduceRequestData produceRequestData = buildProduceRequestData(new Payload(ENCRYPTED_TOPIC, "Hello World!"));
+        var produceRequestData = buildProduceRequestData(new TopicProduceData()
+                .setName(ENCRYPTED_TOPIC)
+                .setPartitionData(List.of(new PartitionProduceData().setRecords(makeRecord(HELLO_PLAIN_WORLD)))));
 
         // When
         encryptionFilter.onProduceRequest(ProduceRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), produceRequestData, context);
@@ -149,9 +173,12 @@ class EnvelopeEncryptionFilterTest {
     @Test
     void shouldOnlyEncryptTopicWithKeyId() {
         // Given
-        final Payload encryptedPayload = new Payload(ENCRYPTED_TOPIC, "Hello Ciphertext World!");
-        final ProduceRequestData produceRequestData = buildProduceRequestData(encryptedPayload,
-                new Payload(UNENCRYPTED_TOPIC, "Hello Plaintext World!"));
+        var produceRequestData = buildProduceRequestData(new TopicProduceData()
+                .setName(ENCRYPTED_TOPIC)
+                .setPartitionData(List.of(new PartitionProduceData().setRecords(makeRecord(HELLO_CIPHER_WORLD)))),
+                new TopicProduceData()
+                        .setName(UNENCRYPTED_TOPIC)
+                        .setPartitionData(List.of(new PartitionProduceData().setRecords(makeRecord(HELLO_PLAIN_WORLD)))));
 
         // When
         encryptionFilter.onProduceRequest(ProduceRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), produceRequestData, context);
@@ -160,14 +187,16 @@ class EnvelopeEncryptionFilterTest {
         verify(keyManager).encrypt(any(), anyInt(), any(),
                 argThat(records -> assertThat(records)
                         .hasSize(1)
-                        .allSatisfy(record -> assertThat(record.value()).isEqualByComparingTo(encryptedPayload.messageBytes()))),
+                        .allSatisfy(record -> assertThat(record.value()).isEqualTo(ByteBuffer.wrap(HELLO_CIPHER_WORLD)))),
                 any());
     }
 
     @Test
-    void shouldPassThroughUnEncryptedRecords() {
+    void shouldPassThroughUnencryptedRecords() {
         // Given
-        final FetchResponseData fetchResponseData = buildFetchResponseData(new Payload(UNENCRYPTED_TOPIC, "Hello Plaintext World!"));
+        var fetchResponseData = buildFetchResponseData(new FetchableTopicResponse()
+                .setTopic(UNENCRYPTED_TOPIC)
+                .setPartitions(List.of(new PartitionData().setRecords(makeRecord(HELLO_PLAIN_WORLD)))));
 
         // When
         encryptionFilter.onFetchResponse(ProduceResponseData.HIGHEST_SUPPORTED_VERSION,
@@ -181,12 +210,13 @@ class EnvelopeEncryptionFilterTest {
     @Test
     void shouldDecryptEncryptedRecords() {
         // Given
-        final FetchResponseData encryptedFetchResponse = buildFetchResponseData(new Payload(ENCRYPTED_TOPIC, ENCRYPTED_MESSAGE));
-        final Payload plainTextPayload = new Payload(ENCRYPTED_TOPIC, "Hello Plaintext World!");
+        var encryptedFetchResponse = buildFetchResponseData(new FetchableTopicResponse()
+                .setTopic(ENCRYPTED_TOPIC)
+                .setPartitions(List.of(new PartitionData().setRecords(makeRecord(ENCRYPTED_MESSAGE_BYTES)))));
 
         when(keyManager.decrypt(any(), anyInt(), assertArg(records -> assertThat(records).hasSize(1)), any(Receiver.class))).thenAnswer(invocationOnMock -> {
             final Receiver receiver = invocationOnMock.getArgument(3);
-            receiver.accept(new TestingRecord(plainTextPayload.messageBytes()), plainTextPayload.messageBytes(), Record.EMPTY_HEADERS);
+            receiver.accept(new TestingRecord(ByteBuffer.wrap(HELLO_PLAIN_WORLD)), ByteBuffer.wrap(HELLO_PLAIN_WORLD), Record.EMPTY_HEADERS);
 
             return CompletableFuture.completedFuture(null);
         });
@@ -206,9 +236,9 @@ class EnvelopeEncryptionFilterTest {
     @Test
     void shouldEncryptTopic() {
         // Given
-        final Payload encryptedPayload = new Payload(ENCRYPTED_TOPIC, "Hello Ciphertext World!");
-        final ProduceRequestData produceRequestData = buildProduceRequestData(encryptedPayload,
-                new Payload(UNENCRYPTED_TOPIC, "Hello Plaintext World!"));
+        var produceRequestData = buildProduceRequestData(new TopicProduceData()
+                .setName(ENCRYPTED_TOPIC)
+                .setPartitionData(List.of(new PartitionProduceData().setRecords(makeRecord(HELLO_CIPHER_WORLD)))));
 
         // When
         encryptionFilter.onProduceRequest(ProduceRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), produceRequestData, context);
@@ -219,55 +249,28 @@ class EnvelopeEncryptionFilterTest {
                 .is(hasRecordsForTopic(ENCRYPTED_TOPIC))));
     }
 
-    private static FetchResponseData buildFetchResponseData(Payload... payloads) {
-        final FetchResponseData fetchResponseData = new FetchResponseData();
-        var stream = new ByteBufferOutputStream(ByteBuffer.allocate(1000));
-        for (Payload payload : payloads) {
-            var recordsBuilder = memoryRecordsBuilderForStream(stream);
-            final FetchResponseData.FetchableTopicResponse fetchableTopicResponse = new FetchResponseData.FetchableTopicResponse();
-            fetchableTopicResponse.setTopic(payload.topicName());
-            final FetchResponseData.PartitionData partitionData = new FetchResponseData.PartitionData();
-            recordsBuilder.append(new SimpleRecord(System.currentTimeMillis(), null, payload.message.getBytes(StandardCharsets.UTF_8)));
-            partitionData.setRecords(recordsBuilder.build());
-            fetchableTopicResponse.partitions().add(partitionData);
-
-            fetchResponseData.responses().add(fetchableTopicResponse);
-        }
-        return fetchResponseData;
+    private static FetchResponseData buildFetchResponseData(FetchableTopicResponse... topicResponses) {
+        var data = new FetchResponseData();
+        data.responses().addAll(Arrays.asList(topicResponses));
+        return data;
     }
 
-    private static ProduceRequestData buildProduceRequestData(Payload... payloads) {
-        var requestData = new ProduceRequestData();
+    private static ProduceRequestData buildProduceRequestData(TopicProduceData... produceData) {
+        var data = new ProduceRequestData();
+        data.topicData().addAll(Arrays.asList(produceData));
+        return data;
 
-        // Build records from stream
+    }
+
+    private static MemoryRecords makeRecord(byte[] payload) {
         var stream = new ByteBufferOutputStream(ByteBuffer.allocate(1000));
-        var topics = new ProduceRequestData.TopicProduceDataCollection();
 
-        for (Payload payload : payloads) {
-            var recordsBuilder = memoryRecordsBuilderForStream(stream);
+        var recordsBuilder = memoryRecordsBuilderForStream(stream);
 
-            // Create record Headers
-            Header header = new RecordHeader("myKey", "myValue".getBytes());
+        Header header = new RecordHeader("myKey", "myValue".getBytes());
 
-            // Add transformValue as buffer to records
-            recordsBuilder.append(RecordBatch.NO_TIMESTAMP, null, payload.messageBytes(), new Header[]{ header });
-            var records = recordsBuilder.build();
-            // Build partitions from built records
-            var partitions = new ArrayList<ProduceRequestData.PartitionProduceData>();
-            var partitionData = new ProduceRequestData.PartitionProduceData();
-            partitionData.setRecords(records);
-            partitions.add(partitionData);
-            // Build topics from built partitions
-
-            var topicData = new ProduceRequestData.TopicProduceData();
-            topicData.setPartitionData(partitions);
-            topicData.setName(payload.topicName);
-            topics.add(topicData);
-        }
-
-        // Add built topics to ProduceRequestData object so that we can return it
-        requestData.setTopicData(topics);
-        return requestData;
+        recordsBuilder.append(RecordBatch.NO_TIMESTAMP, null, ByteBuffer.wrap(payload), new Header[]{ header });
+        return recordsBuilder.build();
     }
 
     @NonNull
@@ -275,12 +278,6 @@ class EnvelopeEncryptionFilterTest {
         return new MemoryRecordsBuilder(stream, RecordBatch.CURRENT_MAGIC_VALUE, CompressionType.NONE, TimestampType.CREATE_TIME, 0,
                 RecordBatch.NO_TIMESTAMP, RecordBatch.NO_PRODUCER_ID, RecordBatch.NO_PRODUCER_EPOCH, RecordBatch.NO_SEQUENCE, false, false,
                 RecordBatch.NO_PARTITION_LEADER_EPOCH, stream.remaining());
-    }
-
-    private record Payload(String topicName, String message) {
-        ByteBuffer messageBytes() {
-            return ByteBuffer.wrap(message.getBytes(StandardCharsets.UTF_8)).position(0);
-        }
     }
 
     public static <T> T argThat(Consumer<T> assertions) {
