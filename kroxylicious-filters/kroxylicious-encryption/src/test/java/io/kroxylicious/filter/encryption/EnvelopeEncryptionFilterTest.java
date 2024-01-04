@@ -15,6 +15,10 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.stream.LongStream;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
@@ -24,7 +28,6 @@ import org.apache.kafka.common.message.FetchResponseData.PartitionData;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.ProduceRequestData.PartitionProduceData;
 import org.apache.kafka.common.message.ProduceRequestData.TopicProduceData;
-import org.apache.kafka.common.message.ProduceResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
@@ -33,6 +36,7 @@ import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.record.MemoryRecordsBuilder;
 import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.record.RecordBatch;
+import org.apache.kafka.common.record.Records;
 import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 import org.assertj.core.api.AbstractAssert;
@@ -54,7 +58,8 @@ import io.kroxylicious.proxy.filter.ResponseFilterResult;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-import static io.kroxylicious.filter.encryption.ProduceRequestDataCondition.hasRecordsForTopic;
+import static io.kroxylicious.test.condition.kafka.FetchResponseDataCondition.fetchResponseMatching;
+import static io.kroxylicious.test.condition.kafka.ProduceRequestDataCondition.produceRequestMatching;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -65,6 +70,7 @@ import static org.mockito.ArgumentMatchers.assertArg;
 import static org.mockito.Mock.Strictness.LENIENT;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -192,6 +198,48 @@ class EnvelopeEncryptionFilterTest {
     }
 
     @Test
+    void produceShouldMaintainClientOffsets() {
+        // Given
+        var offsets = List.of(0L, 2L, 3L);
+        var recsWithNonConsecutiveOffsets = makeRecords(offsets.stream().mapToLong(Long::longValue),
+                (u) -> new TestingRecord(ByteBuffer.wrap(HELLO_PLAIN_WORLD)));
+        var produceRequestData = buildProduceRequestData(new TopicProduceData()
+                .setName(ENCRYPTED_TOPIC)
+                .setPartitionData(List.of(new PartitionProduceData().setRecords(recsWithNonConsecutiveOffsets))));
+
+        when(keyManager.encrypt(any(), anyInt(), any(), assertArg(records -> assertThat(records).hasSize(3)), any(Receiver.class))).thenAnswer(invocationOnMock -> {
+            final List<Record> records = invocationOnMock.getArgument(3);
+            final Receiver receiver = invocationOnMock.getArgument(4);
+
+            records.forEach(rec -> receiver.accept(rec, ByteBuffer.wrap(HELLO_CIPHER_WORLD), Record.EMPTY_HEADERS));
+            return CompletableFuture.completedFuture(null);
+        });
+
+        // When
+        encryptionFilter.onProduceRequest(ProduceRequestData.HIGHEST_SUPPORTED_VERSION,
+                new RequestHeaderData(), produceRequestData, context);
+
+        // Then
+        verify(context, times(1)).forwardRequest(any(RequestHeaderData.class), assertArg(actualFetchResponse -> assertThat(actualFetchResponse)
+                .isInstanceOf(ProduceRequestData.class)
+                .asInstanceOf(InstanceOfAssertFactories.type(ProduceRequestData.class))
+                .has(produceRequestMatching(prd -> {
+                    var actuals = produceRequestToRecordStream(prd)
+                            .map(Record::offset).toList();
+                    return Objects.equals(actuals, offsets);
+                }))));
+    }
+
+    @NonNull
+    private static Stream<Record> produceRequestToRecordStream(ProduceRequestData fetchResponseData) {
+        return fetchResponseData.topicData().stream()
+                .flatMap(pd -> pd.partitionData().stream())
+                .map(PartitionProduceData::records)
+                .map(Records.class::cast)
+                .flatMap(r -> StreamSupport.stream(r.records().spliterator(), false));
+    }
+
+    @Test
     void shouldPassThroughUnencryptedRecords() {
         // Given
         var fetchResponseData = buildFetchResponseData(new FetchableTopicResponse()
@@ -199,7 +247,7 @@ class EnvelopeEncryptionFilterTest {
                 .setPartitions(List.of(new PartitionData().setRecords(makeRecord(HELLO_PLAIN_WORLD)))));
 
         // When
-        encryptionFilter.onFetchResponse(ProduceResponseData.HIGHEST_SUPPORTED_VERSION,
+        encryptionFilter.onFetchResponse(FetchResponseData.HIGHEST_SUPPORTED_VERSION,
                 new ResponseHeaderData(), fetchResponseData, context);
 
         // Then
@@ -215,14 +263,15 @@ class EnvelopeEncryptionFilterTest {
                 .setPartitions(List.of(new PartitionData().setRecords(makeRecord(ENCRYPTED_MESSAGE_BYTES)))));
 
         when(keyManager.decrypt(any(), anyInt(), assertArg(records -> assertThat(records).hasSize(1)), any(Receiver.class))).thenAnswer(invocationOnMock -> {
+            final List<Record> records = invocationOnMock.getArgument(2);
             final Receiver receiver = invocationOnMock.getArgument(3);
-            receiver.accept(new TestingRecord(ByteBuffer.wrap(HELLO_PLAIN_WORLD)), ByteBuffer.wrap(HELLO_PLAIN_WORLD), Record.EMPTY_HEADERS);
+            receiver.accept(records.get(0), ByteBuffer.wrap(HELLO_PLAIN_WORLD), Record.EMPTY_HEADERS);
 
             return CompletableFuture.completedFuture(null);
         });
 
         // When
-        encryptionFilter.onFetchResponse(ProduceResponseData.HIGHEST_SUPPORTED_VERSION,
+        encryptionFilter.onFetchResponse(FetchResponseData.HIGHEST_SUPPORTED_VERSION,
                 new ResponseHeaderData(), encryptedFetchResponse, context);
 
         // Then
@@ -231,6 +280,47 @@ class EnvelopeEncryptionFilterTest {
                 .asInstanceOf(InstanceOfAssertFactories.type(FetchResponseData.class))
         // .has(new FetchResponseDataCondition(fetchResponseData -> true)) //This is where the new conditions from https://github.com/kroxylicious/kroxylicious/pull/756 come in
         ));
+    }
+
+    @Test
+    void fetchShouldMaintainBrokerOffsets() {
+        // Given
+        var offsets = List.of(0L, 2L, 3L);
+        var recsWithNonConsecutiveOffsets = makeRecords(offsets.stream().mapToLong(Long::longValue), (u) -> new TestingRecord(ByteBuffer.wrap(HELLO_CIPHER_WORLD)));
+        var encryptedFetchResponse = buildFetchResponseData(new FetchableTopicResponse()
+                .setTopic(ENCRYPTED_TOPIC)
+                .setPartitions(List.of(new PartitionData().setRecords(recsWithNonConsecutiveOffsets))));
+
+        when(keyManager.decrypt(any(), anyInt(), assertArg(records -> assertThat(records).hasSize(3)), any(Receiver.class))).thenAnswer(invocationOnMock -> {
+            final List<Record> records = invocationOnMock.getArgument(2);
+            final Receiver receiver = invocationOnMock.getArgument(3);
+
+            records.forEach(rec -> receiver.accept(rec, ByteBuffer.wrap(HELLO_PLAIN_WORLD), Record.EMPTY_HEADERS));
+            return CompletableFuture.completedFuture(null);
+        });
+
+        // When
+        encryptionFilter.onFetchResponse(FetchResponseData.HIGHEST_SUPPORTED_VERSION,
+                new ResponseHeaderData(), encryptedFetchResponse, context);
+
+        // Then
+        verify(context, times(1)).forwardResponse(any(ResponseHeaderData.class), assertArg(actualFetchResponse -> assertThat(actualFetchResponse)
+                .isInstanceOf(FetchResponseData.class)
+                .asInstanceOf(InstanceOfAssertFactories.type(FetchResponseData.class))
+                .has(fetchResponseMatching(fetchResponseData -> {
+                    var actuals = fetchResponseToRecordStream(fetchResponseData)
+                            .map(Record::offset).toList();
+                    return Objects.equals(actuals, offsets);
+                }))));
+    }
+
+    @NonNull
+    private static Stream<Record> fetchResponseToRecordStream(FetchResponseData fetchResponseData) {
+        return fetchResponseData.responses().stream()
+                .flatMap(pd -> pd.partitions().stream())
+                .map(PartitionData::records)
+                .map(Records.class::cast)
+                .flatMap(r -> StreamSupport.stream(r.records().spliterator(), false));
     }
 
     @Test
@@ -246,7 +336,7 @@ class EnvelopeEncryptionFilterTest {
         // Then
         verify(context).forwardRequest(any(), argThat(request -> assertThat(request).isInstanceOf(ProduceRequestData.class)
                 .asInstanceOf(InstanceOfAssertFactories.type(ProduceRequestData.class))
-                .is(hasRecordsForTopic(ENCRYPTED_TOPIC))));
+                .has(produceRequestMatching(pr -> pr.topicData().stream().anyMatch(td -> ENCRYPTED_TOPIC.equals(td.name()))))));
     }
 
     private static FetchResponseData buildFetchResponseData(FetchableTopicResponse... topicResponses) {
@@ -263,13 +353,17 @@ class EnvelopeEncryptionFilterTest {
     }
 
     private static MemoryRecords makeRecord(byte[] payload) {
+        return makeRecords(LongStream.of(0), u -> new TestingRecord(ByteBuffer.wrap(payload), new RecordHeader("myKey", "myValue".getBytes())));
+    }
+
+    private static MemoryRecords makeRecords(LongStream offsets, Function<Long, Record> messageFunc) {
         var stream = new ByteBufferOutputStream(ByteBuffer.allocate(1000));
 
         var recordsBuilder = memoryRecordsBuilderForStream(stream);
+        offsets.forEach(offset -> {
+            recordsBuilder.appendWithOffset(offset, messageFunc.apply(offset));
+        });
 
-        Header header = new RecordHeader("myKey", "myValue".getBytes());
-
-        recordsBuilder.append(RecordBatch.NO_TIMESTAMP, null, ByteBuffer.wrap(payload), new Header[]{ header });
         return recordsBuilder.build();
     }
 
