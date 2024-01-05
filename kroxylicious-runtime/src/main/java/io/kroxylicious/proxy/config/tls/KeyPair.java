@@ -52,7 +52,8 @@ public record KeyPair(String privateKeyFile,
             return SslContextBuilder.forClient()
                     .keyManager(new File(certificateFile), new File(privateKeyFile),
                             Optional.ofNullable(keyPasswordProvider).map(PasswordProvider::getProvidedPassword).orElse(null));
-        } catch (Exception e) {
+        }
+        catch (Exception e) {
             throw new RuntimeException(
                     "Error building SSLContext. certificateFile : " + certificateFile + ", privateKeyFile: " + privateKeyFile + ", password present: "
                             + (keyPasswordProvider != null),
