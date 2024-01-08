@@ -23,26 +23,26 @@ Configuration:
     Logger:
       - name: io.kroxylicious.proxy.internal.DownstreamNetworkLogger
         level: INFO
-        additivity: true
+        additivity: false
         AppenderRef:
           - ref: STDOUT
       - name: io.kroxylicious.proxy.internal.UpstreamNetworkLogger
         level: INFO
-        additivity: true
+        additivity: false
         AppenderRef:
           - ref: STDOUT
       - name: io.kroxylicious.proxy.internal.DownstreamFrameLogger
         level: INFO
-        additivity: true
+        additivity: false
         AppenderRef:
           - ref: STDOUT
       - name: io.kroxylicious.proxy.internal.UpstreamFrameLogger
         level: INFO
-        additivity: true
+        additivity: false
         AppenderRef:
           - ref: STDOUT
       - name: io.kroxylicious.proxy.StartupShutdownLogger
         level: INFO
-        additivity: true
+        additivity: false
         AppenderRef:
           - ref: STDOUT
