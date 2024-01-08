@@ -85,3 +85,4 @@ Kafka tooling if you like.
    ```shell { prompt="Now let's consume the same record via the proxy.  This time we'll see the plain-text of the record as Kroxylicious will have decrypted it." }
    kaf -b minikube:30192 consume trades
    ```
+6. Additionally, we can view metrics using `curl minikube:30090/metrics` which will expose some counters exposing the total number of vault operations.
