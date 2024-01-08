@@ -11,6 +11,10 @@ metadata:
   name: kroxylicious-config
 data:
   config.yaml: |
+    adminHttp:
+      port: 30090
+      endpoints:
+        prometheus: {}
     virtualClusters:
       my-cluster-proxy:
         # the virtual cluster is kafka proxy that sits between kafka clients and the real kafka cluster.  clients
