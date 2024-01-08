@@ -78,16 +78,16 @@ if grep --count --quiet --recursive cert-manager.io "${SAMPLE_DIR}"; then
 fi
 
 # Install HashiCorp Vault (if necessary)
-if [[ -f ${SAMPLE_DIR}/helm-vault-values.yml ]];
+if [[ -f ${SAMPLE_DIR}/helm-vault-values.yaml ]];
 then
   ${KUBECTL} create ns vault 2>/dev/null || true
   ${HELM} repo add hashicorp https://helm.releases.hashicorp.com
   # use helm's idempotent install technique
-  ${HELM} upgrade --install vault hashicorp/vault --namespace vault --values "${SAMPLE_DIR}/helm-vault-values.yml" --wait
+  ${HELM} upgrade --install vault hashicorp/vault --namespace vault --values "${SAMPLE_DIR}/helm-vault-values.yaml" --wait
   ${KUBECTL} exec vault-0 -n vault -- vault secrets enable transit || true
   echo -e "${GREEN}HashiCorp Vault installed.${NOCOLOR}"
   VAULT_UI_URL=$(${MINIKUBE} service vault -n vault --url 2>/dev/null | head -1)
-  ROOT_TOKEN=$(yq .server.dev.devRootToken "${SAMPLE_DIR}/helm-vault-values.yml")
+  ROOT_TOKEN=$(yq .server.dev.devRootToken "${SAMPLE_DIR}/helm-vault-values.yaml")
   echo -e "${YELLOW}Vault UI available at: ${VAULT_UI_URL} (token '${ROOT_TOKEN}').${NOCOLOR}"
 fi
 

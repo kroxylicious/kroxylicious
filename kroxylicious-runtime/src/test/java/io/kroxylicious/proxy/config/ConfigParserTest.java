@@ -141,7 +141,7 @@ class ConfigParserTest {
 
     @Test
     void testDeserializeFromYaml() {
-        Configuration configuration = configParser.parseConfiguration(this.getClass().getClassLoader().getResourceAsStream("config.yml"));
+        Configuration configuration = configParser.parseConfiguration(this.getClass().getClassLoader().getResourceAsStream("config.yaml"));
         assertThat(configuration.isUseIoUring()).isTrue();
         AdminHttpConfiguration adminHttpConfiguration = configuration.adminHttpConfig();
         assertThat(adminHttpConfiguration.host()).isEqualTo("kroxy");

@@ -135,11 +135,11 @@ KROXYLICIOUS_CLASSPATH="${additional_classpath_entries}" kroxylicious-app/target
 for example:
 
 ```shell
-KROXYLICIOUS_CLASSPATH="/path/to/any.jar:/path/to/libs/dir/*" kroxylicious-app/target/kroxylicious-app-*-bin/kroxylicious-app-*/bin/kroxylicious-start.sh --config kroxylicious-app/example-proxy-config.yml
+KROXYLICIOUS_CLASSPATH="/path/to/any.jar:/path/to/libs/dir/*" kroxylicious-app/target/kroxylicious-app-*-bin/kroxylicious-app-*/bin/kroxylicious-start.sh --config kroxylicious-app/example-proxy-config.yaml
 ```
 
 ### Debugging
-Logging is turned off by default for better performance. In case you want to debug, logging should be turned on in the `example-proxy-config.yml` file:
+Logging is turned off by default for better performance. In case you want to debug, logging should be turned on in the `example-proxy-config.yaml` file:
 ```yaml
   logNetwork: true
   logFrames: true
@@ -373,7 +373,7 @@ asciinema upload demo_processed.cast
 
 ## Using the GitHub CI workflows against a fork
 
-All CI [workflows](.github/workflows) defined by the project are expected to execute within the context of a fork, apart from [docker workflow](.github/workflows/docker.yml).
+All CI [workflows](.github/workflows) defined by the project are expected to execute within the context of a fork, apart from [docker workflow](.github/workflows/docker.yaml).
 To enable the docker workflow, you need to configure three repository [variables](https://docs.github.com/en/actions/learn-github-actions/variables)
 and one repository [secret](https://docs.github.com/en/actions/security-guides/using-secrets-in-github-actions).
 

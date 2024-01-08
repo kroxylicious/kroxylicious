@@ -28,7 +28,7 @@
       <directory>${project.basedir}</directory>
       <outputDirectory>/config/</outputDirectory>
       <includes>
-        <include>example-proxy-config.yml</include>
+        <include>example-proxy-config.yaml</include>
       </includes>
     </fileSet>
     <fileSet>
@@ -42,7 +42,7 @@
       <directory>${project.basedir}/src/main/resources/</directory>
       <outputDirectory>/config/</outputDirectory>
       <includes>
-        <include>log4j2.yml</include>
+        <include>log4j2.yaml</include>
       </includes>
     </fileSet>
   </fileSets>
