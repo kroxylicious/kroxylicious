@@ -1,4 +1,4 @@
-# docker.yml - builds and pushes a kroxylicious container image.
+# docker.yaml - builds and pushes a kroxylicious container image.
 #
 # Requires repository variables:
 # - REGISTRY_SERVER - the server of the container registry service e.g. `quay.io` or `docker.io`

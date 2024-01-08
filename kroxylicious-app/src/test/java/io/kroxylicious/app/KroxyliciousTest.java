@@ -81,7 +81,7 @@ class KroxyliciousTest {
 
     @Test
     void testKroxyliciousStartsAndThenTerminates(@TempDir Path dir) throws Exception {
-        Path file = copyClasspathResourceToTempFileInDir("proxy-config.yml", dir);
+        Path file = copyClasspathResourceToTempFileInDir("proxy-config.yaml", dir);
         when(mockProxy.startup()).thenReturn(mockProxy);
         doNothing().when(mockProxy).block();
         assertEquals(0, cmd.execute("-c", file.toString()));
@@ -89,7 +89,7 @@ class KroxyliciousTest {
 
     @Test
     void testKroxyliciousExceptionOnBlock(@TempDir Path dir) throws Exception {
-        Path file = copyClasspathResourceToTempFileInDir("proxy-config.yml", dir);
+        Path file = copyClasspathResourceToTempFileInDir("proxy-config.yaml", dir);
         when(mockProxy.startup()).thenReturn(mockProxy);
         Mockito.doThrow(new RuntimeException("exception on block")).when(mockProxy).block();
         int execute = cmd.execute("-c", file.toString());
@@ -99,7 +99,7 @@ class KroxyliciousTest {
 
     @Test
     void testKroxyliciousExceptionOnStartup(@TempDir Path dir) throws Exception {
-        Path file = copyClasspathResourceToTempFileInDir("proxy-config.yml", dir);
+        Path file = copyClasspathResourceToTempFileInDir("proxy-config.yaml", dir);
         when(mockProxy.startup()).thenThrow(new RuntimeException("startup blew up"));
         assertEquals(1, cmd.execute("-c", file.toString()));
         assertThat(stdErr()).contains("startup blew up");

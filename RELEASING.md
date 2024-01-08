@@ -32,7 +32,7 @@ the release with the other developers.  It is important no other work is merged 
 
 ### Stage the Release
 
-Run [stage_workflow](https://github.com/kroxylicious/kroxylicious/actions/workflows/stage_release.yml).
+Run [stage_workflow](https://github.com/kroxylicious/kroxylicious/actions/workflows/stage_release.yaml).
 Set the `release-version` argument to the version being release e.g. `0.7.0`.
 
 This will:
@@ -60,7 +60,7 @@ The local changes made to `T`'s POM can be reverted.
 
 ### Making the release public
 
-1. Run [deploy_workflow](https://github.com/kroxylicious/kroxylicious/actions/workflows/deploy_release.yml)
+1. Run [deploy_workflow](https://github.com/kroxylicious/kroxylicious/actions/workflows/deploy_release.yaml)
    setting the `next-state` to `release` to publish the artefact and publish the release notes.
 1. Merge release PR (use Rebase and Merge strategy).
 1. Let [Kroxylicious Team Developers](https://kroxylicious.slack.com/archives/C04V1K6EAKZ) know the release is finished.
@@ -69,7 +69,7 @@ If anything goes wrong, follow the steps in the next section.
 
 ### Failed Releases
 
-If the release fails verification, use the [deploy_workflow](https://github.com/kroxylicious/kroxylicious/actions/workflows/deploy_release.yml) with  the `drop` argument.
+If the release fails verification, use the [deploy_workflow](https://github.com/kroxylicious/kroxylicious/actions/workflows/deploy_release.yaml) with  the `drop` argument.
 This will drop the snapshot repository and delete the release notes. Manually close the PR.
 
 ### Remove your private key/passphrase

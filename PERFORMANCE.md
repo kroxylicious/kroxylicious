@@ -25,7 +25,7 @@ Build and launch the proxy:
 
 ```shell
 mvn clean verify -Pdist -Dquick
-kroxylicious-app/target/kroxylicious-app-*-bin/kroxylicious-app-*/bin/kroxylicious-start.sh --config kroxylicious-app/example-proxy-config.yml
+kroxylicious-app/target/kroxylicious-app-*-bin/kroxylicious-app-*/bin/kroxylicious-start.sh --config kroxylicious-app/example-proxy-config.yaml
 ```
 
 Run Kafka's _kafka-producer-perf-test.sh_ script:
