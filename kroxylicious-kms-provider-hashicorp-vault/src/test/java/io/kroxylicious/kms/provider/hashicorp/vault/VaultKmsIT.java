@@ -12,6 +12,7 @@ import java.net.URI;
 import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.List;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,12 +23,26 @@ import org.testcontainers.vault.VaultContainer;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Metrics;
+import io.micrometer.core.instrument.Tag;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+
 import io.kroxylicious.kms.provider.hashicorp.vault.VaultKmsService.Config;
 import io.kroxylicious.kms.provider.hashicorp.vault.VaultResponse.ReadKeyData;
 import io.kroxylicious.kms.service.DekPair;
 import io.kroxylicious.kms.service.UnknownAliasException;
 import io.kroxylicious.kms.service.UnknownKeyException;
 
+import static io.kroxylicious.kms.provider.hashicorp.vault.Metrics.ATTEMPT_NAME;
+import static io.kroxylicious.kms.provider.hashicorp.vault.Metrics.CREATE_DATAKEY_OPERATION;
+import static io.kroxylicious.kms.provider.hashicorp.vault.Metrics.DECRYPT_EDEK_OPERATION;
+import static io.kroxylicious.kms.provider.hashicorp.vault.Metrics.EMPTY_FAILURE;
+import static io.kroxylicious.kms.provider.hashicorp.vault.Metrics.NOT_FOUND_FAILURE;
+import static io.kroxylicious.kms.provider.hashicorp.vault.Metrics.OUTCOME_FAILURE;
+import static io.kroxylicious.kms.provider.hashicorp.vault.Metrics.OUTCOME_NAME;
+import static io.kroxylicious.kms.provider.hashicorp.vault.Metrics.OUTCOME_SUCCESS;
+import static io.kroxylicious.kms.provider.hashicorp.vault.Metrics.RESOLVE_ALIAS_OPERATION;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThat;
 
@@ -48,9 +63,16 @@ class VaultKmsIT {
     private VaultContainer vaultContainer;
     private VaultKms service;
 
+    private static MeterRegistry meterRegistry;
+
     @BeforeEach
     @SuppressWarnings("resource")
     void beforeEach() {
+        meterRegistry = new SimpleMeterRegistry();
+        Metrics.globalRegistry.add(meterRegistry);
+        // we need to recreate the static counters as they are cleared from the global registry afterEach test
+        // the old Counter references continue to function but are not connected to the new meterRegistry
+        io.kroxylicious.kms.provider.hashicorp.vault.Metrics.initialize();
         assumeThat(DockerClientFactory.instance().isDockerAvailable()).withFailMessage("docker unavailable").isTrue();
 
         vaultContainer = new VaultContainer<>(HASHICORP_VAULT)
@@ -66,6 +88,8 @@ class VaultKmsIT {
 
     @AfterEach
     void afterEach() {
+        meterRegistry.clear();
+        Metrics.globalRegistry.clear();
         if (vaultContainer != null) {
             vaultContainer.close();
         }
@@ -79,6 +103,8 @@ class VaultKmsIT {
         assertThat(resolved)
                 .succeedsWithin(Duration.ofSeconds(5))
                 .isEqualTo(keyName);
+        assertCounterHasValue(OUTCOME_NAME, List.of(RESOLVE_ALIAS_OPERATION, OUTCOME_SUCCESS, EMPTY_FAILURE), 1);
+        assertCounterHasValue(ATTEMPT_NAME, List.of(RESOLVE_ALIAS_OPERATION), 1);
     }
 
     @Test
@@ -89,6 +115,8 @@ class VaultKmsIT {
                 .failsWithin(Duration.ofSeconds(5))
                 .withThrowableThat()
                 .withCauseInstanceOf(UnknownAliasException.class);
+        assertCounterHasValue(OUTCOME_NAME, List.of(RESOLVE_ALIAS_OPERATION, OUTCOME_FAILURE, NOT_FOUND_FAILURE), 1);
+        assertCounterHasValue(ATTEMPT_NAME, List.of(RESOLVE_ALIAS_OPERATION), 1);
     }
 
     @Test
@@ -100,10 +128,16 @@ class VaultKmsIT {
         assertThat(pairStage).succeedsWithin(Duration.ofSeconds(5));
         var pair = pairStage.toCompletableFuture().join();
 
+        assertCounterHasValue(OUTCOME_NAME, List.of(CREATE_DATAKEY_OPERATION, OUTCOME_SUCCESS, EMPTY_FAILURE), 1);
+        assertCounterHasValue(ATTEMPT_NAME, List.of(CREATE_DATAKEY_OPERATION), 1);
+
         var decryptedDekStage = service.decryptEdek(pair.edek());
         assertThat(decryptedDekStage)
                 .succeedsWithin(Duration.ofSeconds(5))
                 .isEqualTo(pair.dek());
+
+        assertCounterHasValue(OUTCOME_NAME, List.of(DECRYPT_EDEK_OPERATION, OUTCOME_SUCCESS, EMPTY_FAILURE), 1);
+        assertCounterHasValue(ATTEMPT_NAME, List.of(DECRYPT_EDEK_OPERATION), 1);
     }
 
     @Test
@@ -133,6 +167,9 @@ class VaultKmsIT {
                 .failsWithin(Duration.ofSeconds(5))
                 .withThrowableThat()
                 .withCauseInstanceOf(UnknownKeyException.class);
+
+        assertCounterHasValue(OUTCOME_NAME, List.of(CREATE_DATAKEY_OPERATION, OUTCOME_FAILURE, NOT_FOUND_FAILURE), 1);
+        assertCounterHasValue(ATTEMPT_NAME, List.of(CREATE_DATAKEY_OPERATION), 1);
     }
 
     @Test
@@ -142,6 +179,9 @@ class VaultKmsIT {
                 .failsWithin(Duration.ofSeconds(5))
                 .withThrowableThat()
                 .withCauseInstanceOf(UnknownKeyException.class);
+
+        assertCounterHasValue(OUTCOME_NAME, List.of(DECRYPT_EDEK_OPERATION, OUTCOME_FAILURE, NOT_FOUND_FAILURE), 1);
+        assertCounterHasValue(ATTEMPT_NAME, List.of(DECRYPT_EDEK_OPERATION), 1);
     }
 
     @Test
@@ -193,6 +233,12 @@ class VaultKmsIT {
             Thread.currentThread().interrupt();
             throw new RuntimeException(e);
         }
+    }
+
+    private void assertCounterHasValue(String name, List<Tag> tags, int expected) {
+        var counter = meterRegistry.find(name).tags(tags).counter();
+        assertThat(counter).isNotNull();
+        assertThat(counter.count()).isEqualTo(expected);
     }
 
 }

@@ -14,6 +14,7 @@ import java.time.Duration;
 import java.util.Base64;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -57,7 +58,6 @@ public class VaultKms implements Kms<String, VaultEdek> {
     private static final String AES_KEY_ALGO = "AES";
     private final Duration timeout;
     private final HttpClient vaultClient;
-
     private final URI vaultUrl;
     private final String vaultToken;
 
@@ -83,12 +83,11 @@ public class VaultKms implements Kms<String, VaultEdek> {
     @NonNull
     @Override
     public CompletionStage<DekPair<VaultEdek>> generateDekPair(@NonNull String kekRef) {
-
         var request = createVaultRequest()
                 .uri(vaultUrl.resolve("v1/transit/datakey/plaintext/%s".formatted(encode(kekRef, UTF_8))))
                 .POST(HttpRequest.BodyPublishers.noBody())
                 .build();
-
+        Metrics.createDataKey().attempt().increment();
         return vaultClient.sendAsync(request, statusHandler(kekRef, new JsonBodyHandler<VaultResponse<DataKeyData>>(new TypeReference<>() {
         }), UnknownKeyException::new))
                 .thenApply(HttpResponse::body)
@@ -97,6 +96,8 @@ public class VaultKms implements Kms<String, VaultEdek> {
                 .thenApply(data -> {
                     var secretKey = new SecretKeySpec(Base64.getDecoder().decode(data.plaintext()), AES_KEY_ALGO);
                     return new DekPair<>(new VaultEdek(kekRef, data.ciphertext().getBytes(UTF_8)), secretKey);
+                }).whenComplete((vaultEdekDekPair, throwable) -> {
+                    recordMetrics(throwable, Metrics.createDataKey());
                 });
 
     }
@@ -112,6 +113,7 @@ public class VaultKms implements Kms<String, VaultEdek> {
 
         var body = createDecryptPostBody(edek);
 
+        Metrics.decryptEdek().attempt().increment();
         var request = createVaultRequest()
                 .uri(vaultUrl.resolve("v1/transit/decrypt/%s".formatted(encode(edek.kekRef(), UTF_8))))
                 .POST(HttpRequest.BodyPublishers.ofString(body))
@@ -121,7 +123,10 @@ public class VaultKms implements Kms<String, VaultEdek> {
         }), UnknownKeyException::new)).thenApply(HttpResponse::body)
                 .thenApply(Supplier::get)
                 .thenApply(VaultResponse::data)
-                .thenApply(data -> new SecretKeySpec(Base64.getDecoder().decode(data.plaintext()), AES_KEY_ALGO));
+                .<SecretKey> thenApply(data -> new SecretKeySpec(Base64.getDecoder().decode(data.plaintext()), AES_KEY_ALGO))
+                .whenComplete((secretKeySpec, throwable) -> {
+                    recordMetrics(throwable, Metrics.decryptEdek());
+                });
     }
 
     private String createDecryptPostBody(@NonNull VaultEdek edek) {
@@ -148,12 +153,16 @@ public class VaultKms implements Kms<String, VaultEdek> {
                 .uri(vaultUrl.resolve("v1/transit/keys/%s".formatted(encode(alias, UTF_8))))
                 .build();
 
+        Metrics.resolveAlias().attempt().increment();
         return vaultClient.sendAsync(request, statusHandler(alias, new JsonBodyHandler<VaultResponse<ReadKeyData>>(new TypeReference<>() {
         }), UnknownAliasException::new))
                 .thenApply(HttpResponse::body)
                 .thenApply(Supplier::get)
                 .thenApply(VaultResponse::data)
-                .thenApply(ReadKeyData::name);
+                .thenApply(ReadKeyData::name)
+                .whenComplete((s, throwable) -> {
+                    recordMetrics(throwable, Metrics.resolveAlias());
+                });
 
     }
 
@@ -168,6 +177,21 @@ public class VaultKms implements Kms<String, VaultEdek> {
                 .timeout(timeout)
                 .header("X-Vault-Token", vaultToken)
                 .header("Accept", "application/json");
+    }
+
+    private static void recordMetrics(Throwable throwable, Metrics.OperationMetrics outcome) {
+        if (throwable == null) {
+            outcome.success().increment();
+        }
+        else {
+            Throwable toCheck = throwable instanceof CompletionException && throwable.getCause() != null ? throwable.getCause() : throwable;
+            if (toCheck instanceof UnknownAliasException || toCheck instanceof UnknownKeyException) {
+                outcome.notFound().increment();
+            }
+            else {
+                outcome.exception().increment();
+            }
+        }
     }
 
     private static <T> HttpResponse.BodyHandler<T> statusHandler(String keyRef, HttpResponse.BodyHandler<T> handler, Function<String, KmsException> notFound) {

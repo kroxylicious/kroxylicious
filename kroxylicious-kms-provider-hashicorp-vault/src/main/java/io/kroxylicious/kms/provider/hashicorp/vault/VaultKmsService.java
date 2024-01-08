@@ -30,6 +30,7 @@ public class VaultKmsService implements KmsService<VaultKmsService.Config, Strin
         public Config {
             Objects.requireNonNull(vaultUrl);
             Objects.requireNonNull(vaultToken);
+            Metrics.initialize();
         }
     }
 
