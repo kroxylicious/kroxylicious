@@ -11,6 +11,8 @@ import java.util.concurrent.ThreadLocalRandom;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import io.micrometer.core.instrument.Metrics;
+
 import io.kroxylicious.filter.encryption.inband.BufferPool;
 import io.kroxylicious.filter.encryption.inband.InBandKeyManager;
 import io.kroxylicious.kms.service.Kms;
@@ -32,6 +34,8 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 @Plugin(configType = EnvelopeEncryption.Config.class)
 public class EnvelopeEncryption<K, E> implements FilterFactory<EnvelopeEncryption.Config, EnvelopeEncryption.Config> {
 
+    private static KmsMetrics kmsMetrics = MicrometerKmsMetrics.create(Metrics.globalRegistry);
+
     record Config(
                   @JsonProperty(required = true) @PluginImplName(KmsService.class) String kms,
                   @PluginImplConfig(implNameProperty = "kms") Object kmsConfig,
@@ -52,6 +56,7 @@ public class EnvelopeEncryption<K, E> implements FilterFactory<EnvelopeEncryptio
     public EnvelopeEncryptionFilter<K> createFilter(FilterFactoryContext context, Config configuration) {
         KmsService<Object, K, E> kmsPlugin = context.pluginInstance(KmsService.class, configuration.kms());
         Kms<K, E> kms = kmsPlugin.buildKms(configuration.kmsConfig());
+        kms = InstrumentedKms.instrument(kms, kmsMetrics);
 
         var keyManager = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000, context.eventLoop(),
                 new ExponentialJitterBackoffStrategy(Duration.ofMillis(500), Duration.ofSeconds(5), 2d, ThreadLocalRandom.current()));

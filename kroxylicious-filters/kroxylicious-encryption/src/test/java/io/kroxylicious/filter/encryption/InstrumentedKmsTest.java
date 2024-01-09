@@ -9,6 +9,7 @@ package io.kroxylicious.filter.encryption;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ExecutionException;
 
 import javax.crypto.SecretKey;
 
@@ -37,45 +38,45 @@ class InstrumentedKmsTest {
     Kms<String, String> kms;
     @Mock
     KmsMetrics metrics;
-
     @Mock
     SecretKey secretKey;
-
     @Mock
     Serde<String> serde;
 
     @Test
-    public void testResolveAliasSuccess() {
+    void testResolveAliasSuccess() {
         Kms<String, String> instrument = InstrumentedKms.instrument(kms, metrics);
         when(kms.resolveAlias("alias")).thenReturn(CompletableFuture.completedFuture("resolved"));
         CompletionStage<String> stage = instrument.resolveAlias("alias");
-        assertThat(stage).succeedsWithin(Duration.ZERO);
+        assertThat(stage).succeedsWithin(Duration.ZERO).isEqualTo("resolved");
         verify(metrics).countResolveAliasAttempt();
         verify(metrics).countResolveAliasOutcome(SUCCESS);
     }
 
     @Test
-    public void testResolveAliasException() {
+    void testResolveAliasException() {
         Kms<String, String> instrument = InstrumentedKms.instrument(kms, metrics);
-        when(kms.resolveAlias("alias")).thenReturn(CompletableFuture.failedFuture(new NullPointerException("fail")));
+        NullPointerException cause = new NullPointerException("fail");
+        when(kms.resolveAlias("alias")).thenReturn(CompletableFuture.failedFuture(cause));
         CompletionStage<String> stage = instrument.resolveAlias("alias");
-        assertThat(stage).failsWithin(Duration.ZERO);
+        assertStageFailsWithCause(stage, cause);
         verify(metrics).countResolveAliasAttempt();
         verify(metrics).countResolveAliasOutcome(EXCEPTION);
     }
 
     @Test
-    public void testResolveAliasUnknownAliasException() {
+    void testResolveAliasUnknownAliasException() {
         Kms<String, String> instrument = InstrumentedKms.instrument(kms, metrics);
-        when(kms.resolveAlias("alias")).thenReturn(CompletableFuture.failedFuture(new UnknownAliasException("unknown")));
+        UnknownAliasException cause = new UnknownAliasException("unknown");
+        when(kms.resolveAlias("alias")).thenReturn(CompletableFuture.failedFuture(cause));
         CompletionStage<String> stage = instrument.resolveAlias("alias");
-        assertThat(stage).failsWithin(Duration.ZERO);
+        assertStageFailsWithCause(stage, cause);
         verify(metrics).countResolveAliasAttempt();
         verify(metrics).countResolveAliasOutcome(NOT_FOUND);
     }
 
     @Test
-    public void testGenerateDekPairSuccess() {
+    void testGenerateDekPairSuccess() {
         Kms<String, String> instrument = InstrumentedKms.instrument(kms, metrics);
         DekPair<String> dekPair = new DekPair<>("edek", secretKey);
         when(kms.generateDekPair("kekRef")).thenReturn(CompletableFuture.completedFuture(dekPair));
@@ -86,27 +87,29 @@ class InstrumentedKmsTest {
     }
 
     @Test
-    public void testGenerateDekPairException() {
+    void testGenerateDekPairException() {
         Kms<String, String> instrument = InstrumentedKms.instrument(kms, metrics);
-        when(kms.generateDekPair("kekRef")).thenReturn(CompletableFuture.failedFuture(new NullPointerException("fail")));
+        NullPointerException cause = new NullPointerException("fail");
+        when(kms.generateDekPair("kekRef")).thenReturn(CompletableFuture.failedFuture(cause));
         CompletionStage<DekPair<String>> stage = instrument.generateDekPair("kekRef");
-        assertThat(stage).failsWithin(Duration.ZERO);
+        assertStageFailsWithCause(stage, cause);
         verify(metrics).countGenerateDekPairAttempt();
         verify(metrics).countGenerateDekPairOutcome(EXCEPTION);
     }
 
     @Test
-    public void testGenerateDekPairUnknownKeyException() {
+    void testGenerateDekPairUnknownKeyException() {
         Kms<String, String> instrument = InstrumentedKms.instrument(kms, metrics);
-        when(kms.generateDekPair("kekRef")).thenReturn(CompletableFuture.failedFuture(new UnknownKeyException("unknown")));
+        UnknownKeyException cause = new UnknownKeyException("unknown");
+        when(kms.generateDekPair("kekRef")).thenReturn(CompletableFuture.failedFuture(cause));
         CompletionStage<DekPair<String>> stage = instrument.generateDekPair("kekRef");
-        assertThat(stage).failsWithin(Duration.ZERO);
+        assertStageFailsWithCause(stage, cause);
         verify(metrics).countGenerateDekPairAttempt();
         verify(metrics).countGenerateDekPairOutcome(NOT_FOUND);
     }
 
     @Test
-    public void testDecryptEdekSuccess() {
+    void testDecryptEdekSuccess() {
         Kms<String, String> instrument = InstrumentedKms.instrument(kms, metrics);
         when(kms.decryptEdek("edek")).thenReturn(CompletableFuture.completedFuture(secretKey));
         CompletionStage<SecretKey> stage = instrument.decryptEdek("edek");
@@ -116,27 +119,33 @@ class InstrumentedKmsTest {
     }
 
     @Test
-    public void testDecryptEdekException() {
+    void testDecryptEdekException() {
         Kms<String, String> instrument = InstrumentedKms.instrument(kms, metrics);
-        when(kms.decryptEdek("edek")).thenReturn(CompletableFuture.failedFuture(new NullPointerException("fail")));
+        NullPointerException cause = new NullPointerException("fail");
+        when(kms.decryptEdek("edek")).thenReturn(CompletableFuture.failedFuture(cause));
         CompletionStage<SecretKey> stage = instrument.decryptEdek("edek");
-        assertThat(stage).failsWithin(Duration.ZERO);
+        assertStageFailsWithCause(stage, cause);
         verify(metrics).countDecryptEdekAttempt();
         verify(metrics).countDecryptEdekOutcome(EXCEPTION);
     }
 
     @Test
-    public void testDecryptEdekUnknownKeyException() {
+    void testDecryptEdekUnknownKeyException() {
         Kms<String, String> instrument = InstrumentedKms.instrument(kms, metrics);
-        when(kms.decryptEdek("edek")).thenReturn(CompletableFuture.failedFuture(new UnknownKeyException("unknown")));
+        UnknownKeyException cause = new UnknownKeyException("unknown");
+        when(kms.decryptEdek("edek")).thenReturn(CompletableFuture.failedFuture(cause));
         CompletionStage<SecretKey> stage = instrument.decryptEdek("edek");
-        assertThat(stage).failsWithin(Duration.ZERO);
+        assertStageFailsWithCause(stage, cause);
         verify(metrics).countDecryptEdekAttempt();
         verify(metrics).countDecryptEdekOutcome(NOT_FOUND);
     }
 
+    private static void assertStageFailsWithCause(CompletionStage<?> stage, Throwable cause) {
+        assertThat(stage).failsWithin(Duration.ZERO).withThrowableThat().isInstanceOf(ExecutionException.class).withCause(cause);
+    }
+
     @Test
-    public void testEdekSerdeDelegation() {
+    void testEdekSerdeDelegation() {
         Kms<String, String> instrument = InstrumentedKms.instrument(kms, metrics);
         when(kms.edekSerde()).thenReturn(serde);
         Serde<String> serde = instrument.edekSerde();

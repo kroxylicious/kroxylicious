@@ -33,78 +33,78 @@ class MicrometerKmsMetricsTest {
     KmsMetrics kmsMetrics = MicrometerKmsMetrics.create(registry);
 
     @AfterEach
-    public void teardown() {
+    void teardown() {
         registry.close();
     }
 
     @Test
-    public void testCountDecryptEdekAttempt() {
+    void testCountDecryptEdekAttempt() {
         kmsMetrics.countDecryptEdekAttempt();
         assertCounterValueEquals(ATTEMPT_COUNTER_NAME, List.of(OPERATION_DECRYPT_EDEK_TAG), 1.0d);
     }
 
     @Test
-    public void testCountDecryptEdekSuccess() {
+    void testCountDecryptEdekSuccess() {
         kmsMetrics.countDecryptEdekOutcome(KmsMetrics.OperationOutcome.SUCCESS);
         assertCounterValueEquals(OUTCOME_COUNTER_NAME, List.of(OPERATION_DECRYPT_EDEK_TAG, SUCCESS_OUTCOME_TAG), 1.0d);
     }
 
     @Test
-    public void testCountDecryptEdekNotFound() {
+    void testCountDecryptEdekNotFound() {
         kmsMetrics.countDecryptEdekOutcome(KmsMetrics.OperationOutcome.NOT_FOUND);
         assertCounterValueEquals(OUTCOME_COUNTER_NAME, List.of(OPERATION_DECRYPT_EDEK_TAG, NOT_FOUND_OUTCOME_TAG), 1.0d);
     }
 
     @Test
-    public void testCountDecryptEdekException() {
+    void testCountDecryptEdekException() {
         kmsMetrics.countDecryptEdekOutcome(KmsMetrics.OperationOutcome.EXCEPTION);
         assertCounterValueEquals(OUTCOME_COUNTER_NAME, List.of(OPERATION_DECRYPT_EDEK_TAG, EXCEPTION_OUTCOME_TAG), 1.0d);
     }
 
     @Test
-    public void testCountGenerateDekPairAttempt() {
+    void testCountGenerateDekPairAttempt() {
         kmsMetrics.countGenerateDekPairAttempt();
         assertCounterValueEquals(ATTEMPT_COUNTER_NAME, List.of(OPERATION_GENERATE_DEK_PAIR_TAG), 1.0d);
     }
 
     @Test
-    public void testCountGenerateDekPairSuccess() {
+    void testCountGenerateDekPairSuccess() {
         kmsMetrics.countGenerateDekPairOutcome(KmsMetrics.OperationOutcome.SUCCESS);
         assertCounterValueEquals(OUTCOME_COUNTER_NAME, List.of(OPERATION_GENERATE_DEK_PAIR_TAG, SUCCESS_OUTCOME_TAG), 1.0d);
     }
 
     @Test
-    public void testCountGenerateDekPairNotFound() {
+    void testCountGenerateDekPairNotFound() {
         kmsMetrics.countGenerateDekPairOutcome(KmsMetrics.OperationOutcome.NOT_FOUND);
         assertCounterValueEquals(OUTCOME_COUNTER_NAME, List.of(OPERATION_GENERATE_DEK_PAIR_TAG, NOT_FOUND_OUTCOME_TAG), 1.0d);
     }
 
     @Test
-    public void testCountGenerateDekPairException() {
+    void testCountGenerateDekPairException() {
         kmsMetrics.countGenerateDekPairOutcome(KmsMetrics.OperationOutcome.EXCEPTION);
         assertCounterValueEquals(OUTCOME_COUNTER_NAME, List.of(OPERATION_GENERATE_DEK_PAIR_TAG, EXCEPTION_OUTCOME_TAG), 1.0d);
     }
 
     @Test
-    public void testCountResolveAliasAttempt() {
+    void testCountResolveAliasAttempt() {
         kmsMetrics.countResolveAliasAttempt();
         assertCounterValueEquals(ATTEMPT_COUNTER_NAME, List.of(OPERATION_RESOLVE_ALIAS_TAG), 1.0d);
     }
 
     @Test
-    public void testCountResolveAliasSuccess() {
+    void testCountResolveAliasSuccess() {
         kmsMetrics.countResolveAliasOutcome(KmsMetrics.OperationOutcome.SUCCESS);
         assertCounterValueEquals(OUTCOME_COUNTER_NAME, List.of(OPERATION_RESOLVE_ALIAS_TAG, SUCCESS_OUTCOME_TAG), 1.0d);
     }
 
     @Test
-    public void testCountResolveAliasNotFound() {
+    void testCountResolveAliasNotFound() {
         kmsMetrics.countResolveAliasOutcome(KmsMetrics.OperationOutcome.NOT_FOUND);
         assertCounterValueEquals(OUTCOME_COUNTER_NAME, List.of(OPERATION_RESOLVE_ALIAS_TAG, NOT_FOUND_OUTCOME_TAG), 1.0d);
     }
 
     @Test
-    public void testCountResolveAliasException() {
+    void testCountResolveAliasException() {
         kmsMetrics.countResolveAliasOutcome(KmsMetrics.OperationOutcome.EXCEPTION);
         assertCounterValueEquals(OUTCOME_COUNTER_NAME, List.of(OPERATION_RESOLVE_ALIAS_TAG, EXCEPTION_OUTCOME_TAG), 1.0d);
     }

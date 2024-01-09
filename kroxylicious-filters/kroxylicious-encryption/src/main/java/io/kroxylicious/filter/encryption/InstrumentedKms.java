@@ -6,7 +6,6 @@
 
 package io.kroxylicious.filter.encryption;
 
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 
 import javax.crypto.SecretKey;
@@ -73,13 +72,16 @@ public class InstrumentedKms<K, E> implements Kms<K, E> {
             return KmsMetrics.OperationOutcome.SUCCESS;
         }
         else {
-            var toCheck = throwable instanceof CompletionException && throwable.getCause() != null ? throwable.getCause() : throwable;
-            if (toCheck instanceof UnknownKeyException || toCheck instanceof UnknownAliasException) {
+            if (isNotFoundException(throwable) || isNotFoundException(throwable.getCause())) {
                 return KmsMetrics.OperationOutcome.NOT_FOUND;
             }
             else {
                 return KmsMetrics.OperationOutcome.EXCEPTION;
             }
         }
+    }
+
+    private static boolean isNotFoundException(Throwable throwable) {
+        return throwable instanceof UnknownKeyException || throwable instanceof UnknownAliasException;
     }
 }
