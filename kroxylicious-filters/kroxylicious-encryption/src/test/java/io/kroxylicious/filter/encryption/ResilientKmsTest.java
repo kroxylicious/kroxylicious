@@ -19,6 +19,8 @@ import org.mockito.Mockito;
 import io.kroxylicious.kms.service.DekPair;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.Serde;
+import io.kroxylicious.kms.service.UnknownAliasException;
+import io.kroxylicious.kms.service.UnknownKeyException;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -170,6 +172,24 @@ class ResilientKmsTest {
     }
 
     @Test
+    void testResolveAliasDoesNotRetryUnknownAlias() {
+        // given
+        Kms<Long, Long> kms = Mockito.mock(Kms.class);
+        when(kms.resolveAlias("abc")).thenReturn(failedFuture(new UnknownAliasException("unknown alias")), completedFuture(RESULT));
+        BackoffStrategy strategy = Mockito.mock(BackoffStrategy.class);
+        when(strategy.getDelay(anyInt())).thenReturn(Duration.ofMillis(DELAY));
+        ScheduledExecutorService mockExecutor = getMockExecutor();
+        Kms<Long, Long> resilientKms = ResilientKms.get(kms, mockExecutor, strategy, 3);
+
+        // when
+        CompletionStage<Long> kekId = resilientKms.resolveAlias("abc");
+
+        // then
+        assertThat(kekId).failsWithin(5, TimeUnit.SECONDS).withThrowableThat().withMessageContaining("unknown alias");
+        verify(mockExecutor, times(1)).schedule(any(Runnable.class), eq(DELAY), eq(TimeUnit.MILLISECONDS));
+    }
+
+    @Test
     void testGenerateDekRetries() {
         // given
         Kms<Long, Long> kms = Mockito.mock(Kms.class);
@@ -189,6 +209,25 @@ class ResilientKmsTest {
     }
 
     @Test
+    void testGenerateDekDoesNotRetryUnknownKey() {
+        // given
+        Kms<Long, Long> kms = Mockito.mock(Kms.class);
+        when(kms.generateDekPair(1L)).thenReturn(failedFuture(new UnknownKeyException("unknown key")),
+                completedFuture(DEK_PAIR));
+        BackoffStrategy strategy = Mockito.mock(BackoffStrategy.class);
+        when(strategy.getDelay(anyInt())).thenReturn(Duration.ofMillis(DELAY));
+        ScheduledExecutorService mockExecutor = getMockExecutor();
+        Kms<Long, Long> resilientKms = ResilientKms.get(kms, mockExecutor, strategy, 3);
+
+        // when
+        CompletionStage<DekPair<Long>> dekPair = resilientKms.generateDekPair(1L);
+
+        // then
+        assertThat(dekPair).failsWithin(5, TimeUnit.SECONDS).withThrowableThat().withMessageContaining("unknown key");
+        verify(mockExecutor, times(1)).schedule(any(Runnable.class), eq(DELAY), eq(TimeUnit.MILLISECONDS));
+    }
+
+    @Test
     void testDecryptEdekRetries() {
         // given
         Kms<Long, Long> kms = Mockito.mock(Kms.class);
@@ -204,6 +243,24 @@ class ResilientKmsTest {
         // then
         assertThat(dek).succeedsWithin(5, TimeUnit.SECONDS).isEqualTo(SECRET_KEY);
         verify(mockExecutor, times(2)).schedule(any(Runnable.class), eq(DELAY), eq(TimeUnit.MILLISECONDS));
+    }
+
+    @Test
+    void testDecryptEdekDoesNotRetryUnknownKey() {
+        // given
+        Kms<Long, Long> kms = Mockito.mock(Kms.class);
+        when(kms.decryptEdek(1L)).thenReturn(failedFuture(new UnknownKeyException("unknown key")), completedFuture(SECRET_KEY));
+        BackoffStrategy strategy = Mockito.mock(BackoffStrategy.class);
+        when(strategy.getDelay(anyInt())).thenReturn(Duration.ofMillis(DELAY));
+        ScheduledExecutorService mockExecutor = getMockExecutor();
+        Kms<Long, Long> resilientKms = ResilientKms.get(kms, mockExecutor, strategy, 3);
+
+        // when
+        CompletionStage<SecretKey> dek = resilientKms.decryptEdek(1L);
+
+        // then
+        assertThat(dek).failsWithin(5, TimeUnit.SECONDS).withThrowableThat().withMessageContaining("unknown key");
+        verify(mockExecutor, times(1)).schedule(any(Runnable.class), eq(DELAY), eq(TimeUnit.MILLISECONDS));
     }
 
     @Test
