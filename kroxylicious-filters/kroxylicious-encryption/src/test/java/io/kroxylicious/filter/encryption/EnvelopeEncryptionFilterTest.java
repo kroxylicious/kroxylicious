@@ -221,11 +221,8 @@ class EnvelopeEncryptionFilterTest {
 
         // Then
         verify(context, times(1)).forwardRequest(any(RequestHeaderData.class), assertArg(actualFetchResponse -> assertThat(actualFetchResponse)
-                .isInstanceOf(ProduceRequestData.class)
-                .asInstanceOf(InstanceOfAssertFactories.type(ProduceRequestData.class))
                 .has(produceRequestMatching(prd -> {
-                    var actuals = produceRequestToRecordStream(prd)
-                            .map(Record::offset).toList();
+                    var actuals = produceRequestToRecordStream(prd).map(Record::offset).toList();
                     return Objects.equals(actuals, offsets);
                 }))));
     }
@@ -305,11 +302,8 @@ class EnvelopeEncryptionFilterTest {
 
         // Then
         verify(context, times(1)).forwardResponse(any(ResponseHeaderData.class), assertArg(actualFetchResponse -> assertThat(actualFetchResponse)
-                .isInstanceOf(FetchResponseData.class)
-                .asInstanceOf(InstanceOfAssertFactories.type(FetchResponseData.class))
                 .has(fetchResponseMatching(fetchResponseData -> {
-                    var actuals = fetchResponseToRecordStream(fetchResponseData)
-                            .map(Record::offset).toList();
+                    var actuals = fetchResponseToRecordStream(fetchResponseData).map(Record::offset).toList();
                     return Objects.equals(actuals, offsets);
                 }))));
     }
@@ -334,8 +328,7 @@ class EnvelopeEncryptionFilterTest {
         encryptionFilter.onProduceRequest(ProduceRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), produceRequestData, context);
 
         // Then
-        verify(context).forwardRequest(any(), argThat(request -> assertThat(request).isInstanceOf(ProduceRequestData.class)
-                .asInstanceOf(InstanceOfAssertFactories.type(ProduceRequestData.class))
+        verify(context).forwardRequest(any(), argThat(request -> assertThat(request)
                 .has(produceRequestMatching(pr -> pr.topicData().stream().anyMatch(td -> ENCRYPTED_TOPIC.equals(td.name()))))));
     }
 
