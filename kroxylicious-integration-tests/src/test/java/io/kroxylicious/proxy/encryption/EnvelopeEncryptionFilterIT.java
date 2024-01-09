@@ -23,7 +23,6 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.TopicPartition;
 import org.assertj.core.api.InstanceOfAssertFactories;
-import org.hamcrest.Matchers;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -47,6 +46,7 @@ import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThatCode;
 import static org.awaitility.Awaitility.await;
+import static org.hamcrest.Matchers.contains;
 
 @ExtendWith(KafkaClusterExtension.class)
 @ExtendWith(EnvelopeEncryptionTestInvocationContextProvider.class)
@@ -298,7 +298,7 @@ class EnvelopeEncryptionFilterIT {
             var directlyReadRecords = await().atMost(Duration.ofSeconds(30))
                     .pollDelay(Duration.ofSeconds(1))
                     .until(() -> consumeAll(compactedTopic.name(), 0, directConsumer).map(EnvelopeEncryptionFilterIT::stringifyRecordKeyOffset).toList(),
-                            Matchers.contains("a:0", "b:2", "c:3"));
+                            contains("a:0", "b:2", "c:3"));
 
             var proxyReadRecords = consumeAll(compactedTopic.name(), 0, proxyConsumer).map(EnvelopeEncryptionFilterIT::stringifyRecordKeyOffset).toList();
 
