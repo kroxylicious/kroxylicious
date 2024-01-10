@@ -36,6 +36,7 @@ class CachingKmsTest {
         Kms<Long, Long> caching = CachingKms.caching(kms, 1L, Duration.ZERO, 1L, Duration.ZERO, Duration.ofMinutes(8));
         Serde<Long> longSerde = caching.edekSerde();
         assertThat(longSerde).isSameAs(mockSerde);
+        verify(kms).edekSerde();
     }
 
     @Test
@@ -46,6 +47,7 @@ class CachingKmsTest {
         Kms<Long, Long> caching = CachingKms.caching(kms, 1L, Duration.ZERO, 1L, Duration.ZERO, Duration.ofMinutes(8));
         CompletionStage<DekPair<Long>> dekPairCompletionStage = caching.generateDekPair(1L);
         assertThat(dekPairCompletionStage).succeedsWithin(5, TimeUnit.SECONDS).isSameAs(eDekPair);
+        verify(kms).generateDekPair(1L);
     }
 
     @Test
