@@ -103,7 +103,8 @@ public class FetchResponseTransformationFilter implements FetchResponseFilter {
 
                     for (MutableRecordBatch batch : records.batches()) {
                         for (Record batchRecord : batch) {
-                            newRecords.append(batchRecord.timestamp(), batchRecord.key(), valueTransformation.transform(topicData.topic(), batchRecord.value()));
+                            newRecords.appendWithOffset(batchRecord.offset(), batchRecord.timestamp(), batchRecord.key(),
+                                    valueTransformation.transform(topicData.topic(), batchRecord.value()));
                         }
                     }
 
