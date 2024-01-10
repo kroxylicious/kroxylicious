@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
@@ -21,11 +22,16 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Stream;
 
+import javax.crypto.SecretKey;
+
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.utils.ByteUtils;
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
+import org.mockito.stubbing.Answer;
 
 import io.kroxylicious.filter.encryption.BackoffStrategy;
 import io.kroxylicious.filter.encryption.EncryptionScheme;
@@ -33,10 +39,7 @@ import io.kroxylicious.filter.encryption.Receiver;
 import io.kroxylicious.filter.encryption.RecordField;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.InMemoryKms;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.UnitTestingKmsService;
-import io.kroxylicious.kms.service.DekPair;
-import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.KmsException;
-import io.kroxylicious.kms.service.Serde;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -45,6 +48,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.when;
 
@@ -52,7 +56,6 @@ class InBandKeyManagerTest {
 
     public static final ScheduledExecutorService EXECUTOR_SERVICE = Executors.newScheduledThreadPool(1);
     public static final BackoffStrategy BACKOFF_STRATEGY = failures -> Duration.ZERO;
-    public static final RecordHeader ENCRYPTION_V1 = new RecordHeader(InBandKeyManager.ENCRYPTION_HEADER_NAME, new byte[]{ 1 });
 
     @Test
     void shouldBeAbleToDependOnRecordHeaderEquality() {
@@ -76,23 +79,30 @@ class InBandKeyManagerTest {
 
         var kekId = kms.generateKey();
 
-        var value = ByteBuffer.wrap(new byte[]{ 1, 2, 3 });
-        TestingRecord record = new TestingRecord(value);
+        var value = new byte[]{ 1, 2, 3 };
+        TestingRecord record = new TestingRecord(ByteBuffer.wrap(value));
 
         List<TestingRecord> encrypted = new ArrayList<>();
         List<TestingRecord> initial = List.of(record);
         assertThat(km.encrypt("topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)), initial, recordReceivedRecord(encrypted)))
                 .isCompleted();
-        record.value().rewind();
-        assertEquals(1, encrypted.size());
-        assertNotEquals(initial, encrypted);
-        // TODO add assertion on headers
+        assertThat(encrypted.iterator())
+                .toIterable()
+                .singleElement()
+                .extracting(TestingRecord::value)
+                .extracting(ByteBuffer::array)
+                .isNotEqualTo(value);
 
         List<TestingRecord> decrypted = new ArrayList<>();
         assertThat(km.decrypt("foo", 1, encrypted, recordReceivedRecord(decrypted)))
                 .isCompleted();
 
-        assertEquals(initial, decrypted);
+        assertThat(decrypted.iterator())
+                .toIterable()
+                .singleElement()
+                .extracting(TestingRecord::value)
+                .extracting(ByteBuffer::array)
+                .isEqualTo(value);
     }
 
     @Test
@@ -120,6 +130,25 @@ class InBandKeyManagerTest {
                 .isCompleted();
 
         assertEquals(initial, decrypted);
+    }
+
+    @Test
+    void decryptSupportsUnencryptedRecordValue() {
+        var kmsService = UnitTestingKmsService.newInstance();
+        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
+        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000, EXECUTOR_SERVICE,
+                BACKOFF_STRATEGY);
+
+        byte[] recBytes = { 1, 2, 3 };
+        TestingRecord record = new TestingRecord(ByteBuffer.wrap(recBytes));
+
+        List<TestingRecord> received = new ArrayList<>();
+        assertThat(km.decrypt("foo", 1, List.of(record), recordReceivedRecord(received)))
+                .isCompleted();
+
+        assertThat(received).hasSize(1);
+        assertThat(received.stream().map(TestingRecord::value).map(ByteBuffer::array))
+                .containsExactly(recBytes);
     }
 
     // we do not want to break compaction tombstoning by creating a parcel for the null value case
@@ -198,7 +227,7 @@ class InBandKeyManagerTest {
 
         List<TestingRecord> encrypted = new ArrayList<>();
         List<TestingRecord> initial = List.of(record, record2);
-        CompletionStage encrypt = km.encrypt("topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
+        CompletionStage<Void> encrypt = km.encrypt("topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
                 initial,
                 recordReceivedRecord(encrypted));
         assertThat(encrypt).failsWithin(Duration.ofSeconds(5)).withThrowableThat()
@@ -222,7 +251,7 @@ class InBandKeyManagerTest {
 
         List<TestingRecord> encrypted = new ArrayList<>();
         List<TestingRecord> initial = List.of(record, record2);
-        CompletionStage encrypt = km.encrypt("topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
+        CompletionStage<Void> encrypt = km.encrypt("topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
                 initial,
                 recordReceivedRecord(encrypted));
         assertThat(encrypt).failsWithin(Duration.ofSeconds(5)).withThrowableThat().withMessageMatching(".*generateDekPair failed after [0-9]+ attempts");
@@ -246,7 +275,7 @@ class InBandKeyManagerTest {
 
         List<TestingRecord> encrypted = new ArrayList<>();
         List<TestingRecord> initial = List.of(record, record2);
-        CompletionStage encrypt = km.encrypt("topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
+        CompletionStage<Void> encrypt = km.encrypt("topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
                 initial,
                 recordReceivedRecord(encrypted));
         assertThat(encrypt).succeedsWithin(Duration.ofSeconds(5));
@@ -258,7 +287,7 @@ class InBandKeyManagerTest {
         var kmsService = UnitTestingKmsService.newInstance();
         InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
         var kekId = kms.generateKey();
-        Kms spyKms = Mockito.spy(kms);
+        InMemoryKms spyKms = Mockito.spy(kms);
         doReturn(CompletableFuture.failedFuture(new KmsException("failed to create that DEK"))).when(spyKms).decryptEdek(any());
 
         var km = new InBandKeyManager<>(spyKms, BufferPool.allocating(), 50000, EXECUTOR_SERVICE,
@@ -271,13 +300,13 @@ class InBandKeyManagerTest {
 
         List<TestingRecord> encrypted = new ArrayList<>();
         List<TestingRecord> initial = List.of(record, record2);
-        CompletionStage encrypt = km.encrypt("topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
+        CompletionStage<Void> encrypt = km.encrypt("topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
                 initial,
                 recordReceivedRecord(encrypted));
         assertThat(encrypt).succeedsWithin(Duration.ofSeconds(5));
 
         List<TestingRecord> decrypted = new ArrayList<>();
-        CompletionStage decrypt = km.decrypt("topic", 1, encrypted, recordReceivedRecord(decrypted));
+        CompletionStage<Void> decrypt = km.decrypt("topic", 1, encrypted, recordReceivedRecord(decrypted));
         assertThat(decrypt).failsWithin(Duration.ofSeconds(5)).withThrowableThat().withMessageMatching(".*decryptEdek failed after [0-9]+ attempts");
     }
 
@@ -299,7 +328,7 @@ class InBandKeyManagerTest {
 
         List<TestingRecord> encrypted = new ArrayList<>();
         List<TestingRecord> initial = List.of(record, record2);
-        CompletionStage encrypt = km.encrypt("topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
+        CompletionStage<Void> encrypt = km.encrypt("topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
                 initial,
                 recordReceivedRecord(encrypted));
         assertThat(encrypt).failsWithin(Duration.ofSeconds(5)).withThrowableThat().withMessageMatching(".*generateDekPair failed after [0-9]+ attempts");
@@ -308,7 +337,7 @@ class InBandKeyManagerTest {
         when(spyKms.generateDekPair(kekId)).thenCallRealMethod();
 
         // when
-        CompletionStage encrypt2 = km.encrypt("topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
+        CompletionStage<Void> encrypt2 = km.encrypt("topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
                 initial,
                 recordReceivedRecord(encrypted));
 
@@ -322,7 +351,7 @@ class InBandKeyManagerTest {
         var kmsService = UnitTestingKmsService.newInstance();
         InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
         var kekId = kms.generateKey();
-        Kms spyKms = Mockito.spy(kms);
+        InMemoryKms spyKms = Mockito.spy(kms);
         doReturn(CompletableFuture.failedFuture(new KmsException("failed to create that DEK"))).when(spyKms).decryptEdek(any());
 
         var km = new InBandKeyManager<>(spyKms, BufferPool.allocating(), 50000, EXECUTOR_SERVICE,
@@ -335,13 +364,13 @@ class InBandKeyManagerTest {
 
         List<TestingRecord> encrypted = new ArrayList<>();
         List<TestingRecord> initial = List.of(record, record2);
-        CompletionStage encrypt = km.encrypt("topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
+        CompletionStage<Void> encrypt = km.encrypt("topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
                 initial,
                 recordReceivedRecord(encrypted));
         assertThat(encrypt).succeedsWithin(Duration.ofSeconds(5));
 
         List<TestingRecord> decrypted = new ArrayList<>();
-        CompletionStage decrypt = km.decrypt("topic", 1, encrypted, recordReceivedRecord(decrypted));
+        CompletionStage<Void> decrypt = km.decrypt("topic", 1, encrypted, recordReceivedRecord(decrypted));
         assertThat(decrypt).failsWithin(Duration.ofSeconds(5)).withThrowableThat().withMessageMatching(".*decryptEdek failed after [0-9]+ attempts");
     }
 
@@ -511,15 +540,13 @@ class InBandKeyManagerTest {
         assertThat(deks).containsExactly(edekOne, edekOne, edekOne, edekOne);
     }
 
-    @NonNull
     private static ByteBuffer copyBytes(ByteBuffer v) {
         if (v == null) {
             return null;
         }
         byte[] bytes = new byte[v.remaining()];
         v.get(bytes);
-        ByteBuffer wrap = ByteBuffer.wrap(bytes);
-        return wrap;
+        return ByteBuffer.wrap(bytes);
     }
 
     @Test
@@ -547,7 +574,7 @@ class InBandKeyManagerTest {
         assertNotEquals(initial, encrypted);
 
         List<TestingRecord> decrypted = new ArrayList<>();
-        assertThat(km.decrypt("topciFoo", 1, encrypted, recordReceivedRecord(decrypted)))
+        assertThat(km.decrypt("topicFoo", 1, encrypted, recordReceivedRecord(decrypted)))
                 .isCompleted();
 
         assertEquals(List.of(new TestingRecord(value, new Header[]{ new RecordHeader("headerFoo", new byte[]{ 4, 5, 6 }) })), decrypted);
@@ -587,10 +614,147 @@ class InBandKeyManagerTest {
                 new TestingRecord(value2, new Header[]{ new RecordHeader("foo", new byte[]{ 10, 11, 12 }) })), decrypted);
     }
 
+    @Test
+    void shouldPropagateHeadersInClearWhenNotEncryptingHeaders() {
+        var kmsService = UnitTestingKmsService.newInstance();
+        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
+        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000, EXECUTOR_SERVICE,
+                BACKOFF_STRATEGY);
+
+        var kekId = kms.generateKey();
+
+        var value = new byte[]{ 1, 2, 3 };
+        var header = new RecordHeader("myHeader", new byte[]{ 4, 5, 6 });
+        var record = new TestingRecord(ByteBuffer.wrap(value), header);
+
+        List<TestingRecord> encrypted = new ArrayList<>();
+        assertThat(km.encrypt("topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)), List.of(record), recordReceivedRecord(encrypted)))
+                .isCompleted();
+        assertThat(encrypted.iterator())
+                .toIterable()
+                .singleElement()
+                .extracting(TestingRecord::headers)
+                .asInstanceOf(InstanceOfAssertFactories.array(Header[].class))
+                .hasSize(2) /* additional header is the kroxylicious.io/encryption header */
+                .contains(header);
+
+        List<TestingRecord> decrypted = new ArrayList<>();
+        assertThat(km.decrypt("foo", 1, encrypted, recordReceivedRecord(decrypted)))
+                .isCompleted();
+
+        assertThat(decrypted.iterator())
+                .toIterable()
+                .singleElement()
+                .extracting(TestingRecord::headers)
+                .asInstanceOf(InstanceOfAssertFactories.array(Header[].class))
+                .hasSize(1)
+                .containsExactly(header);
+    }
+
+    @Test
+    void decryptPreservesOrdering() {
+        var topic = "topic";
+        var partition = 1;
+
+        var kmsService = UnitTestingKmsService.newInstance();
+        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
+        var kekId1 = kms.generateKey();
+        var kekId2 = kms.generateKey();
+
+        var spyKms = Mockito.spy(kms);
+
+        var km = new InBandKeyManager<>(spyKms, BufferPool.allocating(), 50000, EXECUTOR_SERVICE,
+                BACKOFF_STRATEGY);
+
+        byte[] rec1Bytes = { 1, 2, 3 };
+        byte[] rec2Bytes = { 4, 5, 6 };
+        var rec1 = new TestingRecord(ByteBuffer.wrap(rec1Bytes));
+        var rec2 = new TestingRecord(ByteBuffer.wrap(rec2Bytes));
+
+        List<TestingRecord> encrypted = new ArrayList<>();
+        var encryptStage = km.encrypt(topic, partition, new EncryptionScheme<>(kekId1, EnumSet.of(RecordField.RECORD_VALUE)),
+                List.of(rec1),
+                recordReceivedRecord(encrypted))
+                .thenApply(u -> km.encrypt(topic, partition, new EncryptionScheme<>(kekId2, EnumSet.of(RecordField.RECORD_VALUE)),
+                        List.of(rec2),
+                        recordReceivedRecord(encrypted)));
+        assertThat(encryptStage).isCompleted();
+        assertThat(encrypted).hasSize(2);
+        assertThat(kms.numDeksGenerated()).isEqualTo(2);
+
+        var lastEdek = kms.getGeneratedEdek(kms.numDeksGenerated() - 1).edek();
+        var argument = ArgumentCaptor.forClass(kms.edekClass());
+
+        // intercept the decryptEdek requests and organise for the first n-1 deks to decrypt only after the last
+        var trigger = new CompletableFuture<Void>();
+        doAnswer((Answer<CompletableFuture<SecretKey>>) invocation -> {
+            var edek = argument.getValue();
+            var underlying = kms.decryptEdek(edek);
+            if (Objects.equals(argument.getValue(), lastEdek)) {
+                CompletableFuture.delayedExecutor(25, TimeUnit.MILLISECONDS)
+                        .execute(() -> trigger.complete(null));
+                return underlying;
+            }
+            else {
+                return underlying.thenCombine(trigger, (sk, other) -> sk);
+            }
+        }).when(spyKms).decryptEdek(argument.capture());
+
+        List<TestingRecord> decrypted = new ArrayList<>();
+        var decryptStage = km.decrypt(topic, partition, encrypted, recordReceivedRecord(decrypted));
+        assertThat(decryptStage).succeedsWithin(Duration.ofSeconds(1));
+        assertThat(decrypted.iterator())
+                .toIterable()
+                .extracting(TestingRecord::value)
+                .extracting(ByteBuffer::array)
+                .containsExactly(rec1Bytes, rec2Bytes);
+    }
+
+    @Test
+    void decryptPreservesOrdering_RecordSetIncludeUnencrypted() {
+        var topic = "topic";
+        var partition = 1;
+
+        var kmsService = UnitTestingKmsService.newInstance();
+        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
+        var kekId = kms.generateKey();
+
+        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 50000, EXECUTOR_SERVICE,
+                BACKOFF_STRATEGY);
+
+        byte[] rec1Bytes = { 1, 2, 3 };
+        byte[] rec2Bytes = { 4, 5, 6 };
+        byte[] rec3Bytes = { 7, 8, 9 };
+        var rec1 = new TestingRecord(ByteBuffer.wrap(rec1Bytes));
+        var rec2 = new TestingRecord(ByteBuffer.wrap(rec2Bytes));
+        var rec3 = new TestingRecord(ByteBuffer.wrap(rec3Bytes));
+
+        // rec1 and rec3 will be encrypted.
+        List<TestingRecord> encrypted = new ArrayList<>();
+        var encryptStage = km.encrypt(topic, partition, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
+                List.of(rec1, rec3),
+                recordReceivedRecord(encrypted));
+        assertThat(encryptStage).isCompleted();
+        assertThat(encrypted).hasSize(2);
+
+        // rec2 will be unencrypted
+        List<TestingRecord> decryptInput = new ArrayList<>(encrypted);
+        decryptInput.add(1, rec2);
+
+        List<TestingRecord> received = new ArrayList<>();
+        var decryptStage = km.decrypt(topic, partition, decryptInput, recordReceivedRecord(received));
+        assertThat(decryptStage).succeedsWithin(Duration.ofSeconds(1));
+        assertThat(received.iterator())
+                .toIterable()
+                .extracting(TestingRecord::value)
+                .extracting(ByteBuffer::array)
+                .containsExactly(rec1Bytes, rec2Bytes, rec3Bytes);
+    }
+
     public TestingDek getSerializedGeneratedEdek(InMemoryKms kms, int i) {
-        DekPair generatedEdek = kms.getGeneratedEdek(i);
+        var generatedEdek = kms.getGeneratedEdek(i);
         var edek = generatedEdek.edek();
-        Serde serde = kms.edekSerde();
+        var serde = kms.edekSerde();
         int size = serde.sizeOf(edek);
         ByteBuffer buffer = ByteBuffer.allocate(size);
         serde.serialize(edek, buffer);

@@ -212,4 +212,8 @@ public class InMemoryKms implements
     public DekPair<InMemoryEdek> getGeneratedEdek(int i) {
         return edeksGenerated.get(i);
     }
+
+    public Class<InMemoryEdek> edekClass() {
+        return InMemoryEdek.class;
+    }
 }
