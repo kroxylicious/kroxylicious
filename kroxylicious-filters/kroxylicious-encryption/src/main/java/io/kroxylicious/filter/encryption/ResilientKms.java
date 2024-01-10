@@ -15,14 +15,21 @@ import java.util.function.Supplier;
 
 import javax.crypto.SecretKey;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.kroxylicious.kms.service.DekPair;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.kms.service.Serde;
+import io.kroxylicious.kms.service.UnknownAliasException;
+import io.kroxylicious.kms.service.UnknownKeyException;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 public class ResilientKms<K, E> implements Kms<K, E> {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(ResilientKms.class);
     private final Kms<K, E> inner;
     private final ScheduledExecutorService executorService;
     private final BackoffStrategy strategy;
@@ -80,7 +87,14 @@ public class ResilientKms<K, E> implements Kms<K, E> {
         }
         Duration delay = strategy.getDelay(attempt);
         return schedule(operation, delay)
-                .exceptionallyComposeAsync(e -> retry(name, operation, attempt + 1));
+                .exceptionallyComposeAsync(e -> {
+                    if (e instanceof UnknownAliasException || e instanceof UnknownKeyException) {
+                        LOGGER.debug("not retrying unknown entity exception");
+                        return CompletableFuture.failedFuture(e);
+                    }
+                    LOGGER.debug("{} failed attempt {}", name, attempt, e);
+                    return retry(name, operation, attempt + 1);
+                });
     }
 
     private <A> CompletionStage<A> schedule(Supplier<CompletionStage<A>> operation, Duration duration) {
