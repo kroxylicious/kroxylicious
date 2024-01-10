@@ -22,22 +22,24 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
  * Kms implementation that caches results from a delegate where appropriate.
- * We can cache resolved aliases for some time, and we can cache decrypted EDEKs
- * indefinitely.
- * @param <K>
- * @param <E>
+ * Resolved aliases can be cached temporarily as the key they point to could be
+ * changed (by rotation for example), a theoretically infrequent operation.
+ * Decrypted DEKs can be cached more aggressively since it is a deterministic
+ * mapping from eDEK to DEK on the decrypt path.
+ * @param <K> The type of Key Encryption Key id.
+ * @param <E> The type of encrypted Data Encryption Key.
  */
 public class CachingKms<K, E> implements Kms<K, E> {
     private final Kms<K, E> delegate;
     private final AsyncLoadingCache<E, SecretKey> decryptDekCache;
     private final AsyncLoadingCache<String, K> resolveAliasCache;
 
-    private CachingKms(Kms<K, E> delegate,
+    private CachingKms(@NonNull Kms<K, E> delegate,
                        long decryptDekCacheMaxSize,
-                       Duration decryptDekExpireAfterAccess,
+                       @NonNull Duration decryptDekExpireAfterAccess,
                        long resolveAliasCacheMaxSize,
-                       Duration resolveAliasExpireAfterWrite,
-                       Duration resolveAliasRefreshAfterWrite) {
+                       @NonNull Duration resolveAliasExpireAfterWrite,
+                       @NonNull Duration resolveAliasRefreshAfterWrite) {
         this.delegate = delegate;
         decryptDekCache = buildDecryptedDekCache(delegate, decryptDekCacheMaxSize, decryptDekExpireAfterAccess);
         resolveAliasCache = buildResolveAliasCache(delegate, resolveAliasCacheMaxSize, resolveAliasExpireAfterWrite, resolveAliasRefreshAfterWrite);
