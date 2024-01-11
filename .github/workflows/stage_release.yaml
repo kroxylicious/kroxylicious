@@ -39,6 +39,9 @@ on:
       release-version:
         description: 'The release version, e.g. 0.7.0'
         required: true
+      development-version:
+        description: 'The release version, e.g. 0.7.0'
+        required: true
       branch:
         description: 'The branch from which the release is cut'
         required: false
@@ -106,6 +109,7 @@ jobs:
           SIGNING_KEY_SHORT_NAME=$(gpg --list-public-keys --keyid-format short --with-colons | awk -F: '/^pub:/ {print $5}')
           ./scripts/stage-release.sh -k ${SIGNING_KEY_SHORT_NAME} \
                                      -v ${{ github.event.inputs.release-version }} \
+                                     -n ${{ github.event.inputs.development-version }} \
                                      -b ${{ github.event.inputs.branch }} \
                                      ${{ github.event.inputs.dry-run == 'true' && '-d' || '' }} \
                                      ${{ github.event.inputs.skip-tests == 'true' && '-s' || '' }}

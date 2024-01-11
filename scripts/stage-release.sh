@@ -13,7 +13,6 @@ set +u
 
 REPOSITORY="origin"
 BRANCH_FROM="main"
-SNAPSHOT_INCREMENT_INDEX=2
 DRY_RUN="false"
 SKIP_VALIDATION="false"
 TEMPORARY_RELEASE_BRANCH=""
@@ -33,7 +32,7 @@ while getopts ":v:b:k:r:n:dsh" opt; do
           exit 1
       fi
     ;;
-    n) SNAPSHOT_INCREMENT_INDEX="${OPTARG}"
+    n) DEVELOPMENT_VERSION="${OPTARG}"
     ;;
     d) DRY_RUN="true"
     ;;
@@ -53,7 +52,7 @@ usage: $0 -k keyid -v version [-b branch] [-r repository] [-s] [-d] [-h]
 EOF
       exit 1
     ;;
-    \?) echo "Invalid option -${OPTARG}" >&2
+    \?) echo "Invalid option -$opt ${OPTARG}" >&2
     exit 1
     ;;
   esac
@@ -106,6 +105,16 @@ cleanup() {
     fi
 }
 
+setVersion() {
+  local VERSION=$1
+  mvn -q versions:set -DnewVersion="${VERSION}" -DgenerateBackupPoms=false -DprocessAllModules=true
+
+  # Bump version ref in files not controlled by Maven
+  ${SED} -i -e "s#${CURRENT_VERSION//./\\.}#${VERSION}#g" $(find kubernetes-examples -name "*.yaml" -type f)
+
+  git add '**/*.yaml' '**/pom.xml' 'pom.xml'
+}
+
 trap cleanup EXIT
 
 git stash --all
@@ -134,22 +143,17 @@ if [[ "${SKIP_VALIDATION:-false}" != true ]]; then
 fi
 
 echo "Versioning Kroxylicious as ${RELEASE_VERSION}"
-
-mvn -q versions:set -DnewVersion="${RELEASE_VERSION}" -DgenerateBackupPoms=false -DprocessAllModules=true
-
-# Bump version ref in files not controlled by Maven
-${SED} -i -e "s#${CURRENT_VERSION//./\\.}#${RELEASE_VERSION}#g" $(find kubernetes-examples -name "*.yaml" -type f)
+setVersion "${RELEASE_VERSION}"
 #Set the release version in the Changelog
-${SED} -i -e "s_##\sSNAPSHOT_## ${RELEASE_VERSION//./\\.}_g" CHANGELOG.md
+${SED} -i -e "s_##\sSNAPSHOT_## ${VERSION//./\\.}_g" CHANGELOG.md
+git add 'CHANGELOG.md'
 
 echo "Validating things still build"
 mvn -q clean install -Pquick
 
-
 RELEASE_TAG="v${RELEASE_VERSION}"
 
 echo "Committing release to git"
-git add '**/*.yaml' '**/pom.xml' 'pom.xml' 'CHANGELOG.md'
 git commit --message "Release version ${RELEASE_TAG}" --signoff
 
 git tag -f "${RELEASE_TAG}"
@@ -157,19 +161,16 @@ git tag -f "${RELEASE_TAG}"
 git push "${REPOSITORY}" "${RELEASE_TAG}" ${GIT_DRYRUN:-}
 
 echo "Deploying release"
-mvn -q deploy -Prelease,dist -DskipTests=true -DreleaseSigningKey="${GPG_KEY}" ${MVN_DEPLOY_DRYRUN} -DprocessAllModules=true
+mvn -q deploy -Prelease,dist -DskipTests=true -DreleaseSigningKey="${GPG_KEY}" "${MVN_DEPLOY_DRYRUN}" -DprocessAllModules=true
 
 PREPARE_DEVELOPMENT_BRANCH="prepare-development-${RELEASE_DATE}"
-git checkout -b ${PREPARE_DEVELOPMENT_BRANCH} ${TEMPORARY_RELEASE_BRANCH}
-mvn versions:set -DnextSnapshot=true -DnextSnapshotIndexToIncrement="${SNAPSHOT_INCREMENT_INDEX}" -DgenerateBackupPoms=false -DprocessAllModules=true
+git checkout -b "${PREPARE_DEVELOPMENT_BRANCH}" "${TEMPORARY_RELEASE_BRANCH}"
 
-# Bump version ref in files not controlled by Maven
-NEXT_SNAPSHOT_VERSION=$(mvn org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=project.version -q -DforceStdout)
-${SED} -i -e "s#${RELEASE_VERSION//./\\.}#${NEXT_SNAPSHOT_VERSION}#g" $(find kubernetes-examples -name "*.yaml" -type f)
+setVersion "${DEVELOPMENT_VERSION}"
 # bump the Changelog to the next SNAPSHOT version. We do it this way so the changelog has the new release as the first entry
 ${SED} -i -e "s_##\s${RELEASE_VERSION//./\\.}_## SNAPSHOT\n## ${RELEASE_VERSION//./\\.}_g" CHANGELOG.md
 
-git add '**/*.yaml' '**/pom.xml' 'pom.xml' 'CHANGELOG.md'
+git add 'CHANGELOG.md'
 git commit --message "Start next development version" --signoff
 
 if [[ "${DRY_RUN:-false}" == true ]]; then
