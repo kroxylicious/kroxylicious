@@ -31,14 +31,6 @@ public class Environment {
     public static final String STRIMZI_FEATURE_GATES_ENV = "STRIMZI_FEATURE_GATES";
 
     /**
-     * Determine whether KRaft mode of Kafka cluster is enabled in Cluster Operator or not.
-     * @return true if KRaft mode is enabled, otherwise false
-     */
-    public static boolean isKRaftModeEnabled() {
-        return STRIMZI_FEATURE_GATES.contains(Constants.USE_KRAFT_MODE);
-    }
-
-    /**
      * The kafka version default value
      */
     private static final String KAFKA_VERSION_DEFAULT;
