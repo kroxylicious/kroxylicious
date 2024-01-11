@@ -57,11 +57,6 @@ EOF
     ;;
   esac
 
-  case ${OPTARG} in
-    -*) echo "Option $opt needs a valid argument"
-    exit 1
-    ;;
-  esac
 done
 
 if [[ -z "${GPG_KEY}" ]]; then
