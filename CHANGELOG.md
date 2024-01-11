@@ -2,9 +2,7 @@
 
 Please enumerate **all user-facing** changes using format `<githib issue/pr number>: <short description>`, with changes ordered in reverse chronological order.
 
-## 1.0.0
-
-## 0.5.0
+## SNAPSHOT
 
 * [#841](https://github.com/kroxylicious/kroxylicious/issues/841): Ensure the envelope encryption filter transits record offsets unchanged.
 * [#847](https://github.com/kroxylicious/kroxylicious/pull/847): Bump org.apache.maven.plugins:maven-compiler-plugin from 3.11.0 to 3.12.1
