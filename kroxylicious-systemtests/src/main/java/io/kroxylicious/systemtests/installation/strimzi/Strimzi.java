@@ -6,10 +6,23 @@
 
 package io.kroxylicious.systemtests.installation.strimzi;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InvalidObjectException;
+import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLParser;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.client.dsl.NamespaceListVisitFromServerGetDeleteRecreateWaitApplicable;
@@ -35,7 +48,40 @@ public class Strimzi {
      */
     public Strimzi(String deploymentNamespace) throws IOException {
         this.deploymentNamespace = deploymentNamespace;
-        deployment = kubeClient().getClient().load(DeploymentUtils.getDeploymentFileFromURL(Environment.STRIMZI_URL));
+        InputStream strimziYaml = DeploymentUtils.getDeploymentFileFromURL(Environment.STRIMZI_URL);
+        InputStream strimziYamlKRaft = configureKRaftModeForStrimzi(strimziYaml);
+        deployment = kubeClient().getClient().load(strimziYamlKRaft);
+    }
+
+    private InputStream configureKRaftModeForStrimzi(InputStream strimziYaml) throws IOException {
+        YAMLFactory yamlFactory = new YAMLFactory();
+        ObjectMapper mapper = new YAMLMapper();
+
+        YAMLParser yamlParser = yamlFactory.createParser(strimziYaml);
+        List<JsonNode> docs = mapper
+                .readValues(yamlParser, new TypeReference<JsonNode>(){})
+                .readAll();
+        boolean found = false;
+        for(JsonNode doc : docs) {
+            String kind = doc.at("/kind").asText("");
+            if(kind.equals(Constants.DEPLOYMENT)) {
+                ArrayNode arrayNode = (ArrayNode) doc.at("/spec/template/spec/containers");
+                ArrayNode envNode = (ArrayNode) arrayNode.get(0).at("/env");
+                for(JsonNode node : envNode) {
+                    if(node.at("/name").asText().equals(Environment.STRIMZI_FEATURE_GATES_ENV)) {
+                        found = true;
+                        ((ObjectNode)node).put("value", String.join(",", Constants.USE_KRAFT_MODE, Constants.USE_KAFKA_NODE_POOLS));
+                    }
+                }
+
+            }
+        }
+
+        if(!found) {
+            throw new InvalidObjectException("STRIMZI_FEATURE_GATES env variable not found in yaml!");
+        }
+
+        return new ByteArrayInputStream(mapper.writeValueAsBytes(docs));
     }
 
     /**

@@ -28,6 +28,7 @@ import io.fabric8.kubernetes.client.KubernetesClientException;
 
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
+import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.awaitility.Awaitility.await;
@@ -201,6 +202,9 @@ public class KafkaUtils {
                 podUid = pod.getMetadata().getUid();
                 break;
             }
+        }
+        if(podName.isEmpty() || podName.isBlank()) {
+            throw new KubeClusterException(new Throwable("Kafka cluster name not found!"));
         }
         kubeClient().getClient().pods().inNamespace(deployNamespace).withName(podName).withGracePeriod(0).delete();
         kubeClient().getClient().pods().inNamespace(deployNamespace).withName(podName).waitUntilCondition(Objects::isNull, 60, TimeUnit.SECONDS);

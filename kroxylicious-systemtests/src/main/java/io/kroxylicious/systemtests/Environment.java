@@ -28,11 +28,20 @@ public class Environment {
     private static final String KROXY_IMAGE_REPO_ENV = "KROXYLICIOUS_IMAGE_REPO";
     private static final String STRIMZI_URL_ENV = "STRIMZI_URL";
     private static final String SKIP_TEARDOWN_ENV = "SKIP_TEARDOWN";
+    public static final String STRIMZI_FEATURE_GATES_ENV = "STRIMZI_FEATURE_GATES";
+
+    /**
+     * Determine whether KRaft mode of Kafka cluster is enabled in Cluster Operator or not.
+     * @return true if KRaft mode is enabled, otherwise false
+     */
+    public static boolean isKRaftModeEnabled() {
+        return STRIMZI_FEATURE_GATES.contains(Constants.USE_KRAFT_MODE);
+    }
 
     /**
      * The kafka version default value
      */
-    public static final String KAFKA_VERSION_DEFAULT;
+    private static final String KAFKA_VERSION_DEFAULT;
 
     static {
         KAFKA_VERSION_DEFAULT = determineKafkaVersion();
@@ -41,7 +50,7 @@ public class Environment {
     /**
      * The kroxy version default value
      */
-    public static final String KROXY_VERSION_DEFAULT;
+    private static final String KROXY_VERSION_DEFAULT;
 
     static {
         KROXY_VERSION_DEFAULT = determineKroxyliciousVersion();
@@ -50,16 +59,17 @@ public class Environment {
     /**
      * The url where kroxylicious image lives to be downloaded.
      */
-    public static final String KROXY_IMAGE_REPO_DEFAULT = "quay.io/kroxylicious/kroxylicious-developer";
+    private static final String KROXY_IMAGE_REPO_DEFAULT = "quay.io/kroxylicious/kroxylicious-developer";
 
     /**
      * The strimzi installation url for kubernetes.
      */
-    public static final String STRIMZI_URL_DEFAULT = "https://strimzi.io/install/latest?namespace=" + Constants.KROXY_DEFAULT_NAMESPACE;
+    private static final String STRIMZI_URL_DEFAULT = "https://strimzi.io/install/latest?namespace=" + Constants.KROXY_DEFAULT_NAMESPACE;
     /**
      * The default value for skipping the teardown locally.
      */
-    public static final String SKIP_TEARDOWN_DEFAULT = "false";
+    private static final String SKIP_TEARDOWN_DEFAULT = "false";
+    private static final String STRIMZI_FEATURE_GATES_DEFAULT = "";
 
     /**
      * KAFKA_VERSION env variable assignment
@@ -82,6 +92,8 @@ public class Environment {
      * SKIP_TEARDOWN env variable assignment.
      */
     public static final String SKIP_TEARDOWN = getOrDefault(SKIP_TEARDOWN_ENV, SKIP_TEARDOWN_DEFAULT);
+
+    public static final String STRIMZI_FEATURE_GATES = getOrDefault(STRIMZI_FEATURE_GATES_ENV, STRIMZI_FEATURE_GATES_DEFAULT);
 
     private static String getOrDefault(String varName, String defaultValue) {
         return getOrDefault(varName, String::toString, defaultValue);
