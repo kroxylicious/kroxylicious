@@ -59,25 +59,26 @@ public class Strimzi {
 
         YAMLParser yamlParser = yamlFactory.createParser(strimziYaml);
         List<JsonNode> docs = mapper
-                .readValues(yamlParser, new TypeReference<JsonNode>(){})
+                .readValues(yamlParser, new TypeReference<JsonNode>() {
+                })
                 .readAll();
         boolean found = false;
-        for(JsonNode doc : docs) {
+        for (JsonNode doc : docs) {
             String kind = doc.at("/kind").asText("");
-            if(kind.equals(Constants.DEPLOYMENT)) {
+            if (kind.equals(Constants.DEPLOYMENT)) {
                 ArrayNode arrayNode = (ArrayNode) doc.at("/spec/template/spec/containers");
                 ArrayNode envNode = (ArrayNode) arrayNode.get(0).at("/env");
-                for(JsonNode node : envNode) {
-                    if(node.at("/name").asText().equals(Environment.STRIMZI_FEATURE_GATES_ENV)) {
+                for (JsonNode node : envNode) {
+                    if (node.at("/name").asText().equals(Environment.STRIMZI_FEATURE_GATES_ENV)) {
                         found = true;
-                        ((ObjectNode)node).put("value", String.join(",", Constants.USE_KRAFT_MODE, Constants.USE_KAFKA_NODE_POOLS));
+                        ((ObjectNode) node).put("value", String.join(",", Constants.USE_KRAFT_MODE, Constants.USE_KAFKA_NODE_POOLS));
                     }
                 }
 
             }
         }
 
-        if(!found) {
+        if (!found) {
             throw new InvalidObjectException("STRIMZI_FEATURE_GATES env variable not found in yaml!");
         }
 
