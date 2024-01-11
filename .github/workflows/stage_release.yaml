@@ -40,7 +40,7 @@ on:
         description: 'The release version, e.g. 0.7.0'
         required: true
       development-version:
-        description: 'The release version, e.g. 0.7.0'
+        description: 'The next development version, e.g. 0.7.0-SNAPSHOT'
         required: true
       branch:
         description: 'The branch from which the release is cut'
