@@ -67,12 +67,12 @@ public class EnvelopeEncryption<K, E> implements FilterFactory<EnvelopeEncryptio
     @NonNull
     @Override
     public EnvelopeEncryptionFilter<K> createFilter(FilterFactoryContext context, Config configuration) {
-        Kms<K, E> resilientCachingKms = buildKms(context, configuration);
+        Kms<K, E> kms = buildKms(context, configuration);
 
-        var keyManager = new InBandKeyManager<>(resilientCachingKms, BufferPool.allocating(), 500_000);
+        var keyManager = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
 
         KekSelectorService<Object, K> ksPlugin = context.pluginInstance(KekSelectorService.class, configuration.selector());
-        TopicNameBasedKekSelector<K> kekSelector = ksPlugin.buildSelector(resilientCachingKms, configuration.selectorConfig());
+        TopicNameBasedKekSelector<K> kekSelector = ksPlugin.buildSelector(kms, configuration.selectorConfig());
         return new EnvelopeEncryptionFilter<>(keyManager, kekSelector);
     }
 

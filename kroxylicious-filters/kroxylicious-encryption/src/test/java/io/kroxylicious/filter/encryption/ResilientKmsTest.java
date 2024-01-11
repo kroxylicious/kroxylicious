@@ -7,7 +7,9 @@
 package io.kroxylicious.filter.encryption;
 
 import java.time.Duration;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
@@ -175,7 +177,8 @@ class ResilientKmsTest {
     void testResolveAliasDoesNotRetryUnknownAlias() {
         // given
         Kms<Long, Long> kms = Mockito.mock(Kms.class);
-        when(kms.resolveAlias("abc")).thenReturn(failedFuture(new UnknownAliasException("unknown alias")), completedFuture(RESULT));
+        UnknownAliasException cause = new UnknownAliasException("unknown alias");
+        when(kms.resolveAlias("abc")).thenReturn(failedFuture(cause), completedFuture(RESULT));
         BackoffStrategy strategy = Mockito.mock(BackoffStrategy.class);
         when(strategy.getDelay(anyInt())).thenReturn(Duration.ofMillis(DELAY));
         ScheduledExecutorService mockExecutor = getMockExecutor();
@@ -185,7 +188,27 @@ class ResilientKmsTest {
         CompletionStage<Long> kekId = resilientKms.resolveAlias("abc");
 
         // then
-        assertThat(kekId).failsWithin(5, TimeUnit.SECONDS).withThrowableThat().withMessageContaining("unknown alias");
+        assertThat(kekId).failsWithin(5, TimeUnit.SECONDS).withThrowableThat().isInstanceOf(ExecutionException.class).withCause(cause);
+        verify(mockExecutor, times(1)).schedule(any(Runnable.class), eq(DELAY), eq(TimeUnit.MILLISECONDS));
+    }
+
+    @Test
+    void testResolveAliasDoesNotRetryUnknownAliasWrappedInCompletionException() {
+        // given
+        Kms<Long, Long> kms = Mockito.mock(Kms.class);
+        UnknownAliasException unknownAlias = new UnknownAliasException("unknown alias");
+        Throwable cause = new CompletionException("fail", unknownAlias);
+        when(kms.resolveAlias("abc")).thenReturn(failedFuture(cause), completedFuture(RESULT));
+        BackoffStrategy strategy = Mockito.mock(BackoffStrategy.class);
+        when(strategy.getDelay(anyInt())).thenReturn(Duration.ofMillis(DELAY));
+        ScheduledExecutorService mockExecutor = getMockExecutor();
+        Kms<Long, Long> resilientKms = ResilientKms.wrap(kms, mockExecutor, strategy, 3);
+
+        // when
+        CompletionStage<Long> kekId = resilientKms.resolveAlias("abc");
+
+        // then
+        assertThat(kekId).failsWithin(5, TimeUnit.SECONDS).withThrowableThat().isInstanceOf(ExecutionException.class).withCause(unknownAlias);
         verify(mockExecutor, times(1)).schedule(any(Runnable.class), eq(DELAY), eq(TimeUnit.MILLISECONDS));
     }
 
