@@ -203,7 +203,7 @@ public class KafkaUtils {
                 break;
             }
         }
-        if(podName.isEmpty() || podName.isBlank()) {
+        if (podName.isEmpty() || podName.isBlank()) {
             throw new KubeClusterException(new Throwable("Kafka cluster name not found!"));
         }
         kubeClient().getClient().pods().inNamespace(deployNamespace).withName(podName).withGracePeriod(0).delete();
