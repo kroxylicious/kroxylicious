@@ -110,7 +110,8 @@ public class KafkaNodePoolTemplates {
      * @param kafkaReplicas the kafka replicas
      * @return the kafka node pool builder
      */
-    public static KafkaNodePoolBuilder kafkaNodePoolWithControllerRoleAndPersistentStorage(String namespaceName, String nodePoolName, String kafkaClusterName, int kafkaReplicas) {
+    public static KafkaNodePoolBuilder kafkaNodePoolWithControllerRoleAndPersistentStorage(String namespaceName, String nodePoolName, String kafkaClusterName,
+                                                                                           int kafkaReplicas) {
         return kafkaNodePoolWithControllerRole(namespaceName, nodePoolName, kafkaClusterName, kafkaReplicas)
                 .editOrNewSpec()
                 .withNewPersistentClaimStorage()
@@ -129,7 +130,8 @@ public class KafkaNodePoolTemplates {
      * @param kafkaReplicas the kafka replicas
      * @return the kafka node pool builder
      */
-    public static KafkaNodePoolBuilder kafkaNodePoolWithBrokerRoleAndPersistentStorage(String namespaceName, String nodePoolName, String kafkaClusterName, int kafkaReplicas) {
+    public static KafkaNodePoolBuilder kafkaNodePoolWithBrokerRoleAndPersistentStorage(String namespaceName, String nodePoolName, String kafkaClusterName,
+                                                                                       int kafkaReplicas) {
         return kafkaNodePoolWithBrokerRole(namespaceName, nodePoolName, kafkaClusterName, kafkaReplicas)
                 .editOrNewSpec()
                 .withNewPersistentClaimStorage()
