@@ -167,7 +167,7 @@ mvn versions:set -DnextSnapshot=true -DnextSnapshotIndexToIncrement="${SNAPSHOT_
 NEXT_SNAPSHOT_VERSION=$(mvn org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=project.version -q -DforceStdout)
 ${SED} -i -e "s#${RELEASE_VERSION//./\\.}#${NEXT_SNAPSHOT_VERSION}#g" $(find kubernetes-examples -name "*.yaml" -type f)
 # bump the Changelog to the next SNAPSHOT version. We do it this way so the changelog has the new release as the first entry
-${SED} -i -e "s_##\s${RELEASE_VERSION//./\\.}_SNAPSHOT\n## ${RELEASE_VERSION//./\\.}_g" CHANGELOG.md
+${SED} -i -e "s_##\s${RELEASE_VERSION//./\\.}_## SNAPSHOT\n## ${RELEASE_VERSION//./\\.}_g" CHANGELOG.md
 
 git add '**/*.yaml' '**/pom.xml' 'pom.xml' 'CHANGELOG.md'
 git commit --message "Start next development version" --signoff
