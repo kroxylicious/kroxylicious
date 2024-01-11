@@ -135,6 +135,8 @@ mvn -q versions:set -DnewVersion="${RELEASE_VERSION}" -DgenerateBackupPoms=false
 
 # Bump version ref in files not controlled by Maven
 ${SED} -i -e "s#${CURRENT_VERSION//./\\.}#${RELEASE_VERSION}#g" $(find kubernetes-examples -name "*.yaml" -type f)
+#Set the release version in the Changelog
+${SED} -i -e "s_##\sSNAPSHOT_## ${RELEASE_VERSION//./\\.}_g" CHANGELOG.md
 
 echo "Validating things still build"
 mvn -q clean install -Pquick
@@ -156,8 +158,6 @@ mvn -q deploy -Prelease,dist -DskipTests=true -DreleaseSigningKey="${GPG_KEY}" $
 PREPARE_DEVELOPMENT_BRANCH="prepare-development-${RELEASE_DATE}"
 git checkout -b ${PREPARE_DEVELOPMENT_BRANCH} ${TEMPORARY_RELEASE_BRANCH}
 mvn versions:set -DnextSnapshot=true -DnextSnapshotIndexToIncrement="${SNAPSHOT_INCREMENT_INDEX}" -DgenerateBackupPoms=false -DprocessAllModules=true
-#Set the release version in the Changelog
-${SED} -i -e "s#SNAPSHOT#${RELEASE_VERSION//./\\.}#g" CHANGELOG.md
 
 # Bump version ref in files not controlled by Maven
 NEXT_SNAPSHOT_VERSION=$(mvn org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=project.version -q -DforceStdout)
