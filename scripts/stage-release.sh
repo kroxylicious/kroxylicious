@@ -122,6 +122,8 @@ if [[ "${DRY_RUN:-false}" == true ]]; then
     printf "${BLUE}Dry-run mode:${NC} no remote tags or PRs will be created, artefacts will be deployed to: ${DEPLOY_DRY_RUN_DIR}\n"
     GIT_DRYRUN="--dry-run"
     MVN_DEPLOY_DRYRUN="-DaltDeploymentRepository=ossrh::file:${DEPLOY_DRY_RUN_DIR}"
+else
+    MVN_DEPLOY_DRYRUN=""
 fi
 
 if [[ "${SKIP_VALIDATION:-false}" != true ]]; then
