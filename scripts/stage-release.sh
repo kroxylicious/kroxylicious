@@ -105,9 +105,15 @@ setVersion() {
   mvn -q versions:set -DnewVersion="${VERSION}" -DgenerateBackupPoms=false -DprocessAllModules=true
 
   # Bump version ref in files not controlled by Maven
-  ${SED} -i -e "s#${CURRENT_VERSION//./\\.}#${VERSION}#g" $(find kubernetes-examples -name "*.yaml" -type f)
+  ${SED} -i -e "s#${CURRENT_VERSION//./\\.}#${VERSION}#g" "$(find kubernetes-examples -name "*.yaml" -type f)"
 
   git add '**/*.yaml' '**/pom.xml' 'pom.xml'
+}
+
+gpush() {
+  if [[ "${DRY_RUN:-false}" == true ]]; then
+    git push "${1}" "${2}"
+  fi
 }
 
 trap cleanup EXIT
@@ -126,7 +132,6 @@ if [[ "${DRY_RUN:-false}" == true ]]; then
     #Disable the shell check as the colour codes only work with interpolation.
     # shellcheck disable=SC2059
     printf "${BLUE}Dry-run mode:${NC} no remote tags or PRs will be created, artefacts will be deployed to: ${DEPLOY_DRY_RUN_DIR}\n"
-    GIT_DRYRUN="--dry-run"
     MVN_DEPLOY_DRYRUN="-DaltDeploymentRepository=ossrh::file:${DEPLOY_DRY_RUN_DIR}"
 else
     MVN_DEPLOY_DRYRUN=""
@@ -153,7 +158,7 @@ git commit --message "Release version ${RELEASE_TAG}" --signoff
 
 git tag -f "${RELEASE_TAG}"
 
-git push "${REPOSITORY}" "${RELEASE_TAG}" ${GIT_DRYRUN:-}
+gpush "${REPOSITORY}" "${RELEASE_TAG}"
 
 echo "Deploying release"
 mvn -q deploy -Prelease,dist -DskipTests=true -DreleaseSigningKey="${GPG_KEY}" "${MVN_DEPLOY_DRYRUN}" -DprocessAllModules=true
@@ -179,7 +184,7 @@ then
 fi
 
 ORIGINAL_GH_DEFAULT_REPO=$(gh repo set-default -v | (grep -v 'no default repository' || true))
-gh repo set-default $(git remote get-url ${REPOSITORY})
+gh repo set-default "$(git remote get-url "${REPOSITORY}")"
 
 # create GitHub release via CLI https://cli.github.com/manual/gh_release_create
 # it is created as a draft, the deploy_release workflow will publish it.
@@ -189,7 +194,7 @@ gh release create "${RELEASE_TAG}" ./kroxylicious-*/target/kroxylicious-*-bin.* 
 BODY="Release version ${RELEASE_VERSION}"
 
 # Workaround https://github.com/cli/cli/issues/2691
-git push ${REPOSITORY} HEAD
+gpush "${REPOSITORY}" HEAD
 
 echo "Creating pull request to merge the released version."
-gh pr create --head ${PREPARE_DEVELOPMENT_BRANCH} --base ${BRANCH_FROM} --title "Kroxylicious development version ${RELEASE_DATE}" --body "${BODY}" --repo $(gh repo set-default -v)
+gh pr create --head "${PREPARE_DEVELOPMENT_BRANCH}" --base "${BRANCH_FROM}" --title "Kroxylicious development version ${RELEASE_DATE}" --body "${BODY}" --repo "$(gh repo set-default -v)"
