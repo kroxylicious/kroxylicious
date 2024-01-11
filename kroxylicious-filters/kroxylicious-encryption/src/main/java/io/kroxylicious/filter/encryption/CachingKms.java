@@ -46,12 +46,12 @@ public class CachingKms<K, E> implements Kms<K, E> {
     }
 
     @NonNull
-    public static <A, B> Kms<A, B> caching(Kms<A, B> delegate,
-                                           long decryptDekCacheMaxSize,
-                                           Duration decryptDekExpireAfterAccess,
-                                           long resolveAliasCacheMaxSize,
-                                           Duration resolveAliasExpireAfterWrite,
-                                           Duration resolveAliasRefreshAfterWrite) {
+    public static <A, B> Kms<A, B> wrap(Kms<A, B> delegate,
+                                        long decryptDekCacheMaxSize,
+                                        Duration decryptDekExpireAfterAccess,
+                                        long resolveAliasCacheMaxSize,
+                                        Duration resolveAliasExpireAfterWrite,
+                                        Duration resolveAliasRefreshAfterWrite) {
         return new CachingKms<>(delegate, decryptDekCacheMaxSize, decryptDekExpireAfterAccess, resolveAliasCacheMaxSize, resolveAliasExpireAfterWrite,
                 resolveAliasRefreshAfterWrite);
     }

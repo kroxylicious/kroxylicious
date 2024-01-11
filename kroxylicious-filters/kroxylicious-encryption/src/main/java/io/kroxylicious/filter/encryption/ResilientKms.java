@@ -45,10 +45,10 @@ public class ResilientKms<K, E> implements Kms<K, E> {
         this.retries = retries;
     }
 
-    public static <K, E> Kms<K, E> get(Kms<K, E> delegate,
-                                       ScheduledExecutorService executorService,
-                                       BackoffStrategy strategy,
-                                       int retries) {
+    public static <K, E> Kms<K, E> wrap(Kms<K, E> delegate,
+                                        ScheduledExecutorService executorService,
+                                        BackoffStrategy strategy,
+                                        int retries) {
         return new ResilientKms<>(delegate, executorService,
                 strategy, retries);
     }

@@ -52,7 +52,7 @@ class ResilientKmsTest {
         BackoffStrategy strategy = Mockito.mock(BackoffStrategy.class);
         when(strategy.getDelay(anyInt())).thenReturn(Duration.ofMillis(DELAY));
         ScheduledExecutorService mockExecutor = getMockExecutor();
-        Kms<Long, Long> resilientKms = ResilientKms.get(kms, mockExecutor, strategy, 3);
+        Kms<Long, Long> resilientKms = ResilientKms.wrap(kms, mockExecutor, strategy, 3);
 
         // when
         CompletionStage<Long> kekId = resilientKms.resolveAlias("abc");
@@ -70,7 +70,7 @@ class ResilientKmsTest {
         BackoffStrategy strategy = Mockito.mock(BackoffStrategy.class);
         when(strategy.getDelay(anyInt())).thenReturn(Duration.ofMillis(DELAY));
         ScheduledExecutorService mockExecutor = getMockExecutor();
-        Kms<Long, Long> resilientKms = ResilientKms.get(kms, mockExecutor, strategy, 3);
+        Kms<Long, Long> resilientKms = ResilientKms.wrap(kms, mockExecutor, strategy, 3);
 
         // when
         CompletionStage<DekPair<Long>> dekPair = resilientKms.generateDekPair(1L);
@@ -88,7 +88,7 @@ class ResilientKmsTest {
         BackoffStrategy strategy = Mockito.mock(BackoffStrategy.class);
         when(strategy.getDelay(anyInt())).thenReturn(Duration.ofMillis(DELAY));
         ScheduledExecutorService mockExecutor = getMockExecutor();
-        Kms<Long, Long> resilientKms = ResilientKms.get(kms, mockExecutor, strategy, 3);
+        Kms<Long, Long> resilientKms = ResilientKms.wrap(kms, mockExecutor, strategy, 3);
 
         // when
         CompletionStage<SecretKey> dek = resilientKms.decryptEdek(1L);
@@ -106,7 +106,7 @@ class ResilientKmsTest {
         BackoffStrategy strategy = Mockito.mock(BackoffStrategy.class);
         when(strategy.getDelay(anyInt())).thenReturn(Duration.ZERO);
         ScheduledExecutorService mockExecutor = getMockExecutor();
-        Kms<Long, Long> resilientKms = ResilientKms.get(kms, mockExecutor, strategy, 3);
+        Kms<Long, Long> resilientKms = ResilientKms.wrap(kms, mockExecutor, strategy, 3);
 
         // when
         CompletionStage<Long> kekId = resilientKms.resolveAlias("abc");
@@ -125,7 +125,7 @@ class ResilientKmsTest {
         BackoffStrategy strategy = Mockito.mock(BackoffStrategy.class);
         when(strategy.getDelay(anyInt())).thenReturn(Duration.ZERO);
         ScheduledExecutorService mockExecutor = getMockExecutor();
-        Kms<Long, Long> resilientKms = ResilientKms.get(kms, mockExecutor, strategy, 3);
+        Kms<Long, Long> resilientKms = ResilientKms.wrap(kms, mockExecutor, strategy, 3);
 
         // when
         CompletionStage<DekPair<Long>> dekPair = resilientKms.generateDekPair(1L);
@@ -143,7 +143,7 @@ class ResilientKmsTest {
         BackoffStrategy strategy = Mockito.mock(BackoffStrategy.class);
         when(strategy.getDelay(anyInt())).thenReturn(Duration.ZERO);
         ScheduledExecutorService mockExecutor = getMockExecutor();
-        Kms<Long, Long> resilientKms = ResilientKms.get(kms, mockExecutor, strategy, 3);
+        Kms<Long, Long> resilientKms = ResilientKms.wrap(kms, mockExecutor, strategy, 3);
 
         // when
         CompletionStage<SecretKey> dek = resilientKms.decryptEdek(1L);
@@ -161,7 +161,7 @@ class ResilientKmsTest {
         BackoffStrategy strategy = Mockito.mock(BackoffStrategy.class);
         when(strategy.getDelay(anyInt())).thenReturn(Duration.ofMillis(DELAY));
         ScheduledExecutorService mockExecutor = getMockExecutor();
-        Kms<Long, Long> resilientKms = ResilientKms.get(kms, mockExecutor, strategy, 3);
+        Kms<Long, Long> resilientKms = ResilientKms.wrap(kms, mockExecutor, strategy, 3);
 
         // when
         CompletionStage<Long> kekId = resilientKms.resolveAlias("abc");
@@ -179,7 +179,7 @@ class ResilientKmsTest {
         BackoffStrategy strategy = Mockito.mock(BackoffStrategy.class);
         when(strategy.getDelay(anyInt())).thenReturn(Duration.ofMillis(DELAY));
         ScheduledExecutorService mockExecutor = getMockExecutor();
-        Kms<Long, Long> resilientKms = ResilientKms.get(kms, mockExecutor, strategy, 3);
+        Kms<Long, Long> resilientKms = ResilientKms.wrap(kms, mockExecutor, strategy, 3);
 
         // when
         CompletionStage<Long> kekId = resilientKms.resolveAlias("abc");
@@ -198,7 +198,7 @@ class ResilientKmsTest {
         BackoffStrategy strategy = Mockito.mock(BackoffStrategy.class);
         when(strategy.getDelay(anyInt())).thenReturn(Duration.ofMillis(DELAY));
         ScheduledExecutorService mockExecutor = getMockExecutor();
-        Kms<Long, Long> resilientKms = ResilientKms.get(kms, mockExecutor, strategy, 3);
+        Kms<Long, Long> resilientKms = ResilientKms.wrap(kms, mockExecutor, strategy, 3);
 
         // when
         CompletionStage<DekPair<Long>> dekPair = resilientKms.generateDekPair(1L);
@@ -217,7 +217,7 @@ class ResilientKmsTest {
         BackoffStrategy strategy = Mockito.mock(BackoffStrategy.class);
         when(strategy.getDelay(anyInt())).thenReturn(Duration.ofMillis(DELAY));
         ScheduledExecutorService mockExecutor = getMockExecutor();
-        Kms<Long, Long> resilientKms = ResilientKms.get(kms, mockExecutor, strategy, 3);
+        Kms<Long, Long> resilientKms = ResilientKms.wrap(kms, mockExecutor, strategy, 3);
 
         // when
         CompletionStage<DekPair<Long>> dekPair = resilientKms.generateDekPair(1L);
@@ -235,7 +235,7 @@ class ResilientKmsTest {
         BackoffStrategy strategy = Mockito.mock(BackoffStrategy.class);
         when(strategy.getDelay(anyInt())).thenReturn(Duration.ofMillis(DELAY));
         ScheduledExecutorService mockExecutor = getMockExecutor();
-        Kms<Long, Long> resilientKms = ResilientKms.get(kms, mockExecutor, strategy, 3);
+        Kms<Long, Long> resilientKms = ResilientKms.wrap(kms, mockExecutor, strategy, 3);
 
         // when
         CompletionStage<SecretKey> dek = resilientKms.decryptEdek(1L);
@@ -253,7 +253,7 @@ class ResilientKmsTest {
         BackoffStrategy strategy = Mockito.mock(BackoffStrategy.class);
         when(strategy.getDelay(anyInt())).thenReturn(Duration.ofMillis(DELAY));
         ScheduledExecutorService mockExecutor = getMockExecutor();
-        Kms<Long, Long> resilientKms = ResilientKms.get(kms, mockExecutor, strategy, 3);
+        Kms<Long, Long> resilientKms = ResilientKms.wrap(kms, mockExecutor, strategy, 3);
 
         // when
         CompletionStage<SecretKey> dek = resilientKms.decryptEdek(1L);
@@ -272,7 +272,7 @@ class ResilientKmsTest {
         when(strategy.getDelay(anyInt())).thenReturn(Duration.ofMillis(DELAY));
         int retries = 3;
         ScheduledExecutorService mockExecutor = getMockExecutor();
-        Kms<Long, Long> resilientKms = ResilientKms.get(kms, mockExecutor, strategy, retries);
+        Kms<Long, Long> resilientKms = ResilientKms.wrap(kms, mockExecutor, strategy, retries);
 
         // when
         CompletionStage<Long> kekId = resilientKms.resolveAlias("abc");
@@ -292,7 +292,7 @@ class ResilientKmsTest {
         when(strategy.getDelay(anyInt())).thenReturn(Duration.ofMillis(DELAY));
         ScheduledExecutorService mockExecutor = getMockExecutor();
         int retries = 3;
-        Kms<Long, Long> resilientKms = ResilientKms.get(kms, mockExecutor, strategy, retries);
+        Kms<Long, Long> resilientKms = ResilientKms.wrap(kms, mockExecutor, strategy, retries);
 
         // when
         CompletionStage<DekPair<Long>> dekPair = resilientKms.generateDekPair(1L);
@@ -312,7 +312,7 @@ class ResilientKmsTest {
         when(strategy.getDelay(anyInt())).thenReturn(Duration.ofMillis(DELAY));
         ScheduledExecutorService mockExecutor = getMockExecutor();
         int retries = 3;
-        Kms<Long, Long> resilientKms = ResilientKms.get(kms, mockExecutor, strategy, retries);
+        Kms<Long, Long> resilientKms = ResilientKms.wrap(kms, mockExecutor, strategy, retries);
 
         // when
         CompletionStage<SecretKey> dek = resilientKms.decryptEdek(1L);
@@ -328,7 +328,7 @@ class ResilientKmsTest {
         Kms<Long, Long> kms = Mockito.mock(Kms.class);
         Serde mockSerde = mock(Serde.class);
         when(kms.edekSerde()).thenReturn(mockSerde);
-        Kms<Long, Long> resilientKms = ResilientKms.get(kms, getMockExecutor(), Mockito.mock(BackoffStrategy.class), 3);
+        Kms<Long, Long> resilientKms = ResilientKms.wrap(kms, getMockExecutor(), Mockito.mock(BackoffStrategy.class), 3);
 
         // when
         Serde<?> serde = resilientKms.edekSerde();

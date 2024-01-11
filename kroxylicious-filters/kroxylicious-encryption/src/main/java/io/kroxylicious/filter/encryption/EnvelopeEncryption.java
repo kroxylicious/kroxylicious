@@ -66,28 +66,32 @@ public class EnvelopeEncryption<K, E> implements FilterFactory<EnvelopeEncryptio
 
     @NonNull
     @Override
-    @SuppressWarnings("java:S2245") // secure randomization not needed for exponential backoff
     public EnvelopeEncryptionFilter<K> createFilter(FilterFactoryContext context, Config configuration) {
-        KmsService<Object, K, E> kmsPlugin = context.pluginInstance(KmsService.class, configuration.kms());
-        Kms<K, E> kms = kmsPlugin.buildKms(configuration.kmsConfig());
-        kms = InstrumentedKms.instrument(kms, kmsMetrics);
-
-        ExponentialJitterBackoffStrategy backoffStrategy = new ExponentialJitterBackoffStrategy(Duration.ofMillis(500), Duration.ofSeconds(5), 2d,
-                ThreadLocalRandom.current());
-        Kms<K, E> resilientKms = ResilientKms.get(kms, context.eventLoop(), backoffStrategy, 3);
-        Kms<K, E> resilientCachingKms = cachingKms(configuration, resilientKms);
+        Kms<K, E> resilientCachingKms = buildKms(context, configuration);
 
         var keyManager = new InBandKeyManager<>(resilientCachingKms, BufferPool.allocating(), 500_000);
 
         KekSelectorService<Object, K> ksPlugin = context.pluginInstance(KekSelectorService.class, configuration.selector());
-        TopicNameBasedKekSelector<K> kekSelector = ksPlugin.buildSelector(kms, configuration.selectorConfig());
+        TopicNameBasedKekSelector<K> kekSelector = ksPlugin.buildSelector(resilientCachingKms, configuration.selectorConfig());
         return new EnvelopeEncryptionFilter<>(keyManager, kekSelector);
     }
 
     @NonNull
-    private static <K, E> Kms<K, E> cachingKms(Config configuration, Kms<K, E> resilientKms) {
+    @SuppressWarnings("java:S2245") // secure randomization not needed for exponential backoff
+    private static <K, E> Kms<K, E> buildKms(FilterFactoryContext context, Config configuration) {
+        KmsService<Object, K, E> kmsPlugin = context.pluginInstance(KmsService.class, configuration.kms());
+        Kms<K, E> kms = kmsPlugin.buildKms(configuration.kmsConfig());
+        kms = InstrumentedKms.wrap(kms, kmsMetrics);
+        ExponentialJitterBackoffStrategy backoffStrategy = new ExponentialJitterBackoffStrategy(Duration.ofMillis(500), Duration.ofSeconds(5), 2d,
+                ThreadLocalRandom.current());
+        kms = ResilientKms.wrap(kms, context.eventLoop(), backoffStrategy, 3);
+        return wrapWithCachingKms(configuration, kms);
+    }
+
+    @NonNull
+    private static <K, E> Kms<K, E> wrapWithCachingKms(Config configuration, Kms<K, E> resilientKms) {
         KmsCacheConfig config = configuration.kmsCache();
-        return CachingKms.caching(resilientKms, config.decryptedDekCacheSize, config.decryptedDekExpireAfterAccessDuration, config.resolvedAliasCacheSize,
+        return CachingKms.wrap(resilientKms, config.decryptedDekCacheSize, config.decryptedDekExpireAfterAccessDuration, config.resolvedAliasCacheSize,
                 config.resolvedAliasExpireAfterWriteDuration, config.resolvedAliasRefreshAfterWriteDuration);
     }
 }
