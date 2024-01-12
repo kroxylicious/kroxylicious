@@ -111,7 +111,7 @@ setVersion() {
 }
 
 gpush() {
-  if [[ "${DRY_RUN:-false}" == true ]]; then
+  if [[ "${DRY_RUN:-true}" == true ]]; then
     git push "${1}" "${2}"
   fi
 }
