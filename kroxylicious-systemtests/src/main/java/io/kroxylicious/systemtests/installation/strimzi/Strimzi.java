@@ -74,7 +74,6 @@ public class Strimzi {
                         ((ObjectNode) node).put("value", String.join(",", Constants.USE_KRAFT_MODE, Constants.USE_KAFKA_NODE_POOLS));
                     }
                 }
-
             }
         }
 
