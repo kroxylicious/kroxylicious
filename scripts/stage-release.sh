@@ -105,7 +105,8 @@ setVersion() {
   mvn -q versions:set -DnewVersion="${VERSION}" -DgenerateBackupPoms=false -DprocessAllModules=true
 
   # Bump version ref in files not controlled by Maven
-  ${SED} -i -e "s#${CURRENT_VERSION//./\\.}#${VERSION}#g" "$(find kubernetes-examples -name "*.yaml" -type f)"
+  # shellcheck disable=SC2046
+  ${SED} -i -e "s#${CURRENT_VERSION//./\\.}#${VERSION}#g" $(find kubernetes-examples -name "*.yaml" -type f)
 
   git add '**/*.yaml' '**/pom.xml' 'pom.xml'
 }
