@@ -72,6 +72,7 @@ public class Strimzi {
                     if (node.at("/name").asText().equals(Environment.STRIMZI_FEATURE_GATES_ENV)) {
                         found = true;
                         ((ObjectNode) node).put("value", String.join(",", Constants.USE_KRAFT_MODE, Constants.USE_KAFKA_NODE_POOLS));
+                        break;
                     }
                 }
             }
