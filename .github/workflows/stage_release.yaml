@@ -107,7 +107,6 @@ jobs:
       - name: 'Stage Release'
         run: |
           SIGNING_KEY_SHORT_NAME=$(gpg --list-public-keys --keyid-format short --with-colons | awk -F: '/^pub:/ {print $5}')
-          echo "short key: ${SIGNING_KEY_SHORT_NAME}"
           ./scripts/stage-release.sh -k "${SIGNING_KEY_SHORT_NAME}" \
                                      -v ${{ github.event.inputs.release-version }} \
                                      -n ${{ github.event.inputs.development-version }} \
