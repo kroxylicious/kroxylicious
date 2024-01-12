@@ -13,7 +13,6 @@ set +u
 
 REPOSITORY="origin"
 BRANCH_FROM="main"
-SNAPSHOT_INCREMENT_INDEX=2
 DRY_RUN="false"
 SKIP_VALIDATION="false"
 TEMPORARY_RELEASE_BRANCH=""
@@ -33,7 +32,7 @@ while getopts ":v:b:k:r:n:dsh" opt; do
           exit 1
       fi
     ;;
-    n) SNAPSHOT_INCREMENT_INDEX="${OPTARG}"
+    n) DEVELOPMENT_VERSION="${OPTARG}"
     ;;
     d) DRY_RUN="true"
     ;;
@@ -53,16 +52,11 @@ usage: $0 -k keyid -v version [-b branch] [-r repository] [-s] [-d] [-h]
 EOF
       exit 1
     ;;
-    \?) echo "Invalid option -${OPTARG}" >&2
+    \?) echo "Invalid option -$opt ${OPTARG}" >&2
     exit 1
     ;;
   esac
 
-  case ${OPTARG} in
-    -*) echo "Option $opt needs a valid argument"
-    exit 1
-    ;;
-  esac
 done
 
 if [[ -z "${GPG_KEY}" ]]; then
@@ -106,6 +100,17 @@ cleanup() {
     fi
 }
 
+setVersion() {
+  local VERSION=$1
+  mvn -q -B versions:set -DnewVersion="${VERSION}" -DgenerateBackupPoms=false -DprocessAllModules=true
+
+  # Bump version ref in files not controlled by Maven
+  # shellcheck disable=SC2046
+  ${SED} -i -e "s#${CURRENT_VERSION//./\\.}#${VERSION}#g" $(find kubernetes-examples -name "*.yaml" -type f)
+
+  git add '**/*.yaml' '**/pom.xml' 'pom.xml'
+}
+
 trap cleanup EXIT
 
 git stash --all
@@ -122,7 +127,6 @@ if [[ "${DRY_RUN:-false}" == true ]]; then
     #Disable the shell check as the colour codes only work with interpolation.
     # shellcheck disable=SC2059
     printf "${BLUE}Dry-run mode:${NC} no remote tags or PRs will be created, artefacts will be deployed to: ${DEPLOY_DRY_RUN_DIR}\n"
-    GIT_DRYRUN="--dry-run"
     MVN_DEPLOY_DRYRUN="-DaltDeploymentRepository=ossrh::file:${DEPLOY_DRY_RUN_DIR}"
 else
     MVN_DEPLOY_DRYRUN=""
@@ -134,22 +138,17 @@ if [[ "${SKIP_VALIDATION:-false}" != true ]]; then
 fi
 
 echo "Versioning Kroxylicious as ${RELEASE_VERSION}"
-
-mvn -q versions:set -DnewVersion="${RELEASE_VERSION}" -DgenerateBackupPoms=false -DprocessAllModules=true
-
-# Bump version ref in files not controlled by Maven
-${SED} -i -e "s#${CURRENT_VERSION//./\\.}#${RELEASE_VERSION}#g" $(find kubernetes-examples -name "*.yaml" -type f)
+setVersion "${RELEASE_VERSION}"
 #Set the release version in the Changelog
 ${SED} -i -e "s_##\sSNAPSHOT_## ${RELEASE_VERSION//./\\.}_g" CHANGELOG.md
+git add 'CHANGELOG.md'
 
 echo "Validating things still build"
-mvn -q clean install -Pquick
-
+mvn -q -B clean install -Pquick
 
 RELEASE_TAG="v${RELEASE_VERSION}"
 
 echo "Committing release to git"
-git add '**/*.yaml' '**/pom.xml' 'pom.xml' 'CHANGELOG.md'
 git commit --message "Release version ${RELEASE_TAG}" --signoff
 
 git tag -f "${RELEASE_TAG}"
@@ -157,19 +156,20 @@ git tag -f "${RELEASE_TAG}"
 git push "${REPOSITORY}" "${RELEASE_TAG}" ${GIT_DRYRUN:-}
 
 echo "Deploying release"
-mvn -q deploy -Prelease,dist -DskipTests=true -DreleaseSigningKey="${GPG_KEY}" ${MVN_DEPLOY_DRYRUN} -DprocessAllModules=true
 
+# shellcheck disable=SC2086
+# Quoting leads to an extra space which causes maven to barf!
+mvn -q -B -Prelease,dist -DskipTests=true -DreleaseSigningKey="${GPG_KEY}" ${MVN_DEPLOY_DRYRUN} -DprocessAllModules=true deploy
+
+echo "Release deployed, preparing for development of ${DEVELOPMENT_VERSION}"
 PREPARE_DEVELOPMENT_BRANCH="prepare-development-${RELEASE_DATE}"
-git checkout -b ${PREPARE_DEVELOPMENT_BRANCH} ${TEMPORARY_RELEASE_BRANCH}
-mvn versions:set -DnextSnapshot=true -DnextSnapshotIndexToIncrement="${SNAPSHOT_INCREMENT_INDEX}" -DgenerateBackupPoms=false -DprocessAllModules=true
+git checkout -b "${PREPARE_DEVELOPMENT_BRANCH}" "${TEMPORARY_RELEASE_BRANCH}"
 
-# Bump version ref in files not controlled by Maven
-NEXT_SNAPSHOT_VERSION=$(mvn org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=project.version -q -DforceStdout)
-${SED} -i -e "s#${RELEASE_VERSION//./\\.}#${NEXT_SNAPSHOT_VERSION}#g" $(find kubernetes-examples -name "*.yaml" -type f)
+setVersion "${DEVELOPMENT_VERSION}"
 # bump the Changelog to the next SNAPSHOT version. We do it this way so the changelog has the new release as the first entry
-${SED} -i -e "s_##\s${RELEASE_VERSION//./\\.}_SNAPSHOT\n## ${RELEASE_VERSION//./\\.}_g" CHANGELOG.md
+${SED} -i -e "s_##\s${RELEASE_VERSION//./\\.}_## SNAPSHOT\n## ${RELEASE_VERSION//./\\.}_g" CHANGELOG.md
 
-git add '**/*.yaml' '**/pom.xml' 'pom.xml' 'CHANGELOG.md'
+git add 'CHANGELOG.md'
 git commit --message "Start next development version" --signoff
 
 if [[ "${DRY_RUN:-false}" == true ]]; then
@@ -183,7 +183,7 @@ then
 fi
 
 ORIGINAL_GH_DEFAULT_REPO=$(gh repo set-default -v | (grep -v 'no default repository' || true))
-gh repo set-default $(git remote get-url ${REPOSITORY})
+gh repo set-default "$(git remote get-url "${REPOSITORY}")"
 
 # create GitHub release via CLI https://cli.github.com/manual/gh_release_create
 # it is created as a draft, the deploy_release workflow will publish it.
@@ -193,7 +193,7 @@ gh release create "${RELEASE_TAG}" ./kroxylicious-*/target/kroxylicious-*-bin.* 
 BODY="Release version ${RELEASE_VERSION}"
 
 # Workaround https://github.com/cli/cli/issues/2691
-git push ${REPOSITORY} HEAD
+git push "${REPOSITORY}" HEAD
 
 echo "Creating pull request to merge the released version."
-gh pr create --head ${PREPARE_DEVELOPMENT_BRANCH} --base ${BRANCH_FROM} --title "Kroxylicious development version ${RELEASE_DATE}" --body "${BODY}" --repo $(gh repo set-default -v)
+gh pr create --head "${PREPARE_DEVELOPMENT_BRANCH}" --base "${BRANCH_FROM}" --title "Kroxylicious development version ${RELEASE_DATE}" --body "${BODY}" --repo "$(gh repo set-default -v)"
