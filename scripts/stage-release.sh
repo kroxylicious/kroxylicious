@@ -102,7 +102,7 @@ cleanup() {
 
 setVersion() {
   local VERSION=$1
-  mvn -q versions:set -DnewVersion="${VERSION}" -DgenerateBackupPoms=false -DprocessAllModules=true
+  mvn -q -B versions:set -DnewVersion="${VERSION}" -DgenerateBackupPoms=false -DprocessAllModules=true
 
   # Bump version ref in files not controlled by Maven
   # shellcheck disable=SC2046
@@ -150,7 +150,7 @@ ${SED} -i -e "s_##\sSNAPSHOT_## ${RELEASE_VERSION//./\\.}_g" CHANGELOG.md
 git add 'CHANGELOG.md'
 
 echo "Validating things still build"
-mvn -q clean install -Pquick
+mvn -q -B clean install -Pquick
 
 RELEASE_TAG="v${RELEASE_VERSION}"
 
@@ -162,8 +162,12 @@ git tag -f "${RELEASE_TAG}"
 gpush "${REPOSITORY}" "${RELEASE_TAG}"
 
 echo "Deploying release"
-mvn -q deploy -Prelease,dist -DskipTests=true -DreleaseSigningKey="${GPG_KEY}" "${MVN_DEPLOY_DRYRUN}" -DprocessAllModules=true
 
+# shellcheck disable=SC2086
+# Quoting leads to an extra space which causes maven to barf!
+mvn -q -B -Prelease,dist -DskipTests=true -DreleaseSigningKey="${GPG_KEY}" ${MVN_DEPLOY_DRYRUN} -DprocessAllModules=true deploy
+
+echo "Release deployed, preparing for development of ${DEVELOPMENT_VERSION}"
 PREPARE_DEVELOPMENT_BRANCH="prepare-development-${RELEASE_DATE}"
 git checkout -b "${PREPARE_DEVELOPMENT_BRANCH}" "${TEMPORARY_RELEASE_BRANCH}"
 
