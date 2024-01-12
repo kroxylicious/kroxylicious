@@ -29,6 +29,8 @@ To export your key run something like
 gpg --armor --export-secret-key ${KEY_ID} | pbcopy
 ```
 
+While `pbcopy` os MacOS specific similar utilities exist for Linux see [StackExchange](https://superuser.com/a/288333) 
+
 
 ## Release steps
 
