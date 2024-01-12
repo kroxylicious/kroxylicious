@@ -162,8 +162,10 @@ git tag -f "${RELEASE_TAG}"
 gpush "${REPOSITORY}" "${RELEASE_TAG}"
 
 echo "Deploying release"
-echo mvn -q -B -Prelease,dist -DskipTests=true -DreleaseSigningKey="${GPG_KEY}" "${MVN_DEPLOY_DRYRUN}" -DprocessAllModules=true deploy
-mvn -q -B -Prelease,dist -DskipTests=true -DreleaseSigningKey="${GPG_KEY}" "${MVN_DEPLOY_DRYRUN}" -DprocessAllModules=true deploy
+
+# shellcheck disable=SC2086
+# Quoting leads to an extra space which causes maven to barf!
+mvn -q -B -Prelease,dist -DskipTests=true -DreleaseSigningKey="${GPG_KEY}" ${MVN_DEPLOY_DRYRUN} -DprocessAllModules=true deploy
 
 echo "Release deployed, preparing for development of ${DEVELOPMENT_VERSION}"
 PREPARE_DEVELOPMENT_BRANCH="prepare-development-${RELEASE_DATE}"
