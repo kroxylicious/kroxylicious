@@ -19,10 +19,17 @@ secrets](https://github.com/kroxylicious/kroxylicious/settings/secrets/actions) 
 
 Create the following repository secrets:
 
-| Secret                                        | Description                                             |
-|-----------------------------------------------|---------------------------------------------------------|
-| `KROXYLICIOUS_RELEASE_PRIVATE_KEY`            | Private key of the project admin conducting the release |
-| `KROXYLICIOUS_RELEASE_PRIVATE_KEY_PASSPHRASE` | Passphrase used to protect the private key              |
+| Secret                                        | Description                                                                |
+|-----------------------------------------------|----------------------------------------------------------------------------|
+| `KROXYLICIOUS_RELEASE_PRIVATE_KEY`            | Private key, in armor format, of the project admin conducting the release. |
+| `KROXYLICIOUS_RELEASE_PRIVATE_KEY_PASSPHRASE` | Passphrase used to protect the private key                                 |
+
+To export your key run something like
+```shell
+gpg --armor --export-secret-key ${KEY_ID} | pbcopy
+```
+
+While `pbcopy` os MacOS specific similar utilities exist for Linux see [StackExchange](https://superuser.com/a/288333) 
 
 
 ## Release steps
