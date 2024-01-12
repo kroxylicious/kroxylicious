@@ -48,18 +48,18 @@ public class Strimzi {
      */
     public Strimzi(String deploymentNamespace) throws IOException {
         this.deploymentNamespace = deploymentNamespace;
-        InputStream strimziYaml = DeploymentUtils.getDeploymentFileFromURL(Environment.STRIMZI_URL);
-        InputStream strimziYamlKRaft = configureKRaftModeForStrimzi(strimziYaml);
-        deployment = kubeClient().getClient().load(strimziYamlKRaft);
+        InputStream strimziMultiDocumentYaml = DeploymentUtils.getDeploymentFileFromURL(Environment.STRIMZI_URL);
+        InputStream strimziMultiDocumentYamlKRaft = configureKRaftModeForStrimzi(strimziMultiDocumentYaml);
+        deployment = kubeClient().getClient().load(strimziMultiDocumentYamlKRaft);
     }
 
-    private InputStream configureKRaftModeForStrimzi(InputStream strimziYaml) throws IOException {
+    private InputStream configureKRaftModeForStrimzi(InputStream strimziMultiDocumentYaml) throws IOException {
         YAMLFactory yamlFactory = new YAMLFactory();
         ObjectMapper mapper = new YAMLMapper();
 
-        YAMLParser yamlParser = yamlFactory.createParser(strimziYaml);
+        YAMLParser multiDocumentYamlParser = yamlFactory.createParser(strimziMultiDocumentYaml);
         List<JsonNode> docs = mapper
-                .readValues(yamlParser, new TypeReference<JsonNode>() {
+                .readValues(multiDocumentYamlParser, new TypeReference<JsonNode>() {
                 })
                 .readAll();
         boolean found = false;
