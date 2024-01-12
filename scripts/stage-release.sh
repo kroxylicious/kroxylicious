@@ -145,7 +145,7 @@ fi
 echo "Versioning Kroxylicious as ${RELEASE_VERSION}"
 setVersion "${RELEASE_VERSION}"
 #Set the release version in the Changelog
-${SED} -i -e "s_##\sSNAPSHOT_## ${VERSION//./\\.}_g" CHANGELOG.md
+${SED} -i -e "s_##\sSNAPSHOT_## ${RELEASE_VERSION//./\\.}_g" CHANGELOG.md
 git add 'CHANGELOG.md'
 
 echo "Validating things still build"
