@@ -162,6 +162,7 @@ git tag -f "${RELEASE_TAG}"
 gpush "${REPOSITORY}" "${RELEASE_TAG}"
 
 echo "Deploying release"
+echo mvn -q -B -Prelease,dist -DskipTests=true -DreleaseSigningKey="${GPG_KEY}" "${MVN_DEPLOY_DRYRUN}" -DprocessAllModules=true deploy
 mvn -q -B -Prelease,dist -DskipTests=true -DreleaseSigningKey="${GPG_KEY}" "${MVN_DEPLOY_DRYRUN}" -DprocessAllModules=true deploy
 
 echo "Release deployed, preparing for development of ${DEVELOPMENT_VERSION}"
