@@ -74,7 +74,8 @@ public class Strimzi {
                         String value = node.at("/value").asText();
                         if (value.isEmpty() || value.isBlank()) {
                             value = String.join(",", Constants.USE_KRAFT_MODE, Constants.USE_KAFKA_NODE_POOLS);
-                        } else {
+                        }
+                        else {
                             value = value.replace(Constants.DONT_USE_KRAFT_MODE, Constants.USE_KRAFT_MODE)
                                     .replace(Constants.DONT_USE_KAFKA_NODE_POOLS, Constants.USE_KAFKA_NODE_POOLS);
 
