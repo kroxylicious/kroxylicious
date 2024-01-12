@@ -1,4 +1,6 @@
-Kroxylicious adopters
+# Kroxylicious adopters
+
+If you are using Kroxylicious in any context: production, build environment or for developer workstations, please feel free to open a pull request against this file adding your org and optionally what your using Kroxylicious for.
 
 | Organisation                                                                                                                                                                                                                                                                                                                      | Product or Context |
 |-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------|
