@@ -31,6 +31,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.mockito.stubbing.Answer;
 
+import io.kroxylicious.filter.encryption.DekAllocator;
 import io.kroxylicious.filter.encryption.EncryptionScheme;
 import io.kroxylicious.filter.encryption.Receiver;
 import io.kroxylicious.filter.encryption.RecordField;
@@ -68,7 +69,7 @@ class InBandKeyManagerTest {
     void shouldEncryptRecordValue() {
         var kmsService = UnitTestingKmsService.newInstance();
         InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
+        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000, new DekAllocator<>(kms));
 
         var kekId = kms.generateKey();
 
@@ -102,7 +103,7 @@ class InBandKeyManagerTest {
     void shouldTolerateEncryptingAndDecryptingEmptyRecordValue() {
         var kmsService = UnitTestingKmsService.newInstance();
         InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
+        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000, new DekAllocator<>(kms));
 
         var kekId = kms.generateKey();
 
@@ -128,7 +129,7 @@ class InBandKeyManagerTest {
     void decryptSupportsUnencryptedRecordValue() {
         var kmsService = UnitTestingKmsService.newInstance();
         InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
+        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000, new DekAllocator<>(kms));
 
         byte[] recBytes = { 1, 2, 3 };
         TestingRecord record = new TestingRecord(ByteBuffer.wrap(recBytes));
@@ -147,7 +148,7 @@ class InBandKeyManagerTest {
     void nullRecordValuesShouldNotBeModifiedAtEncryptTime() {
         var kmsService = UnitTestingKmsService.newInstance();
         InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
+        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000, new DekAllocator<>(kms));
 
         var kekId = kms.generateKey();
 
@@ -168,7 +169,7 @@ class InBandKeyManagerTest {
     void nullRecordValuesAreIncompatibleWithHeaderEncryption() {
         var kmsService = UnitTestingKmsService.newInstance();
         InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
+        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000, new DekAllocator<>(kms));
 
         var kekId = kms.generateKey();
 
@@ -187,7 +188,7 @@ class InBandKeyManagerTest {
     void shouldTolerateEncryptingEmptyBatch() {
         var kmsService = UnitTestingKmsService.newInstance();
         InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
+        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000, new DekAllocator<>(kms));
 
         var kekId = kms.generateKey();
 
@@ -205,7 +206,7 @@ class InBandKeyManagerTest {
         InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
         var kekId = kms.generateKey();
         // configure 1 encryption per dek but then try to encrypt 2 records, will destroy and retry
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 1);
+        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 1, new DekAllocator<>(kms));
 
         var value = ByteBuffer.wrap(new byte[]{ 1, 2, 3 });
         var value2 = ByteBuffer.wrap(new byte[]{ 4, 5, 6 });
@@ -227,8 +228,10 @@ class InBandKeyManagerTest {
         InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
         var kekId = kms.generateKey();
         InMemoryKms spyKms = Mockito.spy(kms);
-        when(spyKms.generateDekPair(kekId)).thenReturn(CompletableFuture.failedFuture(new EncryptorCreationException("failed to create that DEK")));
-        var km = new InBandKeyManager<>(spyKms, BufferPool.allocating(), 500000);
+        DekAllocator dekAllocator = Mockito.mock(DekAllocator.class);
+        when(dekAllocator.allocateDek(kekId, 500000)).thenReturn(CompletableFuture.failedFuture(new EncryptorCreationException("failed to create that DEK")));
+
+        var km = new InBandKeyManager<>(spyKms, BufferPool.allocating(), 500000, dekAllocator);
 
         var value = ByteBuffer.wrap(new byte[]{ 1, 2, 3 });
         var value2 = ByteBuffer.wrap(new byte[]{ 4, 5, 6 });
@@ -251,7 +254,7 @@ class InBandKeyManagerTest {
         InMemoryKms spyKms = Mockito.spy(kms);
         doReturn(CompletableFuture.failedFuture(new KmsException("failed to create that DEK"))).when(spyKms).decryptEdek(any());
 
-        var km = new InBandKeyManager<>(spyKms, BufferPool.allocating(), 50000);
+        var km = new InBandKeyManager<>(spyKms, BufferPool.allocating(), 50000, new DekAllocator<>(spyKms));
 
         var value = ByteBuffer.wrap(new byte[]{ 1, 2, 3 });
         var value2 = ByteBuffer.wrap(new byte[]{ 4, 5, 6 });
@@ -278,7 +281,7 @@ class InBandKeyManagerTest {
         InMemoryKms spyKms = Mockito.spy(kms);
         when(spyKms.generateDekPair(kekId)).thenReturn(CompletableFuture.failedFuture(new KmsException("failed to create that DEK")));
 
-        var km = new InBandKeyManager<>(spyKms, BufferPool.allocating(), 50000);
+        var km = new InBandKeyManager<>(spyKms, BufferPool.allocating(), 50000, new DekAllocator<>(spyKms, 50000));
 
         var value = ByteBuffer.wrap(new byte[]{ 1, 2, 3 });
         var value2 = ByteBuffer.wrap(new byte[]{ 4, 5, 6 });
@@ -290,7 +293,7 @@ class InBandKeyManagerTest {
         CompletionStage<Void> encrypt = km.encrypt("topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
                 initial,
                 recordReceivedRecord(encrypted));
-        assertThat(encrypt).failsWithin(Duration.ofSeconds(5)).withThrowableThat().withMessageContaining("failed to create that DEK");
+        assertThat(encrypt).failsWithin(Duration.ofSeconds(5)).withThrowableThat().withMessageContaining("unable to allocate a DEK after 3 attempts");
 
         // given KMS is no longer generating failed futures
         when(spyKms.generateDekPair(kekId)).thenCallRealMethod();
@@ -316,7 +319,7 @@ class InBandKeyManagerTest {
     void shouldEncryptRecordValueForMultipleRecords() throws ExecutionException, InterruptedException, TimeoutException {
         var kmsService = UnitTestingKmsService.newInstance();
         InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
+        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000, new DekAllocator<>(kms));
 
         var kekId = kms.generateKey();
 
@@ -353,7 +356,7 @@ class InBandKeyManagerTest {
     void shouldGenerateNewDekIfOldDekHasNoRemainingEncryptions() throws ExecutionException, InterruptedException, TimeoutException {
         var kmsService = UnitTestingKmsService.newInstance();
         InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 2);
+        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 2, new DekAllocator<>(kms, 2));
 
         var kekId = kms.generateKey();
 
@@ -392,7 +395,7 @@ class InBandKeyManagerTest {
     void shouldGenerateNewDekIfOldOneHasSomeRemainingEncryptionsButNotEnoughForWholeBatch() throws ExecutionException, InterruptedException, TimeoutException {
         var kmsService = UnitTestingKmsService.newInstance();
         InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 3);
+        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 3, new DekAllocator<>(kms, 3));
 
         var kekId = kms.generateKey();
 
@@ -432,7 +435,7 @@ class InBandKeyManagerTest {
     void shouldUseSameDekForMultipleBatches() throws ExecutionException, InterruptedException, TimeoutException {
         var kmsService = UnitTestingKmsService.newInstance();
         InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 4);
+        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 4, new DekAllocator<>(kms));
 
         var kekId = kms.generateKey();
 
@@ -480,7 +483,7 @@ class InBandKeyManagerTest {
     void shouldEncryptRecordHeaders() {
         var kmsService = UnitTestingKmsService.newInstance();
         InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
+        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000, new DekAllocator<>(kms));
 
         var kekId = kms.generateKey();
 
@@ -510,7 +513,7 @@ class InBandKeyManagerTest {
     void shouldEncryptRecordHeadersForMultipleRecords() throws ExecutionException, InterruptedException, TimeoutException {
         var kmsService = UnitTestingKmsService.newInstance();
         InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
+        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000, new DekAllocator<>(kms));
 
         var kekId = kms.generateKey();
 
@@ -543,7 +546,7 @@ class InBandKeyManagerTest {
     void shouldPropagateHeadersInClearWhenNotEncryptingHeaders() {
         var kmsService = UnitTestingKmsService.newInstance();
         InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
+        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000, new DekAllocator<>(kms));
 
         var kekId = kms.generateKey();
 
@@ -587,7 +590,7 @@ class InBandKeyManagerTest {
 
         var spyKms = Mockito.spy(kms);
 
-        var km = new InBandKeyManager<>(spyKms, BufferPool.allocating(), 50000);
+        var km = new InBandKeyManager<>(spyKms, BufferPool.allocating(), 50000, new DekAllocator<>(spyKms));
 
         byte[] rec1Bytes = { 1, 2, 3 };
         byte[] rec2Bytes = { 4, 5, 6 };
@@ -642,7 +645,7 @@ class InBandKeyManagerTest {
         InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
         var kekId = kms.generateKey();
 
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 50000);
+        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 50000, new DekAllocator<>(kms));
 
         byte[] rec1Bytes = { 1, 2, 3 };
         byte[] rec2Bytes = { 4, 5, 6 };

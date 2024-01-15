@@ -7,6 +7,7 @@
 package io.kroxylicious.filter.encryption;
 
 import java.time.Duration;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 
 import org.junit.jupiter.api.Test;
 
@@ -19,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class EnvelopeEncryptionTest {
 
@@ -32,6 +34,7 @@ class EnvelopeEncryptionTest {
         var kekSelectorService = mock(KekSelectorService.class);
         var kekSelector = mock(TopicNameBasedKekSelector.class);
 
+        when(fc.eventLoop()).thenReturn(new ScheduledThreadPoolExecutor(1));
         doReturn(kmsService).when(fc).pluginInstance(KmsService.class, "KMS");
         doReturn(kms).when(kmsService).buildKms(any());
 

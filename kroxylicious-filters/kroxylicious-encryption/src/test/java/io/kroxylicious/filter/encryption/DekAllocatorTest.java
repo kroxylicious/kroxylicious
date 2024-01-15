@@ -6,19 +6,19 @@
 
 package io.kroxylicious.filter.encryption;
 
-import io.kroxylicious.kms.service.DekPair;
-import io.kroxylicious.kms.service.Kms;
+import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+
+import javax.crypto.SecretKey;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import javax.crypto.SecretKey;
-import java.time.Duration;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.ExecutionException;
+import io.kroxylicious.kms.service.DekPair;
+import io.kroxylicious.kms.service.Kms;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyLong;

@@ -6,19 +6,18 @@
 
 package io.kroxylicious.filter.encryption;
 
-import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
-
-import com.github.benmanes.caffeine.cache.Caffeine;
-
-import edu.umd.cs.findbugs.annotations.NonNull;
-
-import io.kroxylicious.kms.service.DekPair;
-import io.kroxylicious.kms.service.Kms;
-
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+
+import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+
+import io.kroxylicious.kms.service.DekPair;
+import io.kroxylicious.kms.service.Kms;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 // We want to allocate the same DEK to multiple channels
 public class DekAllocator<K, E> {
@@ -63,9 +62,10 @@ public class DekAllocator<K, E> {
     }
 
     @NonNull
-    CompletableFuture<DekPair<E>> allocateDek(@NonNull K kekId, long encryptions) {
+    public CompletableFuture<DekPair<E>> allocateDek(@NonNull K kekId, long encryptions) {
         if (encryptions > maximumEncryptionsPerDek) {
-            return CompletableFuture.failedFuture(new EncryptionException("DekAllocator asked to allocate encryptions above the configured maximum of " + maximumEncryptionsPerDek));
+            return CompletableFuture
+                    .failedFuture(new EncryptionException("DekAllocator asked to allocate encryptions above the configured maximum of " + maximumEncryptionsPerDek));
         }
         return allocateDek(kekId, encryptions, 0);
     }
@@ -76,21 +76,21 @@ public class DekAllocator<K, E> {
             return CompletableFuture.failedFuture(new EncryptionException("unable to allocate a DEK after " + MAX_RETRIES + " attempts"));
         }
         return cache.get(kekId).thenApply(eDekUsageContext -> eDekUsageContext.allocate(encryptions))
-                .exceptionallyCompose(throwable -> invalidateAndRetry(kekId, throwable, encryptions, attempt + 1));
+                .exceptionallyCompose(throwable -> invalidate(kekId, throwable, encryptions, attempt + 1));
     }
 
     @NonNull
-    private CompletableFuture<DekPair<E>> invalidateAndRetry(@NonNull K kekId, Throwable throwable, long encryptions, int nextAttempt) {
+    private CompletableFuture<DekPair<E>> invalidate(@NonNull K kekId, Throwable throwable, long encryptions, int nextAttempt) {
         if (throwable instanceof ExhaustedException ex) {
-            invalidateAndRetry(kekId, ex);
+            invalidate(kekId, ex);
         }
         else if (throwable instanceof CompletionException e && e.getCause() instanceof ExhaustedException cause) {
-            invalidateAndRetry(kekId, cause);
+            invalidate(kekId, cause);
         }
         return allocateDek(kekId, encryptions, nextAttempt);
     }
 
-    private void invalidateAndRetry(@NonNull K kekId, ExhaustedException ex) {
+    private void invalidate(@NonNull K kekId, ExhaustedException ex) {
         // we want to prevent invalidating twice in case another thread has already invalidated and repopulated the cache
         synchronized (ex.context) {
             boolean firstClose = ex.context.close();

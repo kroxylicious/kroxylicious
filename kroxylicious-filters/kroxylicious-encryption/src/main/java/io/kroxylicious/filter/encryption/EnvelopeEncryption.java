@@ -10,6 +10,7 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -65,7 +66,18 @@ public class EnvelopeEncryption<K, E> implements FilterFactory<EnvelopeEncryptio
 
     public record FilterState<K, E>(ApplicationWideState<K, E> applicationWide, PerEventLoopState<K, E> perEventLoop) {}
 
-    public record ApplicationWideState<K, E>(Kms<K, E> kms, Map<ScheduledExecutorService, PerEventLoopState<K, E>> stateMap, Config config) {
+    public static final class ApplicationWideState<K, E> {
+        private final Kms<K, E> kms;
+        private final Map<ScheduledExecutorService, PerEventLoopState<K, E>> stateMap;
+        private final Config config;
+        private final DekAllocator<K, E> dekAllocator;
+
+        public ApplicationWideState(Kms<K, E> kms, Map<ScheduledExecutorService, PerEventLoopState<K, E>> stateMap, Config config) {
+            this.kms = kms;
+            this.stateMap = stateMap;
+            this.config = config;
+            this.dekAllocator = new DekAllocator<>(kms);
+        }
 
         ApplicationWideState(FilterFactoryContext context, Config config) {
             this(createKms(context, config), Collections.synchronizedMap(new IdentityHashMap<>()), config);
@@ -88,9 +100,55 @@ public class EnvelopeEncryption<K, E> implements FilterFactory<EnvelopeEncryptio
                     config.resolvedAliasExpireAfterWriteDuration, config.resolvedAliasRefreshAfterWriteDuration);
         }
 
-        FilterState<K, E> stateFor(FilterFactoryContext context) {
-            PerEventLoopState<K, E> perEventLoopState = stateMap.computeIfAbsent(context.eventLoop(), exec -> new PerEventLoopState<>(context, this));
-            return new FilterState<>(this, perEventLoopState);
+        PerEventLoopState<K, E> stateFor(FilterFactoryContext context) {
+            ScheduledExecutorService eventLoop = context.eventLoop();
+            if (eventLoop == null) {
+                throw new IllegalStateException("eventloop on context is null");
+            }
+            return stateMap.computeIfAbsent(eventLoop, exec -> new PerEventLoopState<>(context, this));
+        }
+
+        public Kms<K, E> kms() {
+            return kms;
+        }
+
+        public Map<ScheduledExecutorService, PerEventLoopState<K, E>> stateMap() {
+            return stateMap;
+        }
+
+        public Config config() {
+            return config;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (obj == this) {
+                return true;
+            }
+            if (obj == null || obj.getClass() != this.getClass()) {
+                return false;
+            }
+            var that = (ApplicationWideState) obj;
+            return Objects.equals(this.kms, that.kms) &&
+                    Objects.equals(this.stateMap, that.stateMap) &&
+                    Objects.equals(this.config, that.config);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(kms, stateMap, config);
+        }
+
+        @Override
+        public String toString() {
+            return "ApplicationWideState[" +
+                    "kms=" + kms + ", " +
+                    "stateMap=" + stateMap + ", " +
+                    "config=" + config + ']';
+        }
+
+        public DekAllocator<K, E> getDekAllocator() {
+            return dekAllocator;
         }
     }
 
@@ -108,7 +166,7 @@ public class EnvelopeEncryption<K, E> implements FilterFactory<EnvelopeEncryptio
 
         @NonNull
         private static <K, E> KeyManager<K> createKeyManager(ApplicationWideState<K, E> applicationWideState) {
-            return new InBandKeyManager<>(applicationWideState.kms(), BufferPool.allocating(), 500_000);
+            return new InBandKeyManager<>(applicationWideState.kms(), BufferPool.allocating(), 500_000, applicationWideState.dekAllocator);
         }
     }
 
@@ -120,7 +178,7 @@ public class EnvelopeEncryption<K, E> implements FilterFactory<EnvelopeEncryptio
     @NonNull
     @Override
     public EnvelopeEncryptionFilter<K> createFilter(FilterFactoryContext context, ApplicationWideState<K, E> applicationWideState) {
-        FilterState<K, E> filterState = applicationWideState.stateFor(context);
-        return new EnvelopeEncryptionFilter<>(filterState.perEventLoop().keyManager(), filterState.perEventLoop().selector());
+        PerEventLoopState<K, E> filterState = applicationWideState.stateFor(context);
+        return new EnvelopeEncryptionFilter<>(filterState.keyManager(), filterState.selector());
     }
 }

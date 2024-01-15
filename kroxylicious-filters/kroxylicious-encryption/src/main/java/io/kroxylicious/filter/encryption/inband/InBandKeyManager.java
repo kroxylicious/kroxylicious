@@ -23,6 +23,7 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 
 import io.kroxylicious.filter.encryption.AadSpec;
 import io.kroxylicious.filter.encryption.CipherCode;
+import io.kroxylicious.filter.encryption.DekAllocator;
 import io.kroxylicious.filter.encryption.EncryptionException;
 import io.kroxylicious.filter.encryption.EncryptionScheme;
 import io.kroxylicious.filter.encryption.EncryptionVersion;
@@ -62,21 +63,24 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
     private final Kms<K, E> kms;
     private final BufferPool bufferPool;
     private final Serde<E> edekSerde;
+    private final DekAllocator<K, E> dekAllocator;
     // TODO cache expiry, with key descruction
     private final AsyncLoadingCache<K, KeyContext> keyContextCache;
     private final AsyncLoadingCache<E, AesGcmEncryptor> decryptorCache;
     private final long dekTtlNanos;
-    private final int maxEncryptionsPerDek;
+    private final int encryptionOperationsPerAllocation;
     private final Header[] encryptionHeader;
 
     public InBandKeyManager(Kms<K, E> kms,
                             BufferPool bufferPool,
-                            int maxEncryptionsPerDek) {
+                            int encryptionOperationsPerAllocation,
+                            DekAllocator<K, E> dekAllocator) {
         this.kms = kms;
         this.bufferPool = bufferPool;
         this.edekSerde = kms.edekSerde();
+        this.dekAllocator = dekAllocator;
         this.dekTtlNanos = 5_000_000_000L;
-        this.maxEncryptionsPerDek = maxEncryptionsPerDek;
+        this.encryptionOperationsPerAllocation = encryptionOperationsPerAllocation;
         // TODO This ^^ must be > the maximum size of a batch to avoid an infinite loop
         this.keyContextCache = Caffeine.newBuilder()
                 .buildAsync((key, executor) -> makeKeyContext(key));
@@ -92,7 +96,7 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
     }
 
     private CompletableFuture<KeyContext> makeKeyContext(@NonNull K kekId) {
-        return kms.generateDekPair(kekId)
+        return dekAllocator.allocateDek(kekId, encryptionOperationsPerAllocation)
                 .thenApply(dekPair -> {
                     E edek = dekPair.edek();
                     short edekSize = (short) edekSerde.sizeOf(edek);
@@ -102,7 +106,7 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
 
                     return new KeyContext(serializedEdek,
                             System.nanoTime() + dekTtlNanos,
-                            maxEncryptionsPerDek,
+                            encryptionOperationsPerAllocation,
                             // Either we have a different Aes encryptor for each thread
                             // or we need mutex
                             // or we externalize the state
