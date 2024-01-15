@@ -93,12 +93,16 @@ public class RecordBatchUtils {
                                                                                                              ByteBufferOutputStream resultBuffer) {
         return Collector.of(
                 () -> new BatchAwareMemoryRecordsBuilder(resultBuffer).addBatchLike(recordBatch),
-                (builder, record) -> builder.appendWithOffset(
-                        mapper.transformOffset(record),
-                        mapper.transformTimestamp(record),
-                        mapper.transformKey(record),
-                        mapper.transformValue(record),
-                        mapper.transformHeaders(record)),
+                (builder, record) -> {
+                    mapper.init(record);
+                    builder.appendWithOffset(
+                            mapper.transformOffset(record),
+                            mapper.transformTimestamp(record),
+                            mapper.transformKey(record),
+                            mapper.transformValue(record),
+                            mapper.transformHeaders(record));
+                    mapper.resetAfterTransform(record);
+                },
                 MemoryRecordsUtils::combineBuilders,
                 BatchAwareMemoryRecordsBuilder::build);
     }

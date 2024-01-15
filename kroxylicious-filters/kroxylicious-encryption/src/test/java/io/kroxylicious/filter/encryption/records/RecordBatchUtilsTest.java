@@ -19,9 +19,12 @@ import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 import org.junit.jupiter.api.Test;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 import static io.kroxylicious.filter.encryption.records.BatchAwareMemoryRecordsBuilder.EMPTY_HEADERS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.fail;
 
 class RecordBatchUtilsTest {
 
@@ -64,43 +67,63 @@ class RecordBatchUtilsTest {
         var batch = mrb.build().firstBatch();
 
         // When
+        MyRecordTransform mapper = new MyRecordTransform();
         var memoryRecords = RecordBatchUtils.toMemoryRecords(batch,
-                new RecordTransform() {
-                    @Override
-                    public long transformOffset(Record record) {
-                        return 1_000_000_000L + record.offset();
-                    }
-
-                    @Override
-                    public long transformTimestamp(Record record) {
-                        return 1_000_000_000L + record.timestamp();
-                    }
-
-                    @Override
-                    public ByteBuffer transformKey(Record record) {
-                        return record.key();
-                    }
-
-                    @Override
-                    public ByteBuffer transformValue(Record record) {
-                        return record.value();
-                    }
-
-                    @Override
-                    public Header[] transformHeaders(Record record) {
-                        return record.headers();
-                    }
-
-                    @Override
-                    public void resetAfterTransform(Record record) {
-
-                    }
-                },
+                mapper,
                 new ByteBufferOutputStream(1000));
 
         // Then
+        assertThat(mapper.initCalls).isEqualTo(996);
+        assertThat(mapper.state).isZero();
         assertThat(MemoryRecordsUtils.batchStream(memoryRecords).count()).isEqualTo(1);
         assertThat(RecordBatchUtils.recordStream(memoryRecords.firstBatch()).map(Record::offset).toList())
                 .isEqualTo(LongStream.range(1_000_000_004L, 1_000_001_000L).boxed().toList());
+    }
+
+    private static class MyRecordTransform implements RecordTransform {
+        int state = 0;
+        int initCalls = 0;
+
+        @Override
+        public void init(@NonNull Record record) {
+            state += 1;
+            if (state != 1) {
+                fail("Expect init and reset to be paired");
+            }
+            initCalls++;
+        }
+
+        @Override
+        public long transformOffset(Record record) {
+            return 1_000_000_000L + record.offset();
+        }
+
+        @Override
+        public long transformTimestamp(Record record) {
+            return 1_000_000_000L + record.timestamp();
+        }
+
+        @Override
+        public ByteBuffer transformKey(Record record) {
+            return record.key();
+        }
+
+        @Override
+        public ByteBuffer transformValue(Record record) {
+            return record.value();
+        }
+
+        @Override
+        public Header[] transformHeaders(Record record) {
+            return record.headers();
+        }
+
+        @Override
+        public void resetAfterTransform(Record record) {
+            state -= 1;
+            if (state != 0) {
+                fail("Expect init and reset to be paired");
+            }
+        }
     }
 }

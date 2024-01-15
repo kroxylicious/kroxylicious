@@ -25,6 +25,8 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 @NotThreadSafe
 public interface RecordTransform {
 
+    void init(@NonNull Record record);
+
     /**
      * @param record The operand record.
      * @return The offset of the new record.
