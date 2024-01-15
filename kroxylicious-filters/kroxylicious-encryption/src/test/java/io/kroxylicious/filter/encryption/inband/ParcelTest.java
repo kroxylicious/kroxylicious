@@ -21,6 +21,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import io.kroxylicious.filter.encryption.ParcelVersion;
 import io.kroxylicious.filter.encryption.Receiver;
 import io.kroxylicious.filter.encryption.RecordField;
+import io.kroxylicious.test.record.RecordTestUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -28,18 +29,18 @@ class ParcelTest {
 
     static Stream<Arguments> shouldRoundTrip() {
         return Stream.of(
-                Arguments.of(EnumSet.of(RecordField.RECORD_VALUE), new TestingRecord(null)),
-                Arguments.of(EnumSet.of(RecordField.RECORD_VALUE), new TestingRecord(ByteBuffer.wrap(new byte[]{ 1, 2, 3 }))), // no headers
-                Arguments.of(EnumSet.of(RecordField.RECORD_VALUE), new TestingRecord(ByteBuffer.wrap(new byte[]{ 1, 2, 3 }),
+                Arguments.of(EnumSet.of(RecordField.RECORD_VALUE), RecordTestUtils.record((ByteBuffer) null)),
+                Arguments.of(EnumSet.of(RecordField.RECORD_VALUE), RecordTestUtils.record(ByteBuffer.wrap(new byte[]{ 1, 2, 3 }))), // no headers
+                Arguments.of(EnumSet.of(RecordField.RECORD_VALUE), RecordTestUtils.record(ByteBuffer.wrap(new byte[]{ 1, 2, 3 }),
                         new RecordHeader("foo", null))), // header with null value
-                Arguments.of(EnumSet.of(RecordField.RECORD_VALUE), new TestingRecord(ByteBuffer.wrap(new byte[]{ 1, 2, 3 }),
+                Arguments.of(EnumSet.of(RecordField.RECORD_VALUE), RecordTestUtils.record(ByteBuffer.wrap(new byte[]{ 1, 2, 3 }),
                         new RecordHeader("foo", new byte[]{ 4, 5, 6 }))), // header with non-null value
 
-                Arguments.of(EnumSet.of(RecordField.RECORD_VALUE, RecordField.RECORD_HEADER_VALUES), new TestingRecord(null)),
-                Arguments.of(EnumSet.of(RecordField.RECORD_VALUE, RecordField.RECORD_HEADER_VALUES), new TestingRecord(ByteBuffer.wrap(new byte[]{ 1, 2, 3 }))), // no headers
-                Arguments.of(EnumSet.of(RecordField.RECORD_VALUE, RecordField.RECORD_HEADER_VALUES), new TestingRecord(ByteBuffer.wrap(new byte[]{ 1, 2, 3 }),
+                Arguments.of(EnumSet.of(RecordField.RECORD_VALUE, RecordField.RECORD_HEADER_VALUES), RecordTestUtils.record((ByteBuffer) null)),
+                Arguments.of(EnumSet.of(RecordField.RECORD_VALUE, RecordField.RECORD_HEADER_VALUES), RecordTestUtils.record(ByteBuffer.wrap(new byte[]{ 1, 2, 3 }))), // no headers
+                Arguments.of(EnumSet.of(RecordField.RECORD_VALUE, RecordField.RECORD_HEADER_VALUES), RecordTestUtils.record(ByteBuffer.wrap(new byte[]{ 1, 2, 3 }),
                         new RecordHeader("foo", null))), // header with null value
-                Arguments.of(EnumSet.of(RecordField.RECORD_VALUE, RecordField.RECORD_HEADER_VALUES), new TestingRecord(ByteBuffer.wrap(new byte[]{ 1, 2, 3 }),
+                Arguments.of(EnumSet.of(RecordField.RECORD_VALUE, RecordField.RECORD_HEADER_VALUES), RecordTestUtils.record(ByteBuffer.wrap(new byte[]{ 1, 2, 3 }),
                         new RecordHeader("foo", new byte[]{ 4, 5, 6 }))) // header with non-null value
         );
     }

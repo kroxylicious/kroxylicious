@@ -51,10 +51,10 @@ import org.mockito.Mock;
 import org.mockito.hamcrest.MockitoHamcrest;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import io.kroxylicious.filter.encryption.inband.TestingRecord;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
+import io.kroxylicious.test.record.RecordTestUtils;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -202,7 +202,7 @@ class EnvelopeEncryptionFilterTest {
         // Given
         var offsets = List.of(0L, 2L, 3L);
         var recsWithNonConsecutiveOffsets = makeRecords(offsets.stream().mapToLong(Long::longValue),
-                (u) -> new TestingRecord(ByteBuffer.wrap(HELLO_PLAIN_WORLD)));
+                (u) -> RecordTestUtils.record(ByteBuffer.wrap(HELLO_PLAIN_WORLD)));
         var produceRequestData = buildProduceRequestData(new TopicProduceData()
                 .setName(ENCRYPTED_TOPIC)
                 .setPartitionData(List.of(new PartitionProduceData().setRecords(recsWithNonConsecutiveOffsets))));
@@ -283,7 +283,7 @@ class EnvelopeEncryptionFilterTest {
     void fetchShouldMaintainBrokerOffsets() {
         // Given
         var offsets = List.of(0L, 2L, 3L);
-        var recsWithNonConsecutiveOffsets = makeRecords(offsets.stream().mapToLong(Long::longValue), (u) -> new TestingRecord(ByteBuffer.wrap(HELLO_CIPHER_WORLD)));
+        var recsWithNonConsecutiveOffsets = makeRecords(offsets.stream().mapToLong(Long::longValue), (u) -> RecordTestUtils.record(ByteBuffer.wrap(HELLO_CIPHER_WORLD)));
         var encryptedFetchResponse = buildFetchResponseData(new FetchableTopicResponse()
                 .setTopic(ENCRYPTED_TOPIC)
                 .setPartitions(List.of(new PartitionData().setRecords(recsWithNonConsecutiveOffsets))));
@@ -346,7 +346,7 @@ class EnvelopeEncryptionFilterTest {
     }
 
     private static MemoryRecords makeRecord(byte[] payload) {
-        return makeRecords(LongStream.of(0), u -> new TestingRecord(ByteBuffer.wrap(payload), new RecordHeader("myKey", "myValue".getBytes())));
+        return makeRecords(LongStream.of(0), u -> RecordTestUtils.record(ByteBuffer.wrap(payload), new RecordHeader("myKey", "myValue".getBytes())));
     }
 
     private static MemoryRecords makeRecords(LongStream offsets, Function<Long, Record> messageFunc) {
