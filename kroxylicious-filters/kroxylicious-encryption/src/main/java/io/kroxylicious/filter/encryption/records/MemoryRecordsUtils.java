@@ -31,9 +31,10 @@ public class MemoryRecordsUtils {
      * @param memoryRecords The memoryRecords
      * @return A stream over the batches in the given {@code memoryRecords}.
      */
-    public static @NonNull Stream<? extends RecordBatch> batchStream(@NonNull MemoryRecords memoryRecords) {
-        return StreamSupport.stream(
-                () -> memoryRecords.batches().spliterator(),
+    @SuppressWarnings({ "unchecked", "rawtypes" })
+    public static @NonNull Stream<RecordBatch> batchStream(@NonNull MemoryRecords memoryRecords) {
+        return StreamSupport.<RecordBatch> stream(
+                () -> (Spliterator) memoryRecords.batches().spliterator(),
                 Spliterator.ORDERED | Spliterator.NONNULL,
                 false);
     }

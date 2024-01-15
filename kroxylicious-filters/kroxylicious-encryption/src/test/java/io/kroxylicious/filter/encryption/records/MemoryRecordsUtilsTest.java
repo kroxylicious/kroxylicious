@@ -45,7 +45,8 @@ class MemoryRecordsUtilsTest {
         // Then
         // Assertions about stream itself
         assertThat(stream.get().isParallel()).isFalse();
-        assertThatThrownBy(() -> stream.get().sorted().toList()).isExactlyInstanceOf(ClassCastException.class);
+        Stream<? extends RecordBatch> s1 = stream.get().sorted();
+        assertThatThrownBy(() -> s1.toList()).isExactlyInstanceOf(ClassCastException.class);
 
         // Assertions about stream contents
         assertThat(stream.get().count()).describedAs("Expect 996 batches").isEqualTo(996);

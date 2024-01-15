@@ -150,9 +150,6 @@ public class BatchAwareMemoryRecordsBuilder {
      */
     public @NonNull BatchAwareMemoryRecordsBuilder append(SimpleRecord record) {
         checkHasBatch();
-        if (!builder.hasRoomFor(record.timestamp(), record.key(), record.value(), record.headers())) {
-            throw new RuntimeException();
-        }
         builder.append(record);
         return this;
     }
@@ -233,8 +230,7 @@ public class BatchAwareMemoryRecordsBuilder {
      */
     public @NonNull MemoryRecords build() {
         maybeAppendCurrentBatch();
-        MemoryRecords memoryRecords = MemoryRecords.readableRecords(buffer.buffer().flip());
-        return memoryRecords;
+        return MemoryRecords.readableRecords(buffer.buffer().flip());
     }
 
 }

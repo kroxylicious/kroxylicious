@@ -23,7 +23,7 @@ import static io.kroxylicious.filter.encryption.records.BatchAwareMemoryRecordsB
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-public class RecordBatchUtilsTest {
+class RecordBatchUtilsTest {
 
     @Test
     void testRecordStream() {
@@ -41,7 +41,8 @@ public class RecordBatchUtilsTest {
         // Then
         // Assertions about stream itself
         assertThat(stream.get().isParallel()).isFalse();
-        assertThatThrownBy(() -> stream.get().sorted().toList()).isExactlyInstanceOf(ClassCastException.class);
+        Stream<? extends Record> s1 = stream.get().sorted();
+        assertThatThrownBy(() -> s1.toList()).isExactlyInstanceOf(ClassCastException.class);
 
         // Assertions about stream contents
         assertThat(stream.get().count())

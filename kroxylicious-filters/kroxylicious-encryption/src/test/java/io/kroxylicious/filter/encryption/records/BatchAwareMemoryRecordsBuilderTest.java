@@ -53,9 +53,9 @@ class BatchAwareMemoryRecordsBuilderTest {
 
         // Then
         assertThat(StreamSupport.stream(mr.batches().spliterator(), false).count())
-                .isEqualTo(0);
+                .isZero();
         assertThat(StreamSupport.stream(mr.records().spliterator(), false).count())
-                .isEqualTo(0);
+                .isZero();
     }
 
     // Single batch of 0 records
@@ -81,9 +81,9 @@ class BatchAwareMemoryRecordsBuilderTest {
 
         // Then
         assertThat(StreamSupport.stream(mr.batches().spliterator(), false).count())
-                .isEqualTo(0);
+                .isZero();
         assertThat(StreamSupport.stream(mr.records().spliterator(), false).count())
-                .isEqualTo(0);
+                .isZero();
     }
 
     // Single batch of 1 record
@@ -158,7 +158,7 @@ class BatchAwareMemoryRecordsBuilderTest {
         var batch1 = batches.get(0);
         assertThat(batch1.compressionType()).isEqualTo(CompressionType.NONE);
         assertThat(batch1.iterator().next().value()).isEqualTo(ByteBuffer.wrap("hello".getBytes(StandardCharsets.UTF_8)));
-        assertThat(batch1.iterator().next().offset()).isEqualTo(0);
+        assertThat(batch1.iterator().next().offset()).isZero();
 
         var batch2 = batches.get(1);
         assertThat(batch2.compressionType()).isEqualTo(CompressionType.ZSTD);
@@ -251,7 +251,7 @@ class BatchAwareMemoryRecordsBuilderTest {
         var mr1 = builder1.build();
 
         ByteBuffer bb1 = buffer.buffer();
-        assertThat(bb1.position()).isEqualTo(0);
+        assertThat(bb1.position()).isZero();
         assertThat(bb1.capacity()).isEqualTo(80);
 
         var builder2 = new BatchAwareMemoryRecordsBuilder(buffer);
@@ -273,7 +273,7 @@ class BatchAwareMemoryRecordsBuilderTest {
         // Then
         ByteBuffer bb2 = buffer.buffer();
         assertThat(bb1).isSameAs(bb2);
-        assertThat(bb1.position()).isEqualTo(0);
+        assertThat(bb1.position()).isZero();
         assertThat(bb1.capacity()).isEqualTo(80);
 
         assertThat(StreamSupport.stream(mr1.batches().spliterator(), false).count())

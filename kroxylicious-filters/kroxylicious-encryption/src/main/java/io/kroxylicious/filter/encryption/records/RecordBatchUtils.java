@@ -34,7 +34,7 @@ public class RecordBatchUtils {
      * @param batch The record batch
      * @return A stream over the records in the given {@code batch}.
      */
-    public static Stream<? extends Record> recordStream(RecordBatch batch) {
+    public static Stream<Record> recordStream(RecordBatch batch) {
         Spliterator<Record> spliterator;
         Integer size = batch.countOrNull();
         int characteristics = Spliterator.ORDERED | Spliterator.NONNULL;
@@ -52,7 +52,7 @@ public class RecordBatchUtils {
                         characteristics);
             }
 
-            Stream<? extends Record> stream;
+            Stream<Record> stream;
             if ((spliterator.characteristics() & Spliterator.IMMUTABLE) != 0) {
                 // Per javadoc on StreamSupport#stream(), then the spliterator is immutable use the non-Supplier factory
                 stream = StreamSupport.stream(spliterator, false);
@@ -60,9 +60,7 @@ public class RecordBatchUtils {
             else {
                 stream = StreamSupport.stream(() -> spliterator, characteristics, false);
             }
-            return stream.onClose(() -> {
-                iterator.close();
-            });
+            return stream.onClose(iterator::close);
         }
         catch (RuntimeException e) {
             iterator.close();
