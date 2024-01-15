@@ -31,6 +31,16 @@ public class KubeClusterException extends RuntimeException {
     /**
      * Instantiates a new Kube cluster exception.
      *
+     * @param s the s
+     */
+    public KubeClusterException(String s) {
+        super(s);
+        this.result = null;
+    }
+
+    /**
+     * Instantiates a new Kube cluster exception.
+     *
      * @param cause the cause
      */
     public KubeClusterException(Throwable cause) {
@@ -51,6 +61,15 @@ public class KubeClusterException extends RuntimeException {
          */
         public NotFound(ExecResult result, String s) {
             super(result, s);
+        }
+
+        /**
+         * Instantiates a new Not found.
+         *
+         * @param s the s
+         */
+        public NotFound(String s) {
+            super(s);
         }
     }
 

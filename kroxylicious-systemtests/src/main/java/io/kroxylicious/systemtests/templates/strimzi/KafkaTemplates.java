@@ -6,6 +6,7 @@
 
 package io.kroxylicious.systemtests.templates.strimzi;
 
+import io.strimzi.api.ResourceAnnotations;
 import io.strimzi.api.kafka.model.KafkaBuilder;
 import io.strimzi.api.kafka.model.listener.arraylistener.GenericKafkaListenerBuilder;
 import io.strimzi.api.kafka.model.listener.arraylistener.KafkaListenerType;
@@ -74,6 +75,22 @@ public class KafkaTemplates {
                 .endSpec();
     }
 
+    /**
+     * Kafka persistent with KRaft annotations.
+     *
+     * @param namespaceName the namespace name
+     * @param clusterName the cluster name
+     * @param kafkaReplicas the kafka replicas
+     * @return the kafka builder
+     */
+    public static KafkaBuilder kafkaPersistentWithKRaftAnnotations(String namespaceName, String clusterName, int kafkaReplicas) {
+        return kafkaPersistent(namespaceName, clusterName, kafkaReplicas, kafkaReplicas)
+                .editMetadata()
+                .addToAnnotations(ResourceAnnotations.ANNO_STRIMZI_IO_NODE_POOLS, "enabled")
+                .addToAnnotations(ResourceAnnotations.ANNO_STRIMZI_IO_KRAFT, "enabled")
+                .endMetadata();
+    }
+
     private static KafkaBuilder defaultKafka(String namespaceName, String clusterName, int kafkaReplicas, int zkReplicas) {
         return new KafkaBuilder()
                 .withApiVersion(Constants.KAFKA_API_VERSION_V1BETA2)
@@ -116,18 +133,6 @@ public class KafkaTemplates {
                 .addToLoggers("zookeeper.root.logger", LogLevel.INFO.name())
                 .endInlineLogging()
                 .endZookeeper()
-                .editEntityOperator()
-                .editUserOperator()
-                .withNewInlineLogging()
-                .addToLoggers("rootLogger.level", LogLevel.INFO.name())
-                .endInlineLogging()
-                .endUserOperator()
-                .editTopicOperator()
-                .withNewInlineLogging()
-                .addToLoggers("rootLogger.level", LogLevel.INFO.name())
-                .endInlineLogging()
-                .endTopicOperator()
-                .endEntityOperator()
                 .endSpec();
     }
 }
