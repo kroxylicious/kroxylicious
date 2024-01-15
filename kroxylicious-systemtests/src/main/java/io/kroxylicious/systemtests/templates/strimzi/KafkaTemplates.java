@@ -133,18 +133,6 @@ public class KafkaTemplates {
                 .addToLoggers("zookeeper.root.logger", LogLevel.INFO.name())
                 .endInlineLogging()
                 .endZookeeper()
-                .editEntityOperator()
-                .editUserOperator()
-                .withNewInlineLogging()
-                .addToLoggers("rootLogger.level", LogLevel.INFO.name())
-                .endInlineLogging()
-                .endUserOperator()
-                .editTopicOperator()
-                .withNewInlineLogging()
-                .addToLoggers("rootLogger.level", LogLevel.INFO.name())
-                .endInlineLogging()
-                .endTopicOperator()
-                .endEntityOperator()
                 .endSpec();
     }
 }
