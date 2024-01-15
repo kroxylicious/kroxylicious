@@ -23,7 +23,7 @@ public interface FilterFactory<C, I> {
 
     /**
      * Initializes the factory with the specified configuration.
-     * This method is guaranteed to be called at most once, and before any call to
+     * This method is guaranteed to be called at most once for each filter configuration and before any call to
      * {@link #createFilter(FilterFactoryContext, Object)}.
      * This method may provide extra semantic validation of the config,
      * and returns some object (which may be the config, or some other object) which will be passed to {@link #createFilter(FilterFactoryContext, Object)}
