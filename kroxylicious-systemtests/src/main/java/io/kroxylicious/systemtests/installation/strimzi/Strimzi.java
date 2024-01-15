@@ -63,32 +63,30 @@ public class Strimzi {
                 })
                 .readAll();
         boolean found = false;
-        for (JsonNode doc : docs) {
-            String kind = doc.at("/kind").asText("");
-            if (kind.equals(Constants.DEPLOYMENT)) {
-                ArrayNode arrayNode = (ArrayNode) doc.at("/spec/template/spec/containers");
-                ArrayNode envNode = (ArrayNode) arrayNode.get(0).at("/env");
-                for (JsonNode node : envNode) {
-                    if (node.at("/name").asText().equals(Environment.STRIMZI_FEATURE_GATES_ENV)) {
-                        found = true;
-                        String value = node.at("/value").asText();
-                        if (value.isEmpty() || value.isBlank()) {
-                            value = String.join(",", Constants.USE_KRAFT_MODE, Constants.USE_KAFKA_NODE_POOLS);
-                        }
-                        else {
-                            value = value.replace(Constants.DONT_USE_KRAFT_MODE, Constants.USE_KRAFT_MODE)
-                                    .replace(Constants.DONT_USE_KAFKA_NODE_POOLS, Constants.USE_KAFKA_NODE_POOLS);
-
-                            if (!value.contains(Constants.USE_KRAFT_MODE)) {
-                                value = value.concat("," + Constants.USE_KRAFT_MODE);
-                            }
-                            if (!value.contains(Constants.USE_KAFKA_NODE_POOLS)) {
-                                value = value.concat("," + Constants.USE_KAFKA_NODE_POOLS);
-                            }
-                        }
-                        ((ObjectNode) node).put("value", value);
-                        break;
+        List<JsonNode> deploymentDocs = docs.stream().filter(p -> p.at("/kind").asText("").equals(Constants.DEPLOYMENT)).toList();
+        for (JsonNode doc : deploymentDocs) {
+            ArrayNode arrayNode = (ArrayNode) doc.at("/spec/template/spec/containers");
+            ArrayNode envNode = (ArrayNode) arrayNode.get(0).at("/env");
+            for (JsonNode node : envNode) {
+                if (node.at("/name").asText().equals(Environment.STRIMZI_FEATURE_GATES_ENV)) {
+                    found = true;
+                    String value = node.at("/value").asText();
+                    if (value.isEmpty() || value.isBlank()) {
+                        value = String.join(",", Constants.USE_KRAFT_MODE, Constants.USE_KAFKA_NODE_POOLS);
                     }
+                    else {
+                        value = value.replace(Constants.DONT_USE_KRAFT_MODE, Constants.USE_KRAFT_MODE)
+                                .replace(Constants.DONT_USE_KAFKA_NODE_POOLS, Constants.USE_KAFKA_NODE_POOLS);
+
+                        if (!value.contains(Constants.USE_KRAFT_MODE)) {
+                            value = value.concat("," + Constants.USE_KRAFT_MODE);
+                        }
+                        if (!value.contains(Constants.USE_KAFKA_NODE_POOLS)) {
+                            value = value.concat("," + Constants.USE_KAFKA_NODE_POOLS);
+                        }
+                    }
+                    ((ObjectNode) node).put("value", value);
+                    break;
                 }
             }
         }
