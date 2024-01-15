@@ -8,6 +8,7 @@ package io.kroxylicious.filter.encryption;
 
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -45,10 +46,10 @@ public class ResilientKms<K, E> implements Kms<K, E> {
         this.retries = retries;
     }
 
-    public static <K, E> Kms<K, E> get(Kms<K, E> delegate,
-                                       ScheduledExecutorService executorService,
-                                       BackoffStrategy strategy,
-                                       int retries) {
+    public static <K, E> Kms<K, E> wrap(Kms<K, E> delegate,
+                                        ScheduledExecutorService executorService,
+                                        BackoffStrategy strategy,
+                                        int retries) {
         return new ResilientKms<>(delegate, executorService,
                 strategy, retries);
     }
@@ -87,14 +88,18 @@ public class ResilientKms<K, E> implements Kms<K, E> {
         }
         Duration delay = strategy.getDelay(attempt);
         return schedule(operation, delay)
-                .exceptionallyComposeAsync(e -> {
-                    if (e instanceof UnknownAliasException || e instanceof UnknownKeyException) {
+                .exceptionallyCompose(e -> {
+                    if (isUnknownEntityException(e) || (e instanceof CompletionException ce && (isUnknownEntityException(ce.getCause())))) {
                         LOGGER.debug("not retrying unknown entity exception");
                         return CompletableFuture.failedFuture(e);
                     }
                     LOGGER.debug("{} failed attempt {}", name, attempt, e);
                     return retry(name, operation, attempt + 1);
                 });
+    }
+
+    private static boolean isUnknownEntityException(Throwable e) {
+        return e instanceof UnknownAliasException || e instanceof UnknownKeyException;
     }
 
     private <A> CompletionStage<A> schedule(Supplier<CompletionStage<A>> operation, Duration duration) {

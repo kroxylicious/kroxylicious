@@ -27,7 +27,7 @@ public class InstrumentedKms<K, E> implements Kms<K, E> {
         this.metrics = metrics;
     }
 
-    public static <A, B> Kms<A, B> instrument(Kms<A, B> kms, KmsMetrics metrics) {
+    public static <A, B> Kms<A, B> wrap(Kms<A, B> kms, KmsMetrics metrics) {
         return new InstrumentedKms<>(kms, metrics);
     }
 

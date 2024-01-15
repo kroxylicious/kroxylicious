@@ -12,7 +12,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.ScheduledExecutorService;
 
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
@@ -23,7 +22,6 @@ import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 
 import io.kroxylicious.filter.encryption.AadSpec;
-import io.kroxylicious.filter.encryption.BackoffStrategy;
 import io.kroxylicious.filter.encryption.CipherCode;
 import io.kroxylicious.filter.encryption.EncryptionException;
 import io.kroxylicious.filter.encryption.EncryptionScheme;
@@ -32,7 +30,6 @@ import io.kroxylicious.filter.encryption.EnvelopeEncryptionFilter;
 import io.kroxylicious.filter.encryption.KeyManager;
 import io.kroxylicious.filter.encryption.Receiver;
 import io.kroxylicious.filter.encryption.RecordField;
-import io.kroxylicious.filter.encryption.ResilientKms;
 import io.kroxylicious.filter.encryption.WrapperVersion;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.Serde;
@@ -74,11 +71,8 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
 
     public InBandKeyManager(Kms<K, E> kms,
                             BufferPool bufferPool,
-                            int maxEncryptionsPerDek,
-                            ScheduledExecutorService executorService,
-                            BackoffStrategy kmsBackoffStrategy) {
-        this.kms = ResilientKms.get(kms, executorService,
-                kmsBackoffStrategy, 3);
+                            int maxEncryptionsPerDek) {
+        this.kms = kms;
         this.bufferPool = bufferPool;
         this.edekSerde = kms.edekSerde();
         this.dekTtlNanos = 5_000_000_000L;

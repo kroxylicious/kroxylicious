@@ -5,6 +5,8 @@ Please enumerate **all user-facing** changes using format `<githib issue/pr numb
 ## SNAPSHOT
 ## 0.4.1
 
+* [#836](https://github.com/kroxylicious/kroxylicious/pull/836): Cache decrypted EDEK and resolved aliases
+* [#823](https://github.com/kroxylicious/kroxylicious/pull/823): Recover from EDEK decryption failures and improve KMS resilience measures
 * [#841](https://github.com/kroxylicious/kroxylicious/issues/841): Ensure the envelope encryption filter transits record offsets unchanged.
 * [#847](https://github.com/kroxylicious/kroxylicious/pull/847): Bump org.apache.maven.plugins:maven-compiler-plugin from 3.11.0 to 3.12.1
 * [#838](https://github.com/kroxylicious/kroxylicious/issues/838): Ensure the decryption maintains record ordering, regardless of completion order of the decryptor.

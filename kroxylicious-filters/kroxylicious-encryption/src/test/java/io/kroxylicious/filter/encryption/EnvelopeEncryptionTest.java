@@ -6,12 +6,15 @@
 
 package io.kroxylicious.filter.encryption;
 
+import java.time.Duration;
+
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.KmsService;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
@@ -40,4 +43,13 @@ class EnvelopeEncryptionTest {
         assertNotNull(filter);
     }
 
+    @Test
+    void testKmsCacheConfigDefaults() {
+        EnvelopeEncryption.KmsCacheConfig config = new EnvelopeEncryption.Config("vault", 1L, "selector", 1L).kmsCache();
+        assertThat(config.decryptedDekCacheSize()).isEqualTo(1000);
+        assertThat(config.decryptedDekExpireAfterAccessDuration()).isEqualTo(Duration.ofHours(1));
+        assertThat(config.resolvedAliasCacheSize()).isEqualTo(1000);
+        assertThat(config.resolvedAliasExpireAfterWriteDuration()).isEqualTo(Duration.ofMinutes(10));
+        assertThat(config.resolvedAliasRefreshAfterWriteDuration()).isEqualTo(Duration.ofMinutes(8));
+    }
 }

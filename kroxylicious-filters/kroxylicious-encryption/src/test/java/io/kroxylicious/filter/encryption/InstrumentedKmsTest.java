@@ -45,7 +45,7 @@ class InstrumentedKmsTest {
 
     @Test
     void testResolveAliasSuccess() {
-        Kms<String, String> instrument = InstrumentedKms.instrument(kms, metrics);
+        Kms<String, String> instrument = InstrumentedKms.wrap(kms, metrics);
         when(kms.resolveAlias("alias")).thenReturn(CompletableFuture.completedFuture("resolved"));
         CompletionStage<String> stage = instrument.resolveAlias("alias");
         assertThat(stage).succeedsWithin(Duration.ZERO).isEqualTo("resolved");
@@ -55,7 +55,7 @@ class InstrumentedKmsTest {
 
     @Test
     void testResolveAliasException() {
-        Kms<String, String> instrument = InstrumentedKms.instrument(kms, metrics);
+        Kms<String, String> instrument = InstrumentedKms.wrap(kms, metrics);
         NullPointerException cause = new NullPointerException("fail");
         when(kms.resolveAlias("alias")).thenReturn(CompletableFuture.failedFuture(cause));
         CompletionStage<String> stage = instrument.resolveAlias("alias");
@@ -66,7 +66,7 @@ class InstrumentedKmsTest {
 
     @Test
     void testResolveAliasUnknownAliasException() {
-        Kms<String, String> instrument = InstrumentedKms.instrument(kms, metrics);
+        Kms<String, String> instrument = InstrumentedKms.wrap(kms, metrics);
         UnknownAliasException cause = new UnknownAliasException("unknown");
         when(kms.resolveAlias("alias")).thenReturn(CompletableFuture.failedFuture(cause));
         CompletionStage<String> stage = instrument.resolveAlias("alias");
@@ -77,7 +77,7 @@ class InstrumentedKmsTest {
 
     @Test
     void testGenerateDekPairSuccess() {
-        Kms<String, String> instrument = InstrumentedKms.instrument(kms, metrics);
+        Kms<String, String> instrument = InstrumentedKms.wrap(kms, metrics);
         DekPair<String> dekPair = new DekPair<>("edek", secretKey);
         when(kms.generateDekPair("kekRef")).thenReturn(CompletableFuture.completedFuture(dekPair));
         CompletionStage<DekPair<String>> stage = instrument.generateDekPair("kekRef");
@@ -88,7 +88,7 @@ class InstrumentedKmsTest {
 
     @Test
     void testGenerateDekPairException() {
-        Kms<String, String> instrument = InstrumentedKms.instrument(kms, metrics);
+        Kms<String, String> instrument = InstrumentedKms.wrap(kms, metrics);
         NullPointerException cause = new NullPointerException("fail");
         when(kms.generateDekPair("kekRef")).thenReturn(CompletableFuture.failedFuture(cause));
         CompletionStage<DekPair<String>> stage = instrument.generateDekPair("kekRef");
@@ -99,7 +99,7 @@ class InstrumentedKmsTest {
 
     @Test
     void testGenerateDekPairUnknownKeyException() {
-        Kms<String, String> instrument = InstrumentedKms.instrument(kms, metrics);
+        Kms<String, String> instrument = InstrumentedKms.wrap(kms, metrics);
         UnknownKeyException cause = new UnknownKeyException("unknown");
         when(kms.generateDekPair("kekRef")).thenReturn(CompletableFuture.failedFuture(cause));
         CompletionStage<DekPair<String>> stage = instrument.generateDekPair("kekRef");
@@ -110,7 +110,7 @@ class InstrumentedKmsTest {
 
     @Test
     void testDecryptEdekSuccess() {
-        Kms<String, String> instrument = InstrumentedKms.instrument(kms, metrics);
+        Kms<String, String> instrument = InstrumentedKms.wrap(kms, metrics);
         when(kms.decryptEdek("edek")).thenReturn(CompletableFuture.completedFuture(secretKey));
         CompletionStage<SecretKey> stage = instrument.decryptEdek("edek");
         assertThat(stage).succeedsWithin(Duration.ZERO).isSameAs(secretKey);
@@ -120,7 +120,7 @@ class InstrumentedKmsTest {
 
     @Test
     void testDecryptEdekException() {
-        Kms<String, String> instrument = InstrumentedKms.instrument(kms, metrics);
+        Kms<String, String> instrument = InstrumentedKms.wrap(kms, metrics);
         NullPointerException cause = new NullPointerException("fail");
         when(kms.decryptEdek("edek")).thenReturn(CompletableFuture.failedFuture(cause));
         CompletionStage<SecretKey> stage = instrument.decryptEdek("edek");
@@ -131,7 +131,7 @@ class InstrumentedKmsTest {
 
     @Test
     void testDecryptEdekUnknownKeyException() {
-        Kms<String, String> instrument = InstrumentedKms.instrument(kms, metrics);
+        Kms<String, String> instrument = InstrumentedKms.wrap(kms, metrics);
         UnknownKeyException cause = new UnknownKeyException("unknown");
         when(kms.decryptEdek("edek")).thenReturn(CompletableFuture.failedFuture(cause));
         CompletionStage<SecretKey> stage = instrument.decryptEdek("edek");
@@ -146,7 +146,7 @@ class InstrumentedKmsTest {
 
     @Test
     void testEdekSerdeDelegation() {
-        Kms<String, String> instrument = InstrumentedKms.instrument(kms, metrics);
+        Kms<String, String> instrument = InstrumentedKms.wrap(kms, metrics);
         when(kms.edekSerde()).thenReturn(serde);
         Serde<String> serde = instrument.edekSerde();
         assertThat(serde).isSameAs(this.serde);
