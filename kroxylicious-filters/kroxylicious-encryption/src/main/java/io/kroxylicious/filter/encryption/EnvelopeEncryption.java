@@ -43,6 +43,20 @@ public class EnvelopeEncryption<K, E> implements FilterFactory<EnvelopeEncryptio
                   @JsonProperty(required = true) @PluginImplName(KekSelectorService.class) String selector,
                   @PluginImplConfig(implNameProperty = "selector") Object selectorConfig) {
 
+        public KmsCacheConfig kmsCache() {
+            return KmsCacheConfig.DEFAULT_CONFIG;
+        }
+    }
+
+    record KmsCacheConfig(
+                          int decryptedDekCacheSize,
+                          @NonNull Duration decryptedDekExpireAfterAccessDuration,
+                          int resolvedAliasCacheSize,
+                          @NonNull Duration resolvedAliasExpireAfterWriteDuration,
+                          @NonNull Duration resolvedAliasRefreshAfterWriteDuration) {
+
+        private static final KmsCacheConfig DEFAULT_CONFIG = new KmsCacheConfig(1000, Duration.ofHours(1), 1000, Duration.ofMinutes(10), Duration.ofMinutes(8));
+
     }
 
     @Override
@@ -52,17 +66,32 @@ public class EnvelopeEncryption<K, E> implements FilterFactory<EnvelopeEncryptio
 
     @NonNull
     @Override
-    @SuppressWarnings("java:S2245") // secure randomization not needed for exponential backoff
     public EnvelopeEncryptionFilter<K> createFilter(FilterFactoryContext context, Config configuration) {
-        KmsService<Object, K, E> kmsPlugin = context.pluginInstance(KmsService.class, configuration.kms());
-        Kms<K, E> kms = kmsPlugin.buildKms(configuration.kmsConfig());
-        kms = InstrumentedKms.instrument(kms, kmsMetrics);
+        Kms<K, E> kms = buildKms(context, configuration);
 
-        var keyManager = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000, context.eventLoop(),
-                new ExponentialJitterBackoffStrategy(Duration.ofMillis(500), Duration.ofSeconds(5), 2d, ThreadLocalRandom.current()));
+        var keyManager = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
 
         KekSelectorService<Object, K> ksPlugin = context.pluginInstance(KekSelectorService.class, configuration.selector());
         TopicNameBasedKekSelector<K> kekSelector = ksPlugin.buildSelector(kms, configuration.selectorConfig());
         return new EnvelopeEncryptionFilter<>(keyManager, kekSelector);
+    }
+
+    @NonNull
+    @SuppressWarnings("java:S2245") // secure randomization not needed for exponential backoff
+    private static <K, E> Kms<K, E> buildKms(FilterFactoryContext context, Config configuration) {
+        KmsService<Object, K, E> kmsPlugin = context.pluginInstance(KmsService.class, configuration.kms());
+        Kms<K, E> kms = kmsPlugin.buildKms(configuration.kmsConfig());
+        kms = InstrumentedKms.wrap(kms, kmsMetrics);
+        ExponentialJitterBackoffStrategy backoffStrategy = new ExponentialJitterBackoffStrategy(Duration.ofMillis(500), Duration.ofSeconds(5), 2d,
+                ThreadLocalRandom.current());
+        kms = ResilientKms.wrap(kms, context.eventLoop(), backoffStrategy, 3);
+        return wrapWithCachingKms(configuration, kms);
+    }
+
+    @NonNull
+    private static <K, E> Kms<K, E> wrapWithCachingKms(Config configuration, Kms<K, E> resilientKms) {
+        KmsCacheConfig config = configuration.kmsCache();
+        return CachingKms.wrap(resilientKms, config.decryptedDekCacheSize, config.decryptedDekExpireAfterAccessDuration, config.resolvedAliasCacheSize,
+                config.resolvedAliasExpireAfterWriteDuration, config.resolvedAliasRefreshAfterWriteDuration);
     }
 }
