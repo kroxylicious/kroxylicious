@@ -111,4 +111,23 @@ public class TestUtils {
     public static FileAttribute<Set<PosixFilePermission>> getDefaultPosixFilePermissions() {
         return PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------"));
     }
+
+    /**
+     * Concat string if value don't exist.
+     *
+     * @param originalString the original String
+     * @param stringToConcat the string to concat
+     * @param stringSeparator the string separator
+     * @return the string
+     */
+    public static String concatStringIfValueDontExist(String originalString, String stringToConcat, String stringSeparator) {
+        if (originalString.isEmpty() || originalString.isBlank()) {
+            stringSeparator = "";
+        }
+
+        if (!originalString.contains(stringToConcat)) {
+            originalString = originalString.concat(stringSeparator + stringToConcat);
+        }
+        return originalString;
+    }
 }

@@ -16,11 +16,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.fabric8.kubernetes.api.model.Pod;
+import io.strimzi.api.kafka.model.Kafka;
 
 import io.kroxylicious.systemtests.extensions.KroxyliciousExtension;
 import io.kroxylicious.systemtests.installation.kroxylicious.Kroxylicious;
 import io.kroxylicious.systemtests.steps.KafkaSteps;
 import io.kroxylicious.systemtests.steps.KroxyliciousSteps;
+import io.kroxylicious.systemtests.templates.strimzi.KafkaNodePoolTemplates;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaTemplates;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
@@ -34,6 +36,7 @@ class KroxyliciousST extends AbstractST {
     private static final Logger LOGGER = LoggerFactory.getLogger(KroxyliciousST.class);
     private static Kroxylicious kroxylicious;
     private final String clusterName = "my-cluster";
+    protected static final String BROKER_NODE_NAME = "kafka";
 
     /**
      * Produce and consume message.
@@ -74,7 +77,7 @@ class KroxyliciousST extends AbstractST {
     void restartKafkaBrokers(String namespace) {
         String topicName = "my-topic2";
         String message = "Hello-world";
-        int numberOfMessages = 20;
+        int numberOfMessages = 25;
         String consumedMessage = message + " - " + (numberOfMessages - 1);
 
         // start Kroxylicious
@@ -141,6 +144,11 @@ class KroxyliciousST extends AbstractST {
             return;
         }
         LOGGER.info("Deploying Kafka in {} namespace", Constants.KROXY_DEFAULT_NAMESPACE);
-        resourceManager.createResourceWithWait(KafkaTemplates.kafkaPersistent(Constants.KROXY_DEFAULT_NAMESPACE, clusterName, 3, 3).build());
+
+        Kafka kafka = KafkaTemplates.kafkaPersistentWithKRaftAnnotations(Constants.KROXY_DEFAULT_NAMESPACE, clusterName, 3).build();
+
+        resourceManager.createResourceWithWait(
+                KafkaNodePoolTemplates.kafkaBasedNodePoolWithDualRole(BROKER_NODE_NAME, kafka, 3).build(),
+                kafka);
     }
 }
