@@ -6,11 +6,14 @@
 
 package io.kroxylicious.filter.encryption.records;
 
+import java.util.Objects;
 import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.stream.Collector;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.record.MutableRecordBatch;
@@ -34,7 +37,8 @@ public class RecordBatchUtils {
      * @param batch The record batch
      * @return A stream over the records in the given {@code batch}.
      */
-    public static Stream<Record> recordStream(RecordBatch batch) {
+    public static @NonNull Stream<Record> recordStream(@NonNull RecordBatch batch) {
+        Objects.requireNonNull(batch);
         Spliterator<Record> spliterator;
         Integer size = batch.countOrNull();
         int characteristics = Spliterator.ORDERED | Spliterator.NONNULL;
@@ -76,12 +80,17 @@ public class RecordBatchUtils {
      * callers make multiple invocations of this method.
      * @return A MemoryRecords containing the mapped records
      */
-    public static MemoryRecords toMemoryRecords(
-                                                RecordBatch recordBatch,
-                                                RecordTransform mapper,
-                                                ByteBufferOutputStream resultBuffer) {
-        return recordStream(recordBatch)
-                .collect(toMemoryRecordsCollector(recordBatch, mapper, resultBuffer));
+    public static @NonNull MemoryRecords toMemoryRecords(
+                                                         @NonNull RecordBatch recordBatch,
+                                                         @NonNull RecordTransform mapper,
+                                                         @NonNull ByteBufferOutputStream resultBuffer) {
+        Objects.requireNonNull(recordBatch);
+        Objects.requireNonNull(mapper);
+        Objects.requireNonNull(resultBuffer);
+        try (Stream<Record> recordStream = recordStream(recordBatch)) {
+            return recordStream
+                    .collect(toMemoryRecordsCollector(recordBatch, mapper, resultBuffer));
+        }
     }
 
     /**

@@ -6,6 +6,7 @@
 
 package io.kroxylicious.filter.encryption.records;
 
+import java.util.Objects;
 import java.util.Spliterator;
 import java.util.stream.Collector;
 import java.util.stream.Stream;
@@ -33,6 +34,7 @@ public class MemoryRecordsUtils {
      */
     @SuppressWarnings({ "unchecked", "rawtypes" })
     public static @NonNull Stream<RecordBatch> batchStream(@NonNull MemoryRecords memoryRecords) {
+        Objects.requireNonNull(memoryRecords);
         return StreamSupport.<RecordBatch> stream(
                 () -> (Spliterator) memoryRecords.batches().spliterator(),
                 Spliterator.ORDERED | Spliterator.NONNULL,
@@ -67,6 +69,7 @@ public class MemoryRecordsUtils {
      * Factory method for a Collector that concatenates MemoryRecords.
      */
     public static @NonNull Collector<MemoryRecords, BatchAwareMemoryRecordsBuilder, MemoryRecords> concatCollector(@NonNull ByteBufferOutputStream resultBuffer) {
+        Objects.requireNonNull(resultBuffer);
         return Collector.of(
                 () -> new BatchAwareMemoryRecordsBuilder(resultBuffer),
                 MemoryRecordsUtils::appendAll,
