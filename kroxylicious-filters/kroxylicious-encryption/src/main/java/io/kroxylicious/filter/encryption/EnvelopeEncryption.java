@@ -7,6 +7,10 @@
 package io.kroxylicious.filter.encryption;
 
 import java.time.Duration;
+import java.util.Collections;
+import java.util.IdentityHashMap;
+import java.util.Map;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -32,7 +36,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * @param <E> The type of encrypted DEK
  */
 @Plugin(configType = EnvelopeEncryption.Config.class)
-public class EnvelopeEncryption<K, E> implements FilterFactory<EnvelopeEncryption.Config, EnvelopeEncryption.Config> {
+public class EnvelopeEncryption<K, E> implements FilterFactory<EnvelopeEncryption.Config, EnvelopeEncryption.ApplicationWideState<K, E>> {
 
     private static KmsMetrics kmsMetrics = MicrometerKmsMetrics.create(Metrics.globalRegistry);
 
@@ -59,39 +63,64 @@ public class EnvelopeEncryption<K, E> implements FilterFactory<EnvelopeEncryptio
 
     }
 
+    public record FilterState<K, E>(ApplicationWideState<K, E> applicationWide, PerEventLoopState<K, E> perEventLoop) {}
+
+    public record ApplicationWideState<K, E>(Kms<K, E> kms, Map<ScheduledExecutorService, PerEventLoopState<K, E>> stateMap, Config config) {
+
+        ApplicationWideState(FilterFactoryContext context, Config config) {
+            this(createKms(context, config), Collections.synchronizedMap(new IdentityHashMap<>()), config);
+        }
+
+        private static <K, E> Kms<K, E> createKms(FilterFactoryContext context, Config configuration) {
+            KmsService<Object, K, E> kmsPlugin = context.pluginInstance(KmsService.class, configuration.kms());
+            Kms<K, E> kms = kmsPlugin.buildKms(configuration.kmsConfig());
+            kms = InstrumentedKms.wrap(kms, kmsMetrics);
+            ExponentialJitterBackoffStrategy backoffStrategy = new ExponentialJitterBackoffStrategy(Duration.ofMillis(500), Duration.ofSeconds(5), 2d,
+                    ThreadLocalRandom.current());
+            kms = ResilientKms.wrap(kms, context.eventLoop(), backoffStrategy, 3);
+            return wrapWithCachingKms(configuration, kms);
+        }
+
+        @NonNull
+        private static <K, E> Kms<K, E> wrapWithCachingKms(Config configuration, Kms<K, E> resilientKms) {
+            KmsCacheConfig config = configuration.kmsCache();
+            return CachingKms.wrap(resilientKms, config.decryptedDekCacheSize, config.decryptedDekExpireAfterAccessDuration, config.resolvedAliasCacheSize,
+                    config.resolvedAliasExpireAfterWriteDuration, config.resolvedAliasRefreshAfterWriteDuration);
+        }
+
+        FilterState<K, E> stateFor(FilterFactoryContext context) {
+            PerEventLoopState<K, E> perEventLoopState = stateMap.computeIfAbsent(context.eventLoop(), exec -> new PerEventLoopState<>(context, this));
+            return new FilterState<>(this, perEventLoopState);
+        }
+    }
+
+    public record PerEventLoopState<K, E>(KeyManager<K> keyManager, TopicNameBasedKekSelector<K> selector) {
+        PerEventLoopState(FilterFactoryContext context, ApplicationWideState<K, E> applicationWideState) {
+            this(createKeyManager(applicationWideState), createKekSelector(context, applicationWideState, applicationWideState.config()));
+        }
+
+        @NonNull
+        private static <K, E> TopicNameBasedKekSelector<K> createKekSelector(FilterFactoryContext context, ApplicationWideState<K, E> applicationWideState,
+                                                                             Config configuration) {
+            KekSelectorService<Object, K> ksPlugin = context.pluginInstance(KekSelectorService.class, configuration.selector());
+            return ksPlugin.buildSelector(applicationWideState.kms(), configuration.selectorConfig());
+        }
+
+        @NonNull
+        private static <K, E> KeyManager<K> createKeyManager(ApplicationWideState<K, E> applicationWideState) {
+            return new InBandKeyManager<>(applicationWideState.kms(), BufferPool.allocating(), 500_000);
+        }
+    }
+
     @Override
-    public Config initialize(FilterFactoryContext context, Config config) throws PluginConfigurationException {
-        return config;
+    public ApplicationWideState<K, E> initialize(FilterFactoryContext context, Config config) throws PluginConfigurationException {
+        return new ApplicationWideState<>(context, config);
     }
 
     @NonNull
     @Override
-    public EnvelopeEncryptionFilter<K> createFilter(FilterFactoryContext context, Config configuration) {
-        Kms<K, E> kms = buildKms(context, configuration);
-
-        var keyManager = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
-
-        KekSelectorService<Object, K> ksPlugin = context.pluginInstance(KekSelectorService.class, configuration.selector());
-        TopicNameBasedKekSelector<K> kekSelector = ksPlugin.buildSelector(kms, configuration.selectorConfig());
-        return new EnvelopeEncryptionFilter<>(keyManager, kekSelector);
-    }
-
-    @NonNull
-    @SuppressWarnings("java:S2245") // secure randomization not needed for exponential backoff
-    private static <K, E> Kms<K, E> buildKms(FilterFactoryContext context, Config configuration) {
-        KmsService<Object, K, E> kmsPlugin = context.pluginInstance(KmsService.class, configuration.kms());
-        Kms<K, E> kms = kmsPlugin.buildKms(configuration.kmsConfig());
-        kms = InstrumentedKms.wrap(kms, kmsMetrics);
-        ExponentialJitterBackoffStrategy backoffStrategy = new ExponentialJitterBackoffStrategy(Duration.ofMillis(500), Duration.ofSeconds(5), 2d,
-                ThreadLocalRandom.current());
-        kms = ResilientKms.wrap(kms, context.eventLoop(), backoffStrategy, 3);
-        return wrapWithCachingKms(configuration, kms);
-    }
-
-    @NonNull
-    private static <K, E> Kms<K, E> wrapWithCachingKms(Config configuration, Kms<K, E> resilientKms) {
-        KmsCacheConfig config = configuration.kmsCache();
-        return CachingKms.wrap(resilientKms, config.decryptedDekCacheSize, config.decryptedDekExpireAfterAccessDuration, config.resolvedAliasCacheSize,
-                config.resolvedAliasExpireAfterWriteDuration, config.resolvedAliasRefreshAfterWriteDuration);
+    public EnvelopeEncryptionFilter<K> createFilter(FilterFactoryContext context, ApplicationWideState<K, E> applicationWideState) {
+        FilterState<K, E> filterState = applicationWideState.stateFor(context);
+        return new EnvelopeEncryptionFilter<>(filterState.perEventLoop().keyManager(), filterState.perEventLoop().selector());
     }
 }

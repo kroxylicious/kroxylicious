@@ -39,7 +39,7 @@ class EnvelopeEncryptionTest {
         doReturn(kekSelector).when(kekSelectorService).buildSelector(any(), any());
 
         ee.initialize(fc, config);
-        var filter = ee.createFilter(fc, config);
+        var filter = ee.createFilter(fc, new EnvelopeEncryption.ApplicationWideState(fc, config));
         assertNotNull(filter);
     }
 
