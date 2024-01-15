@@ -32,7 +32,8 @@ public class RecordAssert extends AbstractAssert<RecordAssert, Record> {
         return new RecordAssert(actual);
     }
 
-    public RecordAssert hasOffsetEqualTo(int expect) {
+
+    public RecordAssert hasOffsetEqualTo(long expect) {
         isNotNull();
         AbstractLongAssert<?> offset = offsetAssert();
         offset.isEqualTo(expect);
@@ -45,7 +46,7 @@ public class RecordAssert extends AbstractAssert<RecordAssert, Record> {
                 .describedAs("record offset");
     }
 
-    public RecordAssert hasTimestampEqualTo(int expect) {
+    public RecordAssert hasTimestampEqualTo(long expect) {
         isNotNull();
         AbstractLongAssert<?> timestamp = timestampAssert();
         timestamp.isEqualTo(expect);

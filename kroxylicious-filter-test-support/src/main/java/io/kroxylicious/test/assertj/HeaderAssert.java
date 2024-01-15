@@ -37,6 +37,14 @@ public class HeaderAssert extends AbstractAssert<HeaderAssert, Header> {
         return this;
     }
 
+    public HeaderAssert hasValueEqualTo(byte[] expected) {
+        isNotNull();
+        Assertions.assertThat(actual.value())
+                .describedAs("header value")
+                .isEqualTo(expected);
+        return this;
+    }
+
     public HeaderAssert hasNullValue() {
         isNotNull();
         Assertions.assertThat(actual.value())
