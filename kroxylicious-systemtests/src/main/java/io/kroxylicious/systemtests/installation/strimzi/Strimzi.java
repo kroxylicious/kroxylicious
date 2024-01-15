@@ -30,6 +30,7 @@ import io.fabric8.kubernetes.client.dsl.NamespaceListVisitFromServerGetDeleteRec
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
+import io.kroxylicious.systemtests.utils.TestUtils;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 
@@ -78,12 +79,8 @@ public class Strimzi {
                         value = value.replace(Constants.DONT_USE_KRAFT_MODE, Constants.USE_KRAFT_MODE)
                                 .replace(Constants.DONT_USE_KAFKA_NODE_POOLS, Constants.USE_KAFKA_NODE_POOLS);
 
-                        if (!value.contains(Constants.USE_KRAFT_MODE)) {
-                            value = value.concat("," + Constants.USE_KRAFT_MODE);
-                        }
-                        if (!value.contains(Constants.USE_KAFKA_NODE_POOLS)) {
-                            value = value.concat("," + Constants.USE_KAFKA_NODE_POOLS);
-                        }
+                        value = TestUtils.concatStringIfValueDontExist(value, Constants.USE_KRAFT_MODE, ",");
+                        value = TestUtils.concatStringIfValueDontExist(value, Constants.USE_KAFKA_NODE_POOLS, ",");
                     }
                     ((ObjectNode) node).put("value", value);
                     break;
