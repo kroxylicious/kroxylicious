@@ -120,37 +120,7 @@ class FilterHandlerTest extends FilterHarness {
     }
 
     @Test
-    void deferredRequestDelaysSubsequentRequest() {
-        var req1 = new ApiVersionsRequestData().setClientSoftwareName("req1");
-        var req2 = new ApiVersionsRequestData().setClientSoftwareName("req2");
-
-        var requestFutureMap = new LinkedHashMap<ApiVersionsRequestData, CompletableFuture<Void>>();
-        requestFutureMap.put(req1, new CompletableFuture<>());
-        requestFutureMap.put(req2, CompletableFuture.completedFuture(null));
-
-        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> requestFutureMap.get(request)
-                .thenCompose((u) -> context.forwardRequest(header, request));
-        buildChannel(filter);
-
-        requestFutureMap.keySet().forEach(this::writeRequest);
-        channel.runPendingTasks();
-
-        var propagated = channel.readOutbound();
-        assertThat(propagated).isNull();
-
-        // complete req1's future, now expect both requests to flow.
-        requestFutureMap.get(req1).complete(null);
-
-        channel.runPendingTasks();
-        DecodedRequestFrame<?> outboundRequest1 = channel.readOutbound();
-        assertThat(outboundRequest1).extracting(DecodedRequestFrame::body).isEqualTo(req1);
-
-        DecodedRequestFrame<?> outboundRequest2 = channel.readOutbound();
-        assertThat(outboundRequest2).extracting(DecodedRequestFrame::body).isEqualTo(req2);
-    }
-
-    @Test
-    void deferredRequestDelaysSubsequentOpaqueRequest() {
+    void deferredRequestMethodsDispatchedOnEventLoop() {
         var req1 = new ApiVersionsRequestData().setClientSoftwareName("req1");
 
         var requestFutureMap = new LinkedHashMap<ApiVersionsRequestData, CompletableFuture<Void>>();
@@ -176,6 +146,61 @@ class FilterHandlerTest extends FilterHarness {
 
         OpaqueRequestFrame outboundRequest2 = channel.readOutbound();
         assertThat(outboundRequest2).isSameAs(opaqueRequestFrame);
+    }
+
+    @Test
+    void deferredRequestMethodsDispatchedOnEventloop() {
+        var req1 = new ApiVersionsRequestData().setClientSoftwareName("req1");
+        var req2 = new ApiVersionsRequestData().setClientSoftwareName("req2");
+
+        var requestFutureMap = new LinkedHashMap<ApiVersionsRequestData, CompletableFuture<Void>>();
+        requestFutureMap.put(req1, new CompletableFuture<>());
+        requestFutureMap.put(req2, new CompletableFuture<>());
+
+        // we expect the embedded netty eventloop to run on this thread
+        AtomicReference<Thread> expectedDispatchThread = new AtomicReference<>();
+        ApiVersionsRequestFilter filter = new ApiVersionsRequestFilter() {
+
+            @Override
+            public boolean shouldHandleApiVersionsRequest(short apiVersion) {
+                if (Thread.currentThread() != expectedDispatchThread.get()) {
+                    throw new IllegalStateException("Filter method dispatched on unexpected thread!");
+                }
+                return true;
+            }
+
+            @Override
+            public CompletionStage<RequestFilterResult> onApiVersionsRequest(short apiVersion, RequestHeaderData header, ApiVersionsRequestData request,
+                                                                             FilterContext context) {
+                if (Thread.currentThread() != expectedDispatchThread.get()) {
+                    return CompletableFuture.failedFuture(new IllegalStateException("Filter method dispatched on unexpected thread!"));
+                }
+                // delay required to provoke the second request to be queued
+                return requestFutureMap.get(request)
+                        .thenCompose((u) -> context.forwardRequest(header, request));
+            }
+        };
+        buildChannel(filter);
+        expectedDispatchThread.set(obtainEventLoop());
+        writeRequest(req1);
+        writeRequest(req2);
+
+        // simulate Filter completing from an uncontrolled thread
+        CompletableFuture.runAsync(() -> requestFutureMap.get(req1).complete(null)).join();
+        channel.runPendingTasks();
+
+        DecodedRequestFrame<?> outboundRequest1 = channel.readOutbound();
+
+        assertThat(outboundRequest1).extracting(DecodedRequestFrame::body).isEqualTo(req1);
+
+        // simulate Filter completing from an uncontrolled thread
+        CompletableFuture.runAsync(() -> requestFutureMap.get(req2).complete(null)).join();
+        channel.runPendingTasks();
+
+        DecodedRequestFrame<?> outboundRequest2 = channel.readOutbound();
+
+        assertThat(channel.isOpen()).isTrue();
+        assertThat(outboundRequest2).extracting(DecodedRequestFrame::body).isEqualTo(req2);
     }
 
     @Test
@@ -833,7 +858,6 @@ class FilterHandlerTest extends FilterHarness {
 
     @Test
     void sendRequestChainedActionsRunOnNettyEventLoop() {
-        var eventLoopThreadFuture = new CompletableFuture<Thread>();
 
         var oobRequestBody = new FetchRequestData();
         var applyActionThread = new AtomicReference<Thread>();
@@ -853,9 +877,7 @@ class FilterHandlerTest extends FilterHarness {
         var requestFrame = writeRequest(new ApiVersionsRequestData());
 
         // capture the thread used by the embedded channel
-        channel.eventLoop().submit(() -> eventLoopThreadFuture.complete(Thread.currentThread()));
-        channel.runPendingTasks();
-        assertThat(eventLoopThreadFuture).isCompleted();
+        Thread eventloopThread = obtainEventLoop();
 
         // verify filter has sent the send request.
         InternalRequestFrame<?> propagatedOobRequest = channel.readOutbound();
@@ -870,15 +892,23 @@ class FilterHandlerTest extends FilterHarness {
         // Verify actions ran on the expected thread.
         assertThat(applyActionThread)
                 .describedAs("first chained action (apply) must run on event loop")
-                .hasValue(eventLoopThreadFuture.getNow(null));
+                .hasValue(eventloopThread);
 
         assertThat(applyAsyncActionThread)
                 .describedAs("second chained action (applySync) must run on event loop")
-                .hasValue(eventLoopThreadFuture.getNow(null));
+                .hasValue(eventloopThread);
 
         // Verify the filtered request arrived at outcome.
         var propagated = channel.readOutbound();
         assertThat(propagated).isEqualTo(requestFrame);
+    }
+
+    private Thread obtainEventLoop() {
+        var eventLoopThreadFuture = new CompletableFuture<Thread>();
+        channel.eventLoop().submit(() -> eventLoopThreadFuture.complete(Thread.currentThread()));
+        channel.runPendingTasks();
+        assertThat(eventLoopThreadFuture).isCompleted();
+        return eventLoopThreadFuture.getNow(null);
     }
 
     @Test

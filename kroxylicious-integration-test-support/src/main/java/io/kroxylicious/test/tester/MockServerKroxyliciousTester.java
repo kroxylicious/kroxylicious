@@ -110,6 +110,14 @@ public class MockServerKroxyliciousTester extends DefaultKroxyliciousTester {
     }
 
     /**
+     * Get all requests recorded by the MockServer for a given ApiKey
+     * @return requests
+     */
+    public List<Request> getRequestsForApiKey(ApiKeys apiKeys) {
+        return mockServer.getReceivedRequests().stream().filter(request -> request.apiKeys() == apiKeys).toList();
+    }
+
+    /**
      * Close the mocks erver and kroxylicious proxy
      */
     @Override
