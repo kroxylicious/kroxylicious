@@ -22,17 +22,24 @@ import org.apache.kafka.common.utils.ByteBufferOutputStream;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+import javax.annotation.concurrent.NotThreadSafe;
+
 /**
- * A builder of {@link MemoryRecords} that can cope with multiple batches.
- * (Apache Kafka's own {@link MemoryRecordsBuilder} assumes a single batch).
+ * <p>A builder of {@link MemoryRecords} that can cope with multiple batches.
+ * (Apache Kafka's own {@link MemoryRecordsBuilder} assumes a single batch).</p>
  */
-public class BatchAwareMemoryRecordsBuilder {
+@NotThreadSafe
+public class BatchAwareMemoryRecordsBuilder implements AutoCloseable {
 
     public static final Header[] EMPTY_HEADERS = new Header[0];
 
     private final ByteBufferOutputStream buffer;
     private MemoryRecordsBuilder builder = null;
 
+    /**
+     * Initialize a new instance, which will append into the given buffer.
+     * @param buffer The buffer to use.
+     */
     public BatchAwareMemoryRecordsBuilder(
                                           @NonNull ByteBufferOutputStream buffer) {
         this.buffer = Objects.requireNonNull(buffer);
@@ -45,6 +52,9 @@ public class BatchAwareMemoryRecordsBuilder {
     private void checkHasBatch() {
         if (!haveBatch()) {
             throw new IllegalStateException("You must start a batch");
+        }
+        if (builder.isClosed()) {
+            throw new IllegalStateException("This builder has been built");
         }
     }
 
@@ -225,12 +235,25 @@ public class BatchAwareMemoryRecordsBuilder {
     }
 
     /**
-     * Builds the memory records
+     * Builds and returns the memory records.
+     * Calling this multiple times is safe and will return a MemoryRecord with the same content,
+     * <em>assuming the {@code buffer} argument passed to the
+     * {@linkplain #BatchAwareMemoryRecordsBuilder(ByteBufferOutputStream) constructor}
+     * has not been modified or used between calls</em>.
      * @return the memory records
      */
     public @NonNull MemoryRecords build() {
+        boolean needsFlip = builder == null || !builder.isClosed();
         maybeAppendCurrentBatch();
-        return MemoryRecords.readableRecords(buffer.buffer().flip());
+        ByteBuffer buffer = this.buffer.buffer();
+        if (needsFlip) {
+            buffer.flip();
+        }
+        return MemoryRecords.readableRecords(buffer);
     }
 
+    @Override
+    public void close() {
+        build();
+    }
 }

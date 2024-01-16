@@ -42,6 +42,48 @@ class BatchAwareMemoryRecordsBuilderTest {
                 .hasMessageContaining("You must start a batch");
     }
 
+    @Test
+    void shouldPreventAppendAfterBuild1() {
+        // Given
+        var builder = new BatchAwareMemoryRecordsBuilder(new ByteBufferOutputStream(100));
+
+        // When
+        builder.build();
+
+        // Then
+        assertThatThrownBy(() -> builder.append((Record) null))
+                .isExactlyInstanceOf(IllegalStateException.class)
+                // Batchless is a special case: We use the MRB's isClosed() to detect append-after-build
+                // which saves needing our own field but means the error message is not ideal in this case
+                .hasMessageContaining("You must start a batch");
+    }
+
+    @Test
+    void shouldPreventAppendAfterBuild2() {
+        // Given
+        var builder = new BatchAwareMemoryRecordsBuilder(new ByteBufferOutputStream(100));
+        builder.addBatch(RecordBatch.CURRENT_MAGIC_VALUE,
+                CompressionType.NONE,
+                TimestampType.CREATE_TIME,
+                0,
+                0,
+                0,
+                (short) 0,
+                0,
+                false,
+                false,
+                0,
+                0);
+
+        // When
+        builder.build();
+
+        // Then
+        assertThatThrownBy(() -> builder.append((Record) null))
+                .isExactlyInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("This builder has been built");
+    }
+
     // 0 batches
     @Test
     void shouldAllowNoBatches() {
@@ -56,6 +98,7 @@ class BatchAwareMemoryRecordsBuilderTest {
                 .isZero();
         assertThat(StreamSupport.stream(mr.records().spliterator(), false).count())
                 .isZero();
+        assertThat(builder.build()).describedAs("Build should be idempotent").isEqualTo(mr);
     }
 
     // Single batch of 0 records
@@ -84,6 +127,7 @@ class BatchAwareMemoryRecordsBuilderTest {
                 .isZero();
         assertThat(StreamSupport.stream(mr.records().spliterator(), false).count())
                 .isZero();
+        assertThat(builder.build()).describedAs("Build should be idempotent").isEqualTo(mr);
     }
 
     // Single batch of 1 record
@@ -113,6 +157,7 @@ class BatchAwareMemoryRecordsBuilderTest {
                 .isEqualTo(1);
         assertThat(StreamSupport.stream(mr.records().spliterator(), false).count())
                 .isEqualTo(1);
+        assertThat(builder.build()).describedAs("Build should be idempotent").isEqualTo(mr);
     }
 
     // >1 batches
@@ -165,6 +210,8 @@ class BatchAwareMemoryRecordsBuilderTest {
         assertThat(batch2.iterator().next().value()).isEqualTo(ByteBuffer.wrap("hello2".getBytes(StandardCharsets.UTF_8)));
         assertThat(batch2.iterator().next().offset()).isEqualTo(1);
 
+        assertThat(builder.build()).describedAs("Build should be idempotent").isEqualTo(mr);
+
     }
 
     // Control batches are propagated
@@ -215,6 +262,8 @@ class BatchAwareMemoryRecordsBuilderTest {
         var batch2 = batches.get(1);
         assertThat(batch2.compressionType()).isEqualTo(CompressionType.ZSTD);
         assertThat(batch2.iterator().next().value()).isEqualTo(controlRecord.value());
+
+        assertThat(builder.build()).describedAs("Build should be idempotent").isEqualTo(mr);
     }
 
     @NonNull
