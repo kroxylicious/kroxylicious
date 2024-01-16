@@ -21,8 +21,6 @@ import java.util.stream.Collector;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.record.MutableRecordBatch;
 import org.apache.kafka.common.record.Record;
@@ -30,6 +28,8 @@ import org.apache.kafka.common.record.RecordBatch;
 import org.apache.kafka.common.utils.BufferSupplier;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 import org.apache.kafka.common.utils.CloseableIterator;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
  * Utility methods for dealing with {@link RecordBatch}es.
@@ -100,7 +100,8 @@ public class RecordBatchUtils {
         try (Stream<Record> recordStream = recordStream(recordBatch)) {
             return recordStream
                     .collect(toMemoryRecordsCollector(closers::add, recordBatch, mapper, resultBuffer));
-        } finally {
+        }
+        finally {
             closers.forEach(Runnable::run);
         }
     }

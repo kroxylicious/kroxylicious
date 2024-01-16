@@ -9,6 +9,8 @@ package io.kroxylicious.filter.encryption.records;
 import java.nio.ByteBuffer;
 import java.util.Objects;
 
+import javax.annotation.concurrent.NotThreadSafe;
+
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.record.CompressionType;
 import org.apache.kafka.common.record.EndTransactionMarker;
@@ -21,8 +23,6 @@ import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
-
-import javax.annotation.concurrent.NotThreadSafe;
 
 /**
  * <p>A builder of {@link MemoryRecords} that can cope with multiple batches.
@@ -129,8 +129,7 @@ public class BatchAwareMemoryRecordsBuilder implements AutoCloseable {
      */
     public @NonNull BatchAwareMemoryRecordsBuilder addBatchLike(RecordBatch templateBatch) {
         TimestampType timestampType = templateBatch.timestampType();
-        long logAppendTime = timestampType == TimestampType.LOG_APPEND_TIME ?
-                templateBatch.maxTimestamp() : RecordBatch.NO_TIMESTAMP;
+        long logAppendTime = timestampType == TimestampType.LOG_APPEND_TIME ? templateBatch.maxTimestamp() : RecordBatch.NO_TIMESTAMP;
         return addBatch(templateBatch.magic(),
                 templateBatch.compressionType(),
                 timestampType,

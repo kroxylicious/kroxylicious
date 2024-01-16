@@ -77,8 +77,8 @@ public class MemoryRecordsUtils {
      * @param resultBuffer
      */
     public static @NonNull Collector<MemoryRecords, BatchAwareMemoryRecordsBuilder, MemoryRecords> concatCollector(
-            Consumer<Runnable> onClose,
-            @NonNull ByteBufferOutputStream resultBuffer) {
+                                                                                                                   Consumer<Runnable> onClose,
+                                                                                                                   @NonNull ByteBufferOutputStream resultBuffer) {
         Objects.requireNonNull(resultBuffer);
         return new Collector<>() {
             @Override
