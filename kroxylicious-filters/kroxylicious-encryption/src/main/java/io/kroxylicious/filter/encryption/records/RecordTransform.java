@@ -17,10 +17,17 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
- * Represents a transformation from a {@link Record} to (the properties of) a new {@link Record}.
- * RecordTransforms retain ownership of the {@link ByteBuffer}s returned by their {@code transform*()} methods.
- * For a given record, once a caller has used those buffers the caller must call
- * {@link #resetAfterTransform(Record)}.
+ * <p>Represents a transformation from a {@link Record} to (the properties of) a new {@link Record}.
+ *    {@code RecordTransform}s are stateful and retain ownership of the {@link ByteBuffer}s returned
+ *    by their {@code transform*()} methods.</p>
+ *
+ * <p>When transforming a record callers of this interface must:</p>
+ * <ol>
+ *     <li>Transform one record at a time</li>
+ *     <li>Invoke {@link #init(Record)} for that record before any other methods</li>
+ *     <li>Invoke each of the {@code transform*()} methods for that record, as required</li>
+ *     <li>Invoke {@link #resetAfterTransform(Record)} for that record</li>
+ * </ol>
  */
 @NotThreadSafe
 public interface RecordTransform {
