@@ -39,13 +39,15 @@ class RecordBatchUtilsTest {
         var batch = mrb.build().firstBatch();
 
         // When
+        // Use a Supplier so that assertions can terminate the stream they're asserting on
+        // without affecting each other
         Supplier<? extends Stream<? extends Record>> stream = () -> RecordBatchUtils.recordStream(batch);
 
         // Then
         // Assertions about stream itself
         assertThat(stream.get().isParallel()).isFalse();
         Stream<? extends Record> s1 = stream.get().sorted();
-        assertThatThrownBy(() -> s1.toList()).isExactlyInstanceOf(ClassCastException.class);
+        assertThatThrownBy(() -> s1.toList()).describedAs("Records are not Comparable").isExactlyInstanceOf(ClassCastException.class);
 
         // Assertions about stream contents
         assertThat(stream.get().count())

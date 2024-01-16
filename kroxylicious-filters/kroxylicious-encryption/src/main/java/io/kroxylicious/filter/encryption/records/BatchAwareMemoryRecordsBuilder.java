@@ -252,6 +252,9 @@ public class BatchAwareMemoryRecordsBuilder implements AutoCloseable {
         return MemoryRecords.readableRecords(buffer);
     }
 
+    /**
+     * Closes this build. This is the same as calling {@link #build()}.
+     */
     @Override
     public void close() {
         build();

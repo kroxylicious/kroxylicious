@@ -40,13 +40,15 @@ class MemoryRecordsUtilsTest {
         var batch = mrb.build();
 
         // When
+        // Use a Supplier so that assertions can terminate the stream they're asserting on
+        // without affecting each other
         Supplier<? extends Stream<? extends RecordBatch>> stream = () -> MemoryRecordsUtils.batchStream(batch);
 
         // Then
         // Assertions about stream itself
         assertThat(stream.get().isParallel()).isFalse();
         Stream<? extends RecordBatch> s1 = stream.get().sorted();
-        assertThatThrownBy(() -> s1.toList()).isExactlyInstanceOf(ClassCastException.class);
+        assertThatThrownBy(() -> s1.toList()).describedAs("RecordBatches are not Comparable").isExactlyInstanceOf(ClassCastException.class);
 
         // Assertions about stream contents
         assertThat(stream.get().count()).describedAs("Expect 996 batches").isEqualTo(996);
