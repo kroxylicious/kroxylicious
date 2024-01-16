@@ -128,11 +128,14 @@ public class BatchAwareMemoryRecordsBuilder implements AutoCloseable {
      * @return this builder
      */
     public @NonNull BatchAwareMemoryRecordsBuilder addBatchLike(RecordBatch templateBatch) {
+        TimestampType timestampType = templateBatch.timestampType();
+        long logAppendTime = timestampType == TimestampType.LOG_APPEND_TIME ?
+                templateBatch.maxTimestamp() : RecordBatch.NO_TIMESTAMP;
         return addBatch(templateBatch.magic(),
                 templateBatch.compressionType(),
-                templateBatch.timestampType(),
+                timestampType,
                 templateBatch.baseOffset(),
-                0,
+                logAppendTime,
                 templateBatch.producerId(),
                 templateBatch.producerEpoch(),
                 templateBatch.baseSequence(),
