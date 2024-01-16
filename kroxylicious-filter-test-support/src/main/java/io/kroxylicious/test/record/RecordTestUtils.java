@@ -10,7 +10,6 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 
 import org.apache.kafka.common.header.Header;
-import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.record.CompressionType;
 import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.record.MemoryRecordsBuilder;
@@ -18,52 +17,12 @@ import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.record.RecordBatch;
 import org.apache.kafka.common.record.TimestampType;
 
+/**
+ * Utilities for easily creating Records, MemoryRecords etc, for use in tests
+ */
 public class RecordTestUtils {
 
     private RecordTestUtils() {
-    }
-
-    /**
-     * Create and return a ByteBuffer whose contents is the same as the contents of the given {@code src}
-     * between {@code src}'s position and {@code src}'s limit, leaving {@code src.position()} unchanged.
-     * @param src The buffer to copy
-     * @return A new ByteBuffer with the same contents as {@code src}, or null if {@code src} was null.
-     */
-    private static ByteBuffer copy(ByteBuffer src) {
-        if (src == null) {
-            return null;
-        }
-        var b = ByteBuffer.allocate(src.remaining());
-        var p = src.position();
-        b.put(src);
-        src.position(p);
-        return b.flip().asReadOnlyBuffer();
-    }
-
-    /**
-     * @param src The bytes to copy
-     * @return A copy of the bytes in {@code src}, or null if {@code src} was null.
-     */
-    private static byte[] copy(byte[] src) {
-        return src == null ? null : src.clone();
-    }
-
-    /**
-     * Return a copy of {@code src}, where each element's {@link Header#value()} is also copied.
-     * @param src The headers to copy.
-     * @return The copy.
-     */
-    private static Header[] copy(Header[] src) {
-        if (src == null) {
-            return null;
-        }
-        var result = new Header[src.length];
-        for (int i = 0; i < src.length; i++) {
-            Header header = src[i];
-            result[i] = new RecordHeader(header.key(), copy(header.value()));
-
-        }
-        return result;
     }
 
     /**
@@ -82,20 +41,43 @@ public class RecordTestUtils {
         return result;
     }
 
+    /**
+     * Get a copy of the bytes contained in the given {@code record}'s value, without changing the value's {@link ByteBuffer#position()}.
+     * @param record The record
+     * @return The records bytes
+     */
     public static byte[] recordValueAsBytes(Record record) {
         return bytesOf(record.value());
     }
 
+    /**
+     * Return a record with the given value and header.
+     * @param value
+     * @param headers
+     * @return The record
+     */
     public static Record record(byte[] value,
                                 Header... headers) {
         return record(RecordBatch.CURRENT_MAGIC_VALUE, 0, 0, null, value, headers);
     }
 
+    /**
+     * Return a Record with the given value and headers
+     * @param value
+     * @param headers
+     * @return The record
+     */
     public static Record record(ByteBuffer value,
                                 Header... headers) {
         return record(RecordBatch.CURRENT_MAGIC_VALUE, 0, 0, null, value, headers);
     }
 
+    /**
+     * Return a Record with the given value and headers
+     * @param value
+     * @param headers
+     * @return The record
+     */
     public static Record record(String value,
                                 Header... headers) {
         return record(RecordBatch.CURRENT_MAGIC_VALUE,
@@ -106,12 +88,26 @@ public class RecordTestUtils {
                 headers);
     }
 
+    /**
+     * Return a Record with the given key, value and headers
+     * @param key
+     * @param value
+     * @param headers
+     * @return The record
+     */
     public static Record record(byte[] key,
                                 byte[] value,
                                 Header... headers) {
         return record(RecordBatch.CURRENT_MAGIC_VALUE, 0, 0, key, value, headers);
     }
 
+    /**
+     * Return a Record with the given key, value and headers
+     * @param key
+     * @param value
+     * @param headers
+     * @return The record
+     */
     public static Record record(String key,
                                 String value,
                                 Header... headers) {
@@ -123,12 +119,29 @@ public class RecordTestUtils {
                 headers);
     }
 
+    /**
+     * Return a Record with the given key, value and headers
+     * @param key
+     * @param value
+     * @param headers
+     * @return The record
+     */
     public static Record record(ByteBuffer key,
                                 ByteBuffer value,
                                 Header... headers) {
         return record(RecordBatch.CURRENT_MAGIC_VALUE, 0, 0, key, value, headers);
     }
 
+    /**
+     * Return a Record with the given properties
+     * @param magic
+     * @param offset
+     * @param timestamp
+     * @param key
+     * @param value
+     * @param headers
+     * @return The record
+     */
     public static Record record(byte magic,
                                 long offset,
                                 long timestamp,
@@ -141,6 +154,16 @@ public class RecordTestUtils {
         return MemoryRecords.readableRecords(mr.buffer()).records().iterator().next();
     }
 
+    /**
+     * Return a Record with the given properties
+     * @param magic
+     * @param offset
+     * @param timestamp
+     * @param key
+     * @param value
+     * @param headers
+     * @return The record
+     */
     public static Record record(byte magic,
                                 long offset,
                                 long timestamp,
@@ -153,6 +176,16 @@ public class RecordTestUtils {
         return MemoryRecords.readableRecords(mr.buffer()).records().iterator().next();
     }
 
+    /**
+     * Return a Record with the given properties
+     * @param magic
+     * @param offset
+     * @param timestamp
+     * @param key
+     * @param value
+     * @param headers
+     * @return The record
+     */
     public static Record record(byte magic,
                                 long offset,
                                 long timestamp,
@@ -165,6 +198,14 @@ public class RecordTestUtils {
         return MemoryRecords.readableRecords(mr.buffer()).records().iterator().next();
     }
 
+    /**
+     * Return a singleton RecordBatch containing a single Record with the given key, value and headers.
+     * The batch will use the current magic.
+     * @param key
+     * @param value
+     * @param headers
+     * @return The record
+     */
     public static RecordBatch recordBatch(String key,
                                           String value,
                                           Header... headers) {
@@ -177,6 +218,14 @@ public class RecordTestUtils {
                 .firstBatch();
     }
 
+    /**
+     * Return a MemoryRecords containing a single RecordBatch containing a single Record with the given key, value and headers.
+     * The batch will use the current magic.
+     * @param key
+     * @param value
+     * @param headers
+     * @return The record
+     */
     public static MemoryRecords memoryRecords(String key, String value, Header... headers) {
         return memoryRecords(RecordBatch.CURRENT_MAGIC_VALUE,
                 0,
@@ -186,16 +235,50 @@ public class RecordTestUtils {
                 headers);
     }
 
+    /**
+     * Return a MemoryRecords containing a single RecordBatch containing a single Record with the given key, value and headers.
+     * The batch will use the current magic.
+     * @param magic
+     * @param offset
+     * @param timestamp
+     * @param key
+     * @param value
+     * @param headers
+     * @return The record
+     */
     public static MemoryRecords memoryRecords(byte magic, long offset, long timestamp, ByteBuffer key, ByteBuffer value, Header... headers) {
-        return memoryRecordsWithoutCopy(magic, offset, timestamp, bytesOf(key), bytesOf(value), copy(headers));
+        return memoryRecordsWithoutCopy(magic, offset, timestamp, bytesOf(key), bytesOf(value), headers);
     }
 
+    /**
+     * Return a MemoryRecords containing a single RecordBatch containing a single Record with the given key, value and headers.
+     * The batch will use the current magic.
+     * @param magic
+     * @param offset
+     * @param timestamp
+     * @param key
+     * @param value
+     * @param headers
+     * @return The record
+     */
     public static MemoryRecords memoryRecords(byte magic, long offset, long timestamp, String key, String value, Header... headers) {
-        return memoryRecordsWithoutCopy(magic, offset, timestamp, key.getBytes(StandardCharsets.UTF_8), value.getBytes(StandardCharsets.UTF_8), copy(headers));
+        return memoryRecordsWithoutCopy(magic, offset, timestamp, key.getBytes(StandardCharsets.UTF_8), value.getBytes(StandardCharsets.UTF_8), headers);
     }
 
+    /**
+     * Return a MemoryRecords containing a single RecordBatch containing a single Record with the given key, value and headers.
+     * The batch will use the current magic.
+     * @param magic
+     * @param offset
+     * @param timestamp
+     * @param key
+     * @param value
+     * @param headers
+     * @return The record
+     */
     public static MemoryRecords memoryRecords(byte magic, long offset, long timestamp, byte[] key, byte[] value, Header... headers) {
-        return memoryRecordsWithoutCopy(magic, offset, timestamp, copy(key), copy(value), copy(headers));
+        // No need to copy the arrays because their contents are written to a ByteBuffer and not retained
+        return memoryRecordsWithoutCopy(magic, offset, timestamp, key, value, headers);
     }
 
     private static MemoryRecords memoryRecordsWithoutCopy(byte magic, long offset, long timestamp, byte[] key, byte[] value, Header... headers) {
