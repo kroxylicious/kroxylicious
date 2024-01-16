@@ -6,22 +6,19 @@
 
 package io.kroxylicious.test.assertj;
 
-import io.kroxylicious.test.record.RecordTestUtils;
+import java.nio.charset.StandardCharsets;
 
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.record.CompressionType;
 import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.record.RecordBatch;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import static io.kroxylicious.test.record.RecordTestUtils.memoryRecords;
 import static io.kroxylicious.test.record.RecordTestUtils.record;
 import static io.kroxylicious.test.record.RecordTestUtils.recordBatch;
-import static org.assertj.core.api.Assertions.assertThat;
-import org.assertj.core.api.Assertions;
-
-import java.nio.charset.StandardCharsets;
 
 class KafkaAssertionsTest {
 
@@ -106,6 +103,7 @@ class KafkaAssertionsTest {
         batchAssert.lastRecord().hasKeyEqualTo("KEY");
         Assertions.assertThatThrownBy(() -> batchAssert.hasNumRecords(2)).hasMessageContaining("[records]");
     }
+
     @Test
     void testMemoryRecords() {
         MemoryRecords records = memoryRecords("KEY", "VALUE", new RecordHeader("HEADER", "HEADER_VALUE".getBytes(StandardCharsets.UTF_8)));

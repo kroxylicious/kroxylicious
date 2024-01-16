@@ -32,7 +32,7 @@ public class MemoryRecordsAssert extends AbstractAssert<MemoryRecordsAssert, Mem
         isNotNull();
         Assertions.assertThat(actual.sizeInBytes())
                 .describedAs("sizeInBytes")
-                        .isEqualTo(expected);
+                .isEqualTo(expected);
         return this;
     }
 

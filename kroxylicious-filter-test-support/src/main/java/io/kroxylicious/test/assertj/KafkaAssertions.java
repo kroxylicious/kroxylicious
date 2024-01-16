@@ -6,17 +6,17 @@
 
 package io.kroxylicious.test.assertj;
 
-import org.apache.kafka.common.header.Header;
-import org.apache.kafka.common.record.MemoryRecords;
-import org.apache.kafka.common.record.RecordBatch;
-import org.apache.kafka.common.record.Record;
-
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.Iterator;
+
+import org.apache.kafka.common.header.Header;
+import org.apache.kafka.common.record.MemoryRecords;
+import org.apache.kafka.common.record.Record;
+import org.apache.kafka.common.record.RecordBatch;
 
 public class KafkaAssertions {
-    private KafkaAssertions() { }
+    private KafkaAssertions() {
+    }
 
     // Helper methods for the package
 
@@ -46,6 +46,5 @@ public class KafkaAssertions {
     public static HeaderAssert assertThat(Header actual) {
         return HeaderAssert.assertThat(actual);
     }
-
 
 }

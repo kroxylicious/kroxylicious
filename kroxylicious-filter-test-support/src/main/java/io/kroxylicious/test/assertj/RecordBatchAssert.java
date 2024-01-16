@@ -89,6 +89,7 @@ public class RecordBatchAssert extends AbstractAssert<RecordBatchAssert, RecordB
         return () -> {
             return new Iterator<RecordAssert>() {
                 Iterator<Record> it = actual.iterator();
+
                 @Override
                 public boolean hasNext() {
                     return it.hasNext();
