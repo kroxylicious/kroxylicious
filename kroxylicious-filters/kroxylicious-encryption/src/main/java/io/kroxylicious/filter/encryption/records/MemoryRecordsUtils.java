@@ -7,7 +7,13 @@
 package io.kroxylicious.filter.encryption.records;
 
 import java.util.Objects;
+import java.util.Set;
 import java.util.Spliterator;
+import java.util.function.BiConsumer;
+import java.util.function.BinaryOperator;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collector;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -67,13 +73,42 @@ public class MemoryRecordsUtils {
 
     /**
      * Factory method for a Collector that concatenates MemoryRecords.
+     * @param onClose
+     * @param resultBuffer
      */
-    public static @NonNull Collector<MemoryRecords, BatchAwareMemoryRecordsBuilder, MemoryRecords> concatCollector(@NonNull ByteBufferOutputStream resultBuffer) {
+    public static @NonNull Collector<MemoryRecords, BatchAwareMemoryRecordsBuilder, MemoryRecords> concatCollector(
+            Consumer<Runnable> onClose,
+            @NonNull ByteBufferOutputStream resultBuffer) {
         Objects.requireNonNull(resultBuffer);
-        return Collector.of(
-                () -> new BatchAwareMemoryRecordsBuilder(resultBuffer),
-                MemoryRecordsUtils::appendAll,
-                MemoryRecordsUtils::combineBuilders,
-                BatchAwareMemoryRecordsBuilder::build);
+        return new Collector<>() {
+            @Override
+            public Supplier<BatchAwareMemoryRecordsBuilder> supplier() {
+                return () -> {
+                    BatchAwareMemoryRecordsBuilder batchAwareMemoryRecordsBuilder = new BatchAwareMemoryRecordsBuilder(resultBuffer);
+                    onClose.accept(batchAwareMemoryRecordsBuilder::close);
+                    return batchAwareMemoryRecordsBuilder;
+                };
+            }
+
+            @Override
+            public BiConsumer<BatchAwareMemoryRecordsBuilder, MemoryRecords> accumulator() {
+                return MemoryRecordsUtils::appendAll;
+            }
+
+            @Override
+            public BinaryOperator<BatchAwareMemoryRecordsBuilder> combiner() {
+                return MemoryRecordsUtils::combineBuilders;
+            }
+
+            @Override
+            public Function<BatchAwareMemoryRecordsBuilder, MemoryRecords> finisher() {
+                return BatchAwareMemoryRecordsBuilder::build;
+            }
+
+            @Override
+            public Set<Characteristics> characteristics() {
+                return Set.of();
+            }
+        };
     }
 }

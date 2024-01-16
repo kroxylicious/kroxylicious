@@ -6,9 +6,17 @@
 
 package io.kroxylicious.filter.encryption.records;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.Spliterator;
 import java.util.Spliterators;
+import java.util.function.BiConsumer;
+import java.util.function.BinaryOperator;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collector;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -73,7 +81,8 @@ public class RecordBatchUtils {
     }
 
     /**
-     * Convert the given {@code recordBatch} into a {@link MemoryRecords}, applying a per-record mapping operation to each record.
+     * Convert the given {@code recordBatch} into a {@link MemoryRecords},
+     * applying a per-record mapping operation to each record.
      * @param recordBatch The batch of records to convert
      * @param mapper The mapping function to apply to the records in the batch
      * @param resultBuffer A final buffer. This is required to encourage buffer reuse when
@@ -87,22 +96,36 @@ public class RecordBatchUtils {
         Objects.requireNonNull(recordBatch);
         Objects.requireNonNull(mapper);
         Objects.requireNonNull(resultBuffer);
+        List<Runnable> closers = new ArrayList<>();
         try (Stream<Record> recordStream = recordStream(recordBatch)) {
             return recordStream
-                    .collect(toMemoryRecordsCollector(recordBatch, mapper, resultBuffer));
+                    .collect(toMemoryRecordsCollector(closers::add, recordBatch, mapper, resultBuffer));
+        } finally {
+            closers.forEach(Runnable::run);
         }
     }
 
     /**
      * Factory method for a Collector that applies a mapping function as it builds a {@link MemoryRecords}.
      */
-    private static Collector<Record, BatchAwareMemoryRecordsBuilder, MemoryRecords> toMemoryRecordsCollector(
+    private static Collector<Record, BatchAwareMemoryRecordsBuilder, MemoryRecords> toMemoryRecordsCollector(Consumer<Runnable> onClose,
                                                                                                              RecordBatch recordBatch,
                                                                                                              RecordTransform mapper,
                                                                                                              ByteBufferOutputStream resultBuffer) {
-        return Collector.of(
-                () -> new BatchAwareMemoryRecordsBuilder(resultBuffer).addBatchLike(recordBatch),
-                (builder, record) -> {
+        return new Collector<>() {
+
+            @Override
+            public Supplier<BatchAwareMemoryRecordsBuilder> supplier() {
+                return () -> {
+                    BatchAwareMemoryRecordsBuilder batchAwareMemoryRecordsBuilder = new BatchAwareMemoryRecordsBuilder(resultBuffer);
+                    onClose.accept(batchAwareMemoryRecordsBuilder::close);
+                    return batchAwareMemoryRecordsBuilder.addBatchLike(recordBatch);
+                };
+            }
+
+            @Override
+            public BiConsumer<BatchAwareMemoryRecordsBuilder, Record> accumulator() {
+                return (builder, record) -> {
                     mapper.init(record);
                     builder.appendWithOffset(
                             mapper.transformOffset(record),
@@ -111,8 +134,23 @@ public class RecordBatchUtils {
                             mapper.transformValue(record),
                             mapper.transformHeaders(record));
                     mapper.resetAfterTransform(record);
-                },
-                MemoryRecordsUtils::combineBuilders,
-                BatchAwareMemoryRecordsBuilder::build);
+                };
+            }
+
+            @Override
+            public BinaryOperator<BatchAwareMemoryRecordsBuilder> combiner() {
+                return MemoryRecordsUtils::combineBuilders;
+            }
+
+            @Override
+            public Function<BatchAwareMemoryRecordsBuilder, MemoryRecords> finisher() {
+                return BatchAwareMemoryRecordsBuilder::build;
+            }
+
+            @Override
+            public Set<Characteristics> characteristics() {
+                return Set.of();
+            }
+        };
     }
 }
