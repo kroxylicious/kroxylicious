@@ -131,6 +131,9 @@ public final class KafkaClient implements AutoCloseable {
 
             ChannelFuture connect = b.connect(host, port);
             connect.addListeners((ChannelFutureListener) channelFuture -> candidate.complete(channelFuture.channel()));
+            connect.channel().closeFuture().addListener(future -> {
+                correlationManager.onChannelClose();
+            });
             return candidate;
         }
         else {

@@ -6,6 +6,7 @@
 package io.kroxylicious.test.client;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -53,6 +54,16 @@ public class CorrelationManager {
      */
     public Correlation getBrokerCorrelation(int correlationId) {
         return brokerRequests.remove(correlationId);
+    }
+
+    public void onChannelClose() {
+        List<Integer> pending = brokerRequests.keySet().stream().toList();
+        for (Integer correlation : pending) {
+            Correlation corr = brokerRequests.get(correlation);
+            if (corr.responseFuture != null) {
+                corr.responseFuture.completeExceptionally(new RuntimeException("channel closed before response received!"));
+            }
+        }
     }
 
     /**
