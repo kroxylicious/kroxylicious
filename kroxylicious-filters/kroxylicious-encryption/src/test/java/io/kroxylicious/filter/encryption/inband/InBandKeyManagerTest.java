@@ -69,7 +69,7 @@ class InBandKeyManagerTest {
     void shouldEncryptRecordValue() {
         var kmsService = UnitTestingKmsService.newInstance();
         InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000, new DekAllocator<>(kms));
+        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000, new DekAllocator<>(kms, (long) Math.pow(2, 32)));
 
         var kekId = kms.generateKey();
 
@@ -103,7 +103,7 @@ class InBandKeyManagerTest {
     void shouldTolerateEncryptingAndDecryptingEmptyRecordValue() {
         var kmsService = UnitTestingKmsService.newInstance();
         InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000, new DekAllocator<>(kms));
+        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000, new DekAllocator<>(kms, (long) Math.pow(2, 32)));
 
         var kekId = kms.generateKey();
 
@@ -129,7 +129,7 @@ class InBandKeyManagerTest {
     void decryptSupportsUnencryptedRecordValue() {
         var kmsService = UnitTestingKmsService.newInstance();
         InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000, new DekAllocator<>(kms));
+        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000, new DekAllocator<>(kms, (long) Math.pow(2, 32)));
 
         byte[] recBytes = { 1, 2, 3 };
         TestingRecord record = new TestingRecord(ByteBuffer.wrap(recBytes));
@@ -148,7 +148,7 @@ class InBandKeyManagerTest {
     void nullRecordValuesShouldNotBeModifiedAtEncryptTime() {
         var kmsService = UnitTestingKmsService.newInstance();
         InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000, new DekAllocator<>(kms));
+        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000, new DekAllocator<>(kms, (long) Math.pow(2, 32)));
 
         var kekId = kms.generateKey();
 
@@ -169,7 +169,7 @@ class InBandKeyManagerTest {
     void nullRecordValuesAreIncompatibleWithHeaderEncryption() {
         var kmsService = UnitTestingKmsService.newInstance();
         InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000, new DekAllocator<>(kms));
+        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000, new DekAllocator<>(kms, (long) Math.pow(2, 32)));
 
         var kekId = kms.generateKey();
 
@@ -188,7 +188,7 @@ class InBandKeyManagerTest {
     void shouldTolerateEncryptingEmptyBatch() {
         var kmsService = UnitTestingKmsService.newInstance();
         InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000, new DekAllocator<>(kms));
+        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000, new DekAllocator<>(kms, (long) Math.pow(2, 32)));
 
         var kekId = kms.generateKey();
 
@@ -206,7 +206,7 @@ class InBandKeyManagerTest {
         InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
         var kekId = kms.generateKey();
         // configure 1 encryption per dek but then try to encrypt 2 records, will destroy and retry
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 1, new DekAllocator<>(kms));
+        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 1, new DekAllocator<>(kms, (long) Math.pow(2, 32)));
 
         var value = ByteBuffer.wrap(new byte[]{ 1, 2, 3 });
         var value2 = ByteBuffer.wrap(new byte[]{ 4, 5, 6 });
@@ -254,7 +254,7 @@ class InBandKeyManagerTest {
         InMemoryKms spyKms = Mockito.spy(kms);
         doReturn(CompletableFuture.failedFuture(new KmsException("failed to create that DEK"))).when(spyKms).decryptEdek(any());
 
-        var km = new InBandKeyManager<>(spyKms, BufferPool.allocating(), 50000, new DekAllocator<>(spyKms));
+        var km = new InBandKeyManager<>(spyKms, BufferPool.allocating(), 50000, new DekAllocator<>(spyKms, (long) Math.pow(2, 32)));
 
         var value = ByteBuffer.wrap(new byte[]{ 1, 2, 3 });
         var value2 = ByteBuffer.wrap(new byte[]{ 4, 5, 6 });
@@ -319,7 +319,7 @@ class InBandKeyManagerTest {
     void shouldEncryptRecordValueForMultipleRecords() throws ExecutionException, InterruptedException, TimeoutException {
         var kmsService = UnitTestingKmsService.newInstance();
         InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000, new DekAllocator<>(kms));
+        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000, new DekAllocator<>(kms, (long) Math.pow(2, 32)));
 
         var kekId = kms.generateKey();
 
@@ -435,7 +435,7 @@ class InBandKeyManagerTest {
     void shouldUseSameDekForMultipleBatches() throws ExecutionException, InterruptedException, TimeoutException {
         var kmsService = UnitTestingKmsService.newInstance();
         InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 4, new DekAllocator<>(kms));
+        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 4, new DekAllocator<>(kms, (long) Math.pow(2, 32)));
 
         var kekId = kms.generateKey();
 
@@ -483,7 +483,7 @@ class InBandKeyManagerTest {
     void shouldEncryptRecordHeaders() {
         var kmsService = UnitTestingKmsService.newInstance();
         InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000, new DekAllocator<>(kms));
+        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000, new DekAllocator<>(kms, (long) Math.pow(2, 32)));
 
         var kekId = kms.generateKey();
 
@@ -513,7 +513,7 @@ class InBandKeyManagerTest {
     void shouldEncryptRecordHeadersForMultipleRecords() throws ExecutionException, InterruptedException, TimeoutException {
         var kmsService = UnitTestingKmsService.newInstance();
         InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000, new DekAllocator<>(kms));
+        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000, new DekAllocator<>(kms, (long) Math.pow(2, 32)));
 
         var kekId = kms.generateKey();
 
@@ -546,7 +546,7 @@ class InBandKeyManagerTest {
     void shouldPropagateHeadersInClearWhenNotEncryptingHeaders() {
         var kmsService = UnitTestingKmsService.newInstance();
         InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000, new DekAllocator<>(kms));
+        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000, new DekAllocator<>(kms, (long) Math.pow(2, 32)));
 
         var kekId = kms.generateKey();
 
@@ -590,7 +590,7 @@ class InBandKeyManagerTest {
 
         var spyKms = Mockito.spy(kms);
 
-        var km = new InBandKeyManager<>(spyKms, BufferPool.allocating(), 50000, new DekAllocator<>(spyKms));
+        var km = new InBandKeyManager<>(spyKms, BufferPool.allocating(), 50000, new DekAllocator<>(spyKms, (long) Math.pow(2, 32)));
 
         byte[] rec1Bytes = { 1, 2, 3 };
         byte[] rec2Bytes = { 4, 5, 6 };
@@ -645,7 +645,7 @@ class InBandKeyManagerTest {
         InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
         var kekId = kms.generateKey();
 
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 50000, new DekAllocator<>(kms));
+        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 50000, new DekAllocator<>(kms, (long) Math.pow(2, 32)));
 
         byte[] rec1Bytes = { 1, 2, 3 };
         byte[] rec2Bytes = { 4, 5, 6 };

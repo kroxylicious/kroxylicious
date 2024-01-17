@@ -37,7 +37,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * @param <E> The type of encrypted DEK
  */
 @Plugin(configType = EnvelopeEncryption.Config.class)
-public class EnvelopeEncryption<K, E> implements FilterFactory<EnvelopeEncryption.Config, EnvelopeEncryption.ApplicationWideState<K, E>> {
+public class EnvelopeEncryption<K, E> implements FilterFactory<EnvelopeEncryption.Config, EnvelopeEncryption.FilterFactoryInstanceScopedState<K, E>> {
 
     private static KmsMetrics kmsMetrics = MicrometerKmsMetrics.create(Metrics.globalRegistry);
 
@@ -64,22 +64,20 @@ public class EnvelopeEncryption<K, E> implements FilterFactory<EnvelopeEncryptio
 
     }
 
-    public record FilterState<K, E>(ApplicationWideState<K, E> applicationWide, PerEventLoopState<K, E> perEventLoop) {}
-
-    public static final class ApplicationWideState<K, E> {
+    public static final class FilterFactoryInstanceScopedState<K, E> {
         private final Kms<K, E> kms;
-        private final Map<ScheduledExecutorService, PerEventLoopState<K, E>> stateMap;
+        private final Map<ScheduledExecutorService, PerFilterThreadState<K, E>> stateMap;
         private final Config config;
         private final DekAllocator<K, E> dekAllocator;
 
-        public ApplicationWideState(Kms<K, E> kms, Map<ScheduledExecutorService, PerEventLoopState<K, E>> stateMap, Config config) {
+        public FilterFactoryInstanceScopedState(Kms<K, E> kms, Map<ScheduledExecutorService, PerFilterThreadState<K, E>> stateMap, Config config) {
             this.kms = kms;
             this.stateMap = stateMap;
             this.config = config;
-            this.dekAllocator = new DekAllocator<>(kms);
+            this.dekAllocator = new DekAllocator<>(kms, (long) Math.pow(2, 32));
         }
 
-        ApplicationWideState(FilterFactoryContext context, Config config) {
+        FilterFactoryInstanceScopedState(FilterFactoryContext context, Config config) {
             this(createKms(context, config), Collections.synchronizedMap(new IdentityHashMap<>()), config);
         }
 
@@ -100,20 +98,16 @@ public class EnvelopeEncryption<K, E> implements FilterFactory<EnvelopeEncryptio
                     config.resolvedAliasExpireAfterWriteDuration, config.resolvedAliasRefreshAfterWriteDuration);
         }
 
-        PerEventLoopState<K, E> stateFor(FilterFactoryContext context) {
+        PerFilterThreadState<K, E> stateFor(FilterFactoryContext context) {
             ScheduledExecutorService eventLoop = context.eventLoop();
             if (eventLoop == null) {
                 throw new IllegalStateException("eventloop on context is null");
             }
-            return stateMap.computeIfAbsent(eventLoop, exec -> new PerEventLoopState<>(context, this));
+            return stateMap.computeIfAbsent(eventLoop, exec -> new PerFilterThreadState<>(context, this));
         }
 
         public Kms<K, E> kms() {
             return kms;
-        }
-
-        public Map<ScheduledExecutorService, PerEventLoopState<K, E>> stateMap() {
-            return stateMap;
         }
 
         public Config config() {
@@ -128,7 +122,7 @@ public class EnvelopeEncryption<K, E> implements FilterFactory<EnvelopeEncryptio
             if (obj == null || obj.getClass() != this.getClass()) {
                 return false;
             }
-            var that = (ApplicationWideState) obj;
+            var that = (FilterFactoryInstanceScopedState) obj;
             return Objects.equals(this.kms, that.kms) &&
                     Objects.equals(this.stateMap, that.stateMap) &&
                     Objects.equals(this.config, that.config);
@@ -147,38 +141,35 @@ public class EnvelopeEncryption<K, E> implements FilterFactory<EnvelopeEncryptio
                     "config=" + config + ']';
         }
 
-        public DekAllocator<K, E> getDekAllocator() {
-            return dekAllocator;
-        }
     }
 
-    public record PerEventLoopState<K, E>(KeyManager<K> keyManager, TopicNameBasedKekSelector<K> selector) {
-        PerEventLoopState(FilterFactoryContext context, ApplicationWideState<K, E> applicationWideState) {
-            this(createKeyManager(applicationWideState), createKekSelector(context, applicationWideState, applicationWideState.config()));
+    public record PerFilterThreadState<K, E>(KeyManager<K> keyManager, TopicNameBasedKekSelector<K> selector) {
+        PerFilterThreadState(FilterFactoryContext context, FilterFactoryInstanceScopedState<K, E> filterFactoryInstanceState) {
+            this(createKeyManager(filterFactoryInstanceState), createKekSelector(context, filterFactoryInstanceState, filterFactoryInstanceState.config()));
         }
 
         @NonNull
-        private static <K, E> TopicNameBasedKekSelector<K> createKekSelector(FilterFactoryContext context, ApplicationWideState<K, E> applicationWideState,
+        private static <K, E> TopicNameBasedKekSelector<K> createKekSelector(FilterFactoryContext context, FilterFactoryInstanceScopedState<K, E> filterFactoryInstanceState,
                                                                              Config configuration) {
             KekSelectorService<Object, K> ksPlugin = context.pluginInstance(KekSelectorService.class, configuration.selector());
-            return ksPlugin.buildSelector(applicationWideState.kms(), configuration.selectorConfig());
+            return ksPlugin.buildSelector(filterFactoryInstanceState.kms(), configuration.selectorConfig());
         }
 
         @NonNull
-        private static <K, E> KeyManager<K> createKeyManager(ApplicationWideState<K, E> applicationWideState) {
-            return new InBandKeyManager<>(applicationWideState.kms(), BufferPool.allocating(), 500_000, applicationWideState.dekAllocator);
+        private static <K, E> KeyManager<K> createKeyManager(FilterFactoryInstanceScopedState<K, E> filterFactoryInstanceState) {
+            return new InBandKeyManager<>(filterFactoryInstanceState.kms(), BufferPool.allocating(), 500_000, filterFactoryInstanceState.dekAllocator);
         }
     }
 
     @Override
-    public ApplicationWideState<K, E> initialize(FilterFactoryContext context, Config config) throws PluginConfigurationException {
-        return new ApplicationWideState<>(context, config);
+    public FilterFactoryInstanceScopedState<K, E> initialize(FilterFactoryContext context, Config config) throws PluginConfigurationException {
+        return new FilterFactoryInstanceScopedState<>(context, config);
     }
 
     @NonNull
     @Override
-    public EnvelopeEncryptionFilter<K> createFilter(FilterFactoryContext context, ApplicationWideState<K, E> applicationWideState) {
-        PerEventLoopState<K, E> filterState = applicationWideState.stateFor(context);
+    public EnvelopeEncryptionFilter<K> createFilter(FilterFactoryContext context, FilterFactoryInstanceScopedState<K, E> filterFactoryInstanceState) {
+        PerFilterThreadState<K, E> filterState = filterFactoryInstanceState.stateFor(context);
         return new EnvelopeEncryptionFilter<>(filterState.keyManager(), filterState.selector());
     }
 }

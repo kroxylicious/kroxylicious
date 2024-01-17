@@ -122,7 +122,7 @@ class DekAllocatorTest {
         // given
         DekPair<Long> expected = new DekPair<>(1L, secretKey);
         when(kms.generateDekPair(1L)).thenReturn(CompletableFuture.completedFuture(expected));
-        DekAllocator<Long, Long> allocator = new DekAllocator<>(kms);
+        DekAllocator<Long, Long> allocator = new DekAllocator<>(kms, (long) Math.pow(2, 32));
 
         // when
         CompletableFuture<DekPair<Long>> pair = allocator.allocateDek(1L, (long) Math.pow(2, 32));
@@ -135,7 +135,7 @@ class DekAllocatorTest {
     @Test
     public void testDefaultMaxAllocationExceeded() {
         // given
-        DekAllocator<Long, Long> allocator = new DekAllocator<>(kms);
+        DekAllocator<Long, Long> allocator = new DekAllocator<>(kms, (long) Math.pow(2, 32));
 
         // when
         CompletableFuture<DekPair<Long>> pair = allocator.allocateDek(1L, (long) Math.pow(2, 32) + 1L);

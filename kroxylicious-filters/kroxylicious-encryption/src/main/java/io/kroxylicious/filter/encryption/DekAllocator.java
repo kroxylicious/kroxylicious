@@ -50,11 +50,6 @@ public class DekAllocator<K, E> {
 
     }
 
-    public DekAllocator(@NonNull Kms<K, E> kms) {
-        // following suggested number of invocations from NIST SP.800-38D s8.3
-        this(kms, (long) Math.pow(2, 32));
-    }
-
     public DekAllocator(@NonNull Kms<K, E> kms, long maximumEncryptionsPerDek) {
         this.maximumEncryptionsPerDek = maximumEncryptionsPerDek;
         cache = Caffeine.newBuilder().buildAsync(
@@ -91,12 +86,9 @@ public class DekAllocator<K, E> {
     }
 
     private void invalidate(@NonNull K kekId, ExhaustedException ex) {
-        // we want to prevent invalidating twice in case another thread has already invalidated and repopulated the cache
-        synchronized (ex.context) {
-            boolean firstClose = ex.context.close();
-            if (firstClose) {
-                cache.synchronous().invalidate(kekId);
-            }
+        boolean firstClose = ex.context.close();
+        if (firstClose) {
+            cache.synchronous().invalidate(kekId);
         }
     }
 
