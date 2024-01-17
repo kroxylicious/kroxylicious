@@ -24,6 +24,7 @@ import javax.crypto.SecretKey;
 
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
+import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.utils.ByteUtils;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.Test;
@@ -37,6 +38,7 @@ import io.kroxylicious.filter.encryption.RecordField;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.InMemoryKms;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.UnitTestingKmsService;
 import io.kroxylicious.kms.service.KmsException;
+import io.kroxylicious.test.record.RecordTestUtils;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -73,28 +75,26 @@ class InBandKeyManagerTest {
         var kekId = kms.generateKey();
 
         var value = new byte[]{ 1, 2, 3 };
-        TestingRecord record = new TestingRecord(ByteBuffer.wrap(value));
+        Record record = RecordTestUtils.record(value);
 
-        List<TestingRecord> encrypted = new ArrayList<>();
-        List<TestingRecord> initial = List.of(record);
+        List<Record> encrypted = new ArrayList<>();
+        List<Record> initial = List.of(record);
         assertThat(km.encrypt("topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)), initial, recordReceivedRecord(encrypted)))
                 .isCompleted();
         assertThat(encrypted.iterator())
                 .toIterable()
                 .singleElement()
-                .extracting(TestingRecord::value)
-                .extracting(ByteBuffer::array)
+                .extracting(RecordTestUtils::recordValueAsBytes)
                 .isNotEqualTo(value);
 
-        List<TestingRecord> decrypted = new ArrayList<>();
+        List<Record> decrypted = new ArrayList<>();
         assertThat(km.decrypt("foo", 1, encrypted, recordReceivedRecord(decrypted)))
                 .isCompleted();
 
         assertThat(decrypted.iterator())
                 .toIterable()
                 .singleElement()
-                .extracting(TestingRecord::value)
-                .extracting(ByteBuffer::array)
+                .extracting(RecordTestUtils::recordValueAsBytes)
                 .isEqualTo(value);
     }
 
@@ -107,17 +107,17 @@ class InBandKeyManagerTest {
         var kekId = kms.generateKey();
 
         var value = ByteBuffer.wrap(new byte[]{});
-        TestingRecord record = new TestingRecord(value);
+        Record record = RecordTestUtils.record(value);
 
-        List<TestingRecord> encrypted = new ArrayList<>();
-        List<TestingRecord> initial = List.of(record);
+        List<Record> encrypted = new ArrayList<>();
+        List<Record> initial = List.of(record);
         assertThat(km.encrypt("topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)), initial, recordReceivedRecord(encrypted)))
                 .isCompleted();
         record.value().rewind();
         assertEquals(1, encrypted.size());
         assertNotEquals(initial, encrypted);
 
-        List<TestingRecord> decrypted = new ArrayList<>();
+        List<Record> decrypted = new ArrayList<>();
         assertThat(km.decrypt("foo", 1, encrypted, recordReceivedRecord(decrypted)))
                 .isCompleted();
 
@@ -131,14 +131,15 @@ class InBandKeyManagerTest {
         var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
 
         byte[] recBytes = { 1, 2, 3 };
-        TestingRecord record = new TestingRecord(ByteBuffer.wrap(recBytes));
+        Record record = RecordTestUtils.record(recBytes);
 
-        List<TestingRecord> received = new ArrayList<>();
+        List<Record> received = new ArrayList<>();
         assertThat(km.decrypt("foo", 1, List.of(record), recordReceivedRecord(received)))
                 .isCompleted();
 
         assertThat(received).hasSize(1);
-        assertThat(received.stream().map(TestingRecord::value).map(ByteBuffer::array))
+        assertThat(received.stream()
+                .map(RecordTestUtils::recordValueAsBytes))
                 .containsExactly(recBytes);
     }
 
@@ -151,10 +152,10 @@ class InBandKeyManagerTest {
 
         var kekId = kms.generateKey();
 
-        TestingRecord record = new TestingRecord(null);
+        Record record = RecordTestUtils.record((ByteBuffer) null);
 
-        List<TestingRecord> encrypted = new ArrayList<>();
-        List<TestingRecord> initial = List.of(record);
+        List<Record> encrypted = new ArrayList<>();
+        List<Record> initial = List.of(record);
         assertThat(km.encrypt("topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)), initial, recordReceivedRecord(encrypted)))
                 .isCompleted();
         assertEquals(1, encrypted.size());
@@ -173,10 +174,10 @@ class InBandKeyManagerTest {
         var kekId = kms.generateKey();
 
         var headers = new Header[]{ new RecordHeader("headerFoo", new byte[]{ 4, 5, 6 }) };
-        TestingRecord record = new TestingRecord(null, headers);
+        Record record = RecordTestUtils.record((ByteBuffer) null, headers);
 
-        List<TestingRecord> encrypted = new ArrayList<>();
-        List<TestingRecord> initial = List.of(record);
+        List<Record> encrypted = new ArrayList<>();
+        List<Record> initial = List.of(record);
         String expectedMessage = "encrypting headers prohibited when original record value null, we must preserve the null for tombstoning";
         assertThat(km.encrypt("topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_HEADER_VALUES)), initial, recordReceivedRecord(encrypted)))
                 .failsWithin(Duration.ofSeconds(5)).withThrowableThat()
@@ -191,8 +192,8 @@ class InBandKeyManagerTest {
 
         var kekId = kms.generateKey();
 
-        List<TestingRecord> encrypted = new ArrayList<>();
-        List<TestingRecord> initial = List.of();
+        List<Record> encrypted = new ArrayList<>();
+        List<Record> initial = List.of();
         assertThat(km.encrypt("topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)), initial, recordReceivedRecord(encrypted)))
                 .isCompleted();
 
@@ -209,11 +210,11 @@ class InBandKeyManagerTest {
 
         var value = ByteBuffer.wrap(new byte[]{ 1, 2, 3 });
         var value2 = ByteBuffer.wrap(new byte[]{ 4, 5, 6 });
-        TestingRecord record = new TestingRecord(value);
-        TestingRecord record2 = new TestingRecord(value2);
+        Record record = RecordTestUtils.record(value);
+        Record record2 = RecordTestUtils.record(value2);
 
-        List<TestingRecord> encrypted = new ArrayList<>();
-        List<TestingRecord> initial = List.of(record, record2);
+        List<Record> encrypted = new ArrayList<>();
+        List<Record> initial = List.of(record, record2);
         CompletionStage<Void> encrypt = km.encrypt("topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
                 initial,
                 recordReceivedRecord(encrypted));
@@ -232,11 +233,11 @@ class InBandKeyManagerTest {
 
         var value = ByteBuffer.wrap(new byte[]{ 1, 2, 3 });
         var value2 = ByteBuffer.wrap(new byte[]{ 4, 5, 6 });
-        TestingRecord record = new TestingRecord(value);
-        TestingRecord record2 = new TestingRecord(value2);
+        Record record = RecordTestUtils.record(value);
+        Record record2 = RecordTestUtils.record(value2);
 
-        List<TestingRecord> encrypted = new ArrayList<>();
-        List<TestingRecord> initial = List.of(record, record2);
+        List<Record> encrypted = new ArrayList<>();
+        List<Record> initial = List.of(record, record2);
         CompletionStage<Void> encrypt = km.encrypt("topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
                 initial,
                 recordReceivedRecord(encrypted));
@@ -255,17 +256,17 @@ class InBandKeyManagerTest {
 
         var value = ByteBuffer.wrap(new byte[]{ 1, 2, 3 });
         var value2 = ByteBuffer.wrap(new byte[]{ 4, 5, 6 });
-        TestingRecord record = new TestingRecord(value);
-        TestingRecord record2 = new TestingRecord(value2);
+        Record record = RecordTestUtils.record(value);
+        Record record2 = RecordTestUtils.record(value2);
 
-        List<TestingRecord> encrypted = new ArrayList<>();
-        List<TestingRecord> initial = List.of(record, record2);
+        List<Record> encrypted = new ArrayList<>();
+        List<Record> initial = List.of(record, record2);
         CompletionStage<Void> encrypt = km.encrypt("topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
                 initial,
                 recordReceivedRecord(encrypted));
         assertThat(encrypt).succeedsWithin(Duration.ofSeconds(5));
 
-        List<TestingRecord> decrypted = new ArrayList<>();
+        List<Record> decrypted = new ArrayList<>();
         CompletionStage<Void> decrypt = km.decrypt("topic", 1, encrypted, recordReceivedRecord(decrypted));
         assertThat(decrypt).failsWithin(Duration.ofSeconds(5)).withThrowableThat().withMessageContaining("failed to create that DEK");
     }
@@ -282,11 +283,11 @@ class InBandKeyManagerTest {
 
         var value = ByteBuffer.wrap(new byte[]{ 1, 2, 3 });
         var value2 = ByteBuffer.wrap(new byte[]{ 4, 5, 6 });
-        TestingRecord record = new TestingRecord(value);
-        TestingRecord record2 = new TestingRecord(value2);
+        Record record = RecordTestUtils.record(value);
+        Record record2 = RecordTestUtils.record(value2);
 
-        List<TestingRecord> encrypted = new ArrayList<>();
-        List<TestingRecord> initial = List.of(record, record2);
+        List<Record> encrypted = new ArrayList<>();
+        List<Record> initial = List.of(record, record2);
         CompletionStage<Void> encrypt = km.encrypt("topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
                 initial,
                 recordReceivedRecord(encrypted));
@@ -306,9 +307,9 @@ class InBandKeyManagerTest {
     }
 
     @NonNull
-    private static Receiver recordReceivedRecord(Collection<TestingRecord> list) {
+    private static Receiver recordReceivedRecord(Collection<Record> list) {
         return (r, v, h) -> {
-            list.add(new TestingRecord(copyBytes(v), h));
+            list.add(RecordTestUtils.record(v, h));
         };
     }
 
@@ -321,17 +322,17 @@ class InBandKeyManagerTest {
         var kekId = kms.generateKey();
 
         var value = ByteBuffer.wrap(new byte[]{ 1, 2, 3 });
-        TestingRecord record = new TestingRecord(value);
+        Record record = RecordTestUtils.record(value);
 
         var value2 = ByteBuffer.wrap(new byte[]{ 3, 4, 5 });
-        TestingRecord record2 = new TestingRecord(value2);
+        Record record2 = RecordTestUtils.record(value2);
 
-        List<TestingRecord> encrypted = new ArrayList<>();
-        List<TestingRecord> initial = List.of(record, record2);
+        List<Record> encrypted = new ArrayList<>();
+        List<Record> initial = List.of(record, record2);
         km.encrypt("topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
                 initial,
                 (r, v, h) -> {
-                    encrypted.add(new TestingRecord(copyBytes(v), h));
+                    encrypted.add(RecordTestUtils.record(copyBytes(v), h));
                 })
                 .toCompletableFuture()
                 .get(10, TimeUnit.SECONDS);
@@ -341,7 +342,7 @@ class InBandKeyManagerTest {
         assertNotEquals(initial, encrypted);
         // TODO add assertion on headers
 
-        List<TestingRecord> decrypted = new ArrayList<>();
+        List<Record> decrypted = new ArrayList<>();
         km.decrypt("foo", 1, encrypted, recordReceivedRecord(decrypted))
                 .toCompletableFuture()
                 .get(10, TimeUnit.SECONDS);
@@ -358,13 +359,13 @@ class InBandKeyManagerTest {
         var kekId = kms.generateKey();
 
         var value = ByteBuffer.wrap(new byte[]{ 1, 2, 3 });
-        TestingRecord record = new TestingRecord(value);
+        Record record = RecordTestUtils.record(value);
 
         var value2 = ByteBuffer.wrap(new byte[]{ 3, 4, 5 });
-        TestingRecord record2 = new TestingRecord(value2);
+        Record record2 = RecordTestUtils.record(value2);
 
-        List<TestingRecord> encrypted = new ArrayList<>();
-        List<TestingRecord> initial = List.of(record, record2);
+        List<Record> encrypted = new ArrayList<>();
+        List<Record> initial = List.of(record, record2);
         km.encrypt("topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
                 initial,
                 recordReceivedRecord(encrypted)).toCompletableFuture().get(10, TimeUnit.SECONDS);
@@ -397,13 +398,13 @@ class InBandKeyManagerTest {
         var kekId = kms.generateKey();
 
         var value = ByteBuffer.wrap(new byte[]{ 1, 2, 3 });
-        TestingRecord record = new TestingRecord(value);
+        Record record = RecordTestUtils.record(value);
 
         var value2 = ByteBuffer.wrap(new byte[]{ 3, 4, 5 });
-        TestingRecord record2 = new TestingRecord(value2);
+        Record record2 = RecordTestUtils.record(value2);
 
-        List<TestingRecord> encrypted = new ArrayList<>();
-        List<TestingRecord> initial = List.of(record, record2);
+        List<Record> encrypted = new ArrayList<>();
+        List<Record> initial = List.of(record, record2);
         km.encrypt("topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
                 initial,
                 recordReceivedRecord(encrypted))
@@ -437,13 +438,13 @@ class InBandKeyManagerTest {
         var kekId = kms.generateKey();
 
         var value = ByteBuffer.wrap(new byte[]{ 1, 2, 3 });
-        TestingRecord record = new TestingRecord(value);
+        Record record = RecordTestUtils.record(value);
 
         var value2 = ByteBuffer.wrap(new byte[]{ 3, 4, 5 });
-        TestingRecord record2 = new TestingRecord(value2);
+        Record record2 = RecordTestUtils.record(value2);
 
-        List<TestingRecord> encrypted = new ArrayList<>();
-        List<TestingRecord> initial = List.of(record, record2);
+        List<Record> encrypted = new ArrayList<>();
+        List<Record> initial = List.of(record, record2);
         km.encrypt("topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
                 initial,
                 recordReceivedRecord(encrypted))
@@ -472,7 +473,9 @@ class InBandKeyManagerTest {
             return null;
         }
         byte[] bytes = new byte[v.remaining()];
+        var p = v.position();
         v.get(bytes);
+        v.position(p);
         return ByteBuffer.wrap(bytes);
     }
 
@@ -486,10 +489,10 @@ class InBandKeyManagerTest {
 
         var value = ByteBuffer.wrap(new byte[]{ 1, 2, 3 });
         var headers = new Header[]{ new RecordHeader("headerFoo", new byte[]{ 4, 5, 6 }) };
-        TestingRecord record = new TestingRecord(value, headers);
+        Record record = RecordTestUtils.record(value, headers);
 
-        List<TestingRecord> encrypted = new ArrayList<>();
-        List<TestingRecord> initial = List.of(record);
+        List<Record> encrypted = new ArrayList<>();
+        List<Record> initial = List.of(record);
         assertThat(km.encrypt("topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE, RecordField.RECORD_HEADER_VALUES)),
                 initial,
                 recordReceivedRecord(encrypted)))
@@ -499,11 +502,11 @@ class InBandKeyManagerTest {
         assertEquals(1, encrypted.size());
         assertNotEquals(initial, encrypted);
 
-        List<TestingRecord> decrypted = new ArrayList<>();
+        List<Record> decrypted = new ArrayList<>();
         assertThat(km.decrypt("topicFoo", 1, encrypted, recordReceivedRecord(decrypted)))
                 .isCompleted();
 
-        assertEquals(List.of(new TestingRecord(value, new Header[]{ new RecordHeader("headerFoo", new byte[]{ 4, 5, 6 }) })), decrypted);
+        assertEquals(List.of(RecordTestUtils.record(value, new Header[]{ new RecordHeader("headerFoo", new byte[]{ 4, 5, 6 }) })), decrypted);
     }
 
     @Test
@@ -516,13 +519,13 @@ class InBandKeyManagerTest {
 
         var value = ByteBuffer.wrap(new byte[]{ 1, 2, 3 });
         var headers = new Header[]{ new RecordHeader("foo", new byte[]{ 4, 5, 6 }) };
-        TestingRecord record = new TestingRecord(value, headers);
+        Record record = RecordTestUtils.record(value, headers);
         var value2 = ByteBuffer.wrap(new byte[]{ 7, 8, 9 });
         var headers2 = new Header[]{ new RecordHeader("foo", new byte[]{ 10, 11, 12 }) };
-        TestingRecord record2 = new TestingRecord(value2, headers2);
+        Record record2 = RecordTestUtils.record(value2, headers2);
 
-        List<TestingRecord> encrypted = new ArrayList<>();
-        List<TestingRecord> initial = List.of(record, record2);
+        List<Record> encrypted = new ArrayList<>();
+        List<Record> initial = List.of(record, record2);
         km.encrypt("topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE, RecordField.RECORD_HEADER_VALUES)),
                 initial,
                 recordReceivedRecord(encrypted)).toCompletableFuture().get(10, TimeUnit.SECONDS);
@@ -531,12 +534,12 @@ class InBandKeyManagerTest {
         assertEquals(2, encrypted.size());
         assertNotEquals(initial, encrypted);
 
-        List<TestingRecord> decrypted = new ArrayList<>();
+        List<Record> decrypted = new ArrayList<>();
         assertThat(km.decrypt("foo", 1, encrypted, recordReceivedRecord(decrypted)))
                 .isCompleted();
 
-        assertEquals(List.of(new TestingRecord(value, new Header[]{ new RecordHeader("foo", new byte[]{ 4, 5, 6 }) }),
-                new TestingRecord(value2, new Header[]{ new RecordHeader("foo", new byte[]{ 10, 11, 12 }) })), decrypted);
+        assertEquals(List.of(RecordTestUtils.record(value, new Header[]{ new RecordHeader("foo", new byte[]{ 4, 5, 6 }) }),
+                RecordTestUtils.record(value2, new Header[]{ new RecordHeader("foo", new byte[]{ 10, 11, 12 }) })), decrypted);
     }
 
     @Test
@@ -549,27 +552,27 @@ class InBandKeyManagerTest {
 
         var value = new byte[]{ 1, 2, 3 };
         var header = new RecordHeader("myHeader", new byte[]{ 4, 5, 6 });
-        var record = new TestingRecord(ByteBuffer.wrap(value), header);
+        var record = RecordTestUtils.record(ByteBuffer.wrap(value), header);
 
-        List<TestingRecord> encrypted = new ArrayList<>();
+        List<Record> encrypted = new ArrayList<>();
         assertThat(km.encrypt("topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)), List.of(record), recordReceivedRecord(encrypted)))
                 .isCompleted();
         assertThat(encrypted.iterator())
                 .toIterable()
                 .singleElement()
-                .extracting(TestingRecord::headers)
+                .extracting(Record::headers)
                 .asInstanceOf(InstanceOfAssertFactories.array(Header[].class))
                 .hasSize(2) /* additional header is the kroxylicious.io/encryption header */
                 .contains(header);
 
-        List<TestingRecord> decrypted = new ArrayList<>();
+        List<Record> decrypted = new ArrayList<>();
         assertThat(km.decrypt("foo", 1, encrypted, recordReceivedRecord(decrypted)))
                 .isCompleted();
 
         assertThat(decrypted.iterator())
                 .toIterable()
                 .singleElement()
-                .extracting(TestingRecord::headers)
+                .extracting(Record::headers)
                 .asInstanceOf(InstanceOfAssertFactories.array(Header[].class))
                 .hasSize(1)
                 .containsExactly(header);
@@ -591,10 +594,10 @@ class InBandKeyManagerTest {
 
         byte[] rec1Bytes = { 1, 2, 3 };
         byte[] rec2Bytes = { 4, 5, 6 };
-        var rec1 = new TestingRecord(ByteBuffer.wrap(rec1Bytes));
-        var rec2 = new TestingRecord(ByteBuffer.wrap(rec2Bytes));
+        var rec1 = RecordTestUtils.record(ByteBuffer.wrap(rec1Bytes));
+        var rec2 = RecordTestUtils.record(ByteBuffer.wrap(rec2Bytes));
 
-        List<TestingRecord> encrypted = new ArrayList<>();
+        List<Record> encrypted = new ArrayList<>();
         var encryptStage = km.encrypt(topic, partition, new EncryptionScheme<>(kekId1, EnumSet.of(RecordField.RECORD_VALUE)),
                 List.of(rec1),
                 recordReceivedRecord(encrypted))
@@ -623,13 +626,12 @@ class InBandKeyManagerTest {
             }
         }).when(spyKms).decryptEdek(argument.capture());
 
-        List<TestingRecord> decrypted = new ArrayList<>();
+        List<Record> decrypted = new ArrayList<>();
         var decryptStage = km.decrypt(topic, partition, encrypted, recordReceivedRecord(decrypted));
         assertThat(decryptStage).succeedsWithin(Duration.ofSeconds(1));
         assertThat(decrypted.iterator())
                 .toIterable()
-                .extracting(TestingRecord::value)
-                .extracting(ByteBuffer::array)
+                .extracting(RecordTestUtils::recordValueAsBytes)
                 .containsExactly(rec1Bytes, rec2Bytes);
     }
 
@@ -647,12 +649,12 @@ class InBandKeyManagerTest {
         byte[] rec1Bytes = { 1, 2, 3 };
         byte[] rec2Bytes = { 4, 5, 6 };
         byte[] rec3Bytes = { 7, 8, 9 };
-        var rec1 = new TestingRecord(ByteBuffer.wrap(rec1Bytes));
-        var rec2 = new TestingRecord(ByteBuffer.wrap(rec2Bytes));
-        var rec3 = new TestingRecord(ByteBuffer.wrap(rec3Bytes));
+        var rec1 = RecordTestUtils.record(ByteBuffer.wrap(rec1Bytes));
+        var rec2 = RecordTestUtils.record(ByteBuffer.wrap(rec2Bytes));
+        var rec3 = RecordTestUtils.record(ByteBuffer.wrap(rec3Bytes));
 
         // rec1 and rec3 will be encrypted.
-        List<TestingRecord> encrypted = new ArrayList<>();
+        List<Record> encrypted = new ArrayList<>();
         var encryptStage = km.encrypt(topic, partition, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
                 List.of(rec1, rec3),
                 recordReceivedRecord(encrypted));
@@ -660,16 +662,15 @@ class InBandKeyManagerTest {
         assertThat(encrypted).hasSize(2);
 
         // rec2 will be unencrypted
-        List<TestingRecord> decryptInput = new ArrayList<>(encrypted);
+        List<Record> decryptInput = new ArrayList<>(encrypted);
         decryptInput.add(1, rec2);
 
-        List<TestingRecord> received = new ArrayList<>();
+        List<Record> received = new ArrayList<>();
         var decryptStage = km.decrypt(topic, partition, decryptInput, recordReceivedRecord(received));
         assertThat(decryptStage).succeedsWithin(Duration.ofSeconds(1));
         assertThat(received.iterator())
                 .toIterable()
-                .extracting(TestingRecord::value)
-                .extracting(ByteBuffer::array)
+                .extracting(RecordTestUtils::recordValueAsBytes)
                 .containsExactly(rec1Bytes, rec2Bytes, rec3Bytes);
     }
 
@@ -687,7 +688,7 @@ class InBandKeyManagerTest {
     }
 
     @NonNull
-    private static List<TestingDek> extractEdeks(List<TestingRecord> encrypted) {
+    private static List<TestingDek> extractEdeks(List<Record> encrypted) {
         List<TestingDek> deks = encrypted.stream()
                 .filter(testingRecord -> Stream.of(testingRecord.headers()).anyMatch(header -> header.key().equals(InBandKeyManager.ENCRYPTION_HEADER_NAME)))
                 .map(testingRecord -> {
