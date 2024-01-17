@@ -8,7 +8,10 @@ package io.kroxylicious.test.assertj;
 
 import org.apache.kafka.common.header.Header;
 import org.assertj.core.api.AbstractAssert;
+import org.assertj.core.api.AbstractByteArrayAssert;
 import org.assertj.core.api.Assertions;
+
+import java.nio.charset.StandardCharsets;
 
 public class HeaderAssert extends AbstractAssert<HeaderAssert, Header> {
     protected HeaderAssert(Header header) {
@@ -29,28 +32,25 @@ public class HeaderAssert extends AbstractAssert<HeaderAssert, Header> {
     }
 
     public HeaderAssert hasValueEqualTo(String expected) {
-        isNotNull();
-        String valueString = actual.value() == null ? null : new String(actual.value());
-        Assertions.assertThat(valueString)
-                .describedAs("header value")
-                .isEqualTo(expected);
+        valueAssert().isEqualTo(expected.getBytes(StandardCharsets.UTF_8));
         return this;
     }
 
     public HeaderAssert hasValueEqualTo(byte[] expected) {
-        isNotNull();
-        Assertions.assertThat(actual.value())
-                .describedAs("header value")
-                .isEqualTo(expected);
+        valueAssert().isEqualTo(expected);
         return this;
     }
 
     public HeaderAssert hasNullValue() {
-        isNotNull();
-        Assertions.assertThat(actual.value())
-                .describedAs("header value")
-                .isNull();
+        valueAssert().isNull();
         return this;
+    }
+
+    private AbstractByteArrayAssert<?> valueAssert() {
+        isNotNull();
+        AbstractByteArrayAssert<?> headerValue = Assertions.assertThat(actual.value())
+                .describedAs("header value");
+        return headerValue;
     }
 
 }

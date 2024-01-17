@@ -76,7 +76,6 @@ class RecordEncryptor<K> implements RecordTransform {
             // todo implement header encryption preserving null record-values
             throw new IllegalStateException("encrypting headers prohibited when original record value null, we must preserve the null for tombstoning");
         }
-        ByteBuffer transformedValue;
         if (kafkaRecord.hasValue()) {
             Parcel.writeParcel(encryptionVersion.parcelVersion(), encryptionScheme.recordFields(), kafkaRecord, parcelBuffer);
             parcelBuffer.flip();
