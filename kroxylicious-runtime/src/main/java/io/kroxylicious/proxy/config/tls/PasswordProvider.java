@@ -13,7 +13,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
  * A PasswordProvider is an abstract source of a password.
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.DEDUCTION)
-@JsonSubTypes({ @JsonSubTypes.Type(InlinePassword.class), @JsonSubTypes.Type(FilePassword.class) })
+@JsonSubTypes({ @JsonSubTypes.Type(InlinePassword.class), @JsonSubTypes.Type(FilePassword.class), @JsonSubTypes.Type(FilePasswordFilePath.class) })
 public interface PasswordProvider {
     String getProvidedPassword();
 }
