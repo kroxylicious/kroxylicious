@@ -152,21 +152,11 @@ class AesGcmEncryptor implements Destroyable {
     }
 
     @Override
-    public void destroy() throws DestroyFailedException {
+    public void destroy() {
         ivGenerator.destroy();
         Arrays.fill(iv, (byte) 0);
-        try {
-            if (key != null) {
-                key.destroy();
-            }
-        }
-        catch (DestroyFailedException e) {
-            throw new DestroyFailedException("On key of " + key.getClass());
-        }
-        finally {
-            key = null;
-            cipher = null;
-        }
+        key = null;
+        cipher = null;
     }
 
     @Override

@@ -56,9 +56,11 @@ class AesGcmEncryptorTest {
         var keygen = KeyGenerator.getInstance("AES");
         SecretKey key = keygen.generateKey();
         var enc = AesGcmEncryptor.forEncrypt(new AesGcmIvGenerator(new SecureRandom()), key);
-        assertThrows(DestroyFailedException.class, enc::destroy);
+        enc.destroy();
         // ^^ this is not the behaviour we want, but it's the behaviour we get (from the in memory KMS at least)
         assertTrue(enc.isDestroyed());
+        // since the SecretKey is being shared by other KeyContexts we do not want to destroy it
+        assertFalse(key.isDestroyed());
 
         enc.destroy();
         // once destroyed we expect a 2nd call to not throw
