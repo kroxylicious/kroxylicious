@@ -4,6 +4,7 @@ Please enumerate **all user-facing** changes using format `<githib issue/pr numb
 
 ## 0.5.0
 
+* [#844](https://github.com/kroxylicious/kroxylicious/pull/844): Fix connect to upstream using TLS client authentication
 * [#885](https://github.com/kroxylicious/kroxylicious/pull/885): Bump kroxy.extension.version from 0.8.0 to 0.8.1
 
 ## 0.4.1
