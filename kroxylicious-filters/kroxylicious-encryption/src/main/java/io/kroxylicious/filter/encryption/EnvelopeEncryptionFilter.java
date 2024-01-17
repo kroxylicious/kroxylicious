@@ -85,16 +85,13 @@ public class EnvelopeEncryptionFilter<K>
                                 return CompletableFuture.completedStage(ppd);
                             }
                             MemoryRecords records = (MemoryRecords) ppd.records();
-                            MemoryRecordsBuilder builder = recordsBuilder(allocateBufferForEncode(records, context), records);
-                            var encryptionRequests = recordStream(records).toList();
                             return keyManager.encrypt(
                                     topicName,
                                     ppd.index(),
                                     new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
-                                    encryptionRequests,
-                                    (kafkaRecord, encryptedValue, headers) -> builder.appendWithOffset(kafkaRecord.offset(), kafkaRecord.timestamp(), kafkaRecord.key(),
-                                            encryptedValue, headers))
-                                    .thenApply(ignored -> ppd.setRecords(builder.build()));
+                                    records,
+                                    context::createByteBufferOutputStream)
+                                    .thenApply(ppd::setRecords);
                         });
                     }).toList();
                     return join(futures).thenApply(x -> request);
@@ -102,12 +99,6 @@ public class EnvelopeEncryptionFilter<K>
                     log.warn("failed to encrypt records", throwable);
                     return CompletableFuture.failedStage(throwable);
                 });
-    }
-
-    private ByteBufferOutputStream allocateBufferForEncode(MemoryRecords records, FilterContext context) {
-        int sizeEstimate = 2 * records.sizeInBytes();
-        // Accurate estimation is tricky without knowing the record sizes
-        return context.createByteBufferOutputStream(sizeEstimate);
     }
 
     @Override

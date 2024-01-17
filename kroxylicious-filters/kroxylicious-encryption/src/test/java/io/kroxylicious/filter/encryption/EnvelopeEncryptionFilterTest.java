@@ -127,14 +127,7 @@ class EnvelopeEncryptionFilterTest {
             return CompletableFuture.completedFuture(copy);
         });
 
-        when(keyManager.encrypt(any(), anyInt(), any(), anyList(), any(Receiver.class))).thenAnswer(invocationOnMock -> {
-            final List<? extends Record> actualRecords = invocationOnMock.getArgument(3);
-            final Receiver receiver = invocationOnMock.getArgument(4);
-            for (Record actualRecord : actualRecords) {
-                receiver.accept(actualRecord, ByteBuffer.allocate(actualRecord.sizeInBytes()), new Header[0]);
-            }
-            return CompletableFuture.completedFuture(null);
-        });
+        when(keyManager.encrypt(any(), anyInt(), any(), any(), any())).thenReturn(CompletableFuture.completedFuture(RecordTestUtils.memoryRecords("key", "value")));
 
         when(keyManager.decrypt(any(), anyInt(), anyList(), any(Receiver.class))).thenAnswer(invocationOnMock -> {
             final List<? extends Record> actualRecords = invocationOnMock.getArgument(2);
@@ -159,7 +152,7 @@ class EnvelopeEncryptionFilterTest {
         encryptionFilter.onProduceRequest(ProduceRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), produceRequestData, context);
 
         // Then
-        verify(keyManager, never()).encrypt(any(), anyInt(), any(), anyList(), any(Receiver.class));
+        verify(keyManager, never()).encrypt(any(), anyInt(), any(), any(), any());
     }
 
     @Test
@@ -173,7 +166,7 @@ class EnvelopeEncryptionFilterTest {
         encryptionFilter.onProduceRequest(ProduceRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), produceRequestData, context);
 
         // Then
-        verify(keyManager).encrypt(any(), anyInt(), any(), anyList(), any(Receiver.class));
+        verify(keyManager).encrypt(any(), anyInt(), any(), any(), any());
     }
 
     @Test
@@ -191,40 +184,10 @@ class EnvelopeEncryptionFilterTest {
 
         // Then
         verify(keyManager).encrypt(any(), anyInt(), any(),
-                argThat(records -> assertThat(records)
+                argThat(records -> assertThat(records.records())
                         .hasSize(1)
                         .allSatisfy(record -> assertThat(record.value()).isEqualTo(ByteBuffer.wrap(HELLO_CIPHER_WORLD)))),
                 any());
-    }
-
-    @Test
-    void produceShouldMaintainClientOffsets() {
-        // Given
-        var offsets = List.of(0L, 2L, 3L);
-        var recsWithNonConsecutiveOffsets = makeRecords(offsets.stream().mapToLong(Long::longValue),
-                (u) -> RecordTestUtils.record(ByteBuffer.wrap(HELLO_PLAIN_WORLD)));
-        var produceRequestData = buildProduceRequestData(new TopicProduceData()
-                .setName(ENCRYPTED_TOPIC)
-                .setPartitionData(List.of(new PartitionProduceData().setRecords(recsWithNonConsecutiveOffsets))));
-
-        when(keyManager.encrypt(any(), anyInt(), any(), assertArg(records -> assertThat(records).hasSize(3)), any(Receiver.class))).thenAnswer(invocationOnMock -> {
-            final List<Record> records = invocationOnMock.getArgument(3);
-            final Receiver receiver = invocationOnMock.getArgument(4);
-
-            records.forEach(rec -> receiver.accept(rec, ByteBuffer.wrap(HELLO_CIPHER_WORLD), Record.EMPTY_HEADERS));
-            return CompletableFuture.completedFuture(null);
-        });
-
-        // When
-        encryptionFilter.onProduceRequest(ProduceRequestData.HIGHEST_SUPPORTED_VERSION,
-                new RequestHeaderData(), produceRequestData, context);
-
-        // Then
-        verify(context, times(1)).forwardRequest(any(RequestHeaderData.class), assertArg(actualFetchResponse -> assertThat(actualFetchResponse)
-                .has(produceRequestMatching(prd -> {
-                    var actuals = produceRequestToRecordStream(prd).map(Record::offset).toList();
-                    return Objects.equals(actuals, offsets);
-                }))));
     }
 
     @NonNull

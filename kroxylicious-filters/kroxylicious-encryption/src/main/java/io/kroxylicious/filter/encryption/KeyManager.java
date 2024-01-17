@@ -8,8 +8,11 @@ package io.kroxylicious.filter.encryption;
 
 import java.util.List;
 import java.util.concurrent.CompletionStage;
+import java.util.function.IntFunction;
 
+import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.record.Record;
+import org.apache.kafka.common.utils.ByteBufferOutputStream;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -21,18 +24,19 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 public interface KeyManager<K> {
 
     /**
-     * Asynchronously encrypt the given {@code recordRequests} using the current DEK for the given KEK, calling the given receiver for each encrypted record
+     * Asynchronously encrypt the given {@code records} using the current DEK for the given KEK returning a MemoryRecords object which will contain all records
+     * transformed according to the {@code encryptionScheme}.
      * @param encryptionScheme The encryption scheme.
-     * @param records The requests to be encrypted.
-     * @param receiver The receiver of the encrypted buffers. The receiver is guaranteed to receive the encrypted buffers sequentially, in the same order as {@code records}, with no possibility of parallel invocation.
-     * @return A completion stage that completes when all the records have been processed.
+     * @param records The MemoryRecords to be encrypted.
+     * @param bufferAllocator Allocator of ByteBufferOutputStream
+     * @return A completion stage that completes with the output MemoryRecords when all the records have been processed and transformed.
      */
     @NonNull
-    CompletionStage<Void> encrypt(@NonNull String topicName,
-                                  int partition,
-                                  @NonNull EncryptionScheme<K> encryptionScheme,
-                                  @NonNull List<? extends Record> records,
-                                  @NonNull Receiver receiver);
+    CompletionStage<MemoryRecords> encrypt(@NonNull String topicName,
+                                           int partition,
+                                           @NonNull EncryptionScheme<K> encryptionScheme,
+                                           @NonNull MemoryRecords records,
+                                           @NonNull IntFunction<ByteBufferOutputStream> bufferAllocator);
 
     /**
      * Asynchronously decrypt the given {@code kafkaRecords} (if they were, in fact, encrypted), calling the given {@code receiver} with the plaintext
