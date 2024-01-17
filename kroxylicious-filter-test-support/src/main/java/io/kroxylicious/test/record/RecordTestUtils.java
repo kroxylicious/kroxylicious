@@ -295,7 +295,7 @@ public class RecordTestUtils {
     }
 
     private static MemoryRecords memoryRecordsWithoutCopy(byte magic, long offset, long timestamp, byte[] key, byte[] value, Header... headers) {
-        MemoryRecordsBuilder memoryRecordsBuilder = new MemoryRecordsBuilder(
+        try (MemoryRecordsBuilder memoryRecordsBuilder = new MemoryRecordsBuilder(
                 ByteBuffer.allocate(1024),
                 magic,
                 CompressionType.NONE,
@@ -308,8 +308,9 @@ public class RecordTestUtils {
                 false,
                 false,
                 0,
-                0);
-        memoryRecordsBuilder.appendWithOffset(offset, timestamp, key, value, headers);
-        return memoryRecordsBuilder.build();
+                0)) {
+            memoryRecordsBuilder.appendWithOffset(offset, timestamp, key, value, headers);
+            return memoryRecordsBuilder.build();
+        }
     }
 }
