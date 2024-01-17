@@ -7,7 +7,6 @@
 package io.kroxylicious.filter.encryption.records;
 
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
 import java.util.stream.LongStream;
@@ -124,9 +123,7 @@ class MemoryRecordsUtilsTest {
         var mr3 = mrb.build();
 
         // When
-        List<Runnable> toClose = new ArrayList<>();
-        MemoryRecords memoryRecords = Stream.of(mr1, mr2, mr3).collect(MemoryRecordsUtils.concatCollector(toClose::add, new ByteBufferOutputStream(100)));
-        toClose.forEach(Runnable::run);
+        MemoryRecords memoryRecords = MemoryRecordsUtils.concat(Stream.of(mr1, mr2, mr3), new ByteBufferOutputStream(100));
 
         // Then
         List<? extends RecordBatch> batches = batchStream(memoryRecords).toList();

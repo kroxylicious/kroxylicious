@@ -6,6 +6,7 @@
 
 package io.kroxylicious.filter.encryption.records;
 
+import java.util.ArrayList;
 import java.util.Objects;
 import java.util.Set;
 import java.util.Spliterator;
@@ -73,12 +74,21 @@ public class MemoryRecordsUtils {
 
     /**
      * Factory method for a Collector that concatenates MemoryRecords.
-     * @param onClose
-     * @param resultBuffer
+     * @param onClose A thing taking resposibility to execute the given clean-up tasks (e.g. in an exception handler).
+     * @param resultBuffer A buffer
      */
-    public static @NonNull Collector<MemoryRecords, BatchAwareMemoryRecordsBuilder, MemoryRecords> concatCollector(
-                                                                                                                   Consumer<Runnable> onClose,
-                                                                                                                   @NonNull ByteBufferOutputStream resultBuffer) {
+    private static @NonNull Collector<MemoryRecords, BatchAwareMemoryRecordsBuilder, MemoryRecords> concatCollector(
+                                                                                                                    @NonNull Consumer<Runnable> onClose,
+                                                                                                                    @NonNull ByteBufferOutputStream resultBuffer) {
+        /*
+         * The finisher is not guaranteed to be called (e.g. in the event of an exception being thrown).
+         * And for a parallel stream the finisher is only called for the final intermediate result, not for any
+         * intermediates that arose from partitioning the underlying Spliterator.
+         * So while, on the happy path, all intermediate BAMRB's will be close()'d by the combiner, and the
+         * "final" BAMRB by the finisher, so guarantee cleanup in excpetional circumstances we
+         * require the caller that invokes Stream#collect() to have a finally clause to execute all the Runnables
+         * added via onClose.
+         */
         Objects.requireNonNull(resultBuffer);
         return new Collector<>() {
             @Override
@@ -110,5 +120,24 @@ public class MemoryRecordsUtils {
                 return Set.of();
             }
         };
+    }
+
+    /**
+     * Concatenate the memory records in the given {@code stream} into one,
+     * using the given {@code buffer}.
+     * @param stream The memory records to concatenate
+     * @param buffer A temporary buffer to use (to encourage buffer reuse.
+     * @return A memory records containing the same batches and returns as were encountered in the given {@code stream}.
+     */
+    public static @NonNull MemoryRecords concat(@NonNull Stream<MemoryRecords> stream, @NonNull ByteBufferOutputStream buffer) {
+        Objects.requireNonNull(stream);
+        Objects.requireNonNull(buffer);
+        var cleanUpTasks = new ArrayList<Runnable>(1);
+        try (stream) {
+            return stream.sequential().collect(concatCollector(cleanUpTasks::add, buffer));
+        }
+        finally {
+            cleanUpTasks.forEach(Runnable::run);
+        }
     }
 }

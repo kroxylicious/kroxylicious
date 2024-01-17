@@ -247,11 +247,11 @@ public class BatchAwareMemoryRecordsBuilder implements AutoCloseable {
     public @NonNull MemoryRecords build() {
         boolean needsFlip = builder == null || !builder.isClosed();
         maybeAppendCurrentBatch();
-        ByteBuffer buffer = this.buffer.buffer();
+        ByteBuffer buf = this.buffer.buffer();
         if (needsFlip) {
-            buffer.flip();
+            buf.flip();
         }
-        return MemoryRecords.readableRecords(buffer);
+        return MemoryRecords.readableRecords(buf);
     }
 
     /**
