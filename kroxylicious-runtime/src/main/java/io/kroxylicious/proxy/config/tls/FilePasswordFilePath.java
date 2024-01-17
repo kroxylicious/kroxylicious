@@ -19,6 +19,7 @@ import org.slf4j.LoggerFactory;
  * @deprecated use FilePassword instead
  */
 @Deprecated(since = "0.5.0", forRemoval = true)
+@SuppressWarnings({ "java:S5738", "java:S1133" }) // java:S5738 warns of the use and need to remove deprecated classes.
 public record FilePasswordFilePath(String filePath) implements PasswordProvider {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(FilePasswordFilePath.class);

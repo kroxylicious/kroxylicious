@@ -13,11 +13,16 @@ public class TlsTestConstants {
     public static final String PKCS_12 = "PKCS12";
     public static final String PEM = Tls.PEM;
 
-    public static final PasswordProvider STOREPASS = new InlinePassword("storepass");
-    public static final PasswordProvider KEYPASS = new InlinePassword("keypass");
-    public static final PasswordProvider BADPASS = new InlinePassword("badpass");
-    public static final PasswordProvider KEYSTORE_FILE_PASSWORD = new FilePassword(getResourceLocationOnFilesystem("storepass.password"));
-    public static final PasswordProvider KEYPASS_FILE_PASSWORD = new FilePassword(getResourceLocationOnFilesystem("keypass.password"));
+    static final PasswordProvider STOREPASS = new InlinePassword("storepass");
+    static final PasswordProvider KEYPASS = new InlinePassword("keypass");
+    static final PasswordProvider BADPASS = new InlinePassword("badpass");
+    static final PasswordProvider KEYSTORE_FILE_PASSWORD = new FilePassword(getResourceLocationOnFilesystem("storepass.password"));
+    static final PasswordProvider KEYPASS_FILE_PASSWORD = new FilePassword(getResourceLocationOnFilesystem("keypass.password"));
+    @SuppressWarnings("java:S5738") // java:S5738 warns of the use of the deprecated class.
+    static final PasswordProvider KEYSTORE_FILE_PASSWORD_FILE_PATH = new FilePasswordFilePath(getResourceLocationOnFilesystem("storepass.password"));
+    @SuppressWarnings("java:S5738") // java:S5738 warns of the use of the deprecated class.
+    static final PasswordProvider KEYPASS_FILE_PASSWORD_FILE_PATH = new FilePasswordFilePath(getResourceLocationOnFilesystem("keypass.password"));
+
     public static final String NOT_EXIST = "/does/not/exist";
 
     public static String getResourceLocationOnFilesystem(String resource) {
