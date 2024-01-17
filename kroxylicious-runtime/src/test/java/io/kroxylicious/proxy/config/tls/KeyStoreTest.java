@@ -41,6 +41,7 @@ class KeyStoreTest {
                 Arguments.of("Combined key/crt PEM passed as keyStore (KIP-651) with encrypted key", PEM, "server_crt_encrypted_key.pem", null, KEYPASS),
                 Arguments.of("JKS keystore from file", JKS, "server_diff_keypass.jks", KEYSTORE_FILE_PASSWORD, KEYPASS_FILE_PASSWORD));
     }
+
     public static Stream<Arguments> serverWithKeyStore() {
         return withKeyStore();
     }
