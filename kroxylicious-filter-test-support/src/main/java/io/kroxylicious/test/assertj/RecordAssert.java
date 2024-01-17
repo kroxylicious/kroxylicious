@@ -10,10 +10,11 @@ import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.record.Record;
 import org.assertj.core.api.AbstractAssert;
 import org.assertj.core.api.AbstractLongAssert;
+import org.assertj.core.api.AbstractObjectAssert;
 import org.assertj.core.api.Assertions;
 import org.assertj.core.api.ObjectArrayAssert;
 
-import static io.kroxylicious.test.assertj.KafkaAssertions.bufferToString;
+import io.kroxylicious.test.record.RecordTestUtils;
 
 public class RecordAssert extends AbstractAssert<RecordAssert, Record> {
     protected RecordAssert(Record record) {
@@ -25,92 +26,99 @@ public class RecordAssert extends AbstractAssert<RecordAssert, Record> {
     }
 
     public RecordAssert hasOffsetEqualTo(int expect) {
-        AbstractLongAssert<?> offset = offset();
+        AbstractLongAssert<?> offset = offsetAssert();
         offset.isEqualTo(expect);
         return this;
     }
 
-    private AbstractLongAssert<?> offset() {
+    private AbstractLongAssert<?> offsetAssert() {
         isNotNull();
         return Assertions.assertThat(actual.offset())
                 .describedAs("record offset");
     }
 
     public RecordAssert hasTimestampEqualTo(int expect) {
-        AbstractLongAssert<?> timestamp = timestamp();
+        AbstractLongAssert<?> timestamp = timestampAssert();
         timestamp.isEqualTo(expect);
         return this;
     }
 
-    private AbstractLongAssert<?> timestamp() {
+    private AbstractLongAssert<?> timestampAssert() {
         isNotNull();
         return Assertions.assertThat(actual.timestamp())
                 .describedAs("record timestamp");
     }
 
+    private AbstractObjectAssert<?, String> keyStrAssert() {
+        return Assertions.assertThat(actual).extracting(RecordTestUtils::recordKeyAsString)
+                .describedAs("record key");
+    }
+
     public RecordAssert hasKeyEqualTo(String expect) {
-        isNotNull();
-        var actualStr = bufferToString(actual.key());
-        Assertions.assertThat(actualStr)
+        Assertions.assertThat(actual).extracting(RecordTestUtils::recordKeyAsString)
                 .describedAs("record key")
                 .isEqualTo(expect);
         return this;
     }
 
     public RecordAssert hasNullKey() {
-        isNotNull();
-        Assertions.assertThat(actual.key())
-                .describedAs("record key")
+        keyStrAssert()
                 .isNull();
         return this;
     }
 
+    private AbstractObjectAssert<?, String> valueStrAssert() {
+        return Assertions.assertThat(actual).extracting(RecordTestUtils::recordValueAsString)
+                .describedAs("record value");
+    }
+
     public RecordAssert hasValueEqualTo(String expect) {
-        isNotNull();
-        var actualStr = bufferToString(actual.value());
-        Assertions.assertThat(actualStr)
-                .describedAs("record value")
-                .isEqualTo(expect);
+        valueStrAssert().isEqualTo(expect);
         return this;
     }
 
     public RecordAssert hasNullValue() {
-        isNotNull();
-        Assertions.assertThat(actual.value())
+        Assertions.assertThat(actual).extracting(RecordTestUtils::recordValueAsString)
                 .describedAs("record value")
                 .isNull();
         return this;
     }
 
-    public ObjectArrayAssert<Header> headers() {
+    public ObjectArrayAssert<Header> headersAssert() {
         isNotNull();
         return Assertions.assertThat(actual.headers())
                 .describedAs("record headers");
     }
 
     public RecordAssert hasEmptyHeaders() {
-        headers().isEmpty();
+        headersAssert().isEmpty();
         return this;
     }
 
+    public HeaderAssert singleHeader() {
+        headersAssert().singleElement();
+        return HeaderAssert.assertThat(actual.headers()[0])
+                .describedAs("record header");
+    }
+
     public RecordAssert hasHeadersSize(int expect) {
-        headers().hasSize(expect);
+        headersAssert().hasSize(expect);
         return this;
     }
 
     public RecordAssert containsHeaderWithKey(String expectedKey) {
-        headers().anyMatch(h -> h.key().equals(expectedKey));
+        headersAssert().anyMatch(h -> h.key().equals(expectedKey));
         return this;
     }
 
     public HeaderAssert firstHeader() {
-        headers().isNotEmpty();
+        headersAssert().isNotEmpty();
         return HeaderAssert.assertThat(actual.headers()[0])
                 .describedAs("first record header");
     }
 
     public HeaderAssert lastHeader() {
-        headers().isNotEmpty();
+        headersAssert().isNotEmpty();
         return HeaderAssert.assertThat(actual.headers()[actual.headers().length - 1])
                 .describedAs("last record header");
     }

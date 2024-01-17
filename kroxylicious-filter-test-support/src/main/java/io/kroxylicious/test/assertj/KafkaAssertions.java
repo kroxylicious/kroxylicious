@@ -6,9 +6,6 @@
 
 package io.kroxylicious.test.assertj;
 
-import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
-
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.record.Record;
@@ -16,17 +13,6 @@ import org.apache.kafka.common.record.RecordBatch;
 
 public class KafkaAssertions {
     private KafkaAssertions() {
-    }
-
-    // Helper methods for the package
-
-    static String bufferToString(ByteBuffer bb) {
-        if (bb == null) {
-            return null;
-        }
-        String result = StandardCharsets.UTF_8.decode(bb).toString();
-        bb.flip();
-        return result;
     }
 
     // Assertions

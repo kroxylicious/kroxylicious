@@ -42,12 +42,25 @@ public class RecordTestUtils {
     }
 
     /**
-     * Get a copy of the bytes contained in the given {@code record}'s value, without changing the value's {@link ByteBuffer#position()}.
+     * Get a copy of the bytes contained in the given {@code record}'s value, without changing the
+     * {@code record}'s {@link ByteBuffer#position() position}, {@link ByteBuffer#limit() limit} or {@link ByteBuffer#mark() mark}.
      * @param record The record
      * @return The records bytes
      */
     public static byte[] recordValueAsBytes(Record record) {
         return bytesOf(record.value());
+    }
+
+    public static String recordValueAsString(Record record) {
+        return record.value() == null ? null : new String(bytesOf(record.value()), StandardCharsets.UTF_8);
+    }
+
+    public static byte[] recordKeyAsBytes(Record record) {
+        return bytesOf(record.key());
+    }
+
+    public static String recordKeyAsString(Record record) {
+        return record.key() == null ? null : new String(bytesOf(record.key()), StandardCharsets.UTF_8);
     }
 
     /**
