@@ -40,7 +40,7 @@ class KeyPairTest {
     }
 
     @Test
-    void serverKeyPairIncorrectKeyPassword() {
+    void keyPairIncorrectKeyPassword() {
         doFailingKeyPairTest(TlsTestConstants.getResourceLocationOnFilesystem("server_encrypted.key"),
                 TlsTestConstants.getResourceLocationOnFilesystem("server.crt"), BADPASS)
                 .hasRootCauseInstanceOf(BadPaddingException.class)
@@ -49,17 +49,35 @@ class KeyPairTest {
     }
 
     @Test
-    void serverKeyPairCertificateNotFound() {
+    void keyPairCertificateNotFound() {
         doFailingKeyPairTest(TlsTestConstants.getResourceLocationOnFilesystem("server.key"), NOT_EXIST, null)
                 .hasRootCauseInstanceOf(CertificateException.class)
                 .hasMessageContaining(NOT_EXIST);
     }
 
     @Test
-    void serverKeyPairKeyNotFound() {
+    void keyPairKeyNotFound() {
         doFailingKeyPairTest(NOT_EXIST, TlsTestConstants.getResourceLocationOnFilesystem("server.crt"), null)
                 .hasRootCauseInstanceOf(KeyException.class)
                 .hasMessageContaining(NOT_EXIST);
+    }
+
+    @Test
+    void clientKeyPair() throws Exception {
+        var keyPair = new KeyPair(TlsTestConstants.getResourceLocationOnFilesystem("server.key"), TlsTestConstants.getResourceLocationOnFilesystem("server.crt"), null);
+        var sslContext = keyPair.forClient().build();
+        assertThat(sslContext).isNotNull();
+        assertThat(sslContext.isClient()).isTrue();
+    }
+
+    @Test
+    void clientKeyPairKeyProtectedWithPassword() throws Exception {
+        var keyPair = new KeyPair(TlsTestConstants.getResourceLocationOnFilesystem("server_encrypted.key"),
+                TlsTestConstants.getResourceLocationOnFilesystem("server.crt"), new InlinePassword("keypass"));
+
+        var sslContext = keyPair.forClient().build();
+        assertThat(sslContext).isNotNull();
+        assertThat(sslContext.isClient()).isTrue();
     }
 
     private AbstractThrowableAssert<?, ? extends Throwable> doFailingKeyPairTest(String serverPrivateKeyFile, String serverCertificateFile,

@@ -54,19 +54,36 @@ public record KeyStore(String storeFile,
                     Optional.ofNullable(keyPasswordProvider()).map(PasswordProvider::getProvidedPassword).orElse(null));
         }
         else {
-            try (var is = new FileInputStream(keyStoreFile)) {
-                var password = Optional.ofNullable(this.storePasswordProvider()).map(PasswordProvider::getProvidedPassword).map(String::toCharArray).orElse(null);
-                var keyStore = java.security.KeyStore.getInstance(this.getType());
-                keyStore.load(is, password);
-                var keyManagerFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
-                keyManagerFactory.init(keyStore,
-                        Optional.ofNullable(this.keyPasswordProvider()).map(PasswordProvider::getProvidedPassword).map(String::toCharArray).orElse(password));
-                return SslContextBuilder.forServer(keyManagerFactory);
-            }
-            catch (GeneralSecurityException | IOException e) {
-                throw new RuntimeException("Error building SSLContext from : " + keyStoreFile, e);
-            }
+            return SslContextBuilder.forServer(keyManagerFactory(keyStoreFile));
         }
 
+    }
+
+    @Override
+    public SslContextBuilder forClient() {
+        var keyStoreFile = new File(storeFile);
+
+        if (isPemType()) {
+            return SslContextBuilder.forClient().keyManager(keyStoreFile, keyStoreFile,
+                    Optional.ofNullable(keyPasswordProvider()).map(PasswordProvider::getProvidedPassword).orElse(null));
+        }
+        else {
+            return SslContextBuilder.forClient().keyManager(keyManagerFactory(keyStoreFile));
+        }
+    }
+
+    private KeyManagerFactory keyManagerFactory(File keyStoreFile) {
+        try (var is = new FileInputStream(keyStoreFile)) {
+            var password = Optional.ofNullable(this.storePasswordProvider()).map(PasswordProvider::getProvidedPassword).map(String::toCharArray).orElse(null);
+            var keyStore = java.security.KeyStore.getInstance(this.getType());
+            keyStore.load(is, password);
+            var keyManagerFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+            keyManagerFactory.init(keyStore,
+                    Optional.ofNullable(this.keyPasswordProvider()).map(PasswordProvider::getProvidedPassword).map(String::toCharArray).orElse(password));
+            return keyManagerFactory;
+        }
+        catch (GeneralSecurityException | IOException e) {
+            throw new RuntimeException("Error building SSLContext from : " + keyStoreFile, e);
+        }
     }
 }

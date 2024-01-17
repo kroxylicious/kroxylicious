@@ -26,4 +26,6 @@ public interface KeyProvider {
 
     SslContextBuilder forServer();
 
+    SslContextBuilder forClient();
+
 }

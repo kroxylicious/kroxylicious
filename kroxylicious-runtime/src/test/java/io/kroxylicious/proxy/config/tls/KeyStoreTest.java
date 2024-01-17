@@ -30,7 +30,7 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 
 class KeyStoreTest {
 
-    public static Stream<Arguments> serverWithKeyStore() {
+    private static Stream<Arguments> withKeyStore() {
         return Stream.of(
                 Arguments.of("Platform Default Store JKS", null, "server.jks", STOREPASS, null),
                 Arguments.of("JKS store=key", JKS, "server.jks", STOREPASS, null),
@@ -40,6 +40,14 @@ class KeyStoreTest {
                 Arguments.of("Combined key/crt PEM passed as keyStore (KIP-651)", PEM, "server_key_crt.pem", null, null),
                 Arguments.of("Combined key/crt PEM passed as keyStore (KIP-651) with encrypted key", PEM, "server_crt_encrypted_key.pem", null, KEYPASS),
                 Arguments.of("JKS keystore from file", JKS, "server_diff_keypass.jks", KEYSTORE_FILE_PASSWORD, KEYPASS_FILE_PASSWORD));
+    }
+
+    public static Stream<Arguments> serverWithKeyStore() {
+        return withKeyStore();
+    }
+
+    public static Stream<Arguments> clientWithKeyStore() {
+        return withKeyStore();
     }
 
     @ParameterizedTest(name = "{0}")
@@ -80,6 +88,46 @@ class KeyStoreTest {
                 null);
 
         assertThatCode(keyStore::forServer).hasRootCauseInstanceOf(UnrecoverableKeyException.class);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource()
+    void clientWithKeyStore(String name,
+                            String storeType,
+                            String storeFile, PasswordProvider storePassword, PasswordProvider keyPassword)
+            throws Exception {
+        var keyStore = new KeyStore(getResourceLocationOnFilesystem(storeFile), storePassword, keyPassword, storeType);
+
+        var sslContext = keyStore.forClient().build();
+        assertThat(sslContext).isNotNull();
+        assertThat(sslContext.isClient()).isTrue();
+    }
+
+    @Test
+    void clientKeyStoreFileNotFound() {
+        var keyStore = new KeyStore(NOT_EXIST, null, null, null);
+
+        assertThatCode(keyStore::forClient).hasCauseInstanceOf(IOException.class).hasMessageContaining(NOT_EXIST);
+    }
+
+    @Test
+    void clientKeyStoreIncorrectPassword() {
+        var keyStore = new KeyStore(getResourceLocationOnFilesystem("server.jks"),
+                BADPASS,
+                null,
+                null);
+
+        assertThatCode(keyStore::forClient).hasRootCauseInstanceOf(UnrecoverableKeyException.class);
+    }
+
+    @Test
+    void clientKeyStoreIncorrectKeyPassword() {
+        var keyStore = new KeyStore(getResourceLocationOnFilesystem("server_diff_keypass.jks"),
+                STOREPASS,
+                BADPASS,
+                null);
+
+        assertThatCode(keyStore::forClient).hasRootCauseInstanceOf(UnrecoverableKeyException.class);
     }
 
 }

@@ -237,6 +237,22 @@ virtualClusters:
 <2> File system location of a file containing the trust store's password.
 <3> (Optional) Trust store type. Supported types are: `PKCS12`, `JKS` and `PEM`.  Defaults to Java default key store type (PKCS12).
 
+The following illustrates connection to physical cluster using TLS client authentication (aka Mutual TLS).
+
+[source, yaml]
+----
+virtualClusters:
+  demo:
+    targetCluster:
+      bootstrap_servers: myprivatecluster:9092
+      tls:
+        key:
+          privateKeyFile: /opt/cert/client.key
+          certificateFile: /opt/cert/client.cert
+        trust:
+          storeFile: /opt/cert/client/server.cer
+          storeType: PEM
+----
 It is also possible to disable trust so that Kroxylicious will connect to any Kafka Cluster regardless of its certificate
 validity.
 
