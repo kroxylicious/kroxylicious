@@ -15,7 +15,6 @@ import java.util.Locale;
  * @param key   specifies a key provider that provides the certificate/key used to identify this peer.
  * @param trust specifies a trust provider used by this peer to determine whether to trust the peer. If omitted platform trust is used instead.
  *
- * TODO support mutually authenticated TLS
  * TODO ability to restrict by TLS protocol and cipher suite.
  */
 public record Tls(KeyProvider key,
