@@ -252,7 +252,7 @@ virtualClusters:
         trust:
           storeFile: /opt/cert/client/server.cer
           storeType: PEM
-
+----
 It is also possible to disable trust so that Kroxylicious will connect to any Kafka Cluster regardless of its certificate
 validity.
 
