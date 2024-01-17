@@ -11,8 +11,8 @@ import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Random;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ThreadLocalRandom;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -81,12 +81,13 @@ public class EnvelopeEncryption<K, E> implements FilterFactory<EnvelopeEncryptio
             this(createKms(context, config), Collections.synchronizedMap(new IdentityHashMap<>()), config);
         }
 
+        @SuppressWarnings("java:S2245") // secure randomization not needed for exponential backoff
         private static <K, E> Kms<K, E> createKms(FilterFactoryContext context, Config configuration) {
             KmsService<Object, K, E> kmsPlugin = context.pluginInstance(KmsService.class, configuration.kms());
             Kms<K, E> kms = kmsPlugin.buildKms(configuration.kmsConfig());
             kms = InstrumentedKms.wrap(kms, kmsMetrics);
             ExponentialJitterBackoffStrategy backoffStrategy = new ExponentialJitterBackoffStrategy(Duration.ofMillis(500), Duration.ofSeconds(5), 2d,
-                    ThreadLocalRandom.current());
+                    new Random());
             kms = ResilientKms.wrap(kms, context.eventLoop(), backoffStrategy, 3);
             return wrapWithCachingKms(configuration, kms);
         }
@@ -149,7 +150,8 @@ public class EnvelopeEncryption<K, E> implements FilterFactory<EnvelopeEncryptio
         }
 
         @NonNull
-        private static <K, E> TopicNameBasedKekSelector<K> createKekSelector(FilterFactoryContext context, FilterFactoryInstanceScopedState<K, E> filterFactoryInstanceState,
+        private static <K, E> TopicNameBasedKekSelector<K> createKekSelector(FilterFactoryContext context,
+                                                                             FilterFactoryInstanceScopedState<K, E> filterFactoryInstanceState,
                                                                              Config configuration) {
             KekSelectorService<Object, K> ksPlugin = context.pluginInstance(KekSelectorService.class, configuration.selector());
             return ksPlugin.buildSelector(filterFactoryInstanceState.kms(), configuration.selectorConfig());

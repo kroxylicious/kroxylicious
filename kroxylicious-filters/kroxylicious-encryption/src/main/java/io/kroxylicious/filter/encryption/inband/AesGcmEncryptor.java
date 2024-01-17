@@ -15,7 +15,6 @@ import javax.annotation.concurrent.NotThreadSafe;
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
-import javax.security.auth.DestroyFailedException;
 import javax.security.auth.Destroyable;
 
 import io.kroxylicious.filter.encryption.EncryptionException;
