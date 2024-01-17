@@ -44,6 +44,46 @@ class SafeInvokerTest {
     }
 
     @Test
+    void testOnRequestExceptionsInShouldHandleIsConvertedToFuture() {
+        // given
+        RuntimeException exception = new RuntimeException("boom!");
+        when(invoker.shouldHandleRequest(API_VERSIONS, (short) 1)).thenThrow(exception);
+        ApiVersionsRequestData message = new ApiVersionsRequestData();
+        RequestHeaderData header = new RequestHeaderData();
+        FilterContext filterContext = Mockito.mock(FilterContext.class);
+        CompletableFuture<RequestFilterResult> forwardStage = new CompletableFuture<>();
+        when(filterContext.forwardRequest(header, message)).thenReturn(forwardStage);
+
+        // when
+        CompletionStage<RequestFilterResult> stage = safeInvoker.onRequest(API_VERSIONS, (short) 1, header, message, filterContext);
+
+        // then
+        assertThat(stage).failsWithin(Duration.ZERO).withThrowableThat()
+                .isInstanceOf(ExecutionException.class).withCause(exception);
+        verify(invoker).shouldHandleRequest(API_VERSIONS, (short) 1);
+    }
+
+    @Test
+    void testOnRequestExceptionsInOnRequestIsConvertedToFuture() {
+        // given
+        RuntimeException exception = new RuntimeException("boom!");
+        when(invoker.shouldHandleRequest(API_VERSIONS, (short) 1)).thenReturn(true);
+        ApiVersionsRequestData message = new ApiVersionsRequestData();
+        RequestHeaderData header = new RequestHeaderData();
+        FilterContext filterContext = Mockito.mock(FilterContext.class);
+        CompletableFuture<RequestFilterResult> forwardStage = new CompletableFuture<>();
+        when(filterContext.forwardRequest(header, message)).thenReturn(forwardStage);
+        when(invoker.onRequest(API_VERSIONS, (short) 1, header, message, filterContext)).thenThrow(exception);
+
+        // when
+        CompletionStage<RequestFilterResult> stage = safeInvoker.onRequest(API_VERSIONS, (short) 1, header, message, filterContext);
+
+        // then
+        assertThat(stage).failsWithin(Duration.ZERO).withThrowableThat()
+                .isInstanceOf(ExecutionException.class).withCause(exception);
+    }
+
+    @Test
     void testShouldHandleResponseDelegated() {
         // given
         when(invoker.shouldHandleResponse(API_VERSIONS, (short) 1)).thenReturn(true);
@@ -160,6 +200,37 @@ class SafeInvokerTest {
         assertThat(stage).isCompletedExceptionally().failsWithin(Duration.ZERO).withThrowableOfType(ExecutionException.class)
                 .withCauseInstanceOf(IllegalStateException.class).havingCause()
                 .withMessageContaining("invoker onResponse returned null for apiKey API_VERSIONS");
+    }
+
+    @Test
+    void testOnResponseIfDelegateShouldHandleThrowsFailedFutureReturned() {
+        // given
+        RuntimeException exception = new RuntimeException("boom!");
+        when(invoker.shouldHandleResponse(API_VERSIONS, (short) 1)).thenThrow(exception);
+
+        // when
+        CompletionStage<ResponseFilterResult> stage = safeInvoker.onResponse(API_VERSIONS, (short) 1, new ResponseHeaderData(), new ApiVersionsResponseData(),
+                Mockito.mock(FilterContext.class));
+
+        // then
+        assertThat(stage).isCompletedExceptionally().failsWithin(Duration.ZERO).withThrowableOfType(ExecutionException.class)
+                .withCause(exception);
+    }
+
+    @Test
+    void testOnResponseIfDelegateOnResponseThrowsFailedFutureReturned() {
+        // given
+        RuntimeException exception = new RuntimeException("boom!");
+        when(invoker.shouldHandleResponse(API_VERSIONS, (short) 1)).thenReturn(true);
+        when(invoker.onResponse(any(), anyShort(), any(), any(), any())).thenThrow(exception);
+
+        // when
+        CompletionStage<ResponseFilterResult> stage = safeInvoker.onResponse(API_VERSIONS, (short) 1, new ResponseHeaderData(), new ApiVersionsResponseData(),
+                Mockito.mock(FilterContext.class));
+
+        // then
+        assertThat(stage).isCompletedExceptionally().failsWithin(Duration.ZERO).withThrowableOfType(ExecutionException.class)
+                .withCause(exception);
     }
 
 }
