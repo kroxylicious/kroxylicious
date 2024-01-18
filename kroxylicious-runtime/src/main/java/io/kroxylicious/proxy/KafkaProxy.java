@@ -34,6 +34,7 @@ import io.netty.incubator.channel.uring.IOUringEventLoopGroup;
 import io.netty.incubator.channel.uring.IOUringServerSocketChannel;
 import io.netty.util.concurrent.Future;
 
+import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.MicrometerDefinition;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
@@ -105,10 +106,11 @@ public final class KafkaProxy implements AutoCloseable {
 
         maybeStartMetricsListener(adminEventGroup, meterRegistries);
 
+        final FilterChainFactory filterChainFactory = new FilterChainFactory(pfr, config.filters());
         var tlsServerBootstrap = buildServerBootstrap(serverEventGroup,
-                new KafkaProxyInitializer(config.filters(), pfr, true, endpointRegistry, endpointRegistry, false, Map.of()));
+                new KafkaProxyInitializer(filterChainFactory, pfr, true, endpointRegistry, endpointRegistry, false, Map.of()));
         var plainServerBootstrap = buildServerBootstrap(serverEventGroup,
-                new KafkaProxyInitializer(config.filters(), pfr, false, endpointRegistry, endpointRegistry, false, Map.of()));
+                new KafkaProxyInitializer(filterChainFactory, pfr, false, endpointRegistry, endpointRegistry, false, Map.of()));
 
         bindingOperationProcessor.start(plainServerBootstrap, tlsServerBootstrap);
 
