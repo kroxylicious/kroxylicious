@@ -6,12 +6,10 @@
 
 package io.kroxylicious.filter.encryption;
 
-import java.util.List;
 import java.util.concurrent.CompletionStage;
 import java.util.function.IntFunction;
 
 import org.apache.kafka.common.record.MemoryRecords;
-import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -39,14 +37,16 @@ public interface KeyManager<K> {
                                            @NonNull IntFunction<ByteBufferOutputStream> bufferAllocator);
 
     /**
-     * Asynchronously decrypt the given {@code kafkaRecords} (if they were, in fact, encrypted), calling the given {@code receiver} with the plaintext
+     * Asynchronously decrypt the given {@code records}, returning a MemoryRecords object which will contain all records transformed to their decrypted form (if required)
      * @param topicName The topic name
      * @param partition The partition index
      * @param records The records
-     * @param receiver The receiver of the plaintext buffers. The receiver is guaranteed to receive the decrypted buffers sequentially, in the same order as {@code records}, with no possibility of parallel invocation.
-     * @return A completion stage that completes when all the records have been processed.
+     * @param bufferAllocator Allocator of ByteBufferOutputStream
+     * @return A completion stage that completes with the output MemoryRecords when all the records have been processed and transformed.
      */
     @NonNull
-    CompletionStage<Void> decrypt(String topicName, int partition, @NonNull List<? extends Record> records,
-                                  @NonNull Receiver receiver);
+    CompletionStage<MemoryRecords> decrypt(@NonNull String topicName,
+                                           int partition,
+                                           @NonNull MemoryRecords records,
+                                           @NonNull IntFunction<ByteBufferOutputStream> bufferAllocator);
 }

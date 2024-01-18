@@ -9,7 +9,6 @@ package io.kroxylicious.filter.encryption.inband;
 import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Objects;
@@ -31,12 +30,14 @@ import org.apache.kafka.common.utils.ByteBufferOutputStream;
 import org.apache.kafka.common.utils.ByteUtils;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.mockito.stubbing.Answer;
 
 import io.kroxylicious.filter.encryption.EncryptionScheme;
-import io.kroxylicious.filter.encryption.Receiver;
 import io.kroxylicious.filter.encryption.RecordField;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.InMemoryEdek;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.InMemoryKms;
@@ -92,7 +93,9 @@ class InBandKeyManagerTest {
                 .isNotEqualTo(value);
 
         List<Record> decrypted = new ArrayList<>();
-        assertThat(km.decrypt("foo", 1, encrypted, recordReceivedRecord(decrypted)))
+        String topic = "foo";
+        int partition = 1;
+        assertThat(doDecrypt(km, topic, partition, encrypted, decrypted))
                 .isCompleted();
 
         assertThat(decrypted.iterator())
@@ -100,6 +103,13 @@ class InBandKeyManagerTest {
                 .singleElement()
                 .extracting(RecordTestUtils::recordValueAsBytes)
                 .isEqualTo(value);
+    }
+
+    @NonNull
+    private static CompletionStage<Void> doDecrypt(InBandKeyManager<UUID, InMemoryEdek> km, String topic, int partition, List<Record> encrypted,
+                                                   List<Record> decrypted) {
+        return km.decrypt(topic, partition, RecordTestUtils.memoryRecords(encrypted), ByteBufferOutputStream::new)
+                .thenAccept(records -> records.records().forEach(decrypted::add));
     }
 
     @NonNull
@@ -136,8 +146,7 @@ class InBandKeyManagerTest {
         assertNotEquals(initial, encrypted);
 
         List<Record> decrypted = new ArrayList<>();
-        assertThat(km.decrypt("foo", 1, encrypted, recordReceivedRecord(decrypted)))
-                .isCompleted();
+        assertThat(doDecrypt(km, "foo", 1, encrypted, decrypted)).isCompleted();
 
         assertEquals(initial, decrypted);
     }
@@ -152,13 +161,26 @@ class InBandKeyManagerTest {
         Record record = RecordTestUtils.record(recBytes);
 
         List<Record> received = new ArrayList<>();
-        assertThat(km.decrypt("foo", 1, List.of(record), recordReceivedRecord(received)))
-                .isCompleted();
+        assertThat(doDecrypt(km, "foo", 1, List.of(record), received)).isCompleted();
 
         assertThat(received).hasSize(1);
         assertThat(received.stream()
                 .map(RecordTestUtils::recordValueAsBytes))
                 .containsExactly(recBytes);
+    }
+
+    static List<MemoryRecords> decryptSupportsEmptyRecordBatches() {
+        return List.of(MemoryRecords.EMPTY, RecordTestUtils.memoryRecordsWithAllRecordsRemoved());
+    }
+
+    @ParameterizedTest
+    @MethodSource
+    void decryptSupportsEmptyRecordBatches(MemoryRecords records) {
+        var kmsService = UnitTestingKmsService.newInstance();
+        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
+        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
+        assertThat(km.decrypt("foo", 1, records, ByteBufferOutputStream::new))
+                .succeedsWithin(Duration.ZERO).isSameAs(records);
     }
 
     // we do not want to break compaction tombstoning by creating a parcel for the null value case
@@ -296,7 +318,7 @@ class InBandKeyManagerTest {
         assertThat(encrypt).succeedsWithin(Duration.ofSeconds(5));
 
         List<Record> decrypted = new ArrayList<>();
-        CompletionStage<Void> decrypt = km.decrypt("topic", 1, encrypted, recordReceivedRecord(decrypted));
+        CompletionStage<Void> decrypt = doDecrypt(km, "topic", 1, encrypted, decrypted);
         assertThat(decrypt).failsWithin(Duration.ofSeconds(5)).withThrowableThat().withMessageContaining("failed to create that DEK");
     }
 
@@ -335,11 +357,6 @@ class InBandKeyManagerTest {
         assertThat(encrypted).hasSize(2);
     }
 
-    @NonNull
-    private static Receiver recordReceivedRecord(Collection<Record> list) {
-        return (r, v, h) -> list.add(RecordTestUtils.record(r.offset(), v, h));
-    }
-
     @Test
     void shouldEncryptRecordValueForMultipleRecords() throws ExecutionException, InterruptedException, TimeoutException {
         var kmsService = UnitTestingKmsService.newInstance();
@@ -368,8 +385,7 @@ class InBandKeyManagerTest {
         // TODO add assertion on headers
 
         List<Record> decrypted = new ArrayList<>();
-        km.decrypt("foo", 1, encrypted, recordReceivedRecord(decrypted))
-                .toCompletableFuture()
+        doDecrypt(km, "foo", 1, encrypted, decrypted).toCompletableFuture()
                 .get(10, TimeUnit.SECONDS);
 
         assertEquals(initial, decrypted);
@@ -517,7 +533,7 @@ class InBandKeyManagerTest {
         assertNotEquals(initial, encrypted);
 
         List<Record> decrypted = new ArrayList<>();
-        assertThat(km.decrypt("topicFoo", 1, encrypted, recordReceivedRecord(decrypted)))
+        assertThat(doDecrypt(km, "topicFoo", 1, encrypted, decrypted))
                 .isCompleted();
 
         assertEquals(List.of(RecordTestUtils.record(value, new RecordHeader("headerFoo", new byte[]{ 4, 5, 6 }))), decrypted);
@@ -555,8 +571,7 @@ class InBandKeyManagerTest {
         assertNotEquals(initial, encrypted);
 
         List<Record> decrypted = new ArrayList<>();
-        assertThat(km.decrypt("foo", 1, encrypted, recordReceivedRecord(decrypted)))
-                .isCompleted();
+        assertThat(doDecrypt(km, "foo", 1, encrypted, decrypted)).isCompleted();
 
         assertEquals(List.of(RecordTestUtils.record(0L, value, new RecordHeader("foo", new byte[]{ 4, 5, 6 })),
                 RecordTestUtils.record(1L, value2, new RecordHeader("foo", new byte[]{ 10, 11, 12 })),
@@ -587,7 +602,7 @@ class InBandKeyManagerTest {
                 .contains(header);
 
         List<Record> decrypted = new ArrayList<>();
-        assertThat(km.decrypt("foo", 1, encrypted, recordReceivedRecord(decrypted)))
+        assertThat(doDecrypt(km, "foo", 1, encrypted, decrypted))
                 .isCompleted();
 
         assertThat(decrypted.iterator())
@@ -599,8 +614,9 @@ class InBandKeyManagerTest {
                 .containsExactly(header);
     }
 
-    @Test
-    void decryptPreservesOrdering() {
+    @ParameterizedTest
+    @CsvSource({ "0,1", "0,3" })
+    void decryptPreservesOrdering(long offsetA, long offsetB) {
         var topic = "topic";
         var partition = 1;
 
@@ -615,8 +631,8 @@ class InBandKeyManagerTest {
 
         byte[] rec1Bytes = { 1, 2, 3 };
         byte[] rec2Bytes = { 4, 5, 6 };
-        var rec1 = RecordTestUtils.record(ByteBuffer.wrap(rec1Bytes));
-        var rec2 = RecordTestUtils.record(ByteBuffer.wrap(rec2Bytes));
+        var rec1 = RecordTestUtils.record(offsetA, ByteBuffer.wrap(rec1Bytes));
+        var rec2 = RecordTestUtils.record(offsetB, ByteBuffer.wrap(rec2Bytes));
 
         List<Record> encrypted = new ArrayList<>();
         var encryptStage = doEncrypt(km, topic, partition, new EncryptionScheme<>(kekId1, EnumSet.of(RecordField.RECORD_VALUE)),
@@ -648,12 +664,16 @@ class InBandKeyManagerTest {
         }).when(spyKms).decryptEdek(argument.capture());
 
         List<Record> decrypted = new ArrayList<>();
-        var decryptStage = km.decrypt(topic, partition, encrypted, recordReceivedRecord(decrypted));
+        var decryptStage = doDecrypt(km, topic, partition, encrypted, decrypted);
         assertThat(decryptStage).succeedsWithin(Duration.ofSeconds(1));
         assertThat(decrypted.iterator())
                 .toIterable()
                 .extracting(RecordTestUtils::recordValueAsBytes)
                 .containsExactly(rec1Bytes, rec2Bytes);
+        assertThat(decrypted.iterator())
+                .toIterable()
+                .extracting(Record::offset)
+                .containsExactly(offsetA, offsetB);
     }
 
     @Test
@@ -687,7 +707,7 @@ class InBandKeyManagerTest {
         decryptInput.add(1, rec2);
 
         List<Record> received = new ArrayList<>();
-        var decryptStage = km.decrypt(topic, partition, decryptInput, recordReceivedRecord(received));
+        var decryptStage = doDecrypt(km, topic, partition, decryptInput, received);
         assertThat(decryptStage).succeedsWithin(Duration.ofSeconds(1));
         assertThat(received.iterator())
                 .toIterable()

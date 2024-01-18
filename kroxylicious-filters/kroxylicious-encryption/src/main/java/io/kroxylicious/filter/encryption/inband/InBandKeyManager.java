@@ -340,10 +340,30 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
 
     @NonNull
     @Override
-    public CompletionStage<Void> decrypt(String topicName,
-                                         int partition,
-                                         @NonNull List<? extends Record> records,
-                                         @NonNull Receiver receiver) {
+    public CompletionStage<MemoryRecords> decrypt(@NonNull String topicName, int partition, @NonNull MemoryRecords records,
+                                                  @NonNull IntFunction<ByteBufferOutputStream> bufferAllocator) {
+        if (records.sizeInBytes() == 0) {
+            // no records to transform, return input without modification
+            return CompletableFuture.completedFuture(records);
+        }
+        List<Record> encryptionRequests = recordStream(records).toList();
+        // it is possible to encounter MemoryRecords that have had all their records compacted away, but
+        // the recordbatch metadata still exists. https://kafka.apache.org/documentation/#recordbatch
+        if (encryptionRequests.isEmpty()) {
+            return CompletableFuture.completedFuture(records);
+        }
+        ByteBufferOutputStream buffer = allocateBufferForDecode(records, bufferAllocator);
+        MemoryRecordsBuilder outputBuilder = recordsBuilder(buffer, records);
+        return decrypt(topicName, partition, recordStream(records).toList(), (kafkaRecord, plaintextBuffer, headers) -> {
+            outputBuilder.appendWithOffset(kafkaRecord.offset(), kafkaRecord.timestamp(), kafkaRecord.key(), plaintextBuffer, headers);
+        }).thenApply(unused -> outputBuilder.build());
+    }
+
+    @NonNull
+    private CompletionStage<Void> decrypt(String topicName,
+                                          int partition,
+                                          @NonNull List<? extends Record> records,
+                                          @NonNull Receiver receiver) {
         var decryptStateStages = new ArrayList<CompletionStage<DecryptState>>(records.size());
 
         for (Record kafkaRecord : records) {
@@ -372,6 +392,11 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
                     });
                     return null;
                 });
+    }
+
+    private ByteBufferOutputStream allocateBufferForDecode(MemoryRecords memoryRecords, IntFunction<ByteBufferOutputStream> allocator) {
+        int sizeEstimate = memoryRecords.sizeInBytes();
+        return allocator.apply(sizeEstimate);
     }
 
     @SuppressWarnings("java:S2445")
