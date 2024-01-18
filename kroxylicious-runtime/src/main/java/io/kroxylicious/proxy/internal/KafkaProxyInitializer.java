@@ -75,71 +75,81 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
         var bindingAddress = ch.parent().localAddress().getAddress().isAnyLocalAddress() ? Optional.<String> empty()
                 : Optional.of(ch.localAddress().getAddress().getHostAddress());
         if (tls) {
-            LOGGER.debug("Adding SSL/SNI handler");
-            pipeline.addLast(new SniHandler((sniHostname, promise) -> {
-                try {
-                    var stage = virtualClusterBindingResolver.resolve(Endpoint.createEndpoint(bindingAddress, targetPort, tls), sniHostname);
-                    // completes the netty promise when then resolution completes (success/otherwise).
-                    var unused = stage.handle((binding, t) -> {
-                        try {
-                            if (t != null) {
-                                promise.setFailure(t);
-                                return null;
-                            }
-                            var virtualCluster = binding.virtualCluster();
-                            var sslContext = virtualCluster.getDownstreamSslContext();
-                            if (sslContext.isEmpty()) {
-                                promise.setFailure(new IllegalStateException("Virtual cluster %s does not provide SSL context".formatted(virtualCluster)));
-                            }
-                            else {
-                                KafkaProxyInitializer.this.addHandlers(ch, binding);
-                                promise.setSuccess(sslContext.get());
-                            }
-                        }
-                        catch (Throwable t1) {
-                            promise.setFailure(t1);
-                        }
-                        return null;
-                    });
-                    return promise;
-                }
-                catch (Throwable cause) {
-                    return promise.setFailure(cause);
-                }
-            }) {
-
-                @Override
-                protected void onLookupComplete(ChannelHandlerContext ctx, Future<SslContext> future) throws Exception {
-                    super.onLookupComplete(ctx, future);
-                    ctx.fireChannelActive();
-                }
-            });
+            initTlsChannel(ch, pipeline, bindingAddress, targetPort);
         }
         else {
-            pipeline.addLast(new ChannelInboundHandlerAdapter() {
-                @Override
-                public void channelActive(ChannelHandlerContext ctx) {
-                    var stage = virtualClusterBindingResolver.resolve(Endpoint.createEndpoint(bindingAddress, targetPort, tls), null);
-                    var unused = stage.handle((binding, t) -> {
+            initPlainChannel(ch, pipeline, bindingAddress, targetPort);
+        }
+    }
+
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+    private void initPlainChannel(SocketChannel ch, ChannelPipeline pipeline, Optional<String> bindingAddress, int targetPort) {
+        pipeline.addLast(new ChannelInboundHandlerAdapter() {
+            @Override
+            public void channelActive(ChannelHandlerContext ctx) {
+                virtualClusterBindingResolver.resolve(Endpoint.createEndpoint(bindingAddress, targetPort, tls), null)
+                        .handle((binding, t) -> {
+                            if (t != null) {
+                                ctx.fireExceptionCaught(t);
+                                return null;
+                            }
+                            try {
+                                KafkaProxyInitializer.this.addHandlers(ch, binding);
+                                ctx.fireChannelActive();
+                            }
+                            catch (Throwable t1) {
+                                ctx.fireExceptionCaught(t1);
+                            }
+                            finally {
+                                pipeline.remove(this);
+                            }
+                            return null;
+                        });
+            }
+        });
+    }
+
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+    private void initTlsChannel(SocketChannel ch, ChannelPipeline pipeline, Optional<String> bindingAddress, int targetPort) {
+        LOGGER.debug("Adding SSL/SNI handler");
+        pipeline.addLast(new SniHandler((sniHostname, promise) -> {
+            try {
+                var stage = virtualClusterBindingResolver.resolve(Endpoint.createEndpoint(bindingAddress, targetPort, tls), sniHostname);
+                // completes the netty promise when then resolution completes (success/otherwise).
+                stage.handle((binding, t) -> {
+                    try {
                         if (t != null) {
-                            ctx.fireExceptionCaught(t);
+                            promise.setFailure(t);
                             return null;
                         }
-                        try {
+                        var virtualCluster = binding.virtualCluster();
+                        var sslContext = virtualCluster.getDownstreamSslContext();
+                        if (sslContext.isEmpty()) {
+                            promise.setFailure(new IllegalStateException("Virtual cluster %s does not provide SSL context".formatted(virtualCluster)));
+                        }
+                        else {
                             KafkaProxyInitializer.this.addHandlers(ch, binding);
-                            ctx.fireChannelActive();
+                            promise.setSuccess(sslContext.get());
                         }
-                        catch (Throwable t1) {
-                            ctx.fireExceptionCaught(t1);
-                        }
-                        finally {
-                            pipeline.remove(this);
-                        }
-                        return null;
-                    });
-                }
-            });
-        }
+                    }
+                    catch (Throwable t1) {
+                        promise.setFailure(t1);
+                    }
+                    return null;
+                });
+                return promise;
+            }
+            catch (Throwable cause) {
+                return promise.setFailure(cause);
+            }
+        }) {
+
+            @Override
+            protected void onLookupComplete(ChannelHandlerContext ctx, Future<SslContext> future) throws Exception {
+                super.onLookupComplete(ctx, future);
+                ctx.fireChannelActive();
+            }
+        });
     }
 
     private void addHandlers(SocketChannel ch, VirtualClusterBinding binding) {
