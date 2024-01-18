@@ -19,6 +19,8 @@ import io.kroxylicious.proxy.filter.RequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.plugin.Plugin;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 @Plugin(configType = ExampleConfig.class)
 public class OptionalConfigFactory implements FilterFactory<ExampleConfig, ExampleConfig> {
 
@@ -28,6 +30,7 @@ public class OptionalConfigFactory implements FilterFactory<ExampleConfig, Examp
         return config;
     }
 
+    @NonNull
     @Override
     public Filter createFilter(FilterFactoryContext context, ExampleConfig configuration) {
         return new Filter(context, configuration, this.getClass());

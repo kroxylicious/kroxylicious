@@ -10,6 +10,8 @@ import io.kroxylicious.proxy.filter.FixedClientIdFilter.FixedClientIdFilterConfi
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.Plugins;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 @Plugin(configType = FixedClientIdFilterConfig.class)
 public class FixedClientIdFilterFactory implements FilterFactory<FixedClientIdFilterConfig, FixedClientIdFilterConfig> {
 
@@ -18,6 +20,7 @@ public class FixedClientIdFilterFactory implements FilterFactory<FixedClientIdFi
         return Plugins.requireConfig(this, config);
     }
 
+    @NonNull
     @Override
     public FixedClientIdFilter createFilter(FilterFactoryContext context, FixedClientIdFilterConfig configuration) {
         return new FixedClientIdFilter(configuration);

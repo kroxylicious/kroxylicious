@@ -18,6 +18,8 @@ import io.kroxylicious.proxy.plugin.PluginImplConfig;
 import io.kroxylicious.proxy.plugin.PluginImplName;
 import io.kroxylicious.proxy.plugin.Plugins;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 import static org.junit.jupiter.api.Assertions.fail;
 
 @Plugin(configType = ExampleFilterFactory.Config.class)
@@ -33,6 +35,7 @@ public class ExampleFilterFactory implements FilterFactory<ExampleFilterFactory.
         return Plugins.requireConfig(this, config);
     }
 
+    @NonNull
     @Override
     public Filter createFilter(FilterFactoryContext context, Config configuration) {
         fail("unexpected call");
