@@ -12,10 +12,17 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.function.IntFunction;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
+import org.apache.kafka.common.record.MemoryRecords;
+import org.apache.kafka.common.record.MemoryRecordsBuilder;
 import org.apache.kafka.common.record.Record;
+import org.apache.kafka.common.record.RecordBatch;
+import org.apache.kafka.common.utils.ByteBufferOutputStream;
 import org.apache.kafka.common.utils.ByteUtils;
 
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
@@ -110,18 +117,56 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
                 }).toCompletableFuture();
     }
 
-    @NonNull
     @Override
+    @NonNull
     @SuppressWarnings("java:S2445")
-    public CompletionStage<Void> encrypt(@NonNull String topicName,
-                                         int partition,
-                                         @NonNull EncryptionScheme<K> encryptionScheme,
-                                         @NonNull List<? extends Record> records,
-                                         @NonNull Receiver receiver) {
-        if (records.isEmpty()) {
-            return CompletableFuture.completedFuture(null);
+    public CompletionStage<MemoryRecords> encrypt(@NonNull String topicName,
+                                                  int partition,
+                                                  @NonNull EncryptionScheme<K> encryptionScheme,
+                                                  @NonNull MemoryRecords records,
+                                                  @NonNull IntFunction<ByteBufferOutputStream> bufferAllocator) {
+        if (records.sizeInBytes() == 0) {
+            // no records to transform, return input without modification
+            return CompletableFuture.completedFuture(records);
         }
-        return attemptEncrypt(topicName, partition, encryptionScheme, records, receiver, 0);
+        List<Record> encryptionRequests = recordStream(records).toList();
+        // it is possible to encounter MemoryRecords that have had all their records compacted away, but
+        // the recordbatch metadata still exists. https://kafka.apache.org/documentation/#recordbatch
+        if (encryptionRequests.isEmpty()) {
+            return CompletableFuture.completedFuture(records);
+        }
+        MemoryRecordsBuilder builder = recordsBuilder(allocateBufferForEncode(records, bufferAllocator), records);
+        return attemptEncrypt(topicName, partition, encryptionScheme, encryptionRequests, (kafkaRecord, plaintextBuffer, headers) -> {
+            builder.appendWithOffset(kafkaRecord.offset(), kafkaRecord.timestamp(), kafkaRecord.key(), plaintextBuffer, headers);
+        }, 0).thenApply(unused -> builder.build());
+    }
+
+    @NonNull
+    private static Stream<Record> recordStream(MemoryRecords memoryRecords) {
+        return StreamSupport.stream(memoryRecords.records().spliterator(), false);
+    }
+
+    private static MemoryRecordsBuilder recordsBuilder(@NonNull ByteBufferOutputStream buffer, @NonNull MemoryRecords records) {
+        RecordBatch firstBatch = records.firstBatch();
+        return new MemoryRecordsBuilder(buffer,
+                firstBatch.magic(),
+                firstBatch.compressionType(), // TODO we might not want to use the client's compression
+                firstBatch.timestampType(),
+                firstBatch.baseOffset(),
+                0L,
+                firstBatch.producerId(),
+                firstBatch.producerEpoch(),
+                firstBatch.baseSequence(),
+                firstBatch.isTransactional(),
+                firstBatch.isControlBatch(),
+                firstBatch.partitionLeaderEpoch(),
+                0);
+    }
+
+    private ByteBufferOutputStream allocateBufferForEncode(MemoryRecords records, IntFunction<ByteBufferOutputStream> bufferAllocator) {
+        int sizeEstimate = 2 * records.sizeInBytes();
+        // Accurate estimation is tricky without knowing the record sizes
+        return bufferAllocator.apply(sizeEstimate);
     }
 
     @SuppressWarnings("java:S2445")
