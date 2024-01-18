@@ -8,6 +8,11 @@ Please enumerate **all user-facing** changes using format `<githib issue/pr numb
 * [#844](https://github.com/kroxylicious/kroxylicious/pull/844): Fix connect to upstream using TLS client authentication
 * [#885](https://github.com/kroxylicious/kroxylicious/pull/885): Bump kroxy.extension.version from 0.8.0 to 0.8.1
 
+### Changes, deprecations and removals
+
+* When configuring TLS, the property `filePath` for specifying the location of a file providing the password is now
+  deprecated.  Use `passwordFile` instead.
+
 ## 0.4.1
 
 * [#836](https://github.com/kroxylicious/kroxylicious/pull/836): Cache decrypted EDEK and resolved aliases
