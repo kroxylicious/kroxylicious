@@ -170,6 +170,43 @@ class ConfigurationTest {
                                         bootstrapAddress: cluster1:9192
                                         brokerAddressPattern: broker-$(nodeId)
                                 """),
+                Arguments.of("Upstream TLS - trust from truststore, password from file",
+                        new ConfigurationBuilder()
+                                .addToVirtualClusters("demo", new VirtualClusterBuilder()
+                                        .withNewTargetCluster()
+                                        .withBootstrapServers("kafka.example:1234")
+                                        .withNewTls()
+                                        .withNewTrustStoreTrust()
+                                        .withStoreFile("/tmp/client.jks")
+                                        .withStoreType("JKS")
+                                        .withNewFilePasswordStoreProvider("/tmp/password.txt")
+                                        .endTrustStoreTrust()
+                                        .endTls()
+                                        .endTargetCluster()
+                                        .withClusterNetworkAddressConfigProvider(
+                                                new ClusterNetworkAddressConfigProviderDefinitionBuilder(
+                                                        "SniRoutingClusterNetworkAddressConfigProvider")
+                                                        .withConfig("bootstrapAddress", "cluster1:9192", "brokerAddressPattern", "broker-$(nodeId)")
+                                                        .build())
+                                        .build())
+                                .build(),
+                        """
+                                virtualClusters:
+                                  demo:
+                                    targetCluster:
+                                      bootstrap_servers: kafka.example:1234
+                                      tls:
+                                         trust:
+                                            storeFile: /tmp/client.jks
+                                            storePassword:
+                                              passwordFile: /tmp/password.txt
+                                            storeType: JKS
+                                    clusterNetworkAddressConfigProvider:
+                                      type: SniRoutingClusterNetworkAddressConfigProvider
+                                      config:
+                                        bootstrapAddress: cluster1:9192
+                                        brokerAddressPattern: broker-$(nodeId)
+                                """),
                 Arguments.of("Upstream TLS - insecure",
                         new ConfigurationBuilder()
                                 .addToVirtualClusters("demo", new VirtualClusterBuilder()

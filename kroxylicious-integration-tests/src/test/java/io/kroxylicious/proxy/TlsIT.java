@@ -11,6 +11,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.KeyStore;
 import java.security.cert.CertificateEncodingException;
@@ -34,11 +35,16 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import io.kroxylicious.proxy.config.ClusterNetworkAddressConfigProviderDefinition;
 import io.kroxylicious.proxy.config.ClusterNetworkAddressConfigProviderDefinitionBuilder;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
+import io.kroxylicious.proxy.config.tls.FilePassword;
+import io.kroxylicious.proxy.config.tls.InlinePassword;
+import io.kroxylicious.proxy.config.tls.PasswordProvider;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
@@ -48,6 +54,8 @@ import io.kroxylicious.testing.kafka.common.KafkaClusterFactory;
 import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
 import io.kroxylicious.testing.kafka.common.Tls;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -253,13 +261,19 @@ class TlsIT extends BaseIT {
         }
     }
 
-    @Test
-    void downstreamAndUpstreamTls(@Tls KafkaCluster cluster) {
+    @ParameterizedTest
+    @ValueSource(classes = { InlinePassword.class, FilePassword.class })
+    void downstreamAndUpstreamTls(Class<? extends PasswordProvider> providerClazz, @Tls KafkaCluster cluster) {
         var bootstrapServers = cluster.getBootstrapServers();
         var brokerTruststore = (String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG);
         var brokerTruststorePassword = (String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG);
         assertThat(brokerTruststore).isNotEmpty();
         assertThat(brokerTruststorePassword).isNotEmpty();
+        var proxyKeystoreLocation = downstreamCertificateGenerator.getKeyStoreLocation();
+        var proxyKeystorePassword = downstreamCertificateGenerator.getPassword();
+
+        var brokerTrustPasswordProvider = constructPasswordProvider(providerClazz, brokerTruststorePassword);
+        var proxyKeystorePasswordProvider = constructPasswordProvider(providerClazz, proxyKeystorePassword);
 
         var builder = new ConfigurationBuilder()
                 .addToVirtualClusters("demo", new VirtualClusterBuilder()
@@ -268,14 +282,14 @@ class TlsIT extends BaseIT {
                         .withNewTls()
                         .withNewTrustStoreTrust()
                         .withStoreFile(brokerTruststore)
-                        .withNewInlinePasswordStoreProvider(brokerTruststorePassword)
+                        .withStorePasswordProvider(brokerTrustPasswordProvider)
                         .endTrustStoreTrust()
                         .endTls()
                         .endTargetCluster()
                         .withNewTls()
                         .withNewKeyStoreKey()
-                        .withStoreFile(downstreamCertificateGenerator.getKeyStoreLocation())
-                        .withNewInlinePasswordStoreProvider(downstreamCertificateGenerator.getPassword())
+                        .withStoreFile(proxyKeystoreLocation)
+                        .withStorePasswordProvider(proxyKeystorePasswordProvider)
                         .endKeyStoreKey()
                         .endTls()
                         .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
@@ -285,36 +299,83 @@ class TlsIT extends BaseIT {
                 var admin = tester.admin("demo",
                         Map.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name,
                                 SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
-                                SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, downstreamCertificateGenerator.getPassword()))) {
+                                SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, proxyKeystorePassword))) {
             // do some work to ensure connection is opened
             final CreateTopicsResult createTopicsResult = createTopic(admin, TOPIC, 1);
             assertThat(createTopicsResult.all()).isDone();
         }
     }
 
-    private File writeTrustToTemporaryFile(List<X509Certificate> certificates) throws IOException {
-        var file = File.createTempFile("trust", ".pem");
-        var mimeLineEnding = new byte[]{ '\r', '\n' };
-
-        try (var out = new FileOutputStream(file)) {
-            certificates.forEach(c -> {
-                var encoder = Base64.getMimeEncoder();
-                try {
-                    out.write("-----BEGIN CERTIFICATE-----".getBytes(StandardCharsets.UTF_8));
-                    out.write(mimeLineEnding);
-                    out.write(encoder.encode(c.getEncoded()));
-                    out.write(mimeLineEnding);
-                    out.write("-----END CERTIFICATE-----".getBytes(StandardCharsets.UTF_8));
-                    out.write(mimeLineEnding);
-                }
-                catch (IOException e) {
-                    throw new UncheckedIOException(e);
-                }
-                catch (CertificateEncodingException e) {
-                    throw new RuntimeException(e);
-                }
-            });
+    private PasswordProvider constructPasswordProvider(Class<? extends PasswordProvider> providerClazz, String password) {
+        if (providerClazz.equals(InlinePassword.class)) {
+            return new InlinePassword(password);
         }
-        return file;
+        else if (providerClazz.equals(FilePassword.class)) {
+            return new FilePassword(writePasswordToFile(password));
+        }
+        else {
+            throw new IllegalArgumentException("Unexpected provider class: " + providerClazz);
+        }
+
+    }
+
+    @NonNull
+    private String writePasswordToFile(String password) {
+        try {
+            File tmp = File.createTempFile("password", ".txt");
+            tmp.deleteOnExit();
+            makeFileOwnerReadWriteOnly(tmp);
+            boolean ignore;
+            Files.writeString(tmp.toPath(), password);
+            // remove write from owner
+            assertThat(tmp.setWritable(false, true)).isTrue();
+            return tmp.getAbsolutePath();
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException("Failed to write password to file", e);
+        }
+    }
+
+    private File writeTrustToTemporaryFile(List<X509Certificate> certificates) {
+        try {
+            var file = File.createTempFile("trust", ".pem");
+            makeFileOwnerReadWriteOnly(file);
+            file.deleteOnExit();
+            var mimeLineEnding = new byte[]{ '\r', '\n' };
+
+            try (var out = new FileOutputStream(file)) {
+                certificates.forEach(c -> {
+                    var encoder = Base64.getMimeEncoder();
+                    try {
+                        out.write("-----BEGIN CERTIFICATE-----".getBytes(StandardCharsets.UTF_8));
+                        out.write(mimeLineEnding);
+                        out.write(encoder.encode(c.getEncoded()));
+                        out.write(mimeLineEnding);
+                        out.write("-----END CERTIFICATE-----".getBytes(StandardCharsets.UTF_8));
+                        out.write(mimeLineEnding);
+                    }
+                    catch (IOException e) {
+                        throw new UncheckedIOException(e);
+                    }
+                    catch (CertificateEncodingException e) {
+                        throw new RuntimeException(e);
+                    }
+                });
+                assertThat(file.setWritable(false, true)).isTrue();
+                return file;
+            }
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException("Failed to write trust to temporary file", e);
+        }
+    }
+
+    private void makeFileOwnerReadWriteOnly(File f) {
+        // remove read/write from everyone
+        assertThat(f.setReadable(false, false)).isTrue();
+        assertThat(f.setWritable(false, false)).isTrue();
+        // add read/write for owner
+        assertThat(f.setReadable(true, true)).isTrue();
+        assertThat(f.setWritable(true, true)).isTrue();
     }
 }

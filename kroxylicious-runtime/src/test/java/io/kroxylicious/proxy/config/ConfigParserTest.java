@@ -6,11 +6,15 @@
 
 package io.kroxylicious.proxy.config;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Stream;
 
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -24,6 +28,9 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.flipkart.zjsonpatch.JsonDiff;
 
 import io.kroxylicious.proxy.config.admin.AdminHttpConfiguration;
+import io.kroxylicious.proxy.config.tls.KeyStore;
+import io.kroxylicious.proxy.config.tls.PasswordProvider;
+import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig;
 import io.kroxylicious.proxy.internal.filter.ConstructorInjectionConfig;
@@ -76,7 +83,7 @@ class ConfigParserTest {
                                 bootstrapAddress: cluster1:9192
                                 brokerAddressPattern: broker-$(nodeId)
                         """),
-                Arguments.of("Downstream/Upstream TLS", """
+                Arguments.of("Downstream/Upstream TLS with inline passwords", """
                         virtualClusters:
                           demo1:
                             tls:
@@ -99,7 +106,29 @@ class ConfigParserTest {
                                 bootstrapAddress: cluster1:9192
                                 brokerAddressPattern: broker-$(nodeId)
                         """),
-
+                Arguments.of("Downstream/Upstream TLS with password files", """
+                        virtualClusters:
+                          demo1:
+                            tls:
+                                key:
+                                  storeFile: /tmp/foo.jks
+                                  storePassword:
+                                    passwordFile: /tmp/password.txt
+                                  storeType: JKS
+                            targetCluster:
+                              bootstrap_servers: kafka.example:1234
+                              tls:
+                                trust:
+                                 storeFile: /tmp/foo.jks
+                                 storePassword:
+                                    passwordFile: /tmp/password.txt
+                                 storeType: JKS
+                            clusterNetworkAddressConfigProvider:
+                              type: SniRoutingClusterNetworkAddressConfigProvider
+                              config:
+                                bootstrapAddress: cluster1:9192
+                                brokerAddressPattern: broker-$(nodeId)
+                        """),
                 Arguments.of("Filters", """
                         filters:
                         - type: TestFilterFactory
@@ -370,6 +399,39 @@ class ConfigParserTest {
         assertEquals(
                 "Couldn't find @PluginImplName on member referred to by @PluginImplConfig on [parameter #1, annotations: {interface io.kroxylicious.proxy.plugin.PluginImplConfig=@io.kroxylicious.proxy.plugin.PluginImplConfig(implNameProperty=\"id\")}]",
                 pde.getMessage());
+    }
+
+    @Test
+    void tlsPasswordConfigurationUnderstandFilePathAlias() throws Exception {
+
+        var password = "mypassword";
+        var file = File.createTempFile("pass", "txt");
+        file.deleteOnExit();
+        Files.writeString(file.toPath(), password);
+        final Configuration configurationModel = configParser.parseConfiguration("""
+                        virtualClusters:
+                          demo1:
+                            tls:
+                                key:
+                                  storeFile: /tmp/store.txt
+                                  storePassword:
+                                    filePath: %s
+                            clusterNetworkAddressConfigProvider:
+                              type: PortPerBrokerClusterNetworkAddressConfigProvider
+                """.formatted(file.getAbsolutePath()));
+        // When
+        final var virtualCluster = configurationModel.virtualClusters().values().iterator().next();
+
+        // Then
+        assertThat(virtualCluster)
+                .extracting(VirtualCluster::tls)
+                .extracting(Optional::get)
+                .extracting(Tls::key)
+                .isInstanceOf(KeyStore.class)
+                .asInstanceOf(InstanceOfAssertFactories.type(KeyStore.class))
+                .extracting(KeyStore::storePasswordProvider)
+                .extracting(PasswordProvider::getProvidedPassword)
+                .isEqualTo(password);
     }
 
 }

@@ -13,7 +13,8 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
  * A PasswordProvider is an abstract source of a password.
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.DEDUCTION)
-@JsonSubTypes({ @JsonSubTypes.Type(InlinePassword.class), @JsonSubTypes.Type(FilePassword.class) })
+@JsonSubTypes({ @JsonSubTypes.Type(InlinePassword.class), @JsonSubTypes.Type(FilePassword.class), @JsonSubTypes.Type(FilePasswordFilePath.class) })
+@SuppressWarnings("java:S5738") // java:S5738 warns of the use of the deprecated class.
 public interface PasswordProvider {
     String getProvidedPassword();
 }

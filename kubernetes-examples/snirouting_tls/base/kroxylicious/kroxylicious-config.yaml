@@ -22,7 +22,7 @@ data:
             trust:
               storeFile: /opt/kroxylicious/trust/ca.p12
               storePassword:
-                filePath: /opt/kroxylicious/trust/ca.password
+                passwordFile: /opt/kroxylicious/trust/ca.password
         clusterNetworkAddressConfigProvider:
           type: SniRoutingClusterNetworkAddressConfigProvider
           config:
@@ -34,4 +34,4 @@ data:
           key:
             storeFile: /opt/kroxylicious/server/key-material/keystore.p12
             storePassword:
-              filePath: /opt/kroxylicious/server/keystore-password/storePassword
+              passwordFile: /opt/kroxylicious/server/keystore-password/storePassword
