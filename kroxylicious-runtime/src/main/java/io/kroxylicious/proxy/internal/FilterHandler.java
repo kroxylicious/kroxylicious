@@ -299,11 +299,11 @@ public class FilterHandler extends ChannelDuplexHandler {
             }
             future.completeExceptionally(new TimeoutException("Filter %s was timed-out.".formatted(filterDescriptor())));
         }, timeoutMs, TimeUnit.MILLISECONDS);
-        return future.thenApply(filterResult -> {
+        return future.thenApplyAsync(filterResult -> {
             timeoutFuture.cancel(false);
 
             return filterResult;
-        });
+        }, ctx.executor());
     }
 
     private void deferredResponseCompleted(ResponseFilterResult ignored, Throwable throwable) {

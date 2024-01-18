@@ -251,6 +251,7 @@ class KroxyliciousTestersTest {
     void testMockRequestMockTester() {
         try (var tester = mockKafkaKroxyliciousTester(KroxyliciousConfigUtils::proxy)) {
             assertCanSendRequestsAndReceiveMockResponses(tester, tester::simpleTestClient);
+            tester.clearMock();
             assertCanSendRequestsAndReceiveMockResponses(tester, () -> tester.simpleTestClient(DEFAULT_VIRTUAL_CLUSTER));
         }
     }
@@ -326,18 +327,22 @@ class KroxyliciousTestersTest {
             var mockResponse2 = new ListTransactionsResponseData().setErrorCode(Errors.UNKNOWN_SERVER_ERROR.code());
             tester.addMockResponseForApiKey(new ResponsePayload(ApiKeys.LIST_TRANSACTIONS, ApiKeys.LIST_TRANSACTIONS.latestVersion(), mockResponse2));
 
-            var response1 = kafkaClient
-                    .getSync(new Request(ApiKeys.DESCRIBE_ACLS, ApiKeys.DESCRIBE_ACLS.latestVersion(), "client", new DescribeAclsRequestData()));
+            Request describeAcls = new Request(ApiKeys.DESCRIBE_ACLS, ApiKeys.DESCRIBE_ACLS.latestVersion(), "client", new DescribeAclsRequestData());
+            var response1 = kafkaClient.getSync(describeAcls);
             ApiMessage response1Message = response1.payload().message();
             assertThat(response1Message).isInstanceOf(DescribeAclsResponseData.class);
             assertThat(response1Message).isEqualTo(mockResponse1);
+            assertThat(tester.getOnlyRequestForApiKey(ApiKeys.DESCRIBE_ACLS)).isEqualTo(describeAcls);
+            assertThat(tester.getRequestsForApiKey(ApiKeys.DESCRIBE_ACLS)).containsOnly(describeAcls);
 
-            var response2 = kafkaClient
-                    .getSync(new Request(ApiKeys.LIST_TRANSACTIONS, ApiKeys.LIST_TRANSACTIONS.latestVersion(), "client", new ListTransactionsRequestData()));
+            Request listTransactions = new Request(ApiKeys.LIST_TRANSACTIONS, ApiKeys.LIST_TRANSACTIONS.latestVersion(), "client", new ListTransactionsRequestData());
+            var response2 = kafkaClient.getSync(listTransactions);
             ApiMessage response2Message = response2.payload().message();
             assertInstanceOf(ListTransactionsResponseData.class, response2Message);
             assertThat(response2Message).isInstanceOf(ListTransactionsResponseData.class);
             assertThat(response2Message).isEqualTo(mockResponse2);
+            assertThat(tester.getOnlyRequestForApiKey(ApiKeys.LIST_TRANSACTIONS)).isEqualTo(listTransactions);
+            assertThat(tester.getRequestsForApiKey(ApiKeys.LIST_TRANSACTIONS)).containsOnly(listTransactions);
         }
     }
 

@@ -29,37 +29,47 @@ record SafeInvoker(FilterInvoker invoker) implements FilterInvoker {
 
     @Override
     public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage body, FilterContext filterContext) {
-        if (invoker.shouldHandleRequest(apiKey, apiVersion)) {
-            CompletionStage<RequestFilterResult> stage = invoker.onRequest(apiKey, apiVersion, header, body, filterContext);
-            if (stage == null) {
-                if (logger.isWarnEnabled()) {
-                    logger.warn("invoker onRequest returned null for apiKey {}, apiVersion {}, channel: {}," +
-                            " Filters should always return a CompletionStage", apiKey, apiVersion, filterContext.channelDescriptor());
+        try {
+            if (invoker.shouldHandleRequest(apiKey, apiVersion)) {
+                CompletionStage<RequestFilterResult> stage = invoker.onRequest(apiKey, apiVersion, header, body, filterContext);
+                if (stage == null) {
+                    if (logger.isWarnEnabled()) {
+                        logger.warn("invoker onRequest returned null for apiKey {}, apiVersion {}, channel: {}," +
+                                " Filters should always return a CompletionStage", apiKey, apiVersion, filterContext.channelDescriptor());
+                    }
+                    return CompletableFuture.failedFuture(new IllegalStateException("invoker onRequest returned null for apiKey " + apiKey));
                 }
-                return CompletableFuture.failedFuture(new IllegalStateException("invoker onRequest returned null for apiKey " + apiKey));
+                return stage;
             }
-            return stage;
+            else {
+                return filterContext.forwardRequest(header, body);
+            }
         }
-        else {
-            return filterContext.forwardRequest(header, body);
+        catch (Exception e) {
+            return CompletableFuture.failedFuture(e);
         }
     }
 
     @Override
     public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, short apiVersion, ResponseHeaderData header, ApiMessage body, FilterContext filterContext) {
-        if (invoker.shouldHandleResponse(apiKey, apiVersion)) {
-            CompletionStage<ResponseFilterResult> stage = invoker.onResponse(apiKey, apiVersion, header, body, filterContext);
-            if (stage == null) {
-                if (logger.isWarnEnabled()) {
-                    logger.warn("invoker onResponse returned null for apiKey {}, apiVersion {}, channel: {}," +
-                            " Filters should always return a CompletionStage", apiKey, apiVersion, filterContext.channelDescriptor());
+        try {
+            if (invoker.shouldHandleResponse(apiKey, apiVersion)) {
+                CompletionStage<ResponseFilterResult> stage = invoker.onResponse(apiKey, apiVersion, header, body, filterContext);
+                if (stage == null) {
+                    if (logger.isWarnEnabled()) {
+                        logger.warn("invoker onResponse returned null for apiKey {}, apiVersion {}, channel: {}," +
+                                " Filters should always return a CompletionStage", apiKey, apiVersion, filterContext.channelDescriptor());
+                    }
+                    return CompletableFuture.failedFuture(new IllegalStateException("invoker onResponse returned null for apiKey " + apiKey));
                 }
-                return CompletableFuture.failedFuture(new IllegalStateException("invoker onResponse returned null for apiKey " + apiKey));
+                return stage;
             }
-            return stage;
+            else {
+                return filterContext.forwardResponse(header, body);
+            }
         }
-        else {
-            return filterContext.forwardResponse(header, body);
+        catch (Exception e) {
+            return CompletableFuture.failedFuture(e);
         }
     }
 
