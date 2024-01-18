@@ -36,7 +36,7 @@ public record FilePassword(String passwordFile) implements PasswordProvider {
     @Override
     public String toString() {
         return "FilePassword[" +
-                "filePath=" + passwordFile + ']';
+                "passwordFile=" + passwordFile + ']';
     }
 
     @Nullable
