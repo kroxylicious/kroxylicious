@@ -9,10 +9,14 @@ package io.kroxylicious.proxy.bootstrap;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.stream.Stream;
 
 import org.assertj.core.api.ListAssert;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import io.kroxylicious.proxy.config.FilterDefinition;
 import io.kroxylicious.proxy.config.PluginFactory;
@@ -23,6 +27,7 @@ import io.kroxylicious.proxy.internal.filter.ExampleConfig;
 import io.kroxylicious.proxy.internal.filter.NettyFilterContext;
 import io.kroxylicious.proxy.internal.filter.OptionalConfigFactory;
 import io.kroxylicious.proxy.internal.filter.RequiresConfigFactory;
+import io.kroxylicious.proxy.internal.filter.TestFilter;
 import io.kroxylicious.proxy.internal.filter.TestFilterFactory;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
@@ -44,8 +49,10 @@ class FilterChainFactoryTest {
         eventLoop = Executors.newScheduledThreadPool(1);
         config = new ExampleConfig();
         pfr = new PluginFactoryRegistry() {
+            @NonNull
+            @SuppressWarnings({ "rawtypes", "unchecked" })
             @Override
-            public <P> PluginFactory<P> pluginFactory(Class<P> pluginClass) {
+            public <P> PluginFactory<P> pluginFactory(@NonNull Class<P> pluginClass) {
                 if (pluginClass == FilterFactory.class) {
                     return new PluginFactory() {
                         @NonNull
@@ -102,20 +109,29 @@ class FilterChainFactoryTest {
         });
     }
 
-    @Test
-    void testCreateFilters() {
-        final ListAssert<FilterAndInvoker> listAssert = assertFiltersCreated(List.of(new FilterDefinition(TestFilterFactory.class.getName(), config),
-                new FilterDefinition(TestFilterFactory.class.getName(), config)));
-        listAssert.element(0).extracting(FilterAndInvoker::filter).isInstanceOfSatisfying(TestFilterFactory.TestFilterImpl.class, testFilterImpl -> {
-            assertThat(testFilterImpl.getContributorClass()).isEqualTo(TestFilterFactory.class);
+    @ParameterizedTest
+    @MethodSource(value = "testFilterTypes")
+    void testCreateFiltersOptionalConfig(Class<FilterFactory<?, ?>> factoryClass, Class<? extends TestFilter> filterClass) {
+        final ListAssert<FilterAndInvoker> listAssert = assertFiltersCreated(List.of(new FilterDefinition(factoryClass.getName(), config),
+                new FilterDefinition(factoryClass.getName(), config)));
+        listAssert.element(0).extracting(FilterAndInvoker::filter)
+                .isInstanceOfSatisfying(filterClass, testFilterImpl -> {
+                    assertThat(testFilterImpl.getContributorClass()).isEqualTo(factoryClass);
+                    assertThat(testFilterImpl.getContext().eventLoop()).isSameAs(eventLoop);
+                    assertThat(testFilterImpl.getExampleConfig()).isSameAs(config);
+                });
+        listAssert.element(1).extracting(FilterAndInvoker::filter).isInstanceOfSatisfying(filterClass, testFilterImpl -> {
+            assertThat(testFilterImpl.getContributorClass()).isEqualTo(factoryClass);
             assertThat(testFilterImpl.getContext().eventLoop()).isSameAs(eventLoop);
             assertThat(testFilterImpl.getExampleConfig()).isSameAs(config);
         });
-        listAssert.element(1).extracting(FilterAndInvoker::filter).isInstanceOfSatisfying(TestFilterFactory.TestFilterImpl.class, testFilterImpl -> {
-            assertThat(testFilterImpl.getContributorClass()).isEqualTo(TestFilterFactory.class);
-            assertThat(testFilterImpl.getContext().eventLoop()).isSameAs(eventLoop);
-            assertThat(testFilterImpl.getExampleConfig()).isSameAs(config);
-        });
+    }
+
+    static Stream<Arguments> testFilterTypes() {
+        return Stream.of(
+                Arguments.of(TestFilterFactory.class, TestFilterFactory.TestFilterImpl.class),
+                Arguments.of(OptionalConfigFactory.class, OptionalConfigFactory.Filter.class),
+                Arguments.of(RequiresConfigFactory.class, RequiresConfigFactory.Filter.class));
     }
 
     @Test
@@ -171,13 +187,6 @@ class FilterChainFactoryTest {
         assertThat(new FilterChainFactory(pfr, filterDefinitions)).isNotNull();
     }
 
-    private ListAssert<FilterAndInvoker> assertFiltersCreated(List<FilterDefinition> filterDefinitions) {
-        FilterChainFactory filterChainFactory = new FilterChainFactory(pfr, filterDefinitions);
-        NettyFilterContext context = new NettyFilterContext(eventLoop, pfr);
-        List<FilterAndInvoker> filters = filterChainFactory.createFilters(context);
-        return assertThat(filters).isNotNull().hasSize(filterDefinitions.size());
-    }
-
     @Test
     void shouldFailValidationIfRequireConfigMissing() {
         // Given
@@ -223,4 +232,10 @@ class FilterChainFactoryTest {
         assertThat(new FilterChainFactory(pfr, List.of(missingConfig))).isNotNull();
     }
 
+    private ListAssert<FilterAndInvoker> assertFiltersCreated(List<FilterDefinition> filterDefinitions) {
+        FilterChainFactory filterChainFactory = new FilterChainFactory(pfr, filterDefinitions);
+        NettyFilterContext context = new NettyFilterContext(eventLoop, pfr);
+        List<FilterAndInvoker> filters = filterChainFactory.createFilters(context);
+        return assertThat(filters).isNotNull().hasSize(filterDefinitions.size());
+    }
 }

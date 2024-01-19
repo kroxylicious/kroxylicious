@@ -36,7 +36,7 @@ public class RequiresConfigFactory implements FilterFactory<ExampleConfig, Examp
         return new Filter(context, configuration, this.getClass());
     }
 
-    public static class Filter implements RequestFilter {
+    public static class Filter implements RequestFilter, TestFilter {
         private final FilterFactoryContext context;
         private final ExampleConfig exampleConfig;
         private final Class<? extends FilterFactory> contributorClass;

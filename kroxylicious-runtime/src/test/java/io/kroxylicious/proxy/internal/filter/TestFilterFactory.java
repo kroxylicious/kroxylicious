@@ -36,7 +36,7 @@ public class TestFilterFactory implements FilterFactory<ExampleConfig, ExampleCo
         return new TestFilterImpl(context, configuration, this.getClass());
     }
 
-    public static class TestFilterImpl implements RequestFilter {
+    public static class TestFilterImpl implements RequestFilter, TestFilter {
         private final FilterFactoryContext context;
         private final ExampleConfig exampleConfig;
         private final Class<? extends FilterFactory> contributorClass;
@@ -52,14 +52,17 @@ public class TestFilterFactory implements FilterFactory<ExampleConfig, ExampleCo
             throw new IllegalStateException("not implemented!");
         }
 
+        @Override
         public FilterFactoryContext getContext() {
             return context;
         }
 
+        @Override
         public ExampleConfig getExampleConfig() {
             return exampleConfig;
         }
 
+        @Override
         public Class<? extends FilterFactory> getContributorClass() {
             return contributorClass;
         }
