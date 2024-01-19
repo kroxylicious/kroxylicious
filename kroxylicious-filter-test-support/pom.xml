@@ -103,7 +103,7 @@
                         <goals>
                             <goal>generate-multi</goal>
                         </goals>
-                        <phase>generate-sources</phase>
+                        <phase>process-sources</phase>
                         <configuration>
                             <messageSpecDirectory>${project.build.directory}/message-specs/common/message
                             </messageSpecDirectory>
