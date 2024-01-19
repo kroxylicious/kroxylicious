@@ -60,7 +60,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.assertj.core.api.Assertions.allOf;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.testcontainers.shaded.org.awaitility.Awaitility.await;
+import static org.awaitility.Awaitility.await;
 
 @ExtendWith(KafkaClusterExtension.class)
 class MultiTenantIT extends BaseMultiTenantIT {
