@@ -39,17 +39,43 @@
             <artifactId>kroxylicious-integration-test-support</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- SampleFilterIT uses the config classes from runtime -->
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-runtime</artifactId>
+            <scope>test</scope>
+        </dependency>
 
         <dependency>
             <groupId>io.kroxylicious.testing</groupId>
             <artifactId>testing-junit5-extension</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- FIXME: https://github.com/kroxylicious/kroxylicious-junit5-extension/issues/271 - API surface is part of impl module -->
+        <dependency>
+            <groupId>io.kroxylicious.testing</groupId>
+            <artifactId>testing-impl</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.kroxylicious.testing</groupId>
+            <artifactId>testing-api</artifactId>
+            <scope>test</scope>
+        </dependency>
 
         <!-- third party dependencies - runtime and compile -->
         <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+        </dependency>
+        <dependency>
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.kafka</groupId>
+            <artifactId>kafka-clients</artifactId>
         </dependency>
 
         <!-- third party dependencies - test -->
