@@ -42,19 +42,15 @@
             <scope>test</scope>
         </dependency>
 
-        <dependency>
-            <groupId>io.kroxylicious.testing</groupId>
-            <artifactId>testing-junit5-extension</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.kroxylicious.testing</groupId>
-            <artifactId>testing-api</artifactId>
-            <scope>test</scope>
-        </dependency>
-
-
         <!-- third party dependencies - runtime and compile -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+        </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
@@ -77,6 +73,10 @@
         </dependency>
         <dependency>
             <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.micrometer</groupId>
             <artifactId>micrometer-registry-prometheus</artifactId>
         </dependency>
         <!-- We depend on the specific Netty dependencies not netty-all to reduce the size of fatjars -->
@@ -87,6 +87,10 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-codec</artifactId>
         </dependency>
         <dependency>
             <groupId>io.netty</groupId>
@@ -106,17 +110,13 @@
         </dependency>
         <dependency>
             <groupId>io.netty</groupId>
-            <artifactId>netty-transport-native-epoll</artifactId>
-            <classifier>${netty.epoll.classifier}</classifier>
-        </dependency>
-        <dependency>
-            <groupId>io.netty</groupId>
             <artifactId>netty-transport-classes-epoll</artifactId>
         </dependency>
         <dependency>
             <groupId>io.netty</groupId>
-            <artifactId>netty-transport-native-kqueue</artifactId>
-            <classifier>${netty.kqueue.classifier}</classifier>
+            <artifactId>netty-transport-native-epoll</artifactId>
+            <classifier>${netty.epoll.classifier}</classifier>
+            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>io.netty</groupId>
@@ -124,12 +124,23 @@
         </dependency>
         <dependency>
             <groupId>io.netty</groupId>
+            <artifactId>netty-transport-native-kqueue</artifactId>
+            <classifier>${netty.kqueue.classifier}</classifier>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.netty</groupId>
             <artifactId>netty-transport-native-unix-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.netty.incubator</groupId>
+            <artifactId>netty-incubator-transport-classes-io_uring</artifactId>
         </dependency>
         <dependency>
             <groupId>io.netty.incubator</groupId>
             <artifactId>netty-incubator-transport-native-io_uring</artifactId>
             <classifier>${netty.io_uring.classifier}</classifier>
+            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.kafka</groupId>
@@ -141,6 +152,7 @@
         </dependency>
 
         <!-- third party dependencies - test -->
+
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
@@ -163,7 +175,7 @@
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter</artifactId>
+            <artifactId>junit-jupiter-api</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>

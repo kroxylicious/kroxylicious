@@ -11,7 +11,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.apache.commons.compress.utils.Lists;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
@@ -343,7 +342,7 @@ class KafkaProxyFrontendHandlerTest {
 
     private <T extends ApiMessage> List<DecodedRequestFrame<T>> outboundFrames(Class<T> ignored) {
         ByteBuf outboundMessage;
-        List<DecodedRequestFrame<T>> result = Lists.newArrayList();
+        List<DecodedRequestFrame<T>> result = new ArrayList<>();
         while ((outboundMessage = outboundChannel.readOutbound()) != null) {
             assertThat(outboundMessage).isNotNull();
             ArrayList<Object> objects = new ArrayList<>();
