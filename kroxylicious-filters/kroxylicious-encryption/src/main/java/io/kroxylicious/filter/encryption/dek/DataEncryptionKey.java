@@ -12,8 +12,10 @@ import java.security.spec.AlgorithmParameterSpec;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
 import java.util.function.IntFunction;
+import java.util.function.LongUnaryOperator;
 import java.util.function.Supplier;
 import javax.annotation.concurrent.NotThreadSafe;
 import javax.annotation.concurrent.ThreadSafe;
@@ -22,6 +24,8 @@ import javax.crypto.SecretKey;
 import javax.security.auth.DestroyFailedException;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 import io.kroxylicious.filter.encryption.EncryptionException;
 import io.kroxylicious.filter.encryption.inband.ExhaustedDekException;
@@ -33,7 +37,11 @@ import io.kroxylicious.filter.encryption.inband.ExhaustedDekException;
 @ThreadSafe
 public final class DataEncryptionKey<E> {
     private final E edek;
-    private final SecretKey key;
+    // Note: checks for outstandingCryptors==END <em>happens-before</em> changes to atomicKey.
+    // It's this that provides a guarantee that a cryptor should never see a
+    // destroyed or null key, but that keys should be destroyed and nullieifed as soon
+    // as possible once all outstanding cryptors are closed.
+    private final AtomicReference<SecretKey> atomicKey;
 
     private final AtomicInteger remainingEncryptions;
 
@@ -50,15 +58,7 @@ public final class DataEncryptionKey<E> {
     public static final long START = combine(1, 1);
     public static final long END = combine(-1, -1);
     static long combine(int encryptors, int decryptors) {
-        System.out.println("encryptors " + Integer.toBinaryString(encryptors));
-        System.out.println("decryptors " + Integer.toBinaryString(decryptors));
-        long msb = ((long) encryptors) << Integer.SIZE;
-        System.out.println("msb        " + Long.toBinaryString(msb));
-        long lsb = 0xFFFFFFFFL & decryptors;
-        System.out.println("lsb        " + Long.toBinaryString(lsb));
-        long l = msb | lsb;
-        System.out.println("l          " + Long.toBinaryString(l));
-        return l;
+        return ((long) encryptors) << Integer.SIZE | 0xFFFFFFFFL & decryptors;
     }
     static int encryptors(long combined) {
         return (int) (combined >> Integer.SIZE);
@@ -111,8 +111,7 @@ public final class DataEncryptionKey<E> {
         if (encryptors < 0 || decryptors < 0) {
             return combined;
         }
-        long combine = combine(-encryptors, -decryptors);
-        return combine;
+        return combine(-encryptors, -decryptors);
     }
 
     DataEncryptionKey(@NonNull E edek, @NonNull SecretKey key, int maxEncryptions) {
@@ -125,7 +124,7 @@ public final class DataEncryptionKey<E> {
             throw new IllegalArgumentException();
         }
         this.edek = edek;
-        this.key = key;
+        this.atomicKey = new AtomicReference<>(key);
         this.remainingEncryptions = new AtomicInteger(maxEncryptions);
         this.outstandingCryptors = new AtomicLong(START);
     }
@@ -146,11 +145,15 @@ public final class DataEncryptionKey<E> {
         }
         if (remainingEncryptions.addAndGet(-numEncryptions) >= 0) {
             CipherSpec cipherSpec = CipherSpec.AES_GCM_96_128;
-            Encryptor encryptor = new Encryptor(cipherSpec, key, numEncryptions);
+            // TODO think about the possibilty of races between the key being set to null
+            //      and the decrementing of outstandingCryptors
+            //      We need to guarantee that NPE is not possible
+            //      The alternative is to make DEK#key final (not volatile) and give up on nullifying it
+            //      as part of destruction
             if (outstandingCryptors.updateAndGet(DataEncryptionKey::acquireEncryptor) <= 0) {
                 throw new DestroyedDekException();
             }
-            return encryptor;
+            return new Encryptor(cipherSpec, atomicKey.get(), numEncryptions);
         }
         throw new ExhaustedDekException("");
     }
@@ -163,11 +166,10 @@ public final class DataEncryptionKey<E> {
      */
     public Decryptor decryptor() {
         CipherSpec cipherSpec = CipherSpec.AES_GCM_96_128;
-        Decryptor decryptor = new Decryptor(cipherSpec, key);
         if (outstandingCryptors.updateAndGet(DataEncryptionKey::acquireDecryptor) <= 0) {
             throw new DestroyedDekException();
         }
-        return decryptor;
+        return new Decryptor(cipherSpec, atomicKey.get());
     }
 
     /**
@@ -180,23 +182,26 @@ public final class DataEncryptionKey<E> {
      * This method is idempotent.
      */
     public void destroy() {
-        long l = outstandingCryptors.updateAndGet(DataEncryptionKey::commenceDestroy);
-        long combine = combine((short) -1, (short) -1);
-        if (l == combine) {
-            destroyKey();
+        maybeDestroyKey(DataEncryptionKey::commenceDestroy);
+    }
+
+    private void maybeDestroyKey(LongUnaryOperator updateFunction) {
+        if (outstandingCryptors.updateAndGet(updateFunction) == END) {
+            var k1 = atomicKey.getAndSet(null);
+            if (k1 != null) {
+                try {
+                    k1.destroy();
+                }
+                catch (DestroyFailedException e) {
+                    e.printStackTrace();
+                }
+            }
         }
     }
 
-    /**
-     * Attempt to destroy the key
-     */
-    private void destroyKey() {
-        try {
-            key.destroy();
-        }
-        catch (DestroyFailedException e) {
-            e.printStackTrace();
-        }
+    public boolean isDestroyed() {
+        SecretKey secretKey = atomicKey.get();
+        return secretKey == null || secretKey.isDestroyed();
     }
 
     /**
@@ -205,11 +210,10 @@ public final class DataEncryptionKey<E> {
     @NotThreadSafe
     public final class Encryptor implements AutoCloseable {
         private final Cipher cipher;
-        private final SecretKey key;
+        private SecretKey key;
         private final Supplier<AlgorithmParameterSpec> paramSupplier;
         private final CipherSpec cipherSpec;
         private int numEncryptions;
-        private boolean closed;
 
         private Encryptor(CipherSpec cipherSpec, SecretKey key, int numEncryptions) {
             if (numEncryptions <= 0) {
@@ -240,9 +244,10 @@ public final class DataEncryptionKey<E> {
          * The function's second argument is the number of bytes required for the ciphertext.
          * @throws DekUsageException If this Encryptor has run out of operations.
          */
-        public void encrypt(ByteBuffer plaintext, ByteBuffer aad,
-                            IntFunction<ByteBuffer> paramAllocator,
-                            BiFunction<Integer, Integer, ByteBuffer> ciphertextAllocator) {
+        public void encrypt(@NonNull ByteBuffer plaintext,
+                            @Nullable ByteBuffer aad,
+                            @NonNull IntFunction<ByteBuffer> paramAllocator,
+                            @NonNull BiFunction<Integer, Integer, ByteBuffer> ciphertextAllocator) {
 
             if (--numEncryptions >= 0) {
                 try {
@@ -256,9 +261,18 @@ public final class DataEncryptionKey<E> {
 
                     int outSize = cipher.getOutputSize(plaintext.remaining());
                     var ciphertext = ciphertextAllocator.apply(size, outSize);
-                    cipher.updateAAD(aad);
+                    if (aad != null) {
+                        cipher.updateAAD(aad);
+                    }
+                    var p = plaintext.position();
                     cipher.doFinal(plaintext, ciphertext);
+                    plaintext.position(p);
                     ciphertext.flip();
+
+                    if (numEncryptions == 0) {
+                        close();
+                    }
+                    return;
                 } catch (GeneralSecurityException e) {
                     throw new EncryptionException(e);
                 }
@@ -268,11 +282,9 @@ public final class DataEncryptionKey<E> {
 
         @Override
         public void close() {
-            if (!closed) {
-                closed = true;
-                if (outstandingCryptors.updateAndGet(DataEncryptionKey::releaseEncryptor) == combine((short) -1, (short) -1)) {
-                    destroyKey();
-                }
+            if (key != null) {
+                key = null;
+                maybeDestroyKey(DataEncryptionKey::releaseEncryptor);
             }
         }
     }
@@ -283,9 +295,8 @@ public final class DataEncryptionKey<E> {
     @NotThreadSafe
     public final class Decryptor implements AutoCloseable {
         private final Cipher cipher;
-        private final SecretKey key;
+        private SecretKey key;
         private final CipherSpec cipherSpec;
-        private boolean closed;
 
         private Decryptor(CipherSpec cipherSpec, SecretKey key) {
             this.cipher = cipherSpec.newCipher();
@@ -295,12 +306,15 @@ public final class DataEncryptionKey<E> {
 
         /**
          * Perform an encryption operation using the DEK.
-         * @param ciphertext
-         * @param aad
-         * @param parameterBuffer
-         * @param plaintext
+         * @param ciphertext The ciphertext.
+         * @param aad The AAD.
+         * @param parameterBuffer The buffer containing the cipher parameters.
+         * @param plaintext The plaintext.
          */
-        public void decrypt(ByteBuffer ciphertext, ByteBuffer aad, ByteBuffer parameterBuffer, ByteBuffer plaintext) {
+        public void decrypt(ByteBuffer ciphertext,
+                            ByteBuffer aad,
+                            ByteBuffer parameterBuffer,
+                            ByteBuffer plaintext) {
             try {
                 var parameterSpec = cipherSpec.readParameters(parameterBuffer);
                 cipher.init(Cipher.DECRYPT_MODE, key, parameterSpec);
@@ -313,11 +327,9 @@ public final class DataEncryptionKey<E> {
 
         @Override
         public void close() {
-            if (!closed) {
-                closed = true;
-                if (outstandingCryptors.updateAndGet(DataEncryptionKey::releaseDecryptor) == END) {
-                    destroyKey();
-                }
+            if (key != null) {
+                key = null;
+                maybeDestroyKey(DataEncryptionKey::releaseDecryptor);
             }
         }
     }

@@ -91,11 +91,29 @@ public enum CipherSpec {
         }
     }
 
+    /**
+     * Return a supplier of parameters for use with the cipher.
+     * The supplier need not be thread-safe.
+     */
     abstract Supplier<AlgorithmParameterSpec> paramSupplier();
 
+    /**
+     * Return the number of bytes required by {@link #writeParameters(ByteBuffer, AlgorithmParameterSpec)}
+     * to serialize the given parameters.
+     */
     abstract int size(AlgorithmParameterSpec parameterSpec);
 
+    /**
+     * Serialize the given parameters to the given buffer, which should have at least
+     * {@link #size(AlgorithmParameterSpec)} bytes {@linkplain ByteBuffer#remaining() remaining}.
+     */
     abstract void writeParameters(ByteBuffer parametersBuffer, AlgorithmParameterSpec params);
 
+    /**
+     * Read previously-serialize parameters from the given buffer.
+     * The implementation should know how many bytes to read, so the number of
+     * {@linkplain ByteBuffer#remaining() remaining} bytes need only be ≥ (not =)
+     * the {@link #size(AlgorithmParameterSpec)} at the time the buffer was written.
+     */
     abstract AlgorithmParameterSpec readParameters(ByteBuffer parametersBuffer);
 }
