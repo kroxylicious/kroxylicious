@@ -46,6 +46,12 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- third party dependencies - runtime and compile -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-core</artifactId>
+        </dependency>
+
         <!-- third party dependencies - test -->
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>

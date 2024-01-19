@@ -21,6 +21,7 @@
         <java.test.version>17</java.test.version>
         <maven.exec.version>3.1.0</maven.exec.version>
         <maven.compiler.version>3.10.1</maven.compiler.version>
+        <maven-dependency-plugin.version>3.6.1</maven-dependency-plugin.version>
         <maven.compiler.parameters>true</maven.compiler.parameters>
         <maven.compiler.release>${java.version}</maven.compiler.release>
         <maven.compiler.testRelease>${java.test.version}</maven.compiler.testRelease>
@@ -476,7 +477,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-dependency-plugin</artifactId>
-                    <version>3.6.1</version>
+                    <version>${maven-dependency-plugin.version}</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -701,6 +702,35 @@
             </activation>
             <build>
                 <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-dependency-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>analyze</id>
+                                <goals>
+                                    <goal>analyze-only</goal>
+                                </goals>
+                                <configuration>
+                                    <failOnWarning>true</failOnWarning>
+                                    <ignoreUnusedRuntime>true</ignoreUnusedRuntime>
+                                    <ignoredUsedUndeclaredDependencies>
+                                        <ignoredUsedUndeclaredDependency>com.google.code.findbugs:jsr305</ignoredUsedUndeclaredDependency>
+                                    </ignoredUsedUndeclaredDependencies>
+                                    <ignoredUnusedDeclaredDependencies>
+                                        <!-- several modules have a test dependency on log4j-slf4j2-impl to enable test logging -->
+                                        <ignoredUnusedDeclaredDependency>org.apache.logging.log4j:log4j-slf4j2-impl</ignoredUnusedDeclaredDependency>
+                                        <!-- for some reason, the analyzer fails to detect netty-transport-native-unix-common use -->
+                                        <ignoredUnusedDeclaredDependency>io.netty:netty-transport-native-unix-common</ignoredUnusedDeclaredDependency>
+                                    </ignoredUnusedDeclaredDependencies>
+                                    <ignoredDependencies>
+                                        <!-- Kroxylicious junit extension requires this to be on the classpath -->
+                                        <ignoredUnusedDeclaredDependency>org.apache.kafka:kafka_2.13</ignoredUnusedDeclaredDependency>
+                                    </ignoredDependencies>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
                     <plugin>
                         <groupId>com.mycila</groupId>
                         <artifactId>license-maven-plugin</artifactId>
