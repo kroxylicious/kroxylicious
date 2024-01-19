@@ -117,6 +117,7 @@
                         <goals>
                             <goal>unpack</goal>
                         </goals>
+                        <phase>generate-sources</phase>
                         <configuration>
                             <artifact>org.apache.kafka:kafka-clients:${kafka.version}</artifact>
                             <includes>common/message/*.json</includes>
