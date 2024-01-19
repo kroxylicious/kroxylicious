@@ -24,18 +24,30 @@
         <!-- project dependencies - runtime and compile -->
         <dependency>
             <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-kms</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-kms-provider-hashicorp-vault</artifactId>
         </dependency>
         <dependency>
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-kms-test-support</artifactId>
         </dependency>
-        <dependency>
-            <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious-runtime</artifactId>
-        </dependency>
 
         <!-- third party dependencies - runtime and compile -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>vault</artifactId>
