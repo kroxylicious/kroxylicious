@@ -141,7 +141,7 @@
             <id>skipped-tests</id>
             <activation>
                 <property>
-                    <name>skipIT</name>
+                    <name>skipITs</name>
                     <value>true</value>
                 </property>
             </activation>
