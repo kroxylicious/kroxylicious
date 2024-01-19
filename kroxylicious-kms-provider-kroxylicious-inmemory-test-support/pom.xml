@@ -24,6 +24,10 @@
         <!-- project dependencies - runtime and compile -->
         <dependency>
             <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-kms</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-kms-provider-kroxylicious-inmemory</artifactId>
         </dependency>
         <dependency>
