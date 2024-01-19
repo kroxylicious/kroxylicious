@@ -153,6 +153,14 @@
                 <version>${kroxy.extension.version}</version>
                 <scope>test</scope>
             </dependency>
+            <!-- FIXME: https://github.com/kroxylicious/kroxylicious-junit5-extension/issues/271 - API surface is part of impl module -->
+            <dependency>
+                <groupId>io.kroxylicious.testing</groupId>
+                <artifactId>testing-impl</artifactId>
+                <version>${kroxy.extension.version}</version>
+                <scope>test</scope>
+            </dependency>
+
 
             <!-- third party dependencies - runtime and compile -->
             <dependency>
