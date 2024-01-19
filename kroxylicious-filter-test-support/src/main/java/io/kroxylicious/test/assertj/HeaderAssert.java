@@ -6,6 +6,8 @@
 
 package io.kroxylicious.test.assertj;
 
+import java.nio.charset.StandardCharsets;
+
 import org.apache.kafka.common.header.Header;
 import org.assertj.core.api.AbstractAssert;
 import org.assertj.core.api.AbstractByteArrayAssert;

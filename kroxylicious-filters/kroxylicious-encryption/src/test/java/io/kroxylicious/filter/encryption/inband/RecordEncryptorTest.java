@@ -7,54 +7,64 @@
 package io.kroxylicious.filter.encryption.inband;
 
 import java.nio.ByteBuffer;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.util.Set;
+
+import javax.crypto.KeyGenerator;
 
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.record.RecordBatch;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.filter.encryption.EncryptionScheme;
 import io.kroxylicious.filter.encryption.EncryptionVersion;
 import io.kroxylicious.filter.encryption.RecordField;
+import io.kroxylicious.filter.encryption.records.RecordTransform;
 import io.kroxylicious.test.assertj.KafkaAssertions;
 import io.kroxylicious.test.record.RecordTestUtils;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
-
 class RecordEncryptorTest {
 
+    private static AesGcmEncryptor DECRYPTOR;
+    private static KeyContext KEY_CONTEXT;
+    private static ByteBuffer EDEK;
+
+    @BeforeAll
+    public static void initKeyContext() throws NoSuchAlgorithmException {
+        var generator = KeyGenerator.getInstance("AES");
+        var key = generator.generateKey();
+        EDEK = ByteBuffer.wrap(key.getEncoded()); // it doesn't matter for this test that it's not encrypted
+        AesGcmEncryptor encryptor = AesGcmEncryptor.forEncrypt(new AesGcmIvGenerator(new SecureRandom()), key);
+        DECRYPTOR = AesGcmEncryptor.forDecrypt(key);
+        KEY_CONTEXT = new KeyContext(EDEK, Long.MAX_VALUE, Integer.MAX_VALUE, encryptor);
+    }
+
     private Record encryptSingleRecord(Set<RecordField> fields, long offset, long timestamp, String key, String value, Header... headers) {
-        var kc = mock(KeyContext.class);
-        doReturn(new byte[]{ 6, 7, 8 }).when(kc).serializedEdek();
-        doAnswer(invocation -> {
-            ByteBuffer input = invocation.getArgument(0);
-            input.position(input.limit());
-            ByteBuffer output = invocation.getArgument(1);
-            output.limit(output.capacity());
-            return null;
-        }).when(kc).encode(any(), any());
+        var kc = KEY_CONTEXT;
         var re = new RecordEncryptor(EncryptionVersion.V1,
-                new EncryptionScheme<String>("key", fields),
+                new EncryptionScheme<>("key", fields),
                 kc,
-                ByteBuffer.allocate(10),
-                ByteBuffer.allocate(10));
+                ByteBuffer.allocate(100),
+                ByteBuffer.allocate(100));
 
         Record record = RecordTestUtils.record(RecordBatch.MAGIC_VALUE_V2, offset, timestamp, key, value, headers);
 
-        re.init(record);
-        var tOffset = re.transformOffset(record);
-        var tTimestamp = re.transformTimestamp(record);
-        var tKey = re.transformKey(record);
-        var tValue = re.transformValue(record);
-        var tHeaders = re.transformHeaders(record);
-        re.resetAfterTransform(record);
+        return transformRecord(re, record);
+    }
 
+    private Record transformRecord(RecordTransform recordTransform, Record record) {
+        recordTransform.init(record);
+        var tOffset = recordTransform.transformOffset(record);
+        var tTimestamp = recordTransform.transformTimestamp(record);
+        var tKey = recordTransform.transformKey(record);
+        var tValue = recordTransform.transformValue(record);
+        var tHeaders = recordTransform.transformHeaders(record);
+        recordTransform.resetAfterTransform(record);
         return RecordTestUtils.record(tOffset, tTimestamp, tKey, tValue, tHeaders);
     }
 
@@ -79,12 +89,24 @@ class RecordEncryptorTest {
                 .singleHeader()
                 .hasKeyEqualTo("kroxylicious.io/encryption")
                 .hasValueEqualTo(new byte[]{ 1 });
+
+        // And when
+        var rd = new RecordDecryptor(index -> new DecryptState(t, EncryptionVersion.V1, DECRYPTOR));
+        var rt = transformRecord(rd, t);
+
+        // Then
+        KafkaAssertions.assertThat(rt)
+                .hasOffsetEqualTo(offset)
+                .hasTimestampEqualTo(timestamp)
+                .hasKeyEqualTo(key)
+                .hasValueEqualTo(value)
+                .hasEmptyHeaders();
     }
 
     // TODO with legacy magic
 
     @Test
-    void shouldEncryptValueWithExistingHeaders() {
+    void shouldEncryptValueOnlyWithExistingHeaders() {
         // Given
         Set<RecordField> fields = Set.of(RecordField.RECORD_VALUE);
         long offset = 55L;
@@ -105,6 +127,20 @@ class RecordEncryptorTest {
                 .hasHeadersSize(2)
                 .containsHeaderWithKey("kroxylicious.io/encryption")
                 .containsHeaderWithKey("bob");
+
+        // And when
+        var rd = new RecordDecryptor(index -> new DecryptState(t, EncryptionVersion.V1, DECRYPTOR));
+        var rt = transformRecord(rd, t);
+
+        // Then
+        KafkaAssertions.assertThat(rt)
+                .hasOffsetEqualTo(offset)
+                .hasTimestampEqualTo(timestamp)
+                .hasKeyEqualTo(key)
+                .hasValueEqualTo(value)
+                .singleHeader()
+                .hasKeyEqualTo("bob")
+                .hasNullValue();
     }
 
     @Test
@@ -125,9 +161,19 @@ class RecordEncryptorTest {
                 .hasTimestampEqualTo(timestamp)
                 .hasKeyEqualTo(key)
                 .hasNullValue()
-                .singleHeader()
-                .hasKeyEqualTo("kroxylicious.io/encryption")
-                .hasValueEqualTo(new byte[]{ 1 });
+                .hasEmptyHeaders();
+
+        // And when
+        var rd = new RecordDecryptor(index -> null); // note the null return
+        var rt = transformRecord(rd, t);
+
+        // Then
+        KafkaAssertions.assertThat(rt)
+                .hasOffsetEqualTo(offset)
+                .hasTimestampEqualTo(timestamp)
+                .hasKeyEqualTo(key)
+                .hasNullValue()
+                .hasEmptyHeaders();
     }
 
     @Test
@@ -141,7 +187,7 @@ class RecordEncryptorTest {
         var header = new RecordHeader("bob", null);
 
         // When
-        var t = encryptSingleRecord(fields, offset, timestamp, key, value);
+        var t = encryptSingleRecord(fields, offset, timestamp, key, value, header);
 
         // Then
         KafkaAssertions.assertThat(t)
@@ -152,6 +198,20 @@ class RecordEncryptorTest {
                 .singleHeader()
                 .hasKeyEqualTo("kroxylicious.io/encryption")
                 .hasValueEqualTo(new byte[]{ 1 });
+
+        // And when
+        var rd = new RecordDecryptor(index -> new DecryptState(t, EncryptionVersion.V1, DECRYPTOR));
+        var rt = transformRecord(rd, t);
+
+        // Then
+        KafkaAssertions.assertThat(rt)
+                .hasOffsetEqualTo(offset)
+                .hasTimestampEqualTo(timestamp)
+                .hasKeyEqualTo(key)
+                .hasValueEqualTo(value)
+                .singleHeader()
+                .hasKeyEqualTo("bob")
+                .hasNullValue();
     }
 
     @Test
@@ -177,6 +237,8 @@ class RecordEncryptorTest {
                 .singleHeader()
                 .hasKeyEqualTo("kroxylicious.io/encryption")
                 .hasValueEqualTo(new byte[]{ 1 });
+
+        // TODO decryption
     }
 
     @Test
@@ -202,6 +264,8 @@ class RecordEncryptorTest {
                 .singleHeader()
                 .hasKeyEqualTo("kroxylicious.io/encryption")
                 .hasValueEqualTo(new byte[]{ 1 });
+
+        // TODO decryption
     }
 
     @Test
@@ -227,6 +291,8 @@ class RecordEncryptorTest {
                 .singleHeader()
                 .hasKeyEqualTo("kroxylicious.io/encryption")
                 .hasValueEqualTo(new byte[]{ 1 });
+
+        // TODO decryption
     }
 
 }

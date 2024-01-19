@@ -24,7 +24,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
- * A {@link RecordTransform} that encrypts records.
+ * A {@link RecordTransform} that encrypts records so that they can be later decrypted by {@link RecordDecryptor}.
  * @param <K> The type of KEK id
  */
 class RecordEncryptor<K> implements RecordTransform {
@@ -86,14 +86,19 @@ class RecordEncryptor<K> implements RecordTransform {
             this.transformedValue = null;
         }
 
-        Header[] oldHeaders = kafkaRecord.headers();
-        if (encryptionScheme.recordFields().contains(RecordField.RECORD_HEADER_VALUES) || oldHeaders.length == 0) {
-            transformedHeaders = encryptionHeader;
+        if (kafkaRecord.hasValue()) {
+            Header[] oldHeaders = kafkaRecord.headers();
+            if (encryptionScheme.recordFields().contains(RecordField.RECORD_HEADER_VALUES) || oldHeaders.length == 0) {
+                transformedHeaders = encryptionHeader;
+            }
+            else {
+                transformedHeaders = new Header[1 + oldHeaders.length];
+                transformedHeaders[0] = encryptionHeader[0];
+                System.arraycopy(oldHeaders, 0, transformedHeaders, 1, oldHeaders.length);
+            }
         }
         else {
-            transformedHeaders = new Header[1 + oldHeaders.length];
-            transformedHeaders[0] = encryptionHeader[0];
-            System.arraycopy(oldHeaders, 0, transformedHeaders, 1, oldHeaders.length);
+            transformedHeaders = kafkaRecord.headers();
         }
     }
 
