@@ -29,12 +29,20 @@
             <artifactId>kroxylicious-api</artifactId>
         </dependency>
 
-        <!-- project dependencies - test -->
+        <!-- third party dependencies - runtime and compile  -->
         <dependency>
-            <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious-filter-test-support</artifactId>
-            <scope>test</scope>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.apache.kafka</groupId>
+            <artifactId>kafka-clients</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
+
 
         <!-- third party dependencies - test -->
         <dependency>
@@ -48,12 +56,7 @@
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-params</artifactId>
+            <artifactId>junit-jupiter-api</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
