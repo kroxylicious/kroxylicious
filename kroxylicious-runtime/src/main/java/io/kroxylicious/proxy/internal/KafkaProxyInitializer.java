@@ -39,6 +39,7 @@ import io.kroxylicious.proxy.internal.net.Endpoint;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
 import io.kroxylicious.proxy.internal.net.VirtualClusterBinding;
 import io.kroxylicious.proxy.internal.net.VirtualClusterBindingResolver;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
 
@@ -152,7 +153,8 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
         });
     }
 
-    private void addHandlers(SocketChannel ch, VirtualClusterBinding binding) {
+    @VisibleForTesting
+    void addHandlers(SocketChannel ch, VirtualClusterBinding binding) {
         var virtualCluster = binding.virtualCluster();
         ChannelPipeline pipeline = ch.pipeline();
         if (virtualCluster.isLogNetwork()) {

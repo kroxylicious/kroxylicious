@@ -111,7 +111,7 @@ class FilterChainFactoryTest {
 
     @ParameterizedTest
     @MethodSource(value = "testFilterTypes")
-    void testCreateFiltersOptionalConfig(Class<FilterFactory<?, ?>> factoryClass, Class<? extends TestFilter> filterClass) {
+    void shouldCreateMultipleFilters(Class<FilterFactory<?, ?>> factoryClass, Class<? extends TestFilter> filterClass) {
         final ListAssert<FilterAndInvoker> listAssert = assertFiltersCreated(List.of(new FilterDefinition(factoryClass.getName(), config),
                 new FilterDefinition(factoryClass.getName(), config)));
         listAssert.element(0).extracting(FilterAndInvoker::filter)
