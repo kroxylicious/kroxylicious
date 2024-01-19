@@ -202,6 +202,11 @@
             </dependency>
             <dependency>
                 <groupId>io.netty.incubator</groupId>
+                <artifactId>netty-incubator-transport-classes-io_uring</artifactId>
+                <version>${netty.io_uring.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.netty.incubator</groupId>
                 <artifactId>netty-incubator-transport-native-io_uring</artifactId>
                 <version>${netty.io_uring.version}</version>
                 <classifier>${netty.io_uring.classifier}</classifier>
