@@ -4,6 +4,7 @@ Please enumerate **all user-facing** changes using format `<githib issue/pr numb
 
 ## 0.5.0
 
+* [#909](https://github.com/kroxylicious/kroxylicious/pull/909): [build] use maven maven-dependency-plugin to detect missing/superfluous dependencies at build time
 * [#895](https://github.com/kroxylicious/kroxylicious/pull/895): Ensure we execute deferred Filter methods on the eventloop
 * [#896](https://github.com/kroxylicious/kroxylicious/issues/896): In TLS config, use passwordFile as property to accept password material from a file rather than filePath.
 * [#844](https://github.com/kroxylicious/kroxylicious/pull/844): Fix connect to upstream using TLS client authentication
@@ -13,6 +14,8 @@ Please enumerate **all user-facing** changes using format `<githib issue/pr numb
 
 * When configuring TLS, the property `filePath` for specifying the location of a file providing the password is now
   deprecated.  Use `passwordFile` instead.
+* As a result of the work of #909, some superfluous transitive dependencies have been removed from some kroxylicious.  If you were relying on those, you will need to
+  adjust your dependencies as your adopt this release.
 
 ## 0.4.1
 
