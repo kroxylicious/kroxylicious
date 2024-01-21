@@ -239,6 +239,17 @@
                             </execution>
                         </executions>
                     </plugin>
+                    <!-- As the compilation is skipped, the dependency detection (which relies on compilation) must be skipped too -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-dependency-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>analyze</id>
+                                <phase>none</phase>
+                            </execution>
+                        </executions>
+                    </plugin>
                 </plugins>
             </build>
         </profile>
