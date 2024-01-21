@@ -14,6 +14,7 @@ import java.util.function.Supplier;
 import javax.crypto.Cipher;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.spec.GCMParameterSpec;
+import javax.crypto.spec.IvParameterSpec;
 
 import io.kroxylicious.filter.encryption.EncryptionException;
 
@@ -53,12 +54,54 @@ public enum CipherSpec {
         @Override
         GCMParameterSpec readParameters(ByteBuffer parametersBuffer) {
             byte[] b = new byte[12];
-            parametersBuffer.get(b);
+            parametersBuffer.get(b).rewind();
             return new GCMParameterSpec(128, b);
+        }
+    },
+    CHACHA20_POLY1305(2, "ChaCha20-Poly1305") {
+        int nonceSizeBytes = 12;
+        @Override
+        Supplier<AlgorithmParameterSpec> paramSupplier() {
+            byte[] nonce = new byte[nonceSizeBytes];
+            var rng = new SecureRandom();
+            return () -> {
+                rng.nextBytes(nonce);
+                return new IvParameterSpec(nonce);
+            };
+        }
+
+        @Override
+        int size(AlgorithmParameterSpec parameterSpec) {
+            return nonceSizeBytes;
+        }
+
+        @Override
+        void writeParameters(
+                ByteBuffer parametersBuffer,
+                AlgorithmParameterSpec params
+        ) {
+            parametersBuffer.put(((IvParameterSpec)params).getIV());
+            parametersBuffer.flip();
+        }
+
+        @Override
+        AlgorithmParameterSpec readParameters(ByteBuffer parametersBuffer) {
+            byte[] nonce = new byte[nonceSizeBytes];
+            parametersBuffer.get(nonce).rewind();
+            return new IvParameterSpec(nonce);
         }
     };
 
-    // TODO Add support for ChaCha20Poly1305
+    static CipherSpec fromPersistentId(int persistentId) {
+        switch (persistentId) {
+            case 1:
+                return CipherSpec.AES_GCM_96_128;
+            case 2:
+                return CipherSpec.CHACHA20_POLY1305;
+            default:
+                throw new UnknownCipherSpecException("Cipher spec with persistent id " + persistentId + " is not known");
+        }
+    }
 
     private final int persistentId;
     private final String transformation;
@@ -66,16 +109,6 @@ public enum CipherSpec {
     CipherSpec(int persistentId, String transformation) {
         this.persistentId = persistentId;
         this.transformation = transformation;
-
-    }
-
-    static CipherSpec fromPersistentId(int persistentId) {
-        switch (persistentId) {
-            case 1:
-                return CipherSpec.AES_GCM_96_128;
-            default:
-                throw new UnknownCipherSpecException("Cipher spec with persistent id " + persistentId + " is not known");
-        }
     }
 
     int persistentId() {
