@@ -35,7 +35,6 @@ import io.kroxylicious.filter.encryption.EncryptionScheme;
 import io.kroxylicious.filter.encryption.EncryptionVersion;
 import io.kroxylicious.filter.encryption.EnvelopeEncryptionFilter;
 import io.kroxylicious.filter.encryption.KeyManager;
-import io.kroxylicious.filter.encryption.Receiver;
 import io.kroxylicious.filter.encryption.RecordField;
 import io.kroxylicious.filter.encryption.WrapperVersion;
 import io.kroxylicious.kms.service.Kms;
@@ -352,16 +351,14 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
         }
         ByteBufferOutputStream buffer = allocateBufferForDecode(records, bufferAllocator);
         MemoryRecordsBuilder outputBuilder = recordsBuilder(buffer, records);
-        return decrypt(topicName, partition, recordStream(records).toList(), (kafkaRecord, plaintextBuffer, headers) -> {
-            outputBuilder.appendWithOffset(kafkaRecord.offset(), kafkaRecord.timestamp(), kafkaRecord.key(), plaintextBuffer, headers);
-        }).thenApply(unused -> outputBuilder.build());
+        return decrypt(topicName, partition, recordStream(records).toList(), outputBuilder).thenApply(unused -> outputBuilder.build());
     }
 
     @NonNull
     private CompletionStage<Void> decrypt(String topicName,
                                           int partition,
                                           @NonNull List<? extends Record> records,
-                                          @NonNull Receiver receiver) {
+                                          @NonNull MemoryRecordsBuilder builder) {
         var decryptStateStages = new ArrayList<CompletionStage<DecryptState>>(records.size());
 
         for (Record kafkaRecord : records) {
@@ -382,10 +379,11 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
                 .thenApply(decryptStates -> {
                     decryptStates.forEach(decryptState -> {
                         if (decryptState.encryptor() == null) {
-                            receiver.accept(decryptState.kafkaRecord(), decryptState.valueWrapper(), decryptState.kafkaRecord().headers());
+                            Record record = decryptState.kafkaRecord();
+                            builder.appendWithOffset(record.offset(), record.timestamp(), record.key(), decryptState.valueWrapper(), record.headers());
                         }
                         else {
-                            decryptRecord(decryptState.decryptionVersion(), decryptState.encryptor(), decryptState.valueWrapper(), decryptState.kafkaRecord(), receiver);
+                            decryptRecord(decryptState.decryptionVersion(), decryptState.encryptor(), decryptState.valueWrapper(), decryptState.kafkaRecord(), builder);
                         }
                     });
                     return null;
@@ -402,7 +400,7 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
                                AesGcmEncryptor encryptor,
                                ByteBuffer wrapper,
                                Record kafkaRecord,
-                               @NonNull Receiver receiver) {
+                               @NonNull MemoryRecordsBuilder builder) {
         var aadSpec = AadSpec.fromCode(wrapper.get());
         ByteBuffer aad = switch (aadSpec) {
             case NONE -> ByteUtils.EMPTY_BUF;
@@ -414,7 +412,7 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
         synchronized (encryptor) {
             plaintextParcel = decryptParcel(wrapper.slice(), encryptor);
         }
-        Parcel.readParcel(decryptionVersion.parcelVersion(), plaintextParcel, kafkaRecord, receiver);
+        Parcel.readParcel(decryptionVersion.parcelVersion(), plaintextParcel, kafkaRecord, builder);
     }
 
     private CompletionStage<AesGcmEncryptor> resolveEncryptor(WrapperVersion wrapperVersion, ByteBuffer wrapper) {
