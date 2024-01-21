@@ -8,13 +8,13 @@ package io.kroxylicious.filter.encryption.dek;
 
 import java.util.concurrent.CompletionStage;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
+import javax.annotation.concurrent.ThreadSafe;
 
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.KmsService;
 import io.kroxylicious.kms.service.Serde;
 
-import javax.annotation.concurrent.ThreadSafe;
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
  * A DekManager encapsulates a {@link Kms}, providing access to the ability to

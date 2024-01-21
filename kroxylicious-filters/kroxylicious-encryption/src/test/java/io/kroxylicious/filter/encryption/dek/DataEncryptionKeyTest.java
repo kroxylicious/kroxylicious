@@ -6,18 +6,18 @@
 
 package io.kroxylicious.filter.encryption.dek;
 
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.security.NoSuchAlgorithmException;
+
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import javax.security.auth.DestroyFailedException;
 
-import io.kroxylicious.filter.encryption.inband.ExhaustedDekException;
-
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
-import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
-import java.security.NoSuchAlgorithmException;
+import io.kroxylicious.filter.encryption.inband.ExhaustedDekException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -71,6 +71,7 @@ class DataEncryptionKeyTest {
         assertThatThrownBy(() -> dek.encryptor(-1))
                 .isExactlyInstanceOf(IllegalArgumentException.class);
     }
+
     @Test
     void returnsEdek() {
         var mock = mock(SecretKey.class);

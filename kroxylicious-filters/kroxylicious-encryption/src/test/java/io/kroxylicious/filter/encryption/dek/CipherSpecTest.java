@@ -6,25 +6,21 @@
 
 package io.kroxylicious.filter.encryption.dek;
 
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.EnumSource;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
+import java.util.Arrays;
+import java.util.stream.Collectors;
 
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
-import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
-import java.security.GeneralSecurityException;
-import java.security.InvalidAlgorithmParameterException;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
-import java.security.spec.AlgorithmParameterSpec;
-import java.util.Arrays;
-import java.util.stream.Collectors;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.*;
 
 class CipherSpecTest {
 
@@ -43,18 +39,18 @@ class CipherSpecTest {
         var params = spec.paramSupplier().get();
 
         // TODO Right now we're getting away with using AES keys with ChaCha20 cipher
-        //      (It doesn't work the other way around)
-        //      Perhaps CipherSpec needs to abstract key generation and key deserialization
-        //      And the Kms should take the kind of SecretKey as a parameter
-        //      and use that in how it deserializes keys when generating DekPair and/or unwrapping DEKs
-        //      Or perhaps it would be more honest for the KMS to return SecretKeySpec
-        //      ?
+        // (It doesn't work the other way around)
+        // Perhaps CipherSpec needs to abstract key generation and key deserialization
+        // And the Kms should take the kind of SecretKey as a parameter
+        // and use that in how it deserializes keys when generating DekPair and/or unwrapping DEKs
+        // Or perhaps it would be more honest for the KMS to return SecretKeySpec
+        // ?
         var gen = KeyGenerator.getInstance("AES");
         SecretKey secretKey = gen.generateKey();
 
         Cipher encCipher = spec.newCipher();
         encCipher.init(Cipher.ENCRYPT_MODE, secretKey, params);
-        var ciphertext =encCipher.doFinal("hello, world".getBytes(StandardCharsets.UTF_8));
+        var ciphertext = encCipher.doFinal("hello, world".getBytes(StandardCharsets.UTF_8));
         int size = spec.size(params);
         assertThat(size).isGreaterThan(0);
         var bb = ByteBuffer.allocate(size);

@@ -7,6 +7,7 @@
 package io.kroxylicious.filter.encryption.dek;
 
 import java.security.SecureRandom;
+
 import javax.annotation.concurrent.NotThreadSafe;
 import javax.security.auth.Destroyable;
 

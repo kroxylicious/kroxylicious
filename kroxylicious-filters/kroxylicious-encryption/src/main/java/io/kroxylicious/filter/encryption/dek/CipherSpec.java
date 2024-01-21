@@ -11,6 +11,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.security.spec.AlgorithmParameterSpec;
 import java.util.function.Supplier;
+
 import javax.crypto.Cipher;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.spec.GCMParameterSpec;
@@ -44,10 +45,9 @@ public enum CipherSpec {
 
         @Override
         void writeParameters(
-                ByteBuffer parametersBuffer,
-                AlgorithmParameterSpec params
-        ) {
-            parametersBuffer.put(((GCMParameterSpec)params).getIV());
+                             ByteBuffer parametersBuffer,
+                             AlgorithmParameterSpec params) {
+            parametersBuffer.put(((GCMParameterSpec) params).getIV());
             parametersBuffer.flip();
         }
 
@@ -60,6 +60,7 @@ public enum CipherSpec {
     },
     CHACHA20_POLY1305(2, "ChaCha20-Poly1305") {
         int nonceSizeBytes = 12;
+
         @Override
         Supplier<AlgorithmParameterSpec> paramSupplier() {
             byte[] nonce = new byte[nonceSizeBytes];
@@ -77,10 +78,9 @@ public enum CipherSpec {
 
         @Override
         void writeParameters(
-                ByteBuffer parametersBuffer,
-                AlgorithmParameterSpec params
-        ) {
-            parametersBuffer.put(((IvParameterSpec)params).getIV());
+                             ByteBuffer parametersBuffer,
+                             AlgorithmParameterSpec params) {
+            parametersBuffer.put(((IvParameterSpec) params).getIV());
             parametersBuffer.flip();
         }
 

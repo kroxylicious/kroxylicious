@@ -33,8 +33,8 @@ public class Use {
                             ciphertextLength);
                 });
                 // TODO issues ^^:
-                //      need to pre-allocate the ciphertext to be the right size
-                //      should the caller be able to decide what cipher to use? Or should it be part of the dekManager
+                // need to pre-allocate the ciphertext to be the right size
+                // should the caller be able to decide what cipher to use? Or should it be part of the dekManager
             }
         });
     }

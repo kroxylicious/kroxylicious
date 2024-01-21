@@ -17,18 +17,18 @@ import java.util.function.BiFunction;
 import java.util.function.IntFunction;
 import java.util.function.LongUnaryOperator;
 import java.util.function.Supplier;
+
 import javax.annotation.concurrent.NotThreadSafe;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 import javax.security.auth.DestroyFailedException;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
-import edu.umd.cs.findbugs.annotations.Nullable;
-
 import io.kroxylicious.filter.encryption.EncryptionException;
 import io.kroxylicious.filter.encryption.inband.ExhaustedDekException;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * An opaque handle on a key that can be used to encrypt and decrypt.
@@ -57,30 +57,37 @@ public final class DataEncryptionKey<E> {
 
     public static final long START = combine(1, 1);
     public static final long END = combine(-1, -1);
+
     static long combine(int encryptors, int decryptors) {
         return ((long) encryptors) << Integer.SIZE | 0xFFFFFFFFL & decryptors;
     }
+
     static int encryptors(long combined) {
         return (int) (combined >> Integer.SIZE);
     }
+
     static int decryptors(long combined) {
         return (int) combined;
     }
+
     static long acquireEncryptor(long combined) {
         int encryptors = encryptors(combined);
         int decryptors = decryptors(combined);
         if (encryptors > 0) {
             return combine(encryptors + 1, decryptors);
-        } else {
+        }
+        else {
             return combine(encryptors, decryptors);
         }
     }
+
     static long acquireDecryptor(long combined) {
         int encryptors = encryptors(combined);
         int decryptors = decryptors(combined);
         if (decryptors > 0) {
             return combine(encryptors, decryptors + 1);
-        } else {
+        }
+        else {
             return combine(encryptors, decryptors - 1);
         }
     }
@@ -90,7 +97,8 @@ public final class DataEncryptionKey<E> {
         int decryptors = decryptors(combined);
         if (encryptors > 0) {
             return combine(encryptors - 1, decryptors);
-        } else {
+        }
+        else {
             return combine(encryptors + 1, decryptors);
         }
     }
@@ -100,7 +108,8 @@ public final class DataEncryptionKey<E> {
         int decryptors = decryptors(combined);
         if (decryptors > 0) {
             return combine(encryptors, decryptors - 1);
-        } else {
+        }
+        else {
             return combine(encryptors, decryptors + 1);
         }
     }
@@ -146,10 +155,10 @@ public final class DataEncryptionKey<E> {
         if (remainingEncryptions.addAndGet(-numEncryptions) >= 0) {
             CipherSpec cipherSpec = CipherSpec.AES_GCM_96_128;
             // TODO think about the possibilty of races between the key being set to null
-            //      and the decrementing of outstandingCryptors
-            //      We need to guarantee that NPE is not possible
-            //      The alternative is to make DEK#key final (not volatile) and give up on nullifying it
-            //      as part of destruction
+            // and the decrementing of outstandingCryptors
+            // We need to guarantee that NPE is not possible
+            // The alternative is to make DEK#key final (not volatile) and give up on nullifying it
+            // as part of destruction
             if (outstandingCryptors.updateAndGet(DataEncryptionKey::acquireEncryptor) <= 0) {
                 throw new DestroyedDekException();
             }
@@ -273,7 +282,8 @@ public final class DataEncryptionKey<E> {
                         close();
                     }
                     return;
-                } catch (GeneralSecurityException e) {
+                }
+                catch (GeneralSecurityException e) {
                     throw new EncryptionException(e);
                 }
             }
@@ -320,7 +330,8 @@ public final class DataEncryptionKey<E> {
                 cipher.init(Cipher.DECRYPT_MODE, key, parameterSpec);
                 cipher.updateAAD(aad);
                 cipher.doFinal(ciphertext, plaintext);
-            } catch (GeneralSecurityException e) {
+            }
+            catch (GeneralSecurityException e) {
                 throw new EncryptionException(e);
             }
         }
