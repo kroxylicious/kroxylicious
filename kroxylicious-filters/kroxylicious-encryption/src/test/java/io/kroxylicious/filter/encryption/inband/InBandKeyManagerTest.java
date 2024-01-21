@@ -19,13 +19,17 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 import javax.crypto.SecretKey;
 
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
+import org.apache.kafka.common.record.CompressionType;
 import org.apache.kafka.common.record.MemoryRecords;
+import org.apache.kafka.common.record.MutableRecordBatch;
 import org.apache.kafka.common.record.Record;
+import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 import org.apache.kafka.common.utils.ByteUtils;
 import org.assertj.core.api.InstanceOfAssertFactories;
@@ -39,6 +43,7 @@ import org.mockito.stubbing.Answer;
 
 import io.kroxylicious.filter.encryption.EncryptionScheme;
 import io.kroxylicious.filter.encryption.RecordField;
+import io.kroxylicious.filter.encryption.records.BatchAwareMemoryRecordsBuilder;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.InMemoryEdek;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.InMemoryKms;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.UnitTestingKmsService;
@@ -103,6 +108,47 @@ class InBandKeyManagerTest {
                 .singleElement()
                 .extracting(RecordTestUtils::recordValueAsBytes)
                 .isEqualTo(value);
+    }
+
+    @Test
+    void shouldPreserveMultipleBatches() {
+        var kmsService = UnitTestingKmsService.newInstance();
+        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
+        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
+
+        var kekId = kms.generateKey();
+
+        var value = new byte[]{ 1, 2, 3 };
+        Record record = RecordTestUtils.record(1, ByteBuffer.wrap(value));
+
+        var value2 = new byte[]{ 4, 5, 6 };
+        Record record2 = RecordTestUtils.record(2, ByteBuffer.wrap(value2));
+        BatchAwareMemoryRecordsBuilder builder = new BatchAwareMemoryRecordsBuilder(new ByteBufferOutputStream(1000));
+        builder.addBatch(CompressionType.NONE, TimestampType.CREATE_TIME, 1);
+        builder.appendWithOffset(1l, record);
+        builder.addBatch(CompressionType.GZIP, TimestampType.LOG_APPEND_TIME, 2);
+        builder.appendWithOffset(2l, record2);
+        MemoryRecords records = builder.build();
+
+        EncryptionScheme<UUID> scheme = new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE));
+        CompletableFuture<MemoryRecords> encryptedFuture = km.encrypt("topic", 1, scheme, records, ByteBufferOutputStream::new).toCompletableFuture();
+        assertThat(encryptedFuture).succeedsWithin(Duration.ZERO);
+        MemoryRecords encrypted = encryptedFuture.join();
+
+        assertThat(encrypted.batches()).hasSize(2);
+        List<MutableRecordBatch> batches = StreamSupport.stream(encrypted.batches().spliterator(), false).toList();
+        MutableRecordBatch first = batches.get(0);
+        assertThat(first.compressionType()).isEqualTo(CompressionType.NONE);
+        assertThat(first.timestampType()).isEqualTo(TimestampType.CREATE_TIME);
+        assertThat(first.baseOffset()).isEqualTo(1L);
+        assertThat(first).hasSize(1);
+
+        MutableRecordBatch second = batches.get(1);
+        // should we keep the client's compression type?
+        assertThat(second.compressionType()).isEqualTo(CompressionType.GZIP);
+        assertThat(second.timestampType()).isEqualTo(TimestampType.LOG_APPEND_TIME);
+        assertThat(second.baseOffset()).isEqualTo(2L);
+        assertThat(second).hasSize(1);
     }
 
     @NonNull

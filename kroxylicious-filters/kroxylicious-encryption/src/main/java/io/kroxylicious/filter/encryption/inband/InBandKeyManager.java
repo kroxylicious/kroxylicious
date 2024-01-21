@@ -10,6 +10,7 @@ import java.nio.ByteBuffer;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.function.IntFunction;
@@ -20,10 +21,13 @@ import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.record.MemoryRecordsBuilder;
+import org.apache.kafka.common.record.MutableRecordBatch;
 import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.record.RecordBatch;
+import org.apache.kafka.common.utils.BufferSupplier;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 import org.apache.kafka.common.utils.ByteUtils;
+import org.apache.kafka.common.utils.CloseableIterator;
 
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
@@ -37,6 +41,7 @@ import io.kroxylicious.filter.encryption.EnvelopeEncryptionFilter;
 import io.kroxylicious.filter.encryption.KeyManager;
 import io.kroxylicious.filter.encryption.RecordField;
 import io.kroxylicious.filter.encryption.WrapperVersion;
+import io.kroxylicious.filter.encryption.records.BatchAwareMemoryRecordsBuilder;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.Serde;
 
@@ -116,6 +121,26 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
                 }).toCompletableFuture();
     }
 
+    record BatchDescription(int index, MutableRecordBatch batch, int recordCount) {
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            BatchDescription that = (BatchDescription) o;
+            return index == that.index && recordCount == that.recordCount;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(index, recordCount);
+        }
+    }
+
     @Override
     @NonNull
     @SuppressWarnings("java:S2445")
@@ -128,14 +153,40 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
             // no records to transform, return input without modification
             return CompletableFuture.completedFuture(records);
         }
-        List<Record> encryptionRequests = recordStream(records).toList();
+
+        List<BatchDescription> descriptions = describeBatches(records);
         // it is possible to encounter MemoryRecords that have had all their records compacted away, but
         // the recordbatch metadata still exists. https://kafka.apache.org/documentation/#recordbatch
-        if (encryptionRequests.isEmpty()) {
+        if (descriptions.stream().allMatch(batchDescription -> batchDescription.recordCount == 0)) {
             return CompletableFuture.completedFuture(records);
         }
-        MemoryRecordsBuilder builder = recordsBuilder(allocateBufferForEncode(records, bufferAllocator), records);
-        return attemptEncrypt(topicName, partition, encryptionScheme, encryptionRequests, builder, 0).thenApply(unused -> builder.build());
+        BatchAwareMemoryRecordsBuilder builder = new BatchAwareMemoryRecordsBuilder(allocateBufferForEncode(records, bufferAllocator));
+        return attemptEncrypt(topicName, partition, encryptionScheme, records, builder, 0, descriptions).thenApply(unused -> builder.build());
+    }
+
+    @NonNull
+    private static List<BatchDescription> describeBatches(@NonNull MemoryRecords records) {
+        int batchIndex = 0;
+        List<BatchDescription> descriptions = new ArrayList<>();
+        for (MutableRecordBatch batch : records.batches()) {
+            descriptions.add(new BatchDescription(batchIndex++, batch, batchSize(batch)));
+        }
+        return descriptions;
+    }
+
+    private static int batchSize(MutableRecordBatch batch) {
+        Integer count = batch.countOrNull();
+        if (count == null) {
+            // for magic <2 count will be null
+            CloseableIterator<Record> iterator = batch.skipKeyValueIterator(BufferSupplier.NO_CACHING);
+            int c = 0;
+            while (iterator.hasNext()) {
+                c++;
+                iterator.next();
+            }
+            count = c;
+        }
+        return count;
     }
 
     @NonNull
@@ -167,18 +218,19 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
     }
 
     @SuppressWarnings("java:S2445")
-    private CompletionStage<Void> attemptEncrypt(String topicName, int partition, @NonNull EncryptionScheme<K> encryptionScheme, @NonNull List<? extends Record> records,
-                                                 MemoryRecordsBuilder builder, int attempt) {
+    private CompletionStage<Void> attemptEncrypt(String topicName, int partition, @NonNull EncryptionScheme<K> encryptionScheme, @NonNull MemoryRecords records,
+                                                 BatchAwareMemoryRecordsBuilder builder, int attempt, List<BatchDescription> batchDescriptions) {
+        int recordsCount = batchDescriptions.stream().mapToInt(value -> value.recordCount).sum();
         if (attempt >= MAX_ATTEMPTS) {
             return CompletableFuture.failedFuture(
-                    new RequestNotSatisfiable("failed to reserve an EDEK to encrypt " + records.size() + " records for topic " + topicName + " partition "
+                    new RequestNotSatisfiable("failed to reserve an EDEK to encrypt " + recordsCount + " records for topic " + topicName + " partition "
                             + partition + " after " + attempt + " attempts"));
         }
         return currentDekContext(encryptionScheme.kekId()).thenCompose(keyContext -> {
             synchronized (keyContext) {
                 // if it's not alive we know a previous encrypt call has removed this stage from the cache and fall through to retry encrypt
                 if (!keyContext.isDestroyed()) {
-                    if (!keyContext.hasAtLeastRemainingEncryptions(records.size())) {
+                    if (!keyContext.hasAtLeastRemainingEncryptions(recordsCount)) {
                         // remove the key context from the cache, then call encrypt again to drive caffeine to recreate it
                         rotateKeyContext(encryptionScheme, keyContext);
                     }
@@ -188,40 +240,46 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
                     }
                 }
             }
-            return attemptEncrypt(topicName, partition, encryptionScheme, records, builder, attempt + 1);
+            return attemptEncrypt(topicName, partition, encryptionScheme, records, builder, attempt + 1, batchDescriptions);
         });
     }
 
     @NonNull
-    private CompletableFuture<Void> encrypt(@NonNull EncryptionScheme<K> encryptionScheme, @NonNull List<? extends Record> records,
-                                            @NonNull MemoryRecordsBuilder builder, KeyContext keyContext) {
-        var maxParcelSize = records.stream()
-                .mapToInt(kafkaRecord -> Parcel.sizeOfParcel(
-                        encryptionVersion.parcelVersion(),
-                        encryptionScheme.recordFields(),
-                        kafkaRecord))
-                .filter(value -> value > 0)
-                .max()
-                .orElseThrow();
-        var maxWrapperSize = records.stream()
-                .mapToInt(kafkaRecord -> sizeOfWrapper(keyContext, maxParcelSize))
-                .filter(value -> value > 0)
-                .max()
-                .orElseThrow();
-        ByteBuffer parcelBuffer = bufferPool.acquire(maxParcelSize);
-        ByteBuffer wrapperBuffer = bufferPool.acquire(maxWrapperSize);
-        try {
-            encryptRecords(encryptionScheme, keyContext, records, parcelBuffer, wrapperBuffer, builder);
-        }
-        finally {
-            if (wrapperBuffer != null) {
-                bufferPool.release(wrapperBuffer);
+    private CompletableFuture<Void> encrypt(@NonNull EncryptionScheme<K> encryptionScheme,
+                                            @NonNull MemoryRecords memoryRecords,
+                                            @NonNull BatchAwareMemoryRecordsBuilder builder,
+                                            @NonNull KeyContext keyContext) {
+        for (MutableRecordBatch batch : memoryRecords.batches()) {
+            List<Record> records = StreamSupport.stream(batch.spliterator(), false).toList();
+            builder.addBatchLike(batch);
+            var maxParcelSize = records.stream()
+                    .mapToInt(kafkaRecord -> Parcel.sizeOfParcel(
+                            encryptionVersion.parcelVersion(),
+                            encryptionScheme.recordFields(),
+                            kafkaRecord))
+                    .filter(value -> value > 0)
+                    .max()
+                    .orElseThrow();
+            var maxWrapperSize = records.stream()
+                    .mapToInt(kafkaRecord -> sizeOfWrapper(keyContext, maxParcelSize))
+                    .filter(value -> value > 0)
+                    .max()
+                    .orElseThrow();
+            ByteBuffer parcelBuffer = bufferPool.acquire(maxParcelSize);
+            ByteBuffer wrapperBuffer = bufferPool.acquire(maxWrapperSize);
+            try {
+                encryptRecords(encryptionScheme, keyContext, records, parcelBuffer, wrapperBuffer, builder);
             }
-            if (parcelBuffer != null) {
-                bufferPool.release(parcelBuffer);
+            finally {
+                if (wrapperBuffer != null) {
+                    bufferPool.release(wrapperBuffer);
+                }
+                if (parcelBuffer != null) {
+                    bufferPool.release(parcelBuffer);
+                }
             }
+            keyContext.recordEncryptions(records.size());
         }
-        keyContext.recordEncryptions(records.size());
         return CompletableFuture.completedFuture(null);
     }
 
@@ -237,7 +295,7 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
                                 @NonNull List<? extends Record> records,
                                 @NonNull ByteBuffer parcelBuffer,
                                 @NonNull ByteBuffer wrapperBuffer,
-                                @NonNull MemoryRecordsBuilder builder) {
+                                @NonNull BatchAwareMemoryRecordsBuilder builder) {
         records.forEach(kafkaRecord -> {
             if (encryptionScheme.recordFields().contains(RecordField.RECORD_HEADER_VALUES)
                     && kafkaRecord.headers().length > 0
