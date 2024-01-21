@@ -9,7 +9,7 @@ package io.kroxylicious.filter.encryption.dek;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
-
+import javax.crypto.AEADBadTagException;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import javax.security.auth.DestroyFailedException;
@@ -17,6 +17,7 @@ import javax.security.auth.DestroyFailedException;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
+import io.kroxylicious.filter.encryption.EncryptionException;
 import io.kroxylicious.filter.encryption.inband.ExhaustedDekException;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -325,8 +326,55 @@ class DataEncryptionKeyTest {
         cryptor2.close();
     }
 
+    // encrypt and decrypt with no AAD
+    record EncryptInfo(SecretKey key,
+                       ByteBuffer params,
+                       ByteBuffer ciphertext) { }
+
     @Test
-    void encryptNoAad() throws NoSuchAlgorithmException {
+    void encryptDecryptNoAad() throws NoSuchAlgorithmException {
+        ByteBuffer aad = null;
+        var encryptInfo = encrypt(aad, "hello, world");
+        var roundTripped = decrypt(aad, encryptInfo);
+        assertThat(roundTripped).isEqualTo("hello, world");
+    }
+
+    @Test
+    void encryptDecryptWithAad() throws NoSuchAlgorithmException {
+        ByteBuffer aad = ByteBuffer.wrap(new byte[] { 42, 56, 89});
+        var encryptInfo = encrypt(aad, "hello, world");
+        var roundTripped = decrypt(aad, encryptInfo);
+        assertThat(roundTripped).isEqualTo("hello, world");
+    }
+
+    @Test
+    void encryptDecryptWithMismatchingAad() throws NoSuchAlgorithmException {
+        ByteBuffer encryptAad = ByteBuffer.wrap(new byte[] { 42, 56, 89});
+        var encryptInfo = encrypt(encryptAad, "hello, world");
+
+        ByteBuffer decryptAad = ByteBuffer.wrap(new byte[] { 12, 12, 12});
+        assertThatThrownBy(() -> decrypt(decryptAad, encryptInfo))
+                .isExactlyInstanceOf(EncryptionException.class)
+                .cause().isExactlyInstanceOf(AEADBadTagException.class);
+    }
+
+    private String decrypt(ByteBuffer aad, EncryptInfo encryptInfo) {
+        var params = encryptInfo.params();
+        var ciphertext = encryptInfo.ciphertext();
+
+        var dek = new DataEncryptionKey<>(encryptInfo.key().getEncoded(), encryptInfo.key(), 1);
+        var decryptor = dek.decryptor();
+
+        var plaintext = ByteBuffer.allocate(1024);
+
+        decryptor.decrypt(ciphertext, aad, params, plaintext);
+        plaintext.flip();
+        var bytes = new byte[plaintext.limit()];
+        plaintext.get(bytes);
+        return new String(bytes, StandardCharsets.UTF_8);
+    }
+
+    private EncryptInfo encrypt(ByteBuffer aad, String plaintext) throws NoSuchAlgorithmException {
         // Given
         var generator = KeyGenerator.getInstance("AES");
         var key = generator.generateKey();
@@ -344,46 +392,45 @@ class DataEncryptionKeyTest {
                 .describedAs("Expect to not be able to get another encoder")
                 .isExactlyInstanceOf(ExhaustedDekException.class);
 
-        ByteBuffer plaintext = ByteBuffer.wrap("hello, world".getBytes(StandardCharsets.UTF_8));
-        assertThat(plaintext.position()).isZero();
+        ByteBuffer plaintextBuffer = ByteBuffer.wrap(plaintext.getBytes(StandardCharsets.UTF_8));
+        assertThat(plaintextBuffer.position()).isZero();
 
         var buffer = ByteBuffer.allocate(100);
-        ByteBuffer aad = null;
-        encryptor.encrypt(plaintext,
+        var slices = new ByteBuffer[2];
+
+        encryptor.encrypt(plaintextBuffer,
                 aad,
-                size -> buffer.slice(0, size),
-                (p, c) -> buffer.slice(p, c));
+                size -> slices[0] = buffer.slice(0, size),
+                (p, c) -> slices[1] = buffer.slice(p, c));
 
         // TODO assertions on the buffer
 
         assertThat(dek.isDestroyed())
                 .describedAs("Key should be destroyed when no encryptions left")
                 .isTrue();
-        assertThat(plaintext.position())
+        assertThat(plaintextBuffer.position())
                 .describedAs("Position should be unchanged")
                 .isZero();
 
         // Shouldn't be able to use the Encryptor again
-        assertThatThrownBy(() -> encryptor.encrypt(plaintext,
+        assertThatThrownBy(() -> encryptor.encrypt(plaintextBuffer,
                 null,
                 size -> ByteBuffer.allocate(size),
                 (p, c) -> ByteBuffer.allocate(c)))
                 .isExactlyInstanceOf(DekUsageException.class)
                 .withFailMessage("The Encryptor has no more operations allowed");
-        assertThat(plaintext.position())
+        assertThat(plaintextBuffer.position())
                 .describedAs("Position should be unchanged")
                 .isZero();
 
         // It should be safe to close the encryptor
         encryptor.close();
+
+        return new EncryptInfo(key, slices[0], slices[1]);
     }
 
-    // TODO encrypt with some AAD
     // TODO encrypt with too short cipher text buffer
     // TODO encrypt with too short parameters buffer
-    // TODO decrypt
-    // TODO decrypt with mismatching AAD
     // TODO decrypt with wrong IV
-    // TODO round-trip
 
 }

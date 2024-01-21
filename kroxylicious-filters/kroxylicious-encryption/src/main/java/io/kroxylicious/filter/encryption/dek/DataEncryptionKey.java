@@ -272,6 +272,7 @@ public final class DataEncryptionKey<E> {
                     var ciphertext = ciphertextAllocator.apply(size, outSize);
                     if (aad != null) {
                         cipher.updateAAD(aad);
+                        aad.rewind();
                     }
                     var p = plaintext.position();
                     cipher.doFinal(plaintext, ciphertext);

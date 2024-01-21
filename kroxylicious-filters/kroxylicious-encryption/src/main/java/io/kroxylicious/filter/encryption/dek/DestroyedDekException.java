@@ -11,4 +11,7 @@ package io.kroxylicious.filter.encryption.dek;
  */
 public class DestroyedDekException extends RuntimeException {
 
+    public DestroyedDekException() {
+        super();
+    }
 }
