@@ -14,7 +14,6 @@ import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 
 import org.apache.kafka.common.message.FetchResponseData;
 import org.apache.kafka.common.message.FetchResponseData.FetchableTopicResponse;
@@ -24,9 +23,6 @@ import org.apache.kafka.common.message.ProduceRequestData.TopicProduceData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.record.MemoryRecords;
-import org.apache.kafka.common.record.MemoryRecordsBuilder;
-import org.apache.kafka.common.record.RecordBatch;
-import org.apache.kafka.common.utils.ByteBufferOutputStream;
 import org.slf4j.Logger;
 
 import io.kroxylicious.proxy.filter.FetchResponseFilter;
@@ -34,8 +30,6 @@ import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
-
-import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static org.slf4j.LoggerFactory.getLogger;
 
@@ -139,42 +133,12 @@ public class EnvelopeEncryptionFilter<K>
                                                               PartitionData fpr,
                                                               MemoryRecords memoryRecords,
                                                               FilterContext context) {
-        MemoryRecordsBuilder builder = recordsBuilder(allocateBufferForDecode(memoryRecords, context), memoryRecords);
         return keyManager.decrypt(
                 topicName,
                 fpr.partitionIndex(),
-                recordStream(memoryRecords).toList(),
-                (kafkaRecord, plaintextBuffer, headers) -> {
-                    builder.appendWithOffset(kafkaRecord.offset(), kafkaRecord.timestamp(), kafkaRecord.key(), plaintextBuffer, headers);
-                })
-                .thenApply(ignored -> builder.build())
+                memoryRecords,
+                context::createByteBufferOutputStream)
                 .thenApply(fpr::setRecords);
     }
 
-    private ByteBufferOutputStream allocateBufferForDecode(MemoryRecords memoryRecords, FilterContext context) {
-        int sizeEstimate = memoryRecords.sizeInBytes();
-        return context.createByteBufferOutputStream(sizeEstimate);
-    }
-
-    @NonNull
-    private static Stream<org.apache.kafka.common.record.Record> recordStream(MemoryRecords memoryRecords) {
-        return StreamSupport.stream(memoryRecords.records().spliterator(), false);
-    }
-
-    private static MemoryRecordsBuilder recordsBuilder(@NonNull ByteBufferOutputStream buffer, @NonNull MemoryRecords records) {
-        RecordBatch firstBatch = records.firstBatch();
-        return new MemoryRecordsBuilder(buffer,
-                firstBatch.magic(),
-                firstBatch.compressionType(), // TODO we might not want to use the client's compression
-                firstBatch.timestampType(),
-                firstBatch.baseOffset(),
-                0L,
-                firstBatch.producerId(),
-                firstBatch.producerEpoch(),
-                firstBatch.baseSequence(),
-                firstBatch.isTransactional(),
-                firstBatch.isControlBatch(),
-                firstBatch.partitionLeaderEpoch(),
-                0);
-    }
 }
