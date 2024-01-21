@@ -321,14 +321,16 @@ public final class DataEncryptionKey<E> {
          * @param parameterBuffer The buffer containing the cipher parameters.
          * @param plaintext The plaintext.
          */
-        public void decrypt(ByteBuffer ciphertext,
-                            ByteBuffer aad,
-                            ByteBuffer parameterBuffer,
-                            ByteBuffer plaintext) {
+        public void decrypt(@NonNull ByteBuffer ciphertext,
+                            @Nullable ByteBuffer aad,
+                            @NonNull ByteBuffer parameterBuffer,
+                            @NonNull ByteBuffer plaintext) {
             try {
                 var parameterSpec = cipherSpec.readParameters(parameterBuffer);
                 cipher.init(Cipher.DECRYPT_MODE, key, parameterSpec);
-                cipher.updateAAD(aad);
+                if (aad != null) {
+                    cipher.updateAAD(aad);
+                }
                 cipher.doFinal(ciphertext, plaintext);
             }
             catch (GeneralSecurityException e) {

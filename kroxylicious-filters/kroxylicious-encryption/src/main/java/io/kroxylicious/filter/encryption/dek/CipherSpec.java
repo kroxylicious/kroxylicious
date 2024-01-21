@@ -48,13 +48,12 @@ public enum CipherSpec {
                              ByteBuffer parametersBuffer,
                              AlgorithmParameterSpec params) {
             parametersBuffer.put(((GCMParameterSpec) params).getIV());
-            parametersBuffer.flip();
         }
 
         @Override
         GCMParameterSpec readParameters(ByteBuffer parametersBuffer) {
             byte[] b = new byte[12];
-            parametersBuffer.get(b).rewind();
+            parametersBuffer.get(b);
             return new GCMParameterSpec(128, b);
         }
     },
@@ -81,13 +80,12 @@ public enum CipherSpec {
                              ByteBuffer parametersBuffer,
                              AlgorithmParameterSpec params) {
             parametersBuffer.put(((IvParameterSpec) params).getIV());
-            parametersBuffer.flip();
         }
 
         @Override
         AlgorithmParameterSpec readParameters(ByteBuffer parametersBuffer) {
             byte[] nonce = new byte[nonceSizeBytes];
-            parametersBuffer.get(nonce).rewind();
+            parametersBuffer.get(nonce);
             return new IvParameterSpec(nonce);
         }
     };

@@ -59,14 +59,16 @@ class CipherSpecTest {
                 .describedAs("Spec should return exact size for parametersBuffer")
                 .isEqualTo(size);
         assertThat(bb.position())
-                .describedAs("Spec should do the flip")
-                .isZero();
+                .describedAs("Spec should not do the flip")
+                .isEqualTo(bb.limit());
+
+        bb.flip();
 
         // Prove that we can use the params via serialization to decrypt
         var readParams = spec.readParameters(bb);
         assertThat(bb.position())
-                .describedAs("Spec should do the rewind")
-                .isZero();
+                .describedAs("Spec should not do the rewind")
+                .isEqualTo(bb.limit());
         Cipher decCipher = spec.newCipher();
         decCipher.init(Cipher.DECRYPT_MODE, secretKey, readParams);
         String plaintext = new String(decCipher.doFinal(ciphertext), StandardCharsets.UTF_8);
