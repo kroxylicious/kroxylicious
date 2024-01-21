@@ -136,9 +136,7 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
             return CompletableFuture.completedFuture(records);
         }
         MemoryRecordsBuilder builder = recordsBuilder(allocateBufferForEncode(records, bufferAllocator), records);
-        return attemptEncrypt(topicName, partition, encryptionScheme, encryptionRequests, (kafkaRecord, plaintextBuffer, headers) -> {
-            builder.appendWithOffset(kafkaRecord.offset(), kafkaRecord.timestamp(), kafkaRecord.key(), plaintextBuffer, headers);
-        }, 0).thenApply(unused -> builder.build());
+        return attemptEncrypt(topicName, partition, encryptionScheme, encryptionRequests, builder, 0).thenApply(unused -> builder.build());
     }
 
     @NonNull
@@ -171,7 +169,7 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
 
     @SuppressWarnings("java:S2445")
     private CompletionStage<Void> attemptEncrypt(String topicName, int partition, @NonNull EncryptionScheme<K> encryptionScheme, @NonNull List<? extends Record> records,
-                                                 @NonNull Receiver receiver, int attempt) {
+                                                 MemoryRecordsBuilder builder, int attempt) {
         if (attempt >= MAX_ATTEMPTS) {
             return CompletableFuture.failedFuture(
                     new RequestNotSatisfiable("failed to reserve an EDEK to encrypt " + records.size() + " records for topic " + topicName + " partition "
@@ -187,17 +185,17 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
                     }
                     else {
                         // todo ensure that a failure during encryption terminates the entire operation with a failed future
-                        return encrypt(encryptionScheme, records, receiver, keyContext);
+                        return encrypt(encryptionScheme, records, builder, keyContext);
                     }
                 }
             }
-            return attemptEncrypt(topicName, partition, encryptionScheme, records, receiver, attempt + 1);
+            return attemptEncrypt(topicName, partition, encryptionScheme, records, builder, attempt + 1);
         });
     }
 
     @NonNull
     private CompletableFuture<Void> encrypt(@NonNull EncryptionScheme<K> encryptionScheme, @NonNull List<? extends Record> records,
-                                            @NonNull Receiver receiver, KeyContext keyContext) {
+                                            @NonNull MemoryRecordsBuilder builder, KeyContext keyContext) {
         var maxParcelSize = records.stream()
                 .mapToInt(kafkaRecord -> Parcel.sizeOfParcel(
                         encryptionVersion.parcelVersion(),
@@ -214,7 +212,7 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
         ByteBuffer parcelBuffer = bufferPool.acquire(maxParcelSize);
         ByteBuffer wrapperBuffer = bufferPool.acquire(maxWrapperSize);
         try {
-            encryptRecords(encryptionScheme, keyContext, records, parcelBuffer, wrapperBuffer, receiver);
+            encryptRecords(encryptionScheme, keyContext, records, parcelBuffer, wrapperBuffer, builder);
         }
         finally {
             if (wrapperBuffer != null) {
@@ -240,7 +238,7 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
                                 @NonNull List<? extends Record> records,
                                 @NonNull ByteBuffer parcelBuffer,
                                 @NonNull ByteBuffer wrapperBuffer,
-                                @NonNull Receiver receiver) {
+                                @NonNull MemoryRecordsBuilder builder) {
         records.forEach(kafkaRecord -> {
             if (encryptionScheme.recordFields().contains(RecordField.RECORD_HEADER_VALUES)
                     && kafkaRecord.headers().length > 0
@@ -253,12 +251,12 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
                 parcelBuffer.flip();
                 var transformedValue = writeWrapper(keyContext, parcelBuffer, wrapperBuffer);
                 Header[] headers = transformHeaders(encryptionScheme, kafkaRecord);
-                receiver.accept(kafkaRecord, transformedValue, headers);
+                builder.appendWithOffset(kafkaRecord.offset(), kafkaRecord.timestamp(), kafkaRecord.key(), transformedValue, headers);
                 wrapperBuffer.rewind();
                 parcelBuffer.rewind();
             }
             else {
-                receiver.accept(kafkaRecord, null, kafkaRecord.headers());
+                builder.appendWithOffset(kafkaRecord.offset(), kafkaRecord.timestamp(), kafkaRecord.key(), null, kafkaRecord.headers());
             }
         });
     }
