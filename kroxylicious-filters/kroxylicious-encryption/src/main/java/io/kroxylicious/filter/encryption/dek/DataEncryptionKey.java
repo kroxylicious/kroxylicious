@@ -9,7 +9,9 @@ package io.kroxylicious.filter.encryption.dek;
 import java.nio.ByteBuffer;
 import java.security.GeneralSecurityException;
 import java.security.spec.AlgorithmParameterSpec;
+import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -23,6 +25,10 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 import javax.security.auth.DestroyFailedException;
+import javax.security.auth.Destroyable;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.filter.encryption.EncryptionException;
 import io.kroxylicious.filter.encryption.inband.ExhaustedDekException;
@@ -36,6 +42,11 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  */
 @ThreadSafe
 public final class DataEncryptionKey<E> {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(DataEncryptionKey.class);
+
+    private static final Map<Class<? extends Destroyable>, Boolean> LOGGED_DESTROY_FAILED = new ConcurrentHashMap<>();
+
     private final E edek;
     // Note: checks for outstandingCryptors==END <em>happens-before</em> changes to atomicKey.
     // It's this that provides a guarantee that a cryptor should never see a
@@ -196,13 +207,22 @@ public final class DataEncryptionKey<E> {
 
     private void maybeDestroyKey(LongUnaryOperator updateFunction) {
         if (outstandingCryptors.updateAndGet(updateFunction) == END) {
-            var k1 = atomicKey.getAndSet(null);
-            if (k1 != null) {
+            var key = atomicKey.getAndSet(null);
+            if (key != null) {
                 try {
-                    k1.destroy();
+                    key.destroy();
                 }
                 catch (DestroyFailedException e) {
-                    e.printStackTrace();
+                    var cls = key.getClass();
+                    if (LOGGER.isWarnEnabled()) {
+                        LOGGED_DESTROY_FAILED.computeIfAbsent(cls, (c) -> {
+                            LOGGER.warn("Failed to destroy an instance of {}. "
+                                    + "Note: this message is logged once per class even though there may be many occurrences of this event. "
+                                    + "This event can happen because the JRE's SecretKeySpec class does not override the destroy() method.",
+                                    c, e);
+                            return Boolean.TRUE;
+                        });
+                    }
                 }
             }
         }
