@@ -36,6 +36,7 @@ public class BatchAwareMemoryRecordsBuilder implements AutoCloseable {
 
     private final ByteBufferOutputStream buffer;
     private MemoryRecordsBuilder builder = null;
+    private boolean closed = false;
 
     /**
      * Initialize a new instance, which will append into the given buffer.
@@ -56,6 +57,12 @@ public class BatchAwareMemoryRecordsBuilder implements AutoCloseable {
         }
         if (builder.isClosed()) {
             throw new IllegalStateException("This builder has been built");
+        }
+    }
+
+    private void checkIfClosed() {
+        if (closed) {
+            throw new IllegalStateException("Builder is closed");
         }
     }
 
@@ -87,6 +94,7 @@ public class BatchAwareMemoryRecordsBuilder implements AutoCloseable {
                                                             boolean isControlBatch,
                                                             int partitionLeaderEpoch,
                                                             long deleteHorizonMs) {
+        checkIfClosed();
         maybeAppendCurrentBatch();
         // MRB respects the initial position() of buffer, so this doesn't overwrite anything already in buffer
         builder = new MemoryRecordsBuilder(buffer,
@@ -152,11 +160,11 @@ public class BatchAwareMemoryRecordsBuilder implements AutoCloseable {
      * @return this builder
      */
     public @NonNull BatchAwareMemoryRecordsBuilder writeBatch(@NonNull MutableRecordBatch batch) {
+        checkIfClosed();
         if (haveBatch()) {
             appendCurrentBatch();
         }
         batch.writeTo(buffer);
-        builder = null;
         return this;
     }
 
@@ -177,6 +185,7 @@ public class BatchAwareMemoryRecordsBuilder implements AutoCloseable {
      * @return This builder
      */
     public @NonNull BatchAwareMemoryRecordsBuilder append(SimpleRecord record) {
+        checkIfClosed();
         checkHasBatch();
         builder.append(record);
         return this;
@@ -188,6 +197,7 @@ public class BatchAwareMemoryRecordsBuilder implements AutoCloseable {
      * @return This builder
      */
     public @NonNull BatchAwareMemoryRecordsBuilder append(Record record) {
+        checkIfClosed();
         checkHasBatch();
         builder.append(record);
         return this;
@@ -200,6 +210,7 @@ public class BatchAwareMemoryRecordsBuilder implements AutoCloseable {
      * @return This builder
      */
     public BatchAwareMemoryRecordsBuilder appendWithOffset(long offset, Record record) {
+        checkIfClosed();
         checkHasBatch();
         builder.appendWithOffset(offset, record);
         return this;
@@ -215,6 +226,7 @@ public class BatchAwareMemoryRecordsBuilder implements AutoCloseable {
      * @return This builder
      */
     public @NonNull BatchAwareMemoryRecordsBuilder appendWithOffset(long offset, long timestamp, byte[] key, byte[] value, Header[] headers) {
+        checkIfClosed();
         checkHasBatch();
         builder.appendWithOffset(offset, timestamp, key, value, headers);
         return this;
@@ -234,12 +246,14 @@ public class BatchAwareMemoryRecordsBuilder implements AutoCloseable {
                                                                     ByteBuffer key,
                                                                     ByteBuffer value,
                                                                     Header[] headers) {
+        checkIfClosed();
         checkHasBatch();
         builder.appendWithOffset(offset, timestamp, key, value, headers);
         return this;
     }
 
     public @NonNull BatchAwareMemoryRecordsBuilder appendControlRecordWithOffset(long offset, @NonNull SimpleRecord record) {
+        checkIfClosed();
         checkHasBatch();
         builder.appendControlRecordWithOffset(offset, record);
         return this;
@@ -247,6 +261,7 @@ public class BatchAwareMemoryRecordsBuilder implements AutoCloseable {
 
     public @NonNull BatchAwareMemoryRecordsBuilder appendEndTxnMarker(long timestamp,
                                                                       @NonNull EndTransactionMarker marker) {
+        checkIfClosed();
         checkHasBatch();
         builder.appendEndTxnMarker(timestamp, marker);
         return this;
@@ -261,13 +276,16 @@ public class BatchAwareMemoryRecordsBuilder implements AutoCloseable {
      * @return the memory records
      */
     public @NonNull MemoryRecords build() {
-        boolean needsFlip = builder == null || !builder.isClosed();
-        maybeAppendCurrentBatch();
-        ByteBuffer buf = this.buffer.buffer();
-        if (needsFlip) {
-            buf.flip();
+        if (closed) {
+            return MemoryRecords.readableRecords(this.buffer.buffer());
         }
-        return MemoryRecords.readableRecords(buf);
+        else {
+            closed = true;
+            maybeAppendCurrentBatch();
+            ByteBuffer buf = this.buffer.buffer();
+            buf.flip();
+            return MemoryRecords.readableRecords(buf);
+        }
     }
 
     /**

@@ -14,6 +14,7 @@ import java.util.stream.StreamSupport;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.record.CompressionType;
 import org.apache.kafka.common.record.ControlRecordType;
+import org.apache.kafka.common.record.EndTransactionMarker;
 import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.record.MutableRecordBatch;
 import org.apache.kafka.common.record.Record;
@@ -31,6 +32,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.in;
 
 class BatchAwareMemoryRecordsBuilderTest {
 
@@ -59,6 +61,8 @@ class BatchAwareMemoryRecordsBuilderTest {
 
         // Then
         assertThat(output).isEqualTo(input);
+
+        assertThat(builder.build()).describedAs("Build should be idempotent").isEqualTo(input);
     }
 
     @Test
@@ -136,9 +140,51 @@ class BatchAwareMemoryRecordsBuilderTest {
         // Then
         assertThatThrownBy(() -> builder.append((Record) null))
                 .isExactlyInstanceOf(IllegalStateException.class)
-                // Batchless is a special case: We use the MRB's isClosed() to detect append-after-build
-                // which saves needing our own field but means the error message is not ideal in this case
-                .hasMessageContaining("You must start a batch");
+                .hasMessageContaining("Builder is closed");
+    }
+
+    @Test
+    void shouldPreventAddBatchAfterBuild() {
+        // Given
+        var builder = new BatchAwareMemoryRecordsBuilder(new ByteBufferOutputStream(100));
+
+        // When
+        builder.build();
+
+        // Then
+        assertThatThrownBy(() -> {
+            builder.addBatch(RecordBatch.CURRENT_MAGIC_VALUE,
+                    CompressionType.NONE,
+                    TimestampType.CREATE_TIME,
+                    0,
+                    0,
+                    0,
+                    (short) 0,
+                    0,
+                    false,
+                    false,
+                    0,
+                    0);
+        })
+                .isExactlyInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Builder is closed");
+    }
+
+    @Test
+    void shouldPreventAddBatchLikeAfterBuild() {
+        // Given
+        var builder = new BatchAwareMemoryRecordsBuilder(new ByteBufferOutputStream(100));
+        RecordBatch batch = RecordTestUtils.memoryRecords("key", "value").firstBatch();
+
+        // When
+        builder.build();
+
+        // Then
+        assertThatThrownBy(() -> {
+            builder.addBatchLike(batch);
+        })
+                .isExactlyInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Builder is closed");
     }
 
     @Test
@@ -164,7 +210,64 @@ class BatchAwareMemoryRecordsBuilderTest {
         // Then
         assertThatThrownBy(() -> builder.append((Record) null))
                 .isExactlyInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("This builder has been built");
+                .hasMessageContaining("Builder is closed");
+    }
+
+    @Test
+    void shouldPreventAppendControlRecordAfterBuild() {
+        // Given
+        var builder = new BatchAwareMemoryRecordsBuilder(new ByteBufferOutputStream(100));
+        builder.addBatch(RecordBatch.CURRENT_MAGIC_VALUE,
+                CompressionType.NONE,
+                TimestampType.CREATE_TIME,
+                0,
+                0,
+                0,
+                (short) 0,
+                0,
+                false,
+                false,
+                0,
+                0);
+
+        // When
+        builder.build();
+
+        // Then
+        assertThatThrownBy(() -> {
+            SimpleRecord controlRecord = controlRecord();
+            builder.appendControlRecordWithOffset(1, controlRecord);
+        })
+                .isExactlyInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Builder is closed");
+    }
+
+    @Test
+    void shouldPreventAppendEndTxnMarkerRecordAfterBuild() {
+        // Given
+        var builder = new BatchAwareMemoryRecordsBuilder(new ByteBufferOutputStream(100));
+        builder.addBatch(RecordBatch.CURRENT_MAGIC_VALUE,
+                CompressionType.NONE,
+                TimestampType.CREATE_TIME,
+                0,
+                0,
+                0,
+                (short) 0,
+                0,
+                false,
+                false,
+                0,
+                0);
+
+        // When
+        builder.build();
+
+        // Then
+        assertThatThrownBy(() -> {
+            builder.appendEndTxnMarker(1, new EndTransactionMarker(ControlRecordType.ABORT, 1));
+        })
+                .isExactlyInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Builder is closed");
     }
 
     // 0 batches
