@@ -26,9 +26,13 @@ import javax.crypto.SecretKey;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.record.CompressionType;
+import org.apache.kafka.common.record.ControlRecordType;
 import org.apache.kafka.common.record.MemoryRecords;
+import org.apache.kafka.common.record.MemoryRecordsBuilder;
 import org.apache.kafka.common.record.MutableRecordBatch;
 import org.apache.kafka.common.record.Record;
+import org.apache.kafka.common.record.RecordBatch;
+import org.apache.kafka.common.record.SimpleRecord;
 import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 import org.apache.kafka.common.utils.ByteUtils;
@@ -118,7 +122,7 @@ class InBandKeyManagerTest {
 
         var kekId = kms.generateKey();
 
-        var value = new byte[]{ 1, 2, 3 };
+        byte[] value = { 1, 2, 3 };
         Record record = RecordTestUtils.record(1, ByteBuffer.wrap(value));
 
         var value2 = new byte[]{ 4, 5, 6 };
@@ -134,6 +138,8 @@ class InBandKeyManagerTest {
         CompletableFuture<MemoryRecords> encryptedFuture = km.encrypt("topic", 1, scheme, records, ByteBufferOutputStream::new).toCompletableFuture();
         assertThat(encryptedFuture).succeedsWithin(Duration.ZERO);
         MemoryRecords encrypted = encryptedFuture.join();
+        record.value().rewind();
+        record2.value().rewind();
 
         assertThat(encrypted.batches()).hasSize(2);
         List<MutableRecordBatch> batches = StreamSupport.stream(encrypted.batches().spliterator(), false).toList();
@@ -149,6 +155,123 @@ class InBandKeyManagerTest {
         assertThat(second.timestampType()).isEqualTo(TimestampType.LOG_APPEND_TIME);
         assertThat(second.baseOffset()).isEqualTo(2L);
         assertThat(second).hasSize(1);
+
+        CompletableFuture<MemoryRecords> decryptedFuture = km.decrypt("topic", 1, encrypted, ByteBufferOutputStream::new).toCompletableFuture();
+        assertThat(decryptedFuture).succeedsWithin(Duration.ZERO);
+        MemoryRecords decrypted = decryptedFuture.join();
+
+        assertThat(decrypted.batches()).hasSize(2);
+        List<MutableRecordBatch> decryptedBatches = StreamSupport.stream(decrypted.batches().spliterator(), false).toList();
+        MutableRecordBatch firstDecrypted = decryptedBatches.get(0);
+        assertThat(firstDecrypted.compressionType()).isEqualTo(CompressionType.NONE);
+        assertThat(firstDecrypted.timestampType()).isEqualTo(TimestampType.CREATE_TIME);
+        assertThat(firstDecrypted.baseOffset()).isEqualTo(1L);
+        assertThat(firstDecrypted).hasSize(1);
+        assertThat(firstDecrypted.iterator())
+                .toIterable()
+                .singleElement()
+                .extracting(RecordTestUtils::recordValueAsBytes)
+                .isEqualTo(value);
+
+        MutableRecordBatch secondDecrypted = decryptedBatches.get(1);
+        assertThat(secondDecrypted.compressionType()).isEqualTo(CompressionType.GZIP);
+        assertThat(secondDecrypted.timestampType()).isEqualTo(TimestampType.LOG_APPEND_TIME);
+        assertThat(secondDecrypted.baseOffset()).isEqualTo(2L);
+        assertThat(secondDecrypted).hasSize(1);
+        assertThat(secondDecrypted.iterator())
+                .toIterable()
+                .singleElement()
+                .extracting(RecordTestUtils::recordValueAsBytes)
+                .isEqualTo(value2);
+
+    }
+
+    @Test
+    void shouldPreserveControlBatch() {
+        var kmsService = UnitTestingKmsService.newInstance();
+        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
+        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
+
+        var kekId = kms.generateKey();
+
+        byte[] value = { 1, 2, 3 };
+        Record record = RecordTestUtils.record(1, ByteBuffer.wrap(value));
+        BatchAwareMemoryRecordsBuilder builder = new BatchAwareMemoryRecordsBuilder(new ByteBufferOutputStream(1000));
+        builder.addBatch(CompressionType.NONE, TimestampType.CREATE_TIME, 1);
+        builder.appendWithOffset(1L, record);
+        byte[] controlBatchValue = { 4, 5, 6 };
+        RecordBatch controlBatch = controlBatch(2, controlBatchValue);
+        builder.addBatchLike(controlBatch);
+        builder.append(controlBatch.iterator().next());
+        MemoryRecords records = builder.build();
+
+        EncryptionScheme<UUID> scheme = new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE));
+        CompletableFuture<MemoryRecords> encryptedFuture = km.encrypt("topic", 1, scheme, records, ByteBufferOutputStream::new).toCompletableFuture();
+        assertThat(encryptedFuture).succeedsWithin(Duration.ZERO);
+        MemoryRecords encrypted = encryptedFuture.join();
+        record.value().rewind();
+
+        assertThat(encrypted.batches()).hasSize(2);
+        List<MutableRecordBatch> batches = StreamSupport.stream(encrypted.batches().spliterator(), false).toList();
+        MutableRecordBatch first = batches.get(0);
+        assertThat(first.compressionType()).isEqualTo(CompressionType.NONE);
+        assertThat(first.timestampType()).isEqualTo(TimestampType.CREATE_TIME);
+        assertThat(first.baseOffset()).isEqualTo(1L);
+        assertThat(first).hasSize(1);
+
+        MutableRecordBatch second = batches.get(1);
+        // should we keep the client's compression type?
+        assertThat(second.compressionType()).isEqualTo(controlBatch.compressionType());
+        assertThat(second.timestampType()).isEqualTo(controlBatch.timestampType());
+        assertThat(second.baseOffset()).isEqualTo(controlBatch.baseOffset());
+        assertThat(second.isControlBatch()).isTrue();
+        assertThat(second).hasSize(1);
+        // control batches are not encrypted
+        assertThat(second.iterator())
+                .toIterable()
+                .singleElement()
+                .extracting(RecordTestUtils::recordValueAsBytes)
+                .isEqualTo(controlBatchValue);
+
+        CompletableFuture<MemoryRecords> decryptedFuture = km.decrypt("topic", 1, encrypted, ByteBufferOutputStream::new).toCompletableFuture();
+        assertThat(decryptedFuture).succeedsWithin(Duration.ZERO);
+        MemoryRecords decrypted = decryptedFuture.join();
+
+        assertThat(decrypted.batches()).hasSize(2);
+        List<MutableRecordBatch> decryptedBatches = StreamSupport.stream(decrypted.batches().spliterator(), false).toList();
+        MutableRecordBatch firstDecrypted = decryptedBatches.get(0);
+        assertThat(firstDecrypted.compressionType()).isEqualTo(CompressionType.NONE);
+        assertThat(firstDecrypted.timestampType()).isEqualTo(TimestampType.CREATE_TIME);
+        assertThat(firstDecrypted.baseOffset()).isEqualTo(1L);
+        assertThat(firstDecrypted).hasSize(1);
+        assertThat(firstDecrypted.iterator())
+                .toIterable()
+                .singleElement()
+                .extracting(RecordTestUtils::recordValueAsBytes)
+                .isEqualTo(value);
+
+        MutableRecordBatch secondDecrypted = decryptedBatches.get(1);
+        assertThat(secondDecrypted.compressionType()).isEqualTo(controlBatch.compressionType());
+        assertThat(secondDecrypted.timestampType()).isEqualTo(controlBatch.timestampType());
+        assertThat(secondDecrypted.baseOffset()).isEqualTo(controlBatch.baseOffset());
+        assertThat(secondDecrypted.isControlBatch()).isTrue();
+        assertThat(secondDecrypted).hasSize(1);
+        // control batch value is preserved
+        assertThat(second.iterator())
+                .toIterable()
+                .singleElement()
+                .extracting(RecordTestUtils::recordValueAsBytes)
+                .isEqualTo(controlBatchValue);
+
+    }
+
+    private static RecordBatch controlBatch(int baseOffset, byte[] arbitraryValue) {
+        MemoryRecordsBuilder builder = new MemoryRecordsBuilder(ByteBuffer.allocate(1000), RecordBatch.CURRENT_MAGIC_VALUE, CompressionType.NONE,
+                TimestampType.CREATE_TIME, baseOffset, 1L, 1L, (short) 1, 1, false, true, 1, 1);
+        byte[] key = { 0, 0, (byte) ControlRecordType.ABORT.type(), (byte) (ControlRecordType.ABORT.type() >> 8) };
+        builder.appendControlRecordWithOffset(baseOffset, new SimpleRecord(1L, key, arbitraryValue));
+        MemoryRecords controlBatchRecords = builder.build();
+        return controlBatchRecords.firstBatch();
     }
 
     @NonNull

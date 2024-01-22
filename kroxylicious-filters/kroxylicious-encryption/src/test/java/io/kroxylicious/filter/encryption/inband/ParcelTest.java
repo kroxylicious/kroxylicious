@@ -12,7 +12,6 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 import org.apache.kafka.common.header.internals.RecordHeader;
-import org.apache.kafka.common.record.MemoryRecordsBuilder;
 import org.apache.kafka.common.record.Record;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -21,6 +20,7 @@ import org.mockito.Mockito;
 
 import io.kroxylicious.filter.encryption.ParcelVersion;
 import io.kroxylicious.filter.encryption.RecordField;
+import io.kroxylicious.filter.encryption.records.BatchAwareMemoryRecordsBuilder;
 import io.kroxylicious.test.record.RecordTestUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -57,7 +57,7 @@ class ParcelTest {
 
         buffer.flip();
 
-        MemoryRecordsBuilder mockBuilder = Mockito.mock(MemoryRecordsBuilder.class);
+        BatchAwareMemoryRecordsBuilder mockBuilder = Mockito.mock(BatchAwareMemoryRecordsBuilder.class);
         Parcel.readParcel(ParcelVersion.V1, buffer, record, mockBuilder);
         verify(mockBuilder).appendWithOffset(record.offset(), record.timestamp(), record.key(), expectedValue, record.headers());
         assertThat(buffer.remaining()).isEqualTo(0);

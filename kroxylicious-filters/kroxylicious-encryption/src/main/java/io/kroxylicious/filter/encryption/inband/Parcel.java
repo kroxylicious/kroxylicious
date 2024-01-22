@@ -12,7 +12,6 @@ import java.util.Set;
 
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
-import org.apache.kafka.common.record.MemoryRecordsBuilder;
 import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.utils.ByteUtils;
 import org.apache.kafka.common.utils.Utils;
@@ -20,6 +19,7 @@ import org.apache.kafka.common.utils.Utils;
 import io.kroxylicious.filter.encryption.EncryptionException;
 import io.kroxylicious.filter.encryption.ParcelVersion;
 import io.kroxylicious.filter.encryption.RecordField;
+import io.kroxylicious.filter.encryption.records.BatchAwareMemoryRecordsBuilder;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -58,7 +58,7 @@ public class Parcel {
     static void readParcel(ParcelVersion parcelVersion,
                            ByteBuffer parcel,
                            Record encryptedRecord,
-                           @NonNull MemoryRecordsBuilder builder) {
+                           @NonNull BatchAwareMemoryRecordsBuilder builder) {
         switch (parcelVersion) {
             case V1:
                 var parcelledValue = readRecordValue(parcel);
