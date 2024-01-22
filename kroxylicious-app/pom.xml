@@ -49,13 +49,13 @@
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-runtime</artifactId>
         </dependency>
-
-        <!-- project dependencies - test -->
         <dependency>
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-api</artifactId>
-            <scope>test</scope>
+            <scope>runtime</scope>
         </dependency>
+
+        <!-- project dependencies - test -->
         <dependency>
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-integration-test-support</artifactId>
@@ -102,6 +102,11 @@
             <artifactId>jackson-dataformat-yaml</artifactId>
             <scope>runtime</scope>
         </dependency>
+        <dependency>
+            <groupId>org.apache.kafka</groupId>
+            <artifactId>kafka-clients</artifactId>
+            <scope>runtime</scope>
+        </dependency>
 
         <!-- third party dependencies - test -->
         <dependency>
@@ -112,11 +117,6 @@
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.kafka</groupId>
-            <artifactId>kafka-clients</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
