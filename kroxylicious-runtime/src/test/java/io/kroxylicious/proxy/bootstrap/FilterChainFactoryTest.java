@@ -111,16 +111,16 @@ class FilterChainFactoryTest {
 
     @ParameterizedTest
     @MethodSource(value = "testFilterTypes")
-    void shouldCreateMultipleFilters(Class<FilterFactory<?, ?>> factoryClass, Class<? extends TestFilter> filterClass) {
+    void shouldCreateMultipleFilters(Class<FilterFactory<?, ?>> factoryClass, Class<? extends TestFilter> expectedFilterClass) {
         final ListAssert<FilterAndInvoker> listAssert = assertFiltersCreated(List.of(new FilterDefinition(factoryClass.getName(), config),
                 new FilterDefinition(factoryClass.getName(), config)));
         listAssert.element(0).extracting(FilterAndInvoker::filter)
-                .isInstanceOfSatisfying(filterClass, testFilterImpl -> {
+                .isInstanceOfSatisfying(expectedFilterClass, testFilterImpl -> {
                     assertThat(testFilterImpl.getContributorClass()).isEqualTo(factoryClass);
                     assertThat(testFilterImpl.getContext().eventLoop()).isSameAs(eventLoop);
                     assertThat(testFilterImpl.getExampleConfig()).isSameAs(config);
                 });
-        listAssert.element(1).extracting(FilterAndInvoker::filter).isInstanceOfSatisfying(filterClass, testFilterImpl -> {
+        listAssert.element(1).extracting(FilterAndInvoker::filter).isInstanceOfSatisfying(expectedFilterClass, testFilterImpl -> {
             assertThat(testFilterImpl.getContributorClass()).isEqualTo(factoryClass);
             assertThat(testFilterImpl.getContext().eventLoop()).isSameAs(eventLoop);
             assertThat(testFilterImpl.getExampleConfig()).isSameAs(config);
@@ -236,6 +236,6 @@ class FilterChainFactoryTest {
         FilterChainFactory filterChainFactory = new FilterChainFactory(pfr, filterDefinitions);
         NettyFilterContext context = new NettyFilterContext(eventLoop, pfr);
         List<FilterAndInvoker> filters = filterChainFactory.createFilters(context);
-        return assertThat(filters).isNotNull().hasSize(filterDefinitions.size());
+        return assertThat(filters).hasSameSizeAs(filterDefinitions);
     }
 }
