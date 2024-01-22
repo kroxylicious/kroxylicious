@@ -27,7 +27,6 @@ import io.netty.handler.ssl.SslContext;
 import io.netty.util.concurrent.Future;
 
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
-import io.kroxylicious.proxy.config.FilterDefinition;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.internal.codec.KafkaRequestDecoder;
@@ -53,19 +52,16 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
     private final PluginFactoryRegistry pfr;
     private final FilterChainFactory filterChainFactory;
 
-    public KafkaProxyInitializer(List<FilterDefinition> filters,
-                                 PluginFactoryRegistry pfr,
-                                 boolean tls,
+    public KafkaProxyInitializer(FilterChainFactory filterChainFactory, PluginFactoryRegistry pfr, boolean tls,
                                  VirtualClusterBindingResolver virtualClusterBindingResolver, EndpointReconciler endpointReconciler,
-                                 boolean haproxyProtocol,
-                                 Map<KafkaAuthnHandler.SaslMechanism, AuthenticateCallbackHandler> authnMechanismHandlers) {
+                                 boolean haproxyProtocol, Map<KafkaAuthnHandler.SaslMechanism, AuthenticateCallbackHandler> authnMechanismHandlers) {
         this.pfr = pfr;
         this.endpointReconciler = endpointReconciler;
         this.haproxyProtocol = haproxyProtocol;
         this.authnHandlers = authnMechanismHandlers != null ? authnMechanismHandlers : Map.of();
         this.tls = tls;
         this.virtualClusterBindingResolver = virtualClusterBindingResolver;
-        this.filterChainFactory = new FilterChainFactory(pfr, filters);
+        this.filterChainFactory = filterChainFactory;
     }
 
     @Override
