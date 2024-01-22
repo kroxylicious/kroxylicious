@@ -13,11 +13,10 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
 import java.util.function.IntFunction;
-import java.util.function.LongUnaryOperator;
+import java.util.function.IntUnaryOperator;
 import java.util.function.Supplier;
 
 import javax.annotation.concurrent.NotThreadSafe;
@@ -64,75 +63,37 @@ public final class DataEncryptionKey<E> {
     // negate=-3 destroy()// updateAndGet(if current value < 0 don't change, otherwise negate)
     // +1=-2 encryptor.finish
     // +1=-1 encryptor.finish => key.destroy
-    final AtomicLong outstandingCryptors;
+    final AtomicInteger outstandingCryptors;
 
-    public static final long START = combine(1, 1);
-    public static final long END = combine(-1, -1);
+    public static final int START = 1;
+    public static final int END = -1;
     private final CipherSpec cipherSpec;
 
-    static long combine(int encryptors, int decryptors) {
-        return ((long) encryptors) << Integer.SIZE | 0xFFFFFFFFL & decryptors;
-    }
-
-    static int encryptors(long combined) {
-        return (int) (combined >> Integer.SIZE);
-    }
-
-    static int decryptors(long combined) {
-        return (int) combined;
-    }
-
-    static long acquireEncryptor(long combined) {
-        int encryptors = encryptors(combined);
-        int decryptors = decryptors(combined);
-        if (encryptors > 0) {
-            return combine(encryptors + 1, decryptors);
+    static int acquireCryptor(int cryptors) {
+        if (cryptors > 0) {
+            return cryptors + 1;
         }
         else {
-            return combine(encryptors, decryptors);
+            return cryptors;
         }
     }
 
-    static long acquireDecryptor(long combined) {
-        int encryptors = encryptors(combined);
-        int decryptors = decryptors(combined);
-        if (decryptors > 0) {
-            return combine(encryptors, decryptors + 1);
+    static int releaseCryptor(int cryptors) {
+        if (cryptors > 0) {
+            return cryptors - 1;
         }
         else {
-            return combine(encryptors, decryptors - 1);
+            return cryptors + 1;
         }
     }
 
-    static long releaseEncryptor(long combined) {
-        int encryptors = encryptors(combined);
-        int decryptors = decryptors(combined);
-        if (encryptors > 0) {
-            return combine(encryptors - 1, decryptors);
-        }
-        else {
-            return combine(encryptors + 1, decryptors);
-        }
-    }
+    static int commenceDestroy(int combined) {
+        int cryptors = combined;
 
-    static long releaseDecryptor(long combined) {
-        int encryptors = encryptors(combined);
-        int decryptors = decryptors(combined);
-        if (decryptors > 0) {
-            return combine(encryptors, decryptors - 1);
-        }
-        else {
-            return combine(encryptors, decryptors + 1);
-        }
-    }
-
-    static long commenceDestroy(long combined) {
-        int encryptors = encryptors(combined);
-        int decryptors = decryptors(combined);
-        if (encryptors < 0 || decryptors < 0) {
+        if (cryptors < 0) {
             return combined;
         }
-        return combine(-encryptors, -decryptors);
+        return -cryptors;
     }
 
     DataEncryptionKey(@NonNull E edek, @NonNull SecretKey key, @NonNull CipherSpec cipherSpec, int maxEncryptions) {
@@ -149,7 +110,7 @@ public final class DataEncryptionKey<E> {
         this.atomicKey = new AtomicReference<>(key);
         this.cipherSpec = cipherSpec;
         this.remainingEncryptions = new AtomicInteger(maxEncryptions);
-        this.outstandingCryptors = new AtomicLong(START);
+        this.outstandingCryptors = new AtomicInteger(START);
     }
 
     /**
@@ -173,7 +134,7 @@ public final class DataEncryptionKey<E> {
             // We need to guarantee that NPE is not possible
             // The alternative is to make DEK#key final (not volatile) and give up on nullifying it
             // as part of destruction
-            if (outstandingCryptors.updateAndGet(DataEncryptionKey::acquireEncryptor) <= 0) {
+            if (outstandingCryptors.updateAndGet(DataEncryptionKey::acquireCryptor) <= 0) {
                 throw new DestroyedDekException();
             }
             return new Encryptor(cipherSpec, atomicKey.get(), numEncryptions);
@@ -188,7 +149,7 @@ public final class DataEncryptionKey<E> {
      * @throws DestroyedDekException If the DEK has been {@linkplain #destroy()} destroyed.
      */
     public Decryptor decryptor() {
-        if (outstandingCryptors.updateAndGet(DataEncryptionKey::acquireDecryptor) <= 0) {
+        if (outstandingCryptors.updateAndGet(DataEncryptionKey::acquireCryptor) <= 0) {
             throw new DestroyedDekException();
         }
         return new Decryptor(cipherSpec, atomicKey.get());
@@ -207,7 +168,7 @@ public final class DataEncryptionKey<E> {
         maybeDestroyKey(DataEncryptionKey::commenceDestroy);
     }
 
-    private void maybeDestroyKey(LongUnaryOperator updateFunction) {
+    private void maybeDestroyKey(IntUnaryOperator updateFunction) {
         if (outstandingCryptors.updateAndGet(updateFunction) == END) {
             var key = atomicKey.getAndSet(null);
             if (key != null) {
@@ -317,7 +278,7 @@ public final class DataEncryptionKey<E> {
         public void close() {
             if (key != null) {
                 key = null;
-                maybeDestroyKey(DataEncryptionKey::releaseEncryptor);
+                maybeDestroyKey(DataEncryptionKey::releaseCryptor);
             }
         }
     }
@@ -365,7 +326,7 @@ public final class DataEncryptionKey<E> {
         public void close() {
             if (key != null) {
                 key = null;
-                maybeDestroyKey(DataEncryptionKey::releaseDecryptor);
+                maybeDestroyKey(DataEncryptionKey::releaseCryptor);
             }
         }
     }
