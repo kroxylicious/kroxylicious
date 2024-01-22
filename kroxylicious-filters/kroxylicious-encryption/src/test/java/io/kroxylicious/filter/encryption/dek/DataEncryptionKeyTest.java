@@ -419,7 +419,7 @@ class DataEncryptionKeyTest {
                 size -> ByteBuffer.allocate(size),
                 (p, c) -> ByteBuffer.allocate(c)))
                 .isExactlyInstanceOf(DekUsageException.class)
-                .withFailMessage("The Encryptor has no more operations allowed");
+                .hasMessage("The Encryptor has no more operations allowed");
         assertThat(plaintextBuffer.position())
                 .describedAs("Position should be unchanged")
                 .isZero();
