@@ -343,7 +343,12 @@ public class RecordTestUtils {
      * @see <a href="https://kafka.apache.org/documentation/#recordbatch">Apache Kafka RecordBatch documentation</a>
      */
     public static MemoryRecords memoryRecordsWithAllRecordsRemoved() {
-        try (MemoryRecordsBuilder memoryRecordsBuilder = defaultMemoryRecordsBuilder(DEFAULT_MAGIC_VALUE)) {
+        return memoryRecordsWithAllRecordsRemoved(0L);
+    }
+
+    @NonNull
+    public static MemoryRecords memoryRecordsWithAllRecordsRemoved(long baseOffset) {
+        try (MemoryRecordsBuilder memoryRecordsBuilder = memoryRecordsBuilder(DEFAULT_MAGIC_VALUE, baseOffset)) {
             // append arbitrary record
             memoryRecordsBuilder.append(DEFAULT_TIMESTAMP, new byte[]{ 1, 2, 3 }, new byte[]{ 1, 2, 3 });
             MemoryRecords records = memoryRecordsBuilder.build();
@@ -366,12 +371,17 @@ public class RecordTestUtils {
     }
 
     private static MemoryRecordsBuilder defaultMemoryRecordsBuilder(byte magic) {
+        return memoryRecordsBuilder(magic, 0L);
+    }
+
+    @NonNull
+    private static MemoryRecordsBuilder memoryRecordsBuilder(byte magic, long baseOffset) {
         return new MemoryRecordsBuilder(
                 ByteBuffer.allocate(1024),
                 magic,
                 CompressionType.NONE,
                 TimestampType.CREATE_TIME,
-                0L,
+                baseOffset,
                 0L,
                 0L,
                 (short) 0,

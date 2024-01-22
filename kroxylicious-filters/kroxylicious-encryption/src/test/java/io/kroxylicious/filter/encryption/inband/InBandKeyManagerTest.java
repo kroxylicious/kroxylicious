@@ -265,6 +265,69 @@ class InBandKeyManagerTest {
 
     }
 
+    @Test
+    void shouldPreserveMultipleBatches_IncludingEmptyBatch() {
+        var kmsService = UnitTestingKmsService.newInstance();
+        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
+        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
+
+        var kekId = kms.generateKey();
+
+        byte[] value = { 1, 2, 3 };
+        Record record = RecordTestUtils.record(1, ByteBuffer.wrap(value));
+        BatchAwareMemoryRecordsBuilder builder = new BatchAwareMemoryRecordsBuilder(new ByteBufferOutputStream(1000));
+        builder.addBatch(CompressionType.NONE, TimestampType.CREATE_TIME, 1);
+        builder.appendWithOffset(1L, record);
+
+        MemoryRecords empty = RecordTestUtils.memoryRecordsWithAllRecordsRemoved(2L);
+        MutableRecordBatch emptyBatch = empty.batches().iterator().next();
+        builder.writeBatch(emptyBatch);
+        MemoryRecords records = builder.build();
+
+        EncryptionScheme<UUID> scheme = new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE));
+        CompletableFuture<MemoryRecords> encryptedFuture = km.encrypt("topic", 1, scheme, records, ByteBufferOutputStream::new).toCompletableFuture();
+        assertThat(encryptedFuture).succeedsWithin(Duration.ZERO);
+        MemoryRecords encrypted = encryptedFuture.join();
+        record.value().rewind();
+
+        assertThat(encrypted.batches()).hasSize(2);
+        List<MutableRecordBatch> batches = StreamSupport.stream(encrypted.batches().spliterator(), false).toList();
+        MutableRecordBatch first = batches.get(0);
+        assertThat(first.compressionType()).isEqualTo(CompressionType.NONE);
+        assertThat(first.timestampType()).isEqualTo(TimestampType.CREATE_TIME);
+        assertThat(first.baseOffset()).isEqualTo(1L);
+        assertThat(first).hasSize(1);
+
+        MutableRecordBatch second = batches.get(1);
+        // should we keep the client's compression type?
+        assertThat(second.compressionType()).isEqualTo(emptyBatch.compressionType());
+        assertThat(second.timestampType()).isEqualTo(emptyBatch.timestampType());
+        assertThat(second.baseOffset()).isEqualTo(emptyBatch.baseOffset());
+        assertThat(second).hasSize(0);
+
+        CompletableFuture<MemoryRecords> decryptedFuture = km.decrypt("topic", 1, encrypted, ByteBufferOutputStream::new).toCompletableFuture();
+        assertThat(decryptedFuture).succeedsWithin(Duration.ZERO);
+        MemoryRecords decrypted = decryptedFuture.join();
+
+        assertThat(decrypted.batches()).hasSize(2);
+        List<MutableRecordBatch> decryptedBatches = StreamSupport.stream(decrypted.batches().spliterator(), false).toList();
+        MutableRecordBatch firstDecrypted = decryptedBatches.get(0);
+        assertThat(firstDecrypted.compressionType()).isEqualTo(CompressionType.NONE);
+        assertThat(firstDecrypted.timestampType()).isEqualTo(TimestampType.CREATE_TIME);
+        assertThat(firstDecrypted.baseOffset()).isEqualTo(1L);
+        assertThat(firstDecrypted).hasSize(1);
+        assertThat(firstDecrypted.iterator())
+                .toIterable()
+                .singleElement()
+                .extracting(RecordTestUtils::recordValueAsBytes)
+                .isEqualTo(value);
+
+        MutableRecordBatch secondDecrypted = decryptedBatches.get(1);
+        assertThat(secondDecrypted.compressionType()).isEqualTo(emptyBatch.compressionType());
+        assertThat(secondDecrypted.timestampType()).isEqualTo(emptyBatch.timestampType());
+        assertThat(secondDecrypted.baseOffset()).isEqualTo(emptyBatch.baseOffset());
+    }
+
     private static RecordBatch controlBatch(int baseOffset, byte[] arbitraryValue) {
         MemoryRecordsBuilder builder = new MemoryRecordsBuilder(ByteBuffer.allocate(1000), RecordBatch.CURRENT_MAGIC_VALUE, CompressionType.NONE,
                 TimestampType.CREATE_TIME, baseOffset, 1L, 1L, (short) 1, 1, false, true, 1, 1);

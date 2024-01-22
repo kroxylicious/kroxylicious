@@ -239,7 +239,7 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
                     }
                     else {
                         // todo ensure that a failure during encryption terminates the entire operation with a failed future
-                        return encrypt(encryptionScheme, records, builder, keyContext);
+                        return encrypt(encryptionScheme, records, builder, keyContext, batchDescriptions);
                     }
                 }
             }
@@ -251,18 +251,17 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
     private CompletableFuture<Void> encrypt(@NonNull EncryptionScheme<K> encryptionScheme,
                                             @NonNull MemoryRecords memoryRecords,
                                             @NonNull BatchAwareMemoryRecordsBuilder builder,
-                                            @NonNull KeyContext keyContext) {
+                                            @NonNull KeyContext keyContext,
+                                            @NonNull List<BatchDescription> batchDescriptions) {
+        int i = 0;
         for (MutableRecordBatch batch : memoryRecords.batches()) {
-            List<Record> records = StreamSupport.stream(batch.spliterator(), false).toList();
-            builder.addBatchLike(batch);
-            if (batch.isControlBatch()) {
-                // the proxy should not encounter these on the produce path as it's written by the transaction co-ordinator
-                // broker side. No user data is contained, so we do not need to encrypt.
-                for (Record record : batch) {
-                    builder.append(record);
-                }
+            BatchDescription batchDescription = batchDescriptions.get(i++);
+            if (batchDescription.recordCount == 0 || batch.isControlBatch()) {
+                builder.writeBatch(batch);
             }
             else {
+                List<Record> records = StreamSupport.stream(batch.spliterator(), false).toList();
+                builder.addBatchLike(batch);
                 var maxParcelSize = records.stream()
                         .mapToInt(kafkaRecord -> Parcel.sizeOfParcel(
                                 encryptionVersion.parcelVersion(),
@@ -424,7 +423,7 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
         CompletionStage<Map<E, AesGcmEncryptor>> decryptors = resolveAll(uniqueEdeks);
         CompletionStage<BatchAwareMemoryRecordsBuilder> objectCompletionStage = decryptors.thenApply(
                 encryptorMap -> decrypt(topicName, partition, records, new BatchAwareMemoryRecordsBuilder(allocateBufferForDecode(records, bufferAllocator)),
-                        encryptorMap));
+                        encryptorMap, descriptions));
         return objectCompletionStage.thenApply(BatchAwareMemoryRecordsBuilder::build);
     }
 
@@ -455,25 +454,33 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
                                                    int partition,
                                                    @NonNull MemoryRecords records,
                                                    @NonNull BatchAwareMemoryRecordsBuilder builder,
-                                                   Map<E, AesGcmEncryptor> encryptorMap) {
+                                                   @NonNull Map<E, AesGcmEncryptor> encryptorMap,
+                                                   @NonNull List<BatchDescription> descriptions) {
+        int i = 0;
         for (MutableRecordBatch batch : records.batches()) {
-            builder.addBatchLike(batch);
-            for (Record kafkaRecord : batch) {
-                var decryptionVersion = decryptionVersion(topicName, partition, kafkaRecord);
-                if (decryptionVersion == null) {
-                    builder.append(kafkaRecord);
-                }
-                else if (decryptionVersion == EncryptionVersion.V1) {
-                    ByteBuffer wrapper = kafkaRecord.value();
-                    var edekLength = ByteUtils.readUnsignedVarint(wrapper);
-                    ByteBuffer slice = wrapper.slice(wrapper.position(), edekLength);
-                    var edek = edekSerde.deserialize(slice);
-                    wrapper.position(wrapper.position() + edekLength);
-                    AesGcmEncryptor aesGcmEncryptor = encryptorMap.get(edek);
-                    if (aesGcmEncryptor == null) {
-                        throw new RuntimeException("no encryptor loaded for edek, " + edek);
+            BatchDescription batchDescription = descriptions.get(i++);
+            if (batchDescription.recordCount == 0 || batch.isControlBatch()) {
+                builder.writeBatch(batch);
+            }
+            else {
+                builder.addBatchLike(batch);
+                for (Record kafkaRecord : batch) {
+                    var decryptionVersion = decryptionVersion(topicName, partition, kafkaRecord);
+                    if (decryptionVersion == null) {
+                        builder.append(kafkaRecord);
                     }
-                    decryptRecord(EncryptionVersion.V1, aesGcmEncryptor, wrapper, kafkaRecord, builder);
+                    else if (decryptionVersion == EncryptionVersion.V1) {
+                        ByteBuffer wrapper = kafkaRecord.value();
+                        var edekLength = ByteUtils.readUnsignedVarint(wrapper);
+                        ByteBuffer slice = wrapper.slice(wrapper.position(), edekLength);
+                        var edek = edekSerde.deserialize(slice);
+                        wrapper.position(wrapper.position() + edekLength);
+                        AesGcmEncryptor aesGcmEncryptor = encryptorMap.get(edek);
+                        if (aesGcmEncryptor == null) {
+                            throw new RuntimeException("no encryptor loaded for edek, " + edek);
+                        }
+                        decryptRecord(EncryptionVersion.V1, aesGcmEncryptor, wrapper, kafkaRecord, builder);
+                    }
                 }
             }
         }

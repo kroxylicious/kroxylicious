@@ -16,6 +16,7 @@ import org.apache.kafka.common.record.CompressionType;
 import org.apache.kafka.common.record.EndTransactionMarker;
 import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.record.MemoryRecordsBuilder;
+import org.apache.kafka.common.record.MutableRecordBatch;
 import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.record.RecordBatch;
 import org.apache.kafka.common.record.SimpleRecord;
@@ -142,6 +143,21 @@ public class BatchAwareMemoryRecordsBuilder implements AutoCloseable {
                 templateBatch.isControlBatch(),
                 templateBatch.partitionLeaderEpoch(),
                 templateBatch.deleteHorizonMs().orElse(RecordBatch.NO_TIMESTAMP));
+    }
+
+    /**
+     * Directly appends a batch, intended to be used for passing through unmodified batches. Writes
+     * the previous batch to the stream if required
+     * @param templateBatch The batch to use as a source of batch parameters
+     * @return this builder
+     */
+    public @NonNull BatchAwareMemoryRecordsBuilder writeBatch(MutableRecordBatch templateBatch) {
+        if (haveBatch()) {
+            appendCurrentBatch();
+        }
+        templateBatch.writeTo(buffer);
+        builder = null;
+        return this;
     }
 
     private void maybeAppendCurrentBatch() {
