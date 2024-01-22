@@ -9,13 +9,13 @@ package io.kroxylicious.filter.encryption.dek;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
-
 import javax.crypto.AEADBadTagException;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import javax.security.auth.DestroyFailedException;
 
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.Mockito;
 
 import io.kroxylicious.filter.encryption.EncryptionException;
@@ -30,67 +30,74 @@ import static org.mockito.Mockito.never;
 
 class DataEncryptionKeyTest {
 
-    @Test
-    void constructorThrowsOnDestroyedKey() {
+    @ParameterizedTest
+    @EnumSource(CipherSpec.class)
+    void constructorThrowsOnDestroyedKey(CipherSpec cipherSpec) {
         var mock = mock(SecretKey.class);
         doReturn(true).when(mock).isDestroyed();
-        assertThatThrownBy(() -> new DataEncryptionKey<>("edek", mock, 100))
+        assertThatThrownBy(() -> new DataEncryptionKey<>("edek", mock, cipherSpec, 100))
                 .isExactlyInstanceOf(IllegalArgumentException.class);
 
     }
 
-    @Test
-    void constructorThrowsOnNegativeExceptions() {
+    @ParameterizedTest
+    @EnumSource(CipherSpec.class)
+    void constructorThrowsOnNegativeExceptions(CipherSpec cipherSpec) {
         var mock = mock(SecretKey.class);
         doReturn(false).when(mock).isDestroyed();
-        assertThatThrownBy(() -> new DataEncryptionKey<>("edek", mock, -1))
+        assertThatThrownBy(() -> new DataEncryptionKey<>("edek", mock, cipherSpec, -1))
                 .isExactlyInstanceOf(IllegalArgumentException.class);
     }
 
-    @Test
-    void encryptorThrowsExhaustedDekExceptionOnDekWithZeroEncryptions() {
+    @ParameterizedTest
+    @EnumSource(CipherSpec.class)
+    void encryptorThrowsExhaustedDekExceptionOnDekWithZeroEncryptions(CipherSpec cipherSpec) {
         var mock = mock(SecretKey.class);
         doReturn(false).when(mock).isDestroyed();
-        var dek = new DataEncryptionKey<>("edek", mock, 0);
+        var dek = new DataEncryptionKey<>("edek", mock, cipherSpec, 0);
         assertThatThrownBy(() -> dek.encryptor(1))
                 .isExactlyInstanceOf(ExhaustedDekException.class);
     }
 
-    @Test
-    void encryptorThrowsOnZeroEncryptions() {
+    @ParameterizedTest
+    @EnumSource(CipherSpec.class)
+    void encryptorThrowsOnZeroEncryptions(CipherSpec cipherSpec) {
         var mock = mock(SecretKey.class);
         doReturn(false).when(mock).isDestroyed();
-        var dek = new DataEncryptionKey<>("edek", mock, 1);
+        var dek = new DataEncryptionKey<>("edek", mock, cipherSpec, 1);
         assertThatThrownBy(() -> dek.encryptor(0))
                 .isExactlyInstanceOf(IllegalArgumentException.class);
     }
 
-    @Test
-    void encryptorThrowsOnNegativeEncryptions() {
+    @ParameterizedTest
+    @EnumSource(CipherSpec.class)
+    void encryptorThrowsOnNegativeEncryptions(CipherSpec cipherSpec) {
         var mock = mock(SecretKey.class);
         doReturn(false).when(mock).isDestroyed();
-        var dek = new DataEncryptionKey<>("edek", mock, 1);
+        var dek = new DataEncryptionKey<>("edek", mock, cipherSpec, 1);
         assertThatThrownBy(() -> dek.encryptor(-1))
                 .isExactlyInstanceOf(IllegalArgumentException.class);
     }
 
-    @Test
-    void returnsEdek() {
+    @ParameterizedTest
+    @EnumSource(CipherSpec.class)
+    void returnsEdek(CipherSpec cipherSpec) {
         var mock = mock(SecretKey.class);
         doReturn(false).when(mock).isDestroyed();
         String edek = "edek";
-        DataEncryptionKey<String> dek = new DataEncryptionKey<>(edek, mock, 100);
+        DataEncryptionKey<String> dek = new DataEncryptionKey<>(edek, mock, cipherSpec, 100);
         assertThat(dek.encryptor(1).edek()).isSameAs(edek);
 
     }
 
-    @Test
-    void destroyUnusedDek() throws DestroyFailedException {
+    @ParameterizedTest
+    @EnumSource(CipherSpec.class)
+    void destroyUnusedDek(CipherSpec cipherSpec) throws DestroyFailedException {
         // Given
         SecretKey mock = mock(SecretKey.class);
         doReturn(false).when(mock).isDestroyed();
         doNothing().when(mock).destroy();
-        var dek = new DataEncryptionKey<>("edek", mock, 100);
+        var dek = new DataEncryptionKey<>("edek", mock, cipherSpec, 100);
 
         // When
         dek.destroy();
@@ -104,13 +111,14 @@ class DataEncryptionKeyTest {
         assertThatThrownBy(() -> dek.encryptor(1)).isExactlyInstanceOf(DestroyedDekException.class);
     }
 
-    @Test
-    void destroy1Encryptor_destroyThenClose() throws DestroyFailedException {
+    @ParameterizedTest
+    @EnumSource(CipherSpec.class)
+    void destroy1Encryptor_destroyThenClose(CipherSpec cipherSpec) throws DestroyFailedException {
         // Given
         SecretKey mock = mock(SecretKey.class);
         doReturn(false).when(mock).isDestroyed();
         doNothing().when(mock).destroy();
-        var dek = new DataEncryptionKey<>("edek", mock, 100);
+        var dek = new DataEncryptionKey<>("edek", mock, cipherSpec, 100);
         var cryptor = dek.encryptor(100);
 
         // When
@@ -126,13 +134,14 @@ class DataEncryptionKeyTest {
         Mockito.verify(mock).destroy();
     }
 
-    @Test
-    void destroy1Encryptor_closeThenDestroy() throws DestroyFailedException {
+    @ParameterizedTest
+    @EnumSource(CipherSpec.class)
+    void destroy1Encryptor_closeThenDestroy(CipherSpec cipherSpec) throws DestroyFailedException {
         // Given
         SecretKey mock = mock(SecretKey.class);
         doReturn(false).when(mock).isDestroyed();
         doNothing().when(mock).destroy();
-        var dek = new DataEncryptionKey<>("edek", mock, 100);
+        var dek = new DataEncryptionKey<>("edek", mock, cipherSpec, 100);
         var cryptor = dek.encryptor(100);
 
         cryptor.close();
@@ -147,13 +156,14 @@ class DataEncryptionKeyTest {
         Mockito.verify(mock).destroy();
     }
 
-    @Test
-    void destroy2Encryptor() throws DestroyFailedException {
+    @ParameterizedTest
+    @EnumSource(CipherSpec.class)
+    void destroy2Encryptor(CipherSpec cipherSpec) throws DestroyFailedException {
         // Given
         SecretKey mock = mock(SecretKey.class);
         doReturn(false).when(mock).isDestroyed();
         doNothing().when(mock).destroy();
-        var dek = new DataEncryptionKey<>("edek", mock, 100);
+        var dek = new DataEncryptionKey<>("edek", mock, cipherSpec, 100);
         var cryptor1 = dek.encryptor(50);
         var cryptor2 = dek.encryptor(50);
 
@@ -173,13 +183,14 @@ class DataEncryptionKeyTest {
         Mockito.verify(mock).destroy();
     }
 
-    @Test
-    void destroy2EncryptorMultiClose() throws DestroyFailedException {
+    @ParameterizedTest
+    @EnumSource(CipherSpec.class)
+    void destroy2EncryptorMultiClose(CipherSpec cipherSpec) throws DestroyFailedException {
         // Given
         SecretKey mock = mock(SecretKey.class);
         doReturn(false).when(mock).isDestroyed();
         doNothing().when(mock).destroy();
-        var dek = new DataEncryptionKey<>("edek", mock, 100);
+        var dek = new DataEncryptionKey<>("edek", mock, cipherSpec, 100);
         var cryptor1 = dek.encryptor(50);
         var cryptor2 = dek.encryptor(50);
 
@@ -202,13 +213,14 @@ class DataEncryptionKeyTest {
         cryptor1.close();
     }
 
-    @Test
-    void destroy1Decryptor_destroyThenClose() throws DestroyFailedException {
+    @ParameterizedTest
+    @EnumSource(CipherSpec.class)
+    void destroy1Decryptor_destroyThenClose(CipherSpec cipherSpec) throws DestroyFailedException {
         // Given
         SecretKey mock = mock(SecretKey.class);
         doReturn(false).when(mock).isDestroyed();
         doNothing().when(mock).destroy();
-        var dek = new DataEncryptionKey<>("edek", mock, 0);
+        var dek = new DataEncryptionKey<>("edek", mock, cipherSpec, 0);
         var cryptor = dek.decryptor();
 
         // When
@@ -224,13 +236,14 @@ class DataEncryptionKeyTest {
         Mockito.verify(mock).destroy();
     }
 
-    @Test
-    void destroy1Decryptor_closeThenDestroy() throws DestroyFailedException {
+    @ParameterizedTest
+    @EnumSource(CipherSpec.class)
+    void destroy1Decryptor_closeThenDestroy(CipherSpec cipherSpec) throws DestroyFailedException {
         // Given
         SecretKey mock = mock(SecretKey.class);
         doReturn(false).when(mock).isDestroyed();
         doNothing().when(mock).destroy();
-        var dek = new DataEncryptionKey<>("edek", mock, 0);
+        var dek = new DataEncryptionKey<>("edek", mock, cipherSpec, 0);
         var cryptor = dek.decryptor();
 
         // When
@@ -244,13 +257,14 @@ class DataEncryptionKeyTest {
         Mockito.verify(mock).destroy();
     }
 
-    @Test
-    void destroy2Decryptor() throws DestroyFailedException {
+    @ParameterizedTest
+    @EnumSource(CipherSpec.class)
+    void destroy2Decryptor(CipherSpec cipherSpec) throws DestroyFailedException {
         // Given
         SecretKey mock = mock(SecretKey.class);
         doReturn(false).when(mock).isDestroyed();
         doNothing().when(mock).destroy();
-        var dek = new DataEncryptionKey<>("edek", mock, 0);
+        var dek = new DataEncryptionKey<>("edek", mock, cipherSpec, 0);
         var cryptor1 = dek.decryptor();
         var cryptor2 = dek.decryptor();
 
@@ -270,13 +284,14 @@ class DataEncryptionKeyTest {
         Mockito.verify(mock).destroy();
     }
 
-    @Test
-    void destroy2DecryptorMultiClose() throws DestroyFailedException {
+    @ParameterizedTest
+    @EnumSource(CipherSpec.class)
+    void destroy2DecryptorMultiClose(CipherSpec cipherSpec) throws DestroyFailedException {
         // Given
         SecretKey mock = mock(SecretKey.class);
         doReturn(false).when(mock).isDestroyed();
         doNothing().when(mock).destroy();
-        var dek = new DataEncryptionKey<>("edek", mock, 0);
+        var dek = new DataEncryptionKey<>("edek", mock, cipherSpec, 0);
         var cryptor1 = dek.decryptor();
         var cryptor2 = dek.decryptor();
 
@@ -299,13 +314,14 @@ class DataEncryptionKeyTest {
         cryptor1.close();
     }
 
-    @Test
-    void destroy1Encryptor1Decryptor() throws DestroyFailedException {
+    @ParameterizedTest
+    @EnumSource(CipherSpec.class)
+    void destroy1Encryptor1Decryptor(CipherSpec cipherSpec) throws DestroyFailedException {
         // Given
         SecretKey mock = mock(SecretKey.class);
         doReturn(false).when(mock).isDestroyed();
         doNothing().when(mock).destroy();
-        var dek = new DataEncryptionKey<>("edek", mock, 100);
+        var dek = new DataEncryptionKey<>("edek", mock, cipherSpec, 100);
         var cryptor1 = dek.encryptor(50);
         var cryptor2 = dek.decryptor();
 
@@ -332,38 +348,41 @@ class DataEncryptionKeyTest {
                        ByteBuffer params,
                        ByteBuffer ciphertext) {}
 
-    @Test
-    void encryptDecryptNoAad() throws NoSuchAlgorithmException {
+    @ParameterizedTest
+    @EnumSource(CipherSpec.class)
+    void encryptDecryptNoAad(CipherSpec cipherSpec) throws NoSuchAlgorithmException {
         ByteBuffer aad = null;
-        var encryptInfo = encrypt(aad, "hello, world");
-        var roundTripped = decrypt(aad, encryptInfo);
+        var encryptInfo = encrypt(cipherSpec, aad, "hello, world");
+        var roundTripped = decrypt(cipherSpec, aad, encryptInfo);
         assertThat(roundTripped).isEqualTo("hello, world");
     }
 
-    @Test
-    void encryptDecryptWithAad() throws NoSuchAlgorithmException {
+    @ParameterizedTest
+    @EnumSource(CipherSpec.class)
+    void encryptDecryptWithAad(CipherSpec cipherSpec) throws NoSuchAlgorithmException {
         ByteBuffer aad = ByteBuffer.wrap(new byte[]{ 42, 56, 89 });
-        var encryptInfo = encrypt(aad, "hello, world");
-        var roundTripped = decrypt(aad, encryptInfo);
+        var encryptInfo = encrypt(cipherSpec, aad, "hello, world");
+        var roundTripped = decrypt(cipherSpec, aad, encryptInfo);
         assertThat(roundTripped).isEqualTo("hello, world");
     }
 
-    @Test
-    void encryptDecryptWithMismatchingAad() throws NoSuchAlgorithmException {
+    @ParameterizedTest
+    @EnumSource(CipherSpec.class)
+    void encryptDecryptWithMismatchingAad(CipherSpec cipherSpec) throws NoSuchAlgorithmException {
         ByteBuffer encryptAad = ByteBuffer.wrap(new byte[]{ 42, 56, 89 });
-        var encryptInfo = encrypt(encryptAad, "hello, world");
+        var encryptInfo = encrypt(cipherSpec, encryptAad, "hello, world");
 
         ByteBuffer decryptAad = ByteBuffer.wrap(new byte[]{ 12, 12, 12 });
-        assertThatThrownBy(() -> decrypt(decryptAad, encryptInfo))
+        assertThatThrownBy(() -> decrypt(cipherSpec, decryptAad, encryptInfo))
                 .isExactlyInstanceOf(EncryptionException.class)
                 .cause().isExactlyInstanceOf(AEADBadTagException.class);
     }
 
-    private String decrypt(ByteBuffer aad, EncryptInfo encryptInfo) {
+    private String decrypt(CipherSpec cipherSpec, ByteBuffer aad, EncryptInfo encryptInfo) {
         var params = encryptInfo.params();
         var ciphertext = encryptInfo.ciphertext();
 
-        var dek = new DataEncryptionKey<>(encryptInfo.key().getEncoded(), encryptInfo.key(), 1);
+        var dek = new DataEncryptionKey<>(encryptInfo.key().getEncoded(), encryptInfo.key(), cipherSpec, 1);
         var decryptor = dek.decryptor();
 
         var plaintext = ByteBuffer.allocate(1024);
@@ -375,12 +394,12 @@ class DataEncryptionKeyTest {
         return new String(bytes, StandardCharsets.UTF_8);
     }
 
-    private EncryptInfo encrypt(ByteBuffer aad, String plaintext) throws NoSuchAlgorithmException {
+    private EncryptInfo encrypt(CipherSpec cipherSpec, ByteBuffer aad, String plaintext) throws NoSuchAlgorithmException {
         // Given
         var generator = KeyGenerator.getInstance("AES");
         var key = generator.generateKey();
         var edek = key.getEncoded(); // For this test it doesn't matter than it's not, in fact, encrypted
-        var dek = new DataEncryptionKey<>(edek, key, 1);
+        var dek = new DataEncryptionKey<>(edek, key, cipherSpec, 1);
         var encryptor = dek.encryptor(1);
 
         // Destroy the DEK: We expect the encryptor should still be usable

@@ -37,7 +37,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
- * An opaque handle on a key that can be used to encrypt and decrypt.
+ * An opaque handle on a key that can be used to encrypt and decrypt with some specific cipher.
  * @param <E> The type of encrypted DEK.
  */
 @ThreadSafe
@@ -68,6 +68,7 @@ public final class DataEncryptionKey<E> {
 
     public static final long START = combine(1, 1);
     public static final long END = combine(-1, -1);
+    private final CipherSpec cipherSpec;
 
     static long combine(int encryptors, int decryptors) {
         return ((long) encryptors) << Integer.SIZE | 0xFFFFFFFFL & decryptors;
@@ -134,17 +135,19 @@ public final class DataEncryptionKey<E> {
         return combine(-encryptors, -decryptors);
     }
 
-    DataEncryptionKey(@NonNull E edek, @NonNull SecretKey key, int maxEncryptions) {
+    DataEncryptionKey(@NonNull E edek, @NonNull SecretKey key, @NonNull CipherSpec cipherSpec, int maxEncryptions) {
         /* protected access because instantion only allowed via a DekManager */
         Objects.requireNonNull(edek);
         if (Objects.requireNonNull(key).isDestroyed()) {
             throw new IllegalArgumentException();
         }
+        Objects.requireNonNull(cipherSpec);
         if (maxEncryptions < 0) {
             throw new IllegalArgumentException();
         }
         this.edek = edek;
         this.atomicKey = new AtomicReference<>(key);
+        this.cipherSpec = cipherSpec;
         this.remainingEncryptions = new AtomicInteger(maxEncryptions);
         this.outstandingCryptors = new AtomicLong(START);
     }
@@ -164,7 +167,7 @@ public final class DataEncryptionKey<E> {
             throw new IllegalArgumentException();
         }
         if (remainingEncryptions.addAndGet(-numEncryptions) >= 0) {
-            CipherSpec cipherSpec = CipherSpec.AES_GCM_96_128;
+
             // TODO think about the possibilty of races between the key being set to null
             // and the decrementing of outstandingCryptors
             // We need to guarantee that NPE is not possible
@@ -185,7 +188,6 @@ public final class DataEncryptionKey<E> {
      * @throws DestroyedDekException If the DEK has been {@linkplain #destroy()} destroyed.
      */
     public Decryptor decryptor() {
-        CipherSpec cipherSpec = CipherSpec.AES_GCM_96_128;
         if (outstandingCryptors.updateAndGet(DataEncryptionKey::acquireDecryptor) <= 0) {
             throw new DestroyedDekException();
         }

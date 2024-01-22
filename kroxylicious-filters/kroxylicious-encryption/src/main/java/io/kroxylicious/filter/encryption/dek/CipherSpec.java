@@ -28,7 +28,7 @@ public enum CipherSpec {
     /**
      * AES/GCM with 96 bit IV and 128 bit auth code.
      */
-    AES_GCM_96_128(1, "AES/GCM/NoPadding") {
+    AES_96_GCM_128(1, "AES/GCM/NoPadding") {
         Supplier<AlgorithmParameterSpec> paramSupplier() {
             var generator = new AesGcmIvGenerator(new SecureRandom());
             var iv = new byte[12];
@@ -93,7 +93,7 @@ public enum CipherSpec {
     static CipherSpec fromPersistentId(int persistentId) {
         switch (persistentId) {
             case 1:
-                return CipherSpec.AES_GCM_96_128;
+                return CipherSpec.AES_96_GCM_128;
             case 2:
                 return CipherSpec.CHACHA20_POLY1305;
             default:
