@@ -56,13 +56,13 @@ public final class DataEncryptionKey<E> {
     private final AtomicInteger remainingEncryptions;
 
     // 1 start
-    // +1=2 encryptor
-    // +1=3 encryptor
-    // +1=4 encryptor
-    // -1=3 encryptor.finish // return
-    // negate=-3 destroy()// updateAndGet(if current value < 0 don't change, otherwise negate)
-    // +1=-2 encryptor.finish
-    // +1=-1 encryptor.finish => key.destroy
+    // +1=2 (en|de)cryptor
+    // +1=3 (en|de)cryptor
+    // +1=4 (en|de)cryptor
+    // -1=3 cryptor.finish // return
+    // negate=-3 dek.destroy()// updateAndGet(if current value < 0 don't change, otherwise negate)
+    // +1=-2 (en|de)cryptor.close
+    // +1=-1 (en|de)cryptor.close => key.destroy
     final AtomicInteger outstandingCryptors;
 
     public static final int START = 1;
