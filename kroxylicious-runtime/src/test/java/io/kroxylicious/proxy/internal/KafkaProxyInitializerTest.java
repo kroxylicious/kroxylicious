@@ -18,10 +18,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.socket.ServerSocketChannel;
@@ -35,13 +38,16 @@ import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.config.ServiceBasedPluginFactoryRegistry;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.config.tls.Tls;
+import io.kroxylicious.proxy.internal.net.Endpoint;
 import io.kroxylicious.proxy.internal.net.VirtualClusterBinding;
+import io.kroxylicious.proxy.internal.net.VirtualClusterBindingResolver;
 import io.kroxylicious.proxy.model.VirtualCluster;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isA;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -62,6 +68,9 @@ class KafkaProxyInitializerTest {
 
     @Mock(strictness = Mock.Strictness.LENIENT)
     private ServerSocketChannel serverSocketChannel;
+
+    @Captor
+    ArgumentCaptor<ChannelInboundHandlerAdapter> plainChannelResolverCaptor;
 
     private ServiceBasedPluginFactoryRegistry pfr;
     private KafkaProxyInitializer kafkaProxyInitializer;
@@ -110,6 +119,30 @@ class KafkaProxyInitializerTest {
         // Then
         verify(channelPipeline).addLast(isA(ChannelInboundHandlerAdapter.class));
         verify(channelPipeline, times(0)).addLast(isA(SniHandler.class));
+    }
+
+    @Test
+    void shouldResolveWhenPlainChannelActivated() throws Exception {
+        // Given
+        final VirtualClusterBindingResolver virtualClusterBindingResolver = mock(VirtualClusterBindingResolver.class);
+        when(virtualClusterBindingResolver.resolve(any(Endpoint.class), isNull())).thenReturn(bindingStage);
+        kafkaProxyInitializer = new KafkaProxyInitializer(filterChainFactory,
+                pfr,
+                false,
+                virtualClusterBindingResolver,
+                (virtualCluster, upstreamNodes) -> null,
+                false,
+                Map.of());
+        when(channelPipeline.addLast(plainChannelResolverCaptor.capture())).thenReturn(channelPipeline);
+
+        kafkaProxyInitializer.initChannel(channel);
+        final ChannelHandlerContext channelHandlerContext = mock(ChannelHandlerContext.class);
+
+        // When
+        plainChannelResolverCaptor.getValue().channelActive(channelHandlerContext);
+
+        // Then
+        verify(virtualClusterBindingResolver).resolve(any(Endpoint.class), isNull());
     }
 
     @ParameterizedTest
