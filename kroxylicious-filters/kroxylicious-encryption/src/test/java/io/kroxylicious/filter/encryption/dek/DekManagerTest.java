@@ -6,21 +6,17 @@
 
 package io.kroxylicious.filter.encryption.dek;
 
-import io.kroxylicious.filter.encryption.inband.ExhaustedDekException;
-
-import io.kroxylicious.kms.provider.kroxylicious.inmemory.InMemoryEdek;
-
-import io.kroxylicious.kms.service.Serde;
-
-import org.junit.jupiter.api.Test;
-
-import io.kroxylicious.kms.provider.kroxylicious.inmemory.UnitTestingKmsService;
-
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 
+import org.junit.jupiter.api.Test;
+
+import io.kroxylicious.filter.encryption.inband.ExhaustedDekException;
+import io.kroxylicious.kms.provider.kroxylicious.inmemory.InMemoryEdek;
+import io.kroxylicious.kms.provider.kroxylicious.inmemory.UnitTestingKmsService;
+import io.kroxylicious.kms.service.Serde;
+
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class DekManagerTest {
@@ -97,6 +93,5 @@ class DekManagerTest {
         decrypted.decryptor().decrypt(ciphertext[0], aad, params[0], decodedPlaintext);
         assertThat(new String(decodedPlaintext.array(), StandardCharsets.UTF_8)).isEqualTo("hello, world");
     }
-
 
 }

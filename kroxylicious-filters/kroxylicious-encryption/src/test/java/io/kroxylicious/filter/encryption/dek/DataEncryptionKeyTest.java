@@ -9,6 +9,7 @@ package io.kroxylicious.filter.encryption.dek;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
+
 import javax.crypto.AEADBadTagException;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
@@ -329,7 +330,7 @@ class DataEncryptionKeyTest {
     // encrypt and decrypt with no AAD
     record EncryptInfo(SecretKey key,
                        ByteBuffer params,
-                       ByteBuffer ciphertext) { }
+                       ByteBuffer ciphertext) {}
 
     @Test
     void encryptDecryptNoAad() throws NoSuchAlgorithmException {
@@ -341,7 +342,7 @@ class DataEncryptionKeyTest {
 
     @Test
     void encryptDecryptWithAad() throws NoSuchAlgorithmException {
-        ByteBuffer aad = ByteBuffer.wrap(new byte[] { 42, 56, 89});
+        ByteBuffer aad = ByteBuffer.wrap(new byte[]{ 42, 56, 89 });
         var encryptInfo = encrypt(aad, "hello, world");
         var roundTripped = decrypt(aad, encryptInfo);
         assertThat(roundTripped).isEqualTo("hello, world");
@@ -349,10 +350,10 @@ class DataEncryptionKeyTest {
 
     @Test
     void encryptDecryptWithMismatchingAad() throws NoSuchAlgorithmException {
-        ByteBuffer encryptAad = ByteBuffer.wrap(new byte[] { 42, 56, 89});
+        ByteBuffer encryptAad = ByteBuffer.wrap(new byte[]{ 42, 56, 89 });
         var encryptInfo = encrypt(encryptAad, "hello, world");
 
-        ByteBuffer decryptAad = ByteBuffer.wrap(new byte[] { 12, 12, 12});
+        ByteBuffer decryptAad = ByteBuffer.wrap(new byte[]{ 12, 12, 12 });
         assertThatThrownBy(() -> decrypt(decryptAad, encryptInfo))
                 .isExactlyInstanceOf(EncryptionException.class)
                 .cause().isExactlyInstanceOf(AEADBadTagException.class);
