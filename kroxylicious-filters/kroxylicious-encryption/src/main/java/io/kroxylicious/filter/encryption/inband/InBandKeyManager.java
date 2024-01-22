@@ -12,22 +12,18 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.function.IntFunction;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.record.MemoryRecords;
-import org.apache.kafka.common.record.MemoryRecordsBuilder;
 import org.apache.kafka.common.record.MutableRecordBatch;
 import org.apache.kafka.common.record.Record;
-import org.apache.kafka.common.record.RecordBatch;
 import org.apache.kafka.common.utils.BufferSupplier;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 import org.apache.kafka.common.utils.ByteUtils;
@@ -124,26 +120,6 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
                 }).toCompletableFuture();
     }
 
-    record BatchDescription(int index, MutableRecordBatch batch, int recordCount) {
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) {
-                return true;
-            }
-            if (o == null || getClass() != o.getClass()) {
-                return false;
-            }
-            BatchDescription that = (BatchDescription) o;
-            return index == that.index && recordCount == that.recordCount;
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(index, recordCount);
-        }
-    }
-
     @Override
     @NonNull
     @SuppressWarnings("java:S2445")
@@ -157,27 +133,26 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
             return CompletableFuture.completedFuture(records);
         }
 
-        List<BatchDescription> descriptions = describeBatches(records);
+        List<Integer> batchRecordCounts = batchRecordCounts(records);
         // it is possible to encounter MemoryRecords that have had all their records compacted away, but
         // the recordbatch metadata still exists. https://kafka.apache.org/documentation/#recordbatch
-        if (descriptions.stream().allMatch(batchDescription -> batchDescription.recordCount == 0)) {
+        if (batchRecordCounts.stream().allMatch(size -> size == 0)) {
             return CompletableFuture.completedFuture(records);
         }
         BatchAwareMemoryRecordsBuilder builder = new BatchAwareMemoryRecordsBuilder(allocateBufferForEncode(records, bufferAllocator));
-        return attemptEncrypt(topicName, partition, encryptionScheme, records, builder, 0, descriptions).thenApply(unused -> builder.build());
+        return attemptEncrypt(topicName, partition, encryptionScheme, records, builder, 0, batchRecordCounts).thenApply(unused -> builder.build());
     }
 
     @NonNull
-    private static List<BatchDescription> describeBatches(@NonNull MemoryRecords records) {
-        int batchIndex = 0;
-        List<BatchDescription> descriptions = new ArrayList<>();
+    private static List<Integer> batchRecordCounts(@NonNull MemoryRecords records) {
+        List<Integer> sizes = new ArrayList<>();
         for (MutableRecordBatch batch : records.batches()) {
-            descriptions.add(new BatchDescription(batchIndex++, batch, batchSize(batch)));
+            sizes.add(recordCount(batch));
         }
-        return descriptions;
+        return sizes;
     }
 
-    private static int batchSize(MutableRecordBatch batch) {
+    private static int recordCount(MutableRecordBatch batch) {
         Integer count = batch.countOrNull();
         if (count == null) {
             // for magic <2 count will be null
@@ -192,28 +167,6 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
         return count;
     }
 
-    @NonNull
-    private static Stream<Record> recordStream(MemoryRecords memoryRecords) {
-        return StreamSupport.stream(memoryRecords.records().spliterator(), false);
-    }
-
-    private static MemoryRecordsBuilder recordsBuilder(@NonNull ByteBufferOutputStream buffer, @NonNull MemoryRecords records) {
-        RecordBatch firstBatch = records.firstBatch();
-        return new MemoryRecordsBuilder(buffer,
-                firstBatch.magic(),
-                firstBatch.compressionType(), // TODO we might not want to use the client's compression
-                firstBatch.timestampType(),
-                firstBatch.baseOffset(),
-                0L,
-                firstBatch.producerId(),
-                firstBatch.producerEpoch(),
-                firstBatch.baseSequence(),
-                firstBatch.isTransactional(),
-                firstBatch.isControlBatch(),
-                firstBatch.partitionLeaderEpoch(),
-                0);
-    }
-
     private ByteBufferOutputStream allocateBufferForEncode(MemoryRecords records, IntFunction<ByteBufferOutputStream> bufferAllocator) {
         int sizeEstimate = 2 * records.sizeInBytes();
         // Accurate estimation is tricky without knowing the record sizes
@@ -222,28 +175,28 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
 
     @SuppressWarnings("java:S2445")
     private CompletionStage<Void> attemptEncrypt(String topicName, int partition, @NonNull EncryptionScheme<K> encryptionScheme, @NonNull MemoryRecords records,
-                                                 BatchAwareMemoryRecordsBuilder builder, int attempt, List<BatchDescription> batchDescriptions) {
-        int recordsCount = batchDescriptions.stream().mapToInt(value -> value.recordCount).sum();
+                                                 BatchAwareMemoryRecordsBuilder builder, int attempt, List<Integer> batchRecordCounts) {
+        int allRecordsCount = batchRecordCounts.stream().mapToInt(value -> value).sum();
         if (attempt >= MAX_ATTEMPTS) {
             return CompletableFuture.failedFuture(
-                    new RequestNotSatisfiable("failed to reserve an EDEK to encrypt " + recordsCount + " records for topic " + topicName + " partition "
+                    new RequestNotSatisfiable("failed to reserve an EDEK to encrypt " + allRecordsCount + " records for topic " + topicName + " partition "
                             + partition + " after " + attempt + " attempts"));
         }
         return currentDekContext(encryptionScheme.kekId()).thenCompose(keyContext -> {
             synchronized (keyContext) {
                 // if it's not alive we know a previous encrypt call has removed this stage from the cache and fall through to retry encrypt
                 if (!keyContext.isDestroyed()) {
-                    if (!keyContext.hasAtLeastRemainingEncryptions(recordsCount)) {
+                    if (!keyContext.hasAtLeastRemainingEncryptions(allRecordsCount)) {
                         // remove the key context from the cache, then call encrypt again to drive caffeine to recreate it
                         rotateKeyContext(encryptionScheme, keyContext);
                     }
                     else {
                         // todo ensure that a failure during encryption terminates the entire operation with a failed future
-                        return encrypt(encryptionScheme, records, builder, keyContext, batchDescriptions);
+                        return encrypt(encryptionScheme, records, builder, keyContext, batchRecordCounts);
                     }
                 }
             }
-            return attemptEncrypt(topicName, partition, encryptionScheme, records, builder, attempt + 1, batchDescriptions);
+            return attemptEncrypt(topicName, partition, encryptionScheme, records, builder, attempt + 1, batchRecordCounts);
         });
     }
 
@@ -252,11 +205,11 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
                                             @NonNull MemoryRecords memoryRecords,
                                             @NonNull BatchAwareMemoryRecordsBuilder builder,
                                             @NonNull KeyContext keyContext,
-                                            @NonNull List<BatchDescription> batchDescriptions) {
+                                            @NonNull List<Integer> batchRecordCounts) {
         int i = 0;
         for (MutableRecordBatch batch : memoryRecords.batches()) {
-            BatchDescription batchDescription = batchDescriptions.get(i++);
-            if (batchDescription.recordCount == 0 || batch.isControlBatch()) {
+            Integer batchRecordCount = batchRecordCounts.get(i++);
+            if (batchRecordCount == 0 || batch.isControlBatch()) {
                 builder.writeBatch(batch);
             }
             else {
@@ -278,7 +231,7 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
                 ByteBuffer parcelBuffer = bufferPool.acquire(maxParcelSize);
                 ByteBuffer wrapperBuffer = bufferPool.acquire(maxWrapperSize);
                 try {
-                    encryptRecords(encryptionScheme, keyContext, records, parcelBuffer, wrapperBuffer, builder, batch);
+                    encryptRecords(encryptionScheme, keyContext, records, parcelBuffer, wrapperBuffer, builder);
                 }
                 finally {
                     if (wrapperBuffer != null) {
@@ -306,8 +259,7 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
                                 @NonNull List<? extends Record> records,
                                 @NonNull ByteBuffer parcelBuffer,
                                 @NonNull ByteBuffer wrapperBuffer,
-                                @NonNull BatchAwareMemoryRecordsBuilder builder,
-                                @NonNull MutableRecordBatch batch) {
+                                @NonNull BatchAwareMemoryRecordsBuilder builder) {
         records.forEach(kafkaRecord -> {
             if (encryptionScheme.recordFields().contains(RecordField.RECORD_HEADER_VALUES)
                     && kafkaRecord.headers().length > 0
@@ -402,9 +354,6 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
                 .thenApply(AesGcmEncryptor::forDecrypt).toCompletableFuture();
     }
 
-    private record DecryptState(@NonNull Record kafkaRecord, @NonNull ByteBuffer valueWrapper, @Nullable EncryptionVersion decryptionVersion,
-                                @Nullable AesGcmEncryptor encryptor) {}
-
     @NonNull
     @Override
     public CompletionStage<MemoryRecords> decrypt(@NonNull String topicName, int partition, @NonNull MemoryRecords records,
@@ -413,17 +362,17 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
             // no records to transform, return input without modification
             return CompletableFuture.completedFuture(records);
         }
-        List<BatchDescription> descriptions = describeBatches(records);
+        List<Integer> batchRecordCounts = batchRecordCounts(records);
         // it is possible to encounter MemoryRecords that have had all their records compacted away, but
         // the recordbatch metadata still exists. https://kafka.apache.org/documentation/#recordbatch
-        if (descriptions.stream().allMatch(batchDescription -> batchDescription.recordCount == 0)) {
+        if (batchRecordCounts.stream().allMatch(recordCount -> recordCount == 0)) {
             return CompletableFuture.completedFuture(records);
         }
         Set<E> uniqueEdeks = extractEdeks(topicName, partition, records);
         CompletionStage<Map<E, AesGcmEncryptor>> decryptors = resolveAll(uniqueEdeks);
         CompletionStage<BatchAwareMemoryRecordsBuilder> objectCompletionStage = decryptors.thenApply(
                 encryptorMap -> decrypt(topicName, partition, records, new BatchAwareMemoryRecordsBuilder(allocateBufferForDecode(records, bufferAllocator)),
-                        encryptorMap, descriptions));
+                        encryptorMap, batchRecordCounts));
         return objectCompletionStage.thenApply(BatchAwareMemoryRecordsBuilder::build);
     }
 
@@ -455,11 +404,11 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
                                                    @NonNull MemoryRecords records,
                                                    @NonNull BatchAwareMemoryRecordsBuilder builder,
                                                    @NonNull Map<E, AesGcmEncryptor> encryptorMap,
-                                                   @NonNull List<BatchDescription> descriptions) {
+                                                   @NonNull List<Integer> batchRecordCounts) {
         int i = 0;
         for (MutableRecordBatch batch : records.batches()) {
-            BatchDescription batchDescription = descriptions.get(i++);
-            if (batchDescription.recordCount == 0 || batch.isControlBatch()) {
+            Integer batchRecordCount = batchRecordCounts.get(i++);
+            if (batchRecordCount == 0 || batch.isControlBatch()) {
                 builder.writeBatch(batch);
             }
             else {

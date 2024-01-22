@@ -11,8 +11,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.stream.StreamSupport;
 
+import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.record.CompressionType;
 import org.apache.kafka.common.record.ControlRecordType;
+import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.record.MutableRecordBatch;
 import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.record.RecordBatch;
@@ -22,6 +24,8 @@ import org.apache.kafka.common.utils.ByteBufferOutputStream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+
+import io.kroxylicious.test.record.RecordTestUtils;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -40,6 +44,85 @@ class BatchAwareMemoryRecordsBuilderTest {
         assertThatThrownBy(() -> builder.append((Record) null))
                 .isExactlyInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("You must start a batch");
+    }
+
+    @Test
+    void shouldBePossibleToWriteBatchDirectly() {
+        // Given
+        var builder = new BatchAwareMemoryRecordsBuilder(new ByteBufferOutputStream(100));
+        MemoryRecords input = RecordTestUtils.memoryRecords("a", "b");
+        MutableRecordBatch recordBatch = input.batchIterator().next();
+
+        // When
+        builder.writeBatch(recordBatch);
+        MemoryRecords output = builder.build();
+
+        // Then
+        assertThat(output).isEqualTo(input);
+    }
+
+    @Test
+    void shouldBePossibleToWriteBatchAfterBuildingABatch() {
+        // Given
+        var builder = new BatchAwareMemoryRecordsBuilder(new ByteBufferOutputStream(100));
+        builder.addBatch(CompressionType.NONE, TimestampType.CREATE_TIME, 0L);
+        byte[] value1 = { 4, 5, 6 };
+        builder.appendWithOffset(0L, 1L, new byte[]{ 1, 2, 3 }, value1, new Header[]{});
+        byte[] value2 = { 10, 11, 12 };
+        MemoryRecords input = RecordTestUtils.memoryRecords(RecordBatch.CURRENT_MAGIC_VALUE, 1L, 1L, new byte[]{ 7, 8, 9 }, value2);
+        MutableRecordBatch recordBatch = input.batchIterator().next();
+
+        // When
+        builder.writeBatch(recordBatch);
+        MemoryRecords output = builder.build();
+
+        // Then
+        List<MutableRecordBatch> batches = StreamSupport.stream(output.batches().spliterator(), false).toList();
+        assertThat(batches).hasSize(2);
+
+        var batch1 = batches.get(0);
+        assertThat(batch1.countOrNull()).isEqualTo(1);
+        Record batch1Record = batch1.iterator().next();
+        assertThat(batch1Record.value()).isEqualTo(ByteBuffer.wrap(value1));
+        assertThat(batch1Record.offset()).isZero();
+
+        var batch2 = batches.get(1);
+        assertThat(batch2.countOrNull()).isEqualTo(1);
+        Record batch2Record = batch2.iterator().next();
+        assertThat(batch2Record.value()).isEqualTo(ByteBuffer.wrap(value2));
+        assertThat(batch2Record.offset()).isEqualTo(1);
+    }
+
+    @Test
+    void shouldBePossibleToBuildABatchAfterWritingBatch() {
+        // Given
+        byte[] value1 = { 10, 11, 12 };
+        var builder = new BatchAwareMemoryRecordsBuilder(new ByteBufferOutputStream(100));
+        MemoryRecords input = RecordTestUtils.memoryRecords(RecordBatch.CURRENT_MAGIC_VALUE, 0L, 1L, new byte[]{ 7, 8, 9 }, value1);
+        MutableRecordBatch recordBatch = input.batchIterator().next();
+        builder.writeBatch(recordBatch);
+
+        // When
+        builder.addBatch(CompressionType.NONE, TimestampType.CREATE_TIME, 1L);
+        byte[] value2 = { 4, 5, 6 };
+        builder.appendWithOffset(1L, 1L, new byte[]{ 1, 2, 3 }, value2, new Header[]{});
+        MemoryRecords output = builder.build();
+
+        // Then
+        List<MutableRecordBatch> batches = StreamSupport.stream(output.batches().spliterator(), false).toList();
+        assertThat(batches).hasSize(2);
+
+        var batch1 = batches.get(0);
+        assertThat(batch1.countOrNull()).isEqualTo(1);
+        Record batch1Record = batch1.iterator().next();
+        assertThat(batch1Record.value()).isEqualTo(ByteBuffer.wrap(value1));
+        assertThat(batch1Record.offset()).isZero();
+
+        var batch2 = batches.get(1);
+        assertThat(batch2.countOrNull()).isEqualTo(1);
+        Record batch2Record = batch2.iterator().next();
+        assertThat(batch2Record.value()).isEqualTo(ByteBuffer.wrap(value2));
+        assertThat(batch2Record.offset()).isEqualTo(1);
     }
 
     @Test

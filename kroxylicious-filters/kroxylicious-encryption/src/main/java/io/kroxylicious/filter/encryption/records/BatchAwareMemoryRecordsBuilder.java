@@ -147,15 +147,15 @@ public class BatchAwareMemoryRecordsBuilder implements AutoCloseable {
 
     /**
      * Directly appends a batch, intended to be used for passing through unmodified batches. Writes
-     * the previous batch to the stream if required
-     * @param templateBatch The batch to use as a source of batch parameters
+     * and closes the previous MemoryRecordBuilder batch to the stream if required
+     * @param batch The batch to write to the buffer
      * @return this builder
      */
-    public @NonNull BatchAwareMemoryRecordsBuilder writeBatch(MutableRecordBatch templateBatch) {
+    public @NonNull BatchAwareMemoryRecordsBuilder writeBatch(@NonNull MutableRecordBatch batch) {
         if (haveBatch()) {
             appendCurrentBatch();
         }
-        templateBatch.writeTo(buffer);
+        batch.writeTo(buffer);
         builder = null;
         return this;
     }

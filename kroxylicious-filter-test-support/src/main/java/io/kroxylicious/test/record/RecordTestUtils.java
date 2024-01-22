@@ -330,6 +330,15 @@ public class RecordTestUtils {
     }
 
     /**
+     * Simulates a MemoryRecords that contained some records, but then had all it's records removed by log compaction. Sets
+     * the baseOffset of the single batch within the MemoryRecords to 0.
+     * @see RecordTestUtils#memoryRecordsWithAllRecordsRemoved(long)
+     */
+    public static MemoryRecords memoryRecordsWithAllRecordsRemoved() {
+        return memoryRecordsWithAllRecordsRemoved(0L);
+    }
+
+    /**
      * This is a special case that is different from {@link MemoryRecords#EMPTY}. An empty MemoryRecords is
      * backed by a 0-length buffer. In this case we are simulating a MemoryRecords that contained some
      * records, but then had all it's records removed by log compaction.
@@ -340,12 +349,9 @@ public class RecordTestUtils {
      * the log when all the records in the batch are cleaned but batch is still retained in order to preserve
      * a producer's last sequence number.
      * </p>
+     * @param baseOffset the baseOffset of the single batch contained in the output MemoryRecords
      * @see <a href="https://kafka.apache.org/documentation/#recordbatch">Apache Kafka RecordBatch documentation</a>
      */
-    public static MemoryRecords memoryRecordsWithAllRecordsRemoved() {
-        return memoryRecordsWithAllRecordsRemoved(0L);
-    }
-
     @NonNull
     public static MemoryRecords memoryRecordsWithAllRecordsRemoved(long baseOffset) {
         try (MemoryRecordsBuilder memoryRecordsBuilder = memoryRecordsBuilder(DEFAULT_MAGIC_VALUE, baseOffset)) {
