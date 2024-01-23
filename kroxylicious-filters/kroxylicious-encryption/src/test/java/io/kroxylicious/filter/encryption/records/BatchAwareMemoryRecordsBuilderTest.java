@@ -233,8 +233,8 @@ class BatchAwareMemoryRecordsBuilderTest {
         builder.build();
 
         // Then
+        SimpleRecord controlRecord = controlRecord();
         assertThatThrownBy(() -> {
-            SimpleRecord controlRecord = controlRecord();
             builder.appendControlRecordWithOffset(1, controlRecord);
         })
                 .isExactlyInstanceOf(IllegalStateException.class)
@@ -262,8 +262,9 @@ class BatchAwareMemoryRecordsBuilderTest {
         builder.build();
 
         // Then
+        EndTransactionMarker marker = new EndTransactionMarker(ControlRecordType.ABORT, 1);
         assertThatThrownBy(() -> {
-            builder.appendEndTxnMarker(1, new EndTransactionMarker(ControlRecordType.ABORT, 1));
+            builder.appendEndTxnMarker(1, marker);
         })
                 .isExactlyInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Builder is closed");

@@ -412,28 +412,33 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
                 builder.writeBatch(batch);
             }
             else {
-                builder.addBatchLike(batch);
-                for (Record kafkaRecord : batch) {
-                    var decryptionVersion = decryptionVersion(topicName, partition, kafkaRecord);
-                    if (decryptionVersion == null) {
-                        builder.append(kafkaRecord);
-                    }
-                    else if (decryptionVersion == EncryptionVersion.V1) {
-                        ByteBuffer wrapper = kafkaRecord.value();
-                        var edekLength = ByteUtils.readUnsignedVarint(wrapper);
-                        ByteBuffer slice = wrapper.slice(wrapper.position(), edekLength);
-                        var edek = edekSerde.deserialize(slice);
-                        wrapper.position(wrapper.position() + edekLength);
-                        AesGcmEncryptor aesGcmEncryptor = encryptorMap.get(edek);
-                        if (aesGcmEncryptor == null) {
-                            throw new RuntimeException("no encryptor loaded for edek, " + edek);
-                        }
-                        decryptRecord(EncryptionVersion.V1, aesGcmEncryptor, wrapper, kafkaRecord, builder);
-                    }
-                }
+                decryptBatch(topicName, partition, builder, encryptorMap, batch);
             }
         }
         return builder;
+    }
+
+    private void decryptBatch(String topicName, int partition, @NonNull BatchAwareMemoryRecordsBuilder builder, @NonNull Map<E, AesGcmEncryptor> encryptorMap,
+                              MutableRecordBatch batch) {
+        builder.addBatchLike(batch);
+        for (Record kafkaRecord : batch) {
+            var decryptionVersion = decryptionVersion(topicName, partition, kafkaRecord);
+            if (decryptionVersion == null) {
+                builder.append(kafkaRecord);
+            }
+            else if (decryptionVersion == EncryptionVersion.V1) {
+                ByteBuffer wrapper = kafkaRecord.value();
+                var edekLength = ByteUtils.readUnsignedVarint(wrapper);
+                ByteBuffer slice = wrapper.slice(wrapper.position(), edekLength);
+                var edek = edekSerde.deserialize(slice);
+                wrapper.position(wrapper.position() + edekLength);
+                AesGcmEncryptor aesGcmEncryptor = encryptorMap.get(edek);
+                if (aesGcmEncryptor == null) {
+                    throw new EncryptionException("no encryptor loaded for edek, " + edek);
+                }
+                decryptRecord(EncryptionVersion.V1, aesGcmEncryptor, wrapper, kafkaRecord, builder);
+            }
+        }
     }
 
     private ByteBufferOutputStream allocateBufferForDecode(MemoryRecords memoryRecords, IntFunction<ByteBufferOutputStream> allocator) {

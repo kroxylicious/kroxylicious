@@ -19,6 +19,10 @@ import org.assertj.core.api.ObjectArrayAssert;
 import io.kroxylicious.test.record.RecordTestUtils;
 
 public class RecordAssert extends AbstractAssert<RecordAssert, Record> {
+
+    private static final String RECORD_VALUE_DESCRIPTION = "record value";
+    private static final String RECORD_KEY_DESCRIPTION = "record key";
+
     protected RecordAssert(Record record) {
         super(record, RecordAssert.class);
         describedAs(record == null ? "null record" : "record");
@@ -57,13 +61,13 @@ public class RecordAssert extends AbstractAssert<RecordAssert, Record> {
     private AbstractObjectAssert<?, String> keyStrAssert() {
         isNotNull();
         return Assertions.assertThat(actual).extracting(RecordTestUtils::recordKeyAsString)
-                .describedAs("record key");
+                .describedAs(RECORD_KEY_DESCRIPTION);
     }
 
     public RecordAssert hasKeyEqualTo(String expect) {
         isNotNull();
         Assertions.assertThat(actual).extracting(RecordTestUtils::recordKeyAsString)
-                .describedAs("record key")
+                .describedAs(RECORD_KEY_DESCRIPTION)
                 .isEqualTo(expect);
         return this;
     }
@@ -77,13 +81,13 @@ public class RecordAssert extends AbstractAssert<RecordAssert, Record> {
     private AbstractStringAssert<?> valueStrAssert() {
         isNotNull();
         return Assertions.assertThat(RecordTestUtils.recordValueAsString(actual))
-                .describedAs("record value");
+                .describedAs(RECORD_VALUE_DESCRIPTION);
     }
 
     private AbstractByteArrayAssert<?> valueBytesAssert() {
         isNotNull();
         return Assertions.assertThat(RecordTestUtils.recordValueAsBytes(actual))
-                .describedAs("record value");
+                .describedAs(RECORD_VALUE_DESCRIPTION);
     }
 
     public RecordAssert hasValueEqualTo(String expect) {
@@ -113,7 +117,7 @@ public class RecordAssert extends AbstractAssert<RecordAssert, Record> {
     public RecordAssert hasNullValue() {
         isNotNull();
         Assertions.assertThat(actual).extracting(RecordTestUtils::recordValueAsString)
-                .describedAs("record value")
+                .describedAs(RECORD_VALUE_DESCRIPTION)
                 .isNull();
         return this;
     }

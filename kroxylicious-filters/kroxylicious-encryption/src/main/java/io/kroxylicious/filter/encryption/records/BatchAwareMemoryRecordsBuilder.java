@@ -276,18 +276,18 @@ public class BatchAwareMemoryRecordsBuilder implements AutoCloseable {
      * @return the memory records
      */
     public @NonNull MemoryRecords build() {
-        ByteBuffer buffer;
+        ByteBuffer recordsBuff;
         if (closed) {
-            buffer = this.buffer.buffer();
+            recordsBuff = this.buffer.buffer();
         }
         else {
             closed = true;
             maybeAppendCurrentBatch();
             ByteBuffer buf = this.buffer.buffer();
             buf.flip();
-            buffer = buf;
+            recordsBuff = buf;
         }
-        return MemoryRecords.readableRecords(buffer);
+        return MemoryRecords.readableRecords(recordsBuff);
     }
 
     /**

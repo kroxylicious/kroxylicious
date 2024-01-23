@@ -6,6 +6,8 @@
 
 package io.kroxylicious.test.record;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -332,13 +334,17 @@ public class RecordTestUtils {
      * Return a MemoryRecords containing the specified batches
      */
     public static MemoryRecords memoryRecords(MutableRecordBatch... batches) {
-        ByteBufferOutputStream outputStream = new ByteBufferOutputStream(1000);
-        for (MutableRecordBatch batch : batches) {
-            batch.writeTo(outputStream);
+        try (ByteBufferOutputStream outputStream = new ByteBufferOutputStream(1000)) {
+            for (MutableRecordBatch batch : batches) {
+                batch.writeTo(outputStream);
+            }
+            ByteBuffer buffer = outputStream.buffer();
+            buffer.flip();
+            return MemoryRecords.readableRecords(buffer);
         }
-        ByteBuffer buffer = outputStream.buffer();
-        buffer.flip();
-        return MemoryRecords.readableRecords(buffer);
+        catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     /**
@@ -522,10 +528,11 @@ public class RecordTestUtils {
      * @return batch
      */
     public static MutableRecordBatch abortTransactionControlBatch(int baseOffset) {
-        MemoryRecordsBuilder builder = new MemoryRecordsBuilder(ByteBuffer.allocate(1000), RecordBatch.CURRENT_MAGIC_VALUE, CompressionType.NONE,
-                TimestampType.CREATE_TIME, baseOffset, 1L, 1L, (short) 1, 1, true, true, 1, 1);
-        builder.appendEndTxnMarker(1l, new EndTransactionMarker(ControlRecordType.ABORT, 1));
-        MemoryRecords controlBatchRecords = builder.build();
-        return controlBatchRecords.batchIterator().next();
+        try (MemoryRecordsBuilder builder = new MemoryRecordsBuilder(ByteBuffer.allocate(1000), RecordBatch.CURRENT_MAGIC_VALUE, CompressionType.NONE,
+                TimestampType.CREATE_TIME, baseOffset, 1L, 1L, (short) 1, 1, true, true, 1, 1)) {
+            builder.appendEndTxnMarker(1l, new EndTransactionMarker(ControlRecordType.ABORT, 1));
+            MemoryRecords controlBatchRecords = builder.build();
+            return controlBatchRecords.batchIterator().next();
+        }
     }
 }
