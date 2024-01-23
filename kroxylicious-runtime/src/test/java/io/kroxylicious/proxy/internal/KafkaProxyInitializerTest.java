@@ -38,11 +38,14 @@ import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.config.ServiceBasedPluginFactoryRegistry;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.config.tls.Tls;
+import io.kroxylicious.proxy.filter.FilterFactoryContext;
+import io.kroxylicious.proxy.filter.NetFilter;
 import io.kroxylicious.proxy.internal.net.Endpoint;
 import io.kroxylicious.proxy.internal.net.VirtualClusterBinding;
 import io.kroxylicious.proxy.internal.net.VirtualClusterBindingResolver;
 import io.kroxylicious.proxy.model.VirtualCluster;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
+import io.kroxylicious.proxy.service.HostPort;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -210,6 +213,22 @@ class KafkaProxyInitializerTest {
 
         // Then
         verify(channelPipeline).addLast(eq("networkLogger"), any(LoggingHandler.class));
+    }
+
+    @Test
+    void shouldCreateFilters() {
+        // Given
+        final FilterChainFactory fcf = mock(FilterChainFactory.class);
+        when(vcb.upstreamTarget()).thenReturn(new HostPort("upstream.brojer.kafka", 9090));
+        final KafkaProxyInitializer.InitalizerNetFilter initalizerNetFilter = new KafkaProxyInitializer.InitalizerNetFilter(mock(SaslDecodePredicate.class),
+                mock(ApiVersionsServiceImpl.class), channel, virtualCluster, vcb, pfr, fcf, (virtualCluster1, upstreamNodes) -> null);
+        final NetFilter.NetFilterContext netFilterContext = mock(NetFilter.NetFilterContext.class);
+
+        // When
+        initalizerNetFilter.selectServer(netFilterContext);
+
+        // Then
+        verify(fcf).createFilters(any(FilterFactoryContext.class));
     }
 
     @Test

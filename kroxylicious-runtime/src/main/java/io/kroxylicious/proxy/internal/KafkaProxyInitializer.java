@@ -29,6 +29,7 @@ import io.netty.util.concurrent.Future;
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
+import io.kroxylicious.proxy.filter.NetFilter;
 import io.kroxylicious.proxy.internal.codec.KafkaRequestDecoder;
 import io.kroxylicious.proxy.internal.codec.KafkaResponseEncoder;
 import io.kroxylicious.proxy.internal.filter.ApiVersionsIntersectFilter;
@@ -39,6 +40,7 @@ import io.kroxylicious.proxy.internal.net.Endpoint;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
 import io.kroxylicious.proxy.internal.net.VirtualClusterBinding;
 import io.kroxylicious.proxy.internal.net.VirtualClusterBindingResolver;
+import io.kroxylicious.proxy.model.VirtualCluster;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
@@ -185,8 +187,41 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
         }
 
         ApiVersionsServiceImpl apiVersionService = new ApiVersionsServiceImpl();
-        var frontendHandler = new KafkaProxyFrontendHandler(context -> {
-            List<FilterAndInvoker> apiVersionFilters = dp.isAuthenticationOffloadEnabled() ? List.of()
+        final NetFilter netFilter = new InitalizerNetFilter(dp, apiVersionService, ch, virtualCluster, binding, pfr, filterChainFactory, endpointReconciler);
+        var frontendHandler = new KafkaProxyFrontendHandler(netFilter, dp, virtualCluster, apiVersionService);
+
+        pipeline.addLast("netHandler", frontendHandler);
+
+        LOGGER.debug("{}: Initial pipeline: {}", ch, pipeline);
+    }
+
+    @VisibleForTesting
+    static class InitalizerNetFilter implements NetFilter {
+
+        private final SaslDecodePredicate decodePredicate;
+        private final ApiVersionsServiceImpl apiVersionService;
+        private final SocketChannel ch;
+        private final VirtualCluster virtualCluster;
+        private final VirtualClusterBinding binding;
+        private final PluginFactoryRegistry pfr;
+        private final FilterChainFactory filterChainFactory;
+        private final EndpointReconciler endpointReconciler;
+
+        InitalizerNetFilter(SaslDecodePredicate decodePredicate, ApiVersionsServiceImpl apiVersionService, SocketChannel ch, VirtualCluster virtualCluster,
+                            VirtualClusterBinding binding, PluginFactoryRegistry pfr, FilterChainFactory filterChainFactory, EndpointReconciler endpointReconciler) {
+            this.decodePredicate = decodePredicate;
+            this.apiVersionService = apiVersionService;
+            this.ch = ch;
+            this.virtualCluster = virtualCluster;
+            this.binding = binding;
+            this.pfr = pfr;
+            this.filterChainFactory = filterChainFactory;
+            this.endpointReconciler = endpointReconciler;
+        }
+
+        @Override
+        public void selectServer(NetFilter.NetFilterContext context) {
+            List<FilterAndInvoker> apiVersionFilters = decodePredicate.isAuthenticationOffloadEnabled() ? List.of()
                     : FilterAndInvoker.build(new ApiVersionsIntersectFilter(apiVersionService));
 
             NettyFilterContext filterContext = new NettyFilterContext(ch.eventLoop(), pfr);
@@ -206,11 +241,6 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
             }
 
             context.initiateConnect(target, filters);
-        }, dp, virtualCluster, apiVersionService);
-
-        pipeline.addLast("netHandler", frontendHandler);
-
-        LOGGER.debug("{}: Initial pipeline: {}", ch, pipeline);
+        }
     }
-
 }
