@@ -110,7 +110,7 @@ class FilterChainFactoryTest {
     }
 
     @ParameterizedTest
-    @MethodSource(value = "testFilterTypes")
+    @MethodSource(value = "filterTypes")
     void shouldCreateMultipleFilters(Class<FilterFactory<?, ?>> factoryClass, Class<? extends TestFilter> expectedFilterClass) {
         final ListAssert<FilterAndInvoker> listAssert = assertFiltersCreated(List.of(new FilterDefinition(factoryClass.getName(), config),
                 new FilterDefinition(factoryClass.getName(), config)));
@@ -127,7 +127,7 @@ class FilterChainFactoryTest {
         });
     }
 
-    static Stream<Arguments> testFilterTypes() {
+    static Stream<Arguments> filterTypes() {
         return Stream.of(
                 Arguments.of(TestFilterFactory.class, TestFilterFactory.TestFilterImpl.class),
                 Arguments.of(OptionalConfigFactory.class, OptionalConfigFactory.Filter.class),
