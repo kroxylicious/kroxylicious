@@ -9,6 +9,8 @@ package io.kroxylicious.proxy.filter;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.Plugins;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 @Plugin(configType = RequestResponseMarkingFilter.RequestResponseMarkingFilterConfig.class)
 public class RequestResponseMarkingFilterFactory
         implements FilterFactory<RequestResponseMarkingFilter.RequestResponseMarkingFilterConfig, RequestResponseMarkingFilter.RequestResponseMarkingFilterConfig> {
@@ -19,6 +21,7 @@ public class RequestResponseMarkingFilterFactory
         return Plugins.requireConfig(this, config);
     }
 
+    @NonNull
     @Override
     public RequestResponseMarkingFilter createFilter(FilterFactoryContext context,
                                                      RequestResponseMarkingFilter.RequestResponseMarkingFilterConfig configuration) {
@@ -27,7 +30,7 @@ public class RequestResponseMarkingFilterFactory
 
     public enum Direction {
         REQUEST,
-        RESPONSE;
+        RESPONSE
     }
 
 }

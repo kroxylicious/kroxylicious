@@ -10,6 +10,8 @@ import io.kroxylicious.proxy.filter.OutOfBandSendFilter.OutOfBandSendFilterConfi
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.Plugins;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 @Plugin(configType = OutOfBandSendFilterConfig.class)
 public class OutOfBandSendFilterFactory implements FilterFactory<OutOfBandSendFilterConfig, OutOfBandSendFilterConfig> {
 
@@ -18,6 +20,7 @@ public class OutOfBandSendFilterFactory implements FilterFactory<OutOfBandSendFi
         return Plugins.requireConfig(this, config);
     }
 
+    @NonNull
     @Override
     public OutOfBandSendFilter createFilter(FilterFactoryContext context, OutOfBandSendFilterConfig configuration) {
         return new OutOfBandSendFilter(configuration);

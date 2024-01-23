@@ -18,6 +18,8 @@ import io.kroxylicious.proxy.plugin.PluginImplConfig;
 import io.kroxylicious.proxy.plugin.PluginImplName;
 import io.kroxylicious.proxy.plugin.Plugins;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 @Plugin(configType = FetchResponseTransformationFilterFactory.Config.class)
 public class FetchResponseTransformationFilterFactory
         implements FilterFactory<Config, Config> {
@@ -27,6 +29,7 @@ public class FetchResponseTransformationFilterFactory
         return Plugins.requireConfig(this, config);
     }
 
+    @NonNull
     @Override
     public FetchResponseTransformationFilter createFilter(FilterFactoryContext context,
                                                           Config configuration) {

@@ -8,6 +8,8 @@ package io.kroxylicious.proxy.filter;
 
 import io.kroxylicious.proxy.plugin.Plugin;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 @Plugin(configType = RejectingCreateTopicFilter.RejectingCreateTopicFilterConfig.class)
 public class RejectingCreateTopicFilterFactory
         implements FilterFactory<RejectingCreateTopicFilter.RejectingCreateTopicFilterConfig, RejectingCreateTopicFilter.RejectingCreateTopicFilterConfig> {
@@ -19,6 +21,7 @@ public class RejectingCreateTopicFilterFactory
         return config;
     }
 
+    @NonNull
     @Override
     public RejectingCreateTopicFilter createFilter(FilterFactoryContext context, RejectingCreateTopicFilter.RejectingCreateTopicFilterConfig configuration) {
         return new RejectingCreateTopicFilter(context, configuration);

@@ -8,6 +8,8 @@ package io.kroxylicious.proxy.filter;
 
 import io.kroxylicious.proxy.plugin.Plugin;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 @Plugin(configType = Void.class)
 public class ApiVersionsMarkingFilterFactory implements FilterFactory<Void, Void> {
 
@@ -16,6 +18,7 @@ public class ApiVersionsMarkingFilterFactory implements FilterFactory<Void, Void
         return null;
     }
 
+    @NonNull
     @Override
     public ApiVersionsMarkingFilter createFilter(FilterFactoryContext context, Void configuration) {
         return new ApiVersionsMarkingFilter();
