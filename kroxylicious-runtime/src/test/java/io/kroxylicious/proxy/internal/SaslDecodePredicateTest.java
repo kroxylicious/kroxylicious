@@ -72,15 +72,24 @@ class SaslDecodePredicateTest {
 
     @ParameterizedTest
     @EnumSource(ApiKeys.class)
-    void testAllKeysDecodedBeforeDelegateSet(ApiKeys keys) {
+    void testAllRequestKeysDecodedBeforeDelegateSet(ApiKeys keys) {
         givenSaslHandlingDisabled();
         assertPredicateTargetsRequestKey(keys);
         givenSaslHandlingEnabled();
         assertPredicateTargetsRequestKey(keys);
     }
 
+    @ParameterizedTest
+    @EnumSource(ApiKeys.class)
+    void testAllResponseKeysDecodedBeforeDelegateSet(ApiKeys keys) {
+        givenSaslHandlingDisabled();
+        assertPredicateTargetsResponseKey(keys);
+        givenSaslHandlingEnabled();
+        assertPredicateTargetsResponseKey(keys);
+    }
+
     @Test
-    void testSaslKeysTargetedForDecodeWithOffloadingAuth() {
+    void testSaslRequestKeysTargetedForDecodeWithOffloadingAuth() {
         givenSaslHandlingEnabled();
         givenDelegateTargetsNothing();
         assertPredicateTargetsRequestKey(ApiKeys.SASL_AUTHENTICATE);
@@ -143,4 +152,7 @@ class SaslDecodePredicateTest {
         assertFalse(predicate.shouldDecodeRequest(key, key.latestVersion()), "predicate unexpectedly targeted key " + key);
     }
 
+    private void assertPredicateTargetsResponseKey(ApiKeys key) {
+        assertTrue(predicate.shouldDecodeResponse(key, key.latestVersion()), "predicate did not target key " + key);
+    }
 }
