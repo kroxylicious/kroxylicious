@@ -13,6 +13,7 @@ import org.assertj.core.api.Assertions;
 public class HeaderAssert extends AbstractAssert<HeaderAssert, Header> {
     protected HeaderAssert(Header header) {
         super(header, HeaderAssert.class);
+        describedAs(header == null ? "null header" : "header");
     }
 
     public static HeaderAssert assertThat(Header actual) {
@@ -29,7 +30,8 @@ public class HeaderAssert extends AbstractAssert<HeaderAssert, Header> {
 
     public HeaderAssert hasValueEqualTo(String expected) {
         isNotNull();
-        Assertions.assertThat(new String(actual.value()))
+        String valueString = actual.value() == null ? null : new String(actual.value());
+        Assertions.assertThat(valueString)
                 .describedAs("header value")
                 .isEqualTo(expected);
         return this;

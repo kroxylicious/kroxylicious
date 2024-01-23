@@ -22,6 +22,7 @@ import org.assertj.core.api.IterableAssert;
 public class MemoryRecordsAssert extends AbstractAssert<MemoryRecordsAssert, MemoryRecords> {
     protected MemoryRecordsAssert(MemoryRecords memoryRecords) {
         super(memoryRecords, MemoryRecordsAssert.class);
+        describedAs(memoryRecords == null ? "null memory records" : "memory records");
     }
 
     public static MemoryRecordsAssert assertThat(MemoryRecords actual) {
@@ -47,7 +48,7 @@ public class MemoryRecordsAssert extends AbstractAssert<MemoryRecordsAssert, Mem
         isNotNull();
         return () -> {
             var it = actual.batches().iterator();
-            return new Iterator<RecordBatchAssert>() {
+            return new Iterator<>() {
                 @Override
                 public boolean hasNext() {
                     return it.hasNext();
@@ -62,15 +63,25 @@ public class MemoryRecordsAssert extends AbstractAssert<MemoryRecordsAssert, Mem
     }
 
     public RecordBatchAssert firstBatch() {
+        isNotNull();
+        isNotEmpty();
         return batchesIterable()
                 .first(new InstanceOfAssertFactory<>(RecordBatch.class, RecordBatchAssert::assertThat))
                 .describedAs("first batch");
     }
 
     public RecordBatchAssert lastBatch() {
+        isNotNull();
+        isNotEmpty();
         return batchesIterable()
                 .last(new InstanceOfAssertFactory<>(RecordBatch.class, RecordBatchAssert::assertThat))
                 .describedAs("last batch");
+    }
+
+    private void isNotEmpty() {
+        Assertions.assertThat(actual.batches())
+                .describedAs("number of batches")
+                .hasSizeGreaterThan(0);
     }
 
     public MemoryRecordsAssert hasNumBatches(int expected) {

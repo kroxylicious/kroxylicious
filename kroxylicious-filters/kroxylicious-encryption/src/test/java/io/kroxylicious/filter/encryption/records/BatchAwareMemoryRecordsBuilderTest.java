@@ -32,7 +32,6 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.assertj.core.api.Assertions.in;
 
 class BatchAwareMemoryRecordsBuilderTest {
 
@@ -52,7 +51,7 @@ class BatchAwareMemoryRecordsBuilderTest {
     void shouldBePossibleToWriteBatchDirectly() {
         // Given
         var builder = new BatchAwareMemoryRecordsBuilder(new ByteBufferOutputStream(100));
-        MemoryRecords input = RecordTestUtils.memoryRecords("a", "b");
+        MemoryRecords input = RecordTestUtils.singleElementMemoryRecords("a", "b");
         MutableRecordBatch recordBatch = input.batchIterator().next();
 
         // When
@@ -73,7 +72,7 @@ class BatchAwareMemoryRecordsBuilderTest {
         byte[] value1 = { 4, 5, 6 };
         builder.appendWithOffset(0L, 1L, new byte[]{ 1, 2, 3 }, value1, new Header[]{});
         byte[] value2 = { 10, 11, 12 };
-        MemoryRecords input = RecordTestUtils.memoryRecords(RecordBatch.CURRENT_MAGIC_VALUE, 1L, 1L, new byte[]{ 7, 8, 9 }, value2);
+        MemoryRecords input = RecordTestUtils.singleElementMemoryRecords(RecordBatch.CURRENT_MAGIC_VALUE, 1L, 1L, new byte[]{ 7, 8, 9 }, value2);
         MutableRecordBatch recordBatch = input.batchIterator().next();
 
         // When
@@ -102,7 +101,7 @@ class BatchAwareMemoryRecordsBuilderTest {
         // Given
         byte[] value1 = { 10, 11, 12 };
         var builder = new BatchAwareMemoryRecordsBuilder(new ByteBufferOutputStream(100));
-        MemoryRecords input = RecordTestUtils.memoryRecords(RecordBatch.CURRENT_MAGIC_VALUE, 0L, 1L, new byte[]{ 7, 8, 9 }, value1);
+        MemoryRecords input = RecordTestUtils.singleElementMemoryRecords(RecordBatch.CURRENT_MAGIC_VALUE, 0L, 1L, new byte[]{ 7, 8, 9 }, value1);
         MutableRecordBatch recordBatch = input.batchIterator().next();
         builder.writeBatch(recordBatch);
 
@@ -174,7 +173,7 @@ class BatchAwareMemoryRecordsBuilderTest {
     void shouldPreventAddBatchLikeAfterBuild() {
         // Given
         var builder = new BatchAwareMemoryRecordsBuilder(new ByteBufferOutputStream(100));
-        RecordBatch batch = RecordTestUtils.memoryRecords("key", "value").firstBatch();
+        RecordBatch batch = RecordTestUtils.singleElementMemoryRecords("key", "value").firstBatch();
 
         // When
         builder.build();

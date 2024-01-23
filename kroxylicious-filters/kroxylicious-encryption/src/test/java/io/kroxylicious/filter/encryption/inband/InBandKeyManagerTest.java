@@ -7,6 +7,7 @@
 package io.kroxylicious.filter.encryption.inband;
 
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -19,20 +20,16 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 
 import javax.crypto.SecretKey;
 
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.record.CompressionType;
-import org.apache.kafka.common.record.ControlRecordType;
 import org.apache.kafka.common.record.MemoryRecords;
-import org.apache.kafka.common.record.MemoryRecordsBuilder;
 import org.apache.kafka.common.record.MutableRecordBatch;
 import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.record.RecordBatch;
-import org.apache.kafka.common.record.SimpleRecord;
 import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 import org.apache.kafka.common.utils.ByteUtils;
@@ -47,11 +44,11 @@ import org.mockito.stubbing.Answer;
 
 import io.kroxylicious.filter.encryption.EncryptionScheme;
 import io.kroxylicious.filter.encryption.RecordField;
-import io.kroxylicious.filter.encryption.records.BatchAwareMemoryRecordsBuilder;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.InMemoryEdek;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.InMemoryKms;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.UnitTestingKmsService;
 import io.kroxylicious.kms.service.KmsException;
+import io.kroxylicious.test.assertj.MemoryRecordsAssert;
 import io.kroxylicious.test.record.RecordTestUtils;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -66,6 +63,12 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.when;
 
 class InBandKeyManagerTest {
+
+    private static final String ARBITRARY_KEY = "key";
+    private static final String ARBITRARY_KEY_2 = "key2";
+    private static final String ARBITRARY_VALUE = "value";
+    private static final String ARBITRARY_VALUE_2 = "value2";
+    private static final Header[] ABSENT_HEADERS = {};
 
     @Test
     void shouldBeAbleToDependOnRecordHeaderEquality() {
@@ -82,9 +85,8 @@ class InBandKeyManagerTest {
 
     @Test
     void shouldEncryptRecordValue() {
-        var kmsService = UnitTestingKmsService.newInstance();
-        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
+        InMemoryKms kms = getInMemoryKms();
+        var km = createKeyManager(kms, 500_000);
 
         var kekId = kms.generateKey();
 
@@ -115,226 +117,152 @@ class InBandKeyManagerTest {
     }
 
     @Test
-    void shouldPreserveMultipleBatches() {
-        var kmsService = UnitTestingKmsService.newInstance();
-        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
+    void shouldPreserveMultipleBatchesOnEncrypt() {
+        // given
+        InMemoryKms kms = getInMemoryKms();
+        EncryptionScheme<UUID> scheme = createScheme(kms);
+        var km = createKeyManager(kms, 500_000);
 
-        var kekId = kms.generateKey();
+        MutableRecordBatch firstBatch = RecordTestUtils.singleElementRecordBatch(RecordBatch.CURRENT_MAGIC_VALUE, 1L, CompressionType.GZIP, TimestampType.CREATE_TIME, 2L,
+                3L,
+                (short) 4, 5, false, false, 1, ARBITRARY_KEY.getBytes(
+                        StandardCharsets.UTF_8),
+                ARBITRARY_VALUE.getBytes(StandardCharsets.UTF_8));
 
-        byte[] value = { 1, 2, 3 };
-        Record record = RecordTestUtils.record(1, ByteBuffer.wrap(value));
+        MutableRecordBatch secondBatch = RecordTestUtils.singleElementRecordBatch(RecordBatch.CURRENT_MAGIC_VALUE, 2L, CompressionType.NONE,
+                TimestampType.LOG_APPEND_TIME, 9L, 10L,
+                (short) 11, 12, false, false, 2, ARBITRARY_KEY_2.getBytes(
+                        StandardCharsets.UTF_8),
+                ARBITRARY_VALUE_2.getBytes(StandardCharsets.UTF_8));
+        MemoryRecords records = RecordTestUtils.memoryRecords(firstBatch, secondBatch);
 
-        var value2 = new byte[]{ 4, 5, 6 };
-        Record record2 = RecordTestUtils.record(2, ByteBuffer.wrap(value2));
-        BatchAwareMemoryRecordsBuilder builder = new BatchAwareMemoryRecordsBuilder(new ByteBufferOutputStream(1000));
-        builder.addBatch(CompressionType.NONE, TimestampType.CREATE_TIME, 1);
-        builder.appendWithOffset(1l, record);
-        builder.addBatch(CompressionType.GZIP, TimestampType.LOG_APPEND_TIME, 2);
-        builder.appendWithOffset(2l, record2);
-        MemoryRecords records = builder.build();
+        // when
+        MemoryRecords encrypted = assertImmediateSuccessAndGet(encrypt(km, scheme, records));
 
-        EncryptionScheme<UUID> scheme = new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE));
-        CompletableFuture<MemoryRecords> encryptedFuture = km.encrypt("topic", 1, scheme, records, ByteBufferOutputStream::new).toCompletableFuture();
-        assertThat(encryptedFuture).succeedsWithin(Duration.ZERO);
-        MemoryRecords encrypted = encryptedFuture.join();
-        record.value().rewind();
-        record2.value().rewind();
-
-        assertThat(encrypted.batches()).hasSize(2);
-        List<MutableRecordBatch> batches = StreamSupport.stream(encrypted.batches().spliterator(), false).toList();
-        MutableRecordBatch first = batches.get(0);
-        assertThat(first.compressionType()).isEqualTo(CompressionType.NONE);
-        assertThat(first.timestampType()).isEqualTo(TimestampType.CREATE_TIME);
-        assertThat(first.baseOffset()).isEqualTo(1L);
-        assertThat(first).hasSize(1);
-
-        MutableRecordBatch second = batches.get(1);
-        // should we keep the client's compression type?
-        assertThat(second.compressionType()).isEqualTo(CompressionType.GZIP);
-        assertThat(second.timestampType()).isEqualTo(TimestampType.LOG_APPEND_TIME);
-        assertThat(second.baseOffset()).isEqualTo(2L);
-        assertThat(second).hasSize(1);
-
-        CompletableFuture<MemoryRecords> decryptedFuture = km.decrypt("topic", 1, encrypted, ByteBufferOutputStream::new).toCompletableFuture();
-        assertThat(decryptedFuture).succeedsWithin(Duration.ZERO);
-        MemoryRecords decrypted = decryptedFuture.join();
-
-        assertThat(decrypted.batches()).hasSize(2);
-        List<MutableRecordBatch> decryptedBatches = StreamSupport.stream(decrypted.batches().spliterator(), false).toList();
-        MutableRecordBatch firstDecrypted = decryptedBatches.get(0);
-        assertThat(firstDecrypted.compressionType()).isEqualTo(CompressionType.NONE);
-        assertThat(firstDecrypted.timestampType()).isEqualTo(TimestampType.CREATE_TIME);
-        assertThat(firstDecrypted.baseOffset()).isEqualTo(1L);
-        assertThat(firstDecrypted).hasSize(1);
-        assertThat(firstDecrypted.iterator())
-                .toIterable()
-                .singleElement()
-                .extracting(RecordTestUtils::recordValueAsBytes)
-                .isEqualTo(value);
-
-        MutableRecordBatch secondDecrypted = decryptedBatches.get(1);
-        assertThat(secondDecrypted.compressionType()).isEqualTo(CompressionType.GZIP);
-        assertThat(secondDecrypted.timestampType()).isEqualTo(TimestampType.LOG_APPEND_TIME);
-        assertThat(secondDecrypted.baseOffset()).isEqualTo(2L);
-        assertThat(secondDecrypted).hasSize(1);
-        assertThat(secondDecrypted.iterator())
-                .toIterable()
-                .singleElement()
-                .extracting(RecordTestUtils::recordValueAsBytes)
-                .isEqualTo(value2);
-
+        // then
+        MemoryRecordsAssert encryptedAssert = MemoryRecordsAssert.assertThat(encrypted);
+        encryptedAssert.hasNumBatches(2);
+        encryptedAssert.firstBatch().hasMetadataMatching(firstBatch).hasNumRecords(1).firstRecord().hasValueNotEqualTo(ARBITRARY_VALUE);
+        encryptedAssert.lastBatch().hasMetadataMatching(secondBatch).hasNumRecords(1).firstRecord().hasValueNotEqualTo(ARBITRARY_VALUE_2);
     }
 
     @Test
-    void shouldPreserveControlBatch() {
-        var kmsService = UnitTestingKmsService.newInstance();
-        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
+    void shouldPreserveMultipleBatchesOnDecrypt() {
+        // given
+        InMemoryKms kms = getInMemoryKms();
+        EncryptionScheme<UUID> scheme = createScheme(kms);
+        var km = createKeyManager(kms, 500_000);
 
-        var kekId = kms.generateKey();
+        MutableRecordBatch firstBatch = RecordTestUtils.singleElementRecordBatch(RecordBatch.CURRENT_MAGIC_VALUE, 1L, CompressionType.GZIP, TimestampType.CREATE_TIME, 2L,
+                3L,
+                (short) 4, 5, false, false, 1, ARBITRARY_KEY.getBytes(
+                        StandardCharsets.UTF_8),
+                ARBITRARY_VALUE.getBytes(StandardCharsets.UTF_8));
 
-        byte[] value = { 1, 2, 3 };
-        Record record = RecordTestUtils.record(1, ByteBuffer.wrap(value));
-        BatchAwareMemoryRecordsBuilder builder = new BatchAwareMemoryRecordsBuilder(new ByteBufferOutputStream(1000));
-        builder.addBatch(CompressionType.NONE, TimestampType.CREATE_TIME, 1);
-        builder.appendWithOffset(1L, record);
-        byte[] controlBatchValue = { 4, 5, 6 };
-        RecordBatch controlBatch = controlBatch(2, controlBatchValue);
-        builder.addBatchLike(controlBatch);
-        builder.append(controlBatch.iterator().next());
-        MemoryRecords records = builder.build();
+        MutableRecordBatch secondBatch = RecordTestUtils.singleElementRecordBatch(RecordBatch.CURRENT_MAGIC_VALUE, 2L, CompressionType.NONE,
+                TimestampType.LOG_APPEND_TIME, 9L, 10L,
+                (short) 11, 12, false, false, 2, ARBITRARY_KEY_2.getBytes(
+                        StandardCharsets.UTF_8),
+                ARBITRARY_VALUE_2.getBytes(StandardCharsets.UTF_8));
+        MemoryRecords records = RecordTestUtils.memoryRecords(firstBatch, secondBatch);
+        MemoryRecords encrypted = assertImmediateSuccessAndGet(encrypt(km, scheme, records));
 
-        EncryptionScheme<UUID> scheme = new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE));
-        CompletableFuture<MemoryRecords> encryptedFuture = km.encrypt("topic", 1, scheme, records, ByteBufferOutputStream::new).toCompletableFuture();
-        assertThat(encryptedFuture).succeedsWithin(Duration.ZERO);
-        MemoryRecords encrypted = encryptedFuture.join();
-        record.value().rewind();
+        // when
+        MemoryRecords decrypted = assertImmediateSuccessAndGet(decrypt(km, encrypted));
 
-        assertThat(encrypted.batches()).hasSize(2);
-        List<MutableRecordBatch> batches = StreamSupport.stream(encrypted.batches().spliterator(), false).toList();
-        MutableRecordBatch first = batches.get(0);
-        assertThat(first.compressionType()).isEqualTo(CompressionType.NONE);
-        assertThat(first.timestampType()).isEqualTo(TimestampType.CREATE_TIME);
-        assertThat(first.baseOffset()).isEqualTo(1L);
-        assertThat(first).hasSize(1);
-
-        MutableRecordBatch second = batches.get(1);
-        // should we keep the client's compression type?
-        assertThat(second.compressionType()).isEqualTo(controlBatch.compressionType());
-        assertThat(second.timestampType()).isEqualTo(controlBatch.timestampType());
-        assertThat(second.baseOffset()).isEqualTo(controlBatch.baseOffset());
-        assertThat(second.isControlBatch()).isTrue();
-        assertThat(second).hasSize(1);
-        // control batches are not encrypted
-        assertThat(second.iterator())
-                .toIterable()
-                .singleElement()
-                .extracting(RecordTestUtils::recordValueAsBytes)
-                .isEqualTo(controlBatchValue);
-
-        CompletableFuture<MemoryRecords> decryptedFuture = km.decrypt("topic", 1, encrypted, ByteBufferOutputStream::new).toCompletableFuture();
-        assertThat(decryptedFuture).succeedsWithin(Duration.ZERO);
-        MemoryRecords decrypted = decryptedFuture.join();
-
-        assertThat(decrypted.batches()).hasSize(2);
-        List<MutableRecordBatch> decryptedBatches = StreamSupport.stream(decrypted.batches().spliterator(), false).toList();
-        MutableRecordBatch firstDecrypted = decryptedBatches.get(0);
-        assertThat(firstDecrypted.compressionType()).isEqualTo(CompressionType.NONE);
-        assertThat(firstDecrypted.timestampType()).isEqualTo(TimestampType.CREATE_TIME);
-        assertThat(firstDecrypted.baseOffset()).isEqualTo(1L);
-        assertThat(firstDecrypted).hasSize(1);
-        assertThat(firstDecrypted.iterator())
-                .toIterable()
-                .singleElement()
-                .extracting(RecordTestUtils::recordValueAsBytes)
-                .isEqualTo(value);
-
-        MutableRecordBatch secondDecrypted = decryptedBatches.get(1);
-        assertThat(secondDecrypted.compressionType()).isEqualTo(controlBatch.compressionType());
-        assertThat(secondDecrypted.timestampType()).isEqualTo(controlBatch.timestampType());
-        assertThat(secondDecrypted.baseOffset()).isEqualTo(controlBatch.baseOffset());
-        assertThat(secondDecrypted.isControlBatch()).isTrue();
-        assertThat(secondDecrypted).hasSize(1);
-        // control batch value is preserved
-        assertThat(second.iterator())
-                .toIterable()
-                .singleElement()
-                .extracting(RecordTestUtils::recordValueAsBytes)
-                .isEqualTo(controlBatchValue);
-
+        // then
+        MemoryRecordsAssert decryptedAssert = MemoryRecordsAssert.assertThat(decrypted);
+        decryptedAssert.hasNumBatches(2);
+        decryptedAssert.firstBatch().hasMetadataMatching(firstBatch).hasNumRecords(1).firstRecord().hasValueEqualTo(ARBITRARY_VALUE);
+        decryptedAssert.lastBatch().hasMetadataMatching(secondBatch).hasNumRecords(1).firstRecord().hasValueEqualTo(ARBITRARY_VALUE_2);
     }
 
     @Test
-    void shouldPreserveMultipleBatches_IncludingEmptyBatch() {
-        var kmsService = UnitTestingKmsService.newInstance();
-        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
+    void shouldPreserveControlBatchOnEncrypt() {
+        // given
+        InMemoryKms kms = getInMemoryKms();
+        EncryptionScheme<UUID> scheme = createScheme(kms);
+        var km = createKeyManager(kms, 500_000);
 
-        var kekId = kms.generateKey();
+        MutableRecordBatch firstBatch = RecordTestUtils.singleElementRecordBatch(1L, ARBITRARY_KEY, ARBITRARY_VALUE, ABSENT_HEADERS);
+        MutableRecordBatch controlBatch = RecordTestUtils.abortTransactionControlBatch(2);
+        Record controlRecord = controlBatch.iterator().next();
+        MemoryRecords records = RecordTestUtils.memoryRecords(firstBatch, controlBatch);
 
-        byte[] value = { 1, 2, 3 };
-        Record record = RecordTestUtils.record(1, ByteBuffer.wrap(value));
-        BatchAwareMemoryRecordsBuilder builder = new BatchAwareMemoryRecordsBuilder(new ByteBufferOutputStream(1000));
-        builder.addBatch(CompressionType.NONE, TimestampType.CREATE_TIME, 1);
-        builder.appendWithOffset(1L, record);
+        // when
+        MemoryRecords encrypted = assertImmediateSuccessAndGet(encrypt(km, scheme, records));
 
-        MemoryRecords empty = RecordTestUtils.memoryRecordsWithAllRecordsRemoved(2L);
-        MutableRecordBatch emptyBatch = empty.batches().iterator().next();
-        builder.writeBatch(emptyBatch);
-        MemoryRecords records = builder.build();
-
-        EncryptionScheme<UUID> scheme = new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE));
-        CompletableFuture<MemoryRecords> encryptedFuture = km.encrypt("topic", 1, scheme, records, ByteBufferOutputStream::new).toCompletableFuture();
-        assertThat(encryptedFuture).succeedsWithin(Duration.ZERO);
-        MemoryRecords encrypted = encryptedFuture.join();
-        record.value().rewind();
-
-        assertThat(encrypted.batches()).hasSize(2);
-        List<MutableRecordBatch> batches = StreamSupport.stream(encrypted.batches().spliterator(), false).toList();
-        MutableRecordBatch first = batches.get(0);
-        assertThat(first.compressionType()).isEqualTo(CompressionType.NONE);
-        assertThat(first.timestampType()).isEqualTo(TimestampType.CREATE_TIME);
-        assertThat(first.baseOffset()).isEqualTo(1L);
-        assertThat(first).hasSize(1);
-
-        MutableRecordBatch second = batches.get(1);
-        // should we keep the client's compression type?
-        assertThat(second.compressionType()).isEqualTo(emptyBatch.compressionType());
-        assertThat(second.timestampType()).isEqualTo(emptyBatch.timestampType());
-        assertThat(second.baseOffset()).isEqualTo(emptyBatch.baseOffset());
-        assertThat(second).hasSize(0);
-
-        CompletableFuture<MemoryRecords> decryptedFuture = km.decrypt("topic", 1, encrypted, ByteBufferOutputStream::new).toCompletableFuture();
-        assertThat(decryptedFuture).succeedsWithin(Duration.ZERO);
-        MemoryRecords decrypted = decryptedFuture.join();
-
-        assertThat(decrypted.batches()).hasSize(2);
-        List<MutableRecordBatch> decryptedBatches = StreamSupport.stream(decrypted.batches().spliterator(), false).toList();
-        MutableRecordBatch firstDecrypted = decryptedBatches.get(0);
-        assertThat(firstDecrypted.compressionType()).isEqualTo(CompressionType.NONE);
-        assertThat(firstDecrypted.timestampType()).isEqualTo(TimestampType.CREATE_TIME);
-        assertThat(firstDecrypted.baseOffset()).isEqualTo(1L);
-        assertThat(firstDecrypted).hasSize(1);
-        assertThat(firstDecrypted.iterator())
-                .toIterable()
-                .singleElement()
-                .extracting(RecordTestUtils::recordValueAsBytes)
-                .isEqualTo(value);
-
-        MutableRecordBatch secondDecrypted = decryptedBatches.get(1);
-        assertThat(secondDecrypted.compressionType()).isEqualTo(emptyBatch.compressionType());
-        assertThat(secondDecrypted.timestampType()).isEqualTo(emptyBatch.timestampType());
-        assertThat(secondDecrypted.baseOffset()).isEqualTo(emptyBatch.baseOffset());
+        // then
+        MemoryRecordsAssert encryptedAssert = MemoryRecordsAssert.assertThat(encrypted);
+        encryptedAssert.hasNumBatches(2);
+        encryptedAssert.firstBatch().hasMetadataMatching(firstBatch).hasNumRecords(1).firstRecord().hasValueNotEqualTo(ARBITRARY_VALUE);
+        encryptedAssert.lastBatch().hasMetadataMatching(controlBatch).hasNumRecords(1).firstRecord().hasValueEqualTo(controlRecord);
     }
 
-    private static RecordBatch controlBatch(int baseOffset, byte[] arbitraryValue) {
-        MemoryRecordsBuilder builder = new MemoryRecordsBuilder(ByteBuffer.allocate(1000), RecordBatch.CURRENT_MAGIC_VALUE, CompressionType.NONE,
-                TimestampType.CREATE_TIME, baseOffset, 1L, 1L, (short) 1, 1, false, true, 1, 1);
-        byte[] key = { 0, 0, (byte) ControlRecordType.ABORT.type(), (byte) (ControlRecordType.ABORT.type() >> 8) };
-        builder.appendControlRecordWithOffset(baseOffset, new SimpleRecord(1L, key, arbitraryValue));
-        MemoryRecords controlBatchRecords = builder.build();
-        return controlBatchRecords.firstBatch();
+    @Test
+    void shouldPreserveControlBatchOnDecrypt() {
+        // given
+        InMemoryKms kms = getInMemoryKms();
+        EncryptionScheme<UUID> scheme = createScheme(kms);
+        var km = createKeyManager(kms, 500_000);
+
+        MutableRecordBatch firstBatch = RecordTestUtils.singleElementRecordBatch(1L, ARBITRARY_KEY, ARBITRARY_VALUE, ABSENT_HEADERS);
+        MutableRecordBatch controlBatch = RecordTestUtils.abortTransactionControlBatch(2);
+        Record controlRecord = controlBatch.iterator().next();
+        MemoryRecords records = RecordTestUtils.memoryRecords(firstBatch, controlBatch);
+        MemoryRecords encrypted = assertImmediateSuccessAndGet(encrypt(km, scheme, records));
+
+        // when
+        MemoryRecords decrypted = assertImmediateSuccessAndGet(decrypt(km, encrypted));
+
+        // then
+        MemoryRecordsAssert decryptedAssert = MemoryRecordsAssert.assertThat(decrypted);
+        decryptedAssert.hasNumBatches(2);
+        decryptedAssert.firstBatch().hasMetadataMatching(firstBatch).hasNumRecords(1).firstRecord().hasValueEqualTo(ARBITRARY_VALUE);
+        decryptedAssert.lastBatch().hasMetadataMatching(controlBatch).hasNumRecords(1).firstRecord().hasValueEqualTo(controlRecord);
+    }
+
+    @Test
+    void shouldPreserveEmptyBatchOnEncrypt() {
+        // given
+        InMemoryKms kms = getInMemoryKms();
+        EncryptionScheme<UUID> scheme = createScheme(kms);
+        var km = createKeyManager(kms, 500_000);
+
+        MutableRecordBatch firstBatch = RecordTestUtils.singleElementRecordBatch(1L, ARBITRARY_KEY, ARBITRARY_VALUE, ABSENT_HEADERS);
+        MutableRecordBatch emptyBatch = RecordTestUtils.recordBatchWithAllRecordsRemoved(2L);
+        MemoryRecords records = RecordTestUtils.memoryRecords(firstBatch, emptyBatch);
+
+        // when
+        MemoryRecords encrypted = assertImmediateSuccessAndGet(encrypt(km, scheme, records));
+
+        // then
+        MemoryRecordsAssert encryptedAssert = MemoryRecordsAssert.assertThat(encrypted);
+        encryptedAssert.hasNumBatches(2);
+        encryptedAssert.firstBatch().hasMetadataMatching(firstBatch).hasNumRecords(1).firstRecord().hasValueNotEqualTo(ARBITRARY_VALUE);
+        encryptedAssert.lastBatch().hasMetadataMatching(emptyBatch).hasNumRecords(0);
+    }
+
+    @Test
+    void shouldPreserveEmptyBatchOnDecrypt() {
+        // given
+        InMemoryKms kms = getInMemoryKms();
+        EncryptionScheme<UUID> scheme = createScheme(kms);
+        var km = createKeyManager(kms, 500_000);
+
+        MutableRecordBatch firstBatch = RecordTestUtils.singleElementRecordBatch(1L, ARBITRARY_KEY, ARBITRARY_VALUE, ABSENT_HEADERS);
+        MutableRecordBatch emptyBatch = RecordTestUtils.recordBatchWithAllRecordsRemoved(2L);
+        MemoryRecords records = RecordTestUtils.memoryRecords(firstBatch, emptyBatch);
+        MemoryRecords encrypted = assertImmediateSuccessAndGet(encrypt(km, scheme, records));
+
+        // when
+        MemoryRecords decrypted = assertImmediateSuccessAndGet(decrypt(km, encrypted));
+
+        // then
+        MemoryRecordsAssert decryptedAssert = MemoryRecordsAssert.assertThat(decrypted);
+        decryptedAssert.hasNumBatches(2);
+        decryptedAssert.firstBatch().hasMetadataMatching(firstBatch).hasNumRecords(1).firstRecord().hasValueEqualTo(ARBITRARY_VALUE);
+        decryptedAssert.lastBatch().hasMetadataMatching(emptyBatch).hasNumRecords(0);
     }
 
     @NonNull
@@ -360,9 +288,8 @@ class InBandKeyManagerTest {
 
     @Test
     void shouldTolerateEncryptingAndDecryptingEmptyRecordValue() {
-        var kmsService = UnitTestingKmsService.newInstance();
-        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
+        InMemoryKms kms = getInMemoryKms();
+        var km = createKeyManager(kms, 500_000);
 
         var kekId = kms.generateKey();
 
@@ -385,9 +312,8 @@ class InBandKeyManagerTest {
 
     @Test
     void decryptSupportsUnencryptedRecordValue() {
-        var kmsService = UnitTestingKmsService.newInstance();
-        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
+        InMemoryKms kms = getInMemoryKms();
+        var km = createKeyManager(kms, 500_000);
 
         byte[] recBytes = { 1, 2, 3 };
         Record record = RecordTestUtils.record(recBytes);
@@ -408,9 +334,8 @@ class InBandKeyManagerTest {
     @ParameterizedTest
     @MethodSource
     void decryptSupportsEmptyRecordBatches(MemoryRecords records) {
-        var kmsService = UnitTestingKmsService.newInstance();
-        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
+        InMemoryKms kms = getInMemoryKms();
+        var km = createKeyManager(kms, 500_000);
         assertThat(km.decrypt("foo", 1, records, ByteBufferOutputStream::new))
                 .succeedsWithin(Duration.ZERO).isSameAs(records);
     }
@@ -418,9 +343,8 @@ class InBandKeyManagerTest {
     // we do not want to break compaction tombstoning by creating a parcel for the null value case
     @Test
     void nullRecordValuesShouldNotBeModifiedAtEncryptTime() {
-        var kmsService = UnitTestingKmsService.newInstance();
-        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
+        InMemoryKms kms = getInMemoryKms();
+        var km = createKeyManager(kms, 500_000);
 
         var kekId = kms.generateKey();
 
@@ -439,9 +363,8 @@ class InBandKeyManagerTest {
     // value is null.
     @Test
     void nullRecordValuesAreIncompatibleWithHeaderEncryption() {
-        var kmsService = UnitTestingKmsService.newInstance();
-        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
+        InMemoryKms kms = getInMemoryKms();
+        var km = createKeyManager(kms, 500_000);
 
         var kekId = kms.generateKey();
 
@@ -458,9 +381,8 @@ class InBandKeyManagerTest {
 
     @Test
     void shouldTolerateEncryptingEmptyBatch() {
-        var kmsService = UnitTestingKmsService.newInstance();
-        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
+        InMemoryKms kms = getInMemoryKms();
+        var km = createKeyManager(kms, 500_000);
 
         var kekId = kms.generateKey();
 
@@ -474,22 +396,19 @@ class InBandKeyManagerTest {
 
     @Test
     void shouldTolerateEncryptingSingleBatchMemoryRecordsWithNoRecords() {
-        var kmsService = UnitTestingKmsService.newInstance();
-        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
-        var kekId = kms.generateKey();
-        EncryptionScheme<UUID> scheme = new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE));
+        InMemoryKms kms = getInMemoryKms();
+        var km = createKeyManager(kms, 500_000);
+        EncryptionScheme<UUID> scheme = createScheme(kms);
         MemoryRecords records = RecordTestUtils.memoryRecordsWithAllRecordsRemoved();
-        assertThat(km.encrypt("topic", 1, scheme, records, ByteBufferOutputStream::new)).succeedsWithin(Duration.ZERO).isSameAs(records);
+        assertThat(encrypt(km, scheme, records)).succeedsWithin(Duration.ZERO).isSameAs(records);
     }
 
     @Test
     void encryptionRetry() {
-        var kmsService = UnitTestingKmsService.newInstance();
-        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
+        InMemoryKms kms = getInMemoryKms();
         var kekId = kms.generateKey();
         // configure 1 encryption per dek but then try to encrypt 2 records, will destroy and retry
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 1);
+        var km = createKeyManager(kms, 1);
 
         var value = ByteBuffer.wrap(new byte[]{ 1, 2, 3 });
         var value2 = ByteBuffer.wrap(new byte[]{ 4, 5, 6 });
@@ -507,12 +426,11 @@ class InBandKeyManagerTest {
 
     @Test
     void dekCreationRetryFailurePropagatedToEncryptCompletionStage() {
-        var kmsService = UnitTestingKmsService.newInstance();
-        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
+        InMemoryKms kms = getInMemoryKms();
         var kekId = kms.generateKey();
         InMemoryKms spyKms = Mockito.spy(kms);
         when(spyKms.generateDekPair(kekId)).thenReturn(CompletableFuture.failedFuture(new EncryptorCreationException("failed to create that DEK")));
-        var km = new InBandKeyManager<>(spyKms, BufferPool.allocating(), 500000);
+        var km = createKeyManager(spyKms, 500000);
 
         var value = ByteBuffer.wrap(new byte[]{ 1, 2, 3 });
         var value2 = ByteBuffer.wrap(new byte[]{ 4, 5, 6 });
@@ -529,13 +447,12 @@ class InBandKeyManagerTest {
 
     @Test
     void edekDecryptionRetryFailurePropagatedToDecryptCompletionStage() {
-        var kmsService = UnitTestingKmsService.newInstance();
-        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
+        InMemoryKms kms = getInMemoryKms();
         var kekId = kms.generateKey();
         InMemoryKms spyKms = Mockito.spy(kms);
         doReturn(CompletableFuture.failedFuture(new KmsException("failed to create that DEK"))).when(spyKms).decryptEdek(any());
 
-        var km = new InBandKeyManager<>(spyKms, BufferPool.allocating(), 50000);
+        var km = createKeyManager(spyKms, 50000);
 
         var value = ByteBuffer.wrap(new byte[]{ 1, 2, 3 });
         var value2 = ByteBuffer.wrap(new byte[]{ 4, 5, 6 });
@@ -556,13 +473,12 @@ class InBandKeyManagerTest {
 
     @Test
     void afterWeFailToLoadADekTheNextEncryptionAttemptCanSucceed() {
-        var kmsService = UnitTestingKmsService.newInstance();
-        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
+        InMemoryKms kms = getInMemoryKms();
         var kekId = kms.generateKey();
         InMemoryKms spyKms = Mockito.spy(kms);
         when(spyKms.generateDekPair(kekId)).thenReturn(CompletableFuture.failedFuture(new KmsException("failed to create that DEK")));
 
-        var km = new InBandKeyManager<>(spyKms, BufferPool.allocating(), 50000);
+        var km = createKeyManager(spyKms, 50000);
 
         var value = ByteBuffer.wrap(new byte[]{ 1, 2, 3 });
         var value2 = ByteBuffer.wrap(new byte[]{ 4, 5, 6 });
@@ -591,9 +507,8 @@ class InBandKeyManagerTest {
 
     @Test
     void shouldEncryptRecordValueForMultipleRecords() throws ExecutionException, InterruptedException, TimeoutException {
-        var kmsService = UnitTestingKmsService.newInstance();
-        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
+        InMemoryKms kms = getInMemoryKms();
+        var km = createKeyManager(kms, 500_000);
 
         var kekId = kms.generateKey();
 
@@ -625,9 +540,8 @@ class InBandKeyManagerTest {
 
     @Test
     void shouldGenerateNewDekIfOldDekHasNoRemainingEncryptions() throws ExecutionException, InterruptedException, TimeoutException {
-        var kmsService = UnitTestingKmsService.newInstance();
-        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 2);
+        InMemoryKms kms = getInMemoryKms();
+        var km = createKeyManager(kms, 2);
 
         var kekId = kms.generateKey();
 
@@ -664,9 +578,8 @@ class InBandKeyManagerTest {
 
     @Test
     void shouldGenerateNewDekIfOldOneHasSomeRemainingEncryptionsButNotEnoughForWholeBatch() throws ExecutionException, InterruptedException, TimeoutException {
-        var kmsService = UnitTestingKmsService.newInstance();
-        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 3);
+        InMemoryKms kms = getInMemoryKms();
+        var km = createKeyManager(kms, 3);
 
         var kekId = kms.generateKey();
 
@@ -704,9 +617,8 @@ class InBandKeyManagerTest {
 
     @Test
     void shouldUseSameDekForMultipleBatches() throws ExecutionException, InterruptedException, TimeoutException {
-        var kmsService = UnitTestingKmsService.newInstance();
-        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 4);
+        InMemoryKms kms = getInMemoryKms();
+        var km = createKeyManager(kms, 4);
 
         var kekId = kms.generateKey();
 
@@ -743,9 +655,8 @@ class InBandKeyManagerTest {
 
     @Test
     void shouldEncryptRecordHeaders() {
-        var kmsService = UnitTestingKmsService.newInstance();
-        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
+        InMemoryKms kms = getInMemoryKms();
+        var km = createKeyManager(kms, 500_000);
 
         var kekId = kms.generateKey();
 
@@ -773,9 +684,8 @@ class InBandKeyManagerTest {
 
     @Test
     void shouldEncryptRecordHeadersForMultipleRecords() throws ExecutionException, InterruptedException, TimeoutException {
-        var kmsService = UnitTestingKmsService.newInstance();
-        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
+        InMemoryKms kms = getInMemoryKms();
+        var km = createKeyManager(kms, 500_000);
 
         var kekId = kms.generateKey();
 
@@ -812,9 +722,8 @@ class InBandKeyManagerTest {
 
     @Test
     void shouldPropagateHeadersInClearWhenNotEncryptingHeaders() {
-        var kmsService = UnitTestingKmsService.newInstance();
-        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
+        InMemoryKms kms = getInMemoryKms();
+        var km = createKeyManager(kms, 500_000);
 
         var kekId = kms.generateKey();
 
@@ -852,14 +761,13 @@ class InBandKeyManagerTest {
         var topic = "topic";
         var partition = 1;
 
-        var kmsService = UnitTestingKmsService.newInstance();
-        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
+        InMemoryKms kms = getInMemoryKms();
         var kekId1 = kms.generateKey();
         var kekId2 = kms.generateKey();
 
         var spyKms = Mockito.spy(kms);
 
-        var km = new InBandKeyManager<>(spyKms, BufferPool.allocating(), 50000);
+        var km = createKeyManager(spyKms, 50000);
 
         byte[] rec1Bytes = { 1, 2, 3 };
         byte[] rec2Bytes = { 4, 5, 6 };
@@ -913,11 +821,10 @@ class InBandKeyManagerTest {
         var topic = "topic";
         var partition = 1;
 
-        var kmsService = UnitTestingKmsService.newInstance();
-        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
+        InMemoryKms kms = getInMemoryKms();
         var kekId = kms.generateKey();
 
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 50000);
+        var km = createKeyManager(kms, 50000);
 
         byte[] rec1Bytes = { 1, 2, 3 };
         byte[] rec2Bytes = { 4, 5, 6 };
@@ -960,6 +867,12 @@ class InBandKeyManagerTest {
         return new TestingDek(bytes);
     }
 
+    private <T> T assertImmediateSuccessAndGet(CompletionStage<T> stage) {
+        CompletableFuture<T> future = stage.toCompletableFuture();
+        assertThat(future).succeedsWithin(Duration.ZERO);
+        return future.join();
+    }
+
     @NonNull
     private static List<TestingDek> extractEdeks(List<Record> encrypted) {
         List<TestingDek> deks = encrypted.stream()
@@ -973,6 +886,33 @@ class InBandKeyManagerTest {
                 })
                 .toList();
         return deks;
+    }
+
+    @NonNull
+    private static InBandKeyManager<UUID, InMemoryEdek> createKeyManager(InMemoryKms kms, int maxEncryptionsPerDek) {
+        return new InBandKeyManager<>(kms, BufferPool.allocating(), maxEncryptionsPerDek);
+    }
+
+    @NonNull
+    private static EncryptionScheme<UUID> createScheme(InMemoryKms kms) {
+        var kekId = kms.generateKey();
+        return new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE));
+    }
+
+    @NonNull
+    private static CompletionStage<MemoryRecords> decrypt(InBandKeyManager<UUID, InMemoryEdek> km, MemoryRecords encrypted) {
+        return km.decrypt("topic", 1, encrypted, ByteBufferOutputStream::new);
+    }
+
+    @NonNull
+    private static InMemoryKms getInMemoryKms() {
+        var kmsService = UnitTestingKmsService.newInstance();
+        return kmsService.buildKms(new UnitTestingKmsService.Config());
+    }
+
+    @NonNull
+    private static CompletionStage<MemoryRecords> encrypt(InBandKeyManager<UUID, InMemoryEdek> km, EncryptionScheme<UUID> scheme, MemoryRecords records) {
+        return km.encrypt("topic", 1, scheme, records, ByteBufferOutputStream::new);
     }
 
 }

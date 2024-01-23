@@ -25,6 +25,7 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.TopicPartition;
 import org.assertj.core.api.InstanceOfAssertFactories;
+import org.assertj.core.api.ThrowingConsumer;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -175,14 +176,10 @@ class EnvelopeEncryptionFilterIT {
         }
     }
 
-    interface ExceptionalConsumer<T> {
-        void accept(T t) throws Exception;
-    }
-
-    <K, V> Producer<K, V> withTransaction(Producer<K, V> producer, ExceptionalConsumer<Producer<K, V>> consumer) {
+    <K, V> Producer<K, V> withTransaction(Producer<K, V> producer, ThrowingConsumer<Producer<K, V>> action) {
         producer.beginTransaction();
         try {
-            consumer.accept(producer);
+            action.accept(producer);
         }
         catch (Exception e) {
             throw new RuntimeException(e);

@@ -370,10 +370,10 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
         }
         Set<E> uniqueEdeks = extractEdeks(topicName, partition, records);
         CompletionStage<Map<E, AesGcmEncryptor>> decryptors = resolveAll(uniqueEdeks);
-        CompletionStage<BatchAwareMemoryRecordsBuilder> objectCompletionStage = decryptors.thenApply(
+        CompletionStage<BatchAwareMemoryRecordsBuilder> decryptStage = decryptors.thenApply(
                 encryptorMap -> decrypt(topicName, partition, records, new BatchAwareMemoryRecordsBuilder(allocateBufferForDecode(records, bufferAllocator)),
                         encryptorMap, batchRecordCounts));
-        return objectCompletionStage.thenApply(BatchAwareMemoryRecordsBuilder::build);
+        return decryptStage.thenApply(BatchAwareMemoryRecordsBuilder::build);
     }
 
     private CompletionStage<Map<E, AesGcmEncryptor>> resolveAll(Set<E> uniqueEdeks) {
