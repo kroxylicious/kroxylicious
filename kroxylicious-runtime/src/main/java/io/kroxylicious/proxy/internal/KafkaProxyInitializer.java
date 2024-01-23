@@ -187,7 +187,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
         }
 
         ApiVersionsServiceImpl apiVersionService = new ApiVersionsServiceImpl();
-        final NetFilter netFilter = new InitalizerNetFilter(dp, apiVersionService, ch, virtualCluster, binding, pfr, filterChainFactory, endpointReconciler);
+        final NetFilter netFilter = new InitalizerNetFilter(dp, apiVersionService, ch, binding, pfr, filterChainFactory, endpointReconciler);
         var frontendHandler = new KafkaProxyFrontendHandler(netFilter, dp, virtualCluster, apiVersionService);
 
         pipeline.addLast("netHandler", frontendHandler);
@@ -207,12 +207,12 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
         private final FilterChainFactory filterChainFactory;
         private final EndpointReconciler endpointReconciler;
 
-        InitalizerNetFilter(SaslDecodePredicate decodePredicate, ApiVersionsServiceImpl apiVersionService, SocketChannel ch, VirtualCluster virtualCluster,
+        InitalizerNetFilter(SaslDecodePredicate decodePredicate, ApiVersionsServiceImpl apiVersionService, SocketChannel ch,
                             VirtualClusterBinding binding, PluginFactoryRegistry pfr, FilterChainFactory filterChainFactory, EndpointReconciler endpointReconciler) {
             this.decodePredicate = decodePredicate;
             this.apiVersionService = apiVersionService;
             this.ch = ch;
-            this.virtualCluster = virtualCluster;
+            this.virtualCluster = binding.virtualCluster();
             this.binding = binding;
             this.pfr = pfr;
             this.filterChainFactory = filterChainFactory;
