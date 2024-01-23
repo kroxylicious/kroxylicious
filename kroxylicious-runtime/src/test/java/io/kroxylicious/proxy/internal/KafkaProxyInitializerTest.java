@@ -13,6 +13,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
+import org.apache.kafka.common.security.auth.AuthenticateCallbackHandler;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -196,7 +197,7 @@ class KafkaProxyInitializerTest {
 
     @ParameterizedTest
     @ValueSource(booleans = { true, false })
-    void shouldAdNetworkLoggerOnBindingComplete(boolean tls) {
+    void shouldAddNetworkLoggerOnBindingComplete(boolean tls) {
         // Given
         virtualCluster = buildVirtualCluster(true, false);
         when(vcb.virtualCluster()).thenReturn(virtualCluster);
@@ -213,6 +214,50 @@ class KafkaProxyInitializerTest {
 
         // Then
         verify(channelPipeline).addLast(eq("networkLogger"), any(LoggingHandler.class));
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = { true, false })
+    void shouldAddAuthnHandlersOnBindingComplete(boolean tls) {
+        // Given
+        virtualCluster = buildVirtualCluster(true, false);
+        when(vcb.virtualCluster()).thenReturn(virtualCluster);
+        final AuthenticateCallbackHandler plainHandler = mock(AuthenticateCallbackHandler.class);
+        kafkaProxyInitializer = new KafkaProxyInitializer(filterChainFactory,
+                pfr,
+                tls,
+                (endpoint, sniHostname) -> bindingStage,
+                (virtualCluster, upstreamNodes) -> null,
+                false,
+                Map.of(KafkaAuthnHandler.SaslMechanism.PLAIN, plainHandler));
+
+        // When
+        kafkaProxyInitializer.addHandlers(channel, vcb);
+
+        // Then
+        verify(channelPipeline).addLast(any(KafkaAuthnHandler.class));
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = { true, false })
+    void shouldNotAddAuthnHandlersWithoutConfiguredMechanism(boolean tls) {
+        // Given
+        virtualCluster = buildVirtualCluster(true, false);
+        when(vcb.virtualCluster()).thenReturn(virtualCluster);
+        final AuthenticateCallbackHandler plainHandler = mock(AuthenticateCallbackHandler.class);
+        kafkaProxyInitializer = new KafkaProxyInitializer(filterChainFactory,
+                pfr,
+                tls,
+                (endpoint, sniHostname) -> bindingStage,
+                (virtualCluster, upstreamNodes) -> null,
+                false,
+                Map.of());
+
+        // When
+        kafkaProxyInitializer.addHandlers(channel, vcb);
+
+        // Then
+        verify(channelPipeline, times(0)).addLast(any(KafkaAuthnHandler.class));
     }
 
     @Test
