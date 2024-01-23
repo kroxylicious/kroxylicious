@@ -120,9 +120,9 @@ class EnvelopeEncryptionFilterTest {
             return CompletableFuture.completedFuture(copy);
         });
 
-        when(keyManager.encrypt(any(), anyInt(), any(), any(), any())).thenReturn(CompletableFuture.completedFuture(RecordTestUtils.memoryRecords("key", "value")));
+        when(keyManager.encrypt(any(), anyInt(), any(), any(), any())).thenReturn(CompletableFuture.completedFuture(RecordTestUtils.singleElementMemoryRecords("key", "value")));
 
-        when(keyManager.decrypt(any(), anyInt(), any(), any())).thenReturn(CompletableFuture.completedFuture(RecordTestUtils.memoryRecords("decrypt", "decrypt")));
+        when(keyManager.decrypt(any(), anyInt(), any(), any())).thenReturn(CompletableFuture.completedFuture(RecordTestUtils.singleElementMemoryRecords("decrypt", "decrypt")));
 
         encryptionFilter = new EnvelopeEncryptionFilter<>(keyManager, kekSelector);
     }
@@ -199,7 +199,7 @@ class EnvelopeEncryptionFilterTest {
                 .setTopic(ENCRYPTED_TOPIC)
                 .setPartitions(List.of(new PartitionData().setRecords(makeRecord(ENCRYPTED_MESSAGE_BYTES)))));
 
-        MemoryRecords decryptedRecords = RecordTestUtils.memoryRecords("key", "value");
+        MemoryRecords decryptedRecords = RecordTestUtils.singleElementMemoryRecords("key", "value");
         when(keyManager.decrypt(any(), anyInt(), any(), any())).thenReturn(CompletableFuture.completedFuture(decryptedRecords));
 
         // When

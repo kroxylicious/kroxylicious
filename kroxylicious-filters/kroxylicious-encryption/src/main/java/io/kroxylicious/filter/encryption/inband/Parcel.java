@@ -18,8 +18,8 @@ import org.apache.kafka.common.utils.Utils;
 
 import io.kroxylicious.filter.encryption.EncryptionException;
 import io.kroxylicious.filter.encryption.ParcelVersion;
-import io.kroxylicious.filter.encryption.Receiver;
 import io.kroxylicious.filter.encryption.RecordField;
+import io.kroxylicious.filter.encryption.records.BatchAwareMemoryRecordsBuilder;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -58,7 +58,7 @@ public class Parcel {
     static void readParcel(ParcelVersion parcelVersion,
                            ByteBuffer parcel,
                            Record encryptedRecord,
-                           @NonNull Receiver receiver) {
+                           @NonNull BatchAwareMemoryRecordsBuilder builder) {
         switch (parcelVersion) {
             case V1:
                 var parcelledValue = readRecordValue(parcel);
@@ -79,9 +79,8 @@ public class Parcel {
                 else {
                     usedHeaders = parcelledHeaders;
                 }
-                receiver.accept(encryptedRecord,
-                        parcelledValue == ABSENT_VALUE ? encryptedRecord.value() : parcelledValue,
-                        usedHeaders);
+                ByteBuffer parcelledBuffer = parcelledValue == ABSENT_VALUE ? encryptedRecord.value() : parcelledValue;
+                builder.appendWithOffset(encryptedRecord.offset(), encryptedRecord.timestamp(), encryptedRecord.key(), parcelledBuffer, usedHeaders);
                 break;
             default:
                 throw new EncryptionException("Unknown parcel version " + parcelVersion);

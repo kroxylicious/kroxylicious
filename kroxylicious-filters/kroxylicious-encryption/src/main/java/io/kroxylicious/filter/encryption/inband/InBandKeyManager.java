@@ -9,21 +9,25 @@ package io.kroxylicious.filter.encryption.inband;
 import java.nio.ByteBuffer;
 import java.security.SecureRandom;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.function.IntFunction;
-import java.util.stream.Stream;
+import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.record.MemoryRecords;
-import org.apache.kafka.common.record.MemoryRecordsBuilder;
+import org.apache.kafka.common.record.MutableRecordBatch;
 import org.apache.kafka.common.record.Record;
-import org.apache.kafka.common.record.RecordBatch;
+import org.apache.kafka.common.utils.BufferSupplier;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 import org.apache.kafka.common.utils.ByteUtils;
+import org.apache.kafka.common.utils.CloseableIterator;
 
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
@@ -35,9 +39,8 @@ import io.kroxylicious.filter.encryption.EncryptionScheme;
 import io.kroxylicious.filter.encryption.EncryptionVersion;
 import io.kroxylicious.filter.encryption.EnvelopeEncryptionFilter;
 import io.kroxylicious.filter.encryption.KeyManager;
-import io.kroxylicious.filter.encryption.Receiver;
 import io.kroxylicious.filter.encryption.RecordField;
-import io.kroxylicious.filter.encryption.WrapperVersion;
+import io.kroxylicious.filter.encryption.records.BatchAwareMemoryRecordsBuilder;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.Serde;
 
@@ -129,38 +132,39 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
             // no records to transform, return input without modification
             return CompletableFuture.completedFuture(records);
         }
-        List<Record> encryptionRequests = recordStream(records).toList();
+
+        List<Integer> batchRecordCounts = batchRecordCounts(records);
         // it is possible to encounter MemoryRecords that have had all their records compacted away, but
         // the recordbatch metadata still exists. https://kafka.apache.org/documentation/#recordbatch
-        if (encryptionRequests.isEmpty()) {
+        if (batchRecordCounts.stream().allMatch(size -> size == 0)) {
             return CompletableFuture.completedFuture(records);
         }
-        MemoryRecordsBuilder builder = recordsBuilder(allocateBufferForEncode(records, bufferAllocator), records);
-        return attemptEncrypt(topicName, partition, encryptionScheme, encryptionRequests, (kafkaRecord, plaintextBuffer, headers) -> {
-            builder.appendWithOffset(kafkaRecord.offset(), kafkaRecord.timestamp(), kafkaRecord.key(), plaintextBuffer, headers);
-        }, 0).thenApply(unused -> builder.build());
+        BatchAwareMemoryRecordsBuilder builder = new BatchAwareMemoryRecordsBuilder(allocateBufferForEncode(records, bufferAllocator));
+        return attemptEncrypt(topicName, partition, encryptionScheme, records, builder, 0, batchRecordCounts).thenApply(unused -> builder.build());
     }
 
     @NonNull
-    private static Stream<Record> recordStream(MemoryRecords memoryRecords) {
-        return StreamSupport.stream(memoryRecords.records().spliterator(), false);
+    private static List<Integer> batchRecordCounts(@NonNull MemoryRecords records) {
+        List<Integer> sizes = new ArrayList<>();
+        for (MutableRecordBatch batch : records.batches()) {
+            sizes.add(recordCount(batch));
+        }
+        return sizes;
     }
 
-    private static MemoryRecordsBuilder recordsBuilder(@NonNull ByteBufferOutputStream buffer, @NonNull MemoryRecords records) {
-        RecordBatch firstBatch = records.firstBatch();
-        return new MemoryRecordsBuilder(buffer,
-                firstBatch.magic(),
-                firstBatch.compressionType(), // TODO we might not want to use the client's compression
-                firstBatch.timestampType(),
-                firstBatch.baseOffset(),
-                0L,
-                firstBatch.producerId(),
-                firstBatch.producerEpoch(),
-                firstBatch.baseSequence(),
-                firstBatch.isTransactional(),
-                firstBatch.isControlBatch(),
-                firstBatch.partitionLeaderEpoch(),
-                0);
+    private static int recordCount(MutableRecordBatch batch) {
+        Integer count = batch.countOrNull();
+        if (count == null) {
+            // for magic <2 count will be null
+            CloseableIterator<Record> iterator = batch.skipKeyValueIterator(BufferSupplier.NO_CACHING);
+            int c = 0;
+            while (iterator.hasNext()) {
+                c++;
+                iterator.next();
+            }
+            count = c;
+        }
+        return count;
     }
 
     private ByteBufferOutputStream allocateBufferForEncode(MemoryRecords records, IntFunction<ByteBufferOutputStream> bufferAllocator) {
@@ -170,61 +174,76 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
     }
 
     @SuppressWarnings("java:S2445")
-    private CompletionStage<Void> attemptEncrypt(String topicName, int partition, @NonNull EncryptionScheme<K> encryptionScheme, @NonNull List<? extends Record> records,
-                                                 @NonNull Receiver receiver, int attempt) {
+    private CompletionStage<Void> attemptEncrypt(String topicName, int partition, @NonNull EncryptionScheme<K> encryptionScheme, @NonNull MemoryRecords records,
+                                                 BatchAwareMemoryRecordsBuilder builder, int attempt, List<Integer> batchRecordCounts) {
+        int allRecordsCount = batchRecordCounts.stream().mapToInt(value -> value).sum();
         if (attempt >= MAX_ATTEMPTS) {
             return CompletableFuture.failedFuture(
-                    new RequestNotSatisfiable("failed to reserve an EDEK to encrypt " + records.size() + " records for topic " + topicName + " partition "
+                    new RequestNotSatisfiable("failed to reserve an EDEK to encrypt " + allRecordsCount + " records for topic " + topicName + " partition "
                             + partition + " after " + attempt + " attempts"));
         }
         return currentDekContext(encryptionScheme.kekId()).thenCompose(keyContext -> {
             synchronized (keyContext) {
                 // if it's not alive we know a previous encrypt call has removed this stage from the cache and fall through to retry encrypt
                 if (!keyContext.isDestroyed()) {
-                    if (!keyContext.hasAtLeastRemainingEncryptions(records.size())) {
+                    if (!keyContext.hasAtLeastRemainingEncryptions(allRecordsCount)) {
                         // remove the key context from the cache, then call encrypt again to drive caffeine to recreate it
                         rotateKeyContext(encryptionScheme, keyContext);
                     }
                     else {
                         // todo ensure that a failure during encryption terminates the entire operation with a failed future
-                        return encrypt(encryptionScheme, records, receiver, keyContext);
+                        return encrypt(encryptionScheme, records, builder, keyContext, batchRecordCounts);
                     }
                 }
             }
-            return attemptEncrypt(topicName, partition, encryptionScheme, records, receiver, attempt + 1);
+            return attemptEncrypt(topicName, partition, encryptionScheme, records, builder, attempt + 1, batchRecordCounts);
         });
     }
 
     @NonNull
-    private CompletableFuture<Void> encrypt(@NonNull EncryptionScheme<K> encryptionScheme, @NonNull List<? extends Record> records,
-                                            @NonNull Receiver receiver, KeyContext keyContext) {
-        var maxParcelSize = records.stream()
-                .mapToInt(kafkaRecord -> Parcel.sizeOfParcel(
-                        encryptionVersion.parcelVersion(),
-                        encryptionScheme.recordFields(),
-                        kafkaRecord))
-                .filter(value -> value > 0)
-                .max()
-                .orElseThrow();
-        var maxWrapperSize = records.stream()
-                .mapToInt(kafkaRecord -> sizeOfWrapper(keyContext, maxParcelSize))
-                .filter(value -> value > 0)
-                .max()
-                .orElseThrow();
-        ByteBuffer parcelBuffer = bufferPool.acquire(maxParcelSize);
-        ByteBuffer wrapperBuffer = bufferPool.acquire(maxWrapperSize);
-        try {
-            encryptRecords(encryptionScheme, keyContext, records, parcelBuffer, wrapperBuffer, receiver);
-        }
-        finally {
-            if (wrapperBuffer != null) {
-                bufferPool.release(wrapperBuffer);
+    private CompletableFuture<Void> encrypt(@NonNull EncryptionScheme<K> encryptionScheme,
+                                            @NonNull MemoryRecords memoryRecords,
+                                            @NonNull BatchAwareMemoryRecordsBuilder builder,
+                                            @NonNull KeyContext keyContext,
+                                            @NonNull List<Integer> batchRecordCounts) {
+        int i = 0;
+        for (MutableRecordBatch batch : memoryRecords.batches()) {
+            Integer batchRecordCount = batchRecordCounts.get(i++);
+            if (batchRecordCount == 0 || batch.isControlBatch()) {
+                builder.writeBatch(batch);
             }
-            if (parcelBuffer != null) {
-                bufferPool.release(parcelBuffer);
+            else {
+                List<Record> records = StreamSupport.stream(batch.spliterator(), false).toList();
+                builder.addBatchLike(batch);
+                var maxParcelSize = records.stream()
+                        .mapToInt(kafkaRecord -> Parcel.sizeOfParcel(
+                                encryptionVersion.parcelVersion(),
+                                encryptionScheme.recordFields(),
+                                kafkaRecord))
+                        .filter(value -> value > 0)
+                        .max()
+                        .orElseThrow();
+                var maxWrapperSize = records.stream()
+                        .mapToInt(kafkaRecord -> sizeOfWrapper(keyContext, maxParcelSize))
+                        .filter(value -> value > 0)
+                        .max()
+                        .orElseThrow();
+                ByteBuffer parcelBuffer = bufferPool.acquire(maxParcelSize);
+                ByteBuffer wrapperBuffer = bufferPool.acquire(maxWrapperSize);
+                try {
+                    encryptRecords(encryptionScheme, keyContext, records, parcelBuffer, wrapperBuffer, builder);
+                }
+                finally {
+                    if (wrapperBuffer != null) {
+                        bufferPool.release(wrapperBuffer);
+                    }
+                    if (parcelBuffer != null) {
+                        bufferPool.release(parcelBuffer);
+                    }
+                }
+                keyContext.recordEncryptions(records.size());
             }
         }
-        keyContext.recordEncryptions(records.size());
         return CompletableFuture.completedFuture(null);
     }
 
@@ -240,7 +259,7 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
                                 @NonNull List<? extends Record> records,
                                 @NonNull ByteBuffer parcelBuffer,
                                 @NonNull ByteBuffer wrapperBuffer,
-                                @NonNull Receiver receiver) {
+                                @NonNull BatchAwareMemoryRecordsBuilder builder) {
         records.forEach(kafkaRecord -> {
             if (encryptionScheme.recordFields().contains(RecordField.RECORD_HEADER_VALUES)
                     && kafkaRecord.headers().length > 0
@@ -253,12 +272,12 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
                 parcelBuffer.flip();
                 var transformedValue = writeWrapper(keyContext, parcelBuffer, wrapperBuffer);
                 Header[] headers = transformHeaders(encryptionScheme, kafkaRecord);
-                receiver.accept(kafkaRecord, transformedValue, headers);
+                builder.appendWithOffset(kafkaRecord.offset(), kafkaRecord.timestamp(), kafkaRecord.key(), transformedValue, headers);
                 wrapperBuffer.rewind();
                 parcelBuffer.rewind();
             }
             else {
-                receiver.accept(kafkaRecord, null, kafkaRecord.headers());
+                builder.appendWithOffset(kafkaRecord.offset(), kafkaRecord.timestamp(), kafkaRecord.key(), null, kafkaRecord.headers());
             }
         });
     }
@@ -335,9 +354,6 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
                 .thenApply(AesGcmEncryptor::forDecrypt).toCompletableFuture();
     }
 
-    private record DecryptState(@NonNull Record kafkaRecord, @NonNull ByteBuffer valueWrapper, @Nullable EncryptionVersion decryptionVersion,
-                                @Nullable AesGcmEncryptor encryptor) {}
-
     @NonNull
     @Override
     public CompletionStage<MemoryRecords> decrypt(@NonNull String topicName, int partition, @NonNull MemoryRecords records,
@@ -346,52 +362,83 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
             // no records to transform, return input without modification
             return CompletableFuture.completedFuture(records);
         }
-        List<Record> encryptionRequests = recordStream(records).toList();
+        List<Integer> batchRecordCounts = batchRecordCounts(records);
         // it is possible to encounter MemoryRecords that have had all their records compacted away, but
         // the recordbatch metadata still exists. https://kafka.apache.org/documentation/#recordbatch
-        if (encryptionRequests.isEmpty()) {
+        if (batchRecordCounts.stream().allMatch(recordCount -> recordCount == 0)) {
             return CompletableFuture.completedFuture(records);
         }
-        ByteBufferOutputStream buffer = allocateBufferForDecode(records, bufferAllocator);
-        MemoryRecordsBuilder outputBuilder = recordsBuilder(buffer, records);
-        return decrypt(topicName, partition, recordStream(records).toList(), (kafkaRecord, plaintextBuffer, headers) -> {
-            outputBuilder.appendWithOffset(kafkaRecord.offset(), kafkaRecord.timestamp(), kafkaRecord.key(), plaintextBuffer, headers);
-        }).thenApply(unused -> outputBuilder.build());
+        Set<E> uniqueEdeks = extractEdeks(topicName, partition, records);
+        CompletionStage<Map<E, AesGcmEncryptor>> decryptors = resolveAll(uniqueEdeks);
+        CompletionStage<BatchAwareMemoryRecordsBuilder> decryptStage = decryptors.thenApply(
+                encryptorMap -> decrypt(topicName, partition, records, new BatchAwareMemoryRecordsBuilder(allocateBufferForDecode(records, bufferAllocator)),
+                        encryptorMap, batchRecordCounts));
+        return decryptStage.thenApply(BatchAwareMemoryRecordsBuilder::build);
+    }
+
+    private CompletionStage<Map<E, AesGcmEncryptor>> resolveAll(Set<E> uniqueEdeks) {
+        CompletionStage<List<Map.Entry<E, AesGcmEncryptor>>> join = EnvelopeEncryptionFilter.join(
+                uniqueEdeks.stream().map(e -> decryptorCache.get(e).thenApply(aesGcmEncryptor -> Map.entry(e, aesGcmEncryptor))).toList());
+        return join.thenApply(entries -> entries.stream().collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)));
+    }
+
+    private Set<E> extractEdeks(String topicName, int partition, MemoryRecords records) {
+        Set<E> edeks = new HashSet<>();
+        Serde<E> serde = kms.edekSerde();
+        for (Record kafkaRecord : records.records()) {
+            var decryptionVersion = decryptionVersion(topicName, partition, kafkaRecord);
+            if (decryptionVersion == EncryptionVersion.V1) {
+                ByteBuffer wrapper = kafkaRecord.value();
+                var edekLength = ByteUtils.readUnsignedVarint(wrapper);
+                ByteBuffer slice = wrapper.slice(wrapper.position(), edekLength);
+                var edek = serde.deserialize(slice);
+                edeks.add(edek);
+            }
+        }
+        return edeks;
     }
 
     @NonNull
-    private CompletionStage<Void> decrypt(String topicName,
-                                          int partition,
-                                          @NonNull List<? extends Record> records,
-                                          @NonNull Receiver receiver) {
-        var decryptStateStages = new ArrayList<CompletionStage<DecryptState>>(records.size());
-
-        for (Record kafkaRecord : records) {
-            var decryptionVersion = decryptionVersion(topicName, partition, kafkaRecord);
-            if (decryptionVersion == null) {
-                decryptStateStages.add(CompletableFuture.completedStage(new DecryptState(kafkaRecord, kafkaRecord.value(), null, null)));
+    private BatchAwareMemoryRecordsBuilder decrypt(String topicName,
+                                                   int partition,
+                                                   @NonNull MemoryRecords records,
+                                                   @NonNull BatchAwareMemoryRecordsBuilder builder,
+                                                   @NonNull Map<E, AesGcmEncryptor> encryptorMap,
+                                                   @NonNull List<Integer> batchRecordCounts) {
+        int i = 0;
+        for (MutableRecordBatch batch : records.batches()) {
+            Integer batchRecordCount = batchRecordCounts.get(i++);
+            if (batchRecordCount == 0 || batch.isControlBatch()) {
+                builder.writeBatch(batch);
             }
             else {
-                // right now (because we only support topic name based kek selection) once we've resolved the first value we
-                // can keep the lock and process all the records
-                ByteBuffer wrapper = kafkaRecord.value();
-                decryptStateStages.add(
-                        resolveEncryptor(decryptionVersion.wrapperVersion(), wrapper).thenApply(enc -> new DecryptState(kafkaRecord, wrapper, decryptionVersion, enc)));
+                decryptBatch(topicName, partition, builder, encryptorMap, batch);
             }
         }
+        return builder;
+    }
 
-        return EnvelopeEncryptionFilter.join(decryptStateStages)
-                .thenApply(decryptStates -> {
-                    decryptStates.forEach(decryptState -> {
-                        if (decryptState.encryptor() == null) {
-                            receiver.accept(decryptState.kafkaRecord(), decryptState.valueWrapper(), decryptState.kafkaRecord().headers());
-                        }
-                        else {
-                            decryptRecord(decryptState.decryptionVersion(), decryptState.encryptor(), decryptState.valueWrapper(), decryptState.kafkaRecord(), receiver);
-                        }
-                    });
-                    return null;
-                });
+    private void decryptBatch(String topicName, int partition, @NonNull BatchAwareMemoryRecordsBuilder builder, @NonNull Map<E, AesGcmEncryptor> encryptorMap,
+                              MutableRecordBatch batch) {
+        builder.addBatchLike(batch);
+        for (Record kafkaRecord : batch) {
+            var decryptionVersion = decryptionVersion(topicName, partition, kafkaRecord);
+            if (decryptionVersion == null) {
+                builder.append(kafkaRecord);
+            }
+            else if (decryptionVersion == EncryptionVersion.V1) {
+                ByteBuffer wrapper = kafkaRecord.value();
+                var edekLength = ByteUtils.readUnsignedVarint(wrapper);
+                ByteBuffer slice = wrapper.slice(wrapper.position(), edekLength);
+                var edek = edekSerde.deserialize(slice);
+                wrapper.position(wrapper.position() + edekLength);
+                AesGcmEncryptor aesGcmEncryptor = encryptorMap.get(edek);
+                if (aesGcmEncryptor == null) {
+                    throw new EncryptionException("no encryptor loaded for edek, " + edek);
+                }
+                decryptRecord(EncryptionVersion.V1, aesGcmEncryptor, wrapper, kafkaRecord, builder);
+            }
+        }
     }
 
     private ByteBufferOutputStream allocateBufferForDecode(MemoryRecords memoryRecords, IntFunction<ByteBufferOutputStream> allocator) {
@@ -404,7 +451,7 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
                                AesGcmEncryptor encryptor,
                                ByteBuffer wrapper,
                                Record kafkaRecord,
-                               @NonNull Receiver receiver) {
+                               @NonNull BatchAwareMemoryRecordsBuilder builder) {
         var aadSpec = AadSpec.fromCode(wrapper.get());
         ByteBuffer aad = switch (aadSpec) {
             case NONE -> ByteUtils.EMPTY_BUF;
@@ -416,19 +463,7 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
         synchronized (encryptor) {
             plaintextParcel = decryptParcel(wrapper.slice(), encryptor);
         }
-        Parcel.readParcel(decryptionVersion.parcelVersion(), plaintextParcel, kafkaRecord, receiver);
-    }
-
-    private CompletionStage<AesGcmEncryptor> resolveEncryptor(WrapperVersion wrapperVersion, ByteBuffer wrapper) {
-        switch (wrapperVersion) {
-            case V1:
-                var edekLength = ByteUtils.readUnsignedVarint(wrapper);
-                ByteBuffer slice = wrapper.slice(wrapper.position(), edekLength);
-                var edek = edekSerde.deserialize(slice);
-                wrapper.position(wrapper.position() + edekLength);
-                return decryptorCache.get(edek);
-        }
-        throw new EncryptionException("Unknown wrapper version " + wrapperVersion);
+        Parcel.readParcel(decryptionVersion.parcelVersion(), plaintextParcel, kafkaRecord, builder);
     }
 
     private ByteBuffer decryptParcel(ByteBuffer ciphertextParcel, AesGcmEncryptor encryptor) {

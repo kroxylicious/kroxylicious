@@ -9,16 +9,23 @@ package io.kroxylicious.test.assertj;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.record.Record;
 import org.assertj.core.api.AbstractAssert;
+import org.assertj.core.api.AbstractByteArrayAssert;
 import org.assertj.core.api.AbstractLongAssert;
 import org.assertj.core.api.AbstractObjectAssert;
+import org.assertj.core.api.AbstractStringAssert;
 import org.assertj.core.api.Assertions;
 import org.assertj.core.api.ObjectArrayAssert;
 
 import io.kroxylicious.test.record.RecordTestUtils;
 
 public class RecordAssert extends AbstractAssert<RecordAssert, Record> {
+
+    private static final String RECORD_VALUE_DESCRIPTION = "record value";
+    private static final String RECORD_KEY_DESCRIPTION = "record key";
+
     protected RecordAssert(Record record) {
         super(record, RecordAssert.class);
+        describedAs(record == null ? "null record" : "record");
     }
 
     public static RecordAssert assertThat(Record actual) {
@@ -26,6 +33,7 @@ public class RecordAssert extends AbstractAssert<RecordAssert, Record> {
     }
 
     public RecordAssert hasOffsetEqualTo(int expect) {
+        isNotNull();
         AbstractLongAssert<?> offset = offsetAssert();
         offset.isEqualTo(expect);
         return this;
@@ -38,6 +46,7 @@ public class RecordAssert extends AbstractAssert<RecordAssert, Record> {
     }
 
     public RecordAssert hasTimestampEqualTo(int expect) {
+        isNotNull();
         AbstractLongAssert<?> timestamp = timestampAssert();
         timestamp.isEqualTo(expect);
         return this;
@@ -50,36 +59,65 @@ public class RecordAssert extends AbstractAssert<RecordAssert, Record> {
     }
 
     private AbstractObjectAssert<?, String> keyStrAssert() {
+        isNotNull();
         return Assertions.assertThat(actual).extracting(RecordTestUtils::recordKeyAsString)
-                .describedAs("record key");
+                .describedAs(RECORD_KEY_DESCRIPTION);
     }
 
     public RecordAssert hasKeyEqualTo(String expect) {
+        isNotNull();
         Assertions.assertThat(actual).extracting(RecordTestUtils::recordKeyAsString)
-                .describedAs("record key")
+                .describedAs(RECORD_KEY_DESCRIPTION)
                 .isEqualTo(expect);
         return this;
     }
 
     public RecordAssert hasNullKey() {
-        keyStrAssert()
-                .isNull();
+        isNotNull();
+        keyStrAssert().isNull();
         return this;
     }
 
-    private AbstractObjectAssert<?, String> valueStrAssert() {
-        return Assertions.assertThat(actual).extracting(RecordTestUtils::recordValueAsString)
-                .describedAs("record value");
+    private AbstractStringAssert<?> valueStrAssert() {
+        isNotNull();
+        return Assertions.assertThat(RecordTestUtils.recordValueAsString(actual))
+                .describedAs(RECORD_VALUE_DESCRIPTION);
+    }
+
+    private AbstractByteArrayAssert<?> valueBytesAssert() {
+        isNotNull();
+        return Assertions.assertThat(RecordTestUtils.recordValueAsBytes(actual))
+                .describedAs(RECORD_VALUE_DESCRIPTION);
     }
 
     public RecordAssert hasValueEqualTo(String expect) {
+        isNotNull();
         valueStrAssert().isEqualTo(expect);
         return this;
     }
 
+    public RecordAssert hasValueEqualTo(byte[] expect) {
+        isNotNull();
+        valueBytesAssert().isEqualTo(expect);
+        return this;
+    }
+
+    public RecordAssert hasValueNotEqualTo(String notExpected) {
+        isNotNull();
+        valueStrAssert().isNotEqualTo(notExpected);
+        return this;
+    }
+
+    public RecordAssert hasValueEqualTo(Record expected) {
+        isNotNull();
+        hasValueEqualTo(RecordTestUtils.recordValueAsBytes(expected));
+        return this;
+    }
+
     public RecordAssert hasNullValue() {
+        isNotNull();
         Assertions.assertThat(actual).extracting(RecordTestUtils::recordValueAsString)
-                .describedAs("record value")
+                .describedAs(RECORD_VALUE_DESCRIPTION)
                 .isNull();
         return this;
     }
@@ -91,33 +129,39 @@ public class RecordAssert extends AbstractAssert<RecordAssert, Record> {
     }
 
     public RecordAssert hasEmptyHeaders() {
+        isNotNull();
         headersAssert().isEmpty();
         return this;
     }
 
     public HeaderAssert singleHeader() {
+        isNotNull();
         headersAssert().singleElement();
         return HeaderAssert.assertThat(actual.headers()[0])
                 .describedAs("record header");
     }
 
     public RecordAssert hasHeadersSize(int expect) {
+        isNotNull();
         headersAssert().hasSize(expect);
         return this;
     }
 
     public RecordAssert containsHeaderWithKey(String expectedKey) {
+        isNotNull();
         headersAssert().anyMatch(h -> h.key().equals(expectedKey));
         return this;
     }
 
     public HeaderAssert firstHeader() {
+        isNotNull();
         headersAssert().isNotEmpty();
         return HeaderAssert.assertThat(actual.headers()[0])
                 .describedAs("first record header");
     }
 
     public HeaderAssert lastHeader() {
+        isNotNull();
         headersAssert().isNotEmpty();
         return HeaderAssert.assertThat(actual.headers()[actual.headers().length - 1])
                 .describedAs("last record header");

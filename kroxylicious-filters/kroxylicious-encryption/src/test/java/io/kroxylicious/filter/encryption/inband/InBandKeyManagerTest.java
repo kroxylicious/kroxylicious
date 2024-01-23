@@ -7,6 +7,7 @@
 package io.kroxylicious.filter.encryption.inband;
 
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -24,8 +25,12 @@ import javax.crypto.SecretKey;
 
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
+import org.apache.kafka.common.record.CompressionType;
 import org.apache.kafka.common.record.MemoryRecords;
+import org.apache.kafka.common.record.MutableRecordBatch;
 import org.apache.kafka.common.record.Record;
+import org.apache.kafka.common.record.RecordBatch;
+import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 import org.apache.kafka.common.utils.ByteUtils;
 import org.assertj.core.api.InstanceOfAssertFactories;
@@ -43,6 +48,7 @@ import io.kroxylicious.kms.provider.kroxylicious.inmemory.InMemoryEdek;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.InMemoryKms;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.UnitTestingKmsService;
 import io.kroxylicious.kms.service.KmsException;
+import io.kroxylicious.test.assertj.MemoryRecordsAssert;
 import io.kroxylicious.test.record.RecordTestUtils;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -57,6 +63,12 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.when;
 
 class InBandKeyManagerTest {
+
+    private static final String ARBITRARY_KEY = "key";
+    private static final String ARBITRARY_KEY_2 = "key2";
+    private static final String ARBITRARY_VALUE = "value";
+    private static final String ARBITRARY_VALUE_2 = "value2";
+    private static final Header[] ABSENT_HEADERS = {};
 
     @Test
     void shouldBeAbleToDependOnRecordHeaderEquality() {
@@ -73,9 +85,8 @@ class InBandKeyManagerTest {
 
     @Test
     void shouldEncryptRecordValue() {
-        var kmsService = UnitTestingKmsService.newInstance();
-        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
+        InMemoryKms kms = getInMemoryKms();
+        var km = createKeyManager(kms, 500_000);
 
         var kekId = kms.generateKey();
 
@@ -105,6 +116,155 @@ class InBandKeyManagerTest {
                 .isEqualTo(value);
     }
 
+    @Test
+    void shouldPreserveMultipleBatchesOnEncrypt() {
+        // given
+        InMemoryKms kms = getInMemoryKms();
+        EncryptionScheme<UUID> scheme = createScheme(kms);
+        var km = createKeyManager(kms, 500_000);
+
+        MutableRecordBatch firstBatch = RecordTestUtils.singleElementRecordBatch(RecordBatch.CURRENT_MAGIC_VALUE, 1L, CompressionType.GZIP, TimestampType.CREATE_TIME, 2L,
+                3L,
+                (short) 4, 5, false, false, 1, ARBITRARY_KEY.getBytes(
+                        StandardCharsets.UTF_8),
+                ARBITRARY_VALUE.getBytes(StandardCharsets.UTF_8));
+
+        MutableRecordBatch secondBatch = RecordTestUtils.singleElementRecordBatch(RecordBatch.CURRENT_MAGIC_VALUE, 2L, CompressionType.NONE,
+                TimestampType.LOG_APPEND_TIME, 9L, 10L,
+                (short) 11, 12, false, false, 2, ARBITRARY_KEY_2.getBytes(
+                        StandardCharsets.UTF_8),
+                ARBITRARY_VALUE_2.getBytes(StandardCharsets.UTF_8));
+        MemoryRecords records = RecordTestUtils.memoryRecords(firstBatch, secondBatch);
+
+        // when
+        MemoryRecords encrypted = assertImmediateSuccessAndGet(encrypt(km, scheme, records));
+
+        // then
+        MemoryRecordsAssert encryptedAssert = MemoryRecordsAssert.assertThat(encrypted);
+        encryptedAssert.hasNumBatches(2);
+        encryptedAssert.firstBatch().hasMetadataMatching(firstBatch).hasNumRecords(1).firstRecord().hasValueNotEqualTo(ARBITRARY_VALUE);
+        encryptedAssert.lastBatch().hasMetadataMatching(secondBatch).hasNumRecords(1).firstRecord().hasValueNotEqualTo(ARBITRARY_VALUE_2);
+    }
+
+    @Test
+    void shouldPreserveMultipleBatchesOnDecrypt() {
+        // given
+        InMemoryKms kms = getInMemoryKms();
+        EncryptionScheme<UUID> scheme = createScheme(kms);
+        var km = createKeyManager(kms, 500_000);
+
+        MutableRecordBatch firstBatch = RecordTestUtils.singleElementRecordBatch(RecordBatch.CURRENT_MAGIC_VALUE, 1L, CompressionType.GZIP, TimestampType.CREATE_TIME, 2L,
+                3L,
+                (short) 4, 5, false, false, 1, ARBITRARY_KEY.getBytes(
+                        StandardCharsets.UTF_8),
+                ARBITRARY_VALUE.getBytes(StandardCharsets.UTF_8));
+
+        MutableRecordBatch secondBatch = RecordTestUtils.singleElementRecordBatch(RecordBatch.CURRENT_MAGIC_VALUE, 2L, CompressionType.NONE,
+                TimestampType.LOG_APPEND_TIME, 9L, 10L,
+                (short) 11, 12, false, false, 2, ARBITRARY_KEY_2.getBytes(
+                        StandardCharsets.UTF_8),
+                ARBITRARY_VALUE_2.getBytes(StandardCharsets.UTF_8));
+        MemoryRecords records = RecordTestUtils.memoryRecords(firstBatch, secondBatch);
+        MemoryRecords encrypted = assertImmediateSuccessAndGet(encrypt(km, scheme, records));
+
+        // when
+        MemoryRecords decrypted = assertImmediateSuccessAndGet(decrypt(km, encrypted));
+
+        // then
+        MemoryRecordsAssert decryptedAssert = MemoryRecordsAssert.assertThat(decrypted);
+        decryptedAssert.hasNumBatches(2);
+        decryptedAssert.firstBatch().hasMetadataMatching(firstBatch).hasNumRecords(1).firstRecord().hasValueEqualTo(ARBITRARY_VALUE);
+        decryptedAssert.lastBatch().hasMetadataMatching(secondBatch).hasNumRecords(1).firstRecord().hasValueEqualTo(ARBITRARY_VALUE_2);
+    }
+
+    @Test
+    void shouldPreserveControlBatchOnEncrypt() {
+        // given
+        InMemoryKms kms = getInMemoryKms();
+        EncryptionScheme<UUID> scheme = createScheme(kms);
+        var km = createKeyManager(kms, 500_000);
+
+        MutableRecordBatch firstBatch = RecordTestUtils.singleElementRecordBatch(1L, ARBITRARY_KEY, ARBITRARY_VALUE, ABSENT_HEADERS);
+        MutableRecordBatch controlBatch = RecordTestUtils.abortTransactionControlBatch(2);
+        Record controlRecord = controlBatch.iterator().next();
+        MemoryRecords records = RecordTestUtils.memoryRecords(firstBatch, controlBatch);
+
+        // when
+        MemoryRecords encrypted = assertImmediateSuccessAndGet(encrypt(km, scheme, records));
+
+        // then
+        MemoryRecordsAssert encryptedAssert = MemoryRecordsAssert.assertThat(encrypted);
+        encryptedAssert.hasNumBatches(2);
+        encryptedAssert.firstBatch().hasMetadataMatching(firstBatch).hasNumRecords(1).firstRecord().hasValueNotEqualTo(ARBITRARY_VALUE);
+        encryptedAssert.lastBatch().hasMetadataMatching(controlBatch).hasNumRecords(1).firstRecord().hasValueEqualTo(controlRecord);
+    }
+
+    @Test
+    void shouldPreserveControlBatchOnDecrypt() {
+        // given
+        InMemoryKms kms = getInMemoryKms();
+        EncryptionScheme<UUID> scheme = createScheme(kms);
+        var km = createKeyManager(kms, 500_000);
+
+        MutableRecordBatch firstBatch = RecordTestUtils.singleElementRecordBatch(1L, ARBITRARY_KEY, ARBITRARY_VALUE, ABSENT_HEADERS);
+        MutableRecordBatch controlBatch = RecordTestUtils.abortTransactionControlBatch(2);
+        Record controlRecord = controlBatch.iterator().next();
+        MemoryRecords records = RecordTestUtils.memoryRecords(firstBatch, controlBatch);
+        MemoryRecords encrypted = assertImmediateSuccessAndGet(encrypt(km, scheme, records));
+
+        // when
+        MemoryRecords decrypted = assertImmediateSuccessAndGet(decrypt(km, encrypted));
+
+        // then
+        MemoryRecordsAssert decryptedAssert = MemoryRecordsAssert.assertThat(decrypted);
+        decryptedAssert.hasNumBatches(2);
+        decryptedAssert.firstBatch().hasMetadataMatching(firstBatch).hasNumRecords(1).firstRecord().hasValueEqualTo(ARBITRARY_VALUE);
+        decryptedAssert.lastBatch().hasMetadataMatching(controlBatch).hasNumRecords(1).firstRecord().hasValueEqualTo(controlRecord);
+    }
+
+    @Test
+    void shouldPreserveEmptyBatchOnEncrypt() {
+        // given
+        InMemoryKms kms = getInMemoryKms();
+        EncryptionScheme<UUID> scheme = createScheme(kms);
+        var km = createKeyManager(kms, 500_000);
+
+        MutableRecordBatch firstBatch = RecordTestUtils.singleElementRecordBatch(1L, ARBITRARY_KEY, ARBITRARY_VALUE, ABSENT_HEADERS);
+        MutableRecordBatch emptyBatch = RecordTestUtils.recordBatchWithAllRecordsRemoved(2L);
+        MemoryRecords records = RecordTestUtils.memoryRecords(firstBatch, emptyBatch);
+
+        // when
+        MemoryRecords encrypted = assertImmediateSuccessAndGet(encrypt(km, scheme, records));
+
+        // then
+        MemoryRecordsAssert encryptedAssert = MemoryRecordsAssert.assertThat(encrypted);
+        encryptedAssert.hasNumBatches(2);
+        encryptedAssert.firstBatch().hasMetadataMatching(firstBatch).hasNumRecords(1).firstRecord().hasValueNotEqualTo(ARBITRARY_VALUE);
+        encryptedAssert.lastBatch().hasMetadataMatching(emptyBatch).hasNumRecords(0);
+    }
+
+    @Test
+    void shouldPreserveEmptyBatchOnDecrypt() {
+        // given
+        InMemoryKms kms = getInMemoryKms();
+        EncryptionScheme<UUID> scheme = createScheme(kms);
+        var km = createKeyManager(kms, 500_000);
+
+        MutableRecordBatch firstBatch = RecordTestUtils.singleElementRecordBatch(1L, ARBITRARY_KEY, ARBITRARY_VALUE, ABSENT_HEADERS);
+        MutableRecordBatch emptyBatch = RecordTestUtils.recordBatchWithAllRecordsRemoved(2L);
+        MemoryRecords records = RecordTestUtils.memoryRecords(firstBatch, emptyBatch);
+        MemoryRecords encrypted = assertImmediateSuccessAndGet(encrypt(km, scheme, records));
+
+        // when
+        MemoryRecords decrypted = assertImmediateSuccessAndGet(decrypt(km, encrypted));
+
+        // then
+        MemoryRecordsAssert decryptedAssert = MemoryRecordsAssert.assertThat(decrypted);
+        decryptedAssert.hasNumBatches(2);
+        decryptedAssert.firstBatch().hasMetadataMatching(firstBatch).hasNumRecords(1).firstRecord().hasValueEqualTo(ARBITRARY_VALUE);
+        decryptedAssert.lastBatch().hasMetadataMatching(emptyBatch).hasNumRecords(0);
+    }
+
     @NonNull
     private static CompletionStage<Void> doDecrypt(InBandKeyManager<UUID, InMemoryEdek> km, String topic, int partition, List<Record> encrypted,
                                                    List<Record> decrypted) {
@@ -128,9 +288,8 @@ class InBandKeyManagerTest {
 
     @Test
     void shouldTolerateEncryptingAndDecryptingEmptyRecordValue() {
-        var kmsService = UnitTestingKmsService.newInstance();
-        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
+        InMemoryKms kms = getInMemoryKms();
+        var km = createKeyManager(kms, 500_000);
 
         var kekId = kms.generateKey();
 
@@ -153,9 +312,8 @@ class InBandKeyManagerTest {
 
     @Test
     void decryptSupportsUnencryptedRecordValue() {
-        var kmsService = UnitTestingKmsService.newInstance();
-        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
+        InMemoryKms kms = getInMemoryKms();
+        var km = createKeyManager(kms, 500_000);
 
         byte[] recBytes = { 1, 2, 3 };
         Record record = RecordTestUtils.record(recBytes);
@@ -176,9 +334,8 @@ class InBandKeyManagerTest {
     @ParameterizedTest
     @MethodSource
     void decryptSupportsEmptyRecordBatches(MemoryRecords records) {
-        var kmsService = UnitTestingKmsService.newInstance();
-        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
+        InMemoryKms kms = getInMemoryKms();
+        var km = createKeyManager(kms, 500_000);
         assertThat(km.decrypt("foo", 1, records, ByteBufferOutputStream::new))
                 .succeedsWithin(Duration.ZERO).isSameAs(records);
     }
@@ -186,9 +343,8 @@ class InBandKeyManagerTest {
     // we do not want to break compaction tombstoning by creating a parcel for the null value case
     @Test
     void nullRecordValuesShouldNotBeModifiedAtEncryptTime() {
-        var kmsService = UnitTestingKmsService.newInstance();
-        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
+        InMemoryKms kms = getInMemoryKms();
+        var km = createKeyManager(kms, 500_000);
 
         var kekId = kms.generateKey();
 
@@ -207,9 +363,8 @@ class InBandKeyManagerTest {
     // value is null.
     @Test
     void nullRecordValuesAreIncompatibleWithHeaderEncryption() {
-        var kmsService = UnitTestingKmsService.newInstance();
-        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
+        InMemoryKms kms = getInMemoryKms();
+        var km = createKeyManager(kms, 500_000);
 
         var kekId = kms.generateKey();
 
@@ -226,9 +381,8 @@ class InBandKeyManagerTest {
 
     @Test
     void shouldTolerateEncryptingEmptyBatch() {
-        var kmsService = UnitTestingKmsService.newInstance();
-        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
+        InMemoryKms kms = getInMemoryKms();
+        var km = createKeyManager(kms, 500_000);
 
         var kekId = kms.generateKey();
 
@@ -242,22 +396,19 @@ class InBandKeyManagerTest {
 
     @Test
     void shouldTolerateEncryptingSingleBatchMemoryRecordsWithNoRecords() {
-        var kmsService = UnitTestingKmsService.newInstance();
-        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
-        var kekId = kms.generateKey();
-        EncryptionScheme<UUID> scheme = new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE));
+        InMemoryKms kms = getInMemoryKms();
+        var km = createKeyManager(kms, 500_000);
+        EncryptionScheme<UUID> scheme = createScheme(kms);
         MemoryRecords records = RecordTestUtils.memoryRecordsWithAllRecordsRemoved();
-        assertThat(km.encrypt("topic", 1, scheme, records, ByteBufferOutputStream::new)).succeedsWithin(Duration.ZERO).isSameAs(records);
+        assertThat(encrypt(km, scheme, records)).succeedsWithin(Duration.ZERO).isSameAs(records);
     }
 
     @Test
     void encryptionRetry() {
-        var kmsService = UnitTestingKmsService.newInstance();
-        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
+        InMemoryKms kms = getInMemoryKms();
         var kekId = kms.generateKey();
         // configure 1 encryption per dek but then try to encrypt 2 records, will destroy and retry
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 1);
+        var km = createKeyManager(kms, 1);
 
         var value = ByteBuffer.wrap(new byte[]{ 1, 2, 3 });
         var value2 = ByteBuffer.wrap(new byte[]{ 4, 5, 6 });
@@ -275,12 +426,11 @@ class InBandKeyManagerTest {
 
     @Test
     void dekCreationRetryFailurePropagatedToEncryptCompletionStage() {
-        var kmsService = UnitTestingKmsService.newInstance();
-        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
+        InMemoryKms kms = getInMemoryKms();
         var kekId = kms.generateKey();
         InMemoryKms spyKms = Mockito.spy(kms);
         when(spyKms.generateDekPair(kekId)).thenReturn(CompletableFuture.failedFuture(new EncryptorCreationException("failed to create that DEK")));
-        var km = new InBandKeyManager<>(spyKms, BufferPool.allocating(), 500000);
+        var km = createKeyManager(spyKms, 500000);
 
         var value = ByteBuffer.wrap(new byte[]{ 1, 2, 3 });
         var value2 = ByteBuffer.wrap(new byte[]{ 4, 5, 6 });
@@ -297,13 +447,12 @@ class InBandKeyManagerTest {
 
     @Test
     void edekDecryptionRetryFailurePropagatedToDecryptCompletionStage() {
-        var kmsService = UnitTestingKmsService.newInstance();
-        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
+        InMemoryKms kms = getInMemoryKms();
         var kekId = kms.generateKey();
         InMemoryKms spyKms = Mockito.spy(kms);
         doReturn(CompletableFuture.failedFuture(new KmsException("failed to create that DEK"))).when(spyKms).decryptEdek(any());
 
-        var km = new InBandKeyManager<>(spyKms, BufferPool.allocating(), 50000);
+        var km = createKeyManager(spyKms, 50000);
 
         var value = ByteBuffer.wrap(new byte[]{ 1, 2, 3 });
         var value2 = ByteBuffer.wrap(new byte[]{ 4, 5, 6 });
@@ -324,13 +473,12 @@ class InBandKeyManagerTest {
 
     @Test
     void afterWeFailToLoadADekTheNextEncryptionAttemptCanSucceed() {
-        var kmsService = UnitTestingKmsService.newInstance();
-        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
+        InMemoryKms kms = getInMemoryKms();
         var kekId = kms.generateKey();
         InMemoryKms spyKms = Mockito.spy(kms);
         when(spyKms.generateDekPair(kekId)).thenReturn(CompletableFuture.failedFuture(new KmsException("failed to create that DEK")));
 
-        var km = new InBandKeyManager<>(spyKms, BufferPool.allocating(), 50000);
+        var km = createKeyManager(spyKms, 50000);
 
         var value = ByteBuffer.wrap(new byte[]{ 1, 2, 3 });
         var value2 = ByteBuffer.wrap(new byte[]{ 4, 5, 6 });
@@ -359,9 +507,8 @@ class InBandKeyManagerTest {
 
     @Test
     void shouldEncryptRecordValueForMultipleRecords() throws ExecutionException, InterruptedException, TimeoutException {
-        var kmsService = UnitTestingKmsService.newInstance();
-        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
+        InMemoryKms kms = getInMemoryKms();
+        var km = createKeyManager(kms, 500_000);
 
         var kekId = kms.generateKey();
 
@@ -393,9 +540,8 @@ class InBandKeyManagerTest {
 
     @Test
     void shouldGenerateNewDekIfOldDekHasNoRemainingEncryptions() throws ExecutionException, InterruptedException, TimeoutException {
-        var kmsService = UnitTestingKmsService.newInstance();
-        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 2);
+        InMemoryKms kms = getInMemoryKms();
+        var km = createKeyManager(kms, 2);
 
         var kekId = kms.generateKey();
 
@@ -432,9 +578,8 @@ class InBandKeyManagerTest {
 
     @Test
     void shouldGenerateNewDekIfOldOneHasSomeRemainingEncryptionsButNotEnoughForWholeBatch() throws ExecutionException, InterruptedException, TimeoutException {
-        var kmsService = UnitTestingKmsService.newInstance();
-        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 3);
+        InMemoryKms kms = getInMemoryKms();
+        var km = createKeyManager(kms, 3);
 
         var kekId = kms.generateKey();
 
@@ -472,9 +617,8 @@ class InBandKeyManagerTest {
 
     @Test
     void shouldUseSameDekForMultipleBatches() throws ExecutionException, InterruptedException, TimeoutException {
-        var kmsService = UnitTestingKmsService.newInstance();
-        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 4);
+        InMemoryKms kms = getInMemoryKms();
+        var km = createKeyManager(kms, 4);
 
         var kekId = kms.generateKey();
 
@@ -511,9 +655,8 @@ class InBandKeyManagerTest {
 
     @Test
     void shouldEncryptRecordHeaders() {
-        var kmsService = UnitTestingKmsService.newInstance();
-        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
+        InMemoryKms kms = getInMemoryKms();
+        var km = createKeyManager(kms, 500_000);
 
         var kekId = kms.generateKey();
 
@@ -541,9 +684,8 @@ class InBandKeyManagerTest {
 
     @Test
     void shouldEncryptRecordHeadersForMultipleRecords() throws ExecutionException, InterruptedException, TimeoutException {
-        var kmsService = UnitTestingKmsService.newInstance();
-        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
+        InMemoryKms kms = getInMemoryKms();
+        var km = createKeyManager(kms, 500_000);
 
         var kekId = kms.generateKey();
 
@@ -580,9 +722,8 @@ class InBandKeyManagerTest {
 
     @Test
     void shouldPropagateHeadersInClearWhenNotEncryptingHeaders() {
-        var kmsService = UnitTestingKmsService.newInstance();
-        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
+        InMemoryKms kms = getInMemoryKms();
+        var km = createKeyManager(kms, 500_000);
 
         var kekId = kms.generateKey();
 
@@ -620,14 +761,13 @@ class InBandKeyManagerTest {
         var topic = "topic";
         var partition = 1;
 
-        var kmsService = UnitTestingKmsService.newInstance();
-        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
+        InMemoryKms kms = getInMemoryKms();
         var kekId1 = kms.generateKey();
         var kekId2 = kms.generateKey();
 
         var spyKms = Mockito.spy(kms);
 
-        var km = new InBandKeyManager<>(spyKms, BufferPool.allocating(), 50000);
+        var km = createKeyManager(spyKms, 50000);
 
         byte[] rec1Bytes = { 1, 2, 3 };
         byte[] rec2Bytes = { 4, 5, 6 };
@@ -681,11 +821,10 @@ class InBandKeyManagerTest {
         var topic = "topic";
         var partition = 1;
 
-        var kmsService = UnitTestingKmsService.newInstance();
-        InMemoryKms kms = kmsService.buildKms(new UnitTestingKmsService.Config());
+        InMemoryKms kms = getInMemoryKms();
         var kekId = kms.generateKey();
 
-        var km = new InBandKeyManager<>(kms, BufferPool.allocating(), 50000);
+        var km = createKeyManager(kms, 50000);
 
         byte[] rec1Bytes = { 1, 2, 3 };
         byte[] rec2Bytes = { 4, 5, 6 };
@@ -728,6 +867,12 @@ class InBandKeyManagerTest {
         return new TestingDek(bytes);
     }
 
+    private <T> T assertImmediateSuccessAndGet(CompletionStage<T> stage) {
+        CompletableFuture<T> future = stage.toCompletableFuture();
+        assertThat(future).succeedsWithin(Duration.ZERO);
+        return future.join();
+    }
+
     @NonNull
     private static List<TestingDek> extractEdeks(List<Record> encrypted) {
         List<TestingDek> deks = encrypted.stream()
@@ -741,6 +886,33 @@ class InBandKeyManagerTest {
                 })
                 .toList();
         return deks;
+    }
+
+    @NonNull
+    private static InBandKeyManager<UUID, InMemoryEdek> createKeyManager(InMemoryKms kms, int maxEncryptionsPerDek) {
+        return new InBandKeyManager<>(kms, BufferPool.allocating(), maxEncryptionsPerDek);
+    }
+
+    @NonNull
+    private static EncryptionScheme<UUID> createScheme(InMemoryKms kms) {
+        var kekId = kms.generateKey();
+        return new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE));
+    }
+
+    @NonNull
+    private static CompletionStage<MemoryRecords> decrypt(InBandKeyManager<UUID, InMemoryEdek> km, MemoryRecords encrypted) {
+        return km.decrypt("topic", 1, encrypted, ByteBufferOutputStream::new);
+    }
+
+    @NonNull
+    private static InMemoryKms getInMemoryKms() {
+        var kmsService = UnitTestingKmsService.newInstance();
+        return kmsService.buildKms(new UnitTestingKmsService.Config());
+    }
+
+    @NonNull
+    private static CompletionStage<MemoryRecords> encrypt(InBandKeyManager<UUID, InMemoryEdek> km, EncryptionScheme<UUID> scheme, MemoryRecords records) {
+        return km.encrypt("topic", 1, scheme, records, ByteBufferOutputStream::new);
     }
 
 }

@@ -4,6 +4,7 @@ Please enumerate **all user-facing** changes using format `<githib issue/pr numb
 
 ## 0.5.0
 
+* [#910](https://github.com/kroxylicious/kroxylicious/pull/910): Envelope encryption preserve batches within MemoryRecords
 * [#883](https://github.com/kroxylicious/kroxylicious/pull/883): Ensure we only initialise a filter factory once.
 * [#912](https://github.com/kroxylicious/kroxylicious/pull/912): Bump io.netty:netty-bom from 4.1.104.Final to 4.1.106.Final
 * [#909](https://github.com/kroxylicious/kroxylicious/pull/909): [build] use maven maven-dependency-plugin to detect missing/superfluous dependencies at build time
@@ -18,6 +19,8 @@ Please enumerate **all user-facing** changes using format `<githib issue/pr numb
   deprecated.  Use `passwordFile` instead.
 * As a result of the work of #909, some superfluous transitive dependencies have been removed from some kroxylicious.  If you were relying on those, you will need to
   adjust your dependencies as your adopt this release.
+* `io.kroxylicious:kroxylicious-filter-test-support` now contains RecordTestUtils for creating example `Record`, `RecordBatch` and `MemoryRecords`. It also contains 
+  assertj assertions for those same classes to enable us to write fluent assertions, accessible via `io.kroxylicious.test.assertj.KafkaAssertions`.
 
 ## 0.4.1
 

@@ -10,6 +10,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
@@ -19,10 +20,12 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.TopicPartition;
 import org.assertj.core.api.InstanceOfAssertFactories;
+import org.assertj.core.api.ThrowingConsumer;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -79,6 +82,109 @@ class EnvelopeEncryptionFilterIT {
                     .extracting(ConsumerRecord::value)
                     .isEqualTo(HELLO_WORLD);
         }
+    }
+
+    @TestTemplate
+    void roundTripTransactional(KafkaCluster cluster, Topic topic, TestKmsFacade<?, ?, ?> testKmsFacade) {
+        var testKekManager = testKmsFacade.getTestKekManager();
+        testKekManager.generateKek(topic.name());
+
+        var builder = proxy(cluster);
+
+        builder.addToFilters(buildEncryptionFilterDefinition(testKmsFacade));
+
+        try (var tester = kroxyliciousTester(builder);
+                var producer = tester.producer(Map.of(ProducerConfig.TRANSACTIONAL_ID_CONFIG, UUID.randomUUID().toString()));
+                var consumer = tester.consumer(Map.of(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest",
+                        ConsumerConfig.GROUP_ID_CONFIG, UUID.randomUUID().toString(),
+                        ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed"))) {
+            producer.initTransactions();
+            withTransaction(producer, transactionProducer -> {
+                producer.send(new ProducerRecord<>(topic.name(), HELLO_WORLD)).get(5, TimeUnit.SECONDS);
+            }).commitTransaction();
+            consumer.subscribe(List.of(topic.name()));
+            var records = consumer.poll(Duration.ofSeconds(2));
+            assertThat(records.iterator())
+                    .toIterable()
+                    .singleElement()
+                    .extracting(ConsumerRecord::value)
+                    .isEqualTo(HELLO_WORLD);
+        }
+    }
+
+    // check that records from aborted transaction are not exposed to read_committed clients
+    @TestTemplate
+    void roundTripTransactionalAbort(KafkaCluster cluster, Topic topic, TestKmsFacade<?, ?, ?> testKmsFacade) {
+        var testKekManager = testKmsFacade.getTestKekManager();
+        testKekManager.generateKek(topic.name());
+
+        var builder = proxy(cluster);
+
+        builder.addToFilters(buildEncryptionFilterDefinition(testKmsFacade));
+
+        try (var tester = kroxyliciousTester(builder);
+                var producer = tester.producer(Map.of(ProducerConfig.TRANSACTIONAL_ID_CONFIG, UUID.randomUUID().toString()));
+                var consumer = tester.consumer(Map.of(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest",
+                        ConsumerConfig.GROUP_ID_CONFIG, UUID.randomUUID().toString(),
+                        ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed"))) {
+            producer.initTransactions();
+            // send to the same partition to demonstrate a message appended to the same partition after the abort is made available
+            String key = "key";
+            withTransaction(producer, transactionProducer -> {
+                producer.send(new ProducerRecord<>(topic.name(), key, "aborted message")).get(5, TimeUnit.SECONDS);
+            }).abortTransaction();
+
+            withTransaction(producer, transactionProducer -> {
+                producer.send(new ProducerRecord<>(topic.name(), key, HELLO_WORLD)).get(5, TimeUnit.SECONDS);
+            }).commitTransaction();
+
+            consumer.subscribe(List.of(topic.name()));
+            var records = consumer.poll(Duration.ofSeconds(2));
+            assertThat(records.iterator())
+                    .toIterable()
+                    .singleElement()
+                    .extracting(ConsumerRecord::value)
+                    .isEqualTo(HELLO_WORLD);
+        }
+    }
+
+    // check that records from uncommitted transaction are not exposed to read_committed clients
+    @TestTemplate
+    void roundTripTransactionalIsolation(KafkaCluster cluster, Topic topic, TestKmsFacade<?, ?, ?> testKmsFacade) {
+        var testKekManager = testKmsFacade.getTestKekManager();
+        testKekManager.generateKek(topic.name());
+
+        var builder = proxy(cluster);
+
+        builder.addToFilters(buildEncryptionFilterDefinition(testKmsFacade));
+
+        try (var tester = kroxyliciousTester(builder);
+                var producer = tester.producer(Map.of(ProducerConfig.TRANSACTIONAL_ID_CONFIG, UUID.randomUUID().toString()));
+                var consumer = tester.consumer(Map.of(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest",
+                        ConsumerConfig.GROUP_ID_CONFIG, UUID.randomUUID().toString(),
+                        ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed"))) {
+            producer.initTransactions();
+
+            withTransaction(producer, transactionProducer -> {
+                transactionProducer.send(new ProducerRecord<>(topic.name(), "uncommitted message")).get(5, TimeUnit.SECONDS);
+            });
+
+            consumer.subscribe(List.of(topic.name()));
+            var records = consumer.poll(Duration.ofSeconds(2));
+            assertThat(records.iterator())
+                    .isExhausted();
+        }
+    }
+
+    <K, V> Producer<K, V> withTransaction(Producer<K, V> producer, ThrowingConsumer<Producer<K, V>> action) {
+        producer.beginTransaction();
+        try {
+            action.accept(producer);
+        }
+        catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        return producer;
     }
 
     @TestTemplate
