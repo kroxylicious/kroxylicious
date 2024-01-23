@@ -287,7 +287,7 @@ class KafkaProxyInitializerTest {
     void shouldCreateFilters() {
         // Given
         final FilterChainFactory fcf = mock(FilterChainFactory.class);
-        when(vcb.upstreamTarget()).thenReturn(new HostPort("upstream.brojer.kafka", 9090));
+        when(vcb.upstreamTarget()).thenReturn(new HostPort("upstream.broker.kafka", 9090));
         final KafkaProxyInitializer.InitalizerNetFilter initalizerNetFilter = new KafkaProxyInitializer.InitalizerNetFilter(mock(SaslDecodePredicate.class),
                 mock(ApiVersionsServiceImpl.class), channel, virtualCluster, vcb, pfr, fcf, (virtualCluster1, upstreamNodes) -> null);
         final NetFilter.NetFilterContext netFilterContext = mock(NetFilter.NetFilterContext.class);
