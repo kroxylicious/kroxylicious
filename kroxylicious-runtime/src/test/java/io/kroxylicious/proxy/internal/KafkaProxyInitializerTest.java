@@ -149,6 +149,30 @@ class KafkaProxyInitializerTest {
         verify(virtualClusterBindingResolver).resolve(any(Endpoint.class), isNull());
     }
 
+    @Test
+    void shouldRemovePlainChannelInitializerOnceComplete() throws Exception {
+        // Given
+        final VirtualClusterBindingResolver virtualClusterBindingResolver = mock(VirtualClusterBindingResolver.class);
+        when(virtualClusterBindingResolver.resolve(any(Endpoint.class), isNull())).thenReturn(bindingStage);
+        kafkaProxyInitializer = new KafkaProxyInitializer(filterChainFactory,
+                pfr,
+                false,
+                virtualClusterBindingResolver,
+                (virtualCluster, upstreamNodes) -> null,
+                false,
+                Map.of());
+        when(channelPipeline.addLast(plainChannelResolverCaptor.capture())).thenReturn(channelPipeline);
+
+        kafkaProxyInitializer.initChannel(channel);
+        final ChannelHandlerContext channelHandlerContext = mock(ChannelHandlerContext.class);
+
+        // When
+        plainChannelResolverCaptor.getValue().channelActive(channelHandlerContext);
+
+        // Then
+        verify(channelPipeline).remove(plainChannelResolverCaptor.getValue());
+    }
+
     @ParameterizedTest
     @ValueSource(booleans = { true, false })
     void shouldAddCommonHandlersOnBindingComplete(boolean tls) {
@@ -244,7 +268,6 @@ class KafkaProxyInitializerTest {
         // Given
         virtualCluster = buildVirtualCluster(true, false);
         when(vcb.virtualCluster()).thenReturn(virtualCluster);
-        final AuthenticateCallbackHandler plainHandler = mock(AuthenticateCallbackHandler.class);
         kafkaProxyInitializer = new KafkaProxyInitializer(filterChainFactory,
                 pfr,
                 tls,
