@@ -148,28 +148,17 @@ public interface Constants {
      * Feature gate related constants
      */
     String USE_KRAFT_MODE = "+UseKRaft";
-    /**
-     * The constant DONT_USE_KRAFT_MODE.
-     */
     String DONT_USE_KRAFT_MODE = "-UseKRaft";
-    /**
-     * The constant USE_KAFKA_NODE_POOLS.
-     */
     String USE_KAFKA_NODE_POOLS = "+KafkaNodePools";
-    /**
-     * The constant DONT_USE_KAFKA_NODE_POOLS.
-     */
     String DONT_USE_KAFKA_NODE_POOLS = "-KafkaNodePools";
+
     /**
-     * The constant VAULT_SERVICE_NAME.
+     * Vault related constants
      */
     String VAULT_SERVICE_NAME = "vault";
-    /**
-     * The constant VAULT_DEFAULT_NAMESPACE.
-     */
     String VAULT_DEFAULT_NAMESPACE = "vault";
-    /**
-     * The constant VAULT_ROOT_TOKEN.
-     */
     String VAULT_ROOT_TOKEN = "myRootToken";
+    String VAULT_HELM_REPOSITORY_URL = "https://helm.releases.hashicorp.com";
+    String VAULT_HELM_REPOSITORY_NAME = "hashicorp";
+    String VAULT_HELM_CHART_NAME = "hashicorp/vault";
 }
