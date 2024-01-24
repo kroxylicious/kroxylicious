@@ -79,7 +79,7 @@ class DekManagerTest {
         try (DataEncryptionKey<InMemoryEdek>.Encryptor encryptor = dek.encryptor(1)) {
             encryptor.encrypt(plaintext,
                     aad,
-                    x -> params[0] = ByteBuffer.allocate(x),
+                    (x, y) -> params[0] = ByteBuffer.allocate(x),
                     (x, y) -> ciphertext[0] = ByteBuffer.allocate(y));
             edek = encryptor.edek();
         }

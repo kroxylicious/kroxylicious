@@ -421,7 +421,7 @@ class DataEncryptionKeyTest {
 
         encryptor.encrypt(plaintextBuffer,
                 aad,
-                size -> slices[0] = buffer.slice(0, size),
+                (p, c) -> slices[0] = buffer.slice(0, p),
                 (p, c) -> slices[1] = buffer.slice(p, c));
 
         // TODO assertions on the buffer
@@ -436,7 +436,7 @@ class DataEncryptionKeyTest {
         // Shouldn't be able to use the Encryptor again
         assertThatThrownBy(() -> encryptor.encrypt(plaintextBuffer,
                 null,
-                size -> ByteBuffer.allocate(size),
+                (p, c)  -> ByteBuffer.allocate(p),
                 (p, c) -> ByteBuffer.allocate(c)))
                 .isExactlyInstanceOf(DekUsageException.class)
                 .hasMessage("The Encryptor has no more operations allowed");

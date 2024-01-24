@@ -6,5 +6,9 @@
 
 package io.kroxylicious.filter.encryption.dek;
 
+import java.nio.ByteBuffer;
+
+@FunctionalInterface
 public interface EncryptAllocator {
+    public ByteBuffer buffer(int parametersSize, int ciphertextSize);
 }

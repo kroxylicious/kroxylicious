@@ -115,7 +115,7 @@ public final class DataEncryptionKey<E> {
     }
 
     /**
-     * Get an encryptor, good for at most {@code numEncryptions} {@linkplain Encryptor#encrypt(ByteBuffer, ByteBuffer, IntFunction, BiFunction) encryptions}.
+     * Get an encryptor, good for at most {@code numEncryptions} {@linkplain Encryptor#encrypt(ByteBuffer, ByteBuffer, EncryptAllocator, EncryptAllocator) encryptions}.
      * The caller must invoke {@link Encryptor#close()} after performing all the required operations.
      * Note that while this method is safe to call from multiple threads, the returned encryptor is not.
      * @param numEncryptions The number of encryption operations required
@@ -228,7 +228,7 @@ public final class DataEncryptionKey<E> {
 
         /**
          * Perform an encryption operation using the DEK.
-         * @param plaintext The plaintext to be encrypted
+         * @param plaintext The plaintext to be encrypted (between position and limit)
          * @param aad The AAD to be included in the encryption
          * @param paramAllocator A function that will return a buffer into which the cipher parameters will be written.
          * The function's argument is the number of bytes required for the cipher parameters.
@@ -239,21 +239,20 @@ public final class DataEncryptionKey<E> {
          */
         public void encrypt(@NonNull ByteBuffer plaintext,
                             @Nullable ByteBuffer aad,
-                            @NonNull IntFunction<ByteBuffer> paramAllocator,
-                            @NonNull BiFunction<Integer, Integer, ByteBuffer> ciphertextAllocator) {
+                            @NonNull EncryptAllocator paramAllocator,
+                            @NonNull EncryptAllocator ciphertextAllocator) {
 
             if (--numEncryptions >= 0) {
                 try {
                     AlgorithmParameterSpec params = paramSupplier.get();
                     cipher.init(Cipher.ENCRYPT_MODE, key, params);
 
-                    int size = cipherSpec.size(params);
-                    var parametersBuffer = paramAllocator.apply(size);
+                    int paramsSize = cipherSpec.size(params);
+                    int ciphertextSize = cipher.getOutputSize(plaintext.remaining());
+                    var parametersBuffer = paramAllocator.buffer(paramsSize, ciphertextSize);
+                    var ciphertext = ciphertextAllocator.buffer(paramsSize, ciphertextSize);
                     cipherSpec.writeParameters(parametersBuffer, params);
                     parametersBuffer.flip();
-
-                    int outSize = cipher.getOutputSize(plaintext.remaining());
-                    var ciphertext = ciphertextAllocator.apply(size, outSize);
                     if (aad != null) {
                         cipher.updateAAD(aad);
                         aad.rewind();
