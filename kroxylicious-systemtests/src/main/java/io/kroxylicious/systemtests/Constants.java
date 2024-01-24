@@ -48,10 +48,7 @@ public interface Constants {
      * Kind of Strimzi CustomResources
      */
     String KAFKA_KIND = "Kafka";
-    /**
-     * Kind of kafka topics
-     */
-    String KAFKA_TOPIC_KIND = "KafkaTopic";
+
     /**
      * Kind of kafka users
      */
@@ -74,21 +71,6 @@ public interface Constants {
      * Kind of services
      */
     String SERVICE_KIND = "Service";
-
-    /**
-     * Kind of service account
-     */
-    String SERVICE_ACCOUNT_KIND = "ServiceAccount";
-
-    /**
-     * The constant STATEFUL_SET_KIND.
-     */
-    String STATEFUL_SET_KIND = "StatefulSet";
-
-    /**
-     * Kind of cluster role binding
-     */
-    String CLUSTER_ROLE_BINDING_KIND = "ClusterRoleBinding";
 
     /**
      * Load balancer type name.
@@ -186,6 +168,8 @@ public interface Constants {
      * The constant VAULT_DEFAULT_NAMESPACE.
      */
     String VAULT_DEFAULT_NAMESPACE = "vault";
-    String VAULT_CONFIG_NAME = "vault-config";
+    /**
+     * The constant VAULT_ROOT_TOKEN.
+     */
     String VAULT_ROOT_TOKEN = "myRootToken";
 }
