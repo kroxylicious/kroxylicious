@@ -53,7 +53,7 @@ class KroxyliciousST extends AbstractST {
         // start Kroxylicious
         LOGGER.info("Given Kroxylicious in {} namespace with {} replicas", namespace, 1);
         kroxylicious = new Kroxylicious(namespace);
-        kroxylicious.deployPortPerBrokerPlain(clusterName, 1);
+        kroxylicious.deployPortPerBrokerPlainWithNoFilters(clusterName, 1);
         String bootstrap = kroxylicious.getBootstrap();
 
         LOGGER.info("And KafkaTopic in {} namespace", namespace);
@@ -83,7 +83,7 @@ class KroxyliciousST extends AbstractST {
         // start Kroxylicious
         LOGGER.info("Given Kroxylicious in {} namespace with {} replicas", namespace, 1);
         kroxylicious = new Kroxylicious(namespace);
-        kroxylicious.deployPortPerBrokerPlain(clusterName, 1);
+        kroxylicious.deployPortPerBrokerPlainWithNoFilters(clusterName, 1);
         String bootstrap = kroxylicious.getBootstrap();
 
         LOGGER.info("And KafkaTopic in {} namespace", namespace);
@@ -116,7 +116,7 @@ class KroxyliciousST extends AbstractST {
         // start Kroxylicious
         LOGGER.info("Given Kroxylicious in {} namespace with {} replicas", namespace, replicas);
         kroxylicious = new Kroxylicious(namespace);
-        kroxylicious.deployPortPerBrokerPlain(clusterName, replicas);
+        kroxylicious.deployPortPerBrokerPlainWithNoFilters(clusterName, replicas);
         String bootstrap = kroxylicious.getBootstrap();
         int currentReplicas = kroxylicious.getNumberOfReplicas();
         assertThat("Current replicas: " + currentReplicas + "; expected: " + replicas, currentReplicas == replicas);

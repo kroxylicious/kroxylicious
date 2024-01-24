@@ -8,12 +8,14 @@ package io.kroxylicious.systemtests.k8s.cmd;
 
 import java.io.File;
 
+import io.kroxylicious.systemtests.executor.ExecResult;
+
 import static java.util.Arrays.asList;
 import static java.util.stream.Collectors.toList;
 
 /**
  * Abstraction for a kubernetes client.
- * @param <K>  The subtype of KubeClient, for fluency.
+ * @param <K>   The subtype of KubeClient, for fluency.
  */
 public interface KubeCmdClient<K extends KubeCmdClient<K>> {
 
@@ -33,7 +35,8 @@ public interface KubeCmdClient<K extends KubeCmdClient<K>> {
     KubeCmdClient<K> namespace(String namespace);
 
     /** Returns namespace for cluster
-     * @return the string*/
+     * @return the string
+     */
     String namespace();
 
     /** Creates the resources in the given files.
@@ -52,9 +55,7 @@ public interface KubeCmdClient<K extends KubeCmdClient<K>> {
      * Delete by name k.
      *
      * @param resourceType the resource type
-     * @param resourceName the resource name
-    private KubeClusterResource() {
-    }
+     * @param resourceName the resource nameprivate KubeClusterResource() {}
      * @return the k
      */
     K deleteByName(String resourceType, String resourceName);
@@ -75,4 +76,14 @@ public interface KubeCmdClient<K extends KubeCmdClient<K>> {
      * @return the string
      */
     String cmd();
+
+    /**
+     * Exec in pod.
+     *
+     * @param pod the pod
+     * @param throwErrors the throw errors
+     * @param command the command
+     * @return the exec result
+     */
+    ExecResult execInPod(String pod, boolean throwErrors, String... command);
 }

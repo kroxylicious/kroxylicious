@@ -91,8 +91,8 @@ public class DeploymentUtils {
         FileUtils.copyURLToFile(
                 new URL(url),
                 deploymentFile,
-                2000,
-                5000);
+                5000,
+                10000);
         deploymentFile.deleteOnExit();
 
         return new FileInputStream(deploymentFile);
@@ -160,5 +160,19 @@ public class DeploymentUtils {
         }).await().atMost(timeout).pollInterval(Duration.ofMillis(200))
                 .until(() -> kubeClient().getPod(namespaceName, podName) != null
                         && kubeClient().isPodRunSucceeded(namespaceName, podName));
+    }
+
+    /**
+     * Wait for deployment running.
+     *
+     * @param namespaceName the namespace name
+     * @param podName the pod name
+     * @param timeout the timeout
+     */
+    public static void waitForDeploymentRunning(String namespaceName, String podName, Duration timeout) {
+        LOGGER.info("Waiting for deployment: {}/{} to be running", namespaceName, podName);
+        await().atMost(timeout).pollInterval(Duration.ofMillis(200))
+                .until(() -> kubeClient().getPod(namespaceName, podName) != null
+                        && kubeClient().isDeploymentRunning(namespaceName, podName));
     }
 }

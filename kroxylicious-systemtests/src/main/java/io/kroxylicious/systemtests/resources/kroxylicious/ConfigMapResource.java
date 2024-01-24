@@ -18,9 +18,9 @@ import io.kroxylicious.systemtests.resources.ResourceType;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 
 /**
- * The type Kroxylicious config resource.
+ * The type config map resource.
  */
-public class KroxyliciousConfigResource implements ResourceType<ConfigMap> {
+public class ConfigMapResource implements ResourceType<ConfigMap> {
     @Override
     public String getKind() {
         return Constants.CONFIG_MAP_KIND;

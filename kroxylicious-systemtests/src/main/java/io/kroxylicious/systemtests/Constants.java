@@ -76,6 +76,21 @@ public interface Constants {
     String SERVICE_KIND = "Service";
 
     /**
+     * Kind of service account
+     */
+    String SERVICE_ACCOUNT_KIND = "ServiceAccount";
+
+    /**
+     * The constant STATEFUL_SET_KIND.
+     */
+    String STATEFUL_SET_KIND = "StatefulSet";
+
+    /**
+     * Kind of cluster role binding
+     */
+    String CLUSTER_ROLE_BINDING_KIND = "ClusterRoleBinding";
+
+    /**
      * Load balancer type name.
      */
     String LOAD_BALANCER_TYPE = "LoadBalancer";
@@ -120,6 +135,7 @@ public interface Constants {
      * Kubernetes related constants
      */
     String DEPLOYMENT = "Deployment";
+
     /**
      * Strimzi kafka image url in quay
      */
@@ -150,7 +166,26 @@ public interface Constants {
      * Feature gate related constants
      */
     String USE_KRAFT_MODE = "+UseKRaft";
+    /**
+     * The constant DONT_USE_KRAFT_MODE.
+     */
     String DONT_USE_KRAFT_MODE = "-UseKRaft";
+    /**
+     * The constant USE_KAFKA_NODE_POOLS.
+     */
     String USE_KAFKA_NODE_POOLS = "+KafkaNodePools";
+    /**
+     * The constant DONT_USE_KAFKA_NODE_POOLS.
+     */
     String DONT_USE_KAFKA_NODE_POOLS = "-KafkaNodePools";
+    /**
+     * The constant VAULT_SERVICE_NAME.
+     */
+    String VAULT_SERVICE_NAME = "vault";
+    /**
+     * The constant VAULT_DEFAULT_NAMESPACE.
+     */
+    String VAULT_DEFAULT_NAMESPACE = "vault";
+    String VAULT_CONFIG_NAME = "vault-config";
+    String VAULT_ROOT_TOKEN = "myRootToken";
 }

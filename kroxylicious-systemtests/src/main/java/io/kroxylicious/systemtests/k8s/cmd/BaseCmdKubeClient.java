@@ -26,7 +26,7 @@ import static java.util.Arrays.asList;
 /**
  * The type Base cmd kube client.
  *
- * @param <K>  the type parameter
+ * @param <K>   the type parameter
  */
 public abstract class BaseCmdKubeClient<K extends BaseCmdKubeClient<K>> implements KubeCmdClient<K> {
 
@@ -142,5 +142,12 @@ public abstract class BaseCmdKubeClient<K extends BaseCmdKubeClient<K>> implemen
     @Override
     public String toString() {
         return cmd();
+    }
+
+    @Override
+    public ExecResult execInPod(String pod, boolean throwErrors, String... command) {
+        List<String> cmd = namespacedCommand("exec", pod, "--");
+        cmd.addAll(asList(command));
+        return Exec.exec(null, cmd, 0, throwErrors);
     }
 }

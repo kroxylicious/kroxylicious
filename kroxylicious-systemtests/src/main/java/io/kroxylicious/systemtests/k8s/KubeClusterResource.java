@@ -30,6 +30,7 @@ public class KubeClusterResource {
     private KubeCluster kubeCluster;
     private KubeCmdClient cmdClient;
     private KubeClient client;
+    private HelmClient helmClient;
     private static KubeClusterResource kubeClusterResource;
     private String namespace;
 
@@ -111,6 +112,26 @@ public class KubeClusterResource {
             cmdClient = cluster().defaultCmdClient();
         }
         return cmdClient;
+    }
+
+    /**
+     * Helm client.
+     *
+     * @return the helm client
+     */
+    public HelmClient helmClient() {
+        if (helmClient == null) {
+            this.helmClient = HelmClient.findClient(cmdClient());
+        }
+        return helmClient;
+    }
+
+    /**
+     * Provides approriate Helm client for running Helm operations in specific namespace
+     * @return Helm client
+     */
+    public static HelmClient helmClusterClient() {
+        return kubeClusterResource.helmClient().namespace(kubeClusterResource.getNamespace());
     }
 
     /**
