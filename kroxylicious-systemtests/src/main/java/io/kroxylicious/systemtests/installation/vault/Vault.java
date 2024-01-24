@@ -60,6 +60,7 @@ public class Vault {
         // injector
         values.put("injector.enabled", false);
 
+        ResourceManager.helmClient().namespace(deploymentNamespace).addRepository("hashicorp", "https://helm.releases.hashicorp.com");
         ResourceManager.helmClient().namespace(deploymentNamespace).install("hashicorp/vault", "vault", "latest", values);
 
         String podName = Constants.VAULT_SERVICE_NAME + "-0";

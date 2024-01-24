@@ -83,6 +83,7 @@ public class HelmClient {
     }
 
     /** Install a chart given its local path, release name, and values to override  @param chartName the chart name
+     * @param chartName the chart name
      * @param releaseName the release name
      * @param version the version
      * @param valuesMap the values map
@@ -100,6 +101,21 @@ public class HelmClient {
                 "--timeout", INSTALL_TIMEOUT_SECONDS,
                 "--debug",
                 chartName)))), 0, true);
+        return this;
+    }
+
+    /**
+     * Add repository helm client.
+     *
+     * @param repoName the repo name
+     * @param repoUrl the repo url
+     * @return the helm client
+     */
+    public HelmClient addRepository(String repoName, String repoUrl) {
+        LOGGER.info("Adding repo {}", repoName);
+        Exec.exec(null, command("repo", "add",
+                repoName,
+                repoUrl), 0, true);
         return this;
     }
 
@@ -123,6 +139,7 @@ public class HelmClient {
     }
 
     /** Delete a chart given its release name  @param releaseName the release name
+     * @param releaseName the release name
      * @return the helm client
      */
     public HelmClient delete(String releaseName) {
