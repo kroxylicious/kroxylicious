@@ -11,8 +11,6 @@ import java.util.Optional;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import io.netty.handler.ssl.SslContextBuilder;
-
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
@@ -32,10 +30,9 @@ public record KeyPair(String privateKeyFile,
         implements KeyProvider {
 
     @Override
-    public SslContextBuilder forServer() {
+    public void apply(KeyManagerBuilder builder) {
         try {
-            return SslContextBuilder.forServer(new File(certificateFile),
-                    new File(privateKeyFile),
+            builder.keyManager(new File(certificateFile), new File(privateKeyFile),
                     Optional.ofNullable(keyPasswordProvider).map(PasswordProvider::getProvidedPassword).orElse(null));
         }
         catch (Exception e) {
@@ -45,20 +42,4 @@ public record KeyPair(String privateKeyFile,
                     e);
         }
     }
-
-    @Override
-    public SslContextBuilder forClient() {
-        try {
-            return SslContextBuilder.forClient()
-                    .keyManager(new File(certificateFile), new File(privateKeyFile),
-                            Optional.ofNullable(keyPasswordProvider).map(PasswordProvider::getProvidedPassword).orElse(null));
-        }
-        catch (Exception e) {
-            throw new RuntimeException(
-                    "Error building SSLContext. certificateFile : " + certificateFile + ", privateKeyFile: " + privateKeyFile + ", password present: "
-                            + (keyPasswordProvider != null),
-                    e);
-        }
-    }
-
 }

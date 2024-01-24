@@ -25,7 +25,8 @@ class KeyPairTest {
 
     @Test
     void serverKeyPair() throws Exception {
-        var keyPair = new KeyPair(TlsTestConstants.getResourceLocationOnFilesystem("server.key"), TlsTestConstants.getResourceLocationOnFilesystem("server.crt"), null);
+        var keyPair = new NettyKeyProvider(
+                new KeyPair(TlsTestConstants.getResourceLocationOnFilesystem("server.key"), TlsTestConstants.getResourceLocationOnFilesystem("server.crt"), null));
         var sslContext = keyPair.forServer().build();
         assertThat(sslContext).isNotNull();
         assertThat(sslContext.isServer()).isTrue();
@@ -33,8 +34,8 @@ class KeyPairTest {
 
     @Test
     void serverKeyPairKeyProtectedWithPassword() throws Exception {
-        var keyPair = new KeyPair(TlsTestConstants.getResourceLocationOnFilesystem("server_encrypted.key"),
-                TlsTestConstants.getResourceLocationOnFilesystem("server.crt"), new InlinePassword("keypass"));
+        var keyPair = new NettyKeyProvider(new KeyPair(TlsTestConstants.getResourceLocationOnFilesystem("server_encrypted.key"),
+                TlsTestConstants.getResourceLocationOnFilesystem("server.crt"), new InlinePassword("keypass")));
 
         var sslContext = keyPair.forServer().build();
         assertThat(sslContext).isNotNull();
@@ -69,7 +70,8 @@ class KeyPairTest {
 
     @Test
     void clientKeyPair() throws Exception {
-        var keyPair = new KeyPair(TlsTestConstants.getResourceLocationOnFilesystem("server.key"), TlsTestConstants.getResourceLocationOnFilesystem("server.crt"), null);
+        var keyPair = new NettyKeyProvider(
+                new KeyPair(TlsTestConstants.getResourceLocationOnFilesystem("server.key"), TlsTestConstants.getResourceLocationOnFilesystem("server.crt"), null));
         var sslContext = keyPair.forClient().build();
         assertThat(sslContext).isNotNull();
         assertThat(sslContext.isClient()).isTrue();
@@ -77,8 +79,8 @@ class KeyPairTest {
 
     @Test
     void clientKeyPairKeyProtectedWithPassword() throws Exception {
-        var keyPair = new KeyPair(TlsTestConstants.getResourceLocationOnFilesystem("server_encrypted.key"),
-                TlsTestConstants.getResourceLocationOnFilesystem("server.crt"), new InlinePassword("keypass"));
+        var keyPair = new NettyKeyProvider(new KeyPair(TlsTestConstants.getResourceLocationOnFilesystem("server_encrypted.key"),
+                TlsTestConstants.getResourceLocationOnFilesystem("server.crt"), new InlinePassword("keypass")));
 
         var sslContext = keyPair.forClient().build();
         assertThat(sslContext).isNotNull();
@@ -87,7 +89,7 @@ class KeyPairTest {
 
     private AbstractThrowableAssert<?, ? extends Throwable> doFailingKeyPairTest(String privateKeyFile, String certificateFile,
                                                                                  PasswordProvider keyPassword, boolean forServer) {
-        var keyPair = new KeyPair(privateKeyFile, certificateFile, keyPassword);
+        var keyPair = new NettyKeyProvider(new KeyPair(privateKeyFile, certificateFile, keyPassword));
         return assertThatCode(forServer ? keyPair::forServer : keyPair::forClient)
                 .hasMessageContaining("Error building SSLContext");
     }

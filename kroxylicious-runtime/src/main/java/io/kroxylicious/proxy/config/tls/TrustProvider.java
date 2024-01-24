@@ -9,8 +9,6 @@ package io.kroxylicious.proxy.config.tls;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
-import io.netty.handler.ssl.SslContextBuilder;
-
 /**
  * A TrustProvider is a source of trust anchors used to determine whether a certificate present by a peer is trusted.
  * <ul>
@@ -25,9 +23,9 @@ import io.netty.handler.ssl.SslContextBuilder;
 public interface TrustProvider {
 
     /**
-     * Applies the trust specified by this provider to the given {@link SslContextBuilder}.
+     * Applies the trust specified by this provider to the given {@link TrustManagerBuilder}.
      * @param builder SSL context builder.
      */
-    void apply(SslContextBuilder builder);
+    void apply(TrustManagerBuilder builder);
 
 }

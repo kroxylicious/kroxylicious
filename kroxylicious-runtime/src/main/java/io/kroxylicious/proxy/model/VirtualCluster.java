@@ -17,7 +17,8 @@ import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 
 import io.kroxylicious.proxy.config.TargetCluster;
-import io.kroxylicious.proxy.config.tls.KeyProvider;
+import io.kroxylicious.proxy.config.tls.NettyKeyProvider;
+import io.kroxylicious.proxy.config.tls.NettyTrustProvider;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
@@ -149,7 +150,7 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
     private Optional<SslContext> buildDownstreamSslContext() {
         return tls.map(tls -> {
             try {
-                return Optional.of(tls.key()).map(KeyProvider::forServer).orElseThrow().build();
+                return Optional.of(tls.key()).map(NettyKeyProvider::new).map(NettyKeyProvider::forServer).orElseThrow().build();
             }
             catch (SSLException e) {
                 throw new UncheckedIOException(e);
@@ -160,8 +161,8 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
     private Optional<SslContext> buildUpstreamSslContext() {
         return targetCluster.tls().map(tls -> {
             try {
-                var sslContextBuilder = Optional.ofNullable(tls.key()).map(KeyProvider::forClient).orElse(SslContextBuilder.forClient());
-                Optional.ofNullable(tls.trust()).ifPresent(tp -> tp.apply(sslContextBuilder));
+                var sslContextBuilder = Optional.ofNullable(tls.key()).map(NettyKeyProvider::new).map(NettyKeyProvider::forClient).orElse(SslContextBuilder.forClient());
+                Optional.ofNullable(tls.trust()).map(NettyTrustProvider::new).ifPresent(tp -> tp.apply(sslContextBuilder));
                 return sslContextBuilder.build();
             }
             catch (SSLException e) {

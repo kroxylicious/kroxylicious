@@ -17,8 +17,6 @@ import javax.net.ssl.KeyManagerFactory;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import io.netty.handler.ssl.SslContextBuilder;
-
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
@@ -45,33 +43,6 @@ public record KeyStore(String storeFile,
         return Objects.equals(getType(), Tls.PEM);
     }
 
-    @Override
-    public SslContextBuilder forServer() {
-
-        var keyStoreFile = new File(storeFile);
-        if (isPemType()) {
-            return SslContextBuilder.forServer(keyStoreFile, keyStoreFile,
-                    Optional.ofNullable(keyPasswordProvider()).map(PasswordProvider::getProvidedPassword).orElse(null));
-        }
-        else {
-            return SslContextBuilder.forServer(keyManagerFactory(keyStoreFile));
-        }
-
-    }
-
-    @Override
-    public SslContextBuilder forClient() {
-        var keyStoreFile = new File(storeFile);
-
-        if (isPemType()) {
-            return SslContextBuilder.forClient().keyManager(keyStoreFile, keyStoreFile,
-                    Optional.ofNullable(keyPasswordProvider()).map(PasswordProvider::getProvidedPassword).orElse(null));
-        }
-        else {
-            return SslContextBuilder.forClient().keyManager(keyManagerFactory(keyStoreFile));
-        }
-    }
-
     private KeyManagerFactory keyManagerFactory(File keyStoreFile) {
         try (var is = new FileInputStream(keyStoreFile)) {
             var password = Optional.ofNullable(this.storePasswordProvider()).map(PasswordProvider::getProvidedPassword).map(String::toCharArray).orElse(null);
@@ -84,6 +55,19 @@ public record KeyStore(String storeFile,
         }
         catch (GeneralSecurityException | IOException e) {
             throw new RuntimeException("Error building SSLContext from : " + keyStoreFile, e);
+        }
+    }
+
+    @Override
+    public void apply(KeyManagerBuilder builder) {
+        var keyStoreFile = new File(storeFile);
+
+        if (isPemType()) {
+            builder.keyManager(keyStoreFile, keyStoreFile,
+                    Optional.ofNullable(keyPasswordProvider()).map(PasswordProvider::getProvidedPassword).orElse(null));
+        }
+        else {
+            builder.keyManager(keyManagerFactory(keyStoreFile));
         }
     }
 }

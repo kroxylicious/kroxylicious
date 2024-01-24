@@ -17,8 +17,6 @@ import javax.net.ssl.TrustManagerFactory;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import io.netty.handler.ssl.SslContextBuilder;
-
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
@@ -44,11 +42,11 @@ public record TrustStore(String storeFile,
     }
 
     @Override
-    public void apply(SslContextBuilder sslContextBuilder) {
+    public void apply(TrustManagerBuilder trustManagerBuilder) {
         var trustStore = new File(storeFile());
         try {
             if (isPemType()) {
-                sslContextBuilder.trustManager(trustStore);
+                trustManagerBuilder.trustCertCollectionFile(trustStore);
             }
             else {
                 try (var is = new FileInputStream(trustStore)) {
@@ -58,7 +56,7 @@ public record TrustStore(String storeFile,
 
                     var trustManagerFactory = TrustManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
                     trustManagerFactory.init(keyStore);
-                    sslContextBuilder.trustManager(trustManagerFactory);
+                    trustManagerBuilder.trustManager(trustManagerFactory);
                 }
             }
         }

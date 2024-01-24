@@ -60,7 +60,7 @@ class KeyStoreTest {
                             String storeType,
                             String storeFile, PasswordProvider storePassword, PasswordProvider keyPassword)
             throws Exception {
-        var keyStore = new KeyStore(getResourceLocationOnFilesystem(storeFile), storePassword, keyPassword, storeType);
+        var keyStore = new NettyKeyProvider(new KeyStore(getResourceLocationOnFilesystem(storeFile), storePassword, keyPassword, storeType));
 
         var sslContext = keyStore.forServer().build();
         assertThat(sslContext).isNotNull();
@@ -69,27 +69,27 @@ class KeyStoreTest {
 
     @Test
     void serverKeyStoreFileNotFound() {
-        var keyStore = new KeyStore(NOT_EXIST, null, null, null);
+        var keyStore = new NettyKeyProvider(new KeyStore(NOT_EXIST, null, null, null));
 
         assertThatCode(keyStore::forServer).hasCauseInstanceOf(IOException.class).hasMessageContaining(NOT_EXIST);
     }
 
     @Test
     void serverKeyStoreIncorrectPassword() {
-        var keyStore = new KeyStore(getResourceLocationOnFilesystem("server.jks"),
+        var keyStore = new NettyKeyProvider(new KeyStore(getResourceLocationOnFilesystem("server.jks"),
                 BADPASS,
                 null,
-                null);
+                null));
 
         assertThatCode(keyStore::forServer).hasRootCauseInstanceOf(UnrecoverableKeyException.class);
     }
 
     @Test
     void serverKeyStoreIncorrectKeyPassword() {
-        var keyStore = new KeyStore(getResourceLocationOnFilesystem("server_diff_keypass.jks"),
+        var keyStore = new NettyKeyProvider(new KeyStore(getResourceLocationOnFilesystem("server_diff_keypass.jks"),
                 STOREPASS,
                 BADPASS,
-                null);
+                null));
 
         assertThatCode(keyStore::forServer).hasRootCauseInstanceOf(UnrecoverableKeyException.class);
     }
@@ -100,7 +100,7 @@ class KeyStoreTest {
                             String storeType,
                             String storeFile, PasswordProvider storePassword, PasswordProvider keyPassword)
             throws Exception {
-        var keyStore = new KeyStore(getResourceLocationOnFilesystem(storeFile), storePassword, keyPassword, storeType);
+        var keyStore = new NettyKeyProvider(new KeyStore(getResourceLocationOnFilesystem(storeFile), storePassword, keyPassword, storeType));
 
         var sslContext = keyStore.forClient().build();
         assertThat(sslContext).isNotNull();
@@ -109,27 +109,27 @@ class KeyStoreTest {
 
     @Test
     void clientKeyStoreFileNotFound() {
-        var keyStore = new KeyStore(NOT_EXIST, null, null, null);
+        var keyStore = new NettyKeyProvider(new KeyStore(NOT_EXIST, null, null, null));
 
         assertThatCode(keyStore::forClient).hasCauseInstanceOf(IOException.class).hasMessageContaining(NOT_EXIST);
     }
 
     @Test
     void clientKeyStoreIncorrectPassword() {
-        var keyStore = new KeyStore(getResourceLocationOnFilesystem("server.jks"),
+        var keyStore = new NettyKeyProvider(new KeyStore(getResourceLocationOnFilesystem("server.jks"),
                 BADPASS,
                 null,
-                null);
+                null));
 
         assertThatCode(keyStore::forClient).hasRootCauseInstanceOf(UnrecoverableKeyException.class);
     }
 
     @Test
     void clientKeyStoreIncorrectKeyPassword() {
-        var keyStore = new KeyStore(getResourceLocationOnFilesystem("server_diff_keypass.jks"),
+        var keyStore = new NettyKeyProvider(new KeyStore(getResourceLocationOnFilesystem("server_diff_keypass.jks"),
                 STOREPASS,
                 BADPASS,
-                null);
+                null));
 
         assertThatCode(keyStore::forClient).hasRootCauseInstanceOf(UnrecoverableKeyException.class);
     }

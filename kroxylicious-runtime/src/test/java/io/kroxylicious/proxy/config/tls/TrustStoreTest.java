@@ -35,9 +35,8 @@ class TrustStoreTest {
     @ParameterizedTest(name = "{0}")
     @MethodSource()
     void trustStoreTypes(String name, String storeType, String storeFile, PasswordProvider storePassword) throws Exception {
-        var trustStore = new TrustStore(TlsTestConstants.getResourceLocationOnFilesystem(storeFile), storePassword, storeType);
+        var trustStore = new NettyTrustProvider(new TrustStore(TlsTestConstants.getResourceLocationOnFilesystem(storeFile), storePassword, storeType));
         trustStore.apply(sslContextBuilder);
-
         var sslContext = sslContextBuilder.build();
         assertThat(sslContext).isNotNull();
         assertThat(sslContext.isClient()).isTrue();
@@ -45,7 +44,7 @@ class TrustStoreTest {
 
     @Test
     void trustStoreIncorrectPassword() {
-        var trustStore = new TrustStore(TlsTestConstants.getResourceLocationOnFilesystem("client.jks"), TlsTestConstants.BADPASS, null);
+        var trustStore = new NettyTrustProvider(new TrustStore(TlsTestConstants.getResourceLocationOnFilesystem("client.jks"), TlsTestConstants.BADPASS, null));
         assertThatCode(() -> trustStore.apply(sslContextBuilder))
                 .hasMessageContaining("Error building SSLContext")
                 .hasRootCauseInstanceOf(UnrecoverableKeyException.class);
@@ -53,7 +52,7 @@ class TrustStoreTest {
 
     @Test
     void trustStoreNotFound() {
-        var trustStore = new TrustStore(TlsTestConstants.NOT_EXIST, TlsTestConstants.STOREPASS, null);
+        var trustStore = new NettyTrustProvider(new TrustStore(TlsTestConstants.NOT_EXIST, TlsTestConstants.STOREPASS, null));
         assertThatCode(() -> trustStore.apply(sslContextBuilder))
                 .hasMessageContaining("Error building SSLContext")
                 .hasRootCauseInstanceOf(FileNotFoundException.class);
