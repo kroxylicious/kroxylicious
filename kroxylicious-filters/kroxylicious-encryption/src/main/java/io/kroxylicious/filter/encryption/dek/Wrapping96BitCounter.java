@@ -14,7 +14,11 @@ import javax.security.auth.Destroyable;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
- * RBG-based construction of the Initialization Vector for AES-GCM.
+ * A 96-bit counter with a random initial state which wraps around when
+ * it overflows. The bits returned via {@link #generateIv(byte[])} will repeat after exactly
+ * 2<sup>96</sup> invocations.
+ *
+ * This can function as a RBG-based construction of the Initialization Vector for AES-GCM.
  * The random field is 96 bits and the free field is empty.
  *
  * @see "§8.2.2 of NIST SP.800-38D: Recommendation for Block
@@ -23,14 +27,14 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * and GMAC"
  */
 @NotThreadSafe
-class AesGcmIvGenerator implements Destroyable {
+class Wrapping96BitCounter implements Destroyable {
 
     private int low;
     private int mid;
     private int hi;
     private boolean destroyed = false;
 
-    AesGcmIvGenerator(@NonNull SecureRandom rng) {
+    Wrapping96BitCounter(@NonNull SecureRandom rng) {
         low = rng.nextInt();
         mid = rng.nextInt();
         hi = rng.nextInt();

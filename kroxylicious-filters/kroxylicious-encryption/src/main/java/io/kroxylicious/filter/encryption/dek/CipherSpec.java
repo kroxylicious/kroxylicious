@@ -26,14 +26,18 @@ import io.kroxylicious.filter.encryption.EncryptionException;
 public enum CipherSpec {
 
     /**
-     * AES/GCM with 96 bit IV and 128 bit auth code.
+     * AES/GCM with 128-bit key, 96-bit IV and 128-bit tag.
+     * @see <a href="https://www.ietf.org/rfc/rfc5116.txt">RFC-5116</a>
      */
-    AES_96_GCM_128(1, "AES/GCM/NoPadding", 1L << 31) {
+    AES_128_GCM_128(1,
+            "AES/GCM/NoPadding",
+            1L << 32 // 2^32
+    ) {
 
         private static final int IV_SIZE_BYTES = 12;
         private static final int TAG_LENGTH_BITS = 128;
         Supplier<AlgorithmParameterSpec> paramSupplier() {
-            var generator = new AesGcmIvGenerator(new SecureRandom());
+            var generator = new Wrapping96BitCounter(new SecureRandom());
             var iv = new byte[IV_SIZE_BYTES];
             return () -> {
                 generator.generateIv(iv);
@@ -60,14 +64,22 @@ public enum CipherSpec {
             return new GCMParameterSpec(TAG_LENGTH_BITS, b);
         }
     },
-    CHACHA20_POLY1305(2, "ChaCha20-Poly1305", 1) {
+    /**
+     * ChaCha20-Poly1305, which means 256-bit key, 96-bit nonce and 128-bit tag.
+     * @see <a href="https://www.ietf.org/rfc/rfc7539.txt">RFC-7539</a>
+     */
+    CHACHA20_POLY1305(2,
+            "ChaCha20-Poly1305",
+            Long.MAX_VALUE // 2^96 would be necessary given we use Wrapping96BitCounter
+            // 2^63-1 is sufficient
+    ) {
         private static final int NONCE_SIZE_BYTES = 12;
 
         @Override
         Supplier<AlgorithmParameterSpec> paramSupplier() {
             // Per https://www.rfc-editor.org/rfc/rfc7539#section-4
             // we generate the nonce using a counter
-            var generator = new AesGcmIvGenerator(new SecureRandom());
+            var generator = new Wrapping96BitCounter(new SecureRandom());
             var nonce = new byte[NONCE_SIZE_BYTES];
             return () -> {
                 generator.generateIv(nonce);
@@ -98,7 +110,7 @@ public enum CipherSpec {
     static CipherSpec fromPersistentId(int persistentId) {
         switch (persistentId) {
             case 1:
-                return CipherSpec.AES_96_GCM_128;
+                return CipherSpec.AES_128_GCM_128;
             case 2:
                 return CipherSpec.CHACHA20_POLY1305;
             default:

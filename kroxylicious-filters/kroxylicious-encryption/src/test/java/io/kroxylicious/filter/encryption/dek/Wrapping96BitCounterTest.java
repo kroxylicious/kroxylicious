@@ -15,17 +15,17 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class AesGcmIvGeneratorTest {
+class Wrapping96BitCounterTest {
 
     @Test
     void shouldHave12ByteSize() {
-        assertEquals(12, new AesGcmIvGenerator(new SecureRandom()).sizeBytes());
+        assertEquals(12, new Wrapping96BitCounter(new SecureRandom()).sizeBytes());
     }
 
     @Test
     void shouldIncrement() {
 
-        var generator = new AesGcmIvGenerator(random(0, 0, 0));
+        var generator = new Wrapping96BitCounter(random(0, 0, 0));
         byte[] iv = new byte[generator.sizeBytes()];
         generator.generateIv(iv);
         assertArrayEquals(new byte[]{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, iv);
@@ -37,7 +37,7 @@ class AesGcmIvGeneratorTest {
 
     @Test
     void shouldCarry1() {
-        var generator = new AesGcmIvGenerator(random(Integer.MAX_VALUE, 0, 0));
+        var generator = new Wrapping96BitCounter(random(Integer.MAX_VALUE, 0, 0));
         byte[] iv = new byte[generator.sizeBytes()];
         generator.generateIv(iv);
         assertArrayEquals(new byte[]{ 0, 0, 0, 0, 0, 0, 0, 0, (byte) 127, (byte) -1, (byte) -1, (byte) -1 }, iv);
@@ -49,7 +49,7 @@ class AesGcmIvGeneratorTest {
 
     @Test
     void shouldCarry2() {
-        var generator = new AesGcmIvGenerator(random(Integer.MAX_VALUE, Integer.MAX_VALUE, 0));
+        var generator = new Wrapping96BitCounter(random(Integer.MAX_VALUE, Integer.MAX_VALUE, 0));
         byte[] iv = new byte[generator.sizeBytes()];
         generator.generateIv(iv);
         assertArrayEquals(new byte[]{ 0, 0, 0, 0, (byte) 127, (byte) -1, (byte) -1, (byte) -1, (byte) 127, (byte) -1, (byte) -1, (byte) -1 }, iv);
@@ -61,7 +61,7 @@ class AesGcmIvGeneratorTest {
 
     @Test
     void shouldCarry3() {
-        var generator = new AesGcmIvGenerator(random(Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE));
+        var generator = new Wrapping96BitCounter(random(Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE));
         byte[] iv = new byte[generator.sizeBytes()];
         generator.generateIv(iv);
         assertArrayEquals(
@@ -99,7 +99,7 @@ class AesGcmIvGeneratorTest {
     @Test
     void shouldBeDestroyable() {
 
-        var generator = new AesGcmIvGenerator(random(0, 0, 0));
+        var generator = new Wrapping96BitCounter(random(0, 0, 0));
         generator.destroy();
         assertTrue(generator.isDestroyed());
         assertThrows(IllegalStateException.class, () -> generator.generateIv(null));
