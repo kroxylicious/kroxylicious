@@ -26,7 +26,7 @@ import static java.util.Arrays.asList;
 /**
  * The type Base cmd kube client.
  *
- * @param <K>   the type parameter
+ * @param <K> the type parameter
  */
 public abstract class BaseCmdKubeClient<K extends BaseCmdKubeClient<K>> implements KubeCmdClient<K> {
 

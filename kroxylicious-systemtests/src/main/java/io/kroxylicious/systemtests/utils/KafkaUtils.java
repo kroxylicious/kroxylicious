@@ -118,25 +118,6 @@ public class KafkaUtils {
      */
     public static String consumeMessageWithTestClients(String deployNamespace, String topicName, String bootstrap, int numOfMessages, Duration timeout) {
         return consumeMessages(deployNamespace, topicName, bootstrap, numOfMessages, " - " + (numOfMessages - 1), timeout);
-//        LOGGER.debug("Consuming messages from '{}' topic", topicName);
-//        InputStream file = replaceStringInResourceFile("kafka-consumer-template.yaml", Map.of(
-//                BOOTSTRAP_SERVERS_VAR, bootstrap,
-//                NAMESPACE_VAR, deployNamespace,
-//                TOPIC_NAME_VAR, topicName,
-//                MESSAGE_COUNT_VAR, "\"" + numOfMessages + "\"",
-//                KAFKA_VERSION_VAR, Environment.KAFKA_VERSION));
-//
-//        kubeClient().getClient().load(file).inNamespace(deployNamespace).create();
-//        String podName = getPodNameByLabel(deployNamespace, "app", Constants.KAFKA_CONSUMER_CLIENT_LABEL, timeout);
-//        await().alias("Consumer waiting to receive messages").ignoreException(KubernetesClientException.class).atMost(timeout)
-//                .until(() -> {
-//                    if (kubeClient().getClient().pods().inNamespace(deployNamespace).withName(podName).get() != null) {
-//                        var log = kubeClient().logsInSpecificNamespace(deployNamespace, podName);
-//                        return log.contains(" - " + (numOfMessages - 1));
-//                    }
-//                    return false;
-//                });
-//        return kubeClient().logsInSpecificNamespace(deployNamespace, podName);
     }
 
     /**
@@ -151,25 +132,6 @@ public class KafkaUtils {
      */
     public static String consumeEncryptedMessageWithTestClients(String deployNamespace, String topicName, String bootstrap, int numOfMessages, Duration timeout) {
         return consumeMessages(deployNamespace, topicName, bootstrap, numOfMessages, "key: kroxylicious.io/encryption", timeout);
-//        LOGGER.debug("Consuming messages from '{}' topic", topicName);
-//        InputStream file = replaceStringInResourceFile("kafka-consumer-template.yaml", Map.of(
-//                BOOTSTRAP_SERVERS_VAR, bootstrap,
-//                NAMESPACE_VAR, deployNamespace,
-//                TOPIC_NAME_VAR, topicName,
-//                MESSAGE_COUNT_VAR, "\"" + numOfMessages + "\"",
-//                KAFKA_VERSION_VAR, Environment.KAFKA_VERSION));
-//
-//        kubeClient().getClient().load(file).inNamespace(deployNamespace).create();
-//        String podName = getPodNameByLabel(deployNamespace, "app", Constants.KAFKA_CONSUMER_CLIENT_LABEL, timeout);
-//        await().alias("Consumer waiting to receive messages").ignoreException(KubernetesClientException.class).atMost(timeout)
-//                .until(() -> {
-//                    if (kubeClient().getClient().pods().inNamespace(deployNamespace).withName(podName).get() != null) {
-//                        var log = kubeClient().logsInSpecificNamespace(deployNamespace, podName);
-//                        return log.contains("key: kroxylicious.io/encryption");
-//                    }
-//                    return false;
-//                });
-//        return kubeClient().logsInSpecificNamespace(deployNamespace, podName);
     }
 
     private static String getPodNameByLabel(String deployNamespace, String labelKey, String labelValue, Duration timeout) {

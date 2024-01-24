@@ -201,6 +201,13 @@ public class KubeClient {
         return client.apps().deployments().inNamespace(namespaceName).withName(deploymentName).isReady();
     }
 
+    /**
+     * Is deployment running.
+     *
+     * @param namespaceName the namespace name
+     * @param podName the pod name
+     * @return ttrue if the deployment is running, false otherwise
+     */
     public boolean isDeploymentRunning(String namespaceName, String podName) {
         return Optional.ofNullable(client.pods().inNamespace(namespaceName).withName(podName).get().getStatus()).map(PodStatus::getPhase)
                 .map(s -> s.equalsIgnoreCase("running")).orElse(false);
