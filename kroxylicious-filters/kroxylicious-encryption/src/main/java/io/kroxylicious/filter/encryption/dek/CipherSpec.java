@@ -36,6 +36,7 @@ public enum CipherSpec {
 
         private static final int IV_SIZE_BYTES = 12;
         private static final int TAG_LENGTH_BITS = 128;
+
         Supplier<AlgorithmParameterSpec> paramSupplier() {
             var generator = new Wrapping96BitCounter(new SecureRandom());
             var iv = new byte[IV_SIZE_BYTES];
@@ -71,7 +72,7 @@ public enum CipherSpec {
     CHACHA20_POLY1305(2,
             "ChaCha20-Poly1305",
             Long.MAX_VALUE // 2^96 would be necessary given we use Wrapping96BitCounter
-            // 2^63-1 is sufficient
+    // 2^63-1 is sufficient
     ) {
         private static final int NONCE_SIZE_BYTES = 12;
 

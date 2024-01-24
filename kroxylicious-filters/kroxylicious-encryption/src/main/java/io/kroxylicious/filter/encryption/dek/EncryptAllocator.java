@@ -10,5 +10,5 @@ import java.nio.ByteBuffer;
 
 @FunctionalInterface
 public interface EncryptAllocator {
-    public ByteBuffer buffer(int parametersSize, int ciphertextSize);
+    ByteBuffer buffer(int parametersSize, int ciphertextSize);
 }

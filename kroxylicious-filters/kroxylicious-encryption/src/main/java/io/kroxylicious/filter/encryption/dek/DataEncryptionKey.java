@@ -15,8 +15,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.BiFunction;
-import java.util.function.IntFunction;
 import java.util.function.IntUnaryOperator;
 import java.util.function.Supplier;
 

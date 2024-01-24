@@ -436,7 +436,7 @@ class DataEncryptionKeyTest {
         // Shouldn't be able to use the Encryptor again
         assertThatThrownBy(() -> encryptor.encrypt(plaintextBuffer,
                 null,
-                (p, c)  -> ByteBuffer.allocate(p),
+                (p, c) -> ByteBuffer.allocate(p),
                 (p, c) -> ByteBuffer.allocate(c)))
                 .isExactlyInstanceOf(DekUsageException.class)
                 .hasMessage("The Encryptor has no more operations allowed");
