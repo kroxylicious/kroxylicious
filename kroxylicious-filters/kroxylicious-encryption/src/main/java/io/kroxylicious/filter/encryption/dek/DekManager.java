@@ -28,9 +28,9 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 public class DekManager<K, E> {
 
     private final Kms<K, E> kms;
-    private final int maxEncryptionsPerDek;
+    private final long maxEncryptionsPerDek;
 
-    public <C> DekManager(KmsService<C, K, E> kmsService, C config, int maxEncryptionsPerDek) {
+    public <C> DekManager(KmsService<C, K, E> kmsService, C config, long maxEncryptionsPerDek) {
         this.kms = kmsService.buildKms(config);
         this.maxEncryptionsPerDek = maxEncryptionsPerDek;
     }

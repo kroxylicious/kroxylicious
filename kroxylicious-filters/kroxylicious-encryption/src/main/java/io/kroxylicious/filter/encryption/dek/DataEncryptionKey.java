@@ -13,6 +13,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
 import java.util.function.IntFunction;
@@ -53,7 +54,7 @@ public final class DataEncryptionKey<E> {
     // as possible once all outstanding cryptors are closed.
     private final AtomicReference<SecretKey> atomicKey;
 
-    private final AtomicInteger remainingEncryptions;
+    private final AtomicLong remainingEncryptions;
 
     // 1 start
     // +1=2 (en|de)cryptor
@@ -96,7 +97,7 @@ public final class DataEncryptionKey<E> {
         return -cryptors;
     }
 
-    DataEncryptionKey(@NonNull E edek, @NonNull SecretKey key, @NonNull CipherSpec cipherSpec, int maxEncryptions) {
+    DataEncryptionKey(@NonNull E edek, @NonNull SecretKey key, @NonNull CipherSpec cipherSpec, long maxEncryptions) {
         /* protected access because instantion only allowed via a DekManager */
         Objects.requireNonNull(edek);
         if (Objects.requireNonNull(key).isDestroyed()) {
@@ -109,7 +110,7 @@ public final class DataEncryptionKey<E> {
         this.edek = edek;
         this.atomicKey = new AtomicReference<>(key);
         this.cipherSpec = cipherSpec;
-        this.remainingEncryptions = new AtomicInteger(maxEncryptions);
+        this.remainingEncryptions = new AtomicLong(maxEncryptions);
         this.outstandingCryptors = new AtomicInteger(START);
     }
 

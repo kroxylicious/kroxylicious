@@ -28,19 +28,22 @@ public enum CipherSpec {
     /**
      * AES/GCM with 96 bit IV and 128 bit auth code.
      */
-    AES_96_GCM_128(1, "AES/GCM/NoPadding") {
+    AES_96_GCM_128(1, "AES/GCM/NoPadding", 1L << 31) {
+
+        private static final int IV_SIZE_BYTES = 12;
+        private static final int TAG_LENGTH_BITS = 128;
         Supplier<AlgorithmParameterSpec> paramSupplier() {
             var generator = new AesGcmIvGenerator(new SecureRandom());
-            var iv = new byte[12];
+            var iv = new byte[IV_SIZE_BYTES];
             return () -> {
                 generator.generateIv(iv);
-                return new GCMParameterSpec(128, iv);
+                return new GCMParameterSpec(TAG_LENGTH_BITS, iv);
             };
         }
 
         @Override
         int size(AlgorithmParameterSpec parameterSpec) {
-            return 12;
+            return IV_SIZE_BYTES;
         }
 
         @Override
@@ -52,27 +55,29 @@ public enum CipherSpec {
 
         @Override
         GCMParameterSpec readParameters(ByteBuffer parametersBuffer) {
-            byte[] b = new byte[12];
+            byte[] b = new byte[IV_SIZE_BYTES];
             parametersBuffer.get(b);
-            return new GCMParameterSpec(128, b);
+            return new GCMParameterSpec(TAG_LENGTH_BITS, b);
         }
     },
-    CHACHA20_POLY1305(2, "ChaCha20-Poly1305") {
-        int nonceSizeBytes = 12;
+    CHACHA20_POLY1305(2, "ChaCha20-Poly1305", 1) {
+        private static final int NONCE_SIZE_BYTES = 12;
 
         @Override
         Supplier<AlgorithmParameterSpec> paramSupplier() {
-            byte[] nonce = new byte[nonceSizeBytes];
-            var rng = new SecureRandom();
+            // Per https://www.rfc-editor.org/rfc/rfc7539#section-4
+            // we generate the nonce using a counter
+            var generator = new AesGcmIvGenerator(new SecureRandom());
+            var nonce = new byte[NONCE_SIZE_BYTES];
             return () -> {
-                rng.nextBytes(nonce);
+                generator.generateIv(nonce);
                 return new IvParameterSpec(nonce);
             };
         }
 
         @Override
         int size(AlgorithmParameterSpec parameterSpec) {
-            return nonceSizeBytes;
+            return NONCE_SIZE_BYTES;
         }
 
         @Override
@@ -84,7 +89,7 @@ public enum CipherSpec {
 
         @Override
         AlgorithmParameterSpec readParameters(ByteBuffer parametersBuffer) {
-            byte[] nonce = new byte[nonceSizeBytes];
+            byte[] nonce = new byte[NONCE_SIZE_BYTES];
             parametersBuffer.get(nonce);
             return new IvParameterSpec(nonce);
         }
@@ -104,13 +109,20 @@ public enum CipherSpec {
     private final int persistentId;
     private final String transformation;
 
-    CipherSpec(int persistentId, String transformation) {
+    private final long maxEncryptionsPerKey;
+
+    CipherSpec(int persistentId, String transformation, long maxEncryptionsPerKey) {
         this.persistentId = persistentId;
         this.transformation = transformation;
+        this.maxEncryptionsPerKey = maxEncryptionsPerKey;
     }
 
     int persistentId() {
         return persistentId;
+    }
+
+    public long maxEncryptionsPerKey() {
+        return maxEncryptionsPerKey;
     }
 
     Cipher newCipher() {
