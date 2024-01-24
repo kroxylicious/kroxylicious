@@ -27,8 +27,8 @@ import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
  */
 public class Vault {
     private static final Logger LOGGER = LoggerFactory.getLogger(Vault.class);
-    private final String deploymentNamespace;
     private static final String VAULT_CMD = "vault";
+    private final String deploymentNamespace;
 
     /**
      * Instantiates a new Vault.

@@ -29,12 +29,9 @@ public class HelmClient {
     private static final String HELM_CMD = "helm";
     private static final String HELM_3_CMD = "helm3";
     private static final String INSTALL_TIMEOUT_SECONDS = "120s";
-
-    private final String namespace;
-
-    private String version;
-
     private static String helmCommand = HELM_CMD;
+    private final String namespace;
+    private String version;
 
     /**
      * Instantiates a new Helm client.
@@ -43,6 +40,36 @@ public class HelmClient {
      */
     public HelmClient(String namespace) {
         this.namespace = namespace;
+    }
+
+    /**
+     * Client available boolean.
+     *
+     * @return the boolean
+     */
+    public static boolean clientAvailable() {
+        if (Exec.isExecutableOnPath(HELM_CMD)) {
+            return true;
+        }
+        else if (Exec.isExecutableOnPath(HELM_3_CMD)) {
+            helmCommand = HELM_3_CMD;
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Find client helm client.
+     *
+     * @param kubeClient the kube client
+     * @return the helm client
+     */
+    static HelmClient findClient(KubeCmdClient<?> kubeClient) {
+        HelmClient client = new HelmClient(kubeClient.namespace());
+        if (!clientAvailable()) {
+            throw new RuntimeException("No helm client found on $PATH. $PATH=" + System.getenv("PATH"));
+        }
+        return client;
     }
 
     /**
@@ -116,22 +143,6 @@ public class HelmClient {
         return this;
     }
 
-    /**
-     * Client available boolean.
-     *
-     * @return the boolean
-     */
-    public static boolean clientAvailable() {
-        if (Exec.isExecutableOnPath(HELM_CMD)) {
-            return true;
-        }
-        else if (Exec.isExecutableOnPath(HELM_3_CMD)) {
-            helmCommand = HELM_3_CMD;
-            return true;
-        }
-        return false;
-    }
-
     private List<String> command(String... rest) {
         List<String> result = new ArrayList<>();
         result.add(helmCommand);
@@ -157,19 +168,5 @@ public class HelmClient {
     private List<String> wait(List<String> args) {
         args.add("--wait");
         return args;
-    }
-
-    /**
-     * Find client helm client.
-     *
-     * @param kubeClient the kube client
-     * @return the helm client
-     */
-    static HelmClient findClient(KubeCmdClient<?> kubeClient) {
-        HelmClient client = new HelmClient(kubeClient.namespace());
-        if (!client.clientAvailable()) {
-            throw new RuntimeException("No helm client found on $PATH. $PATH=" + System.getenv("PATH"));
-        }
-        return client;
     }
 }

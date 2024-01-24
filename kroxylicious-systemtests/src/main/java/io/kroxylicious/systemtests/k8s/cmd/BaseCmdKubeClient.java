@@ -34,23 +34,11 @@ public abstract class BaseCmdKubeClient<K extends BaseCmdKubeClient<K>> implemen
 
     private static final String APPLY = "apply";
     private static final String DELETE = "delete";
-
+    private static final Context NOOP = new Context();
     /**
      * The Namespace.
      */
     String namespace = defaultNamespace();
-
-    /**
-     * The type Context.
-     */
-    protected static class Context implements AutoCloseable {
-        @Override
-        public void close() {
-            // Do nothing
-        }
-    }
-
-    private static final Context NOOP = new Context();
 
     /**
      * Default context context.
@@ -149,5 +137,15 @@ public abstract class BaseCmdKubeClient<K extends BaseCmdKubeClient<K>> implemen
         List<String> cmd = namespacedCommand("exec", pod, "--");
         cmd.addAll(asList(command));
         return Exec.exec(null, cmd, 0, throwErrors);
+    }
+
+    /**
+     * The type Context.
+     */
+    protected static class Context implements AutoCloseable {
+        @Override
+        public void close() {
+            // Do nothing
+        }
     }
 }
