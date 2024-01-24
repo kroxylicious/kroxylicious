@@ -17,6 +17,7 @@ import org.apache.logging.log4j.Logger;
 
 import io.kroxylicious.systemtests.executor.Exec;
 import io.kroxylicious.systemtests.k8s.cmd.KubeCmdClient;
+import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
 
 import static java.util.Arrays.asList;
 
@@ -67,7 +68,7 @@ public class HelmClient {
     static HelmClient findClient(KubeCmdClient<?> kubeClient) {
         HelmClient client = new HelmClient(kubeClient.namespace());
         if (!clientAvailable()) {
-            throw new RuntimeException("No helm client found on $PATH. $PATH=" + System.getenv("PATH"));
+            throw new KubeClusterException.NotFound("No helm client found on $PATH. $PATH=" + System.getenv("PATH"));
         }
         return client;
     }

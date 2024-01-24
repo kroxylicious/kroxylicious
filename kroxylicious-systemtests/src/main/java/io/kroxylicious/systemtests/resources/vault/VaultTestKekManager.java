@@ -22,6 +22,7 @@ import static io.kroxylicious.systemtests.k8s.KubeClusterResource.cmdKubeClient;
 
 public class VaultTestKekManager implements TestKekManager {
     private static final String VAULT_CMD = "vault";
+    private static final String FORMAT_JSON = "-format=json";
     private final String namespace;
     private final String podName;
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
@@ -74,17 +75,17 @@ public class VaultTestKekManager implements TestKekManager {
 
     private VaultResponse.ReadKeyData create(String keyId) {
         return runVaultCommand(new TypeReference<>() {
-        }, VAULT_CMD, "write", "-f", "-format=json", "transit/keys/%s".formatted(keyId));
+        }, VAULT_CMD, "write", "-f", FORMAT_JSON, "transit/keys/%s".formatted(keyId));
     }
 
     private VaultResponse.ReadKeyData read(String keyId) {
         return runVaultCommand(new TypeReference<>() {
-        }, VAULT_CMD, "read", "-format=json", "transit/keys/%s".formatted(keyId));
+        }, VAULT_CMD, "read", FORMAT_JSON, "transit/keys/%s".formatted(keyId));
     }
 
     private VaultResponse.ReadKeyData rotate(String keyId) {
         return runVaultCommand(new TypeReference<>() {
-        }, VAULT_CMD, "write", "-f", "-format=json", "transit/keys/%s/rotate".formatted(keyId));
+        }, VAULT_CMD, "write", "-f", FORMAT_JSON, "transit/keys/%s/rotate".formatted(keyId));
     }
 
     private <D> D runVaultCommand(TypeReference<VaultResponse<D>> valueTypeRef, String... command) {

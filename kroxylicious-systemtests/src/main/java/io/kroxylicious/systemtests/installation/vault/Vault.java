@@ -61,7 +61,7 @@ public class Vault {
         values.put("injector.enabled", false);
 
         ResourceManager.helmClient().namespace(deploymentNamespace).addRepository("hashicorp", "https://helm.releases.hashicorp.com");
-        ResourceManager.helmClient().namespace(deploymentNamespace).install("hashicorp/vault", "vault", "latest", values);
+        ResourceManager.helmClient().namespace(deploymentNamespace).install("hashicorp/vault", Constants.VAULT_SERVICE_NAME, "latest", values);
 
         String podName = Constants.VAULT_SERVICE_NAME + "-0";
         DeploymentUtils.waitForDeploymentRunning(deploymentNamespace, podName, Duration.ofMinutes(1));
