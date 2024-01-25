@@ -37,15 +37,22 @@ import static org.hamcrest.MatcherAssert.assertThat;
 class TopicEncryptionST extends AbstractST {
     protected static final String BROKER_NODE_NAME = "kafka";
     private static final Logger LOGGER = LoggerFactory.getLogger(TopicEncryptionST.class);
+    private static final String MESSAGE = "Hello-world";
     private static Vault vaultOperator;
     private static Kroxylicious kroxylicious;
     private final String clusterName = "my-cluster";
 
     @BeforeAll
     void setUp() {
-        vaultOperator = new Vault(Constants.VAULT_DEFAULT_NAMESPACE);
-        NamespaceUtils.createNamespaceWithWait(Constants.VAULT_DEFAULT_NAMESPACE);
-        vaultOperator.deploy();
+        List<Pod> vaultPods = kubeClient().listPodsByPrefixInName(Constants.VAULT_DEFAULT_NAMESPACE, Constants.VAULT_SERVICE_NAME);
+        if (!vaultPods.isEmpty()) {
+            LOGGER.warn("Skipping vault deployment. It is already deployed!");
+        }
+        else {
+            vaultOperator = new Vault(Constants.VAULT_DEFAULT_NAMESPACE);
+            NamespaceUtils.createNamespaceWithWait(Constants.VAULT_DEFAULT_NAMESPACE);
+            vaultOperator.deploy();
+        }
 
         List<Pod> kafkaPods = kubeClient().listPodsByPrefixInName(Constants.KROXY_DEFAULT_NAMESPACE, clusterName);
         if (!kafkaPods.isEmpty()) {
@@ -71,9 +78,8 @@ class TopicEncryptionST extends AbstractST {
     @Test
     void produceAndConsumeEncryptedMessage(String namespace) {
         String topicName = "my-topic";
-        String message = "Hello-world";
         int numberOfMessages = 1;
-        String consumedMessage = message + " - " + (numberOfMessages - 1);
+        String expectedMessage = MESSAGE + " - " + (numberOfMessages - 1);
 
         var testKekManager = new VaultTestKekManager(Constants.VAULT_DEFAULT_NAMESPACE, Constants.VAULT_SERVICE_NAME + "-0");
         testKekManager.generateKek(topicName);
@@ -87,22 +93,21 @@ class TopicEncryptionST extends AbstractST {
         LOGGER.info("And KafkaTopic in {} namespace", namespace);
         KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 2);
 
-        LOGGER.info("When {} messages '{}' are sent to the topic '{}'", numberOfMessages, message, topicName);
-        KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, message, numberOfMessages);
+        LOGGER.info("When {} messages '{}' are sent to the topic '{}'", numberOfMessages, MESSAGE, topicName);
+        KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
 
         LOGGER.info("Then the {} messages are consumed", numberOfMessages);
         String kafkaBootstrap = clusterName + "-kafka-bootstrap." + Constants.KROXY_DEFAULT_NAMESPACE + ".svc.cluster.local:9092";
         String resultEncrypted = KroxyliciousSteps.consumeEncryptedMessages(namespace, topicName, kafkaBootstrap, numberOfMessages, Duration.ofMinutes(2));
         LOGGER.info("Received: " + resultEncrypted);
-        assertThat("'" + consumedMessage + "' message not consumed!", resultEncrypted.contains(topicName + "vault"));
+        assertThat("'" + expectedMessage + "' expected message have not been received!", resultEncrypted.contains(topicName + "vault"));
     }
 
     @Test
     void produceAndConsumeMessage(String namespace) {
         String topicName = "my-topic2";
-        String message = "Hello-world";
         int numberOfMessages = 1;
-        String consumedMessage = message + " - " + (numberOfMessages - 1);
+        String expectedMessage = MESSAGE + " - " + (numberOfMessages - 1);
 
         var testKekManager = new VaultTestKekManager(Constants.VAULT_DEFAULT_NAMESPACE, Constants.VAULT_SERVICE_NAME + "-0");
         testKekManager.generateKek(topicName);
@@ -116,12 +121,12 @@ class TopicEncryptionST extends AbstractST {
         LOGGER.info("And KafkaTopic in {} namespace", namespace);
         KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 2);
 
-        LOGGER.info("When {} messages '{}' are sent to the topic '{}'", numberOfMessages, message, topicName);
-        KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, message, numberOfMessages);
+        LOGGER.info("When {} messages '{}' are sent to the topic '{}'", numberOfMessages, MESSAGE, topicName);
+        KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
 
         LOGGER.info("Then the {} messages are consumed", numberOfMessages);
         String result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2));
         LOGGER.info("Received: " + result);
-        assertThat("'" + consumedMessage + "' message not consumed!", result.contains(consumedMessage));
+        assertThat("'" + expectedMessage + "' expected message have not been received!", result.contains(expectedMessage));
     }
 }

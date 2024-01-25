@@ -39,8 +39,8 @@ public class Kroxylicious {
         this.containerImage = kroxyUrl + Environment.KROXY_VERSION;
     }
 
-    private void deployNoFilterConfigMap(String clusterName) {
-        LOGGER.info("Deploy Kroxylicious config Map without filters in {} namespace", deploymentNamespace);
+    private void deployDefaultConfigMap(String clusterName) {
+        LOGGER.info("Deploy Kroxylicious default config Map without filters in {} namespace", deploymentNamespace);
         resourceManager.createResourceWithWait(KroxyliciousConfigMapTemplates.defaultKroxyliciousConfig(clusterName, deploymentNamespace).build());
     }
 
@@ -61,7 +61,7 @@ public class Kroxylicious {
      * @param replicas the replicas
      */
     public void deployPortPerBrokerPlainWithNoFilters(String clusterName, int replicas) {
-        deployNoFilterConfigMap(clusterName);
+        deployDefaultConfigMap(clusterName);
         deployPortPerBrokerPlain(replicas);
     }
 

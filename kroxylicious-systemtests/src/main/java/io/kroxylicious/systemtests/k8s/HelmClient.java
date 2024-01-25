@@ -10,7 +10,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -83,16 +82,16 @@ public class HelmClient {
         return new HelmClient(namespace);
     }
 
-    /** Install a chart given its local path, release name, and values to override  @param chartName the chart name
+    /** Install a chart given its local path, release name, and values to override
      * @param chartName the chart name
      * @param releaseName the release name
      * @param version the version
      * @param valuesMap the values map
      * @return the helm client
      */
-    public HelmClient install(String chartName, String releaseName, String version, Map<String, Object> valuesMap) {
+    public HelmClient install(String chartName, String releaseName, String version, Map<String, String> valuesMap) {
         LOGGER.info("Installing helm-chart {}", releaseName);
-        String values = Stream.of(valuesMap).flatMap(m -> m.entrySet().stream())
+        String values = valuesMap.entrySet().stream()
                 .map(entry -> String.format("%s=%s", entry.getKey(), entry.getValue()))
                 .collect(Collectors.joining(","));
         this.version = version;
@@ -106,7 +105,7 @@ public class HelmClient {
     }
 
     /**
-     * Add repository helm client.
+     * Add repository to the helm client.
      *
      * @param repoName the repo name
      * @param repoUrl the repo url
@@ -120,26 +119,7 @@ public class HelmClient {
         return this;
     }
 
-    /**
-     * Install helm client.
-     *
-     * @param chartName the chart name
-     * @param releaseName the release name
-     * @param version the version
-     * @return the helm client
-     */
-    public HelmClient install(String chartName, String releaseName, String version) {
-        LOGGER.info("Installing helm-chart {}", releaseName);
-        this.version = version;
-        Exec.exec(null, wait(namespace(version(command("install",
-                releaseName,
-                "--timeout", INSTALL_TIMEOUT_SECONDS,
-                "--debug",
-                chartName)))), 0, true);
-        return this;
-    }
-
-    /** Delete a chart given its release name  @param releaseName the release name
+    /** Delete a chart given its release name from the currently configured namespace
      * @param releaseName the release name
      * @return the helm client
      */

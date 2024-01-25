@@ -15,7 +15,7 @@ import static java.util.stream.Collectors.toList;
 
 /**
  * Abstraction for a kubernetes client.
- * @param <K>   The subtype of KubeClient, for fluency.
+ * @param <K> The subtype of KubeClient, for fluency.
  */
 public interface KubeCmdClient<K extends KubeCmdClient<K>> {
 
@@ -55,7 +55,7 @@ public interface KubeCmdClient<K extends KubeCmdClient<K>> {
      * Delete by name k.
      *
      * @param resourceType the resource type
-     * @param resourceName the resource nameprivate KubeClusterResource() {}
+     * @param resourceName the resource name
      * @return the k
      */
     K deleteByName(String resourceType, String resourceName);
