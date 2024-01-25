@@ -15,7 +15,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import io.kroxylicious.systemtests.executor.Exec;
-import io.kroxylicious.systemtests.k8s.cmd.KubeCmdClient;
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
 
 import static java.util.Arrays.asList;
@@ -29,17 +28,14 @@ public class HelmClient {
     private static final String HELM_CMD = "helm";
     private static final String HELM_3_CMD = "helm3";
     private static final String INSTALL_TIMEOUT_SECONDS = "120s";
-    private static String helmCommand = HELM_CMD;
-    private final String namespace;
+    private static String helmCommand;
+    private String namespace;
     private String version;
 
-    /**
-     * Instantiates a new Helm client.
-     *
-     * @param namespace the namespace
-     */
-    public HelmClient(String namespace) {
-        this.namespace = namespace;
+    public HelmClient() {
+        if (!clientAvailable()) {
+            throw new KubeClusterException.NotFound("No helm client found on $PATH. $PATH=" + System.getenv("PATH"));
+        }
     }
 
     /**
@@ -49,6 +45,7 @@ public class HelmClient {
      */
     public static boolean clientAvailable() {
         if (Exec.isExecutableOnPath(HELM_CMD)) {
+            helmCommand = HELM_CMD;
             return true;
         }
         else if (Exec.isExecutableOnPath(HELM_3_CMD)) {
@@ -59,34 +56,21 @@ public class HelmClient {
     }
 
     /**
-     * Find client helm client.
-     *
-     * @param kubeClient the kube client
-     * @return the helm client
-     */
-    static HelmClient findClient(KubeCmdClient<?> kubeClient) {
-        HelmClient client = new HelmClient(kubeClient.namespace());
-        if (!clientAvailable()) {
-            throw new KubeClusterException.NotFound("No helm client found on $PATH. $PATH=" + System.getenv("PATH"));
-        }
-        return client;
-    }
-
-    /**
-     * Namespace helm client.
+     * Set the namespace of the helm client.
      *
      * @param namespace the namespace
      * @return the helm client
      */
     public HelmClient namespace(String namespace) {
-        return new HelmClient(namespace);
+        this.namespace = namespace;
+        return this;
     }
 
-    /** Install a chart given its local path, release name, and values to override
+    /** Install a chart given its name, release name, version and values to override
      * @param chartName the chart name
      * @param releaseName the release name
      * @param version the version
-     * @param valuesMap the values map
+     * @param valuesMap the values to be overridden in the chart, set as key,value
      * @return the helm client
      */
     public HelmClient install(String chartName, String releaseName, String version, Map<String, String> valuesMap) {
@@ -158,6 +142,10 @@ public class HelmClient {
 
     /** Sets namespace for client */
     private List<String> namespace(List<String> args) {
+        if (namespace == null) {
+            LOGGER.warn("Namespace has not been set! Helm client will run the command on the default namespace");
+            return args;
+        }
         args.add("--namespace");
         args.add(namespace);
         return args;
