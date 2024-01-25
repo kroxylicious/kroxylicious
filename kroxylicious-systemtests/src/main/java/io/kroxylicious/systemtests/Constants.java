@@ -156,6 +156,7 @@ public interface Constants {
      * Vault related constants
      */
     String VAULT_SERVICE_NAME = "vault";
+    String VAULT_POD_NAME = VAULT_SERVICE_NAME + "-0";
     String VAULT_DEFAULT_NAMESPACE = "vault";
     String VAULT_ROOT_TOKEN = "myRootToken";
     String VAULT_HELM_REPOSITORY_URL = "https://helm.releases.hashicorp.com";

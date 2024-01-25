@@ -63,20 +63,19 @@ public class Vault {
         ResourceManager.helmClient().namespace(deploymentNamespace).addRepository(Constants.VAULT_HELM_REPOSITORY_NAME, Constants.VAULT_HELM_REPOSITORY_URL);
         ResourceManager.helmClient().namespace(deploymentNamespace).install(Constants.VAULT_HELM_CHART_NAME, Constants.VAULT_SERVICE_NAME, "latest", values);
 
-        String podName = Constants.VAULT_SERVICE_NAME + "-0";
-        DeploymentUtils.waitForDeploymentRunning(deploymentNamespace, podName, Duration.ofMinutes(1));
+        DeploymentUtils.waitForDeploymentRunning(deploymentNamespace, Constants.VAULT_POD_NAME, Duration.ofMinutes(1));
 
-        configureVault(deploymentNamespace, podName);
+        configureVault(deploymentNamespace);
     }
 
-    private void configureVault(String deploymentNamespace, String podName) {
+    private void configureVault(String deploymentNamespace) {
         LOGGER.info("Enabling transit in vault instance");
         String loginCommand = VAULT_CMD + " login " + Constants.VAULT_ROOT_TOKEN;
         String transitCommand = VAULT_CMD + " secrets enable transit";
 
         int exitCode = kubeClient().getClient().pods()
                 .inNamespace(deploymentNamespace)
-                .withName(podName)
+                .withName(Constants.VAULT_POD_NAME)
                 .exec("sh", "-c", String.format("%s && %s", loginCommand, transitCommand)).exitCode().join();
 
         if (exitCode != 0) {
