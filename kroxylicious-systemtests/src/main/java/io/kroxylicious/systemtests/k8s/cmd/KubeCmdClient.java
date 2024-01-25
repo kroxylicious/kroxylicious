@@ -27,17 +27,17 @@ public interface KubeCmdClient<K extends KubeCmdClient<K>> {
     String defaultNamespace();
 
     /**
-     * Namespace kube cmd client.
+     * kube cmd client instance with the namespace indicated.
      *
      * @param namespace the namespace
-     * @return the kube cmd client
+     * @return the kube cmd client instance
      */
-    KubeCmdClient<K> namespace(String namespace);
+    KubeCmdClient<K> getInstanceWithNamespace(String namespace);
 
     /** Returns namespace for cluster
      * @return the string
      */
-    String namespace();
+    String getNamespace();
 
     /** Creates the resources in the given files.
      * @param files the files

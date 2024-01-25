@@ -73,7 +73,7 @@ public class KubeClusterResource {
      * @return CMD client
      */
     public static KubeCmdClient<?> cmdKubeClient() {
-        return kubeClusterResource.cmdClient().namespace(kubeClusterResource.getNamespace());
+        return kubeClusterResource.cmdClient().getInstanceWithNamespace(kubeClusterResource.getNamespace());
     }
 
     /**
@@ -82,7 +82,7 @@ public class KubeClusterResource {
      * @return CMD client with expected namespace in configuration
      */
     public static KubeCmdClient<?> cmdKubeClient(String inNamespace) {
-        return kubeClusterResource.cmdClient().namespace(inNamespace);
+        return kubeClusterResource.cmdClient().getInstanceWithNamespace(inNamespace);
     }
 
     /**
