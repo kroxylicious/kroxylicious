@@ -17,7 +17,9 @@ import org.slf4j.LoggerFactory;
  * @param filePath file containing the password,
  *
  * @deprecated use FilePassword instead
- * TODO: Replace FilePasswordFilePath with @JsonAlias("filePath) FilePassword#passwordFile once https://github.com/FasterXML/jackson-databind/pull/4335 is released  (2.17)
+ *
+ * TODO: Once https://github.com/FasterXML/jackson-databind/pull/4335 is released (2.17), replace FilePasswordFilePath
+ * with a @JsonAlias("filePath) annotation on the FilePassword#passwordFile formal parameter.
  */
 @Deprecated(since = "0.5.0", forRemoval = true)
 @SuppressWarnings({ "java:S5738", "java:S1133" }) // java:S5738 warns of the use and need to remove deprecated classes.
