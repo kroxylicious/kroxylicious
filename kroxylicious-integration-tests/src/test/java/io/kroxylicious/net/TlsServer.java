@@ -25,15 +25,10 @@ import io.netty.handler.codec.http.HttpObject;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpServerCodec;
-import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.ssl.SslContext;
 
 import static io.netty.handler.codec.http.HttpHeaderNames.CONNECTION;
-import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_LENGTH;
-import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_TYPE;
 import static io.netty.handler.codec.http.HttpHeaderValues.CLOSE;
-import static io.netty.handler.codec.http.HttpHeaderValues.KEEP_ALIVE;
-import static io.netty.handler.codec.http.HttpHeaderValues.TEXT_PLAIN;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 
 public class TlsServer {
@@ -60,7 +55,7 @@ public class TlsServer {
                             ChannelPipeline p = ch.pipeline();
                             p.addLast(context.newHandler(ch.alloc()));
                             p.addLast(new HttpServerCodec());
-                            p.addLast(new HttpHelloWorldServerHandler());
+                            p.addLast(new Respond200AndCloseHandler());
                         }
                     });
 
@@ -83,7 +78,7 @@ public class TlsServer {
         }
     }
 
-    private static class HttpHelloWorldServerHandler extends SimpleChannelInboundHandler<HttpObject> {
+    private static class Respond200AndCloseHandler extends SimpleChannelInboundHandler<HttpObject> {
 
         @Override
         public void channelReadComplete(ChannelHandlerContext ctx) {
@@ -93,27 +88,10 @@ public class TlsServer {
         @Override
         public void channelRead0(ChannelHandlerContext ctx, HttpObject msg) {
             if (msg instanceof HttpRequest req) {
-                boolean keepAlive = HttpUtil.isKeepAlive(req);
                 HttpResponse response = new DefaultFullHttpResponse(req.protocolVersion(), OK);
-                response.headers()
-                        .set(CONTENT_TYPE, TEXT_PLAIN)
-                        .setInt(CONTENT_LENGTH, 0);
-
-                if (keepAlive) {
-                    if (!req.protocolVersion().isKeepAliveDefault()) {
-                        response.headers().set(CONNECTION, KEEP_ALIVE);
-                    }
-                }
-                else {
-                    // Tell the client we're going to close the connection.
-                    response.headers().set(CONNECTION, CLOSE);
-                }
-
+                response.headers().set(CONNECTION, CLOSE);
                 ChannelFuture f = ctx.write(response);
-
-                if (!keepAlive) {
-                    f.addListener(ChannelFutureListener.CLOSE);
-                }
+                f.addListener(ChannelFutureListener.CLOSE);
             }
         }
 
