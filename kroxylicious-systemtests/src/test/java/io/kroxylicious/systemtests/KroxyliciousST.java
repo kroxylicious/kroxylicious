@@ -46,7 +46,6 @@ class KroxyliciousST extends AbstractST {
      */
     @Test
     void produceAndConsumeMessage(String namespace) {
-        String topicName = "my-topic";
         int numberOfMessages = 1;
         String expectedMessage = MESSAGE + " - " + (numberOfMessages - 1);
 
@@ -75,7 +74,6 @@ class KroxyliciousST extends AbstractST {
      */
     @Test
     void restartKafkaBrokers(String namespace) {
-        String topicName = "my-topic2";
         int numberOfMessages = 25;
         String expectedMessage = MESSAGE + " - " + (numberOfMessages - 1);
 
@@ -106,7 +104,6 @@ class KroxyliciousST extends AbstractST {
      */
     @Test
     void kroxyWithReplicas(String namespace) {
-        String topicName = "my-topic3";
         int numberOfMessages = 3;
         int replicas = 3;
         String expectedMessage = MESSAGE + " - " + (numberOfMessages - 1);

@@ -8,6 +8,7 @@ package io.kroxylicious.systemtests;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.UUID;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
@@ -48,6 +49,7 @@ public class AbstractST {
      * The Resource manager.
      */
     protected final ResourceManager resourceManager = ResourceManager.getInstance();
+    protected String topicName;
 
     /**
      * Before each test.
@@ -58,6 +60,7 @@ public class AbstractST {
     void beforeEachTest(TestInfo testInfo) {
         LOGGER.info(String.join("", Collections.nCopies(76, "#")));
         LOGGER.info(String.format("%s.%s - STARTED", testInfo.getTestClass().get().getName(), testInfo.getTestMethod().get().getName()));
+        topicName = "my-topic-" + UUID.randomUUID().toString().replace("-", "").substring(0, 6);
     }
 
     /**

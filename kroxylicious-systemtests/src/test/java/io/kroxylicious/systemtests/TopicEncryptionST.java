@@ -12,6 +12,7 @@ import java.util.List;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.slf4j.Logger;
@@ -39,8 +40,8 @@ class TopicEncryptionST extends AbstractST {
     private static final Logger LOGGER = LoggerFactory.getLogger(TopicEncryptionST.class);
     private static final String MESSAGE = "Hello-world";
     private static Vault vaultOperator;
-    private static Kroxylicious kroxylicious;
     private final String clusterName = "my-cluster";
+    private String bootstrap;
 
     @BeforeAll
     void setUp() {
@@ -68,6 +69,21 @@ class TopicEncryptionST extends AbstractST {
                 kafka);
     }
 
+    @BeforeEach
+    void beforeEach(String namespace) {
+        var testKekManager = new VaultTestKekManager(Constants.VAULT_DEFAULT_NAMESPACE, Constants.VAULT_POD_NAME);
+        testKekManager.generateKek(topicName);
+
+        // start Kroxylicious
+        LOGGER.info("Given Kroxylicious in {} namespace with {} replicas", namespace, 1);
+        Kroxylicious kroxylicious = new Kroxylicious(namespace);
+        kroxylicious.deployPortPerBrokerPlainWithTopicEncryptionFilter(clusterName, 1, topicName);
+        bootstrap = kroxylicious.getBootstrap();
+
+        LOGGER.info("And KafkaTopic in {} namespace", namespace);
+        KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 2);
+    }
+
     @AfterAll
     void cleanUp() throws IOException {
         if (vaultOperator != null) {
@@ -77,21 +93,8 @@ class TopicEncryptionST extends AbstractST {
 
     @Test
     void produceAndConsumeEncryptedMessage(String namespace) {
-        String topicName = "my-topic";
         int numberOfMessages = 1;
         String expectedMessage = MESSAGE + " - " + (numberOfMessages - 1);
-
-        var testKekManager = new VaultTestKekManager(Constants.VAULT_DEFAULT_NAMESPACE, Constants.VAULT_SERVICE_NAME + "-0");
-        testKekManager.generateKek(topicName);
-
-        // start Kroxylicious
-        LOGGER.info("Given Kroxylicious in {} namespace with {} replicas", namespace, 1);
-        kroxylicious = new Kroxylicious(namespace);
-        kroxylicious.deployPortPerBrokerPlainWithTopicEncryptionFilter(clusterName, 1, topicName);
-        String bootstrap = kroxylicious.getBootstrap();
-
-        LOGGER.info("And KafkaTopic in {} namespace", namespace);
-        KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 2);
 
         LOGGER.info("When {} messages '{}' are sent to the topic '{}'", numberOfMessages, MESSAGE, topicName);
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
@@ -105,21 +108,8 @@ class TopicEncryptionST extends AbstractST {
 
     @Test
     void produceAndConsumeMessage(String namespace) {
-        String topicName = "my-topic2";
         int numberOfMessages = 1;
         String expectedMessage = MESSAGE + " - " + (numberOfMessages - 1);
-
-        var testKekManager = new VaultTestKekManager(Constants.VAULT_DEFAULT_NAMESPACE, Constants.VAULT_SERVICE_NAME + "-0");
-        testKekManager.generateKek(topicName);
-
-        // start Kroxylicious
-        LOGGER.info("Given Kroxylicious in {} namespace with {} replicas", namespace, 1);
-        kroxylicious = new Kroxylicious(namespace);
-        kroxylicious.deployPortPerBrokerPlainWithTopicEncryptionFilter(clusterName, 1, topicName);
-        String bootstrap = kroxylicious.getBootstrap();
-
-        LOGGER.info("And KafkaTopic in {} namespace", namespace);
-        KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 2);
 
         LOGGER.info("When {} messages '{}' are sent to the topic '{}'", numberOfMessages, MESSAGE, topicName);
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
