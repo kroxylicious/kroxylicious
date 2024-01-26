@@ -289,10 +289,10 @@ has been applied ineffectively.
 
 ## Running system tests locally
 ### Prerequisites
-* minikube
+* minikube [install guide](https://minikube.sigs.k8s.io/docs/start/)
+* helm [install guide](https://helm.sh/docs/helm/helm_install/)
 * User must have access to a container registry such as [quay.io](https://quay.io) or [docker.io](https://docker.io).
      Create a public accessible repository within the registry named `kroxylicious`.
-* Helm package installed
 
 ### Environment variables
 * `KROXYLICIOUS_IMAGE_REPO`: url to the image of kroxylicious to be used. Default value: `quay.io/kroxylicious/kroxylicious-developer`
