@@ -17,8 +17,6 @@ import java.util.function.Function;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.TrustManagerFactory;
 
-import io.kroxylicious.proxy.filter.FilterFactoryContext;
-
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.protocol.ApiKeys;
@@ -42,6 +40,7 @@ import io.kroxylicious.proxy.config.tls.InsecureTls;
 import io.kroxylicious.proxy.config.tls.KeyStore;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TrustStore;
+import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.filter.TlsTestFilter;
 import io.kroxylicious.proxy.filter.TlsTestFilter.Outcome;
 import io.kroxylicious.proxy.filter.TlsTestFilterFactory;

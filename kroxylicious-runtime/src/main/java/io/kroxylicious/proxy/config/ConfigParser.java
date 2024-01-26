@@ -12,6 +12,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Parameter;
 
 import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.PropertyAccessor;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -93,6 +94,7 @@ public class ConfigParser implements PluginFactoryRegistry {
                 .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
                 .configure(DeserializationFeature.FAIL_ON_MISSING_EXTERNAL_TYPE_ID_PROPERTY, false)
                 .configure(JsonParser.Feature.STRICT_DUPLICATE_DETECTION, true)
+                .setSerializationInclusion(JsonInclude.Include.NON_DEFAULT)
                 .registerModule(new PluginModule())
                 .setHandlerInstantiator(new PluginHandlerInstantiator());
     }
