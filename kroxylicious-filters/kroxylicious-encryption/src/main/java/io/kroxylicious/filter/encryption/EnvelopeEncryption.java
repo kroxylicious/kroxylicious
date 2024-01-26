@@ -80,7 +80,7 @@ public class EnvelopeEncryption<K, E> implements FilterFactory<EnvelopeEncryptio
     @SuppressWarnings("java:S2245") // secure randomization not needed for exponential backoff
     private static <K, E> Kms<K, E> buildKms(FilterFactoryContext context, Config configuration) {
         KmsService<Object, K, E> kmsPlugin = context.pluginInstance(KmsService.class, configuration.kms());
-        Kms<K, E> kms = kmsPlugin.buildKms(configuration.kmsConfig());
+        Kms<K, E> kms = kmsPlugin.buildKms(configuration.kmsConfig(), context);
         kms = InstrumentedKms.wrap(kms, kmsMetrics);
         ExponentialJitterBackoffStrategy backoffStrategy = new ExponentialJitterBackoffStrategy(Duration.ofMillis(500), Duration.ofSeconds(5), 2d,
                 ThreadLocalRandom.current());

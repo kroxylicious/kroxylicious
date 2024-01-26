@@ -6,6 +6,8 @@
 
 package io.kroxylicious.kms.service;
 
+import io.kroxylicious.proxy.filter.FilterFactoryContext;
+
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
@@ -16,6 +18,6 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  */
 public interface KmsService<C, K, E> {
     @NonNull
-    Kms<K, E> buildKms(C options);
+    Kms<K, E> buildKms(C options, FilterFactoryContext context);
 
 }

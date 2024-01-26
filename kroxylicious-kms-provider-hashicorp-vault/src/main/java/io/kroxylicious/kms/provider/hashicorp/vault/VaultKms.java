@@ -20,6 +20,7 @@ import java.util.function.Supplier;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
+import javax.net.ssl.SSLContext;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -61,15 +62,19 @@ public class VaultKms implements Kms<String, VaultEdek> {
     private final URI vaultUrl;
     private final String vaultToken;
 
-    VaultKms(URI vaultUrl, String vaultToken, Duration timeout) {
+    VaultKms(URI vaultUrl, String vaultToken, Duration timeout, SSLContext sslContext) {
         this.vaultUrl = vaultUrl;
         this.vaultToken = vaultToken;
         this.timeout = timeout;
-        vaultClient = createClient();
+        vaultClient = createClient(sslContext);
     }
 
-    private HttpClient createClient() {
-        return HttpClient.newBuilder()
+    private HttpClient createClient(SSLContext sslContext) {
+        HttpClient.Builder builder = HttpClient.newBuilder();
+        if (sslContext != null) {
+            builder.sslContext(sslContext);
+        }
+        return builder
                 .followRedirects(HttpClient.Redirect.NORMAL)
                 .connectTimeout(timeout)
                 .build();

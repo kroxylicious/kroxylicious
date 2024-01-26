@@ -10,7 +10,11 @@ import java.net.URI;
 import java.time.Duration;
 import java.util.Objects;
 
+import javax.net.ssl.SSLContext;
+
 import io.kroxylicious.kms.service.KmsService;
+import io.kroxylicious.proxy.config.tls.Tls;
+import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.plugin.Plugin;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -26,7 +30,8 @@ public class VaultKmsService implements KmsService<VaultKmsService.Config, Strin
      * @param vaultToken vault token.
      */
     public record Config(URI vaultUrl,
-                         String vaultToken) {
+                         String vaultToken,
+                         Tls tls) {
         public Config {
             Objects.requireNonNull(vaultUrl);
             Objects.requireNonNull(vaultToken);
@@ -35,8 +40,12 @@ public class VaultKmsService implements KmsService<VaultKmsService.Config, Strin
 
     @NonNull
     @Override
-    public VaultKms buildKms(Config options) {
-        return new VaultKms(options.vaultUrl(), options.vaultToken(), Duration.ofSeconds(20));
+    public VaultKms buildKms(Config options, FilterFactoryContext context) {
+        SSLContext sslContext = null;
+        if (options.tls != null) {
+            sslContext = context.clientSslContext(options.tls);
+        }
+        return new VaultKms(options.vaultUrl(), options.vaultToken(), Duration.ofSeconds(20), sslContext);
     }
 
 }

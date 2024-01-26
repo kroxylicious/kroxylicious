@@ -33,7 +33,7 @@ class EnvelopeEncryptionTest {
         var kekSelector = mock(TopicNameBasedKekSelector.class);
 
         doReturn(kmsService).when(fc).pluginInstance(KmsService.class, "KMS");
-        doReturn(kms).when(kmsService).buildKms(any());
+        doReturn(kms).when(kmsService).buildKms(any(), any());
 
         doReturn(kekSelectorService).when(fc).pluginInstance(KekSelectorService.class, "SELECTOR");
         doReturn(kekSelector).when(kekSelectorService).buildSelector(any(), any());

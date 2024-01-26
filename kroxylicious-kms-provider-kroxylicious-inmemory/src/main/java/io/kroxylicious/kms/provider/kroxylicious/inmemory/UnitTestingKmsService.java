@@ -15,6 +15,7 @@ import javax.crypto.SecretKey;
 
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.KmsService;
+import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.plugin.Plugin;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -63,9 +64,13 @@ public class UnitTestingKmsService implements KmsService<UnitTestingKmsService.C
     private final Map<UUID, SecretKey> keys = new ConcurrentHashMap<>();
     private final Map<String, UUID> aliases = new ConcurrentHashMap<>();
 
+    public InMemoryKms buildKms(Config options) {
+        return buildKms(options, null);
+    }
+
     @NonNull
     @Override
-    public InMemoryKms buildKms(Config options) {
+    public InMemoryKms buildKms(Config options, FilterFactoryContext context) {
         return new InMemoryKms(options.numIvBytes(),
                 options.numAuthBits(),
                 keys,
