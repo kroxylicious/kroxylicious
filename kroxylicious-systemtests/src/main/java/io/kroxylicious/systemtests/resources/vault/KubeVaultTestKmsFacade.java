@@ -29,10 +29,9 @@ import static io.kroxylicious.systemtests.k8s.KubeClusterResource.cmdKubeClient;
 public class KubeVaultTestKmsFacade implements TestKmsFacade<VaultKmsService.Config, String, VaultEdek> {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final String VAULT_CMD = "vault";
+    private static final String FORMAT_JSON = "-format=json";
     private final String namespace;
     private final String podName;
-    private static final String FORMAT_JSON = "-format=json";
-
     @SuppressWarnings("rawtypes")
     private final Vault vault;
 
