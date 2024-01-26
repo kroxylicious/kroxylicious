@@ -88,14 +88,14 @@ public class Kroxylicious {
     }
 
     /**
-     * Get bootstrap string.
+     * Get bootstrap
      *
      * @return the bootstrap
      */
     public String getBootstrap() {
         String clusterIP = kubeClient().getService(deploymentNamespace, Constants.KROXY_SERVICE_NAME).getSpec().getClusterIP();
         if (clusterIP == null || clusterIP.isEmpty()) {
-            throw new KubeClusterException(new Throwable("Unable to get the clusterIP of Kroxylicious"));
+            throw new KubeClusterException("Unable to get the clusterIP of Kroxylicious");
         }
         String bootstrap = clusterIP + ":9292";
         LOGGER.debug("Kroxylicious bootstrap: {}", bootstrap);

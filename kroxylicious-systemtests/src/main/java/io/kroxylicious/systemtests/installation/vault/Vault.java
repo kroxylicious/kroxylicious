@@ -40,12 +40,21 @@ public class Vault {
     }
 
     /**
+     * Is available
+     *
+     * @return true if Vault service is available in kubernetes, false otherwise
+     */
+    public boolean isAvailable() {
+        return kubeClient().getDeployment(deploymentNamespace, Constants.VAULT_SERVICE_NAME) != null;
+    }
+
+    /**
      * Deploy.
      *
      */
     public void deploy() {
         LOGGER.info("Deploy HashiCorp Vault in {} namespace", deploymentNamespace);
-        if (kubeClient().getDeployment(deploymentNamespace, Constants.VAULT_SERVICE_NAME) != null) {
+        if (isAvailable()) {
             LOGGER.warn("Skipping Vault deployment. It is already deployed!");
             return;
         }
@@ -79,7 +88,8 @@ public class Vault {
                 .exec("sh", "-c", String.format("%s && %s", loginCommand, transitCommand)).exitCode().join();
 
         if (exitCode != 0) {
-            throw new KubeClusterException("Cannot enable transit in vault instance!");
+            String errorLog = kubeClient().logsInSpecificNamespace(deploymentNamespace, Constants.VAULT_POD_NAME);
+            throw new KubeClusterException(String.format("Cannot enable transit in vault instance! Error: %s", errorLog));
         }
     }
 
@@ -91,5 +101,21 @@ public class Vault {
     public void delete() throws IOException {
         LOGGER.info("Deleting Vault in {} namespace", deploymentNamespace);
         NamespaceUtils.deleteNamespaceWithWait(deploymentNamespace);
+    }
+
+    /**
+     * Gets bootstrap.
+     *
+     * @return the bootstrap
+     */
+    public String getBootstrap() {
+        String clusterIP = kubeClient().getService(deploymentNamespace, Constants.VAULT_SERVICE_NAME).getSpec().getClusterIP();
+        if (clusterIP == null || clusterIP.isEmpty()) {
+            throw new KubeClusterException("Unable to get the clusterIP of Vault");
+        }
+        int port = kubeClient().getService(deploymentNamespace, Constants.VAULT_SERVICE_NAME).getSpec().getPorts().get(0).getPort();
+        String bootstrap = clusterIP + ":" + port;
+        LOGGER.debug("Vault bootstrap: {}", bootstrap);
+        return bootstrap;
     }
 }

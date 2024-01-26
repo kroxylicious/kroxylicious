@@ -7,8 +7,10 @@
 package io.kroxylicious.systemtests.k8s;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
@@ -30,7 +32,7 @@ public class HelmClient {
     private static final String INSTALL_TIMEOUT_SECONDS = "120s";
     private static String helmCommand;
     private String namespace;
-    private String version;
+    private Optional<String> version;
 
     public HelmClient() {
         if (!clientAvailable()) {
@@ -78,7 +80,7 @@ public class HelmClient {
         String values = valuesMap.entrySet().stream()
                 .map(entry -> String.format("%s=%s", entry.getKey(), entry.getValue()))
                 .collect(Collectors.joining(","));
-        this.version = version;
+        this.version = Optional.ofNullable(version);
         Exec.exec(null, wait(namespace(version(command("install",
                 releaseName,
                 "--set", values,
@@ -133,11 +135,9 @@ public class HelmClient {
     }
 
     private List<String> version(List<String> args) {
-        if (version != null && !version.isEmpty() && !version.equalsIgnoreCase("latest")) {
-            args.add("--version");
-            args.add(version);
-        }
-        return args;
+        List<String> result = new ArrayList<>(args);
+        version.filter(v -> !v.equals("latest")).ifPresent(v -> result.addAll(new ArrayList<>(Arrays.asList("--version", v))));
+        return result;
     }
 
     /** Sets namespace for client */
@@ -146,13 +146,15 @@ public class HelmClient {
             LOGGER.warn("Namespace has not been set! Helm client will run the command on the default namespace");
             return args;
         }
-        args.add("--namespace");
-        args.add(namespace);
-        return args;
+        List<String> result = new ArrayList<>(args);
+        result.add("--namespace");
+        result.add(namespace);
+        return result;
     }
 
     private List<String> wait(List<String> args) {
-        args.add("--wait");
-        return args;
+        List<String> result = new ArrayList<>(args);
+        result.add("--wait");
+        return result;
     }
 }

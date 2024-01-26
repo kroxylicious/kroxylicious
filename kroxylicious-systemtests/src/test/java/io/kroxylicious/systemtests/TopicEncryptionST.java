@@ -6,7 +6,6 @@
 
 package io.kroxylicious.systemtests;
 
-import java.io.IOException;
 import java.time.Duration;
 import java.util.List;
 
@@ -23,8 +22,8 @@ import io.strimzi.api.kafka.model.Kafka;
 
 import io.kroxylicious.systemtests.extensions.KroxyliciousExtension;
 import io.kroxylicious.systemtests.installation.kroxylicious.Kroxylicious;
-import io.kroxylicious.systemtests.installation.vault.Vault;
-import io.kroxylicious.systemtests.resources.vault.VaultTestKekManager;
+import io.kroxylicious.systemtests.resources.vault.KubeVaultTestKmsFacade;
+import io.kroxylicious.systemtests.resources.vault.KubeVaultTestKmsFacadeFactory;
 import io.kroxylicious.systemtests.steps.KafkaSteps;
 import io.kroxylicious.systemtests.steps.KroxyliciousSteps;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaNodePoolTemplates;
@@ -39,7 +38,7 @@ class TopicEncryptionST extends AbstractST {
     protected static final String BROKER_NODE_NAME = "kafka";
     private static final Logger LOGGER = LoggerFactory.getLogger(TopicEncryptionST.class);
     private static final String MESSAGE = "Hello-world";
-    private static Vault vaultOperator;
+    private static KubeVaultTestKmsFacade kubeVaultTestKmsFacade;
     private final String clusterName = "my-cluster";
     private String bootstrap;
 
@@ -50,9 +49,9 @@ class TopicEncryptionST extends AbstractST {
             LOGGER.warn("Skipping vault deployment. It is already deployed!");
         }
         else {
-            vaultOperator = new Vault(Constants.VAULT_DEFAULT_NAMESPACE);
+            kubeVaultTestKmsFacade = new KubeVaultTestKmsFacadeFactory().build(Constants.VAULT_DEFAULT_NAMESPACE, Constants.VAULT_POD_NAME);
             NamespaceUtils.createNamespaceWithWait(Constants.VAULT_DEFAULT_NAMESPACE);
-            vaultOperator.deploy();
+            kubeVaultTestKmsFacade.start();
         }
 
         List<Pod> kafkaPods = kubeClient().listPodsByPrefixInName(Constants.KROXY_DEFAULT_NAMESPACE, clusterName);
@@ -71,7 +70,7 @@ class TopicEncryptionST extends AbstractST {
 
     @BeforeEach
     void beforeEach(String namespace) {
-        var testKekManager = new VaultTestKekManager(Constants.VAULT_DEFAULT_NAMESPACE, Constants.VAULT_POD_NAME);
+        var testKekManager = kubeVaultTestKmsFacade.getTestKekManager();
         testKekManager.generateKek(topicName);
 
         // start Kroxylicious
@@ -85,9 +84,9 @@ class TopicEncryptionST extends AbstractST {
     }
 
     @AfterAll
-    void cleanUp() throws IOException {
-        if (vaultOperator != null) {
-            vaultOperator.delete();
+    void cleanUp() {
+        if (kubeVaultTestKmsFacade != null) {
+            kubeVaultTestKmsFacade.stop();
         }
     }
 
