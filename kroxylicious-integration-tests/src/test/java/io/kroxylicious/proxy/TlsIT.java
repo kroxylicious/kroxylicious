@@ -6,22 +6,9 @@
 
 package io.kroxylicious.proxy;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.KeyStore;
-import java.security.cert.CertificateEncodingException;
-import java.security.cert.PKIXParameters;
-import java.security.cert.TrustAnchor;
-import java.security.cert.X509Certificate;
 import java.time.Duration;
-import java.util.Base64;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -54,8 +41,6 @@ import io.kroxylicious.testing.kafka.common.KafkaClusterFactory;
 import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
 import io.kroxylicious.testing.kafka.common.Tls;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
-
-import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -125,16 +110,7 @@ class TlsIT extends BaseIT {
         var brokerTruststorePassword = (String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG);
         assertThat(brokerTruststore).isNotEmpty();
         assertThat(brokerTruststorePassword).isNotEmpty();
-
-        var trustStore = KeyStore.getInstance(new File(brokerTruststore), brokerTruststorePassword.toCharArray());
-        var params = new PKIXParameters(trustStore);
-
-        var trustAnchors = params.getTrustAnchors();
-        var certificates = trustAnchors.stream().map(TrustAnchor::getTrustedCert).toList();
-        assertThat(certificates).isNotNull()
-                .hasSizeGreaterThan(0);
-
-        var file = writeTrustToTemporaryFile(certificates);
+        var file = TlsUtils.convertToTempFileInPemFormat(Path.of(brokerTruststore), brokerTruststorePassword);
 
         var builder = new ConfigurationBuilder()
                 .addToVirtualClusters("demo", new VirtualClusterBuilder()
@@ -142,7 +118,7 @@ class TlsIT extends BaseIT {
                         .withBootstrapServers(bootstrapServers)
                         .withNewTls()
                         .withNewTrustStoreTrust()
-                        .withStoreFile(file.getAbsolutePath())
+                        .withStoreFile(file.toAbsolutePath().toString())
                         .withStoreType("PEM")
                         .endTrustStoreTrust()
                         .endTls()
@@ -311,71 +287,11 @@ class TlsIT extends BaseIT {
             return new InlinePassword(password);
         }
         else if (providerClazz.equals(FilePassword.class)) {
-            return new FilePassword(writePasswordToFile(password));
+            return new FilePassword(TlsUtils.writePasswordToTempFile(password).getAbsolutePath());
         }
         else {
             throw new IllegalArgumentException("Unexpected provider class: " + providerClazz);
         }
 
-    }
-
-    @NonNull
-    private String writePasswordToFile(String password) {
-        try {
-            File tmp = File.createTempFile("password", ".txt");
-            tmp.deleteOnExit();
-            makeFileOwnerReadWriteOnly(tmp);
-            boolean ignore;
-            Files.writeString(tmp.toPath(), password);
-            // remove write from owner
-            assertThat(tmp.setWritable(false, true)).isTrue();
-            return tmp.getAbsolutePath();
-        }
-        catch (IOException e) {
-            throw new UncheckedIOException("Failed to write password to file", e);
-        }
-    }
-
-    private File writeTrustToTemporaryFile(List<X509Certificate> certificates) {
-        try {
-            var file = File.createTempFile("trust", ".pem");
-            makeFileOwnerReadWriteOnly(file);
-            file.deleteOnExit();
-            var mimeLineEnding = new byte[]{ '\r', '\n' };
-
-            try (var out = new FileOutputStream(file)) {
-                certificates.forEach(c -> {
-                    var encoder = Base64.getMimeEncoder();
-                    try {
-                        out.write("-----BEGIN CERTIFICATE-----".getBytes(StandardCharsets.UTF_8));
-                        out.write(mimeLineEnding);
-                        out.write(encoder.encode(c.getEncoded()));
-                        out.write(mimeLineEnding);
-                        out.write("-----END CERTIFICATE-----".getBytes(StandardCharsets.UTF_8));
-                        out.write(mimeLineEnding);
-                    }
-                    catch (IOException e) {
-                        throw new UncheckedIOException(e);
-                    }
-                    catch (CertificateEncodingException e) {
-                        throw new RuntimeException(e);
-                    }
-                });
-                assertThat(file.setWritable(false, true)).isTrue();
-                return file;
-            }
-        }
-        catch (IOException e) {
-            throw new UncheckedIOException("Failed to write trust to temporary file", e);
-        }
-    }
-
-    private void makeFileOwnerReadWriteOnly(File f) {
-        // remove read/write from everyone
-        assertThat(f.setReadable(false, false)).isTrue();
-        assertThat(f.setWritable(false, false)).isTrue();
-        // add read/write for owner
-        assertThat(f.setReadable(true, true)).isTrue();
-        assertThat(f.setWritable(true, true)).isTrue();
     }
 }

@@ -10,16 +10,16 @@ import java.util.concurrent.ScheduledExecutorService;
 
 import io.kroxylicious.proxy.config.PluginFactory;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
-import io.kroxylicious.proxy.filter.FilterFactoryContext;
+import io.kroxylicious.proxy.internal.NettyFilterFactoryContext;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-public class NettyFilterContext implements FilterFactoryContext {
+public class NettyEventLoopFilterContext extends NettyFilterFactoryContext {
     private final ScheduledExecutorService eventLoop;
     private final PluginFactoryRegistry pluginFactoryRegistry;
 
-    public NettyFilterContext(ScheduledExecutorService eventLoop,
-                              PluginFactoryRegistry pluginFactoryRegistry) {
+    public NettyEventLoopFilterContext(ScheduledExecutorService eventLoop,
+                                       PluginFactoryRegistry pluginFactoryRegistry) {
         this.eventLoop = eventLoop;
         this.pluginFactoryRegistry = pluginFactoryRegistry;
     }

@@ -8,6 +8,9 @@ package io.kroxylicious.proxy.filter;
 
 import java.util.concurrent.ScheduledExecutorService;
 
+import javax.net.ssl.SSLContext;
+
+import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.plugin.UnknownPluginInstanceException;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -26,6 +29,8 @@ public interface FilterFactoryContext {
      * @return executor, or null
      */
     ScheduledExecutorService eventLoop();
+
+    SSLContext clientSslContext(Tls tls);
 
     /**
      * Gets a plugin instance for the given plugin type and name

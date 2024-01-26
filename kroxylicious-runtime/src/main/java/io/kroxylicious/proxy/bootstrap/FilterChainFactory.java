@@ -16,6 +16,7 @@ import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
+import io.kroxylicious.proxy.internal.NettyFilterFactoryContext;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -67,7 +68,7 @@ public class FilterChainFactory {
             this.initialized = List.of();
         }
         else {
-            FilterFactoryContext context = new FilterFactoryContext() {
+            FilterFactoryContext context = new NettyFilterFactoryContext() {
                 @Override
                 public ScheduledExecutorService eventLoop() {
                     return null;

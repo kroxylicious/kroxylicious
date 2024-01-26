@@ -23,6 +23,10 @@ public class NettyKeyProvider implements KeyProvider {
 
     public SslContextBuilder forClient() {
         SslContextBuilder builder = SslContextBuilder.forClient();
+        return apply(builder);
+    }
+
+    public SslContextBuilder apply(SslContextBuilder builder) {
         apply(new KeyManagerBuilder() {
             @Override
             public void keyManager(File keyCertChainFile, File keyFile, String keyPassword) {

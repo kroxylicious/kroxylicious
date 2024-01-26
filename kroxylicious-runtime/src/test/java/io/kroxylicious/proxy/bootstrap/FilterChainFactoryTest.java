@@ -24,7 +24,7 @@ import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.internal.filter.ExampleConfig;
-import io.kroxylicious.proxy.internal.filter.NettyFilterContext;
+import io.kroxylicious.proxy.internal.filter.NettyEventLoopFilterContext;
 import io.kroxylicious.proxy.internal.filter.OptionalConfigFactory;
 import io.kroxylicious.proxy.internal.filter.RequiresConfigFactory;
 import io.kroxylicious.proxy.internal.filter.TestFilter;
@@ -89,7 +89,7 @@ class FilterChainFactoryTest {
     void testNullFiltersInConfigResultsInEmptyList() {
         ScheduledExecutorService eventLoop = Executors.newScheduledThreadPool(1);
         FilterChainFactory filterChainFactory = new FilterChainFactory(pfr, null);
-        List<FilterAndInvoker> filters = filterChainFactory.createFilters(new NettyFilterContext(eventLoop, pfr));
+        List<FilterAndInvoker> filters = filterChainFactory.createFilters(new NettyEventLoopFilterContext(eventLoop, pfr));
         assertNotNull(filters, "Filters list should not be null");
         assertTrue(filters.isEmpty(), "Filters list should be empty");
     }
@@ -234,7 +234,7 @@ class FilterChainFactoryTest {
 
     private ListAssert<FilterAndInvoker> assertFiltersCreated(List<FilterDefinition> filterDefinitions) {
         FilterChainFactory filterChainFactory = new FilterChainFactory(pfr, filterDefinitions);
-        NettyFilterContext context = new NettyFilterContext(eventLoop, pfr);
+        NettyEventLoopFilterContext context = new NettyEventLoopFilterContext(eventLoop, pfr);
         List<FilterAndInvoker> filters = filterChainFactory.createFilters(context);
         return assertThat(filters).hasSameSizeAs(filterDefinitions);
     }

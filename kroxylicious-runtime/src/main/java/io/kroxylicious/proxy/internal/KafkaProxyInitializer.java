@@ -35,7 +35,7 @@ import io.kroxylicious.proxy.internal.codec.KafkaResponseEncoder;
 import io.kroxylicious.proxy.internal.filter.ApiVersionsIntersectFilter;
 import io.kroxylicious.proxy.internal.filter.BrokerAddressFilter;
 import io.kroxylicious.proxy.internal.filter.EagerMetadataLearner;
-import io.kroxylicious.proxy.internal.filter.NettyFilterContext;
+import io.kroxylicious.proxy.internal.filter.NettyEventLoopFilterContext;
 import io.kroxylicious.proxy.internal.net.Endpoint;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
 import io.kroxylicious.proxy.internal.net.VirtualClusterBinding;
@@ -224,7 +224,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
             List<FilterAndInvoker> apiVersionFilters = decodePredicate.isAuthenticationOffloadEnabled() ? List.of()
                     : FilterAndInvoker.build(new ApiVersionsIntersectFilter(apiVersionService));
 
-            NettyFilterContext filterContext = new NettyFilterContext(ch.eventLoop(), pfr);
+            NettyEventLoopFilterContext filterContext = new NettyEventLoopFilterContext(ch.eventLoop(), pfr);
             List<FilterAndInvoker> customProtocolFilters = filterChainFactory.createFilters(filterContext);
             List<FilterAndInvoker> brokerAddressFilters = FilterAndInvoker.build(new BrokerAddressFilter(virtualCluster, endpointReconciler));
             var filters = new ArrayList<>(apiVersionFilters);
