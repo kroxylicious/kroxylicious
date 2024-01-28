@@ -71,4 +71,3 @@ record VaultEdek(String kekRef, byte[] edek) {
                 '}';
     }
 }
-
