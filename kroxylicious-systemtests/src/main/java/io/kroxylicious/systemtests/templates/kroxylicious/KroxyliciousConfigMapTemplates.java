@@ -9,6 +9,7 @@ package io.kroxylicious.systemtests.templates.kroxylicious;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 
 import io.kroxylicious.systemtests.Constants;
+import io.kroxylicious.systemtests.installation.vault.Vault;
 
 /**
  * The type Kroxylicious config templates.
@@ -79,9 +80,9 @@ public class KroxyliciousConfigMapTemplates {
                 .replace("%NAMESPACE%", Constants.KROXY_DEFAULT_NAMESPACE)
                 .replace("%CLUSTER_NAME%", clusterName)
                 .replace("%KROXY_SERVICE_NAME%", Constants.KROXY_SERVICE_NAME)
-                .replace("%ROOT_TOKEN%", Constants.VAULT_ROOT_TOKEN)
-                .replace("%VAULT_SERVICE%", Constants.VAULT_SERVICE_NAME)
-                .replace("%VAULT_NAMESPACE%", Constants.VAULT_DEFAULT_NAMESPACE)
+                .replace("%ROOT_TOKEN%", Vault.VAULT_ROOT_TOKEN)
+                .replace("%VAULT_SERVICE%", Vault.VAULT_SERVICE_NAME)
+                .replace("%VAULT_NAMESPACE%", Vault.VAULT_DEFAULT_NAMESPACE)
                 .replace("%TOPIC_NAME%", topicName);
     }
 

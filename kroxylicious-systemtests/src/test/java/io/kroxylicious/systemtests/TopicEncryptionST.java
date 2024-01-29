@@ -22,6 +22,7 @@ import io.strimzi.api.kafka.model.Kafka;
 
 import io.kroxylicious.systemtests.extensions.KroxyliciousExtension;
 import io.kroxylicious.systemtests.installation.kroxylicious.Kroxylicious;
+import io.kroxylicious.systemtests.installation.vault.Vault;
 import io.kroxylicious.systemtests.resources.vault.KubeVaultTestKmsFacade;
 import io.kroxylicious.systemtests.resources.vault.KubeVaultTestKmsFacadeFactory;
 import io.kroxylicious.systemtests.steps.KafkaSteps;
@@ -44,13 +45,13 @@ class TopicEncryptionST extends AbstractST {
 
     @BeforeAll
     void setUp() {
-        List<Pod> vaultPods = kubeClient().listPodsByPrefixInName(Constants.VAULT_DEFAULT_NAMESPACE, Constants.VAULT_SERVICE_NAME);
+        kubeVaultTestKmsFacade = new KubeVaultTestKmsFacadeFactory().build(Vault.VAULT_DEFAULT_NAMESPACE, Vault.VAULT_POD_NAME);
+        List<Pod> vaultPods = kubeClient().listPodsByPrefixInName(Vault.VAULT_DEFAULT_NAMESPACE, Vault.VAULT_SERVICE_NAME);
         if (!vaultPods.isEmpty()) {
             LOGGER.warn("Skipping vault deployment. It is already deployed!");
         }
         else {
-            kubeVaultTestKmsFacade = new KubeVaultTestKmsFacadeFactory().build(Constants.VAULT_DEFAULT_NAMESPACE, Constants.VAULT_POD_NAME);
-            NamespaceUtils.createNamespaceWithWait(Constants.VAULT_DEFAULT_NAMESPACE);
+            NamespaceUtils.createNamespaceWithWait(Vault.VAULT_DEFAULT_NAMESPACE);
             kubeVaultTestKmsFacade.start();
         }
 

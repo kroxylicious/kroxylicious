@@ -151,15 +151,4 @@ public interface Constants {
     String DONT_USE_KRAFT_MODE = "-UseKRaft";
     String USE_KAFKA_NODE_POOLS = "+KafkaNodePools";
     String DONT_USE_KAFKA_NODE_POOLS = "-KafkaNodePools";
-
-    /**
-     * Vault related constants
-     */
-    String VAULT_SERVICE_NAME = "vault";
-    String VAULT_POD_NAME = VAULT_SERVICE_NAME + "-0";
-    String VAULT_DEFAULT_NAMESPACE = "vault";
-    String VAULT_ROOT_TOKEN = "myRootToken";
-    String VAULT_HELM_REPOSITORY_URL = "https://helm.releases.hashicorp.com";
-    String VAULT_HELM_REPOSITORY_NAME = "hashicorp";
-    String VAULT_HELM_CHART_NAME = "hashicorp/vault";
 }

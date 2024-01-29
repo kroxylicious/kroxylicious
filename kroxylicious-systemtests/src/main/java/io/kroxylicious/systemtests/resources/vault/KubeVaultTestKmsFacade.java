@@ -19,7 +19,6 @@ import io.kroxylicious.kms.service.KmsService;
 import io.kroxylicious.kms.service.TestKekManager;
 import io.kroxylicious.kms.service.TestKmsFacade;
 import io.kroxylicious.kms.service.UnknownAliasException;
-import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.executor.ExecResult;
 import io.kroxylicious.systemtests.installation.vault.Vault;
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
@@ -74,7 +73,7 @@ public class KubeVaultTestKmsFacade implements TestKmsFacade<VaultKmsService.Con
 
     @Override
     public VaultKmsService.Config getKmsServiceConfig() {
-        return new VaultKmsService.Config(URI.create(vault.getBootstrap()), Constants.VAULT_ROOT_TOKEN);
+        return new VaultKmsService.Config(URI.create(vault.getBootstrap()), Vault.VAULT_ROOT_TOKEN);
     }
 
     private class VaultTestKekManager implements TestKekManager {
