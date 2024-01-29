@@ -31,7 +31,7 @@ public class HelmClient {
     private static final String HELM_3_CMD = "helm3";
     private static final String INSTALL_TIMEOUT_SECONDS = "120s";
     private static String helmCommand;
-    private String namespace;
+    private Optional<String> namespace;
     private Optional<String> version;
 
     public HelmClient() {
@@ -64,7 +64,7 @@ public class HelmClient {
      * @return the helm client
      */
     public HelmClient namespace(String namespace) {
-        this.namespace = namespace;
+        this.namespace = namespace.describeConstable();
         return this;
     }
 
@@ -111,7 +111,7 @@ public class HelmClient {
      */
     public HelmClient delete(String releaseName) {
         LOGGER.info("Deleting helm-chart {}", releaseName);
-        delete(namespace, releaseName);
+        delete(String.valueOf(namespace), releaseName);
         return this;
     }
 
@@ -142,13 +142,8 @@ public class HelmClient {
 
     /** Sets namespace for client */
     private List<String> namespace(List<String> args) {
-        if (namespace == null) {
-            LOGGER.warn("Namespace has not been set! Helm client will run the command on the default namespace");
-            return args;
-        }
         List<String> result = new ArrayList<>(args);
-        result.add("--namespace");
-        result.add(namespace);
+        namespace.ifPresent(n -> result.addAll(new ArrayList<>(Arrays.asList("--namespace", n))));
         return result;
     }
 
