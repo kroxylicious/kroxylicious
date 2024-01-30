@@ -39,12 +39,12 @@ public class Kroxylicious {
         this.containerImage = kroxyUrl + Environment.KROXY_VERSION;
     }
 
-    private void deployDefaultConfigMap(String clusterName) {
+    private void createDefaultConfigMap(String clusterName) {
         LOGGER.info("Deploy Kroxylicious default config Map without filters in {} namespace", deploymentNamespace);
         resourceManager.createResourceWithWait(KroxyliciousConfigMapTemplates.defaultKroxyliciousConfig(clusterName, deploymentNamespace).build());
     }
 
-    private void deployTopicEncryptionFilterConfigMap(String clusterName, String topicName) {
+    private void createTopicEncryptionFilterConfigMap(String clusterName, String topicName) {
         LOGGER.info("Deploy Kroxylicious config Map without filters in {} namespace", deploymentNamespace);
         resourceManager.createResourceWithWait(KroxyliciousConfigMapTemplates.kroxyliciousTopicEncryptionConfig(clusterName, deploymentNamespace, topicName).build());
     }
@@ -61,7 +61,7 @@ public class Kroxylicious {
      * @param replicas the replicas
      */
     public void deployPortPerBrokerPlainWithNoFilters(String clusterName, int replicas) {
-        deployDefaultConfigMap(clusterName);
+        createDefaultConfigMap(clusterName);
         deployPortPerBrokerPlain(replicas);
     }
 
@@ -73,7 +73,7 @@ public class Kroxylicious {
      * @param topicName the topic name
      */
     public void deployPortPerBrokerPlainWithTopicEncryptionFilter(String clusterName, int replicas, String topicName) {
-        deployTopicEncryptionFilterConfigMap(clusterName, topicName);
+        createTopicEncryptionFilterConfigMap(clusterName, topicName);
         deployPortPerBrokerPlain(replicas);
     }
 
