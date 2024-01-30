@@ -4,12 +4,8 @@
 
 Only a few built in filters are provided.
 
-// TODO list them and describe them
+include::available-filters/envelope-encryption.adoc[leveloffset=2]
+include::available-filters/multi-tenancy.adoc[leveloffset=2]
+include::available-filters/schema-validation.adoc[leveloffset=2]
 
-=== Schema-validation
 
-=== Multi-tenancy
-
-// == 3rd party filters
-//
-// TODO

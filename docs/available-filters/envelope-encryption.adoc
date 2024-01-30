@@ -1,0 +1,155 @@
+:kms-api-javadoc: https://javadoc.io/doc/io.kroxylicious/kroxylicious-kms/latest
+
+= Envelope Encryption
+
+== What is it?
+
+A filter that provides a transparent encryption-at-rest solution for Apache Kafka.
+
+It works as follows:
+
+1. The filter intercepts the requests sent from the producing Kafka Client containing records.  The records
+   contained with the request are encrypted.  This happens before the records reach the Kafka Broker.
+2. The filter intercepts the responses sent from the Kafka Broker to the consuming Kafka Client.  The records
+   contained within the response are decrypted.  This happens before the records reach Kafka Client.
+
+The entire process is transparent from the point of view of both Kafka Client and Kafka Broker.  Neither are
+aware that the records are being encrypted.
+
+The filter encrypts the record using a symmetric encryption key.  The symmetric encryption key is held within
+a Key Management Service (KMS).
+
+Configuration is used to associate topic names with encryption keys with name encryption keys within the KMS.
+The filter uses KEK (key encryption key) selectors to decide which encryption key to use to encrypt which topic.
+
+== Prerequisites
+
+In order to use the filter, a compatible KMS (Key Management Service) must be provided.  The KMS is used to store
+the keys used to encrypt and decrypt the records sent to the topic.  The service is used at runtime. If the KMS is
+unavailable, it will become impossible to produce or consume records through the filter.  It is recommended to
+use a KMS in a highly available configuration.
+
+Currently, there is a single KMS implementation which integrates with https://www.hashicorp.com/[HashiCorp Vault&#174;].
+More KMS implementations are planned in the near future.
+
+There is also a pluggable {kms-api-javadoc}/io/kroxylicious/kms/service/KmsService.html[public API] that may be used to
+provide an alternative custom implementation.
+
+== How to use the filter
+
+There are three steps to using the filter.
+
+1. Setting up the KMS.
+2. Configuring the filter within Kroxylicious.
+3. Establishing the encryption key(s) within the KMS that will be used to encrypt the topics.
+
+These steps are described in the next sections.
+
+=== Setting up the KMS
+
+In order to set up the KMS provider ready to use with the filter, follow these provider specific steps.
+
+==== HashiCorp Vault
+
+The filter integrates with the https://developer.hashicorp.com/vault/docs/secrets/transit[HashiCorp Vault *transit
+engine*].   The transit engine is not enabled by default.  It must be
+https://developer.hashicorp.com/vault/docs/secrets/transit#setup[enabled] before it can be used with the filter.
+
+The transit engine's path must be `/transit`.
+
+The filter requires the HashiCorp Vault endpoint and a https://developer.hashicorp.com/vault/docs/concepts/tokens[token].
+These are used in the next section.
+
+=== Filter Configuration
+
+The filter is configured as part of the filter chain in the following way:
+
+[source, yaml]
+----
+filters:
+- type: EnvelopeEncryption                                        # <1>
+  config:
+    kms: KmsServiceName                                           # <2>
+    kmsConfig:                                                    # <3>
+      ..:
+    selector: SelectorName                                        # <4>
+    selectorConfig:                                               # <5>
+      ..:
+----
+<1> The name of the filter. This must be `EnvelopeEncryption`.
+<2> The KMS provider name.
+<3> Object providing configuration understood by KMS provider.
+<4> The key selector name.
+<5> Object providing configuration understood by key selector.
+
+==== KMS configuration
+
+For the KMS configuration:
+
+===== HashiCorp Vault
+
+For HashiCorp Vault, the KMS configuration looks like this:
+
+[source, yaml]
+----
+kms: VaultKmsService                                          # <1>
+kmsConfig:
+  vaultUrl: http://vault.vault.svc.cluster.local:8200         # <2>
+  vaultToken: myroottoken                                     # <3>
+----
+<1> The name of the KMS provider. This must be `VaultKmsService`.
+<2> The Vault URL
+<3> The Vault Token
+
+==== Key Encryption Key (KEK) selector configuration
+
+The role of the Key Encryption Key (KEK) selector to to map from the
+
+===== Template KEK Selector
+
+The `TemplateKekSelector` maps from topic name to key name.  The template understand the token
+`$\{topicName}` which is replaced by the name of the topic.  It can be used to build key names
+that include the topic name being encrypted.  Use the `$\{topicName}` is optional. It is possible
+to pass a literal string.  This will result in all topics being encrypted using the same key.
+
+[source, yaml]
+----
+selector: TemplateKekSelector                                 # <1>
+selectorConfig:
+  template: "key_${topicName}"                                # <2>
+----
+<1> The name of the KEK selector. This must be `TemplateKekSelector`.
+<2> Template used to map for the topic name to the name of the key within the KMS.
+
+=== Establishing the keys in the KMS
+
+Use the management interface of the KMS to create the encryption keys.  The names(or aliases) of the encryption keys
+must match the naming conventions established within the configuration of the KEK selector. If this is not done,
+the filter will be unable to find the encryption key, and it won't be able to encrypt the produce requests.
+
+For example, if using the `TemplateKekSelector` with the template `foo_$\{topicName}`, create a key for every topic that
+is to be encrypted with the key name matching the topic name, prefixed by the string `foo`.
+
+CAUTION: If the filter is unable to find a key for a given topic, the filter will pass through the records of the
+produce request without encrypting the records.
+
+==== HashiCorp Vault
+
+Use either the HashiCorp UI or CLI to create AES-256 symmetric keys following your key naming convention.
+
+TIP: It is recommended to apply a key rotation policy to key as it is created.
+
+=== Verifying that encryption is occurring
+
+To verify that records sent to topics are indeed being encrypted, use `kafka-console-consumer` to consume the
+records directly from the target Kafka Cluster.  Verify that encrypted text is seen rather than whatever plain text
+that was sent by producer.  The record values seen will look something like this:
+
+```
+tradesvault:v1:+EfJ977UG1XkjI9yh7vxpgN2E1DKaIkDuxE+eCprVTKr+sskFuChcTe/KpR/c8ZDyP76W3itExmEzLOl����x)�Ũ�z�:S�������tБ��v���
+```
+
+
+
+
+
