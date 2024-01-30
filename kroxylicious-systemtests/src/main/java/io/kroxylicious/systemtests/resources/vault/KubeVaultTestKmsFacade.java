@@ -78,13 +78,7 @@ public class KubeVaultTestKmsFacade implements TestKmsFacade<VaultKmsService.Con
 
         public void generateKek(String alias) {
             Objects.requireNonNull(alias);
-
-            if (exists(alias)) {
-                throw new AlreadyExistsException(alias);
-            }
-            else {
-                create(alias);
-            }
+            create(alias);
         }
 
         public void rotateKek(String alias) {
