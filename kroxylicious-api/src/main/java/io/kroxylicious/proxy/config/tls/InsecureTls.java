@@ -6,9 +6,6 @@
 
 package io.kroxylicious.proxy.config.tls;
 
-import io.netty.handler.ssl.SslContextBuilder;
-import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
-
 /**
  * A {@link TrustProvider} that allows the disabling trust verification.
  * <strong>Not recommended for production use.</strong>
@@ -17,9 +14,7 @@ import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
  */
 public record InsecureTls(boolean insecure) implements TrustProvider {
     @Override
-    public void apply(SslContextBuilder builder) {
-        if (insecure) {
-            builder.trustManager(InsecureTrustManagerFactory.INSTANCE);
-        }
+    public <T> T accept(TrustProviderVisitor<T> visitor) {
+        return visitor.visit(this);
     }
 }

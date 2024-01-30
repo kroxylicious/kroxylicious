@@ -9,8 +9,6 @@ package io.kroxylicious.proxy.config.tls;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
-import io.netty.handler.ssl.SslContextBuilder;
-
 /**
  * A KeyProvider is a source of a TLS private-key/certificate pair and optionally intermediate certificate(s).
  * <ul>
@@ -24,8 +22,10 @@ import io.netty.handler.ssl.SslContextBuilder;
 @JsonSubTypes({ @JsonSubTypes.Type(KeyPair.class), @JsonSubTypes.Type(KeyStore.class) })
 public interface KeyProvider {
 
-    SslContextBuilder forServer();
-
-    SslContextBuilder forClient();
+    /**
+     * Visits the trust provider {@link KeyProviderVisitor}. Implementor should call one `visit` method on visitor.
+     * @param visitor visitor.
+     */
+    <T> T accept(KeyProviderVisitor<T> visitor);
 
 }

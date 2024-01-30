@@ -6,18 +6,10 @@
 
 package io.kroxylicious.proxy.config.tls;
 
-import java.io.File;
-import java.io.FileInputStream;
 import java.security.KeyStore;
 import java.util.Objects;
-import java.util.Optional;
-
-import javax.net.ssl.KeyManagerFactory;
-import javax.net.ssl.TrustManagerFactory;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-
-import io.netty.handler.ssl.SslContextBuilder;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
@@ -30,10 +22,14 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
  *                              and PEM (for X-509 certificates express in PEM format).
  */
 @SuppressFBWarnings(value = "PATH_TRAVERSAL_IN", justification = "The paths provide the location for key material which may exist anywhere on the file-system. Paths are provided by the user in the administrator role via Kroxylicious configuration. ")
-public record TrustStore(String storeFile,
+public record TrustStore(@JsonProperty(required = true) String storeFile,
                          @JsonProperty(value = "storePassword") PasswordProvider storePasswordProvider,
                          String storeType)
         implements TrustProvider {
+
+    public TrustStore {
+        Objects.requireNonNull(storeFile);
+    }
 
     public String getType() {
         return Tls.getStoreTypeOrPlatformDefault(storeType);
@@ -44,26 +40,7 @@ public record TrustStore(String storeFile,
     }
 
     @Override
-    public void apply(SslContextBuilder sslContextBuilder) {
-        var trustStore = new File(storeFile());
-        try {
-            if (isPemType()) {
-                sslContextBuilder.trustManager(trustStore);
-            }
-            else {
-                try (var is = new FileInputStream(trustStore)) {
-                    var password = Optional.ofNullable(this.storePasswordProvider()).map(PasswordProvider::getProvidedPassword).map(String::toCharArray).orElse(null);
-                    var keyStore = KeyStore.getInstance(this.getType());
-                    keyStore.load(is, password);
-
-                    var trustManagerFactory = TrustManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
-                    trustManagerFactory.init(keyStore);
-                    sslContextBuilder.trustManager(trustManagerFactory);
-                }
-            }
-        }
-        catch (Exception e) {
-            throw new RuntimeException("Error building SSLContext from : " + trustStore, e);
-        }
+    public <T> T accept(TrustProviderVisitor<T> visitor) {
+        return visitor.visit(this);
     }
 }
