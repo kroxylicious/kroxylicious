@@ -56,15 +56,15 @@ public class KafkaUtils {
 
         kubeClient().getClient().load(file).inNamespace(deployNamespace).create();
         String podName = getPodNameByLabel(deployNamespace, "app", Constants.KAFKA_CONSUMER_CLIENT_LABEL, timeout);
-        await().alias("Consumer waiting to receive messages").ignoreException(KubernetesClientException.class).atMost(timeout)
+        return await().alias("Consumer waiting to receive messages")
+                .ignoreException(KubernetesClientException.class)
+                .atMost(timeout)
                 .until(() -> {
                     if (kubeClient().getClient().pods().inNamespace(deployNamespace).withName(podName).get() != null) {
-                        var log = kubeClient().logsInSpecificNamespace(deployNamespace, podName);
-                        return log.contains(messageToCheck);
+                        return kubeClient().logsInSpecificNamespace(deployNamespace, podName);
                     }
-                    return false;
-                });
-        return kubeClient().logsInSpecificNamespace(deployNamespace, podName);
+                    return null;
+                }, m -> m != null && m.contains(messageToCheck));
     }
 
     /**
