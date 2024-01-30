@@ -8,6 +8,7 @@ package io.kroxylicious.systemtests.installation.vault;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
@@ -64,14 +65,19 @@ public class Vault {
         if (!isDeployed()) {
             return false;
         }
-        ByteArrayOutputStream output = new ByteArrayOutputStream();
-        int exitCode = kubeClient().getClient().pods()
-                .inNamespace(deploymentNamespace)
-                .withName(VAULT_POD_NAME).writingOutput(output)
-                .exec("sh", "-c", VAULT_CMD + " operator init -status").exitCode().join();
-
-        return exitCode == 0 &&
-                output.toString().toLowerCase().contains("vault is initialized");
+        try (var output = new ByteArrayOutputStream();
+                var exec = kubeClient().getClient().pods()
+                        .inNamespace(deploymentNamespace)
+                        .withName(VAULT_POD_NAME)
+                        .writingOutput(output)
+                        .exec("sh", "-c", VAULT_CMD + " operator init -status")) {
+            int exitCode = exec.exitCode().join();
+            return exitCode == 0 &&
+                    output.toString().toLowerCase().contains("vault is initialized");
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     /**
@@ -108,14 +114,19 @@ public class Vault {
         String loginCommand = VAULT_CMD + " login " + VAULT_ROOT_TOKEN;
         String transitCommand = VAULT_CMD + " secrets enable transit";
 
-        int exitCode = kubeClient().getClient().pods()
-                .inNamespace(deploymentNamespace)
-                .withName(VAULT_POD_NAME)
-                .exec("sh", "-c", String.format("%s && %s", loginCommand, transitCommand)).exitCode().join();
-
-        if (exitCode != 0) {
-            String errorLog = kubeClient().logsInSpecificNamespace(deploymentNamespace, VAULT_POD_NAME);
-            throw new KubeClusterException(String.format("Cannot enable transit in vault instance! Error: %s", errorLog));
+        try (var error = new ByteArrayOutputStream();
+                var exec = kubeClient().getClient().pods()
+                        .inNamespace(deploymentNamespace)
+                        .withName(VAULT_POD_NAME)
+                        .writingError(error)
+                        .exec("sh", "-c", String.format("%s && %s", loginCommand, transitCommand))) {
+            int exitCode = exec.exitCode().join();
+            if (exitCode != 0) {
+                throw new KubeClusterException(String.format("Cannot enable transit in vault instance! Error: %s", error));
+            }
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException(e);
         }
     }
 

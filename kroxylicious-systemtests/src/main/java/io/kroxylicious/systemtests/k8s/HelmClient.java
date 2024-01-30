@@ -7,7 +7,6 @@
 package io.kroxylicious.systemtests.k8s;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -136,14 +135,14 @@ public class HelmClient {
 
     private List<String> version(List<String> args) {
         List<String> result = new ArrayList<>(args);
-        version.filter(v -> !v.equals("latest")).ifPresent(v -> result.addAll(new ArrayList<>(Arrays.asList("--version", v))));
+        version.filter(v -> !v.equals("latest")).ifPresent(v -> result.addAll(List.of("--version", v)));
         return result;
     }
 
     /** Sets namespace for client */
     private List<String> namespace(List<String> args) {
         List<String> result = new ArrayList<>(args);
-        namespace.ifPresent(n -> result.addAll(new ArrayList<>(Arrays.asList("--namespace", n))));
+        namespace.ifPresent(n -> result.addAll(List.of("--namespace", n)));
         return result;
     }
 
