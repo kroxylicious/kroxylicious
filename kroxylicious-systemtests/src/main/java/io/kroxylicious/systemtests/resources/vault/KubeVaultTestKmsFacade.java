@@ -31,7 +31,6 @@ public class KubeVaultTestKmsFacade implements TestKmsFacade<VaultKmsService.Con
     private static final String FORMAT_JSON = "-format=json";
     private final String namespace;
     private final String podName;
-    @SuppressWarnings("rawtypes")
     private final Vault vault;
 
     public KubeVaultTestKmsFacade(String namespace, String podName) {
@@ -46,7 +45,6 @@ public class KubeVaultTestKmsFacade implements TestKmsFacade<VaultKmsService.Con
     }
 
     @Override
-    @SuppressWarnings("resource")
     public void start() {
         vault.deploy();
     }
