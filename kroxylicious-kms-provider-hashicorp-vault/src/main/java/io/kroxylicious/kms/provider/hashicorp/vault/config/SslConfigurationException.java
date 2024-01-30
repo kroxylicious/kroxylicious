@@ -10,4 +10,8 @@ public class SslConfigurationException extends RuntimeException {
     public SslConfigurationException(Exception cause) {
         super(cause);
     }
+
+    public SslConfigurationException(String message) {
+        super(message);
+    }
 }

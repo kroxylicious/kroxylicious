@@ -97,6 +97,14 @@ class JdkTlsTest {
     }
 
     @Test
+    void testPemNotSupported() {
+        TrustStore store = new TrustStore("/tmp/store", null, "PEM");
+        assertThatThrownBy(() -> {
+            JdkTls.getTrustManagers(store);
+        }).isInstanceOf(SslConfigurationException.class).hasMessage("PEM trust not supported by vault yet");
+    }
+
+    @Test
     void testJksWrongPassword() {
         CertificateGenerator.Keys keys = CertificateGenerator.generate();
         CertificateGenerator.TrustStore trustStore = keys.jksClientTruststore();

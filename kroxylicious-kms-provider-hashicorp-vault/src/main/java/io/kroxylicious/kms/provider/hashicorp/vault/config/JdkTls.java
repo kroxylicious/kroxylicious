@@ -101,9 +101,13 @@ public record JdkTls(Tls tls) {
 
     /* exposed for testing */
     static TrustManager[] getTrustManagers(TrustProvider trust) {
+
         return trust.accept(new TrustProviderVisitor<>() {
             @Override
             public TrustManager[] visit(TrustStore trustStore) {
+                if (trustStore.isPemType()) {
+                    throw new SslConfigurationException("PEM trust not supported by vault yet");
+                }
                 try {
                     KeyStore instance = KeyStore.getInstance(trustStore.getType());
                     char[] charArray = trustStore.storePasswordProvider() != null ? trustStore.storePasswordProvider().getProvidedPassword().toCharArray() : null;
