@@ -92,7 +92,7 @@ class EnvelopeEncryptionST extends AbstractST {
     }
 
     @Test
-    void produceAndConsumeEncryptedMessage(String namespace) {
+    void ensureClusterHasEncryptedMessage(String namespace) {
         int numberOfMessages = 1;
         String expectedMessage = MESSAGE + " - " + (numberOfMessages - 1);
 
