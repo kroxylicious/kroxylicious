@@ -6,7 +6,7 @@
 
 package io.kroxylicious.kms.provider.hashicorp.vault;
 
-import io.kroxylicious.kms.provider.hashicorp.vault.VaultKmsService.Config;
+import io.kroxylicious.kms.provider.hashicorp.vault.config.Config;
 import io.kroxylicious.kms.service.TestKmsFacadeFactory;
 
 /**

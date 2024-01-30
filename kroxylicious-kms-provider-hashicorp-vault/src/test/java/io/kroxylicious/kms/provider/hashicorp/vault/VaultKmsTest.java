@@ -31,7 +31,7 @@ class VaultKmsTest {
 
     @Test
     void testConnectionTimeout() {
-        VaultKms kms = new VaultKms(NON_ROUTABLE, "token", Duration.ofMillis(500));
+        VaultKms kms = new VaultKms(NON_ROUTABLE, "token", Duration.ofMillis(500), null);
         CompletableFuture<String> alias = kms.resolveAlias("alias");
         assertThat(alias).failsWithin(Duration.ofSeconds(2))
                 .withThrowableOfType(ExecutionException.class)
@@ -42,7 +42,7 @@ class VaultKmsTest {
     void testRequestTimeoutWaitingForHeaders() {
         HttpServer httpServer = delayResponse(Duration.ofSeconds(1), Duration.ZERO);
         URI address = URI.create("http://" + httpServer.getAddress().getHostName() + ":" + httpServer.getAddress().getPort() + "/");
-        VaultKms kms = new VaultKms(address, "token", Duration.ofMillis(500));
+        VaultKms kms = new VaultKms(address, "token", Duration.ofMillis(500), null);
         CompletableFuture<String> alias = kms.resolveAlias("alias");
         assertThat(alias).failsWithin(Duration.ofSeconds(2))
                 .withThrowableOfType(ExecutionException.class)
@@ -55,7 +55,7 @@ class VaultKmsTest {
     void testRequestTimeoutWaitingForBody() {
         HttpServer httpServer = delayResponse(Duration.ZERO, Duration.ofSeconds(1));
         URI address = URI.create("http://" + httpServer.getAddress().getHostName() + ":" + httpServer.getAddress().getPort() + "/");
-        VaultKms kms = new VaultKms(address, "token", Duration.ofMillis(500));
+        VaultKms kms = new VaultKms(address, "token", Duration.ofMillis(500), null);
         CompletableFuture<String> alias = kms.resolveAlias("alias");
         assertThat(alias).failsWithin(Duration.ofSeconds(2))
                 .withThrowableOfType(ExecutionException.class)

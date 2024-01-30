@@ -11,10 +11,12 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Objects;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
-import edu.umd.cs.findbugs.annotations.Nullable;
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
  * A reference to the file containing a plain text password in UTF-8 encoding.  If the password file
@@ -23,10 +25,12 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  *
  * @param passwordFile file containing the password,
  */
-public record FilePassword(String passwordFile) implements PasswordProvider {
+public record FilePassword(@JsonProperty(required = true) String passwordFile) implements PasswordProvider {
 
     @JsonCreator
-    public FilePassword {}
+    public FilePassword {
+        Objects.requireNonNull(passwordFile);
+    }
 
     @Override
     public String getProvidedPassword() {
@@ -39,16 +43,13 @@ public record FilePassword(String passwordFile) implements PasswordProvider {
                 "passwordFile=" + passwordFile + ']';
     }
 
-    @Nullable
+    @NonNull
     static String readPasswordFile(String passwordFile) {
-        if (passwordFile == null) {
-            return null;
-        }
         try (var fr = new BufferedReader(new FileReader(passwordFile, StandardCharsets.UTF_8))) {
             return fr.readLine();
         }
         catch (IOException e) {
-            throw new UncheckedIOException(e);
+            throw new UncheckedIOException("Exception reading " + passwordFile, e);
         }
     }
 

@@ -6,24 +6,18 @@
 
 package io.kroxylicious.kms.provider.hashicorp.vault;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.net.URI;
 import java.nio.ByteBuffer;
 import java.time.Duration;
-import java.util.Arrays;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.DockerClientFactory;
-import org.testcontainers.vault.VaultContainer;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
-import io.kroxylicious.kms.provider.hashicorp.vault.VaultKmsService.Config;
 import io.kroxylicious.kms.provider.hashicorp.vault.VaultResponse.ReadKeyData;
+import io.kroxylicious.kms.provider.hashicorp.vault.config.Config;
 import io.kroxylicious.kms.service.DekPair;
 import io.kroxylicious.kms.service.UnknownAliasException;
 import io.kroxylicious.kms.service.UnknownKeyException;
@@ -41,26 +35,14 @@ import static org.assertj.core.api.Assumptions.assumeThat;
  */
 class VaultKmsIT {
 
-    private static final String VAULT_TOKEN = "token";
-
-    private static final String HASHICORP_VAULT = "hashicorp/vault:1.15";
-    @SuppressWarnings("rawtypes")
-    private VaultContainer vaultContainer;
+    private TestVault vaultContainer;
     private VaultKms service;
 
     @BeforeEach
-    @SuppressWarnings("resource")
     void beforeEach() {
         assumeThat(DockerClientFactory.instance().isDockerAvailable()).withFailMessage("docker unavailable").isTrue();
-
-        vaultContainer = new VaultContainer<>(HASHICORP_VAULT)
-                .withVaultToken(VAULT_TOKEN)
-                .withEnv("VAULT_FORMAT", "json")
-                .withInitCommand(
-                        "secrets enable transit");
-        vaultContainer.start();
-        var config = new Config(URI.create(vaultContainer.getHttpHostAddress()), VAULT_TOKEN);
-
+        vaultContainer = TestVault.start();
+        var config = new Config(vaultContainer.getEndpoint(), vaultContainer.rootToken(), null);
         service = new VaultKmsService().buildKms(config);
     }
 
@@ -163,36 +145,14 @@ class VaultKmsIT {
         assertThat(output).isEqualTo(edek);
     }
 
-    private ReadKeyData readKek(String keyId) {
-        return runVaultCommand(new TypeReference<>() {
-        }, "vault", "read", "transit/keys/%s".formatted(keyId));
-    }
-
     private ReadKeyData createKek(String keyId) {
-        return runVaultCommand(new TypeReference<>() {
+        return vaultContainer.runVaultCommand(new TypeReference<>() {
         }, "vault", "write", "-f", "transit/keys/%s".formatted(keyId));
     }
 
     private ReadKeyData rotateKek(String keyId) {
-        return runVaultCommand(new TypeReference<>() {
+        return vaultContainer.runVaultCommand(new TypeReference<>() {
         }, "vault", "write", "-f", "transit/keys/%s/rotate".formatted(keyId));
-    }
-
-    private <D> D runVaultCommand(TypeReference<VaultResponse<D>> valueTypeRef, String... args) {
-        try {
-            var execResult = vaultContainer.execInContainer(args);
-            int exitCode = execResult.getExitCode();
-            assertThat(exitCode).isZero();
-            var response = new ObjectMapper().readValue(execResult.getStdout(), valueTypeRef);
-            return response.data();
-        }
-        catch (IOException e) {
-            throw new UncheckedIOException("Failed to run vault command: %s".formatted(Arrays.stream(args).toList()), e);
-        }
-        catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException(e);
-        }
     }
 
 }
