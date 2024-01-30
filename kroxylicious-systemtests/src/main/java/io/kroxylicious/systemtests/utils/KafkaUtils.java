@@ -45,7 +45,7 @@ public class KafkaUtils {
     private static final String MESSAGE_VAR = "%MESSAGE%";
     private static final String KAFKA_VERSION_VAR = "%KAFKA_VERSION%";
 
-    private static String consumeMessages(String deployNamespace, String topicName, String bootstrap, int numOfMessages, String messageToSeek, Duration timeout) {
+    private static String consumeMessages(String deployNamespace, String topicName, String bootstrap, int numOfMessages, String messageToCheck, Duration timeout) {
         LOGGER.debug("Consuming messages from '{}' topic", topicName);
         InputStream file = replaceStringInResourceFile("kafka-consumer-template.yaml", Map.of(
                 BOOTSTRAP_SERVERS_VAR, bootstrap,
@@ -60,7 +60,7 @@ public class KafkaUtils {
                 .until(() -> {
                     if (kubeClient().getClient().pods().inNamespace(deployNamespace).withName(podName).get() != null) {
                         var log = kubeClient().logsInSpecificNamespace(deployNamespace, podName);
-                        return log.contains(messageToSeek);
+                        return log.contains(messageToCheck);
                     }
                     return false;
                 });
