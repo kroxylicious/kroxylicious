@@ -20,13 +20,12 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.testcontainers.DockerClientFactory;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-
 import io.kroxylicious.kms.provider.hashicorp.vault.VaultResponse.ReadKeyData;
 import io.kroxylicious.kms.provider.hashicorp.vault.config.Config;
 import io.kroxylicious.proxy.config.tls.FilePassword;
 import io.kroxylicious.proxy.config.tls.InlinePassword;
 import io.kroxylicious.proxy.config.tls.InsecureTls;
+import io.kroxylicious.proxy.config.tls.KeyStore;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TrustStore;
 
@@ -89,6 +88,41 @@ class VaultKmsTlsIT {
                 .withMessageContaining("unable to find valid certification path to requested target");
     }
 
+    @Test
+    void testMutualTlsConnectionRejectedIfClientOffersNoCert() {
+        CertificateGenerator.Keys clientKeys = CertificateGenerator.generate();
+        TestVault testVault = TestVault.startWithClientAuthTls(keys, clientKeys);
+        var keyName = "mykey";
+        testVault.createKek(keyName);
+        VaultKms service = getTlsVaultKms(tlsForTrustStoreFilePassword(keys.pkcs12ClientTruststore()), testVault.getEndpoint());
+        var resolved = service.resolveAlias(keyName);
+        assertThat(resolved)
+                .failsWithin(Duration.ofSeconds(5))
+                .withThrowableThat().havingCause()
+                .isInstanceOf(SSLHandshakeException.class)
+                .withMessageContaining("Received fatal alert: certificate_required");
+        testVault.close();
+    }
+
+    @Test
+    void testMutualTlsConnectionAcceptedIfClientOffersTrustedCert() {
+        CertificateGenerator.Keys clientKeys = CertificateGenerator.generate();
+        TestVault testVault = TestVault.startWithClientAuthTls(keys, clientKeys);
+        var keyName = "mykey";
+        testVault.createKek(keyName);
+        CertificateGenerator.TrustStore trustStore = keys.pkcs12ClientTruststore();
+        CertificateGenerator.KeyStore keyStore = clientKeys.jksServerKeystore();
+        VaultKms service = getTlsVaultKms(
+                new Tls(new KeyStore(keyStore.path().toString(), new InlinePassword(keyStore.storePassword()), new InlinePassword(keyStore.keyPassword()), "JKS"),
+                        new TrustStore(trustStore.path().toString(), new FilePassword(trustStore.passwordFile().toString()), trustStore.type())),
+                testVault.getEndpoint());
+        var resolved = service.resolveAlias(keyName);
+        assertThat(resolved)
+                .succeedsWithin(Duration.ofSeconds(5))
+                .isEqualTo(keyName);
+        testVault.close();
+    }
+
     @ParameterizedTest(name = "{0}")
     @MethodSource("tlsConfigurations")
     void testArbitraryKmsOperationSucceedsWithTls(String kms, KmsCreator creator) {
@@ -102,8 +136,7 @@ class VaultKmsTlsIT {
     }
 
     private ReadKeyData createKek(String keyId) {
-        return vaultContainer.runVaultCommand(new TypeReference<>() {
-        }, "vault", "write", "-f", "transit/keys/%s".formatted(keyId));
+        return vaultContainer.createKek(keyId);
     }
 
     @NonNull

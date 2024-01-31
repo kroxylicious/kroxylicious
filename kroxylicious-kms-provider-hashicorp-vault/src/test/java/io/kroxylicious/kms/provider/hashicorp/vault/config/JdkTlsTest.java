@@ -13,6 +13,7 @@ import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.UUID;
 
+import javax.net.ssl.KeyManager;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
@@ -22,6 +23,8 @@ import org.junit.jupiter.api.Test;
 import io.kroxylicious.kms.provider.hashicorp.vault.CertificateGenerator;
 import io.kroxylicious.proxy.config.tls.InlinePassword;
 import io.kroxylicious.proxy.config.tls.InsecureTls;
+import io.kroxylicious.proxy.config.tls.KeyPair;
+import io.kroxylicious.proxy.config.tls.KeyStore;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TrustStore;
 
@@ -118,9 +121,35 @@ class JdkTlsTest {
     void testPkcs12() {
         CertificateGenerator.Keys keys = CertificateGenerator.generate();
         CertificateGenerator.TrustStore trustStore = keys.pkcs12ClientTruststore();
-        TrustStore store = new TrustStore(trustStore.path().toString(), new InlinePassword(trustStore.password()), "PKCS12");
+        TrustStore store = new TrustStore(trustStore.path().toString(), new InlinePassword(trustStore.password()), trustStore.type());
         TrustManager[] trustManagers = JdkTls.getTrustManagers(store);
         assertThat(trustManagers).isNotEmpty();
+    }
+
+    @Test
+    void testKeyStore() {
+        CertificateGenerator.Keys keys = CertificateGenerator.generate();
+        CertificateGenerator.KeyStore keyStore = keys.jksServerKeystore();
+        KeyStore store = new KeyStore(keyStore.path().toString(), new InlinePassword(keyStore.storePassword()), new InlinePassword(keyStore.keyPassword()),
+                keyStore.type());
+        KeyManager[] trustManagers = JdkTls.getKeyManagers(store);
+        assertThat(trustManagers).isNotEmpty();
+    }
+
+    @Test
+    void testKeyPairNotSupported() {
+        KeyPair store = new KeyPair("/tmp/keypair", "/tmp/cert", null);
+        assertThatThrownBy(() -> {
+            JdkTls.getKeyManagers(store);
+        }).isInstanceOf(SslConfigurationException.class).hasMessageContaining("KeyPair is not supported by vault KMS yet");
+    }
+
+    @Test
+    void testKeyStorePemNotSupported() {
+        KeyStore store = new KeyStore("/tmp/pem", null, null, "PEM");
+        assertThatThrownBy(() -> {
+            JdkTls.getKeyManagers(store);
+        }).isInstanceOf(SslConfigurationException.class).hasMessageContaining("PEM is not supported by vault KMS yet");
     }
 
     @Test

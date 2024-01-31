@@ -12,6 +12,7 @@ import java.io.UncheckedIOException;
 import java.net.URI;
 import java.util.Arrays;
 
+import org.testcontainers.containers.wait.strategy.HttpWaitStrategy;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.utility.MountableFile;
 import org.testcontainers.vault.VaultContainer;
@@ -22,6 +23,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestVault implements Closeable {
+    public static final int PLAIN_PORT = 8200;
     private static final String VAULT_TOKEN = "token";
 
     private static final String HASHICORP_VAULT = "hashicorp/vault:1.15";
@@ -31,33 +33,52 @@ public class TestVault implements Closeable {
 
     private static final int TLS_PORT = 8202;
 
-    private TestVault(CertificateGenerator.Keys keys) {
+    private TestVault(CertificateGenerator.Keys serverKeys, CertificateGenerator.Keys clientKeys) {
+        if (clientKeys != null && serverKeys == null) {
+            throw new IllegalArgumentException("server TLS key/cert must be supplied if we want to configure client TLS auth");
+        }
         VaultContainer<?> vault = new VaultContainer<>(HASHICORP_VAULT)
                 .withVaultToken(VAULT_TOKEN)
                 .withEnv("VAULT_FORMAT", "json")
-                .withInitCommand("secrets enable transit ");
-        if (keys != null) {
-            // in vault server -dev mode the 8200 port cannot be reconfigured to TLS. So we configure a second listener on a
-            // different port. We expose only the tls port to avoid any chance of a misconfigured client pointing at the plain listener.
-            vault = vault.withExposedPorts(TLS_PORT)
-                    .withCopyFileToContainer(MountableFile.forClasspathResource("Vault.hcl"), "/vault/config/Vault.hcl")
-                    .withCopyFileToContainer(MountableFile.forHostPath(keys.serverCertPem()), "/vault/config/cert.pem")
-                    .withCopyFileToContainer(MountableFile.forHostPath(keys.serverPrivateKeyPem()), "/vault/config/key.pem");
-            // we need testcontainers to allow insecure connections to the health as the only exposed port is now using TLS
-            vault.setWaitStrategy(Wait.forHttps("/v1/sys/health").allowInsecure().forStatusCode(200));
+                .withInitCommand("secrets enable transit");
+        if (serverKeys != null) {
+            withTls(vault, serverKeys, clientKeys);
         }
         vault.start();
         this.vault = vault;
-        endpoint = URI.create(keys == null ? vault.getHttpHostAddress() : String.format("https://%s:%s", vault.getHost(), vault.getMappedPort(TLS_PORT)))
+        endpoint = URI.create(serverKeys == null ? vault.getHttpHostAddress() : String.format("https://%s:%s", vault.getHost(), vault.getMappedPort(TLS_PORT)))
                 .resolve("v1/transit");
     }
 
+    private static void withTls(VaultContainer<?> vault, CertificateGenerator.Keys serverKeys, CertificateGenerator.Keys clientKeys) {
+        boolean isMutualTls = clientKeys != null;
+        String configFile = isMutualTls ? "VaultMutualTls.hcl" : "Vault.hcl";
+        int healthPort = isMutualTls ? PLAIN_PORT : TLS_PORT;
+        vault.withExposedPorts(TLS_PORT, healthPort);
+        vault.withCopyFileToContainer(MountableFile.forClasspathResource(configFile), "/vault/config/Vault.hcl")
+                .withCopyFileToContainer(MountableFile.forHostPath(serverKeys.selfSignedCertificatePem()), "/vault/config/cert.pem")
+                .withCopyFileToContainer(MountableFile.forHostPath(serverKeys.privateKeyPem()), "/vault/config/key.pem");
+        if (isMutualTls) {
+            vault.withCopyFileToContainer(MountableFile.forHostPath(clientKeys.selfSignedCertificatePem()), "/vault/config/client-cert.pem");
+        }
+        HttpWaitStrategy wait = Wait.forHttp("/v1/sys/health").forPort(healthPort).forStatusCode(200);
+        if (!isMutualTls) {
+            // when using server TLS only, we only expose the tls port.
+            wait.usingTls().allowInsecure().forStatusCode(200);
+        }
+        vault.setWaitStrategy(wait);
+    }
+
     public static TestVault startWithTls(CertificateGenerator.Keys keys) {
-        return new TestVault(keys);
+        return new TestVault(keys, null);
+    }
+
+    public static TestVault startWithClientAuthTls(CertificateGenerator.Keys serverKeys, CertificateGenerator.Keys clientKeys) {
+        return new TestVault(serverKeys, clientKeys);
     }
 
     public static TestVault start() {
-        return new TestVault(null);
+        return new TestVault(null, null);
     }
 
     public URI getEndpoint() {
@@ -84,6 +105,11 @@ public class TestVault implements Closeable {
             Thread.currentThread().interrupt();
             throw new RuntimeException(e);
         }
+    }
+
+    VaultResponse.ReadKeyData createKek(String keyId) {
+        return runVaultCommand(new TypeReference<>() {
+        }, "vault", "write", "-f", "transit/keys/%s".formatted(keyId));
     }
 
     public String rootToken() {

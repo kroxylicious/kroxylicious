@@ -16,9 +16,9 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
-import java.security.KeyStore;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
+import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.time.Duration;
 import java.time.Instant;
@@ -100,7 +100,10 @@ public class CertificateGenerator {
             var validFrom = Date.from(now);
             var validTo = Date.from(now.plus(Duration.ofDays(9999)));
             var certBuilder = new X509v3CertificateBuilder(
-                    new X500Name("CN=issuer"),
+                    // currently it's important that issuer == subject because we use these certs on vault to authenticate the client
+                    // with client authentication enabled vault sends the subject over as part of the handshake and it needs to match
+                    // an issuer principal in the client keystore, so that it can select the correct key.
+                    new X500Name("CN=localhost"),
                     BigInteger.ONE,
                     validFrom,
                     validTo,
@@ -130,7 +133,7 @@ public class CertificateGenerator {
     private static Path buildTrustStore(X509Certificate cert, String password, String suffix, String type) {
         try {
             File certFile = createTempFile("trust", suffix);
-            KeyStore pkcs12Store = KeyStore.getInstance(type);
+            java.security.KeyStore pkcs12Store = java.security.KeyStore.getInstance(type);
             pkcs12Store.load(null, null);
             pkcs12Store.setCertificateEntry(ALIAS, cert);
             char[] pass = password != null ? password.toCharArray() : null;
@@ -146,19 +149,26 @@ public class CertificateGenerator {
 
     }
 
+    public record KeyStore(@NonNull Path path, @NonNull String type, @Nullable String storePassword, @Nullable Path storePasswordFile, @Nullable String keyPassword,
+                           @Nullable Path keyPasswordFile) {
+
+    }
+
     public record Keys(KeyPair serverKey,
-                       Path serverPrivateKeyPem,
-                       Path serverCertPem,
+                       Path privateKeyPem,
+                       Path selfSignedCertificatePem,
                        TrustStore pkcs12ClientTruststore,
                        TrustStore jksClientTruststore,
-                       TrustStore pkcs12NoPasswordClientTruststore) {}
+                       TrustStore pkcs12NoPasswordClientTruststore,
+                       KeyStore jksServerKeystore) {}
 
     public static Keys generate() {
+        String password = "changeit";
         KeyPair pair = generateRsaKeyPair();
         Path privateKeyPem = writeRsaPrivateKeyPem(pair);
         X509Certificate x509Certificate = generateSelfSignedX509Certificate(pair);
+        KeyStore keyStore = createJksKeystore(pair, x509Certificate, password);
         Path serverCert = generateCertPem(x509Certificate);
-        String password = "changeit";
         Path pkcs12Trust = buildPkcs12TrustStore(x509Certificate, password);
         Path noPasswordPkcs12Trust = buildPkcs12TrustStore(x509Certificate, null);
         Path jksTrust = buildJksTrustStore(x509Certificate, password);
@@ -166,7 +176,27 @@ public class CertificateGenerator {
         TrustStore pkcs12ClientTruststore = new TrustStore(pkcs12Trust, PKCS_12, password, passwordFile);
         TrustStore pkcs12NoPasswordTruststore = new TrustStore(noPasswordPkcs12Trust, PKCS_12, null, null);
         TrustStore jksClientTruststore = new TrustStore(jksTrust, JKS, password, passwordFile);
-        return new Keys(pair, privateKeyPem, serverCert, pkcs12ClientTruststore, jksClientTruststore, pkcs12NoPasswordTruststore);
+        return new Keys(pair, privateKeyPem, serverCert, pkcs12ClientTruststore, jksClientTruststore, pkcs12NoPasswordTruststore, keyStore);
+    }
+
+    private static KeyStore createJksKeystore(KeyPair privateKeyPem, X509Certificate x509Certificate, String storePassword) {
+        try {
+            File tempFile = createTempFile("keystore", "jks");
+            java.security.KeyStore store = java.security.KeyStore.getInstance("JKS");
+            store.load(null);
+            store.setKeyEntry("alias", privateKeyPem.getPrivate(), storePassword.toCharArray(), new Certificate[]{ x509Certificate });
+            try (FileOutputStream stream = new FileOutputStream(tempFile)) {
+                store.store(stream, storePassword.toCharArray());
+            }
+            Path path = tempFile.toPath();
+            Path storePasswordFile = writeToTempFile(storePassword);
+            String keyPassword = "keypass";
+            Path keyPasswordFile = writeToTempFile(keyPassword);
+            return new KeyStore(path, "JKS", storePassword, storePasswordFile, storePassword, keyPasswordFile);
+        }
+        catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private static Path writeToTempFile(String password) {
