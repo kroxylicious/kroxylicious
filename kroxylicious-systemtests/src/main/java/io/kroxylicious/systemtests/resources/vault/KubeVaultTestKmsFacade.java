@@ -14,7 +14,7 @@ import java.util.Objects;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import io.kroxylicious.kms.provider.hashicorp.vault.VaultKmsService;
+import io.kroxylicious.kms.provider.hashicorp.vault.config.Config;
 import io.kroxylicious.kms.service.KmsService;
 import io.kroxylicious.kms.service.TestKekManager;
 import io.kroxylicious.kms.service.TestKmsFacade;
@@ -25,7 +25,7 @@ import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.cmdKubeClient;
 
-public class KubeVaultTestKmsFacade implements TestKmsFacade<VaultKmsService.Config, String, VaultEdek> {
+public class KubeVaultTestKmsFacade implements TestKmsFacade<Config, String, VaultEdek> {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final String VAULT_CMD = "vault";
     private static final String FORMAT_JSON = "-format=json";
@@ -65,13 +65,13 @@ public class KubeVaultTestKmsFacade implements TestKmsFacade<VaultKmsService.Con
     }
 
     @Override
-    public Class<? extends KmsService<VaultKmsService.Config, String, VaultEdek>> getKmsServiceClass() {
+    public Class<? extends KmsService<Config, String, VaultEdek>> getKmsServiceClass() {
         return null;
     }
 
     @Override
-    public VaultKmsService.Config getKmsServiceConfig() {
-        return new VaultKmsService.Config(URI.create(vault.getBootstrap()), Vault.VAULT_ROOT_TOKEN);
+    public Config getKmsServiceConfig() {
+        return new Config(URI.create(vault.getBootstrap()), Vault.VAULT_ROOT_TOKEN, null);
     }
 
     private class VaultTestKekManager implements TestKekManager {
