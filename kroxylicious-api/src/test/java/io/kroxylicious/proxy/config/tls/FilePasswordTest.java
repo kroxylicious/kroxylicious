@@ -9,12 +9,13 @@ package io.kroxylicious.proxy.config.tls;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.nio.file.Files;
+import java.util.List;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
 import org.assertj.core.api.Condition;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -40,46 +41,51 @@ class FilePasswordTest {
     }
 
     static Stream<Arguments> readPassword() {
+        Function<String, PasswordProvider> filePassword = FilePassword::new;
+        Function<String, PasswordProvider> filePasswordPath = FilePasswordFilePath::new;
         return Stream.of(
-                Arguments.of("mypassword", "mypassword"),
-                Arguments.of("mypassword\n", "mypassword"),
-                Arguments.of("mypassword\nignores\nadditional lines", "mypassword"));
+                Arguments.of(filePassword, "mypassword", "mypassword"),
+                Arguments.of(filePassword, "mypassword\n", "mypassword"),
+                Arguments.of(filePassword, "mypassword\nignores\nadditional lines", "mypassword"),
+                Arguments.of(filePasswordPath, "mypassword", "mypassword"),
+                Arguments.of(filePasswordPath, "mypassword\n", "mypassword"),
+                Arguments.of(filePasswordPath, "mypassword\nignores\nadditional lines", "mypassword"));
     }
 
     @ParameterizedTest
     @MethodSource
-    void readPassword(String input, String expected) throws Exception {
+    void readPassword(Function<String, PasswordProvider> providerFunc, String input, String expected) throws Exception {
         Files.writeString(file.toPath(), input);
-        var provider = new FilePassword(file.getAbsolutePath());
+        var provider = providerFunc.apply(file.getAbsolutePath());
         assertThat(provider)
-                .extracting(FilePassword::getProvidedPassword)
+                .extracting(PasswordProvider::getProvidedPassword)
                 .isEqualTo(expected);
     }
 
-    @Test
-    void toStringDoesNotLeakPassword() throws Exception {
+    static List<Function<String, PasswordProvider>> providers() {
+        return List.of(FilePassword::new, FilePasswordFilePath::new);
+    }
+
+    @ParameterizedTest
+    @MethodSource("providers")
+    void toStringDoesNotLeakPassword(Function<String, PasswordProvider> providerFunc) throws Exception {
         var password = "mypassword";
         Files.writeString(file.toPath(), password);
-        var provider = new FilePassword(file.getAbsolutePath());
+        var provider = providerFunc.apply(file.getAbsolutePath());
         assertThat(provider)
-                .extracting(FilePassword::toString)
+                .extracting(Object::toString)
                 .doesNotHave(new Condition<>(s -> s.contains(password), "contains password"));
     }
 
-    @Test
-    void passwordFileNotFound() {
+    @ParameterizedTest
+    @MethodSource("providers")
+    void passwordFileNotFound(Function<String, PasswordProvider> providerFunc) {
         assertThat(file.delete()).isTrue();
 
-        var provider = new FilePassword(file.getAbsolutePath());
+        String path = file.getAbsolutePath();
+        var provider = providerFunc.apply(path);
         assertThatThrownBy(provider::getProvidedPassword)
+                .hasMessageContaining(path)
                 .hasRootCauseInstanceOf(FileNotFoundException.class);
-    }
-
-    @Test
-
-    void nullFileTreatedAsNullPassword() {
-        assertThat(new FilePassword(null))
-                .extracting(FilePassword::getProvidedPassword)
-                .isNull();
     }
 }

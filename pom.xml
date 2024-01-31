@@ -68,6 +68,7 @@
         <awaitility.version>4.2.0</awaitility.version>
         <commons.io.version>2.15.1</commons.io.version>
         <testcontainers.version>1.19.4</testcontainers.version>
+        <bouncycastle.version>1.77</bouncycastle.version>
     </properties>
 
     <name>Parent POM</name>
@@ -347,6 +348,18 @@
                 <groupId>org.apache.kafka</groupId>
                 <artifactId>kafka_2.13</artifactId>
                 <version>${kafka.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.bouncycastle</groupId>
+                <artifactId>bcpkix-jdk18on</artifactId>
+                <version>${bouncycastle.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.bouncycastle</groupId>
+                <artifactId>bcprov-jdk18on</artifactId>
+                <version>${bouncycastle.version}</version>
                 <scope>test</scope>
             </dependency>
         </dependencies>
