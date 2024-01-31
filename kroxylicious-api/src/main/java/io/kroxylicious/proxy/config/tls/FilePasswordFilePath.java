@@ -6,6 +6,8 @@
 
 package io.kroxylicious.proxy.config.tls;
 
+import java.util.Objects;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,6 +31,7 @@ public record FilePasswordFilePath(String filePath) implements PasswordProvider 
 
     public FilePasswordFilePath {
         LOGGER.warn("'filePath' property is deprecated. Use property 'passwordFile' instead.");
+        Objects.requireNonNull(filePath);
     }
 
     @Override

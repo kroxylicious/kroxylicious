@@ -10,7 +10,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.DockerClientFactory;
 
-import io.kroxylicious.kms.provider.hashicorp.vault.VaultKmsService.Config;
+import io.kroxylicious.kms.provider.hashicorp.vault.config.Config;
 import io.kroxylicious.kms.service.AbstractTestKmsFacadeTest;
 
 import static org.assertj.core.api.Assertions.assertThat;

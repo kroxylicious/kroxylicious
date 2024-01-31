@@ -17,8 +17,8 @@ import org.testcontainers.vault.VaultContainer;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import io.kroxylicious.kms.provider.hashicorp.vault.VaultKmsService.Config;
 import io.kroxylicious.kms.provider.hashicorp.vault.VaultResponse.ReadKeyData;
+import io.kroxylicious.kms.provider.hashicorp.vault.config.Config;
 import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.kms.service.TestKekManager;
 import io.kroxylicious.kms.service.TestKmsFacade;
@@ -69,7 +69,7 @@ public class VaultTestKmsFacade implements TestKmsFacade<Config, String, VaultEd
 
     @Override
     public Config getKmsServiceConfig() {
-        return new Config(URI.create(vaultContainer.getHttpHostAddress()), VAULT_TOKEN);
+        return new Config(URI.create(vaultContainer.getHttpHostAddress()), VAULT_TOKEN, null);
     }
 
     private class VaultTestKekManager implements TestKekManager {
