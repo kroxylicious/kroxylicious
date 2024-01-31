@@ -292,17 +292,6 @@
     <profiles>
         <profile>
             <id>debug</id>
-            <dependencyManagement>
-                <dependencies>
-                    <dependency>
-                        <groupId>org.apache.logging.log4j</groupId>
-                        <artifactId>log4j-bom</artifactId>
-                        <version>${log4j.version}</version>
-                        <scope>import</scope>
-                        <type>pom</type>
-                    </dependency>
-                </dependencies>
-            </dependencyManagement>
             <dependencies>
                 <dependency>
                     <groupId>org.apache.logging.log4j</groupId>
