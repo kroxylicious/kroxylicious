@@ -14,4 +14,11 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 record DecryptState(@NonNull Record kafkaRecord, @Nullable EncryptionVersion decryptionVersion,
-                    @Nullable AesGcmEncryptor encryptor) {}
+                    @Nullable AesGcmEncryptor encryptor) {
+
+    DecryptState {
+        if (decryptionVersion == null ^ encryptor == null) {
+            throw new IllegalArgumentException();
+        }
+    }
+}
