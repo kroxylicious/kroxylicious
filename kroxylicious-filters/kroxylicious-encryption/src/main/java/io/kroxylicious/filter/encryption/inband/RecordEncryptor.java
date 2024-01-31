@@ -7,6 +7,7 @@
 package io.kroxylicious.filter.encryption.inband;
 
 import java.nio.ByteBuffer;
+import java.util.Objects;
 
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
@@ -44,8 +45,8 @@ class RecordEncryptor<K> implements RecordTransform {
      * {@link #ENCRYPTION_HEADER_NAME} header.
      */
     private final Header[] encryptionHeader;
-    private ByteBuffer transformedValue;
-    private Header[] transformedHeaders;
+    private @Nullable ByteBuffer transformedValue;
+    private @Nullable Header[] transformedHeaders;
 
     /**
      * Constructor (obviously).
@@ -55,11 +56,16 @@ class RecordEncryptor<K> implements RecordTransform {
      * @param parcelBuffer A buffer big enough to write the parcel
      * @param wrapperBuffer A buffer big enough to write the wrapper
      */
-    RecordEncryptor(EncryptionVersion encryptionVersion,
-                    EncryptionScheme<K> encryptionScheme,
-                    KeyContext keyContext,
-                    ByteBuffer parcelBuffer,
-                    ByteBuffer wrapperBuffer) {
+    RecordEncryptor(@NonNull EncryptionVersion encryptionVersion,
+                    @NonNull EncryptionScheme<K> encryptionScheme,
+                    @NonNull KeyContext keyContext,
+                    @NonNull ByteBuffer parcelBuffer,
+                    @NonNull ByteBuffer wrapperBuffer) {
+        Objects.requireNonNull(encryptionVersion);
+        Objects.requireNonNull(encryptionScheme);
+        Objects.requireNonNull(keyContext);
+        Objects.requireNonNull(parcelBuffer);
+        Objects.requireNonNull(wrapperBuffer);
         this.encryptionVersion = encryptionVersion;
         this.encryptionScheme = encryptionScheme;
         this.keyContext = keyContext;
@@ -76,16 +82,28 @@ class RecordEncryptor<K> implements RecordTransform {
             // todo implement header encryption preserving null record-values
             throw new IllegalStateException("encrypting headers prohibited when original record value null, we must preserve the null for tombstoning");
         }
+
+        this.transformedValue = doTransformValue(kafkaRecord);
+        this.transformedHeaders = doTransformHeaders(kafkaRecord);
+    }
+
+    @Nullable
+    private ByteBuffer doTransformValue(@NonNull Record kafkaRecord) {
+        final ByteBuffer transformedValue;
         if (kafkaRecord.hasValue()) {
             Parcel.writeParcel(encryptionVersion.parcelVersion(), encryptionScheme.recordFields(), kafkaRecord, parcelBuffer);
             parcelBuffer.flip();
-            this.transformedValue = writeWrapper(parcelBuffer);
+            transformedValue = writeWrapper(parcelBuffer);
             parcelBuffer.rewind();
         }
         else {
-            this.transformedValue = null;
+            transformedValue = null;
         }
+        return transformedValue;
+    }
 
+    private Header[] doTransformHeaders(@NonNull Record kafkaRecord) {
+        final Header[] transformedHeaders;
         if (kafkaRecord.hasValue()) {
             Header[] oldHeaders = kafkaRecord.headers();
             if (encryptionScheme.recordFields().contains(RecordField.RECORD_HEADER_VALUES) || oldHeaders.length == 0) {
@@ -100,6 +118,7 @@ class RecordEncryptor<K> implements RecordTransform {
         else {
             transformedHeaders = kafkaRecord.headers();
         }
+        return transformedHeaders;
     }
 
     @Nullable
@@ -136,17 +155,17 @@ class RecordEncryptor<K> implements RecordTransform {
     }
 
     @Override
-    public ByteBuffer transformKey(Record record) {
+    public @Nullable ByteBuffer transformKey(Record record) {
         return record.key();
     }
 
     @Override
-    public ByteBuffer transformValue(Record kafkaRecord) {
-        return transformedValue;
+    public @Nullable ByteBuffer transformValue(Record kafkaRecord) {
+        return transformedValue == null ? null : transformedValue.duplicate();
     }
 
     @Override
-    public Header[] transformHeaders(Record kafkaRecord) {
+    public @Nullable Header[] transformHeaders(Record kafkaRecord) {
         return transformedHeaders;
     }
 

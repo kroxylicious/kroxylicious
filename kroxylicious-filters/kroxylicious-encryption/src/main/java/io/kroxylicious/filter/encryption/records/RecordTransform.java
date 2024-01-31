@@ -25,7 +25,9 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * <ol>
  *     <li>Transform one record at a time</li>
  *     <li>Invoke {@link #init(Record)} for that record before any other methods</li>
- *     <li>Invoke each of the {@code transform*()} methods for that record, as required</li>
+ *     <li>Invoke the {@code transform*()} methods for that record, as required.
+ *     They may be invoked zero, one or many times, and should be idempotent.
+ *     They don't have to be invoked in any particular order.</li>
  *     <li>Invoke {@link #resetAfterTransform(Record)} for that record</li>
  * </ol>
  */

@@ -7,6 +7,7 @@
 package io.kroxylicious.filter.encryption.inband;
 
 import java.nio.ByteBuffer;
+import java.util.Objects;
 import java.util.function.IntFunction;
 
 import org.apache.kafka.common.header.Header;
@@ -30,7 +31,8 @@ public class RecordDecryptor implements RecordTransform {
     private ByteBuffer transformedValue;
     private Header[] transformedHeaders;
 
-    public RecordDecryptor(IntFunction<DecryptState> keys) {
+    public RecordDecryptor(@NonNull IntFunction<DecryptState> keys) {
+        Objects.requireNonNull(keys);
         this.keys = keys;
     }
 
@@ -93,7 +95,7 @@ public class RecordDecryptor implements RecordTransform {
     @Nullable
     @Override
     public ByteBuffer transformValue(@NonNull Record record) {
-        return transformedValue;
+        return transformedValue == null ? null : transformedValue.duplicate();
     }
 
     @Nullable
@@ -107,6 +109,7 @@ public class RecordDecryptor implements RecordTransform {
         if (transformedValue != null) {
             transformedValue.clear();
         }
+        transformedHeaders = null;
         index++;
     }
 }
