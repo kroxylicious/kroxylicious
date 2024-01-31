@@ -20,15 +20,16 @@ import io.strimzi.api.kafka.model.status.Status;
 
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.enums.ConditionStatus;
+import io.kroxylicious.systemtests.k8s.HelmClient;
+import io.kroxylicious.systemtests.k8s.KubeClusterResource;
 import io.kroxylicious.systemtests.resources.ResourceCondition;
 import io.kroxylicious.systemtests.resources.ResourceOperation;
 import io.kroxylicious.systemtests.resources.ResourceType;
-import io.kroxylicious.systemtests.resources.kroxylicious.KroxyliciousConfigResource;
-import io.kroxylicious.systemtests.resources.kroxylicious.KroxyliciousDeploymentResource;
-import io.kroxylicious.systemtests.resources.kroxylicious.KroxyliciousServiceResource;
+import io.kroxylicious.systemtests.resources.kroxylicious.ConfigMapResource;
+import io.kroxylicious.systemtests.resources.kroxylicious.DeploymentResource;
+import io.kroxylicious.systemtests.resources.kroxylicious.ServiceResource;
 import io.kroxylicious.systemtests.resources.strimzi.KafkaNodePoolResource;
 import io.kroxylicious.systemtests.resources.strimzi.KafkaResource;
-import io.kroxylicious.systemtests.resources.strimzi.KafkaTopicResource;
 import io.kroxylicious.systemtests.resources.strimzi.KafkaUserResource;
 import io.kroxylicious.systemtests.utils.TestUtils;
 
@@ -56,20 +57,28 @@ public class ResourceManager {
         return instance;
     }
 
+    /**
+     * Helm client.
+     *
+     * @return the helm client
+     */
+    public static HelmClient helmClient() {
+        return KubeClusterResource.helmClusterClient();
+    }
+
     private final ResourceType<?>[] resourceTypes = new ResourceType[]{
             new KafkaResource(),
-            new KafkaTopicResource(),
             new KafkaUserResource(),
             new KafkaNodePoolResource(),
-            new KroxyliciousServiceResource(),
-            new KroxyliciousConfigResource(),
-            new KroxyliciousDeploymentResource()
+            new ServiceResource(),
+            new ConfigMapResource(),
+            new DeploymentResource()
     };
 
     /**
      * Create resource without wait.
      *
-     * @param <T>  the type parameter
+     * @param <T>   the type parameter
      * @param resources the resources
      */
     @SafeVarargs
@@ -80,7 +89,7 @@ public class ResourceManager {
     /**
      * Create resource with wait.
      *
-     * @param <T>   the type parameter
+     * @param <T>    the type parameter
      * @param resources the resources
      */
     @SafeVarargs
@@ -117,7 +126,7 @@ public class ResourceManager {
     /**
      * Delete resource.
      *
-     * @param <T>     the type parameter
+     * @param <T>      the type parameter
      * @param resources the resources
      */
     @SafeVarargs
@@ -149,7 +158,7 @@ public class ResourceManager {
     /**
      * Wait resource condition boolean.
      *
-     * @param <T>     the type parameter
+     * @param <T>      the type parameter
      * @param resource the resource
      * @param condition the condition
      * @return the boolean
@@ -190,7 +199,7 @@ public class ResourceManager {
 
     /**
      * Wait until the CR is in desired state
-     * @param <T>     the type parameter
+     * @param <T>      the type parameter
      * @param operation - client of CR - for example kafkaClient()
      * @param resource - custom resource
      * @param resourceTimeout the resource timeout
@@ -205,7 +214,7 @@ public class ResourceManager {
     /**
      * Wait for resource status boolean.
      *
-     * @param <T>     the type parameter
+     * @param <T>      the type parameter
      * @param operation the operation
      * @param kind the kind
      * @param namespace the namespace
@@ -222,7 +231,7 @@ public class ResourceManager {
     /**
      * Wait for resource status boolean.
      *
-     * @param <T>     the type parameter
+     * @param <T>      the type parameter
      * @param operation the operation
      * @param kind the kind
      * @param namespace the namespace
@@ -258,7 +267,7 @@ public class ResourceManager {
     /**
      * Wait for resource status ready.
      *
-     * @param <T> the type parameter
+     * @param <T>  the type parameter
      * @param operation the operation
      * @param resource the resource
      * @return the boolean

@@ -30,23 +30,47 @@ public class KafkaSteps {
     /**
      * Create topic.
      *
+     * @param deployNamespace the deploy namespace
      * @param topicName the topic name
      * @param bootstrap the bootstrap
      * @param partitions the partitions
      * @param replicas the replicas
      */
     public static void createTopic(String deployNamespace, String topicName, String bootstrap, int partitions, int replicas) {
+        String podName = Constants.KAFKA_ADMIN_CLIENT_LABEL + "-create";
         kubeClient().getClient().run().inNamespace(deployNamespace).withNewRunConfig()
                 .withImage(Constants.TEST_CLIENTS_IMAGE)
-                .withName(Constants.KAFKA_ADMIN_CLIENT_LABEL)
+                .withName(podName)
                 .withRestartPolicy("Never")
                 .withCommand("admin-client")
                 .withArgs("topic", "create", "--bootstrap-server=" + bootstrap, "--topic=" + topicName, "--topic-partitions=" + partitions,
                         "--topic-rep-factor=" + replicas)
                 .done();
 
-        DeploymentUtils.waitForPodRunSucceeded(deployNamespace, Constants.KAFKA_ADMIN_CLIENT_LABEL, Duration.ofSeconds(30));
-        LOGGER.debug("Admin client pod log: {}", kubeClient().logsInSpecificNamespace(deployNamespace, Constants.KAFKA_ADMIN_CLIENT_LABEL));
+        DeploymentUtils.waitForPodRunSucceeded(deployNamespace, podName, Duration.ofSeconds(30));
+        LOGGER.debug("Admin client pod log: {}", kubeClient().logsInSpecificNamespace(deployNamespace, podName));
+    }
+
+    /**
+     * Delete topic.
+     *
+     * @param deployNamespace the deploy namespace
+     * @param topicName the topic name
+     * @param bootstrap the bootstrap
+     */
+    public static void deleteTopic(String deployNamespace, String topicName, String bootstrap) {
+        LOGGER.info("Deleting topic {}", topicName);
+        String podName = Constants.KAFKA_ADMIN_CLIENT_LABEL + "-delete";
+        kubeClient().getClient().run().inNamespace(deployNamespace).withNewRunConfig()
+                .withImage(Constants.TEST_CLIENTS_IMAGE)
+                .withName(podName)
+                .withRestartPolicy("Never")
+                .withCommand("admin-client")
+                .withArgs("topic", "delete", "--bootstrap-server=" + bootstrap, "--topic=" + topicName)
+                .done();
+
+        DeploymentUtils.waitForPodRunSucceeded(deployNamespace, podName, Duration.ofSeconds(30));
+        LOGGER.debug("Admin client pod log: {}", kubeClient().logsInSpecificNamespace(deployNamespace, podName));
     }
 
     /**

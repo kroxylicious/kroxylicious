@@ -32,12 +32,12 @@ public class Kubectl extends BaseCmdKubeClient<Kubectl> {
     }
 
     @Override
-    public Kubectl namespace(String namespace) {
+    public Kubectl getInstanceWithNamespace(String namespace) {
         return new Kubectl(namespace);
     }
 
     @Override
-    public String namespace() {
+    public String getNamespace() {
         return namespace;
     }
 

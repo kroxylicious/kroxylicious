@@ -45,43 +45,26 @@ public class KafkaUtils {
     private static final String MESSAGE_VAR = "%MESSAGE%";
     private static final String KAFKA_VERSION_VAR = "%KAFKA_VERSION%";
 
-    /**
-     * Consume message string.
-     *
-     * @param deployNamespace the deploy namespace
-     * @param topicName the topic name
-     * @param bootstrap the bootstrap
-     * @param timeout the timeout
-     * @return the log of the pod
-     */
-    public static String consumeMessage(String deployNamespace, String topicName, String bootstrap, Duration timeout) {
+    private static String consumeMessages(String deployNamespace, String topicName, String bootstrap, int numOfMessages, String messageToCheck, Duration timeout) {
         LOGGER.debug("Consuming messages from '{}' topic", topicName);
+        InputStream file = replaceStringInResourceFile("kafka-consumer-template.yaml", Map.of(
+                BOOTSTRAP_SERVERS_VAR, bootstrap,
+                NAMESPACE_VAR, deployNamespace,
+                TOPIC_NAME_VAR, topicName,
+                MESSAGE_COUNT_VAR, "\"" + numOfMessages + "\"",
+                KAFKA_VERSION_VAR, Environment.KAFKA_VERSION));
 
-        String kafkaConsumerName = "java-kafka-consumer";
-        Pod pod = kubeClient().getClient().run().inNamespace(deployNamespace).withNewRunConfig()
-                .withImage(Constants.STRIMZI_KAFKA_IMAGE)
-                .withName(kafkaConsumerName)
-                .withRestartPolicy("Never")
-                .withCommand("/bin/sh")
-                .withArgs("-c",
-                        "bin/kafka-console-consumer.sh --bootstrap-server " + bootstrap + " --topic " + topicName + " --from-beginning --timeout-ms "
-                                + timeout.toMillis())
-                .done();
-        long deadline = System.currentTimeMillis() + timeout.toMillis() * 2L;
-        long timeLeft = deadline;
-        while (timeLeft > 0) {
-            try {
-                Thread.sleep(1000);
-                timeLeft = deadline - System.currentTimeMillis();
-            }
-            catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                LOGGER.trace(e.getMessage());
-            }
-        }
-        String log = kubeClient().logsInSpecificNamespace(deployNamespace, kafkaConsumerName);
-        kubeClient().getClient().pods().inNamespace(deployNamespace).withName(kafkaConsumerName).delete();
-        return log;
+        kubeClient().getClient().load(file).inNamespace(deployNamespace).create();
+        String podName = getPodNameByLabel(deployNamespace, "app", Constants.KAFKA_CONSUMER_CLIENT_LABEL, timeout);
+        return await().alias("Consumer waiting to receive messages")
+                .ignoreException(KubernetesClientException.class)
+                .atMost(timeout)
+                .until(() -> {
+                    if (kubeClient().getClient().pods().inNamespace(deployNamespace).withName(podName).get() != null) {
+                        return kubeClient().logsInSpecificNamespace(deployNamespace, podName);
+                    }
+                    return null;
+                }, m -> m != null && m.contains(messageToCheck));
     }
 
     /**
@@ -95,25 +78,21 @@ public class KafkaUtils {
      * @return the log of the pod
      */
     public static String consumeMessageWithTestClients(String deployNamespace, String topicName, String bootstrap, int numOfMessages, Duration timeout) {
-        LOGGER.debug("Consuming messages from '{}' topic", topicName);
-        InputStream file = replaceStringInResourceFile("kafka-consumer-template.yaml", Map.of(
-                BOOTSTRAP_SERVERS_VAR, bootstrap,
-                NAMESPACE_VAR, deployNamespace,
-                TOPIC_NAME_VAR, topicName,
-                MESSAGE_COUNT_VAR, "\"" + numOfMessages + "\"",
-                KAFKA_VERSION_VAR, Environment.KAFKA_VERSION));
+        return consumeMessages(deployNamespace, topicName, bootstrap, numOfMessages, " - " + (numOfMessages - 1), timeout);
+    }
 
-        kubeClient().getClient().load(file).inNamespace(deployNamespace).create();
-        String podName = getPodNameByLabel(deployNamespace, "app", Constants.KAFKA_CONSUMER_CLIENT_LABEL, timeout);
-        await().alias("Consumer waiting to receive messages").ignoreException(KubernetesClientException.class).atMost(timeout)
-                .until(() -> {
-                    if (kubeClient().getClient().pods().inNamespace(deployNamespace).withName(podName).get() != null) {
-                        var log = kubeClient().logsInSpecificNamespace(deployNamespace, podName);
-                        return log.contains(" - " + (numOfMessages - 1));
-                    }
-                    return false;
-                });
-        return kubeClient().logsInSpecificNamespace(deployNamespace, podName);
+    /**
+     * Consume encrypted message with test clients.
+     *
+     * @param deployNamespace the deploy namespace
+     * @param topicName the topic name
+     * @param bootstrap the bootstrap
+     * @param numOfMessages the num of messages
+     * @param timeout the timeout
+     * @return the string
+     */
+    public static String consumeEncryptedMessageWithTestClients(String deployNamespace, String topicName, String bootstrap, int numOfMessages, Duration timeout) {
+        return consumeMessages(deployNamespace, topicName, bootstrap, numOfMessages, "key: kroxylicious.io/encryption", timeout);
     }
 
     private static String getPodNameByLabel(String deployNamespace, String labelKey, String labelValue, Duration timeout) {
@@ -123,24 +102,6 @@ public class KafkaUtils {
         });
         var pods = kubeClient().listPods(deployNamespace, labelKey, labelValue);
         return pods.get(pods.size() - 1).getMetadata().getName();
-    }
-
-    /**
-     * Produce message.
-     *
-     * @param deployNamespace the deploy namespace
-     * @param topicName the topic name
-     * @param message the message
-     * @param bootstrap the bootstrap
-     */
-    public static void produceMessage(String deployNamespace, String topicName, String message, String bootstrap) {
-        kubeClient().getClient().run().inNamespace(deployNamespace).withNewRunConfig()
-                .withImage(Constants.STRIMZI_KAFKA_IMAGE)
-                .withName("java-kafka-producer")
-                .withRestartPolicy("Never")
-                .withCommand("/bin/sh")
-                .withArgs("-c", "echo '" + message + "'| bin/kafka-console-producer.sh --bootstrap-server " + bootstrap + " --topic " + topicName)
-                .done();
     }
 
     /**

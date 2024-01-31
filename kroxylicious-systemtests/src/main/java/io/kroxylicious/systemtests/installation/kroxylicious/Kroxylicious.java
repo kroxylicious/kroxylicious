@@ -13,7 +13,7 @@ import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
-import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousConfigTemplates;
+import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousConfigMapTemplates;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousDeploymentTemplates;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousServiceTemplates;
 
@@ -39,16 +39,42 @@ public class Kroxylicious {
         this.containerImage = kroxyUrl + Environment.KROXY_VERSION;
     }
 
+    private void createDefaultConfigMap(String clusterName) {
+        LOGGER.info("Deploy Kroxylicious default config Map without filters in {} namespace", deploymentNamespace);
+        resourceManager.createResourceWithWait(KroxyliciousConfigMapTemplates.defaultKroxyliciousConfig(clusterName, deploymentNamespace).build());
+    }
+
+    private void createTopicEncryptionFilterConfigMap(String clusterName, String topicName) {
+        LOGGER.info("Deploy Kroxylicious config Map without filters in {} namespace", deploymentNamespace);
+        resourceManager.createResourceWithWait(KroxyliciousConfigMapTemplates.kroxyliciousTopicEncryptionConfig(clusterName, deploymentNamespace, topicName).build());
+    }
+
+    private void deployPortPerBrokerPlain(int replicas) {
+        LOGGER.info("Deploy Kroxylicious in {} namespace", deploymentNamespace);
+        resourceManager.createResourceWithWait(KroxyliciousDeploymentTemplates.defaultKroxyDeployment(deploymentNamespace, containerImage, replicas).build());
+        resourceManager.createResourceWithoutWait(KroxyliciousServiceTemplates.defaultKroxyService(deploymentNamespace).build());
+    }
+
     /**
-     * Deploy - Port per broker plain config
+     * Deploy - Port per broker plain with no filters config
      * @param clusterName the cluster name
      * @param replicas the replicas
      */
-    public void deployPortPerBrokerPlain(String clusterName, int replicas) {
-        LOGGER.info("Deploy Kroxylicious in {} namespace", deploymentNamespace);
-        resourceManager.createResourceWithWait(KroxyliciousConfigTemplates.defaultKroxyConfig(clusterName, deploymentNamespace).build());
-        resourceManager.createResourceWithWait(KroxyliciousDeploymentTemplates.defaultKroxyDeployment(deploymentNamespace, containerImage, replicas).build());
-        resourceManager.createResourceWithoutWait(KroxyliciousServiceTemplates.defaultKroxyService(deploymentNamespace).build());
+    public void deployPortPerBrokerPlainWithNoFilters(String clusterName, int replicas) {
+        createDefaultConfigMap(clusterName);
+        deployPortPerBrokerPlain(replicas);
+    }
+
+    /**
+     * Deploy port per broker plain with topic encryption filter.
+     *
+     * @param clusterName the cluster name
+     * @param replicas the replicas
+     * @param topicName the topic name
+     */
+    public void deployPortPerBrokerPlainWithTopicEncryptionFilter(String clusterName, int replicas, String topicName) {
+        createTopicEncryptionFilterConfigMap(clusterName, topicName);
+        deployPortPerBrokerPlain(replicas);
     }
 
     /**
@@ -62,14 +88,14 @@ public class Kroxylicious {
     }
 
     /**
-     * Get bootstrap string.
+     * Get bootstrap
      *
      * @return the bootstrap
      */
     public String getBootstrap() {
         String clusterIP = kubeClient().getService(deploymentNamespace, Constants.KROXY_SERVICE_NAME).getSpec().getClusterIP();
         if (clusterIP == null || clusterIP.isEmpty()) {
-            throw new KubeClusterException(new Throwable("Unable to get the clusterIP of Kroxylicious"));
+            throw new KubeClusterException("Unable to get the clusterIP of Kroxylicious");
         }
         String bootstrap = clusterIP + ":9292";
         LOGGER.debug("Kroxylicious bootstrap: {}", bootstrap);

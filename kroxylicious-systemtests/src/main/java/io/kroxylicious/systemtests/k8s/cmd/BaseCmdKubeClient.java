@@ -26,40 +26,17 @@ import static java.util.Arrays.asList;
 /**
  * The type Base cmd kube client.
  *
- * @param <K>  the type parameter
+ * @param <K> the type parameter
  */
 public abstract class BaseCmdKubeClient<K extends BaseCmdKubeClient<K>> implements KubeCmdClient<K> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BaseCmdKubeClient.class);
-
     private static final String APPLY = "apply";
     private static final String DELETE = "delete";
-
     /**
      * The Namespace.
      */
     String namespace = defaultNamespace();
-
-    /**
-     * The type Context.
-     */
-    protected static class Context implements AutoCloseable {
-        @Override
-        public void close() {
-            // Do nothing
-        }
-    }
-
-    private static final Context NOOP = new Context();
-
-    /**
-     * Default context context.
-     *
-     * @return the context
-     */
-    protected Context defaultContext() {
-        return NOOP;
-    }
 
     /**
      * Namespaced command list.
@@ -83,31 +60,27 @@ public abstract class BaseCmdKubeClient<K extends BaseCmdKubeClient<K>> implemen
     @Override
     @SuppressWarnings("unchecked")
     public K apply(File... files) {
-        try (Context context = defaultContext()) {
-            Map<File, ExecResult> execResults = execRecursive(APPLY, files, Comparator.comparing(File::getName).reversed());
-            for (Map.Entry<File, ExecResult> entry : execResults.entrySet()) {
-                if (!entry.getValue().isSuccess()) {
-                    LOGGER.warn("Failed to apply {}!", entry.getKey().getAbsolutePath());
-                    LOGGER.debug(entry.getValue().err());
-                }
+        Map<File, ExecResult> execResults = execRecursive(APPLY, files, Comparator.comparing(File::getName).reversed());
+        for (Map.Entry<File, ExecResult> entry : execResults.entrySet()) {
+            if (!entry.getValue().isSuccess()) {
+                LOGGER.warn("Failed to apply {}!", entry.getKey().getAbsolutePath());
+                LOGGER.debug(entry.getValue().err());
             }
-            return (K) this;
         }
+        return (K) this;
     }
 
     @Override
     @SuppressWarnings("unchecked")
     public K delete(File... files) {
-        try (Context context = defaultContext()) {
-            Map<File, ExecResult> execResults = execRecursive(DELETE, files, Comparator.comparing(File::getName).reversed());
-            for (Map.Entry<File, ExecResult> entry : execResults.entrySet()) {
-                if (!entry.getValue().isSuccess()) {
-                    LOGGER.warn("Failed to delete {}!", entry.getKey().getAbsolutePath());
-                    LOGGER.debug(entry.getValue().err());
-                }
+        Map<File, ExecResult> execResults = execRecursive(DELETE, files, Comparator.comparing(File::getName).reversed());
+        for (Map.Entry<File, ExecResult> entry : execResults.entrySet()) {
+            if (!entry.getValue().isSuccess()) {
+                LOGGER.warn("Failed to delete {}!", entry.getKey().getAbsolutePath());
+                LOGGER.debug(entry.getValue().err());
             }
-            return (K) this;
         }
+        return (K) this;
     }
 
     @Override
@@ -142,5 +115,12 @@ public abstract class BaseCmdKubeClient<K extends BaseCmdKubeClient<K>> implemen
     @Override
     public String toString() {
         return cmd();
+    }
+
+    @Override
+    public ExecResult execInPod(String pod, boolean throwErrors, String... command) {
+        List<String> cmd = namespacedCommand("exec", pod, "--");
+        cmd.addAll(asList(command));
+        return Exec.exec(null, cmd, 0, throwErrors);
     }
 }

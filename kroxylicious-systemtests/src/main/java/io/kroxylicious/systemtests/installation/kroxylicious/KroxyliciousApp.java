@@ -18,7 +18,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.systemtests.executor.Exec;
-import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousConfigTemplates;
+import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousConfigMapTemplates;
 import io.kroxylicious.systemtests.utils.TestUtils;
 
 import static org.awaitility.Awaitility.await;
@@ -56,7 +56,7 @@ public class KroxyliciousApp implements Runnable {
     private Path generateKroxyliciousConfiguration() {
         try {
             File configFile = Files.createTempFile("config", ".yaml", TestUtils.getDefaultPosixFilePermissions()).toFile();
-            Files.writeString(configFile.toPath(), KroxyliciousConfigTemplates.getDefaultExternalKroxyConfigMap(clusterIp));
+            Files.writeString(configFile.toPath(), KroxyliciousConfigMapTemplates.getDefaultExternalKroxyliciousConfigMap(clusterIp));
             configFile.deleteOnExit();
             return configFile.toPath();
         }

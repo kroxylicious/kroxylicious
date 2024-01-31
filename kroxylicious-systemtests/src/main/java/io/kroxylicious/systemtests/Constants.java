@@ -48,10 +48,7 @@ public interface Constants {
      * Kind of Strimzi CustomResources
      */
     String KAFKA_KIND = "Kafka";
-    /**
-     * Kind of kafka topics
-     */
-    String KAFKA_TOPIC_KIND = "KafkaTopic";
+
     /**
      * Kind of kafka users
      */
@@ -120,6 +117,7 @@ public interface Constants {
      * Kubernetes related constants
      */
     String DEPLOYMENT = "Deployment";
+
     /**
      * Strimzi kafka image url in quay
      */

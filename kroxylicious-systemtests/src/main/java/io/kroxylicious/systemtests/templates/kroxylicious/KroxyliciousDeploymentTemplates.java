@@ -13,6 +13,7 @@ import java.util.Map;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
 import io.fabric8.kubernetes.api.model.ContainerPort;
 import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
+import io.fabric8.kubernetes.api.model.LocalObjectReferenceBuilder;
 import io.fabric8.kubernetes.api.model.VolumeMount;
 import io.fabric8.kubernetes.api.model.VolumeMountBuilder;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
@@ -61,6 +62,9 @@ public class KroxyliciousDeploymentTemplates {
                         .withArgs("--config", "/opt/kroxylicious/config/config.yaml")
                         .withPorts(getPlainContainerPortList())
                         .withVolumeMounts(getPlainVolumeMountList())
+                        .build())
+                .withImagePullSecrets(new LocalObjectReferenceBuilder()
+                        .withName("regcred")
                         .build())
                 .addNewVolume()
                 .withName(CONFIG_VOLUME_NAME)

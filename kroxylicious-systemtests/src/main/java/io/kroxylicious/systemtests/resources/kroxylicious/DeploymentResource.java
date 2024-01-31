@@ -21,9 +21,9 @@ import io.kroxylicious.systemtests.resources.ResourceType;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 
 /**
- * The type Kroxylicious deployment resource.
+ * The type deployment resource.
  */
-public class KroxyliciousDeploymentResource implements ResourceType<Deployment> {
+public class DeploymentResource implements ResourceType<Deployment> {
     @Override
     public String getKind() {
         return Constants.DEPLOYMENT;

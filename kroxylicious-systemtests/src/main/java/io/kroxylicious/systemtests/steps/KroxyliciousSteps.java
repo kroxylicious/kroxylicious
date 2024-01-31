@@ -21,6 +21,7 @@ public class KroxyliciousSteps {
     /**
      * Produce messages.
      *
+     * @param namespace the namespace
      * @param topicName the topic name
      * @param bootstrap the bootstrap
      * @param message the message
@@ -31,8 +32,9 @@ public class KroxyliciousSteps {
     }
 
     /**
-     * Consume messages string.
+     * Consume messages.
      *
+     * @param namespace the namespace
      * @param topicName the topic name
      * @param bootstrap the bootstrap
      * @param numberOfMessages the number of messages
@@ -41,5 +43,19 @@ public class KroxyliciousSteps {
      */
     public static String consumeMessages(String namespace, String topicName, String bootstrap, int numberOfMessages, Duration timeout) {
         return KafkaUtils.consumeMessageWithTestClients(namespace, topicName, bootstrap, numberOfMessages, timeout);
+    }
+
+    /**
+     * Consume encrypted messages.
+     *
+     * @param namespace the namespace
+     * @param topicName the topic name
+     * @param bootstrap the bootstrap
+     * @param numberOfMessages the number of messages
+     * @param timeout the timeout
+     * @return the string
+     */
+    public static String consumeEncryptedMessages(String namespace, String topicName, String bootstrap, int numberOfMessages, Duration timeout) {
+        return KafkaUtils.consumeEncryptedMessageWithTestClients(namespace, topicName, bootstrap, numberOfMessages, timeout);
     }
 }

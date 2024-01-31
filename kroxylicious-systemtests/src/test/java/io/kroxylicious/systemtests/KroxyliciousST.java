@@ -37,6 +37,7 @@ class KroxyliciousST extends AbstractST {
     private static Kroxylicious kroxylicious;
     private final String clusterName = "my-cluster";
     protected static final String BROKER_NODE_NAME = "kafka";
+    private static final String MESSAGE = "Hello-world";
 
     /**
      * Produce and consume message.
@@ -45,27 +46,25 @@ class KroxyliciousST extends AbstractST {
      */
     @Test
     void produceAndConsumeMessage(String namespace) {
-        String topicName = "my-topic";
-        String message = "Hello-world";
         int numberOfMessages = 1;
-        String consumedMessage = message + " - " + (numberOfMessages - 1);
+        String expectedMessage = MESSAGE + " - " + (numberOfMessages - 1);
 
         // start Kroxylicious
         LOGGER.info("Given Kroxylicious in {} namespace with {} replicas", namespace, 1);
         kroxylicious = new Kroxylicious(namespace);
-        kroxylicious.deployPortPerBrokerPlain(clusterName, 1);
+        kroxylicious.deployPortPerBrokerPlainWithNoFilters(clusterName, 1);
         String bootstrap = kroxylicious.getBootstrap();
 
         LOGGER.info("And KafkaTopic in {} namespace", namespace);
         KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 2);
 
-        LOGGER.info("When {} messages '{}' are sent to the topic '{}'", numberOfMessages, message, topicName);
-        KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, message, numberOfMessages);
+        LOGGER.info("When {} messages '{}' are sent to the topic '{}'", numberOfMessages, MESSAGE, topicName);
+        KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
 
         LOGGER.info("Then the {} messages are consumed", numberOfMessages);
         String result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2));
         LOGGER.info("Received: " + result);
-        assertThat("'" + consumedMessage + "' message not consumed!", result.contains(consumedMessage));
+        assertThat("'" + expectedMessage + "' expected message have not been received!", result.contains(expectedMessage));
     }
 
     /**
@@ -75,29 +74,27 @@ class KroxyliciousST extends AbstractST {
      */
     @Test
     void restartKafkaBrokers(String namespace) {
-        String topicName = "my-topic2";
-        String message = "Hello-world";
         int numberOfMessages = 25;
-        String consumedMessage = message + " - " + (numberOfMessages - 1);
+        String expectedMessage = MESSAGE + " - " + (numberOfMessages - 1);
 
         // start Kroxylicious
         LOGGER.info("Given Kroxylicious in {} namespace with {} replicas", namespace, 1);
         kroxylicious = new Kroxylicious(namespace);
-        kroxylicious.deployPortPerBrokerPlain(clusterName, 1);
+        kroxylicious.deployPortPerBrokerPlainWithNoFilters(clusterName, 1);
         String bootstrap = kroxylicious.getBootstrap();
 
         LOGGER.info("And KafkaTopic in {} namespace", namespace);
         KafkaSteps.createTopic(namespace, topicName, bootstrap, 3, 2);
 
-        LOGGER.info("When {} messages '{}' are sent to the topic '{}'", numberOfMessages, message, topicName);
-        KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, message, numberOfMessages);
+        LOGGER.info("When {} messages '{}' are sent to the topic '{}'", numberOfMessages, MESSAGE, topicName);
+        KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
         LOGGER.info("And a kafka broker is restarted");
         KafkaSteps.restartKafkaBroker(clusterName);
 
         LOGGER.info("Then the {} messages are consumed", numberOfMessages);
         String result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(10));
         LOGGER.info("Received: " + result);
-        assertThat("'" + consumedMessage + "' message not consumed!", result.contains(consumedMessage));
+        assertThat("'" + expectedMessage + "' expected message have not been received!", result.contains(expectedMessage));
     }
 
     /**
@@ -107,16 +104,14 @@ class KroxyliciousST extends AbstractST {
      */
     @Test
     void kroxyWithReplicas(String namespace) {
-        String topicName = "my-topic3";
-        String message = "Hello-world";
         int numberOfMessages = 3;
         int replicas = 3;
-        String consumedMessage = message + " - " + (numberOfMessages - 1);
+        String expectedMessage = MESSAGE + " - " + (numberOfMessages - 1);
 
         // start Kroxylicious
         LOGGER.info("Given Kroxylicious in {} namespace with {} replicas", namespace, replicas);
         kroxylicious = new Kroxylicious(namespace);
-        kroxylicious.deployPortPerBrokerPlain(clusterName, replicas);
+        kroxylicious.deployPortPerBrokerPlainWithNoFilters(clusterName, replicas);
         String bootstrap = kroxylicious.getBootstrap();
         int currentReplicas = kroxylicious.getNumberOfReplicas();
         assertThat("Current replicas: " + currentReplicas + "; expected: " + replicas, currentReplicas == replicas);
@@ -124,13 +119,13 @@ class KroxyliciousST extends AbstractST {
         LOGGER.info("And KafkaTopic in {} namespace", namespace);
         KafkaSteps.createTopic(namespace, topicName, bootstrap, 3, 2);
 
-        LOGGER.info("When {} messages '{}' are sent to the topic '{}'", numberOfMessages, message, topicName);
-        KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, message, numberOfMessages);
+        LOGGER.info("When {} messages '{}' are sent to the topic '{}'", numberOfMessages, MESSAGE, topicName);
+        KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
 
         LOGGER.info("Then the {} messages are consumed", numberOfMessages);
         String result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2));
         LOGGER.info("Received: " + result);
-        assertThat("'" + consumedMessage + "' message not consumed!", result.contains(consumedMessage));
+        assertThat("'" + expectedMessage + "' expected message have not been received!", result.contains(expectedMessage));
     }
 
     /**
