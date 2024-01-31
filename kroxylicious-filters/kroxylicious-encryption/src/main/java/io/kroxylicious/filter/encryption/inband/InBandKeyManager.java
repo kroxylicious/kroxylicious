@@ -463,7 +463,9 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
         synchronized (encryptor) {
             plaintextParcel = decryptParcel(wrapper.slice(), encryptor);
         }
-        Parcel.readParcel(decryptionVersion.parcelVersion(), plaintextParcel, kafkaRecord, builder);
+        Parcel.readParcel(decryptionVersion.parcelVersion(), plaintextParcel, kafkaRecord, (v, h) -> {
+            builder.appendWithOffset(kafkaRecord.offset(), kafkaRecord.timestamp(), kafkaRecord.key(), v, h);
+        });
     }
 
     private ByteBuffer decryptParcel(ByteBuffer ciphertextParcel, AesGcmEncryptor encryptor) {

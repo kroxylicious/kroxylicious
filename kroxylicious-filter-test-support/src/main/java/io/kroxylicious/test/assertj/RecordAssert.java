@@ -32,7 +32,6 @@ public class RecordAssert extends AbstractAssert<RecordAssert, Record> {
         return new RecordAssert(actual);
     }
 
-
     public RecordAssert hasOffsetEqualTo(long expect) {
         isNotNull();
         AbstractLongAssert<?> offset = offsetAssert();

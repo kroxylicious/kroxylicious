@@ -58,7 +58,9 @@ class ParcelTest {
         buffer.flip();
 
         BatchAwareMemoryRecordsBuilder mockBuilder = Mockito.mock(BatchAwareMemoryRecordsBuilder.class);
-        Parcel.readParcel(ParcelVersion.V1, buffer, record, mockBuilder);
+        Parcel.readParcel(ParcelVersion.V1, buffer, record, (v, h) -> {
+            mockBuilder.appendWithOffset(record.offset(), record.timestamp(), record.key(), v, h);
+        });
         verify(mockBuilder).appendWithOffset(record.offset(), record.timestamp(), record.key(), expectedValue, record.headers());
         assertThat(buffer.remaining()).isEqualTo(0);
     }

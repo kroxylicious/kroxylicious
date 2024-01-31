@@ -62,7 +62,7 @@ public class RecordDecryptor implements RecordTransform {
         synchronized (encryptor) {
             plaintextParcel = decryptParcel(wrapper.slice(), encryptor);
         }
-        Parcel.readParcel(decryptionVersion.parcelVersion(), plaintextParcel, record, (r, v, h) -> {
+        Parcel.readParcel(decryptionVersion.parcelVersion(), plaintextParcel, record, (v, h) -> {
             transformedValue = v;
             transformedHeaders = h;
         });

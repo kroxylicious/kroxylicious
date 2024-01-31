@@ -13,8 +13,6 @@ import org.assertj.core.api.AbstractAssert;
 import org.assertj.core.api.AbstractByteArrayAssert;
 import org.assertj.core.api.Assertions;
 
-import java.nio.charset.StandardCharsets;
-
 public class HeaderAssert extends AbstractAssert<HeaderAssert, Header> {
     protected HeaderAssert(Header header) {
         super(header, HeaderAssert.class);
@@ -34,7 +32,7 @@ public class HeaderAssert extends AbstractAssert<HeaderAssert, Header> {
     }
 
     public HeaderAssert hasValueEqualTo(String expected) {
-        valueAssert().isEqualTo(expected.getBytes(StandardCharsets.UTF_8));
+        valueAssert().isEqualTo(expected == null ? null : expected.getBytes(StandardCharsets.UTF_8));
         return this;
     }
 
