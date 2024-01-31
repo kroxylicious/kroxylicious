@@ -10,6 +10,7 @@ import java.time.Duration;
 import java.util.List;
 
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -82,6 +83,11 @@ class EnvelopeEncryptionST extends AbstractST {
 
         LOGGER.info("And KafkaTopic in {} namespace", namespace);
         KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 2);
+    }
+
+    @AfterEach
+    void afterEach(String namespace) {
+        KafkaSteps.deleteTopic(namespace, topicName, bootstrap);
     }
 
     @AfterAll
