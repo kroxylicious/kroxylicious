@@ -12,12 +12,10 @@ import java.security.spec.AlgorithmParameterSpec;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.IntUnaryOperator;
+import java.util.function.LongUnaryOperator;
 import java.util.function.Supplier;
-
 import javax.annotation.concurrent.NotThreadSafe;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.crypto.Cipher;
@@ -28,11 +26,11 @@ import javax.security.auth.Destroyable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.kroxylicious.filter.encryption.EncryptionException;
-import io.kroxylicious.filter.encryption.inband.ExhaustedDekException;
-
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
+
+import io.kroxylicious.filter.encryption.EncryptionException;
+import io.kroxylicious.filter.encryption.inband.ExhaustedDekException;
 
 /**
  * An opaque handle on a key that can be used to encrypt and decrypt with some specific cipher.
@@ -54,45 +52,83 @@ public final class DataEncryptionKey<E> {
 
     private final AtomicLong remainingEncryptions;
 
-    // 1 start
-    // +1=2 (en|de)cryptor
-    // +1=3 (en|de)cryptor
-    // +1=4 (en|de)cryptor
-    // -1=3 cryptor.finish // return
-    // negate=-3 dek.destroy()// updateAndGet(if current value < 0 don't change, otherwise negate)
-    // +1=-2 (en|de)cryptor.close
-    // +1=-1 (en|de)cryptor.close => key.destroy
-    final AtomicInteger outstandingCryptors;
+    //    1 start
+    // +1=2 encryptor
+    // +1=3 encryptor
+    // +1=4 encryptor
+    // -1=3 encryptor.finish // return
+    // negate=-3 destroy()// updateAndGet(if current value < 0 don't change, otherwise negate)
+    // +1=-2 encryptor.finish
+    // +1=-1 encryptor.finish => key.destroy
+    final AtomicLong outstandingCryptors;
 
-    public static final int START = 1;
-    public static final int END = -1;
+    public static final long START = combine(1, 1);
+    public static final long END = combine(-1, -1);
     private final CipherSpec cipherSpec;
 
-    static int acquireCryptor(int cryptors) {
-        if (cryptors > 0) {
-            return cryptors + 1;
+    static long combine(int encryptors, int decryptors) {
+        return ((long) encryptors) << Integer.SIZE | 0xFFFFFFFFL & decryptors;
+    }
+
+    static int encryptors(long combined) {
+        return (int) (combined >> Integer.SIZE);
+    }
+
+    static int decryptors(long combined) {
+        return (int) combined;
+    }
+
+    static long acquireEncryptor(long combined) {
+        int encryptors = encryptors(combined);
+        int decryptors = decryptors(combined);
+        if (encryptors > 0) {
+            return combine(encryptors + 1, decryptors);
         }
         else {
-            return cryptors;
+            return combine(encryptors, decryptors);
         }
     }
 
-    static int releaseCryptor(int cryptors) {
-        if (cryptors > 0) {
-            return cryptors - 1;
+    static long acquireDecryptor(long combined) {
+        int encryptors = encryptors(combined);
+        int decryptors = decryptors(combined);
+        if (decryptors > 0) {
+            return combine(encryptors, decryptors + 1);
         }
         else {
-            return cryptors + 1;
+            return combine(encryptors, decryptors - 1);
         }
     }
 
-    static int commenceDestroy(int combined) {
-        int cryptors = combined;
+    static long releaseEncryptor(long combined) {
+        int encryptors = encryptors(combined);
+        int decryptors = decryptors(combined);
+        if (encryptors > 0) {
+            return combine(encryptors - 1, decryptors);
+        }
+        else {
+            return combine(encryptors + 1, decryptors);
+        }
+    }
 
-        if (cryptors < 0) {
+    static long releaseDecryptor(long combined) {
+        int encryptors = encryptors(combined);
+        int decryptors = decryptors(combined);
+        if (decryptors > 0) {
+            return combine(encryptors, decryptors - 1);
+        }
+        else {
+            return combine(encryptors, decryptors + 1);
+        }
+    }
+
+    static long commenceDestroy(long combined) {
+        int encryptors = encryptors(combined);
+        int decryptors = decryptors(combined);
+        if (encryptors < 0 || decryptors < 0) {
             return combined;
         }
-        return -cryptors;
+        return combine(-encryptors, -decryptors);
     }
 
     DataEncryptionKey(@NonNull E edek, @NonNull SecretKey key, @NonNull CipherSpec cipherSpec, long maxEncryptions) {
@@ -109,7 +145,7 @@ public final class DataEncryptionKey<E> {
         this.atomicKey = new AtomicReference<>(key);
         this.cipherSpec = cipherSpec;
         this.remainingEncryptions = new AtomicLong(maxEncryptions);
-        this.outstandingCryptors = new AtomicInteger(START);
+        this.outstandingCryptors = new AtomicLong(START);
     }
 
     /**
@@ -133,7 +169,7 @@ public final class DataEncryptionKey<E> {
             // We need to guarantee that NPE is not possible
             // The alternative is to make DEK#key final (not volatile) and give up on nullifying it
             // as part of destruction
-            if (outstandingCryptors.updateAndGet(DataEncryptionKey::acquireCryptor) <= 0) {
+            if (outstandingCryptors.updateAndGet(DataEncryptionKey::acquireEncryptor) <= 0) {
                 throw new DestroyedDekException();
             }
             return new Encryptor(cipherSpec, atomicKey.get(), numEncryptions);
@@ -148,7 +184,7 @@ public final class DataEncryptionKey<E> {
      * @throws DestroyedDekException If the DEK has been {@linkplain #destroy()} destroyed.
      */
     public Decryptor decryptor() {
-        if (outstandingCryptors.updateAndGet(DataEncryptionKey::acquireCryptor) <= 0) {
+        if (outstandingCryptors.updateAndGet(DataEncryptionKey::acquireDecryptor) <= 0) {
             throw new DestroyedDekException();
         }
         return new Decryptor(cipherSpec, atomicKey.get());
@@ -167,7 +203,7 @@ public final class DataEncryptionKey<E> {
         maybeDestroyKey(DataEncryptionKey::commenceDestroy);
     }
 
-    private void maybeDestroyKey(IntUnaryOperator updateFunction) {
+    private void maybeDestroyKey(LongUnaryOperator updateFunction) {
         if (outstandingCryptors.updateAndGet(updateFunction) == END) {
             var key = atomicKey.getAndSet(null);
             if (key != null) {
@@ -276,7 +312,7 @@ public final class DataEncryptionKey<E> {
         public void close() {
             if (key != null) {
                 key = null;
-                maybeDestroyKey(DataEncryptionKey::releaseCryptor);
+                maybeDestroyKey(DataEncryptionKey::releaseEncryptor);
             }
         }
     }
@@ -324,7 +360,7 @@ public final class DataEncryptionKey<E> {
         public void close() {
             if (key != null) {
                 key = null;
-                maybeDestroyKey(DataEncryptionKey::releaseCryptor);
+                maybeDestroyKey(DataEncryptionKey::releaseDecryptor);
             }
         }
     }
