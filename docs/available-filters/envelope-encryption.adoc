@@ -1,5 +1,6 @@
 :kms-api-javadoc: https://javadoc.io/doc/io.kroxylicious/kroxylicious-kms/latest
 :encryption-api-javadoc: https://javadoc.io/doc/io.kroxylicious/kroxylicious-encryption
+:design-doc: https://github.com/kroxylicious/kroxylicious/blob/main/kroxylicious-filters/kroxylicious-encryption/doc/design.adoc
 
 = Envelope Encryption
 
@@ -17,14 +18,38 @@ It works as follows:
 The entire process is transparent from the point of view of both Kafka Client and Kafka Broker.  Neither are
 aware that the records are being encrypted.  Neither client nor broker have any access to the encryption keys.
 
-The filter encrypts the kafka records using a symmetric encryption key. It is possible to use different encryption
-keys for different topics. The encryption keys are held within by a Key Management Service (KMS).  It is the user's
-responsibility to provide the KMS service and pre-provision the encryption keys within it.
+The filter encrypts the kafka records using symmetric encryption keys.  The encryption technique employed is
+known as *Envelope Encryption*, which is technique suited for encrypting large volumes of data efficiently.
+Envelope Encryption is described in the next section.
+
+The filter integrates with a Key Management Service (KMS). The user must bring a compatible Key Management Service
+(KMS) in order to use this solution.  This is talked about later.
+
+=== Envelope Encryption
+
+Envelope Encryption is a technique described by https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-57pt1r5.pdf[NIST
+Special Publication 800-57 Part 1 Revision 5]. It is the practice of encrypting the data with a data encryption key (DEK),
+then wrapping (encrypting) the DEK with a key encryption key (KEK).
+
+KEKs are stored centrally within the Key Management Service (KMS).  The key material of the KEK never leaves the confines
+of the KMS.
+
+On produce request, the filter uses the KMS to create a DEK.  The DEK is used to encrypt the record.  The original record
+in the produce request is replaced by a *cipher record* which comprises the encrypted record, the encrypted DEK and some other
+data (fully described in the {design-doc}[design]).  It is this cipher text record that the Kafka Broker appends to its
+transaction log.
+
+On fetch response, the filter receives the *cipher record* from the Kafka Broker. The filter reverses process used to
+construct the *cipher record* and uses the KMS to decrypt DEK.  The decrypted DEK is used to decrypt the encrypted record.
+The cipher record in the fetch response is then replaced with the decrypted record.  The Kafka Client receives the decrypted record.
+
+The filter employs a DEK reuse strategy and caching to avoid excessive calls to the KMS, whilst ensuring DEKs
+are rotated sufficiently often to prevent key exhaustion.
 
 == Prerequisites
 
 In order to use the filter, a compatible KMS (Key Management Service) must be provided.  The KMS is used to store
-the encryption keys used to encrypt the records sent to the topic.  The service is used at runtime. If the KMS is
+the KEKs used to encrypt the records sent to the topic.  The service is used at runtime. If the KMS is
 unavailable, it will become impossible to produce or consume records through the filter until the KMS service is
 restored.  It is recommended to use a KMS in a highly available configuration.
 
@@ -184,7 +209,7 @@ selectorConfig:
 
 === Establishing the keys in the KMS
 
-Use the management interface of the KMS to create the encryption keys. The names (or aliases) of the encryption keys
+Use the management interface of the KMS to create the KEKs. The names (or aliases) of the encryption keys
 must match the naming conventions established within the configuration of the KEK selector.  If the selector generates
 a key name that doesn't exist within the KMS, records will be sent to the topic without encryption.
 
