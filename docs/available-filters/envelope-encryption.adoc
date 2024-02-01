@@ -140,7 +140,7 @@ selectorConfig:
 
 === Establishing the keys in the KMS
 
-Use the management interface of the KMS to create the encryption keys.  The names(or aliases) of the encryption keys
+Use the management interface of the KMS to create the encryption keys. The names (or aliases) of the encryption keys
 must match the naming conventions established within the configuration of the KEK selector.  If the selector generates
 a key name that doesn't exist within the KMS, records will be sent to the topic without encryption.
 
