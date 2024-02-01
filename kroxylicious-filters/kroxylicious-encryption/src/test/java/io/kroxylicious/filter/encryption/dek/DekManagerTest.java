@@ -76,7 +76,7 @@ class DekManagerTest {
         ByteBuffer[] ciphertext = new ByteBuffer[1];
         ByteBuffer[] params = new ByteBuffer[1];
         InMemoryEdek edek;
-        try (DataEncryptionKey<InMemoryEdek>.Encryptor encryptor = dek.encryptor(1)) {
+        try (Dek<InMemoryEdek>.Encryptor encryptor = dek.encryptor(1)) {
             encryptor.encrypt(plaintext,
                     aad,
                     (x, y) -> params[0] = ByteBuffer.allocate(x),

@@ -7,7 +7,7 @@
 package io.kroxylicious.filter.encryption.dek;
 
 /**
- * Indicates that a {@link DataEncryptionKey} couldn't be used because it was destroyed.
+ * Indicates that a {@link Dek} couldn't be used because it was destroyed.
  */
 public class DestroyedDekException extends RuntimeException {
 

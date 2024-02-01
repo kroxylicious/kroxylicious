@@ -29,14 +29,14 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 
-class DataEncryptionKeyTest {
+class DekTest {
 
     @ParameterizedTest
     @EnumSource(CipherSpec.class)
     void constructorThrowsOnDestroyedKey(CipherSpec cipherSpec) {
         var mock = mock(SecretKey.class);
         doReturn(true).when(mock).isDestroyed();
-        assertThatThrownBy(() -> new DataEncryptionKey<>("edek", mock, cipherSpec, 100))
+        assertThatThrownBy(() -> new Dek<>("edek", mock, cipherSpec, 100))
                 .isExactlyInstanceOf(IllegalArgumentException.class);
 
     }
@@ -46,7 +46,7 @@ class DataEncryptionKeyTest {
     void constructorThrowsOnNegativeExceptions(CipherSpec cipherSpec) {
         var mock = mock(SecretKey.class);
         doReturn(false).when(mock).isDestroyed();
-        assertThatThrownBy(() -> new DataEncryptionKey<>("edek", mock, cipherSpec, -1))
+        assertThatThrownBy(() -> new Dek<>("edek", mock, cipherSpec, -1))
                 .isExactlyInstanceOf(IllegalArgumentException.class);
     }
 
@@ -55,7 +55,7 @@ class DataEncryptionKeyTest {
     void encryptorThrowsExhaustedDekExceptionOnDekWithZeroEncryptions(CipherSpec cipherSpec) {
         var mock = mock(SecretKey.class);
         doReturn(false).when(mock).isDestroyed();
-        var dek = new DataEncryptionKey<>("edek", mock, cipherSpec, 0);
+        var dek = new Dek<>("edek", mock, cipherSpec, 0);
         assertThatThrownBy(() -> dek.encryptor(1))
                 .isExactlyInstanceOf(ExhaustedDekException.class);
     }
@@ -65,7 +65,7 @@ class DataEncryptionKeyTest {
     void encryptorThrowsOnZeroEncryptions(CipherSpec cipherSpec) {
         var mock = mock(SecretKey.class);
         doReturn(false).when(mock).isDestroyed();
-        var dek = new DataEncryptionKey<>("edek", mock, cipherSpec, 1);
+        var dek = new Dek<>("edek", mock, cipherSpec, 1);
         assertThatThrownBy(() -> dek.encryptor(0))
                 .isExactlyInstanceOf(IllegalArgumentException.class);
     }
@@ -75,7 +75,7 @@ class DataEncryptionKeyTest {
     void encryptorThrowsOnNegativeEncryptions(CipherSpec cipherSpec) {
         var mock = mock(SecretKey.class);
         doReturn(false).when(mock).isDestroyed();
-        var dek = new DataEncryptionKey<>("edek", mock, cipherSpec, 1);
+        var dek = new Dek<>("edek", mock, cipherSpec, 1);
         assertThatThrownBy(() -> dek.encryptor(-1))
                 .isExactlyInstanceOf(IllegalArgumentException.class);
     }
@@ -86,7 +86,7 @@ class DataEncryptionKeyTest {
         var mock = mock(SecretKey.class);
         doReturn(false).when(mock).isDestroyed();
         String edek = "edek";
-        DataEncryptionKey<String> dek = new DataEncryptionKey<>(edek, mock, cipherSpec, 100);
+        Dek<String> dek = new Dek<>(edek, mock, cipherSpec, 100);
         assertThat(dek.encryptor(1).edek()).isSameAs(edek);
 
     }
@@ -98,7 +98,7 @@ class DataEncryptionKeyTest {
         SecretKey mock = mock(SecretKey.class);
         doReturn(false).when(mock).isDestroyed();
         doNothing().when(mock).destroy();
-        var dek = new DataEncryptionKey<>("edek", mock, cipherSpec, 100);
+        var dek = new Dek<>("edek", mock, cipherSpec, 100);
 
         // When
         dek.destroy();
@@ -119,7 +119,7 @@ class DataEncryptionKeyTest {
         SecretKey mock = mock(SecretKey.class);
         doReturn(false).when(mock).isDestroyed();
         doNothing().when(mock).destroy();
-        var dek = new DataEncryptionKey<>("edek", mock, cipherSpec, 100);
+        var dek = new Dek<>("edek", mock, cipherSpec, 100);
         var cryptor = dek.encryptor(100);
 
         // When
@@ -142,7 +142,7 @@ class DataEncryptionKeyTest {
         SecretKey mock = mock(SecretKey.class);
         doReturn(false).when(mock).isDestroyed();
         doNothing().when(mock).destroy();
-        var dek = new DataEncryptionKey<>("edek", mock, cipherSpec, 100);
+        var dek = new Dek<>("edek", mock, cipherSpec, 100);
         var cryptor = dek.encryptor(100);
 
         cryptor.close();
@@ -164,7 +164,7 @@ class DataEncryptionKeyTest {
         SecretKey mock = mock(SecretKey.class);
         doReturn(false).when(mock).isDestroyed();
         doNothing().when(mock).destroy();
-        var dek = new DataEncryptionKey<>("edek", mock, cipherSpec, 100);
+        var dek = new Dek<>("edek", mock, cipherSpec, 100);
         var cryptor1 = dek.encryptor(50);
         var cryptor2 = dek.encryptor(50);
 
@@ -191,7 +191,7 @@ class DataEncryptionKeyTest {
         SecretKey mock = mock(SecretKey.class);
         doReturn(false).when(mock).isDestroyed();
         doNothing().when(mock).destroy();
-        var dek = new DataEncryptionKey<>("edek", mock, cipherSpec, 100);
+        var dek = new Dek<>("edek", mock, cipherSpec, 100);
         var cryptor1 = dek.encryptor(50);
         var cryptor2 = dek.encryptor(50);
 
@@ -221,7 +221,7 @@ class DataEncryptionKeyTest {
         SecretKey mock = mock(SecretKey.class);
         doReturn(false).when(mock).isDestroyed();
         doNothing().when(mock).destroy();
-        var dek = new DataEncryptionKey<>("edek", mock, cipherSpec, 0);
+        var dek = new Dek<>("edek", mock, cipherSpec, 0);
         var cryptor = dek.decryptor();
 
         // When
@@ -244,7 +244,7 @@ class DataEncryptionKeyTest {
         SecretKey mock = mock(SecretKey.class);
         doReturn(false).when(mock).isDestroyed();
         doNothing().when(mock).destroy();
-        var dek = new DataEncryptionKey<>("edek", mock, cipherSpec, 0);
+        var dek = new Dek<>("edek", mock, cipherSpec, 0);
         var cryptor = dek.decryptor();
 
         // When
@@ -265,7 +265,7 @@ class DataEncryptionKeyTest {
         SecretKey mock = mock(SecretKey.class);
         doReturn(false).when(mock).isDestroyed();
         doNothing().when(mock).destroy();
-        var dek = new DataEncryptionKey<>("edek", mock, cipherSpec, 0);
+        var dek = new Dek<>("edek", mock, cipherSpec, 0);
         var cryptor1 = dek.decryptor();
         var cryptor2 = dek.decryptor();
 
@@ -292,7 +292,7 @@ class DataEncryptionKeyTest {
         SecretKey mock = mock(SecretKey.class);
         doReturn(false).when(mock).isDestroyed();
         doNothing().when(mock).destroy();
-        var dek = new DataEncryptionKey<>("edek", mock, cipherSpec, 0);
+        var dek = new Dek<>("edek", mock, cipherSpec, 0);
         var cryptor1 = dek.decryptor();
         var cryptor2 = dek.decryptor();
 
@@ -322,7 +322,7 @@ class DataEncryptionKeyTest {
         SecretKey mock = mock(SecretKey.class);
         doReturn(false).when(mock).isDestroyed();
         doNothing().when(mock).destroy();
-        var dek = new DataEncryptionKey<>("edek", mock, cipherSpec, 100);
+        var dek = new Dek<>("edek", mock, cipherSpec, 100);
         var cryptor1 = dek.encryptor(50);
         var cryptor2 = dek.decryptor();
 
@@ -351,7 +351,7 @@ class DataEncryptionKeyTest {
         SecretKey mock = mock(SecretKey.class);
         doReturn(false).when(mock).isDestroyed();
         doNothing().when(mock).destroy();
-        var dek = new DataEncryptionKey<>("edek", mock, cipherSpec, 100);
+        var dek = new Dek<>("edek", mock, cipherSpec, 100);
         var cryptor1 = dek.encryptor(50);
         var cryptor2 = dek.decryptor();
 
@@ -384,7 +384,7 @@ class DataEncryptionKeyTest {
         SecretKey mock = mock(SecretKey.class);
         doReturn(false).when(mock).isDestroyed();
         doNothing().when(mock).destroy();
-        var dek = new DataEncryptionKey<>("edek", mock, cipherSpec, 100);
+        var dek = new Dek<>("edek", mock, cipherSpec, 100);
         var cryptor1 = dek.encryptor(50);
         var cryptor2 = dek.decryptor();
 
@@ -449,7 +449,7 @@ class DataEncryptionKeyTest {
         var params = encryptInfo.params();
         var ciphertext = encryptInfo.ciphertext();
 
-        var dek = new DataEncryptionKey<>(encryptInfo.key().getEncoded(), encryptInfo.key(), cipherSpec, 1);
+        var dek = new Dek<>(encryptInfo.key().getEncoded(), encryptInfo.key(), cipherSpec, 1);
         var decryptor = dek.decryptor();
 
         var plaintext = ByteBuffer.allocate(1024);
@@ -466,7 +466,7 @@ class DataEncryptionKeyTest {
         var generator = KeyGenerator.getInstance("AES");
         var key = generator.generateKey();
         var edek = key.getEncoded(); // For this test it doesn't matter than it's not, in fact, encrypted
-        var dek = new DataEncryptionKey<>(edek, key, cipherSpec, 1);
+        var dek = new Dek<>(edek, key, cipherSpec, 1);
         var encryptor = dek.encryptor(1);
 
         // Destroy the DEK: We expect the encryptor should still be usable

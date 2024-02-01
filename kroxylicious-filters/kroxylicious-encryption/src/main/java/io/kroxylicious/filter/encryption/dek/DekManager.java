@@ -54,30 +54,30 @@ public class DekManager<K, E> {
     }
 
     /**
-     * Generate a fresh DEK from the KMS, wrapping it in a {@link DataEncryptionKey}.
+     * Generate a fresh DEK from the KMS, wrapping it in a {@link Dek}.
      * The returned DEK can only be used for both encryption and decryption, but only for the given cipher.
      * @param kekRef The KEK id
      * @param cipherSpec The cipher supported by the returned DEK.
-     * @return A completion state that completes with the {@link DataEncryptionKey}, or
+     * @return A completion state that completes with the {@link Dek}, or
      * fails if the request to the KMS fails.
      */
-    public CompletionStage<DataEncryptionKey<E>> generateDek(@NonNull K kekRef, @NonNull CipherSpec cipherSpec) {
+    public CompletionStage<Dek<E>> generateDek(@NonNull K kekRef, @NonNull CipherSpec cipherSpec) {
         Objects.requireNonNull(kekRef);
         Objects.requireNonNull(cipherSpec);
-        return kms.generateDekPair(kekRef).thenApply(dekPair -> new DataEncryptionKey<>(dekPair.edek(), dekPair.dek(), cipherSpec, maxEncryptionsPerDek));
+        return kms.generateDekPair(kekRef).thenApply(dekPair -> new Dek<>(dekPair.edek(), dekPair.dek(), cipherSpec, maxEncryptionsPerDek));
     }
 
     /**
-     * Ask the KMS to decrypt an encrypted DEK, returning a {@link DataEncryptionKey}.
+     * Ask the KMS to decrypt an encrypted DEK, returning a {@link Dek}.
      * The returned DEK can only be used for decryption, and only for the given cipher.
      * @param edek The encrypted DEK
      * @param cipherSpec The cipher supported by the returned DEK.
-     * @return A completion state that completes with the {@link DataEncryptionKey}, or
+     * @return A completion state that completes with the {@link Dek}, or
      * fails if the request to the KMS fails.
      */
-    public CompletionStage<DataEncryptionKey<E>> decryptEdek(@NonNull E edek, @NonNull CipherSpec cipherSpec) {
+    public CompletionStage<Dek<E>> decryptEdek(@NonNull E edek, @NonNull CipherSpec cipherSpec) {
         Objects.requireNonNull(edek);
         Objects.requireNonNull(cipherSpec);
-        return kms.decryptEdek(edek).thenApply(key -> new DataEncryptionKey<>(edek, key, cipherSpec, 0));
+        return kms.decryptEdek(edek).thenApply(key -> new Dek<>(edek, key, cipherSpec, 0));
     }
 }

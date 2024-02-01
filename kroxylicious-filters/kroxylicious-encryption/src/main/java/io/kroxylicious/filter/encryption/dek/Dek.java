@@ -34,7 +34,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
- * <p>An opaque handle on a key that can be used to encrypt and decrypt with some specific cipher.
+ * <p>A Data Encryption Key (DEK) is an opaque handle on a key that can be used to encrypt and decrypt with some specific cipher.
  * The key itself is never accessible outside this class, only the ability to encrypt and decrypt is exposed.
  * </p>
  *
@@ -49,12 +49,12 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * except without a limit on the number of decryption operations</p>
  *
  * <h2>Thread safety</h2>
- * <p>{@link DataEncryptionKey} itself is designed to be thread-safe, however {@link Encryptor Encryptor} and {@link Decryptor Decryptor}
- * instances are not. {@link Encryptor Encryptor}s and {@link Decryptor Decryptor}s can be allocated from a common {@link DataEncryptionKey} instance that's shared between multiple threads,
+ * <p>{@code Dek} itself is designed to be thread-safe, however {@link Encryptor Encryptor} and {@link Decryptor Decryptor}
+ * instances are not. {@link Encryptor Encryptor}s and {@link Decryptor Decryptor}s can be allocated from a common {@link Dek} instance that's shared between multiple threads,
  * but once allocated those cryptors should remain localised to a single thread for the duration of their lifetime.</p>
  *
  * <h2 id="destruction">DEK destruction</h2>
- * <p>A {@link DataEncryptionKey} can be destroyed, which will destroy
+ * <p>A {@code Dek} can be destroyed, which will destroy
  * the underlying key material if possible.</p>
  * <p>To do this both {@link #destroyForEncrypt()} and {@link #destroyForDecrypt()}
  * need to be called on the key instance.
@@ -66,9 +66,9 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param <E> The type of encrypted DEK.
  */
 @ThreadSafe
-public final class DataEncryptionKey<E> {
+public final class Dek<E> {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(DataEncryptionKey.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(Dek.class);
 
     private static final Map<Class<? extends Destroyable>, Boolean> LOGGED_DESTROY_FAILED = new ConcurrentHashMap<>();
 
@@ -195,7 +195,7 @@ public final class DataEncryptionKey<E> {
         return combine(newEncryptors, newDecryptors);
     }
 
-    DataEncryptionKey(@NonNull E edek, @NonNull SecretKey key, @NonNull CipherSpec cipherSpec, long maxEncryptions) {
+    Dek(@NonNull E edek, @NonNull SecretKey key, @NonNull CipherSpec cipherSpec, long maxEncryptions) {
         /* protected access because instantion only allowed via a DekManager */
         Objects.requireNonNull(edek);
         if (Objects.requireNonNull(key).isDestroyed()) {
@@ -233,7 +233,7 @@ public final class DataEncryptionKey<E> {
             // We need to guarantee that NPE is not possible
             // The alternative is to make DEK#key final (not volatile) and give up on nullifying it
             // as part of destruction
-            if (outstandingCryptors.updateAndGet(DataEncryptionKey::acquireEncryptor) <= 0) {
+            if (outstandingCryptors.updateAndGet(Dek::acquireEncryptor) <= 0) {
                 throw new DestroyedDekException();
             }
             return new Encryptor(cipherSpec, atomicKey.get(), numEncryptions);
@@ -248,7 +248,7 @@ public final class DataEncryptionKey<E> {
      * @throws DestroyedDekException If the DEK has been {@linkplain #destroy()} destroyed.
      */
     public Decryptor decryptor() {
-        if (outstandingCryptors.updateAndGet(DataEncryptionKey::acquireDecryptor) <= 0) {
+        if (outstandingCryptors.updateAndGet(Dek::acquireDecryptor) <= 0) {
             throw new DestroyedDekException();
         }
         return new Decryptor(cipherSpec, atomicKey.get());
@@ -260,7 +260,7 @@ public final class DataEncryptionKey<E> {
      * @see <a href="#destruction">Destruction</a> in the class Javadoc.
      */
     public void destroyForEncrypt() {
-        maybeDestroyKey(DataEncryptionKey::commenceDestroyEncryptor);
+        maybeDestroyKey(Dek::commenceDestroyEncryptor);
     }
 
     /**
@@ -271,7 +271,7 @@ public final class DataEncryptionKey<E> {
      */
     public void destroy() {
         // Using a dedicated operator reduces the contention on the atomic access
-        maybeDestroyKey(DataEncryptionKey::commenceDestroyBoth);
+        maybeDestroyKey(Dek::commenceDestroyBoth);
     }
 
     /**
@@ -280,7 +280,7 @@ public final class DataEncryptionKey<E> {
      * @see <a href="#destruction">Destruction</a> in the class Javadoc.
      */
     public void destroyForDecrypt() {
-        maybeDestroyKey(DataEncryptionKey::commenceDestroyDecryptor);
+        maybeDestroyKey(Dek::commenceDestroyDecryptor);
     }
 
     private void maybeDestroyKey(LongUnaryOperator updateFunction) {
@@ -392,7 +392,7 @@ public final class DataEncryptionKey<E> {
         public void close() {
             if (key != null) {
                 key = null;
-                maybeDestroyKey(DataEncryptionKey::releaseEncryptor);
+                maybeDestroyKey(Dek::releaseEncryptor);
             }
         }
     }
@@ -440,7 +440,7 @@ public final class DataEncryptionKey<E> {
         public void close() {
             if (key != null) {
                 key = null;
-                maybeDestroyKey(DataEncryptionKey::releaseDecryptor);
+                maybeDestroyKey(Dek::releaseDecryptor);
             }
         }
     }

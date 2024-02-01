@@ -6,9 +6,9 @@
 
 /**
  * {@linkplain io.kroxylicious.filter.encryption.dek.DekManager DEK management} that encapsulates a {@link io.kroxylicious.kms.service.Kms} to provide
- * {@linkplain io.kroxylicious.filter.encryption.dek.DataEncryptionKey managed access} to
- * data {@linkplain io.kroxylicious.filter.encryption.dek.DataEncryptionKey.Encryptor encryption} and
- * {@linkplain io.kroxylicious.filter.encryption.dek.DataEncryptionKey.Decryptor decryption} operations
+ * {@linkplain io.kroxylicious.filter.encryption.dek.Dek managed access} to
+ * data {@linkplain io.kroxylicious.filter.encryption.dek.Dek.Encryptor encryption} and
+ * {@linkplain io.kroxylicious.filter.encryption.dek.Dek.Decryptor decryption} operations
  * without exposing keys to the rest of the application.
  */
 package io.kroxylicious.filter.encryption.dek;
