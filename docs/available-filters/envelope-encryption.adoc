@@ -72,17 +72,17 @@ The filter is configured as part of the filter chain in the following way:
 filters:
 - type: EnvelopeEncryption                                        # <1>
   config:
-    kms: KmsServiceName                                           # <2>
+    kms: <kms service name>                                       # <2>
     kmsConfig:                                                    # <3>
       ..:
-    selector: SelectorName                                        # <4>
+    selector: <KEK selector service name>                         # <4>
     selectorConfig:                                               # <5>
       ..:
 ----
 <1> The name of the filter. This must be `EnvelopeEncryption`.
-<2> The KMS provider name.
+<2> The KMS service name.
 <3> Object providing configuration understood by KMS provider.
-<4> The key selector name.
+<4> The KEK selector service name.
 <5> Object providing configuration understood by key selector.
 
 ==== KMS configuration
@@ -97,28 +97,25 @@ For HashiCorp Vault, the KMS configuration looks like this:
 ----
 kms: VaultKmsService                                          # <1>
 kmsConfig:
-  vaultUrl: https://myvault:8200                              # <2>
+  vaultUrl: <vault service url>                               # <2>
   tls:                                                        # <3>
-  vaultToken: mytoken                                         # <4>
+  vaultToken: <vault token>                                   # <4>
 ----
 <1> Name of the KMS provider. This must be `VaultKmsService`.
-<2> Vault URL
+<2> Vault URL including the protocol part, i.e. `https:` or `http:`
 <3> (Optional) TLS trust configuration.
 <4> Vault Token
 
 For TLS trust configuration, the filter accepts the same trust parameters as link:../deploying.adoc#_upstream_tls[Upstream TLS]
 except the `PEM` store type is currently https://github.com/kroxylicious/kroxylicious/issues/933[not supported].
 
-==== Key Encryption Key (KEK) selector configuration
+==== KEK selector configuration
 
-The role of the Key Encryption Key (KEK) selector to map from the topic to key that exists in the KMS.
+The role of the KEK selector is to map from the topic name to key name.  The filter looks up the resulting
+key name in the KMS.
 
-NOTE: If the filter is unable to find a key for a given topic using the selector, the filter will pass through the
-records of the produce request without encrypting them.
-
-The selector implementations are pluggable, so alternative implementations may be provided by implementing
-the {encryption-api-javadoc}/io/kroxylicious/filter/encryption/KekSelectorService.html[KekSelectorService]
-and making the implementation available on the classpath with the service loader mechanism.
+NOTE: If the filter is unable to find the key in the KMS, the filter will pass through the
+records belonging to that topic in the produce request without encrypting them.
 
 ===== Template KEK Selector
 
