@@ -36,9 +36,9 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 /**
  * <p>An opaque handle on a key that can be used to encrypt and decrypt with some specific cipher.
  * The key itself is never accessible outside this class, only the ability to encrypt and decrypt is exposed.
- * <p>
+ * </p>
  *
- * <h1>Encrypting and decrypting</h1>
+ * <h2>Encrypting and decrypting</h2>
  * <p>To encrypt using a DEK you need to obtain an {@link Encryptor Encryptor} using {@link #encryptor(int)},
  * specifying the number of encryption operations you expect to perform.
  * {@link Encryptor#encrypt(ByteBuffer, ByteBuffer, EncryptAllocator, EncryptAllocator) Encryptor.encrypt()}
@@ -48,12 +48,12 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * <p>Decryption works similarly, via {@link #decryptor()} and {@link Decryptor Decryptor},
  * except without a limit on the number of decryption operations</p>
  *
- * <h1>Thread safety</h1>
+ * <h2>Thread safety</h2>
  * <p>{@link DataEncryptionKey} itself is designed to be thread-safe, however {@link Encryptor Encryptor} and {@link Decryptor Decryptor}
  * instances are not. {@link Encryptor Encryptor}s and {@link Decryptor Decryptor}s can be allocated from a common {@link DataEncryptionKey} instance that's shared between multiple threads,
  * but once allocated those cryptors should remain localised to a single thread for the duration of their lifetime.</p>
  *
- * <h1 name="destruction">DEK destruction</h1>
+ * <h2 id="destruction">DEK destruction</h2>
  * <p>A {@link DataEncryptionKey} can be destroyed, which will destroy
  * the underlying key material if possible.</p>
  * <p>To do this both {@link #destroyForEncrypt()} and {@link #destroyForDecrypt()}
@@ -177,14 +177,17 @@ public final class DataEncryptionKey<E> {
         if (encryptors < 0) {
             if (decryptors < 0) {
                 return combined;
-            } else {
+            }
+            else {
                 newDecryptors = -decryptors;
             }
             newEncryptors = encryptors;
-        } else {
+        }
+        else {
             if (decryptors < 0) {
                 newDecryptors = decryptors;
-            } else {
+            }
+            else {
                 newDecryptors = -decryptors;
             }
             newEncryptors = -encryptors;

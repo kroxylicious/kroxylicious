@@ -368,7 +368,7 @@ class DataEncryptionKeyTest {
 
         cryptor2.close();
 
-        Mockito.verify(mock, never()).destroy();// because only closed for encrypt
+        Mockito.verify(mock, never()).destroy(); // because only closed for encrypt
 
         dek.destroyForDecrypt();
 
@@ -401,7 +401,7 @@ class DataEncryptionKeyTest {
 
         cryptor2.close();
 
-        Mockito.verify(mock, never()).destroy();// because only closed for decrypt
+        Mockito.verify(mock, never()).destroy(); // because only closed for decrypt
 
         dek.destroyForEncrypt();
 
