@@ -122,7 +122,7 @@ and making the implementation available on the classpath with the service loader
 
 ===== Template KEK Selector
 
-The `TemplateKekSelector` maps from topic name to key name.  The template understand the substitution token
+The `TemplateKekSelector` maps from topic name to key name.  The template understands the substitution token
 `$\{topicName}` which is replaced by the name of the topic.  It can be used to build key names
 that include the topic name being encrypted.
 
