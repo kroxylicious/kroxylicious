@@ -13,6 +13,13 @@ import io.kroxylicious.filter.encryption.EncryptionVersion;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+/**
+ * Helper class to group together some state for decryption.
+ * Either both, or neither, of the given {@code decryptionVersion} and {@code encryptor} should be null.
+ * @param kafkaRecord The record
+ * @param decryptionVersion The version
+ * @param encryptor The encryptor
+ */
 record DecryptState(@NonNull Record kafkaRecord, @Nullable EncryptionVersion decryptionVersion,
                     @Nullable AesGcmEncryptor encryptor) {
 
