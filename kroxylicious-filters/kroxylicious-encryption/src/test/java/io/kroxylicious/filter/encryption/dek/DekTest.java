@@ -183,7 +183,7 @@ class DekTest {
 
         Mockito.verify(mock, never()).destroy(); // because still open for decrypt
 
-        assertThatThrownBy(() ->dek.encryptor(1))
+        assertThatThrownBy(() -> dek.encryptor(1))
                 .isExactlyInstanceOf(DestroyedDekException.class); // can't get a new encryptor though
 
         dek.destroyForDecrypt(); // this should trigger key destruction
@@ -297,7 +297,6 @@ class DekTest {
         dek.destroyForEncrypt(); // this should trigger key destruction
 
         Mockito.verify(mock).destroy();
-
 
     }
 

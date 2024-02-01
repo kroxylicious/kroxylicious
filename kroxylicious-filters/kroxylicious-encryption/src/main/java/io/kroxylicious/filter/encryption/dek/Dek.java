@@ -146,7 +146,7 @@ public final class Dek<E> {
             return combine(encryptors, decryptors + 1);
         }
         else {
-            return combined; //combine(encryptors, decryptors - 1);
+            return combined;
         }
     }
 
