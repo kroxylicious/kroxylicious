@@ -16,6 +16,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.LongUnaryOperator;
 import java.util.function.Supplier;
+
 import javax.annotation.concurrent.NotThreadSafe;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.crypto.Cipher;
@@ -26,11 +27,11 @@ import javax.security.auth.Destroyable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-import edu.umd.cs.findbugs.annotations.Nullable;
-
 import io.kroxylicious.filter.encryption.EncryptionException;
 import io.kroxylicious.filter.encryption.inband.ExhaustedDekException;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * An opaque handle on a key that can be used to encrypt and decrypt with some specific cipher.
@@ -52,7 +53,7 @@ public final class DataEncryptionKey<E> {
 
     private final AtomicLong remainingEncryptions;
 
-    //    1 start
+    // 1 start
     // +1=2 encryptor
     // +1=3 encryptor
     // +1=4 encryptor
