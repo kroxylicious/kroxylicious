@@ -227,18 +227,12 @@ public final class Dek<E> {
             throw new IllegalArgumentException();
         }
         if (remainingEncryptions.addAndGet(-numEncryptions) >= 0) {
-
-            // TODO think about the possibilty of races between the key being set to null
-            // and the decrementing of outstandingCryptors
-            // We need to guarantee that NPE is not possible
-            // The alternative is to make DEK#key final (not volatile) and give up on nullifying it
-            // as part of destruction
             if (outstandingCryptors.updateAndGet(Dek::acquireEncryptor) <= 0) {
                 throw new DestroyedDekException();
             }
             return new Encryptor(cipherSpec, atomicKey.get(), numEncryptions);
         }
-        throw new ExhaustedDekException("");
+        throw new ExhaustedDekException("This DEK does not have " + numEncryptions + " encryptions available");
     }
 
     /**
@@ -293,11 +287,11 @@ public final class Dek<E> {
                 catch (DestroyFailedException e) {
                     var cls = key.getClass();
                     if (LOGGER.isWarnEnabled()) {
-                        LOGGED_DESTROY_FAILED.computeIfAbsent(cls, (c) -> {
+                        LOGGED_DESTROY_FAILED.computeIfAbsent(cls, alsoCls -> {
                             LOGGER.warn("Failed to destroy an instance of {}. "
                                     + "Note: this message is logged once per class even though there may be many occurrences of this event. "
                                     + "This event can happen because the JRE's SecretKeySpec class does not override the destroy() method.",
-                                    c, e);
+                                    alsoCls, e);
                             return Boolean.TRUE;
                         });
                     }

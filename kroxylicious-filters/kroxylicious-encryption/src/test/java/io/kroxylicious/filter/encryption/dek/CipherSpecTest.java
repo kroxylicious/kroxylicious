@@ -32,8 +32,8 @@ class CipherSpecTest {
 
     @Test
     void persistentIdsShouldBeUnique() {
-        assertThat(Arrays.stream(CipherSpec.values()).map(CipherSpec::persistentId).collect(Collectors.toSet()).size())
-                .isEqualTo(CipherSpec.values().length);
+        assertThat(Arrays.stream(CipherSpec.values()).map(CipherSpec::persistentId).collect(Collectors.toSet()))
+                .hasSize(CipherSpec.values().length);
     }
 
     @ParameterizedTest
@@ -58,7 +58,7 @@ class CipherSpecTest {
         encCipher.init(Cipher.ENCRYPT_MODE, secretKey, params);
         var ciphertext = encCipher.doFinal("hello, world".getBytes(StandardCharsets.UTF_8));
         int size = spec.size(params);
-        assertThat(size).isGreaterThan(0);
+        assertThat(size).isPositive();
         var bb = ByteBuffer.allocate(size);
         spec.writeParameters(bb, params);
         assertThat(bb.limit())
