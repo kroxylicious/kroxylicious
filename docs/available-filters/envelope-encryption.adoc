@@ -51,17 +51,63 @@ In order to set up the KMS provider ready to use with the filter, follow these K
 
 ==== HashiCorp Vault
 
+==== Enable the transit engine
+
 The filter integrates with the https://developer.hashicorp.com/vault/docs/secrets/transit[HashiCorp Vault *transit
 engine*].   Vault does not enable the transit engine by default.  It must be
 https://developer.hashicorp.com/vault/docs/secrets/transit#setup[enabled] before it can be used with the filter.
 
 The transit engine's path must be `/transit` (the default).
 
-The filter's configuration requires:
+==== Generate a Vault token for filter
 
-* the HashiCorp Vault endpoint
-* a https://developer.hashicorp.com/vault/docs/concepts/tokens[token] that will be used by the filter to read the
-  encryption keys.
+The filter requires https://developer.hashicorp.com/vault/docs/concepts/tokens[Vault Token] configured with
+policy allowing the https://developer.hashicorp.com/vault/api-docs/secret/transit#read-key[read-key],
+https://developer.hashicorp.com/vault/api-docs/secret/transit#generate-data-key[generate-data-key], and
+https://developer.hashicorp.com/vault/api-docs/secret/transit#decrypt-data[decrypt-data] operations.
+
+It is recommended that dedicated Vault token is used for this purpose. That is, the token is not shared by
+another application or human user.
+
+A minimal Vault policy can be established like this:
+
+[source,shell]
+----
+vault policy write kroxylicious_encryption_policy - << EOF
+path "transit/keys/*" {
+capabilities = ["read"]
+}
+path "/transit/datakey/plaintext/*" {
+capabilities = ["update"]
+}
+path "transit/decrypt/*" {
+capabilities = [ "update"]
+}
+EOF
+----
+
+A suitable Vault token can be created like this:
+
+[source,shell]
+----
+vault token create -display-name "kroxylicious encryption"  -no-default-policy -policy=kroxylicious_encryption_policy
+----
+
+The `token create` command yields the `token`. The `token` value is required later when configuring the vault within the
+filter.
+
+[source]
+----
+token              fdb90d58-af87-024f-fdcd-9f95039e353a
+token_accessor     4cd9177c-034b-a004-c62d-54bc56c0e9bd
+token_policies     [kroxylicious_encryption_policy]
+----
+
+==== Vault Service URL
+
+Finally, the Vault Service URL is required so the filter knows how to connect to Vault.
+This address is reported by Vault as the `Api Address` as it
+https://developer.hashicorp.com/vault/tutorials/getting-started/getting-started-dev-server#starting-the-dev-server[starts up].
 
 === Filter Configuration
 
@@ -91,7 +137,8 @@ For the KMS configuration:
 
 ===== HashiCorp Vault
 
-For HashiCorp Vault, the KMS configuration looks like this:
+For HashiCorp Vault, the KMS configuration looks like this.  Use the Vault Token and Service URLs values that
+you gathered above.
 
 [source, yaml]
 ----
