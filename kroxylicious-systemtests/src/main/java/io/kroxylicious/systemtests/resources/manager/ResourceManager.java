@@ -27,6 +27,7 @@ import io.kroxylicious.systemtests.resources.ResourceOperation;
 import io.kroxylicious.systemtests.resources.ResourceType;
 import io.kroxylicious.systemtests.resources.kroxylicious.ConfigMapResource;
 import io.kroxylicious.systemtests.resources.kroxylicious.DeploymentResource;
+import io.kroxylicious.systemtests.resources.kroxylicious.SecretResource;
 import io.kroxylicious.systemtests.resources.kroxylicious.ServiceResource;
 import io.kroxylicious.systemtests.resources.strimzi.KafkaNodePoolResource;
 import io.kroxylicious.systemtests.resources.strimzi.KafkaResource;
@@ -72,7 +73,8 @@ public class ResourceManager {
             new KafkaNodePoolResource(),
             new ServiceResource(),
             new ConfigMapResource(),
-            new DeploymentResource()
+            new DeploymentResource(),
+            new SecretResource()
     };
 
     /**
