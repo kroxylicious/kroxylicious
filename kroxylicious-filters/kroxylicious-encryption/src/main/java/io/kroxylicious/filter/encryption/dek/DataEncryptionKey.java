@@ -34,7 +34,35 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
- * An opaque handle on a key that can be used to encrypt and decrypt with some specific cipher.
+ * <p>An opaque handle on a key that can be used to encrypt and decrypt with some specific cipher.
+ * The key itself is never accessible outside this class, only the ability to encrypt and decrypt is exposed.
+ * <p>
+ *
+ * <h1>Encrypting and decrypting</h1>
+ * <p>To encrypt using a DEK you need to obtain an {@link Encryptor Encryptor} using {@link #encryptor(int)},
+ * specifying the number of encryption operations you expect to perform.
+ * {@link Encryptor#encrypt(ByteBuffer, ByteBuffer, EncryptAllocator, EncryptAllocator) Encryptor.encrypt()}
+ * can then be called up to the requested number of times.
+ * Once you've finished using an Encryptor you need to {@link Encryptor#close() close()} it.
+ * </p>
+ * <p>Decryption works similarly, via {@link #decryptor()} and {@link Decryptor Decryptor},
+ * except without a limit on the number of decryption operations</p>
+ *
+ * <h1>Thread safety</h1>
+ * <p>{@link DataEncryptionKey} itself is designed to be thread-safe, however {@link Encryptor Encryptor} and {@link Decryptor Decryptor}
+ * instances are not. {@link Encryptor Encryptor}s and {@link Decryptor Decryptor}s can be allocated from a common {@link DataEncryptionKey} instance that's shared between multiple threads,
+ * but once allocated those cryptors should remain localised to a single thread for the duration of their lifetime.</p>
+ *
+ * <h1 name="destruction">DEK destruction</h1>
+ * <p>A {@link DataEncryptionKey} can be destroyed, which will destroy
+ * the underlying key material if possible.</p>
+ * <p>To do this both {@link #destroyForEncrypt()} and {@link #destroyForDecrypt()}
+ * need to be called on the key instance.
+ * Even once both calls have been made the key is not destroyed immediately.
+ * Instead calls to {@link #encryptor(int)} and {@link #decryptor()} will start to throw {@link DestroyedDekException},
+ * but existing {@link Encryptor Encryptor} and {@link Decryptor Decryptor} instances will be able to continue.
+ * The key will only be destroyed once the {@code close()} method has been called on all existing (en|de)cryptors.</p>
+ *
  * @param <E> The type of encrypted DEK.
  */
 @ThreadSafe
@@ -123,13 +151,45 @@ public final class DataEncryptionKey<E> {
         }
     }
 
-    static long commenceDestroy(long combined) {
+    static long commenceDestroyEncryptor(long combined) {
         int encryptors = encryptors(combined);
         int decryptors = decryptors(combined);
-        if (encryptors < 0 || decryptors < 0) {
+        if (encryptors < 0) {
             return combined;
         }
-        return combine(-encryptors, -decryptors);
+        return combine(-encryptors, decryptors);
+    }
+
+    static long commenceDestroyDecryptor(long combined) {
+        int encryptors = encryptors(combined);
+        int decryptors = decryptors(combined);
+        if (decryptors < 0) {
+            return combined;
+        }
+        return combine(encryptors, -decryptors);
+    }
+
+    static long commenceDestroyBoth(long combined) {
+        int encryptors = encryptors(combined);
+        int decryptors = decryptors(combined);
+        final int newEncryptors;
+        final int newDecryptors;
+        if (encryptors < 0) {
+            if (decryptors < 0) {
+                return combined;
+            } else {
+                newDecryptors = -decryptors;
+            }
+            newEncryptors = encryptors;
+        } else {
+            if (decryptors < 0) {
+                newDecryptors = decryptors;
+            } else {
+                newDecryptors = -decryptors;
+            }
+            newEncryptors = -encryptors;
+        }
+        return combine(newEncryptors, newDecryptors);
     }
 
     DataEncryptionKey(@NonNull E edek, @NonNull SecretKey key, @NonNull CipherSpec cipherSpec, long maxEncryptions) {
@@ -192,16 +252,30 @@ public final class DataEncryptionKey<E> {
     }
 
     /**
-     * Destroy the key.
-     * The key is not destroyed immediately.
-     * Calls to {@link #encryptor(int)} and {@link #decryptor()} will start to throw {@link DestroyedDekException},
-     * but existing {@link Encryptor} and {@link Decryptor} instances will be able to continue.
-     * The key will actually be destroyed once {@link Encryptor#close()} has been called on all existing Encryptors
-     * and {@link Decryptor#close()} has been called on all existing Decryptors.
+     * Destroy the key for encryption purposes.
      * This method is idempotent.
+     * @see <a href="#destruction">Destruction</a> in the class Javadoc.
+     */
+    public void destroyForEncrypt() {
+        maybeDestroyKey(DataEncryptionKey::commenceDestroyEncryptor);
+    }
+
+    /**
+     * Destroy the key for both encryption and decryption purposes.
+     * This method is idempotent.
+     * @see <a href="#destruction">Destruction</a> in the class Javadoc.
      */
     public void destroy() {
-        maybeDestroyKey(DataEncryptionKey::commenceDestroy);
+        maybeDestroyKey(DataEncryptionKey::commenceDestroyBoth);
+    }
+
+    /**
+     * Destroy the key for decryption purposes.
+     * This method is idempotent.
+     * @see <a href="#destruction">Destruction</a> in the class Javadoc.
+     */
+    public void destroyForDecrypt() {
+        maybeDestroyKey(DataEncryptionKey::commenceDestroyDecryptor);
     }
 
     private void maybeDestroyKey(LongUnaryOperator updateFunction) {

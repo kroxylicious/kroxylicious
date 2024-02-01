@@ -317,7 +317,7 @@ class DataEncryptionKeyTest {
 
     @ParameterizedTest
     @EnumSource(CipherSpec.class)
-    void destroy1Encryptor1Decryptor(CipherSpec cipherSpec) throws DestroyFailedException {
+    void destroy1Encryptor1Decryptor_destroy(CipherSpec cipherSpec) throws DestroyFailedException {
         // Given
         SecretKey mock = mock(SecretKey.class);
         doReturn(false).when(mock).isDestroyed();
@@ -328,16 +328,82 @@ class DataEncryptionKeyTest {
 
         // When
         dek.destroy();
-        dek.destroy();
+        dek.destroy(); // should be idempotent
 
         // When
-        Mockito.verify(mock, never()).destroy();
+        Mockito.verify(mock, never()).destroy(); // because cryptor1 and 2 outstanding
 
         cryptor1.close();
 
-        Mockito.verify(mock, never()).destroy();
+        Mockito.verify(mock, never()).destroy(); // because cryptor2 outstanding
 
         cryptor2.close();
+
+        Mockito.verify(mock).destroy(); // should now be destroyed
+
+        cryptor2.close(); // cryptor.close should be idempotent
+    }
+
+    @ParameterizedTest
+    @EnumSource(CipherSpec.class)
+    void destroy1Encryptor1Decryptor_destroyForEncrypt(CipherSpec cipherSpec) throws DestroyFailedException {
+        // Given
+        SecretKey mock = mock(SecretKey.class);
+        doReturn(false).when(mock).isDestroyed();
+        doNothing().when(mock).destroy();
+        var dek = new DataEncryptionKey<>("edek", mock, cipherSpec, 100);
+        var cryptor1 = dek.encryptor(50);
+        var cryptor2 = dek.decryptor();
+
+        // When
+        dek.destroyForEncrypt();
+        dek.destroyForEncrypt(); // should be idempotent
+
+        // When
+        Mockito.verify(mock, never()).destroy(); // because cryptor1 and 2 outstanding
+
+        cryptor1.close();
+
+        Mockito.verify(mock, never()).destroy(); // because cryptor2 outstanding
+
+        cryptor2.close();
+
+        Mockito.verify(mock, never()).destroy();// because only closed for encrypt
+
+        dek.destroyForDecrypt();
+
+        Mockito.verify(mock).destroy();
+
+        cryptor2.close();
+    }
+
+    @ParameterizedTest
+    @EnumSource(CipherSpec.class)
+    void destroy1Encryptor1Decryptor_destroyForDecrypt(CipherSpec cipherSpec) throws DestroyFailedException {
+        // Given
+        SecretKey mock = mock(SecretKey.class);
+        doReturn(false).when(mock).isDestroyed();
+        doNothing().when(mock).destroy();
+        var dek = new DataEncryptionKey<>("edek", mock, cipherSpec, 100);
+        var cryptor1 = dek.encryptor(50);
+        var cryptor2 = dek.decryptor();
+
+        // When
+        dek.destroyForDecrypt();
+        dek.destroyForDecrypt(); // should be idempotent
+
+        // When
+        Mockito.verify(mock, never()).destroy(); // because cryptor1 and 2 outstanding
+
+        cryptor1.close();
+
+        Mockito.verify(mock, never()).destroy(); // because cryptor2 outstanding
+
+        cryptor2.close();
+
+        Mockito.verify(mock, never()).destroy();// because only closed for decrypt
+
+        dek.destroyForEncrypt();
 
         Mockito.verify(mock).destroy();
 
