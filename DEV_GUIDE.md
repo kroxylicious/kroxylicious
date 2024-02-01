@@ -296,8 +296,8 @@ has been applied ineffectively.
 
 ### Environment variables
 * `KROXYLICIOUS_IMAGE_REPO`: url to the image of kroxylicious to be used. Default value: `quay.io/kroxylicious/kroxylicious-developer`
-* `KROXYLICIOUS_VERSION`: version of kroxylicious to be used. Default value: `0.5.0-SNAPSHOT`
-* `KAFKA_VERSION`: kafka version to be used. Default value: `3.6.1`
+* `KROXYLICIOUS_VERSION`: version of kroxylicious to be used. Default value: `${project.version}` in pom file
+* `KAFKA_VERSION`: kafka version to be used. Default value: `${kafka.version}` in pom file
 * `STRIMZI_URL`: url where to download strimzi. Default value: `khttps://strimzi.io/install/latest?namespace=kafka`
 * `SKIP_TEARDOWN`: variable for development purposes to avoid keep deploying and deleting deployments each run. Default value: `false`
 * `CONTAINER_CONFIG_PATH`: directory where `config.json` file is located. This file contains the pull secrets to be used by

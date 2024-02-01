@@ -7,9 +7,13 @@
 package io.kroxylicious.systemtests.templates.kroxylicious;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Base64;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 
@@ -18,20 +22,22 @@ import io.fabric8.kubernetes.api.model.SecretBuilder;
  */
 public class KroxyliciousSecretTemplates {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(KroxyliciousSecretTemplates.class);
+
     /**
      * Create registry credentials secret.
      *
-     * @param configFolder the config folder
+     * @param configFilePath the config file path
      * @param namespace the namespace
      * @return the secret builder
      */
-    public static SecretBuilder createRegistryCredentialsSecret(String configFolder, String namespace) {
-        if (configFolder != null) {
-            Path configPath = Path.of(configFolder);
+    public static SecretBuilder createRegistryCredentialsSecret(String configFilePath, String namespace) {
+        if (configFilePath != null) {
+            Path configPath = Path.of(configFilePath);
             if (Files.exists(configPath)) {
-                String encoded;
+                LOGGER.info("{} config file found. Creating the secret within kubernetes {} namespace", configFilePath, namespace);
                 try {
-                    encoded = Base64.getEncoder().encodeToString(Files.readAllBytes(configPath));
+                    String encoded = Base64.getEncoder().encodeToString(Files.readAllBytes(configPath));
                     return new SecretBuilder()
                             .withNewMetadata()
                             .withName("regcred")
@@ -41,7 +47,7 @@ public class KroxyliciousSecretTemplates {
                             .addToData(".dockerconfigjson", encoded);
                 }
                 catch (IOException e) {
-                    throw new RuntimeException(e);
+                    throw new UncheckedIOException("Faied to create secret for file " + configPath, e);
                 }
             }
         }
