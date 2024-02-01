@@ -65,7 +65,7 @@ final class KeyContext implements Destroyable {
     }
 
     public void recordEncryptions(int numEncryptions) {
-        if (numEncryptions <= 0) {
+        if (numEncryptions < 0) {
             throw new IllegalArgumentException();
         }
         remainingEncryptions -= numEncryptions;

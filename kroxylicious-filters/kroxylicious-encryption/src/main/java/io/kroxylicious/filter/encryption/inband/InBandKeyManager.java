@@ -20,7 +20,6 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 import org.apache.kafka.common.header.Header;
-import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.record.MutableRecordBatch;
 import org.apache.kafka.common.record.Record;
@@ -39,13 +38,12 @@ import io.kroxylicious.filter.encryption.EncryptionScheme;
 import io.kroxylicious.filter.encryption.EncryptionVersion;
 import io.kroxylicious.filter.encryption.EnvelopeEncryptionFilter;
 import io.kroxylicious.filter.encryption.KeyManager;
-import io.kroxylicious.filter.encryption.RecordField;
 import io.kroxylicious.filter.encryption.records.BatchAwareMemoryRecordsBuilder;
+import io.kroxylicious.filter.encryption.records.RecordBatchUtils;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.Serde;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
-import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * An implementation of {@link KeyManager} that uses envelope encryption, AES-GCM and stores the KEK id and encrypted DEK
@@ -77,7 +75,6 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
     private final AsyncLoadingCache<E, AesGcmEncryptor> decryptorCache;
     private final long dekTtlNanos;
     private final int maxEncryptionsPerDek;
-    private final Header[] encryptionHeader;
 
     public InBandKeyManager(Kms<K, E> kms,
                             BufferPool bufferPool,
@@ -93,7 +90,6 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
         this.decryptorCache = Caffeine.newBuilder()
                 .buildAsync((edek, executor) -> makeDecryptor(edek));
         this.encryptionVersion = EncryptionVersion.V1; // TODO read from config
-        this.encryptionHeader = new Header[]{ new RecordHeader(ENCRYPTION_HEADER_NAME, new byte[]{ encryptionVersion.code() }) };
     }
 
     private CompletionStage<KeyContext> currentDekContext(@NonNull K kekId) {
@@ -139,8 +135,8 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
         if (batchRecordCounts.stream().allMatch(size -> size == 0)) {
             return CompletableFuture.completedFuture(records);
         }
-        BatchAwareMemoryRecordsBuilder builder = new BatchAwareMemoryRecordsBuilder(allocateBufferForEncode(records, bufferAllocator));
-        return attemptEncrypt(topicName, partition, encryptionScheme, records, builder, 0, batchRecordCounts).thenApply(unused -> builder.build());
+        return attemptEncrypt(topicName, partition, encryptionScheme, records, 0, batchRecordCounts, bufferAllocator)
+                .thenApply(BatchAwareMemoryRecordsBuilder::build);
     }
 
     @NonNull
@@ -174,8 +170,13 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
     }
 
     @SuppressWarnings("java:S2445")
-    private CompletionStage<Void> attemptEncrypt(String topicName, int partition, @NonNull EncryptionScheme<K> encryptionScheme, @NonNull MemoryRecords records,
-                                                 BatchAwareMemoryRecordsBuilder builder, int attempt, List<Integer> batchRecordCounts) {
+    private CompletionStage<BatchAwareMemoryRecordsBuilder> attemptEncrypt(String topicName,
+                                                                           int partition,
+                                                                           @NonNull EncryptionScheme<K> encryptionScheme,
+                                                                           @NonNull MemoryRecords records,
+                                                                           int attempt,
+                                                                           List<Integer> batchRecordCounts,
+                                                                           @NonNull IntFunction<ByteBufferOutputStream> bufferAllocator) {
         int allRecordsCount = batchRecordCounts.stream().mapToInt(value -> value).sum();
         if (attempt >= MAX_ATTEMPTS) {
             return CompletableFuture.failedFuture(
@@ -191,30 +192,43 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
                         rotateKeyContext(encryptionScheme, keyContext);
                     }
                     else {
-                        // todo ensure that a failure during encryption terminates the entire operation with a failed future
-                        return encrypt(encryptionScheme, records, builder, keyContext, batchRecordCounts);
+                        try {
+                            BatchAwareMemoryRecordsBuilder encrypt = encryptBatches(encryptionScheme, records, keyContext, bufferAllocator);
+                            return CompletableFuture.completedFuture(encrypt);
+                        }
+                        catch (Exception e) {
+                            return CompletableFuture.failedFuture(e);
+                        }
                     }
                 }
             }
-            return attemptEncrypt(topicName, partition, encryptionScheme, records, builder, attempt + 1, batchRecordCounts);
+            return attemptEncrypt(topicName, partition, encryptionScheme, records, attempt + 1, batchRecordCounts, bufferAllocator);
         });
     }
 
     @NonNull
-    private CompletableFuture<Void> encrypt(@NonNull EncryptionScheme<K> encryptionScheme,
-                                            @NonNull MemoryRecords memoryRecords,
-                                            @NonNull BatchAwareMemoryRecordsBuilder builder,
-                                            @NonNull KeyContext keyContext,
-                                            @NonNull List<Integer> batchRecordCounts) {
-        int i = 0;
+    private BatchAwareMemoryRecordsBuilder encryptBatches(@NonNull EncryptionScheme<K> encryptionScheme,
+                                                          @NonNull MemoryRecords memoryRecords,
+                                                          @NonNull KeyContext keyContext,
+                                                          @NonNull IntFunction<ByteBufferOutputStream> bufferAllocator) {
+        BatchAwareMemoryRecordsBuilder builder = new BatchAwareMemoryRecordsBuilder(allocateBufferForEncode(memoryRecords, bufferAllocator));
         for (MutableRecordBatch batch : memoryRecords.batches()) {
-            Integer batchRecordCount = batchRecordCounts.get(i++);
-            if (batchRecordCount == 0 || batch.isControlBatch()) {
+            maybeEncryptBatch(encryptionScheme, keyContext, batch, builder);
+        }
+        return builder;
+    }
+
+    private void maybeEncryptBatch(@NonNull EncryptionScheme<K> encryptionScheme, @NonNull KeyContext keyContext, MutableRecordBatch batch,
+                                   BatchAwareMemoryRecordsBuilder builder) {
+        if (batch.isControlBatch()) {
+            builder.writeBatch(batch);
+        }
+        else {
+            List<Record> records = StreamSupport.stream(batch.spliterator(), false).toList();
+            if (records.size() == 0) {
                 builder.writeBatch(batch);
             }
             else {
-                List<Record> records = StreamSupport.stream(batch.spliterator(), false).toList();
-                builder.addBatchLike(batch);
                 var maxParcelSize = records.stream()
                         .mapToInt(kafkaRecord -> Parcel.sizeOfParcel(
                                 encryptionVersion.parcelVersion(),
@@ -222,16 +236,18 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
                                 kafkaRecord))
                         .filter(value -> value > 0)
                         .max()
-                        .orElseThrow();
+                        .orElse(0);
                 var maxWrapperSize = records.stream()
                         .mapToInt(kafkaRecord -> sizeOfWrapper(keyContext, maxParcelSize))
                         .filter(value -> value > 0)
                         .max()
-                        .orElseThrow();
+                        .orElse(0);
                 ByteBuffer parcelBuffer = bufferPool.acquire(maxParcelSize);
                 ByteBuffer wrapperBuffer = bufferPool.acquire(maxWrapperSize);
                 try {
-                    encryptRecords(encryptionScheme, keyContext, records, parcelBuffer, wrapperBuffer, builder);
+                    RecordBatchUtils.toMemoryRecords(batch,
+                            new RecordEncryptor<>(encryptionVersion, encryptionScheme, keyContext, parcelBuffer, wrapperBuffer),
+                            builder);
                 }
                 finally {
                     if (wrapperBuffer != null) {
@@ -244,7 +260,6 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
                 keyContext.recordEncryptions(records.size());
             }
         }
-        return CompletableFuture.completedFuture(null);
     }
 
     // this must only be called while holding the lock on this keycontext
@@ -252,48 +267,6 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
         keyContext.destroy();
         K kekId = encryptionScheme.kekId();
         keyContextCache.synchronous().invalidate(kekId);
-    }
-
-    private void encryptRecords(@NonNull EncryptionScheme<K> encryptionScheme,
-                                @NonNull KeyContext keyContext,
-                                @NonNull List<? extends Record> records,
-                                @NonNull ByteBuffer parcelBuffer,
-                                @NonNull ByteBuffer wrapperBuffer,
-                                @NonNull BatchAwareMemoryRecordsBuilder builder) {
-        records.forEach(kafkaRecord -> {
-            if (encryptionScheme.recordFields().contains(RecordField.RECORD_HEADER_VALUES)
-                    && kafkaRecord.headers().length > 0
-                    && !kafkaRecord.hasValue()) {
-                // todo implement header encryption preserving null record-values
-                throw new IllegalStateException("encrypting headers prohibited when original record value null, we must preserve the null for tombstoning");
-            }
-            if (kafkaRecord.hasValue()) {
-                Parcel.writeParcel(encryptionVersion.parcelVersion(), encryptionScheme.recordFields(), kafkaRecord, parcelBuffer);
-                parcelBuffer.flip();
-                var transformedValue = writeWrapper(keyContext, parcelBuffer, wrapperBuffer);
-                Header[] headers = transformHeaders(encryptionScheme, kafkaRecord);
-                builder.appendWithOffset(kafkaRecord.offset(), kafkaRecord.timestamp(), kafkaRecord.key(), transformedValue, headers);
-                wrapperBuffer.rewind();
-                parcelBuffer.rewind();
-            }
-            else {
-                builder.appendWithOffset(kafkaRecord.offset(), kafkaRecord.timestamp(), kafkaRecord.key(), null, kafkaRecord.headers());
-            }
-        });
-    }
-
-    private Header[] transformHeaders(@NonNull EncryptionScheme<K> encryptionScheme, Record kafkaRecord) {
-        Header[] oldHeaders = kafkaRecord.headers();
-        Header[] headers;
-        if (encryptionScheme.recordFields().contains(RecordField.RECORD_HEADER_VALUES) || oldHeaders.length == 0) {
-            headers = encryptionHeader;
-        }
-        else {
-            headers = new Header[1 + oldHeaders.length];
-            headers[0] = encryptionHeader[0];
-            System.arraycopy(oldHeaders, 0, headers, 1, oldHeaders.length);
-        }
-        return headers;
     }
 
     private int sizeOfWrapper(KeyContext keyContext, int parcelSize) {
@@ -304,26 +277,6 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
                 + 1 // cipher code
                 + keyContext.encodedSize(parcelSize);
 
-    }
-
-    @Nullable
-    private ByteBuffer writeWrapper(KeyContext keyContext,
-                                    ByteBuffer parcel,
-                                    ByteBuffer wrapper) {
-        switch (encryptionVersion.wrapperVersion()) {
-            case V1 -> {
-                var edek = keyContext.serializedEdek();
-                ByteUtils.writeUnsignedVarint(edek.length, wrapper);
-                wrapper.put(edek);
-                wrapper.put(AadSpec.NONE.code()); // aadCode
-                wrapper.put(CipherCode.AES_GCM_96_128.code());
-                keyContext.encodedSize(parcel.limit());
-                ByteBuffer aad = ByteUtils.EMPTY_BUF; // TODO pass the AAD to encode
-                keyContext.encode(parcel, wrapper); // iv and ciphertext
-            }
-        }
-        wrapper.flip();
-        return wrapper;
     }
 
     /**
