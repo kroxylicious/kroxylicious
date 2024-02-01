@@ -46,10 +46,10 @@ class HeaderAssertTest {
         RecordHeader nonNullValue = new RecordHeader("foo", "abc".getBytes(StandardCharsets.UTF_8));
         HeaderAssert nonNullValueAssert = KafkaAssertions.assertThat(nonNullValue);
 
-        nullValueAssert.hasValueEqualTo(null);
+        nullValueAssert.hasValueEqualTo((String) null);
         nonNullValueAssert.hasValueEqualTo("abc");
         throwsAssertionErrorContaining(() -> nonNullValueAssert.hasValueEqualTo("other"), "[header value]");
-        throwsAssertionErrorContaining(() -> nonNullValueAssert.hasValueEqualTo(null), "[header value]");
+        throwsAssertionErrorContaining(() -> nonNullValueAssert.hasValueEqualTo((String) null), "[header value]");
         throwsAssertionErrorContaining(() -> nullValueAssert.hasValueEqualTo("other"), "[header value]");
         assertThrowsIfHeaderNull(nullAssert -> nullAssert.hasValueEqualTo("any"));
     }

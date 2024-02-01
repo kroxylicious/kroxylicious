@@ -9,6 +9,7 @@ package io.kroxylicious.filter.encryption.inband;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Set;
+import java.util.function.BiConsumer;
 
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
@@ -19,7 +20,6 @@ import org.apache.kafka.common.utils.Utils;
 import io.kroxylicious.filter.encryption.EncryptionException;
 import io.kroxylicious.filter.encryption.ParcelVersion;
 import io.kroxylicious.filter.encryption.RecordField;
-import io.kroxylicious.filter.encryption.records.BatchAwareMemoryRecordsBuilder;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -58,7 +58,7 @@ public class Parcel {
     static void readParcel(ParcelVersion parcelVersion,
                            ByteBuffer parcel,
                            Record encryptedRecord,
-                           @NonNull BatchAwareMemoryRecordsBuilder builder) {
+                           @NonNull BiConsumer<ByteBuffer, Header[]> consumer) {
         switch (parcelVersion) {
             case V1:
                 var parcelledValue = readRecordValue(parcel);
@@ -80,7 +80,7 @@ public class Parcel {
                     usedHeaders = parcelledHeaders;
                 }
                 ByteBuffer parcelledBuffer = parcelledValue == ABSENT_VALUE ? encryptedRecord.value() : parcelledValue;
-                builder.appendWithOffset(encryptedRecord.offset(), encryptedRecord.timestamp(), encryptedRecord.key(), parcelledBuffer, usedHeaders);
+                consumer.accept(parcelledBuffer, usedHeaders);
                 break;
             default:
                 throw new EncryptionException("Unknown parcel version " + parcelVersion);

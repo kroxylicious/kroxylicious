@@ -59,6 +59,10 @@ public class RecordTestUtils {
         return result;
     }
 
+    public static String asString(ByteBuffer buffer) {
+        return buffer == null ? null : new String(bytesOf(buffer), StandardCharsets.UTF_8);
+    }
+
     /**
      * Get a copy of the bytes contained in the given {@code record}'s value, without changing the
      * {@code record}'s {@link ByteBuffer#position() position}, {@link ByteBuffer#limit() limit} or {@link ByteBuffer#mark() mark}.
@@ -70,7 +74,7 @@ public class RecordTestUtils {
     }
 
     public static String recordValueAsString(Record record) {
-        return record.value() == null ? null : new String(bytesOf(record.value()), StandardCharsets.UTF_8);
+        return asString(record.value());
     }
 
     public static byte[] recordKeyAsBytes(Record record) {
@@ -78,7 +82,7 @@ public class RecordTestUtils {
     }
 
     public static String recordKeyAsString(Record record) {
-        return record.key() == null ? null : new String(bytesOf(record.key()), StandardCharsets.UTF_8);
+        return asString(record.key());
     }
 
     /**
@@ -245,6 +249,18 @@ public class RecordTestUtils {
         // on the returned Record is actually correct
         MemoryRecords mr = singleElementMemoryRecords(magic, offset, timestamp, key, value, headers);
         return MemoryRecords.readableRecords(mr.buffer()).records().iterator().next();
+    }
+
+    public static Record record(long offset, long timestamp, ByteBuffer key, ByteBuffer value, Header[] headers) {
+        return record(RecordBatch.CURRENT_MAGIC_VALUE, offset, timestamp, key, value, headers);
+    }
+
+    public static Record record(long offset, long timestamp, String key, String value, Header[] headers) {
+        return record(RecordBatch.CURRENT_MAGIC_VALUE, offset, timestamp, key, value, headers);
+    }
+
+    public static Record record(long offset, long timestamp, byte[] key, byte[] value, Header[] headers) {
+        return record(RecordBatch.CURRENT_MAGIC_VALUE, offset, timestamp, key, value, headers);
     }
 
     /**
