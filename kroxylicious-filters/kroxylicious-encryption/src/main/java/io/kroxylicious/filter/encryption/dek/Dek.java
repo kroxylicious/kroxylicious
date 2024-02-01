@@ -81,57 +81,79 @@ public final class Dek<E> {
 
     private final AtomicLong remainingEncryptions;
 
-    // 1 start
-    // +1=2 encryptor
-    // +1=3 encryptor
-    // +1=4 encryptor
-    // -1=3 encryptor.finish // return
-    // negate=-3 destroy()// updateAndGet(if current value < 0 don't change, otherwise negate)
-    // +1=-2 encryptor.finish
-    // +1=-1 encryptor.finish => key.destroy
+    /**
+     * <p>We use an AtomicLong, but it's really an atomic pair of ints acting as
+     * reference counts for the number of outstanding encryptors and decryptors.
+     * The counts start from 1 (i.e. 1 means no outstanding cryptor), increments with
+     * each cryptor created and decrements with each cryptor closed.
+     * Calling destroyFor(En|De)crypt flips the sign of the count
+     * and inverts the direction of the counting (i.e. cryptor close now increments).
+     * This means that we hit -1 when all outstanding cryptors have been closed.</p>
+     *
+     * <p>Here's a worked example:</p>
+     * <table>
+     *     <tr><th>Action</th>                        <th>Encryptor Count</th> <th>Decryptor Count</th></tr>
+     *     <tr><td>«{@link #START}»</td>              <td>1</td>               <td>1</td>    </tr>
+     *     <tr><td>encryptor()</td>                   <td>2</td>               <td>1</td>    </tr>
+     *     <tr><td>encryptor()</td>                   <td>3</td>               <td>1</td>    </tr>
+     *     <tr><td>decryptor()</td>                   <td>3</td>               <td>2</td>    </tr>
+     *     <tr><td>Encryptor.close()</td>             <td>2</td>               <td>2</td>    </tr>
+     *     <tr><td>{@link #destroyForEncrypt()}</td>  <td>-2</td>               <td>2</td>    </tr>
+     *     <tr><td>Encryptor.close()</td>             <td>-1</td>               <td>2</td>    </tr>
+     *     <tr><td>{@link #destroyForDecrypt()}       </td>  <td>-1</td>               <td>-2</td>   </tr>
+     *     <tr><td>Decryptor.close()</td>             <td>-1</td>               <td>-1</td>    </tr>
+     *     <tr><td colspan="3">«{@link #END}» // key gets destroyed </td>    </tr>
+     * </table>
+     */
     final AtomicLong outstandingCryptors;
 
-    public static final long START = combine(1, 1);
-    public static final long END = combine(-1, -1);
+    private static final long START = combine(1, 1);
+    private static final long END = combine(-1, -1);
     private final CipherSpec cipherSpec;
 
+    /** Combine two int reference counts into a single long */
     static long combine(int encryptors, int decryptors) {
         return ((long) encryptors) << Integer.SIZE | 0xFFFFFFFFL & decryptors;
     }
 
+    /** Extract the encryptor reference count from a long */
     static int encryptors(long combined) {
         return (int) (combined >> Integer.SIZE);
     }
 
+    /** Extract the decryptor reference count from a long */
     static int decryptors(long combined) {
         return (int) combined;
     }
 
+    /** Unary operator for acquiring an encryptor */
     static long acquireEncryptor(long combined) {
-        int encryptors = encryptors(combined);
-        int decryptors = decryptors(combined);
-        if (encryptors > 0) {
+        final int encryptors = encryptors(combined);
+        final int decryptors = decryptors(combined);
+        if (encryptors > 0) { // not destroyed for encrypt
             return combine(encryptors + 1, decryptors);
         }
         else {
-            return combine(encryptors, decryptors);
+            return combined;
         }
     }
 
+    /** Unary operator for acquiring a decryptor */
     static long acquireDecryptor(long combined) {
-        int encryptors = encryptors(combined);
-        int decryptors = decryptors(combined);
-        if (decryptors > 0) {
+        final int encryptors = encryptors(combined);
+        final int decryptors = decryptors(combined);
+        if (decryptors > 0) { // not destroyed for decrypt
             return combine(encryptors, decryptors + 1);
         }
         else {
-            return combine(encryptors, decryptors - 1);
+            return combined; //combine(encryptors, decryptors - 1);
         }
     }
 
+    /** Unary operator for releasing an encryptor */
     static long releaseEncryptor(long combined) {
-        int encryptors = encryptors(combined);
-        int decryptors = decryptors(combined);
+        final int encryptors = encryptors(combined);
+        final int decryptors = decryptors(combined);
         if (encryptors > 0) {
             return combine(encryptors - 1, decryptors);
         }
@@ -140,9 +162,10 @@ public final class Dek<E> {
         }
     }
 
+    /** Unary operator for releasing a decryptor */
     static long releaseDecryptor(long combined) {
-        int encryptors = encryptors(combined);
-        int decryptors = decryptors(combined);
+        final int encryptors = encryptors(combined);
+        final int decryptors = decryptors(combined);
         if (decryptors > 0) {
             return combine(encryptors, decryptors - 1);
         }
@@ -151,32 +174,35 @@ public final class Dek<E> {
         }
     }
 
+    /** Unary operator for "destroying" the key for encryption */
     static long commenceDestroyEncryptor(long combined) {
-        int encryptors = encryptors(combined);
-        int decryptors = decryptors(combined);
-        if (encryptors < 0) {
+        final int encryptors = encryptors(combined);
+        final int decryptors = decryptors(combined);
+        if (encryptors < 0) { // no-op if already destroyed for encrypt
             return combined;
         }
         return combine(-encryptors, decryptors);
     }
 
+    /** Unary operator for "destroying" the key for decryption */
     static long commenceDestroyDecryptor(long combined) {
-        int encryptors = encryptors(combined);
-        int decryptors = decryptors(combined);
-        if (decryptors < 0) {
+        final int encryptors = encryptors(combined);
+        final int decryptors = decryptors(combined);
+        if (decryptors < 0) { // no-op if already destroyed for decrypt
             return combined;
         }
         return combine(encryptors, -decryptors);
     }
 
+    /** Unary operator for "destroying" the key for both encryption and decryption */
     static long commenceDestroyBoth(long combined) {
-        int encryptors = encryptors(combined);
-        int decryptors = decryptors(combined);
+        final int encryptors = encryptors(combined);
+        final int decryptors = decryptors(combined);
         final int newEncryptors;
         final int newDecryptors;
         if (encryptors < 0) {
             if (decryptors < 0) {
-                return combined;
+                return combined; // no-op if already destroyed for both
             }
             else {
                 newDecryptors = -decryptors;
@@ -227,7 +253,7 @@ public final class Dek<E> {
             throw new IllegalArgumentException();
         }
         if (remainingEncryptions.addAndGet(-numEncryptions) >= 0) {
-            if (outstandingCryptors.updateAndGet(Dek::acquireEncryptor) <= 0) {
+            if (encryptors(outstandingCryptors.updateAndGet(Dek::acquireEncryptor)) <= 0) {
                 throw new DestroyedDekException();
             }
             return new Encryptor(cipherSpec, atomicKey.get(), numEncryptions);
@@ -242,7 +268,7 @@ public final class Dek<E> {
      * @throws DestroyedDekException If the DEK has been {@linkplain #destroy()} destroyed.
      */
     public Decryptor decryptor() {
-        if (outstandingCryptors.updateAndGet(Dek::acquireDecryptor) <= 0) {
+        if (decryptors(outstandingCryptors.updateAndGet(Dek::acquireDecryptor)) <= 0) {
             throw new DestroyedDekException();
         }
         return new Decryptor(cipherSpec, atomicKey.get());

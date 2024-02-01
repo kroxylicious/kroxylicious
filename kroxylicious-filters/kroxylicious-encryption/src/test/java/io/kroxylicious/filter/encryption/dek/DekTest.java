@@ -164,13 +164,13 @@ class DekTest {
         SecretKey mock = mock(SecretKey.class);
         doReturn(false).when(mock).isDestroyed();
         doNothing().when(mock).destroy();
-        var dek = new Dek<>("edek", mock, cipherSpec, 100);
+        var dek = new Dek<>("edek", mock, cipherSpec, 101);
         var cryptor1 = dek.encryptor(50);
         var cryptor2 = dek.encryptor(50);
 
         // When
-        dek.destroy();
-        dek.destroy();
+        dek.destroyForEncrypt();
+        dek.destroyForEncrypt();
 
         // When
         Mockito.verify(mock, never()).destroy();
@@ -180,6 +180,13 @@ class DekTest {
         Mockito.verify(mock, never()).destroy();
 
         cryptor2.close();
+
+        Mockito.verify(mock, never()).destroy(); // because still open for decrypt
+
+        assertThatThrownBy(() ->dek.encryptor(1))
+                .isExactlyInstanceOf(DestroyedDekException.class); // can't get a new encryptor though
+
+        dek.destroyForDecrypt(); // this should trigger key destruction
 
         Mockito.verify(mock).destroy();
     }
@@ -270,8 +277,8 @@ class DekTest {
         var cryptor2 = dek.decryptor();
 
         // When
-        dek.destroy();
-        dek.destroy();
+        dek.destroyForDecrypt();
+        dek.destroyForDecrypt();
 
         // When
         Mockito.verify(mock, never()).destroy();
@@ -282,7 +289,16 @@ class DekTest {
 
         cryptor2.close();
 
+        Mockito.verify(mock, never()).destroy(); // still open for encrypt
+
+        assertThatThrownBy(dek::decryptor)
+                .isExactlyInstanceOf(DestroyedDekException.class); // can't get a new decryptor
+
+        dek.destroyForEncrypt(); // this should trigger key destruction
+
         Mockito.verify(mock).destroy();
+
+
     }
 
     @ParameterizedTest
