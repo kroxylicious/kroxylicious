@@ -40,7 +40,6 @@ public class Kroxylicious {
         this.deploymentNamespace = deploymentNamespace;
         String kroxyUrl = Environment.KROXY_IMAGE_REPO + (Environment.KROXY_IMAGE_REPO.endsWith(":") ? "" : ":");
         this.containerImage = kroxyUrl + Environment.KROXY_VERSION;
-        //this.containerImage = "brew.registry.redhat.io/rh-osbs/amq-streams-proxy-rhel8:2.7.0-15";
     }
 
     private void createDefaultConfigMap(String clusterName) {
@@ -62,9 +61,8 @@ public class Kroxylicious {
 
     /**
      * Needed for downstream Kroxylicious images
-    */
+     */
     private void createSecrets() {
-        //String configFolder = "/home/fvila/source/github/kroxylicious-fork/config.json";
         String configFolder = Environment.CONTAINER_CONFIG_PATH;
         SecretBuilder secretBuilder = KroxyliciousSecretTemplates.createRegistryCredentialsSecret(configFolder, deploymentNamespace);
         if (secretBuilder != null) {
