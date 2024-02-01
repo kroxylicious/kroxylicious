@@ -92,13 +92,9 @@ public class RecordBatchUtils {
         Objects.requireNonNull(recordBatch);
         Objects.requireNonNull(mapper);
         Objects.requireNonNull(builder);
-        // List<Runnable> closers = new ArrayList<>();
         try (Stream<Record> recordStream = recordStream(recordBatch)) {
             return recordStream
                     .collect(toMemoryRecordsCollector(recordBatch, mapper, builder));
-        }
-        finally {
-            // closers.forEach(Runnable::run);
         }
     }
 
@@ -114,7 +110,6 @@ public class RecordBatchUtils {
             public Supplier<BatchAwareMemoryRecordsBuilder> supplier() {
                 return () -> {
                     BatchAwareMemoryRecordsBuilder batchAwareMemoryRecordsBuilder = builder;
-                    // onClose.accept(batchAwareMemoryRecordsBuilder::close);
                     return batchAwareMemoryRecordsBuilder.addBatchLike(recordBatch);
                 };
             }

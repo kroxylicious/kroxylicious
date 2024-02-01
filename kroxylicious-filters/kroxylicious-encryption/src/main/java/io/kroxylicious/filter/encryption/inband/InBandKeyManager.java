@@ -225,7 +225,7 @@ public class InBandKeyManager<K, E> implements KeyManager<K> {
         }
         else {
             List<Record> records = StreamSupport.stream(batch.spliterator(), false).toList();
-            if (records.size() == 0) {
+            if (records.isEmpty()) {
                 builder.writeBatch(batch);
             }
             else {
