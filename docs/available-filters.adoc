@@ -2,10 +2,15 @@
 
 == Built-in filters
 
-Only a few built in filters are provided.
+The following filters are provided built-in as part of the distribution.
 
 include::available-filters/envelope-encryption.adoc[leveloffset=2]
 include::available-filters/multi-tenancy.adoc[leveloffset=2]
 include::available-filters/schema-validation.adoc[leveloffset=2]
+
+== Community filters
+
+Community contributed filters are showcased in the
+https://github.com/kroxylicious/kroxylicious-community-gallery[Community Gallery].
 
 
