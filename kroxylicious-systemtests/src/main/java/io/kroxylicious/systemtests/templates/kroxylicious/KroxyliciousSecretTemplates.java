@@ -24,6 +24,8 @@ public class KroxyliciousSecretTemplates {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KroxyliciousSecretTemplates.class);
 
+    private KroxyliciousSecretTemplates() {}
+
     /**
      * Create registry credentials secret.
      *

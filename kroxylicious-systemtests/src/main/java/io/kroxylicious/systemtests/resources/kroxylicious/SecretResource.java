@@ -49,7 +49,7 @@ public class SecretResource implements ResourceType<Secret> {
 
     @Override
     public boolean waitForReadiness(Secret resource) {
-        return true;
+        return resource != null;
     }
 
     /**
