@@ -29,7 +29,7 @@ unavailable, it will become impossible to produce or consume records through the
 restored.  It is recommended to use a KMS in a highly available configuration.
 
 Currently, there is a single KMS integration: https://www.hashicorp.com/[HashiCorp Vault&#174;].  More KMS integrations
-are planned soon.
+are planned.
 
 It is also possible for a user to implement their own KMS integration.  The implementation must implement the
 {kms-api-javadoc}/io/kroxylicious/kms/service/KmsService.html[KMS public API] and make the implementation available on
