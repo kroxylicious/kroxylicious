@@ -262,10 +262,12 @@ public final class DataEncryptionKey<E> {
 
     /**
      * Destroy the key for both encryption and decryption purposes.
+     * This is equivalent to calling both {@link #destroyForEncrypt()} and {@link #destroyForDecrypt()}.
      * This method is idempotent.
      * @see <a href="#destruction">Destruction</a> in the class Javadoc.
      */
     public void destroy() {
+        // Using a dedicated operator reduces the contention on the atomic access
         maybeDestroyKey(DataEncryptionKey::commenceDestroyBoth);
     }
 
