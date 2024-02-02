@@ -10,7 +10,6 @@ import java.security.GeneralSecurityException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -54,8 +53,8 @@ public class InMemoryKms implements
     InMemoryKms(int numIvBytes, int numAuthBits,
                 Map<UUID, SecretKey> keys,
                 Map<String, UUID> aliases) {
-        this.keys = new HashMap<>(keys);
-        this.aliases = new HashMap<>(aliases);
+        this.keys = keys;
+        this.aliases = aliases;
         this.secureRandom = new SecureRandom();
         this.numIvBytes = numIvBytes;
         this.numAuthBits = numAuthBits;
