@@ -73,6 +73,11 @@ public interface Constants {
     String SERVICE_KIND = "Service";
 
     /**
+     * Kind of secret
+     */
+    String SECRET_KIND = "Secret";
+
+    /**
      * Load balancer type name.
      */
     String LOAD_BALANCER_TYPE = "LoadBalancer";

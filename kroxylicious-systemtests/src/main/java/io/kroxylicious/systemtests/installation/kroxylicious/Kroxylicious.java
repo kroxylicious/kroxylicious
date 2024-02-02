@@ -9,12 +9,15 @@ package io.kroxylicious.systemtests.installation.kroxylicious;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.fabric8.kubernetes.api.model.SecretBuilder;
+
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousConfigMapTemplates;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousDeploymentTemplates;
+import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousSecretTemplates;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousServiceTemplates;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
@@ -29,7 +32,7 @@ public class Kroxylicious {
     private final ResourceManager resourceManager = ResourceManager.getInstance();
 
     /**
-     * Instantiates a new KroxyliciousService to be used in kubernetes.
+     * Instantiates a new Kroxylicious Service to be used in kubernetes.
      *
      * @param deploymentNamespace the deployment namespace
      */
@@ -51,8 +54,20 @@ public class Kroxylicious {
 
     private void deployPortPerBrokerPlain(int replicas) {
         LOGGER.info("Deploy Kroxylicious in {} namespace", deploymentNamespace);
+        createSecrets();
         resourceManager.createResourceWithWait(KroxyliciousDeploymentTemplates.defaultKroxyDeployment(deploymentNamespace, containerImage, replicas).build());
         resourceManager.createResourceWithoutWait(KroxyliciousServiceTemplates.defaultKroxyService(deploymentNamespace).build());
+    }
+
+    /**
+     * Needed for downstream Kroxylicious images
+     */
+    private void createSecrets() {
+        String configFolder = Environment.CONTAINER_CONFIG_PATH;
+        SecretBuilder secretBuilder = KroxyliciousSecretTemplates.createRegistryCredentialsSecret(configFolder, deploymentNamespace);
+        if (secretBuilder != null) {
+            resourceManager.createResourceWithWait(secretBuilder.build());
+        }
     }
 
     /**
