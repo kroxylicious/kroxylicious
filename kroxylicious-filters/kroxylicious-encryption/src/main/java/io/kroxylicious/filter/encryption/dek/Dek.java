@@ -127,7 +127,6 @@ public final class Dek<E> {
         return (int) combined;
     }
 
-
     private static long update(long combined, IntUnaryOperator encryptor, IntUnaryOperator decryptor) {
         final int encryptors = encryptorCount(combined);
         final int decryptors = decryptorCount(combined);
