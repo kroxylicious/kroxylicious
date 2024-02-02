@@ -113,61 +113,81 @@ public final class Dek<E> {
     private final CipherSpec cipherSpec;
 
     /** Combine two int reference counts into a single long */
-    static long combine(int encryptors, int decryptors) {
+    private static long combine(int encryptors, int decryptors) {
         return ((long) encryptors) << Integer.SIZE | 0xFFFFFFFFL & decryptors;
     }
 
     /** Extract the encryptor reference count from a long */
-    static int encryptors(long combined) {
+    private static int encryptorCount(long combined) {
         return (int) (combined >> Integer.SIZE);
     }
 
     /** Extract the decryptor reference count from a long */
-    static int decryptors(long combined) {
+    private static int decryptorCount(long combined) {
         return (int) combined;
     }
 
+
+    private static long update(long combined, IntUnaryOperator encryptor, IntUnaryOperator decryptor) {
+        final int encryptors = encryptorCount(combined);
+        final int decryptors = decryptorCount(combined);
+        int updatedEncryptors = encryptor.applyAsInt(encryptors);
+        int updatedDecryptors = decryptor.applyAsInt(decryptors);
+        return combine(updatedEncryptors, updatedDecryptors);
+    }
+
+    // a negative value indicates it has been destroyed
+    private static int incrementCounterIfNotDestroyed(int counter) {
+        return counter > 0 ? counter + 1 : counter;
+    }
+
+    // if the counter has been destroyed, it is negated, so we need to move towards the END state of -1
+    private static int decrementCounter(int counter) {
+        return counter > 0 ? counter - 1 : counter + 1;
+    }
+
+    // no-op if the counter has already been destroyed
+    private static int destroyCounterIfNecessary(int counter) {
+        return counter < 0 ? counter : -counter;
+    }
+
+    private static int identity(int value) {
+        return value;
+    }
+
     /** Unary operator for acquiring an encryptor */
-    static long acquireEncryptor(long combined) {
+    private static long acquireEncryptor(long combined) {
         return update(combined, Dek::incrementCounterIfNotDestroyed, Dek::identity);
     }
 
     /** Unary operator for acquiring a decryptor */
-    static long acquireDecryptor(long combined) {
+    private static long acquireDecryptor(long combined) {
         return update(combined, Dek::identity, Dek::incrementCounterIfNotDestroyed);
     }
 
     /** Unary operator for releasing an encryptor */
-    static long releaseEncryptor(long combined) {
+    private static long releaseEncryptor(long combined) {
         return update(combined, Dek::decrementCounter, Dek::identity);
     }
 
     /** Unary operator for releasing a decryptor */
-    static long releaseDecryptor(long combined) {
+    private static long releaseDecryptor(long combined) {
         return update(combined, Dek::identity, Dek::decrementCounter);
     }
 
     /** Unary operator for "destroying" the key for encryption */
-    static long commenceDestroyEncryptor(long combined) {
+    private static long commenceDestroyEncryptor(long combined) {
         return update(combined, Dek::destroyCounterIfNecessary, Dek::identity);
     }
 
     /** Unary operator for "destroying" the key for decryption */
-    static long commenceDestroyDecryptor(long combined) {
+    private static long commenceDestroyDecryptor(long combined) {
         return update(combined, Dek::identity, Dek::destroyCounterIfNecessary);
     }
 
     /** Unary operator for "destroying" the key for both encryption and decryption */
-    static long commenceDestroyBoth(long combined) {
+    private static long commenceDestroyBoth(long combined) {
         return update(combined, Dek::destroyCounterIfNecessary, Dek::destroyCounterIfNecessary);
-    }
-
-    static long update(long combined, IntUnaryOperator encryptor, IntUnaryOperator decryptor) {
-        final int encryptors = encryptors(combined);
-        final int decryptors = decryptors(combined);
-        int updatedEncryptors = encryptor.applyAsInt(encryptors);
-        int updatedDecryptors = decryptor.applyAsInt(decryptors);
-        return combine(updatedEncryptors, updatedDecryptors);
     }
 
     Dek(@NonNull E edek, @NonNull SecretKey key, @NonNull CipherSpec cipherSpec, long maxEncryptions) {
@@ -187,25 +207,6 @@ public final class Dek<E> {
         this.outstandingCryptors = new AtomicLong(START);
     }
 
-    // a negative value indicates it has been destroyed
-    private static Integer incrementCounterIfNotDestroyed(int counter) {
-        return counter > 0 ? counter + 1 : counter;
-    }
-
-    // if the counter has been destroyed, it is negated, so we need to move towards the END state of -1
-    private static Integer decrementCounter(int counter) {
-        return counter > 0 ? counter - 1 : counter + 1;
-    }
-
-    // no-op if the counter has already been destroyed
-    private static Integer destroyCounterIfNecessary(int counter) {
-        return counter < 0 ? counter : -counter;
-    }
-
-    private static Integer identity(int value) {
-        return value;
-    }
-
     /**
      * Get an encryptor, good for at most {@code numEncryptions} {@linkplain Encryptor#encrypt(ByteBuffer, ByteBuffer, EncryptAllocator, EncryptAllocator) encryptions}.
      * The caller must invoke {@link Encryptor#close()} after performing all the required operations.
@@ -221,7 +222,7 @@ public final class Dek<E> {
             throw new IllegalArgumentException();
         }
         if (remainingEncryptions.addAndGet(-numEncryptions) >= 0) {
-            if (encryptors(outstandingCryptors.updateAndGet(Dek::acquireEncryptor)) <= 0) {
+            if (encryptorCount(outstandingCryptors.updateAndGet(Dek::acquireEncryptor)) <= 0) {
                 throw new DestroyedDekException();
             }
             return new Encryptor(cipherSpec, atomicKey.get(), numEncryptions);
@@ -236,7 +237,7 @@ public final class Dek<E> {
      * @throws DestroyedDekException If the DEK has been {@linkplain #destroy()} destroyed.
      */
     public Decryptor decryptor() {
-        if (decryptors(outstandingCryptors.updateAndGet(Dek::acquireDecryptor)) <= 0) {
+        if (decryptorCount(outstandingCryptors.updateAndGet(Dek::acquireDecryptor)) <= 0) {
             throw new DestroyedDekException();
         }
         return new Decryptor(cipherSpec, atomicKey.get());
