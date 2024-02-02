@@ -14,6 +14,7 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.IntUnaryOperator;
 import java.util.function.LongUnaryOperator;
 import java.util.function.Supplier;
 
@@ -128,97 +129,45 @@ public final class Dek<E> {
 
     /** Unary operator for acquiring an encryptor */
     static long acquireEncryptor(long combined) {
-        final int encryptors = encryptors(combined);
-        final int decryptors = decryptors(combined);
-        if (encryptors > 0) { // not destroyed for encrypt
-            return combine(encryptors + 1, decryptors);
-        }
-        else {
-            return combined;
-        }
+        return update(combined, Dek::incrementCounterIfNotDestroyed, Dek::identity);
     }
 
     /** Unary operator for acquiring a decryptor */
     static long acquireDecryptor(long combined) {
-        final int encryptors = encryptors(combined);
-        final int decryptors = decryptors(combined);
-        if (decryptors > 0) { // not destroyed for decrypt
-            return combine(encryptors, decryptors + 1);
-        }
-        else {
-            return combined;
-        }
+        return update(combined, Dek::identity, Dek::incrementCounterIfNotDestroyed);
     }
 
     /** Unary operator for releasing an encryptor */
     static long releaseEncryptor(long combined) {
-        final int encryptors = encryptors(combined);
-        final int decryptors = decryptors(combined);
-        if (encryptors > 0) {
-            return combine(encryptors - 1, decryptors);
-        }
-        else {
-            return combine(encryptors + 1, decryptors);
-        }
+        return update(combined, Dek::decrementCounter, Dek::identity);
     }
 
     /** Unary operator for releasing a decryptor */
     static long releaseDecryptor(long combined) {
-        final int encryptors = encryptors(combined);
-        final int decryptors = decryptors(combined);
-        if (decryptors > 0) {
-            return combine(encryptors, decryptors - 1);
-        }
-        else {
-            return combine(encryptors, decryptors + 1);
-        }
+        return update(combined, Dek::identity, Dek::decrementCounter);
     }
 
     /** Unary operator for "destroying" the key for encryption */
     static long commenceDestroyEncryptor(long combined) {
-        final int encryptors = encryptors(combined);
-        final int decryptors = decryptors(combined);
-        if (encryptors < 0) { // no-op if already destroyed for encrypt
-            return combined;
-        }
-        return combine(-encryptors, decryptors);
+        return update(combined, Dek::destroyCounterIfNecessary, Dek::identity);
     }
 
     /** Unary operator for "destroying" the key for decryption */
     static long commenceDestroyDecryptor(long combined) {
-        final int encryptors = encryptors(combined);
-        final int decryptors = decryptors(combined);
-        if (decryptors < 0) { // no-op if already destroyed for decrypt
-            return combined;
-        }
-        return combine(encryptors, -decryptors);
+        return update(combined, Dek::identity, Dek::destroyCounterIfNecessary);
     }
 
     /** Unary operator for "destroying" the key for both encryption and decryption */
     static long commenceDestroyBoth(long combined) {
+        return update(combined, Dek::destroyCounterIfNecessary, Dek::destroyCounterIfNecessary);
+    }
+
+    static long update(long combined, IntUnaryOperator encryptor, IntUnaryOperator decryptor) {
         final int encryptors = encryptors(combined);
         final int decryptors = decryptors(combined);
-        final int newEncryptors;
-        final int newDecryptors;
-        if (encryptors < 0) {
-            if (decryptors < 0) {
-                return combined; // no-op if already destroyed for both
-            }
-            else {
-                newDecryptors = -decryptors;
-            }
-            newEncryptors = encryptors;
-        }
-        else {
-            if (decryptors < 0) {
-                newDecryptors = decryptors;
-            }
-            else {
-                newDecryptors = -decryptors;
-            }
-            newEncryptors = -encryptors;
-        }
-        return combine(newEncryptors, newDecryptors);
+        int updatedEncryptors = encryptor.applyAsInt(encryptors);
+        int updatedDecryptors = decryptor.applyAsInt(decryptors);
+        return combine(updatedEncryptors, updatedDecryptors);
     }
 
     Dek(@NonNull E edek, @NonNull SecretKey key, @NonNull CipherSpec cipherSpec, long maxEncryptions) {
@@ -236,6 +185,25 @@ public final class Dek<E> {
         this.cipherSpec = cipherSpec;
         this.remainingEncryptions = new AtomicLong(maxEncryptions);
         this.outstandingCryptors = new AtomicLong(START);
+    }
+
+    // a negative value indicates it has been destroyed
+    private static Integer incrementCounterIfNotDestroyed(int counter) {
+        return counter > 0 ? counter + 1 : counter;
+    }
+
+    // if the counter has been destroyed, it is negated, so we need to move towards the END state of -1
+    private static Integer decrementCounter(int counter) {
+        return counter > 0 ? counter - 1 : counter + 1;
+    }
+
+    // no-op if the counter has already been destroyed
+    private static Integer destroyCounterIfNecessary(int counter) {
+        return counter < 0 ? counter : -counter;
+    }
+
+    private static Integer identity(int value) {
+        return value;
     }
 
     /**
