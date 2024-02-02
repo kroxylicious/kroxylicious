@@ -4,6 +4,7 @@ Please enumerate **all user-facing** changes using format `<githib issue/pr numb
 
 ## 0.5.0
 
+* [#787](https://github.com/kroxylicious/kroxylicious/issues/787): Initial documentation for the envelope-encryption feature.
 * [#940](https://github.com/kroxylicious/kroxylicious/issues/940): Support vault namespaces and support secrets transit engine at locations other than /transit
 * [#951](https://github.com/kroxylicious/kroxylicious/pull/951): Include the kroxylicious maintained filters in the dist by default
 * [#910](https://github.com/kroxylicious/kroxylicious/pull/910): Envelope encryption preserve batches within MemoryRecords
