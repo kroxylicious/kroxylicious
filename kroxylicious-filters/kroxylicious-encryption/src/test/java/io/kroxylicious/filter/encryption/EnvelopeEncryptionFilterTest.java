@@ -199,8 +199,8 @@ class EnvelopeEncryptionFilterTest {
     void shouldPropagateRequestExceptions() {
         // Given
         var produceRequestData = buildProduceRequestData(new TopicProduceData()
-                        .setName(ENCRYPTED_TOPIC)
-                        .setPartitionData(List.of(new PartitionProduceData().setRecords(makeRecord(HELLO_CIPHER_WORLD)))));
+                .setName(ENCRYPTED_TOPIC)
+                .setPartitionData(List.of(new PartitionProduceData().setRecords(makeRecord(HELLO_CIPHER_WORLD)))));
         RuntimeException exception = new RuntimeException("boom");
         when(kekSelector.selectKek(anySet())).thenReturn(CompletableFuture.failedFuture(exception));
 
