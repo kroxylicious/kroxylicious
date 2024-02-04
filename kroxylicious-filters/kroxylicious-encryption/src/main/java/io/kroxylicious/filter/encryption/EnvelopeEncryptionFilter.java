@@ -90,7 +90,10 @@ public class EnvelopeEncryptionFilter<K>
                     }).toList();
                     return join(futures).thenApply(x -> request);
                 }).exceptionallyCompose(throwable -> {
-                    log.warn("failed to encrypt records", throwable);
+                    log.atWarn().setMessage("failed to encrypt records, cause message: {}")
+                            .addArgument(throwable.getMessage())
+                            .setCause(log.isDebugEnabled() ? throwable : null)
+                            .log();
                     return CompletableFuture.failedStage(throwable);
                 });
     }
@@ -100,7 +103,10 @@ public class EnvelopeEncryptionFilter<K>
         return maybeDecodeFetch(response.responses(), context)
                 .thenCompose(responses -> context.forwardResponse(header, response.setResponses(responses)))
                 .exceptionallyCompose(throwable -> {
-                    log.warn("failed to decrypt records", throwable);
+                    log.atWarn().setMessage("failed to decrypt records, cause message: {}")
+                            .addArgument(throwable.getMessage())
+                            .setCause(log.isDebugEnabled() ? throwable : null)
+                            .log();
                     return CompletableFuture.failedStage(throwable);
                 });
     }
