@@ -14,7 +14,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.micrometer.core.instrument.Metrics;
 
 import io.kroxylicious.filter.encryption.inband.BufferPool;
-import io.kroxylicious.filter.encryption.inband.InBandKeyManager;
+import io.kroxylicious.filter.encryption.inband.InBandDecryptionManager;
+import io.kroxylicious.filter.encryption.inband.InBandEncryptionManager;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.KmsService;
 import io.kroxylicious.proxy.filter.FilterFactory;
@@ -69,11 +70,12 @@ public class EnvelopeEncryption<K, E> implements FilterFactory<EnvelopeEncryptio
     public EnvelopeEncryptionFilter<K> createFilter(FilterFactoryContext context, Config configuration) {
         Kms<K, E> kms = buildKms(context, configuration);
 
-        var keyManager = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
+        var encryptionManager = new InBandEncryptionManager<>(kms, BufferPool.allocating(), 500_000, 5_000_000_000L);
+        var decryptionManager = new InBandDecryptionManager<>(kms);
 
         KekSelectorService<Object, K> ksPlugin = context.pluginInstance(KekSelectorService.class, configuration.selector());
         TopicNameBasedKekSelector<K> kekSelector = ksPlugin.buildSelector(kms, configuration.selectorConfig());
-        return new EnvelopeEncryptionFilter<>(keyManager, keyManager, kekSelector);
+        return new EnvelopeEncryptionFilter<>(encryptionManager, decryptionManager, kekSelector);
     }
 
     @NonNull
