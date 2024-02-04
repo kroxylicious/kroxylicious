@@ -42,11 +42,14 @@ public class EnvelopeEncryptionFilter<K>
     private static final Logger log = getLogger(EnvelopeEncryptionFilter.class);
     private final TopicNameBasedKekSelector<K> kekSelector;
 
-    private final KeyManager<K> keyManager;
+    private final EncryptionManager<K> encryptionManager;
+    private final DecryptionManager decryptionManager;
 
-    EnvelopeEncryptionFilter(KeyManager<K> keyManager, TopicNameBasedKekSelector<K> kekSelector) {
+    EnvelopeEncryptionFilter(EncryptionManager<K> encryptionManager,
+                             DecryptionManager decryptionManager, TopicNameBasedKekSelector<K> kekSelector) {
         this.kekSelector = kekSelector;
-        this.keyManager = keyManager;
+        this.encryptionManager = encryptionManager;
+        this.decryptionManager = decryptionManager;
     }
 
     @SuppressWarnings("unchecked")
@@ -79,7 +82,7 @@ public class EnvelopeEncryptionFilter<K>
                                 return CompletableFuture.completedStage(ppd);
                             }
                             MemoryRecords records = (MemoryRecords) ppd.records();
-                            return keyManager.encrypt(
+                            return encryptionManager.encrypt(
                                     topicName,
                                     ppd.index(),
                                     new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
@@ -139,7 +142,7 @@ public class EnvelopeEncryptionFilter<K>
                                                               PartitionData fpr,
                                                               MemoryRecords memoryRecords,
                                                               FilterContext context) {
-        return keyManager.decrypt(
+        return decryptionManager.decrypt(
                 topicName,
                 fpr.partitionIndex(),
                 memoryRecords,

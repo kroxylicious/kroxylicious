@@ -33,11 +33,12 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 
 import io.kroxylicious.filter.encryption.AadSpec;
 import io.kroxylicious.filter.encryption.CipherCode;
+import io.kroxylicious.filter.encryption.DecryptionManager;
 import io.kroxylicious.filter.encryption.EncryptionException;
+import io.kroxylicious.filter.encryption.EncryptionManager;
 import io.kroxylicious.filter.encryption.EncryptionScheme;
 import io.kroxylicious.filter.encryption.EncryptionVersion;
 import io.kroxylicious.filter.encryption.EnvelopeEncryptionFilter;
-import io.kroxylicious.filter.encryption.KeyManager;
 import io.kroxylicious.filter.encryption.records.BatchAwareMemoryRecordsBuilder;
 import io.kroxylicious.filter.encryption.records.RecordBatchUtils;
 import io.kroxylicious.kms.service.Kms;
@@ -46,12 +47,13 @@ import io.kroxylicious.kms.service.Serde;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
- * An implementation of {@link KeyManager} that uses envelope encryption, AES-GCM and stores the KEK id and encrypted DEK
+ * An implementation of {@link EncryptionManager} and {@link DecryptionManager}
+ * that uses envelope encryption, AES-GCM and stores the KEK id and encrypted DEK
  * alongside the record ("in-band").
  * @param <K> The type of KEK id.
  * @param <E> The type of the encrypted DEK.
  */
-public class InBandKeyManager<K, E> implements KeyManager<K> {
+public class InBandKeyManager<K, E> implements EncryptionManager<K>, DecryptionManager {
 
     private static final int MAX_ATTEMPTS = 3;
 

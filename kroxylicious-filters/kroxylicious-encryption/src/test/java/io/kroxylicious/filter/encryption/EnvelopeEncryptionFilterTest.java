@@ -82,7 +82,10 @@ class EnvelopeEncryptionFilterTest {
     private static final byte[] ENCRYPTED_MESSAGE_BYTES = "xslkajfd;ljsaefjjKLDJlkDSJFLJK';,kSDKF'".getBytes(UTF_8);
 
     @Mock(strictness = LENIENT)
-    KeyManager<String> keyManager;
+    EncryptionManager<String> encryptionManager;
+
+    @Mock(strictness = LENIENT)
+    DecryptionManager decryptionManager;
 
     @Mock(strictness = LENIENT)
     TopicNameBasedKekSelector<String> kekSelector;
@@ -123,11 +126,11 @@ class EnvelopeEncryptionFilterTest {
             return CompletableFuture.completedFuture(copy);
         });
 
-        when(keyManager.encrypt(any(), anyInt(), any(), any(), any())).thenReturn(CompletableFuture.completedFuture(RecordTestUtils.singleElementMemoryRecords("key", "value")));
+        when(encryptionManager.encrypt(any(), anyInt(), any(), any(), any())).thenReturn(CompletableFuture.completedFuture(RecordTestUtils.singleElementMemoryRecords("key", "value")));
 
-        when(keyManager.decrypt(any(), anyInt(), any(), any())).thenReturn(CompletableFuture.completedFuture(RecordTestUtils.singleElementMemoryRecords("decrypt", "decrypt")));
+        when(decryptionManager.decrypt(any(), anyInt(), any(), any())).thenReturn(CompletableFuture.completedFuture(RecordTestUtils.singleElementMemoryRecords("decrypt", "decrypt")));
 
-        encryptionFilter = new EnvelopeEncryptionFilter<>(keyManager, kekSelector);
+        encryptionFilter = new EnvelopeEncryptionFilter<>(encryptionManager, decryptionManager, kekSelector);
     }
 
     @Test
@@ -141,7 +144,7 @@ class EnvelopeEncryptionFilterTest {
         encryptionFilter.onProduceRequest(ProduceRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), produceRequestData, context);
 
         // Then
-        verify(keyManager, never()).encrypt(any(), anyInt(), any(), any(), any());
+        verify(encryptionManager, never()).encrypt(any(), anyInt(), any(), any(), any());
     }
 
     @Test
@@ -155,7 +158,7 @@ class EnvelopeEncryptionFilterTest {
         encryptionFilter.onProduceRequest(ProduceRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), produceRequestData, context);
 
         // Then
-        verify(keyManager).encrypt(any(), anyInt(), any(), any(), any());
+        verify(encryptionManager).encrypt(any(), anyInt(), any(), any(), any());
     }
 
     @Test
@@ -172,7 +175,7 @@ class EnvelopeEncryptionFilterTest {
         encryptionFilter.onProduceRequest(ProduceRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), produceRequestData, context);
 
         // Then
-        verify(keyManager).encrypt(any(), anyInt(), any(),
+        verify(encryptionManager).encrypt(any(), anyInt(), any(),
                 argThat(records -> assertThat(records.records())
                         .hasSize(1)
                         .allSatisfy(record -> assertThat(record.value()).isEqualTo(ByteBuffer.wrap(HELLO_CIPHER_WORLD)))),
@@ -237,7 +240,7 @@ class EnvelopeEncryptionFilterTest {
                 .setPartitions(List.of(new PartitionData().setRecords(makeRecord(ENCRYPTED_MESSAGE_BYTES)))));
 
         MemoryRecords decryptedRecords = RecordTestUtils.singleElementMemoryRecords("key", "value");
-        when(keyManager.decrypt(any(), anyInt(), any(), any())).thenReturn(CompletableFuture.completedFuture(decryptedRecords));
+        when(decryptionManager.decrypt(any(), anyInt(), any(), any())).thenReturn(CompletableFuture.completedFuture(decryptedRecords));
 
         // When
         encryptionFilter.onFetchResponse(FetchResponseData.HIGHEST_SUPPORTED_VERSION,
