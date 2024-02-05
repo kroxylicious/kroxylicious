@@ -49,7 +49,7 @@ in the produce request is replaced by a *cipher record* which comprises the encr
 data.
 
 On the fetch path, the filter is decrypting records.  The filter receives the *cipher record* from the Kafka Broker. The
-filter reverses process used to  construct the *cipher record* and uses the KMS to decrypt DEK.  The decrypted DEK is
+filter reverses the process used to  construct the *cipher record* and uses the KMS to decrypt the DEK.  The decrypted DEK is
 used to decrypt the encrypted record.  The cipher record in the fetch response is then replaced with the decrypted record.
 
 On the produce path, the filter employs a DEK reuse strategy. This means that records sent by a single connection to
