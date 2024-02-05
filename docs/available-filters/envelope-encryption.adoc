@@ -97,7 +97,7 @@ un-consumable (that is, the fetch will fail). In this case, the consumer offset 
 
 The filter currently encrypts only *record values*.  Record keys, headers, timestamps are not encrypted.
 
-Null record values produced are passed through unencrypted.  THis serves to allow tombstoning.
+Null record values produced are passed through unencrypted.  This serves to allow tombstoning.
 
 The filter supports use-cases where some Kafka topics are configured for encryption while others are left to be
 unencrypted.  Transactions producing to both encrypted and unencrypted topics are unsupported?
