@@ -16,12 +16,13 @@ import java.util.concurrent.Executor;
 import java.util.function.IntFunction;
 import java.util.stream.StreamSupport;
 
+import io.kroxylicious.filter.encryption.dek.ExhaustedDekException;
+
 import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.record.MutableRecordBatch;
 import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.utils.BufferSupplier;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
-import org.apache.kafka.common.utils.ByteUtils;
 import org.apache.kafka.common.utils.CloseableIterator;
 
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;

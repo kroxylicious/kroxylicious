@@ -17,8 +17,6 @@ import javax.crypto.NoSuchPaddingException;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.IvParameterSpec;
 
-import io.kroxylicious.filter.encryption.EncryptionException;
-
 /**
  * A CipherSpec couples a single persisted identifier with a Cipher (e.g. AES)
  * and means of generating, writing and reading parameters for that cipher.
@@ -143,7 +141,7 @@ public enum CipherSpec {
             return Cipher.getInstance(transformation);
         }
         catch (NoSuchAlgorithmException | NoSuchPaddingException e) {
-            throw new EncryptionException(e);
+            throw new DekException(e);
         }
     }
 

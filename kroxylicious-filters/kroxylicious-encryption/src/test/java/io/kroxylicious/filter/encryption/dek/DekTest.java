@@ -20,7 +20,6 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.Mockito;
 
 import io.kroxylicious.filter.encryption.EncryptionException;
-import io.kroxylicious.filter.encryption.inband.ExhaustedDekException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;

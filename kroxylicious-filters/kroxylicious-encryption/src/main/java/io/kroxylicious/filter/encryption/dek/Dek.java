@@ -28,9 +28,6 @@ import javax.security.auth.Destroyable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.kroxylicious.filter.encryption.EncryptionException;
-import io.kroxylicious.filter.encryption.inband.ExhaustedDekException;
-
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -374,7 +371,7 @@ public final class Dek<E> {
                     return;
                 }
                 catch (GeneralSecurityException e) {
-                    throw new EncryptionException(e);
+                    throw new DekException(e);
                 }
             }
             throw new DekUsageException("The Encryptor has no more operations allowed");
@@ -424,7 +421,7 @@ public final class Dek<E> {
                 cipher.doFinal(ciphertext, plaintext);
             }
             catch (GeneralSecurityException e) {
-                throw new EncryptionException(e);
+                throw new DekException(e);
             }
         }
 
