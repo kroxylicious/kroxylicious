@@ -67,7 +67,8 @@ within it.
 
 The KMS is also the *source* of Data Encryption Keys (DEKs).  When the KMS generates a DEK for a given KEK, it returns
 the DEK (which is securely generated random data), together with the encrypted DEK (which is the same data, encrypted
-using the KEK).
+using the KEK).  Note that the KMS does not *store* the DEKs - DEKs are stored encrypted as part of the Kafka record held
+by the broker.
 
 The filter uses the services of the KMS to generate DEKs, and decrypt encrypted DEKs.
 
