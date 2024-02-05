@@ -8,10 +8,10 @@ package io.kroxylicious.filter.encryption.inband;
 
 import java.nio.ByteBuffer;
 import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
 import java.util.Set;
 
 import javax.crypto.KeyGenerator;
+import javax.crypto.SecretKey;
 
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
@@ -24,31 +24,68 @@ import org.junit.jupiter.api.Test;
 import io.kroxylicious.filter.encryption.EncryptionScheme;
 import io.kroxylicious.filter.encryption.EncryptionVersion;
 import io.kroxylicious.filter.encryption.RecordField;
+import io.kroxylicious.filter.encryption.dek.CipherSpec;
+import io.kroxylicious.filter.encryption.dek.Dek;
 import io.kroxylicious.filter.encryption.records.RecordTransform;
+import io.kroxylicious.kms.service.Serde;
 import io.kroxylicious.test.assertj.KafkaAssertions;
 import io.kroxylicious.test.record.RecordTestUtils;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
+
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
 
 class RecordEncryptorTest {
 
     private static AesGcmEncryptor DECRYPTOR;
-    private static KeyContext KEY_CONTEXT;
+
+    private static Dek.Encryptor ENCRYPTOR;
     private static ByteBuffer EDEK;
+    private static Serde<ByteBuffer> EDEK_SERDE;
 
     @BeforeAll
-    public static void initKeyContext() throws NoSuchAlgorithmException {
+    public static void initKeyContext() throws NoSuchAlgorithmException, ReflectiveOperationException {
         var generator = KeyGenerator.getInstance("AES");
         var key = generator.generateKey();
         EDEK = ByteBuffer.wrap(key.getEncoded()); // it doesn't matter for this test that it's not encrypted
-        AesGcmEncryptor encryptor = AesGcmEncryptor.forEncrypt(new AesGcmIvGenerator(new SecureRandom()), key);
         DECRYPTOR = AesGcmEncryptor.forDecrypt(key);
-        KEY_CONTEXT = new KeyContext(EDEK, Long.MAX_VALUE, Integer.MAX_VALUE, encryptor);
+
+        var dek = mock(Dek.class);
+        doReturn(EDEK).when(dek).edek();
+        var ctor = Dek.Encryptor.class.getDeclaredConstructor(Dek.class, CipherSpec.class, SecretKey.class, Integer.TYPE);
+        ctor.setAccessible(true);
+        ENCRYPTOR = ctor.newInstance(dek, CipherSpec.AES_128_GCM_128, key, 1_000_000);
+        doReturn(ENCRYPTOR).when(dek).encryptor(anyInt());
+
+        EDEK_SERDE = new Serde<ByteBuffer>() {
+            @Override
+            public int sizeOf(ByteBuffer object) {
+                return object.remaining();
+            }
+
+            @Override
+            public void serialize(
+                                  ByteBuffer object,
+                                  @NonNull ByteBuffer buffer) {
+                var p0 = object.position();
+                buffer.put(object);
+                object.position(p0);
+            }
+
+            @Override
+            public ByteBuffer deserialize(@NonNull ByteBuffer buffer) {
+                throw new UnsupportedOperationException();
+            }
+        };
     }
 
     private Record encryptSingleRecord(Set<RecordField> fields, long offset, long timestamp, String key, String value, Header... headers) {
-        var kc = KEY_CONTEXT;
         var re = new RecordEncryptor(EncryptionVersion.V1,
                 new EncryptionScheme<>("key", fields),
-                kc,
+                ENCRYPTOR,
+                EDEK_SERDE,
                 ByteBuffer.allocate(100),
                 ByteBuffer.allocate(100));
 

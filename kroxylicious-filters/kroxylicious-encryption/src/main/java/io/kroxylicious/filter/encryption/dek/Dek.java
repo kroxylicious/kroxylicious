@@ -299,6 +299,10 @@ public final class Dek<E> {
         return secretKey == null || secretKey.isDestroyed();
     }
 
+    public E edek() {
+        return edek;
+    }
+
     /**
      * A means of performing a limited number of encryption operations without access to key material.
      */
@@ -322,10 +326,10 @@ public final class Dek<E> {
         }
 
         /**
-         * @return The encrypted key
+         * @return The encrypted DEK
          */
-        public E edek() {
-            return edek;
+        public @NonNull E edek() {
+            return Dek.this.edek();
         }
 
         /**

@@ -19,7 +19,9 @@ import io.kroxylicious.filter.encryption.CipherCode;
 import io.kroxylicious.filter.encryption.EncryptionScheme;
 import io.kroxylicious.filter.encryption.EncryptionVersion;
 import io.kroxylicious.filter.encryption.RecordField;
+import io.kroxylicious.filter.encryption.dek.Dek;
 import io.kroxylicious.filter.encryption.records.RecordTransform;
+import io.kroxylicious.kms.service.Serde;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -28,7 +30,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * A {@link RecordTransform} that encrypts records so that they can be later decrypted by {@link RecordDecryptor}.
  * @param <K> The type of KEK id
  */
-class RecordEncryptor<K> implements RecordTransform {
+class RecordEncryptor<K, E> implements RecordTransform {
 
     /**
      * The encryption header. The value is the encryption version that was used to serialize the parcel and the wrapper.
@@ -36,7 +38,8 @@ class RecordEncryptor<K> implements RecordTransform {
     static final String ENCRYPTION_HEADER_NAME = "kroxylicious.io/encryption";
     private final EncryptionVersion encryptionVersion;
     private final EncryptionScheme<K> encryptionScheme;
-    private final KeyContext keyContext;
+    private final Serde<E> edekSerde;
+    private final Dek<E>.Encryptor encryptor;
     private final ByteBuffer parcelBuffer;
     private final ByteBuffer wrapperBuffer;
     /**
@@ -52,25 +55,22 @@ class RecordEncryptor<K> implements RecordTransform {
      * Constructor (obviously).
      * @param encryptionVersion The encryption version
      * @param encryptionScheme The encryption scheme for this key
-     * @param keyContext The key context
+     * @param edekSerde Serde for the encrypted DEK.
      * @param parcelBuffer A buffer big enough to write the parcel
      * @param wrapperBuffer A buffer big enough to write the wrapper
      */
     RecordEncryptor(@NonNull EncryptionVersion encryptionVersion,
                     @NonNull EncryptionScheme<K> encryptionScheme,
-                    @NonNull KeyContext keyContext,
+                    @NonNull Dek<E>.Encryptor encryptor,
+                    @NonNull Serde<E> edekSerde,
                     @NonNull ByteBuffer parcelBuffer,
                     @NonNull ByteBuffer wrapperBuffer) {
-        Objects.requireNonNull(encryptionVersion);
-        Objects.requireNonNull(encryptionScheme);
-        Objects.requireNonNull(keyContext);
-        Objects.requireNonNull(parcelBuffer);
-        Objects.requireNonNull(wrapperBuffer);
-        this.encryptionVersion = encryptionVersion;
-        this.encryptionScheme = encryptionScheme;
-        this.keyContext = keyContext;
-        this.parcelBuffer = parcelBuffer;
-        this.wrapperBuffer = wrapperBuffer;
+        this.encryptionVersion = Objects.requireNonNull(encryptionVersion);
+        this.encryptionScheme = Objects.requireNonNull(encryptionScheme);
+        this.encryptor = Objects.requireNonNull(encryptor);
+        this.edekSerde = Objects.requireNonNull(edekSerde);
+        this.parcelBuffer = Objects.requireNonNull(parcelBuffer);
+        this.wrapperBuffer = Objects.requireNonNull(wrapperBuffer);
         this.encryptionHeader = new Header[]{ new RecordHeader(ENCRYPTION_HEADER_NAME, new byte[]{ encryptionVersion.code() }) };
     }
 
@@ -125,14 +125,25 @@ class RecordEncryptor<K> implements RecordTransform {
     private ByteBuffer writeWrapper(ByteBuffer parcelBuffer) {
         switch (encryptionVersion.wrapperVersion()) {
             case V1 -> {
-                var edek = keyContext.serializedEdek();
-                ByteUtils.writeUnsignedVarint(edek.length, wrapperBuffer);
-                wrapperBuffer.put(edek);
+                E edek = Objects.requireNonNull(encryptor.edek());
+                short edekSize = (short) edekSerde.sizeOf(edek);
+                ByteUtils.writeUnsignedVarint(edekSize, wrapperBuffer);
+                edekSerde.serialize(edek, wrapperBuffer);
                 wrapperBuffer.put(AadSpec.NONE.code()); // aadCode
                 wrapperBuffer.put(CipherCode.AES_GCM_96_128.code());
-                keyContext.encodedSize(parcelBuffer.limit());
                 ByteBuffer aad = ByteUtils.EMPTY_BUF; // TODO pass the AAD to encode
-                keyContext.encode(parcelBuffer, wrapperBuffer); // iv and ciphertext
+                wrapperBuffer.put((byte) 0); // version TODO get rid of this
+                int p0 = wrapperBuffer.position();
+                encryptor.encrypt(parcelBuffer,
+                        aad,
+                        (parametersSize, ciphertextSize) -> {
+                            wrapperBuffer.put(p0, (byte) parametersSize);
+                            return wrapperBuffer.slice(p0 + 1, parametersSize);
+                        },
+                        (parametersSize, ciphertextSize) -> {
+                            wrapperBuffer.position(p0 + 1 + parametersSize + ciphertextSize);
+                            return wrapperBuffer.slice(p0 + 1 + parametersSize, ciphertextSize);
+                        });
             }
         }
         wrapperBuffer.flip();
