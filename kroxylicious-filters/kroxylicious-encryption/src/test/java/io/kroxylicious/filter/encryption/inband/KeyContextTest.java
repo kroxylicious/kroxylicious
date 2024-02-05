@@ -15,10 +15,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import javax.security.auth.DestroyFailedException;
 import javax.security.auth.Destroyable;
 
-import io.kroxylicious.filter.encryption.dek.ExhaustedDekException;
-
 import org.junit.jupiter.api.Test;
 
+import io.kroxylicious.filter.encryption.dek.ExhaustedDekException;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.InMemoryKms;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.UnitTestingKmsService;
 

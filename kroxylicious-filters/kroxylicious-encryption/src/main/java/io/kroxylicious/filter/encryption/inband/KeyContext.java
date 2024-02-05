@@ -14,10 +14,10 @@ import javax.annotation.concurrent.NotThreadSafe;
 import javax.security.auth.DestroyFailedException;
 import javax.security.auth.Destroyable;
 
-import io.kroxylicious.filter.encryption.dek.ExhaustedDekException;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import io.kroxylicious.filter.encryption.dek.ExhaustedDekException;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 

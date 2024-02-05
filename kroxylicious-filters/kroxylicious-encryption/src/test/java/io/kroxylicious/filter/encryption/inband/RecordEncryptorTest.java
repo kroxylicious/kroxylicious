@@ -86,7 +86,6 @@ class RecordEncryptorTest {
                 new EncryptionScheme<>("key", fields),
                 ENCRYPTOR,
                 EDEK_SERDE,
-                ByteBuffer.allocate(100),
                 ByteBuffer.allocate(100));
 
         Record record = RecordTestUtils.record(RecordBatch.MAGIC_VALUE_V2, offset, timestamp, key, value, headers);

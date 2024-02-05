@@ -39,7 +39,8 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * <h2>Encrypting and decrypting</h2>
  * <p>To encrypt using a DEK you need to obtain an {@link Encryptor Encryptor} using {@link #encryptor(int)},
  * specifying the number of encryption operations you expect to perform.
- * {@link Encryptor#encrypt(ByteBuffer, ByteBuffer, EncryptAllocator, EncryptAllocator) Encryptor.encrypt()}
+ * {@link Encryptor#preEncrypt(EncryptAllocator) Encryptor.preEncrypt()} and
+ * {@link Encryptor#encrypt(ByteBuffer, ByteBuffer, EncryptAllocator) Encryptor.encrypt()}
  * can then be called up to the requested number of times.
  * Once you've finished using an Encryptor you need to {@link Encryptor#close() close()} it.
  * </p>
@@ -204,7 +205,7 @@ public final class Dek<E> {
     }
 
     /**
-     * Get an encryptor, good for at most {@code numEncryptions} {@linkplain Encryptor#encrypt(ByteBuffer, ByteBuffer, EncryptAllocator, EncryptAllocator) encryptions}.
+     * Get an encryptor, good for at most {@code numEncryptions} {@linkplain Encryptor#encrypt(ByteBuffer, ByteBuffer, EncryptAllocator) encryptions}.
      * The caller must invoke {@link Encryptor#close()} after performing all the required operations.
      * Note that while this method is safe to call from multiple threads, the returned encryptor is not.
      * @param numEncryptions The number of encryption operations required
@@ -330,51 +331,66 @@ public final class Dek<E> {
         }
 
         /**
+         * Prepare to perform an encryption operation using the DEK.
+         * @param paramAllocator A function that will return a buffer into which the cipher parameters will be written.
+         * The function's argument is the number of bytes required for the cipher parameters.
+         * @throws DekUsageException If this Encryptor has run out of operations.
+         */
+        public ByteBuffer preEncrypt(@NonNull EncryptAllocator paramAllocator) {
+            if (numEncryptions <= 0) {
+                throw new DekUsageException("The Encryptor has no more operations allowed");
+            }
+            else {
+                --numEncryptions;
+                try {
+                    AlgorithmParameterSpec params = paramSupplier.get();
+                    cipher.init(Cipher.ENCRYPT_MODE, key, params);
+
+                    int paramsSize = cipherSpec.size(params);
+                    var parametersBuffer = paramAllocator.buffer(paramsSize);
+                    cipherSpec.writeParameters(parametersBuffer, params);
+                    parametersBuffer.flip();
+                    return parametersBuffer;
+                }
+                catch (GeneralSecurityException e) {
+                    throw new DekException(e);
+                }
+            }
+        }
+
+        /**
          * Perform an encryption operation using the DEK.
          * @param plaintext The plaintext to be encrypted (between position and limit)
          * @param aad The AAD to be included in the encryption
-         * @param paramAllocator A function that will return a buffer into which the cipher parameters will be written.
          * The function's argument is the number of bytes required for the cipher parameters.
          * @param ciphertextAllocator A function that will return a buffer into which the ciphertext will be written.
          * The function's first argument is the number of bytes required for the cipher parameters.
          * The function's second argument is the number of bytes required for the ciphertext.
          * @throws DekUsageException If this Encryptor has run out of operations.
          */
-        public void encrypt(@NonNull ByteBuffer plaintext,
-                            @Nullable ByteBuffer aad,
-                            @NonNull EncryptAllocator paramAllocator,
-                            @NonNull EncryptAllocator ciphertextAllocator) {
-
-            if (--numEncryptions >= 0) {
-                try {
-                    AlgorithmParameterSpec params = paramSupplier.get();
-                    cipher.init(Cipher.ENCRYPT_MODE, key, params);
-
-                    int paramsSize = cipherSpec.size(params);
-                    int ciphertextSize = cipher.getOutputSize(plaintext.remaining());
-                    var parametersBuffer = paramAllocator.buffer(paramsSize, ciphertextSize);
-                    var ciphertext = ciphertextAllocator.buffer(paramsSize, ciphertextSize);
-                    cipherSpec.writeParameters(parametersBuffer, params);
-                    parametersBuffer.flip();
-                    if (aad != null) {
-                        cipher.updateAAD(aad);
-                        aad.rewind();
-                    }
-                    var p = plaintext.position();
-                    cipher.doFinal(plaintext, ciphertext);
-                    plaintext.position(p);
-                    ciphertext.flip();
-
-                    if (numEncryptions == 0) {
-                        close();
-                    }
-                    return;
+        public ByteBuffer encrypt(@NonNull ByteBuffer plaintext,
+                                  @Nullable ByteBuffer aad,
+                                  @NonNull EncryptAllocator ciphertextAllocator) {
+            try {
+                if (aad != null) {
+                    cipher.updateAAD(aad);
+                    aad.rewind();
                 }
-                catch (GeneralSecurityException e) {
-                    throw new DekException(e);
+                int ciphertextSize = cipher.getOutputSize(plaintext.remaining());
+                var ciphertext = ciphertextAllocator.buffer(ciphertextSize);
+                var p = plaintext.position();
+                cipher.doFinal(plaintext, ciphertext);
+                plaintext.position(p);
+                ciphertext.flip();
+
+                if (numEncryptions == 0) {
+                    close();
                 }
+                return ciphertext;
             }
-            throw new DekUsageException("The Encryptor has no more operations allowed");
+            catch (GeneralSecurityException e) {
+                throw new DekException(e);
+            }
         }
 
         @Override

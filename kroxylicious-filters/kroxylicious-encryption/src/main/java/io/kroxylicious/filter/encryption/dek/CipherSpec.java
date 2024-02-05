@@ -27,7 +27,7 @@ public enum CipherSpec {
      * AES/GCM with 128-bit key, 96-bit IV and 128-bit tag.
      * @see <a href="https://www.ietf.org/rfc/rfc5116.txt">RFC-5116</a>
      */
-    AES_128_GCM_128(1,
+    AES_128_GCM_128(0,
             "AES/GCM/NoPadding",
             1L << 32 // 2^32
     ) {
@@ -67,7 +67,7 @@ public enum CipherSpec {
      * ChaCha20-Poly1305, which means 256-bit key, 96-bit nonce and 128-bit tag.
      * @see <a href="https://www.ietf.org/rfc/rfc7539.txt">RFC-7539</a>
      */
-    CHACHA20_POLY1305(2,
+    CHACHA20_POLY1305(1,
             "ChaCha20-Poly1305",
             Long.MAX_VALUE // 2^96 would be necessary given we use Wrapping96BitCounter
     // 2^63-1 is sufficient
@@ -108,9 +108,9 @@ public enum CipherSpec {
 
     static CipherSpec fromPersistentId(int persistentId) {
         switch (persistentId) {
-            case 1:
+            case 0:
                 return CipherSpec.AES_128_GCM_128;
-            case 2:
+            case 1:
                 return CipherSpec.CHACHA20_POLY1305;
             default:
                 throw new UnknownCipherSpecException("Cipher spec with persistent id " + persistentId + " is not known");
@@ -128,7 +128,7 @@ public enum CipherSpec {
         this.maxEncryptionsPerKey = maxEncryptionsPerKey;
     }
 
-    int persistentId() {
+    public int persistentId() {
         return persistentId;
     }
 

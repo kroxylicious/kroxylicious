@@ -76,10 +76,10 @@ class DekManagerTest {
         ByteBuffer[] params = new ByteBuffer[1];
         InMemoryEdek edek;
         try (Dek<InMemoryEdek>.Encryptor encryptor = dek.encryptor(1)) {
+            encryptor.preEncrypt(size -> params[0] = ByteBuffer.allocate(size));
             encryptor.encrypt(plaintext,
                     aad,
-                    (x, y) -> params[0] = ByteBuffer.allocate(x),
-                    (x, y) -> ciphertext[0] = ByteBuffer.allocate(y));
+                    size -> ciphertext[0] = ByteBuffer.allocate(size));
             edek = encryptor.edek();
         }
         var edekBuffer = ByteBuffer.allocate(1024);

@@ -19,8 +19,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.Mockito;
 
-import io.kroxylicious.filter.encryption.EncryptionException;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.doNothing;
@@ -455,7 +453,7 @@ class DekTest {
 
         ByteBuffer decryptAad = ByteBuffer.wrap(new byte[]{ 12, 12, 12 });
         assertThatThrownBy(() -> decrypt(cipherSpec, decryptAad, encryptInfo))
-                .isExactlyInstanceOf(EncryptionException.class)
+                .isExactlyInstanceOf(DekException.class)
                 .cause().isExactlyInstanceOf(AEADBadTagException.class);
     }
 
@@ -497,12 +495,12 @@ class DekTest {
         assertThat(plaintextBuffer.position()).isZero();
 
         var buffer = ByteBuffer.allocate(100);
-        var slices = new ByteBuffer[2];
 
-        encryptor.encrypt(plaintextBuffer,
+        var paramsBuffer = encryptor.preEncrypt(size -> ByteBuffer.allocate(size));
+
+        var ciphertextBuffer = encryptor.encrypt(plaintextBuffer,
                 aad,
-                (p, c) -> slices[0] = buffer.slice(0, p),
-                (p, c) -> slices[1] = buffer.slice(p, c));
+                size -> ByteBuffer.allocate(size));
 
         // TODO assertions on the buffer
 
@@ -514,12 +512,14 @@ class DekTest {
                 .isZero();
 
         // Shouldn't be able to use the Encryptor again
-        assertThatThrownBy(() -> encryptor.encrypt(plaintextBuffer,
-                null,
-                (p, c) -> ByteBuffer.allocate(p),
-                (p, c) -> ByteBuffer.allocate(c)))
+        assertThatThrownBy(() -> encryptor.preEncrypt(size -> ByteBuffer.allocate(size)))
                 .isExactlyInstanceOf(DekUsageException.class)
                 .hasMessage("The Encryptor has no more operations allowed");
+        // assertThatThrownBy(() -> encryptor.encrypt(plaintextBuffer,
+        // null,
+        // size -> ByteBuffer.allocate(size)))
+        // .isExactlyInstanceOf(DekUsageException.class)
+        // .hasMessage("The Encryptor has no more operations allowed");
         assertThat(plaintextBuffer.position())
                 .describedAs("Position should be unchanged")
                 .isZero();
@@ -527,7 +527,7 @@ class DekTest {
         // It should be safe to close the encryptor
         encryptor.close();
 
-        return new EncryptInfo(key, slices[0], slices[1]);
+        return new EncryptInfo(key, paramsBuffer, ciphertextBuffer);
     }
 
     // TODO encrypt with too short cipher text buffer

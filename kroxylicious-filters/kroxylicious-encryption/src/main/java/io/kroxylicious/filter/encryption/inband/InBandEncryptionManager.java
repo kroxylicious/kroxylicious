@@ -16,8 +16,6 @@ import java.util.concurrent.Executor;
 import java.util.function.IntFunction;
 import java.util.stream.StreamSupport;
 
-import io.kroxylicious.filter.encryption.dek.ExhaustedDekException;
-
 import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.record.MutableRecordBatch;
 import org.apache.kafka.common.record.Record;
@@ -34,6 +32,7 @@ import io.kroxylicious.filter.encryption.EncryptionVersion;
 import io.kroxylicious.filter.encryption.dek.CipherSpec;
 import io.kroxylicious.filter.encryption.dek.Dek;
 import io.kroxylicious.filter.encryption.dek.DekManager;
+import io.kroxylicious.filter.encryption.dek.ExhaustedDekException;
 import io.kroxylicious.filter.encryption.records.BatchAwareMemoryRecordsBuilder;
 import io.kroxylicious.filter.encryption.records.RecordBatchUtils;
 
@@ -56,14 +55,11 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
     */
     private final EncryptionVersion encryptionVersion;
     private final DekManager<K, E> kms;
-    private final BufferPool bufferPool;
     private final AsyncLoadingCache<CacheKey<K>, Dek<E>> dekCache;
 
-    public InBandEncryptionManager(@NonNull DekManager<K, E> kms,
-                                   @NonNull BufferPool bufferPool) {
+    public InBandEncryptionManager(@NonNull DekManager<K, E> kms, BufferPool bufferPool) {
         this.encryptionVersion = EncryptionVersion.V1; // TODO read from config
         this.kms = Objects.requireNonNull(kms);
-        this.bufferPool = Objects.requireNonNull(bufferPool);
         this.dekCache = Caffeine.newBuilder()
                 .buildAsync(this::requestGenerateDek);
     }
@@ -192,37 +188,23 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
                 builder.writeBatch(batch);
             }
             else {
-                var maxParcelSize = records.stream()
-                        .mapToInt(kafkaRecord -> Parcel.sizeOfParcel(
-                                encryptionVersion.parcelVersion(),
-                                encryptionScheme.recordFields(),
-                                kafkaRecord))
-                        .filter(value -> value > 0)
-                        .max()
-                        .orElse(0);
-                var maxWrapperSize = 1_000_000; /*
-                                                 * records.stream()
-                                                 * .mapToInt(kafkaRecord -> sizeOfWrapper(keyContext, maxParcelSize))
-                                                 * .filter(value -> value > 0)
-                                                 * .max()
-                                                 * .orElse(0);
-                                                 */
-                ByteBuffer parcelBuffer = bufferPool.acquire(maxParcelSize);
-                ByteBuffer wrapperBuffer = bufferPool.acquire(maxWrapperSize);
-                try {
-                    RecordBatchUtils.toMemoryRecords(batch,
-                            new RecordEncryptor<>(encryptionVersion, encryptionScheme, encryptor, kms.edekSerde(), parcelBuffer, wrapperBuffer),
-                            builder);
-                }
-                finally {
-                    if (wrapperBuffer != null) {
-                        bufferPool.release(wrapperBuffer);
+                // TODO per-thread caching
+                ByteBuffer recordBuffer = ByteBuffer.allocate(1024 * 1024);
+                do {
+                    try {
+                        RecordBatchUtils.toMemoryRecords(batch,
+                                new RecordEncryptor<>(encryptionVersion, encryptionScheme, encryptor, kms.edekSerde(), recordBuffer),
+                                builder);
+                        break;
                     }
-                    if (parcelBuffer != null) {
-                        bufferPool.release(parcelBuffer);
+                    catch (FooException e) {
+                        int newCapacity = 2 * recordBuffer.capacity();
+                        if (newCapacity > 8 * 1024 * 1024) {
+                            throw new RuntimeException("Too big");
+                        }
+                        recordBuffer = ByteBuffer.allocate(newCapacity);
                     }
-                }
-                // keyContext.recordEncryptions(records.size());
+                } while (true);
             }
         }
     }// this must only be called while holding the lock on this keycontext

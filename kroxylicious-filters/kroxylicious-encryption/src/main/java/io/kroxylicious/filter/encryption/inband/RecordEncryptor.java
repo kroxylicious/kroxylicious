@@ -6,8 +6,11 @@
 
 package io.kroxylicious.filter.encryption.inband;
 
+import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.util.Objects;
+
+import javax.crypto.ShortBufferException;
 
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
@@ -15,11 +18,12 @@ import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.utils.ByteUtils;
 
 import io.kroxylicious.filter.encryption.AadSpec;
-import io.kroxylicious.filter.encryption.CipherCode;
 import io.kroxylicious.filter.encryption.EncryptionScheme;
 import io.kroxylicious.filter.encryption.EncryptionVersion;
 import io.kroxylicious.filter.encryption.RecordField;
+import io.kroxylicious.filter.encryption.dek.CipherSpec;
 import io.kroxylicious.filter.encryption.dek.Dek;
+import io.kroxylicious.filter.encryption.dek.DekException;
 import io.kroxylicious.filter.encryption.records.RecordTransform;
 import io.kroxylicious.kms.service.Serde;
 
@@ -40,8 +44,7 @@ class RecordEncryptor<K, E> implements RecordTransform {
     private final EncryptionScheme<K> encryptionScheme;
     private final Serde<E> edekSerde;
     private final Dek<E>.Encryptor encryptor;
-    private final ByteBuffer parcelBuffer;
-    private final ByteBuffer wrapperBuffer;
+    private final ByteBuffer recordBuffer;
     /**
      * The encryption version used on the produce path.
      * Note that the encryption version used on the fetch path is read from the
@@ -56,21 +59,18 @@ class RecordEncryptor<K, E> implements RecordTransform {
      * @param encryptionVersion The encryption version
      * @param encryptionScheme The encryption scheme for this key
      * @param edekSerde Serde for the encrypted DEK.
-     * @param parcelBuffer A buffer big enough to write the parcel
-     * @param wrapperBuffer A buffer big enough to write the wrapper
+     * @param recordBuffer A buffer
      */
     RecordEncryptor(@NonNull EncryptionVersion encryptionVersion,
                     @NonNull EncryptionScheme<K> encryptionScheme,
                     @NonNull Dek<E>.Encryptor encryptor,
                     @NonNull Serde<E> edekSerde,
-                    @NonNull ByteBuffer parcelBuffer,
-                    @NonNull ByteBuffer wrapperBuffer) {
+                    @NonNull ByteBuffer recordBuffer) {
         this.encryptionVersion = Objects.requireNonNull(encryptionVersion);
         this.encryptionScheme = Objects.requireNonNull(encryptionScheme);
         this.encryptor = Objects.requireNonNull(encryptor);
         this.edekSerde = Objects.requireNonNull(edekSerde);
-        this.parcelBuffer = Objects.requireNonNull(parcelBuffer);
-        this.wrapperBuffer = Objects.requireNonNull(wrapperBuffer);
+        this.recordBuffer = Objects.requireNonNull(recordBuffer);
         this.encryptionHeader = new Header[]{ new RecordHeader(ENCRYPTION_HEADER_NAME, new byte[]{ encryptionVersion.code() }) };
     }
 
@@ -91,10 +91,7 @@ class RecordEncryptor<K, E> implements RecordTransform {
     private ByteBuffer doTransformValue(@NonNull Record kafkaRecord) {
         final ByteBuffer transformedValue;
         if (kafkaRecord.hasValue()) {
-            Parcel.writeParcel(encryptionVersion.parcelVersion(), encryptionScheme.recordFields(), kafkaRecord, parcelBuffer);
-            parcelBuffer.flip();
-            transformedValue = writeWrapper(parcelBuffer);
-            parcelBuffer.rewind();
+            transformedValue = writeWrapper(kafkaRecord, recordBuffer);
         }
         else {
             transformedValue = null;
@@ -122,37 +119,60 @@ class RecordEncryptor<K, E> implements RecordTransform {
     }
 
     @Nullable
-    private ByteBuffer writeWrapper(ByteBuffer parcelBuffer) {
+    private ByteBuffer writeWrapper(@NonNull Record kafkaRecord, ByteBuffer buffer) {
         switch (encryptionVersion.wrapperVersion()) {
             case V1 -> {
-                E edek = Objects.requireNonNull(encryptor.edek());
-                short edekSize = (short) edekSerde.sizeOf(edek);
-                ByteUtils.writeUnsignedVarint(edekSize, wrapperBuffer);
-                edekSerde.serialize(edek, wrapperBuffer);
-                wrapperBuffer.put(AadSpec.NONE.code()); // aadCode
-                wrapperBuffer.put(CipherCode.AES_GCM_96_128.code());
-                ByteBuffer aad = ByteUtils.EMPTY_BUF; // TODO pass the AAD to encode
-                wrapperBuffer.put((byte) 0); // version TODO get rid of this
-                int p0 = wrapperBuffer.position();
-                encryptor.encrypt(parcelBuffer,
-                        aad,
-                        (parametersSize, ciphertextSize) -> {
-                            wrapperBuffer.put(p0, (byte) parametersSize);
-                            return wrapperBuffer.slice(p0 + 1, parametersSize);
-                        },
-                        (parametersSize, ciphertextSize) -> {
-                            wrapperBuffer.position(p0 + 1 + parametersSize + ciphertextSize);
-                            return wrapperBuffer.slice(p0 + 1 + parametersSize, ciphertextSize);
-                        });
+                try {
+                    E edek = Objects.requireNonNull(encryptor.edek());
+                    short edekSize = (short) edekSerde.sizeOf(edek);
+                    ByteUtils.writeUnsignedVarint(edekSize, buffer);
+                    edekSerde.serialize(edek, buffer);
+                    buffer.put(AadSpec.NONE.code()); // aadCode
+                    buffer.put((byte) CipherSpec.AES_128_GCM_128.persistentId());
+
+                    ByteBuffer aad = ByteUtils.EMPTY_BUF; // TODO pass the AAD to encode
+                    buffer.put((byte) 0); // version TODO get rid of this
+
+                    {
+                        final int p0 = buffer.position();
+                        // Write the parameters
+                        // TODO slice throws IndexOutOfBounds, not buffer overflow, so won't work with FooException
+                        var paramsBuffer = encryptor.preEncrypt(size -> buffer.slice().put((byte) size));
+                        buffer.position(buffer.position() + paramsBuffer.limit());
+                    }
+
+                    // Write the parcel
+                    int sizeOfParcel = Parcel.sizeOfParcel(encryptionVersion.parcelVersion(), encryptionScheme.recordFields(), kafkaRecord);
+                    var parcelBuffer = buffer.slice();
+                    Parcel.writeParcel(encryptionVersion.parcelVersion(), encryptionScheme.recordFields(), kafkaRecord, parcelBuffer);
+                    parcelBuffer.flip();
+
+                    // Overwrite
+                    var ct = encryptor.encrypt(parcelBuffer,
+                            aad,
+                            size -> buffer.slice());
+                    buffer.position(buffer.position() + ct.remaining());
+                }
+                catch (BufferOverflowException e) {
+                    throw new FooException();
+                }
+                catch (DekException e) {
+                    if (e.getCause() instanceof ShortBufferException) {
+                        throw new FooException();
+                    }
+                    else {
+                        throw e;
+                    }
+                }
             }
         }
-        wrapperBuffer.flip();
-        return wrapperBuffer;
+        recordBuffer.flip();
+        return recordBuffer;
     }
 
     @Override
     public void resetAfterTransform(Record record) {
-        wrapperBuffer.rewind();
+        recordBuffer.clear();
     }
 
     @Override
