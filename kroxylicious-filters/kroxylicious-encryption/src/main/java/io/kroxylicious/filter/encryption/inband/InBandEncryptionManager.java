@@ -199,11 +199,13 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
                         .filter(value -> value > 0)
                         .max()
                         .orElse(0);
-                var maxWrapperSize = records.stream()
-                        .mapToInt(kafkaRecord -> sizeOfWrapper(keyContext, maxParcelSize))
-                        .filter(value -> value > 0)
-                        .max()
-                        .orElse(0);
+                var maxWrapperSize = 1_000_000; /*
+                                                 * records.stream()
+                                                 * .mapToInt(kafkaRecord -> sizeOfWrapper(keyContext, maxParcelSize))
+                                                 * .filter(value -> value > 0)
+                                                 * .max()
+                                                 * .orElse(0);
+                                                 */
                 ByteBuffer parcelBuffer = bufferPool.acquire(maxParcelSize);
                 ByteBuffer wrapperBuffer = bufferPool.acquire(maxWrapperSize);
                 try {
@@ -227,15 +229,5 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
     private void rotateKeyContext(@NonNull EncryptionScheme<K> encryptionScheme, Dek<E> dek) {
         dek.destroyForEncrypt();
         dekCache.synchronous().invalidate(cacheKey(encryptionScheme));
-    }
-
-    private int sizeOfWrapper(KeyContext keyContext, int parcelSize) {
-        var edek = keyContext.serializedEdek();
-        return ByteUtils.sizeOfUnsignedVarint(edek.length)
-                + edek.length
-                + 1 // aad code
-                + 1 // cipher code
-                + keyContext.encodedSize(parcelSize);
-
     }
 }
