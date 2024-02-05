@@ -43,7 +43,7 @@ Special Publication 800-57 Part 1 Revision 5]. It is the practice of encrypting 
 then wrapping (encrypting) the DEK with a key encryption key (KEK).  In this section we discuss how Envelope Encryption is
 applied by the filter to encrypt Kafka records.  For more detail, refer to the {design-doc}[design].
 
-On the produce path, the filter is encrypting records.  The filter uses a selector to determine KEK is use. It then
+On the produce path, the filter is encrypting records.  The filter uses a selector to determine which KEK to use. It then
 requests that the KMS generates a DEK for the KEK.  It is the DEK that is used to encrypt the record.  The original record
 in the produce request is replaced by a *cipher record* which comprises the encrypted record, the encrypted DEK and some other
 data.
