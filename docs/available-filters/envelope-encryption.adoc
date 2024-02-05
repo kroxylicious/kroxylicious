@@ -61,7 +61,7 @@ prevents excessive interactions with the KMS.
 
 === Role of the KMS
 
-The Key Management Service (KMS) is the *secure repository* for Key Management Keys (KEKs). The key material of the KEK
+The Key Management Service (KMS) is the *secure repository* for Key Encryption Keys (KEKs). The key material of the KEK
 *never* leaves the confines of the KMS.  The KMS exposes cryptographic functions that operate against the KEKs stored
 within it.
 
