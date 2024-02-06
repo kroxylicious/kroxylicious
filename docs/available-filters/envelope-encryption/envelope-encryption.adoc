@@ -77,7 +77,7 @@ records through the filter until the KMS service is restored.
 
 The filter currently has a single KMS integration with https://www.hashicorp.com/[HashiCorp Vault&#174;].  More KMS
 integrations are planned. It is also possible for a user to implement their own KMS integration.  The implementation
-must implement the{kms-api-javadoc}/io/kroxylicious/kms/service/KmsService.html[KMS public API] and make the
+must implement the {kms-api-javadoc}/io/kroxylicious/kms/service/KmsService.html[KMS public API] and make the
 implementation available on the classpath with the service loader mechanism.
 
 IMPORTANT: It is recommended to use a KMS in a highly available configuration.
@@ -117,65 +117,7 @@ These steps are described in the next sections.
 
 In order to set up the KMS provider ready to use with the filter, follow these KMS provider specific steps.
 
-==== HashiCorp Vault
-
-==== Enable the transit engine
-
-The filter integrates with the https://developer.hashicorp.com/vault/docs/secrets/transit[HashiCorp Vault *transit
-engine*].   Vault does not enable the transit engine by default.  It must be
-https://developer.hashicorp.com/vault/docs/secrets/transit#setup[enabled] before it can be used with the filter.
-
-The transit engine's path must be `/transit` (the default).
-
-==== Generate a Vault token for filter
-
-The filter requires https://developer.hashicorp.com/vault/docs/concepts/tokens[Vault Token] configured with
-policy allowing the https://developer.hashicorp.com/vault/api-docs/secret/transit#read-key[read-key],
-https://developer.hashicorp.com/vault/api-docs/secret/transit#generate-data-key[generate-data-key], and
-https://developer.hashicorp.com/vault/api-docs/secret/transit#decrypt-data[decrypt-data] operations.
-
-It is recommended that dedicated Vault token is used for this purpose. That is, the token is not shared by
-another application or human user.
-
-A minimal Vault policy can be established like this:
-
-[source,shell]
-----
-vault policy write kroxylicious_encryption_policy - << EOF
-path "transit/keys/*" {
-capabilities = ["read"]
-}
-path "/transit/datakey/plaintext/*" {
-capabilities = ["update"]
-}
-path "transit/decrypt/*" {
-capabilities = [ "update"]
-}
-EOF
-----
-
-A suitable Vault token can be created like this:
-
-[source,shell]
-----
-vault token create -display-name "kroxylicious encryption"  -no-default-policy -policy=kroxylicious_encryption_policy
-----
-
-The `token create` command yields the `token`. The `token` value is required later when configuring the vault within the
-filter.
-
-[source]
-----
-token              fdb90d58-af87-024f-fdcd-9f95039e353a
-token_accessor     4cd9177c-034b-a004-c62d-54bc56c0e9bd
-token_policies     [kroxylicious_encryption_policy]
-----
-
-==== Vault Service URL
-
-Finally, the Vault Service URL is required so the filter knows how to connect to Vault.
-This address is reported by Vault as the `Api Address` as it
-https://developer.hashicorp.com/vault/tutorials/getting-started/getting-started-dev-server#starting-the-dev-server[starts up].
+include::hashicorp-vault/setup.adoc[leveloffset=3]
 
 === Filter Configuration
 
@@ -186,7 +128,7 @@ The filter is configured as part of the filter chain in the following way:
 filters:
 - type: EnvelopeEncryption                                        # <1>
   config:
-    kms: <kms service name>                                       # <2>
+    kms: <KMS service name>                                       # <2>
     kmsConfig:                                                    # <3>
       ..:
     selector: <KEK selector service name>                         # <4>
@@ -199,30 +141,11 @@ filters:
 <4> The KEK selector service name.
 <5> Object providing configuration understood by key selector.
 
-==== KMS configuration
+==== KMS Service configuration
 
-For the KMS configuration:
+In order to configure the KMS Service, follow these KMS provider specific steps.
 
-===== HashiCorp Vault
-
-For HashiCorp Vault, the KMS configuration looks like this.  Use the Vault Token and Service URLs values that
-you gathered above.
-
-[source, yaml]
-----
-kms: VaultKmsService                                          # <1>
-kmsConfig:
-  vaultUrl: <vault service url>                               # <2>
-  tls:                                                        # <3>
-  vaultToken: <vault token>                                   # <4>
-----
-<1> Name of the KMS provider. This must be `VaultKmsService`.
-<2> Vault URL including the protocol part, i.e. `https:` or `http:`
-<3> (Optional) TLS trust configuration.
-<4> Vault Token
-
-For TLS trust configuration, the filter accepts the same trust parameters as link:../deploying.adoc#_upstream_tls[Upstream TLS]
-except the `PEM` store type is currently https://github.com/kroxylicious/kroxylicious/issues/933[not supported].
+include::hashicorp-vault/service.adoc[leveloffset=3]
 
 ==== KEK selector configuration
 
@@ -245,33 +168,23 @@ encrypted using the same key.
 ----
 selector: TemplateKekSelector                                 # <1>
 selectorConfig:
-  template: "key_${topicName}"                                # <2>
+  template: "topic.${topicName}"                                # <2>
 ----
 <1> The name of the KEK selector. This must be `TemplateKekSelector`.
 <2> Template used to build the key name from the topic name.
 
 === Establishing the keys in the KMS
 
-Use the management interface of the KMS to create the KEKs. The names (or aliases) of the encryption keys
-must match the naming conventions established within the configuration of the KEK selector.  If the selector generates
-a key name that doesn't exist within the KMS, records will be sent to the topic without encryption.
+It is the role of the Administrator to create KEKs in the KMS that will be used to
+encrypt the records.  This must be done using whatever management interface the KMS provides.
 
-For example, if using the `TemplateKekSelector` with the template `kafka_$\{topicName}`, create a key for every topic that
-is to be encrypted with the key name matching the topic name, prefixed by the string `kafka_`.
+The names (or aliases) of the encryption keys must match the naming conventions established above.  If the selector
+generates a key name that doesn't exist within the KMS, records will be sent to the topic without encryption.
 
-==== HashiCorp Vault
+For example, if using the `TemplateKekSelector` with the template `topic.$\{topicName}`, create a key for every topic that
+is to be encrypted with the key name matching the topic name, prefixed by the string `topic.`.
 
-Use either the HashiCorp UI or CLI to create AES-256 symmetric keys following your key naming convention. The key type
-must be `aes256-gcm96`, which is Vault's default key type.
-
-TIP: It is recommended to use a key rotation policy.
-
-If using the Vault CLI, the command will look like:
-
-[source, shell]
-----
-vault write -f transit/keys/kafka_trades type=aes256-gcm96 auto_rotate_period=90d
-----
+include::hashicorp-vault/creating_keys.adoc[leveloffset=3]
 
 === Verifying that encryption is occurring
 

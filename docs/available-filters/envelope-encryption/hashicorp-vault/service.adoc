@@ -1,0 +1,21 @@
+
+= HashiCorp Vault
+
+For HashiCorp Vault, the KMS configuration looks like this.  Use the Vault Token and Service URLs values that
+you gathered above.
+
+[source, yaml]
+----
+kms: VaultKmsService                                          # <1>
+kmsConfig:
+  vaultUrl: <vault service url>                               # <2>
+  tls:                                                        # <3>
+  vaultToken: <vault token>                                   # <4>
+----
+<1> Name of the KMS provider. This must be `VaultKmsService`.
+<2> Vault URL including the protocol part, i.e. `https:` or `http:`
+<3> (Optional) TLS trust configuration.
+<4> Vault Token
+
+For TLS trust configuration, the filter accepts the same trust parameters as link:../../deploying.adoc#_upstream_tls[Upstream TLS]
+except the `PEM` store type is currently https://github.com/kroxylicious/kroxylicious/issues/933[not supported].

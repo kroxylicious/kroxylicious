@@ -1,0 +1,115 @@
+:hashicorp-vault: https://developer.hashicorp.com/vault
+
+= HashiCorp Vault
+
+== Vault Service URL
+
+The Vault Service URL is required so the filter knows how to connect to Vault. This address is reported by Vault as the
+`Api Address` as it {hashicorp-vault}/tutorials/getting-started/getting-started-dev-server#starting-the-dev-server[starts up].
+
+== Enable the Transit Secrets engine
+
+The filter integrates with the {hashicorp-vault}/docs/secrets/transit[HashiCorp Vault *transit
+secrets engine*].   Vault does not enable the transit secrets engine by default.  It must be
+{hashicorp-vault}/docs/secrets/transit#setup[enabled] before it can be used with the filter.
+
+The transit engine's path must be `/transit` (the default).
+
+== Establish the naming convention for keys within Vault hierarchy
+
+It is necessary to determine a naming convention for the KEKs within Vault.  This will allow the keys used by the
+filter to be kept separate from any keys used by other systems.  This document assumes that the naming convention
+will be to prefix the keys used by the filter with the word `topic.`.  If a different naming convention is used, adapt
+the instructions accordingly.
+
+== Administrator Actor
+
+To use the filter, there must be an administrative actor established.  This actor, which is likely to be a human,
+has the responsibility to create keys within Vault for use by the filter.
+
+The Administrator must have permissions to log in to Vault and create keys beneath `transit/keys/topic.*` in the
+Vault hierarchy.
+
+The exact steps required to establish an administrative actor will depend on the way that Vault instance has been
+{hashicorp-vault}/tutorials/auth-methods[setup].
+
+A minimal Vault policy required by the Administrator is as follows:
+
+[source,shell]
+----
+path "transit/keys/topic.*" {
+capabilities = ["read", "write"]
+}
+----
+
+== Filter Actor
+
+To use the filter, there must be a Vault identity established for the filter itself.  This identity must have
+permissions to perform the operations needed for envelope encryption (generating and decrypting DEKs).
+
+Create a Vault policy for the filter actor:
+
+[source,shell]
+----
+vault policy write kroxylicious_encryption_filter_policy - << EOF
+path "transit/keys/topic.*" {
+capabilities = ["read"]
+}
+path "/transit/datakey/plaintext/topic.*" {
+capabilities = ["update"]
+}
+path "transit/decrypt/topic.*" {
+capabilities = [ "update"]
+}
+EOF
+----
+
+Create a {hashicorp-vault}/docs/concepts/tokens#periodic-tokens[Periodic] (long-lived) Vault Token
+for the filter:
+
+[source,shell]
+----
+vault token create -display-name "kroxylicious encryption filter" \
+                   -no-default-policy \
+                   -policy=kroxylicious_encryption_filter_policy \
+                   -orphan \
+                   -period=768h
+
+----
+
+The `token create` command yields the `token`. The `token` value is required later when configuring the vault within the
+filter.
+
+[source]
+----
+token              hvs.CAESIFJ_HHo0VnnW6DSbioJ80NqmuYm2WlON-QxAPmiJScZUGh4KHGh2cy5KdkdFZUJMZmhDY0JCSVhnY2JrbUNEWnE
+token_accessor     4uQZJbEnxW4YtbDBaW6yVzwP
+token_policies     [kroxylicious_encryption_filter_policy]
+----
+
+The token must be {hashicorp-vault}/docs/concepts/tokens#token-time-to-live-periodic-tokens-and-explicit-max-ttls[renewed]
+before expiration.  It is the responsibility of the Administrator to do this.
+
+This can be done with a command like:
+
+[source,shell]
+----
+vault token renew --accessor <token_accessor>
+----
+
+== Testing the Kroxylicious Vault Token using the CLI
+
+To test whether the Kroxylicious Vault Token and the policy are working correctly, a
+https://raw.githubusercontent.com/kroxylicious/kroxylicious/main/scripts/vault_test_token.sh[script] can be used.
+
+First, as an Administrator, create a KEK in the hierarchy at this path `transit/keys/topic.testkey`.
+
+[source,shell]
+----
+VAULT_TOKEN=<kroxylicious encryption filter token> vault_test_token.sh <kek path>
+----
+
+The script should respond 'Ok'.  If errors are reported check the policy/token configuration.
+
+`transit/keys/topic.testkey` can now be removed.
+
