@@ -17,6 +17,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.regex.Pattern;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
@@ -46,9 +47,6 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  * <br/>
  * <h2>TODO</h2>
  * <ul>
- *    <li>don't assume /transit endpoint</li>
- *    <li>HTTPs</li>
- *    <li>Client trust store</li>
  *    <li>Securely pass vault token</li>
  * </ul>
  */
@@ -56,17 +54,40 @@ public class VaultKms implements Kms<String, VaultEdek> {
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final String AES_KEY_ALGO = "AES";
+    private static final Pattern LEGAL_API_VERSION_REGEX = Pattern.compile("^/?v1/.+");
+    private static final String DEFAULT_TRANSIT_ENGINE = "v1/transit";
     private final Duration timeout;
     private final HttpClient vaultClient;
 
+    /**
+     * The vault url which will include the path to the transit engine.
+     */
     private final URI vaultUrl;
     private final String vaultToken;
 
     VaultKms(URI vaultUrl, String vaultToken, Duration timeout, SSLContext sslContext) {
-        this.vaultUrl = vaultUrl;
+        this.vaultUrl = ensureEndsInSlash(validateAndDefaultUrl(vaultUrl));
         this.vaultToken = vaultToken;
         this.timeout = timeout;
         vaultClient = createClient(sslContext);
+    }
+
+    private URI validateAndDefaultUrl(URI vaultUrl) {
+        String path = vaultUrl.getPath();
+        if (path == null || path.isEmpty() || path.equals("/")) {
+            return vaultUrl.resolve(DEFAULT_TRANSIT_ENGINE);
+        }
+        else {
+            if (!LEGAL_API_VERSION_REGEX.matcher(path).matches()) {
+                throw new IllegalArgumentException(("As vaultUrl specifies a path part '%s', it must start with 'v1/' "
+                        + "and must provide the complete path to the transit engine.").formatted(path));
+            }
+            return vaultUrl;
+        }
+    }
+
+    private URI ensureEndsInSlash(URI uri) {
+        return uri.resolve(uri.getPath() + "/").normalize();
     }
 
     private HttpClient createClient(SSLContext sslContext) {
@@ -90,7 +111,7 @@ public class VaultKms implements Kms<String, VaultEdek> {
     public CompletionStage<DekPair<VaultEdek>> generateDekPair(@NonNull String kekRef) {
 
         var request = createVaultRequest()
-                .uri(vaultUrl.resolve("v1/transit/datakey/plaintext/%s".formatted(encode(kekRef, UTF_8))))
+                .uri(vaultUrl.resolve("datakey/plaintext/%s".formatted(encode(kekRef, UTF_8))))
                 .POST(HttpRequest.BodyPublishers.noBody())
                 .build();
 
@@ -118,7 +139,7 @@ public class VaultKms implements Kms<String, VaultEdek> {
         var body = createDecryptPostBody(edek);
 
         var request = createVaultRequest()
-                .uri(vaultUrl.resolve("v1/transit/decrypt/%s".formatted(encode(edek.kekRef(), UTF_8))))
+                .uri(vaultUrl.resolve("decrypt/%s".formatted(encode(edek.kekRef(), UTF_8))))
                 .POST(HttpRequest.BodyPublishers.ofString(body))
                 .build();
 
@@ -150,7 +171,7 @@ public class VaultKms implements Kms<String, VaultEdek> {
     public CompletableFuture<String> resolveAlias(@NonNull String alias) {
 
         var request = createVaultRequest()
-                .uri(vaultUrl.resolve("v1/transit/keys/%s".formatted(encode(alias, UTF_8))))
+                .uri(vaultUrl.resolve("keys/%s".formatted(encode(alias, UTF_8))))
                 .build();
 
         return vaultClient.sendAsync(request, statusHandler(alias, new JsonBodyHandler<VaultResponse<ReadKeyData>>(new TypeReference<>() {
@@ -185,5 +206,9 @@ public class VaultKms implements Kms<String, VaultEdek> {
             }
             return handler.apply(r);
         };
+    }
+
+    /* testing */ URI getEngineUri() {
+        return vaultUrl;
     }
 }
