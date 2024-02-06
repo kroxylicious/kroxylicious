@@ -188,7 +188,7 @@ public final class Dek<E> {
     }
 
     Dek(@NonNull E edek, @NonNull SecretKey key, @NonNull CipherSpec cipherSpec, long maxEncryptions) {
-        /* protected access because instantion only allowed via a DekManager */
+        /* protected access because instantiation only allowed via a DekManager */
         Objects.requireNonNull(edek);
         if (Objects.requireNonNull(key).isDestroyed()) {
             throw new IllegalArgumentException();
@@ -201,7 +201,8 @@ public final class Dek<E> {
         this.atomicKey = new AtomicReference<>(key);
         this.cipherSpec = cipherSpec;
         this.remainingEncryptions = new AtomicLong(maxEncryptions);
-        this.outstandingCryptors = new AtomicLong(START);
+        // If no encryptions then make the Dek already destroyed for encrypt.
+        this.outstandingCryptors = new AtomicLong(maxEncryptions == 0 ? combine(-1, 1) : START);
     }
 
     /**

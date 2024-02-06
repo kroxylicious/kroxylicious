@@ -269,7 +269,7 @@ class DekTest {
         SecretKey mock = mock(SecretKey.class);
         doReturn(false).when(mock).isDestroyed();
         doNothing().when(mock).destroy();
-        var dek = new Dek<>("edek", mock, cipherSpec, 0);
+        var dek = new Dek<>("edek", mock, cipherSpec, 1);
         var cryptor1 = dek.decryptor();
         var cryptor2 = dek.decryptor();
 
@@ -420,6 +420,26 @@ class DekTest {
         Mockito.verify(mock).destroy();
 
         cryptor2.close();
+    }
+
+    @ParameterizedTest
+    @EnumSource(CipherSpec.class)
+    void destroyWhen0InitialEncryptions(CipherSpec cipherSpec) throws DestroyFailedException {
+        // Given
+        SecretKey mock = mock(SecretKey.class);
+        doReturn(false).when(mock).isDestroyed();
+        doNothing().when(mock).destroy();
+        var dek = new Dek<>("edek", mock, cipherSpec, 0);
+
+        assertThat(dek.isDestroyed()).isFalse();
+        Mockito.verify(mock, never()).destroy();
+
+        // When
+        dek.destroyForDecrypt();
+
+        // Then: there should be no need to call destroyForEncrypt for the key to be destroyed
+        assertThat(dek.isDestroyed()).isTrue();
+        Mockito.verify(mock).destroy();
     }
 
     // encrypt and decrypt with no AAD
