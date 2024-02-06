@@ -16,15 +16,20 @@ import java.util.concurrent.Executor;
 import java.util.function.IntFunction;
 import java.util.stream.StreamSupport;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.record.MutableRecordBatch;
 import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.utils.BufferSupplier;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 import org.apache.kafka.common.utils.CloseableIterator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.RemovalCause;
 
 import io.kroxylicious.filter.encryption.EncryptionManager;
 import io.kroxylicious.filter.encryption.EncryptionScheme;
@@ -39,29 +44,17 @@ import io.kroxylicious.filter.encryption.records.RecordBatchUtils;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(InBandEncryptionManager.class);
+
     private static final int MAX_ATTEMPTS = 3;
+    public static final int NO_MAX_CACHE_SIZE = -1;
 
     private record CacheKey<K>(K kek, CipherSpec cipherSpec) {}
 
     private static <K> CacheKey<K> cacheKey(EncryptionScheme<K> encryptionScheme) {
         // TODO Make the cipherSpec configurable on the EncryptionScheme
         return new CacheKey<>(encryptionScheme.kekId(), CipherSpec.AES_128_GCM_128);
-    }
-
-    /**
-    * The encryption version used on the produce path.
-    * Note that the encryption version used on the fetch path is read from the
-    * {@link InBandDecryptionManager#ENCRYPTION_HEADER_NAME} header.
-    */
-    private final EncryptionVersion encryptionVersion;
-    private final DekManager<K, E> kms;
-    private final AsyncLoadingCache<CacheKey<K>, Dek<E>> dekCache;
-
-    public InBandEncryptionManager(@NonNull DekManager<K, E> kms) {
-        this.encryptionVersion = EncryptionVersion.V1; // TODO read from config
-        this.kms = Objects.requireNonNull(kms);
-        this.dekCache = Caffeine.newBuilder()
-                .buildAsync(this::requestGenerateDek);
     }
 
     @NonNull
@@ -88,15 +81,55 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
         return count;
     }
 
-    private CompletionStage<Dek<E>> currentDek(@NonNull EncryptionScheme encryptionScheme) {
-        // todo should we add some scheduled timeout as well? or should we rely on the KMS to timeout appropriately.
-        return dekCache.get(cacheKey(encryptionScheme));
+    /**
+    * The encryption version used on the produce path.
+    * Note that the encryption version used on the fetch path is read from the
+    * {@link InBandDecryptionManager#ENCRYPTION_HEADER_NAME} header.
+    */
+    private final EncryptionVersion encryptionVersion;
+    private final DekManager<K, E> dekManager;
+    private final AsyncLoadingCache<CacheKey<K>, Dek<E>> dekCache;
+
+    public InBandEncryptionManager(@NonNull DekManager<K, E> dekManager,
+                                   @Nullable Executor executor,
+                                   int maximumCacheSize) {
+        this.encryptionVersion = EncryptionVersion.V1; // TODO read from config
+        this.dekManager = Objects.requireNonNull(dekManager);
+        Caffeine<Object, Object> cache = Caffeine.newBuilder();
+        if (maximumCacheSize != NO_MAX_CACHE_SIZE) {
+            cache = cache.maximumSize(maximumCacheSize);
+        }
+        if (executor != null) {
+            cache = cache.executor(executor);
+        }
+        this.dekCache = cache
+                .removalListener(this::afterCacheEviction)
+                .buildAsync(this::requestGenerateDek);
     }
 
+    /** Invoked by Caffeine when a DEK needs to be loaded */
     private CompletableFuture<Dek<E>> requestGenerateDek(@NonNull CacheKey<K> cacheKey,
                                                          @NonNull Executor executor) {
-        return kms.generateDek(cacheKey.kek(), cacheKey.cipherSpec())
+        return dekManager.generateDek(cacheKey.kek(), cacheKey.cipherSpec())
+                .thenApply(dek -> {
+                    dek.destroyForDecrypt();
+                    return dek;
+                })
                 .toCompletableFuture();
+    }
+
+    /** Invoked by Caffeine after a DEK is evicted from the cache. */
+    private void afterCacheEviction(CacheKey<K> cacheKey, Dek<E> dek, RemovalCause removalCause) {
+        dek.destroyForEncrypt();
+        if (LOGGER.isTraceEnabled()) {
+            LOGGER.trace("Attempted to destroy DEK ", dek);
+        }
+    }
+
+    // @VisibleForTesting
+    CompletionStage<Dek<E>> currentDek(@NonNull EncryptionScheme encryptionScheme) {
+        // todo should we add some scheduled timeout as well? or should we rely on the KMS to timeout appropriately.
+        return dekCache.get(cacheKey(encryptionScheme));
     }
 
     @Override
@@ -193,7 +226,7 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
                 do {
                     try {
                         RecordBatchUtils.toMemoryRecords(batch,
-                                new RecordEncryptor<>(encryptionVersion, encryptionScheme, encryptor, kms.edekSerde(), recordBuffer),
+                                new RecordEncryptor<>(encryptionVersion, encryptionScheme, encryptor, dekManager.edekSerde(), recordBuffer),
                                 builder);
                         break;
                     }

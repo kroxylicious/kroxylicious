@@ -17,11 +17,16 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Stream;
 
 import javax.crypto.SecretKey;
+
+import io.kroxylicious.filter.encryption.dek.Dek;
+import io.kroxylicious.kms.service.DekPair;
 
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
@@ -271,24 +276,25 @@ class InBandDecryptionManagerTest {
     }
 
     @NonNull
-    private static CompletionStage<Void> doDecrypt(InBandDecryptionManager<UUID, InMemoryEdek> km, String topic, int partition, List<Record> encrypted,
+    private static CompletionStage<Void> doDecrypt(InBandDecryptionManager<UUID, InMemoryEdek> decryptionManager, String topic, int partition, List<Record> encrypted,
                                                    List<Record> decrypted) {
-        return km.decrypt(topic, partition, RecordTestUtils.memoryRecords(encrypted), ByteBufferOutputStream::new)
+        return decryptionManager.decrypt(topic, partition, RecordTestUtils.memoryRecords(encrypted), ByteBufferOutputStream::new)
                 .thenAccept(records -> records.records().forEach(decrypted::add));
     }
 
     @NonNull
-    private static CompletionStage<Void> doEncrypt(InBandEncryptionManager<UUID, InMemoryEdek> keyManager,
+    private static CompletionStage<Void> doEncrypt(InBandEncryptionManager<UUID, InMemoryEdek> encryptionManager,
                                                    String topic,
                                                    int partition,
                                                    EncryptionScheme<UUID> scheme,
                                                    List<Record> initial,
                                                    List<Record> encrypted) {
         MemoryRecords records = RecordTestUtils.memoryRecords(initial);
-        return keyManager.encrypt(topic, partition, scheme, records, ByteBufferOutputStream::new).thenApply(memoryRecords -> {
-            memoryRecords.records().forEach(encrypted::add);
-            return null;
-        });
+        return encryptionManager.encrypt(topic, partition, scheme, records, ByteBufferOutputStream::new)
+                .thenApply(memoryRecords -> {
+                    memoryRecords.records().forEach(encrypted::add);
+                    return null;
+                });
     }
 
     @Test
@@ -867,6 +873,35 @@ class InBandDecryptionManagerTest {
                 .containsExactly(rec1Bytes, rec2Bytes, rec3Bytes);
     }
 
+    @Test
+    void shouldDestroyEvictedDeks() throws InterruptedException {
+        // Given
+        InMemoryKms kms = getInMemoryKms();
+        var kek1 = kms.generateKey();
+        var kek2 = kms.generateKey();
+
+        var encryptionManager = createEncryptionManager(kms, 50_000, 1);
+
+        var value = new byte[]{ 1, 2, 3 };
+        Record record = RecordTestUtils.record(value);
+
+        List<Record> encrypted = new ArrayList<>();
+        List<Record> initial = List.of(record);
+        EncryptionScheme<UUID> scheme1 = new EncryptionScheme<>(kek1, EnumSet.of(RecordField.RECORD_VALUE));
+        doEncrypt(encryptionManager,  "topic", 1, scheme1, initial, encrypted);
+
+        Dek<InMemoryEdek> dek1 = encryptionManager.currentDek(scheme1).toCompletableFuture().join();
+        assertThat(dek1.isDestroyed()).isFalse();
+
+        // When
+        // Encrypt with key2, which should evict the DEK for key 1
+        EncryptionScheme<UUID> scheme2 = new EncryptionScheme<>(kek2, EnumSet.of(RecordField.RECORD_VALUE));
+        doEncrypt(encryptionManager,  "topic", 1, scheme2, initial, encrypted);
+
+        // Then
+        assertThat(dek1.isDestroyed()).isTrue();
+    }
+
     public TestingDek getSerializedGeneratedEdek(InMemoryKms kms, int i) {
         var generatedEdek = kms.getGeneratedEdek(i);
         var edek = generatedEdek.edek();
@@ -907,7 +942,17 @@ class InBandDecryptionManagerTest {
 
     @NonNull
     private static InBandEncryptionManager<UUID, InMemoryEdek> createEncryptionManager(InMemoryKms kms, int maxEncryptionsPerDek) {
-        return new InBandEncryptionManager<>(new DekManager<UUID, InMemoryEdek>(ignored -> kms, null, maxEncryptionsPerDek));
+        return createEncryptionManager(kms, maxEncryptionsPerDek, InBandEncryptionManager.NO_MAX_CACHE_SIZE);
+    }
+
+    @NonNull
+    private static InBandEncryptionManager<UUID, InMemoryEdek> createEncryptionManager(InMemoryKms kms, int maxEncryptionsPerDek, int maxCacheSize) {
+        return new InBandEncryptionManager<>(new DekManager<UUID, InMemoryEdek>(ignored -> kms, null, maxEncryptionsPerDek), new Executor() {
+            @Override
+            public void execute(Runnable command) {
+                command.run();
+            }
+        }, maxCacheSize);
     }
 
     @NonNull
