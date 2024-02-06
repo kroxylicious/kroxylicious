@@ -907,7 +907,7 @@ class InBandDecryptionManagerTest {
 
     @NonNull
     private static InBandEncryptionManager<UUID, InMemoryEdek> createEncryptionManager(InMemoryKms kms, int maxEncryptionsPerDek) {
-        return new InBandEncryptionManager<>(new DekManager<UUID, InMemoryEdek>(ignored -> kms, null, maxEncryptionsPerDek), BufferPool.allocating());
+        return new InBandEncryptionManager<>(new DekManager<UUID, InMemoryEdek>(ignored -> kms, null, maxEncryptionsPerDek));
     }
 
     @NonNull

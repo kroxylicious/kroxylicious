@@ -57,7 +57,7 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
     private final DekManager<K, E> kms;
     private final AsyncLoadingCache<CacheKey<K>, Dek<E>> dekCache;
 
-    public InBandEncryptionManager(@NonNull DekManager<K, E> kms, BufferPool bufferPool) {
+    public InBandEncryptionManager(@NonNull DekManager<K, E> kms) {
         this.encryptionVersion = EncryptionVersion.V1; // TODO read from config
         this.kms = Objects.requireNonNull(kms);
         this.dekCache = Caffeine.newBuilder()
