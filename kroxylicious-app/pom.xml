@@ -199,6 +199,12 @@
         </profile>
         <profile>
             <id>withAdditionalFilters</id>
+            <activation>
+                <property>
+                    <name>withAdditionalFilters</name>
+                    <value>!false</value>
+                </property>
+            </activation>
             <dependencies>
                 <dependency>
                     <groupId>io.kroxylicious</groupId>

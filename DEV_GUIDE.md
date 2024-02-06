@@ -89,18 +89,17 @@ Run the following command to format the source code and organize the imports as 
 mvn process-sources
 ```
 
-Build with the `dist` profile to create distribution artefacts (see [kroxylicious-app](kroxylicious-app)):
+Build with the `dist` profile to create distribution artefacts (see [kroxylicious-app](kroxylicious-app)).
+The distribution includes the Kroxylicious-maintained Filter implementations (located under [kroxylicious-additional-filters](./kroxylicious-additional-filters)).
 
 ```shell
 mvn clean verify -Pdist -Dquick
 ```
 
-The project provides some Kroxylicious-maintained Filter implementations that are not included in the distribution
-by default. To also include the additional filters in the distribution (located under [kroxylicious-additional-filters](./kroxylicious-additional-filters)), 
-activate the `withAdditionalFilters` profile:
+It is possible to omit the Kroxylicious-maintained Filter implementations by disabling the `withAdditionalFilters` profile.
 
 ```shell
-mvn clean install -Pdist -Dquick -PwithAdditionalFilters
+mvn clean install -Pdist -Dquick -P-withAdditionalFilters
 ```
 
 Run the following to add missing license headers e.g. when adding new source files:
