@@ -109,7 +109,7 @@ public class InBandDecryptionManager<K, E> implements DecryptionManager {
         Set<E> uniqueEdeks = extractEdeks(topicName, partition, records);
         CompletionStage<Map<E, AesGcmEncryptor>> decryptors = resolveAll(uniqueEdeks);
         CompletionStage<BatchAwareMemoryRecordsBuilder> decryptStage = decryptors.thenApply(
-                encryptorMap -> decrypt(topicName, partition, records, new BatchAwareMemoryRecordsBuilder(allocateBufferForDecode(records, bufferAllocator)),
+                encryptorMap -> decrypt(topicName, partition, records, new BatchAwareMemoryRecordsBuilder(allocateBufferForDecrypt(records, bufferAllocator)),
                         encryptorMap, batchRecordCounts));
         return decryptStage.thenApply(BatchAwareMemoryRecordsBuilder::build);
     }
@@ -179,7 +179,7 @@ public class InBandDecryptionManager<K, E> implements DecryptionManager {
         }
     }
 
-    private ByteBufferOutputStream allocateBufferForDecode(MemoryRecords memoryRecords, IntFunction<ByteBufferOutputStream> allocator) {
+    private ByteBufferOutputStream allocateBufferForDecrypt(MemoryRecords memoryRecords, IntFunction<ByteBufferOutputStream> allocator) {
         int sizeEstimate = memoryRecords.sizeInBytes();
         return allocator.apply(sizeEstimate);
     }

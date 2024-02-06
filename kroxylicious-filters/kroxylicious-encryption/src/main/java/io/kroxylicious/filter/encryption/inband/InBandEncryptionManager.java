@@ -122,8 +122,8 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
                 .thenApply(BatchAwareMemoryRecordsBuilder::build);
     }
 
-    private ByteBufferOutputStream allocateBufferForEncode(@NonNull MemoryRecords records,
-                                                           @NonNull IntFunction<ByteBufferOutputStream> bufferAllocator) {
+    private ByteBufferOutputStream allocateBufferForEncrypt(@NonNull MemoryRecords records,
+                                                            @NonNull IntFunction<ByteBufferOutputStream> bufferAllocator) {
         int sizeEstimate = 2 * records.sizeInBytes();
         // Accurate estimation is tricky without knowing the record sizes
         return bufferAllocator.apply(sizeEstimate);
@@ -168,7 +168,7 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
                                                           @NonNull MemoryRecords memoryRecords,
                                                           @NonNull Dek.Encryptor encryptor,
                                                           @NonNull IntFunction<ByteBufferOutputStream> bufferAllocator) {
-        BatchAwareMemoryRecordsBuilder builder = new BatchAwareMemoryRecordsBuilder(allocateBufferForEncode(memoryRecords, bufferAllocator));
+        BatchAwareMemoryRecordsBuilder builder = new BatchAwareMemoryRecordsBuilder(allocateBufferForEncrypt(memoryRecords, bufferAllocator));
         for (MutableRecordBatch batch : memoryRecords.batches()) {
             maybeEncryptBatch(encryptionScheme, encryptor, batch, builder);
         }
