@@ -7,4 +7,7 @@
 package io.kroxylicious.filter.encryption.inband;
 
 public class RecordBufferOverflowException extends RuntimeException {
+    public RecordBufferOverflowException() {
+        super();
+    }
 }

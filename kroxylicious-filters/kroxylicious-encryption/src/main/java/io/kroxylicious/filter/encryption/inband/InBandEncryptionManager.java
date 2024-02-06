@@ -16,10 +16,6 @@ import java.util.concurrent.Executor;
 import java.util.function.IntFunction;
 import java.util.stream.StreamSupport;
 
-import edu.umd.cs.findbugs.annotations.Nullable;
-
-import io.kroxylicious.filter.encryption.EncryptionException;
-
 import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.record.MutableRecordBatch;
 import org.apache.kafka.common.record.Record;
@@ -33,6 +29,7 @@ import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.RemovalCause;
 
+import io.kroxylicious.filter.encryption.EncryptionException;
 import io.kroxylicious.filter.encryption.EncryptionManager;
 import io.kroxylicious.filter.encryption.EncryptionScheme;
 import io.kroxylicious.filter.encryption.EncryptionVersion;
@@ -44,6 +41,7 @@ import io.kroxylicious.filter.encryption.records.BatchAwareMemoryRecordsBuilder;
 import io.kroxylicious.filter.encryption.records.RecordBatchUtils;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
 

@@ -18,16 +18,11 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Stream;
 
 import javax.crypto.SecretKey;
-
-import io.kroxylicious.filter.encryption.EncryptionException;
-import io.kroxylicious.filter.encryption.dek.Dek;
-import io.kroxylicious.kms.service.DekPair;
 
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
@@ -48,8 +43,10 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.mockito.stubbing.Answer;
 
+import io.kroxylicious.filter.encryption.EncryptionException;
 import io.kroxylicious.filter.encryption.EncryptionScheme;
 import io.kroxylicious.filter.encryption.RecordField;
+import io.kroxylicious.filter.encryption.dek.Dek;
 import io.kroxylicious.filter.encryption.dek.DekManager;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.InMemoryEdek;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.InMemoryKms;
@@ -61,7 +58,6 @@ import io.kroxylicious.test.record.RecordTestUtils;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -894,7 +890,7 @@ class InBandDecryptionManagerTest {
         List<Record> encrypted = new ArrayList<>();
         List<Record> initial = List.of(record);
         EncryptionScheme<UUID> scheme1 = new EncryptionScheme<>(kek1, EnumSet.of(RecordField.RECORD_VALUE));
-        doEncrypt(encryptionManager,  "topic", 1, scheme1, initial, encrypted);
+        doEncrypt(encryptionManager, "topic", 1, scheme1, initial, encrypted);
 
         Dek<InMemoryEdek> dek1 = encryptionManager.currentDek(scheme1).toCompletableFuture().join();
         assertThat(dek1.isDestroyed()).isFalse();
@@ -902,7 +898,7 @@ class InBandDecryptionManagerTest {
         // When
         // Encrypt with key2, which should evict the DEK for key 1
         EncryptionScheme<UUID> scheme2 = new EncryptionScheme<>(kek2, EnumSet.of(RecordField.RECORD_VALUE));
-        doEncrypt(encryptionManager,  "topic", 1, scheme2, initial, encrypted);
+        doEncrypt(encryptionManager, "topic", 1, scheme2, initial, encrypted);
 
         // Then
         assertThat(dek1.isDestroyed()).isTrue();
@@ -928,7 +924,7 @@ class InBandDecryptionManagerTest {
         EncryptionScheme<UUID> scheme1 = new EncryptionScheme<>(kek1, EnumSet.of(RecordField.RECORD_VALUE));
 
         // When
-        assertThat(doEncrypt(encryptionManager,  "topic", 1, scheme1, initial, encrypted))
+        assertThat(doEncrypt(encryptionManager, "topic", 1, scheme1, initial, encrypted))
                 .failsWithin(1, TimeUnit.NANOSECONDS)
                 .withThrowableThat()
                 .isExactlyInstanceOf(ExecutionException.class)
@@ -957,7 +953,7 @@ class InBandDecryptionManagerTest {
         EncryptionScheme<UUID> scheme1 = new EncryptionScheme<>(kek1, EnumSet.of(RecordField.RECORD_VALUE));
 
         // When
-        assertThat(doEncrypt(encryptionManager,  "topic", 1, scheme1, initial, encrypted))
+        assertThat(doEncrypt(encryptionManager, "topic", 1, scheme1, initial, encrypted))
                 .succeedsWithin(1, TimeUnit.NANOSECONDS);
     }
 

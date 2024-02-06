@@ -133,21 +133,16 @@ class RecordEncryptor<K, E> implements RecordTransform {
                     ByteBuffer aad = ByteUtils.EMPTY_BUF; // TODO pass the AAD to encode
                     buffer.put((byte) 0); // version TODO get rid of this
 
-                    {
-                        final int p0 = buffer.position();
-                        // Write the parameters
-                        // TODO slice throws IndexOutOfBounds, not buffer overflow, so won't work with FooException
-                        var paramsBuffer = encryptor.preEncrypt(size -> buffer.slice().put((byte) size));
-                        buffer.position(buffer.position() + paramsBuffer.limit());
-                    }
+                    // Write the parameters
+                    var paramsBuffer = encryptor.preEncrypt(size -> buffer.slice().put((byte) size));
+                    buffer.position(buffer.position() + paramsBuffer.limit());
 
-                    // Write the parcel
-                    int sizeOfParcel = Parcel.sizeOfParcel(encryptionVersion.parcelVersion(), encryptionScheme.recordFields(), kafkaRecord);
+                    // Write the parcel of data that will be encrypted (the plaintext)
                     var parcelBuffer = buffer.slice();
                     Parcel.writeParcel(encryptionVersion.parcelVersion(), encryptionScheme.recordFields(), kafkaRecord, parcelBuffer);
                     parcelBuffer.flip();
 
-                    // Overwrite
+                    // Overwrite the parcel with the cipher text
                     var ct = encryptor.encrypt(parcelBuffer,
                             aad,
                             size -> buffer.slice());
