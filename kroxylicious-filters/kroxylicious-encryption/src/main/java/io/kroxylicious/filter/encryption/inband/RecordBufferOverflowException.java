@@ -6,5 +6,5 @@
 
 package io.kroxylicious.filter.encryption.inband;
 
-public class FooException extends RuntimeException {
+public class RecordBufferOverflowException extends RuntimeException {
 }

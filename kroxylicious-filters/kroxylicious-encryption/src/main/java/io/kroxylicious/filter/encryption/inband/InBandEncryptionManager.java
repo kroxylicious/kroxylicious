@@ -197,7 +197,7 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
                                 builder);
                         break;
                     }
-                    catch (FooException e) {
+                    catch (RecordBufferOverflowException e) {
                         int newCapacity = 2 * recordBuffer.capacity();
                         if (newCapacity > 8 * 1024 * 1024) {
                             throw new RuntimeException("Too big");

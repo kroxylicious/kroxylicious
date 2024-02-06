@@ -154,11 +154,11 @@ class RecordEncryptor<K, E> implements RecordTransform {
                     buffer.position(buffer.position() + ct.remaining());
                 }
                 catch (BufferOverflowException e) {
-                    throw new FooException();
+                    throw new RecordBufferOverflowException();
                 }
                 catch (DekException e) {
                     if (e.getCause() instanceof ShortBufferException) {
-                        throw new FooException();
+                        throw new RecordBufferOverflowException();
                     }
                     else {
                         throw e;
