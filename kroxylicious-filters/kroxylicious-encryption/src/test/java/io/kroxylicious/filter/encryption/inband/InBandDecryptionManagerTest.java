@@ -25,6 +25,7 @@ import java.util.stream.Stream;
 
 import javax.crypto.SecretKey;
 
+import io.kroxylicious.filter.encryption.EncryptionException;
 import io.kroxylicious.filter.encryption.dek.Dek;
 import io.kroxylicious.kms.service.DekPair;
 
@@ -60,6 +61,7 @@ import io.kroxylicious.test.record.RecordTestUtils;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -880,7 +882,11 @@ class InBandDecryptionManagerTest {
         var kek1 = kms.generateKey();
         var kek2 = kms.generateKey();
 
-        var encryptionManager = createEncryptionManager(kms, 50_000, 1);
+        var encryptionManager = createEncryptionManager(kms,
+                50_000,
+                1024 * 1024,
+                8 * 1024 * 1024,
+                1);
 
         var value = new byte[]{ 1, 2, 3 };
         Record record = RecordTestUtils.record(value);
@@ -900,6 +906,59 @@ class InBandDecryptionManagerTest {
 
         // Then
         assertThat(dek1.isDestroyed()).isTrue();
+    }
+
+    @Test
+    void shouldThrowExecutionExceptionIfRecordTooLarge() throws InterruptedException {
+        // Given
+        InMemoryKms kms = getInMemoryKms();
+        var kek1 = kms.generateKey();
+
+        var encryptionManager = createEncryptionManager(kms,
+                50_000,
+                10,
+                10,
+                1);
+
+        var value = new byte[]{ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+        Record record = RecordTestUtils.record(value);
+
+        List<Record> encrypted = new ArrayList<>();
+        List<Record> initial = List.of(record);
+        EncryptionScheme<UUID> scheme1 = new EncryptionScheme<>(kek1, EnumSet.of(RecordField.RECORD_VALUE));
+
+        // When
+        assertThat(doEncrypt(encryptionManager,  "topic", 1, scheme1, initial, encrypted))
+                .failsWithin(1, TimeUnit.NANOSECONDS)
+                .withThrowableThat()
+                .isExactlyInstanceOf(ExecutionException.class)
+                .havingCause()
+                .isExactlyInstanceOf(EncryptionException.class)
+                .withMessage("Record buffer cannot grow greater than 10 bytes");
+    }
+
+    @Test
+    void shouldSucceedIfCanReallocateRecordBuffer() throws InterruptedException {
+        // Given
+        InMemoryKms kms = getInMemoryKms();
+        var kek1 = kms.generateKey();
+
+        var encryptionManager = createEncryptionManager(kms,
+                50_000,
+                10,
+                1000,
+                1);
+
+        var value = new byte[]{ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+        Record record = RecordTestUtils.record(value);
+
+        List<Record> encrypted = new ArrayList<>();
+        List<Record> initial = List.of(record);
+        EncryptionScheme<UUID> scheme1 = new EncryptionScheme<>(kek1, EnumSet.of(RecordField.RECORD_VALUE));
+
+        // When
+        assertThat(doEncrypt(encryptionManager,  "topic", 1, scheme1, initial, encrypted))
+                .succeedsWithin(1, TimeUnit.NANOSECONDS);
     }
 
     public TestingDek getSerializedGeneratedEdek(InMemoryKms kms, int i) {
@@ -942,17 +1001,28 @@ class InBandDecryptionManagerTest {
 
     @NonNull
     private static InBandEncryptionManager<UUID, InMemoryEdek> createEncryptionManager(InMemoryKms kms, int maxEncryptionsPerDek) {
-        return createEncryptionManager(kms, maxEncryptionsPerDek, InBandEncryptionManager.NO_MAX_CACHE_SIZE);
+        return createEncryptionManager(kms, maxEncryptionsPerDek,
+                1024 * 1024, 8 * 1024 * 1024,
+                InBandEncryptionManager.NO_MAX_CACHE_SIZE);
     }
 
     @NonNull
-    private static InBandEncryptionManager<UUID, InMemoryEdek> createEncryptionManager(InMemoryKms kms, int maxEncryptionsPerDek, int maxCacheSize) {
-        return new InBandEncryptionManager<>(new DekManager<UUID, InMemoryEdek>(ignored -> kms, null, maxEncryptionsPerDek), new Executor() {
-            @Override
-            public void execute(Runnable command) {
-                command.run();
-            }
-        }, maxCacheSize);
+    private static InBandEncryptionManager<UUID, InMemoryEdek> createEncryptionManager(InMemoryKms kms,
+                                                                                       int maxEncryptionsPerDek,
+                                                                                       int recordBufferInitialBytes,
+                                                                                       int recordBufferMaxBytes,
+                                                                                       int maxCacheSize) {
+        return new InBandEncryptionManager<>(new DekManager<UUID, InMemoryEdek>(ignored -> kms, null, maxEncryptionsPerDek),
+                recordBufferInitialBytes,
+                recordBufferMaxBytes,
+                new Executor() {
+                    @Override
+                    public void execute(Runnable command) {
+                        // Run cache evications on the test thread, avoiding the need for tests to sleep to observe cache evictions
+                        command.run();
+                    }
+                },
+                maxCacheSize);
     }
 
     @NonNull

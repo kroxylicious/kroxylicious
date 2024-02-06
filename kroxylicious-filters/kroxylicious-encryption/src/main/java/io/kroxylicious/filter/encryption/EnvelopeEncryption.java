@@ -71,7 +71,11 @@ public class EnvelopeEncryption<K, E> implements FilterFactory<EnvelopeEncryptio
         Kms<K, E> kms = buildKms(context, configuration);
 
         DekManager<K, E> dekManager = new DekManager<>(ignored -> kms, null, 5_000_000);
-        var encryptionManager = new InBandEncryptionManager<>(dekManager, null, InBandEncryptionManager.NO_MAX_CACHE_SIZE);
+        var encryptionManager = new InBandEncryptionManager<>(dekManager,
+                1024 * 1024,
+                8 * 1024 * 1024,
+                null,
+                InBandEncryptionManager.NO_MAX_CACHE_SIZE);
         var decryptionManager = new InBandDecryptionManager<>(kms);
 
         KekSelectorService<Object, K> ksPlugin = context.pluginInstance(KekSelectorService.class, configuration.selector());

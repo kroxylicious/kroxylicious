@@ -18,6 +18,8 @@ import java.util.stream.StreamSupport;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+import io.kroxylicious.filter.encryption.EncryptionException;
+
 import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.record.MutableRecordBatch;
 import org.apache.kafka.common.record.Record;
@@ -90,17 +92,30 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
     private final DekManager<K, E> dekManager;
     private final AsyncLoadingCache<CacheKey<K>, Dek<E>> dekCache;
 
+    private final int recordBufferInitialBytes;
+    private final int recordBufferMaxBytes;
+
     public InBandEncryptionManager(@NonNull DekManager<K, E> dekManager,
-                                   @Nullable Executor executor,
-                                   int maximumCacheSize) {
+                                   int recordBufferInitialBytes,
+                                   int recordBufferMaxBytes,
+                                   @Nullable Executor dekCacheExecutor,
+                                   int dekCacheMaxItems) {
         this.encryptionVersion = EncryptionVersion.V1; // TODO read from config
         this.dekManager = Objects.requireNonNull(dekManager);
-        Caffeine<Object, Object> cache = Caffeine.newBuilder();
-        if (maximumCacheSize != NO_MAX_CACHE_SIZE) {
-            cache = cache.maximumSize(maximumCacheSize);
+        if (recordBufferInitialBytes <= 0) {
+            throw new IllegalArgumentException();
         }
-        if (executor != null) {
-            cache = cache.executor(executor);
+        this.recordBufferInitialBytes = recordBufferInitialBytes;
+        if (recordBufferMaxBytes <= 0) {
+            throw new IllegalArgumentException();
+        }
+        this.recordBufferMaxBytes = recordBufferMaxBytes;
+        Caffeine<Object, Object> cache = Caffeine.newBuilder();
+        if (dekCacheMaxItems != NO_MAX_CACHE_SIZE) {
+            cache = cache.maximumSize(dekCacheMaxItems);
+        }
+        if (dekCacheExecutor != null) {
+            cache = cache.executor(dekCacheExecutor);
         }
         this.dekCache = cache
                 .removalListener(this::afterCacheEviction)
@@ -222,7 +237,7 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
             }
             else {
                 // TODO per-thread caching
-                ByteBuffer recordBuffer = ByteBuffer.allocate(1024 * 1024);
+                ByteBuffer recordBuffer = ByteBuffer.allocate(recordBufferInitialBytes);
                 do {
                     try {
                         RecordBatchUtils.toMemoryRecords(batch,
@@ -232,8 +247,8 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
                     }
                     catch (RecordBufferOverflowException e) {
                         int newCapacity = 2 * recordBuffer.capacity();
-                        if (newCapacity > 8 * 1024 * 1024) {
-                            throw new RuntimeException("Too big");
+                        if (newCapacity > recordBufferMaxBytes) {
+                            throw new EncryptionException("Record buffer cannot grow greater than " + recordBufferMaxBytes + " bytes");
                         }
                         recordBuffer = ByteBuffer.allocate(newCapacity);
                     }
