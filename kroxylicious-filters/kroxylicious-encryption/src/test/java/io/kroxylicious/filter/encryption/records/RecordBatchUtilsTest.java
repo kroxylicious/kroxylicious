@@ -72,7 +72,7 @@ class RecordBatchUtilsTest {
         MyRecordTransform mapper = new MyRecordTransform();
         var memoryRecords = RecordBatchUtils.toMemoryRecords(batch,
                 mapper,
-                new ByteBufferOutputStream(1000));
+                new BatchAwareMemoryRecordsBuilder(new ByteBufferOutputStream(1000))).build();
 
         // Then
         assertThat(mapper.initCalls).isEqualTo(996);
