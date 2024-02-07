@@ -132,7 +132,7 @@ class RecordEncryptor<K, E> implements RecordTransform {
                     buffer.put((byte) 0); // version TODO get rid of this
 
                     // Write the parameters
-                    var paramsBuffer = encryptor.preEncrypt(size -> buffer.slice().put((byte) size));
+                    var paramsBuffer = encryptor.generateParameters(size -> buffer.slice().put((byte) size));
                     buffer.position(buffer.position() + paramsBuffer.limit());
 
                     // Write the parcel of data that will be encrypted (the plaintext)

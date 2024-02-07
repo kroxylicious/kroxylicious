@@ -492,7 +492,7 @@ class DekTest {
         commonBuffer.put(plaintext.getBytes(StandardCharsets.UTF_8));
         var plaintextBuffer = commonBuffer.duplicate().flip();
 
-        var paramsBuffer = encryptor.preEncrypt(size -> commonBuffer.slice());
+        var paramsBuffer = encryptor.generateParameters(size -> commonBuffer.slice());
 
         // Move the position of the common buffer to the end of the written parameters
         commonBuffer.position(commonBuffer.position() + paramsBuffer.remaining());
@@ -513,7 +513,7 @@ class DekTest {
                 .isZero();
 
         // Shouldn't be able to use the Encryptor again
-        assertThatThrownBy(() -> encryptor.preEncrypt(size -> ByteBuffer.allocate(size)))
+        assertThatThrownBy(() -> encryptor.generateParameters(size -> ByteBuffer.allocate(size)))
                 .isExactlyInstanceOf(DekUsageException.class)
                 .hasMessage("The Encryptor has no more operations allowed");
         // assertThatThrownBy(() -> encryptor.encrypt(plaintextBuffer,

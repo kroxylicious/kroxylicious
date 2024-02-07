@@ -37,7 +37,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * <h2>Encrypting and decrypting</h2>
  * <p>To encrypt using a DEK you need to obtain an {@link Encryptor Encryptor} using {@link #encryptor(int)},
  * specifying the number of encryption operations you expect to perform.
- * {@link Encryptor#preEncrypt(EncryptAllocator) Encryptor.preEncrypt()} and
+ * {@link Encryptor#generateParameters(EncryptAllocator) Encryptor.generateParameters()} and
  * {@link Encryptor#encrypt(ByteBuffer, ByteBuffer, EncryptAllocator) Encryptor.encrypt()}
  * can then be called up to the requested number of times.
  * Once you've finished using an Encryptor you need to {@link Encryptor#close() close()} it.
@@ -294,6 +294,7 @@ public final class Dek<E> {
         private final Supplier<AlgorithmParameterSpec> paramSupplier;
         private final CipherSpec cipherSpec;
         private int numEncryptions;
+        private boolean haveParameters = false;
 
         private Encryptor(CipherSpec cipherSpec, SecretKey key, int numEncryptions) {
             if (numEncryptions <= 0) {
@@ -315,13 +316,14 @@ public final class Dek<E> {
 
         /**
          * Prepare to perform an encryption operation using the DEK.
+         * This must be called before to a call to {@link #encrypt(ByteBuffer, ByteBuffer, EncryptAllocator)}.
          * @param paramAllocator A function that will return a buffer into which the cipher parameters will be written.
          * The function's argument is the number of bytes required for the cipher parameters.
          * @throws DekUsageException If this Encryptor has run out of operations.
          * @throws BufferTooSmallException If the buffer returned by the {@code paramAllocator}
          * had too few bytes remaining for the parameters to be written completely.
          */
-        public ByteBuffer preEncrypt(@NonNull EncryptAllocator paramAllocator) {
+        public ByteBuffer generateParameters(@NonNull EncryptAllocator paramAllocator) {
             if (numEncryptions <= 0) {
                 throw new DekUsageException("The Encryptor has no more operations allowed");
             }
@@ -335,6 +337,7 @@ public final class Dek<E> {
                     var parametersBuffer = paramAllocator.buffer(paramsSize);
                     cipherSpec.writeParameters(parametersBuffer, params);
                     parametersBuffer.flip();
+                    haveParameters = true;
                     return parametersBuffer;
                 }
                 catch (BufferOverflowException e) {
@@ -347,7 +350,9 @@ public final class Dek<E> {
         }
 
         /**
-         * <p>Perform an encryption operation using the DEK.</p>
+         * <p>Perform an encryption operation using the DEK.
+         * This must be called after to a call to {@link #generateParameters(EncryptAllocator)}</p>
+         *
          * <p>Like {@link Cipher#doFinal(ByteBuffer, ByteBuffer)}, the method is copy-safe:
          * The buffer returned by the {@code ciphertextAllocator}
          * may be the backed by the same buffer as the given {@code plaintext} and
@@ -365,6 +370,10 @@ public final class Dek<E> {
         public ByteBuffer encrypt(@NonNull ByteBuffer plaintext,
                                   @Nullable ByteBuffer aad,
                                   @NonNull EncryptAllocator ciphertextAllocator) {
+            if (!haveParameters) {
+                throw new IllegalStateException("Expecting a prior call to generateParameters()");
+            }
+            haveParameters = false;
             try {
                 if (aad != null) {
                     cipher.updateAAD(aad);
