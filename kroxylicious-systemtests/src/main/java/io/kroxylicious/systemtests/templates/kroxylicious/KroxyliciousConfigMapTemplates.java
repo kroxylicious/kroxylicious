@@ -71,7 +71,7 @@ public class KroxyliciousConfigMapTemplates {
                   config:
                     kms: VaultKmsService
                     kmsConfig:
-                      vaultUrl: http://%VAULT_SERVICE%.%VAULT_NAMESPACE%.svc.cluster.local:8200
+                      vaultTransitEngineUrl: http://%VAULT_SERVICE%.%VAULT_NAMESPACE%.svc.cluster.local:8200/v1/transit
                       vaultToken: %ROOT_TOKEN%
                     selector: TemplateKekSelector
                     selectorConfig:
