@@ -53,7 +53,7 @@ filter reverses the process used to  construct the *cipher record* and uses the 
 used to decrypt the encrypted record.  The cipher record in the fetch response is then replaced with the decrypted record.
 
 On the produce path, the filter employs a DEK reuse strategy. This means that records sent by a single connection to
-the same topic will be encrypted using the same DEK (until a time-out or number of encryption limit is reached, whichever
+the same topic will be encrypted using the same DEK (until a time-out or encryption operations limit is reached, whichever
 occurs first).  This prevents key exhaustion and prevents excessive interactions with the KMS.
 
 On the consume path, the filter employs an LRU strategy to keep recently encountered DEKs decrypted in memory. This
