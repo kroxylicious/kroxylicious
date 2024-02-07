@@ -54,7 +54,6 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
     private record CacheKey<K>(K kek, CipherSpec cipherSpec) {}
 
     private static <K> CacheKey<K> cacheKey(EncryptionScheme<K> encryptionScheme) {
-        // TODO Make the cipherSpec configurable on the EncryptionScheme
         return new CacheKey<>(encryptionScheme.kekId(), CipherSpec.AES_128_GCM_128);
     }
 
@@ -126,6 +125,9 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
                                                          @NonNull Executor executor) {
         return dekManager.generateDek(cacheKey.kek(), cacheKey.cipherSpec())
                 .thenApply(dek -> {
+                    if (LOGGER.isTraceEnabled()) {
+                        LOGGER.trace("Adding DEK to cache: {}", dek);
+                    }
                     dek.destroyForDecrypt();
                     return dek;
                 })
@@ -133,15 +135,19 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
     }
 
     /** Invoked by Caffeine after a DEK is evicted from the cache. */
-    private void afterCacheEviction(CacheKey<K> cacheKey, Dek<E> dek, RemovalCause removalCause) {
-        dek.destroyForEncrypt();
-        if (LOGGER.isTraceEnabled()) {
-            LOGGER.trace("Attempted to destroy DEK ", dek);
+    private void afterCacheEviction(@Nullable CacheKey<K> cacheKey,
+                                    @Nullable Dek<E> dek,
+                                    RemovalCause removalCause) {
+        if (dek != null) {
+            dek.destroyForEncrypt();
+            if (LOGGER.isTraceEnabled()) {
+                LOGGER.trace("Attempted to destroy DEK: {}", dek);
+            }
         }
     }
 
     // @VisibleForTesting
-    CompletionStage<Dek<E>> currentDek(@NonNull EncryptionScheme encryptionScheme) {
+    CompletionStage<Dek<E>> currentDek(@NonNull EncryptionScheme<K> encryptionScheme) {
         // todo should we add some scheduled timeout as well? or should we rely on the KMS to timeout appropriately.
         return dekCache.get(cacheKey(encryptionScheme));
     }
@@ -213,7 +219,7 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
     @NonNull
     private BatchAwareMemoryRecordsBuilder encryptBatches(@NonNull EncryptionScheme<K> encryptionScheme,
                                                           @NonNull MemoryRecords memoryRecords,
-                                                          @NonNull Dek.Encryptor encryptor,
+                                                          @NonNull Dek<E>.Encryptor encryptor,
                                                           @NonNull IntFunction<ByteBufferOutputStream> bufferAllocator) {
         BatchAwareMemoryRecordsBuilder builder = new BatchAwareMemoryRecordsBuilder(allocateBufferForEncrypt(memoryRecords, bufferAllocator));
         for (MutableRecordBatch batch : memoryRecords.batches()) {
@@ -223,7 +229,7 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
     }
 
     private void maybeEncryptBatch(@NonNull EncryptionScheme<K> encryptionScheme,
-                                   @NonNull Dek.Encryptor encryptor,
+                                   @NonNull Dek<E>.Encryptor encryptor,
                                    @NonNull MutableRecordBatch batch,
                                    @NonNull BatchAwareMemoryRecordsBuilder builder) {
         if (batch.isControlBatch()) {
@@ -235,28 +241,35 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
                 builder.writeBatch(batch);
             }
             else {
-                // TODO per-thread caching
-                ByteBuffer recordBuffer = ByteBuffer.allocate(recordBufferInitialBytes);
-                do {
-                    try {
-                        RecordBatchUtils.toMemoryRecords(batch,
-                                new RecordEncryptor<>(encryptionVersion, encryptionScheme, encryptor, dekManager.edekSerde(), recordBuffer),
-                                builder);
-                        break;
-                    }
-                    catch (BufferTooSmallException e) {
-                        int newCapacity = 2 * recordBuffer.capacity();
-                        if (newCapacity > recordBufferMaxBytes) {
-                            throw new EncryptionException("Record buffer cannot grow greater than " + recordBufferMaxBytes + " bytes");
-                        }
-                        recordBuffer = ByteBuffer.allocate(newCapacity);
-                    }
-                } while (true);
+                encryptBatch(encryptionScheme, encryptor, batch, builder);
             }
         }
-    }// this must only be called while holding the lock on this keycontext
+    }
 
-    private void rotateKeyContext(@NonNull EncryptionScheme<K> encryptionScheme, Dek<E> dek) {
+    private void encryptBatch(@NonNull EncryptionScheme<K> encryptionScheme,
+                              @NonNull Dek<E>.Encryptor encryptor,
+                              @NonNull MutableRecordBatch batch,
+                              @NonNull BatchAwareMemoryRecordsBuilder builder) {
+        ByteBuffer recordBuffer = ByteBuffer.allocate(recordBufferInitialBytes);
+        do {
+            try {
+                RecordBatchUtils.toMemoryRecords(batch,
+                        new RecordEncryptor<>(encryptionVersion, encryptionScheme, encryptor, dekManager.edekSerde(), recordBuffer),
+                        builder);
+                break;
+            }
+            catch (BufferTooSmallException e) {
+                int newCapacity = 2 * recordBuffer.capacity();
+                if (newCapacity > recordBufferMaxBytes) {
+                    throw new EncryptionException("Record buffer cannot grow greater than " + recordBufferMaxBytes + " bytes");
+                }
+                recordBuffer = ByteBuffer.allocate(newCapacity);
+            }
+        } while (true);
+    }
+
+    private void rotateKeyContext(@NonNull EncryptionScheme<K> encryptionScheme,
+                                  @NonNull Dek<E> dek) {
         dek.destroyForEncrypt();
         dekCache.synchronous().invalidate(cacheKey(encryptionScheme));
     }

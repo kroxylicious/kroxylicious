@@ -65,8 +65,6 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 @ThreadSafe
 public final class Dek<E> {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(Dek.class);
-
     private final E edek;
     // Note: checks for outstandingCryptors==END <em>happens-before</em> changes to atomicKey.
     // It's this that provides a guarantee that a cryptor should never see a
