@@ -20,6 +20,11 @@ import javax.crypto.spec.IvParameterSpec;
 /**
  * A CipherSpec couples a single persisted identifier with a Cipher (e.g. AES)
  * and means of generating, writing and reading parameters for that cipher.
+ *
+ * <h2 id="persistentIds">Persistent ids</h2>
+ * {@link #persistentId}s must uniquely and immutably identify a specific CipherSpec instance.
+ * They get written in the wrapper, so in order to provide backwards compatibility the ids
+ * can't be removed, or associated with a different CipherSpec.
  */
 public enum CipherSpec {
 
@@ -104,8 +109,11 @@ public enum CipherSpec {
             parametersBuffer.get(nonce);
             return new IvParameterSpec(nonce);
         }
-    };
+    }
+    /* !! Read the class JavaDoc before adding a new CipherSpec !! */
+    ;
 
+    /** Get the cipherSpec instance for the given <a href="#persistentIds">persistent id</a>. */
     static CipherSpec fromPersistentId(int persistentId) {
         switch (persistentId) {
             case 0:
@@ -128,6 +136,7 @@ public enum CipherSpec {
         this.maxEncryptionsPerKey = maxEncryptionsPerKey;
     }
 
+    /** Get this cipherSpec's <a href="#persistentIds">persistent id</a>. */
     public int persistentId() {
         return persistentId;
     }

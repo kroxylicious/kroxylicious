@@ -67,7 +67,7 @@ public class Parcel {
                 Header[] usedHeaders;
                 if (parcelledHeaders == ABSENT_HEADERS) {
                     if (existingHeaders.length > 0
-                            && InBandDecryptionManager.ENCRYPTION_HEADER_NAME.equals(existingHeaders[0].key())) {
+                            && RecordEncryptor.ENCRYPTION_HEADER_NAME.equals(existingHeaders[0].key())) {
                         // need to remove the encryption header
                         usedHeaders = new Header[existingHeaders.length - 1];
                         System.arraycopy(existingHeaders, 1, usedHeaders, 0, usedHeaders.length);

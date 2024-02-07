@@ -979,7 +979,7 @@ class InBandDecryptionManagerTest {
     @NonNull
     private static List<TestingDek> extractEdeks(List<Record> encrypted) {
         return encrypted.stream()
-                .filter(testingRecord -> Stream.of(testingRecord.headers()).anyMatch(header -> header.key().equals(InBandDecryptionManager.ENCRYPTION_HEADER_NAME)))
+                .filter(testingRecord -> Stream.of(testingRecord.headers()).anyMatch(header -> header.key().equals(RecordEncryptor.ENCRYPTION_HEADER_NAME)))
                 .map(testingRecord -> {
                     ByteBuffer wrapper = testingRecord.value();
                     var edekLength = ByteUtils.readUnsignedVarint(wrapper);

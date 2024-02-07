@@ -48,11 +48,6 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  */
 public class InBandDecryptionManager<K, E> implements DecryptionManager {
 
-    /**
-     * The encryption header. The value is the encryption version that was used to serialize the parcel and the wrapper.
-     */
-    static final String ENCRYPTION_HEADER_NAME = "kroxylicious.io/encryption";
-
     private final AsyncLoadingCache<E, AesGcmEncryptor> decryptorCache;
     private final Kms<K, E> kms;
     private final Serde<E> edekSerde;
@@ -65,7 +60,7 @@ public class InBandDecryptionManager<K, E> implements DecryptionManager {
     }
 
     /**
-     * Reads the {@link #ENCRYPTION_HEADER_NAME} header from the record.
+     * Reads the {@link RecordEncryptor#ENCRYPTION_HEADER_NAME} header from the record.
      * @param topicName The topic name.
      * @param partition The partition.
      * @param kafkaRecord The record.
@@ -73,10 +68,10 @@ public class InBandDecryptionManager<K, E> implements DecryptionManager {
      */
     static EncryptionVersion decryptionVersion(String topicName, int partition, Record kafkaRecord) {
         for (Header header : kafkaRecord.headers()) {
-            if (ENCRYPTION_HEADER_NAME.equals(header.key())) {
+            if (RecordEncryptor.ENCRYPTION_HEADER_NAME.equals(header.key())) {
                 byte[] value = header.value();
                 if (value.length != 1) {
-                    throw new EncryptionException("Invalid value for header with key '" + ENCRYPTION_HEADER_NAME + "' "
+                    throw new EncryptionException("Invalid value for header with key '" + RecordEncryptor.ENCRYPTION_HEADER_NAME + "' "
                             + "in record at offset " + kafkaRecord.offset()
                             + " in partition " + partition
                             + " of topic " + topicName);
