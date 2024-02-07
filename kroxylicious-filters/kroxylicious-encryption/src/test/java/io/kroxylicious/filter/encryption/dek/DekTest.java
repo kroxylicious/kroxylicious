@@ -496,7 +496,10 @@ class DekTest {
     private EncryptInfo encrypt(CipherSpec cipherSpec, ByteBuffer aad, String plaintext) throws NoSuchAlgorithmException {
         // Given
         var generator = KeyGenerator.getInstance("AES");
-        var key = generator.generateKey();
+        SecretKey secretKey = generator.generateKey();
+        var key = new DestroyableRawSecretKey(secretKey.getAlgorithm(), secretKey.getEncoded());
+        // We need a copy of the key, because the key will be destroyed as a side-effect of using up the last encryption
+        var safeKey = new DestroyableRawSecretKey(secretKey.getAlgorithm(), key.getEncoded());
         var edek = key.getEncoded(); // For this test it doesn't matter than it's not, in fact, encrypted
         var dek = new Dek<>(edek, key, cipherSpec, 1);
         var encryptor = dek.encryptor(1);
@@ -514,8 +517,6 @@ class DekTest {
         ByteBuffer plaintextBuffer = ByteBuffer.wrap(plaintext.getBytes(StandardCharsets.UTF_8));
         assertThat(plaintextBuffer.position()).isZero();
 
-        var buffer = ByteBuffer.allocate(100);
-
         var paramsBuffer = encryptor.preEncrypt(size -> ByteBuffer.allocate(size));
 
         var ciphertextBuffer = encryptor.encrypt(plaintextBuffer,
@@ -523,6 +524,8 @@ class DekTest {
                 size -> ByteBuffer.allocate(size));
 
         // TODO assertions on the buffer
+
+        assertThat(key.isDestroyed()).isTrue();
 
         assertThat(dek.isDestroyed())
                 .describedAs("Key should be destroyed when no encryptions left")
@@ -547,7 +550,7 @@ class DekTest {
         // It should be safe to close the encryptor
         encryptor.close();
 
-        return new EncryptInfo(key, paramsBuffer, ciphertextBuffer);
+        return new EncryptInfo(safeKey, paramsBuffer, ciphertextBuffer);
     }
 
     // TODO encrypt with too short cipher text buffer

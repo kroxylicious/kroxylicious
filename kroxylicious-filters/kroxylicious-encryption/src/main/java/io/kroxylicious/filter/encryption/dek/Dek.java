@@ -6,6 +6,7 @@
 
 package io.kroxylicious.filter.encryption.dek;
 
+import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.security.GeneralSecurityException;
 import java.security.spec.AlgorithmParameterSpec;
@@ -22,6 +23,7 @@ import javax.annotation.concurrent.NotThreadSafe;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
+import javax.crypto.ShortBufferException;
 import javax.security.auth.DestroyFailedException;
 import javax.security.auth.Destroyable;
 
@@ -336,6 +338,8 @@ public final class Dek<E> {
          * @param paramAllocator A function that will return a buffer into which the cipher parameters will be written.
          * The function's argument is the number of bytes required for the cipher parameters.
          * @throws DekUsageException If this Encryptor has run out of operations.
+         * @throws BufferTooSmallException If the buffer returned by the {@code paramAllocator}
+         * had too few bytes remaining for the parameters to be written completely.
          */
         public ByteBuffer preEncrypt(@NonNull EncryptAllocator paramAllocator) {
             if (numEncryptions <= 0) {
@@ -353,6 +357,9 @@ public final class Dek<E> {
                     parametersBuffer.flip();
                     return parametersBuffer;
                 }
+                catch (BufferOverflowException e) {
+                    throw new BufferTooSmallException();
+                }
                 catch (GeneralSecurityException e) {
                     throw new DekException(e);
                 }
@@ -360,7 +367,11 @@ public final class Dek<E> {
         }
 
         /**
-         * Perform an encryption operation using the DEK.
+         * <p>Perform an encryption operation using the DEK.</p>
+         * <p>Like {@link Cipher#doFinal(ByteBuffer, ByteBuffer)}, the method is copy-safe:
+         * The buffer returned by the {@code ciphertextAllocator}
+         * may be the backed by the same buffer as the given {@code plaintext} and
+         * no unprocessed plaintext data is overwritten when the result is copied into the ciphertext buffer</p>
          * @param plaintext The plaintext to be encrypted (between position and limit)
          * @param aad The AAD to be included in the encryption
          * The function's argument is the number of bytes required for the cipher parameters.
@@ -368,6 +379,8 @@ public final class Dek<E> {
          * The function's first argument is the number of bytes required for the cipher parameters.
          * The function's second argument is the number of bytes required for the ciphertext.
          * @throws DekUsageException If this Encryptor has run out of operations.
+         * @throws BufferTooSmallException If the buffer returned by the {@code ciphertextAllocator}
+         * had too few bytes remaining for the ciphertext to be written completely.
          */
         public ByteBuffer encrypt(@NonNull ByteBuffer plaintext,
                                   @Nullable ByteBuffer aad,
@@ -388,6 +401,9 @@ public final class Dek<E> {
                     close();
                 }
                 return ciphertext;
+            }
+            catch (ShortBufferException e) {
+                throw new BufferTooSmallException();
             }
             catch (GeneralSecurityException e) {
                 throw new DekException(e);

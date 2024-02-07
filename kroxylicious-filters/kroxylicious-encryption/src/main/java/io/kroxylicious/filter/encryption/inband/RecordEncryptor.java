@@ -10,8 +10,6 @@ import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.util.Objects;
 
-import javax.crypto.ShortBufferException;
-
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.record.Record;
@@ -21,9 +19,9 @@ import io.kroxylicious.filter.encryption.AadSpec;
 import io.kroxylicious.filter.encryption.EncryptionScheme;
 import io.kroxylicious.filter.encryption.EncryptionVersion;
 import io.kroxylicious.filter.encryption.RecordField;
+import io.kroxylicious.filter.encryption.dek.BufferTooSmallException;
 import io.kroxylicious.filter.encryption.dek.CipherSpec;
 import io.kroxylicious.filter.encryption.dek.Dek;
-import io.kroxylicious.filter.encryption.dek.DekException;
 import io.kroxylicious.filter.encryption.records.RecordTransform;
 import io.kroxylicious.kms.service.Serde;
 
@@ -75,7 +73,7 @@ class RecordEncryptor<K, E> implements RecordTransform {
     }
 
     @Override
-    public void init(@NonNull Record kafkaRecord) {
+    public void init(@NonNull Record kafkaRecord) throws BufferTooSmallException {
         if (encryptionScheme.recordFields().contains(RecordField.RECORD_HEADER_VALUES)
                 && kafkaRecord.headers().length > 0
                 && !kafkaRecord.hasValue()) {
@@ -88,7 +86,7 @@ class RecordEncryptor<K, E> implements RecordTransform {
     }
 
     @Nullable
-    private ByteBuffer doTransformValue(@NonNull Record kafkaRecord) {
+    private ByteBuffer doTransformValue(@NonNull Record kafkaRecord) throws BufferTooSmallException {
         final ByteBuffer transformedValue;
         if (kafkaRecord.hasValue()) {
             transformedValue = writeWrapper(kafkaRecord, recordBuffer);
@@ -119,7 +117,7 @@ class RecordEncryptor<K, E> implements RecordTransform {
     }
 
     @Nullable
-    private ByteBuffer writeWrapper(@NonNull Record kafkaRecord, ByteBuffer buffer) {
+    private ByteBuffer writeWrapper(@NonNull Record kafkaRecord, ByteBuffer buffer) throws BufferTooSmallException {
         switch (encryptionVersion.wrapperVersion()) {
             case V1 -> {
                 try {
@@ -149,15 +147,7 @@ class RecordEncryptor<K, E> implements RecordTransform {
                     buffer.position(buffer.position() + ct.remaining());
                 }
                 catch (BufferOverflowException e) {
-                    throw new RecordBufferOverflowException();
-                }
-                catch (DekException e) {
-                    if (e.getCause() instanceof ShortBufferException) {
-                        throw new RecordBufferOverflowException();
-                    }
-                    else {
-                        throw e;
-                    }
+                    throw new BufferTooSmallException();
                 }
             }
         }

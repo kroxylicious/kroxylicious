@@ -33,6 +33,7 @@ import io.kroxylicious.filter.encryption.EncryptionException;
 import io.kroxylicious.filter.encryption.EncryptionManager;
 import io.kroxylicious.filter.encryption.EncryptionScheme;
 import io.kroxylicious.filter.encryption.EncryptionVersion;
+import io.kroxylicious.filter.encryption.dek.BufferTooSmallException;
 import io.kroxylicious.filter.encryption.dek.CipherSpec;
 import io.kroxylicious.filter.encryption.dek.Dek;
 import io.kroxylicious.filter.encryption.dek.DekManager;
@@ -243,7 +244,7 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
                                 builder);
                         break;
                     }
-                    catch (RecordBufferOverflowException e) {
+                    catch (BufferTooSmallException e) {
                         int newCapacity = 2 * recordBuffer.capacity();
                         if (newCapacity > recordBufferMaxBytes) {
                             throw new EncryptionException("Record buffer cannot grow greater than " + recordBufferMaxBytes + " bytes");

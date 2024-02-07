@@ -17,7 +17,7 @@ public interface EncryptAllocator {
     /**
      * @param size The size of the required buffer
      * @return A buffer. If this has less than {@code size} bytes remaining
-     * then the encryption will ultimately fail with {@link io.kroxylicious.filter.encryption.inband.RecordBufferOverflowException}
+     * then the encryption will ultimately fail with {@link BufferTooSmallException}
      */
     ByteBuffer buffer(int size);
 }
