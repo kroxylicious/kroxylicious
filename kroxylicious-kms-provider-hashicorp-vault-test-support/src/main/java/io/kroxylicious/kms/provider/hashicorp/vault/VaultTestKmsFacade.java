@@ -69,7 +69,7 @@ public class VaultTestKmsFacade implements TestKmsFacade<Config, String, VaultEd
 
     @Override
     public Config getKmsServiceConfig() {
-        return new Config(URI.create(vaultContainer.getHttpHostAddress()), VAULT_TOKEN, null);
+        return new Config(URI.create(vaultContainer.getHttpHostAddress()).resolve("v1/transit"), VAULT_TOKEN, null);
     }
 
     private class VaultTestKekManager implements TestKekManager {

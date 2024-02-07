@@ -35,7 +35,7 @@ public class TestVault implements Closeable {
         VaultContainer<?> vault = new VaultContainer<>(HASHICORP_VAULT)
                 .withVaultToken(VAULT_TOKEN)
                 .withEnv("VAULT_FORMAT", "json")
-                .withInitCommand("secrets enable transit");
+                .withInitCommand("secrets enable transit ");
         if (keys != null) {
             // in vault server -dev mode the 8200 port cannot be reconfigured to TLS. So we configure a second listener on a
             // different port. We expose only the tls port to avoid any chance of a misconfigured client pointing at the plain listener.
@@ -48,7 +48,8 @@ public class TestVault implements Closeable {
         }
         vault.start();
         this.vault = vault;
-        endpoint = URI.create(keys == null ? vault.getHttpHostAddress() : String.format("https://%s:%s", vault.getHost(), vault.getMappedPort(TLS_PORT)));
+        endpoint = URI.create(keys == null ? vault.getHttpHostAddress() : String.format("https://%s:%s", vault.getHost(), vault.getMappedPort(TLS_PORT)))
+                .resolve("v1/transit");
     }
 
     public static TestVault startWithTls(CertificateGenerator.Keys keys) {
