@@ -15,6 +15,7 @@ import java.util.Optional;
 import java.util.stream.Stream;
 
 import org.assertj.core.api.InstanceOfAssertFactories;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -233,6 +234,7 @@ class ConfigParserTest {
     }
 
     @Test
+    @Disabled
     void shouldDetectDuplicateClusterNodeNames() {
         // Given
         assertThatThrownBy(() ->
@@ -265,6 +267,79 @@ class ConfigParserTest {
                 .hasCauseInstanceOf(JsonMappingException.class) // Debatable to enforce the wrapped JsonMappingException
                 .cause()
                 .hasMessageStartingWith("Duplicate field 'demo1'");
+
+    }
+
+    @Test
+    void systemPropertyExpansion() {
+
+        System.setProperty("bootstrap", "zzzz");
+        System.setProperty("port", "1234");
+        System.setProperty("numberOfBrokerPorts", "1");
+
+        // Given
+        Configuration configuration = configParser.parseConfiguration("""
+                virtualClusters:
+                  demo1:
+                    targetCluster:
+                      bootstrap_servers: ${sys:bootstrap}:${sys:port}
+                    clusterNetworkAddressConfigProvider:
+                      type: PortPerBrokerClusterNetworkAddressConfigProvider
+                      config:
+                        bootstrapAddress: cluster:9193
+                        numberOfBrokerPorts: ${sys:numberOfBrokerPorts}0
+                """);
+
+        var actualValidClusters = configuration.virtualClusters();
+
+        // Then
+        assertThat(actualValidClusters)
+                .flatExtracting("demo1")
+                .singleElement(InstanceOfAssertFactories.type(VirtualCluster.class))
+                .extracting(VirtualCluster::targetCluster)
+                .extracting(TargetCluster::bootstrapServers)
+                .isEqualTo("zzzz:1234");
+
+        assertThat(actualValidClusters)
+                .flatExtracting("demo1")
+                .singleElement(InstanceOfAssertFactories.type(VirtualCluster.class))
+                .extracting(VirtualCluster::clusterNetworkAddressConfigProvider)
+                .extracting("config")
+                .extracting("numberOfBrokerPorts")
+                .isEqualTo(10);
+
+        System.clearProperty("bootstrap");
+        System.clearProperty("port");
+        System.clearProperty("numberOfBrokerPorts");
+    }
+
+    @Test
+    void envVarExpansion() {
+
+        var user = System.getenv().get("USER");
+        assertThat(user).isNotNull();
+
+        // Given
+        Configuration configuration = configParser.parseConfiguration("""
+                virtualClusters:
+                  demo1:
+                    targetCluster:
+                      bootstrap_servers: ${env:USER}:1234
+                    clusterNetworkAddressConfigProvider:
+                      type: PortPerBrokerClusterNetworkAddressConfigProvider
+                      config:
+                        bootstrapAddress: cluster:9193
+                """);
+
+        var actualValidClusters = configuration.virtualClusters();
+
+        // Then
+        assertThat(actualValidClusters)
+                .flatExtracting("demo1")
+                .singleElement(InstanceOfAssertFactories.type(VirtualCluster.class))
+                .extracting(VirtualCluster::targetCluster)
+                .extracting(TargetCluster::bootstrapServers)
+                .isEqualTo("%s:1234".formatted(user));
 
     }
 

@@ -39,6 +39,7 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
 
+import io.kroxylicious.proxy.TokenExpandingJsonFactoryWrapper;
 import io.kroxylicious.proxy.plugin.PluginImplConfig;
 import io.kroxylicious.proxy.plugin.PluginImplName;
 import io.kroxylicious.proxy.service.HostPort;
@@ -83,7 +84,7 @@ public class ConfigParser implements PluginFactoryRegistry {
     }
 
     public static ObjectMapper createObjectMapper() {
-        return (ObjectMapper) new ObjectMapper(new YAMLFactory())
+        return (ObjectMapper) new ObjectMapper(TokenExpandingJsonFactoryWrapper.wrap(new YAMLFactory()))
                 .registerModule(new ParameterNamesModule())
                 .registerModule(new Jdk8Module())
                 .registerModule(new SimpleModule().addSerializer(HostPort.class, new ToStringSerializer()))
