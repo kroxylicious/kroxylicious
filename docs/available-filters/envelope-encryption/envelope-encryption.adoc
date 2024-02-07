@@ -30,7 +30,7 @@ The entire process is transparent from the point of view of both Kafka Client an
 aware that the records are being encrypted.  Neither client nor broker have any access to the encryption keys.
 
 The filter encrypts the records using symmetric encryption keys.  The encryption technique employed is
-known as *Envelope Encryption*, which is technique suited for encrypting large volumes of data in a efficient manner.
+known as *Envelope Encryption*, which is a technique suited for encrypting large volumes of data in an efficient manner.
 Envelope Encryption is described in the next section.
 
 The filter integrates with a Key Management Service (KMS).  It is the Key Management Service (KMS) that has
