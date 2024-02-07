@@ -31,9 +31,9 @@ class DekTest {
     @ParameterizedTest
     @EnumSource(CipherSpec.class)
     void constructorThrowsOnDestroyedKey(CipherSpec cipherSpec) {
-        var mock = mock(SecretKey.class);
-        doReturn(true).when(mock).isDestroyed();
-        assertThatThrownBy(() -> new Dek<>("edek", mock, cipherSpec, 100))
+        var key = new DestroyableRawSecretKey("AES", new byte[] {1});
+        key.destroy();
+        assertThatThrownBy(() -> new Dek<>("edek", key, cipherSpec, 100))
                 .isExactlyInstanceOf(IllegalArgumentException.class);
 
     }
@@ -41,18 +41,16 @@ class DekTest {
     @ParameterizedTest
     @EnumSource(CipherSpec.class)
     void constructorThrowsOnNegativeExceptions(CipherSpec cipherSpec) {
-        var mock = mock(SecretKey.class);
-        doReturn(false).when(mock).isDestroyed();
-        assertThatThrownBy(() -> new Dek<>("edek", mock, cipherSpec, -1))
+        var key = new DestroyableRawSecretKey("AES", new byte[] {1});
+        assertThatThrownBy(() -> new Dek<>("edek", key, cipherSpec, -1))
                 .isExactlyInstanceOf(IllegalArgumentException.class);
     }
 
     @ParameterizedTest
     @EnumSource(CipherSpec.class)
     void encryptorThrowsExhaustedDekExceptionOnDekWithZeroEncryptions(CipherSpec cipherSpec) {
-        var mock = mock(SecretKey.class);
-        doReturn(false).when(mock).isDestroyed();
-        var dek = new Dek<>("edek", mock, cipherSpec, 0);
+        var key = new DestroyableRawSecretKey("AES", new byte[] {1});
+        var dek = new Dek<>("edek", key, cipherSpec, 0);
         assertThatThrownBy(() -> dek.encryptor(1))
                 .isExactlyInstanceOf(ExhaustedDekException.class);
     }
@@ -60,9 +58,8 @@ class DekTest {
     @ParameterizedTest
     @EnumSource(CipherSpec.class)
     void encryptorThrowsOnZeroEncryptions(CipherSpec cipherSpec) {
-        var mock = mock(SecretKey.class);
-        doReturn(false).when(mock).isDestroyed();
-        var dek = new Dek<>("edek", mock, cipherSpec, 1);
+        var key = new DestroyableRawSecretKey("AES", new byte[] {1});
+        var dek = new Dek<>("edek", key, cipherSpec, 1);
         assertThatThrownBy(() -> dek.encryptor(0))
                 .isExactlyInstanceOf(IllegalArgumentException.class);
     }
@@ -70,9 +67,8 @@ class DekTest {
     @ParameterizedTest
     @EnumSource(CipherSpec.class)
     void encryptorThrowsOnNegativeEncryptions(CipherSpec cipherSpec) {
-        var mock = mock(SecretKey.class);
-        doReturn(false).when(mock).isDestroyed();
-        var dek = new Dek<>("edek", mock, cipherSpec, 1);
+        var key = new DestroyableRawSecretKey("AES", new byte[] {1});
+        var dek = new Dek<>("edek", key, cipherSpec, 1);
         assertThatThrownBy(() -> dek.encryptor(-1))
                 .isExactlyInstanceOf(IllegalArgumentException.class);
     }
@@ -80,10 +76,9 @@ class DekTest {
     @ParameterizedTest
     @EnumSource(CipherSpec.class)
     void returnsEdek(CipherSpec cipherSpec) {
-        var mock = mock(SecretKey.class);
-        doReturn(false).when(mock).isDestroyed();
+        var key = new DestroyableRawSecretKey("AES", new byte[] {1});
         String edek = "edek";
-        Dek<String> dek = new Dek<>(edek, mock, cipherSpec, 100);
+        Dek<String> dek = new Dek<>(edek, key, cipherSpec, 100);
         assertThat(dek.encryptor(1).edek()).isSameAs(edek);
 
     }
@@ -92,16 +87,14 @@ class DekTest {
     @EnumSource(CipherSpec.class)
     void destroyUnusedDek(CipherSpec cipherSpec) throws DestroyFailedException {
         // Given
-        SecretKey mock = mock(SecretKey.class);
-        doReturn(false).when(mock).isDestroyed();
-        doNothing().when(mock).destroy();
-        var dek = new Dek<>("edek", mock, cipherSpec, 100);
+        var key = new DestroyableRawSecretKey("AES", new byte[] {1});
+        var dek = new Dek<>("edek", key, cipherSpec, 100);
 
         // When
         dek.destroy();
 
         // Then
-        Mockito.verify(mock).destroy();
+        assertThat(key.isDestroyed()).isTrue();
 
         dek.destroy(); // This should be safe
 
@@ -113,55 +106,49 @@ class DekTest {
     @EnumSource(CipherSpec.class)
     void destroy1Encryptor_destroyThenClose(CipherSpec cipherSpec) throws DestroyFailedException {
         // Given
-        SecretKey mock = mock(SecretKey.class);
-        doReturn(false).when(mock).isDestroyed();
-        doNothing().when(mock).destroy();
-        var dek = new Dek<>("edek", mock, cipherSpec, 100);
+        var key = new DestroyableRawSecretKey("AES", new byte[] {1});
+        var dek = new Dek<>("edek", key, cipherSpec, 100);
         var cryptor = dek.encryptor(100);
 
         // When
         dek.destroy();
 
         // When
-        Mockito.verify(mock, never()).destroy();
+        assertThat(key.isDestroyed()).isFalse();
 
         dek.destroy(); // try destroying again
 
         cryptor.close();
 
-        Mockito.verify(mock).destroy();
+        assertThat(key.isDestroyed()).isTrue();
     }
 
     @ParameterizedTest
     @EnumSource(CipherSpec.class)
     void destroy1Encryptor_closeThenDestroy(CipherSpec cipherSpec) throws DestroyFailedException {
         // Given
-        SecretKey mock = mock(SecretKey.class);
-        doReturn(false).when(mock).isDestroyed();
-        doNothing().when(mock).destroy();
-        var dek = new Dek<>("edek", mock, cipherSpec, 100);
+        var key = new DestroyableRawSecretKey("AES", new byte[] {1});
+        var dek = new Dek<>("edek", key, cipherSpec, 100);
         var cryptor = dek.encryptor(100);
 
         cryptor.close();
 
         // When
-        Mockito.verify(mock, never()).destroy();
+        assertThat(key.isDestroyed()).isFalse();
 
         dek.destroy(); // try destroying again
 
         cryptor.close();
 
-        Mockito.verify(mock).destroy();
+        assertThat(key.isDestroyed()).isTrue();
     }
 
     @ParameterizedTest
     @EnumSource(CipherSpec.class)
     void destroy2Encryptor(CipherSpec cipherSpec) throws DestroyFailedException {
         // Given
-        SecretKey mock = mock(SecretKey.class);
-        doReturn(false).when(mock).isDestroyed();
-        doNothing().when(mock).destroy();
-        var dek = new Dek<>("edek", mock, cipherSpec, 101);
+        var key = new DestroyableRawSecretKey("AES", new byte[] {1});
+        var dek = new Dek<>("edek", key, cipherSpec, 101);
         var cryptor1 = dek.encryptor(50);
         var cryptor2 = dek.encryptor(50);
 
@@ -170,32 +157,30 @@ class DekTest {
         dek.destroyForEncrypt();
 
         // When
-        Mockito.verify(mock, never()).destroy();
+        assertThat(key.isDestroyed()).isFalse();
 
         cryptor1.close();
 
-        Mockito.verify(mock, never()).destroy();
+        assertThat(key.isDestroyed()).isFalse();
 
         cryptor2.close();
 
-        Mockito.verify(mock, never()).destroy(); // because still open for decrypt
+        assertThat(key.isDestroyed()).isFalse(); // because still open for decrypt
 
         assertThatThrownBy(() -> dek.encryptor(1))
                 .isExactlyInstanceOf(DestroyedDekException.class); // can't get a new encryptor though
 
         dek.destroyForDecrypt(); // this should trigger key destruction
 
-        Mockito.verify(mock).destroy();
+        assertThat(key.isDestroyed()).isTrue();
     }
 
     @ParameterizedTest
     @EnumSource(CipherSpec.class)
     void destroy2EncryptorMultiClose(CipherSpec cipherSpec) throws DestroyFailedException {
         // Given
-        SecretKey mock = mock(SecretKey.class);
-        doReturn(false).when(mock).isDestroyed();
-        doNothing().when(mock).destroy();
-        var dek = new Dek<>("edek", mock, cipherSpec, 100);
+        var key = new DestroyableRawSecretKey("AES", new byte[] {1});
+        var dek = new Dek<>("edek", key, cipherSpec, 100);
         var cryptor1 = dek.encryptor(50);
         var cryptor2 = dek.encryptor(50);
 
@@ -204,16 +189,16 @@ class DekTest {
         dek.destroy();
 
         // When
-        Mockito.verify(mock, never()).destroy();
+        assertThat(key.isDestroyed()).isFalse();
 
         cryptor1.close();
         cryptor1.close();
 
-        Mockito.verify(mock, never()).destroy();
+        assertThat(key.isDestroyed()).isFalse();
 
         cryptor2.close();
 
-        Mockito.verify(mock).destroy();
+        assertThat(key.isDestroyed()).isTrue();
 
         cryptor1.close();
     }
@@ -222,54 +207,48 @@ class DekTest {
     @EnumSource(CipherSpec.class)
     void destroy1Decryptor_destroyThenClose(CipherSpec cipherSpec) throws DestroyFailedException {
         // Given
-        SecretKey mock = mock(SecretKey.class);
-        doReturn(false).when(mock).isDestroyed();
-        doNothing().when(mock).destroy();
-        var dek = new Dek<>("edek", mock, cipherSpec, 0);
+        var key = new DestroyableRawSecretKey("AES", new byte[] {1});
+        var dek = new Dek<>("edek", key, cipherSpec, 0);
         var cryptor = dek.decryptor();
 
         // When
         dek.destroy();
 
         // When
-        Mockito.verify(mock, never()).destroy();
+        assertThat(key.isDestroyed()).isFalse();
 
         dek.destroy(); // try destroying again
 
         cryptor.close();
 
-        Mockito.verify(mock).destroy();
+        assertThat(key.isDestroyed()).isTrue();
     }
 
     @ParameterizedTest
     @EnumSource(CipherSpec.class)
     void destroy1Decryptor_closeThenDestroy(CipherSpec cipherSpec) throws DestroyFailedException {
         // Given
-        SecretKey mock = mock(SecretKey.class);
-        doReturn(false).when(mock).isDestroyed();
-        doNothing().when(mock).destroy();
-        var dek = new Dek<>("edek", mock, cipherSpec, 0);
+        var key = new DestroyableRawSecretKey("AES", new byte[] {1});
+        var dek = new Dek<>("edek", key, cipherSpec, 0);
         var cryptor = dek.decryptor();
 
         // When
         cryptor.close();
 
         // When
-        Mockito.verify(mock, never()).destroy();
+        assertThat(key.isDestroyed()).isFalse();
 
         dek.destroy();
 
-        Mockito.verify(mock).destroy();
+        assertThat(key.isDestroyed()).isTrue();
     }
 
     @ParameterizedTest
     @EnumSource(CipherSpec.class)
     void destroy2Decryptor(CipherSpec cipherSpec) throws DestroyFailedException {
         // Given
-        SecretKey mock = mock(SecretKey.class);
-        doReturn(false).when(mock).isDestroyed();
-        doNothing().when(mock).destroy();
-        var dek = new Dek<>("edek", mock, cipherSpec, 1);
+        var key = new DestroyableRawSecretKey("AES", new byte[] {1});
+        var dek = new Dek<>("edek", key, cipherSpec, 1);
         var cryptor1 = dek.decryptor();
         var cryptor2 = dek.decryptor();
 
@@ -278,22 +257,22 @@ class DekTest {
         dek.destroyForDecrypt();
 
         // When
-        Mockito.verify(mock, never()).destroy();
+        assertThat(key.isDestroyed()).isFalse();
 
         cryptor1.close();
 
-        Mockito.verify(mock, never()).destroy();
+        assertThat(key.isDestroyed()).isFalse();
 
         cryptor2.close();
 
-        Mockito.verify(mock, never()).destroy(); // still open for encrypt
+        assertThat(key.isDestroyed()).isFalse(); // still open for encrypt
 
         assertThatThrownBy(dek::decryptor)
                 .isExactlyInstanceOf(DestroyedDekException.class); // can't get a new decryptor
 
         dek.destroyForEncrypt(); // this should trigger key destruction
 
-        Mockito.verify(mock).destroy();
+        assertThat(key.isDestroyed()).isTrue();
 
     }
 
@@ -301,10 +280,8 @@ class DekTest {
     @EnumSource(CipherSpec.class)
     void destroy2DecryptorMultiClose(CipherSpec cipherSpec) throws DestroyFailedException {
         // Given
-        SecretKey mock = mock(SecretKey.class);
-        doReturn(false).when(mock).isDestroyed();
-        doNothing().when(mock).destroy();
-        var dek = new Dek<>("edek", mock, cipherSpec, 0);
+        var key = new DestroyableRawSecretKey("AES", new byte[] {1});
+        var dek = new Dek<>("edek", key, cipherSpec, 0);
         var cryptor1 = dek.decryptor();
         var cryptor2 = dek.decryptor();
 
@@ -313,16 +290,16 @@ class DekTest {
         dek.destroy();
 
         // When
-        Mockito.verify(mock, never()).destroy();
+        assertThat(key.isDestroyed()).isFalse();
 
         cryptor1.close();
         cryptor1.close();
 
-        Mockito.verify(mock, never()).destroy();
+        assertThat(key.isDestroyed()).isFalse();
 
         cryptor2.close();
 
-        Mockito.verify(mock).destroy();
+        assertThat(key.isDestroyed()).isTrue();
 
         cryptor1.close();
     }
@@ -331,10 +308,8 @@ class DekTest {
     @EnumSource(CipherSpec.class)
     void destroy1Encryptor1Decryptor_destroy(CipherSpec cipherSpec) throws DestroyFailedException {
         // Given
-        SecretKey mock = mock(SecretKey.class);
-        doReturn(false).when(mock).isDestroyed();
-        doNothing().when(mock).destroy();
-        var dek = new Dek<>("edek", mock, cipherSpec, 100);
+        var key = new DestroyableRawSecretKey("AES", new byte[] {1});
+        var dek = new Dek<>("edek", key, cipherSpec, 100);
         var cryptor1 = dek.encryptor(50);
         var cryptor2 = dek.decryptor();
 
@@ -343,15 +318,15 @@ class DekTest {
         dek.destroy(); // should be idempotent
 
         // When
-        Mockito.verify(mock, never()).destroy(); // because cryptor1 and 2 outstanding
+        assertThat(key.isDestroyed()).isFalse(); // because cryptor1 and 2 outstanding
 
         cryptor1.close();
 
-        Mockito.verify(mock, never()).destroy(); // because cryptor2 outstanding
+        assertThat(key.isDestroyed()).isFalse(); // because cryptor2 outstanding
 
         cryptor2.close();
 
-        Mockito.verify(mock).destroy(); // should now be destroyed
+        assertThat(key.isDestroyed()).isTrue(); // should now be destroyed
 
         cryptor2.close(); // cryptor.close should be idempotent
     }
@@ -360,10 +335,8 @@ class DekTest {
     @EnumSource(CipherSpec.class)
     void destroy1Encryptor1Decryptor_destroyForEncrypt(CipherSpec cipherSpec) throws DestroyFailedException {
         // Given
-        SecretKey mock = mock(SecretKey.class);
-        doReturn(false).when(mock).isDestroyed();
-        doNothing().when(mock).destroy();
-        var dek = new Dek<>("edek", mock, cipherSpec, 100);
+        var key = new DestroyableRawSecretKey("AES", new byte[] {1});
+        var dek = new Dek<>("edek", key, cipherSpec, 100);
         var cryptor1 = dek.encryptor(50);
         var cryptor2 = dek.decryptor();
 
@@ -372,19 +345,19 @@ class DekTest {
         dek.destroyForEncrypt(); // should be idempotent
 
         // When
-        Mockito.verify(mock, never()).destroy(); // because cryptor1 and 2 outstanding
+        assertThat(key.isDestroyed()).isFalse(); // because cryptor1 and 2 outstanding
 
         cryptor1.close();
 
-        Mockito.verify(mock, never()).destroy(); // because cryptor2 outstanding
+        assertThat(key.isDestroyed()).isFalse(); // because cryptor2 outstanding
 
         cryptor2.close();
 
-        Mockito.verify(mock, never()).destroy(); // because only closed for encrypt
+        assertThat(key.isDestroyed()).isFalse(); // because only closed for encrypt
 
         dek.destroyForDecrypt();
 
-        Mockito.verify(mock).destroy();
+        assertThat(key.isDestroyed()).isTrue();
 
         cryptor2.close();
     }
@@ -393,10 +366,8 @@ class DekTest {
     @EnumSource(CipherSpec.class)
     void destroy1Encryptor1Decryptor_destroyForDecrypt(CipherSpec cipherSpec) throws DestroyFailedException {
         // Given
-        SecretKey mock = mock(SecretKey.class);
-        doReturn(false).when(mock).isDestroyed();
-        doNothing().when(mock).destroy();
-        var dek = new Dek<>("edek", mock, cipherSpec, 100);
+        var key = new DestroyableRawSecretKey("AES", new byte[] {1});
+        var dek = new Dek<>("edek", key, cipherSpec, 100);
         var cryptor1 = dek.encryptor(50);
         var cryptor2 = dek.decryptor();
 
@@ -405,19 +376,19 @@ class DekTest {
         dek.destroyForDecrypt(); // should be idempotent
 
         // When
-        Mockito.verify(mock, never()).destroy(); // because cryptor1 and 2 outstanding
+        assertThat(key.isDestroyed()).isFalse(); // because cryptor1 and 2 outstanding
 
         cryptor1.close();
 
-        Mockito.verify(mock, never()).destroy(); // because cryptor2 outstanding
+        assertThat(key.isDestroyed()).isFalse(); // because cryptor2 outstanding
 
         cryptor2.close();
 
-        Mockito.verify(mock, never()).destroy(); // because only closed for decrypt
+        assertThat(key.isDestroyed()).isFalse(); // because only closed for decrypt
 
         dek.destroyForEncrypt();
 
-        Mockito.verify(mock).destroy();
+        assertThat(key.isDestroyed()).isTrue();
 
         cryptor2.close();
     }
@@ -426,24 +397,21 @@ class DekTest {
     @EnumSource(CipherSpec.class)
     void destroyWhen0InitialEncryptions(CipherSpec cipherSpec) throws DestroyFailedException {
         // Given
-        SecretKey mock = mock(SecretKey.class);
-        doReturn(false).when(mock).isDestroyed();
-        doNothing().when(mock).destroy();
-        var dek = new Dek<>("edek", mock, cipherSpec, 0);
+        var key = new DestroyableRawSecretKey("AES", new byte[] {1});
+        var dek = new Dek<>("edek", key, cipherSpec, 0);
 
         assertThat(dek.isDestroyed()).isFalse();
-        Mockito.verify(mock, never()).destroy();
+        assertThat(key.isDestroyed()).isFalse();
 
         // When
         dek.destroyForDecrypt();
 
         // Then: there should be no need to call destroyForEncrypt for the key to be destroyed
         assertThat(dek.isDestroyed()).isTrue();
-        Mockito.verify(mock).destroy();
     }
 
     // encrypt and decrypt with no AAD
-    record EncryptInfo(SecretKey key,
+    record EncryptInfo(DestroyableRawSecretKey key,
                        ByteBuffer params,
                        ByteBuffer ciphertext) {}
 

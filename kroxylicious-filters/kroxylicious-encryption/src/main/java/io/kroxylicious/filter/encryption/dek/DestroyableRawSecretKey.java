@@ -16,7 +16,7 @@ import javax.crypto.SecretKey;
  * (unlike {@link javax.crypto.spec.SecretKeySpec}).
  */
 @NotThreadSafe
-public class DestroyableRawSecretKey implements SecretKey {
+public final class DestroyableRawSecretKey implements SecretKey {
 
     private final String algorithm;
     private boolean destroyed = false;
@@ -37,6 +37,12 @@ public class DestroyableRawSecretKey implements SecretKey {
         return "RAW";
     }
 
+    /**
+     * Returns the RAW-encoded key.
+     * This is a copy the key. It is the callers responsibility to destroy this key material
+     * when it's no longer needed.
+     * @return The RAW-encoded key.
+     */
     @Override
     public byte[] getEncoded() {
         checkNotDestroyed();

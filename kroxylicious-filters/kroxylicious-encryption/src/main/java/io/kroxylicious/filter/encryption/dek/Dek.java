@@ -10,22 +10,17 @@ import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.security.GeneralSecurityException;
 import java.security.spec.AlgorithmParameterSpec;
-import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.IntUnaryOperator;
 import java.util.function.LongUnaryOperator;
 import java.util.function.Supplier;
-
 import javax.annotation.concurrent.NotThreadSafe;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 import javax.crypto.ShortBufferException;
-import javax.security.auth.DestroyFailedException;
-import javax.security.auth.Destroyable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -71,14 +66,12 @@ public final class Dek<E> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Dek.class);
 
-    private static final Map<Class<? extends Destroyable>, Boolean> LOGGED_DESTROY_FAILED = new ConcurrentHashMap<>();
-
     private final E edek;
     // Note: checks for outstandingCryptors==END <em>happens-before</em> changes to atomicKey.
     // It's this that provides a guarantee that a cryptor should never see a
     // destroyed or null key, but that keys should be destroyed and nullieifed as soon
     // as possible once all outstanding cryptors are closed.
-    private final AtomicReference<SecretKey> atomicKey;
+    private final AtomicReference<DestroyableRawSecretKey> atomicKey;
 
     private final AtomicLong remainingEncryptions;
 
@@ -189,7 +182,7 @@ public final class Dek<E> {
         return update(combined, Dek::destroyCounterIfNecessary, Dek::destroyCounterIfNecessary);
     }
 
-    Dek(@NonNull E edek, @NonNull SecretKey key, @NonNull CipherSpec cipherSpec, long maxEncryptions) {
+    Dek(@NonNull E edek, @NonNull DestroyableRawSecretKey key, @NonNull CipherSpec cipherSpec, long maxEncryptions) {
         /* protected access because instantiation only allowed via a DekManager */
         Objects.requireNonNull(edek);
         if (Objects.requireNonNull(key).isDestroyed()) {
@@ -276,24 +269,11 @@ public final class Dek<E> {
         if (outstandingCryptors.updateAndGet(updateFunction) == END) {
             var key = atomicKey.getAndSet(null);
             if (key != null) {
-                try {
-                    key.destroy();
-                }
-                catch (DestroyFailedException e) {
-                    var cls = key.getClass();
-                    if (LOGGER.isWarnEnabled()) {
-                        LOGGED_DESTROY_FAILED.computeIfAbsent(cls, alsoCls -> {
-                            LOGGER.warn("Failed to destroy an instance of {}. "
-                                    + "Note: this message is logged once per class even though there may be many occurrences of this event. "
-                                    + "This event can happen because the JRE's SecretKeySpec class does not override the destroy() method.",
-                                    alsoCls, e);
-                            return Boolean.TRUE;
-                        });
-                    }
-                }
+                key.destroy();
             }
         }
     }
+
 
     public boolean isDestroyed() {
         SecretKey secretKey = atomicKey.get();
