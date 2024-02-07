@@ -301,7 +301,7 @@ has been applied ineffectively.
 * `SKIP_TEARDOWN`: variable for development purposes to avoid keep deploying and deleting deployments each run. Default value: `false`
 * `CONTAINER_CONFIG_PATH`: directory where `config.json` file is located. This file contains the pull secrets to be used by
 the container engine. Default value: `$HOME/.docker/config.json`
-* `STRIMZI_NAMESPACE`: namespace where strimzi is installed. It is useful for downstream pipelines
+* `STRIMZI_NAMESPACE`: namespace where strimzi is installed. It is useful for pipelines
 where strimzi is installed before the STs. Default value: `kafka`
 
 
