@@ -63,7 +63,7 @@ public class KroxyliciousExtension implements ParameterResolver, BeforeEachCallb
 
     @Override
     public void beforeEach(ExtensionContext extensionContext) {
-        final String k8sNamespace = Constants.KROXY_DEFAULT_NAMESPACE + "-" + UUID.randomUUID().toString().replace("-", "").substring(0, 6);
+        final String k8sNamespace = Constants.KAFKA_DEFAULT_NAMESPACE + "-" + UUID.randomUUID().toString().replace("-", "").substring(0, 6);
         extensionContext.getStore(junitNamespace).put(K8S_NAMESPACE_KEY, k8sNamespace);
         NamespaceUtils.createNamespaceWithWait(k8sNamespace);
     }

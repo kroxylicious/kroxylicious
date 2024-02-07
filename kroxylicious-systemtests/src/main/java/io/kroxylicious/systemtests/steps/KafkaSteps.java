@@ -80,6 +80,6 @@ public class KafkaSteps {
      */
     public static void restartKafkaBroker(String clusterName) {
         clusterName = clusterName + "-kafka";
-        assertThat("Broker has not been restarted successfully!", KafkaUtils.restartBroker(Constants.KROXY_DEFAULT_NAMESPACE, clusterName));
+        assertThat("Broker has not been restarted successfully!", KafkaUtils.restartBroker(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName));
     }
 }

@@ -77,7 +77,7 @@ public class KroxyliciousConfigMapTemplates {
                     selectorConfig:
                       template: "${topicName}"
                 """
-                .replace("%NAMESPACE%", Constants.KROXY_DEFAULT_NAMESPACE)
+                .replace("%NAMESPACE%", Constants.KAFKA_DEFAULT_NAMESPACE)
                 .replace("%CLUSTER_NAME%", clusterName)
                 .replace("%KROXY_SERVICE_NAME%", Constants.KROXY_SERVICE_NAME)
                 .replace("%ROOT_TOKEN%", Vault.VAULT_ROOT_TOKEN)
@@ -103,7 +103,7 @@ public class KroxyliciousConfigMapTemplates {
                     logNetwork: false
                     logFrames: false
                 """
-                .replace("%NAMESPACE%", Constants.KROXY_DEFAULT_NAMESPACE)
+                .replace("%NAMESPACE%", Constants.KAFKA_DEFAULT_NAMESPACE)
                 .replace("%CLUSTER_NAME%", clusterName)
                 .replace("%KROXY_SERVICE_NAME%", Constants.KROXY_SERVICE_NAME);
     }

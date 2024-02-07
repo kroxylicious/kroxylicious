@@ -155,7 +155,7 @@ public class KafkaUtils {
     public static boolean restartBroker(String deployNamespace, String clusterName) {
         String podName = "";
         String podUid = "";
-        List<Pod> kafkaPods = kubeClient().listPods(Constants.KROXY_DEFAULT_NAMESPACE);
+        List<Pod> kafkaPods = kubeClient().listPods(Constants.KAFKA_DEFAULT_NAMESPACE);
         for (Pod pod : kafkaPods) {
             String tmpName = pod.getMetadata().getName();
             if (tmpName.startsWith(clusterName) && tmpName.endsWith("0")) {

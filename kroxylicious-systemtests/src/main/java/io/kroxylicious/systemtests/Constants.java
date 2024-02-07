@@ -32,7 +32,7 @@ public interface Constants {
     /**
      * The default namespace used for kubernetes deployment
      */
-    String KROXY_DEFAULT_NAMESPACE = "kafka";
+    String KAFKA_DEFAULT_NAMESPACE = "kafka";
 
     /**
      * The cert-manager namespace for kubernetes deployment
