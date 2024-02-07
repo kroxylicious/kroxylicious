@@ -54,7 +54,9 @@ class VaultKmsTlsIT {
 
     @AfterEach
     void afterEach() {
-        vaultContainer.close();
+        if (vaultContainer != null) {
+            vaultContainer.close();
+        }
     }
 
     interface KmsCreator {

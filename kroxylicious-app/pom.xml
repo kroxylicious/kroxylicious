@@ -199,26 +199,37 @@
         </profile>
         <profile>
             <id>withAdditionalFilters</id>
+            <activation>
+                <property>
+                    <name>withAdditionalFilters</name>
+                    <value>!false</value>
+                </property>
+            </activation>
             <dependencies>
                 <dependency>
                     <groupId>io.kroxylicious</groupId>
                     <artifactId>kroxylicious-multitenant</artifactId>
+                    <scope>runtime</scope>
                 </dependency>
                 <dependency>
                     <groupId>io.kroxylicious</groupId>
                     <artifactId>kroxylicious-record-validation</artifactId>
+                    <scope>runtime</scope>
                 </dependency>
                 <dependency>
                     <groupId>io.kroxylicious</groupId>
                     <artifactId>kroxylicious-simple-transform</artifactId>
+                    <scope>runtime</scope>
                 </dependency>
                 <dependency>
                     <groupId>io.kroxylicious</groupId>
                     <artifactId>kroxylicious-encryption</artifactId>
+                    <scope>runtime</scope>
                 </dependency>
                 <dependency>
                     <groupId>io.kroxylicious</groupId>
                     <artifactId>kroxylicious-kms-provider-hashicorp-vault</artifactId>
+                    <scope>runtime</scope>
                 </dependency>
             </dependencies>
         </profile>
