@@ -93,6 +93,7 @@ public final class KafkaProxy implements AutoCloseable {
         if (running.getAndSet(true)) {
             throw new IllegalStateException("This proxy is already running");
         }
+        STARTUP_SHUTDOWN_LOGGER.info("Kroxylicious is starting");
 
         var portConflictDefector = new PortConflictDetector();
         Optional<HostPort> adminHttpHostPort = Optional.ofNullable(shouldBindAdminEndpoint() ? new HostPort(adminHttpConfig.host(), adminHttpConfig.port()) : null);
