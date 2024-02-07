@@ -16,6 +16,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.IntUnaryOperator;
 import java.util.function.LongUnaryOperator;
 import java.util.function.Supplier;
+
 import javax.annotation.concurrent.NotThreadSafe;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.crypto.Cipher;
@@ -273,7 +274,6 @@ public final class Dek<E> {
             }
         }
     }
-
 
     public boolean isDestroyed() {
         SecretKey secretKey = atomicKey.get();

@@ -15,15 +15,13 @@ import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import javax.security.auth.DestroyFailedException;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
 
 class DekTest {
 
@@ -456,7 +454,9 @@ class DekTest {
         var dek = new Dek<>(encryptInfo.key().getEncoded(), encryptInfo.key(), cipherSpec, 1);
         var decryptor = dek.decryptor();
 
-        var plaintext = ByteBuffer.allocate(1024);
+        // Note, we use a common buffer backing both the plaintext and the ciphertext so that we're testing that
+        // decrypt() is copy-safe.
+        var plaintext = ciphertext.duplicate();
 
         decryptor.decrypt(ciphertext, aad, params, plaintext);
         plaintext.flip();
@@ -486,14 +486,20 @@ class DekTest {
                 .describedAs("Expect to not be able to get another encoder")
                 .isExactlyInstanceOf(ExhaustedDekException.class);
 
-        ByteBuffer plaintextBuffer = ByteBuffer.wrap(plaintext.getBytes(StandardCharsets.UTF_8));
-        assertThat(plaintextBuffer.position()).isZero();
+        // Note, we use a common buffer backing both the plaintext and the ciphertext so that we're testing that
+        // encrypt() is copy-safe.
+        var commonBuffer = ByteBuffer.allocate(200);
+        commonBuffer.put(plaintext.getBytes(StandardCharsets.UTF_8));
+        var plaintextBuffer = commonBuffer.duplicate().flip();
 
-        var paramsBuffer = encryptor.preEncrypt(size -> ByteBuffer.allocate(size));
+        var paramsBuffer = encryptor.preEncrypt(size -> commonBuffer.slice());
+
+        // Move the position of the common buffer to the end of the written parameters
+        commonBuffer.position(commonBuffer.position() + paramsBuffer.remaining());
 
         var ciphertextBuffer = encryptor.encrypt(plaintextBuffer,
                 aad,
-                size -> ByteBuffer.allocate(size));
+                size -> commonBuffer.slice());
 
         // TODO assertions on the buffer
 
