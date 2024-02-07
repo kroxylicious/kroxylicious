@@ -319,6 +319,8 @@ public final class Dek<E> {
          * This must be called before to a call to {@link #encrypt(ByteBuffer, ByteBuffer, EncryptAllocator)}.
          * @param paramAllocator A function that will return a buffer into which the cipher parameters will be written.
          * The function's argument is the number of bytes required for the cipher parameters.
+         * @return The buffer returned from the {@code paramAllocator},
+         * in which the cipher parameters have been written.
          * @throws DekUsageException If this Encryptor has run out of operations.
          * @throws BufferTooSmallException If the buffer returned by the {@code paramAllocator}
          * had too few bytes remaining for the parameters to be written completely.
@@ -363,6 +365,8 @@ public final class Dek<E> {
          * @param ciphertextAllocator A function that will return a buffer into which the ciphertext will be written.
          * The function's first argument is the number of bytes required for the cipher parameters.
          * The function's second argument is the number of bytes required for the ciphertext.
+         * @return The buffer returned from the {@code ciphertextAllocator},
+         * in which the ciphertext has been written.
          * @throws DekUsageException If this Encryptor has run out of operations.
          * @throws BufferTooSmallException If the buffer returned by the {@code ciphertextAllocator}
          * had too few bytes remaining for the ciphertext to be written completely.
