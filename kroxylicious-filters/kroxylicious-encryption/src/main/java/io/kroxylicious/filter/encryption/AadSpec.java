@@ -6,6 +6,11 @@
 
 package io.kroxylicious.filter.encryption;
 
+import java.nio.ByteBuffer;
+
+import org.apache.kafka.common.record.RecordBatch;
+import org.apache.kafka.common.utils.ByteUtils;
+
 /**
  * <p>Enumerates the sets of metadata which can be used as additional authenticated data (AAD) for AEAD ciphers.
  * Each element in this enumeration corresponds to a schema for the serialization of that set of metadata.
@@ -20,18 +25,29 @@ public enum AadSpec {
     /**
      * No AAD
      */
-    NONE((byte) 0, EncryptionVersion.V1);
-
+    NONE((byte) 0, EncryptionVersion.V1) {
+        @Override
+        ByteBuffer computeAad(
+                              String topicName,
+                              int partitionId,
+                              RecordBatch batch) {
+            return ByteUtils.EMPTY_BUF;
+        }
+    }
     // /**
     // * AAD consisting of the batch metadata plus the records position within the batch.
     // */
     // BATCH_METADATA(1);
 
-    private final byte code;
+    ;
+
+    abstract ByteBuffer computeAad(String topicName, int partitionId, RecordBatch batch);
+
+    private final byte persistentId;
     private final EncryptionVersion fromVersion;
 
-    AadSpec(byte code, EncryptionVersion fromVersion) {
-        this.code = code;
+    AadSpec(byte persistentId, EncryptionVersion fromVersion) {
+        this.persistentId = persistentId;
         this.fromVersion = fromVersion;
     }
 
@@ -41,16 +57,16 @@ public enum AadSpec {
         }
     }
 
-    public byte code() {
-        return code;
+    public byte persistentId() {
+        return persistentId;
     }
 
-    public static AadSpec fromCode(byte aadCode) {
-        switch (aadCode) {
+    public static AadSpec fromPersistentId(byte persistentId) {
+        switch (persistentId) {
             case 0:
                 return NONE;
             default:
-                throw new EncryptionException("Unknown AAD code " + aadCode);
+                throw new EncryptionException("Unknown AAD code " + persistentId);
         }
     }
 }

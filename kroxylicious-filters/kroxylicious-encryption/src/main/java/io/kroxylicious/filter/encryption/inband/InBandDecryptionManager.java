@@ -7,38 +7,39 @@
 package io.kroxylicious.filter.encryption.inband;
 
 import java.nio.ByteBuffer;
-import java.util.HashSet;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.Executor;
 import java.util.function.IntFunction;
-import java.util.stream.Collectors;
 
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.record.MemoryRecords;
-import org.apache.kafka.common.record.MutableRecordBatch;
 import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
-import org.apache.kafka.common.utils.ByteUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.RemovalCause;
 
-import io.kroxylicious.filter.encryption.AadSpec;
-import io.kroxylicious.filter.encryption.CipherCode;
 import io.kroxylicious.filter.encryption.DecryptionManager;
 import io.kroxylicious.filter.encryption.EncryptionException;
 import io.kroxylicious.filter.encryption.EncryptionManager;
 import io.kroxylicious.filter.encryption.EncryptionVersion;
-import io.kroxylicious.filter.encryption.EnvelopeEncryptionFilter;
 import io.kroxylicious.filter.encryption.FilterThreadExecutor;
-import io.kroxylicious.filter.encryption.records.BatchAwareMemoryRecordsBuilder;
-import io.kroxylicious.kms.service.Kms;
+import io.kroxylicious.filter.encryption.dek.CipherSpec;
+import io.kroxylicious.filter.encryption.dek.Dek;
+import io.kroxylicious.filter.encryption.dek.DekManager;
+import io.kroxylicious.filter.encryption.records.RecordStream;
 import io.kroxylicious.kms.service.Serde;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * An implementation of {@link EncryptionManager} and {@link DecryptionManager}
@@ -49,17 +50,67 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  */
 public class InBandDecryptionManager<K, E> implements DecryptionManager {
 
-    private final AsyncLoadingCache<E, AesGcmEncryptor> decryptorCache;
-    private final Kms<K, E> kms;
-    private final Serde<E> edekSerde;
+    private static final Logger LOGGER = LoggerFactory.getLogger(InBandDecryptionManager.class);
+
+    public static final int NO_MAX_CACHE_SIZE = -1;
+
+    private final AsyncLoadingCache<CacheKey<E>, Dek<E>> decryptorCache;
+    private final DekManager<K, E> dekManager;
     private final FilterThreadExecutor filterThreadExecutor;
 
-    public InBandDecryptionManager(Kms<K, E> kms, FilterThreadExecutor filterThreadExecutor) {
-        this.kms = kms;
-        this.edekSerde = kms.edekSerde();
+    private record CacheKey<E>(
+                               @Nullable CipherSpec cipherSpec,
+                               @Nullable E edek) {
+        @SuppressWarnings("rawtypes")
+        private static final CacheKey NONE = new CacheKey(null, null);
+
+        @SuppressWarnings("unchecked")
+        static <E> CacheKey<E> none() {
+            return NONE;
+        }
+
+        public boolean isNone() {
+            return cipherSpec == null || edek == null;
+        }
+    }
+
+    public InBandDecryptionManager(DekManager<K, E> dekManager,
+                                   @Nullable FilterThreadExecutor filterThreadExecutor,
+                                   @Nullable Executor dekCacheExecutor,
+                                   int dekCacheMaxItems) {
+        this.dekManager = dekManager;
         this.filterThreadExecutor = filterThreadExecutor;
-        this.decryptorCache = Caffeine.newBuilder()
-                .buildAsync((edek, executor) -> makeDecryptor(edek));
+        Caffeine<Object, Object> cache = Caffeine.<CacheKey<E>, Dek<E>> newBuilder();
+        if (dekCacheMaxItems != NO_MAX_CACHE_SIZE) {
+            cache = cache.maximumSize(dekCacheMaxItems);
+        }
+        if (dekCacheExecutor != null) {
+            cache = cache.executor(dekCacheExecutor);
+        }
+        // TODO support batched resolution in the DekManager and also in the KMS
+        this.decryptorCache = cache
+                .removalListener(this::afterCacheEviction)
+                .buildAsync(this::loadDek);
+    }
+
+    CompletableFuture<Dek<E>> loadDek(CacheKey<E> cacheKey, Executor executor) {
+        if (cacheKey == null || cacheKey.isNone()) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return dekManager.decryptEdek(cacheKey.edek(), cacheKey.cipherSpec())
+                .toCompletableFuture();
+    }
+
+    /** Invoked by Caffeine after a DEK is evicted from the cache. */
+    private void afterCacheEviction(@Nullable CacheKey<E> cacheKey,
+                                    @Nullable Dek<E> dek,
+                                    RemovalCause removalCause) {
+        if (dek != null) {
+            dek.destroyForDecrypt();
+            if (LOGGER.isTraceEnabled()) {
+                LOGGER.trace("Attempted to destroy DEK: {}", dek);
+            }
+        }
     }
 
     /**
@@ -69,7 +120,9 @@ public class InBandDecryptionManager<K, E> implements DecryptionManager {
      * @param kafkaRecord The record.
      * @return The encryption header, or null if it's missing (indicating that the record wasn't encrypted).
      */
-    static EncryptionVersion decryptionVersion(String topicName, int partition, Record kafkaRecord) {
+    static EncryptionVersion decryptionVersion(@NonNull String topicName,
+                                               int partition,
+                                               @NonNull Record kafkaRecord) {
         for (Header header : kafkaRecord.headers()) {
             if (RecordEncryptor.ENCRYPTION_HEADER_NAME.equals(header.key())) {
                 byte[] value = header.value();
@@ -85,14 +138,11 @@ public class InBandDecryptionManager<K, E> implements DecryptionManager {
         return null;
     }
 
-    private CompletableFuture<AesGcmEncryptor> makeDecryptor(E edek) {
-        return kms.decryptEdek(edek)
-                .thenApply(AesGcmEncryptor::forDecrypt).toCompletableFuture();
-    }
-
     @NonNull
     @Override
-    public CompletionStage<MemoryRecords> decrypt(@NonNull String topicName, int partition, @NonNull MemoryRecords records,
+    public CompletionStage<MemoryRecords> decrypt(@NonNull String topicName,
+                                                  int partition,
+                                                  @NonNull MemoryRecords records,
                                                   @NonNull IntFunction<ByteBufferOutputStream> bufferAllocator) {
         if (records.sizeInBytes() == 0) {
             // no records to transform, return input without modification
@@ -104,112 +154,117 @@ public class InBandDecryptionManager<K, E> implements DecryptionManager {
         if (batchRecordCounts.stream().allMatch(recordCount -> recordCount == 0)) {
             return CompletableFuture.completedFuture(records);
         }
-        Set<E> uniqueEdeks = extractEdeks(topicName, partition, records);
-        CompletionStage<Map<E, AesGcmEncryptor>> decryptors = filterThreadExecutor.completingOnFilterThread(resolveAll(uniqueEdeks));
-        CompletionStage<BatchAwareMemoryRecordsBuilder> decryptStage = decryptors.thenApply(
-                encryptorMap -> decrypt(topicName, partition, records, new BatchAwareMemoryRecordsBuilder(allocateBufferForDecrypt(records, bufferAllocator)),
-                        encryptorMap, batchRecordCounts));
-        return decryptStage.thenApply(BatchAwareMemoryRecordsBuilder::build);
+
+        CompletionStage<List<DecryptState<E>>> decryptStates = resolveAll(topicName, partition, records);
+        return decryptStates.thenApply(
+                decryptStateList -> {
+                    try {
+                        return decrypt(topicName,
+                                partition,
+                                records,
+                                decryptStateList,
+                                allocateBufferForDecrypt(records, bufferAllocator));
+                    }
+                    finally {
+                        for (var ds : decryptStateList) {
+                            if (ds != null && ds.decryptor() != null) {
+                                ds.decryptor().close();
+                            }
+                        }
+                    }
+                });
     }
 
-    private CompletionStage<Map<E, AesGcmEncryptor>> resolveAll(Set<E> uniqueEdeks) {
-        CompletionStage<List<Map.Entry<E, AesGcmEncryptor>>> join = EnvelopeEncryptionFilter.join(
-                uniqueEdeks.stream().map(e -> decryptorCache.get(e).thenApply(aesGcmEncryptor -> Map.entry(e, aesGcmEncryptor))).toList());
-        return join.thenApply(entries -> entries.stream().collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)));
-    }
+    /**
+     * Gets each record's encryption header (any any) and then resolves those edeks into
+     * {@link io.kroxylicious.filter.encryption.dek.Dek.Decryptor}s via the {@link #dekManager}
+     * @param topicName The topic name.
+     * @param partition The partition.
+     * @param records The records to decrypt.
+     * @return A stage that completes with a list of the DecryptState
+     * for each record in the given {@code records}, in the same order.
+     */
+    private CompletionStage<List<DecryptState<E>>> resolveAll(String topicName,
+                                                              int partition,
+                                                              MemoryRecords records) {
+        Serde<E> serde = dekManager.edekSerde();
+        var cacheKeys = new ArrayList<CacheKey<E>>();
+        var states = new ArrayList<DecryptState<E>>();
 
-    private Set<E> extractEdeks(String topicName, int partition, MemoryRecords records) {
-        Set<E> edeks = new HashSet<>();
-        Serde<E> serde = kms.edekSerde();
-        for (Record kafkaRecord : records.records()) {
-            var decryptionVersion = decryptionVersion(topicName, partition, kafkaRecord);
-            if (decryptionVersion == EncryptionVersion.V1) {
-                ByteBuffer wrapper = kafkaRecord.value();
-                var edekLength = ByteUtils.readUnsignedVarint(wrapper);
-                ByteBuffer slice = wrapper.slice(wrapper.position(), edekLength);
-                var edek = serde.deserialize(slice);
-                edeks.add(edek);
-            }
-        }
-        return edeks;
-    }
-
-    @NonNull
-    private BatchAwareMemoryRecordsBuilder decrypt(String topicName,
-                                                   int partition,
-                                                   @NonNull MemoryRecords records,
-                                                   @NonNull BatchAwareMemoryRecordsBuilder builder,
-                                                   @NonNull Map<E, AesGcmEncryptor> encryptorMap,
-                                                   @NonNull List<Integer> batchRecordCounts) {
-        int i = 0;
-        for (MutableRecordBatch batch : records.batches()) {
-            Integer batchRecordCount = batchRecordCounts.get(i++);
-            if (batchRecordCount == 0 || batch.isControlBatch()) {
-                builder.writeBatch(batch);
+        // Iterate the records collecting cache keys and decrypt states
+        // both cacheKeys and decryptStates use the list index as a way of identifying the corresponding
+        // record: The index in the list is the same as their index within the MemoryRecords
+        RecordStream.ofRecords(records).forEachRecord((batch, record, ignored) -> {
+            var decryptionVersion = decryptionVersion(topicName, partition, record);
+            if (decryptionVersion != null) {
+                ByteBuffer wrapper = record.value();
+                // TODO it's ugly passing a BiFunction like CacheKey::new
+                // should the wrapper just return a CacheKey directly
+                cacheKeys.add(decryptionVersion.wrapperVersion().readSpecAndEdek(wrapper, serde, CacheKey::new));
+                states.add(new DecryptState<>(decryptionVersion));
             }
             else {
-                decryptBatch(topicName, partition, builder, encryptorMap, batch);
+                // It's not encrypted, so use sentinels
+                cacheKeys.add(CacheKey.none());
+                states.add(DecryptState.none());
             }
-        }
-        return builder;
+        });
+        // Lookup the decryptors for the cache keys
+        return filterThreadExecutor.completingOnFilterThread(decryptorCache.getAll(cacheKeys))
+                .thenApply(cacheKeyDecryptorMap -> {
+                    // Once we have the decryptors from the cache...
+                    return issueDecryptors(cacheKeyDecryptorMap, cacheKeys, states);
+                });
     }
 
-    private void decryptBatch(String topicName, int partition, @NonNull BatchAwareMemoryRecordsBuilder builder, @NonNull Map<E, AesGcmEncryptor> encryptorMap,
-                              MutableRecordBatch batch) {
-        builder.addBatchLike(batch);
-        for (Record kafkaRecord : batch) {
-            var decryptionVersion = decryptionVersion(topicName, partition, kafkaRecord);
-            if (decryptionVersion == null) {
-                builder.append(kafkaRecord);
+    private @NonNull ArrayList<DecryptState<E>> issueDecryptors(@NonNull Map<CacheKey<E>, Dek<E>> cacheKeyDecryptorMap,
+                                                                @NonNull ArrayList<CacheKey<E>> cacheKeys,
+                                                                @NonNull ArrayList<DecryptState<E>> states) {
+        Map<CacheKey<E>, Dek<E>.Decryptor> issuedDecryptors = new HashMap<>();
+        try {
+            for (int index = 0, cacheKeysSize = cacheKeys.size(); index < cacheKeysSize; index++) {
+                CacheKey<E> cacheKey = cacheKeys.get(index);
+                // ...update (in place) the DecryptState with the decryptor
+                DecryptState<E> decryptState = states.get(index);
+                var decryptor = issuedDecryptors.computeIfAbsent(cacheKey, k -> {
+                    Dek<E> dek = cacheKeyDecryptorMap.get(cacheKey);
+                    return dek != null ? dek.decryptor() : null;
+                });
+                decryptState.withDecryptor(decryptor);
             }
-            else if (decryptionVersion == EncryptionVersion.V1) {
-                ByteBuffer wrapper = kafkaRecord.value();
-                var edekLength = ByteUtils.readUnsignedVarint(wrapper);
-                ByteBuffer slice = wrapper.slice(wrapper.position(), edekLength);
-                var edek = edekSerde.deserialize(slice);
-                wrapper.position(wrapper.position() + edekLength);
-                AesGcmEncryptor aesGcmEncryptor = encryptorMap.get(edek);
-                if (aesGcmEncryptor == null) {
-                    throw new EncryptionException("no encryptor loaded for edek, " + edek);
-                }
-                decryptRecord(EncryptionVersion.V1, aesGcmEncryptor, wrapper, kafkaRecord, builder);
-            }
+            // return the resolved DecryptStates
+            return states;
+        }
+        catch (RuntimeException e) {
+            issuedDecryptors.forEach((cacheKey, decryptor) -> decryptor.close());
+            throw e;
         }
     }
 
-    private ByteBufferOutputStream allocateBufferForDecrypt(MemoryRecords memoryRecords, IntFunction<ByteBufferOutputStream> allocator) {
+    private static ByteBufferOutputStream allocateBufferForDecrypt(MemoryRecords memoryRecords,
+                                                                   IntFunction<ByteBufferOutputStream> allocator) {
         int sizeEstimate = memoryRecords.sizeInBytes();
         return allocator.apply(sizeEstimate);
     }
 
-    @SuppressWarnings("java:S2445")
-    private void decryptRecord(EncryptionVersion decryptionVersion,
-                               AesGcmEncryptor encryptor,
-                               ByteBuffer wrapper,
-                               Record kafkaRecord,
-                               @NonNull BatchAwareMemoryRecordsBuilder builder) {
-        var aadSpec = AadSpec.fromCode(wrapper.get());
-        ByteBuffer aad = switch (aadSpec) {
-            case NONE -> ByteUtils.EMPTY_BUF;
-        };
-
-        var cipherCode = CipherCode.fromCode(wrapper.get());
-
-        ByteBuffer plaintextParcel;
-        synchronized (encryptor) {
-            plaintextParcel = decryptParcel(wrapper.slice(), encryptor);
-        }
-        Parcel.readParcel(decryptionVersion.parcelVersion(),
-                plaintextParcel,
-                kafkaRecord,
-                (v, h) -> builder.appendWithOffset(kafkaRecord.offset(), kafkaRecord.timestamp(), kafkaRecord.key(), v, h));
+    /**
+     * Fill the given {@code buffer} with the {@code records},
+     * decrypting any which are encrypted using the corresponding decryptor from the given
+     * {@code decryptorList}.
+     * @param records The records to decrypt.
+     * @param decryptorList The decryptors to use.
+     * @param buffer The buffer to fill (to encourage buffer reuse).
+     * @return The decrypted records.
+     */
+    @NonNull
+    private MemoryRecords decrypt(@NonNull String topicName,
+                                  int parititon,
+                                  @NonNull MemoryRecords records,
+                                  @NonNull List<DecryptState<E>> decryptorList,
+                                  @NonNull ByteBufferOutputStream buffer) {
+        return RecordStream.ofRecordsWithIndex(records)
+                .mapPerRecord((batch, record, index) -> decryptorList.get(index))
+                .toMemoryRecords(buffer,
+                        new RecordDecryptor<>(topicName, parititon));
     }
-
-    private ByteBuffer decryptParcel(ByteBuffer ciphertextParcel, AesGcmEncryptor encryptor) {
-        ByteBuffer plaintext = ciphertextParcel.duplicate();
-        encryptor.decrypt(ciphertextParcel, plaintext);
-        plaintext.flip();
-        return plaintext;
-    }
-
 }
