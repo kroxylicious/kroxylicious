@@ -30,6 +30,7 @@ public class Environment {
     private static final String SKIP_TEARDOWN_ENV = "SKIP_TEARDOWN";
     public static final String STRIMZI_FEATURE_GATES_ENV = "STRIMZI_FEATURE_GATES";
     public static final String CONTAINER_CONFIG_PATH_ENV = "CONTAINER_CONFIG_PATH";
+    public static final String STRIMZI_NAMESPACE_ENV = "STRIMZI_NAMESPACE";
 
     /**
      * The kafka version default value
@@ -57,13 +58,14 @@ public class Environment {
     /**
      * The strimzi installation url for kubernetes.
      */
-    private static final String STRIMZI_URL_DEFAULT = "https://strimzi.io/install/latest?namespace=" + Constants.KROXY_DEFAULT_NAMESPACE;
+    private static final String STRIMZI_URL_DEFAULT = "https://strimzi.io/install/latest?namespace=" + Constants.KAFKA_DEFAULT_NAMESPACE;
     /**
      * The default value for skipping the teardown locally.
      */
     private static final String SKIP_TEARDOWN_DEFAULT = "false";
     private static final String STRIMZI_FEATURE_GATES_DEFAULT = "";
     private static final String CONTAINER_CONFIG_PATH_DEFAULT = System.getProperty("user.home") + "/.docker/config.json";
+    private static final String STRIMZI_NAMESPACE_DEFAULT = Constants.KAFKA_DEFAULT_NAMESPACE;
 
     /**
      * KAFKA_VERSION env variable assignment
@@ -90,6 +92,8 @@ public class Environment {
     public static final String STRIMZI_FEATURE_GATES = getOrDefault(STRIMZI_FEATURE_GATES_ENV, STRIMZI_FEATURE_GATES_DEFAULT);
 
     public static final String CONTAINER_CONFIG_PATH = getOrDefault(CONTAINER_CONFIG_PATH_ENV, CONTAINER_CONFIG_PATH_DEFAULT);
+
+    public static final String STRIMZI_NAMESPACE = getOrDefault(STRIMZI_NAMESPACE_ENV, STRIMZI_NAMESPACE_DEFAULT);
 
     private static String getOrDefault(String varName, String defaultValue) {
         return getOrDefault(varName, String::toString, defaultValue);

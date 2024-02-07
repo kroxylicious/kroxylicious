@@ -75,9 +75,10 @@ public class AbstractST {
         LOGGER.info(String.format("%s Test Suite - STARTED", testInfo.getTestClass().get().getName()));
         cluster = KubeClusterResource.getInstance();
         certManager = new CertManager();
-        strimziOperator = new Strimzi(Constants.KROXY_DEFAULT_NAMESPACE);
+        strimziOperator = new Strimzi(Environment.STRIMZI_NAMESPACE);
 
-        NamespaceUtils.createNamespaceWithWait(Constants.KROXY_DEFAULT_NAMESPACE);
+        NamespaceUtils.createNamespaceWithWait(Environment.STRIMZI_NAMESPACE);
+        NamespaceUtils.createNamespaceWithWait(Constants.KAFKA_DEFAULT_NAMESPACE);
         strimziOperator.deploy();
         certManager.deploy();
     }
@@ -97,7 +98,8 @@ public class AbstractST {
             if (certManager != null) {
                 certManager.delete();
             }
-            NamespaceUtils.deleteNamespaceWithWait(Constants.KROXY_DEFAULT_NAMESPACE);
+            NamespaceUtils.deleteNamespaceWithWait(Environment.STRIMZI_NAMESPACE);
+            NamespaceUtils.deleteNamespaceWithWait(Constants.KAFKA_DEFAULT_NAMESPACE);
             NamespaceUtils.deleteNamespaceWithWait(Constants.CERT_MANAGER_NAMESPACE);
         }
         else {

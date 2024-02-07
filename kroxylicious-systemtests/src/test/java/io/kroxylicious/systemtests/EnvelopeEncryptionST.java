@@ -56,14 +56,14 @@ class EnvelopeEncryptionST extends AbstractST {
             kubeVaultTestKmsFacade.start();
         }
 
-        List<Pod> kafkaPods = kubeClient().listPodsByPrefixInName(Constants.KROXY_DEFAULT_NAMESPACE, clusterName);
+        List<Pod> kafkaPods = kubeClient().listPodsByPrefixInName(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName);
         if (!kafkaPods.isEmpty()) {
             LOGGER.warn("Skipping kafka deployment. It is already deployed!");
             return;
         }
-        LOGGER.info("Deploying Kafka in {} namespace", Constants.KROXY_DEFAULT_NAMESPACE);
+        LOGGER.info("Deploying Kafka in {} namespace", Constants.KAFKA_DEFAULT_NAMESPACE);
 
-        Kafka kafka = KafkaTemplates.kafkaPersistentWithKRaftAnnotations(Constants.KROXY_DEFAULT_NAMESPACE, clusterName, 3).build();
+        Kafka kafka = KafkaTemplates.kafkaPersistentWithKRaftAnnotations(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName, 3).build();
 
         resourceManager.createResourceWithWait(
                 KafkaNodePoolTemplates.kafkaBasedNodePoolWithDualRole(BROKER_NODE_NAME, kafka, 3).build(),
@@ -106,7 +106,7 @@ class EnvelopeEncryptionST extends AbstractST {
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
 
         LOGGER.info("Then the {} messages are consumed", numberOfMessages);
-        String kafkaBootstrap = clusterName + "-kafka-bootstrap." + Constants.KROXY_DEFAULT_NAMESPACE + ".svc.cluster.local:9092";
+        String kafkaBootstrap = clusterName + "-kafka-bootstrap." + Constants.KAFKA_DEFAULT_NAMESPACE + ".svc.cluster.local:9092";
         String resultEncrypted = KroxyliciousSteps.consumeEncryptedMessages(namespace, topicName, kafkaBootstrap, numberOfMessages, Duration.ofMinutes(2));
         LOGGER.info("Received: " + resultEncrypted);
         assertThat("'" + expectedMessage + "' expected message have not been received!", resultEncrypted.contains(topicName + "vault"));

@@ -297,10 +297,12 @@ has been applied ineffectively.
 * `KROXYLICIOUS_IMAGE_REPO`: url to the image of kroxylicious to be used. Default value: `quay.io/kroxylicious/kroxylicious-developer`
 * `KROXYLICIOUS_VERSION`: version of kroxylicious to be used. Default value: `${project.version}` in pom file
 * `KAFKA_VERSION`: kafka version to be used. Default value: `${kafka.version}` in pom file
-* `STRIMZI_URL`: url where to download strimzi. Default value: `khttps://strimzi.io/install/latest?namespace=kafka`
+* `STRIMZI_URL`: url where to download strimzi. Default value: `https://strimzi.io/install/latest?namespace=kafka`
 * `SKIP_TEARDOWN`: variable for development purposes to avoid keep deploying and deleting deployments each run. Default value: `false`
 * `CONTAINER_CONFIG_PATH`: directory where `config.json` file is located. This file contains the pull secrets to be used by
 the container engine. Default value: `$HOME/.docker/config.json`
+* `STRIMZI_NAMESPACE`: namespace where strimzi is installed. It is useful for pipelines
+where strimzi is installed before the STs. Default value: `kafka`
 
 
 ### Launch system tests
@@ -331,6 +333,17 @@ KROXYLICIOUS_IMAGE_REPO=<container_registry>/<myorg>/kroxylicious mvn clean inte
 ```shell
 KROXYLICIOUS_IMAGE_REPO=<container_registry>/<myorg>/kroxylicious mvn clean verify -DskiptITs=true -DskiptUTs=true -DskipSTs=false
 ```
+
+### Jenkins pipeline for system tests
+
+When a PR is created and the system tests are needed, if you are a member of
+[Developers](https://github.com/orgs/kroxylicious/teams/developers), you may add the following comment into the PR to trigger the run.
+
+```
+@strimzi-ci run system tests
+```
+
+It will launch the `kroxylicious-system-tests-pr` build, that will insert a comment with a summary into the PR.
 
 ## Rendering documentation
 

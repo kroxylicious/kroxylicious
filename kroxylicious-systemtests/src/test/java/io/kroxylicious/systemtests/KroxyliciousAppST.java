@@ -39,7 +39,7 @@ public class KroxyliciousAppST extends AbstractST {
     @Test
     void kroxyAppIsRunning() {
         LOGGER.info("Given local Kroxylicious");
-        String clusterIp = kubeClient().getService(Constants.KROXY_DEFAULT_NAMESPACE, clusterName + "-kafka-external-bootstrap").getSpec().getClusterIP();
+        String clusterIp = kubeClient().getService(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName + "-kafka-external-bootstrap").getSpec().getClusterIP();
         kroxyliciousApp = new KroxyliciousApp(clusterIp);
         kroxyliciousApp.waitForKroxyliciousProcess();
         assertThat("Kroxylicious app is not running!", kroxyliciousApp.isRunning());
@@ -50,10 +50,10 @@ public class KroxyliciousAppST extends AbstractST {
      */
     @BeforeAll
     void setupBefore() {
-        assumeTrue(DeploymentUtils.checkLoadBalancerIsWorking(Constants.KROXY_DEFAULT_NAMESPACE), "Load balancer is not working fine, if you are using"
+        assumeTrue(DeploymentUtils.checkLoadBalancerIsWorking(Constants.KAFKA_DEFAULT_NAMESPACE), "Load balancer is not working fine, if you are using"
                 + "minikube please run 'minikube tunnel' before running the tests");
-        LOGGER.info("Deploying Kafka in {} namespace", Constants.KROXY_DEFAULT_NAMESPACE);
-        resourceManager.createResourceWithWait(KafkaTemplates.kafkaPersistentWithExternalIp(Constants.KROXY_DEFAULT_NAMESPACE, clusterName, 3, 3).build());
+        LOGGER.info("Deploying Kafka in {} namespace", Constants.KAFKA_DEFAULT_NAMESPACE);
+        resourceManager.createResourceWithWait(KafkaTemplates.kafkaPersistentWithExternalIp(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName, 3, 3).build());
     }
 
     /**
