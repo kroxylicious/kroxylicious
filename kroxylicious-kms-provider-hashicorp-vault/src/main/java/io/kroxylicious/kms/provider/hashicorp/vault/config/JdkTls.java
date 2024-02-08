@@ -112,12 +112,13 @@ public record JdkTls(Tls tls) {
                         throw new SslConfigurationException("PEM is not supported by vault KMS yet");
                     }
                     KeyStore store = KeyStore.getInstance(keyStore.getType());
+                    char[] storePassword = passwordOrNull(keyStore.storePasswordProvider());
                     try (FileInputStream fileInputStream = new FileInputStream(keyStore.storeFile())) {
-                        char[] storePassword = passwordOrNull(keyStore.storePasswordProvider());
                         store.load(fileInputStream, storePassword);
                     }
-                    char[] keyPassword = passwordOrNull(keyStore.keyPasswordProvider());
                     KeyManagerFactory instance = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+                    char[] keyPassword = passwordOrNull(keyStore.keyPasswordProvider());
+                    keyPassword = keyPassword == null ? storePassword : keyPassword;
                     instance.init(store, keyPassword);
                     return instance.getKeyManagers();
                 }
@@ -128,7 +129,7 @@ public record JdkTls(Tls tls) {
 
             @Nullable
             private static char[] passwordOrNull(PasswordProvider value) {
-                return Optional.of(value).map(PasswordProvider::getProvidedPassword).map(String::toCharArray).orElse(null);
+                return Optional.ofNullable(value).map(PasswordProvider::getProvidedPassword).map(String::toCharArray).orElse(null);
             }
         });
     }

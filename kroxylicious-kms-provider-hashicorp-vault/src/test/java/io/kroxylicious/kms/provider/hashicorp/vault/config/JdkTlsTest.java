@@ -28,12 +28,15 @@ import io.kroxylicious.proxy.config.tls.KeyStore;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TrustStore;
 
+import static io.kroxylicious.kms.provider.hashicorp.vault.CertificateGenerator.createJksKeystore;
+import static io.kroxylicious.kms.provider.hashicorp.vault.CertificateGenerator.generateRsaKeyPair;
+import static io.kroxylicious.kms.provider.hashicorp.vault.CertificateGenerator.generateSelfSignedX509Certificate;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class JdkTlsTest {
-    public static final X509Certificate SELF_SIGNED_X_509_CERTIFICATE = CertificateGenerator.generateSelfSignedX509Certificate(CertificateGenerator.generateRsaKeyPair());
+    public static final X509Certificate SELF_SIGNED_X_509_CERTIFICATE = generateSelfSignedX509Certificate(generateRsaKeyPair());
 
     @Test
     void testInsecureTlsEnabled() {
@@ -131,6 +134,18 @@ class JdkTlsTest {
         CertificateGenerator.Keys keys = CertificateGenerator.generate();
         CertificateGenerator.KeyStore keyStore = keys.jksServerKeystore();
         KeyStore store = new KeyStore(keyStore.path().toString(), new InlinePassword(keyStore.storePassword()), new InlinePassword(keyStore.keyPassword()),
+                keyStore.type());
+        KeyManager[] trustManagers = JdkTls.getKeyManagers(store);
+        assertThat(trustManagers).isNotEmpty();
+    }
+
+    @Test
+    void testKeyStoreKeyPasswordDefaultsToStorePassword() {
+        java.security.KeyPair pair = generateRsaKeyPair();
+        X509Certificate x509Certificate = generateSelfSignedX509Certificate(pair);
+        String password = "password";
+        CertificateGenerator.KeyStore keyStore = createJksKeystore(pair, x509Certificate, password, password);
+        KeyStore store = new KeyStore(keyStore.path().toString(), new InlinePassword(keyStore.storePassword()), null,
                 keyStore.type());
         KeyManager[] trustManagers = JdkTls.getKeyManagers(store);
         assertThat(trustManagers).isNotEmpty();

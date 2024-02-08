@@ -100,9 +100,11 @@ public class CertificateGenerator {
             var validFrom = Date.from(now);
             var validTo = Date.from(now.plus(Duration.ofDays(9999)));
             var certBuilder = new X509v3CertificateBuilder(
-                    // currently it's important that issuer == subject because we use these certs on vault to authenticate the client
-                    // with client authentication enabled vault sends the subject over as part of the handshake and it needs to match
-                    // an issuer principal in the client keystore, so that it can select the correct key.
+                    // Currently it is important that the issuer name equals the subject name. We use these certs on vault to authenticate
+                    // the client. We tell vault that the client certificate is a trusted CA. With client authentication enabled,
+                    // vault sends a list of trusted issuers to the client as part of the handshake (the subject name from the cert).
+                    // When the client is told about the trusted issuers it tries to locate a certificate with that issuer to present
+                    // to the server. It's at that point that we need the issuer name to match what vault sent.
                     new X500Name("CN=localhost"),
                     BigInteger.ONE,
                     validFrom,
@@ -167,7 +169,7 @@ public class CertificateGenerator {
         KeyPair pair = generateRsaKeyPair();
         Path privateKeyPem = writeRsaPrivateKeyPem(pair);
         X509Certificate x509Certificate = generateSelfSignedX509Certificate(pair);
-        KeyStore keyStore = createJksKeystore(pair, x509Certificate, password);
+        KeyStore keyStore = createJksKeystore(pair, x509Certificate, password, "keypass");
         Path serverCert = generateCertPem(x509Certificate);
         Path pkcs12Trust = buildPkcs12TrustStore(x509Certificate, password);
         Path noPasswordPkcs12Trust = buildPkcs12TrustStore(x509Certificate, null);
@@ -179,20 +181,19 @@ public class CertificateGenerator {
         return new Keys(pair, privateKeyPem, serverCert, pkcs12ClientTruststore, jksClientTruststore, pkcs12NoPasswordTruststore, keyStore);
     }
 
-    private static KeyStore createJksKeystore(KeyPair privateKeyPem, X509Certificate x509Certificate, String storePassword) {
+    public static KeyStore createJksKeystore(KeyPair privateKeyPem, X509Certificate x509Certificate, String storePassword, String keyPassword) {
         try {
             File tempFile = createTempFile("keystore", "jks");
             java.security.KeyStore store = java.security.KeyStore.getInstance("JKS");
             store.load(null);
-            store.setKeyEntry("alias", privateKeyPem.getPrivate(), storePassword.toCharArray(), new Certificate[]{ x509Certificate });
+            store.setKeyEntry("alias", privateKeyPem.getPrivate(), keyPassword.toCharArray(), new Certificate[]{ x509Certificate });
             try (FileOutputStream stream = new FileOutputStream(tempFile)) {
                 store.store(stream, storePassword.toCharArray());
             }
             Path path = tempFile.toPath();
             Path storePasswordFile = writeToTempFile(storePassword);
-            String keyPassword = "keypass";
             Path keyPasswordFile = writeToTempFile(keyPassword);
-            return new KeyStore(path, "JKS", storePassword, storePasswordFile, storePassword, keyPasswordFile);
+            return new KeyStore(path, "JKS", storePassword, storePasswordFile, keyPassword, keyPasswordFile);
         }
         catch (Exception e) {
             throw new RuntimeException(e);
