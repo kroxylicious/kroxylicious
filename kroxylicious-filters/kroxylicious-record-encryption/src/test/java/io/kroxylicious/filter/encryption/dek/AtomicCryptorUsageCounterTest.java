@@ -19,18 +19,18 @@ class AtomicCryptorUsageCounterTest {
     private final AtomicCryptorUsageCounter counter = new AtomicCryptorUsageCounter();
 
     @Test
-    public void testAcquireEncryptor() {
+    void testAcquireEncryptor() {
         assertCanAcquireEncryptorUsage();
     }
 
     @Test
-    public void testAcquireMultipleEncryptors() {
+    void testAcquireMultipleEncryptors() {
         assertCanAcquireEncryptorUsage();
         assertCanAcquireEncryptorUsage();
     }
 
     @Test
-    public void testAwaitsAllEncryptorsBeforeEnding() {
+    void testAwaitsAllEncryptorsBeforeEnding() {
         assertCanAcquireEncryptorUsage();
         assertCanAcquireEncryptorUsage();
         assertNotEnded(counter.destroyForBoth());
@@ -39,14 +39,14 @@ class AtomicCryptorUsageCounterTest {
     }
 
     @Test
-    public void testUnexpectedEncryptorRelease() {
+    void testUnexpectedEncryptorRelease() {
         assertThatThrownBy(counter::releaseEncryptorUsage)
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("cannot decrement at START or END");
     }
 
     @Test
-    public void testUnexpectedEncryptorReleaseAfterAcquire() {
+    void testUnexpectedEncryptorReleaseAfterAcquire() {
         assertCanAcquireEncryptorUsage();
         assertNotEnded(counter.releaseEncryptorUsage());
         assertThatThrownBy(counter::releaseEncryptorUsage)
@@ -55,7 +55,7 @@ class AtomicCryptorUsageCounterTest {
     }
 
     @Test
-    public void testUnexpectedDecryptorReleaseAfterAcquire() {
+    void testUnexpectedDecryptorReleaseAfterAcquire() {
         assertCanAcquireDecryptorUsage();
         assertNotEnded(counter.releaseDecryptorUsage());
         assertThatThrownBy(counter::releaseDecryptorUsage)
@@ -64,51 +64,51 @@ class AtomicCryptorUsageCounterTest {
     }
 
     @Test
-    public void testUnexpectedDecryptorRelease() {
+    void testUnexpectedDecryptorRelease() {
         assertThatThrownBy(counter::releaseDecryptorUsage)
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("cannot decrement at START or END");
     }
 
     @Test
-    public void testAcquireDecryptor() {
+    void testAcquireDecryptor() {
         assertCanAcquireDecryptorUsage();
     }
 
     @Test
-    public void testAcquireMultipleDecryptors() {
+    void testAcquireMultipleDecryptors() {
         assertCanAcquireDecryptorUsage();
         assertCanAcquireDecryptorUsage();
     }
 
     @Test
-    public void testAcquireAndReleaseEncryptor() {
+    void testAcquireAndReleaseEncryptor() {
         assertCanAcquireEncryptorUsage();
         assertNotEnded(counter.releaseEncryptorUsage());
     }
 
     @Test
-    public void testAcquireAfterReleaseEncryptor() {
+    void testAcquireAfterReleaseEncryptor() {
         assertCanAcquireEncryptorUsage();
         assertNotEnded(counter.releaseEncryptorUsage());
         assertCanAcquireEncryptorUsage();
     }
 
     @Test
-    public void testAcquireAfterReleaseDecryptor() {
+    void testAcquireAfterReleaseDecryptor() {
         assertCanAcquireDecryptorUsage();
         assertNotEnded(counter.releaseDecryptorUsage());
         assertCanAcquireDecryptorUsage();
     }
 
     @Test
-    public void testAcquireAndReleaseDecryptor() {
+    void testAcquireAndReleaseDecryptor() {
         assertCanAcquireDecryptorUsage();
         assertNotEnded(counter.releaseDecryptorUsage());
     }
 
     @Test
-    public void testAcquireAndReleaseAndDestroyEncryptor() {
+    void testAcquireAndReleaseAndDestroyEncryptor() {
         assertCanAcquireEncryptorUsage();
         assertNotEnded(counter.releaseEncryptorUsage());
         assertNotEnded(counter.destroyForEncrypt());
@@ -116,7 +116,7 @@ class AtomicCryptorUsageCounterTest {
     }
 
     @Test
-    public void testAcquireAndReleaseAndDestroyDecryptor() {
+    void testAcquireAndReleaseAndDestroyDecryptor() {
         assertCanAcquireDecryptorUsage();
         assertNotEnded(counter.releaseDecryptorUsage());
         assertNotEnded(counter.destroyForDecrypt());
@@ -124,25 +124,25 @@ class AtomicCryptorUsageCounterTest {
     }
 
     @Test
-    public void testCannotAcquireEncryptorAfterDestroyedForEncrypt() {
+    void testCannotAcquireEncryptorAfterDestroyedForEncrypt() {
         assertNotEnded(counter.destroyForEncrypt());
         assertCanNotAcquireEncryptorUsage();
     }
 
     @Test
-    public void testCanAcquireDecryptorAfterDestroyedForEncrypt() {
+    void testCanAcquireDecryptorAfterDestroyedForEncrypt() {
         assertNotEnded(counter.destroyForEncrypt());
         assertCanAcquireDecryptorUsage();
     }
 
     @Test
-    public void testCanAcquireEncryptorAfterDestroyedForDecrypt() {
+    void testCanAcquireEncryptorAfterDestroyedForDecrypt() {
         assertNotEnded(counter.destroyForDecrypt());
         assertCanAcquireEncryptorUsage();
     }
 
     @Test
-    public void testAcquireAndDestroyAndReleaseEncryptor() {
+    void testAcquireAndDestroyAndReleaseEncryptor() {
         assertCanAcquireEncryptorUsage();
         assertNotEnded(counter.destroyForEncrypt());
         assertNotEnded(counter.releaseEncryptorUsage());
@@ -150,20 +150,20 @@ class AtomicCryptorUsageCounterTest {
     }
 
     @Test
-    public void testDestroyBothImmediately() {
+    void testDestroyBothImmediately() {
         assertEnded(counter.destroyForBoth());
         assertCanNotAcquireEncryptorUsage();
         assertCanNotAcquireDecryptorUsage();
     }
 
     @Test
-    public void testDestroyEncryptFirst() {
+    void testDestroyEncryptFirst() {
         assertNotEnded(counter.destroyForEncrypt());
         assertEnded(counter.destroyForDecrypt());
     }
 
     @Test
-    public void testEndsAfterEncryptorsReleased() {
+    void testEndsAfterEncryptorsReleased() {
         assertCanAcquireEncryptorUsage();
         assertNotEnded(counter.destroyForEncrypt());
         assertNotEnded(counter.destroyForDecrypt());
@@ -171,7 +171,7 @@ class AtomicCryptorUsageCounterTest {
     }
 
     @Test
-    public void testEndsAfterDecryptorsReleased() {
+    void testEndsAfterDecryptorsReleased() {
         assertCanAcquireDecryptorUsage();
         assertNotEnded(counter.destroyForEncrypt());
         assertNotEnded(counter.destroyForDecrypt());
@@ -179,7 +179,7 @@ class AtomicCryptorUsageCounterTest {
     }
 
     @Test
-    public void testEndsAfterBothUsageTypesReleased_EncryptorsLast() {
+    void testEndsAfterBothUsageTypesReleased_EncryptorsLast() {
         assertCanAcquireDecryptorUsage();
         assertCanAcquireEncryptorUsage();
         assertNotEnded(counter.destroyForBoth());
@@ -188,7 +188,7 @@ class AtomicCryptorUsageCounterTest {
     }
 
     @Test
-    public void testEndsAfterBothUsageTypesReleased_DecryptorsLast() {
+    void testEndsAfterBothUsageTypesReleased_DecryptorsLast() {
         assertCanAcquireDecryptorUsage();
         assertCanAcquireEncryptorUsage();
         assertNotEnded(counter.destroyForBoth());

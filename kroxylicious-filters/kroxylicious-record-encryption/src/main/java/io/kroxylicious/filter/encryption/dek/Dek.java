@@ -87,6 +87,9 @@ public final class Dek<E> {
         this.cipherSpec = cipherSpec;
         this.remainingEncryptions = new AtomicLong(maxEncryptions);
         this.outstandingCryptors = new AtomicCryptorUsageCounter();
+        if (maxEncryptions == 0) {
+            outstandingCryptors.destroyForEncrypt();
+        }
     }
 
     /**

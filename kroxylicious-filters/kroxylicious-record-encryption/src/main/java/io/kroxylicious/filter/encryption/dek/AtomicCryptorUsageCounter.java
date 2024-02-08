@@ -46,7 +46,7 @@ import java.util.function.LongUnaryOperator;
  *     <tr><td colspan="3">«{@link #END}» // key gets destroyed </td></tr>
  * </table>
  */
-public class AtomicCryptorUsageCounter {
+class AtomicCryptorUsageCounter {
     private static final long START = combine(1, 1);
     private static final long END = combine(-1, -1);
     private final AtomicLong state = new AtomicLong(START);
