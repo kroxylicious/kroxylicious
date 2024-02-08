@@ -15,7 +15,7 @@ At a high level, the filter works in the following way.  First, let's consider t
 3. Each record within it is encrypted.
 4. The produce request is reassembled, replacing the original records with their encrypted counterparts.
 5. The filter forwards the modified produce request onto the Kafka Broker.
-6. The broker handles the records in the normal way writing them to the transaction log.  The broker has no knowledge
+6. The broker handles the records in the normal way (writing them to the topic's log etc).  The broker has no knowledge
    that the records are encrypted - to it, they are just opaque bytes.
 
 Now, let's consider the consume side:
@@ -47,10 +47,10 @@ applied by the filter to encrypt Kafka records.  For more detail, refer to the {
 On the produce path, the filter is encrypting records.  The filter uses a selector to determine which KEK to use. It then
 requests that the KMS generates a DEK for the KEK.  It is the DEK that is used to encrypt the record.  The original record
 in the produce request is replaced by a *cipher record* which comprises the encrypted record, the encrypted DEK and some other
-data.
+metadata.
 
 On the fetch path, the filter is decrypting records.  The filter receives the *cipher record* from the Kafka Broker. The
-filter reverses the process used to  construct the *cipher record* and uses the KMS to decrypt the DEK.  The decrypted DEK is
+filter reverses the process used to construct the *cipher record* and uses the KMS to decrypt the DEK.  The decrypted DEK is
 used to decrypt the encrypted record.  The cipher record in the fetch response is then replaced with the decrypted record.
 
 On the produce path, the filter employs a DEK reuse strategy. This means that records sent by a single connection to
