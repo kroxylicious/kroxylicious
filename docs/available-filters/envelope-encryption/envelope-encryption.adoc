@@ -27,7 +27,8 @@ Now, let's consider the consume side:
 5. The filter forwards the modified fetch response onto the Kafka Client. The client has no knowledge that the record was encrypted.
 
 The entire process is transparent from the point of view of both Kafka Client and Kafka Broker.  Neither are
-aware that the records are being encrypted.  Neither client nor broker have any access to the encryption keys.
+aware that the records are being encrypted.  Neither client nor broker have any access to the encryption keys or have
+any influence on the ciphering process.
 
 The filter encrypts the records using symmetric encryption keys.  The encryption technique employed is
 known as *Envelope Encryption*, which is a technique suited for encrypting large volumes of data in an efficient manner.
