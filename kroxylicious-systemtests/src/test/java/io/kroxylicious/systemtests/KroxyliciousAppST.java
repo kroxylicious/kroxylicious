@@ -18,7 +18,7 @@ import io.kroxylicious.systemtests.templates.strimzi.KafkaTemplates;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
-import static org.hamcrest.MatcherAssert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
@@ -42,7 +42,7 @@ public class KroxyliciousAppST extends AbstractST {
         String clusterIp = kubeClient().getService(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName + "-kafka-external-bootstrap").getSpec().getClusterIP();
         kroxyliciousApp = new KroxyliciousApp(clusterIp);
         kroxyliciousApp.waitForKroxyliciousProcess();
-        assertThat("Kroxylicious app is not running!", kroxyliciousApp.isRunning());
+        assertThat(kroxyliciousApp.isRunning()).withFailMessage("Kroxylicious app is not running!").isTrue();
     }
 
     /**

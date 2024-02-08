@@ -7,11 +7,19 @@
 package io.kroxylicious.kms.provider.hashicorp.vault;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.attribute.FileAttribute;
+import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Arrays;
 import java.util.Objects;
+import java.util.Set;
 
 import org.testcontainers.DockerClientFactory;
+import org.testcontainers.utility.MountableFile;
 import org.testcontainers.vault.VaultContainer;
 
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -32,6 +40,7 @@ public class VaultTestKmsFacade implements TestKmsFacade<Config, String, VaultEd
 
     @SuppressWarnings("rawtypes")
     private VaultContainer vaultContainer;
+    private String kroxyliciousToken;
 
     @Override
     public boolean isAvailable() {
@@ -41,13 +50,28 @@ public class VaultTestKmsFacade implements TestKmsFacade<Config, String, VaultEd
     @Override
     @SuppressWarnings("resource")
     public void start() {
-
         vaultContainer = new VaultContainer<>(HASHICORP_VAULT)
                 .withVaultToken(VAULT_TOKEN)
                 .withEnv("VAULT_FORMAT", "json")
-                .withInitCommand(
-                        "secrets enable transit");
+                .withCopyFileToContainer(MountableFile.forClasspathResource("kroxylicious_encryption_filter_policy.hcl"),
+                        "/vault/config/kroxylicious_encryption_filter_policy.hcl")
+                .withInitCommand("secrets enable transit",
+                        "policy write kroxylicious_encryption_filter_policy /vault/config/kroxylicious_encryption_filter_policy.hcl",
+                        "token create -display-name kroxylicious_encryption_filter -no-default-policy -policy=kroxylicious_encryption_filter_policy -orphan -format table -field=token > /tmp/kroxylicious.token");
+
         vaultContainer.start();
+
+        try {
+            var tmp = Files.createTempFile("kroxylicious", "token", getPosixFilePermissions());
+            vaultContainer.copyFileFromContainer("/tmp/kroxylicious.token", tmp.toString());
+            kroxyliciousToken = Files.readString(tmp, StandardCharsets.UTF_8);
+            if (kroxyliciousToken == null || kroxyliciousToken.isEmpty()) {
+                throw new IllegalStateException("Failed to read a token from %s".formatted(tmp));
+            }
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException("Failed to create temporary file to receive kroxylicious token", e);
+        }
     }
 
     @Override
@@ -69,7 +93,7 @@ public class VaultTestKmsFacade implements TestKmsFacade<Config, String, VaultEd
 
     @Override
     public Config getKmsServiceConfig() {
-        return new Config(URI.create(vaultContainer.getHttpHostAddress()).resolve("v1/transit"), VAULT_TOKEN, null);
+        return new Config(URI.create(vaultContainer.getHttpHostAddress()).resolve("v1/transit"), kroxyliciousToken, null);
     }
 
     private class VaultTestKekManager implements TestKekManager {
@@ -165,5 +189,9 @@ public class VaultTestKmsFacade implements TestKmsFacade<Config, String, VaultEd
                 super(cause);
             }
         }
+    }
+
+    public static FileAttribute<Set<PosixFilePermission>> getPosixFilePermissions() {
+        return PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rw-------"));
     }
 }

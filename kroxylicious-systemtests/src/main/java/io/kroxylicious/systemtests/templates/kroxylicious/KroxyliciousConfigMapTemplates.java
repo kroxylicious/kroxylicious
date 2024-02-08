@@ -8,8 +8,8 @@ package io.kroxylicious.systemtests.templates.kroxylicious;
 
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 
+import io.kroxylicious.kms.provider.hashicorp.vault.config.Config;
 import io.kroxylicious.systemtests.Constants;
-import io.kroxylicious.systemtests.installation.vault.Vault;
 
 /**
  * The type Kroxylicious config templates.
@@ -44,14 +44,15 @@ public class KroxyliciousConfigMapTemplates {
      * @param clusterName the cluster name
      * @param namespaceName the namespace name
      * @param topicName the topic name
+     * @param config
      * @return the config map builder
      */
-    public static ConfigMapBuilder kroxyliciousTopicEncryptionConfig(String clusterName, String namespaceName, String topicName) {
+    public static ConfigMapBuilder kroxyliciousTopicEncryptionConfig(String clusterName, String namespaceName, String topicName, Config config) {
         return baseKroxyliciousConfig(namespaceName)
-                .addToData("config.yaml", getTopicEncryptionConfigMap(clusterName, topicName));
+                .addToData("config.yaml", getTopicEncryptionConfigMap(clusterName, topicName, config));
     }
 
-    private static String getTopicEncryptionConfigMap(String clusterName, String topicName) {
+    private static String getTopicEncryptionConfigMap(String clusterName, String topicName, Config config) {
         return """
                 adminHttp:
                   endpoints:
@@ -71,8 +72,8 @@ public class KroxyliciousConfigMapTemplates {
                   config:
                     kms: VaultKmsService
                     kmsConfig:
-                      vaultTransitEngineUrl: http://%VAULT_SERVICE%.%VAULT_NAMESPACE%.svc.cluster.local:8200/v1/transit
-                      vaultToken: %ROOT_TOKEN%
+                      vaultTransitEngineUrl: %VAULT_TRANSIT_ENGINE_URL%
+                      vaultToken: %VAULT_TOKEN%
                     selector: TemplateKekSelector
                     selectorConfig:
                       template: "${topicName}"
@@ -80,9 +81,8 @@ public class KroxyliciousConfigMapTemplates {
                 .replace("%NAMESPACE%", Constants.KAFKA_DEFAULT_NAMESPACE)
                 .replace("%CLUSTER_NAME%", clusterName)
                 .replace("%KROXY_SERVICE_NAME%", Constants.KROXY_SERVICE_NAME)
-                .replace("%ROOT_TOKEN%", Vault.VAULT_ROOT_TOKEN)
-                .replace("%VAULT_SERVICE%", Vault.VAULT_SERVICE_NAME)
-                .replace("%VAULT_NAMESPACE%", Vault.VAULT_DEFAULT_NAMESPACE)
+                .replace("%VAULT_TOKEN%", config.vaultToken())
+                .replace("%VAULT_TRANSIT_ENGINE_URL%", config.vaultTransitEngineUrl().toString())
                 .replace("%TOPIC_NAME%", topicName);
     }
 

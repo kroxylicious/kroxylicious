@@ -26,7 +26,7 @@ import io.kroxylicious.systemtests.templates.strimzi.KafkaNodePoolTemplates;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaTemplates;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
-import static org.hamcrest.MatcherAssert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * The type Acceptance st.
@@ -64,7 +64,8 @@ class KroxyliciousST extends AbstractST {
         LOGGER.info("Then the {} messages are consumed", numberOfMessages);
         String result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2));
         LOGGER.info("Received: " + result);
-        assertThat("'" + expectedMessage + "' expected message have not been received!", result.contains(expectedMessage));
+
+        assertThat(result).withFailMessage("expected message have not been received!").contains(expectedMessage);
     }
 
     /**
@@ -94,7 +95,7 @@ class KroxyliciousST extends AbstractST {
         LOGGER.info("Then the {} messages are consumed", numberOfMessages);
         String result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(10));
         LOGGER.info("Received: " + result);
-        assertThat("'" + expectedMessage + "' expected message have not been received!", result.contains(expectedMessage));
+        assertThat(result).withFailMessage("expected message have not been received!").contains(expectedMessage);
     }
 
     /**
@@ -114,7 +115,7 @@ class KroxyliciousST extends AbstractST {
         kroxylicious.deployPortPerBrokerPlainWithNoFilters(clusterName, replicas);
         String bootstrap = kroxylicious.getBootstrap();
         int currentReplicas = kroxylicious.getNumberOfReplicas();
-        assertThat("Current replicas: " + currentReplicas + "; expected: " + replicas, currentReplicas == replicas);
+        assertThat(currentReplicas).withFailMessage("unexpected current replicas").isEqualTo(currentReplicas);
 
         LOGGER.info("And KafkaTopic in {} namespace", namespace);
         KafkaSteps.createTopic(namespace, topicName, bootstrap, 3, 2);
@@ -125,7 +126,7 @@ class KroxyliciousST extends AbstractST {
         LOGGER.info("Then the {} messages are consumed", numberOfMessages);
         String result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2));
         LOGGER.info("Received: " + result);
-        assertThat("'" + expectedMessage + "' expected message have not been received!", result.contains(expectedMessage));
+        assertThat(result).withFailMessage("expected message have not been received!").contains(expectedMessage);
     }
 
     /**

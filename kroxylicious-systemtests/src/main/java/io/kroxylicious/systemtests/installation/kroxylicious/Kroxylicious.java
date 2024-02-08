@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 
+import io.kroxylicious.kms.provider.hashicorp.vault.config.Config;
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
@@ -47,9 +48,10 @@ public class Kroxylicious {
         resourceManager.createResourceWithWait(KroxyliciousConfigMapTemplates.defaultKroxyliciousConfig(clusterName, deploymentNamespace).build());
     }
 
-    private void createTopicEncryptionFilterConfigMap(String clusterName, String topicName) {
+    private void createTopicEncryptionFilterConfigMap(String clusterName, String topicName, Config config) {
         LOGGER.info("Deploy Kroxylicious config Map without filters in {} namespace", deploymentNamespace);
-        resourceManager.createResourceWithWait(KroxyliciousConfigMapTemplates.kroxyliciousTopicEncryptionConfig(clusterName, deploymentNamespace, topicName).build());
+        resourceManager
+                .createResourceWithWait(KroxyliciousConfigMapTemplates.kroxyliciousTopicEncryptionConfig(clusterName, deploymentNamespace, topicName, config).build());
     }
 
     private void deployPortPerBrokerPlain(int replicas) {
@@ -86,9 +88,10 @@ public class Kroxylicious {
      * @param clusterName the cluster name
      * @param replicas the replicas
      * @param topicName the topic name
+     * @param config
      */
-    public void deployPortPerBrokerPlainWithTopicEncryptionFilter(String clusterName, int replicas, String topicName) {
-        createTopicEncryptionFilterConfigMap(clusterName, topicName);
+    public void deployPortPerBrokerPlainWithTopicEncryptionFilter(String clusterName, int replicas, String topicName, Config config) {
+        createTopicEncryptionFilterConfigMap(clusterName, topicName, config);
         deployPortPerBrokerPlain(replicas);
     }
 

@@ -6,11 +6,10 @@
 
 package io.kroxylicious.systemtests.k8s;
 
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -67,22 +66,23 @@ public class HelmClient {
         return this;
     }
 
-    /** Install a chart given its name, release name, version and values to override
+    /**
+     * Install a chart given its name, release name, version and values to override
+     *
      * @param chartName the chart name
      * @param releaseName the release name
+     * @param vaultRootToken
      * @param version the version
-     * @param valuesMap the values to be overridden in the chart, set as key,value
+     * @param overrideFile helm override file
      * @return the helm client
      */
-    public HelmClient install(String chartName, String releaseName, String version, Map<String, String> valuesMap) {
+    public HelmClient install(String chartName, String releaseName, String vaultRootToken, String version, Path overrideFile) {
         LOGGER.info("Installing helm-chart {}", releaseName);
-        String values = valuesMap.entrySet().stream()
-                .map(entry -> String.format("%s=%s", entry.getKey(), entry.getValue()))
-                .collect(Collectors.joining(","));
         this.version = Optional.ofNullable(version);
         Exec.exec(null, wait(namespace(version(command("install",
                 releaseName,
-                "--set", values,
+                "--values", overrideFile.toString(),
+                "--set", "server.dev.devRootToken=%s".formatted(vaultRootToken),
                 "--timeout", INSTALL_TIMEOUT_SECONDS,
                 "--debug",
                 chartName)))), 0, true);

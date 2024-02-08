@@ -9,17 +9,23 @@ package io.kroxylicious.systemtests.installation.vault;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.time.Duration;
-import java.util.HashMap;
-import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
+
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
+import io.kroxylicious.systemtests.resources.kroxylicious.ConfigMapResource;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
 import io.kroxylicious.systemtests.utils.NamespaceUtils;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 
@@ -29,13 +35,13 @@ import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 public class Vault {
     private static final Logger LOGGER = LoggerFactory.getLogger(Vault.class);
     private static final String VAULT_CMD = "vault";
-    public static String VAULT_SERVICE_NAME = "vault";
-    public static String VAULT_POD_NAME = VAULT_SERVICE_NAME + "-0";
-    public static String VAULT_DEFAULT_NAMESPACE = "vault";
-    public static String VAULT_ROOT_TOKEN = "myRootToken";
-    public static String VAULT_HELM_REPOSITORY_URL = "https://helm.releases.hashicorp.com";
-    public static String VAULT_HELM_REPOSITORY_NAME = "hashicorp";
-    public static String VAULT_HELM_CHART_NAME = "hashicorp/vault";
+    public static final String VAULT_SERVICE_NAME = "vault";
+    public static final String VAULT_POD_NAME = VAULT_SERVICE_NAME + "-0";
+    public static final String VAULT_DEFAULT_NAMESPACE = "vault";
+    public static final String VAULT_ROOT_TOKEN = "myRootToken";
+    public static final String VAULT_HELM_REPOSITORY_URL = "https://helm.releases.hashicorp.com";
+    public static final String VAULT_HELM_REPOSITORY_NAME = "hashicorp";
+    public static final String VAULT_HELM_CHART_NAME = "hashicorp/vault";
     private final String deploymentNamespace;
 
     /**
@@ -91,22 +97,40 @@ public class Vault {
             return;
         }
 
-        Map<String, String> values = new HashMap<>();
-        // server
-        values.put("server.dev.enabled", "true");
-        values.put("server.dev.devRootToken", VAULT_ROOT_TOKEN);
-        values.put("server.ha.enabled", "false");
-        values.put("server.updateStrategyType", "RollingUpdate");
-        values.put("server.service.type", "NodePort");
-        // injector
-        values.put("injector.enabled", "false");
+        var cm = new ConfigMapBuilder()
+                .withNewMetadata()
+                .withName("kroxylicious-encryption-filter-policy")
+                .endMetadata()
+                .addToData("kroxylicious_encryption_filter_policy.hcl", readResource("kroxylicious_encryption_filter_policy.hcl")).build();
+
+        ConfigMapResource.configClient()
+                .inNamespace(deploymentNamespace)
+                .resource(cm)
+                .create();
 
         ResourceManager.helmClient().addRepository(VAULT_HELM_REPOSITORY_NAME, VAULT_HELM_REPOSITORY_URL);
-        ResourceManager.helmClient().namespace(deploymentNamespace).install(VAULT_HELM_CHART_NAME, VAULT_SERVICE_NAME, "latest", values);
+        ResourceManager.helmClient().namespace(deploymentNamespace).install(VAULT_HELM_CHART_NAME, VAULT_SERVICE_NAME, VAULT_ROOT_TOKEN, "latest", getHelmOverridePath());
 
         DeploymentUtils.waitForDeploymentRunning(deploymentNamespace, VAULT_POD_NAME, Duration.ofMinutes(1));
 
         configureVault(deploymentNamespace);
+    }
+
+    @NonNull
+    private Path getHelmOverridePath() {
+        var name = "helm_vault_overrides.yaml";
+        Path overrideFile;
+        var resource = getClass().getResource(name);
+        try {
+            if (resource == null) {
+                throw new IllegalStateException("Cannot find override resource " + name + " on classpath");
+            }
+            overrideFile = Path.of(resource.toURI());
+        }
+        catch (URISyntaxException e) {
+            throw new IllegalStateException("Cannot determine file system path for " + resource);
+        }
+        return overrideFile;
     }
 
     private void configureVault(String deploymentNamespace) {
@@ -145,7 +169,7 @@ public class Vault {
      *
      * @return the bootstrap
      */
-    public String getBootstrap() {
+    public String getVaultUrl() {
         String clusterIP = kubeClient().getService(deploymentNamespace, VAULT_SERVICE_NAME).getSpec().getClusterIP();
         if (clusterIP == null || clusterIP.isEmpty()) {
             throw new KubeClusterException("Unable to get the clusterIP of Vault");
@@ -154,5 +178,17 @@ public class Vault {
         String bootstrap = clusterIP + ":" + port;
         LOGGER.debug("Vault bootstrap: {}", bootstrap);
         return bootstrap;
+    }
+
+    private String readResource(String resource) {
+        try (var inputStream = this.getClass().getResourceAsStream(resource)) {
+            if (inputStream == null) {
+                throw new IllegalStateException("Failed to find resource: %s ".formatted(resource));
+            }
+            return new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException("Failed to read resource: %s".formatted(resource), e);
+        }
     }
 }
