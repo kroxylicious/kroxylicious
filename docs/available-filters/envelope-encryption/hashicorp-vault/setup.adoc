@@ -128,13 +128,13 @@ vault token renew --accessor <token_accessor>
 == Testing the Kroxylicious Vault Token using the CLI
 
 To test whether the Kroxylicious Vault Token and the policy are working correctly, a
-https://raw.githubusercontent.com/kroxylicious/kroxylicious/main/scripts/vault_test_token.sh[script] can be used.
+https://raw.githubusercontent.com/kroxylicious/kroxylicious/main/scripts/validate_vault_token.sh[script] can be used.
 
 First, as an Administrator, create a KEK in the hierarchy at this path `transit/keys/KEK_testkey`.
 
 [source,shell]
 ----
-VAULT_TOKEN=<kroxylicious encryption filter token> vault_test_token.sh <kek path>
+VAULT_TOKEN=<kroxylicious encryption filter token> validate_vault_token.sh <kek path>
 ----
 
 The script should respond 'Ok'.  If errors are reported check the policy/token configuration.

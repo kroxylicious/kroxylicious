@@ -6,7 +6,7 @@
 #
 
 # Tests that a Vault Token has sufficient privileges to perform the operations required for Envelope Encryption.
-# Usage: VAULT_TOKEN=<kroxylicious encryption filter token> vault_test_token.sh <kek path>
+# Usage: VAULT_TOKEN=<kroxylicious encryption filter token> validate_vault_token.sh <kek path>
 
 set -euo pipefail
 
