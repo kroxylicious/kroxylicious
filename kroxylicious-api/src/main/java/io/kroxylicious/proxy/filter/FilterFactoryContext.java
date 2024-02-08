@@ -19,13 +19,20 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 public interface FilterFactoryContext {
 
     /**
-     * The event loop that this Filter's channel is assigned to.
+     * @deprecated replaced with {@link #filterThreadExecutor()}
+     * @see #filterThreadExecutor()
+     */
+    @Deprecated(since = "0.5.0", forRemoval = true)
+    ScheduledExecutorService eventLoop();
+
+    /**
+     * An executor service backed by the filter dispatch thread used
+     * to create Filter instances and invoke their methods. It should be
+     * safe to mutate Filter member state from this executor.
      * Null if the factory is not bound to a channel yet.
-     * Should be safe
-     * to mutate Filter members from this executor.
      * @return executor, or null
      */
-    ScheduledExecutorService eventLoop();
+    FilterThreadExecutor filterThreadExecutor();
 
     /**
      * Gets a plugin instance for the given plugin type and name

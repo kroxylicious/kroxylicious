@@ -70,8 +70,8 @@ import io.kroxylicious.testing.kafka.junit5ext.Topic;
 import static io.kroxylicious.UnknownTaggedFields.unknownTaggedFieldsToStrings;
 import static io.kroxylicious.proxy.filter.ApiVersionsMarkingFilter.INTERSECTED_API_VERSION_RANGE_TAG;
 import static io.kroxylicious.proxy.filter.ApiVersionsMarkingFilter.UPSTREAM_API_VERSION_RANGE_TAG;
-import static io.kroxylicious.proxy.filter.RequestResponseMarkingFilter.DISPATCH_THREAD;
 import static io.kroxylicious.proxy.filter.RequestResponseMarkingFilter.FILTER_NAME_TAG;
+import static io.kroxylicious.proxy.filter.RequestResponseMarkingFilter.IN_FILTER_THREAD;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.mockKafkaKroxyliciousTester;
@@ -329,23 +329,23 @@ class FilterIT {
 
             List<Request> listTransactionRequests = tester.getRequestsForApiKey(LIST_TRANSACTIONS);
             var requestMessageReceivedByBrokerA = listTransactionRequests.get(0).message();
-            String dispatchThreadA = getDispatchThreadName(direction, responseA, requestMessageReceivedByBrokerA);
+            boolean inDispatchThreadA = getInFilterDispatchThread(direction, responseA, requestMessageReceivedByBrokerA);
             var requestMessageReceivedByBrokerB = listTransactionRequests.get(1).message();
-            String dispatchThreadB = getDispatchThreadName(direction, responseB, requestMessageReceivedByBrokerB);
-            assertThat(dispatchThreadA).isNotEmpty().containsIgnoringCase("eventloop");
-            assertThat(dispatchThreadB).isNotEmpty().containsIgnoringCase("eventloop")
-                    .describedAs("filter invocations should be dispatched from the same thread").isEqualTo(dispatchThreadA);
+            boolean inDispatchThreadB = getInFilterDispatchThread(direction, responseB, requestMessageReceivedByBrokerB);
+            assertThat(inDispatchThreadA).isTrue();
+            assertThat(inDispatchThreadB).isTrue();
         }
     }
 
-    private static String getDispatchThreadName(RequestResponseMarkingFilterFactory.Direction direction, Response responseA, ApiMessage requestMessageReceivedByBrokerA) {
+    private static boolean getInFilterDispatchThread(RequestResponseMarkingFilterFactory.Direction direction, Response responseA,
+                                                     ApiMessage requestMessageReceivedByBrokerA) {
         var responseMessageReceivedByClientA = responseA.payload().message();
 
         assertThat(requestMessageReceivedByBrokerA).isInstanceOf(ListTransactionsRequestData.class);
         assertThat(responseMessageReceivedByClientA).isInstanceOf(ListTransactionsResponseData.class);
 
         var target = direction == RequestResponseMarkingFilterFactory.Direction.REQUEST ? requestMessageReceivedByBrokerA : responseMessageReceivedByClientA;
-        return unknownTaggedFieldsToStrings(target, DISPATCH_THREAD).findFirst().orElse("");
+        return unknownTaggedFieldsToStrings(target, IN_FILTER_THREAD).findFirst().map(Boolean::valueOf).orElseThrow();
     }
 
     private void doSupportsForwardDeferredByAsynchronousRequest(RequestResponseMarkingFilterFactory.Direction direction, String name,

@@ -7,8 +7,6 @@
 package io.kroxylicious.proxy.bootstrap;
 
 import java.util.List;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Stream;
 
 import org.assertj.core.api.ListAssert;
@@ -18,11 +16,15 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import io.netty.channel.DefaultEventLoop;
+import io.netty.channel.EventLoop;
+
 import io.kroxylicious.proxy.config.FilterDefinition;
 import io.kroxylicious.proxy.config.PluginFactory;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.FilterFactory;
+import io.kroxylicious.proxy.internal.filter.EventLoopFilterThreadExecutor;
 import io.kroxylicious.proxy.internal.filter.ExampleConfig;
 import io.kroxylicious.proxy.internal.filter.NettyFilterContext;
 import io.kroxylicious.proxy.internal.filter.OptionalConfigFactory;
@@ -40,13 +42,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class FilterChainFactoryTest {
 
-    private ScheduledExecutorService eventLoop;
+    private EventLoop eventLoop;
     private ExampleConfig config;
     private PluginFactoryRegistry pfr;
 
     @BeforeEach
     void setUp() {
-        eventLoop = Executors.newScheduledThreadPool(1);
+        eventLoop = new DefaultEventLoop();
         config = new ExampleConfig();
         pfr = new PluginFactoryRegistry() {
             @NonNull
@@ -87,9 +89,9 @@ class FilterChainFactoryTest {
 
     @Test
     void testNullFiltersInConfigResultsInEmptyList() {
-        ScheduledExecutorService eventLoop = Executors.newScheduledThreadPool(1);
         FilterChainFactory filterChainFactory = new FilterChainFactory(pfr, null);
-        List<FilterAndInvoker> filters = filterChainFactory.createFilters(new NettyFilterContext(eventLoop, pfr));
+        EventLoopFilterThreadExecutor filterThreadExecutor = new EventLoopFilterThreadExecutor(eventLoop);
+        List<FilterAndInvoker> filters = filterChainFactory.createFilters(new NettyFilterContext(filterThreadExecutor, pfr));
         assertNotNull(filters, "Filters list should not be null");
         assertTrue(filters.isEmpty(), "Filters list should be empty");
     }
@@ -104,7 +106,8 @@ class FilterChainFactoryTest {
         final ListAssert<FilterAndInvoker> listAssert = assertFiltersCreated(List.of(new FilterDefinition(TestFilterFactory.class.getName(), config)));
         listAssert.first().extracting(FilterAndInvoker::filter).isInstanceOfSatisfying(TestFilterFactory.TestFilterImpl.class, testFilterImpl -> {
             assertThat(testFilterImpl.getContributorClass()).isEqualTo(TestFilterFactory.class);
-            assertThat(testFilterImpl.getContext().eventLoop()).isSameAs(eventLoop);
+            assertThat(testFilterImpl.getContext().eventLoop()).isNotNull();
+            assertThat(testFilterImpl.getContext().filterThreadExecutor()).isNotNull();
             assertThat(testFilterImpl.getExampleConfig()).isSameAs(config);
         });
     }
@@ -117,12 +120,14 @@ class FilterChainFactoryTest {
         listAssert.element(0).extracting(FilterAndInvoker::filter)
                 .isInstanceOfSatisfying(expectedFilterClass, testFilterImpl -> {
                     assertThat(testFilterImpl.getContributorClass()).isEqualTo(factoryClass);
-                    assertThat(testFilterImpl.getContext().eventLoop()).isSameAs(eventLoop);
+                    assertThat(testFilterImpl.getContext().eventLoop()).isNotNull();
+                    assertThat(testFilterImpl.getContext().filterThreadExecutor()).isNotNull();
                     assertThat(testFilterImpl.getExampleConfig()).isSameAs(config);
                 });
         listAssert.element(1).extracting(FilterAndInvoker::filter).isInstanceOfSatisfying(expectedFilterClass, testFilterImpl -> {
             assertThat(testFilterImpl.getContributorClass()).isEqualTo(factoryClass);
-            assertThat(testFilterImpl.getContext().eventLoop()).isSameAs(eventLoop);
+            assertThat(testFilterImpl.getContext().eventLoop()).isNotNull();
+            assertThat(testFilterImpl.getContext().filterThreadExecutor()).isNotNull();
             assertThat(testFilterImpl.getExampleConfig()).isSameAs(config);
         });
     }
@@ -234,7 +239,7 @@ class FilterChainFactoryTest {
 
     private ListAssert<FilterAndInvoker> assertFiltersCreated(List<FilterDefinition> filterDefinitions) {
         FilterChainFactory filterChainFactory = new FilterChainFactory(pfr, filterDefinitions);
-        NettyFilterContext context = new NettyFilterContext(eventLoop, pfr);
+        NettyFilterContext context = new NettyFilterContext(new EventLoopFilterThreadExecutor(eventLoop), pfr);
         List<FilterAndInvoker> filters = filterChainFactory.createFilters(context);
         return assertThat(filters).hasSameSizeAs(filterDefinitions);
     }
