@@ -27,6 +27,9 @@ import io.kroxylicious.kms.service.UnknownAliasException;
 import io.kroxylicious.kms.service.UnknownKeyException;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
+
+import static java.util.Optional.ofNullable;
 
 public class ResilientKms<K, E> implements Kms<K, E> {
 
@@ -79,12 +82,14 @@ public class ResilientKms<K, E> implements Kms<K, E> {
     }
 
     public <A> CompletionStage<A> retry(String name, Supplier<CompletionStage<A>> operation) {
-        return retry(name, operation, 0);
+        return retry(name, operation, 0, null);
     }
 
-    private <A> CompletionStage<A> retry(String name, Supplier<CompletionStage<A>> operation, int attempt) {
+    private <A> CompletionStage<A> retry(String name, Supplier<CompletionStage<A>> operation, int attempt, @Nullable Throwable lastFailure) {
         if (attempt >= retries) {
-            return CompletableFuture.failedFuture(new KmsException(name + " failed after " + attempt + " attempts"));
+            String lastFailureMessage = ofNullable(lastFailure).map(Throwable::getMessage).orElse("null");
+            String message = name + " failed after " + attempt + " attempts, last failure message: " + lastFailureMessage;
+            return CompletableFuture.failedFuture(new KmsException(message, lastFailure));
         }
         Duration delay = strategy.getDelay(attempt);
         return schedule(operation, delay)
@@ -94,7 +99,7 @@ public class ResilientKms<K, E> implements Kms<K, E> {
                         return CompletableFuture.failedFuture(e);
                     }
                     LOGGER.debug("{} failed attempt {}", name, attempt, e);
-                    return retry(name, operation, attempt + 1);
+                    return retry(name, operation, attempt + 1, e);
                 });
     }
 

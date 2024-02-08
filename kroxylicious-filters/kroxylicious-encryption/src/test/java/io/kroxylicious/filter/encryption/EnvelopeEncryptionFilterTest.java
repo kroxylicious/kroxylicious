@@ -7,6 +7,7 @@
 package io.kroxylicious.filter.encryption;
 
 import java.nio.ByteBuffer;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -14,6 +15,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.LongStream;
@@ -190,6 +193,40 @@ class EnvelopeEncryptionFilterTest {
         // Then
         verify(context).forwardResponse(any(ResponseHeaderData.class), assertArg(actualFetchResponse -> assertThat(actualFetchResponse)
                 .isInstanceOf(FetchResponseData.class).isEqualTo(fetchResponseData)));
+    }
+
+    @Test
+    void shouldPropagateRequestExceptions() {
+        // Given
+        var produceRequestData = buildProduceRequestData(new TopicProduceData()
+                .setName(ENCRYPTED_TOPIC)
+                .setPartitionData(List.of(new PartitionProduceData().setRecords(makeRecord(HELLO_CIPHER_WORLD)))));
+        RuntimeException exception = new RuntimeException("boom");
+        when(kekSelector.selectKek(anySet())).thenReturn(CompletableFuture.failedFuture(exception));
+
+        // When
+        CompletionStage<RequestFilterResult> stage = encryptionFilter.onProduceRequest(ProduceRequestData.HIGHEST_SUPPORTED_VERSION,
+                new RequestHeaderData(), produceRequestData, context);
+
+        // Then
+        assertThat(stage).failsWithin(Duration.ZERO).withThrowableThat().isInstanceOf(ExecutionException.class).havingCause().isSameAs(exception);
+    }
+
+    @Test
+    void shouldPropagateResponseExceptions() {
+        // Given
+        var fetchResponseData = buildFetchResponseData(new FetchableTopicResponse()
+                .setTopic(UNENCRYPTED_TOPIC)
+                .setPartitions(List.of(new PartitionData().setRecords(makeRecord(HELLO_PLAIN_WORLD)))));
+        RuntimeException exception = new RuntimeException("boom");
+        when(keyManager.decrypt(any(), anyInt(), any(), any())).thenReturn(CompletableFuture.failedFuture(exception));
+
+        // When
+        CompletionStage<ResponseFilterResult> stage = encryptionFilter.onFetchResponse(FetchResponseData.HIGHEST_SUPPORTED_VERSION,
+                new ResponseHeaderData(), fetchResponseData, context);
+
+        // Then
+        assertThat(stage).failsWithin(Duration.ZERO).withThrowableThat().isInstanceOf(ExecutionException.class).havingCause().isSameAs(exception);
     }
 
     @Test

@@ -46,3 +46,8 @@ Configuration:
         additivity: false
         AppenderRef:
           - ref: STDOUT
+      - name: com.github.benmanes.caffeine.cache.LocalAsyncCache
+        level: ERROR
+        additivity: false
+        AppenderRef:
+          - ref: STDOUT
