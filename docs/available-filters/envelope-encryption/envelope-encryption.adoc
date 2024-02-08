@@ -175,7 +175,7 @@ encrypted using the same key.
 ----
 selector: TemplateKekSelector                                 # <1>
 selectorConfig:
-  template: "topic.${topicName}"                                # <2>
+  template: "KEK_${topicName}"                                # <2>
 ----
 <1> The name of the KEK selector. This must be `TemplateKekSelector`.
 <2> Template used to build the key name from the topic name.
@@ -188,8 +188,8 @@ encrypt the records.  This must be done using whatever management interface the 
 The names (or aliases) of the encryption keys must match the naming conventions established above.  If the selector
 generates a key name that doesn't exist within the KMS, records will be sent to the topic without encryption.
 
-For example, if using the `TemplateKekSelector` with the template `topic.$\{topicName}`, create a key for every topic that
-is to be encrypted with the key name matching the topic name, prefixed by the string `topic.`.
+For example, if using the `TemplateKekSelector` with the template `KEK_$\{topicName}`, create a key for every topic that
+is to be encrypted with the key name matching the topic name, prefixed by the string `KEK_`.
 
 include::hashicorp-vault/creating_keys.adoc[leveloffset=3]
 

@@ -19,7 +19,7 @@ The transit engine's path must be `/transit` (the default).
 
 It is necessary to determine a naming convention for the KEKs within Vault.  This will allow the keys used by the
 filter to be kept separate from any keys used by other systems.  This document assumes that the naming convention
-will be to prefix the keys used by the filter with the word `topic.`.  If a different naming convention is used, adapt
+will be to prefix the keys used by the filter with the word `KEK_`.  If a different naming convention is used, adapt
 the instructions accordingly.
 
 == Administrator Actor
@@ -27,7 +27,7 @@ the instructions accordingly.
 To use the filter, there must be an administrative actor established.  This actor, which is likely to be a human,
 has the responsibility to create keys within Vault for use by the filter.
 
-The Administrator must have permissions to log in to Vault and create keys beneath `transit/keys/topic.*` in the
+The Administrator must have permissions to log in to Vault and create keys beneath `transit/keys/KEK_*` in the
 Vault hierarchy.
 
 The exact steps required to establish an administrative actor will depend on the way that Vault instance has been
@@ -37,7 +37,7 @@ A minimal Vault policy required by the Administrator is as follows:
 
 [source,shell]
 ----
-path "transit/keys/topic.*" {
+path "transit/keys/KEK_*" {
 capabilities = ["read", "write"]
 }
 ----
@@ -52,13 +52,13 @@ Create a Vault policy for the filter actor:
 [source,shell]
 ----
 vault policy write kroxylicious_encryption_filter_policy - << EOF
-path "transit/keys/topic.*" {
+path "transit/keys/KEK_*" {
 capabilities = ["read"]
 }
-path "/transit/datakey/plaintext/topic.*" {
+path "/transit/datakey/plaintext/KEK_*" {
 capabilities = ["update"]
 }
-path "transit/decrypt/topic.*" {
+path "transit/decrypt/KEK_*" {
 capabilities = [ "update"]
 }
 EOF
@@ -102,7 +102,7 @@ vault token renew --accessor <token_accessor>
 To test whether the Kroxylicious Vault Token and the policy are working correctly, a
 https://raw.githubusercontent.com/kroxylicious/kroxylicious/main/scripts/vault_test_token.sh[script] can be used.
 
-First, as an Administrator, create a KEK in the hierarchy at this path `transit/keys/topic.testkey`.
+First, as an Administrator, create a KEK in the hierarchy at this path `transit/keys/KEK_testkey`.
 
 [source,shell]
 ----
@@ -111,5 +111,5 @@ VAULT_TOKEN=<kroxylicious encryption filter token> vault_test_token.sh <kek path
 
 The script should respond 'Ok'.  If errors are reported check the policy/token configuration.
 
-`transit/keys/topic.testkey` can now be removed.
+`transit/keys/KEK_testkey` can now be removed.
 
