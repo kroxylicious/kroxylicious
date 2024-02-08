@@ -15,18 +15,23 @@ import java.net.http.HttpTimeoutException;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import com.sun.net.httpserver.HttpServer;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class VaultKmsTest {
 
     // address in TEST-NET-1, reserved for use in example specifications and other documents
-    private static final URI NON_ROUTABLE = URI.create("http://192.0.2.1/");
+    private static final URI NON_ROUTABLE = URI.create("http://192.0.2.1/v1/transit");
     private static final byte ARBITRARY_BODY_BYTE = 5;
 
     @Test
@@ -41,8 +46,9 @@ class VaultKmsTest {
     @Test
     void testRequestTimeoutWaitingForHeaders() {
         HttpServer httpServer = delayResponse(Duration.ofSeconds(1), Duration.ZERO);
-        URI address = URI.create("http://" + httpServer.getAddress().getHostName() + ":" + httpServer.getAddress().getPort() + "/");
-        VaultKms kms = new VaultKms(address, "token", Duration.ofMillis(500), null);
+        var addr = httpServer.getAddress();
+        var uri = URI.create("http://" + addr.getHostName() + ":" + addr.getPort() + "/v1/transit");
+        VaultKms kms = new VaultKms(uri, "token", Duration.ofMillis(500), null);
         CompletableFuture<String> alias = kms.resolveAlias("alias");
         assertThat(alias).failsWithin(Duration.ofSeconds(2))
                 .withThrowableOfType(ExecutionException.class)
@@ -50,12 +56,51 @@ class VaultKmsTest {
         httpServer.stop(0);
     }
 
+    static Stream<Arguments> acceptableVaultTransitEnginePaths() {
+        var uri = URI.create("https://localhost:1234");
+        return Stream.of(
+                Arguments.of("basic", uri.resolve("v1/transit"), "/v1/transit/"),
+                Arguments.of("trailing slash", uri.resolve("v1/transit/"), "/v1/transit/"),
+                Arguments.of("single namespace", uri.resolve("v1/ns1/transit"), "/v1/ns1/transit/"),
+                Arguments.of("many namespaces", uri.resolve("v1/ns1/ns2/transit"), "/v1/ns1/ns2/transit/"),
+                Arguments.of("non standard engine name", uri.resolve("v1/mytransit"), "/v1/mytransit/"));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("acceptableVaultTransitEnginePaths")
+    void acceptsVaultTransitEnginePaths(String name, URI uri, String expected) {
+        var kms = new VaultKms(uri, "token", Duration.ofMillis(500), null);
+        assertThat(kms.getVaultTransitEngineUri())
+                .extracting(URI::getPath)
+                .isEqualTo(expected);
+
+    }
+
+    static Stream<Arguments> unacceptableVaultTransitEnginePaths() {
+        var uri = URI.create("https://localhost:1234");
+        return Stream.of(
+                Arguments.of("no path", uri),
+                Arguments.of("missing path", uri.resolve("/")),
+                Arguments.of("unrecognized API version", uri.resolve("v999/transit")),
+                Arguments.of("missing engine", uri.resolve("v1")),
+                Arguments.of("empty engine", uri.resolve("v1/")));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("unacceptableVaultTransitEnginePaths")
+    void detectsUnacceptableVaultTransitEnginePaths(String name, URI uri) {
+        assertThatThrownBy(() -> new VaultKms(uri, "token", Duration.ZERO, null))
+                .isInstanceOf(IllegalArgumentException.class);
+
+    }
+
     @Disabled("JDK http client request timeout cancelled after headers received currently, todo add our own timeout future")
     @Test
     void testRequestTimeoutWaitingForBody() {
         HttpServer httpServer = delayResponse(Duration.ZERO, Duration.ofSeconds(1));
-        URI address = URI.create("http://" + httpServer.getAddress().getHostName() + ":" + httpServer.getAddress().getPort() + "/");
-        VaultKms kms = new VaultKms(address, "token", Duration.ofMillis(500), null);
+        var addr = httpServer.getAddress();
+        URI uri = URI.create("http://" + addr.getHostName() + ":" + httpServer.getAddress().getPort() + "/v1/transit");
+        VaultKms kms = new VaultKms(uri, "token", Duration.ofMillis(500), null);
         CompletableFuture<String> alias = kms.resolveAlias("alias");
         assertThat(alias).failsWithin(Duration.ofSeconds(2))
                 .withThrowableOfType(ExecutionException.class)
@@ -82,6 +127,7 @@ class VaultKmsTest {
         }
     }
 
+    @SuppressWarnings("java:S2925")
     private static void sleep(Duration delayHeaders) {
         try {
             Thread.sleep(delayHeaders.toMillis());

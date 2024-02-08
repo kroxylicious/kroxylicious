@@ -4,6 +4,7 @@ Please enumerate **all user-facing** changes using format `<githib issue/pr numb
 
 ## 0.5.0
 
+* [#940](https://github.com/kroxylicious/kroxylicious/issues/940): Support vault namespaces and support secrets transit engine at locations other than /transit
 * [#951](https://github.com/kroxylicious/kroxylicious/pull/951): Include the kroxylicious maintained filters in the dist by default
 * [#910](https://github.com/kroxylicious/kroxylicious/pull/910): Envelope encryption preserve batches within MemoryRecords
 * [#883](https://github.com/kroxylicious/kroxylicious/pull/883): Ensure we only initialise a filter factory once.
@@ -22,6 +23,9 @@ Please enumerate **all user-facing** changes using format `<githib issue/pr numb
   adjust your dependencies as your adopt this release.
 * `io.kroxylicious:kroxylicious-filter-test-support` now contains RecordTestUtils for creating example `Record`, `RecordBatch` and `MemoryRecords`. It also contains 
   assertj assertions for those same classes to enable us to write fluent assertions, accessible via `io.kroxylicious.test.assertj.KafkaAssertions`.
+* The configuration for VaultKMS service has changed.  Instead of the `vaultUrl` config key, the provider now
+  requires `vaultTransitEngineUrl`.  This must provide the complete path to the Transit Engine on the
+  HashiCorp Vault instance (e.g. https://myvault:8200/v1/transit or https://myvault:8200/v1/mynamespace/transit).  
 
 ## 0.4.1
 

@@ -20,15 +20,15 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
  * Configuration for the Vault KMS service.
- * @param vaultUrl vault url
- * @param vaultToken vault token.
+ * @param vaultTransitEngineUrl URL of the Vault Transit Engine e.g. {@code https://myhashicorpvault:8200/v1/transit}
+ * @param vaultToken Vault token.
  */
 public record Config(
-                     @JsonProperty(required = true) URI vaultUrl,
+                     @JsonProperty(value = "vaultTransitEngineUrl", required = true) URI vaultTransitEngineUrl,
                      @JsonProperty(required = true) String vaultToken,
                      Tls tls) {
     public Config {
-        Objects.requireNonNull(vaultUrl);
+        Objects.requireNonNull(vaultTransitEngineUrl);
         Objects.requireNonNull(vaultToken);
     }
 

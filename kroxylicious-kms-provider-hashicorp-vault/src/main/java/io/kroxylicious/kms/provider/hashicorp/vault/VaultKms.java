@@ -17,6 +17,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.regex.Pattern;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
@@ -46,9 +47,6 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  * <br/>
  * <h2>TODO</h2>
  * <ul>
- *    <li>don't assume /transit endpoint</li>
- *    <li>HTTPs</li>
- *    <li>Client trust store</li>
  *    <li>Securely pass vault token</li>
  * </ul>
  */
@@ -56,17 +54,35 @@ public class VaultKms implements Kms<String, VaultEdek> {
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final String AES_KEY_ALGO = "AES";
+    private static final Pattern LEGAL_API_VERSION_REGEX = Pattern.compile("^/?v1/.+");
     private final Duration timeout;
     private final HttpClient vaultClient;
 
-    private final URI vaultUrl;
+    /**
+     * The vault url which will include the path to the transit engine.
+     */
+    private final URI vaultTransitEngineUrl;
     private final String vaultToken;
 
-    VaultKms(URI vaultUrl, String vaultToken, Duration timeout, SSLContext sslContext) {
-        this.vaultUrl = vaultUrl;
+    VaultKms(URI vaultTransitEngineUrl, String vaultToken, Duration timeout, SSLContext sslContext) {
+        this.vaultTransitEngineUrl = ensureEndsInSlash(validateTransitPath(vaultTransitEngineUrl));
         this.vaultToken = vaultToken;
         this.timeout = timeout;
         vaultClient = createClient(sslContext);
+    }
+
+    private URI validateTransitPath(URI vaultTransitEngineUrl) {
+        String path = vaultTransitEngineUrl.getPath();
+        if (path == null || !LEGAL_API_VERSION_REGEX.matcher(path).matches()) {
+            throw new IllegalArgumentException(("vaultTransitEngineUrl path (%s) must start with v1/ and must specify the complete path to"
+                    + " the transit engine e.g 'v1/transit' or 'v1/mynamespace/transit' if namespaces are in use.").formatted(path));
+        }
+        return vaultTransitEngineUrl;
+    }
+
+    private URI ensureEndsInSlash(URI uri) {
+        // We use #resolve to build the urls for the endpoints, so the path must end in a slash.
+        return uri.resolve(uri.getPath() + "/").normalize();
     }
 
     private HttpClient createClient(SSLContext sslContext) {
@@ -90,7 +106,7 @@ public class VaultKms implements Kms<String, VaultEdek> {
     public CompletionStage<DekPair<VaultEdek>> generateDekPair(@NonNull String kekRef) {
 
         var request = createVaultRequest()
-                .uri(vaultUrl.resolve("v1/transit/datakey/plaintext/%s".formatted(encode(kekRef, UTF_8))))
+                .uri(vaultTransitEngineUrl.resolve("datakey/plaintext/%s".formatted(encode(kekRef, UTF_8))))
                 .POST(HttpRequest.BodyPublishers.noBody())
                 .build();
 
@@ -118,7 +134,7 @@ public class VaultKms implements Kms<String, VaultEdek> {
         var body = createDecryptPostBody(edek);
 
         var request = createVaultRequest()
-                .uri(vaultUrl.resolve("v1/transit/decrypt/%s".formatted(encode(edek.kekRef(), UTF_8))))
+                .uri(vaultTransitEngineUrl.resolve("decrypt/%s".formatted(encode(edek.kekRef(), UTF_8))))
                 .POST(HttpRequest.BodyPublishers.ofString(body))
                 .build();
 
@@ -150,7 +166,7 @@ public class VaultKms implements Kms<String, VaultEdek> {
     public CompletableFuture<String> resolveAlias(@NonNull String alias) {
 
         var request = createVaultRequest()
-                .uri(vaultUrl.resolve("v1/transit/keys/%s".formatted(encode(alias, UTF_8))))
+                .uri(vaultTransitEngineUrl.resolve("keys/%s".formatted(encode(alias, UTF_8))))
                 .build();
 
         return vaultClient.sendAsync(request, statusHandler(alias, new JsonBodyHandler<VaultResponse<ReadKeyData>>(new TypeReference<>() {
@@ -185,5 +201,9 @@ public class VaultKms implements Kms<String, VaultEdek> {
             }
             return handler.apply(r);
         };
+    }
+
+    /* testing */ URI getVaultTransitEngineUri() {
+        return vaultTransitEngineUrl;
     }
 }

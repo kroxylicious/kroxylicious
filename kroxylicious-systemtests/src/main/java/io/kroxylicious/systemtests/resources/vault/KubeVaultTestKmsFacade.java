@@ -71,7 +71,7 @@ public class KubeVaultTestKmsFacade implements TestKmsFacade<Config, String, Vau
 
     @Override
     public Config getKmsServiceConfig() {
-        return new Config(URI.create(vault.getBootstrap()), Vault.VAULT_ROOT_TOKEN, null);
+        return new Config(URI.create(vault.getBootstrap()).resolve("v1/transit"), Vault.VAULT_ROOT_TOKEN, null);
     }
 
     private class VaultTestKekManager implements TestKekManager {

@@ -30,13 +30,13 @@ class ConfigParseTest {
     void testVaultUrlAndToken() throws IOException {
         String json = """
                 {
-                    "vaultUrl": "http://vault",
+                    "vaultTransitEngineUrl": "http://vault",
                     "vaultToken": "token"
                 }
                 """;
         Config config = readConfig(json);
         assertThat(config.vaultToken()).isEqualTo("token");
-        assertThat(config.vaultUrl()).isEqualTo(URI.create("http://vault"));
+        assertThat(config.vaultTransitEngineUrl()).isEqualTo(URI.create("http://vault"));
     }
 
     @Test
@@ -48,7 +48,7 @@ class ConfigParseTest {
                     }
                     """;
             readConfig(json);
-        }).isInstanceOf(MismatchedInputException.class).hasMessageContaining("vaultUrl");
+        }).isInstanceOf(MismatchedInputException.class).hasMessageContaining("vaultTransitEngineUrl");
     }
 
     @Test
@@ -56,7 +56,7 @@ class ConfigParseTest {
         Assertions.assertThatThrownBy(() -> {
             String json = """
                     {
-                        "vaultUrl": null,
+                        "vaultTransitEngineUrl": null,
                         "vaultToken": "token"
                     }
                     """;
@@ -69,7 +69,7 @@ class ConfigParseTest {
         Assertions.assertThatThrownBy(() -> {
             String json = """
                     {
-                        "vaultUrl": "https://vault"
+                        "vaultTransitEngineUrl": "https://vault"
                     }
                     """;
             readConfig(json);
@@ -81,7 +81,7 @@ class ConfigParseTest {
         Assertions.assertThatThrownBy(() -> {
             String json = """
                     {
-                        "vaultUrl": "https://vault",
+                        "vaultTransitEngineUrl": "https://vault",
                         "vaultToken": null
                     }
                     """;
@@ -93,7 +93,7 @@ class ConfigParseTest {
     void testEmptyTls() throws Exception {
         String json = """
                 {
-                    "vaultUrl": "https://vault",
+                    "vaultTransitEngineUrl": "https://vault",
                     "vaultToken": "token",
                     "tls": {}
                 }
@@ -108,7 +108,7 @@ class ConfigParseTest {
     void testMissingTls() throws Exception {
         String json = """
                 {
-                    "vaultUrl": "https://vault",
+                    "vaultTransitEngineUrl": "https://vault",
                     "vaultToken": "token"
                 }
                 """;
@@ -122,7 +122,7 @@ class ConfigParseTest {
     void testTlsTrust() throws Exception {
         String json = """
                 {
-                    "vaultUrl": "https://vault",
+                    "vaultTransitEngineUrl": "https://vault",
                     "vaultToken": "token",
                     "tls": {
                         "trust": {
