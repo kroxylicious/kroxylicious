@@ -99,7 +99,8 @@ un-consumable (that is, the fetch will fail). In this case, the consumer offset 
 
 The filter currently encrypts only *record values*.  Record keys, headers, timestamps are not encrypted.
 
-Null record values sent by producers are passed through unencrypted.  This serves to allow tombstoning.
+Null record values (which represent deletes, or _tombstones_, in compacted topics) sent by producers are passed through
+to the broker unencrypted. This means encryption may be applied to compacted topics too. Deletes will function normally.
 
 The presence of unencrypted records on a topic configured for encryption is allowed.  The unencrypted records will get
 passed through to consumer as normal. This supports the use-case where encryption is introduced to an against system where
