@@ -283,8 +283,14 @@ public class FilterHandler extends ChannelDuplexHandler {
     private <F extends FilterResult> F handleFilteringException(Throwable t, DecodedFrame<?, ?> decodedFrame) {
         if (LOGGER.isWarnEnabled()) {
             var direction = decodedFrame.header() instanceof RequestHeaderData ? "request" : "response";
-            LOGGER.warn("{}: Filter{} for {} {} ended exceptionally - closing connection",
-                    channelDescriptor(), direction, filterDescriptor(), decodedFrame.apiKey(), t);
+            LOGGER.atWarn().setMessage("{}: Filter{} for {} {} ended exceptionally - closing connection. Cause message {}")
+                    .addArgument(channelDescriptor())
+                    .addArgument(direction)
+                    .addArgument(filterDescriptor())
+                    .addArgument(decodedFrame.apiKey())
+                    .addArgument(t.getMessage())
+                    .setCause(LOGGER.isDebugEnabled() ? t : null)
+                    .log();
         }
         closeConnection();
         return null;
@@ -299,11 +305,9 @@ public class FilterHandler extends ChannelDuplexHandler {
             }
             future.completeExceptionally(new TimeoutException("Filter %s was timed-out.".formatted(filterDescriptor())));
         }, timeoutMs, TimeUnit.MILLISECONDS);
-        return future.thenApplyAsync(filterResult -> {
+        return future.whenComplete((f, throwable) -> {
             timeoutFuture.cancel(false);
-
-            return filterResult;
-        }, ctx.executor());
+        }).thenApplyAsync(filterResult -> filterResult, ctx.executor());
     }
 
     private void deferredResponseCompleted(ResponseFilterResult ignored, Throwable throwable) {
