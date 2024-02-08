@@ -6,7 +6,7 @@
 
 == What is it?
 
-A filter that provides a transparent https://kroxylicious.io/use-cases/[encryption-at-rest solution] for Apache Kafka.
+A filter that transparently provides an https://kroxylicious.io/use-cases/[encryption-at-rest solution] for Apache Kafka.
 
 At a high level, the filter works in the following way.  First, let's consider the produce side:
 
