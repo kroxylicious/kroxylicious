@@ -7,6 +7,7 @@
 package io.kroxylicious.filter.encryption;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -41,12 +42,24 @@ public class EnvelopeEncryption<K, E> implements FilterFactory<EnvelopeEncryptio
                   @PluginImplConfig(implNameProperty = "kms") Object kmsConfig,
 
                   @JsonProperty(required = true) @PluginImplName(KekSelectorService.class) String selector,
-                  @PluginImplConfig(implNameProperty = "selector") Object selectorConfig) {
+                  @PluginImplConfig(implNameProperty = "selector") Object selectorConfig,
+                  @JsonProperty TopicSelectorConfig topics) {
 
         public KmsCacheConfig kmsCache() {
             return KmsCacheConfig.DEFAULT_CONFIG;
         }
+
+        @Override
+        public TopicSelectorConfig topics() {
+            return topics == null ? new TopicSelectorConfig(List.of(), List.of(), List.of(), List.of()) : topics;
+        }
     }
+
+    public record TopicSelectorConfig(
+                                      List<String> includeNames,
+                                      List<String> excludeNames,
+                                      List<String> includeNamePrefixes,
+                                      List<String> excludeNamePrefixes) {}
 
     record KmsCacheConfig(
                           int decryptedDekCacheSize,
@@ -72,7 +85,8 @@ public class EnvelopeEncryption<K, E> implements FilterFactory<EnvelopeEncryptio
         var keyManager = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
 
         KekSelectorService<Object, K> ksPlugin = context.pluginInstance(KekSelectorService.class, configuration.selector());
-        TopicNameBasedKekSelector<K> kekSelector = ksPlugin.buildSelector(kms, configuration.selectorConfig());
+        IncludeExcludeTopicSelector topicSelector = new IncludeExcludeTopicSelector(configuration.topics());
+        TopicNameBasedKekSelector<K> kekSelector = ksPlugin.buildSelector(kms, configuration.selectorConfig(), topicSelector);
         return new EnvelopeEncryptionFilter<>(keyManager, kekSelector);
     }
 

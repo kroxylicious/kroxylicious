@@ -24,7 +24,7 @@ class EnvelopeEncryptionTest {
 
     @Test
     void shouldInitAndCreateFilter() {
-        EnvelopeEncryption.Config config = new EnvelopeEncryption.Config("KMS", null, "SELECTOR", null);
+        EnvelopeEncryption.Config config = new EnvelopeEncryption.Config("KMS", null, "SELECTOR", null, null);
         var ee = new EnvelopeEncryption<>();
         var fc = mock(FilterFactoryContext.class);
         var kmsService = mock(KmsService.class);
@@ -36,7 +36,7 @@ class EnvelopeEncryptionTest {
         doReturn(kms).when(kmsService).buildKms(any());
 
         doReturn(kekSelectorService).when(fc).pluginInstance(KekSelectorService.class, "SELECTOR");
-        doReturn(kekSelector).when(kekSelectorService).buildSelector(any(), any());
+        doReturn(kekSelector).when(kekSelectorService).buildSelector(any(), any(), any());
 
         ee.initialize(fc, config);
         var filter = ee.createFilter(fc, config);
@@ -45,7 +45,7 @@ class EnvelopeEncryptionTest {
 
     @Test
     void testKmsCacheConfigDefaults() {
-        EnvelopeEncryption.KmsCacheConfig config = new EnvelopeEncryption.Config("vault", 1L, "selector", 1L).kmsCache();
+        EnvelopeEncryption.KmsCacheConfig config = new EnvelopeEncryption.Config("vault", 1L, "selector", 1L, null).kmsCache();
         assertThat(config.decryptedDekCacheSize()).isEqualTo(1000);
         assertThat(config.decryptedDekExpireAfterAccessDuration()).isEqualTo(Duration.ofHours(1));
         assertThat(config.resolvedAliasCacheSize()).isEqualTo(1000);

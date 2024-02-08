@@ -11,12 +11,10 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.regex.Pattern;
 
 import io.kroxylicious.kms.service.Kms;
-import io.kroxylicious.kms.service.UnknownAliasException;
 import io.kroxylicious.proxy.plugin.Plugin;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -27,8 +25,8 @@ public class TemplateKekSelector<K> implements KekSelectorService<TemplateKekSel
 
     @NonNull
     @Override
-    public TopicNameBasedKekSelector<K> buildSelector(@NonNull Kms<K, ?> kms, Config config) {
-        return new KekSelector<>(kms, config.template());
+    public TopicNameBasedKekSelector<K> buildSelector(@NonNull Kms<K, ?> kms, Config config, TopicSelector topicSelector) {
+        return new KekSelector<>(kms, config.template(), topicSelector);
     }
 
     static class KekSelector<K> extends TopicNameBasedKekSelector<K> {
@@ -36,8 +34,11 @@ public class TemplateKekSelector<K> implements KekSelectorService<TemplateKekSel
         public static final Pattern PATTERN = Pattern.compile("\\$\\{(.*?)}");
         private final String template;
         private final Kms<K, ?> kms;
+        @NonNull
+        private final TopicSelector topicSelector;
 
-        KekSelector(@NonNull Kms<K, ?> kms, @NonNull String template) {
+        KekSelector(@NonNull Kms<K, ?> kms, @NonNull String template, @NonNull TopicSelector topicSelector) {
+            this.topicSelector = topicSelector;
             var matcher = PATTERN.matcher(Objects.requireNonNull(template));
             while (matcher.find()) {
                 if (matcher.group(1).equals("topicName")) {
@@ -56,15 +57,16 @@ public class TemplateKekSelector<K> implements KekSelectorService<TemplateKekSel
         public CompletionStage<Map<String, K>> selectKek(@NonNull Set<String> topicNames) {
             var collect = topicNames.stream()
                     .map(
-                            topicName -> kms.resolveAlias(evaluateTemplate(topicName))
-                                    .exceptionallyCompose(e -> {
-                                        if (e instanceof UnknownAliasException
-                                                || (e instanceof CompletionException ce && ce.getCause() instanceof UnknownAliasException)) {
-                                            return CompletableFuture.completedFuture(null);
-                                        }
-                                        return CompletableFuture.failedFuture(e);
-                                    })
-                                    .thenApply(kekId -> new Pair<>(topicName, kekId)))
+                            topicName -> {
+                                if (!topicSelector.select(topicName)) {
+                                    // we are not encrypting this topic
+                                    return CompletableFuture.<Pair<K>> completedFuture(new Pair<>(topicName, null));
+                                }
+                                else {
+                                    return kms.resolveAlias(evaluateTemplate(topicName))
+                                            .thenApply(kekId -> new Pair<>(topicName, kekId));
+                                }
+                            })
                     .toList();
             return EnvelopeEncryptionFilter.join(collect).thenApply(list -> {
                 // Note we can't use `java.util.stream...(Collectors.toMap())` to build the map, because it has null values
