@@ -33,6 +33,7 @@ import io.kroxylicious.filter.encryption.EncryptionException;
 import io.kroxylicious.filter.encryption.EncryptionManager;
 import io.kroxylicious.filter.encryption.EncryptionScheme;
 import io.kroxylicious.filter.encryption.EncryptionVersion;
+import io.kroxylicious.filter.encryption.FilterThreadExecutor;
 import io.kroxylicious.filter.encryption.dek.BufferTooSmallException;
 import io.kroxylicious.filter.encryption.dek.CipherSpec;
 import io.kroxylicious.filter.encryption.dek.Dek;
@@ -50,6 +51,8 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
 
     private static final int MAX_ATTEMPTS = 3;
     public static final int NO_MAX_CACHE_SIZE = -1;
+    @NonNull
+    private final FilterThreadExecutor filterThreadExecutor;
 
     private record CacheKey<K>(K kek, CipherSpec cipherSpec) {}
 
@@ -97,7 +100,9 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
                                    int recordBufferInitialBytes,
                                    int recordBufferMaxBytes,
                                    @Nullable Executor dekCacheExecutor,
+                                   @NonNull FilterThreadExecutor filterThreadExecutor,
                                    int dekCacheMaxItems) {
+        this.filterThreadExecutor = filterThreadExecutor;
         this.encryptionVersion = EncryptionVersion.V1; // TODO read from config
         this.dekManager = Objects.requireNonNull(dekManager);
         if (recordBufferInitialBytes <= 0) {
@@ -149,7 +154,7 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
     // @VisibleForTesting
     CompletionStage<Dek<E>> currentDek(@NonNull EncryptionScheme<K> encryptionScheme) {
         // todo should we add some scheduled timeout as well? or should we rely on the KMS to timeout appropriately.
-        return dekCache.get(cacheKey(encryptionScheme));
+        return filterThreadExecutor.completingOnFilterThread(dekCache.get(cacheKey(encryptionScheme)));
     }
 
     @Override

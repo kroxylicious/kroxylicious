@@ -7,6 +7,7 @@
 package io.kroxylicious.filter.encryption;
 
 import java.time.Duration;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -71,16 +72,19 @@ public class EnvelopeEncryption<K, E> implements FilterFactory<EnvelopeEncryptio
         Kms<K, E> kms = buildKms(context, configuration);
 
         DekManager<K, E> dekManager = new DekManager<>(ignored -> kms, null, 5_000_000);
+        ScheduledExecutorService filterThreadExecutor = context.eventLoop();
+        FilterThreadExecutor executor = new FilterThreadExecutor(filterThreadExecutor);
         var encryptionManager = new InBandEncryptionManager<>(dekManager,
                 1024 * 1024,
                 8 * 1024 * 1024,
                 null,
+                executor,
                 InBandEncryptionManager.NO_MAX_CACHE_SIZE);
-        var decryptionManager = new InBandDecryptionManager<>(kms);
+        var decryptionManager = new InBandDecryptionManager<>(kms, executor);
 
         KekSelectorService<Object, K> ksPlugin = context.pluginInstance(KekSelectorService.class, configuration.selector());
         TopicNameBasedKekSelector<K> kekSelector = ksPlugin.buildSelector(kms, configuration.selectorConfig());
-        return new EnvelopeEncryptionFilter<>(encryptionManager, decryptionManager, kekSelector);
+        return new EnvelopeEncryptionFilter<>(encryptionManager, decryptionManager, kekSelector, executor);
     }
 
     @NonNull

@@ -33,6 +33,7 @@ import io.kroxylicious.filter.encryption.EncryptionException;
 import io.kroxylicious.filter.encryption.EncryptionManager;
 import io.kroxylicious.filter.encryption.EncryptionVersion;
 import io.kroxylicious.filter.encryption.EnvelopeEncryptionFilter;
+import io.kroxylicious.filter.encryption.FilterThreadExecutor;
 import io.kroxylicious.filter.encryption.records.BatchAwareMemoryRecordsBuilder;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.Serde;
@@ -51,10 +52,12 @@ public class InBandDecryptionManager<K, E> implements DecryptionManager {
     private final AsyncLoadingCache<E, AesGcmEncryptor> decryptorCache;
     private final Kms<K, E> kms;
     private final Serde<E> edekSerde;
+    private final FilterThreadExecutor filterThreadExecutor;
 
-    public InBandDecryptionManager(Kms<K, E> kms) {
+    public InBandDecryptionManager(Kms<K, E> kms, FilterThreadExecutor filterThreadExecutor) {
         this.kms = kms;
         this.edekSerde = kms.edekSerde();
+        this.filterThreadExecutor = filterThreadExecutor;
         this.decryptorCache = Caffeine.newBuilder()
                 .buildAsync((edek, executor) -> makeDecryptor(edek));
     }
@@ -102,7 +105,7 @@ public class InBandDecryptionManager<K, E> implements DecryptionManager {
             return CompletableFuture.completedFuture(records);
         }
         Set<E> uniqueEdeks = extractEdeks(topicName, partition, records);
-        CompletionStage<Map<E, AesGcmEncryptor>> decryptors = resolveAll(uniqueEdeks);
+        CompletionStage<Map<E, AesGcmEncryptor>> decryptors = filterThreadExecutor.completingOnFilterThread(resolveAll(uniqueEdeks));
         CompletionStage<BatchAwareMemoryRecordsBuilder> decryptStage = decryptors.thenApply(
                 encryptorMap -> decrypt(topicName, partition, records, new BatchAwareMemoryRecordsBuilder(allocateBufferForDecrypt(records, bufferAllocator)),
                         encryptorMap, batchRecordCounts));

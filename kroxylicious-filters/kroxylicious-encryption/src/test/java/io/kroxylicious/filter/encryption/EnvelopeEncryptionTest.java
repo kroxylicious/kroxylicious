@@ -7,6 +7,7 @@
 package io.kroxylicious.filter.encryption;
 
 import java.time.Duration;
+import java.util.concurrent.ScheduledExecutorService;
 
 import org.junit.jupiter.api.Test;
 
@@ -34,6 +35,7 @@ class EnvelopeEncryptionTest {
 
         doReturn(kmsService).when(fc).pluginInstance(KmsService.class, "KMS");
         doReturn(kms).when(kmsService).buildKms(any());
+        doReturn(mock(ScheduledExecutorService.class)).when(fc).eventLoop();
 
         doReturn(kekSelectorService).when(fc).pluginInstance(KekSelectorService.class, "SELECTOR");
         doReturn(kekSelector).when(kekSelectorService).buildSelector(any(), any());

@@ -45,6 +45,7 @@ import org.mockito.stubbing.Answer;
 
 import io.kroxylicious.filter.encryption.EncryptionException;
 import io.kroxylicious.filter.encryption.EncryptionScheme;
+import io.kroxylicious.filter.encryption.FilterThreadExecutor;
 import io.kroxylicious.filter.encryption.RecordField;
 import io.kroxylicious.filter.encryption.dek.Dek;
 import io.kroxylicious.filter.encryption.dek.DekManager;
@@ -992,7 +993,7 @@ class InBandDecryptionManagerTest {
 
     @NonNull
     private static InBandDecryptionManager<UUID, InMemoryEdek> createDecryptionManager(InMemoryKms kms) {
-        return new InBandDecryptionManager<>(kms);
+        return new InBandDecryptionManager<>(kms, new FilterThreadExecutor(directExecutor()));
     }
 
     @NonNull
@@ -1011,14 +1012,17 @@ class InBandDecryptionManagerTest {
         return new InBandEncryptionManager<>(new DekManager<UUID, InMemoryEdek>(ignored -> kms, null, maxEncryptionsPerDek),
                 recordBufferInitialBytes,
                 recordBufferMaxBytes,
-                new Executor() {
-                    @Override
-                    public void execute(Runnable command) {
-                        // Run cache evications on the test thread, avoiding the need for tests to sleep to observe cache evictions
-                        command.run();
-                    }
-                },
+                directExecutor(),
+                new FilterThreadExecutor(directExecutor()),
                 maxCacheSize);
+    }
+
+    @NonNull
+    private static Executor directExecutor() {
+        return command -> {
+            // Run cache evications on the test thread, avoiding the need for tests to sleep to observe cache evictions
+            command.run();
+        };
     }
 
     @NonNull
