@@ -6,12 +6,11 @@
 
 package io.kroxylicious.filter.encryption.dek;
 
+import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.security.GeneralSecurityException;
 import java.security.spec.AlgorithmParameterSpec;
-import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.IntUnaryOperator;
@@ -22,14 +21,7 @@ import javax.annotation.concurrent.NotThreadSafe;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
-import javax.security.auth.DestroyFailedException;
-import javax.security.auth.Destroyable;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import io.kroxylicious.filter.encryption.EncryptionException;
-import io.kroxylicious.filter.encryption.inband.ExhaustedDekException;
+import javax.crypto.ShortBufferException;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -42,7 +34,8 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * <h2>Encrypting and decrypting</h2>
  * <p>To encrypt using a DEK you need to obtain an {@link Encryptor Encryptor} using {@link #encryptor(int)},
  * specifying the number of encryption operations you expect to perform.
- * {@link Encryptor#encrypt(ByteBuffer, ByteBuffer, EncryptAllocator, EncryptAllocator) Encryptor.encrypt()}
+ * {@link Encryptor#generateParameters(EncryptAllocator) Encryptor.generateParameters()} and
+ * {@link Encryptor#encrypt(ByteBuffer, ByteBuffer, EncryptAllocator) Encryptor.encrypt()}
  * can then be called up to the requested number of times.
  * Once you've finished using an Encryptor you need to {@link Encryptor#close() close()} it.
  * </p>
@@ -69,16 +62,12 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 @ThreadSafe
 public final class Dek<E> {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(Dek.class);
-
-    private static final Map<Class<? extends Destroyable>, Boolean> LOGGED_DESTROY_FAILED = new ConcurrentHashMap<>();
-
     private final E edek;
     // Note: checks for outstandingCryptors==END <em>happens-before</em> changes to atomicKey.
     // It's this that provides a guarantee that a cryptor should never see a
     // destroyed or null key, but that keys should be destroyed and nullieifed as soon
     // as possible once all outstanding cryptors are closed.
-    private final AtomicReference<SecretKey> atomicKey;
+    private final AtomicReference<DestroyableRawSecretKey> atomicKey;
 
     private final AtomicLong remainingEncryptions;
 
@@ -189,8 +178,8 @@ public final class Dek<E> {
         return update(combined, Dek::destroyCounterIfNecessary, Dek::destroyCounterIfNecessary);
     }
 
-    Dek(@NonNull E edek, @NonNull SecretKey key, @NonNull CipherSpec cipherSpec, long maxEncryptions) {
-        /* protected access because instantion only allowed via a DekManager */
+    Dek(@NonNull E edek, @NonNull DestroyableRawSecretKey key, @NonNull CipherSpec cipherSpec, long maxEncryptions) {
+        /* protected access because instantiation only allowed via a DekManager */
         Objects.requireNonNull(edek);
         if (Objects.requireNonNull(key).isDestroyed()) {
             throw new IllegalArgumentException();
@@ -203,11 +192,12 @@ public final class Dek<E> {
         this.atomicKey = new AtomicReference<>(key);
         this.cipherSpec = cipherSpec;
         this.remainingEncryptions = new AtomicLong(maxEncryptions);
-        this.outstandingCryptors = new AtomicLong(START);
+        // If no encryptions then make the Dek already destroyed for encrypt.
+        this.outstandingCryptors = new AtomicLong(maxEncryptions == 0 ? combine(-1, 1) : START);
     }
 
     /**
-     * Get an encryptor, good for at most {@code numEncryptions} {@linkplain Encryptor#encrypt(ByteBuffer, ByteBuffer, EncryptAllocator, EncryptAllocator) encryptions}.
+     * Get an encryptor, good for at most {@code numEncryptions} {@linkplain Encryptor#encrypt(ByteBuffer, ByteBuffer, EncryptAllocator) encryptions}.
      * The caller must invoke {@link Encryptor#close()} after performing all the required operations.
      * Note that while this method is safe to call from multiple threads, the returned encryptor is not.
      * @param numEncryptions The number of encryption operations required
@@ -275,21 +265,7 @@ public final class Dek<E> {
         if (outstandingCryptors.updateAndGet(updateFunction) == END) {
             var key = atomicKey.getAndSet(null);
             if (key != null) {
-                try {
-                    key.destroy();
-                }
-                catch (DestroyFailedException e) {
-                    var cls = key.getClass();
-                    if (LOGGER.isWarnEnabled()) {
-                        LOGGED_DESTROY_FAILED.computeIfAbsent(cls, alsoCls -> {
-                            LOGGER.warn("Failed to destroy an instance of {}. "
-                                    + "Note: this message is logged once per class even though there may be many occurrences of this event. "
-                                    + "This event can happen because the JRE's SecretKeySpec class does not override the destroy() method.",
-                                    alsoCls, e);
-                            return Boolean.TRUE;
-                        });
-                    }
-                }
+                key.destroy();
             }
         }
     }
@@ -297,6 +273,10 @@ public final class Dek<E> {
     public boolean isDestroyed() {
         SecretKey secretKey = atomicKey.get();
         return secretKey == null || secretKey.isDestroyed();
+    }
+
+    public E edek() {
+        return edek;
     }
 
     /**
@@ -309,6 +289,7 @@ public final class Dek<E> {
         private final Supplier<AlgorithmParameterSpec> paramSupplier;
         private final CipherSpec cipherSpec;
         private int numEncryptions;
+        private boolean haveParameters = false;
 
         private Encryptor(CipherSpec cipherSpec, SecretKey key, int numEncryptions) {
             if (numEncryptions <= 0) {
@@ -322,58 +303,99 @@ public final class Dek<E> {
         }
 
         /**
-         * @return The encrypted key
+         * @return The encrypted DEK
          */
-        public E edek() {
-            return edek;
+        public @NonNull E edek() {
+            return Dek.this.edek();
         }
 
         /**
-         * Perform an encryption operation using the DEK.
-         * @param plaintext The plaintext to be encrypted (between position and limit)
-         * @param aad The AAD to be included in the encryption
+         * Prepare to perform an encryption operation using the DEK.
+         * This must be called before to a call to {@link #encrypt(ByteBuffer, ByteBuffer, EncryptAllocator)}.
          * @param paramAllocator A function that will return a buffer into which the cipher parameters will be written.
          * The function's argument is the number of bytes required for the cipher parameters.
-         * @param ciphertextAllocator A function that will return a buffer into which the ciphertext will be written.
-         * The function's first argument is the number of bytes required for the cipher parameters.
-         * The function's second argument is the number of bytes required for the ciphertext.
+         * @return The buffer returned from the {@code paramAllocator},
+         * in which the cipher parameters have been written.
          * @throws DekUsageException If this Encryptor has run out of operations.
+         * @throws BufferTooSmallException If the buffer returned by the {@code paramAllocator}
+         * had too few bytes remaining for the parameters to be written completely.
          */
-        public void encrypt(@NonNull ByteBuffer plaintext,
-                            @Nullable ByteBuffer aad,
-                            @NonNull EncryptAllocator paramAllocator,
-                            @NonNull EncryptAllocator ciphertextAllocator) {
-
-            if (--numEncryptions >= 0) {
+        public ByteBuffer generateParameters(@NonNull EncryptAllocator paramAllocator) {
+            if (numEncryptions <= 0) {
+                throw new DekUsageException("The Encryptor has no more operations allowed");
+            }
+            else {
+                --numEncryptions;
                 try {
                     AlgorithmParameterSpec params = paramSupplier.get();
                     cipher.init(Cipher.ENCRYPT_MODE, key, params);
 
                     int paramsSize = cipherSpec.size(params);
-                    int ciphertextSize = cipher.getOutputSize(plaintext.remaining());
-                    var parametersBuffer = paramAllocator.buffer(paramsSize, ciphertextSize);
-                    var ciphertext = ciphertextAllocator.buffer(paramsSize, ciphertextSize);
+                    var parametersBuffer = paramAllocator.buffer(paramsSize);
                     cipherSpec.writeParameters(parametersBuffer, params);
                     parametersBuffer.flip();
-                    if (aad != null) {
-                        cipher.updateAAD(aad);
-                        aad.rewind();
-                    }
-                    var p = plaintext.position();
-                    cipher.doFinal(plaintext, ciphertext);
-                    plaintext.position(p);
-                    ciphertext.flip();
-
-                    if (numEncryptions == 0) {
-                        close();
-                    }
-                    return;
+                    haveParameters = true;
+                    return parametersBuffer;
+                }
+                catch (BufferOverflowException e) {
+                    throw new BufferTooSmallException();
                 }
                 catch (GeneralSecurityException e) {
-                    throw new EncryptionException(e);
+                    throw new DekException(e);
                 }
             }
-            throw new DekUsageException("The Encryptor has no more operations allowed");
+        }
+
+        /**
+         * <p>Perform an encryption operation using the DEK.
+         * This must be called after to a call to {@link #generateParameters(EncryptAllocator)}</p>
+         *
+         * <p>Like {@link Cipher#doFinal(ByteBuffer, ByteBuffer)}, the method is copy-safe:
+         * The buffer returned by the {@code ciphertextAllocator}
+         * may be the backed by the same buffer as the given {@code plaintext} and
+         * no unprocessed plaintext data is overwritten when the result is copied into the ciphertext buffer</p>
+         * @param plaintext The plaintext to be encrypted (between position and limit)
+         * @param aad The AAD to be included in the encryption
+         * The function's argument is the number of bytes required for the cipher parameters.
+         * @param ciphertextAllocator A function that will return a buffer into which the ciphertext will be written.
+         * The function's first argument is the number of bytes required for the cipher parameters.
+         * The function's second argument is the number of bytes required for the ciphertext.
+         * @return The buffer returned from the {@code ciphertextAllocator},
+         * in which the ciphertext has been written.
+         * @throws DekUsageException If this Encryptor has run out of operations.
+         * @throws BufferTooSmallException If the buffer returned by the {@code ciphertextAllocator}
+         * had too few bytes remaining for the ciphertext to be written completely.
+         */
+        public ByteBuffer encrypt(@NonNull ByteBuffer plaintext,
+                                  @Nullable ByteBuffer aad,
+                                  @NonNull EncryptAllocator ciphertextAllocator) {
+            if (!haveParameters) {
+                throw new IllegalStateException("Expecting a prior call to generateParameters()");
+            }
+            haveParameters = false;
+            try {
+                if (aad != null) {
+                    cipher.updateAAD(aad);
+                    aad.rewind();
+                }
+                int ciphertextSize = cipher.getOutputSize(plaintext.remaining());
+                var ciphertext = ciphertextAllocator.buffer(ciphertextSize);
+                var p = plaintext.position();
+                cipher.doFinal(plaintext, ciphertext);
+                plaintext.position(p);
+                ciphertext.flip();
+
+                if (numEncryptions == 0) {
+                    close();
+                }
+                return ciphertext;
+            }
+            catch (ShortBufferException e) {
+                throw new BufferTooSmallException();
+            }
+            catch (GeneralSecurityException e) {
+                throw new DekException(e);
+            }
         }
 
         @Override
@@ -420,7 +442,7 @@ public final class Dek<E> {
                 cipher.doFinal(ciphertext, plaintext);
             }
             catch (GeneralSecurityException e) {
-                throw new EncryptionException(e);
+                throw new DekException(e);
             }
         }
 

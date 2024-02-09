@@ -10,7 +10,7 @@ package io.kroxylicious.filter.encryption.dek;
  * Indicates an attempt to use a DEK in a way that isn't allowed, for example
  * to encrypt when its limit on number of encryption operations has been reached.
  */
-public class DekUsageException extends RuntimeException {
+public class DekUsageException extends DekException {
     public DekUsageException(String message) {
         super(message);
     }

@@ -10,6 +10,7 @@ import java.util.Objects;
 import java.util.concurrent.CompletionStage;
 
 import javax.annotation.concurrent.ThreadSafe;
+import javax.crypto.SecretKey;
 
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.KmsService;
@@ -64,7 +65,10 @@ public class DekManager<K, E> {
     public CompletionStage<Dek<E>> generateDek(@NonNull K kekRef, @NonNull CipherSpec cipherSpec) {
         Objects.requireNonNull(kekRef);
         Objects.requireNonNull(cipherSpec);
-        return kms.generateDekPair(kekRef).thenApply(dekPair -> new Dek<>(dekPair.edek(), dekPair.dek(), cipherSpec, maxEncryptionsPerDek));
+        return kms.generateDekPair(kekRef).thenApply(dekPair -> {
+            SecretKey dek = dekPair.dek();
+            return new Dek<>(dekPair.edek(), new DestroyableRawSecretKey(dek.getAlgorithm(), dek.getEncoded()), cipherSpec, maxEncryptionsPerDek);
+        });
     }
 
     /**
@@ -78,6 +82,6 @@ public class DekManager<K, E> {
     public CompletionStage<Dek<E>> decryptEdek(@NonNull E edek, @NonNull CipherSpec cipherSpec) {
         Objects.requireNonNull(edek);
         Objects.requireNonNull(cipherSpec);
-        return kms.decryptEdek(edek).thenApply(key -> new Dek<>(edek, key, cipherSpec, 0));
+        return kms.decryptEdek(edek).thenApply(key -> new Dek<>(edek, new DestroyableRawSecretKey(key.getAlgorithm(), key.getEncoded()), cipherSpec, 0));
     }
 }

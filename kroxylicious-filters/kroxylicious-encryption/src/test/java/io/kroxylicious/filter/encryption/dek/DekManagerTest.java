@@ -13,7 +13,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
-import io.kroxylicious.filter.encryption.inband.ExhaustedDekException;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.InMemoryEdek;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.UnitTestingKmsService;
 import io.kroxylicious.kms.service.Serde;
@@ -77,10 +76,10 @@ class DekManagerTest {
         ByteBuffer[] params = new ByteBuffer[1];
         InMemoryEdek edek;
         try (Dek<InMemoryEdek>.Encryptor encryptor = dek.encryptor(1)) {
+            encryptor.generateParameters(size -> params[0] = ByteBuffer.allocate(size));
             encryptor.encrypt(plaintext,
                     aad,
-                    (x, y) -> params[0] = ByteBuffer.allocate(x),
-                    (x, y) -> ciphertext[0] = ByteBuffer.allocate(y));
+                    size -> ciphertext[0] = ByteBuffer.allocate(size));
             edek = encryptor.edek();
         }
         var edekBuffer = ByteBuffer.allocate(1024);

@@ -17,11 +17,14 @@ import javax.crypto.NoSuchPaddingException;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.IvParameterSpec;
 
-import io.kroxylicious.filter.encryption.EncryptionException;
-
 /**
  * A CipherSpec couples a single persisted identifier with a Cipher (e.g. AES)
  * and means of generating, writing and reading parameters for that cipher.
+ *
+ * <h2 id="persistentIds">Persistent ids</h2>
+ * {@link #persistentId}s must uniquely and immutably identify a specific CipherSpec instance.
+ * They get written in the wrapper, so in order to provide backwards compatibility the ids
+ * can't be removed, or associated with a different CipherSpec.
  */
 public enum CipherSpec {
 
@@ -29,7 +32,7 @@ public enum CipherSpec {
      * AES/GCM with 128-bit key, 96-bit IV and 128-bit tag.
      * @see <a href="https://www.ietf.org/rfc/rfc5116.txt">RFC-5116</a>
      */
-    AES_128_GCM_128(1,
+    AES_128_GCM_128(0,
             "AES/GCM/NoPadding",
             1L << 32 // 2^32
     ) {
@@ -69,7 +72,7 @@ public enum CipherSpec {
      * ChaCha20-Poly1305, which means 256-bit key, 96-bit nonce and 128-bit tag.
      * @see <a href="https://www.ietf.org/rfc/rfc7539.txt">RFC-7539</a>
      */
-    CHACHA20_POLY1305(2,
+    CHACHA20_POLY1305(1,
             "ChaCha20-Poly1305",
             Long.MAX_VALUE // 2^96 would be necessary given we use Wrapping96BitCounter
     // 2^63-1 is sufficient
@@ -106,13 +109,16 @@ public enum CipherSpec {
             parametersBuffer.get(nonce);
             return new IvParameterSpec(nonce);
         }
-    };
+    }
+    /* !! Read the class JavaDoc before adding a new CipherSpec !! */
+    ;
 
+    /** Get the cipherSpec instance for the given <a href="#persistentIds">persistent id</a>. */
     static CipherSpec fromPersistentId(int persistentId) {
         switch (persistentId) {
-            case 1:
+            case 0:
                 return CipherSpec.AES_128_GCM_128;
-            case 2:
+            case 1:
                 return CipherSpec.CHACHA20_POLY1305;
             default:
                 throw new UnknownCipherSpecException("Cipher spec with persistent id " + persistentId + " is not known");
@@ -130,7 +136,8 @@ public enum CipherSpec {
         this.maxEncryptionsPerKey = maxEncryptionsPerKey;
     }
 
-    int persistentId() {
+    /** Get this cipherSpec's <a href="#persistentIds">persistent id</a>. */
+    public int persistentId() {
         return persistentId;
     }
 
@@ -143,7 +150,7 @@ public enum CipherSpec {
             return Cipher.getInstance(transformation);
         }
         catch (NoSuchAlgorithmException | NoSuchPaddingException e) {
-            throw new EncryptionException(e);
+            throw new DekException(e);
         }
     }
 

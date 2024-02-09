@@ -6,12 +6,8 @@
 
 package io.kroxylicious.filter.encryption.dek;
 
-/**
- * Indicates that a {@link Dek} couldn't be used because it was destroyed.
- */
-public class DestroyedDekException extends DekException {
-
-    public DestroyedDekException() {
+public class BufferTooSmallException extends RuntimeException {
+    public BufferTooSmallException() {
         super();
     }
 }

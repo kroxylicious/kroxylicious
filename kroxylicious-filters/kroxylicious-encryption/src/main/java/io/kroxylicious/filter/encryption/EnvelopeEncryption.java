@@ -7,14 +7,16 @@
 package io.kroxylicious.filter.encryption;
 
 import java.time.Duration;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.micrometer.core.instrument.Metrics;
 
-import io.kroxylicious.filter.encryption.inband.BufferPool;
-import io.kroxylicious.filter.encryption.inband.InBandKeyManager;
+import io.kroxylicious.filter.encryption.dek.DekManager;
+import io.kroxylicious.filter.encryption.inband.InBandDecryptionManager;
+import io.kroxylicious.filter.encryption.inband.InBandEncryptionManager;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.KmsService;
 import io.kroxylicious.proxy.filter.FilterFactory;
@@ -69,11 +71,20 @@ public class EnvelopeEncryption<K, E> implements FilterFactory<EnvelopeEncryptio
     public EnvelopeEncryptionFilter<K> createFilter(FilterFactoryContext context, Config configuration) {
         Kms<K, E> kms = buildKms(context, configuration);
 
-        var keyManager = new InBandKeyManager<>(kms, BufferPool.allocating(), 500_000);
+        DekManager<K, E> dekManager = new DekManager<>(ignored -> kms, null, 5_000_000);
+        ScheduledExecutorService filterThreadExecutor = context.eventLoop();
+        FilterThreadExecutor executor = new FilterThreadExecutor(filterThreadExecutor);
+        var encryptionManager = new InBandEncryptionManager<>(dekManager,
+                1024 * 1024,
+                8 * 1024 * 1024,
+                null,
+                executor,
+                InBandEncryptionManager.NO_MAX_CACHE_SIZE);
+        var decryptionManager = new InBandDecryptionManager<>(kms, executor);
 
         KekSelectorService<Object, K> ksPlugin = context.pluginInstance(KekSelectorService.class, configuration.selector());
         TopicNameBasedKekSelector<K> kekSelector = ksPlugin.buildSelector(kms, configuration.selectorConfig());
-        return new EnvelopeEncryptionFilter<>(keyManager, kekSelector);
+        return new EnvelopeEncryptionFilter<>(encryptionManager, decryptionManager, kekSelector, executor);
     }
 
     @NonNull

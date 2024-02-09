@@ -9,6 +9,7 @@ package io.kroxylicious.filter.encryption;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
@@ -31,6 +32,8 @@ import io.kroxylicious.proxy.filter.ProduceRequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 import static org.slf4j.LoggerFactory.getLogger;
 
 /**
@@ -42,11 +45,18 @@ public class EnvelopeEncryptionFilter<K>
     private static final Logger log = getLogger(EnvelopeEncryptionFilter.class);
     private final TopicNameBasedKekSelector<K> kekSelector;
 
-    private final KeyManager<K> keyManager;
+    private final EncryptionManager<K> encryptionManager;
+    private final DecryptionManager decryptionManager;
+    private final FilterThreadExecutor filterThreadExecutor;
 
-    EnvelopeEncryptionFilter(KeyManager<K> keyManager, TopicNameBasedKekSelector<K> kekSelector) {
+    EnvelopeEncryptionFilter(EncryptionManager<K> encryptionManager,
+                             DecryptionManager decryptionManager,
+                             TopicNameBasedKekSelector<K> kekSelector,
+                             @NonNull FilterThreadExecutor filterThreadExecutor) {
         this.kekSelector = kekSelector;
-        this.keyManager = keyManager;
+        this.encryptionManager = encryptionManager;
+        this.decryptionManager = decryptionManager;
+        this.filterThreadExecutor = filterThreadExecutor;
     }
 
     @SuppressWarnings("unchecked")
@@ -67,7 +77,8 @@ public class EnvelopeEncryptionFilter<K>
 
     private CompletionStage<ProduceRequestData> maybeEncodeProduce(ProduceRequestData request, FilterContext context) {
         var topicNameToData = request.topicData().stream().collect(Collectors.toMap(TopicProduceData::name, Function.identity()));
-        return kekSelector.selectKek(topicNameToData.keySet()) // figure out what keks we need
+        CompletionStage<Map<String, K>> keks = filterThreadExecutor.completingOnFilterThread(kekSelector.selectKek(topicNameToData.keySet()));
+        return keks // figure out what keks we need
                 .thenCompose(kekMap -> {
                     var futures = kekMap.entrySet().stream().flatMap(e -> {
                         String topicName = e.getKey();
@@ -79,7 +90,7 @@ public class EnvelopeEncryptionFilter<K>
                                 return CompletableFuture.completedStage(ppd);
                             }
                             MemoryRecords records = (MemoryRecords) ppd.records();
-                            return keyManager.encrypt(
+                            return encryptionManager.encrypt(
                                     topicName,
                                     ppd.index(),
                                     new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
@@ -139,7 +150,7 @@ public class EnvelopeEncryptionFilter<K>
                                                               PartitionData fpr,
                                                               MemoryRecords memoryRecords,
                                                               FilterContext context) {
-        return keyManager.decrypt(
+        return decryptionManager.decrypt(
                 topicName,
                 fpr.partitionIndex(),
                 memoryRecords,

@@ -15,12 +15,11 @@ import org.apache.kafka.common.utils.ByteBufferOutputStream;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
- * A manager of (data) encryption keys supporting encryption and decryption operations,
+ * A manager of (data) encryption keys supporting encryption operations,
  * encapsulating access to the data encryption keys.
  * @param <K> The type of KEK id.
  */
-public interface KeyManager<K> {
-
+public interface EncryptionManager<K> {
     /**
      * Asynchronously encrypt the given {@code records} using the current DEK for the given KEK returning a MemoryRecords object which will contain all records
      * transformed according to the {@code encryptionScheme}.
@@ -30,23 +29,10 @@ public interface KeyManager<K> {
      * @return A completion stage that completes with the output MemoryRecords when all the records have been processed and transformed.
      */
     @NonNull
-    CompletionStage<MemoryRecords> encrypt(@NonNull String topicName,
+    CompletionStage<MemoryRecords> encrypt(
+                                           @NonNull String topicName,
                                            int partition,
                                            @NonNull EncryptionScheme<K> encryptionScheme,
-                                           @NonNull MemoryRecords records,
-                                           @NonNull IntFunction<ByteBufferOutputStream> bufferAllocator);
-
-    /**
-     * Asynchronously decrypt the given {@code records}, returning a MemoryRecords object which will contain all records transformed to their decrypted form (if required)
-     * @param topicName The topic name
-     * @param partition The partition index
-     * @param records The records
-     * @param bufferAllocator Allocator of ByteBufferOutputStream
-     * @return A completion stage that completes with the output MemoryRecords when all the records have been processed and transformed.
-     */
-    @NonNull
-    CompletionStage<MemoryRecords> decrypt(@NonNull String topicName,
-                                           int partition,
                                            @NonNull MemoryRecords records,
                                            @NonNull IntFunction<ByteBufferOutputStream> bufferAllocator);
 }
