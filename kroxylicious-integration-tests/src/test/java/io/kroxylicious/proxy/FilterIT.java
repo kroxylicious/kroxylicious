@@ -51,7 +51,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
 import io.kroxylicious.proxy.filter.ApiVersionsMarkingFilterFactory;
-import io.kroxylicious.proxy.filter.CompositePrefixingFixedClientIdFilterFactory;
 import io.kroxylicious.proxy.filter.ForwardingStyle;
 import io.kroxylicious.proxy.filter.RejectingCreateTopicFilter;
 import io.kroxylicious.proxy.filter.RejectingCreateTopicFilterFactory;
@@ -415,18 +414,6 @@ class FilterIT {
                 .withCauseInstanceOf(InvalidTopicException.class)
                 .havingCause()
                 .withMessage(RejectingCreateTopicFilter.ERROR_MESSAGE);
-    }
-
-    @Test
-    void testCompositeFilter() {
-        try (MockServerKroxyliciousTester tester = mockKafkaKroxyliciousTester((mockBootstrap) -> proxy(mockBootstrap)
-                .addToFilters(new FilterDefinitionBuilder(CompositePrefixingFixedClientIdFilterFactory.class.getName())
-                        .withConfig("clientId", "banana", "prefix", "123").build()));
-                var kafkaClient = tester.simpleTestClient()) {
-            tester.addMockResponseForApiKey(new ResponsePayload(METADATA, METADATA.latestVersion(), new MetadataResponseData()));
-            kafkaClient.getSync(new Request(METADATA, METADATA.latestVersion(), "client", new MetadataRequestData()));
-            assertThat(tester.getOnlyRequest().clientIdHeader()).isEqualTo("123banana");
-        }
     }
 
     @Test

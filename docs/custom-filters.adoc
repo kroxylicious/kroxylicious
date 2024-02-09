@@ -55,8 +55,6 @@ Note that these types are mutually exclusive, for example a Filter is not allowe
 the `onMetadataRequest(..)` method of `MetadataRequestFilter` or the `onRequest` method of `RequestFilter`, or both?
 Instead, we disallow these combinations, throwing an exception at runtime if your Filter implements incompatible interfaces.
 
-You can also implement a convenience interface to deliver multiple Protocol Filters to the filter chain using <<Composite Filters>>.
-
 === Specific Message Protocol Filters
 
 A filter may wish to intercept specific types of Kafka messages. For example, intercept all Produce Requests, or
@@ -132,9 +130,8 @@ public class FetchRequestClientIdFilter implements FetchRequestFilter, FetchResp
     }
 }
 ----
-Specific Message Filter interfaces are mutually exclusive with <<Request/Response Protocol Filters, Request/Response>> and
-<<Composite Filters,CompositeFilter>> interfaces. Kroxylicious will reject invalid combinations of
-interfaces.
+Specific Message Filter interfaces are mutually exclusive with <<Request/Response Protocol Filters, Request/Response>>.
+Kroxylicious will reject invalid combinations of interfaces.
 
 === Request/Response Protocol Filters
 
@@ -166,56 +163,8 @@ public class FixedClientIdFilter implements RequestFilter {
 }
 ----
 
-Request/Response Filter interfaces are mutually exclusive with <<Specific Message Protocol Filters, Specific Message>> and
-<<Composite Filters,CompositeFilter>> interfaces. Kroxylicious will reject invalid combinations of
-interfaces.
-
-=== Composite Filters
-
-Sometimes we want to present a chain of multiple Filters as a single cohesive unit with just one entry in the `filters`
-configuration of Kroxylicious. The {github}/blob/main/api/kroxylicious-api/src/main/java/io/kroxylicious/proxy/filter/CompositeFilter.java[CompositeFilter]
-interface enables you to do this.
-
-An example might look like this:
-
-[source,java]
-----
-class ExampleCompositeFilter implements CompositeFilter {
-
-        private final ExampleConfiguration configuration;
-
-        public ExampleCompositeFilter(ExampleConfiguration configuration) {
-            this.configuration = configuration;
-        }
-
-        @Override
-        public List<Filter> getFilters() {
-            return List.of(
-                new OverrideAllClientIdHeadersFilter(configuration.clientId()),
-                new PrefixProduceRequestFilter(configuration.prefix())
-            );
-        }
-}
-----
-
-Which could have corresponding configuration:
-[source,yaml]
-----
-filters:
-- type: Example
-  config:
-    clientId: fixed-id
-    prefix: abcde
-----
-
-This enables you to break a complex behaviour into logical chunks, implemented with multiple Filters, but they can be
-installed with a single block of configuration in the Kroxylicious configuration. For example if you wanted to intercept
-some specific RPCs but also change the `clientId` header of all requests, instead of requiring the user to
-configure two filters you could provide a CompositeFilter that provides both Filters.
-
-The CompositeFilter interface is mutually exclusive with <<Specific Message Protocol Filters, Specific Message>> and
-<<Request/Response Protocol Filters,Request/Response>> interfaces. Kroxylicious will reject invalid combinations of
-interfaces.
+Request/Response Filter interfaces are mutually exclusive with <<Specific Message Protocol Filters, Specific Message>> interfaces.
+Kroxylicious will reject invalid combinations of interfaces.
 
 === The Filter Result
 
@@ -528,9 +477,6 @@ filters:
 ----
 Kroxylicious will deserialize the `config` object into a `SampleFilterConfig` and use it to construct a
 `SampleFetchResponseFilter` passing the `SampleFilterConfig` instance as a constructor argument.
-
-Note that we have the <<Composite Filters, CompositeFilter>> interface available if you wish to use a single configuration
-block in YAML to install multiple Filters into the Filter chain.
 
 == Packaging filters
 
