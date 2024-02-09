@@ -10,7 +10,10 @@ import java.io.FileInputStream;
 import java.security.KeyStore;
 import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
+import java.util.Optional;
 
+import javax.net.ssl.KeyManager;
+import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
@@ -20,12 +23,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.config.tls.InsecureTls;
+import io.kroxylicious.proxy.config.tls.KeyPair;
+import io.kroxylicious.proxy.config.tls.KeyProvider;
+import io.kroxylicious.proxy.config.tls.KeyProviderVisitor;
+import io.kroxylicious.proxy.config.tls.PasswordProvider;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TrustProvider;
 import io.kroxylicious.proxy.config.tls.TrustProviderVisitor;
 import io.kroxylicious.proxy.config.tls.TrustStore;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * Builds a JDK SSLContext used for vault communicateion.
@@ -69,8 +77,16 @@ public record JdkTls(Tls tls) {
 
     public SSLContext sslContext() {
         try {
-            if (tls != null && tls.trust() != null) {
-                return customSSLContext(tls.trust());
+            if (tls != null) {
+                TrustManager[] trustManagers = null;
+                KeyManager[] keyManagers = null;
+                if (tls.trust() != null) {
+                    trustManagers = getTrustManagers(tls.trust());
+                }
+                if (tls.key() != null) {
+                    keyManagers = getKeyManagers(tls.key());
+                }
+                return getSslContext(trustManagers, keyManagers);
             }
             else {
                 return SSLContext.getDefault();
@@ -81,17 +97,51 @@ public record JdkTls(Tls tls) {
         }
     }
 
-    @NonNull
-    private SSLContext customSSLContext(TrustProvider trust) {
-        TrustManager[] trustManagers = getTrustManagers(trust);
-        return getSslContext(trustManagers);
+    /* exposed for testing */
+    static KeyManager[] getKeyManagers(KeyProvider key) {
+        return key.accept(new KeyProviderVisitor<>() {
+            @Override
+            public KeyManager[] visit(KeyPair keyPair) {
+                throw new SslConfigurationException("KeyPair is not supported by vault KMS yet");
+            }
+
+            @Override
+            public KeyManager[] visit(io.kroxylicious.proxy.config.tls.KeyStore keyStore) {
+                try {
+                    if (keyStore.isPemType()) {
+                        throw new SslConfigurationException("PEM is not supported by vault KMS yet");
+                    }
+                    KeyStore store = KeyStore.getInstance(keyStore.getType());
+                    char[] storePassword = passwordOrNull(keyStore.storePasswordProvider());
+                    try (FileInputStream fileInputStream = new FileInputStream(keyStore.storeFile())) {
+                        store.load(fileInputStream, storePassword);
+                    }
+                    KeyManagerFactory instance = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+                    char[] keyPassword = passwordOrNull(keyStore.keyPasswordProvider());
+                    keyPassword = keyPassword == null ? storePassword : keyPassword;
+                    instance.init(store, keyPassword);
+                    return instance.getKeyManagers();
+                }
+                catch (Exception e) {
+                    throw new SslConfigurationException(e);
+                }
+            }
+
+            @Nullable
+            private static char[] passwordOrNull(PasswordProvider value) {
+                return Optional.ofNullable(value).map(PasswordProvider::getProvidedPassword).map(String::toCharArray).orElse(null);
+            }
+        });
     }
 
     @NonNull
-    private static SSLContext getSslContext(TrustManager[] trustManagers) {
+    private static SSLContext getSslContext(TrustManager[] trustManagers, KeyManager[] keyManagers) {
         try {
+            if (trustManagers == null && keyManagers == null) {
+                return SSLContext.getDefault();
+            }
             SSLContext context = SSLContext.getInstance("TLS");
-            context.init(null, trustManagers, new SecureRandom());
+            context.init(keyManagers, trustManagers, new SecureRandom());
             return context;
         }
         catch (Exception e) {
