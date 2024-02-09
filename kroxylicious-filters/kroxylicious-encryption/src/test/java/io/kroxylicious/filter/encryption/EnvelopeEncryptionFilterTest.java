@@ -222,7 +222,7 @@ class EnvelopeEncryptionFilterTest {
                 .setTopic(UNENCRYPTED_TOPIC)
                 .setPartitions(List.of(new PartitionData().setRecords(makeRecord(HELLO_PLAIN_WORLD)))));
         RuntimeException exception = new RuntimeException("boom");
-        when(keyManager.decrypt(any(), anyInt(), any(), any())).thenReturn(CompletableFuture.failedFuture(exception));
+        when(decryptionManager.decrypt(any(), anyInt(), any(), any())).thenReturn(CompletableFuture.failedFuture(exception));
 
         // When
         CompletionStage<ResponseFilterResult> stage = encryptionFilter.onFetchResponse(FetchResponseData.HIGHEST_SUPPORTED_VERSION,
