@@ -88,7 +88,7 @@ public class Kroxylicious {
      * @param clusterName the cluster name
      * @param replicas the replicas
      * @param topicName the topic name
-     * @param config
+     * @param config config
      */
     public void deployPortPerBrokerPlainWithTopicEncryptionFilter(String clusterName, int replicas, String topicName, Config config) {
         createTopicEncryptionFilterConfigMap(clusterName, topicName, config);

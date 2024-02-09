@@ -115,7 +115,7 @@ class KroxyliciousST extends AbstractST {
         kroxylicious.deployPortPerBrokerPlainWithNoFilters(clusterName, replicas);
         String bootstrap = kroxylicious.getBootstrap();
         int currentReplicas = kroxylicious.getNumberOfReplicas();
-        assertThat(currentReplicas).withFailMessage("unexpected current replicas").isEqualTo(currentReplicas);
+        assertThat(currentReplicas).withFailMessage("unexpected current replicas").isEqualTo(replicas);
 
         LOGGER.info("And KafkaTopic in {} namespace", namespace);
         KafkaSteps.createTopic(namespace, topicName, bootstrap, 3, 2);

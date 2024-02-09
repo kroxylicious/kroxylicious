@@ -8,19 +8,11 @@
 server:
   dev:
     enabled: true
-#    devRootToken: myRootToken
   ha:
     enabled: false
   updateStrategyType: RollingUpdate
   service:
     type: NodePort
-  volumeMounts:
-    - name: kroxylicious-encryption-filter-policy-volume
-      mountPath: /etc/kroxylicious-encryption-filter-policy
-  volumes:
-    - name: kroxylicious-encryption-filter-policy-volume
-      configMap:
-        name: kroxylicious-encryption-filter-policy
   extraEnvironmentVars:
     VAULT_FORMAT: json
 injector:

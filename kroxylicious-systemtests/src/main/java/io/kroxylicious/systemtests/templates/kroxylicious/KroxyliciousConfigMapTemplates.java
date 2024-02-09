@@ -44,7 +44,7 @@ public class KroxyliciousConfigMapTemplates {
      * @param clusterName the cluster name
      * @param namespaceName the namespace name
      * @param topicName the topic name
-     * @param config
+     * @param config config
      * @return the config map builder
      */
     public static ConfigMapBuilder kroxyliciousTopicEncryptionConfig(String clusterName, String namespaceName, String topicName, Config config) {

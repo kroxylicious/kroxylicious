@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.systemtests.resources.vault;
+package io.kroxylicious.kms.provider.hashicorp.vault;
 
 import java.util.Objects;
 
@@ -12,9 +12,9 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-record TokenResponse(Auth auth) {
+record CreateTokenResponse(Auth auth) {
 
-    TokenResponse {
+    CreateTokenResponse {
         Objects.requireNonNull(auth);
     }
 
