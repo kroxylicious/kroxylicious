@@ -136,6 +136,7 @@ public class RecordStream<T> {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private T existingState(int recordIndex) {
         return switch (pairType) {
             case SINGLE -> (T) pairedWith;
