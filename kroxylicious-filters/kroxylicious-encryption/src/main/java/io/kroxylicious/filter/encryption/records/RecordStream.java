@@ -61,13 +61,11 @@ public class RecordStream<T> {
     private final Object pairedWith;
 
     private RecordStream(MemoryRecords records, PairType pairType, Object pairedWith) {
+        if (Objects.requireNonNull(pairType) == PairType.PER_RECORD && (!(pairedWith instanceof List<?>))) {
+            throw new IllegalArgumentException();
+        }
         this.records = records;
         this.pairType = pairType;
-        if (Objects.requireNonNull(pairType) == PairType.PER_RECORD) {
-            if (!(pairedWith instanceof List<?>)) {
-                throw new IllegalArgumentException();
-            }
-        }
         this.pairedWith = pairedWith;
     }
 

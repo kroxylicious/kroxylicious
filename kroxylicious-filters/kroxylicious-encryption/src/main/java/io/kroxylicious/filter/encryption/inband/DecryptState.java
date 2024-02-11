@@ -19,8 +19,10 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  */
 final class DecryptState<E> {
 
+    @SuppressWarnings("rawtypes")
     private static final DecryptState NONE = new DecryptState(null);
 
+    @SuppressWarnings("unchecked")
     static <E> DecryptState<E> none() {
         return NONE;
     }
@@ -39,7 +41,7 @@ final class DecryptState<E> {
         return decryptionVersion == null;
     }
 
-    public DecryptState withDecryptor(Dek<E>.Decryptor decryptor) {
+    public DecryptState<E> withDecryptor(Dek<E>.Decryptor decryptor) {
         this.decryptor = decryptor;
         return this;
     }

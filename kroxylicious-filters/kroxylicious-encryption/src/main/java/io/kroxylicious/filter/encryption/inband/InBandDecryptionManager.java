@@ -87,7 +87,6 @@ public class InBandDecryptionManager<K, E> implements DecryptionManager {
         if (dekCacheExecutor != null) {
             cache = cache.executor(dekCacheExecutor);
         }
-        // TODO support batched resolution in the DekManager and also in the KMS
         this.decryptorCache = cache
                 .removalListener(this::afterCacheEviction)
                 .buildAsync(this::loadDek);
@@ -198,8 +197,6 @@ public class InBandDecryptionManager<K, E> implements DecryptionManager {
             var decryptionVersion = decryptionVersion(topicName, partition, record);
             if (decryptionVersion != null) {
                 ByteBuffer wrapper = record.value();
-                // TODO it's ugly passing a BiFunction like CacheKey::new
-                // should the wrapper just return a CacheKey directly
                 cacheKeys.add(decryptionVersion.wrapperVersion().readSpecAndEdek(wrapper, serde, CacheKey::new));
                 states.add(new DecryptState<>(decryptionVersion));
             }
