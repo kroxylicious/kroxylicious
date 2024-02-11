@@ -15,9 +15,9 @@ import org.apache.kafka.common.protocol.ApiMessage;
 /**
  * A Filter implementation intended to simplify cases where we want to handle all or
  * most request types, for example to modify the request headers. If a Filter implements
- * RequestFilter, it cannot also implement {@link CompositeFilter} or any of the specific
- * message Filter interfaces like {@link ApiVersionsRequestFilter}. If a Filter implements
- * RequestFilter, it may also implement {@link ResponseFilter}.
+ * RequestFilter, it cannot also implement any of the specific message Filter interfaces
+ * like {@link ApiVersionsRequestFilter}. If a Filter implements RequestFilter, it may
+ * also implement {@link ResponseFilter}.
  */
 public interface RequestFilter extends Filter {
 

@@ -17,8 +17,6 @@ import java.util.stream.Stream;
 @Deprecated(since = "0.3.0")
 public class FilterInvokers {
 
-    private static final int RECURSION_DEPTH_LIMIT = 2;
-
     private FilterInvokers() {
 
     }
@@ -30,14 +28,10 @@ public class FilterInvokers {
      *     <li>A Filter implementing {@link RequestFilter}</li>
      *     <li>A Filter implementing both {@link ResponseFilter} and {@link RequestFilter} </li>
      *     <li>A Filter implementing any number of Specific Message Filter interfaces</li>
-     *     <li>A Filter implementing {@link CompositeFilter}</li>
      * </ol>
      * Examples of unsupported cases are:
      * <ol>
      *     <li>A Filter implementing {@link ResponseFilter} and any number of Specific Message Filter interfaces</li>
-     *     <li>A Filter implementing {@link CompositeFilter} and any number of Specific Message Filter interfaces</li>
-     *     <li>A Filter implementing {@link ResponseFilter} and {@link CompositeFilter}</li>
-     *     <li>A Filter implementing {@link RequestFilter} and {@link CompositeFilter}</li>
      * </ol>
      * @throws IllegalArgumentException if there is an invalid combination of Filter interfaces
      * @throws IllegalArgumentException if none of the supported interfaces are implemented
@@ -45,26 +39,18 @@ public class FilterInvokers {
      * @return the invoker
      */
     static List<FilterAndInvoker> from(Filter filter) {
-        List<FilterAndInvoker> filterInvokers = invokersForFilter(filter, 0);
+        List<FilterAndInvoker> filterInvokers = invokersForFilter(filter);
         // all invokers are wrapped in safe invoker so that clients can safely call onRequest/onResponse
         // even if the invoker isn't interested in that message.
         return wrapAllInSafeInvoker(filterInvokers).toList();
     }
 
-    private static List<FilterAndInvoker> invokersForFilter(Filter filter, int depth) {
-        boolean isCompositeFilter = filter instanceof CompositeFilter;
+    private static List<FilterAndInvoker> invokersForFilter(Filter filter) {
         boolean isResponseFilter = filter instanceof ResponseFilter;
         boolean isRequestFilter = filter instanceof RequestFilter;
         boolean isAnySpecificFilterInterface = SpecificFilterArrayInvoker.implementsAnySpecificFilterInterface(filter);
-        validateFilter(filter, isResponseFilter, isRequestFilter, isAnySpecificFilterInterface, isCompositeFilter);
-        if (isCompositeFilter) {
-            List<Filter> composedFilters = ((CompositeFilter) filter).getFilters();
-            if (depth >= RECURSION_DEPTH_LIMIT) {
-                throw new IllegalArgumentException("CompositeFilter's were nested too deeply, exceeded recursion depth limit of " + RECURSION_DEPTH_LIMIT);
-            }
-            return composedFilters.stream().flatMap(composedFilter -> invokersForFilter(composedFilter, depth + 1).stream()).toList();
-        }
-        else if (isResponseFilter && isRequestFilter) {
+        validateFilter(filter, isResponseFilter, isRequestFilter, isAnySpecificFilterInterface);
+        if (isResponseFilter && isRequestFilter) {
             return singleFilterAndInvoker(filter, new RequestResponseInvoker((RequestFilter) filter, (ResponseFilter) filter));
         }
         else if (isRequestFilter) {
@@ -82,20 +68,13 @@ public class FilterInvokers {
         return filterInvokers.stream().map(filterAndInvoker -> new FilterAndInvoker(filterAndInvoker.filter(), new SafeInvoker(filterAndInvoker.invoker())));
     }
 
-    private static void validateFilter(Filter filter, boolean isResponseFilter, boolean isRequestFilter, boolean isAnySpecificFilterInterface,
-                                       boolean isCompositeFilter) {
-        if (isAnySpecificFilterInterface && isCompositeFilter) {
-            throw unsupportedFilterInstance(filter, "Cannot mix specific message filter interfaces and CompositeFilter interfaces");
-        }
-        if ((isRequestFilter || isResponseFilter) && isCompositeFilter) {
-            throw unsupportedFilterInstance(filter, "Cannot mix [RequestFilter|ResponseFilter] interfaces and CompositeFilter interfaces");
-        }
+    private static void validateFilter(Filter filter, boolean isResponseFilter, boolean isRequestFilter, boolean isAnySpecificFilterInterface) {
         if (isAnySpecificFilterInterface && (isRequestFilter || isResponseFilter)) {
             throw unsupportedFilterInstance(filter, "Cannot mix specific message filter interfaces and [RequestFilter|ResponseFilter] interfaces");
         }
-        if (!isRequestFilter && !isResponseFilter && !isAnySpecificFilterInterface && !isCompositeFilter) {
+        if (!isRequestFilter && !isResponseFilter && !isAnySpecificFilterInterface) {
             throw unsupportedFilterInstance(filter,
-                    "Filter must implement ResponseFilter, RequestFilter, CompositeFilter or any combination of specific message Filter interfaces");
+                    "Filter must implement ResponseFilter, RequestFilter or any combination of specific message Filter interfaces");
         }
     }
 

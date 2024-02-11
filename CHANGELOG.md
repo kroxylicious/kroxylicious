@@ -4,6 +4,7 @@ Please enumerate **all user-facing** changes using format `<githib issue/pr numb
 
 ## 0.5.0
 
+* [#973](https://github.com/kroxylicious/kroxylicious/pull/973): Remove deprecated CompositeFilter and it's documentation
 * [#935](https://github.com/kroxylicious/kroxylicious/pull/935): Enable user to configure alternative source of keys for vault KMS client
 * [#787](https://github.com/kroxylicious/kroxylicious/issues/787): Initial documentation for the envelope-encryption feature.
 * [#940](https://github.com/kroxylicious/kroxylicious/issues/940): Support vault namespaces and support secrets transit engine at locations other than /transit
@@ -28,6 +29,7 @@ Please enumerate **all user-facing** changes using format `<githib issue/pr numb
 * The configuration for VaultKMS service has changed.  Instead of the `vaultUrl` config key, the provider now
   requires `vaultTransitEngineUrl`.  This must provide the complete path to the Transit Engine on the
   HashiCorp Vault instance (e.g. https://myvault:8200/v1/transit or https://myvault:8200/v1/mynamespace/transit).  
+* The deprecated CompositeFilter interface has been removed.
 
 ## 0.4.1
 
