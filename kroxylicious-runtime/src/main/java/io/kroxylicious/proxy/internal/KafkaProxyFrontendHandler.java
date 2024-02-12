@@ -328,7 +328,7 @@ public class KafkaProxyFrontendHandler
                 Throwable failureCause = future.cause();
                 LOGGER.atWarn()
                         .setCause(LOGGER.isDebugEnabled() ? failureCause : null)
-                        .log("Connection to target cluster on {} failed, closing inbound channel: {}. Increase log level to DEBUG for stacktrace", remote,
+                        .log("Connection to target cluster on {} failed with: {}, closing inbound channel. Increase log level to DEBUG for stacktrace", remote,
                                 failureCause.getMessage());
                 inboundChannel.close();
             }
