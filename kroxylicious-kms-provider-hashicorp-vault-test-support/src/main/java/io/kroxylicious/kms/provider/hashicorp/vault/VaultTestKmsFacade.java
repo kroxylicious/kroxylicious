@@ -12,6 +12,8 @@ import java.io.UncheckedIOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
+import java.net.http.HttpRequest.BodyPublisher;
+import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse;
 import java.util.Objects;
 import java.util.Set;
@@ -67,10 +69,7 @@ public class VaultTestKmsFacade extends AbstractVaultTestKmsFacade {
 
         var body = getBody(engine);
 
-        var request = createVaultRequest()
-                .uri(getVaultUrl().resolve("v1/sys/mounts/transit"))
-                .POST(HttpRequest.BodyPublishers.ofString(body))
-                .build();
+        var request = createVaultPost("v1/sys/mounts/transit", BodyPublishers.ofString(body));
 
         sendRequestExpectingNoContentResponse(request);
     }
@@ -80,10 +79,7 @@ public class VaultTestKmsFacade extends AbstractVaultTestKmsFacade {
         Objects.requireNonNull(policyName);
         Objects.requireNonNull(policyStream);
         var createPolicy = getBody(CreatePolicyRequest.fromInputStream(policyStream));
-        var request = createVaultRequest()
-                .uri(getVaultUrl().resolve("v1/sys/policy/%s".formatted(encode(policyName, UTF_8))))
-                .POST(HttpRequest.BodyPublishers.ofString(createPolicy))
-                .build();
+        var request = createVaultPost("v1/sys/policy/%s".formatted(encode(policyName, UTF_8)), BodyPublishers.ofString(createPolicy));
 
         sendRequestExpectingNoContentResponse(request);
     }
@@ -95,10 +91,7 @@ public class VaultTestKmsFacade extends AbstractVaultTestKmsFacade {
 
         String body = getBody(token);
 
-        var request = createVaultRequest()
-                .uri(getVaultUrl().resolve("v1/auth/token/create-orphan"))
-                .POST(HttpRequest.BodyPublishers.ofString(body))
-                .build();
+        var request = createVaultPost("v1/auth/token/create-orphan", BodyPublishers.ofString(body));
 
         return sendRequest(request, new JsonBodyHandler<CreateTokenResponse>(new TypeReference<>() {
         })).auth().clientToken();
@@ -153,36 +146,39 @@ public class VaultTestKmsFacade extends AbstractVaultTestKmsFacade {
 
         private VaultResponse.ReadKeyData create(String keyId) {
 
-            var request = createVaultRequest()
-                    .uri(getVaultTransitEngineUrl().resolve("keys/%s".formatted(encode(keyId, UTF_8))))
-                    .POST(HttpRequest.BodyPublishers.noBody())
-                    .build();
+            var request = createVaultPost("v1/transit/keys/%s".formatted(encode(keyId, UTF_8)), BodyPublishers.noBody());
 
             return sendRequest(request, statusHandler(keyId, request, new JsonBodyHandler<VaultResponse<VaultResponse.ReadKeyData>>(new TypeReference<>() {
             }))).data();
         }
 
         private VaultResponse.ReadKeyData read(String keyId) {
-            var request = createVaultRequest()
-                    .uri(getVaultTransitEngineUrl().resolve("keys/%s".formatted(encode(keyId, UTF_8))))
-                    .GET()
-                    .build();
+            var request = createVaultGet("v1/transit/keys/%s".formatted(encode(keyId, UTF_8)));
 
             return sendRequest(request, statusHandler(keyId, request, new JsonBodyHandler<VaultResponse<VaultResponse.ReadKeyData>>(new TypeReference<>() {
             }))).data();
         }
 
         private VaultResponse.ReadKeyData rotate(String keyId) {
-
-            var request = createVaultRequest()
-                    .uri(getVaultTransitEngineUrl().resolve("keys/%s/rotate".formatted(encode(keyId, UTF_8))))
-                    .POST(HttpRequest.BodyPublishers.noBody())
-                    .build();
-
+            var request = createVaultPost("v1/transit/keys/%s/rotate".formatted(encode(keyId, UTF_8)), BodyPublishers.noBody());
             return sendRequest(request, statusHandler(keyId, request, new JsonBodyHandler<VaultResponse<VaultResponse.ReadKeyData>>(new TypeReference<>() {
             }))).data();
         }
 
+    }
+
+    private HttpRequest createVaultGet(String path) {
+        return createVaultRequest()
+                .uri(getVaultUrl().resolve(path))
+                .GET()
+                .build();
+    }
+
+    private HttpRequest createVaultPost(String path, BodyPublisher bodyPublisher) {
+        URI resolve = getVaultUrl().resolve(path);
+        return createVaultRequest()
+                .uri(resolve)
+                .POST(bodyPublisher).build();
     }
 
     private HttpRequest.Builder createVaultRequest() {
