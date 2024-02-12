@@ -138,7 +138,29 @@ KROXYLICIOUS_CLASSPATH="/path/to/any.jar:/path/to/libs/dir/*" kroxylicious-app/t
 ```
 
 ### Debugging
-Logging is turned off by default for better performance. In case you want to debug, logging should be turned on in the `example-proxy-config.yaml` file:
+Build with the `dist` profile as shown above.
+
+To start in debug mode, listening on port `5005`:
+```
+JAVA_ENABLE_DEBUG=true kroxylicious-app/target/kroxylicious-app-*-bin/kroxylicious-app-*/bin/kroxylicious-start.sh -c kroxylicious-app/example-proxy-config.yaml
+```
+To suspend until debugger attaches:
+```
+JAVA_ENABLE_DEBUG=true JAVA_DEBUG_SUSPEND=true  kroxylicious-app/target/kroxylicious-app-*-bin/kroxylicious-app-*/bin/kroxylicious-start.sh -c kroxylicious-app/example-proxy-config.yaml
+```
+To change the debug port
+```
+JAVA_ENABLE_DEBUG=true JAVA_DEBUG_PORT=1234  kroxylicious-app/target/kroxylicious-app-*-bin/kroxylicious-app-*/bin/kroxylicious-start.sh -c kroxylicious-app/example-proxy-config.yaml
+```
+To change the root logger level
+```
+KROXYLICIOUS_ROOT_LOG_LEVEL=DEBUG kroxylicious-app/target/kroxylicious-app-*-bin/kroxylicious-app-*/bin/kroxylicious-start.sh -c kroxylicious-app/example-proxy-config.yaml
+```
+To customise the log4j2 config file edit:
+```
+vim kroxylicious-app/target/kroxylicious-app-*-bin/kroxylicious-app-*/config/log4j2.yaml
+```
+Low level network and frame logging is turned off by default for better performance. In case you want to debug, logging should be turned on in the `example-proxy-config.yaml` file:
 ```yaml
   logNetwork: true
   logFrames: true
