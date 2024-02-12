@@ -120,15 +120,15 @@ public class KubeVaultTestKmsFacade extends AbstractVaultTestKmsFacade {
                 .orElseThrow(() -> new IllegalArgumentException("unable to find client_token"));
     }
 
-    @Override
-    public TestKekManager getTestKekManager() {
-        return new VaultTestKekManager();
-    }
-
     @NonNull
     @Override
     protected URI getVaultUrl() {
         return URI.create("http://" + vault.getVaultUrl());
+    }
+
+    @Override
+    public TestKekManager getTestKekManager() {
+        return new VaultTestKekManager();
     }
 
     private class VaultTestKekManager implements TestKekManager {

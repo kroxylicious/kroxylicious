@@ -76,6 +76,19 @@ public class VaultTestKmsFacade extends AbstractVaultTestKmsFacade {
     }
 
     @Override
+    protected void createPolicy(String policyName, InputStream policyStream) {
+        Objects.requireNonNull(policyName);
+        Objects.requireNonNull(policyStream);
+        var createPolicy = getBody(CreatePolicyRequest.fromInputStream(policyStream));
+        var request = createVaultRequest()
+                .uri(getVaultUrl().resolve("v1/sys/policy/%s".formatted(encode(policyName, UTF_8))))
+                .POST(HttpRequest.BodyPublishers.ofString(createPolicy))
+                .build();
+
+        sendRequestExpectingNoContentResponse(request);
+    }
+
+    @Override
     protected String createOrphanToken(String description, boolean noDefaultPolicy, Set<String> policies) {
 
         var token = new CreateTokenRequest(description, noDefaultPolicy, policies);
@@ -89,28 +102,6 @@ public class VaultTestKmsFacade extends AbstractVaultTestKmsFacade {
 
         return sendRequest(request, new JsonBodyHandler<CreateTokenResponse>(new TypeReference<>() {
         })).auth().clientToken();
-    }
-
-    @Override
-    protected void createPolicy(String policyName, InputStream policyStream) {
-        Objects.requireNonNull(policyName);
-        Objects.requireNonNull(policyStream);
-        var createPolicy = getBody(CreatePolicyRequest.fromInputStream(policyStream));
-        var request = createVaultRequest()
-                .uri(getVaultUrl().resolve("v1/sys/policy/%s".formatted(encode(policyName, UTF_8))))
-                .POST(HttpRequest.BodyPublishers.ofString(createPolicy))
-                .build();
-
-        sendRequestExpectingNoContentResponse(request);
-    }
-
-    private String getBody(Object token) {
-        try {
-            return OBJECT_MAPPER.writeValueAsString(token);
-        }
-        catch (JsonProcessingException e) {
-            throw new UncheckedIOException("Failed to create request body", e);
-        }
     }
 
     @Override
@@ -231,6 +222,15 @@ public class VaultTestKmsFacade extends AbstractVaultTestKmsFacade {
         catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new IllegalStateException(e);
+        }
+    }
+
+    private String getBody(Object obj) {
+        try {
+            return OBJECT_MAPPER.writeValueAsString(obj);
+        }
+        catch (JsonProcessingException e) {
+            throw new UncheckedIOException("Failed to create request body", e);
         }
     }
 

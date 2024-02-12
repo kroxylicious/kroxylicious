@@ -57,6 +57,9 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
 
     protected abstract String createOrphanToken(String description, boolean noDefaultPolicy, Set<String> policies);
 
+    @NonNull
+    protected abstract URI getVaultUrl();
+
     @Override
     public final Config getKmsServiceConfig() {
         return new Config(getVaultTransitEngineUrl(), kmsVaultToken, null);
@@ -76,8 +79,5 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
     protected final URI getVaultTransitEngineUrl() {
         return getVaultUrl().resolve("v1/transit/");
     }
-
-    @NonNull
-    protected abstract URI getVaultUrl();
 
 }
