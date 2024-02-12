@@ -71,3 +71,14 @@ jobs:
         with:
          name: PR_NUMBER
          path: PR_NUMBER.txt
+      - name: shellcheck
+        uses: reviewdog/action-shellcheck@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          reporter: github-pr-review # Change reporter.
+          path: "." # Optional.
+          pattern: "*.sh" # Optional.
+          exclude: |
+            "./.git/*" 
+            "**/target"
+          check_all_files_with_shebangs: "false" # Optional.
