@@ -63,7 +63,7 @@ public class VaultTestKmsFacade extends AbstractVaultTestKmsFacade {
     @Override
     protected void enableTransit() {
 
-        var engine = new EnableEngine("transit");
+        var engine = new EnableEngineRequest("transit");
 
         var body = getBody(engine);
 
@@ -95,7 +95,7 @@ public class VaultTestKmsFacade extends AbstractVaultTestKmsFacade {
     protected void createPolicy(String policyName, InputStream policyStream) {
         Objects.requireNonNull(policyName);
         Objects.requireNonNull(policyStream);
-        var createPolicy = getBody(CreatePolicy.fromInputStream(policyStream));
+        var createPolicy = getBody(CreatePolicyRequest.fromInputStream(policyStream));
         var request = createVaultRequest()
                 .uri(getVaultUrl().resolve("v1/sys/policy/%s".formatted(encode(policyName, UTF_8))))
                 .POST(HttpRequest.BodyPublishers.ofString(createPolicy))

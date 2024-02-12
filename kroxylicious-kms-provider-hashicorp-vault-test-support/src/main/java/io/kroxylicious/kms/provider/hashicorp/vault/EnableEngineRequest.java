@@ -6,4 +6,4 @@
 
 package io.kroxylicious.kms.provider.hashicorp.vault;
 
-record EnableEngine(String type) {}
+record EnableEngineRequest(String type) {}

@@ -12,12 +12,12 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 
-record CreatePolicy(String policy) {
+record CreatePolicyRequest(String policy) {
 
-    static CreatePolicy fromInputStream(InputStream is) {
+    static CreatePolicyRequest fromInputStream(InputStream is) {
         Objects.requireNonNull(is);
         try {
-            return new CreatePolicy(new String(is.readAllBytes(), StandardCharsets.UTF_8));
+            return new CreatePolicyRequest(new String(is.readAllBytes(), StandardCharsets.UTF_8));
         }
         catch (IOException e) {
             throw new UncheckedIOException("Failed to create a CreatePolicy", e);
