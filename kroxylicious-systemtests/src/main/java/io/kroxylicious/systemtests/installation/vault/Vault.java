@@ -12,6 +12,8 @@ import java.io.UncheckedIOException;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Map;
+import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -96,7 +98,9 @@ public class Vault {
         }
 
         ResourceManager.helmClient().addRepository(VAULT_HELM_REPOSITORY_NAME, VAULT_HELM_REPOSITORY_URL);
-        ResourceManager.helmClient().namespace(deploymentNamespace).install(VAULT_HELM_CHART_NAME, VAULT_SERVICE_NAME, vaultRootToken, "latest", getHelmOverridePath());
+        ResourceManager.helmClient().namespace(deploymentNamespace).install(VAULT_HELM_CHART_NAME, VAULT_SERVICE_NAME, Optional.empty(),
+                Optional.of(getHelmOverridePath()),
+                Optional.of(Map.of("server.dev.devRootToken", vaultRootToken)));
 
         DeploymentUtils.waitForDeploymentRunning(deploymentNamespace, VAULT_POD_NAME, Duration.ofMinutes(1));
     }
