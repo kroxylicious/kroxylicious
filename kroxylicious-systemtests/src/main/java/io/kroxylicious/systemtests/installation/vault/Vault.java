@@ -18,6 +18,8 @@ import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.fabric8.kubernetes.api.model.ServicePort;
+
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
@@ -133,18 +135,20 @@ public class Vault {
     }
 
     /**
-     * Gets bootstrap.
+     * Gets the vault url.
      *
-     * @return the bootstrap
+     * @return the vault url.
      */
     public String getVaultUrl() {
-        String clusterIP = kubeClient().getService(deploymentNamespace, VAULT_SERVICE_NAME).getSpec().getClusterIP();
+        var spec = kubeClient().getService(deploymentNamespace, VAULT_SERVICE_NAME).getSpec();
+        String clusterIP = spec.getClusterIP();
         if (clusterIP == null || clusterIP.isEmpty()) {
             throw new KubeClusterException("Unable to get the clusterIP of Vault");
         }
-        int port = kubeClient().getService(deploymentNamespace, VAULT_SERVICE_NAME).getSpec().getPorts().get(0).getPort();
+        int port = spec.getPorts().stream().map(ServicePort::getPort).findFirst()
+                .orElseThrow(() -> new KubeClusterException("Unable to get the service port of Vault"));
         String bootstrap = clusterIP + ":" + port;
-        LOGGER.debug("Vault bootstrap: {}", bootstrap);
+        LOGGER.debug("Vault URL: {}", bootstrap);
         return bootstrap;
     }
 
