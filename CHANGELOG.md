@@ -4,6 +4,8 @@ Please enumerate **all user-facing** changes using format `<githib issue/pr numb
 
 ## 0.5.0
 
+
+* [#782](https://github.com/kroxylicious/kroxylicious/issues/782): Securely handle the HashiCorp Vault Token in Kroxylicious configuration
 * [#973](https://github.com/kroxylicious/kroxylicious/pull/973): Remove deprecated CompositeFilter and it's documentation
 * [#935](https://github.com/kroxylicious/kroxylicious/pull/935): Enable user to configure alternative source of keys for vault KMS client
 * [#787](https://github.com/kroxylicious/kroxylicious/issues/787): Initial documentation for the envelope-encryption feature.
@@ -26,9 +28,13 @@ Please enumerate **all user-facing** changes using format `<githib issue/pr numb
   adjust your dependencies as your adopt this release.
 * `io.kroxylicious:kroxylicious-filter-test-support` now contains RecordTestUtils for creating example `Record`, `RecordBatch` and `MemoryRecords`. It also contains 
   assertj assertions for those same classes to enable us to write fluent assertions, accessible via `io.kroxylicious.test.assertj.KafkaAssertions`.
-* The configuration for VaultKMS service has changed.  Instead of the `vaultUrl` config key, the provider now
-  requires `vaultTransitEngineUrl`.  This must provide the complete path to the Transit Engine on the
-  HashiCorp Vault instance (e.g. https://myvault:8200/v1/transit or https://myvault:8200/v1/mynamespace/transit).  
+* The configuration for VaultKMS service has changed.
+  * Instead of the `vaultUrl` config key, the provider now requires `vaultTransitEngineUrl`.  This must provide the
+    complete path to the Transit Engine on the HashiCorp Vault instance (e.g. https://myvault:8200/v1/transit or
+    https://myvault:8200/v1/mynamespace/transit).
+  * The `vaultToken` field now requires a `PasswordProvider` object rather than inline text value.   You may pass the
+    token from a file (filename specified by a `passwordFile` field) or inline (`password` field).  The latter is not
+    recommended in production environments.
 * The deprecated CompositeFilter interface has been removed.
 
 ## 0.4.1

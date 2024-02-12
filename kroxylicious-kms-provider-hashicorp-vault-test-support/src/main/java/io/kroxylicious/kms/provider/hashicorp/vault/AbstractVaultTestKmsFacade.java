@@ -14,6 +14,7 @@ import java.util.Set;
 
 import io.kroxylicious.kms.provider.hashicorp.vault.config.Config;
 import io.kroxylicious.kms.service.TestKmsFacade;
+import io.kroxylicious.proxy.config.tls.InlinePassword;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -62,7 +63,7 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
 
     @Override
     public final Config getKmsServiceConfig() {
-        return new Config(getVaultTransitEngineUrl(), kmsVaultToken, null);
+        return new Config(getVaultTransitEngineUrl(), new InlinePassword(kmsVaultToken), null);
     }
 
     @Override

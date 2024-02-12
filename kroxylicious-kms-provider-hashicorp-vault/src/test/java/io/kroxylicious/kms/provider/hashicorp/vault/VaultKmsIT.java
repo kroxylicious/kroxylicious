@@ -21,6 +21,7 @@ import io.kroxylicious.kms.provider.hashicorp.vault.config.Config;
 import io.kroxylicious.kms.service.DekPair;
 import io.kroxylicious.kms.service.UnknownAliasException;
 import io.kroxylicious.kms.service.UnknownKeyException;
+import io.kroxylicious.proxy.config.tls.InlinePassword;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThat;
@@ -42,7 +43,7 @@ class VaultKmsIT {
     void beforeEach() {
         assumeThat(DockerClientFactory.instance().isDockerAvailable()).withFailMessage("docker unavailable").isTrue();
         vaultContainer = TestVault.start();
-        var config = new Config(vaultContainer.getEndpoint(), vaultContainer.rootToken(), null);
+        var config = new Config(vaultContainer.getEndpoint(), new InlinePassword(vaultContainer.rootToken()), null);
         service = new VaultKmsService().buildKms(config);
     }
 

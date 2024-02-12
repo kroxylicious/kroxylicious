@@ -156,7 +156,7 @@ class VaultKmsTlsIT {
 
     @NonNull
     private static Config vaultConfig(Tls tls, URI endpoint) {
-        return new Config(endpoint, VAULT_TOKEN, tls);
+        return new Config(endpoint, new InlinePassword(VAULT_TOKEN), tls);
     }
 
     @NonNull

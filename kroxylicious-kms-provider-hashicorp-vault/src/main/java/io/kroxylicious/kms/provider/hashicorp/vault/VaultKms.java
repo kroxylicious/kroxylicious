@@ -44,11 +44,6 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
  * An implementation of the KMS interface backed by a remote instance of HashiCorp Vault (v1).
- * <br/>
- * <h2>TODO</h2>
- * <ul>
- *    <li>Securely pass vault token</li>
- * </ul>
  */
 public class VaultKms implements Kms<String, VaultEdek> {
 
