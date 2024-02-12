@@ -45,7 +45,9 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
         catch (IOException e) {
             throw new UncheckedIOException("Failed to create policy", e);
         }
-        // create least-privilege vault token that KMS will use
+        // create least-privilege vault token that KMS will use. The decision to use orphan tokens
+        // (https://developer.hashicorp.com/vault/docs/concepts/tokens#token-hierarchies-and-orphan-tokens)
+        // but no functional impact. A child token would work too.
         kmsVaultToken = createOrphanToken("kroxylicious_encryption_filter", true, Set.of(policyName));
     }
 
