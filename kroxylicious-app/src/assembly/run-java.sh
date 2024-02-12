@@ -599,4 +599,5 @@ elif [ "${first_arg}" = "run" ]; then
   # as first argument to your
   shift
 fi
+SUBSHELL=$(echo "wibble")
 run "$@"
