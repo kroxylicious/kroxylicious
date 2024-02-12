@@ -20,7 +20,7 @@ on:
   push:
     branches: [ main ]
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [ opened, synchronize, reopened ]
 
 jobs:
   build:
@@ -69,15 +69,31 @@ jobs:
         if: github.event_name == 'pull_request' && ${{ matrix.os }} == 'ubuntu-latest'
         uses: actions/upload-artifact@v3
         with:
-         name: PR_NUMBER
-         path: PR_NUMBER.txt
-      - name: shellcheck
+          name: PR_NUMBER
+          path: PR_NUMBER.txt
+      # Run shellcheck once to capture all warnings
+      - name: shellcheck - Warnings
         uses: reviewdog/action-shellcheck@v1
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           reporter: github-pr-review # Change reporter.
           path: "." # Optional.
           pattern: "*.sh" # Optional.
+          level: "warning"
+          exclude: |
+            "./.git/*" 
+            "**/target"
+          check_all_files_with_shebangs: "false" # Optional.
+      # Run shellcheck *again to fail the build if errors are introduced
+      - name: shellcheck - errors
+        uses: reviewdog/action-shellcheck@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          reporter: github-pr-review # Change reporter.
+          path: "." # Optional.
+          pattern: "*.sh" # Optional.
+          level: "error"
+          fail_on_error: "true"
           exclude: |
             "./.git/*" 
             "**/target"
