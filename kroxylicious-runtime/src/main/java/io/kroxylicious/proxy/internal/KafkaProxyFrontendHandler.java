@@ -325,7 +325,11 @@ public class KafkaProxyFrontendHandler
             else {
                 state = State.FAILED;
                 // Close the connection if the connection attempt has failed.
-                LOGGER.trace("Outbound connect error, closing inbound channel", future.cause());
+                Throwable failureCause = future.cause();
+                LOGGER.atWarn()
+                        .setCause(LOGGER.isDebugEnabled() ? failureCause : null)
+                        .log("Connection to target cluster on {} failed, closing inbound channel: {}. Increase log level to DEBUG for stacktrace", remote,
+                                failureCause.getMessage());
                 inboundChannel.close();
             }
         });
