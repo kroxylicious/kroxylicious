@@ -48,6 +48,11 @@ public class KubeClusterException extends RuntimeException {
         this.result = null;
     }
 
+    public KubeClusterException(String message, Throwable cause) {
+        super(message, cause);
+        this.result = null;
+    }
+
     /**
      * The type Not found.
      */

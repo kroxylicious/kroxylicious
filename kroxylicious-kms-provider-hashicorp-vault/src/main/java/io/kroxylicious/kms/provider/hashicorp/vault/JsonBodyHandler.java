@@ -41,7 +41,6 @@ class JsonBodyHandler<T> implements BodyHandler<Supplier<T>> {
                 inputStream -> () -> {
                     try (var stream = inputStream) {
                         return OBJECT_MAPPER.readValue(stream, typeRef);
-
                     }
                     catch (IOException e) {
                         throw new UncheckedIOException(e);

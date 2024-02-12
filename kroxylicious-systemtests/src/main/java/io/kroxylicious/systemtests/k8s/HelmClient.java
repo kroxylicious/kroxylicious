@@ -6,11 +6,11 @@
 
 package io.kroxylicious.systemtests.k8s;
 
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -19,10 +19,13 @@ import io.kroxylicious.systemtests.executor.Exec;
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
 
 import static java.util.Arrays.asList;
+import static java.util.function.Predicate.not;
+import static java.util.stream.Collectors.joining;
 
 /**
  * The type Helm client.
  */
+@SuppressWarnings("OptionalUsedAsFieldOrParameterType")
 public class HelmClient {
     private static final Logger LOGGER = LogManager.getLogger(HelmClient.class);
 
@@ -30,8 +33,7 @@ public class HelmClient {
     private static final String HELM_3_CMD = "helm3";
     private static final String INSTALL_TIMEOUT_SECONDS = "120s";
     private static String helmCommand;
-    private Optional<String> namespace;
-    private Optional<String> version;
+    private Optional<String> namespace = Optional.empty();
 
     public HelmClient() {
         if (!clientAvailable()) {
@@ -63,29 +65,32 @@ public class HelmClient {
      * @return the helm client
      */
     public HelmClient namespace(String namespace) {
-        this.namespace = namespace.describeConstable();
+        this.namespace = Optional.of(namespace);
         return this;
     }
 
-    /** Install a chart given its name, release name, version and values to override
+    /**
+     * Install a chart given its name, release name, version and values to override
+     *
      * @param chartName the chart name
      * @param releaseName the release name
      * @param version the version
-     * @param valuesMap the values to be overridden in the chart, set as key,value
+     * @param overrideFile helm override file
+     * @param overrideMap addition
      * @return the helm client
      */
-    public HelmClient install(String chartName, String releaseName, String version, Map<String, String> valuesMap) {
+    public HelmClient install(String chartName, String releaseName, Optional<String> version, Optional<Path> overrideFile, Optional<Map<String, String>> overrideMap) {
         LOGGER.info("Installing helm-chart {}", releaseName);
-        String values = valuesMap.entrySet().stream()
-                .map(entry -> String.format("%s=%s", entry.getKey(), entry.getValue()))
-                .collect(Collectors.joining(","));
-        this.version = Optional.ofNullable(version);
-        Exec.exec(null, wait(namespace(version(command("install",
-                releaseName,
-                "--set", values,
-                "--timeout", INSTALL_TIMEOUT_SECONDS,
-                "--debug",
-                chartName)))), 0, true);
+        var cmd = new ArrayList<String>();
+        cmd.add(helmCommand);
+        cmd.addAll(List.of("install", releaseName, "--timeout", INSTALL_TIMEOUT_SECONDS, "--debug", chartName));
+
+        version.ifPresent(v -> cmd.addAll(List.of("--version", v)));
+        namespace.ifPresent(n -> cmd.addAll(List.of("--namespace", n)));
+        overrideFile.map(Path::toString).ifPresent(v -> cmd.addAll(List.of("--values", v)));
+        overrideMap.filter(not(Map::isEmpty)).ifPresent(m -> cmd.addAll(List.of("--set", mapToValuesParameterArgument(m))));
+
+        Exec.exec(null, wait(cmd), 0, true);
         return this;
     }
 
@@ -133,22 +138,18 @@ public class HelmClient {
         return result;
     }
 
-    private List<String> version(List<String> args) {
-        List<String> result = new ArrayList<>(args);
-        version.filter(v -> !v.equals("latest")).ifPresent(v -> result.addAll(List.of("--version", v)));
-        return result;
-    }
-
-    /** Sets namespace for client */
-    private List<String> namespace(List<String> args) {
-        List<String> result = new ArrayList<>(args);
-        namespace.ifPresent(n -> result.addAll(List.of("--namespace", n)));
-        return result;
-    }
-
     private List<String> wait(List<String> args) {
         List<String> result = new ArrayList<>(args);
         result.add("--wait");
         return result;
+    }
+
+    private String mapToValuesParameterArgument(Map<String, String> m) {
+        return m.entrySet().stream().map(HelmClient::concatEntry)
+                .collect(joining(","));
+    }
+
+    private static String concatEntry(Map.Entry<String, String> entry) {
+        return String.format("%s=%s", entry.getKey(), entry.getValue());
     }
 }

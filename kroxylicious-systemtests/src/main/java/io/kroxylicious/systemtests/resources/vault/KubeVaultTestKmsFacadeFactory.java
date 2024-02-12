@@ -6,14 +6,13 @@
 
 package io.kroxylicious.systemtests.resources.vault;
 
-import io.kroxylicious.kms.provider.hashicorp.vault.config.Config;
-import io.kroxylicious.kms.service.TestKmsFacade;
-import io.kroxylicious.kms.service.TestKmsFacadeFactory;
+import io.kroxylicious.kms.provider.hashicorp.vault.AbstractVaultTestKmsFacade;
+import io.kroxylicious.kms.provider.hashicorp.vault.AbstractVaultTestKmsFacadeFactory;
 
 /**
  * Factory for {@link KubeVaultTestKmsFacade}s.
  */
-public class KubeVaultTestKmsFacadeFactory implements TestKmsFacadeFactory<Config, String, VaultEdek> {
+public class KubeVaultTestKmsFacadeFactory extends AbstractVaultTestKmsFacadeFactory {
 
     public KubeVaultTestKmsFacade build(String namespace, String podName) {
         return new KubeVaultTestKmsFacade(namespace, podName);
@@ -23,7 +22,7 @@ public class KubeVaultTestKmsFacadeFactory implements TestKmsFacadeFactory<Confi
      * {@inheritDoc}
      */
     @Override
-    public TestKmsFacade<Config, String, VaultEdek> build() {
+    public AbstractVaultTestKmsFacade build() {
         throw new UnsupportedOperationException();
     }
 }
