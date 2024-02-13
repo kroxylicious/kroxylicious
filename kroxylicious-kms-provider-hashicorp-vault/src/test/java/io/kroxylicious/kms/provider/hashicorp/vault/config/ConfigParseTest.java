@@ -8,6 +8,7 @@ package io.kroxylicious.kms.provider.hashicorp.vault.config;
 
 import java.io.IOException;
 import java.net.URI;
+import java.nio.file.Files;
 
 import javax.net.ssl.SSLContext;
 
@@ -18,33 +19,56 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.exc.MismatchedInputException;
 import com.fasterxml.jackson.databind.exc.ValueInstantiationException;
 
+import io.kroxylicious.proxy.config.secret.InlinePassword;
 import io.kroxylicious.proxy.config.tls.InsecureTls;
 import io.kroxylicious.proxy.config.tls.Tls;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class ConfigParseTest {
-    ObjectMapper mapper = new ObjectMapper();
+    private final ObjectMapper MAPPER = new ObjectMapper();
 
     @Test
-    void testVaultUrlAndToken() throws IOException {
+    void vaultUrlAndInlineToken() throws IOException {
         String json = """
                 {
                     "vaultTransitEngineUrl": "http://vault",
-                    "vaultToken": "token"
+                    "vaultToken": { "password" : "token" }
                 }
                 """;
         Config config = readConfig(json);
-        assertThat(config.vaultToken()).isEqualTo("token");
+        assertThat(config.vaultToken().getProvidedPassword()).isEqualTo("token");
         assertThat(config.vaultTransitEngineUrl()).isEqualTo(URI.create("http://vault"));
     }
 
     @Test
-    void testVaultUrlRequired() {
+    void tokenFromPasswordFile() throws IOException {
+        var tmp = Files.createTempFile("password", "txt");
+        tmp.toFile().deleteOnExit();
+        Files.writeString(tmp, "token");
+
+        try {
+            String json = """
+                    {
+                        "vaultTransitEngineUrl": "http://vault",
+                        "vaultToken": { "passwordFile" : "%s" }
+                    }
+                    """.formatted(tmp);
+            Config config = readConfig(json);
+            assertThat(config.vaultToken().getProvidedPassword()).isEqualTo("token");
+            assertThat(config.vaultTransitEngineUrl()).isEqualTo(URI.create("http://vault"));
+        }
+        finally {
+            var unused = tmp.toFile().delete();
+        }
+    }
+
+    @Test
+    void vaultUrlRequired() {
         Assertions.assertThatThrownBy(() -> {
             String json = """
                     {
-                        "vaultToken": "token"
+                        "vaultToken": { "password" : "token" }
                     }
                     """;
             readConfig(json);
@@ -52,12 +76,12 @@ class ConfigParseTest {
     }
 
     @Test
-    void testVaultUrlShouldNotBeNull() {
+    void vaultUrlShouldNotBeNull() {
         Assertions.assertThatThrownBy(() -> {
             String json = """
                     {
                         "vaultTransitEngineUrl": null,
-                        "vaultToken": "token"
+                        "vaultToken": { "password" : "token" }
                     }
                     """;
             readConfig(json);
@@ -65,7 +89,7 @@ class ConfigParseTest {
     }
 
     @Test
-    void testVaultTokenRequired() {
+    void vaultTokenRequired() {
         Assertions.assertThatThrownBy(() -> {
             String json = """
                     {
@@ -77,7 +101,7 @@ class ConfigParseTest {
     }
 
     @Test
-    void testVaultTokenShouldNotBeNull() {
+    void vaultTokenShouldNotBeNull() {
         Assertions.assertThatThrownBy(() -> {
             String json = """
                     {
@@ -90,11 +114,11 @@ class ConfigParseTest {
     }
 
     @Test
-    void testEmptyTls() throws Exception {
+    void emptyTls() throws Exception {
         String json = """
                 {
                     "vaultTransitEngineUrl": "https://vault",
-                    "vaultToken": "token",
+                    "vaultToken": { "password" : "token" },
                     "tls": {}
                 }
                 """;
@@ -105,11 +129,11 @@ class ConfigParseTest {
     }
 
     @Test
-    void testMissingTls() throws Exception {
+    void missingTls() throws Exception {
         String json = """
                 {
                     "vaultTransitEngineUrl": "https://vault",
-                    "vaultToken": "token"
+                    "vaultToken": { "password" : "token" }
                 }
                 """;
         Config config = readConfig(json);
@@ -123,7 +147,7 @@ class ConfigParseTest {
         String json = """
                 {
                     "vaultTransitEngineUrl": "https://vault",
-                    "vaultToken": "token",
+                    "vaultToken": { "password" : "token" },
                     "tls": {
                         "trust": {
                             "insecure": true
@@ -132,12 +156,12 @@ class ConfigParseTest {
                 }
                 """;
         Config config = readConfig(json);
-        Config expected = new Config(URI.create("https://vault"), "token", new Tls(null, new InsecureTls(true)));
+        Config expected = new Config(URI.create("https://vault"), new InlinePassword("token"), new Tls(null, new InsecureTls(true)));
         assertThat(config).isEqualTo(expected);
     }
 
     private Config readConfig(String json) throws IOException {
-        return mapper.reader().readValue(json, Config.class);
+        return MAPPER.reader().readValue(json, Config.class);
     }
 
 }

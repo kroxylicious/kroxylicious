@@ -35,7 +35,8 @@ data:
         kms: VaultKmsService
         kmsConfig:
           vaultTransitEngineUrl: http://vault.vault.svc.cluster.local:8200/v1/transit
-          vaultToken: myroottoken
+          vaultToken:
+            password: myroottoken
         selector: TemplateKekSelector
         selectorConfig:
           template: "${topicName}"

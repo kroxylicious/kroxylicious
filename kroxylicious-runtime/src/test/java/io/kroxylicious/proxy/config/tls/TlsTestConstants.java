@@ -6,6 +6,11 @@
 
 package io.kroxylicious.proxy.config.tls;
 
+import io.kroxylicious.proxy.config.secret.FilePassword;
+import io.kroxylicious.proxy.config.secret.FilePasswordFilePath;
+import io.kroxylicious.proxy.config.secret.InlinePassword;
+import io.kroxylicious.proxy.config.secret.PasswordProvider;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class TlsTestConstants {

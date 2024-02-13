@@ -23,7 +23,7 @@ public class VaultKmsService implements KmsService<Config, String, VaultEdek> {
     @NonNull
     @Override
     public VaultKms buildKms(Config options) {
-        return new VaultKms(options.vaultTransitEngineUrl(), options.vaultToken(), Duration.ofSeconds(20), options.sslContext());
+        return new VaultKms(options.vaultTransitEngineUrl(), options.vaultToken().getProvidedPassword(), Duration.ofSeconds(20), options.sslContext());
     }
 
 }

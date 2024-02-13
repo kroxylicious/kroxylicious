@@ -14,7 +14,10 @@ import io.kroxylicious.systemtests.Constants;
 /**
  * The type Kroxylicious config templates.
  */
-public class KroxyliciousConfigMapTemplates {
+public final class KroxyliciousConfigMapTemplates {
+
+    private KroxyliciousConfigMapTemplates() {
+    }
 
     private static ConfigMapBuilder baseKroxyliciousConfig(String namespaceName) {
         return new ConfigMapBuilder()
@@ -73,7 +76,8 @@ public class KroxyliciousConfigMapTemplates {
                     kms: VaultKmsService
                     kmsConfig:
                       vaultTransitEngineUrl: %VAULT_TRANSIT_ENGINE_URL%
-                      vaultToken: %VAULT_TOKEN%
+                      vaultToken:
+                        password: %VAULT_TOKEN%
                     selector: TemplateKekSelector
                     selectorConfig:
                       template: "${topicName}"
@@ -81,7 +85,7 @@ public class KroxyliciousConfigMapTemplates {
                 .replace("%NAMESPACE%", Constants.KAFKA_DEFAULT_NAMESPACE)
                 .replace("%CLUSTER_NAME%", clusterName)
                 .replace("%KROXY_SERVICE_NAME%", Constants.KROXY_SERVICE_NAME)
-                .replace("%VAULT_TOKEN%", config.vaultToken())
+                .replace("%VAULT_TOKEN%", config.vaultToken().getProvidedPassword())
                 .replace("%VAULT_TRANSIT_ENGINE_URL%", config.vaultTransitEngineUrl().toString())
                 .replace("%TOPIC_NAME%", topicName);
     }

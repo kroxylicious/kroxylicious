@@ -15,6 +15,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.exc.MismatchedInputException;
 import com.fasterxml.jackson.databind.exc.ValueInstantiationException;
 
+import io.kroxylicious.proxy.config.secret.FilePassword;
+import io.kroxylicious.proxy.config.secret.FilePasswordFilePath;
+import io.kroxylicious.proxy.config.secret.InlinePassword;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 class TlsParseTest {

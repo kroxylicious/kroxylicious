@@ -17,6 +17,8 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import io.netty.handler.ssl.SslContextBuilder;
 
+import io.kroxylicious.proxy.config.secret.PasswordProvider;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
