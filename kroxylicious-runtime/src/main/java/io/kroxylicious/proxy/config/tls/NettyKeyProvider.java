@@ -16,6 +16,8 @@ import javax.net.ssl.KeyManagerFactory;
 
 import io.netty.handler.ssl.SslContextBuilder;
 
+import io.kroxylicious.proxy.config.secret.PasswordProvider;
+
 public class NettyKeyProvider {
 
     interface SslContextBuilderA {

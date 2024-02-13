@@ -42,9 +42,9 @@ import io.kroxylicious.proxy.config.ClusterNetworkAddressConfigProviderDefinitio
 import io.kroxylicious.proxy.config.ClusterNetworkAddressConfigProviderDefinitionBuilder;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
-import io.kroxylicious.proxy.config.tls.FilePassword;
-import io.kroxylicious.proxy.config.tls.InlinePassword;
-import io.kroxylicious.proxy.config.tls.PasswordProvider;
+import io.kroxylicious.proxy.config.secret.FilePassword;
+import io.kroxylicious.proxy.config.secret.InlinePassword;
+import io.kroxylicious.proxy.config.secret.PasswordProvider;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;

@@ -21,7 +21,7 @@ import javax.net.ssl.X509TrustManager;
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.kms.provider.hashicorp.vault.CertificateGenerator;
-import io.kroxylicious.proxy.config.tls.InlinePassword;
+import io.kroxylicious.proxy.config.secret.InlinePassword;
 import io.kroxylicious.proxy.config.tls.InsecureTls;
 import io.kroxylicious.proxy.config.tls.KeyPair;
 import io.kroxylicious.proxy.config.tls.KeyStore;

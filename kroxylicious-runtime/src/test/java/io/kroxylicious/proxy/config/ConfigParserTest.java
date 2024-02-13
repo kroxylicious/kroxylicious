@@ -28,8 +28,8 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.flipkart.zjsonpatch.JsonDiff;
 
 import io.kroxylicious.proxy.config.admin.AdminHttpConfiguration;
+import io.kroxylicious.proxy.config.secret.PasswordProvider;
 import io.kroxylicious.proxy.config.tls.KeyStore;
-import io.kroxylicious.proxy.config.tls.PasswordProvider;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig;

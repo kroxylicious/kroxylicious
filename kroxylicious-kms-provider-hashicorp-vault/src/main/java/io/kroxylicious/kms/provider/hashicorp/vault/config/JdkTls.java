@@ -22,11 +22,11 @@ import javax.net.ssl.X509TrustManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.kroxylicious.proxy.config.secret.PasswordProvider;
 import io.kroxylicious.proxy.config.tls.InsecureTls;
 import io.kroxylicious.proxy.config.tls.KeyPair;
 import io.kroxylicious.proxy.config.tls.KeyProvider;
 import io.kroxylicious.proxy.config.tls.KeyProviderVisitor;
-import io.kroxylicious.proxy.config.tls.PasswordProvider;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TrustProvider;
 import io.kroxylicious.proxy.config.tls.TrustProviderVisitor;

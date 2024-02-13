@@ -14,7 +14,7 @@ import javax.net.ssl.SSLContext;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import io.kroxylicious.proxy.config.tls.PasswordProvider;
+import io.kroxylicious.proxy.config.secret.PasswordProvider;
 import io.kroxylicious.proxy.config.tls.Tls;
 
 import edu.umd.cs.findbugs.annotations.NonNull;

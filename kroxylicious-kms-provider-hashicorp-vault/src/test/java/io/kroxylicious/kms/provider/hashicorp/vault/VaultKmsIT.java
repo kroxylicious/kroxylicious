@@ -21,7 +21,7 @@ import io.kroxylicious.kms.provider.hashicorp.vault.config.Config;
 import io.kroxylicious.kms.service.DekPair;
 import io.kroxylicious.kms.service.UnknownAliasException;
 import io.kroxylicious.kms.service.UnknownKeyException;
-import io.kroxylicious.proxy.config.tls.InlinePassword;
+import io.kroxylicious.proxy.config.secret.InlinePassword;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThat;

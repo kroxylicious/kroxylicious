@@ -21,6 +21,9 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import io.kroxylicious.proxy.config.secret.InlinePassword;
+import io.kroxylicious.proxy.config.secret.PasswordProvider;
+
 import static io.kroxylicious.proxy.config.tls.TlsTestConstants.BADPASS;
 import static io.kroxylicious.proxy.config.tls.TlsTestConstants.JKS;
 import static io.kroxylicious.proxy.config.tls.TlsTestConstants.KEYPASS;

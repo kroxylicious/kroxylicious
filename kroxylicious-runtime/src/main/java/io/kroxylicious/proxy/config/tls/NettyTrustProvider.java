@@ -17,6 +17,8 @@ import javax.net.ssl.TrustManagerFactory;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 
+import io.kroxylicious.proxy.config.secret.PasswordProvider;
+
 public class NettyTrustProvider {
 
     private final TrustProvider trustProvider;

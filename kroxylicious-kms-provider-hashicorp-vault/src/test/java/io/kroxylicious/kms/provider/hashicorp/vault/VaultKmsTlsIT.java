@@ -22,8 +22,8 @@ import org.testcontainers.DockerClientFactory;
 
 import io.kroxylicious.kms.provider.hashicorp.vault.VaultResponse.ReadKeyData;
 import io.kroxylicious.kms.provider.hashicorp.vault.config.Config;
-import io.kroxylicious.proxy.config.tls.FilePassword;
-import io.kroxylicious.proxy.config.tls.InlinePassword;
+import io.kroxylicious.proxy.config.secret.FilePassword;
+import io.kroxylicious.proxy.config.secret.InlinePassword;
 import io.kroxylicious.proxy.config.tls.InsecureTls;
 import io.kroxylicious.proxy.config.tls.KeyStore;
 import io.kroxylicious.proxy.config.tls.Tls;

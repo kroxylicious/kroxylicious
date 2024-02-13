@@ -14,7 +14,7 @@ import java.util.Set;
 
 import io.kroxylicious.kms.provider.hashicorp.vault.config.Config;
 import io.kroxylicious.kms.service.TestKmsFacade;
-import io.kroxylicious.proxy.config.tls.InlinePassword;
+import io.kroxylicious.proxy.config.secret.InlinePassword;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 

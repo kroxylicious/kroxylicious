@@ -11,6 +11,8 @@ import java.util.Objects;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import io.kroxylicious.proxy.config.secret.PasswordProvider;
+
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**

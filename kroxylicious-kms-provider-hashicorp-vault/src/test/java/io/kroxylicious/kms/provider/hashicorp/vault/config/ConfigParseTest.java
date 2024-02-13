@@ -19,7 +19,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.exc.MismatchedInputException;
 import com.fasterxml.jackson.databind.exc.ValueInstantiationException;
 
-import io.kroxylicious.proxy.config.tls.InlinePassword;
+import io.kroxylicious.proxy.config.secret.InlinePassword;
 import io.kroxylicious.proxy.config.tls.InsecureTls;
 import io.kroxylicious.proxy.config.tls.Tls;
 
