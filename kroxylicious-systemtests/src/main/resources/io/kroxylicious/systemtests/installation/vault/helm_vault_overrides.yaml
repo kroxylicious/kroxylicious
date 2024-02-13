@@ -1,0 +1,20 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+# Helm Overrides File for HashiCorp Vault used by the system tests.
+server:
+  dev:
+    enabled: true
+  ha:
+    enabled: false
+  updateStrategyType: RollingUpdate
+  service:
+    type: NodePort
+  extraEnvironmentVars:
+    VAULT_FORMAT: json
+injector:
+  enabled: false
+

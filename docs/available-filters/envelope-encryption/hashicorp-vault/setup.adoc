@@ -93,17 +93,22 @@ EOF
 ----
 
 Create a {hashicorp-vault}/docs/concepts/tokens#periodic-tokens[Periodic] (long-lived) Vault Token
-for the filter:
+for the filterfootnote:[The example token create command illustrates the use of `-no-default-policy`
+and `-orphan`. The use of these flags is not functionally important.  You may adapt the
+configuration of the token to suit the standards required by your organization]:
 
 [source,shell]
 ----
 vault token create -display-name "kroxylicious encryption filter" \
-                   -no-default-policy \
                    -policy=kroxylicious_encryption_filter_policy \
-                   -orphan \
-                   -period=768h
+                   -period=768h \                                     <1>
+                   -no-default-policy \                               <2>
+                   -orphan                                            <3>
 
 ----
+<1> Causes the token to be periodic (with every renewal using the given period).
+<2> Detach the "default" policy from the policy set for this token.  This is done so the token has least-privilege.
+<3> Create the token with no parent. This is done so that expiration of a parent won't expire the token used by the filter.
 
 The `token create` command yields the `token`. The `token` value is required later when configuring the vault within the
 filter.

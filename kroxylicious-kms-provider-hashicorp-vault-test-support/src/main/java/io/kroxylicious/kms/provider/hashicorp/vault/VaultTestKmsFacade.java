@@ -7,28 +7,38 @@
 package io.kroxylicious.kms.provider.hashicorp.vault;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.net.URI;
-import java.util.Arrays;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpRequest.BodyPublisher;
+import java.net.http.HttpRequest.BodyPublishers;
+import java.net.http.HttpResponse;
 import java.util.Objects;
+import java.util.Set;
+import java.util.function.Supplier;
 
 import org.testcontainers.DockerClientFactory;
 import org.testcontainers.vault.VaultContainer;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import io.kroxylicious.kms.provider.hashicorp.vault.VaultResponse.ReadKeyData;
-import io.kroxylicious.kms.provider.hashicorp.vault.config.Config;
 import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.kms.service.TestKekManager;
-import io.kroxylicious.kms.service.TestKmsFacade;
 import io.kroxylicious.kms.service.UnknownAliasException;
 
-public class VaultTestKmsFacade implements TestKmsFacade<Config, String, VaultEdek> {
-    private static final String VAULT_TOKEN = "rootToken";
+import edu.umd.cs.findbugs.annotations.NonNull;
+
+import static java.net.URLEncoder.encode;
+import static java.nio.charset.StandardCharsets.UTF_8;
+
+public class VaultTestKmsFacade extends AbstractVaultTestKmsFacade {
     private static final String HASHICORP_VAULT = "hashicorp/vault:1.15";
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-    private static final String VAULT_CMD = "vault";
+    private final HttpClient vaultClient = HttpClient.newHttpClient();
 
     @SuppressWarnings("rawtypes")
     private VaultContainer vaultContainer;
@@ -40,21 +50,57 @@ public class VaultTestKmsFacade implements TestKmsFacade<Config, String, VaultEd
 
     @Override
     @SuppressWarnings("resource")
-    public void start() {
-
-        vaultContainer = new VaultContainer<>(HASHICORP_VAULT)
-                .withVaultToken(VAULT_TOKEN)
-                .withEnv("VAULT_FORMAT", "json")
-                .withInitCommand(
-                        "secrets enable transit");
+    public void startVault() {
+        vaultContainer = new VaultContainer<>(HASHICORP_VAULT).withVaultToken(VAULT_ROOT_TOKEN);
         vaultContainer.start();
     }
 
     @Override
-    public void stop() {
+    public void stopVault() {
         if (vaultContainer != null) {
             vaultContainer.close();
         }
+    }
+
+    @Override
+    protected void enableTransit() {
+
+        var engine = new EnableEngineRequest("transit");
+
+        var body = getBody(engine);
+
+        var request = createVaultPost("v1/sys/mounts/transit", BodyPublishers.ofString(body));
+
+        sendRequestExpectingNoContentResponse(request);
+    }
+
+    @Override
+    protected void createPolicy(String policyName, InputStream policyStream) {
+        Objects.requireNonNull(policyName);
+        Objects.requireNonNull(policyStream);
+        var createPolicy = getBody(CreatePolicyRequest.fromInputStream(policyStream));
+        var request = createVaultPost("v1/sys/policy/%s".formatted(encode(policyName, UTF_8)), BodyPublishers.ofString(createPolicy));
+
+        sendRequestExpectingNoContentResponse(request);
+    }
+
+    @Override
+    protected String createOrphanToken(String description, boolean noDefaultPolicy, Set<String> policies) {
+
+        var token = new CreateTokenRequest(description, noDefaultPolicy, policies);
+
+        String body = getBody(token);
+
+        var request = createVaultPost("v1/auth/token/create-orphan", BodyPublishers.ofString(body));
+
+        return sendRequest(request, new JsonBodyHandler<CreateTokenResponse>(new TypeReference<>() {
+        })).auth().clientToken();
+    }
+
+    @Override
+    @NonNull
+    protected URI getVaultUrl() {
+        return URI.create(vaultContainer.getHttpHostAddress());
     }
 
     @Override
@@ -62,17 +108,7 @@ public class VaultTestKmsFacade implements TestKmsFacade<Config, String, VaultEd
         return new VaultTestKekManager();
     }
 
-    @Override
-    public Class<VaultKmsService> getKmsServiceClass() {
-        return VaultKmsService.class;
-    }
-
-    @Override
-    public Config getKmsServiceConfig() {
-        return new Config(URI.create(vaultContainer.getHttpHostAddress()).resolve("v1/transit"), VAULT_TOKEN, null);
-    }
-
-    private class VaultTestKekManager implements TestKekManager {
+    class VaultTestKekManager implements TestKekManager {
         @Override
         public void generateKek(String alias) {
             Objects.requireNonNull(alias);
@@ -103,67 +139,107 @@ public class VaultTestKmsFacade implements TestKmsFacade<Config, String, VaultEd
                 read(alias);
                 return true;
             }
-            catch (RuntimeException e) {
-                if (isNoValueFound(e)) {
-                    return false;
-                }
-                else {
-                    throw e;
-                }
+            catch (UnknownAliasException uae) {
+                return false;
             }
         }
 
-        private boolean isNoValueFound(Exception e) {
-            return e.getMessage().contains("No value found");
+        private VaultResponse.ReadKeyData create(String keyId) {
+
+            var request = createVaultPost("v1/transit/keys/%s".formatted(encode(keyId, UTF_8)), BodyPublishers.noBody());
+
+            return sendRequest(request, statusHandler(keyId, request, new JsonBodyHandler<VaultResponse<VaultResponse.ReadKeyData>>(new TypeReference<>() {
+            }))).data();
         }
 
-        private ReadKeyData create(String keyId) {
-            return runVaultCommand(new TypeReference<>() {
-            }, VAULT_CMD, "write", "-f", "transit/keys/%s".formatted(keyId));
+        private VaultResponse.ReadKeyData read(String keyId) {
+            var request = createVaultGet("v1/transit/keys/%s".formatted(encode(keyId, UTF_8)));
+
+            return sendRequest(request, statusHandler(keyId, request, new JsonBodyHandler<VaultResponse<VaultResponse.ReadKeyData>>(new TypeReference<>() {
+            }))).data();
         }
 
-        private ReadKeyData read(String keyId) {
-            return runVaultCommand(new TypeReference<>() {
-            }, VAULT_CMD, "read", "transit/keys/%s".formatted(keyId));
+        private VaultResponse.ReadKeyData rotate(String keyId) {
+            var request = createVaultPost("v1/transit/keys/%s/rotate".formatted(encode(keyId, UTF_8)), BodyPublishers.noBody());
+            return sendRequest(request, statusHandler(keyId, request, new JsonBodyHandler<VaultResponse<VaultResponse.ReadKeyData>>(new TypeReference<>() {
+            }))).data();
         }
 
-        private ReadKeyData rotate(String keyId) {
-            return runVaultCommand(new TypeReference<>() {
-            }, VAULT_CMD, "write", "-f", "transit/keys/%s/rotate".formatted(keyId));
+    }
+
+    private HttpRequest createVaultGet(String path) {
+        return createVaultRequest()
+                .uri(getVaultUrl().resolve(path))
+                .GET()
+                .build();
+    }
+
+    private HttpRequest createVaultPost(String path, BodyPublisher bodyPublisher) {
+        URI resolve = getVaultUrl().resolve(path);
+        return createVaultRequest()
+                .uri(resolve)
+                .POST(bodyPublisher).build();
+    }
+
+    private HttpRequest.Builder createVaultRequest() {
+        return HttpRequest.newBuilder()
+                .header("X-Vault-Token", VAULT_ROOT_TOKEN)
+                .header("Accept", "application/json");
+    }
+
+    private <R> R sendRequest(HttpRequest request, HttpResponse.BodyHandler<Supplier<R>> responseBodyHandler) {
+        try {
+            return vaultClient.send(request, responseBodyHandler)
+                    .body()
+                    .get();
         }
-
-        private <D> D runVaultCommand(TypeReference<VaultResponse<D>> valueTypeRef, String... args) {
-            try {
-                var execResult = vaultContainer.execInContainer(args);
-                int exitCode = execResult.getExitCode();
-                if (exitCode != 0) {
-                    throw new VaultException(
-                            "Failed to run vault command: %s, exit code: %d, stderr: %s".formatted(Arrays.stream(args).toList(), exitCode, execResult.getStderr()));
-                }
-                var response = OBJECT_MAPPER.readValue(execResult.getStdout(), valueTypeRef);
-                return response.data();
+        catch (IOException e) {
+            if (e.getCause() instanceof KmsException ke) {
+                throw ke;
             }
-            catch (IOException e) {
-                throw new VaultException("Failed to run vault command: %s".formatted(Arrays.stream(args).toList()), e);
-            }
-            catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new VaultException(e);
-            }
+            throw new UncheckedIOException("Request to %s failed".formatted(request), e);
         }
-
-        private static class VaultException extends KmsException {
-            VaultException(String message) {
-                super(message);
-            }
-
-            VaultException(String message, Throwable cause) {
-                super(message, cause);
-            }
-
-            VaultException(Throwable cause) {
-                super(cause);
-            }
+        catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Interrupted during REST API call : %s".formatted(request.uri()), e);
         }
     }
+
+    private void sendRequestExpectingNoContentResponse(HttpRequest request) {
+        try {
+            var response = vaultClient.send(request, HttpResponse.BodyHandlers.discarding());
+            if (response.statusCode() != 204) {
+                throw new IllegalStateException("Unexpected response : %d to request %s".formatted(response.statusCode(), request.uri()));
+            }
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException("Request to %s failed".formatted(request), e);
+        }
+        catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException(e);
+        }
+    }
+
+    private String getBody(Object obj) {
+        try {
+            return OBJECT_MAPPER.writeValueAsString(obj);
+        }
+        catch (JsonProcessingException e) {
+            throw new UncheckedIOException("Failed to create request body", e);
+        }
+    }
+
+    private static <T> HttpResponse.BodyHandler<T> statusHandler(String keyId, HttpRequest request, HttpResponse.BodyHandler<T> handler) {
+        return r -> {
+            if (r.statusCode() == 404) {
+                throw new UnknownAliasException(keyId);
+            }
+            else if (r.statusCode() != 200) {
+                throw new IllegalStateException("unexpected response %s for request: %s".formatted(r.statusCode(), request.uri()));
+            }
+            return handler.apply(r);
+        };
+    }
+
 }

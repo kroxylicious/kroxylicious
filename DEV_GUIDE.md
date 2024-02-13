@@ -8,6 +8,7 @@ This document gives a detailed breakdown of the various build processes and opti
   * [Build Prerequisites](#build-prerequisites)
   * [Build](#build)
     * [Formatting the Code](#formatting-the-code)
+    * [Logging Conventions](#logging-conventions)
   * [Run](#run)
     * [Debugging](#debugging)
   * [Building and pushing a Kroxylicious Container Image](#building-and-pushing-a-kroxylicious-container-image)
@@ -117,6 +118,19 @@ No one likes to argue about code formatting in pull requests, as project we take
 4. We also employ [impsort-maven-plugin](https://code.revelc.net/impsort-maven-plugin/) to keep import order consistent which will re-order imports as part of the maven build.
 5. We also have [formatter-maven-plugin](https://code.revelc.net/formatter-maven-plugin/) which will apply the project code style rules, this is driven from the Eclipse code formatter, as part of the maven build cycle.
 
+### Logging Conventions
+
+We want to be careful with logging large amounts of data, for example stack traces, because we are potentially operating rapidly on many messages. Or Filters may be working at a 
+per-record level, we could generate a huge amount of log data. But we often do not want to completely silence errors as it renders them invisible to the user.
+
+Our convention is to use the slf4j fluent API to log once at a coarse level like WARN, but to only include cause Exceptions if the log level is set to a finer granularity:
+
+```java
+LOGGER.atWarn()
+  .setCause(LOGGER.isDebugEnabled() ? failureCause : null) #only log the full stacktrace at debug
+  .log("Something bad happened with failure message {}. Increase log level to DEBUG for stacktrace", failureCause.getMessage());
+```
+
 ## Run
 
 Build with the `dist` profile as shown above, then execute this:
@@ -138,7 +152,29 @@ KROXYLICIOUS_CLASSPATH="/path/to/any.jar:/path/to/libs/dir/*" kroxylicious-app/t
 ```
 
 ### Debugging
-Logging is turned off by default for better performance. In case you want to debug, logging should be turned on in the `example-proxy-config.yaml` file:
+Build with the `dist` profile as shown above.
+
+To start in debug mode, listening on port `5005`:
+```
+JAVA_ENABLE_DEBUG=true kroxylicious-app/target/kroxylicious-app-*-bin/kroxylicious-app-*/bin/kroxylicious-start.sh -c kroxylicious-app/example-proxy-config.yaml
+```
+To suspend until debugger attaches:
+```
+JAVA_ENABLE_DEBUG=true JAVA_DEBUG_SUSPEND=true  kroxylicious-app/target/kroxylicious-app-*-bin/kroxylicious-app-*/bin/kroxylicious-start.sh -c kroxylicious-app/example-proxy-config.yaml
+```
+To change the debug port
+```
+JAVA_ENABLE_DEBUG=true JAVA_DEBUG_PORT=1234  kroxylicious-app/target/kroxylicious-app-*-bin/kroxylicious-app-*/bin/kroxylicious-start.sh -c kroxylicious-app/example-proxy-config.yaml
+```
+To change the root logger level
+```
+KROXYLICIOUS_ROOT_LOG_LEVEL=DEBUG kroxylicious-app/target/kroxylicious-app-*-bin/kroxylicious-app-*/bin/kroxylicious-start.sh -c kroxylicious-app/example-proxy-config.yaml
+```
+To customise the log4j2 config file edit:
+```
+vim kroxylicious-app/target/kroxylicious-app-*-bin/kroxylicious-app-*/config/log4j2.yaml
+```
+Low level network and frame logging is turned off by default for better performance. In case you want to debug, logging should be turned on in the `example-proxy-config.yaml` file:
 ```yaml
   logNetwork: true
   logFrames: true
