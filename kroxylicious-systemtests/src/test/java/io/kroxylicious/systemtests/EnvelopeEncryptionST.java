@@ -33,7 +33,7 @@ import io.kroxylicious.systemtests.templates.strimzi.KafkaTemplates;
 import io.kroxylicious.systemtests.utils.NamespaceUtils;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
-import static org.hamcrest.MatcherAssert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 @ExtendWith(KroxyliciousExtension.class)
 class EnvelopeEncryptionST extends AbstractST {
@@ -78,7 +78,7 @@ class EnvelopeEncryptionST extends AbstractST {
         // start Kroxylicious
         LOGGER.info("Given Kroxylicious in {} namespace with {} replicas", namespace, 1);
         Kroxylicious kroxylicious = new Kroxylicious(namespace);
-        kroxylicious.deployPortPerBrokerPlainWithTopicEncryptionFilter(clusterName, 1, topicName);
+        kroxylicious.deployPortPerBrokerPlainWithTopicEncryptionFilter(clusterName, 1, topicName, kubeVaultTestKmsFacade.getKmsServiceConfig());
         bootstrap = kroxylicious.getBootstrap();
 
         LOGGER.info("And KafkaTopic in {} namespace", namespace);
@@ -108,8 +108,10 @@ class EnvelopeEncryptionST extends AbstractST {
         LOGGER.info("Then the {} messages are consumed", numberOfMessages);
         String kafkaBootstrap = clusterName + "-kafka-bootstrap." + Constants.KAFKA_DEFAULT_NAMESPACE + ".svc.cluster.local:9092";
         String resultEncrypted = KroxyliciousSteps.consumeEncryptedMessages(namespace, topicName, kafkaBootstrap, numberOfMessages, Duration.ofMinutes(2));
-        LOGGER.info("Received: " + resultEncrypted);
-        assertThat("'" + expectedMessage + "' expected message have not been received!", resultEncrypted.contains(topicName + "vault"));
+        LOGGER.info("Received: {}", resultEncrypted);
+        assertThat(resultEncrypted)
+                .withFailMessage("expected message have not been received!")
+                .contains(topicName + "vault");
     }
 
     @Test
@@ -122,7 +124,9 @@ class EnvelopeEncryptionST extends AbstractST {
 
         LOGGER.info("Then the {} messages are consumed", numberOfMessages);
         String result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2));
-        LOGGER.info("Received: " + result);
-        assertThat("'" + expectedMessage + "' expected message have not been received!", result.contains(expectedMessage));
+        LOGGER.info("Received: {}", result);
+        assertThat(result)
+                .withFailMessage("expected message have not been received!")
+                .contains(expectedMessage);
     }
 }

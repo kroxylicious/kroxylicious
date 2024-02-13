@@ -53,7 +53,7 @@
         <assertj-core.version>3.25.3</assertj-core.version>
         <mockito.version>5.10.0</mockito.version>
         <micrometer.version>1.12.2</micrometer.version>
-        <slf4j.version>2.0.11</slf4j.version>
+        <slf4j.version>2.0.12</slf4j.version>
         <sundr-builder-annotations.version>0.101.3</sundr-builder-annotations.version>
         <spotbugs-annotations.version>4.8.3</spotbugs-annotations.version>
         <zjsonpatch.version>0.4.16</zjsonpatch.version>
@@ -67,7 +67,7 @@
         <maven.core.version>3.9.6</maven.core.version>
         <awaitility.version>4.2.0</awaitility.version>
         <commons.io.version>2.15.1</commons.io.version>
-        <testcontainers.version>1.19.4</testcontainers.version>
+        <testcontainers.version>1.19.5</testcontainers.version>
         <bouncycastle.version>1.77</bouncycastle.version>
     </properties>
 

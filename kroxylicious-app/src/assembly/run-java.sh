@@ -592,7 +592,7 @@ first_arg=${1:-}
 if [ "${first_arg}" = "options" ]; then
   # Print out options only
   shift
-  options $@
+  options "$@"
   exit 0
 elif [ "${first_arg}" = "run" ]; then
   # Run is the default command, but can be given to allow "options"
