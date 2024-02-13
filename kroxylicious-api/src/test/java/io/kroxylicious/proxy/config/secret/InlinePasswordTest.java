@@ -13,13 +13,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 class InlinePasswordTest {
 
     @Test
-    public void testInlinePassword() {
+    void inlinePassword() {
         InlinePassword inline = new InlinePassword("pazz");
         assertThat(inline.getProvidedPassword()).isEqualTo("pazz");
     }
 
     @Test
-    public void testInlinePasswordToStringDoesNotExposePassword() {
+    void inlinePasswordToStringDoesNotExposePassword() {
         InlinePassword inline = new InlinePassword("shouldNotBeExposed");
         assertThat(inline.toString()).doesNotContain("shouldNotBeExposed");
     }

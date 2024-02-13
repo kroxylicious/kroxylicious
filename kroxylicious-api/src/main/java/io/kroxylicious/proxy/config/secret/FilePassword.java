@@ -13,7 +13,6 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -27,7 +26,6 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  */
 public record FilePassword(@JsonProperty(required = true) String passwordFile) implements PasswordProvider {
 
-    @JsonCreator
     public FilePassword {
         Objects.requireNonNull(passwordFile);
     }
