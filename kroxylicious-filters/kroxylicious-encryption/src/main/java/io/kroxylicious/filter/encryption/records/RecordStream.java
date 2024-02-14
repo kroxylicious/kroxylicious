@@ -7,6 +7,7 @@
 package io.kroxylicious.filter.encryption.records;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
@@ -50,23 +51,12 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  */
 public class RecordStream<T> {
 
-    private enum PairType {
-        SINGLE,
-        INDEX,
-        PER_RECORD
-    }
-
     private final MemoryRecords records;
-    private final PairType pairType;
-    private final Object pairedWith;
+    private final RecordMapper<Integer, T> stateFunction;
 
-    private RecordStream(MemoryRecords records, PairType pairType, Object pairedWith) {
-        if (Objects.requireNonNull(pairType) == PairType.PER_RECORD && (!(pairedWith instanceof List<?>))) {
-            throw new IllegalArgumentException();
-        }
+    private RecordStream(MemoryRecords records, RecordMapper<Integer, T> stateFunction) {
         this.records = records;
-        this.pairType = pairType;
-        this.pairedWith = pairedWith;
+        this.stateFunction = stateFunction;
     }
 
     /**
@@ -76,7 +66,7 @@ public class RecordStream<T> {
      */
     public static RecordStream<Void> ofRecords(@NonNull MemoryRecords records) {
         Objects.requireNonNull(records);
-        return new RecordStream<>(records, PairType.SINGLE, null);
+        return new RecordStream<>(records, (batch, record, idx) -> null);
     }
 
     /**
@@ -87,7 +77,7 @@ public class RecordStream<T> {
      */
     public static RecordStream<Integer> ofRecordsWithIndex(@NonNull MemoryRecords records) {
         Objects.requireNonNull(records);
-        return new RecordStream<>(records, PairType.INDEX, null);
+        return new RecordStream<>(records, (batch, record, idx) -> idx);
     }
 
     /**
@@ -97,31 +87,18 @@ public class RecordStream<T> {
      * @param <S> The type of state
      */
     public <S> RecordStream<S> mapConstant(S state) {
-        return new RecordStream<>(records, PairType.SINGLE, state);
+        return new RecordStream<>(records, (batch, record, idx) -> state);
     }
 
     /**
      * Return a new stream of the records in this stream each associated with the
      * state returned by the given {@code mapper} for that record.
-     * This iterates the batches in the source {@link MemoryRecords} and so will result in
-     * batch decompression.
      * @param mapper A function that returns the state to associate with a record.
      * @return A new stream
      * @param <S> The type of state
      */
     public <S> RecordStream<S> mapPerRecord(RecordMapper<T, S> mapper) {
-        var result = new ArrayList<S>();
-        int i = 0;
-        for (var batch : records.batches()) {
-            for (var record : batch) {
-                if (!batch.isControlBatch()) {
-                    T existingState = existingState(i++);
-                    S newState = mapper.apply(batch, record, existingState);
-                    result.add(newState);
-                }
-            }
-        }
-        return new RecordStream<>(records, PairType.PER_RECORD, result);
+        return new RecordStream<>(records, (batch, record, idx) -> mapper.apply(batch, record, stateFunction.apply(batch, record, idx)));
     }
 
     public void forEachRecord(RecordConsumer<T> mapper) {
@@ -129,20 +106,11 @@ public class RecordStream<T> {
         for (var batch : records.batches()) {
             if (!batch.isControlBatch()) {
                 for (var record : batch) {
-                    T existingState = existingState(i++);
+                    T existingState = stateFunction.apply(batch, record, i++);
                     mapper.accept(batch, record, existingState);
                 }
             }
         }
-    }
-
-    @SuppressWarnings("unchecked")
-    private T existingState(int recordIndex) {
-        return switch (pairType) {
-            case SINGLE -> (T) pairedWith;
-            case INDEX -> (T) Integer.valueOf(recordIndex);
-            case PER_RECORD -> ((List<T>) pairedWith).get(recordIndex);
-        };
     }
 
     /**
@@ -154,26 +122,19 @@ public class RecordStream<T> {
      * @param <S> The type of state
      */
     public <S> Set<S> toSet(RecordMapper<T, S> mapper) {
-        var result = new HashSet<S>();
+        return toCollection(mapper, new HashSet<>());
+    }
+
+    public <S> List<S> toList(RecordMapper<T, S> mapper) {
+        return toCollection(mapper, new ArrayList<>());
+    }
+
+    private <C extends Collection<S>, S> C toCollection(RecordMapper<T, S> mapper, C result) {
         int i = 0;
         for (var batch : records.batches()) {
             if (!batch.isControlBatch()) {
                 for (var record : batch) {
-                    T existingState = existingState(i++);
-                    result.add(mapper.apply(batch, record, existingState));
-                }
-            }
-        }
-        return result;
-    }
-
-    public <S> List<S> toList(RecordMapper<T, S> mapper) {
-        var result = new ArrayList<S>();
-        int i = 0;
-        for (var batch : records.batches()) {
-            for (var record : batch) {
-                if (!batch.isControlBatch()) {
-                    T existingState = existingState(i++);
+                    T existingState = stateFunction.apply(batch, record, i++);
                     result.add(mapper.apply(batch, record, existingState));
                 }
             }
@@ -206,7 +167,7 @@ public class RecordStream<T> {
                         builder.addBatchLike(batch);
                         transform.initBatch(batch);
                     }
-                    var existingState = existingState(indexInStream);
+                    var existingState = stateFunction.apply(batch, record, indexInStream);
                     transform.init(existingState, record);
                     builder.appendWithOffset(
                             transform.transformOffset(record),

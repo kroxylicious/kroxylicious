@@ -12,6 +12,8 @@ import java.nio.charset.StandardCharsets;
 
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.record.CompressionType;
+import org.apache.kafka.common.record.MemoryRecords;
+import org.apache.kafka.common.record.MutableRecordBatch;
 import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.record.RecordBatch;
 import org.apache.kafka.common.record.SimpleRecord;
@@ -19,7 +21,9 @@ import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 import org.junit.jupiter.api.Test;
 
+import io.kroxylicious.test.assertj.MemoryRecordsAssert;
 import io.kroxylicious.test.assertj.RecordBatchAssert;
+import io.kroxylicious.test.record.RecordTestUtils;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -48,6 +52,29 @@ class RecordStreamTest {
                 + StandardCharsets.UTF_8.decode(record.key())
                 + StandardCharsets.UTF_8.decode(record.value()));
         assertThat(list).singleElement().isEqualTo("prefixhelloworld");
+    }
+
+    @Test
+    void toMemoryRecordsPreservesControlBatch() {
+        MutableRecordBatch records = RecordTestUtils.abortTransactionControlBatch(0);
+        Record controlRecord = records.iterator().next();
+        MemoryRecords memoryRecords = RecordTestUtils.memoryRecords(records);
+        RecordStream<Void> rs = RecordStream.ofRecords(memoryRecords);
+        MemoryRecords output = rs.toMemoryRecords(new ByteBufferOutputStream(1024), new Prefixer<>());
+        MemoryRecordsAssert.assertThat(output)
+                .hasNumBatches(1)
+                .firstBatch().isControlBatch(true).hasNumRecords(1).firstRecord().isEqualTo(controlRecord);
+    }
+
+    @Test
+    void toMemoryRecordsPreservesEmptyBatch() {
+        MutableRecordBatch records = RecordTestUtils.recordBatchWithAllRecordsRemoved(0);
+        MemoryRecords memoryRecords = RecordTestUtils.memoryRecords(records);
+        RecordStream<Void> rs = RecordStream.ofRecords(memoryRecords);
+        MemoryRecords output = rs.toMemoryRecords(new ByteBufferOutputStream(1024), new Prefixer<>());
+        MemoryRecordsAssert.assertThat(output)
+                .hasNumBatches(1)
+                .firstBatch().hasNumRecords(0);
     }
 
     @Test
