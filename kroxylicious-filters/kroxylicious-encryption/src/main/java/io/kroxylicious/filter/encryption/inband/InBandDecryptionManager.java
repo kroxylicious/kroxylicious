@@ -215,14 +215,13 @@ public class InBandDecryptionManager<K, E> implements DecryptionManager {
         // Lookup the decryptors for the cache keys
         return filterThreadExecutor.completingOnFilterThread(decryptorCache.getAll(cacheKeys))
                 .thenApply(cacheKeyDecryptorMap ->
-                    // Once we have the decryptors from the cache...
-                    issueDecryptors(cacheKeyDecryptorMap, cacheKeys, states)
-                );
+                // Once we have the decryptors from the cache...
+                issueDecryptors(cacheKeyDecryptorMap, cacheKeys, states));
     }
 
     private @NonNull List<DecryptState<E>> issueDecryptors(@NonNull Map<CacheKey<E>, Dek<E>> cacheKeyDecryptorMap,
-                                                                @NonNull List<CacheKey<E>> cacheKeys,
-                                                                @NonNull List<DecryptState<E>> states) {
+                                                           @NonNull List<CacheKey<E>> cacheKeys,
+                                                           @NonNull List<DecryptState<E>> states) {
         Map<CacheKey<E>, Dek<E>.Decryptor> issuedDecryptors = new HashMap<>();
         try {
             for (int index = 0, cacheKeysSize = cacheKeys.size(); index < cacheKeysSize; index++) {
@@ -240,7 +239,7 @@ public class InBandDecryptionManager<K, E> implements DecryptionManager {
         }
         catch (RuntimeException e) {
             issuedDecryptors.forEach((cacheKey, decryptor) -> {
-                if (decryptor != null)  {
+                if (decryptor != null) {
                     decryptor.close();
                 }
             });
