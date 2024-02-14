@@ -6,54 +6,42 @@
 
 package io.kroxylicious.kms.provider.hashicorp.vault;
 
-import java.io.IOException;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.net.URI;
-import java.net.http.HttpConnectTimeoutException;
-import java.net.http.HttpTimeoutException;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.stream.Stream;
 
-import org.junit.jupiter.api.Disabled;
+import javax.net.ssl.SSLContext;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-
-import com.sun.net.httpserver.HttpServer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class VaultKmsTest {
 
-    // address in TEST-NET-1, reserved for use in example specifications and other documents
-    private static final URI NON_ROUTABLE = URI.create("http://192.0.2.1/v1/transit");
-    private static final byte ARBITRARY_BODY_BYTE = 5;
-
     @Test
-    void testConnectionTimeout() {
-        VaultKms kms = new VaultKms(NON_ROUTABLE, "token", Duration.ofMillis(500), null);
-        CompletableFuture<String> alias = kms.resolveAlias("alias");
-        assertThat(alias).failsWithin(Duration.ofSeconds(2))
-                .withThrowableOfType(ExecutionException.class)
-                .withCauseInstanceOf(HttpConnectTimeoutException.class);
+    void testConnectionTimeout() throws NoSuchAlgorithmException {
+        var uri = URI.create("http://test:8080/v1/transit");
+        Duration timeout = Duration.ofMillis(500);
+        VaultKms kms = new VaultKms(uri, "token", timeout, null);
+        SSLContext sslContext = SSLContext.getDefault();
+        HttpClient client = kms.createClient(sslContext);
+        assertThat(client.connectTimeout()).hasValue(timeout);
     }
 
     @Test
-    void testRequestTimeoutWaitingForHeaders() {
-        HttpServer httpServer = delayResponse(Duration.ofSeconds(1), Duration.ZERO);
-        var addr = httpServer.getAddress();
-        var uri = URI.create("http://" + addr.getHostName() + ":" + addr.getPort() + "/v1/transit");
-        VaultKms kms = new VaultKms(uri, "token", Duration.ofMillis(500), null);
-        CompletableFuture<String> alias = kms.resolveAlias("alias");
-        assertThat(alias).failsWithin(Duration.ofSeconds(2))
-                .withThrowableOfType(ExecutionException.class)
-                .withCauseInstanceOf(HttpTimeoutException.class);
-        httpServer.stop(0);
+    void testRequestTimeoutConfiguredOnRequests() {
+        var uri = URI.create("http://test:8080/v1/transit");
+        Duration timeout = Duration.ofMillis(500);
+        VaultKms kms = new VaultKms(uri, "token", timeout, null);
+        HttpRequest build = kms.createVaultRequest().uri(uri).build();
+        assertThat(build.timeout()).hasValue(timeout);
     }
 
     static Stream<Arguments> acceptableVaultTransitEnginePaths() {
@@ -92,49 +80,5 @@ class VaultKmsTest {
         assertThatThrownBy(() -> new VaultKms(uri, "token", Duration.ZERO, null))
                 .isInstanceOf(IllegalArgumentException.class);
 
-    }
-
-    @Disabled("JDK http client request timeout cancelled after headers received currently, todo add our own timeout future")
-    @Test
-    void testRequestTimeoutWaitingForBody() {
-        HttpServer httpServer = delayResponse(Duration.ZERO, Duration.ofSeconds(1));
-        var addr = httpServer.getAddress();
-        URI uri = URI.create("http://" + addr.getHostName() + ":" + httpServer.getAddress().getPort() + "/v1/transit");
-        VaultKms kms = new VaultKms(uri, "token", Duration.ofMillis(500), null);
-        CompletableFuture<String> alias = kms.resolveAlias("alias");
-        assertThat(alias).failsWithin(Duration.ofSeconds(2))
-                .withThrowableOfType(ExecutionException.class)
-                .withCauseInstanceOf(HttpTimeoutException.class);
-        httpServer.stop(0);
-    }
-
-    public static HttpServer delayResponse(Duration delayHeaders, Duration delayResponseAfterHeaders) {
-        try {
-            HttpServer server = HttpServer.create(new InetSocketAddress(InetAddress.getLocalHost(), 0), 0);
-            server.createContext("/", exchange -> {
-                sleep(delayHeaders);
-                exchange.sendResponseHeaders(200, 1);
-                sleep(delayResponseAfterHeaders);
-                exchange.getResponseBody().write(ARBITRARY_BODY_BYTE);
-                exchange.close();
-            });
-            server.setExecutor(null); // creates a default executor
-            server.start();
-            return server;
-        }
-        catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    @SuppressWarnings("java:S2925")
-    private static void sleep(Duration delayHeaders) {
-        try {
-            Thread.sleep(delayHeaders.toMillis());
-        }
-        catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException(e);
-        }
     }
 }
