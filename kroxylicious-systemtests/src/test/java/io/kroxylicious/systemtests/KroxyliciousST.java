@@ -129,6 +129,47 @@ class KroxyliciousST extends AbstractST {
         assertThat(result).withFailMessage("expected message have not been received!").contains(expectedMessage);
     }
 
+    @Test
+    void scaleUpKroxylicious(String namespace) {
+        int replicas = 2;
+        scaleKroxylicious(namespace, replicas, replicas + 1);
+    }
+
+    @Test
+    void scaleDownKroxylicious(String namespace) {
+        int replicas = 3;
+        scaleKroxylicious(namespace, replicas, replicas - 1);
+    }
+
+    private void scaleKroxylicious(String namespace, int replicas, int scaleTo) {
+        int numberOfMessages = 10;
+        String expectedMessage = MESSAGE + " - " + (numberOfMessages - 1);
+
+        // start Kroxylicious
+        LOGGER.info("Given Kroxylicious in {} namespace with {} replicas", namespace, replicas);
+        kroxylicious = new Kroxylicious(namespace);
+        kroxylicious.deployPortPerBrokerPlainWithNoFilters(clusterName, replicas);
+        String bootstrap = kroxylicious.getBootstrap();
+        int currentReplicas = kroxylicious.getNumberOfReplicas();
+        assertThat(currentReplicas).withFailMessage("unexpected current replicas").isEqualTo(replicas);
+
+        LOGGER.info("And KafkaTopic in {} namespace", namespace);
+        KafkaSteps.createTopic(namespace, topicName, bootstrap, 3, 2);
+
+        LOGGER.info("When {} messages '{}' are sent to the topic '{}'", numberOfMessages, MESSAGE, topicName);
+        KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
+
+        LOGGER.info("And kroxylicious is scaled to {}", scaleTo);
+        kroxylicious.scaleReplicasTo(scaleTo, Duration.ofMinutes(2));
+        currentReplicas = kroxylicious.getNumberOfReplicas();
+        assertThat(currentReplicas).withFailMessage("unexpected current scaled replicas").isEqualTo(scaleTo);
+
+        LOGGER.info("Then the {} messages are consumed", numberOfMessages);
+        String result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2));
+        LOGGER.info("Received: " + result);
+        assertThat(result).withFailMessage("expected message have not been received!").contains(expectedMessage);
+    }
+
     /**
      * Sets before all.
      */

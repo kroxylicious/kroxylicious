@@ -6,6 +6,8 @@
 
 package io.kroxylicious.systemtests.installation.kroxylicious;
 
+import java.time.Duration;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,6 +24,7 @@ import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousSecretTemp
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousServiceTemplates;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
+import static org.awaitility.Awaitility.await;
 
 /**
  * The type Kroxylicious.
@@ -118,5 +121,19 @@ public class Kroxylicious {
         String bootstrap = clusterIP + ":9292";
         LOGGER.debug("Kroxylicious bootstrap: {}", bootstrap);
         return bootstrap;
+    }
+
+    /**
+     * Scale replicas to.
+     *
+     * @param scaledTo the number of replicas to scale up/down
+     * @param timeout the timeout
+     */
+    public void scaleReplicasTo(int scaledTo, Duration timeout) {
+        LOGGER.info("Scaling number of replicas to {}..", scaledTo);
+        kubeClient().getClient().apps().deployments().inNamespace(deploymentNamespace).withName(Constants.KROXY_DEPLOYMENT_NAME).scale(scaledTo);
+        await().atMost(timeout).pollInterval(Duration.ofSeconds(5)).until(() ->
+                getNumberOfReplicas() == scaledTo && kubeClient().isDeploymentReady(deploymentNamespace, Constants.KROXY_DEPLOYMENT_NAME)
+        );
     }
 }
