@@ -66,7 +66,7 @@ public enum AadSpec {
             case 0:
                 return NONE;
             default:
-                throw new EncryptionException("Unknown AAD code " + persistentId);
+                throw new EncryptionException("Unknown AAD persistent id " + persistentId);
         }
     }
 }

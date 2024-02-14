@@ -31,7 +31,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 public enum WrapperVersion {
     /**
      * <pre>
-     * wrapper_v1               = cipher_code
+     * wrapper_v1               = cipher_id
      *                            edek_length
      *                            edek
      *                            aead_id

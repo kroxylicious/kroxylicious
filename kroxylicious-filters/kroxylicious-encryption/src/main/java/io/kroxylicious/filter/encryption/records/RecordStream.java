@@ -144,7 +144,7 @@ public class RecordStream<T> {
 
     /**
      * Applies a {@link RecordTransform} to the records in this stream,
-     * returning the mapped recurds in a {@link MemoryRecords}.
+     * returning the mapped records in a {@link MemoryRecords}.
      * This method will preserve empty batches and control batches.
      * This iterates the batches in the source {@link MemoryRecords} and so will result in
      * batch decompression.
