@@ -84,7 +84,8 @@ public class EnvelopeEncryption<K, E> implements FilterFactory<EnvelopeEncryptio
 
         KekSelectorService<Object, K> ksPlugin = context.pluginInstance(KekSelectorService.class, configuration.selector());
         TopicNameBasedKekSelector<K> kekSelector = ksPlugin.buildSelector(kms, configuration.selectorConfig());
-        return new EnvelopeEncryptionFilter<>(encryptionManager, decryptionManager, kekSelector, executor);
+        TopicNameRouter<TopicNameBasedKekSelector<K>> router = TopicNameRouter.builder(kekSelector).build();
+        return new EnvelopeEncryptionFilter<>(encryptionManager, decryptionManager, router, executor);
     }
 
     @NonNull
