@@ -132,8 +132,7 @@ public class Kroxylicious {
     public void scaleReplicasTo(int scaledTo, Duration timeout) {
         LOGGER.info("Scaling number of replicas to {}..", scaledTo);
         kubeClient().getClient().apps().deployments().inNamespace(deploymentNamespace).withName(Constants.KROXY_DEPLOYMENT_NAME).scale(scaledTo);
-        await().atMost(timeout).pollInterval(Duration.ofSeconds(5)).until(() ->
-                getNumberOfReplicas() == scaledTo && kubeClient().isDeploymentReady(deploymentNamespace, Constants.KROXY_DEPLOYMENT_NAME)
-        );
+        await().atMost(timeout).pollInterval(Duration.ofSeconds(5))
+                .until(() -> getNumberOfReplicas() == scaledTo && kubeClient().isDeploymentReady(deploymentNamespace, Constants.KROXY_DEPLOYMENT_NAME));
     }
 }
