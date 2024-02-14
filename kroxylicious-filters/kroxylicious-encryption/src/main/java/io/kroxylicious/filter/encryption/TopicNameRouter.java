@@ -136,7 +136,7 @@ public class TopicNameRouter<D> {
         }
 
         public Builder<D> addIncludeExactNameRoute(String topicName, D destination) {
-            removeExactFromExcludes(topicName);
+            removeExclustionsMatchedExactly(topicName);
             if (containsExactName(topicName, include)) {
                 throw new IllegalStateException(topicName + " already has an inclusion route ");
             }
@@ -156,17 +156,18 @@ public class TopicNameRouter<D> {
             if (containsPrefix(prefix, include)) {
                 throw new IllegalStateException(prefix + " prefix already has an inclusion route ");
             }
-            removePrefixFromExcludes(prefix);
+            removeExclusionsMatchedByPrefix(prefix);
             this.include.add(new MatchPrefix<>(prefix, destination));
             return this;
         }
 
-        private void removeExactFromExcludes(String topicName) {
+        private void removeExclustionsMatchedExactly(String topicName) {
             this.exclude.removeIf(excludedRoute -> excludedRoute instanceof TopicNameRouter.MatchExact<D> matchExact && matchExact.topicName.equals(topicName));
         }
 
-        private void removePrefixFromExcludes(String prefix) {
-            this.exclude.removeIf(excludedRoute -> excludedRoute instanceof TopicNameRouter.MatchPrefix<D> matchPrefix && matchPrefix.topicNamePrefix.equals(prefix));
+        private void removeExclusionsMatchedByPrefix(String prefix) {
+            this.exclude.removeIf(excludedRoute -> excludedRoute instanceof TopicNameRouter.MatchPrefix<D> matchPrefix && matchPrefix.topicNamePrefix.startsWith(prefix));
+            this.exclude.removeIf(excludedRoute -> excludedRoute instanceof TopicNameRouter.MatchExact<D> matchPrefix && matchPrefix.topicName.startsWith(prefix));
         }
 
         public Builder<D> addExcludePrefixRoute(String prefix) {

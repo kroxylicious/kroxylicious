@@ -78,6 +78,26 @@ class TopicNameRouterTest {
         assertThat(routed).isEqualTo(Map.of(2L, Set.of("a", "ab", "abcd"), 1L, Set.of("other"), 3L, Set.of("abc")));
     }
 
+    @Test
+    void aShorterPrefixIncludedAfterANameWasExcludedOverridesIt() {
+        TopicNameRouter<Long> router = TopicNameRouter.builder(1L)
+                .addIncludePrefixRoute("a", 2L)
+                .addExcludeExactNameRoute("abc")
+                .addIncludePrefixRoute("ab", 3L).build();
+        Map<Long, Set<String>> routed = router.route(Set.of("a", "ab", "abc", "abcd", "other"));
+        assertThat(routed).isEqualTo(Map.of(2L, Set.of("a"), 1L, Set.of("other"), 3L, Set.of("ab", "abc", "abcd")));
+    }
+
+    @Test
+    void aShorterPrefixIncludedAfterALongerPrefixWasExcludedOverridesIt() {
+        TopicNameRouter<Long> router = TopicNameRouter.builder(1L)
+                .addIncludePrefixRoute("a", 2L)
+                .addExcludePrefixRoute("abcd")
+                .addIncludePrefixRoute("abc", 3L).build();
+        Map<Long, Set<String>> routed = router.route(Set.of("a", "ab", "abc", "abcd", "abcde", "other"));
+        assertThat(routed).isEqualTo(Map.of(2L, Set.of("a", "ab"), 1L, Set.of("other"), 3L, Set.of("abc", "abcde", "abcd")));
+    }
+
     /**
      * This is thinking of the case where we might have two configurations like:
      * 1. encrypt prefix abc_def using cipher ChaCha20

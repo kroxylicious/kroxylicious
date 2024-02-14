@@ -159,6 +159,7 @@ public class EnvelopeEncryption<K, E> implements FilterFactory<EnvelopeEncryptio
         for (TopicConfiguration topic : configuration.topics) {
             KekSelectorService<Object, K> ksPlugin = context.pluginInstance(KekSelectorService.class, topic.selector());
             TopicNameBasedKekSelector<K> kekSelector = ksPlugin.buildSelector(kms, topic.selectorConfig());
+            // the order of inclusions and exclusions added to the builder matters, includes can negate prior excludes
             topic.includedTopicNames().forEach(topicName -> builder.addIncludeExactNameRoute(topicName, kekSelector));
             topic.includedTopicPrefixes().forEach(prefix -> builder.addIncludePrefixRoute(prefix, kekSelector));
             topic.excludedTopicNames().forEach(builder::addExcludeExactNameRoute);
