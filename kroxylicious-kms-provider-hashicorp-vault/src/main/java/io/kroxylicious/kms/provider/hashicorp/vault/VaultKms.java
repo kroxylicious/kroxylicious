@@ -80,7 +80,7 @@ public class VaultKms implements Kms<String, VaultEdek> {
         return uri.resolve(uri.getPath() + "/").normalize();
     }
 
-    private HttpClient createClient(SSLContext sslContext) {
+    /* exposed for testing */ HttpClient createClient(SSLContext sslContext) {
         HttpClient.Builder builder = HttpClient.newBuilder();
         if (sslContext != null) {
             builder.sslContext(sslContext);
@@ -179,7 +179,7 @@ public class VaultKms implements Kms<String, VaultEdek> {
         return new VaultEdekSerde();
     }
 
-    private HttpRequest.Builder createVaultRequest() {
+    /* exposed for testing */ HttpRequest.Builder createVaultRequest() {
         return HttpRequest.newBuilder()
                 .timeout(timeout)
                 .header("X-Vault-Token", vaultToken)
