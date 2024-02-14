@@ -7,6 +7,12 @@
 package io.kroxylicious.filter.encryption;
 
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -42,8 +48,11 @@ public class EnvelopeEncryption<K, E> implements FilterFactory<EnvelopeEncryptio
                   @JsonProperty(required = true) @PluginImplName(KmsService.class) String kms,
                   @PluginImplConfig(implNameProperty = "kms") Object kmsConfig,
 
-                  @JsonProperty(required = true) @PluginImplName(KekSelectorService.class) String selector,
-                  @PluginImplConfig(implNameProperty = "selector") Object selectorConfig) {
+                  @Deprecated @JsonProperty @PluginImplName(KekSelectorService.class) String selector,
+
+                  @Deprecated @PluginImplConfig(implNameProperty = "selector") Object selectorConfig,
+
+                  List<TopicConfiguration> topics) {
 
         public KmsCacheConfig kmsCache() {
             return KmsCacheConfig.DEFAULT_CONFIG;
@@ -58,6 +67,42 @@ public class EnvelopeEncryption<K, E> implements FilterFactory<EnvelopeEncryptio
                           @NonNull Duration resolvedAliasRefreshAfterWriteDuration) {
 
         private static final KmsCacheConfig DEFAULT_CONFIG = new KmsCacheConfig(1000, Duration.ofHours(1), 1000, Duration.ofMinutes(10), Duration.ofMinutes(8));
+
+    }
+
+    public record TopicConfiguration(List<String> includedTopicNames,
+                                     List<String> excludedTopicNames,
+                                     List<String> includedTopicPrefixes,
+                                     List<String> excludedTopicPrefixes,
+
+                                     @JsonProperty(required = true) @PluginImplName(KekSelectorService.class) String selector,
+
+                                     @PluginImplConfig(implNameProperty = "selector") Object selectorConfig) {
+
+        @Override
+        public List<String> includedTopicNames() {
+            return emptyIfNull(includedTopicNames);
+        }
+
+        @Override
+        public List<String> excludedTopicNames() {
+            return emptyIfNull(excludedTopicNames);
+        }
+
+        @Override
+        public List<String> includedTopicPrefixes() {
+            return emptyIfNull(includedTopicPrefixes);
+        }
+
+        @Override
+        public List<String> excludedTopicPrefixes() {
+            return emptyIfNull(excludedTopicPrefixes);
+        }
+
+        @NonNull
+        private static List<String> emptyIfNull(List<String> in) {
+            return in == null ? List.of() : in;
+        }
 
     }
 
@@ -82,10 +127,53 @@ public class EnvelopeEncryption<K, E> implements FilterFactory<EnvelopeEncryptio
                 InBandEncryptionManager.NO_MAX_CACHE_SIZE);
         var decryptionManager = new InBandDecryptionManager<>(kms, executor);
 
+        TopicNameRouter<TopicNameBasedKekSelector<K>> router;
+        if (configuration.topics != null) {
+            router = handleTopicRoutingConfig(context, configuration, kms);
+        }
+        else if (configuration.selector != null) {
+            router = handleDeprecatedConfig(context, configuration, kms);
+        }
+        else {
+            throw new IllegalStateException("configuration should contain 'topics' or deprecated 'selector'");
+        }
+        return new EnvelopeEncryptionFilter<>(encryptionManager, decryptionManager, router, executor);
+    }
+
+    private static <K, E> TopicNameRouter<TopicNameBasedKekSelector<K>> handleTopicRoutingConfig(FilterFactoryContext context, Config configuration,
+                                                                                                 Kms<K, E> kms) {
+        TopicNameBasedKekSelector<K> excludeByDefault = new TopicNameBasedKekSelector<>() {
+            @NonNull
+            @Override
+            public CompletionStage<Map<String, K>> selectKek(@NonNull Set<String> topicNames) {
+                HashMap<String, K> result = new HashMap<>();
+                for (String topicName : topicNames) {
+                    result.put(topicName, null);
+                }
+                return CompletableFuture.completedFuture(result);
+            }
+        };
+        // note: router depends on equals method of the TopicNameBasedKekSelector so that it can build the map
+        // Map<TopicNameBasedKekSelector<K>, Set<String>> route(Set<String> topicName) later.
+        TopicNameRouter.Builder<TopicNameBasedKekSelector<K>> builder = TopicNameRouter.builder(excludeByDefault);
+        for (TopicConfiguration topic : configuration.topics) {
+            KekSelectorService<Object, K> ksPlugin = context.pluginInstance(KekSelectorService.class, topic.selector());
+            TopicNameBasedKekSelector<K> kekSelector = ksPlugin.buildSelector(kms, topic.selectorConfig());
+            topic.includedTopicNames().forEach(topicName -> builder.addIncludeExactNameRoute(topicName, kekSelector));
+            topic.includedTopicPrefixes().forEach(prefix -> builder.addIncludePrefixRoute(prefix, kekSelector));
+            topic.excludedTopicNames().forEach(builder::addExcludeExactNameRoute);
+            topic.excludedTopicPrefixes().forEach(builder::addExcludePrefixRoute);
+        }
+        return builder.build();
+    }
+
+    private static <K, E> TopicNameRouter<TopicNameBasedKekSelector<K>> handleDeprecatedConfig(FilterFactoryContext context, Config configuration,
+                                                                                               Kms<K, E> kms) {
+        TopicNameRouter<TopicNameBasedKekSelector<K>> router;
         KekSelectorService<Object, K> ksPlugin = context.pluginInstance(KekSelectorService.class, configuration.selector());
         TopicNameBasedKekSelector<K> kekSelector = ksPlugin.buildSelector(kms, configuration.selectorConfig());
-        TopicNameRouter<TopicNameBasedKekSelector<K>> router = TopicNameRouter.builder(kekSelector).build();
-        return new EnvelopeEncryptionFilter<>(encryptionManager, decryptionManager, router, executor);
+        router = TopicNameRouter.builder(kekSelector).build();
+        return router;
     }
 
     @NonNull
