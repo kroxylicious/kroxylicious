@@ -193,6 +193,10 @@ public class InBandDecryptionManager<K, E> implements DecryptionManager {
                                                               int partition,
                                                               MemoryRecords records) {
         Serde<E> serde = dekManager.edekSerde();
+        // Use a pair of lists because we end up wanting a `List<DecryptState>`,
+        // indexed by the position of the record in the multi-batch MemoryRecords,
+        // to pass to `RecordStream`, which avoids needing to use a `Record`
+        // itself as a hash key.
         var cacheKeys = new ArrayList<CacheKey<E>>();
         var states = new ArrayList<DecryptState<E>>();
 
