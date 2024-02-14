@@ -61,6 +61,12 @@ public class InBandDecryptionManager<K, E> implements DecryptionManager {
     private record CacheKey<E>(
                                @Nullable CipherSpec cipherSpec,
                                @Nullable E edek) {
+        private CacheKey {
+            if (cipherSpec == null ^ edek == null) {
+                throw new IllegalArgumentException();
+            }
+        }
+
         @SuppressWarnings("rawtypes")
         private static final CacheKey NONE = new CacheKey(null, null);
 
@@ -208,15 +214,15 @@ public class InBandDecryptionManager<K, E> implements DecryptionManager {
         });
         // Lookup the decryptors for the cache keys
         return filterThreadExecutor.completingOnFilterThread(decryptorCache.getAll(cacheKeys))
-                .thenApply(cacheKeyDecryptorMap -> {
+                .thenApply(cacheKeyDecryptorMap ->
                     // Once we have the decryptors from the cache...
-                    return issueDecryptors(cacheKeyDecryptorMap, cacheKeys, states);
-                });
+                    issueDecryptors(cacheKeyDecryptorMap, cacheKeys, states)
+                );
     }
 
-    private @NonNull ArrayList<DecryptState<E>> issueDecryptors(@NonNull Map<CacheKey<E>, Dek<E>> cacheKeyDecryptorMap,
-                                                                @NonNull ArrayList<CacheKey<E>> cacheKeys,
-                                                                @NonNull ArrayList<DecryptState<E>> states) {
+    private @NonNull List<DecryptState<E>> issueDecryptors(@NonNull Map<CacheKey<E>, Dek<E>> cacheKeyDecryptorMap,
+                                                                @NonNull List<CacheKey<E>> cacheKeys,
+                                                                @NonNull List<DecryptState<E>> states) {
         Map<CacheKey<E>, Dek<E>.Decryptor> issuedDecryptors = new HashMap<>();
         try {
             for (int index = 0, cacheKeysSize = cacheKeys.size(); index < cacheKeysSize; index++) {
@@ -233,7 +239,11 @@ public class InBandDecryptionManager<K, E> implements DecryptionManager {
             return states;
         }
         catch (RuntimeException e) {
-            issuedDecryptors.forEach((cacheKey, decryptor) -> decryptor.close());
+            issuedDecryptors.forEach((cacheKey, decryptor) -> {
+                if (decryptor != null)  {
+                    decryptor.close();
+                }
+            });
             throw e;
         }
     }
@@ -255,13 +265,13 @@ public class InBandDecryptionManager<K, E> implements DecryptionManager {
      */
     @NonNull
     private MemoryRecords decrypt(@NonNull String topicName,
-                                  int parititon,
+                                  int partition,
                                   @NonNull MemoryRecords records,
                                   @NonNull List<DecryptState<E>> decryptorList,
                                   @NonNull ByteBufferOutputStream buffer) {
         return RecordStream.ofRecordsWithIndex(records)
                 .mapPerRecord((batch, record, index) -> decryptorList.get(index))
                 .toMemoryRecords(buffer,
-                        new RecordDecryptor<>(topicName, parititon));
+                        new RecordDecryptor<>(topicName, partition));
     }
 }
