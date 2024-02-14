@@ -39,7 +39,7 @@ import static org.mockito.Mockito.mock;
 
 class RecordEncryptorTest {
 
-    private static AesGcmEncryptor DECRYPTOR;
+    private static Dek.Decryptor DECRYPTOR;
 
     private static Dek.Encryptor ENCRYPTOR;
     private static ByteBuffer EDEK;
@@ -50,14 +50,18 @@ class RecordEncryptorTest {
         var generator = KeyGenerator.getInstance("AES");
         var key = generator.generateKey();
         EDEK = ByteBuffer.wrap(key.getEncoded()); // it doesn't matter for this test that it's not encrypted
-        DECRYPTOR = AesGcmEncryptor.forDecrypt(key);
 
         var dek = mock(Dek.class);
         doReturn(EDEK).when(dek).edek();
-        var ctor = Dek.Encryptor.class.getDeclaredConstructor(Dek.class, CipherSpec.class, SecretKey.class, Integer.TYPE);
-        ctor.setAccessible(true);
-        ENCRYPTOR = ctor.newInstance(dek, CipherSpec.AES_128_GCM_128, key, 1_000_000);
+        var encryptorConstructor = Dek.Encryptor.class.getDeclaredConstructor(Dek.class, CipherSpec.class, SecretKey.class, Integer.TYPE);
+        encryptorConstructor.setAccessible(true);
+        ENCRYPTOR = encryptorConstructor.newInstance(dek, CipherSpec.AES_128_GCM_128, key, 1_000_000);
         doReturn(ENCRYPTOR).when(dek).encryptor(anyInt());
+
+        var decryptorConstructor = Dek.Decryptor.class.getDeclaredConstructor(Dek.class, CipherSpec.class, SecretKey.class);
+        decryptorConstructor.setAccessible(true);
+        DECRYPTOR = decryptorConstructor.newInstance(dek, CipherSpec.AES_128_GCM_128, key);
+        doReturn(DECRYPTOR).when(dek).decryptor();
 
         EDEK_SERDE = new Serde<ByteBuffer>() {
             @Override
@@ -82,25 +86,27 @@ class RecordEncryptorTest {
     }
 
     private Record encryptSingleRecord(Set<RecordField> fields, long offset, long timestamp, String key, String value, Header... headers) {
-        var re = new RecordEncryptor(EncryptionVersion.V1,
+        var re = new RecordEncryptor(
+                "topic", 0,
+                EncryptionVersion.V1,
                 new EncryptionScheme<>("key", fields),
-                ENCRYPTOR,
                 EDEK_SERDE,
                 ByteBuffer.allocate(100));
 
         Record record = RecordTestUtils.record(RecordBatch.MAGIC_VALUE_V2, offset, timestamp, key, value, headers);
 
-        return transformRecord(re, record);
+        return transformRecord(re, ENCRYPTOR, record);
     }
 
-    private Record transformRecord(RecordTransform recordTransform, Record record) {
-        recordTransform.init(record);
+    private <S> Record transformRecord(RecordTransform<S> recordTransform, S state, Record record) {
+        recordTransform.initBatch(mock(RecordBatch.class));
+        recordTransform.init(state, record);
         var tOffset = recordTransform.transformOffset(record);
         var tTimestamp = recordTransform.transformTimestamp(record);
         var tKey = recordTransform.transformKey(record);
         var tValue = recordTransform.transformValue(record);
         var tHeaders = recordTransform.transformHeaders(record);
-        recordTransform.resetAfterTransform(record);
+        recordTransform.resetAfterTransform(state, record);
         return RecordTestUtils.record(tOffset, tTimestamp, tKey, tValue, tHeaders);
     }
 
@@ -127,8 +133,8 @@ class RecordEncryptorTest {
                 .hasValueEqualTo(new byte[]{ 1 });
 
         // And when
-        var rd = new RecordDecryptor(index -> new DecryptState(t, EncryptionVersion.V1, DECRYPTOR));
-        var rt = transformRecord(rd, t);
+        var rd = new RecordDecryptor("topic", 0);
+        var rt = transformRecord(rd, new DecryptState(EncryptionVersion.V1).withDecryptor(DECRYPTOR), t);
 
         // Then
         KafkaAssertions.assertThat(rt)
@@ -165,8 +171,9 @@ class RecordEncryptorTest {
                 .containsHeaderWithKey("bob");
 
         // And when
-        var rd = new RecordDecryptor(index -> new DecryptState(t, EncryptionVersion.V1, DECRYPTOR));
-        var rt = transformRecord(rd, t);
+        var rd = new RecordDecryptor("topic", 0); // index -> new DecryptState(t, EncryptionVersion.V1, DECRYPTOR)
+
+        var rt = transformRecord(rd, new DecryptState(EncryptionVersion.V1).withDecryptor(DECRYPTOR), t);
 
         // Then
         KafkaAssertions.assertThat(rt)
@@ -200,8 +207,8 @@ class RecordEncryptorTest {
                 .hasEmptyHeaders();
 
         // And when
-        var rd = new RecordDecryptor(index -> null); // note the null return
-        var rt = transformRecord(rd, t);
+        var rd = new RecordDecryptor("topic", 0); // note the null return
+        var rt = transformRecord(rd, null, t);
 
         // Then
         KafkaAssertions.assertThat(rt)
@@ -236,8 +243,8 @@ class RecordEncryptorTest {
                 .hasValueEqualTo(new byte[]{ 1 });
 
         // And when
-        var rd = new RecordDecryptor(index -> new DecryptState(t, EncryptionVersion.V1, DECRYPTOR));
-        var rt = transformRecord(rd, t);
+        var rd = new RecordDecryptor("topic", 0);
+        var rt = transformRecord(rd, new DecryptState<>(EncryptionVersion.V1).withDecryptor(DECRYPTOR), t);
 
         // Then
         KafkaAssertions.assertThat(rt)

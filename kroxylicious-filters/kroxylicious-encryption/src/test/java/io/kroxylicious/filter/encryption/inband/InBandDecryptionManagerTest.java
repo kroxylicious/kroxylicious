@@ -47,6 +47,7 @@ import io.kroxylicious.filter.encryption.EncryptionException;
 import io.kroxylicious.filter.encryption.EncryptionScheme;
 import io.kroxylicious.filter.encryption.FilterThreadExecutor;
 import io.kroxylicious.filter.encryption.RecordField;
+import io.kroxylicious.filter.encryption.dek.CipherSpec;
 import io.kroxylicious.filter.encryption.dek.Dek;
 import io.kroxylicious.filter.encryption.dek.DekManager;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.InMemoryEdek;
@@ -983,6 +984,7 @@ class InBandDecryptionManagerTest {
                 .filter(testingRecord -> Stream.of(testingRecord.headers()).anyMatch(header -> header.key().equals(RecordEncryptor.ENCRYPTION_HEADER_NAME)))
                 .map(testingRecord -> {
                     ByteBuffer wrapper = testingRecord.value();
+                    CipherSpec.fromPersistentId(wrapper.get());
                     var edekLength = ByteUtils.readUnsignedVarint(wrapper);
                     byte[] edekBytes = new byte[edekLength];
                     wrapper.get(edekBytes);
@@ -993,13 +995,25 @@ class InBandDecryptionManagerTest {
 
     @NonNull
     private static InBandDecryptionManager<UUID, InMemoryEdek> createDecryptionManager(InMemoryKms kms) {
-        return new InBandDecryptionManager<>(kms, new FilterThreadExecutor(directExecutor()));
+
+        return new InBandDecryptionManager<>(new DekManager<UUID, InMemoryEdek>(ignored -> kms, null, 1),
+                new FilterThreadExecutor(directExecutor()),
+                new Executor() {
+                    @Override
+                    public void execute(Runnable command) {
+                        // Run cache evications on the test thread, avoiding the need for tests to sleep to observe cache evictions
+                        command.run();
+                    }
+                },
+                InBandDecryptionManager.NO_MAX_CACHE_SIZE);
     }
 
     @NonNull
     private static InBandEncryptionManager<UUID, InMemoryEdek> createEncryptionManager(InMemoryKms kms, int maxEncryptionsPerDek) {
-        return createEncryptionManager(kms, maxEncryptionsPerDek,
-                1024 * 1024, 8 * 1024 * 1024,
+        return createEncryptionManager(kms,
+                maxEncryptionsPerDek,
+                1024 * 1024,
+                8 * 1024 * 1024,
                 InBandEncryptionManager.NO_MAX_CACHE_SIZE);
     }
 

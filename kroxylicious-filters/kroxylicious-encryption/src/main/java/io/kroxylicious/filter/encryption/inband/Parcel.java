@@ -44,7 +44,7 @@ public class Parcel {
         }
     }
 
-    static void writeParcel(ParcelVersion parcelVersion, Set<RecordField> recordFields, Record kafkaRecord, ByteBuffer parcel) {
+    public static void writeParcel(ParcelVersion parcelVersion, Set<RecordField> recordFields, Record kafkaRecord, ByteBuffer parcel) {
         switch (parcelVersion) {
             case V1:
                 writeRecordValue(recordFields, kafkaRecord, parcel);
@@ -55,10 +55,10 @@ public class Parcel {
         }
     }
 
-    static void readParcel(ParcelVersion parcelVersion,
-                           ByteBuffer parcel,
-                           Record encryptedRecord,
-                           @NonNull BiConsumer<ByteBuffer, Header[]> consumer) {
+    public static void readParcel(ParcelVersion parcelVersion,
+                                  ByteBuffer parcel,
+                                  Record encryptedRecord,
+                                  @NonNull BiConsumer<ByteBuffer, Header[]> consumer) {
         switch (parcelVersion) {
             case V1:
                 var parcelledValue = readRecordValue(parcel);

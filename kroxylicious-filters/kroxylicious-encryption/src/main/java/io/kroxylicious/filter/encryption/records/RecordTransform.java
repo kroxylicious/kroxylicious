@@ -12,6 +12,7 @@ import javax.annotation.concurrent.NotThreadSafe;
 
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.record.Record;
+import org.apache.kafka.common.record.RecordBatch;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -24,17 +25,21 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * <p>When transforming a record callers of this interface must:</p>
  * <ol>
  *     <li>Transform one record at a time</li>
- *     <li>Invoke {@link #init(Record)} for that record before any other methods</li>
+ *     <li>Invoke {@link #init(Object, Record)} for that record before any other methods</li>
  *     <li>Invoke the {@code transform*()} methods for that record, as required.
  *     They may be invoked zero, one or many times, and should be idempotent.
  *     They don't have to be invoked in any particular order.</li>
- *     <li>Invoke {@link #resetAfterTransform(Record)} for that record</li>
+ *     <li>Invoke {@link #resetAfterTransform(Object, Record)} for that record</li>
  * </ol>
  */
 @NotThreadSafe
-public interface RecordTransform {
+public interface RecordTransform<S> {
 
-    void init(@NonNull Record record);
+    void initBatch(@NonNull RecordBatch batch);
+
+    void init(S state, @NonNull Record record);
+
+    void resetAfterTransform(S state, @NonNull Record record);
 
     /**
      * @param record The operand record.
@@ -71,6 +76,4 @@ public interface RecordTransform {
      */
     @Nullable
     Header[] transformHeaders(@NonNull Record record);
-
-    void resetAfterTransform(@NonNull Record record);
 }

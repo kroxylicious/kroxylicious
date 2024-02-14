@@ -8,14 +8,12 @@ package io.kroxylicious.filter.encryption.inband;
 
 import java.nio.ByteBuffer;
 import java.util.Objects;
-import java.util.function.IntFunction;
 
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.record.Record;
-import org.apache.kafka.common.utils.ByteUtils;
+import org.apache.kafka.common.record.RecordBatch;
 
-import io.kroxylicious.filter.encryption.AadSpec;
-import io.kroxylicious.filter.encryption.CipherCode;
+import io.kroxylicious.filter.encryption.dek.Dek;
 import io.kroxylicious.filter.encryption.records.RecordTransform;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -24,56 +22,57 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 /**
  * A {@link RecordTransform} that decrypts records that were previously encrypted by {@link RecordEncryptor}.
  */
-public class RecordDecryptor implements RecordTransform {
+public class RecordDecryptor<E> implements RecordTransform<DecryptState<E>> {
 
-    private final IntFunction<DecryptState> keys;
-    int index = 0;
+    private final String topicName;
+    private final int partition;
+    private RecordBatch batch;
+
     private ByteBuffer transformedValue;
     private Header[] transformedHeaders;
 
-    public RecordDecryptor(@NonNull IntFunction<DecryptState> keys) {
-        Objects.requireNonNull(keys);
-        this.keys = keys;
+    public RecordDecryptor(@NonNull String topicName, int partition) {
+        this.topicName = Objects.requireNonNull(topicName);
+        this.partition = partition;
     }
 
     @Override
-    public void init(@NonNull Record record) {
-        DecryptState decryptState = keys.apply(index);
-        if (decryptState == null || decryptState.encryptor() == null) {
+    public void initBatch(@NonNull RecordBatch batch) {
+        this.batch = Objects.requireNonNull(batch);
+    }
+
+    @Override
+    public void init(@Nullable DecryptState<E> decryptState,
+                     @NonNull Record record) {
+        if (batch == null) {
+            throw new IllegalStateException();
+        }
+        final Dek<E>.Decryptor decryptor;
+        if (decryptState == null) {
+            decryptor = null;
+        }
+        else {
+            decryptor = decryptState.decryptor();
+        }
+        if (decryptor == null) {
             transformedValue = record.value();
             transformedHeaders = record.headers();
             return;
         }
-        var encryptor = decryptState.encryptor();
-        var decryptionVersion = decryptState.decryptionVersion();
+
         var wrapper = record.value();
-        // Skip the edek
-        var edekLength = ByteUtils.readUnsignedVarint(wrapper);
-        wrapper.position(wrapper.position() + edekLength);
+        decryptState.decryptionVersion().wrapperVersion().read(decryptState.decryptionVersion().parcelVersion(),
+                topicName,
+                partition,
+                batch,
+                record,
+                wrapper,
+                decryptor,
+                (v, h) -> {
+                    transformedValue = v;
+                    transformedHeaders = h;
+                });
 
-        var aadSpec = AadSpec.fromCode(wrapper.get());
-        ByteBuffer aad = switch (aadSpec) {
-            case NONE -> ByteUtils.EMPTY_BUF;
-        };
-
-        var cipherCode = CipherCode.fromCode(wrapper.get());
-
-        ByteBuffer plaintextParcel;
-        synchronized (encryptor) {
-            plaintextParcel = decryptParcel(wrapper.slice(), encryptor);
-        }
-        Parcel.readParcel(decryptionVersion.parcelVersion(), plaintextParcel, record, (v, h) -> {
-            transformedValue = v;
-            transformedHeaders = h;
-        });
-
-    }
-
-    private ByteBuffer decryptParcel(ByteBuffer ciphertextParcel, AesGcmEncryptor encryptor) {
-        ByteBuffer plaintext = ciphertextParcel.duplicate();
-        encryptor.decrypt(ciphertextParcel, plaintext);
-        plaintext.flip();
-        return plaintext;
     }
 
     @Override
@@ -105,11 +104,11 @@ public class RecordDecryptor implements RecordTransform {
     }
 
     @Override
-    public void resetAfterTransform(@NonNull Record record) {
+    public void resetAfterTransform(@Nullable DecryptState decryptState,
+                                    @NonNull Record record) {
         if (transformedValue != null) {
             transformedValue.clear();
         }
         transformedHeaders = null;
-        index++;
     }
 }
