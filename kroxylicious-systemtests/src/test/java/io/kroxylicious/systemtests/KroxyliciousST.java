@@ -27,7 +27,6 @@ import io.kroxylicious.systemtests.templates.strimzi.KafkaTemplates;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assumptions.assumeThat;
 import static org.assertj.core.api.BDDAssumptions.given;
 
 /**
