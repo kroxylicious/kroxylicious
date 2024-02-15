@@ -108,19 +108,20 @@ class TlsParseTest {
     }
 
     @Test
-    void testTrustStoreStoreFileInlinePasswordAllowsNull() throws IOException {
-        String json = """
-                {
-                    "trust": {
-                         "storeFile": "/tmp/file",
-                         "storePassword": {
-                             "password": null
-                         }
-                     }
-                 }
-                 """;
-        Tls tls = readTls(json);
-        assertThat(tls).isEqualTo(new Tls(null, new TrustStore("/tmp/file", new InlinePassword(null), null)));
+    void testTrustStoreStoreFileInlinePasswordDoesNotAllowNull() {
+        Assertions.assertThatThrownBy(() -> {
+            String json = """
+                       {
+                       "trust": {
+                            "storeFile": "/tmp/file",
+                            "storePassword": {
+                                "password": null
+                            }
+                        }
+                    }
+                       """;
+            readTls(json);
+        }).isInstanceOf(ValueInstantiationException.class).cause().isInstanceOf(NullPointerException.class);
     }
 
     @Test
