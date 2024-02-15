@@ -57,7 +57,7 @@ class KroxyliciousST extends AbstractST {
         kroxylicious.deployPortPerBrokerPlainWithNoFilters(clusterName, 1);
         String bootstrap = kroxylicious.getBootstrap();
 
-        LOGGER.info("And KafkaTopic in {} namespace", namespace);
+        LOGGER.info("And a kafka Topic named {}", topicName);
         KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 2);
 
         LOGGER.info("When {} messages '{}' are sent to the topic '{}'", numberOfMessages, MESSAGE, topicName);
@@ -86,7 +86,7 @@ class KroxyliciousST extends AbstractST {
         kroxylicious.deployPortPerBrokerPlainWithNoFilters(clusterName, 1);
         String bootstrap = kroxylicious.getBootstrap();
 
-        LOGGER.info("And KafkaTopic in {} namespace", namespace);
+        LOGGER.info("And a kafka Topic named {}", topicName);
         KafkaSteps.createTopic(namespace, topicName, bootstrap, 3, 2);
 
         LOGGER.info("When {} messages '{}' are sent to the topic '{}'", numberOfMessages, MESSAGE, topicName);
@@ -119,7 +119,7 @@ class KroxyliciousST extends AbstractST {
         int currentReplicas = kroxylicious.getNumberOfReplicas();
         given(currentReplicas).withFailMessage("unexpected deployed replicas").isEqualTo(replicas);
 
-        LOGGER.info("And KafkaTopic in {} namespace", namespace);
+        LOGGER.info("And a kafka Topic named {}", topicName);
         KafkaSteps.createTopic(namespace, topicName, bootstrap, 3, 2);
 
         LOGGER.info("When {} messages '{}' are sent to the topic '{}'", numberOfMessages, MESSAGE, topicName);
@@ -155,7 +155,7 @@ class KroxyliciousST extends AbstractST {
         int currentReplicas = kroxylicious.getNumberOfReplicas();
         given(currentReplicas).withFailMessage("unexpected deployed replicas").isEqualTo(replicas);
 
-        LOGGER.info("And KafkaTopic in {} namespace", namespace);
+        LOGGER.info("And a kafka Topic named {}", topicName);
         KafkaSteps.createTopic(namespace, topicName, bootstrap, 3, 2);
 
         LOGGER.info("When {} messages '{}' are sent to the topic '{}'", numberOfMessages, MESSAGE, topicName);
