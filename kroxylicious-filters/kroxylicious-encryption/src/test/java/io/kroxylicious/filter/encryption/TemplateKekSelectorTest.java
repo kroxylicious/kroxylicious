@@ -10,7 +10,6 @@ import java.time.Duration;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 
 import org.junit.jupiter.api.Test;
 
@@ -18,7 +17,6 @@ import io.kroxylicious.kms.provider.kroxylicious.inmemory.InMemoryKms;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.UnitTestingKmsService;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.KmsException;
-import io.kroxylicious.kms.service.UnknownAliasException;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -51,30 +49,16 @@ class TemplateKekSelectorTest {
     }
 
     @Test
-    void shouldNotThrowWhenAliasDoesNotExist() {
+    void shouldThrowWhenAliasDoesNotExist() {
         var kms = UnitTestingKmsService.newInstance().buildKms(new UnitTestingKmsService.Config());
         var selector = getSelector(kms, "topic-${topicName}");
 
-        var map = selector.selectKek(Set.of("my-topic")).toCompletableFuture().join();
-        assertThat(map)
-                .hasSize(1)
-                .containsEntry("my-topic", null);
-    }
-
-    @Test
-    void shouldNotThrowWhenAliasDoesNotExist_UnknownAliasExceptionWrappedInCompletionException() throws ExecutionException, InterruptedException {
-        var kms = mock(InMemoryKms.class);
-        var result = CompletableFuture.completedFuture(null)
-                .<UUID> thenApply((u) -> {
-                    // this exception will be wrapped by a CompletionException
-                    throw new UnknownAliasException("mock alias exception");
-                });
-        when(kms.resolveAlias(anyString())).thenReturn(result);
-        var selector = getSelector(kms, "topic-${topicName}");
-        var map = selector.selectKek(Set.of("my-topic")).toCompletableFuture().get();
-        assertThat(map)
-                .hasSize(1)
-                .containsEntry("my-topic", null);
+        var stage = selector.selectKek(Set.of("my-topic"));
+        assertThat(stage)
+                .isCompletedExceptionally()
+                .failsWithin(Duration.ZERO)
+                .withThrowableThat()
+                .withCauseInstanceOf(KmsException.class);
     }
 
     @Test

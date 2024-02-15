@@ -8,8 +8,10 @@ package io.kroxylicious.filter.encryption;
 
 import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
@@ -43,7 +45,7 @@ import static org.slf4j.LoggerFactory.getLogger;
 public class EnvelopeEncryptionFilter<K>
         implements ProduceRequestFilter, FetchResponseFilter {
     private static final Logger log = getLogger(EnvelopeEncryptionFilter.class);
-    private final TopicNameBasedKekSelector<K> kekSelector;
+    private final TopicNameRouter<TopicNameBasedKekSelector<K>> kekSelector;
 
     private final EncryptionManager<K> encryptionManager;
     private final DecryptionManager decryptionManager;
@@ -51,7 +53,7 @@ public class EnvelopeEncryptionFilter<K>
 
     EnvelopeEncryptionFilter(EncryptionManager<K> encryptionManager,
                              DecryptionManager decryptionManager,
-                             TopicNameBasedKekSelector<K> kekSelector,
+                             TopicNameRouter<TopicNameBasedKekSelector<K>> kekSelector,
                              @NonNull FilterThreadExecutor filterThreadExecutor) {
         this.kekSelector = kekSelector;
         this.encryptionManager = encryptionManager;
@@ -77,7 +79,8 @@ public class EnvelopeEncryptionFilter<K>
 
     private CompletionStage<ProduceRequestData> maybeEncodeProduce(ProduceRequestData request, FilterContext context) {
         var topicNameToData = request.topicData().stream().collect(Collectors.toMap(TopicProduceData::name, Function.identity()));
-        CompletionStage<Map<String, K>> keks = filterThreadExecutor.completingOnFilterThread(kekSelector.selectKek(topicNameToData.keySet()));
+        CompletionStage<Map<String, K>> stage = obtainKeks(topicNameToData);
+        CompletionStage<Map<String, K>> keks = filterThreadExecutor.completingOnFilterThread(stage);
         return keks // figure out what keks we need
                 .thenCompose(kekMap -> {
                     var futures = kekMap.entrySet().stream().flatMap(e -> {
@@ -107,6 +110,23 @@ public class EnvelopeEncryptionFilter<K>
                             .log();
                     return CompletableFuture.failedStage(throwable);
                 });
+    }
+
+    private CompletionStage<Map<String, K>> obtainKeks(Map<String, TopicProduceData> topicNameToData) {
+        Map<TopicNameBasedKekSelector<K>, Set<String>> routedTopicNames = kekSelector.route(topicNameToData.keySet());
+        List<CompletionStage<Map<String, K>>> stages = routedTopicNames.entrySet().stream().map(e -> e.getKey().selectKek(e.getValue())).collect(Collectors.toList());
+        CompletionStage<List<Map<String, K>>> join = join(stages);
+        return join.thenApply(maps -> {
+            if (maps.size() == 1) {
+                return maps.get(0);
+            }
+            HashMap<String, K> merged = new HashMap<>();
+            for (Map<String, K> map : maps) {
+                // we could check if the key is already mapped? also quite trusting to expect the result to contain an entry for each topic
+                merged.putAll(map);
+            }
+            return merged;
+        });
     }
 
     @Override

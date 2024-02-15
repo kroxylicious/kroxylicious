@@ -30,6 +30,7 @@ import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import io.kroxylicious.filter.encryption.EnvelopeEncryption;
+import io.kroxylicious.filter.encryption.EnvelopeEncryption.TopicConfiguration;
 import io.kroxylicious.filter.encryption.TemplateKekSelector;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.InMemoryKms;
 import io.kroxylicious.kms.service.TestKmsFacade;
@@ -338,13 +339,18 @@ class EnvelopeEncryptionFilterIT {
     }
 
     @TestTemplate
-    void produceAndConsumeEncryptedAndPlainTopicsAtSameTime(KafkaCluster cluster, Topic encryptedTopic, Topic plainTopic, TestKmsFacade<?, ?, ?> testKmsFacade)
-            throws Exception {
+    void produceAndConsumeEncryptedAndPlainTopicsAtSameTime(KafkaCluster cluster, Topic encryptedTopic, Topic plainTopic, TestKmsFacade<?, ?, ?> testKmsFacade) {
         var testKekManager = testKmsFacade.getTestKekManager();
         testKekManager.generateKek(encryptedTopic.name());
 
         var builder = proxy(cluster);
-        builder.addToFilters(buildEncryptionFilterDefinition(testKmsFacade));
+        builder.addToFilters(new FilterDefinitionBuilder(EnvelopeEncryption.class.getSimpleName())
+                .withConfig("kms", testKmsFacade.getKmsServiceClass().getSimpleName())
+                .withConfig("kmsConfig", testKmsFacade.getKmsServiceConfig())
+                .withConfig("topics",
+                        List.of(new TopicConfiguration(List.of(encryptedTopic.name()), null, null, null, TemplateKekSelector.class.getSimpleName(),
+                                Map.of("template", TEMPLATE_KEK_SELECTOR_PATTERN))))
+                .build());
 
         try (var tester = kroxyliciousTester(builder);
                 var producer = tester.producer(Map.of(ProducerConfig.LINGER_MS_CONFIG, 1000, ProducerConfig.BATCH_SIZE_CONFIG, 2));
