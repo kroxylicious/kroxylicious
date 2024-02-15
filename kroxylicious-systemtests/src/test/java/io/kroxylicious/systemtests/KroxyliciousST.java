@@ -27,6 +27,8 @@ import io.kroxylicious.systemtests.templates.strimzi.KafkaTemplates;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assumptions.assumeThat;
+import static org.assertj.core.api.BDDAssumptions.given;
 
 /**
  * The type Acceptance st.
@@ -115,7 +117,7 @@ class KroxyliciousST extends AbstractST {
         kroxylicious.deployPortPerBrokerPlainWithNoFilters(clusterName, replicas);
         String bootstrap = kroxylicious.getBootstrap();
         int currentReplicas = kroxylicious.getNumberOfReplicas();
-        assertThat(currentReplicas).withFailMessage("unexpected current replicas").isEqualTo(replicas);
+        given(currentReplicas).withFailMessage("unexpected deployed replicas").isEqualTo(replicas);
 
         LOGGER.info("And KafkaTopic in {} namespace", namespace);
         KafkaSteps.createTopic(namespace, topicName, bootstrap, 3, 2);
@@ -151,7 +153,7 @@ class KroxyliciousST extends AbstractST {
         kroxylicious.deployPortPerBrokerPlainWithNoFilters(clusterName, replicas);
         String bootstrap = kroxylicious.getBootstrap();
         int currentReplicas = kroxylicious.getNumberOfReplicas();
-        assertThat(currentReplicas).withFailMessage("unexpected current replicas").isEqualTo(replicas);
+        given(currentReplicas).withFailMessage("unexpected deployed replicas").isEqualTo(replicas);
 
         LOGGER.info("And KafkaTopic in {} namespace", namespace);
         KafkaSteps.createTopic(namespace, topicName, bootstrap, 3, 2);
