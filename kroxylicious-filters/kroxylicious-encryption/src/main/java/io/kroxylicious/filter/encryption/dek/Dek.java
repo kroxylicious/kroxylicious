@@ -295,11 +295,11 @@ public final class Dek<E> {
             if (numEncryptions <= 0) {
                 throw new IllegalArgumentException();
             }
+            this.cipherSpec = Objects.requireNonNull(cipherSpec);
+            this.key = Objects.requireNonNull(key);
+            this.numEncryptions = numEncryptions;
             this.cipher = cipherSpec.newCipher();
             this.paramSupplier = cipherSpec.paramSupplier();
-            this.cipherSpec = cipherSpec;
-            this.key = key;
-            this.numEncryptions = numEncryptions;
         }
 
         /**
@@ -404,6 +404,10 @@ public final class Dek<E> {
                 key = null;
                 maybeDestroyKey(Dek::releaseEncryptor);
             }
+        }
+
+        public @NonNull CipherSpec cipherSpec() {
+            return cipherSpec;
         }
     }
 

@@ -30,7 +30,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * (Apache Kafka's own {@link MemoryRecordsBuilder} assumes a single batch).</p>
  */
 @NotThreadSafe
-public class BatchAwareMemoryRecordsBuilder implements AutoCloseable {
+public class BatchAwareMemoryRecordsBuilder {
 
     public static final Header[] EMPTY_HEADERS = new Header[0];
 
@@ -42,8 +42,7 @@ public class BatchAwareMemoryRecordsBuilder implements AutoCloseable {
      * Initialize a new instance, which will append into the given buffer.
      * @param buffer The buffer to use.
      */
-    public BatchAwareMemoryRecordsBuilder(
-                                          @NonNull ByteBufferOutputStream buffer) {
+    BatchAwareMemoryRecordsBuilder(@NonNull ByteBufferOutputStream buffer) {
         this.buffer = Objects.requireNonNull(buffer);
     }
 
@@ -290,11 +289,4 @@ public class BatchAwareMemoryRecordsBuilder implements AutoCloseable {
         return MemoryRecords.readableRecords(recordsBuff);
     }
 
-    /**
-     * Closes this build. This is the same as calling {@link #build()}.
-     */
-    @Override
-    public void close() {
-        build();
-    }
 }

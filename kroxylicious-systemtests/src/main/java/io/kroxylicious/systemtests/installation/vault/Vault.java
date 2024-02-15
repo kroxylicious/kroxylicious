@@ -33,14 +33,14 @@ import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
  * The type Vault.
  */
 public class Vault {
-    private static final Logger LOGGER = LoggerFactory.getLogger(Vault.class);
-    private static final String VAULT_CMD = "vault";
     public static final String VAULT_SERVICE_NAME = "vault";
     public static final String VAULT_POD_NAME = VAULT_SERVICE_NAME + "-0";
     public static final String VAULT_DEFAULT_NAMESPACE = "vault";
     public static final String VAULT_HELM_REPOSITORY_URL = "https://helm.releases.hashicorp.com";
     public static final String VAULT_HELM_REPOSITORY_NAME = "hashicorp";
     public static final String VAULT_HELM_CHART_NAME = "hashicorp/vault";
+    private static final Logger LOGGER = LoggerFactory.getLogger(Vault.class);
+    private static final String VAULT_CMD = "vault";
     private final String deploymentNamespace;
     private final String vaultRootToken;
 

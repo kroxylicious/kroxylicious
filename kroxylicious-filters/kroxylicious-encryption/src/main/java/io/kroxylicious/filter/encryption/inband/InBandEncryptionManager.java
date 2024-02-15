@@ -14,7 +14,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
 import java.util.function.IntFunction;
-import java.util.stream.StreamSupport;
 
 import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.record.MutableRecordBatch;
@@ -39,8 +38,7 @@ import io.kroxylicious.filter.encryption.dek.CipherSpec;
 import io.kroxylicious.filter.encryption.dek.Dek;
 import io.kroxylicious.filter.encryption.dek.DekManager;
 import io.kroxylicious.filter.encryption.dek.ExhaustedDekException;
-import io.kroxylicious.filter.encryption.records.BatchAwareMemoryRecordsBuilder;
-import io.kroxylicious.filter.encryption.records.RecordBatchUtils;
+import io.kroxylicious.filter.encryption.records.RecordStream;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -87,7 +85,7 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
     /**
     * The encryption version used on the produce path.
     * Note that the encryption version used on the fetch path is read from the
-    * {@link InBandDecryptionManager#ENCRYPTION_HEADER_NAME} header.
+    * {@link RecordEncryptor#ENCRYPTION_HEADER_NAME} header.
     */
     private final EncryptionVersion encryptionVersion;
     private final DekManager<K, E> dekManager;
@@ -176,8 +174,7 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
         if (batchRecordCounts.stream().allMatch(size -> size == 0)) {
             return CompletableFuture.completedFuture(records);
         }
-        return attemptEncrypt(topicName, partition, encryptionScheme, records, 0, batchRecordCounts, bufferAllocator)
-                .thenApply(BatchAwareMemoryRecordsBuilder::build);
+        return attemptEncrypt(topicName, partition, encryptionScheme, records, 0, batchRecordCounts, bufferAllocator);
     }
 
     private ByteBufferOutputStream allocateBufferForEncrypt(@NonNull MemoryRecords records,
@@ -188,13 +185,13 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
     }
 
     @SuppressWarnings("java:S2445")
-    private CompletionStage<BatchAwareMemoryRecordsBuilder> attemptEncrypt(@NonNull String topicName,
-                                                                           int partition,
-                                                                           @NonNull EncryptionScheme<K> encryptionScheme,
-                                                                           @NonNull MemoryRecords records,
-                                                                           int attempt,
-                                                                           @NonNull List<Integer> batchRecordCounts,
-                                                                           @NonNull IntFunction<ByteBufferOutputStream> bufferAllocator) {
+    private CompletionStage<MemoryRecords> attemptEncrypt(@NonNull String topicName,
+                                                          int partition,
+                                                          @NonNull EncryptionScheme<K> encryptionScheme,
+                                                          @NonNull MemoryRecords records,
+                                                          int attempt,
+                                                          @NonNull List<Integer> batchRecordCounts,
+                                                          @NonNull IntFunction<ByteBufferOutputStream> bufferAllocator) {
         int allRecordsCount = batchRecordCounts.stream().mapToInt(value -> value).sum();
         if (attempt >= MAX_ATTEMPTS) {
             return CompletableFuture.failedFuture(
@@ -205,8 +202,14 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
             // if it's not alive we know a previous encrypt call has removed this stage from the cache and fall through to retry encrypt
             if (!dek.isDestroyed()) {
                 try (Dek<E>.Encryptor encryptor = dek.encryptor(allRecordsCount)) {
-                    BatchAwareMemoryRecordsBuilder encrypt = encryptBatches(encryptionScheme, records, encryptor, bufferAllocator);
-                    return CompletableFuture.completedFuture(encrypt);
+                    var encryptedMemoryRecords = encryptBatches(
+                            topicName,
+                            partition,
+                            encryptionScheme,
+                            records,
+                            encryptor,
+                            bufferAllocator);
+                    return CompletableFuture.completedFuture(encryptedMemoryRecords);
                 }
                 catch (ExhaustedDekException e) {
                     rotateKeyContext(encryptionScheme, dek);
@@ -217,51 +220,35 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
                 }
             }
             // recurse, incrementing the attempt number
-            return attemptEncrypt(topicName, partition, encryptionScheme, records, attempt + 1, batchRecordCounts, bufferAllocator);
+            return attemptEncrypt(topicName,
+                    partition,
+                    encryptionScheme,
+                    records,
+                    attempt + 1,
+                    batchRecordCounts,
+                    bufferAllocator);
         });
     }
 
     @NonNull
-    private BatchAwareMemoryRecordsBuilder encryptBatches(@NonNull EncryptionScheme<K> encryptionScheme,
-                                                          @NonNull MemoryRecords memoryRecords,
-                                                          @NonNull Dek<E>.Encryptor encryptor,
-                                                          @NonNull IntFunction<ByteBufferOutputStream> bufferAllocator) {
-        BatchAwareMemoryRecordsBuilder builder = new BatchAwareMemoryRecordsBuilder(allocateBufferForEncrypt(memoryRecords, bufferAllocator));
-        for (MutableRecordBatch batch : memoryRecords.batches()) {
-            maybeEncryptBatch(encryptionScheme, encryptor, batch, builder);
-        }
-        return builder;
-    }
-
-    private void maybeEncryptBatch(@NonNull EncryptionScheme<K> encryptionScheme,
-                                   @NonNull Dek<E>.Encryptor encryptor,
-                                   @NonNull MutableRecordBatch batch,
-                                   @NonNull BatchAwareMemoryRecordsBuilder builder) {
-        if (batch.isControlBatch()) {
-            builder.writeBatch(batch);
-        }
-        else {
-            List<Record> records = StreamSupport.stream(batch.spliterator(), false).toList();
-            if (records.isEmpty()) {
-                builder.writeBatch(batch);
-            }
-            else {
-                encryptBatch(encryptionScheme, encryptor, batch, builder);
-            }
-        }
-    }
-
-    private void encryptBatch(@NonNull EncryptionScheme<K> encryptionScheme,
-                              @NonNull Dek<E>.Encryptor encryptor,
-                              @NonNull MutableRecordBatch batch,
-                              @NonNull BatchAwareMemoryRecordsBuilder builder) {
+    private MemoryRecords encryptBatches(@NonNull String topicName,
+                                         int partition,
+                                         @NonNull EncryptionScheme<K> encryptionScheme,
+                                         @NonNull MemoryRecords memoryRecords,
+                                         @NonNull Dek<E>.Encryptor encryptor,
+                                         @NonNull IntFunction<ByteBufferOutputStream> bufferAllocator) {
         ByteBuffer recordBuffer = ByteBuffer.allocate(recordBufferInitialBytes);
         do {
             try {
-                RecordBatchUtils.toMemoryRecords(batch,
-                        new RecordEncryptor<>(encryptionVersion, encryptionScheme, encryptor, dekManager.edekSerde(), recordBuffer),
-                        builder);
-                break;
+                return RecordStream.ofRecords(memoryRecords)
+                        .mapConstant(encryptor)
+                        .toMemoryRecords(allocateBufferForEncrypt(memoryRecords, bufferAllocator),
+                                new RecordEncryptor<>(topicName,
+                                        partition,
+                                        encryptionVersion,
+                                        encryptionScheme,
+                                        dekManager.edekSerde(),
+                                        recordBuffer));
             }
             catch (BufferTooSmallException e) {
                 int newCapacity = 2 * recordBuffer.capacity();

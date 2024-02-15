@@ -27,6 +27,7 @@ import io.kroxylicious.systemtests.templates.strimzi.KafkaTemplates;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.BDDAssumptions.given;
 
 /**
  * The type Acceptance st.
@@ -55,7 +56,7 @@ class KroxyliciousST extends AbstractST {
         kroxylicious.deployPortPerBrokerPlainWithNoFilters(clusterName, 1);
         String bootstrap = kroxylicious.getBootstrap();
 
-        LOGGER.info("And KafkaTopic in {} namespace", namespace);
+        LOGGER.info("And a kafka Topic named {}", topicName);
         KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 2);
 
         LOGGER.info("When {} messages '{}' are sent to the topic '{}'", numberOfMessages, MESSAGE, topicName);
@@ -84,7 +85,7 @@ class KroxyliciousST extends AbstractST {
         kroxylicious.deployPortPerBrokerPlainWithNoFilters(clusterName, 1);
         String bootstrap = kroxylicious.getBootstrap();
 
-        LOGGER.info("And KafkaTopic in {} namespace", namespace);
+        LOGGER.info("And a kafka Topic named {}", topicName);
         KafkaSteps.createTopic(namespace, topicName, bootstrap, 3, 2);
 
         LOGGER.info("When {} messages '{}' are sent to the topic '{}'", numberOfMessages, MESSAGE, topicName);
@@ -115,9 +116,9 @@ class KroxyliciousST extends AbstractST {
         kroxylicious.deployPortPerBrokerPlainWithNoFilters(clusterName, replicas);
         String bootstrap = kroxylicious.getBootstrap();
         int currentReplicas = kroxylicious.getNumberOfReplicas();
-        assertThat(currentReplicas).withFailMessage("unexpected current replicas").isEqualTo(replicas);
+        given(currentReplicas).withFailMessage("unexpected deployed replicas").isEqualTo(replicas);
 
-        LOGGER.info("And KafkaTopic in {} namespace", namespace);
+        LOGGER.info("And a kafka Topic named {}", topicName);
         KafkaSteps.createTopic(namespace, topicName, bootstrap, 3, 2);
 
         LOGGER.info("When {} messages '{}' are sent to the topic '{}'", numberOfMessages, MESSAGE, topicName);
@@ -151,9 +152,9 @@ class KroxyliciousST extends AbstractST {
         kroxylicious.deployPortPerBrokerPlainWithNoFilters(clusterName, replicas);
         String bootstrap = kroxylicious.getBootstrap();
         int currentReplicas = kroxylicious.getNumberOfReplicas();
-        assertThat(currentReplicas).withFailMessage("unexpected current replicas").isEqualTo(replicas);
+        given(currentReplicas).withFailMessage("unexpected deployed replicas").isEqualTo(replicas);
 
-        LOGGER.info("And KafkaTopic in {} namespace", namespace);
+        LOGGER.info("And a kafka Topic named {}", topicName);
         KafkaSteps.createTopic(namespace, topicName, bootstrap, 3, 2);
 
         LOGGER.info("When {} messages '{}' are sent to the topic '{}'", numberOfMessages, MESSAGE, topicName);

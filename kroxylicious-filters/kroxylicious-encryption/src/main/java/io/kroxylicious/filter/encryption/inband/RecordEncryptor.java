@@ -6,21 +6,18 @@
 
 package io.kroxylicious.filter.encryption.inband;
 
-import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.util.Objects;
 
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.record.Record;
-import org.apache.kafka.common.utils.ByteUtils;
+import org.apache.kafka.common.record.RecordBatch;
 
-import io.kroxylicious.filter.encryption.AadSpec;
 import io.kroxylicious.filter.encryption.EncryptionScheme;
 import io.kroxylicious.filter.encryption.EncryptionVersion;
 import io.kroxylicious.filter.encryption.RecordField;
 import io.kroxylicious.filter.encryption.dek.BufferTooSmallException;
-import io.kroxylicious.filter.encryption.dek.CipherSpec;
 import io.kroxylicious.filter.encryption.dek.Dek;
 import io.kroxylicious.filter.encryption.records.RecordTransform;
 import io.kroxylicious.kms.service.Serde;
@@ -32,7 +29,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * A {@link RecordTransform} that encrypts records so that they can be later decrypted by {@link RecordDecryptor}.
  * @param <K> The type of KEK id
  */
-class RecordEncryptor<K, E> implements RecordTransform {
+class RecordEncryptor<K, E> implements RecordTransform<Dek<E>.Encryptor> {
 
     /**
      * The encryption header. The value is the encryption version that was used to serialize the parcel and the wrapper.
@@ -41,7 +38,9 @@ class RecordEncryptor<K, E> implements RecordTransform {
     private final EncryptionVersion encryptionVersion;
     private final EncryptionScheme<K> encryptionScheme;
     private final Serde<E> edekSerde;
-    private final Dek<E>.Encryptor encryptor;
+    private final String topicName;
+    private final int partition;
+    private Dek<E>.Encryptor encryptor;
     private final ByteBuffer recordBuffer;
     /**
      * The encryption version used on the produce path.
@@ -51,6 +50,7 @@ class RecordEncryptor<K, E> implements RecordTransform {
     private final Header[] encryptionHeader;
     private @Nullable ByteBuffer transformedValue;
     private @Nullable Header[] transformedHeaders;
+    private RecordBatch batch;
 
     /**
      * Constructor (obviously).
@@ -59,28 +59,43 @@ class RecordEncryptor<K, E> implements RecordTransform {
      * @param edekSerde Serde for the encrypted DEK.
      * @param recordBuffer A buffer
      */
-    RecordEncryptor(@NonNull EncryptionVersion encryptionVersion,
+    RecordEncryptor(@NonNull String topicName,
+                    int partition,
+                    @NonNull EncryptionVersion encryptionVersion,
                     @NonNull EncryptionScheme<K> encryptionScheme,
-                    @NonNull Dek<E>.Encryptor encryptor,
                     @NonNull Serde<E> edekSerde,
                     @NonNull ByteBuffer recordBuffer) {
+        this.topicName = Objects.requireNonNull(topicName);
+        this.partition = partition;
         this.encryptionVersion = Objects.requireNonNull(encryptionVersion);
         this.encryptionScheme = Objects.requireNonNull(encryptionScheme);
-        this.encryptor = Objects.requireNonNull(encryptor);
         this.edekSerde = Objects.requireNonNull(edekSerde);
         this.recordBuffer = Objects.requireNonNull(recordBuffer);
         this.encryptionHeader = new Header[]{ new RecordHeader(ENCRYPTION_HEADER_NAME, new byte[]{ encryptionVersion.code() }) };
     }
 
     @Override
-    public void init(@NonNull Record kafkaRecord) throws BufferTooSmallException {
+    public void initBatch(@NonNull RecordBatch batch) {
+        this.batch = Objects.requireNonNull(batch);
+    }
+
+    @Override
+    public void resetAfterTransform(Dek<E>.Encryptor encryptor, Record record) {
+        recordBuffer.clear();
+    }
+
+    @Override
+    public void init(Dek<E>.Encryptor encryptor, @NonNull Record kafkaRecord) throws BufferTooSmallException {
+        if (this.batch == null) {
+            throw new IllegalStateException();
+        }
         if (encryptionScheme.recordFields().contains(RecordField.RECORD_HEADER_VALUES)
                 && kafkaRecord.headers().length > 0
                 && !kafkaRecord.hasValue()) {
             // todo implement header encryption preserving null record-values
             throw new IllegalStateException("encrypting headers prohibited when original record value null, we must preserve the null for tombstoning");
         }
-
+        this.encryptor = Objects.requireNonNull(encryptor);
         this.transformedValue = doTransformValue(kafkaRecord);
         this.transformedHeaders = doTransformHeaders(kafkaRecord);
     }
@@ -117,47 +132,22 @@ class RecordEncryptor<K, E> implements RecordTransform {
     }
 
     @Nullable
-    private ByteBuffer writeWrapper(@NonNull Record kafkaRecord, ByteBuffer buffer) throws BufferTooSmallException {
-        switch (encryptionVersion.wrapperVersion()) {
-            case V1 -> {
-                try {
-                    E edek = Objects.requireNonNull(encryptor.edek());
-                    short edekSize = (short) edekSerde.sizeOf(edek);
-                    ByteUtils.writeUnsignedVarint(edekSize, buffer);
-                    edekSerde.serialize(edek, buffer);
-                    buffer.put(AadSpec.NONE.code()); // aadCode
-                    buffer.put((byte) CipherSpec.AES_128_GCM_128.persistentId());
-
-                    ByteBuffer aad = ByteUtils.EMPTY_BUF; // TODO pass the AAD to encode
-                    buffer.put((byte) 0); // version TODO get rid of this
-
-                    // Write the parameters
-                    var paramsBuffer = encryptor.generateParameters(size -> buffer.slice().put((byte) size));
-                    buffer.position(buffer.position() + paramsBuffer.limit());
-
-                    // Write the parcel of data that will be encrypted (the plaintext)
-                    var parcelBuffer = buffer.slice();
-                    Parcel.writeParcel(encryptionVersion.parcelVersion(), encryptionScheme.recordFields(), kafkaRecord, parcelBuffer);
-                    parcelBuffer.flip();
-
-                    // Overwrite the parcel with the cipher text
-                    var ct = encryptor.encrypt(parcelBuffer,
-                            aad,
-                            size -> buffer.slice());
-                    buffer.position(buffer.position() + ct.remaining());
-                }
-                catch (BufferOverflowException e) {
-                    throw new BufferTooSmallException();
-                }
-            }
-        }
+    private ByteBuffer writeWrapper(@NonNull Record kafkaRecord,
+                                    @NonNull ByteBuffer buffer)
+            throws BufferTooSmallException {
+        encryptionVersion.wrapperVersion().writeWrapper(edekSerde,
+                Objects.requireNonNull(encryptor.edek()),
+                topicName,
+                partition,
+                batch,
+                kafkaRecord,
+                encryptor,
+                encryptionVersion.parcelVersion(),
+                encryptionScheme.aadSpec(),
+                encryptionScheme.recordFields(),
+                buffer);
         recordBuffer.flip();
         return recordBuffer;
-    }
-
-    @Override
-    public void resetAfterTransform(Record record) {
-        recordBuffer.clear();
     }
 
     @Override
