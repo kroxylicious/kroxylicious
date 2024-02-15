@@ -471,7 +471,8 @@ exec_args() {
   EXEC_ARGS=""
   if [ -n "${JAVA_APP_NAME:-}" ]; then
     # Not all shells support the 'exec -a newname' syntax..
-    if $(exec -a test true 2>/dev/null); then
+    # shellcheck disable=SC2039,SC2046
+    if eval $(exec -a test true 2>/dev/null); then
       echo "-a '${JAVA_APP_NAME}'"
     fi
   fi
