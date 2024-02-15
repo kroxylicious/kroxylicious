@@ -95,8 +95,7 @@ auto_detect_jar_file() {
   # Filter out temporary jars from the shade plugin which start with 'original-'
   local old_dir
   old_dir="$(pwd)"
-  cd "${dir}"
-  if [ $? = 0 ]; then
+  if cd "${dir}"; then
     # NB: Find both (single) JAR *or* WAR <https://github.com/fabric8io-images/run-java-sh/issues/79>
     local nr_jars
     nr_jars="$(ls 2>/dev/null | grep -e '.*\.jar$' -e '.*\.war$' | grep -v '^original-' | wc -l | awk '{print $1}')"
@@ -272,8 +271,7 @@ run_java_options() {
   if [ -f "/opt/run-java-options" ]; then
     . /opt/run-java-options
   else
-    which run-java-options >/dev/null 2>&1
-    if [ $? = 0 ]; then
+    if which run-java-options >/dev/null 2>&1; then
       run-java-options
     fi
   fi
@@ -302,8 +300,7 @@ format_classpath() {
   local app_jar="${2:-}"
 
   local wc_out
-  wc_out="$(wc -l $1 2>&1)"
-  if [ $? -ne 0 ]; then
+  if wc_out=$(wc -l "${cp_file}" 2>&1); then
     echo "Cannot read lines in ${cp_file}: $wc_out"
     exit 1
   fi
