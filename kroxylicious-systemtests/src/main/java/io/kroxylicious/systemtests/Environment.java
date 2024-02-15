@@ -9,6 +9,7 @@ package io.kroxylicious.systemtests;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.function.Function;
 
@@ -31,6 +32,7 @@ public class Environment {
     public static final String STRIMZI_FEATURE_GATES_ENV = "STRIMZI_FEATURE_GATES";
     public static final String CONTAINER_CONFIG_PATH_ENV = "CONTAINER_CONFIG_PATH";
     public static final String STRIMZI_NAMESPACE_ENV = "STRIMZI_NAMESPACE";
+    private static final String VAULT_VERSION_ENV = "VAULT_VERSION";
 
     /**
      * The kafka version default value
@@ -66,6 +68,7 @@ public class Environment {
     private static final String STRIMZI_FEATURE_GATES_DEFAULT = "";
     private static final String CONTAINER_CONFIG_PATH_DEFAULT = System.getProperty("user.home") + "/.docker/config.json";
     private static final String STRIMZI_NAMESPACE_DEFAULT = Constants.KAFKA_DEFAULT_NAMESPACE;
+    private static final String VAULT_VERSION_DEFAULT = "1.15";
 
     /**
      * KAFKA_VERSION env variable assignment
@@ -94,6 +97,8 @@ public class Environment {
     public static final String CONTAINER_CONFIG_PATH = getOrDefault(CONTAINER_CONFIG_PATH_ENV, CONTAINER_CONFIG_PATH_DEFAULT);
 
     public static final String STRIMZI_NAMESPACE = getOrDefault(STRIMZI_NAMESPACE_ENV, STRIMZI_NAMESPACE_DEFAULT);
+
+    public static final String VAULT_VERSION = getOrDefault(VAULT_VERSION_ENV, VAULT_VERSION_DEFAULT);
 
     private static String getOrDefault(String varName, String defaultValue) {
         return getOrDefault(varName, String::toString, defaultValue);
