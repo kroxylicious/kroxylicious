@@ -484,7 +484,6 @@ proxy_options() {
 
 # Set process name if possible
 exec_args() {
-  EXEC_ARGS=""
   if [ -n "${JAVA_APP_NAME:-}" ]; then
     # Not all shells support the 'exec -a newname' syntax..
     # shellcheck disable=SC2046
