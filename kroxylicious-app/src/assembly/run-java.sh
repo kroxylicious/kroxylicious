@@ -80,9 +80,10 @@ check_error() {
 # The full qualified directory where this script is located in
 script_dir() {
   # Default is current directory
-  local dir=$(dirname "$0")
-  local full_dir=$(cd "${dir}" && pwd)
-  echo ${full_dir}
+  local dir full_dir
+  dir=$(dirname "$0")
+  full_dir=$(cd "${dir}" && pwd)
+  echo "${full_dir}"
 }
 
 # Try hard to find a sane default jar-file
@@ -90,11 +91,13 @@ auto_detect_jar_file() {
   local dir="$1"
 
   # Filter out temporary jars from the shade plugin which start with 'original-'
-  local old_dir="$(pwd)"
-  cd ${dir}
+  local old_dir
+  old_dir="$(pwd)"
+  cd "${dir}"
   if [ $? = 0 ]; then
     # NB: Find both (single) JAR *or* WAR <https://github.com/fabric8io-images/run-java-sh/issues/79>
-    local nr_jars="$(ls 2>/dev/null | grep -e '.*\.jar$' -e '.*\.war$' | grep -v '^original-' | wc -l | awk '{print $1}')"
+    local nr_jars
+    nr_jars="$(ls 2>/dev/null | grep -e '.*\.jar$' -e '.*\.war$' | grep -v '^original-' | wc -l | awk '{print $1}')"
     if [ "${nr_jars}" = 1 ]; then
       ls 2>/dev/null | grep -e '.*\.jar$' -e '.*\.war$' | grep -v '^original-'
       exit 0
@@ -157,8 +160,9 @@ core_limit() {
     # cgroup v2
     local cpu_file="/sys/fs/cgroup/cpu.max"
     if [ -r "${cpu_file}" ]; then
-      local cpu_quota="$(cat ${cpu_file} | awk '{ print $1 }')"
-      local cpu_period="$(cat ${cpu_file} | awk '{ print $2 }')"
+      local cpu_quota cpu_period
+      cpu_quota="$(cat ${cpu_file} | awk '{ print $1 }')"
+      cpu_quota="$(cat ${cpu_file} | awk '{ print $2 }')"
 
       # cfs_quota_us == max --> no restrictions
       if [ "${cpu_quota:-0}" != "max" ]; then
@@ -170,10 +174,12 @@ core_limit() {
     local cpu_period_file="/sys/fs/cgroup/cpu/cpu.cfs_period_us"
     local cpu_quota_file="/sys/fs/cgroup/cpu/cpu.cfs_quota_us"
     if [ -r "${cpu_period_file}" ]; then
-      local cpu_period="$(cat ${cpu_period_file})"
+      local cpu_period
+      cpu_period="$(cat ${cpu_period_file})"
 
       if [ -r "${cpu_quota_file}" ]; then
-        local cpu_quota="$(cat ${cpu_quota_file})"
+        local cpu_quota
+        cpu_quota="$(cat ${cpu_quota_file})"
         # cfs_quota_us == -1 --> no restrictions
         if [ ${cpu_quota:-0} -ne -1 ]; then
           echo $(calc 'ceil($1/$2)' "${cpu_quota}" "${cpu_period}")
@@ -198,9 +204,10 @@ max_memory() {
   fi
 
   if [ -r "${mem_file}" ]; then
-    local max_mem_cgroup="$(cat ${mem_file})"
-    local max_mem_meminfo_kb="$(cat /proc/meminfo | awk '/MemTotal/ {print $2}')"
-    local max_mem_meminfo="$(expr $max_mem_meminfo_kb \* 1024)"
+    local max_mem_cgroup max_mem_meminfo_kb max_mem_meminfo
+    max_mem_cgroup="$(cat ${mem_file})"
+    max_mem_meminfo_kb="$(cat /proc/meminfo | awk '/MemTotal/ {print $2}')"
+    max_mem_meminfo="$(expr $max_mem_meminfo_kb \* 1024)"
     if [ ${max_mem_cgroup:-0} != -1 ] && [ "${max_mem_cgroup:-max}" != "max" ] && [ ${max_mem_cgroup:-0} -lt ${max_mem_meminfo:-0} ]
     then
       echo "${max_mem_cgroup}"
@@ -210,12 +217,13 @@ max_memory() {
 
 init_limit_env_vars() {
   # Read in container limits and export the as environment variables
-  local core_limit="$(core_limit)"
+  local core_limit mem_limit
+  core_limit="$(core_limit)"
   if [ -n "${core_limit}" ]; then
     export CONTAINER_CORE_LIMIT="${core_limit}"
   fi
 
-  local mem_limit="$(max_memory)"
+  mem_limit="$(max_memory)"
   if [ -n "${mem_limit}" ]; then
     export CONTAINER_MAX_MEMORY="${mem_limit}"
   fi
@@ -248,7 +256,8 @@ load_env() {
   fi
 
   if [ -n "${JAVA_APP_JAR:-}" ]; then
-    local jar="$(find_jar_file ${JAVA_APP_JAR} ${JAVA_APP_DIR} ${JAVA_LIB_DIR})"
+    local jar
+    jar="$(find_jar_file ${JAVA_APP_JAR} ${JAVA_APP_DIR} ${JAVA_LIB_DIR})"
     check_error "${jar}"
     export JAVA_APP_JAR="${jar}"
   else
@@ -290,13 +299,15 @@ format_classpath() {
   local cp_file="$1"
   local app_jar="${2:-}"
 
-  local wc_out="$(wc -l $1 2>&1)"
+  local wc_out
+  wc_out="$(wc -l $1 2>&1)"
   if [ $? -ne 0 ]; then
     echo "Cannot read lines in ${cp_file}: $wc_out"
     exit 1
   fi
 
-  local nr_lines=$(echo $wc_out | awk '{ print $1 }')
+  local nr_lines
+  nr_lines=$(echo $wc_out | awk '{ print $1 }')
   if [ ${nr_lines} -gt 1 ]; then
     local sep=""
     local classpath=""
@@ -364,7 +375,8 @@ calc_mem_opt() {
   local fraction="$2"
   local mem_opt="$3"
 
-  local val=$(calc 'round($1*$2/100/1048576)' "${max_mem}" "${fraction}")
+  local val
+  val=$(calc 'round($1*$2/100/1048576)' "${max_mem}" "${fraction}")
   echo "-X${mem_opt}${val}m"
 }
 
@@ -393,11 +405,12 @@ diagnostics_options() {
 # src/share/vm/runtime/advancedThresholdPolicy.cpp
 ci_compiler_count() {
   local core_limit="$1"
-  local log_cpu=$(calc 'log2($1)' "$core_limit")
-  local loglog_cpu=$(calc 'log2(max2($1,1))' "$log_cpu")
-  local count=$(calc 'max2($1*$2,1)*3/2' "$log_cpu" "$loglog_cpu")
-  local c1_count=$(calc 'max2($1/3,1)' "$count")
-  local c2_count=$(calc 'max2($1-$2,1)' "$count" "$c1_count")
+  local log_cpu loglog_cpu count c1_count c2_count
+  log_cpu=$(calc 'log2($1)' "$core_limit")
+  loglog_cpu=$(calc 'log2(max2($1,1))' "$log_cpu")
+  count=$(calc 'max2($1*$2,1)*3/2' "$log_cpu" "$loglog_cpu")
+  c1_count=$(calc 'max2($1/3,1)' "$count")
+  c2_count=$(calc 'max2($1-$2,1)' "$count" "$c1_count")
   [ $(c2_disabled) = true ] && echo "$c1_count" || echo $(calc '$1+$2' "$c1_count" "$c2_count")
 }
 
