@@ -52,14 +52,14 @@ if [[ ${ASSERT_NO_RELEASE_NOTES_EXIST} == "true" ]]; then
   NUM_EXIST_RELEASE_NOTES=$(curl "${CURL_ARGS[@]}" | jq --arg tag "${TAG}" '[.[] | select ( .tag_name == $tag )] | length')
   if [[ ${NUM_EXIST_RELEASE_NOTES} -gt 0 ]]; then
       >&2 echo "${NUM_EXIST_RELEASE_NOTES} release note(s) already exist for tag ${TAG}"
-   exit -1
+   exit 11
   fi
   exit 0
 elif [[ ${STATE} ]]; then
   NUM_EXIST_DRAFT_RELEASE_NOTES=$(curl "${CURL_ARGS[@]}" | jq --arg tag "${TAG}" '[.[] | select ( .tag_name == $tag and .draft == true )] | length')
   if [[ ${NUM_EXIST_DRAFT_RELEASE_NOTES} != 1 ]]; then
       >&2 echo "Unexpected number of draft release notes for tag ${TAG} found (${NUM_EXIST_DRAFT_RELEASE_NOTES})"
-   exit -1
+   exit 11
   fi
 
   if [[ ${STATE} == "release" ]]; then
