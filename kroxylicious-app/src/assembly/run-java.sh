@@ -1,10 +1,13 @@
 #!/bin/bash
-# shellcheck disable=SC2039
 #
 # Copyright Kroxylicious Authors.
 #
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
+
+# shellcheck disable=SC2039,SC3043
+# Disable SC2039 something is undefined in posix script wide as we run in
+# Disable SC3043 In POSIX sh, local is undefined. script wide
 
 # ===================================================================================
 # Generic startup script for running arbitrary Java applications with
@@ -485,7 +488,8 @@ exec_args() {
   EXEC_ARGS=""
   if [ -n "${JAVA_APP_NAME:-}" ]; then
     # Not all shells support the 'exec -a newname' syntax..
-    # shellcheck disable=SC2039,SC2046
+    # shellcheck disable=SC2046
+    # disbale SC2046 as there is no word splitting to happen
     if eval $(exec -a test true 2>/dev/null); then
       echo "-a '${JAVA_APP_NAME}'"
     fi
