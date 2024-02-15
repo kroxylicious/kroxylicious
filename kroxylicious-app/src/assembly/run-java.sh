@@ -487,7 +487,7 @@ exec_args() {
   if [ -n "${JAVA_APP_NAME:-}" ]; then
     # Not all shells support the 'exec -a newname' syntax..
     # shellcheck disable=SC2046
-    # disbale SC2046 as there is no word splitting to happen
+    # disable SC2046 as there is no word splitting to happen
     if eval $(exec -a test true 2>/dev/null); then
       echo "-a '${JAVA_APP_NAME}'"
     fi
