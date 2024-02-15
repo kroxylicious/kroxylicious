@@ -98,7 +98,7 @@ auto_detect_jar_file() {
   if cd "${dir}"; then
     # NB: Find both (single) JAR *or* WAR <https://github.com/fabric8io-images/run-java-sh/issues/79>
     local nr_jars
-    nr_jars="$(ls 2>/dev/null | grep -e '.*\.jar$' -e '.*\.war$' | grep -v '^original-' | wc -l | awk '{print $1}')"
+    nr_jars="$(ls 2>/dev/null | grep -e '.*\.jar$' -e '.*\.war$' | grep -c -v '^original-' | awk '{print $1}')"
     if [ "${nr_jars}" = 1 ]; then
       ls 2>/dev/null | grep -e '.*\.jar$' -e '.*\.war$' | grep -v '^original-'
       exit 0
