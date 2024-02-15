@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.KmsService;
+import io.kroxylicious.kms.service.Serde;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -32,16 +33,18 @@ class EnvelopeEncryptionTest {
         var kms = mock(Kms.class);
         var kekSelectorService = mock(KekSelectorService.class);
         var kekSelector = mock(TopicNameBasedKekSelector.class);
+        var edekSerde = mock(Serde.class);
 
         doReturn(kmsService).when(fc).pluginInstance(KmsService.class, "KMS");
         doReturn(kms).when(kmsService).buildKms(any());
         doReturn(mock(ScheduledExecutorService.class)).when(fc).eventLoop();
+        doReturn(edekSerde).when(kms).edekSerde();
 
         doReturn(kekSelectorService).when(fc).pluginInstance(KekSelectorService.class, "SELECTOR");
         doReturn(kekSelector).when(kekSelectorService).buildSelector(any(), any());
 
-        ee.initialize(fc, config);
-        var filter = ee.createFilter(fc, config);
+        var ss = ee.initialize(fc, config);
+        var filter = ee.createFilter(fc, ss);
         assertNotNull(filter);
     }
 

@@ -12,7 +12,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.Executor;
 import java.util.function.IntFunction;
 
 import org.apache.kafka.common.record.MemoryRecords;
@@ -21,12 +20,6 @@ import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.utils.BufferSupplier;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 import org.apache.kafka.common.utils.CloseableIterator;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
-import com.github.benmanes.caffeine.cache.Caffeine;
-import com.github.benmanes.caffeine.cache.RemovalCause;
 
 import io.kroxylicious.filter.encryption.EncryptionException;
 import io.kroxylicious.filter.encryption.EncryptionManager;
@@ -34,29 +27,19 @@ import io.kroxylicious.filter.encryption.EncryptionScheme;
 import io.kroxylicious.filter.encryption.EncryptionVersion;
 import io.kroxylicious.filter.encryption.FilterThreadExecutor;
 import io.kroxylicious.filter.encryption.dek.BufferTooSmallException;
-import io.kroxylicious.filter.encryption.dek.CipherSpec;
 import io.kroxylicious.filter.encryption.dek.Dek;
-import io.kroxylicious.filter.encryption.dek.DekManager;
 import io.kroxylicious.filter.encryption.dek.ExhaustedDekException;
 import io.kroxylicious.filter.encryption.records.RecordStream;
+import io.kroxylicious.kms.service.Serde;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
-import edu.umd.cs.findbugs.annotations.Nullable;
 
 public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(InBandEncryptionManager.class);
-
     private static final int MAX_ATTEMPTS = 3;
-    public static final int NO_MAX_CACHE_SIZE = -1;
+
     @NonNull
     private final FilterThreadExecutor filterThreadExecutor;
-
-    private record CacheKey<K>(K kek, CipherSpec cipherSpec) {}
-
-    private static <K> CacheKey<K> cacheKey(EncryptionScheme<K> encryptionScheme) {
-        return new CacheKey<>(encryptionScheme.kekId(), CipherSpec.AES_128_GCM_128);
-    }
 
     @NonNull
     static List<Integer> batchRecordCounts(@NonNull MemoryRecords records) {
@@ -88,21 +71,21 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
     * {@link RecordEncryptor#ENCRYPTION_HEADER_NAME} header.
     */
     private final EncryptionVersion encryptionVersion;
-    private final DekManager<K, E> dekManager;
-    private final AsyncLoadingCache<CacheKey<K>, Dek<E>> dekCache;
+    // private final DekManager<K, E> dekManager;
+    private final Serde<E> edekSerde;
+    private final EncryptionDekCache<K, E> dekCache;
 
     private final int recordBufferInitialBytes;
     private final int recordBufferMaxBytes;
 
-    public InBandEncryptionManager(@NonNull DekManager<K, E> dekManager,
+    public InBandEncryptionManager(@NonNull Serde<E> edekSerde,
                                    int recordBufferInitialBytes,
                                    int recordBufferMaxBytes,
-                                   @Nullable Executor dekCacheExecutor,
-                                   @NonNull FilterThreadExecutor filterThreadExecutor,
-                                   int dekCacheMaxItems) {
+                                   @NonNull EncryptionDekCache dekCache,
+                                   @NonNull FilterThreadExecutor filterThreadExecutor) {
         this.filterThreadExecutor = filterThreadExecutor;
         this.encryptionVersion = EncryptionVersion.V1; // TODO read from config
-        this.dekManager = Objects.requireNonNull(dekManager);
+        this.edekSerde = Objects.requireNonNull(edekSerde);
         if (recordBufferInitialBytes <= 0) {
             throw new IllegalArgumentException();
         }
@@ -111,48 +94,14 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
             throw new IllegalArgumentException();
         }
         this.recordBufferMaxBytes = recordBufferMaxBytes;
-        Caffeine<Object, Object> cache = Caffeine.newBuilder();
-        if (dekCacheMaxItems != NO_MAX_CACHE_SIZE) {
-            cache = cache.maximumSize(dekCacheMaxItems);
-        }
-        if (dekCacheExecutor != null) {
-            cache = cache.executor(dekCacheExecutor);
-        }
-        this.dekCache = cache
-                .removalListener(this::afterCacheEviction)
-                .buildAsync(this::requestGenerateDek);
-    }
+        this.dekCache = dekCache;
 
-    /** Invoked by Caffeine when a DEK needs to be loaded */
-    private CompletableFuture<Dek<E>> requestGenerateDek(@NonNull CacheKey<K> cacheKey,
-                                                         @NonNull Executor executor) {
-        return dekManager.generateDek(cacheKey.kek(), cacheKey.cipherSpec())
-                .thenApply(dek -> {
-                    if (LOGGER.isTraceEnabled()) {
-                        LOGGER.trace("Adding DEK to cache: {}", dek);
-                    }
-                    dek.destroyForDecrypt();
-                    return dek;
-                })
-                .toCompletableFuture();
-    }
-
-    /** Invoked by Caffeine after a DEK is evicted from the cache. */
-    private void afterCacheEviction(@Nullable CacheKey<K> cacheKey,
-                                    @Nullable Dek<E> dek,
-                                    RemovalCause removalCause) {
-        if (dek != null) {
-            dek.destroyForEncrypt();
-            if (LOGGER.isTraceEnabled()) {
-                LOGGER.trace("Attempted to destroy DEK: {}", dek);
-            }
-        }
     }
 
     // @VisibleForTesting
     CompletionStage<Dek<E>> currentDek(@NonNull EncryptionScheme<K> encryptionScheme) {
         // todo should we add some scheduled timeout as well? or should we rely on the KMS to timeout appropriately.
-        return filterThreadExecutor.completingOnFilterThread(dekCache.get(cacheKey(encryptionScheme)));
+        return filterThreadExecutor.completingOnFilterThread(dekCache.get(encryptionScheme));
     }
 
     @Override
@@ -247,7 +196,7 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
                                         partition,
                                         encryptionVersion,
                                         encryptionScheme,
-                                        dekManager.edekSerde(),
+                                        edekSerde,
                                         recordBuffer));
             }
             catch (BufferTooSmallException e) {
@@ -263,6 +212,6 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
     private void rotateKeyContext(@NonNull EncryptionScheme<K> encryptionScheme,
                                   @NonNull Dek<E> dek) {
         dek.destroyForEncrypt();
-        dekCache.synchronous().invalidate(cacheKey(encryptionScheme));
+        dekCache.invalidate(encryptionScheme);
     }
 }

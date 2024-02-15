@@ -15,6 +15,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.micrometer.core.instrument.Metrics;
 
 import io.kroxylicious.filter.encryption.dek.DekManager;
+import io.kroxylicious.filter.encryption.inband.EncryptionDekCache;
 import io.kroxylicious.filter.encryption.inband.InBandDecryptionManager;
 import io.kroxylicious.filter.encryption.inband.InBandEncryptionManager;
 import io.kroxylicious.kms.service.Kms;
@@ -34,7 +35,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * @param <E> The type of encrypted DEK
  */
 @Plugin(configType = EnvelopeEncryption.Config.class)
-public class EnvelopeEncryption<K, E> implements FilterFactory<EnvelopeEncryption.Config, EnvelopeEncryption.Config> {
+public class EnvelopeEncryption<K, E> implements FilterFactory<EnvelopeEncryption.Config, EnvelopeEncryption.SharedServices<K, E>> {
 
     private static KmsMetrics kmsMetrics = MicrometerKmsMetrics.create(Metrics.globalRegistry);
 
@@ -61,33 +62,41 @@ public class EnvelopeEncryption<K, E> implements FilterFactory<EnvelopeEncryptio
 
     }
 
-    @Override
-    public Config initialize(FilterFactoryContext context, Config config) throws PluginConfigurationException {
-        return config;
-    }
+    public record SharedServices<K, E>(
+                                       Kms<K, E> kms,
+                                       EnvelopeEncryption.Config configuration,
+                                       DekManager<K, E> dekManager,
+                                       EncryptionDekCache<K, E> encryptionDekCache) {}
 
-    @NonNull
     @Override
-    public EnvelopeEncryptionFilter<K> createFilter(FilterFactoryContext context, Config configuration) {
+    public SharedServices<K, E> initialize(FilterFactoryContext context, Config configuration) throws PluginConfigurationException {
         Kms<K, E> kms = buildKms(context, configuration);
 
         DekManager<K, E> dekManager = new DekManager<>(ignored -> kms, null, 5_000_000);
         ScheduledExecutorService filterThreadExecutor = context.eventLoop();
+        EncryptionDekCache<K, E> encryptionDekCache = new EncryptionDekCache<>(dekManager, filterThreadExecutor, EncryptionDekCache.NO_MAX_CACHE_SIZE);
+        return new SharedServices<>(kms, configuration, dekManager, encryptionDekCache);
+    }
+
+    @NonNull
+    @Override
+    public EnvelopeEncryptionFilter<K> createFilter(FilterFactoryContext context, SharedServices<K, E> shared) {
+
+        ScheduledExecutorService filterThreadExecutor = context.eventLoop();
         FilterThreadExecutor executor = new FilterThreadExecutor(filterThreadExecutor);
-        var encryptionManager = new InBandEncryptionManager<>(dekManager,
+        var encryptionManager = new InBandEncryptionManager<K, E>(shared.dekManager().edekSerde(),
                 1024 * 1024,
                 8 * 1024 * 1024,
-                null,
-                executor,
-                InBandEncryptionManager.NO_MAX_CACHE_SIZE);
+                shared.encryptionDekCache(),
+                executor);
 
-        var decryptionManager = new InBandDecryptionManager<>(dekManager,
+        var decryptionManager = new InBandDecryptionManager<>(shared.dekManager(),
                 executor,
                 null,
                 InBandDecryptionManager.NO_MAX_CACHE_SIZE);
 
-        KekSelectorService<Object, K> ksPlugin = context.pluginInstance(KekSelectorService.class, configuration.selector());
-        TopicNameBasedKekSelector<K> kekSelector = ksPlugin.buildSelector(kms, configuration.selectorConfig());
+        KekSelectorService<Object, K> ksPlugin = context.pluginInstance(KekSelectorService.class, shared.configuration().selector());
+        TopicNameBasedKekSelector<K> kekSelector = ksPlugin.buildSelector(shared.kms(), shared.configuration().selectorConfig());
         return new EnvelopeEncryptionFilter<>(encryptionManager, decryptionManager, kekSelector, executor);
     }
 
