@@ -29,8 +29,8 @@ public class KafkaResponseDecoder extends KafkaMessageDecoder {
 
     private final CorrelationManager correlationManager;
 
-    public KafkaResponseDecoder(CorrelationManager correlationManager) {
-        super();
+    public KafkaResponseDecoder(CorrelationManager correlationManager, int socketRequestMaxSizeBytes) {
+        super(socketRequestMaxSizeBytes);
         this.correlationManager = correlationManager;
     }
 
