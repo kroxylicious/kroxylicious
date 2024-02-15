@@ -6,6 +6,7 @@
 
 package io.kroxylicious.systemtests.k8s;
 
+import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -190,7 +191,7 @@ public class HelmClient {
                 }
             }
             catch (JsonProcessingException e) {
-                throw new RuntimeException(e);
+                throw new UncheckedIOException(e);
             }
         }
         return chartVersion;
