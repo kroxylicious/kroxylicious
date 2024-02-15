@@ -319,6 +319,10 @@ class BatchAwareMemoryRecordsBuilderTest {
     // Single batch of 1 record
     @Test
     void shouldSupportNonEmptyBatch() {
+        assertSingletonBatch();
+    }
+
+    Record assertSingletonBatch() {
         // Given
         var builder = new BatchAwareMemoryRecordsBuilder(new ByteBufferOutputStream(100));
         builder.addBatch(RecordBatch.CURRENT_MAGIC_VALUE,
@@ -334,6 +338,65 @@ class BatchAwareMemoryRecordsBuilderTest {
                 0,
                 0);
         builder.append(new SimpleRecord("hello".getBytes(StandardCharsets.UTF_8)));
+
+        // When
+        var mr = builder.build();
+
+        // Then
+        assertThat(StreamSupport.stream(mr.batches().spliterator(), false).count())
+                .isEqualTo(1);
+        assertThat(StreamSupport.stream(mr.records().spliterator(), false).count())
+                .isEqualTo(1);
+        assertThat(builder.build()).describedAs("Build should be idempotent").isEqualTo(mr);
+        return mr.records().iterator().next();
+    }
+
+    @Test
+    void shouldSupportNonEmptyBatch_appendRecord() {
+        // Given
+        var builder = new BatchAwareMemoryRecordsBuilder(new ByteBufferOutputStream(100));
+        builder.addBatch(RecordBatch.CURRENT_MAGIC_VALUE,
+                CompressionType.NONE,
+                TimestampType.CREATE_TIME,
+                0,
+                0,
+                0,
+                (short) 0,
+                0,
+                false,
+                false,
+                0,
+                0);
+        builder.append(assertSingletonBatch());
+
+        // When
+        var mr = builder.build();
+
+        // Then
+        assertThat(StreamSupport.stream(mr.batches().spliterator(), false).count())
+                .isEqualTo(1);
+        assertThat(StreamSupport.stream(mr.records().spliterator(), false).count())
+                .isEqualTo(1);
+        assertThat(builder.build()).describedAs("Build should be idempotent").isEqualTo(mr);
+    }
+
+    @Test
+    void shouldSupportNonEmptyBatch_appendRecordWithOffset() {
+        // Given
+        var builder = new BatchAwareMemoryRecordsBuilder(new ByteBufferOutputStream(100));
+        builder.addBatch(RecordBatch.CURRENT_MAGIC_VALUE,
+                CompressionType.NONE,
+                TimestampType.CREATE_TIME,
+                0,
+                0,
+                0,
+                (short) 0,
+                0,
+                false,
+                false,
+                0,
+                0);
+        builder.appendWithOffset(42, assertSingletonBatch());
 
         // When
         var mr = builder.build();

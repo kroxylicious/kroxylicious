@@ -17,12 +17,21 @@ import java.util.Set;
  */
 public record EncryptionScheme<K>(
                                   K kekId,
-                                  Set<RecordField> recordFields) {
+                                  Set<RecordField> recordFields,
+                                  AadSpec aadSpec) {
+
     public EncryptionScheme {
         Objects.requireNonNull(kekId);
         if (Objects.requireNonNull(recordFields).isEmpty()) {
             throw new IllegalArgumentException();
         }
+        Objects.requireNonNull(aadSpec);
+    }
+
+    public EncryptionScheme(
+                            K kekId,
+                            Set<RecordField> recordFields) {
+        this(kekId, recordFields, AadSpec.NONE);
     }
 
 }
