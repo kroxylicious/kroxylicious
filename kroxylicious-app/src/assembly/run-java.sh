@@ -168,7 +168,7 @@ core_limit() {
 
       # cfs_quota_us == max --> no restrictions
       if [ "${cpu_quota:-0}" != "max" ]; then
-        echo $(calc 'ceil($1/$2)' "${cpu_quota}" "${cpu_period}")
+        calc 'ceil($1/$2)' "${cpu_quota}" "${cpu_period}"
       fi
     fi
   else
@@ -184,7 +184,7 @@ core_limit() {
         cpu_quota="$(cat ${cpu_quota_file})"
         # cfs_quota_us == -1 --> no restrictions
         if [ ${cpu_quota:-0} -ne -1 ]; then
-          echo $(calc 'ceil($1/$2)' "${cpu_quota}" "${cpu_period}")
+          calc 'ceil($1/$2)' "${cpu_quota}" "${cpu_period}"
         fi
       fi
     fi
@@ -270,11 +270,11 @@ load_env() {
 # Check for standard /opt/run-java-options first, fallback to run-java-options in the path if not existing
 run_java_options() {
   if [ -f "/opt/run-java-options" ]; then
-    echo "$(. /opt/run-java-options)"
+    . /opt/run-java-options
   else
     which run-java-options >/dev/null 2>&1
     if [ $? = 0 ]; then
-      echo "$(run-java-options)"
+      run-java-options
     fi
   fi
 }
@@ -413,7 +413,7 @@ ci_compiler_count() {
   count=$(calc 'max2($1*$2,1)*3/2' "$log_cpu" "$loglog_cpu")
   c1_count=$(calc 'max2($1/3,1)' "$count")
   c2_count=$(calc 'max2($1-$2,1)' "$count" "$c1_count")
-  [ $(c2_disabled) = true ] && echo "$c1_count" || echo $(calc '$1+$2' "$c1_count" "$c2_count")
+  [ $(c2_disabled) = true ] && echo "$c1_count" || calc '$1+$2' "$c1_count" "$c2_count"
 }
 
 #-XX:MinHeapFreeRatio=20  These parameters tell the heap to shrink aggressively and to grow conservatively.
