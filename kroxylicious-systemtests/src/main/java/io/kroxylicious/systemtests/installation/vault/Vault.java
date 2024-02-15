@@ -20,13 +20,13 @@ import org.slf4j.LoggerFactory;
 
 import io.fabric8.kubernetes.api.model.ServicePort;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
 import io.kroxylicious.systemtests.utils.NamespaceUtils;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 
