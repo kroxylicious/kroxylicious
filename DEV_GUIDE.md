@@ -339,6 +339,7 @@ has been applied ineffectively.
 the container engine. Default value: `$HOME/.docker/config.json`
 * `STRIMZI_NAMESPACE`: namespace where strimzi is installed. It is useful for pipelines
 where strimzi is installed before the STs. Default value: `kafka`
+* `VAULT_VERSION`: version of Vault to be used for Envelope Encryption. Default value: `1.15`
 
 
 ### Launch system tests
