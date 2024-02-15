@@ -460,7 +460,7 @@ java_proxy_options() {
     if [ -n "$port" ] ; then
       ret="$ret -D${transport}.proxyPort=${port}"
     fi
-    if [ -n "$username" -o -n "$password" ] ; then
+    if [ -n "$username" ] || [ -n "$password" ] ; then
       echo "WARNING: Proxy URL for ${transport} contains authentication credentials, these are not supported by java" >&2
     fi
   fi
