@@ -9,7 +9,6 @@ package io.kroxylicious.systemtests;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Properties;
 import java.util.function.Function;
 
