@@ -4,19 +4,18 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.proxy;
+package io.kroxylicious.proxy.config;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
 import java.io.StringReader;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.UnaryOperator;
-
-import org.apache.commons.text.StringSubstitutor;
 
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
@@ -31,21 +30,32 @@ import com.fasterxml.jackson.databind.node.ValueNode;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-public final class TokenExpandingJsonFactoryWrapper {
+/**
+ * A {@link JsonFactory} that when parsing input, pre-processes the tree passing
+ * any text nodes through a replacer function.  The resulting tree is reserialised
+ * before being parsed by the {@link JsonFactory} own parser.
+ */
+public final class TextNodeReplacingJsonFactoryWrapper {
 
-    private TokenExpandingJsonFactoryWrapper() {
+    private TextNodeReplacingJsonFactoryWrapper() {
     }
 
     /**
      * create a new JsonFactory will is guaranteed to be of the same type and have the
      * same configuration of the input factory.  The returned factory will perform
      * token expansion on the TextNodes of any input passed to the parser.
+     *
+     * @param input json factory
+     * @param replacer the replacing function that will be applied to any text node during the pre-process.
+     * @return json factory which will perform replacing.
      */
-    public static <F extends JsonFactory> F wrap(@NonNull F input) {
+    public static <F extends JsonFactory> F wrap(@NonNull F input, @NonNull UnaryOperator<String> replacer) {
+        Objects.requireNonNull(input);
+        Objects.requireNonNull(replacer);
         var preprocessor = createPreprocessingObjectMapper(input);
 
         var builder = input.rebuild();
-        builder.inputDecorator(new TokenExpandingInputDecorator(preprocessor));
+        builder.inputDecorator(new TokenExpandingInputDecorator(preprocessor, replacer));
         return (F) builder.build();
     }
 
@@ -59,9 +69,11 @@ public final class TokenExpandingJsonFactoryWrapper {
 
     private static class TokenExpandingInputDecorator extends InputDecorator {
         private final ObjectMapper preprocessingMapper;
+        private final UnaryOperator<String> replacer;
 
-        protected TokenExpandingInputDecorator(ObjectMapper preprocessingMapper) {
+        protected TokenExpandingInputDecorator(ObjectMapper preprocessingMapper, UnaryOperator<String> replacer) {
             this.preprocessingMapper = preprocessingMapper;
+            this.replacer = replacer;
         }
 
         @Override
@@ -86,25 +98,16 @@ public final class TokenExpandingJsonFactoryWrapper {
         }
 
         private JsonNode expandTokensInAllTextNodes(JsonNode tree) {
-            var updatingTreeWalker = new ValueNodeUpdatingTreeWalker<>(TextNode.class::isInstance, TokenExpandingInputDecorator::expandTokensInTextNodes);
+            var updatingTreeWalker = new ValueNodeUpdatingTreeWalker<>(TextNode.class::isInstance, (TextNode current) -> {
+                var text = current.asText();
+                var replacement = replacer.apply(text);
+                return text.equals(replacement) ? current : new TextNode(replacement);
+            });
             return updatingTreeWalker.walkTree(tree);
-        }
-
-        private static TextNode expandTokensInTextNodes(TextNode current) {
-            // this is where we will plug in our env var/sys property replacement.
-
-            // this POC uses Apache commons-text for illustrative purposes. I don't want
-            // Kroxylicious to have a commons-text dependency. StringSubstitutor's is very capable, but that
-            // makes the attack surface large. I worry about CVEs.
-
-            var text = current.asText();
-            var replacement = StringSubstitutor.createInterpolator().replace(text);
-            return text.equals(replacement) ? current : new TextNode(replacement);
         }
     }
 
     private record ValueNodeUpdatingTreeWalker<V extends ValueNode>(Predicate<ValueNode> valueSelector, UnaryOperator<V> valueReplacer) {
-
         public JsonNode walkTree(JsonNode tree) {
             var returnedTree = new AtomicReference<>(tree);
             walker(tree, returnedTree::set);

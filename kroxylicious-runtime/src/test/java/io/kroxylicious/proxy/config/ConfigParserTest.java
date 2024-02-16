@@ -280,12 +280,12 @@ class ConfigParserTest {
                 virtualClusters:
                   demo1:
                     targetCluster:
-                      bootstrap_servers: ${sys:bootstrap}:${sys:port}
+                      bootstrap_servers: ${bootstrap}:${port}
                     clusterNetworkAddressConfigProvider:
                       type: PortPerBrokerClusterNetworkAddressConfigProvider
                       config:
                         bootstrapAddress: cluster:9193
-                        numberOfBrokerPorts: ${sys:numberOfBrokerPorts}0
+                        numberOfBrokerPorts: ${numberOfBrokerPorts}0
                 """);
 
         var actualValidClusters = configuration.virtualClusters();
