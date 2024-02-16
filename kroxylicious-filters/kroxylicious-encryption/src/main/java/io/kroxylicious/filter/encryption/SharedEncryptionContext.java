@@ -6,8 +6,6 @@
 
 package io.kroxylicious.filter.encryption;
 
-import java.util.Objects;
-
 import io.kroxylicious.filter.encryption.dek.DekManager;
 import io.kroxylicious.filter.encryption.inband.EncryptionDekCache;
 import io.kroxylicious.kms.service.Kms;
