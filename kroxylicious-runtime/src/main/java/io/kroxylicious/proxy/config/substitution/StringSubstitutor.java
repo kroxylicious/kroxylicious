@@ -5,10 +5,11 @@
  */
 package io.kroxylicious.proxy.config.substitution;
 
+import io.kroxylicious.proxy.config.substitution.lookup.StringLookup;
+import io.kroxylicious.proxy.config.substitution.lookup.StringLookupFactory;
+
 import org.apache.commons.lang3.Validate;
 import org.apache.commons.text.TextStringBuilder;
-import org.apache.commons.text.lookup.StringLookup;
-import org.apache.commons.text.lookup.StringLookupFactory;
 import org.apache.commons.text.matcher.StringMatcher;
 import org.apache.commons.text.matcher.StringMatcherFactory;
 
@@ -132,20 +133,8 @@ import java.util.stream.Collectors;
  * <pre>
  * final StringSubstitutor interpolator = StringSubstitutor.createInterpolator();
  * final String text = interpolator.replace(
- *       "Base64 Decoder:        ${base64Decoder:SGVsbG9Xb3JsZCE=}\n"
- *     + "Base64 Encoder:        ${base64Encoder:HelloWorld!}\n"
- *     + "Java Constant:         ${const:java.awt.event.KeyEvent.VK_ESCAPE}\n"
- *     + "Date:                  ${date:yyyy-MM-dd}\n"
  *     + "Environment Variable:  ${env:USERNAME}\n"
- *     + "File Content:          ${file:UTF-8:src/test/resources/document.properties}\n"
- *     + "Java:                  ${java:version}\n"
- *     + "Localhost:             ${localhost:canonical-name}\n"
- *     + "Properties File:       ${properties:src/test/resources/document.properties::mykey}\n"
- *     + "Resource Bundle:       ${resourceBundle:org.apache.commons.text.example.testResourceBundleLookup:mykey}\n"
  *     + "System Property:       ${sys:user.dir}\n"
- *     + "URL Decoder:           ${urlDecoder:Hello%20World%21}\n"
- *     + "URL Encoder:           ${urlEncoder:Hello World!}\n"
- *     + "XML XPath:             ${xml:src/test/resources/document.xml:/root/path/to/node}\n");
  * </pre>
  * <p>
  * For documentation and a full list of available lookups, see {@link StringLookupFactory}.
@@ -303,68 +292,13 @@ public class StringSubstitutor {
      * <th>Lookup</th>
      * </tr>
      * <tr>
-     * <td>{@value StringLookupFactory#KEY_BASE64_DECODER}</td>
-     * <td>{@link StringLookupFactory#base64DecoderStringLookup()}</td>
-     * </tr>
-     * <tr>
-     * <td>{@value StringLookupFactory#KEY_BASE64_ENCODER}</td>
-     * <td>{@link StringLookupFactory#base64EncoderStringLookup()}</td>
-     * </tr>
-     * <tr>
-     * <td>{@value StringLookupFactory#KEY_CONST}</td>
-     * <td>{@link StringLookupFactory#constantStringLookup()}</td>
-     * </tr>
-     * <tr>
-     * <td>{@value StringLookupFactory#KEY_DATE}</td>
-     * <td>{@link StringLookupFactory#dateStringLookup()}</td>
-     * </tr>
-     * <tr>
      * <td>{@value StringLookupFactory#KEY_ENV}</td>
      * <td>{@link StringLookupFactory#environmentVariableStringLookup()}</td>
      * </tr>
      * <tr>
-     * <td>{@value StringLookupFactory#KEY_FILE}</td>
-     * <td>{@link StringLookupFactory#fileStringLookup()}</td>
-     * </tr>
-     * <tr>
-     * <td>{@value StringLookupFactory#KEY_JAVA}</td>
-     * <td>{@link StringLookupFactory#javaPlatformStringLookup()}</td>
-     * </tr>
-     * <tr>
-     * <td>{@value StringLookupFactory#KEY_LOCALHOST}</td>
-     * <td>{@link StringLookupFactory#localHostStringLookup()}</td>
-     * </tr>
-     * <tr>
-     * <td>{@value StringLookupFactory#KEY_PROPERTIES}</td>
-     * <td>{@link StringLookupFactory#propertiesStringLookup()}</td>
-     * </tr>
-     * <tr>
-     * <td>{@value StringLookupFactory#KEY_RESOURCE_BUNDLE}</td>
-     * <td>{@link StringLookupFactory#resourceBundleStringLookup()}</td>
-     * </tr>
      * <tr>
      * <td>{@value StringLookupFactory#KEY_SYS}</td>
      * <td>{@link StringLookupFactory#systemPropertyStringLookup()}</td>
-     * </tr>
-     * <tr>
-     * <td>{@value StringLookupFactory#KEY_URL_DECODER}</td>
-     * <td>{@link StringLookupFactory#urlDecoderStringLookup()}</td>
-     * </tr>
-     * <tr>
-     * <td>{@value StringLookupFactory#KEY_URL_ENCODER}</td>
-     * <td>{@link StringLookupFactory#urlEncoderStringLookup()}</td>
-     * </tr>
-     * <tr>
-     * <td>{@value StringLookupFactory#KEY_XML}</td>
-     * <td>{@link StringLookupFactory#xmlStringLookup()}</td>
-     * </tr>
-     * <tr>
-     * <td>{@value StringLookupFactory#KEY_XML_DECODER}</td>
-     * <td>{@link StringLookupFactory#xmlDecoderStringLookup()}</td>
-     * </tr>
-     * <tr>
-     * <td>{@value StringLookupFactory#KEY_XML_ENCODER}</td>
-     * <td>{@link StringLookupFactory#xmlEncoderStringLookup()}</td>
      * </tr>
      * </table>
      *
