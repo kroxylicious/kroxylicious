@@ -442,6 +442,8 @@ java_default_options() {
 # parse the URL
 parse_url() {
   #[scheme://][user[:password]@]host[:port][/path][?params]
+  # shellcheck disable=SC2001
+  # This is not a simple search and replace of a single value. The usage of sed is justified
   echo "$1" | sed -e "s+^\(\([^:]*\)://\)\?\(\([^:@]*\)\(:\([^@]*\)\)\?@\)\?\([^:/?]*\)\(:\([^/?]*\)\)\?.*$+ local scheme='\2' username='\4' password='\6' hostname='\7' port='\9'+"
 }
 
