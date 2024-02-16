@@ -15,6 +15,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.micrometer.core.instrument.Metrics;
 
 import io.kroxylicious.filter.encryption.dek.DekManager;
+import io.kroxylicious.filter.encryption.inband.DecryptionDekCache;
 import io.kroxylicious.filter.encryption.inband.EncryptionDekCache;
 import io.kroxylicious.filter.encryption.inband.InBandDecryptionManager;
 import io.kroxylicious.filter.encryption.inband.InBandEncryptionManager;
@@ -70,7 +71,8 @@ public class EnvelopeEncryption<K, E> implements FilterFactory<EnvelopeEncryptio
 
         DekManager<K, E> dekManager = new DekManager<>(ignored -> kms, null, 5_000_000);
         EncryptionDekCache<K, E> encryptionDekCache = new EncryptionDekCache<>(dekManager, null, EncryptionDekCache.NO_MAX_CACHE_SIZE);
-        return new SharedEncryptionContext<>(kms, configuration, dekManager, encryptionDekCache);
+        DecryptionDekCache<K, E> decryptionDekCache = new DecryptionDekCache<>(dekManager, null, DecryptionDekCache.NO_MAX_CACHE_SIZE);
+        return new SharedEncryptionContext<>(kms, configuration, dekManager, encryptionDekCache, decryptionDekCache);
     }
 
     @NonNull
@@ -80,16 +82,15 @@ public class EnvelopeEncryption<K, E> implements FilterFactory<EnvelopeEncryptio
 
         ScheduledExecutorService filterThreadExecutor = context.eventLoop();
         FilterThreadExecutor executor = new FilterThreadExecutor(filterThreadExecutor);
-        var encryptionManager = new InBandEncryptionManager<K, E>(sharedEncryptionContext.dekManager().edekSerde(),
+        var encryptionManager = new InBandEncryptionManager<>(sharedEncryptionContext.dekManager().edekSerde(),
                 1024 * 1024,
                 8 * 1024 * 1024,
                 sharedEncryptionContext.encryptionDekCache(),
                 executor);
 
         var decryptionManager = new InBandDecryptionManager<>(sharedEncryptionContext.dekManager(),
-                executor,
-                null,
-                InBandDecryptionManager.NO_MAX_CACHE_SIZE);
+                sharedEncryptionContext.decryptionDekCache(),
+                executor);
 
         KekSelectorService<Object, K> ksPlugin = context.pluginInstance(KekSelectorService.class, sharedEncryptionContext.configuration().selector());
         TopicNameBasedKekSelector<K> kekSelector = ksPlugin.buildSelector(sharedEncryptionContext.kms(), sharedEncryptionContext.configuration().selectorConfig());

@@ -11,28 +11,21 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.Executor;
 import java.util.function.IntFunction;
 
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
-import com.github.benmanes.caffeine.cache.Caffeine;
-import com.github.benmanes.caffeine.cache.RemovalCause;
 
 import io.kroxylicious.filter.encryption.DecryptionManager;
 import io.kroxylicious.filter.encryption.EncryptionException;
 import io.kroxylicious.filter.encryption.EncryptionManager;
 import io.kroxylicious.filter.encryption.EncryptionVersion;
 import io.kroxylicious.filter.encryption.FilterThreadExecutor;
-import io.kroxylicious.filter.encryption.dek.CipherSpec;
 import io.kroxylicious.filter.encryption.dek.Dek;
 import io.kroxylicious.filter.encryption.dek.DekManager;
 import io.kroxylicious.filter.encryption.records.RecordStream;
@@ -50,72 +43,16 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  */
 public class InBandDecryptionManager<K, E> implements DecryptionManager {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(InBandDecryptionManager.class);
-
-    public static final int NO_MAX_CACHE_SIZE = -1;
-
-    private final AsyncLoadingCache<CacheKey<E>, Dek<E>> decryptorCache;
     private final DekManager<K, E> dekManager;
     private final FilterThreadExecutor filterThreadExecutor;
+    private final DecryptionDekCache<K, E> dekCache;
 
-    private record CacheKey<E>(
-                               @Nullable CipherSpec cipherSpec,
-                               @Nullable E edek) {
-        private CacheKey {
-            if (cipherSpec == null ^ edek == null) {
-                throw new IllegalArgumentException();
-            }
-        }
-
-        @SuppressWarnings("rawtypes")
-        private static final CacheKey NONE = new CacheKey(null, null);
-
-        @SuppressWarnings("unchecked")
-        static <E> CacheKey<E> none() {
-            return NONE;
-        }
-
-        public boolean isNone() {
-            return cipherSpec == null || edek == null;
-        }
-    }
-
-    public InBandDecryptionManager(DekManager<K, E> dekManager,
-                                   @Nullable FilterThreadExecutor filterThreadExecutor,
-                                   @Nullable Executor dekCacheExecutor,
-                                   int dekCacheMaxItems) {
-        this.dekManager = dekManager;
+    public InBandDecryptionManager(@NonNull DekManager<K, E> dekManager,
+                                   @NonNull DecryptionDekCache<K, E> dekCache,
+                                   @Nullable FilterThreadExecutor filterThreadExecutor) {
+        this.dekManager = Objects.requireNonNull(dekManager);
+        this.dekCache = Objects.requireNonNull(dekCache);
         this.filterThreadExecutor = filterThreadExecutor;
-        Caffeine<Object, Object> cache = Caffeine.<CacheKey<E>, Dek<E>> newBuilder();
-        if (dekCacheMaxItems != NO_MAX_CACHE_SIZE) {
-            cache = cache.maximumSize(dekCacheMaxItems);
-        }
-        if (dekCacheExecutor != null) {
-            cache = cache.executor(dekCacheExecutor);
-        }
-        this.decryptorCache = cache
-                .removalListener(this::afterCacheEviction)
-                .buildAsync(this::loadDek);
-    }
-
-    CompletableFuture<Dek<E>> loadDek(CacheKey<E> cacheKey, Executor executor) {
-        if (cacheKey == null || cacheKey.isNone()) {
-            return CompletableFuture.completedFuture(null);
-        }
-        return dekManager.decryptEdek(cacheKey.edek(), cacheKey.cipherSpec())
-                .toCompletableFuture();
-    }
-
-    /** Invoked by Caffeine after a DEK is evicted from the cache. */
-    private void afterCacheEviction(@Nullable CacheKey<E> cacheKey,
-                                    @Nullable Dek<E> dek,
-                                    RemovalCause removalCause) {
-        if (dek != null) {
-            dek.destroyForDecrypt();
-            if (LOGGER.isTraceEnabled()) {
-                LOGGER.trace("Attempted to destroy DEK: {}", dek);
-            }
-        }
     }
 
     /**
@@ -197,7 +134,7 @@ public class InBandDecryptionManager<K, E> implements DecryptionManager {
         // indexed by the position of the record in the multi-batch MemoryRecords,
         // to pass to `RecordStream`, which avoids needing to use a `Record`
         // itself as a hash key.
-        var cacheKeys = new ArrayList<CacheKey<E>>();
+        var cacheKeys = new ArrayList<DecryptionDekCache.CacheKey<E>>();
         var states = new ArrayList<DecryptState<E>>();
 
         // Iterate the records collecting cache keys and decrypt states
@@ -207,36 +144,35 @@ public class InBandDecryptionManager<K, E> implements DecryptionManager {
             var decryptionVersion = decryptionVersion(topicName, partition, record);
             if (decryptionVersion != null) {
                 ByteBuffer wrapper = record.value();
-                cacheKeys.add(decryptionVersion.wrapperVersion().readSpecAndEdek(wrapper, serde, CacheKey::new));
+                cacheKeys.add(decryptionVersion.wrapperVersion().readSpecAndEdek(wrapper, serde, DecryptionDekCache.CacheKey::new));
                 states.add(new DecryptState<>(decryptionVersion));
             }
             else {
                 // It's not encrypted, so use sentinels
-                cacheKeys.add(CacheKey.none());
+                cacheKeys.add(DecryptionDekCache.CacheKey.none());
                 states.add(DecryptState.none());
             }
         });
         // Lookup the decryptors for the cache keys
-        return filterThreadExecutor.completingOnFilterThread(decryptorCache.getAll(cacheKeys))
+        return filterThreadExecutor.completingOnFilterThread(dekCache.getAll(cacheKeys, filterThreadExecutor))
                 .thenApply(cacheKeyDecryptorMap ->
                 // Once we have the decryptors from the cache...
                 issueDecryptors(cacheKeyDecryptorMap, cacheKeys, states));
     }
 
-    private @NonNull List<DecryptState<E>> issueDecryptors(@NonNull Map<CacheKey<E>, Dek<E>> cacheKeyDecryptorMap,
-                                                           @NonNull List<CacheKey<E>> cacheKeys,
+    private @NonNull List<DecryptState<E>> issueDecryptors(@NonNull Map<DecryptionDekCache.CacheKey<E>, Dek<E>> cacheKeyDecryptorMap,
+                                                           @NonNull List<DecryptionDekCache.CacheKey<E>> cacheKeys,
                                                            @NonNull List<DecryptState<E>> states) {
-        Map<CacheKey<E>, Dek<E>.Decryptor> issuedDecryptors = new HashMap<>();
+        Map<DecryptionDekCache.CacheKey<E>, Dek<E>.Decryptor> issuedDecryptors = new HashMap<>();
         try {
             for (int index = 0, cacheKeysSize = cacheKeys.size(); index < cacheKeysSize; index++) {
-                CacheKey<E> cacheKey = cacheKeys.get(index);
+                DecryptionDekCache.CacheKey<E> cacheKey = cacheKeys.get(index);
                 // ...update (in place) the DecryptState with the decryptor
-                DecryptState<E> decryptState = states.get(index);
                 var decryptor = issuedDecryptors.computeIfAbsent(cacheKey, k -> {
                     Dek<E> dek = cacheKeyDecryptorMap.get(cacheKey);
                     return dek != null ? dek.decryptor() : null;
                 });
-                decryptState.withDecryptor(decryptor);
+                states.get(index).withDecryptor(decryptor);
             }
             // return the resolved DecryptStates
             return states;
