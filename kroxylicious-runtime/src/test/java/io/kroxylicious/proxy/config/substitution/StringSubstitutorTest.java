@@ -967,12 +967,12 @@ public class StringSubstitutorTest {
      */
     @Test
     public void testResolveVariable() {
-        final TextStringBuilder builder = new TextStringBuilder("Hi ${name}!");
+        var builder = new StringBuilder("Hi ${name}!");
         final Map<String, String> map = new HashMap<>();
         map.put("name", "commons");
         final StringSubstitutor sub = new StringSubstitutor(map) {
             @Override
-            protected String resolveVariable(final String variableName, final TextStringBuilder buf, final int startPos,
+            protected String resolveVariable(final String variableName, final StringBuilder buf, final int startPos,
                                              final int endPos) {
                 assertEquals("name", variableName);
                 assertSame(builder, buf);

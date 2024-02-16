@@ -13,6 +13,7 @@ import java.util.Properties;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Validate;
 import org.apache.commons.text.TextStringBuilder;
 import org.apache.commons.text.matcher.StringMatcher;
@@ -1026,7 +1027,7 @@ public class StringSubstitutor {
      * @param endPos the end position of the variable including the suffix, valid
      * @return The variable's value or <b>null</b> if the variable is unknown
      */
-    protected String resolveVariable(final String variableName, final TextStringBuilder buf, final int startPos,
+    protected String resolveVariable(final String variableName, final StringBuilder buf, final int startPos,
                                      final int endPos) {
         final StringLookup resolver = getStringLookup();
         if (resolver == null) {
@@ -1273,7 +1274,10 @@ public class StringSubstitutor {
      * @return true if altered
      */
     protected boolean substitute(final TextStringBuilder builder, final int offset, final int length) {
-        return substitute(builder, offset, length, null).altered;
+        StringBuilder stringBuilder = builder.toStringBuilder();
+        boolean altered = substitute(stringBuilder, offset, length, null).altered;
+        builder.set(stringBuilder);
+        return altered;
     }
 
     /**
@@ -1288,7 +1292,7 @@ public class StringSubstitutor {
      * @throws IllegalArgumentException if variable is not found and <pre>isEnableUndefinedVariableException()==true</pre>
      * @since 1.9
      */
-    private Result substitute(final TextStringBuilder builder, final int offset, final int length,
+    private Result substitute(final StringBuilder builder, final int offset, final int length,
                               List<String> priorVariables) {
         Objects.requireNonNull(builder, "builder");
         final StringMatcher prefixMatcher = getVariablePrefixMatcher();
@@ -1355,7 +1359,7 @@ public class StringSubstitutor {
                                 continue outer;
                             }
                             // get var name
-                            String varNameExpr = builder.midString(startPos + startMatchLen,
+                            String varNameExpr = midString(builder, startPos + startMatchLen,
                                     pos - startPos - startMatchLen);
                             if (substitutionInVariablesEnabled) {
                                 final TextStringBuilder bufName = new TextStringBuilder(varNameExpr);
@@ -1392,7 +1396,7 @@ public class StringSubstitutor {
                             // on the first call initialize priorVariables
                             if (priorVariables == null) {
                                 priorVariables = new ArrayList<>();
-                                priorVariables.add(builder.midString(offset, length));
+                                priorVariables.add(midString(builder, offset, length));
                             }
 
                             // handle cyclic substitution
@@ -1434,6 +1438,21 @@ public class StringSubstitutor {
             }
         }
         return new Result(altered, lengthChange);
+    }
+
+    private String midString(StringBuilder builder, int index, final int length) {
+
+        if (index < 0) {
+            index = 0;
+        }
+        var size =  builder.length();
+        if (length <= 0 || index >= size) {
+            return StringUtils.EMPTY;
+        }
+        if (index + length >= size) {
+            return builder.substring(index, size);
+        }
+        return builder.substring(index, index + length);
     }
 
     /**
