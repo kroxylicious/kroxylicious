@@ -90,7 +90,7 @@ public class AbstractST {
      */
     @AfterAll
     static void teardown(TestInfo testInfo) throws IOException {
-        if (Environment.SKIP_TEARDOWN.equalsIgnoreCase("false")) {
+        if (!Boolean.parseBoolean(Environment.SKIP_TEARDOWN)) {
             if (strimziOperator != null) {
                 strimziOperator.delete();
             }

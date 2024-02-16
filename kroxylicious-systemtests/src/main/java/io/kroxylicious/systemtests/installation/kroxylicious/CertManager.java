@@ -45,7 +45,7 @@ public class CertManager {
     public void deploy() {
         LOGGER.info("Deploy cert manager in {} namespace", Constants.CERT_MANAGER_NAMESPACE);
         if (kubeClient().getNamespace(Constants.CERT_MANAGER_NAMESPACE) != null
-                || Environment.CERT_MANAGER_INSTALLED.equalsIgnoreCase("true")) {
+                || Boolean.parseBoolean(Environment.CERT_MANAGER_INSTALLED)) {
             LOGGER.warn("Skipping cert manager deployment. It is already deployed!");
             return;
         }
@@ -58,7 +58,7 @@ public class CertManager {
      * @throws IOException the io exception
      */
     public void delete() throws IOException {
-        if (Environment.CERT_MANAGER_INSTALLED.equalsIgnoreCase("true")) {
+        if (Boolean.parseBoolean(Environment.CERT_MANAGER_INSTALLED)) {
             LOGGER.warn("Skipping cert manager deletion. CERT_MANAGER_INSTALLED was set to true");
             return;
         }

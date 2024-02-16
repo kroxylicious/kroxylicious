@@ -101,7 +101,7 @@ public class Strimzi {
     public void deploy() {
         LOGGER.info("Deploy Strimzi in {} namespace", deploymentNamespace);
         if (kubeClient().getDeployment(deploymentNamespace, Constants.STRIMZI_DEPLOYMENT_NAME) != null
-                || Environment.STRIMZI_INSTALLED.equalsIgnoreCase("true")) {
+                || Boolean.parseBoolean(Environment.STRIMZI_INSTALLED)) {
             LOGGER.warn("Skipping strimzi deployment. It is already deployed!");
             return;
         }
@@ -114,7 +114,7 @@ public class Strimzi {
      * @throws IOException the io exception
      */
     public void delete() throws IOException {
-        if (Environment.STRIMZI_INSTALLED.equalsIgnoreCase("true")) {
+        if (Boolean.parseBoolean(Environment.STRIMZI_INSTALLED)) {
             LOGGER.warn("Skipping Strimzi deletion. STRIMZI_INSTALLED was set to true");
             return;
         }
