@@ -13,7 +13,6 @@ import java.util.Properties;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.mutable.MutableObject;
-import org.apache.commons.text.TextStringBuilder;
 import org.apache.commons.text.matcher.StringMatcher;
 import org.apache.commons.text.matcher.StringMatcherFactory;
 import org.junit.jupiter.api.AfterEach;
@@ -72,19 +71,12 @@ public class StringSubstitutorTest {
             assertNull(substitutor.replace((char[]) null, 0, 100));
             assertNull(substitutor.replace((StringBuilder) null));
             assertNull(substitutor.replace((StringBuilder) null, 0, 100));
-            assertNull(substitutor.replace((TextStringBuilder) null));
-            assertNull(substitutor.replace((TextStringBuilder) null, 0, 100));
             assertNull(substitutor.replace((Object) null));
             assertFalse(substitutor.replaceIn((StringBuilder) null));
             assertFalse(substitutor.replaceIn((StringBuilder) null, 0, 100));
-            assertFalse(substitutor.replaceIn((TextStringBuilder) null));
-            assertFalse(substitutor.replaceIn((TextStringBuilder) null, 0, 100));
         }
         else {
             assertEquals(replaceTemplate, replace(substitutor, replaceTemplate));
-            final TextStringBuilder builder = new TextStringBuilder(replaceTemplate);
-            assertFalse(substitutor.replaceIn(builder));
-            assertEquals(replaceTemplate, builder.toString());
         }
     }
 
@@ -116,13 +108,6 @@ public class StringSubstitutorTest {
             assertEquals(expectedShortResult, sub.replace(builder, 1, builder.length() - 2));
         }
 
-        // replace using TextStringBuilder
-        TextStringBuilder bld = new TextStringBuilder(replaceTemplate);
-        assertEquals(expectedResult, sub.replace(bld));
-        if (substring) {
-            assertEquals(expectedShortResult, sub.replace(bld, 1, bld.length() - 2));
-        }
-
         // replace using object
         final MutableObject<String> obj = new MutableObject<>(replaceTemplate); // toString returns template
         assertEquals(expectedResult, sub.replace(obj));
@@ -137,15 +122,6 @@ public class StringSubstitutorTest {
             assertEquals(expectedResult, builder.toString()); // expect full result as remainder is untouched
         }
 
-        // replace in TextStringBuilder
-        bld = new TextStringBuilder(replaceTemplate);
-        assertTrue(sub.replaceIn(bld));
-        assertEquals(expectedResult, bld.toString());
-        if (substring) {
-            bld = new TextStringBuilder(replaceTemplate);
-            assertTrue(sub.replaceIn(bld, 1, bld.length() - 2));
-            assertEquals(expectedResult, bld.toString()); // expect full result as remainder is untouched
-        }
     }
 
     /**
@@ -728,18 +704,18 @@ public class StringSubstitutorTest {
         // replace(char[], int, int)
         final char[] emptyCharArray = {};
         // offset greater than array length
-        assertThatExceptionOfType(StringIndexOutOfBoundsException.class).isThrownBy(
+        assertThatExceptionOfType(IndexOutOfBoundsException.class).isThrownBy(
                 () -> sub.replace(emptyCharArray, 0, 1));
         // source != null && (offset > source.length || offset < 0)
-        assertThatExceptionOfType(StringIndexOutOfBoundsException.class).isThrownBy(
+        assertThatExceptionOfType(IndexOutOfBoundsException.class).isThrownBy(
                 () -> sub.replace(emptyCharArray, 1, 0));
 
         // replace(String, int, int)
         // offset greater than source length
-        assertThatExceptionOfType(StringIndexOutOfBoundsException.class).isThrownBy(
+        assertThatExceptionOfType(IndexOutOfBoundsException.class).isThrownBy(
                 () -> sub.replace("", 1, 1));
         // source != null && offset >= 0 && offset <= source.length() && (length > -offset + source.length() || length < 0)
-        assertThatExceptionOfType(StringIndexOutOfBoundsException.class).isThrownBy(
+        assertThatExceptionOfType(IndexOutOfBoundsException.class).isThrownBy(
                 () -> sub.replace("", 0, 1));
     }
 
@@ -1021,7 +997,7 @@ public class StringSubstitutorTest {
      */
     @Test
     public void testStaticReplaceSystemProperties() {
-        final TextStringBuilder buf = new TextStringBuilder();
+        var buf = new StringBuilder();
         buf.append("Hi ").append(System.getProperty("user.name"));
         buf.append(", you are working with ");
         buf.append(System.getProperty("os.name"));

@@ -15,7 +15,6 @@ import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Validate;
-import org.apache.commons.text.TextStringBuilder;
 import org.apache.commons.text.matcher.StringMatcher;
 import org.apache.commons.text.matcher.StringMatcherFactory;
 
@@ -894,46 +893,6 @@ public class StringSubstitutor {
     }
 
     /**
-     * Replaces all the occurrences of variables with their matching values from the resolver using the given source
-     * builder as a template. The builder is not altered by this method.
-     *
-     * @param source the builder to use as a template, not changed, null returns null
-     * @return The result of the replace operation
-     * @throws IllegalArgumentException if variable is not found when its allowed to throw exception
-     */
-    public String replace(final TextStringBuilder source) {
-        if (source == null) {
-            return null;
-        }
-        var builder = new StringBuilder(source.length()).append(source);
-        substitute(builder, 0, builder.length());
-        return builder.toString();
-    }
-
-    /**
-     * Replaces all the occurrences of variables with their matching values from the resolver using the given source
-     * builder as a template. The builder is not altered by this method.
-     * <p>
-     * Only the specified portion of the builder will be processed. The rest of the builder is not processed, and is not
-     * returned.
-     * </p>
-     *
-     * @param source the builder to use as a template, not changed, null returns null
-     * @param offset the start offset within the source, must be valid
-     * @param length the length within the source to be processed, must be valid
-     * @return The result of the replace operation
-     * @throws IllegalArgumentException if variable is not found when its allowed to throw exception
-     */
-    public String replace(final TextStringBuilder source, final int offset, final int length) {
-        if (source == null) {
-            return null;
-        }
-        var buf = new StringBuilder().append(source, offset, offset + length);
-        substitute(buf, 0, length);
-        return buf.toString();
-    }
-
-    /**
      * Replaces all the occurrences of variables within the given source buffer with their matching values from the
      * resolver. The buffer is updated with the result.
      *
@@ -965,55 +924,7 @@ public class StringSubstitutor {
         if (source == null) {
             return false;
         }
-        // FIXME
-        var buf = new StringBuilder(length).append(source, offset, offset + length);
-        if (!substitute(buf, 0, length)) {
-            return false;
-        }
-        source.replace(offset, offset + length, buf.toString());
-        return true;
-    }
-
-    /**
-     * Replaces all the occurrences of variables within the given source builder with their matching values from the
-     * resolver.
-     *
-     * @param source the builder to replace in, updated, null returns zero
-     * @return true if altered
-     * @throws IllegalArgumentException if variable is not found when its allowed to throw exception
-     */
-    public boolean replaceIn(final TextStringBuilder source) {
-        if (source == null) {
-            return false;
-        }
-        StringBuilder stringBuilder = source.toStringBuilder();
-        boolean substitute = substitute(stringBuilder, 0, source.length());
-        source.set(stringBuilder);
-        return substitute;
-    }
-
-    /**
-     * Replaces all the occurrences of variables within the given source builder with their matching values from the
-     * resolver.
-     * <p>
-     * Only the specified portion of the builder will be processed. The rest of the builder is not processed, but it is
-     * not deleted.
-     * </p>
-     *
-     * @param source the builder to replace in, null returns zero
-     * @param offset the start offset within the source, must be valid
-     * @param length the length within the source to be processed, must be valid
-     * @return true if altered
-     * @throws IllegalArgumentException if variable is not found when its allowed to throw exception
-     */
-    public boolean replaceIn(final TextStringBuilder source, final int offset, final int length) {
-        if (source == null) {
-            return false;
-        }
-        var source1 = source.toStringBuilder();
-        boolean substitute = substitute(source1, offset, length);
-        source.set(source1);
-        return substitute;
+        return substitute(source, offset, length);
     }
 
     /**
@@ -1449,7 +1360,7 @@ public class StringSubstitutor {
         if (index < 0) {
             index = 0;
         }
-        var size =  builder.length();
+        var size = builder.length();
         if (length <= 0 || index >= size) {
             return StringUtils.EMPTY;
         }
