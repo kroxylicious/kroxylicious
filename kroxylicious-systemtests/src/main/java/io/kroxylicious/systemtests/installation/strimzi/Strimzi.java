@@ -12,8 +12,6 @@ import java.io.InputStream;
 import java.io.InvalidObjectException;
 import java.util.List;
 
-import io.kroxylicious.systemtests.utils.NamespaceUtils;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
