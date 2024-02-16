@@ -5,8 +5,9 @@
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
 
-# shellcheck disable=SC2039
+# shellcheck disable=SC2039,SC2002
 # Disable SC2039 something is undefined in posix script wide as we run in
+# Disable SC2002 useless use of cat.
 
 # ===================================================================================
 # Generic startup script for running arbitrary Java applications with
