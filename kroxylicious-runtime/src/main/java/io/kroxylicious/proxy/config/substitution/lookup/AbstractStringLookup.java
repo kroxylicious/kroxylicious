@@ -6,8 +6,6 @@
 
 package io.kroxylicious.proxy.config.substitution.lookup;
 
-import org.apache.commons.lang3.StringUtils;
-
 /**
  * A default lookup for others to extend in this package.
  *
@@ -37,45 +35,6 @@ abstract class AbstractStringLookup implements StringLookup {
      */
     static String toLookupKey(final String left, final String separator, final String right) {
         return left + separator + right;
-    }
-
-    /**
-     * Returns the substring after the first occurrence of {@code ch} in {@code value}.
-     *
-     * @param value The source string.
-     * @param ch The character to search.
-     * @return a new string.
-     * @deprecated Use {@link StringUtils#substringAfter(String, int)}.
-     */
-    @Deprecated
-    protected String substringAfter(final String value, final char ch) {
-        return StringUtils.substringAfter(value, ch);
-    }
-
-    /**
-     * Returns the substring after the first occurrence of {@code str} in {@code value}.
-     *
-     * @param value The source string.
-     * @param str The string to search.
-     * @return a new string.
-     * @deprecated Use {@link StringUtils#substringAfter(String, String)}.
-     */
-    @Deprecated
-    protected String substringAfter(final String value, final String str) {
-        return StringUtils.substringAfter(value, str);
-    }
-
-    /**
-     * Returns the substring after the first occurrence of {@code ch} in {@code value}.
-     *
-     * @param value The source string.
-     * @param ch The character to search.
-     * @return a new string.
-     * @deprecated Use {@link StringUtils#substringAfterLast(String, int)}.
-     */
-    @Deprecated
-    protected String substringAfterLast(final String value, final char ch) {
-        return StringUtils.substringAfterLast(value, ch);
     }
 
 }

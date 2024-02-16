@@ -13,7 +13,6 @@ import java.util.Properties;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Validate;
 import org.apache.commons.text.matcher.StringMatcher;
 import org.apache.commons.text.matcher.StringMatcherFactory;
@@ -1362,7 +1361,7 @@ public class StringSubstitutor {
         }
         var size = builder.length();
         if (length <= 0 || index >= size) {
-            return StringUtils.EMPTY;
+            return "";
         }
         if (index + length >= size) {
             return builder.substring(index, size);
