@@ -718,7 +718,7 @@ public class StringSubstitutor {
         if (source == null) {
             return null;
         }
-        final TextStringBuilder buf = new TextStringBuilder(source.length).append(source);
+        var buf = new StringBuilder(source.length).append(source);
         substitute(buf, 0, source.length);
         return buf.toString();
     }
@@ -745,7 +745,7 @@ public class StringSubstitutor {
         if (source == null) {
             return null;
         }
-        final TextStringBuilder buf = new TextStringBuilder(length).append(source, offset, length);
+        var buf = new StringBuilder(length).append(source, offset, length);
         substitute(buf, 0, length);
         return buf.toString();
     }
@@ -783,7 +783,7 @@ public class StringSubstitutor {
         if (source == null) {
             return null;
         }
-        final TextStringBuilder buf = new TextStringBuilder(length).append(source.toString(), offset, length);
+        var buf = new StringBuilder(length).append(source.toString(), offset, length);
         substitute(buf, 0, length);
         return buf.toString();
     }
@@ -800,7 +800,7 @@ public class StringSubstitutor {
         if (source == null) {
             return null;
         }
-        final TextStringBuilder buf = new TextStringBuilder().append(source);
+        var buf = new StringBuilder().append(source);
         substitute(buf, 0, buf.length());
         return buf.toString();
     }
@@ -817,7 +817,7 @@ public class StringSubstitutor {
         if (source == null) {
             return null;
         }
-        final TextStringBuilder buf = new TextStringBuilder(source);
+        var buf = new StringBuilder(source);
         if (!substitute(buf, 0, source.length())) {
             return source;
         }
@@ -846,7 +846,7 @@ public class StringSubstitutor {
         if (source == null) {
             return null;
         }
-        final TextStringBuilder buf = new TextStringBuilder(length).append(source, offset, length);
+        var buf = new StringBuilder(length).append(source, offset, length);
         if (!substitute(buf, 0, length)) {
             return source.substring(offset, offset + length);
         }
@@ -865,7 +865,7 @@ public class StringSubstitutor {
         if (source == null) {
             return null;
         }
-        final TextStringBuilder buf = new TextStringBuilder(source.length()).append(source);
+        var buf = new StringBuilder(source.length()).append(source);
         substitute(buf, 0, buf.length());
         return buf.toString();
     }
@@ -888,7 +888,7 @@ public class StringSubstitutor {
         if (source == null) {
             return null;
         }
-        final TextStringBuilder buf = new TextStringBuilder(length).append(source, offset, length);
+        var buf = new StringBuilder(length).append(source, offset, length);
         substitute(buf, 0, length);
         return buf.toString();
     }
@@ -905,7 +905,7 @@ public class StringSubstitutor {
         if (source == null) {
             return null;
         }
-        final TextStringBuilder builder = new TextStringBuilder(source.length()).append(source);
+        var builder = new StringBuilder(source.length()).append(source);
         substitute(builder, 0, builder.length());
         return builder.toString();
     }
@@ -928,7 +928,7 @@ public class StringSubstitutor {
         if (source == null) {
             return null;
         }
-        final TextStringBuilder buf = new TextStringBuilder(length).append(source, offset, length);
+        var buf = new StringBuilder().append(source, offset, length);
         substitute(buf, 0, length);
         return buf.toString();
     }
@@ -965,7 +965,8 @@ public class StringSubstitutor {
         if (source == null) {
             return false;
         }
-        final TextStringBuilder buf = new TextStringBuilder(length).append(source, offset, length);
+        // FIXME
+        var buf = new StringBuilder(length).append(source, offset, length);
         if (!substitute(buf, 0, length)) {
             return false;
         }
@@ -985,7 +986,10 @@ public class StringSubstitutor {
         if (source == null) {
             return false;
         }
-        return substitute(source, 0, source.length());
+        StringBuilder stringBuilder = source.toStringBuilder();
+        boolean substitute = substitute(stringBuilder, 0, source.length());
+        source.set(stringBuilder);
+        return substitute;
     }
 
     /**
@@ -1006,7 +1010,10 @@ public class StringSubstitutor {
         if (source == null) {
             return false;
         }
-        return substitute(source, offset, length);
+        var source1 = source.toStringBuilder();
+        boolean substitute = substitute(source1, offset, length);
+        source.set(source1);
+        return substitute;
     }
 
     /**
@@ -1273,11 +1280,8 @@ public class StringSubstitutor {
      * @param length the length within the builder to be processed, must be valid
      * @return true if altered
      */
-    protected boolean substitute(final TextStringBuilder builder, final int offset, final int length) {
-        StringBuilder stringBuilder = builder.toStringBuilder();
-        boolean altered = substitute(stringBuilder, offset, length, null).altered;
-        builder.set(stringBuilder);
-        return altered;
+    protected boolean substitute(final StringBuilder builder, final int offset, final int length) {
+        return substitute(builder, offset, length, null).altered;
     }
 
     /**
@@ -1362,7 +1366,7 @@ public class StringSubstitutor {
                             String varNameExpr = midString(builder, startPos + startMatchLen,
                                     pos - startPos - startMatchLen);
                             if (substitutionInVariablesEnabled) {
-                                final TextStringBuilder bufName = new TextStringBuilder(varNameExpr);
+                                var bufName = new StringBuilder(varNameExpr);
                                 substitute(bufName, 0, bufName.length());
                                 varNameExpr = bufName.toString();
                             }
