@@ -9,6 +9,7 @@ package io.kroxylicious.proxy.config.secret;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class InlinePasswordTest {
 
@@ -16,6 +17,11 @@ class InlinePasswordTest {
     void inlinePassword() {
         InlinePassword inline = new InlinePassword("pazz");
         assertThat(inline.getProvidedPassword()).isEqualTo("pazz");
+    }
+
+    @Test
+    void inlinePasswordCannotHaveNullValue() {
+        assertThatThrownBy(() -> new InlinePassword(null)).isInstanceOf(NullPointerException.class);
     }
 
     @Test

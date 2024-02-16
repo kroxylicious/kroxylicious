@@ -1,0 +1,20 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+originalRecordContents:
+  valueBase64: aGkgLW4K
+  headers:
+    - keyBase64: aGVsbG8K
+      valueBase64: dGhlcmUK
+deserializedParcelContents:
+  valueBase64: aGkgLW4K
+  headers: []
+serializationOptions:
+  recordFields:
+    - RECORD_VALUE
+exemplars:
+  V1:
+    serializedBase64: DGhpIC1uCgM=
