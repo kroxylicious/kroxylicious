@@ -584,11 +584,11 @@ public class StringSubstitutor {
         if (!priorVariables.contains(varName)) {
             return;
         }
-        final TextStringBuilder buf = new TextStringBuilder(256);
+        var buf = new StringBuilder(256);
         buf.append("Infinite loop in property interpolation of ");
         buf.append(priorVariables.remove(0));
         buf.append(": ");
-        buf.appendWithSeparators(priorVariables, "->");
+        buf.append(String.join("->", priorVariables));
         throw new IllegalStateException(buf.toString());
     }
 
