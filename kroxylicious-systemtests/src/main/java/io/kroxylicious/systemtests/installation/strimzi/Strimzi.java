@@ -12,6 +12,8 @@ import java.io.InputStream;
 import java.io.InvalidObjectException;
 import java.util.List;
 
+import io.kroxylicious.systemtests.utils.NamespaceUtils;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -100,7 +102,8 @@ public class Strimzi {
      */
     public void deploy() {
         LOGGER.info("Deploy Strimzi in {} namespace", deploymentNamespace);
-        if (kubeClient().getDeployment(deploymentNamespace, Constants.STRIMZI_DEPLOYMENT_NAME) != null) {
+        if (kubeClient().getDeployment(deploymentNamespace, Constants.STRIMZI_DEPLOYMENT_NAME) != null
+            || Environment.STRIMZI_INSTALLED.equalsIgnoreCase("true")) {
             LOGGER.warn("Skipping strimzi deployment. It is already deployed!");
             return;
         }
@@ -113,6 +116,10 @@ public class Strimzi {
      * @throws IOException the io exception
      */
     public void delete() throws IOException {
+        if (Environment.STRIMZI_INSTALLED.equalsIgnoreCase("true")) {
+            LOGGER.warn("Skipping Strimzi deletion. STRIMZI_INSTALLED was set to true");
+            return;
+        }
         LOGGER.info("Deleting Strimzi in {} namespace", deploymentNamespace);
         deployment.inNamespace(deploymentNamespace).delete();
         DeploymentUtils.waitForDeploymentDeletion(deploymentNamespace, Constants.STRIMZI_DEPLOYMENT_NAME);
