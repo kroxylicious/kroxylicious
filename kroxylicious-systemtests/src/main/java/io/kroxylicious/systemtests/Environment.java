@@ -30,8 +30,7 @@ public class Environment {
     private static final String SKIP_TEARDOWN_ENV = "SKIP_TEARDOWN";
     public static final String STRIMZI_FEATURE_GATES_ENV = "STRIMZI_FEATURE_GATES";
     private static final String CONTAINER_CONFIG_PATH_ENV = "CONTAINER_CONFIG_PATH";
-    private static final String STRIMZI_INSTALLED_ENV = "STRIMZI_INSTALLED";
-    private static final String CERT_MANAGER_INSTALLED_ENV = "CERT_MANAGER_INSTALLED";
+    private static final String SKIP_STRIMZI_INSTALL_ENV = "SKIP_STRIMZI_INSTALL";
 
     /**
      * The kafka version default value
@@ -66,8 +65,7 @@ public class Environment {
     private static final String SKIP_TEARDOWN_DEFAULT = "false";
     private static final String STRIMZI_FEATURE_GATES_DEFAULT = "";
     private static final String CONTAINER_CONFIG_PATH_DEFAULT = System.getProperty("user.home") + "/.docker/config.json";
-    private static final String CERT_MANAGER_INSTALLED_DEFAULT = "false";
-    private static final String STRIMZI_INSTALLED_DEFAULT = "false";
+    private static final String SKIP_STRIMZI_INSTALL_DEFAULT = "false";
 
     /**
      * KAFKA_VERSION env variable assignment
@@ -95,9 +93,7 @@ public class Environment {
 
     public static final String CONTAINER_CONFIG_PATH = getOrDefault(CONTAINER_CONFIG_PATH_ENV, CONTAINER_CONFIG_PATH_DEFAULT);
 
-    public static final String STRIMZI_INSTALLED = getOrDefault(STRIMZI_INSTALLED_ENV, STRIMZI_INSTALLED_DEFAULT);
-
-    public static final String CERT_MANAGER_INSTALLED = getOrDefault(CERT_MANAGER_INSTALLED_ENV, CERT_MANAGER_INSTALLED_DEFAULT);
+    public static final String SKIP_STRIMZI_INSTALL = getOrDefault(SKIP_STRIMZI_INSTALL_ENV, SKIP_STRIMZI_INSTALL_DEFAULT);
 
     private static String getOrDefault(String varName, String defaultValue) {
         return getOrDefault(varName, String::toString, defaultValue);

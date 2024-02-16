@@ -7,15 +7,16 @@
 package io.kroxylicious.systemtests.installation.kroxylicious;
 
 import java.io.IOException;
+import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.client.dsl.NamespaceListVisitFromServerGetDeleteRecreateWaitApplicable;
 
 import io.kroxylicious.systemtests.Constants;
-import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
 import io.kroxylicious.systemtests.utils.NamespaceUtils;
 
@@ -28,6 +29,7 @@ public class CertManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(CertManager.class);
 
     private final NamespaceListVisitFromServerGetDeleteRecreateWaitApplicable<HasMetadata> deployment;
+    private boolean deleteCertManager = true;
 
     /**
      * Instantiates a new Cert manager.
@@ -39,14 +41,20 @@ public class CertManager {
                 .load(DeploymentUtils.getDeploymentFileFromURL(Constants.CERT_MANAGER_URL));
     }
 
+    private boolean isDeployed() {
+        List<GenericKubernetesResource> certManagerList = kubeClient().getClient().genericKubernetesResources("apiextensions.k8s.io/v1", "CustomResourceDefinition")
+                .list().getItems().stream().filter(crd -> crd.getMetadata().getLabels().get("app").equalsIgnoreCase("cert-manager")).toList();
+        return !certManagerList.isEmpty();
+    }
+
     /**
      * Deploy cert manager.
      */
     public void deploy() {
         LOGGER.info("Deploy cert manager in {} namespace", Constants.CERT_MANAGER_NAMESPACE);
-        if (kubeClient().getNamespace(Constants.CERT_MANAGER_NAMESPACE) != null
-                || Boolean.parseBoolean(Environment.CERT_MANAGER_INSTALLED)) {
+        if (isDeployed()) {
             LOGGER.warn("Skipping cert manager deployment. It is already deployed!");
+            deleteCertManager = false;
             return;
         }
         deployment.create();
@@ -58,8 +66,8 @@ public class CertManager {
      * @throws IOException the io exception
      */
     public void delete() throws IOException {
-        if (Boolean.parseBoolean(Environment.CERT_MANAGER_INSTALLED)) {
-            LOGGER.warn("Skipping cert manager deletion. CERT_MANAGER_INSTALLED was set to true");
+        if (!deleteCertManager) {
+            LOGGER.warn("Skipping cert manager deletion. It was previously installed");
             return;
         }
         LOGGER.info("Deleting Cert Manager in {} namespace", Constants.CERT_MANAGER_NAMESPACE);

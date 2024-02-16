@@ -337,8 +337,7 @@ has been applied ineffectively.
 * `SKIP_TEARDOWN`: variable for development purposes to avoid keep deploying and deleting deployments each run. Default value: `false`
 * `CONTAINER_CONFIG_PATH`: directory where `config.json` file is located. This file contains the pull secrets to be used by
 the container engine. Default value: `$HOME/.docker/config.json`
-* `STRIMZI_INSTALLED`: skip strimzi installation if it is already installed. Default value: `false`
-* `CERT_MANAGER_INSTALLED`: skip cert manager installation if it is already installed. Default value: `false`
+* `SKIP_STRIMZI_INSTALL`: skip strimzi installation. Default value: `false`
 
 
 ### Launch system tests
