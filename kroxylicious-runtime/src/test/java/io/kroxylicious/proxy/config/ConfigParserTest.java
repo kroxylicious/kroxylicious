@@ -280,12 +280,12 @@ class ConfigParserTest {
                 virtualClusters:
                   demo1:
                     targetCluster:
-                      bootstrap_servers: ${bootstrap}:${port}
+                      bootstrap_servers: ${sys:bootstrap}:${sys:port}
                     clusterNetworkAddressConfigProvider:
                       type: PortPerBrokerClusterNetworkAddressConfigProvider
                       config:
                         bootstrapAddress: cluster:9193
-                        numberOfBrokerPorts: ${numberOfBrokerPorts}0
+                        numberOfBrokerPorts: ${sys:numberOfBrokerPorts}0
                 """);
 
         var actualValidClusters = configuration.virtualClusters();
@@ -338,6 +338,36 @@ class ConfigParserTest {
                 .extracting(VirtualCluster::targetCluster)
                 .extracting(TargetCluster::bootstrapServers)
                 .isEqualTo("%s:1234".formatted(user));
+
+    }
+
+    @Test
+    void absentEnvVarFallbackToDefault() {
+
+        var absent = System.getenv().get("NOT_AN_ENV_VAR");
+        assertThat(absent).isNull();
+
+        // Given
+        Configuration configuration = configParser.parseConfiguration("""
+                virtualClusters:
+                  demo1:
+                    targetCluster:
+                      bootstrap_servers: ${NOT_AN_ENV_VAR:%s:-localhost}:1234
+                    clusterNetworkAddressConfigProvider:
+                      type: PortPerBrokerClusterNetworkAddressConfigProvider
+                      config:
+                        bootstrapAddress: cluster:9193
+                """);
+
+        var actualValidClusters = configuration.virtualClusters();
+
+        // Then
+        assertThat(actualValidClusters)
+                .flatExtracting("demo1")
+                .singleElement(InstanceOfAssertFactories.type(VirtualCluster.class))
+                .extracting(VirtualCluster::targetCluster)
+                .extracting(TargetCluster::bootstrapServers)
+                .isEqualTo("localhost:1234".formatted(absent));
 
     }
 

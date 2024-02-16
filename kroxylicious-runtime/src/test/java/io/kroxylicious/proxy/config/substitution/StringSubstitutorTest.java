@@ -6,6 +6,25 @@
 
 package io.kroxylicious.proxy.config.substitution;
 
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Properties;
+
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.mutable.MutableObject;
+import org.apache.commons.text.TextStringBuilder;
+import org.apache.commons.text.matcher.StringMatcher;
+import org.apache.commons.text.matcher.StringMatcherFactory;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestMethodOrder;
+
+import io.kroxylicious.proxy.config.substitution.lookup.StringLookup;
+import io.kroxylicious.proxy.config.substitution.lookup.StringLookupFactory;
 
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
@@ -15,25 +34,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Properties;
-
-import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.mutable.MutableObject;
-import org.apache.commons.text.TextStringBuilder;
-import org.apache.commons.text.lookup.StringLookup;
-import org.apache.commons.text.lookup.StringLookupFactory;
-import org.apache.commons.text.matcher.StringMatcher;
-import org.apache.commons.text.matcher.StringMatcherFactory;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.MethodOrderer;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestMethodOrder;
 
 /**
  * Test class for {@link StringSubstitutor}.
@@ -89,7 +89,8 @@ public class StringSubstitutorTest {
     }
 
     protected void doTestReplace(final StringSubstitutor sub, final String expectedResult, final String replaceTemplate,
-                                 final boolean substring) throws IOException {
+                                 final boolean substring)
+            throws IOException {
         final String expectedShortResult = substring ? expectedResult.substring(1, expectedResult.length() - 1)
                 : expectedResult;
 
@@ -1067,7 +1068,8 @@ public class StringSubstitutorTest {
             assertEqualsCharSeq("bar1", StringSubstitutor.replaceSystemProperties("${foo}"));
             System.setProperty("foo", "bar2");
             assertEqualsCharSeq("bar2", StringSubstitutor.replaceSystemProperties("${foo}"));
-        } finally {
+        }
+        finally {
             System.getProperties().remove("foo");
         }
     }

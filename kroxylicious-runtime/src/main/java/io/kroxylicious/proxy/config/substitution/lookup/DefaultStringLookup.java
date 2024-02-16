@@ -5,7 +5,6 @@
  */
 package io.kroxylicious.proxy.config.substitution.lookup;
 
-
 /**
  * An enumeration defining {@link StringLookup} objects available through {@link StringLookupFactory}.
  * <p>
@@ -23,14 +22,12 @@ package io.kroxylicious.proxy.config.substitution.lookup;
  */
 public enum DefaultStringLookup {
 
-
     /**
      * The lookup for environment properties using the key {@code "env"}.
      * @see StringLookupFactory#KEY_ENV
      * @see StringLookupFactory#environmentVariableStringLookup()
      */
     ENVIRONMENT(org.apache.commons.text.lookup.StringLookupFactory.KEY_ENV, StringLookupFactory.INSTANCE.environmentVariableStringLookup()),
-
 
     /**
      * The lookup for system properties using the key {@code "sys"}.

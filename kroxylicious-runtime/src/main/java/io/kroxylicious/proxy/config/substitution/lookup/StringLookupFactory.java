@@ -11,11 +11,8 @@ import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
-import java.util.function.BiFunction;
-import java.util.function.Function;
 
-import org.apache.commons.text.StringSubstitutor;
-import org.apache.commons.text.lookup.BiStringLookup;
+import io.kroxylicious.proxy.config.substitution.StringSubstitutor;
 
 /**
  * Create instances of string lookups or access singleton string lookups implemented in this package.
@@ -27,9 +24,6 @@ import org.apache.commons.text.lookup.BiStringLookup;
  * </p>
  * <ul>
  * <li>{@link #interpolatorStringLookup()}.</li>
- * <li>{@link #interpolatorStringLookup(Map)}.</li>
- * <li>{@link #interpolatorStringLookup(StringLookup)}.</li>
- * <li>{@link #interpolatorStringLookup(Map, StringLookup, boolean)}.</li>
  * </ul>
  * <p>
  * Unless explicitly requested otherwise, a set of default lookups are included for convenience with these
@@ -37,14 +31,8 @@ import org.apache.commons.text.lookup.BiStringLookup;
  * included can be configured through the use of the {@value #DEFAULT_STRING_LOOKUPS_PROPERTY} system property.
  * If present, this system property will be parsed as a comma-separated list of lookup names, with the names
  * being those defined by the {@link DefaultStringLookup} enum. For example, setting this system property to
- * {@code "BASE64_ENCODER,ENVIRONMENT"} will only include the
- * {@link DefaultStringLookup#BASE64_ENCODER BASE64_ENCODER} and {@link DefaultStringLookup#ENVIRONMENT ENVIRONMENT}
- * lookups. Setting the property to the empty string will cause no defaults to be configured.
- * Note that not all lookups defined here and in {@link DefaultStringLookup} are included by default.
- * Specifically, lookups that can execute code (e.g., {@link DefaultStringLookup#SCRIPT SCRIPT}) and those
- * that can result in contact with remote servers (e.g., {@link DefaultStringLookup#URL URL} and
- * {@link DefaultStringLookup#DNS DNS}) are not included by default. The current set of default lookups can
- * be accessed directly with {@link #addDefaultStringLookups(Map)}.
+ * {@code "ENVIRONMENT"} will only include the {@link DefaultStringLookup#ENVIRONMENT ENVIRONMENT}
+ * lookup. Setting the property to the empty string will cause no defaults to be configured.
  * </p>
  * <table>
  * <caption>Default String Lookups</caption>
@@ -55,64 +43,10 @@ import org.apache.commons.text.lookup.BiStringLookup;
  * <th>Since</th>
  * </tr>
  * <tr>
- * <td>{@value #KEY_BASE64_DECODER}</td>
- * <td>{@link StringLookup}</td>
- * <td>{@link #base64DecoderStringLookup()}</td>
- * <td>1.6</td>
- * </tr>
- * <tr>
- * <td>{@value #KEY_BASE64_ENCODER}</td>
- * <td>{@link StringLookup}</td>
- * <td>{@link #base64EncoderStringLookup()}</td>
- * <td>1.6</td>
- * </tr>
- * <tr>
- * <td>{@value #KEY_CONST}</td>
- * <td>{@link StringLookup}</td>
- * <td>{@link #constantStringLookup()}</td>
- * <td>1.5</td>
- * </tr>
- * <tr>
- * <td>{@value #KEY_DATE}</td>
- * <td>{@link StringLookup}</td>
- * <td>{@link #dateStringLookup()}</td>
- * <td>1.5</td>
- * </tr>
- * <tr>
  * <td>{@value #KEY_ENV}</td>
  * <td>{@link StringLookup}</td>
  * <td>{@link #environmentVariableStringLookup()}</td>
  * <td>1.3</td>
- * </tr>
- * <tr>
- * <td>{@value #KEY_FILE}</td>
- * <td>{@link StringLookup}</td>
- * <td>{@link #fileStringLookup()}</td>
- * <td>1.5</td>
- * </tr>
- * <tr>
- * <td>{@value #KEY_JAVA}</td>
- * <td>{@link StringLookup}</td>
- * <td>{@link #javaPlatformStringLookup()}</td>
- * <td>1.5</td>
- * </tr>
- * <tr>
- * <td>{@value #KEY_LOCALHOST}</td>
- * <td>{@link StringLookup}</td>
- * <td>{@link #localHostStringLookup()}</td>
- * <td>1.3</td>
- * </tr>
- * <tr>
- * <td>{@value #KEY_PROPERTIES}</td>
- * <td>{@link StringLookup}</td>
- * <td>{@link #propertiesStringLookup()}</td>
- * <td>1.5</td>
- * </tr>
- * <tr>
- * <td>{@value #KEY_RESOURCE_BUNDLE}</td>
- * <td>{@link StringLookup}</td>
- * <td>{@link #resourceBundleStringLookup()}</td>
- * <td>1.6</td>
  * </tr>
  * <tr>
  * <td>{@value #KEY_SYS}</td>
@@ -120,88 +54,8 @@ import org.apache.commons.text.lookup.BiStringLookup;
  * <td>{@link #systemPropertyStringLookup()}</td>
  * <td>1.3</td>
  * </tr>
- * <tr>
- * <td>{@value #KEY_URL_DECODER}</td>
- * <td>{@link StringLookup}</td>
- * <td>{@link #urlDecoderStringLookup()}</td>
- * <td>1.5</td>
- * </tr>
- * <tr>
- * <td>{@value #KEY_URL_ENCODER}</td>
- * <td>{@link StringLookup}</td>
- * <td>{@link #urlEncoderStringLookup()}</td>
- * <td>1.5</td>
- * </tr>
- * <tr>
- * <td>{@value #KEY_XML}</td>
- * <td>{@link StringLookup}</td>
- * <td>{@link #xmlStringLookup()}</td>
- * <td>1.5</td>
- * </tr>
- * <tr>
- * <td>{@value #KEY_XML_DECODER}</td>
- * <td>{@link StringLookup}</td>
- * <td>{@link #xmlDecoderStringLookup()}</td>
- * <td>1.11.0</td>
- * </tr>
- * <tr>
- * <td>{@value #KEY_XML_ENCODER}</td>
- * <td>{@link StringLookup}</td>
- * <td>{@link #xmlEncoderStringLookup()}</td>
- * <td>1.11.0</td>
- * </tr>
  * </table>
  *
- * <table>
- * <caption>Additional String Lookups (not included by default)</caption>
- * <tr>
- * <th>Key</th>
- * <th>Interface</th>
- * <th>Factory Method</th>
- * <th>Since</th>
- * </tr>
- * <tr>
- * <td>{@value #KEY_DNS}</td>
- * <td>{@link StringLookup}</td>
- * <td>{@link #dnsStringLookup()}</td>
- * <td>1.8</td>
- * </tr>
- * <tr>
- * <td>{@value #KEY_URL}</td>
- * <td>{@link StringLookup}</td>
- * <td>{@link #urlStringLookup()}</td>
- * <td>1.5</td>
- * </tr>
- * <tr>
- * <td>{@value #KEY_SCRIPT}</td>
- * <td>{@link StringLookup}</td>
- * <td>{@link #scriptStringLookup()}</td>
- * <td>1.5</td>
- * </tr>
- * </table>
- *
- * <p>
- * This class also provides functional lookups used as building blocks for other lookups.
- * <table>
- * <caption>Functional String Lookups</caption>
- * <tr>
- * <th>Interface</th>
- * <th>Factory Method</th>
- * <th>Since</th>
- * </tr>
- * <tr>
- * <td>{@link BiStringLookup}</td>
- * <td>{@link #biFunctionStringLookup(BiFunction)}</td>
- * <td>1.9</td>
- * </tr>
- * <tr>
- * <td>{@link StringLookup}</td>
- * <td>{@link #functionStringLookup(Function)}</td>
- * <td>1.9</td>
- * </tr>
- * </table>
- *
- * @since 1.3
  */
 public final class StringLookupFactory {
 
@@ -269,10 +123,9 @@ public final class StringLookupFactory {
          * @param props initialization properties
          */
         DefaultStringLookupsHolder(final Properties props) {
-            final Map<String, StringLookup> lookups =
-                    props.containsKey(StringLookupFactory.DEFAULT_STRING_LOOKUPS_PROPERTY)
-                        ? parseStringLookups(props.getProperty(StringLookupFactory.DEFAULT_STRING_LOOKUPS_PROPERTY))
-                        : createDefaultStringLookups();
+            final Map<String, StringLookup> lookups = props.containsKey(StringLookupFactory.DEFAULT_STRING_LOOKUPS_PROPERTY)
+                    ? parseStringLookups(props.getProperty(StringLookupFactory.DEFAULT_STRING_LOOKUPS_PROPERTY))
+                    : createDefaultStringLookups();
 
             defaultStringLookups = Collections.unmodifiableMap(lookups);
         }
@@ -290,7 +143,6 @@ public final class StringLookupFactory {
      * Defines the singleton for this class.
      */
     public static final StringLookupFactory INSTANCE = new StringLookupFactory();
-
 
     /**
      * Looks up keys from environment variables.
@@ -314,11 +166,16 @@ public final class StringLookupFactory {
      * </p>
      */
     static final FunctionStringLookup<String> INSTANCE_ENVIRONMENT_VARIABLES = FunctionStringLookup.on(System::getenv);
+
+    /**
+     * Defines the FunctionStringLookup singleton that always returns null.
+     */
+    static final FunctionStringLookup<String> INSTANCE_NULL = FunctionStringLookup.on(key -> null);
+
     /**
      * Defines the FunctionStringLookup singleton for looking up system properties.
      */
     static final FunctionStringLookup<String> INSTANCE_SYSTEM_PROPERTIES = FunctionStringLookup.on(System::getProperty);
-
 
     /**
      * Default lookup key for interpolation {@value #KEY_ENV}.
@@ -327,14 +184,12 @@ public final class StringLookupFactory {
      */
     public static final String KEY_ENV = "env";
 
-
     /**
      * Default lookup key for interpolation {@value #KEY_SYS}.
      *
      * @since 1.6
      */
     public static final String KEY_SYS = "sys";
-
 
     /**
      * Name of the system property used to determine the string lookups added by the
@@ -396,8 +251,6 @@ public final class StringLookupFactory {
             stringLookupMap.putAll(DefaultStringLookupsHolder.INSTANCE.getDefaultStringLookups());
         }
     }
-
-
 
     /**
      * Returns the EnvironmentVariableStringLookup singleton instance where the lookup key is an environment variable
@@ -465,6 +318,16 @@ public final class StringLookupFactory {
     public <V> StringLookup mapStringLookup(final Map<String, V> map) {
         return FunctionStringLookup.on(map);
     }
+
+    /**
+     * Returns the NullStringLookup singleton instance which always returns null.
+     *
+     * @return The NullStringLookup singleton instance.
+     */
+    public StringLookup nullStringLookup() {
+        return StringLookupFactory.INSTANCE_NULL;
+    }
+
     /**
      * Returns the SystemPropertyStringLookup singleton instance where the lookup key is a system property name.
      *

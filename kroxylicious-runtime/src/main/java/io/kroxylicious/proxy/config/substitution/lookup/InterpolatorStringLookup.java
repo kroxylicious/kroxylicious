@@ -5,7 +5,6 @@
  */
 package io.kroxylicious.proxy.config.substitution.lookup;
 
-
 import java.util.Collections;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -131,6 +130,6 @@ class InterpolatorStringLookup extends AbstractStringLookup {
     @Override
     public String toString() {
         return super.toString() + " [stringLookupMap=" + stringLookupMap + ", defaultStringLookup="
-            + defaultStringLookup + "]";
+                + defaultStringLookup + "]";
     }
 }
