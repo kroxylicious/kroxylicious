@@ -1014,7 +1014,7 @@ class InBandDecryptionManagerTest {
                 maxEncryptionsPerDek,
                 1024 * 1024,
                 8 * 1024 * 1024,
-                InBandEncryptionManager.NO_MAX_CACHE_SIZE);
+                EncryptionDekCache.NO_MAX_CACHE_SIZE);
     }
 
     @NonNull
@@ -1023,12 +1023,14 @@ class InBandDecryptionManagerTest {
                                                                                        int recordBufferInitialBytes,
                                                                                        int recordBufferMaxBytes,
                                                                                        int maxCacheSize) {
-        return new InBandEncryptionManager<>(new DekManager<UUID, InMemoryEdek>(ignored -> kms, null, maxEncryptionsPerDek),
+
+        DekManager<UUID, InMemoryEdek> uuidInMemoryEdekDekManager = new DekManager<>(ignored -> kms, null, maxEncryptionsPerDek);
+        var cache = new EncryptionDekCache<>(uuidInMemoryEdekDekManager, directExecutor(), maxCacheSize);
+        return new InBandEncryptionManager<>(uuidInMemoryEdekDekManager.edekSerde(),
                 recordBufferInitialBytes,
                 recordBufferMaxBytes,
-                directExecutor(),
-                new FilterThreadExecutor(directExecutor()),
-                maxCacheSize);
+                cache,
+                new FilterThreadExecutor(directExecutor()));
     }
 
     @NonNull
