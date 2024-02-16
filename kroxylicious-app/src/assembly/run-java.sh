@@ -209,7 +209,7 @@ max_memory() {
     local max_mem_cgroup max_mem_meminfo_kb max_mem_meminfo
     max_mem_cgroup="$(cat ${mem_file})"
     max_mem_meminfo_kb="$(cat /proc/meminfo | awk '/MemTotal/ {print $2}')"
-    max_mem_meminfo="$(expr $max_mem_meminfo_kb \* 1024)"
+    max_mem_meminfo="$((max_mem_meminfo_kb * 1024))"
     if [ ${max_mem_cgroup:-0} != -1 ] && [ "${max_mem_cgroup:-max}" != "max" ] && [ ${max_mem_cgroup:-0} -lt ${max_mem_meminfo:-0} ]
     then
       echo "${max_mem_cgroup}"
