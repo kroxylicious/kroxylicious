@@ -8,10 +8,6 @@ package io.kroxylicious.systemtests.installation.kroxylicious;
 
 import java.io.IOException;
 
-import io.kroxylicious.systemtests.Environment;
-
-import io.kroxylicious.systemtests.utils.NamespaceUtils;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,7 +15,9 @@ import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.client.dsl.NamespaceListVisitFromServerGetDeleteRecreateWaitApplicable;
 
 import io.kroxylicious.systemtests.Constants;
+import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
+import io.kroxylicious.systemtests.utils.NamespaceUtils;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 
