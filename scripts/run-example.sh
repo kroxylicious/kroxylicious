@@ -6,7 +6,7 @@
 #
 
 set -euo pipefail
-DEFAULT_KROXYLICIOUS_IMAGE='quay.io/kroxylicious/kroxylicious-developer'
+DEFAULT_KROXYLICIOUS_IMAGE='quay.io/kroxylicious/kroxylicious'
 KROXYLICIOUS_IMAGE=${KROXYLICIOUS_IMAGE:-${DEFAULT_KROXYLICIOUS_IMAGE}}
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
