@@ -13,7 +13,6 @@ import java.util.Properties;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import org.apache.commons.lang3.Validate;
 import org.apache.commons.text.matcher.StringMatcher;
 import org.apache.commons.text.matcher.StringMatcherFactory;
 
@@ -1095,7 +1094,7 @@ public class StringSubstitutor {
      * @throws IllegalArgumentException if the prefix is null
      */
     public StringSubstitutor setVariablePrefix(final String prefix) {
-        Validate.isTrue(prefix != null, "Variable prefix must not be null!");
+        Objects.requireNonNull(prefix, "Variable prefix must not be null!");
         return setVariablePrefixMatcher(StringMatcherFactory.INSTANCE.stringMatcher(prefix));
     }
 
@@ -1111,7 +1110,7 @@ public class StringSubstitutor {
      * @throws IllegalArgumentException if the prefix matcher is null
      */
     public StringSubstitutor setVariablePrefixMatcher(final StringMatcher prefixMatcher) {
-        Validate.isTrue(prefixMatcher != null, "Variable prefix matcher must not be null!");
+        Objects.requireNonNull(prefixMatcher, "Variable prefix matcher must not be null!");
         this.prefixMatcher = prefixMatcher;
         return this;
     }
@@ -1153,7 +1152,7 @@ public class StringSubstitutor {
      * @throws IllegalArgumentException if the suffix is null
      */
     public StringSubstitutor setVariableSuffix(final String suffix) {
-        Validate.isTrue(suffix != null, "Variable suffix must not be null!");
+        Objects.requireNonNull(suffix, "Variable suffix must not be null!");
         return setVariableSuffixMatcher(StringMatcherFactory.INSTANCE.stringMatcher(suffix));
     }
 
@@ -1169,7 +1168,7 @@ public class StringSubstitutor {
      * @throws IllegalArgumentException if the suffix matcher is null
      */
     public StringSubstitutor setVariableSuffixMatcher(final StringMatcher suffixMatcher) {
-        Validate.isTrue(suffixMatcher != null, "Variable suffix matcher must not be null!");
+        Objects.requireNonNull(suffixMatcher, "Variable suffix matcher must not be null!");
         this.suffixMatcher = suffixMatcher;
         return this;
     }
