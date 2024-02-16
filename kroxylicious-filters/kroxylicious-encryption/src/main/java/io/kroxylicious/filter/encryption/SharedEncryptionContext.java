@@ -57,33 +57,4 @@ public class SharedEncryptionContext<K, E> {
         return encryptionDekCache;
     }
 
-    @Override
-    public boolean equals(Object obj) {
-        if (obj == this) {
-            return true;
-        }
-        if (obj == null || obj.getClass() != this.getClass()) {
-            return false;
-        }
-        var that = (SharedEncryptionContext) obj;
-        return Objects.equals(this.kms, that.kms) &&
-                Objects.equals(this.configuration, that.configuration) &&
-                Objects.equals(this.dekManager, that.dekManager) &&
-                Objects.equals(this.encryptionDekCache, that.encryptionDekCache);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(kms, configuration, dekManager, encryptionDekCache);
-    }
-
-    @Override
-    public String toString() {
-        return "SharedEncryptionContext[" +
-                "kms=" + kms + ", " +
-                "configuration=" + configuration + ", " +
-                "dekManager=" + dekManager + ", " +
-                "encryptionDekCache=" + encryptionDekCache + ']';
-    }
-
 }
