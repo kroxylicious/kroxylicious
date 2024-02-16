@@ -25,6 +25,11 @@ import io.kroxylicious.filter.encryption.dek.DekManager;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+/**
+ * A cache of DEKs used on the encryption path.
+ * @param <K> The type of KEK id.
+ * @param <E> The type of encrypted DEK.
+ */
 public class EncryptionDekCache<K, E> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(EncryptionDekCache.class);
@@ -59,7 +64,10 @@ public class EncryptionDekCache<K, E> {
                 .buildAsync(this::requestGenerateDek);
     }
 
-    /** Invoked by Caffeine when a DEK needs to be loaded */
+    /**
+     * Invoked by Caffeine when a DEK needs to be loaded.
+     * This method is executed on the {@code dekCacheExecutor} passed to the constructor.
+     */
     private CompletableFuture<Dek<E>> requestGenerateDek(@NonNull CacheKey<K> cacheKey,
                                                          @NonNull Executor executor) {
         return dekManager.generateDek(cacheKey.kek(), cacheKey.cipherSpec())
@@ -73,7 +81,10 @@ public class EncryptionDekCache<K, E> {
                 .toCompletableFuture();
     }
 
-    /** Invoked by Caffeine after a DEK is evicted from the cache. */
+    /**
+     * Invoked by Caffeine after a DEK is evicted from the cache.
+     * This method is executed on the {@code dekCacheExecutor} passed to the constructor.
+     */
     private void afterCacheEviction(@Nullable CacheKey<K> cacheKey,
                                     @Nullable Dek<E> dek,
                                     RemovalCause removalCause) {
@@ -85,11 +96,23 @@ public class EncryptionDekCache<K, E> {
         }
     }
 
-    public CompletionStage<Dek<E>> get(EncryptionScheme<K> encryptionScheme) {
+    /**
+     * Obtain a Dek for the KEK in the given {@code encryptionScheme},
+     * generating a new one if necessary.
+     * @param encryptionScheme The KEK to get a DEK for.
+     * @return A stage that completes with the DEK.
+     */
+    public @NonNull CompletionStage<Dek<E>> get(@NonNull EncryptionScheme<K> encryptionScheme) {
         return dekCache.get(cacheKey(encryptionScheme));
     }
 
-    public void invalidate(EncryptionScheme<K> encryptionScheme) {
+    /**
+     * Discard any cached DEK for the KEK in the given {@code encryptionScheme}.
+     * This method may block if a DEK for the given {@code encryptionScheme} is in the process
+     * of being loaded.
+     * @param encryptionScheme The KEK for the DEK to discard.
+     */
+    public void invalidate(@NonNull EncryptionScheme<K> encryptionScheme) {
         dekCache.synchronous().invalidate(cacheKey(encryptionScheme));
     }
 }

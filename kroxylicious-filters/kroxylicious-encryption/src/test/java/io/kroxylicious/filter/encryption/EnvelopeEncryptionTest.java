@@ -43,8 +43,8 @@ class EnvelopeEncryptionTest {
         doReturn(kekSelectorService).when(fc).pluginInstance(KekSelectorService.class, "SELECTOR");
         doReturn(kekSelector).when(kekSelectorService).buildSelector(any(), any());
 
-        var ss = ee.initialize(fc, config);
-        var filter = ee.createFilter(fc, ss);
+        var sec = ee.initialize(fc, config);
+        var filter = ee.createFilter(fc, sec);
         assertNotNull(filter);
     }
 

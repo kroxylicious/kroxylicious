@@ -71,7 +71,6 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
     * {@link RecordEncryptor#ENCRYPTION_HEADER_NAME} header.
     */
     private final EncryptionVersion encryptionVersion;
-    // private final DekManager<K, E> dekManager;
     private final Serde<E> edekSerde;
     private final EncryptionDekCache<K, E> dekCache;
 
@@ -81,7 +80,7 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
     public InBandEncryptionManager(@NonNull Serde<E> edekSerde,
                                    int recordBufferInitialBytes,
                                    int recordBufferMaxBytes,
-                                   @NonNull EncryptionDekCache dekCache,
+                                   @NonNull EncryptionDekCache<K, E> dekCache,
                                    @NonNull FilterThreadExecutor filterThreadExecutor) {
         this.filterThreadExecutor = filterThreadExecutor;
         this.encryptionVersion = EncryptionVersion.V1; // TODO read from config
