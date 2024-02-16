@@ -70,13 +70,13 @@ public class StringSubstitutorTest {
             assertNull(substitutor.replace((String) null, 0, 100));
             assertNull(substitutor.replace((char[]) null));
             assertNull(substitutor.replace((char[]) null, 0, 100));
-            assertNull(substitutor.replace((StringBuffer) null));
-            assertNull(substitutor.replace((StringBuffer) null, 0, 100));
+            assertNull(substitutor.replace((StringBuilder) null));
+            assertNull(substitutor.replace((StringBuilder) null, 0, 100));
             assertNull(substitutor.replace((TextStringBuilder) null));
             assertNull(substitutor.replace((TextStringBuilder) null, 0, 100));
             assertNull(substitutor.replace((Object) null));
-            assertFalse(substitutor.replaceIn((StringBuffer) null));
-            assertFalse(substitutor.replaceIn((StringBuffer) null, 0, 100));
+            assertFalse(substitutor.replaceIn((StringBuilder) null));
+            assertFalse(substitutor.replaceIn((StringBuilder) null, 0, 100));
             assertFalse(substitutor.replaceIn((TextStringBuilder) null));
             assertFalse(substitutor.replaceIn((TextStringBuilder) null, 0, 100));
         }
@@ -109,13 +109,6 @@ public class StringSubstitutorTest {
             assertEquals(expectedShortResult, sub.replace(chars, 1, chars.length - 2));
         }
 
-        // replace using StringBuffer
-        StringBuffer buf = new StringBuffer(replaceTemplate);
-        assertEquals(expectedResult, sub.replace(buf));
-        if (substring) {
-            assertEquals(expectedShortResult, sub.replace(buf, 1, buf.length() - 2));
-        }
-
         // replace using StringBuilder
         StringBuilder builder = new StringBuilder(replaceTemplate);
         assertEquals(expectedResult, sub.replace(builder));
@@ -133,16 +126,6 @@ public class StringSubstitutorTest {
         // replace using object
         final MutableObject<String> obj = new MutableObject<>(replaceTemplate); // toString returns template
         assertEquals(expectedResult, sub.replace(obj));
-
-        // replace in StringBuffer
-        buf = new StringBuffer(replaceTemplate);
-        assertTrue(sub.replaceIn(buf), replaceTemplate);
-        assertEquals(expectedResult, buf.toString());
-        if (substring) {
-            buf = new StringBuffer(replaceTemplate);
-            assertTrue(sub.replaceIn(buf, 1, buf.length() - 2));
-            assertEquals(expectedResult, buf.toString()); // expect full result as remainder is untouched
-        }
 
         // replace in StringBuilder
         builder = new StringBuilder(replaceTemplate);
@@ -509,16 +492,6 @@ public class StringSubstitutorTest {
     @Test
     public void testReplaceIncompletePrefix() throws IOException {
         doReplace("The {animal} jumps over the lazy dog.", "The {animal} jumps over the ${target}.", true);
-    }
-
-    @Test
-    public void testReplaceInTakingStringBufferWithNonNull() {
-        final StringSubstitutor strSubstitutor = new StringSubstitutor(new HashMap<>(), "WV@i#y?N*[",
-                "WV@i#y?N*[", '*');
-
-        assertFalse(strSubstitutor.isPreserveEscapes());
-        assertFalse(strSubstitutor.replaceIn(new StringBuffer("WV@i#y?N*[")));
-        assertEquals('*', strSubstitutor.getEscapeChar());
     }
 
     @Test

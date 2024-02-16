@@ -860,7 +860,7 @@ public class StringSubstitutor {
      * @return The result of the replace operation
      * @throws IllegalArgumentException if variable is not found when its allowed to throw exception
      */
-    public String replace(final StringBuffer source) {
+    public String replace(final StringBuilder source) {
         if (source == null) {
             return null;
         }
@@ -883,7 +883,7 @@ public class StringSubstitutor {
      * @return The result of the replace operation
      * @throws IllegalArgumentException if variable is not found when its allowed to throw exception
      */
-    public String replace(final StringBuffer source, final int offset, final int length) {
+    public String replace(final StringBuilder source, final int offset, final int length) {
         if (source == null) {
             return null;
         }
@@ -930,46 +930,6 @@ public class StringSubstitutor {
         final TextStringBuilder buf = new TextStringBuilder(length).append(source, offset, length);
         substitute(buf, 0, length);
         return buf.toString();
-    }
-
-    /**
-     * Replaces all the occurrences of variables within the given source buffer with their matching values from the
-     * resolver. The buffer is updated with the result.
-     *
-     * @param source the buffer to replace in, updated, null returns zero
-     * @return true if altered
-     */
-    public boolean replaceIn(final StringBuffer source) {
-        if (source == null) {
-            return false;
-        }
-        return replaceIn(source, 0, source.length());
-    }
-
-    /**
-     * Replaces all the occurrences of variables within the given source buffer with their matching values from the
-     * resolver. The buffer is updated with the result.
-     * <p>
-     * Only the specified portion of the buffer will be processed. The rest of the buffer is not processed, but it is
-     * not deleted.
-     * </p>
-     *
-     * @param source the buffer to replace in, updated, null returns zero
-     * @param offset the start offset within the source, must be valid
-     * @param length the length within the source to be processed, must be valid
-     * @return true if altered
-     * @throws IllegalArgumentException if variable is not found when its allowed to throw exception
-     */
-    public boolean replaceIn(final StringBuffer source, final int offset, final int length) {
-        if (source == null) {
-            return false;
-        }
-        final TextStringBuilder buf = new TextStringBuilder(length).append(source, offset, length);
-        if (!substitute(buf, 0, length)) {
-            return false;
-        }
-        source.replace(offset, offset + length, buf.toString());
-        return true;
     }
 
     /**
