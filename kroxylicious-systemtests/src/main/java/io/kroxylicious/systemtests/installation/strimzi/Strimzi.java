@@ -101,7 +101,7 @@ public class Strimzi {
     public void deploy() {
         LOGGER.info("Deploy Strimzi in {} namespace", deploymentNamespace);
         if (kubeClient().getDeployment(deploymentNamespace, Constants.STRIMZI_DEPLOYMENT_NAME) != null
-            || Environment.STRIMZI_INSTALLED.equalsIgnoreCase("true")) {
+                || Environment.STRIMZI_INSTALLED.equalsIgnoreCase("true")) {
             LOGGER.warn("Skipping strimzi deployment. It is already deployed!");
             return;
         }
