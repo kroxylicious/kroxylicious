@@ -55,23 +55,25 @@ class TextNodeReplacingJsonFactoryWrapperTest {
         return Stream.of(
                 Arguments.of("yaml - obj - 1 field - no replacement", new YAMLFactory(), """
                         myString: foo
-                        """, OBJECT_TYPE_REF, new SimpleBean("foo", false, 0)),
-                Arguments.of("yaml - obj - 3 fields - no replacement", new YAMLFactory(), """
+                        """, OBJECT_TYPE_REF, new SimpleBean("foo", false, 0, null)),
+                Arguments.of("yaml - obj - 4 fields - no replacement", new YAMLFactory(), """
                         myString: foo
                         myBoolean: true
                         myInt: 1
-                        """, OBJECT_TYPE_REF, new SimpleBean("foo", true, 1)),
+                        myEnum: BERT
+                        """, OBJECT_TYPE_REF, new SimpleBean("foo", true, 1, MyEnum.BERT)),
                 Arguments.of("yaml - obj - 1 field - replaced", new YAMLFactory(), """
                         myString: <foostr>
-                        """, OBJECT_TYPE_REF, new SimpleBean("bar", false, 0)),
+                        """, OBJECT_TYPE_REF, new SimpleBean("bar", false, 0, null)),
                 Arguments.of("yaml - obj - 1 field - augmented", new YAMLFactory(), """
                         myString: <foostr>str
-                        """, OBJECT_TYPE_REF, new SimpleBean("barstr", false, 0)),
-                Arguments.of("yaml - obj - 3 fields - replaced", new YAMLFactory(), """
+                        """, OBJECT_TYPE_REF, new SimpleBean("barstr", false, 0, null)),
+                Arguments.of("yaml - obj - 4 fields - replaced", new YAMLFactory(), """
                         myString: <foostr>
                         myBoolean: <foobool>
                         myInt: <fooint>
-                        """, OBJECT_TYPE_REF, new SimpleBean("bar", true, 5)),
+                        myEnum: <fooenum>
+                        """, OBJECT_TYPE_REF, new SimpleBean("bar", true, 5, MyEnum.ERNIE)),
                 Arguments.of("yaml - array of objects", new YAMLFactory(), """
                         - myString: <foostr>
                           myBoolean: <foobool>
@@ -79,7 +81,7 @@ class TextNodeReplacingJsonFactoryWrapperTest {
                         - myString: foo
                           myBoolean: false
                           myInt: 4
-                        """, ARRAY_OF_OBJECTS_TYPE_REF, new SimpleBean[]{ new SimpleBean("bar", true, 5), new SimpleBean("foo", false, 4) }),
+                        """, ARRAY_OF_OBJECTS_TYPE_REF, new SimpleBean[]{ new SimpleBean("bar", true, 5, null), new SimpleBean("foo", false, 4, null) }),
                 Arguments.of("yaml - array of scalars", new YAMLFactory(), """
                         - <foostr>
                         - foo
@@ -89,14 +91,15 @@ class TextNodeReplacingJsonFactoryWrapperTest {
                         """, SCALAR_TYPE_REF, "bar"),
                 Arguments.of("yaml - comments in input tolerated", new YAMLFactory(), """
                         myString: foo # a comment
-                        """, OBJECT_TYPE_REF, new SimpleBean("foo", false, 0)),
+                        """, OBJECT_TYPE_REF, new SimpleBean("foo", false, 0, null)),
                 Arguments.of("json - obj - 3 fields - replaced", new JsonFactory(), """
                         {
                             "myString": "<foostr>",
                             "myBoolean": "<foobool>",
-                            "myInt": "<fooint>"
+                            "myInt": "<fooint>",
+                            "myEnum": "<fooenum>"
                         }
-                        """, OBJECT_TYPE_REF, new SimpleBean("bar", true, 5))
+                        """, OBJECT_TYPE_REF, new SimpleBean("bar", true, 5, MyEnum.ERNIE))
 
         );
     }
@@ -107,7 +110,8 @@ class TextNodeReplacingJsonFactoryWrapperTest {
 
         UnaryOperator<String> noddyReplacer = (string) -> string.replaceAll("<foostr>", "bar")
                 .replaceAll("<foobool>", "true")
-                .replaceAll("<fooint>", "5");
+                .replaceAll("<fooint>", "5")
+                .replaceAll("<fooenum>", MyEnum.ERNIE.name());
 
         var factory = wrap(f, noddyReplacer);
         var om = new ObjectMapper(factory).registerModule(new ParameterNamesModule());
@@ -152,5 +156,10 @@ class TextNodeReplacingJsonFactoryWrapperTest {
         assertThat(actual).isEqualTo("mystring");
     }
 
-    record SimpleBean(String myString, boolean myBoolean, int myInt) {}
+    enum MyEnum {
+        BERT,
+        ERNIE
+    }
+
+    record SimpleBean(String myString, boolean myBoolean, int myInt, MyEnum myEnum) {}
 }

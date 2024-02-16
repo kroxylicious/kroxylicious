@@ -32,8 +32,12 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
  * A {@link JsonFactory} that when parsing input, pre-processes the tree passing
- * any text nodes through a replacer function.  The resulting tree is reserialised
- * before being parsed by the {@link JsonFactory} own parser.
+ * any text nodes through a replacer function.  The resulting tree is re-serialised
+ * before being parsed by the {@link JsonFactory} own parser ready for the user's
+ * own processing.
+ * <br/>
+ * Coupled with Jackson's type coercion mechanism, this gives useful behaviour. It means
+ * tokens in the value nodes can be replaced before the conversion to the POJO.
  */
 public final class TextNodeReplacingJsonFactoryWrapper {
 
@@ -69,7 +73,7 @@ public final class TextNodeReplacingJsonFactoryWrapper {
 
     private static class TokenExpandingInputDecorator extends InputDecorator {
         private final ObjectMapper preprocessingMapper;
-        private final UnaryOperator<String> replacer;
+        private final transient UnaryOperator<String> replacer;
 
         protected TokenExpandingInputDecorator(ObjectMapper preprocessingMapper, UnaryOperator<String> replacer) {
             this.preprocessingMapper = preprocessingMapper;
