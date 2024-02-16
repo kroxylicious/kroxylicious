@@ -9,6 +9,8 @@ package io.kroxylicious.systemtests.installation.kroxylicious;
 import java.io.IOException;
 import java.util.List;
 
+import io.fabric8.kubernetes.api.model.apps.Deployment;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,9 +44,11 @@ public class CertManager {
     }
 
     private boolean isDeployed() {
-        List<GenericKubernetesResource> certManagerList = kubeClient().getClient().genericKubernetesResources("apiextensions.k8s.io/v1", "CustomResourceDefinition")
-                .list().getItems().stream().filter(crd -> crd.getMetadata().getLabels().get("app").equalsIgnoreCase("cert-manager")).toList();
-        return !certManagerList.isEmpty();
+        List<Deployment> deployments = kubeClient().getClient().apps().deployments().inAnyNamespace().list().getItems().stream()
+                .filter(deployment -> deployment.getMetadata().getLabels().get("app") != null
+                        && deployment.getMetadata().getLabels().get("app").equalsIgnoreCase("cert-manager")).toList();
+
+        return !deployments.isEmpty();
     }
 
     /**
