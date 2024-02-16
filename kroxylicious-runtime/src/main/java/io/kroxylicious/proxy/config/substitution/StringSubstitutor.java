@@ -846,7 +846,7 @@ public class StringSubstitutor {
         if (source == null) {
             return null;
         }
-        var buf = new StringBuilder(length).append(source, offset, length);
+        var buf = new StringBuilder(length).append(source, offset, offset + length);
         if (!substitute(buf, 0, length)) {
             return source.substring(offset, offset + length);
         }
@@ -888,7 +888,7 @@ public class StringSubstitutor {
         if (source == null) {
             return null;
         }
-        var buf = new StringBuilder(length).append(source, offset, length);
+        var buf = new StringBuilder(length).append(source, offset, offset + length);
         substitute(buf, 0, length);
         return buf.toString();
     }
@@ -928,7 +928,7 @@ public class StringSubstitutor {
         if (source == null) {
             return null;
         }
-        var buf = new StringBuilder().append(source, offset, length);
+        var buf = new StringBuilder().append(source, offset, offset + length);
         substitute(buf, 0, length);
         return buf.toString();
     }
@@ -966,7 +966,7 @@ public class StringSubstitutor {
             return false;
         }
         // FIXME
-        var buf = new StringBuilder(length).append(source, offset, length);
+        var buf = new StringBuilder(length).append(source, offset, offset + length);
         if (!substitute(buf, 0, length)) {
             return false;
         }
