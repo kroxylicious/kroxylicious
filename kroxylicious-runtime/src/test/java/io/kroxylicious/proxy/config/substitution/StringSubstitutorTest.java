@@ -13,8 +13,6 @@ import java.util.Properties;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.mutable.MutableObject;
-import org.apache.commons.text.matcher.StringMatcher;
-import org.apache.commons.text.matcher.StringMatcherFactory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
@@ -24,6 +22,8 @@ import org.junit.jupiter.api.TestMethodOrder;
 
 import io.kroxylicious.proxy.config.substitution.lookup.StringLookup;
 import io.kroxylicious.proxy.config.substitution.lookup.StringLookupFactory;
+import io.kroxylicious.proxy.config.substitution.matcher.StringMatcher;
+import io.kroxylicious.proxy.config.substitution.matcher.StringMatcherFactory;
 
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;

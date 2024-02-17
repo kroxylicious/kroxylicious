@@ -13,11 +13,10 @@ import java.util.Properties;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import org.apache.commons.text.matcher.StringMatcher;
-import org.apache.commons.text.matcher.StringMatcherFactory;
-
 import io.kroxylicious.proxy.config.substitution.lookup.StringLookup;
 import io.kroxylicious.proxy.config.substitution.lookup.StringLookupFactory;
+import io.kroxylicious.proxy.config.substitution.matcher.StringMatcher;
+import io.kroxylicious.proxy.config.substitution.matcher.StringMatcherFactory;
 
 /**
  * Substitutes variables within a string by values.
