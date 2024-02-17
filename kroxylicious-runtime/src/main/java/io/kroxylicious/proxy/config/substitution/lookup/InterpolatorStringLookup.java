@@ -11,9 +11,9 @@ import java.util.Map.Entry;
 import java.util.stream.Collectors;
 
 /**
- * Proxies other {@link org.apache.commons.text.lookup.StringLookup}s using a keys within ${} markers using the format "${StringLookup:Key}".
+ * Proxies other {@link StringLookup}s using a keys within ${} markers using the format "${StringLookup:Key}".
  * <p>
- * Uses the {@link org.apache.commons.text.lookup.StringLookupFactory default lookups}.
+ * Uses the {@link StringLookupFactory default lookups}.
  * </p>
  */
 class InterpolatorStringLookup extends AbstractStringLookup {
@@ -63,7 +63,7 @@ class InterpolatorStringLookup extends AbstractStringLookup {
     /**
      * Constructs an instance using only lookups that work without initial properties and are stateless.
      * <p>
-     * Uses the {@link org.apache.commons.text.lookup.StringLookupFactory default lookups}.
+     * Uses the {@link StringLookupFactory default lookups}.
      * </p>
      *
      * @param <V> the map's value type.

@@ -155,15 +155,6 @@
             <artifactId>slf4j-api</artifactId>
         </dependency>
 
-        <!-- TODO remove these two dependencies -->
-        <dependency>
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-text</artifactId>
-            <version>1.11.0</version>
-            <scope>compile</scope>
-        </dependency>
-
-
         <!-- third party dependencies - test -->
 
         <dependency>

@@ -27,7 +27,7 @@ public enum DefaultStringLookup {
      * @see StringLookupFactory#KEY_ENV
      * @see StringLookupFactory#environmentVariableStringLookup()
      */
-    ENVIRONMENT(org.apache.commons.text.lookup.StringLookupFactory.KEY_ENV, StringLookupFactory.INSTANCE.environmentVariableStringLookup()),
+    ENVIRONMENT(StringLookupFactory.KEY_ENV, StringLookupFactory.INSTANCE.environmentVariableStringLookup()),
 
     /**
      * The lookup for system properties using the key {@code "sys"}.
@@ -46,7 +46,7 @@ public enum DefaultStringLookup {
      * Creates a new instance of {@link DefaultStringLookup} and sets the key and the associated lookup instance.
      *
      * @param prefix the prefix
-     * @param lookup the {@link org.apache.commons.text.lookup.StringLookup} instance
+     * @param lookup the {@link StringLookup} instance
      */
     DefaultStringLookup(final String prefix, final StringLookup lookup) {
         this.key = prefix;

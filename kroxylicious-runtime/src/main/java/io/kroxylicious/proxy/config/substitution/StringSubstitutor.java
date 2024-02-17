@@ -807,7 +807,7 @@ public class StringSubstitutor {
      *
      * @param source the string to replace in, null returns null
      * @return The result of the replace operation
-     * @throws IllegalArgumentException if variable is not found when its allowed to throw exception
+     * @throws IllegalArgumentException if variable is not found when it is allowed to throw exception
      */
     public String replace(final String source) {
         if (source == null) {

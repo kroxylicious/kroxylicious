@@ -199,7 +199,7 @@ public final class StringLookupFactory {
      *
      * @since 1.10.0
      */
-    public static final String DEFAULT_STRING_LOOKUPS_PROPERTY = "org.apache.commons.text.lookup.StringLookupFactory.defaultStringLookups";
+    public static final String DEFAULT_STRING_LOOKUPS_PROPERTY = "StringLookupFactory.defaultStringLookups";
 
     /**
      * Clears any static resources.
@@ -285,7 +285,7 @@ public final class StringLookupFactory {
      * {@link #addDefaultStringLookups(Map) default lookups}. See the class documentation for
      * details on how these defaults are configured.
      * <p>
-     * Using a {@link org.apache.commons.text.lookup.StringLookup} from the {@link org.apache.commons.text.lookup.StringLookupFactory}:
+     * Using a {@link StringLookup} from the {@link StringLookupFactory}:
      * </p>
      *
      * <pre>
