@@ -11,8 +11,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
-import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.mutable.MutableObject;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
@@ -50,7 +48,11 @@ public class StringSubstitutorTest {
 
     private void assertEqualsCharSeq(final CharSequence expected, final CharSequence actual) {
         assertEquals(expected, actual, () -> String.format("expected.length()=%,d, actual.length()=%,d",
-                StringUtils.length(expected), StringUtils.length(actual)));
+                getLength(expected), getLength(actual)));
+    }
+
+    private int getLength(CharSequence expected) {
+        return expected == null ? 0 : expected.length();
     }
 
     protected void doNotReplace(final String replaceTemplate) throws IOException {
@@ -71,7 +73,6 @@ public class StringSubstitutorTest {
             assertNull(substitutor.replace((char[]) null, 0, 100));
             assertNull(substitutor.replace((StringBuilder) null));
             assertNull(substitutor.replace((StringBuilder) null, 0, 100));
-            assertNull(substitutor.replace((Object) null));
             assertFalse(substitutor.replaceIn((StringBuilder) null));
             assertFalse(substitutor.replaceIn((StringBuilder) null, 0, 100));
         }
@@ -89,7 +90,7 @@ public class StringSubstitutorTest {
         // replace using String
         final String actual = replace(sub, replaceTemplate);
         assertEquals(expectedResult, actual,
-                () -> String.format("Index of difference: %,d", StringUtils.indexOfDifference(expectedResult, actual)));
+                () -> String.format("Index of difference: %,d", indexOfDifference(expectedResult, actual)));
         if (substring) {
             assertEquals(expectedShortResult, sub.replace(replaceTemplate, 1, replaceTemplate.length() - 2));
         }
@@ -108,10 +109,6 @@ public class StringSubstitutorTest {
             assertEquals(expectedShortResult, sub.replace(builder, 1, builder.length() - 2));
         }
 
-        // replace using object
-        final MutableObject<String> obj = new MutableObject<>(replaceTemplate); // toString returns template
-        assertEquals(expectedResult, sub.replace(obj));
-
         // replace in StringBuilder
         builder = new StringBuilder(replaceTemplate);
         assertTrue(sub.replaceIn(builder));
@@ -122,6 +119,25 @@ public class StringSubstitutorTest {
             assertEquals(expectedResult, builder.toString()); // expect full result as remainder is untouched
         }
 
+    }
+
+    private int indexOfDifference(String expectedResult, String actual) {
+        if (expectedResult == actual) {
+            return -1;
+        }
+        if (expectedResult == null || actual == null) {
+            return 0;
+        }
+        int i;
+        for (i = 0; i < ((CharSequence) expectedResult).length() && i < ((CharSequence) actual).length(); ++i) {
+            if (((CharSequence) expectedResult).charAt(i) != ((CharSequence) actual).charAt(i)) {
+                break;
+            }
+        }
+        if (i < ((CharSequence) actual).length() || i < ((CharSequence) expectedResult).length()) {
+            return i;
+        }
+        return -1;
     }
 
     /**
@@ -377,7 +393,7 @@ public class StringSubstitutorTest {
      */
     @Test
     public void testReplaceEmptyString() throws IOException {
-        doNotReplace(StringUtils.EMPTY);
+        doNotReplace("");
     }
 
     /**
@@ -483,7 +499,7 @@ public class StringSubstitutorTest {
     @Test
     public void testReplaceInTakingStringBuilderWithNull() {
         final Map<String, Object> map = new HashMap<>();
-        final StringSubstitutor strSubstitutor = new StringSubstitutor(map, StringUtils.EMPTY, StringUtils.EMPTY, 'T',
+        final StringSubstitutor strSubstitutor = new StringSubstitutor(map, "", "", 'T',
                 "K+<'f");
 
         assertFalse(strSubstitutor.replaceIn((StringBuilder) null));
@@ -904,7 +920,7 @@ public class StringSubstitutorTest {
      */
     @Test
     public void testReplaceWeirdPattens() throws IOException {
-        doNotReplace(StringUtils.EMPTY);
+        doNotReplace("");
         doNotReplace(EMPTY_EXPR);
         doNotReplace("${ }");
         doNotReplace("${\t}");

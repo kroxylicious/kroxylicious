@@ -6,8 +6,6 @@
 
 package io.kroxylicious.proxy.config.substitution.matcher;
 
-import java.util.Arrays;
-
 /**
  * A matcher that determines if a character array portion matches.
  * <p>
@@ -17,74 +15,6 @@ import java.util.Arrays;
  * @since 1.3
  */
 abstract class AbstractStringMatcher implements StringMatcher {
-
-    /**
-     * Matches all of the given matchers in order.
-     *
-     * @since 1.9
-     */
-    static final class AndStringMatcher extends AbstractStringMatcher {
-
-        /**
-         * Matchers in order.
-         */
-        private final StringMatcher[] stringMatchers;
-
-        /**
-         * Constructs a new initialized instance.
-         *
-         * @param stringMatchers Matchers in order. Never null since the {@link StringMatcherFactory} uses the
-         *        {@link NoneMatcher} instead.
-         */
-        AndStringMatcher(final StringMatcher... stringMatchers) {
-            this.stringMatchers = stringMatchers.clone();
-        }
-
-        @Override
-        public int isMatch(final char[] buffer, final int start, final int bufferStart, final int bufferEnd) {
-            int total = 0;
-            int curStart = start;
-            for (final StringMatcher stringMatcher : stringMatchers) {
-                if (stringMatcher != null) {
-                    final int len = stringMatcher.isMatch(buffer, curStart, bufferStart, bufferEnd);
-                    if (len == 0) {
-                        return 0;
-                    }
-                    total += len;
-                    curStart += len;
-                }
-            }
-            return total;
-        }
-
-        @Override
-        public int isMatch(final CharSequence buffer, final int start, final int bufferStart, final int bufferEnd) {
-            int total = 0;
-            int curStart = start;
-            for (final StringMatcher stringMatcher : stringMatchers) {
-                if (stringMatcher != null) {
-                    final int len = stringMatcher.isMatch(buffer, curStart, bufferStart, bufferEnd);
-                    if (len == 0) {
-                        return 0;
-                    }
-                    total += len;
-                    curStart += len;
-                }
-            }
-            return total;
-        }
-
-        @Override
-        public int size() {
-            int total = 0;
-            for (final StringMatcher stringMatcher : stringMatchers) {
-                if (stringMatcher != null) {
-                    total += stringMatcher.size();
-                }
-            }
-            return total;
-        }
-    }
 
     /**
      * Matches out of a set of characters.
@@ -240,72 +170,6 @@ abstract class AbstractStringMatcher implements StringMatcher {
     }
 
     /**
-     * Matches a set of characters.
-     * <p>
-     * Thread=safe.
-     * </p>
-     */
-    static final class CharSetMatcher extends AbstractStringMatcher {
-
-        /** The set of characters to match. */
-        private final char[] chars;
-
-        /**
-         * Constructs a matcher from a character array.
-         *
-         * @param chars the characters to match, must not be null
-         */
-        CharSetMatcher(final char[] chars) {
-            this.chars = chars.clone();
-            Arrays.sort(this.chars);
-        }
-
-        /**
-         * Returns {@code 1} if there is a match, or {@code 0} if there is no match.
-         *
-         * @param buffer the text content to match against, do not change
-         * @param start the starting position for the match, valid for buffer
-         * @param bufferStart unused
-         * @param bufferEnd unused
-         * @return The number of matching characters, zero for no match
-         */
-        @Override
-        public int isMatch(final char[] buffer, final int start, final int bufferStart, final int bufferEnd) {
-            return Arrays.binarySearch(chars, buffer[start]) >= 0 ? 1 : 0;
-        }
-
-        /**
-         * Returns {@code 1} if there is a match, or {@code 0} if there is no match.
-         *
-         * @param buffer the text content to match against, do not change
-         * @param start the starting position for the match, valid for buffer
-         * @param bufferStart unused
-         * @param bufferEnd unused
-         * @return The number of matching characters, zero for no match
-         */
-        @Override
-        public int isMatch(final CharSequence buffer, final int start, final int bufferStart, final int bufferEnd) {
-            return Arrays.binarySearch(chars, buffer.charAt(start)) >= 0 ? 1 : 0;
-        }
-
-        /**
-         * Returns 1.
-         *
-         * @since 1.9
-         */
-        @Override
-        public int size() {
-            return 1;
-        }
-
-        @Override
-        public String toString() {
-            return super.toString() + Arrays.toString(chars);
-        }
-
-    }
-
-    /**
      * Matches nothing.
      * <p>
      * Thread=safe.
@@ -357,64 +221,6 @@ abstract class AbstractStringMatcher implements StringMatcher {
             return 0;
         }
 
-    }
-
-    /**
-     * Matches whitespace as per trim().
-     * <p>
-     * Thread=safe.
-     * </p>
-     */
-    static final class TrimMatcher extends AbstractStringMatcher {
-
-        /**
-         * The space character.
-         */
-        private static final int SPACE_INT = 32;
-
-        /**
-         * Constructs a new instance of {@code TrimMatcher}.
-         */
-        TrimMatcher() {
-        }
-
-        /**
-         * Returns {@code 1} if there is a match, or {@code 0} if there is no match.
-         *
-         * @param buffer the text content to match against, do not change
-         * @param start the starting position for the match, valid for buffer
-         * @param bufferStart unused
-         * @param bufferEnd unused
-         * @return The number of matching characters, zero for no match
-         */
-        @Override
-        public int isMatch(final char[] buffer, final int start, final int bufferStart, final int bufferEnd) {
-            return buffer[start] <= SPACE_INT ? 1 : 0;
-        }
-
-        /**
-         * Returns {@code 1} if there is a match, or {@code 0} if there is no match.
-         *
-         * @param buffer the text content to match against, do not change
-         * @param start the starting position for the match, valid for buffer
-         * @param bufferStart unused
-         * @param bufferEnd unused
-         * @return The number of matching characters, zero for no match
-         */
-        @Override
-        public int isMatch(final CharSequence buffer, final int start, final int bufferStart, final int bufferEnd) {
-            return buffer.charAt(start) <= SPACE_INT ? 1 : 0;
-        }
-
-        /**
-         * Returns 1.
-         *
-         * @since 1.9
-         */
-        @Override
-        public int size() {
-            return 1;
-        }
     }
 
     /**

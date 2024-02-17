@@ -6,50 +6,12 @@
 
 package io.kroxylicious.proxy.config.substitution.matcher;
 
-import org.apache.commons.lang3.CharSequenceUtils;
-
 /**
  * Determines if a character array portion matches.
  *
  * @since 1.3
  */
 public interface StringMatcher {
-
-    /**
-     * Returns a matcher that matches this matcher followed by the given matcher.
-     *
-     * @param stringMatcher the next matcher.
-     * @return a matcher that matches this matcher followed by the given matcher.
-     * @since 1.9
-     */
-    default StringMatcher andThen(final StringMatcher stringMatcher) {
-        return StringMatcherFactory.INSTANCE.andMatcher(this, stringMatcher);
-    }
-
-    /**
-     * Returns the number of matching characters, zero for no match.
-     * <p>
-     * This method is called to check for a match. The parameter {@code pos} represents the current position to be
-     * checked in the string {@code buffer} (a character array which must not be changed). The API guarantees that
-     * {@code pos} is a valid index for {@code buffer}.
-     * </p>
-     * <p>
-     * The matching code may check one character or many. It may check characters preceding {@code pos} as well as those
-     * after.
-     * </p>
-     * <p>
-     * It must return zero for no match, or a positive number if a match was found. The number indicates the number of
-     * characters that matched.
-     * </p>
-     *
-     * @param buffer the text content to match against, do not change
-     * @param pos the starting position for the match, valid for buffer
-     * @return The number of matching characters, zero for no match
-     * @since 1.9
-     */
-    default int isMatch(final char[] buffer, final int pos) {
-        return isMatch(buffer, pos, 0, buffer.length);
-    }
 
     /**
      * Returns the number of matching characters, {@code 0} if there is no match.
@@ -80,31 +42,6 @@ public interface StringMatcher {
     int isMatch(char[] buffer, int start, int bufferStart, int bufferEnd);
 
     /**
-     * Returns the number of matching characters, zero for no match.
-     * <p>
-     * This method is called to check for a match. The parameter {@code pos} represents the current position to be
-     * checked in the string {@code buffer} (a character array which must not be changed). The API guarantees that
-     * {@code pos} is a valid index for {@code buffer}.
-     * </p>
-     * <p>
-     * The matching code may check one character or many. It may check characters preceding {@code pos} as well as those
-     * after.
-     * </p>
-     * <p>
-     * It must return zero for no match, or a positive number if a match was found. The number indicates the number of
-     * characters that matched.
-     * </p>
-     *
-     * @param buffer the text content to match against, do not change
-     * @param pos the starting position for the match, valid for buffer
-     * @return The number of matching characters, zero for no match
-     * @since 1.9
-     */
-    default int isMatch(final CharSequence buffer, final int pos) {
-        return isMatch(buffer, pos, 0, buffer.length());
-    }
-
-    /**
      * Returns the number of matching characters, {@code 0} if there is no match.
      * <p>
      * This method is called to check for a match against a source {@code buffer}. The parameter {@code start}
@@ -132,7 +69,22 @@ public interface StringMatcher {
      * @since 1.9
      */
     default int isMatch(final CharSequence buffer, final int start, final int bufferStart, final int bufferEnd) {
-        return isMatch(CharSequenceUtils.toCharArray(buffer), start, bufferEnd, bufferEnd);
+        char[] result;
+        if (buffer == null) {
+            result = new char[]{};
+        }
+        else if (buffer instanceof String str) {
+            result = str.toCharArray();
+        }
+        else {
+            final int len = buffer.length();
+            final char[] array = new char[len];
+            for (int i = 0; i < len; i++) {
+                array[i] = buffer.charAt(i);
+            }
+            result = array;
+        }
+        return isMatch(result, start, bufferEnd, bufferEnd);
     }
 
     /**

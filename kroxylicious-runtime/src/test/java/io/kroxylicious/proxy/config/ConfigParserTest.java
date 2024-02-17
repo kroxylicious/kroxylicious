@@ -15,6 +15,7 @@ import java.util.Optional;
 import java.util.stream.Stream;
 
 import org.assertj.core.api.InstanceOfAssertFactories;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -344,15 +345,14 @@ class ConfigParserTest {
     @Test
     void absentEnvVarFallbackToDefault() {
 
-        var absent = System.getenv().get("NOT_AN_ENV_VAR");
-        assertThat(absent).isNull();
+        assertThat(System.getenv()).doesNotContainKey("NOT_AN_ENV_VAR");
 
         // Given
         Configuration configuration = configParser.parseConfiguration("""
                 virtualClusters:
                   demo1:
                     targetCluster:
-                      bootstrap_servers: ${NOT_AN_ENV_VAR:%s:-localhost}:1234
+                      bootstrap_servers: ${env:NOT_AN_ENV_VAR:-localhost}:1234
                     clusterNetworkAddressConfigProvider:
                       type: PortPerBrokerClusterNetworkAddressConfigProvider
                       config:
@@ -367,7 +367,39 @@ class ConfigParserTest {
                 .singleElement(InstanceOfAssertFactories.type(VirtualCluster.class))
                 .extracting(VirtualCluster::targetCluster)
                 .extracting(TargetCluster::bootstrapServers)
-                .isEqualTo("localhost:1234".formatted(absent));
+                .isEqualTo("localhost:1234");
+
+    }
+
+    @Test
+    @Disabled
+    void absentEnvVarFallbackToDefaultWhichIsVar() {
+
+        // Do we care about this?
+
+        assertThat(System.getenv()).doesNotContainKey("NOT_AN_ENV_VAR");
+
+        // Given
+        Configuration configuration = configParser.parseConfiguration("""
+                virtualClusters:
+                  demo1:
+                    targetCluster:
+                      bootstrap_servers: ${env:NOT_AN_ENV_VAR:-${env:HOME}}:1234
+                    clusterNetworkAddressConfigProvider:
+                      type: PortPerBrokerClusterNetworkAddressConfigProvider
+                      config:
+                        bootstrapAddress: cluster:9193
+                """);
+
+        var actualValidClusters = configuration.virtualClusters();
+
+        // Then
+        assertThat(actualValidClusters)
+                .flatExtracting("demo1")
+                .singleElement(InstanceOfAssertFactories.type(VirtualCluster.class))
+                .extracting(VirtualCluster::targetCluster)
+                .extracting(TargetCluster::bootstrapServers)
+                .isEqualTo("localhost:1234");
 
     }
 
