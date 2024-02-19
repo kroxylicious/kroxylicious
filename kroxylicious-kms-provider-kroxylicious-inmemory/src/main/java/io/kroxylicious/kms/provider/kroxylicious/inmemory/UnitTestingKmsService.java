@@ -6,18 +6,26 @@
 
 package io.kroxylicious.kms.provider.kroxylicious.inmemory;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.ServiceLoader;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.KmsService;
 import io.kroxylicious.proxy.plugin.Plugin;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+
+import static java.util.stream.Collectors.toMap;
 
 /**
  * <p>A service interface for {@link InMemoryKms} useful for unit testing.
@@ -33,6 +41,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  */
 @Plugin(configType = UnitTestingKmsService.Config.class)
 public class UnitTestingKmsService implements KmsService<UnitTestingKmsService.Config, UUID, InMemoryEdek> {
+    private Map<Config, InMemoryKms> kmsMap = new ConcurrentHashMap<>();
 
     public static UnitTestingKmsService newInstance() {
         return (UnitTestingKmsService) ServiceLoader.load(KmsService.class).stream()
@@ -42,9 +51,46 @@ public class UnitTestingKmsService implements KmsService<UnitTestingKmsService.C
                 .orElse(null);
     }
 
+    public record Kek(
+                      @JsonProperty(required = true) String uuid,
+                      @JsonProperty(required = true) byte[] key,
+                      @JsonProperty(required = true) String algorithm,
+                      @JsonProperty(required = true) String alias) {
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            Kek kek = (Kek) o;
+            return Objects.equals(uuid, kek.uuid) && Arrays.equals(key, kek.key) && Objects.equals(algorithm, kek.algorithm) && Objects.equals(alias, kek.alias);
+        }
+
+        @Override
+        public int hashCode() {
+            int result = Objects.hash(uuid, algorithm, alias);
+            result = 31 * result + Arrays.hashCode(key);
+            return result;
+        }
+
+        @Override
+        public String toString() {
+            return "Kek{" +
+                    "uuid='" + uuid + '\'' +
+                    ", key=" + Arrays.toString(key) +
+                    ", algorithm='" + algorithm + '\'' +
+                    ", alias='" + alias + '\'' +
+                    '}';
+        }
+    }
+
     public record Config(
                          int numIvBytes,
-                         int numAuthBits) {
+                         int numAuthBits,
+                         List<Kek> existingKeks) {
         public Config {
             if (numIvBytes < 1) {
                 throw new IllegalArgumentException();
@@ -55,21 +101,26 @@ public class UnitTestingKmsService implements KmsService<UnitTestingKmsService.C
         }
 
         public Config() {
-            this(12, 128);
+            this(12, 128, List.of());
         }
 
+        @Override
+        public List<Kek> existingKeks() {
+            return existingKeks == null ? List.of() : existingKeks;
+        }
     }
-
-    private final Map<UUID, SecretKey> keys = new ConcurrentHashMap<>();
-    private final Map<String, UUID> aliases = new ConcurrentHashMap<>();
 
     @NonNull
     @Override
     public InMemoryKms buildKms(Config options) {
-        return new InMemoryKms(options.numIvBytes(),
-                options.numAuthBits(),
-                keys,
-                aliases);
+        return kmsMap.computeIfAbsent(options, config -> {
+            List<Kek> kekDefs = options.existingKeks();
+            Map<UUID, SecretKey> keys = kekDefs.stream().collect(toMap(k -> UUID.fromString(k.uuid), k -> new SecretKeySpec(k.key, k.algorithm)));
+            Map<String, UUID> aliases = kekDefs.stream().collect(toMap(k -> k.alias, k -> UUID.fromString(k.uuid)));
+            return new InMemoryKms(options.numIvBytes(),
+                    options.numAuthBits(),
+                    keys, aliases);
+        });
     }
 
 }
