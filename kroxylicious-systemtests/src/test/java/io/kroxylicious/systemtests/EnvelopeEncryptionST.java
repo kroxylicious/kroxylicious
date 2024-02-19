@@ -35,7 +35,6 @@ import io.kroxylicious.systemtests.utils.NamespaceUtils;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assumptions.assumeThat;
 
 @ExtendWith(KroxyliciousExtension.class)
 class EnvelopeEncryptionST extends AbstractST {
