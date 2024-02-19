@@ -70,6 +70,10 @@ public class KubeVaultTestKmsFacade extends AbstractVaultTestKmsFacade {
     @Override
     public void startVault() {
         vault.deploy();
+        if (!isCorrectVersionInstalled()) {
+            throw new KubeClusterException("Vault version installed " + getVaultVersion() + " does not match with the expected: '"
+                    + VaultTestKmsFacade.HASHICORP_VAULT + "'");
+        }
         runVaultCommand(VAULT_CMD, LOGIN, VAULT_ROOT_TOKEN);
     }
 
@@ -147,12 +151,7 @@ public class KubeVaultTestKmsFacade extends AbstractVaultTestKmsFacade {
         return new VaultTestKekManager();
     }
 
-    /**
-     * Is correct version installed boolean.
-     *
-     * @return the boolean
-     */
-    public boolean isCorrectVersionInstalled() {
+    private boolean isCorrectVersionInstalled() {
         String installedVersion = getVaultVersion();
         String expectedVersion = VaultTestKmsFacade.HASHICORP_VAULT.getVersionPart();
 
