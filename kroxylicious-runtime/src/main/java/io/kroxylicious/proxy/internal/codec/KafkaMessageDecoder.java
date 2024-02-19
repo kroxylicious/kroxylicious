@@ -20,9 +20,12 @@ import io.kroxylicious.proxy.frame.Frame;
  */
 public abstract class KafkaMessageDecoder extends ByteToMessageDecoder {
 
+    private final int socketFrameMaxSize;
+
     protected abstract Logger log();
 
-    public KafkaMessageDecoder() {
+    protected KafkaMessageDecoder(int socketFrameMaxSize) {
+        this.socketFrameMaxSize = socketFrameMaxSize;
     }
 
     @Override
@@ -31,6 +34,9 @@ public abstract class KafkaMessageDecoder extends ByteToMessageDecoder {
             try {
                 int sof = in.readerIndex();
                 int frameSize = in.readInt();
+                if (frameSize > socketFrameMaxSize) {
+                    throw new FrameOversizedException(socketFrameMaxSize, frameSize);
+                }
                 int readable = in.readableBytes();
                 if (log().isTraceEnabled()) { // avoid boxing
                     log().trace("{}: Frame of {} bytes ({} readable)", ctx, frameSize, readable);

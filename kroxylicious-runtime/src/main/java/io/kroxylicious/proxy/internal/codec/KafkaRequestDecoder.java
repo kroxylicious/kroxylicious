@@ -27,8 +27,8 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
 
     private final DecodePredicate decodePredicate;
 
-    public KafkaRequestDecoder(DecodePredicate decodePredicate) {
-        super();
+    public KafkaRequestDecoder(DecodePredicate decodePredicate, int socketFrameMaxSize) {
+        super(socketFrameMaxSize);
         this.decodePredicate = decodePredicate;
     }
 

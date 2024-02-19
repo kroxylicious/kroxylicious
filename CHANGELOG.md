@@ -4,7 +4,7 @@ Please enumerate **all user-facing** changes using format `<githib issue/pr numb
 
 ## 0.5.0
 
-
+* [#997](https://github.com/kroxylicious/kroxylicious/issues/997): Add hardcoded maximum frame size
 * [#782](https://github.com/kroxylicious/kroxylicious/issues/782): Securely handle the HashiCorp Vault Token in Kroxylicious configuration
 * [#973](https://github.com/kroxylicious/kroxylicious/pull/973): Remove deprecated CompositeFilter and it's documentation
 * [#935](https://github.com/kroxylicious/kroxylicious/pull/935): Enable user to configure alternative source of keys for vault KMS client
