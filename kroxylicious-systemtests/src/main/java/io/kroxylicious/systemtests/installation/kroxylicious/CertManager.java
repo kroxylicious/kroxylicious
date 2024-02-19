@@ -7,16 +7,10 @@
 package io.kroxylicious.systemtests.installation.kroxylicious;
 
 import java.io.IOException;
-import java.util.List;
-
-import io.fabric8.kubernetes.api.model.apps.Deployment;
-
-import io.fabric8.kubernetes.client.dsl.AppsAPIGroupDSL;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.client.dsl.NamespaceListVisitFromServerGetDeleteRecreateWaitApplicable;
 
