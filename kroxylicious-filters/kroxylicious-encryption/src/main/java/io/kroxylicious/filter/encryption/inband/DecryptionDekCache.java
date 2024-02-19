@@ -49,15 +49,18 @@ public class DecryptionDekCache<K, E> {
             }
         }
 
+        /** A sentinel for records which are not encrypted */
         @SuppressWarnings({ "rawtypes", "unchecked" })
-        private static final CacheKey NONE = new CacheKey(null, null);
+        private static final CacheKey UNENCRYPTED = new CacheKey(null, null);
 
+        /** Gets the sentinel value for records which are not encrypted */
         @SuppressWarnings("unchecked")
-        static <E> CacheKey<E> none() {
-            return NONE;
+        static <E> CacheKey<E> unencrypted() {
+            return UNENCRYPTED;
         }
 
-        public boolean isNone() {
+        /** Tests whether this cache key is the sentinel value representing unencrypted records */
+        public boolean isUnencrypted() {
             return cipherSpec == null || edek == null;
         }
     }
@@ -88,7 +91,7 @@ public class DecryptionDekCache<K, E> {
      * @return A future
      */
     private CompletableFuture<Dek<E>> loadDek(CacheKey<E> cacheKey, Executor executor) {
-        if (cacheKey == null || cacheKey.isNone()) {
+        if (cacheKey == null || cacheKey.isUnencrypted()) {
             return CompletableFuture.completedFuture(null);
         }
         // This assert is just to appease sonar because it doesn't grok that these things cannot be null due to

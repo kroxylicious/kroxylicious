@@ -149,7 +149,7 @@ public class InBandDecryptionManager<K, E> implements DecryptionManager {
             }
             else {
                 // It's not encrypted, so use sentinels
-                cacheKeys.add(DecryptionDekCache.CacheKey.none());
+                cacheKeys.add(DecryptionDekCache.CacheKey.unencrypted());
                 states.add(DecryptState.none());
             }
         });
