@@ -87,13 +87,13 @@ public class Environment {
     /**
      * SKIP_TEARDOWN env variable assignment.
      */
-    public static final String SKIP_TEARDOWN = getOrDefault(SKIP_TEARDOWN_ENV, SKIP_TEARDOWN_DEFAULT);
+    public static final boolean SKIP_TEARDOWN = Boolean.parseBoolean(getOrDefault(SKIP_TEARDOWN_ENV, SKIP_TEARDOWN_DEFAULT));
 
     public static final String STRIMZI_FEATURE_GATES = getOrDefault(STRIMZI_FEATURE_GATES_ENV, STRIMZI_FEATURE_GATES_DEFAULT);
 
     public static final String CONTAINER_CONFIG_PATH = getOrDefault(CONTAINER_CONFIG_PATH_ENV, CONTAINER_CONFIG_PATH_DEFAULT);
 
-    public static final String SKIP_STRIMZI_INSTALL = getOrDefault(SKIP_STRIMZI_INSTALL_ENV, SKIP_STRIMZI_INSTALL_DEFAULT);
+    public static final boolean SKIP_STRIMZI_INSTALL = Boolean.parseBoolean(getOrDefault(SKIP_STRIMZI_INSTALL_ENV, SKIP_STRIMZI_INSTALL_DEFAULT));
 
     private static String getOrDefault(String varName, String defaultValue) {
         return getOrDefault(varName, String::toString, defaultValue);

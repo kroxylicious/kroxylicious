@@ -90,7 +90,7 @@ public class AbstractST {
      */
     @AfterAll
     static void teardown(TestInfo testInfo) throws IOException {
-        if (!Boolean.parseBoolean(Environment.SKIP_TEARDOWN)) {
+        if (!Environment.SKIP_TEARDOWN) {
             if (strimziOperator != null) {
                 strimziOperator.delete();
             }
@@ -100,7 +100,7 @@ public class AbstractST {
             NamespaceUtils.deleteNamespaceWithWait(Constants.KAFKA_DEFAULT_NAMESPACE);
         }
         else {
-            LOGGER.warn("Teardown was skipped because SKIP_TEARDOWN was set to '{}'", Environment.SKIP_TEARDOWN);
+            LOGGER.warn("Teardown was skipped because SKIP_TEARDOWN was set to 'true'");
         }
         LOGGER.info(String.join("", Collections.nCopies(76, "#")));
         LOGGER.info(String.format("%s Test Suite - FINISHED", testInfo.getTestClass().get().getName()));
