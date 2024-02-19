@@ -156,10 +156,10 @@ public class KubeVaultTestKmsFacade extends AbstractVaultTestKmsFacade {
         String installedVersion = getVaultVersion();
         String expectedVersion = VaultTestKmsFacade.HASHICORP_VAULT.getVersionPart();
 
-        return compareTo(installedVersion, expectedVersion) == 0;
+        return compareVersions(installedVersion, expectedVersion) == 0;
     }
 
-    private int compareTo(String currentVersion, String expectedVersion) {
+    private int compareVersions(String currentVersion, String expectedVersion) {
         Objects.requireNonNull(expectedVersion);
 
         String[] currentParts = currentVersion.split("\\.");
