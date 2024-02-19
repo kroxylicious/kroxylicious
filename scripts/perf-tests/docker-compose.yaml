@@ -1,0 +1,63 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+version: '3'
+networks:
+  perf_network:
+    driver: bridge
+
+services:
+  kafka:
+    image: quay.io/ogunalp/kafka-native:latest-kafka-${KAFKA_VERSION}
+    ports:
+      - "9094:9092"
+    hostname: broker1
+    container_name: broker1
+    environment:
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://broker1:9092
+      SERVER_HOST: broker1
+      KAFKA_BROKER_ID: 1
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@broker1:9094
+    networks:
+      - perf_network
+  vault:
+    image: "docker.io/hashicorp/vault:1.15"
+    hostname: vault
+    container_name: vault
+    ports:
+      - "8200"
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: token
+      VAULT_TOKEN:  token
+      VAULT_FORMAT: json
+      VAULT_ADDR: http://0.0.0.0:8200 # TODO - shouldn't need this
+    networks:
+      - perf_network
+    healthcheck:
+      test:  wget --no-verbose --tries=1 --spider http://localhost:8200/v1/sys/health
+      interval: 5s
+      retries: 5
+      timeout: 10s
+  kroxy:
+    image: quay.io/kroxylicious/kroxylicious:0.5.0-SNAPSHOT
+    hostname: kroxy
+    container_name: kroxy
+    command:
+      - "--config"
+      - "/opt/kroxylicious/config/config.yaml"
+    healthcheck:
+      test: grep 2384 /proc/1/net/tcp  # 0x2384 = 9092
+      interval: 5s
+      retries: 5
+      timeout: 10s
+    ports:
+      - "9092"
+    volumes:
+      - ./${KROXY_CONFIG}:/opt/kroxylicious/config/config.yaml
+    networks:
+      - perf_network
+    depends_on:
+      - kafka
