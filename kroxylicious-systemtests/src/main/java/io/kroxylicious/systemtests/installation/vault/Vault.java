@@ -34,11 +34,29 @@ import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
  * The type Vault.
  */
 public class Vault {
+    /**
+     * The constant VAULT_SERVICE_NAME.
+     */
     public static final String VAULT_SERVICE_NAME = "vault";
+    /**
+     * The constant VAULT_POD_NAME.
+     */
     public static final String VAULT_POD_NAME = VAULT_SERVICE_NAME + "-0";
+    /**
+     * The constant VAULT_DEFAULT_NAMESPACE.
+     */
     public static final String VAULT_DEFAULT_NAMESPACE = "vault";
+    /**
+     * The constant VAULT_HELM_REPOSITORY_URL.
+     */
     public static final String VAULT_HELM_REPOSITORY_URL = "https://helm.releases.hashicorp.com";
+    /**
+     * The constant VAULT_HELM_REPOSITORY_NAME.
+     */
     public static final String VAULT_HELM_REPOSITORY_NAME = "hashicorp";
+    /**
+     * The constant VAULT_HELM_CHART_NAME.
+     */
     public static final String VAULT_HELM_CHART_NAME = "hashicorp/vault";
     private static final Logger LOGGER = LoggerFactory.getLogger(Vault.class);
     private static final String VAULT_CMD = "vault";
@@ -90,6 +108,27 @@ public class Vault {
     }
 
     /**
+     * Gets the installed version.
+     *
+     * @return the version
+     */
+    public String getVersionInstalled() {
+        try (var output = new ByteArrayOutputStream();
+                var exec = kubeClient().getClient().pods()
+                        .inNamespace(deploymentNamespace)
+                        .withName(VAULT_POD_NAME)
+                        .writingOutput(output)
+                        .exec("sh", "-c", VAULT_CMD + " version")) {
+            exec.exitCode().join();
+            // version returned as: Vault v1.15.2 (blah blah), build blah
+            return output.toString().split(" ")[1].replace("v", "");
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    /**
      * Deploy.
      *
      */
@@ -100,25 +139,13 @@ public class Vault {
             return;
         }
 
-        Optional<String> vaultChartVersion = Optional.ofNullable(getVaultChartVersion());
-
         ResourceManager.helmClient().addRepository(VAULT_HELM_REPOSITORY_NAME, VAULT_HELM_REPOSITORY_URL);
-        ResourceManager.helmClient().namespace(deploymentNamespace).install(VAULT_HELM_CHART_NAME, VAULT_SERVICE_NAME, vaultChartVersion,
+        ResourceManager.helmClient().namespace(deploymentNamespace).install(VAULT_HELM_CHART_NAME, VAULT_SERVICE_NAME,
+                Optional.of(Environment.VAULT_CHART_VERSION),
                 Optional.of(getHelmOverridePath()),
                 Optional.of(Map.of("server.dev.devRootToken", vaultRootToken)));
 
         DeploymentUtils.waitForDeploymentRunning(deploymentNamespace, VAULT_POD_NAME, Duration.ofMinutes(1));
-    }
-
-    private String getVaultChartVersion() {
-        String chartVersion = "";
-        String vaultVersion = Environment.VAULT_VERSION;
-
-        if (!vaultVersion.isEmpty()) {
-            chartVersion = ResourceManager.helmClient().getChartVersion(VAULT_HELM_CHART_NAME, vaultVersion);
-        }
-
-        return chartVersion;
     }
 
     @NonNull

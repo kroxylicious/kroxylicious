@@ -6,7 +6,6 @@
 
 package io.kroxylicious.systemtests.k8s;
 
-import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -16,13 +15,7 @@ import java.util.Optional;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-
 import io.kroxylicious.systemtests.executor.Exec;
-import io.kroxylicious.systemtests.executor.ExecResult;
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
 
 import static java.util.Arrays.asList;
@@ -161,39 +154,5 @@ public class HelmClient {
 
     private static String concatEntry(Map.Entry<String, String> entry) {
         return String.format("%s=%s", entry.getKey(), entry.getValue());
-    }
-
-    /**
-     * Gets chart version.
-     *
-     * @param chartName the chart name
-     * @param releaseVersion the release version
-     * @return the chart versions
-     */
-    public String getChartVersion(String chartName, String releaseVersion) {
-        String chartVersion = "";
-        if (releaseVersion != null && !releaseVersion.isEmpty()) {
-            LOGGER.info("Getting chart version for {}", chartName);
-            ExecResult result = Exec.exec(null, command("search", "repo",
-                    chartName,
-                    "--versions",
-                    "--output=json"), 0, true);
-
-            ObjectMapper mapper = new ObjectMapper();
-            try {
-                ArrayNode rootNode = (ArrayNode) mapper.readTree(result.out());
-                // Looking for the latest version that match with releaseVersion. If set to 1.15, it will look for the latest 1.15.Z
-                for (JsonNode node : rootNode) {
-                    if (node.at("/app_version").asText().startsWith(releaseVersion)) {
-                        chartVersion = node.at("/version").asText();
-                        break;
-                    }
-                }
-            }
-            catch (JsonProcessingException e) {
-                throw new UncheckedIOException(e);
-            }
-        }
-        return chartVersion;
     }
 }

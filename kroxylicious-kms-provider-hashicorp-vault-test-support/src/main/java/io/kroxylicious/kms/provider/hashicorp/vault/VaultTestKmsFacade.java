@@ -36,7 +36,7 @@ import static java.net.URLEncoder.encode;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class VaultTestKmsFacade extends AbstractVaultTestKmsFacade {
-    private static final String HASHICORP_VAULT = "hashicorp/vault:1.15";
+    public static final String HASHICORP_VAULT = "hashicorp/vault:1.15";
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private final HttpClient vaultClient = HttpClient.newHttpClient();
 

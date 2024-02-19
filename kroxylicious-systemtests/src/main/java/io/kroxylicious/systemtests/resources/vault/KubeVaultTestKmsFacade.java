@@ -21,6 +21,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.kroxylicious.kms.provider.hashicorp.vault.AbstractVaultTestKmsFacade;
+import io.kroxylicious.kms.provider.hashicorp.vault.VaultTestKmsFacade;
 import io.kroxylicious.kms.service.TestKekManager;
 import io.kroxylicious.kms.service.UnknownAliasException;
 import io.kroxylicious.systemtests.executor.ExecResult;
@@ -49,6 +50,12 @@ public class KubeVaultTestKmsFacade extends AbstractVaultTestKmsFacade {
     private final String podName;
     private final Vault vault;
 
+    /**
+     * Instantiates a new Kube vault test kms facade.
+     *
+     * @param namespace the namespace
+     * @param podName the pod name
+     */
     public KubeVaultTestKmsFacade(String namespace, String podName) {
         this.namespace = namespace;
         this.podName = podName;
@@ -126,9 +133,48 @@ public class KubeVaultTestKmsFacade extends AbstractVaultTestKmsFacade {
         return URI.create("http://" + vault.getVaultUrl());
     }
 
+    /**
+     * Gets vault version.
+     *
+     * @return the vault version
+     */
+    public String getVaultVersion() {
+        return vault.getVersionInstalled();
+    }
+
     @Override
     public TestKekManager getTestKekManager() {
         return new VaultTestKekManager();
+    }
+
+    /**
+     * Is correct version installed boolean.
+     *
+     * @return the boolean
+     */
+    public boolean isCorrectVersionInstalled() {
+        String installedVersion = getVaultVersion();
+        String expectedVersion = VaultTestKmsFacade.HASHICORP_VAULT.split(":")[1];
+
+        return compareTo(installedVersion, expectedVersion) == 0;
+    }
+
+    private int compareTo(String currentVersion, String expectedVersion) {
+        if (expectedVersion == null) {
+            return 1;
+        }
+        String[] currentParts = currentVersion.split("\\.");
+        String[] expectedParts = expectedVersion.split("\\.");
+
+        for (int i = 0; i < expectedParts.length; i++) {
+            int currentPart = i < currentParts.length ? Integer.parseInt(currentParts[i]) : 0;
+            int expectedPart = Integer.parseInt(expectedParts[i]);
+            if (currentPart < expectedPart)
+                return -1;
+            if (currentPart > expectedPart)
+                return 1;
+        }
+        return 0;
     }
 
     private class VaultTestKekManager implements TestKekManager {
@@ -202,5 +248,4 @@ public class KubeVaultTestKmsFacade extends AbstractVaultTestKmsFacade {
         }
         return execResult;
     }
-
 }

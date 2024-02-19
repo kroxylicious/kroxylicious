@@ -21,6 +21,7 @@ import org.slf4j.LoggerFactory;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.strimzi.api.kafka.model.Kafka;
 
+import io.kroxylicious.kms.provider.hashicorp.vault.VaultTestKmsFacade;
 import io.kroxylicious.systemtests.extensions.KroxyliciousExtension;
 import io.kroxylicious.systemtests.installation.kroxylicious.Kroxylicious;
 import io.kroxylicious.systemtests.installation.vault.Vault;
@@ -34,6 +35,7 @@ import io.kroxylicious.systemtests.utils.NamespaceUtils;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 @ExtendWith(KroxyliciousExtension.class)
 class EnvelopeEncryptionST extends AbstractST {
@@ -54,6 +56,10 @@ class EnvelopeEncryptionST extends AbstractST {
         else {
             NamespaceUtils.createNamespaceWithWait(Vault.VAULT_DEFAULT_NAMESPACE);
             kubeVaultTestKmsFacade.start();
+            assumeThat(kubeVaultTestKmsFacade.isCorrectVersionInstalled())
+                    .withFailMessage("Vault version installed '{}' does not match with the expected: '{}'", kubeVaultTestKmsFacade.getVaultVersion(),
+                            VaultTestKmsFacade.HASHICORP_VAULT)
+                    .isTrue();
         }
 
         List<Pod> kafkaPods = kubeClient().listPodsByPrefixInName(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName);
