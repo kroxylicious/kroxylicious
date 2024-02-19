@@ -330,7 +330,7 @@ has been applied ineffectively.
      Create a public accessible repository within the registry named `kroxylicious`.
 
 ### Environment variables
-* `KROXYLICIOUS_IMAGE_REPO`: url to the image of kroxylicious to be used. Default value: `quay.io/kroxylicious/kroxylicious-developer`
+* `KROXYLICIOUS_IMAGE_REPO`: url to the image of kroxylicious to be used. Default value: `quay.io/kroxylicious/kroxylicious`
 * `KROXYLICIOUS_VERSION`: version of kroxylicious to be used. Default value: `${project.version}` in pom file
 * `KAFKA_VERSION`: kafka version to be used. Default value: `${kafka.version}` in pom file
 * `STRIMZI_URL`: url where to download strimzi. Default value: `https://strimzi.io/install/latest?namespace=kafka`
@@ -430,7 +430,7 @@ and one repository [secret](https://docs.github.com/en/actions/security-guides/u
 
 * `REGISTRY_SERVER` variable - the server of the container registry service e.g. `quay.io` or `docker.io`
 * `REGISTRY_USERNAME` variable - your username on the service (or username of your robot account)
-* `REGISTRY_DESTINATION` variable - the push destination (without tag portion) e.g. `quay.io/<my org>/kroxylicious-developer`
+* `REGISTRY_DESTINATION` variable - the push destination (without tag portion) e.g. `quay.io/<my org>/kroxylicious`
 
 * `REGISTRY_TOKEN` secret - the access token that corresponds to `REGISTRY_USERNAME` 
 
