@@ -29,9 +29,9 @@ public class Environment {
     private static final String STRIMZI_URL_ENV = "STRIMZI_URL";
     private static final String SKIP_TEARDOWN_ENV = "SKIP_TEARDOWN";
     public static final String STRIMZI_FEATURE_GATES_ENV = "STRIMZI_FEATURE_GATES";
-    public static final String CONTAINER_CONFIG_PATH_ENV = "CONTAINER_CONFIG_PATH";
-    public static final String STRIMZI_NAMESPACE_ENV = "STRIMZI_NAMESPACE";
+    private static final String CONTAINER_CONFIG_PATH_ENV = "CONTAINER_CONFIG_PATH";
     private static final String VAULT_VERSION_ENV = "VAULT_VERSION";
+    private static final String SKIP_STRIMZI_INSTALL_ENV = "SKIP_STRIMZI_INSTALL";
 
     /**
      * The kafka version default value
@@ -66,8 +66,8 @@ public class Environment {
     private static final String SKIP_TEARDOWN_DEFAULT = "false";
     private static final String STRIMZI_FEATURE_GATES_DEFAULT = "";
     private static final String CONTAINER_CONFIG_PATH_DEFAULT = System.getProperty("user.home") + "/.docker/config.json";
-    private static final String STRIMZI_NAMESPACE_DEFAULT = Constants.KAFKA_DEFAULT_NAMESPACE;
     private static final String VAULT_VERSION_DEFAULT = "1.15";
+    private static final String SKIP_STRIMZI_INSTALL_DEFAULT = "false";
 
     /**
      * KAFKA_VERSION env variable assignment
@@ -89,13 +89,13 @@ public class Environment {
     /**
      * SKIP_TEARDOWN env variable assignment.
      */
-    public static final String SKIP_TEARDOWN = getOrDefault(SKIP_TEARDOWN_ENV, SKIP_TEARDOWN_DEFAULT);
+    public static final boolean SKIP_TEARDOWN = Boolean.parseBoolean(getOrDefault(SKIP_TEARDOWN_ENV, SKIP_TEARDOWN_DEFAULT));
 
     public static final String STRIMZI_FEATURE_GATES = getOrDefault(STRIMZI_FEATURE_GATES_ENV, STRIMZI_FEATURE_GATES_DEFAULT);
 
     public static final String CONTAINER_CONFIG_PATH = getOrDefault(CONTAINER_CONFIG_PATH_ENV, CONTAINER_CONFIG_PATH_DEFAULT);
 
-    public static final String STRIMZI_NAMESPACE = getOrDefault(STRIMZI_NAMESPACE_ENV, STRIMZI_NAMESPACE_DEFAULT);
+    public static final boolean SKIP_STRIMZI_INSTALL = Boolean.parseBoolean(getOrDefault(SKIP_STRIMZI_INSTALL_ENV, SKIP_STRIMZI_INSTALL_DEFAULT));
 
     public static final String VAULT_VERSION = getOrDefault(VAULT_VERSION_ENV, VAULT_VERSION_DEFAULT);
 

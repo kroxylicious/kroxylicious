@@ -4,7 +4,7 @@ Please enumerate **all user-facing** changes using format `<githib issue/pr numb
 
 ## 0.5.0
 
-
+* [#997](https://github.com/kroxylicious/kroxylicious/issues/997): Add hardcoded maximum frame size
 * [#782](https://github.com/kroxylicious/kroxylicious/issues/782): Securely handle the HashiCorp Vault Token in Kroxylicious configuration
 * [#973](https://github.com/kroxylicious/kroxylicious/pull/973): Remove deprecated CompositeFilter and it's documentation
 * [#935](https://github.com/kroxylicious/kroxylicious/pull/935): Enable user to configure alternative source of keys for vault KMS client
@@ -24,6 +24,7 @@ Please enumerate **all user-facing** changes using format `<githib issue/pr numb
 
 * When configuring TLS, the property `filePath` for specifying the location of a file providing the password is now
   deprecated.  Use `passwordFile` instead.
+* When configuring TLS, it is no longer valid to pass a null inline password like `"storePassword": {"password": null}` instead use `"storePassword": null`
 * As a result of the work of #909, some superfluous transitive dependencies have been removed from some kroxylicious.  If you were relying on those, you will need to
   adjust your dependencies as your adopt this release.
 * `io.kroxylicious:kroxylicious-filter-test-support` now contains RecordTestUtils for creating example `Record`, `RecordBatch` and `MemoryRecords`. It also contains 

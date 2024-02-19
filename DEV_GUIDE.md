@@ -337,9 +337,8 @@ has been applied ineffectively.
 * `SKIP_TEARDOWN`: variable for development purposes to avoid keep deploying and deleting deployments each run. Default value: `false`
 * `CONTAINER_CONFIG_PATH`: directory where `config.json` file is located. This file contains the pull secrets to be used by
 the container engine. Default value: `$HOME/.docker/config.json`
-* `STRIMZI_NAMESPACE`: namespace where strimzi is installed. It is useful for pipelines
-where strimzi is installed before the STs. Default value: `kafka`
 * `VAULT_VERSION`: version of Vault to be used for Envelope Encryption. Default value: `1.15`
+* `SKIP_STRIMZI_INSTALL`: skip strimzi installation. Default value: `false`
 
 
 ### Launch system tests

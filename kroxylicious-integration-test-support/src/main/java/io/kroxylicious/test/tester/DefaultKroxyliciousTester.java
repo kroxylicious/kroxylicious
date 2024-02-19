@@ -70,10 +70,13 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     }
 
     private KroxyliciousClients clients() {
+        return clients(onlyVirtualCluster());
+    }
+
+    private String onlyVirtualCluster() {
         int numVirtualClusters = kroxyliciousConfig.virtualClusters().size();
         if (numVirtualClusters == 1) {
-            String onlyCluster = kroxyliciousConfig.virtualClusters().keySet().stream().findFirst().orElseThrow();
-            return clients(onlyCluster);
+            return kroxyliciousConfig.virtualClusters().keySet().stream().findFirst().orElseThrow();
         }
         else {
             throw new AmbiguousVirtualClusterException(
@@ -89,9 +92,21 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     @NonNull
     private Map<String, Object> buildDefaultClientConfiguration(String virtualCluster) {
         Map<String, Object> defaultClientConfig = new HashMap<>();
-        defaultClientConfig.put(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, KroxyliciousConfigUtils.bootstrapServersFor(virtualCluster, kroxyliciousConfig));
+        defaultClientConfig.put(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, getBootstrapAddress(virtualCluster));
         configureClientTls(virtualCluster, defaultClientConfig);
         return defaultClientConfig;
+    }
+
+    @Override
+    @NonNull
+    public String getBootstrapAddress() {
+        return getBootstrapAddress(onlyVirtualCluster());
+    }
+
+    @Override
+    @NonNull
+    public String getBootstrapAddress(String virtualCluster) {
+        return KroxyliciousConfigUtils.bootstrapServersFor(virtualCluster, kroxyliciousConfig);
     }
 
     private void configureClientTls(String virtualCluster, Map<String, Object> defaultClientConfig) {

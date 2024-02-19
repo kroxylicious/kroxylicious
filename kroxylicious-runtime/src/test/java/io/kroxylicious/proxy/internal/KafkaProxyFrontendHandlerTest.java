@@ -11,6 +11,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
+import javax.net.ssl.SSLException;
+
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
@@ -31,23 +33,31 @@ import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.channel.ChannelPipeline;
 import io.netty.channel.DefaultChannelPromise;
 import io.netty.channel.embedded.EmbeddedChannel;
+import io.netty.handler.codec.DecoderException;
 import io.netty.handler.codec.haproxy.HAProxyCommand;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.handler.codec.haproxy.HAProxyProtocolVersion;
 import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
 import io.netty.handler.ssl.SniCompletionEvent;
+import io.netty.handler.ssl.SslContextBuilder;
 
 import io.kroxylicious.proxy.filter.NetFilter;
 import io.kroxylicious.proxy.frame.DecodedFrame;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.internal.KafkaProxyFrontendHandler.State;
+import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
 import io.kroxylicious.proxy.internal.codec.KafkaRequestDecoder;
 import io.kroxylicious.proxy.internal.codec.RequestDecoderTest;
 import io.kroxylicious.proxy.model.VirtualCluster;
 import io.kroxylicious.proxy.service.HostPort;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
+import static io.kroxylicious.proxy.model.VirtualCluster.DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -159,6 +169,40 @@ class KafkaProxyFrontendHandlerTest {
 
         // Then
         assertEquals(State.FAILED, handler.state());
+    }
+
+    @Test
+    void testHandleFrameOversizedExceptionDownstreamTlsDisabled() {
+        // Given
+        VirtualCluster virtualCluster = mock(VirtualCluster.class);
+        when(virtualCluster.getDownstreamSslContext()).thenReturn(Optional.empty());
+        KafkaProxyFrontendHandler handler = handler(connectContext::set, new SaslDecodePredicate(false), virtualCluster);
+        ChannelPipeline pipeline = inboundChannel.pipeline();
+        pipeline.addLast(throwOnReadHandler(new DecoderException(new FrameOversizedException(5, 6))));
+        pipeline.addLast(handler);
+
+        // when
+        inboundChannel.writeInbound(new Object());
+
+        // then
+        assertThat(inboundChannel.isOpen()).isFalse();
+    }
+
+    @Test
+    void testHandleFrameOversizedExceptionDownstreamTlsEnabled() throws SSLException {
+        // Given
+        VirtualCluster virtualCluster = mock(VirtualCluster.class);
+        when(virtualCluster.getDownstreamSslContext()).thenReturn(Optional.of(SslContextBuilder.forClient().build()));
+        KafkaProxyFrontendHandler handler = handler(connectContext::set, new SaslDecodePredicate(false), virtualCluster);
+        ChannelPipeline pipeline = inboundChannel.pipeline();
+        pipeline.addLast(throwOnReadHandler(new DecoderException(new FrameOversizedException(5, 6))));
+        pipeline.addLast(handler);
+
+        // when
+        inboundChannel.writeInbound(new Object());
+
+        // then
+        assertThat(inboundChannel.isOpen()).isFalse();
     }
 
     @Test
@@ -346,7 +390,8 @@ class KafkaProxyFrontendHandlerTest {
         while ((outboundMessage = outboundChannel.readOutbound()) != null) {
             assertThat(outboundMessage).isNotNull();
             ArrayList<Object> objects = new ArrayList<>();
-            new KafkaRequestDecoder(RequestDecoderTest.DECODE_EVERYTHING).decode(outboundChannel.pipeline().firstContext(), outboundMessage, objects);
+            new KafkaRequestDecoder(RequestDecoderTest.DECODE_EVERYTHING, DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES).decode(outboundChannel.pipeline().firstContext(),
+                    outboundMessage, objects);
             assertThat(objects).hasSize(1);
             if (objects.get(0) instanceof DecodedRequestFrame<?> f) {
                 // noinspection unchecked
@@ -381,4 +426,15 @@ class KafkaProxyFrontendHandlerTest {
         writeInboundApiVersionsRequest(initialClientSoftwareName);
         assertEquals(State.CONNECTING, handler.state());
     }
+
+    @NonNull
+    private static ChannelInboundHandlerAdapter throwOnReadHandler(Exception cause) {
+        return new ChannelInboundHandlerAdapter() {
+            @Override
+            public void channelRead(ChannelHandlerContext ctx, Object msg) {
+                ctx.fireExceptionCaught(cause);
+            }
+        };
+    }
+
 }

@@ -75,9 +75,8 @@ public class AbstractST {
         LOGGER.info(String.format("%s Test Suite - STARTED", testInfo.getTestClass().get().getName()));
         cluster = KubeClusterResource.getInstance();
         certManager = new CertManager();
-        strimziOperator = new Strimzi(Environment.STRIMZI_NAMESPACE);
+        strimziOperator = new Strimzi(Constants.KAFKA_DEFAULT_NAMESPACE);
 
-        NamespaceUtils.createNamespaceWithWait(Environment.STRIMZI_NAMESPACE);
         NamespaceUtils.createNamespaceWithWait(Constants.KAFKA_DEFAULT_NAMESPACE);
         strimziOperator.deploy();
         certManager.deploy();
@@ -91,19 +90,17 @@ public class AbstractST {
      */
     @AfterAll
     static void teardown(TestInfo testInfo) throws IOException {
-        if (Environment.SKIP_TEARDOWN.equalsIgnoreCase("false")) {
+        if (!Environment.SKIP_TEARDOWN) {
             if (strimziOperator != null) {
                 strimziOperator.delete();
             }
             if (certManager != null) {
                 certManager.delete();
             }
-            NamespaceUtils.deleteNamespaceWithWait(Environment.STRIMZI_NAMESPACE);
             NamespaceUtils.deleteNamespaceWithWait(Constants.KAFKA_DEFAULT_NAMESPACE);
-            NamespaceUtils.deleteNamespaceWithWait(Constants.CERT_MANAGER_NAMESPACE);
         }
         else {
-            LOGGER.warn("Teardown was skipped because SKIP_TEARDOWN was set to '{}'", Environment.SKIP_TEARDOWN);
+            LOGGER.warn("Teardown was skipped because SKIP_TEARDOWN was set to 'true'");
         }
         LOGGER.info(String.join("", Collections.nCopies(76, "#")));
         LOGGER.info(String.format("%s Test Suite - FINISHED", testInfo.getTestClass().get().getName()));

@@ -996,16 +996,11 @@ class InBandDecryptionManagerTest {
     @NonNull
     private static InBandDecryptionManager<UUID, InMemoryEdek> createDecryptionManager(InMemoryKms kms) {
 
-        return new InBandDecryptionManager<>(new DekManager<UUID, InMemoryEdek>(ignored -> kms, null, 1),
-                new FilterThreadExecutor(directExecutor()),
-                new Executor() {
-                    @Override
-                    public void execute(Runnable command) {
-                        // Run cache evications on the test thread, avoiding the need for tests to sleep to observe cache evictions
-                        command.run();
-                    }
-                },
-                InBandDecryptionManager.NO_MAX_CACHE_SIZE);
+        DekManager<UUID, InMemoryEdek> dekManager = new DekManager<>(ignored -> kms, null, 1);
+        var dekCache = new DecryptionDekCache<>(dekManager, directExecutor(), DecryptionDekCache.NO_MAX_CACHE_SIZE);
+        return new InBandDecryptionManager<>(dekManager,
+                dekCache,
+                new FilterThreadExecutor(directExecutor()));
     }
 
     @NonNull
@@ -1014,7 +1009,7 @@ class InBandDecryptionManagerTest {
                 maxEncryptionsPerDek,
                 1024 * 1024,
                 8 * 1024 * 1024,
-                InBandEncryptionManager.NO_MAX_CACHE_SIZE);
+                EncryptionDekCache.NO_MAX_CACHE_SIZE);
     }
 
     @NonNull
@@ -1023,12 +1018,14 @@ class InBandDecryptionManagerTest {
                                                                                        int recordBufferInitialBytes,
                                                                                        int recordBufferMaxBytes,
                                                                                        int maxCacheSize) {
-        return new InBandEncryptionManager<>(new DekManager<UUID, InMemoryEdek>(ignored -> kms, null, maxEncryptionsPerDek),
+
+        DekManager<UUID, InMemoryEdek> dekManager = new DekManager<>(ignored -> kms, null, maxEncryptionsPerDek);
+        var cache = new EncryptionDekCache<>(dekManager, directExecutor(), maxCacheSize);
+        return new InBandEncryptionManager<>(dekManager.edekSerde(),
                 recordBufferInitialBytes,
                 recordBufferMaxBytes,
-                directExecutor(),
-                new FilterThreadExecutor(directExecutor()),
-                maxCacheSize);
+                cache,
+                new FilterThreadExecutor(directExecutor()));
     }
 
     @NonNull

@@ -252,4 +252,15 @@ public interface KroxyliciousTester extends Closeable {
      * @param clusterName the name of the virtual cluster from which to delete the topics.
      */
     void deleteTopics(String clusterName);
+
+    /**
+     * @return the bootstrap address of the only virtual cluster
+     * @throws AmbiguousVirtualClusterException if this tester is for a Kroxylicious configured with multiple virtual clusters
+     */
+    String getBootstrapAddress();
+
+    /**
+     * @return the bootstrap address of the named virtual cluster
+     */
+    String getBootstrapAddress(String clusterName);
 }
