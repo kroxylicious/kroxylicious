@@ -4,9 +4,10 @@ Please enumerate **all user-facing** changes using format `<githib issue/pr numb
 
 ## 0.5.0
 
+* [#1004](https://github.com/kroxylicious/kroxylicious/pull/1004): Publish images to Quay kroxylicious/kroxylicious rather than kroxylicious-developer
 * [#997](https://github.com/kroxylicious/kroxylicious/issues/997): Add hardcoded maximum frame size
 * [#782](https://github.com/kroxylicious/kroxylicious/issues/782): Securely handle the HashiCorp Vault Token in Kroxylicious configuration
-* [#973](https://github.com/kroxylicious/kroxylicious/pull/973): Remove deprecated CompositeFilter and it's documentation
+* [#973](https://github.com/kroxylicious/kroxylicious/pull/973): Remove deprecated CompositeFilter and its documentation
 * [#935](https://github.com/kroxylicious/kroxylicious/pull/935): Enable user to configure alternative source of keys for vault KMS client
 * [#787](https://github.com/kroxylicious/kroxylicious/issues/787): Initial documentation for the envelope-encryption feature.
 * [#940](https://github.com/kroxylicious/kroxylicious/issues/940): Support vault namespaces and support secrets transit engine at locations other than /transit
@@ -37,6 +38,7 @@ Please enumerate **all user-facing** changes using format `<githib issue/pr numb
     token from a file (filename specified by a `passwordFile` field) or inline (`password` field).  The latter is not
     recommended in production environments.
 * The deprecated CompositeFilter interface has been removed.
+* Container images for releases will be published to quay.io/kroxylicious/kroxylicious (rather than kroxylicious-developer)
 
 ## 0.4.1
 

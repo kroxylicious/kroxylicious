@@ -53,7 +53,7 @@ public class Environment {
     /**
      * The url where kroxylicious image lives to be downloaded.
      */
-    private static final String KROXY_IMAGE_REPO_DEFAULT = "quay.io/kroxylicious/kroxylicious-developer";
+    private static final String KROXY_IMAGE_REPO_DEFAULT = "quay.io/kroxylicious/kroxylicious";
 
     /**
      * The strimzi installation url for kubernetes.

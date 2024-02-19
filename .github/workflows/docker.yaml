@@ -3,7 +3,7 @@
 # Requires repository variables:
 # - REGISTRY_SERVER - the server of the container registry service e.g. `quay.io` or `docker.io`
 # - REGISTRY_USERNAME - - your username on the service (or username of your robot account)
-# - REGISTRY_DESTINATION - the push destination (without tag portion) e.g. `quay.io/<my org>/kroxylicious-developer`
+# - REGISTRY_DESTINATION - the push destination (without tag portion) e.g. `quay.io/<my org>/kroxylicious`
 # and a repository secret
 # - REGISTRY_TOKEN - the access token that corresponds to `REGISTRY_USERNAME`
 #
