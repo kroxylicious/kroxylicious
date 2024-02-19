@@ -6,6 +6,7 @@
 
 package io.kroxylicious.filter.encryption.inband;
 
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
@@ -18,6 +19,7 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.RemovalCause;
 
 import io.kroxylicious.filter.encryption.EncryptionScheme;
+import io.kroxylicious.filter.encryption.FilterThreadExecutor;
 import io.kroxylicious.filter.encryption.dek.CipherSpec;
 import io.kroxylicious.filter.encryption.dek.Dek;
 import io.kroxylicious.filter.encryption.dek.DekManager;
@@ -46,11 +48,10 @@ public class EncryptionDekCache<K, E> {
 
     private final AsyncLoadingCache<CacheKey<K>, Dek<E>> dekCache;
 
-    public EncryptionDekCache(
-                              @NonNull DekManager<K, E> dekManager,
+    public EncryptionDekCache(@NonNull DekManager<K, E> dekManager,
                               @Nullable Executor dekCacheExecutor,
                               int dekCacheMaxItems) {
-        this.dekManager = dekManager;
+        this.dekManager = Objects.requireNonNull(dekManager);
         Caffeine<Object, Object> cache = Caffeine.newBuilder();
         if (dekCacheMaxItems != NO_MAX_CACHE_SIZE) {
             cache = cache.maximumSize(dekCacheMaxItems);
@@ -99,11 +100,14 @@ public class EncryptionDekCache<K, E> {
     /**
      * Obtain a Dek for the KEK in the given {@code encryptionScheme},
      * generating a new one if necessary.
+     *
      * @param encryptionScheme The KEK to get a DEK for.
-     * @return A stage that completes with the DEK.
+     * @param filterThreadExecutor The filter thread executor.
+     * @return A stage that completes on the filter thread with the DEK.
      */
-    public @NonNull CompletionStage<Dek<E>> get(@NonNull EncryptionScheme<K> encryptionScheme) {
-        return dekCache.get(cacheKey(encryptionScheme));
+    public @NonNull CompletionStage<Dek<E>> get(@NonNull EncryptionScheme<K> encryptionScheme,
+                                                @NonNull FilterThreadExecutor filterThreadExecutor) {
+        return filterThreadExecutor.completingOnFilterThread(dekCache.get(cacheKey(encryptionScheme)));
     }
 
     /**
