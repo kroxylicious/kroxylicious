@@ -76,7 +76,7 @@ public class DekManager<K, E> {
      * The returned DEK can only be used for decryption, and only for the given cipher.
      * @param edek The encrypted DEK
      * @param cipherSpec The cipher supported by the returned DEK.
-     * @return A completion state that completes with the {@link Dek}, or
+     * @return A completion stage that completes with the {@link Dek}, or
      * fails if the request to the KMS fails.
      */
     public CompletionStage<Dek<E>> decryptEdek(@NonNull E edek, @NonNull CipherSpec cipherSpec) {

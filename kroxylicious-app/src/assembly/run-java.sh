@@ -164,7 +164,7 @@ core_limit() {
     if [ -r "${cpu_file}" ]; then
       local cpu_quota cpu_period
       cpu_quota="$(cat ${cpu_file} | awk '{ print $1 }')"
-      cpu_quota="$(cat ${cpu_file} | awk '{ print $2 }')"
+      cpu_period="$(cat ${cpu_file} | awk '{ print $2 }')"
 
       # cfs_quota_us == max --> no restrictions
       if [ "${cpu_quota:-0}" != "max" ]; then

@@ -39,9 +39,6 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
     private static final int MAX_ATTEMPTS = 3;
 
     @NonNull
-    private final FilterThreadExecutor filterThreadExecutor;
-
-    @NonNull
     static List<Integer> batchRecordCounts(@NonNull MemoryRecords records) {
         List<Integer> sizes = new ArrayList<>();
         for (MutableRecordBatch batch : records.batches()) {
@@ -73,7 +70,8 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
     private final EncryptionVersion encryptionVersion;
     private final Serde<E> edekSerde;
     private final EncryptionDekCache<K, E> dekCache;
-
+    @NonNull
+    private final FilterThreadExecutor filterThreadExecutor;
     private final int recordBufferInitialBytes;
     private final int recordBufferMaxBytes;
 
@@ -100,12 +98,11 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
     // @VisibleForTesting
     CompletionStage<Dek<E>> currentDek(@NonNull EncryptionScheme<K> encryptionScheme) {
         // todo should we add some scheduled timeout as well? or should we rely on the KMS to timeout appropriately.
-        return filterThreadExecutor.completingOnFilterThread(dekCache.get(encryptionScheme));
+        return dekCache.get(encryptionScheme, filterThreadExecutor);
     }
 
     @Override
     @NonNull
-    @SuppressWarnings("java:S2445")
     public CompletionStage<MemoryRecords> encrypt(@NonNull String topicName,
                                                   int partition,
                                                   @NonNull EncryptionScheme<K> encryptionScheme,
@@ -132,7 +129,6 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
         return bufferAllocator.apply(sizeEstimate);
     }
 
-    @SuppressWarnings("java:S2445")
     private CompletionStage<MemoryRecords> attemptEncrypt(@NonNull String topicName,
                                                           int partition,
                                                           @NonNull EncryptionScheme<K> encryptionScheme,

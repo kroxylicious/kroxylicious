@@ -25,6 +25,7 @@ import io.kroxylicious.proxy.service.HostPort;
 
 @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
 public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
+    public static final int DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES = 104857600;
     private final String clusterName;
 
     private final TargetCluster targetCluster;
@@ -83,6 +84,10 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
 
     public boolean isUseTls() {
         return tls.isPresent();
+    }
+
+    public int socketFrameMaxSizeBytes() {
+        return DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES;
     }
 
     @Override

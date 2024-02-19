@@ -7,6 +7,7 @@
 package io.kroxylicious.filter.encryption;
 
 import io.kroxylicious.filter.encryption.dek.DekManager;
+import io.kroxylicious.filter.encryption.inband.DecryptionDekCache;
 import io.kroxylicious.filter.encryption.inband.EncryptionDekCache;
 import io.kroxylicious.kms.service.Kms;
 
@@ -21,6 +22,7 @@ public class SharedEncryptionContext<K, E> {
     private final EnvelopeEncryption.Config configuration;
     private final DekManager<K, E> dekManager;
     private final EncryptionDekCache<K, E> encryptionDekCache;
+    private final DecryptionDekCache<K, E> decryptionDekCache;
 
     /**
      * @param kms
@@ -32,11 +34,13 @@ public class SharedEncryptionContext<K, E> {
                             Kms<K, E> kms,
                             EnvelopeEncryption.Config configuration,
                             DekManager<K, E> dekManager,
-                            EncryptionDekCache<K, E> encryptionDekCache) {
+                            EncryptionDekCache<K, E> encryptionDekCache,
+                            DecryptionDekCache<K, E> decryptionDekCache) {
         this.kms = kms;
         this.configuration = configuration;
         this.dekManager = dekManager;
         this.encryptionDekCache = encryptionDekCache;
+        this.decryptionDekCache = decryptionDekCache;
     }
 
     public Kms<K, E> kms() {
@@ -55,4 +59,7 @@ public class SharedEncryptionContext<K, E> {
         return encryptionDekCache;
     }
 
+    public DecryptionDekCache<K, E> decryptionDekCache() {
+        return decryptionDekCache;
+    }
 }
