@@ -96,14 +96,23 @@ public class Vault {
      */
     public String getVersionInstalled() {
         try (var output = new ByteArrayOutputStream();
+                var error = new ByteArrayOutputStream();
                 var exec = kubeClient().getClient().pods()
                         .inNamespace(deploymentNamespace)
                         .withName(VAULT_POD_NAME)
                         .writingOutput(output)
+                        .writingError(error)
                         .exec("sh", "-c", VAULT_CMD + " version")) {
-            exec.exitCode().join();
-            // version returned as: Vault v1.15.2 (blah blah), build blah
-            return output.toString().split(" ")[1].replace("v", "");
+            int exitCode = exec.exitCode().join();
+            if (exitCode != 0) {
+                throw new UnsupportedOperationException(error.toString());
+            }
+            // version returned with format: Vault v1.15.2 (blah blah), build blah
+            String version = output.toString().split("\\s+")[1].replace("v", "");
+            if (!version.matches("^(\\d+)(?:\\.(\\d+))?(?:\\.(\\*|\\d+))?$")) {
+                throw new NumberFormatException("Invalid version format: " + version);
+            }
+            return version;
         }
         catch (IOException e) {
             throw new UncheckedIOException(e);

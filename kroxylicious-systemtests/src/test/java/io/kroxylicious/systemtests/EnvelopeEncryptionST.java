@@ -56,7 +56,7 @@ class EnvelopeEncryptionST extends AbstractST {
         else {
             NamespaceUtils.createNamespaceWithWait(Vault.VAULT_DEFAULT_NAMESPACE);
             kubeVaultTestKmsFacade.start();
-            assumeThat(kubeVaultTestKmsFacade.isCorrectVersionInstalled())
+            assertThat(kubeVaultTestKmsFacade.isCorrectVersionInstalled())
                     .withFailMessage("Vault version installed '{}' does not match with the expected: '{}'", kubeVaultTestKmsFacade.getVaultVersion(),
                             VaultTestKmsFacade.HASHICORP_VAULT)
                     .isTrue();

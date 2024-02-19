@@ -20,6 +20,7 @@ import java.util.Set;
 import java.util.function.Supplier;
 
 import org.testcontainers.DockerClientFactory;
+import org.testcontainers.utility.DockerImageName;
 import org.testcontainers.vault.VaultContainer;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -36,7 +37,7 @@ import static java.net.URLEncoder.encode;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class VaultTestKmsFacade extends AbstractVaultTestKmsFacade {
-    public static final String HASHICORP_VAULT = "hashicorp/vault:1.15";
+    public static final DockerImageName HASHICORP_VAULT = DockerImageName.parse("hashicorp/vault:1.15");
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private final HttpClient vaultClient = HttpClient.newHttpClient();
 
