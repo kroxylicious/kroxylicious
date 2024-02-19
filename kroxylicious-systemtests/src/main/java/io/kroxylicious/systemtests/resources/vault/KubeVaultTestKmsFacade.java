@@ -169,10 +169,12 @@ public class KubeVaultTestKmsFacade extends AbstractVaultTestKmsFacade {
         for (int i = 0; i < expectedParts.length; i++) {
             int currentPart = i < currentParts.length ? Integer.parseInt(currentParts[i]) : 0;
             int expectedPart = Integer.parseInt(expectedParts[i]);
-            if (currentPart < expectedPart)
+            if (currentPart < expectedPart) {
                 return -1;
-            if (currentPart > expectedPart)
+            }
+            if (currentPart > expectedPart) {
                 return 1;
+            }
         }
         return 0;
     }
