@@ -6,10 +6,8 @@
 
 package io.kroxylicious.kms.provider.kroxylicious.inmemory;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.ServiceLoader;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -51,41 +49,12 @@ public class UnitTestingKmsService implements KmsService<UnitTestingKmsService.C
                 .orElse(null);
     }
 
+    @SuppressWarnings("java:S6218") // we currently don't need equals/hash to consider key contents
     public record Kek(
                       @JsonProperty(required = true) String uuid,
                       @JsonProperty(required = true) byte[] key,
                       @JsonProperty(required = true) String algorithm,
-                      @JsonProperty(required = true) String alias) {
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) {
-                return true;
-            }
-            if (o == null || getClass() != o.getClass()) {
-                return false;
-            }
-            Kek kek = (Kek) o;
-            return Objects.equals(uuid, kek.uuid) && Arrays.equals(key, kek.key) && Objects.equals(algorithm, kek.algorithm) && Objects.equals(alias, kek.alias);
-        }
-
-        @Override
-        public int hashCode() {
-            int result = Objects.hash(uuid, algorithm, alias);
-            result = 31 * result + Arrays.hashCode(key);
-            return result;
-        }
-
-        @Override
-        public String toString() {
-            return "Kek{" +
-                    "uuid='" + uuid + '\'' +
-                    ", key=" + Arrays.toString(key) +
-                    ", algorithm='" + algorithm + '\'' +
-                    ", alias='" + alias + '\'' +
-                    '}';
-        }
-    }
+                      @JsonProperty(required = true) String alias) {}
 
     public record Config(
                          int numIvBytes,
