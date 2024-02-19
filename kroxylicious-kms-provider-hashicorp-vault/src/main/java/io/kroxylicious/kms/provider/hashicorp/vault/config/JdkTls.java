@@ -140,7 +140,7 @@ public record JdkTls(Tls tls) {
             if (trustManagers == null && keyManagers == null) {
                 return SSLContext.getDefault();
             }
-            SSLContext context = SSLContext.getInstance("TLS");
+            var context = SSLContext.getInstance(SSLContext.getDefault().getProtocol());
             context.init(keyManagers, trustManagers, new SecureRandom());
             return context;
         }
