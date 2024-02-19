@@ -100,7 +100,8 @@ public class Strimzi {
      */
     public void deploy() {
         LOGGER.info("Deploy Strimzi in {} namespace", deploymentNamespace);
-        if (kubeClient().getDeployment(deploymentNamespace, Constants.STRIMZI_DEPLOYMENT_NAME) != null) {
+        if (kubeClient().getDeployment(deploymentNamespace, Constants.STRIMZI_DEPLOYMENT_NAME) != null
+                || Environment.SKIP_STRIMZI_INSTALL) {
             LOGGER.warn("Skipping strimzi deployment. It is already deployed!");
             return;
         }
@@ -113,6 +114,10 @@ public class Strimzi {
      * @throws IOException the io exception
      */
     public void delete() throws IOException {
+        if (Environment.SKIP_STRIMZI_INSTALL) {
+            LOGGER.warn("Skipping Strimzi deletion. SKIP_STRIMZI_INSTALL was set to true");
+            return;
+        }
         LOGGER.info("Deleting Strimzi in {} namespace", deploymentNamespace);
         deployment.inNamespace(deploymentNamespace).delete();
         DeploymentUtils.waitForDeploymentDeletion(deploymentNamespace, Constants.STRIMZI_DEPLOYMENT_NAME);
