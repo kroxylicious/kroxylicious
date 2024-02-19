@@ -21,6 +21,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.kroxylicious.kms.provider.hashicorp.vault.AbstractVaultTestKmsFacade;
+import io.kroxylicious.kms.provider.hashicorp.vault.VaultTestKmsFacade;
 import io.kroxylicious.kms.service.TestKekManager;
 import io.kroxylicious.kms.service.UnknownAliasException;
 import io.kroxylicious.systemtests.executor.ExecResult;
@@ -49,6 +50,12 @@ public class KubeVaultTestKmsFacade extends AbstractVaultTestKmsFacade {
     private final String podName;
     private final Vault vault;
 
+    /**
+     * Instantiates a new Kube vault test kms facade.
+     *
+     * @param namespace the namespace
+     * @param podName the pod name
+     */
     public KubeVaultTestKmsFacade(String namespace, String podName) {
         this.namespace = namespace;
         this.podName = podName;
@@ -63,6 +70,10 @@ public class KubeVaultTestKmsFacade extends AbstractVaultTestKmsFacade {
     @Override
     public void startVault() {
         vault.deploy();
+        if (!isCorrectVersionInstalled()) {
+            throw new KubeClusterException("Vault version installed " + getVaultVersion() + " does not match with the expected: '"
+                    + VaultTestKmsFacade.HASHICORP_VAULT + "'");
+        }
         runVaultCommand(VAULT_CMD, LOGIN, VAULT_ROOT_TOKEN);
     }
 
@@ -126,9 +137,42 @@ public class KubeVaultTestKmsFacade extends AbstractVaultTestKmsFacade {
         return URI.create("http://" + vault.getVaultUrl());
     }
 
+    /**
+     * Gets vault version.
+     *
+     * @return the vault version
+     */
+    public String getVaultVersion() {
+        return vault.getVersionInstalled();
+    }
+
     @Override
     public TestKekManager getTestKekManager() {
         return new VaultTestKekManager();
+    }
+
+    private boolean isCorrectVersionInstalled() {
+        String installedVersion = getVaultVersion();
+        String expectedVersion = VaultTestKmsFacade.HASHICORP_VAULT.getVersionPart();
+
+        return compareVersions(installedVersion, expectedVersion) == 0;
+    }
+
+    private int compareVersions(String currentVersion, String expectedVersion) {
+        Objects.requireNonNull(expectedVersion);
+
+        String[] currentParts = currentVersion.split("\\.");
+        String[] expectedParts = expectedVersion.split("\\.");
+
+        for (int i = 0; i < expectedParts.length; i++) {
+            int currentPart = i < currentParts.length ? Integer.parseInt(currentParts[i]) : 0;
+            int expectedPart = Integer.parseInt(expectedParts[i]);
+            int comparison = Integer.compare(currentPart, expectedPart);
+            if (comparison != 0) {
+                return comparison;
+            }
+        }
+        return 0;
     }
 
     private class VaultTestKekManager implements TestKekManager {
@@ -202,5 +246,4 @@ public class KubeVaultTestKmsFacade extends AbstractVaultTestKmsFacade {
         }
         return execResult;
     }
-
 }

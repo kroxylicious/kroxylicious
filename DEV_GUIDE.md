@@ -337,6 +337,7 @@ has been applied ineffectively.
 * `SKIP_TEARDOWN`: variable for development purposes to avoid keep deploying and deleting deployments each run. Default value: `false`
 * `CONTAINER_CONFIG_PATH`: directory where `config.json` file is located. This file contains the pull secrets to be used by
 the container engine. Default value: `$HOME/.docker/config.json`
+* `VAULT_CHART_VERSION`: version of Vault Helm Chart to be used by the System Tests for Envelope Encryption. Default value: `0.27.0`
 * `SKIP_STRIMZI_INSTALL`: skip strimzi installation. Default value: `false`
 
 

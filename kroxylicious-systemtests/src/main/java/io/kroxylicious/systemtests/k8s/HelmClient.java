@@ -35,6 +35,9 @@ public class HelmClient {
     private static String helmCommand;
     private Optional<String> namespace = Optional.empty();
 
+    /**
+     * Instantiates a new Helm client.
+     */
     public HelmClient() {
         if (!clientAvailable()) {
             throw new KubeClusterException.NotFound("No helm client found on $PATH. $PATH=" + System.getenv("PATH"));

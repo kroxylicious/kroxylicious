@@ -20,6 +20,7 @@ import org.slf4j.LoggerFactory;
 
 import io.fabric8.kubernetes.api.model.ServicePort;
 
+import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
@@ -89,6 +90,36 @@ public class Vault {
     }
 
     /**
+     * Gets the installed version.
+     *
+     * @return the version
+     */
+    public String getVersionInstalled() {
+        try (var output = new ByteArrayOutputStream();
+                var error = new ByteArrayOutputStream();
+                var exec = kubeClient().getClient().pods()
+                        .inNamespace(deploymentNamespace)
+                        .withName(VAULT_POD_NAME)
+                        .writingOutput(output)
+                        .writingError(error)
+                        .exec("sh", "-c", VAULT_CMD + " version")) {
+            int exitCode = exec.exitCode().join();
+            if (exitCode != 0) {
+                throw new UnsupportedOperationException(error.toString());
+            }
+            // version returned with format: Vault v1.15.2 (blah blah), build blah
+            String version = output.toString().split("\\s+")[1].replace("v", "");
+            if (!version.matches("^(\\d+)(?:\\.(\\d+))?(?:\\.(\\*|\\d+))?$")) {
+                throw new NumberFormatException("Invalid version format: " + version);
+            }
+            return version;
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    /**
      * Deploy.
      *
      */
@@ -100,7 +131,8 @@ public class Vault {
         }
 
         ResourceManager.helmClient().addRepository(VAULT_HELM_REPOSITORY_NAME, VAULT_HELM_REPOSITORY_URL);
-        ResourceManager.helmClient().namespace(deploymentNamespace).install(VAULT_HELM_CHART_NAME, VAULT_SERVICE_NAME, Optional.empty(),
+        ResourceManager.helmClient().namespace(deploymentNamespace).install(VAULT_HELM_CHART_NAME, VAULT_SERVICE_NAME,
+                Optional.of(Environment.VAULT_CHART_VERSION),
                 Optional.of(getHelmOverridePath()),
                 Optional.of(Map.of("server.dev.devRootToken", vaultRootToken)));
 
