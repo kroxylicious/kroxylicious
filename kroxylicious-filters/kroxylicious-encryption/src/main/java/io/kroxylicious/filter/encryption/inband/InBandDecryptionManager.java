@@ -30,6 +30,8 @@ import io.kroxylicious.filter.encryption.dek.Dek;
 import io.kroxylicious.filter.encryption.dek.DekManager;
 import io.kroxylicious.filter.encryption.records.RecordStream;
 import io.kroxylicious.kms.service.Serde;
+import io.kroxylicious.proxy.tag.CompletesOnThread;
+import io.kroxylicious.proxy.tag.RunsOnThread;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -80,12 +82,12 @@ public class InBandDecryptionManager<K, E> implements DecryptionManager {
         return null;
     }
 
-    @NonNull
     @Override
-    public CompletionStage<MemoryRecords> decrypt(@NonNull String topicName,
-                                                  int partition,
-                                                  @NonNull MemoryRecords records,
-                                                  @NonNull IntFunction<ByteBufferOutputStream> bufferAllocator) {
+    @RunsOnThread("filter thread")
+    public @CompletesOnThread("filter thread") @NonNull CompletionStage<MemoryRecords> decrypt(@NonNull String topicName,
+                                                                                               int partition,
+                                                                                               @NonNull MemoryRecords records,
+                                                                                               @NonNull IntFunction<ByteBufferOutputStream> bufferAllocator) {
         if (records.sizeInBytes() == 0) {
             // no records to transform, return input without modification
             return CompletableFuture.completedFuture(records);
@@ -97,6 +99,7 @@ public class InBandDecryptionManager<K, E> implements DecryptionManager {
             return CompletableFuture.completedFuture(records);
         }
 
+        @CompletesOnThread("filter thread")
         CompletionStage<List<DecryptState<E>>> decryptStates = resolveAll(topicName, partition, records);
         return decryptStates.thenApply(
                 decryptStateList -> {
@@ -126,9 +129,9 @@ public class InBandDecryptionManager<K, E> implements DecryptionManager {
      * @return A stage that completes with a list of the DecryptState
      * for each record in the given {@code records}, in the same order.
      */
-    private CompletionStage<List<DecryptState<E>>> resolveAll(String topicName,
-                                                              int partition,
-                                                              MemoryRecords records) {
+    private @CompletesOnThread("filter thread") CompletionStage<List<DecryptState<E>>> resolveAll(String topicName,
+                                                                                                  int partition,
+                                                                                                  MemoryRecords records) {
         Serde<E> serde = dekManager.edekSerde();
         // Use a pair of lists because we end up wanting a `List<DecryptState>`,
         // indexed by the position of the record in the multi-batch MemoryRecords,
@@ -202,12 +205,12 @@ public class InBandDecryptionManager<K, E> implements DecryptionManager {
      * @param buffer The buffer to fill (to encourage buffer reuse).
      * @return The decrypted records.
      */
-    @NonNull
-    private MemoryRecords decrypt(@NonNull String topicName,
-                                  int partition,
-                                  @NonNull MemoryRecords records,
-                                  @NonNull List<DecryptState<E>> decryptorList,
-                                  @NonNull ByteBufferOutputStream buffer) {
+    @RunsOnThread("filter thread")
+    private @NonNull MemoryRecords decrypt(@NonNull String topicName,
+                                           int partition,
+                                           @NonNull MemoryRecords records,
+                                           @NonNull List<DecryptState<E>> decryptorList,
+                                           @NonNull ByteBufferOutputStream buffer) {
         return RecordStream.ofRecordsWithIndex(records)
                 .mapPerRecord((batch, record, index) -> decryptorList.get(index))
                 .toMemoryRecords(buffer,

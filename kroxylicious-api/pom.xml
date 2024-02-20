@@ -80,6 +80,10 @@
             <artifactId>mockito-core</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-annotations</artifactId>
+        </dependency>
     </dependencies>
 
     <build>

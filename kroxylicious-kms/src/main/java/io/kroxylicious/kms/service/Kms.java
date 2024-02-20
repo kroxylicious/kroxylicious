@@ -10,6 +10,8 @@ import java.util.concurrent.CompletionStage;
 
 import javax.crypto.SecretKey;
 
+import io.kroxylicious.proxy.tag.CompletesOnThread;
+
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
@@ -31,6 +33,7 @@ public interface Kms<K, E> {
      * @throws KmsException For other exceptions.
      */
     @NonNull
+    @CompletesOnThread("*")
     CompletionStage<DekPair<E>> generateDekPair(@NonNull K kekRef);
 
     /**
@@ -42,6 +45,7 @@ public interface Kms<K, E> {
      * @throws KmsException For other exceptions
      */
     @NonNull
+    @CompletesOnThread("*")
     CompletionStage<SecretKey> decryptEdek(@NonNull E edek);
 
     /**
@@ -61,5 +65,6 @@ public interface Kms<K, E> {
      * @throws KmsException For other exceptions.
      */
     @NonNull
+    @CompletesOnThread("*")
     CompletionStage<K> resolveAlias(@NonNull String alias);
 }

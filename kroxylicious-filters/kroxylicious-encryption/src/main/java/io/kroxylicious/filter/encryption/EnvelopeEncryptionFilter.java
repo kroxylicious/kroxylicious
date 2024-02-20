@@ -31,6 +31,8 @@ import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
+import io.kroxylicious.proxy.tag.CompletesOnThread;
+import io.kroxylicious.proxy.tag.RunsOnThread;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -60,13 +62,14 @@ public class EnvelopeEncryptionFilter<K>
     }
 
     @SuppressWarnings("unchecked")
-    public static <T> CompletionStage<List<T>> join(List<? extends CompletionStage<T>> stages) {
+    public static <T> @CompletesOnThread("T") CompletionStage<List<T>> join(List<? extends @CompletesOnThread("T") CompletionStage<T>> stages) {
         CompletableFuture<T>[] futures = stages.stream().map(CompletionStage::toCompletableFuture).toArray(CompletableFuture[]::new);
         return CompletableFuture.allOf(futures)
                 .thenApply(ignored -> Stream.of(futures).map(CompletableFuture::join).toList());
     }
 
     @Override
+    @RunsOnThread("filter thread")
     public CompletionStage<RequestFilterResult> onProduceRequest(short apiVersion,
                                                                  RequestHeaderData header,
                                                                  ProduceRequestData request,
@@ -75,8 +78,10 @@ public class EnvelopeEncryptionFilter<K>
                 .thenCompose(yy -> context.forwardRequest(header, request));
     }
 
+    @RunsOnThread("filter thread")
     private CompletionStage<ProduceRequestData> maybeEncodeProduce(ProduceRequestData request, FilterContext context) {
         var topicNameToData = request.topicData().stream().collect(Collectors.toMap(TopicProduceData::name, Function.identity()));
+        @CompletesOnThread("filter thread")
         CompletionStage<Map<String, K>> keks = filterThreadExecutor.completingOnFilterThread(kekSelector.selectKek(topicNameToData.keySet()));
         return keks // figure out what keks we need
                 .thenCompose(kekMap -> {
@@ -110,7 +115,9 @@ public class EnvelopeEncryptionFilter<K>
     }
 
     @Override
-    public CompletionStage<ResponseFilterResult> onFetchResponse(short apiVersion, ResponseHeaderData header, FetchResponseData response, FilterContext context) {
+    @RunsOnThread("filter thread")
+    public @CompletesOnThread("filter thread") CompletionStage<ResponseFilterResult> onFetchResponse(short apiVersion, ResponseHeaderData header,
+                                                                                                     FetchResponseData response, FilterContext context) {
         return maybeDecodeFetch(response.responses(), context)
                 .thenCompose(responses -> context.forwardResponse(header, response.setResponses(responses)))
                 .exceptionallyCompose(throwable -> {
@@ -122,7 +129,9 @@ public class EnvelopeEncryptionFilter<K>
                 });
     }
 
-    private CompletionStage<List<FetchableTopicResponse>> maybeDecodeFetch(List<FetchableTopicResponse> topics, FilterContext context) {
+    @RunsOnThread("filter thread")
+    private @CompletesOnThread("filter thread") CompletionStage<List<FetchableTopicResponse>> maybeDecodeFetch(List<FetchableTopicResponse> topics,
+                                                                                                               FilterContext context) {
         List<CompletionStage<FetchableTopicResponse>> result = new ArrayList<>(topics.size());
         for (FetchableTopicResponse topicData : topics) {
             result.add(maybeDecodePartitions(topicData.topic(), topicData.partitions(), context).thenApply(kk -> {
@@ -133,9 +142,10 @@ public class EnvelopeEncryptionFilter<K>
         return join(result);
     }
 
-    private CompletionStage<List<PartitionData>> maybeDecodePartitions(String topicName,
-                                                                       List<PartitionData> partitions,
-                                                                       FilterContext context) {
+    @RunsOnThread("filter thread")
+    private @CompletesOnThread("filter thread") CompletionStage<List<PartitionData>> maybeDecodePartitions(String topicName,
+                                                                                                           List<PartitionData> partitions,
+                                                                                                           FilterContext context) {
         List<CompletionStage<PartitionData>> result = new ArrayList<>(partitions.size());
         for (PartitionData partitionData : partitions) {
             if (!(partitionData.records() instanceof MemoryRecords)) {
@@ -146,10 +156,11 @@ public class EnvelopeEncryptionFilter<K>
         return join(result);
     }
 
-    private CompletionStage<PartitionData> maybeDecodeRecords(String topicName,
-                                                              PartitionData fpr,
-                                                              MemoryRecords memoryRecords,
-                                                              FilterContext context) {
+    @RunsOnThread("filter thread")
+    private @CompletesOnThread("filter thread") CompletionStage<PartitionData> maybeDecodeRecords(String topicName,
+                                                                                                  PartitionData fpr,
+                                                                                                  MemoryRecords memoryRecords,
+                                                                                                  FilterContext context) {
         return decryptionManager.decrypt(
                 topicName,
                 fpr.partitionIndex(),

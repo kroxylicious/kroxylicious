@@ -35,6 +35,9 @@ import java.util.concurrent.CompletionStage;
 import org.apache.kafka.common.message.${dataClass};
 import org.apache.kafka.common.message.${headerClass};
 
+import io.kroxylicious.proxy.tag.CompletesOnThread;
+import io.kroxylicious.proxy.tag.RunsOnThread;
+
 /**
  * A stateless filter for ${messageSpec.name}s.
  */
@@ -48,6 +51,7 @@ public interface ${filterClass} extends Filter {
      * @param apiVersion the apiVersion of the message
      * @return true if it should be handled
      */
+    @RunsOnThread("filter thread")
     default boolean shouldHandle${messageSpec.name}(short apiVersion) {
         return true;
     }
@@ -68,6 +72,8 @@ public interface ${filterClass} extends Filter {
      * @see io.kroxylicious.proxy.filter Creating Filter Result objects
      * @see io.kroxylicious.proxy.filter  Thread Safety
      */
+     @RunsOnThread("filter thread")
+     @CompletesOnThread("*")
      CompletionStage<${filterResultClass}> on${messageSpec.name}(short apiVersion, ${headerClass} header, ${dataClass} ${msgType}, FilterContext context);
 
 }

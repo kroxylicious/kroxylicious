@@ -12,6 +12,8 @@ import java.util.function.IntFunction;
 import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 
+import io.kroxylicious.proxy.tag.RunsOnThread;
+
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
@@ -27,6 +29,7 @@ public interface DecryptionManager {
      * @param bufferAllocator Allocator of ByteBufferOutputStream
      * @return A completion stage that completes with the output MemoryRecords when all the records have been processed and transformed.
      */
+    @RunsOnThread("filter thread")
     @NonNull
     CompletionStage<MemoryRecords> decrypt(
                                            @NonNull String topicName,

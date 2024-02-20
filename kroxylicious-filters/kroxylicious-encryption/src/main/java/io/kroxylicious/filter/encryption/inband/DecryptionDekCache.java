@@ -24,6 +24,8 @@ import io.kroxylicious.filter.encryption.FilterThreadExecutor;
 import io.kroxylicious.filter.encryption.dek.CipherSpec;
 import io.kroxylicious.filter.encryption.dek.Dek;
 import io.kroxylicious.filter.encryption.dek.DekManager;
+import io.kroxylicious.proxy.tag.CompletesOnThread;
+import io.kroxylicious.proxy.tag.RunsOnThread;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -90,7 +92,8 @@ public class DecryptionDekCache<K, E> {
      * @param executor The executor
      * @return A future
      */
-    private CompletableFuture<Dek<E>> loadDek(CacheKey<E> cacheKey, Executor executor) {
+    @RunsOnThread("#DecryptionDekCache(dekCacheExecutor)")
+    private @CompletesOnThread("*") CompletableFuture<Dek<E>> loadDek(CacheKey<E> cacheKey, Executor executor) {
         if (cacheKey == null || cacheKey.isUnencrypted()) {
             return CompletableFuture.completedFuture(null);
         }
@@ -105,6 +108,7 @@ public class DecryptionDekCache<K, E> {
      * Invoked by Caffeine after a DEK is evicted from the cache.
      * This method is executed on the {@code dekCacheExecutor} passed to the constructor.
      */
+    @RunsOnThread("#DecryptionDekCache(dekCacheExecutor)")
     private void afterCacheEviction(@Nullable CacheKey<E> cacheKey,
                                     @Nullable Dek<E> dek,
                                     RemovalCause removalCause) {
@@ -122,8 +126,8 @@ public class DecryptionDekCache<K, E> {
      * @param filterThreadExecutor The filter thread executor
      * @return A completion stage which completes on the filter thread with the DEKs for the given {@code cacheKeys}.
      */
-    public @NonNull CompletionStage<Map<CacheKey<E>, Dek<E>>> getAll(@NonNull List<CacheKey<E>> cacheKeys,
-                                                                     @NonNull FilterThreadExecutor filterThreadExecutor) {
+    public @CompletesOnThread("filter thread") @NonNull CompletionStage<Map<CacheKey<E>, Dek<E>>> getAll(@NonNull List<CacheKey<E>> cacheKeys,
+                                                                                                         @NonNull FilterThreadExecutor filterThreadExecutor) {
         return filterThreadExecutor.completingOnFilterThread(decryptorCache.getAll(cacheKeys));
     }
 }

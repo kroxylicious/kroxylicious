@@ -15,6 +15,7 @@ import javax.crypto.SecretKey;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.KmsService;
 import io.kroxylicious.kms.service.Serde;
+import io.kroxylicious.proxy.tag.CompletesOnThread;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -62,7 +63,7 @@ public class DekManager<K, E> {
      * @return A completion state that completes with the {@link Dek}, or
      * fails if the request to the KMS fails.
      */
-    public CompletionStage<Dek<E>> generateDek(@NonNull K kekRef, @NonNull CipherSpec cipherSpec) {
+    public @CompletesOnThread("*") CompletionStage<Dek<E>> generateDek(@NonNull K kekRef, @NonNull CipherSpec cipherSpec) {
         Objects.requireNonNull(kekRef);
         Objects.requireNonNull(cipherSpec);
         return kms.generateDekPair(kekRef).thenApply(dekPair -> {
@@ -79,7 +80,7 @@ public class DekManager<K, E> {
      * @return A completion stage that completes with the {@link Dek}, or
      * fails if the request to the KMS fails.
      */
-    public CompletionStage<Dek<E>> decryptEdek(@NonNull E edek, @NonNull CipherSpec cipherSpec) {
+    public @CompletesOnThread("*") CompletionStage<Dek<E>> decryptEdek(@NonNull E edek, @NonNull CipherSpec cipherSpec) {
         Objects.requireNonNull(edek);
         Objects.requireNonNull(cipherSpec);
         return kms.decryptEdek(edek).thenApply(key -> new Dek<>(edek, new DestroyableRawSecretKey(key.getAlgorithm(), key.getEncoded()), cipherSpec, 0));

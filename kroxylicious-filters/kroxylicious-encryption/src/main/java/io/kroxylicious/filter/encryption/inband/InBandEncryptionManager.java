@@ -31,6 +31,8 @@ import io.kroxylicious.filter.encryption.dek.Dek;
 import io.kroxylicious.filter.encryption.dek.ExhaustedDekException;
 import io.kroxylicious.filter.encryption.records.RecordStream;
 import io.kroxylicious.kms.service.Serde;
+import io.kroxylicious.proxy.tag.CompletesOnThread;
+import io.kroxylicious.proxy.tag.RunsOnThread;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -97,6 +99,7 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
     }
 
     @VisibleForTesting
+    @CompletesOnThread("filter thread")
     CompletionStage<Dek<E>> currentDek(@NonNull EncryptionScheme<K> encryptionScheme) {
         // todo should we add some scheduled timeout as well? or should we rely on the KMS to timeout appropriately.
         return dekCache.get(encryptionScheme, filterThreadExecutor);
@@ -130,13 +133,14 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
         return bufferAllocator.apply(sizeEstimate);
     }
 
-    private CompletionStage<MemoryRecords> attemptEncrypt(@NonNull String topicName,
-                                                          int partition,
-                                                          @NonNull EncryptionScheme<K> encryptionScheme,
-                                                          @NonNull MemoryRecords records,
-                                                          int attempt,
-                                                          @NonNull List<Integer> batchRecordCounts,
-                                                          @NonNull IntFunction<ByteBufferOutputStream> bufferAllocator) {
+    @RunsOnThread("filter thread")
+    private @CompletesOnThread("filter thread") CompletionStage<MemoryRecords> attemptEncrypt(@NonNull String topicName,
+                                                                                              int partition,
+                                                                                              @NonNull EncryptionScheme<K> encryptionScheme,
+                                                                                              @NonNull MemoryRecords records,
+                                                                                              int attempt,
+                                                                                              @NonNull List<Integer> batchRecordCounts,
+                                                                                              @NonNull IntFunction<ByteBufferOutputStream> bufferAllocator) {
         int allRecordsCount = batchRecordCounts.stream().mapToInt(value -> value).sum();
         if (attempt >= MAX_ATTEMPTS) {
             return CompletableFuture.failedFuture(
@@ -175,13 +179,13 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
         });
     }
 
-    @NonNull
-    private MemoryRecords encryptBatches(@NonNull String topicName,
-                                         int partition,
-                                         @NonNull EncryptionScheme<K> encryptionScheme,
-                                         @NonNull MemoryRecords memoryRecords,
-                                         @NonNull Dek<E>.Encryptor encryptor,
-                                         @NonNull IntFunction<ByteBufferOutputStream> bufferAllocator) {
+    @RunsOnThread("filter thread")
+    private @NonNull MemoryRecords encryptBatches(@NonNull String topicName,
+                                                  int partition,
+                                                  @NonNull EncryptionScheme<K> encryptionScheme,
+                                                  @NonNull MemoryRecords memoryRecords,
+                                                  @NonNull Dek<E>.Encryptor encryptor,
+                                                  @NonNull IntFunction<ByteBufferOutputStream> bufferAllocator) {
         ByteBuffer recordBuffer = ByteBuffer.allocate(recordBufferInitialBytes);
         do {
             try {
@@ -205,6 +209,7 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
         } while (true);
     }
 
+    @RunsOnThread("filter thread")
     private void rotateKeyContext(@NonNull EncryptionScheme<K> encryptionScheme,
                                   @NonNull Dek<E> dek) {
         dek.destroyForEncrypt();

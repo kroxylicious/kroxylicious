@@ -11,6 +11,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
 
+import io.kroxylicious.proxy.tag.CompletesOnThread;
+
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
@@ -37,7 +39,7 @@ public class FilterThreadExecutor {
      * completed with the result of stage on the Filter thread
      * @param <T> result type
      */
-    public <T> @NonNull CompletionStage<T> completingOnFilterThread(@NonNull CompletionStage<T> stage) {
+    public @CompletesOnThread("filter thread") <T> @NonNull CompletionStage<T> completingOnFilterThread(@CompletesOnThread("*") @NonNull CompletionStage<T> stage) {
         CompletableFuture<T> future = stage.toCompletableFuture();
         if (future.isDone()) {
             return stage;

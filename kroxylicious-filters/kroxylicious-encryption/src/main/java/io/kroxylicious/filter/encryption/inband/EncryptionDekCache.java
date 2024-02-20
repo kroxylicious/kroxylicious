@@ -23,6 +23,8 @@ import io.kroxylicious.filter.encryption.FilterThreadExecutor;
 import io.kroxylicious.filter.encryption.dek.CipherSpec;
 import io.kroxylicious.filter.encryption.dek.Dek;
 import io.kroxylicious.filter.encryption.dek.DekManager;
+import io.kroxylicious.proxy.tag.CompletesOnThread;
+import io.kroxylicious.proxy.tag.RunsOnThread;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -69,8 +71,9 @@ public class EncryptionDekCache<K, E> {
      * Invoked by Caffeine when a DEK needs to be loaded.
      * This method is executed on the {@code dekCacheExecutor} passed to the constructor.
      */
-    private CompletableFuture<Dek<E>> requestGenerateDek(@NonNull CacheKey<K> cacheKey,
-                                                         @NonNull Executor executor) {
+    @RunsOnThread("#EncryptionDekCache(dekCacheExecutor)")
+    private @CompletesOnThread("*") CompletableFuture<Dek<E>> requestGenerateDek(@NonNull CacheKey<K> cacheKey,
+                                                                                 @NonNull Executor executor) {
         return dekManager.generateDek(cacheKey.kek(), cacheKey.cipherSpec())
                 .thenApply(dek -> {
                     if (LOGGER.isTraceEnabled()) {
@@ -86,6 +89,7 @@ public class EncryptionDekCache<K, E> {
      * Invoked by Caffeine after a DEK is evicted from the cache.
      * This method is executed on the {@code dekCacheExecutor} passed to the constructor.
      */
+    @RunsOnThread("#EncryptionDekCache(dekCacheExecutor)")
     private void afterCacheEviction(@Nullable CacheKey<K> cacheKey,
                                     @Nullable Dek<E> dek,
                                     RemovalCause removalCause) {
@@ -105,8 +109,8 @@ public class EncryptionDekCache<K, E> {
      * @param filterThreadExecutor The filter thread executor.
      * @return A stage that completes on the filter thread with the DEK.
      */
-    public @NonNull CompletionStage<Dek<E>> get(@NonNull EncryptionScheme<K> encryptionScheme,
-                                                @NonNull FilterThreadExecutor filterThreadExecutor) {
+    public @CompletesOnThread("filter thread") @NonNull CompletionStage<Dek<E>> get(@NonNull EncryptionScheme<K> encryptionScheme,
+                                                                                    @NonNull FilterThreadExecutor filterThreadExecutor) {
         return filterThreadExecutor.completingOnFilterThread(dekCache.get(cacheKey(encryptionScheme)));
     }
 

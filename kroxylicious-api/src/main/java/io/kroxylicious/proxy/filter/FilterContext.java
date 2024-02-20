@@ -15,6 +15,7 @@ import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 
 import io.kroxylicious.proxy.ApiVersionsService;
+import io.kroxylicious.proxy.tag.CompletesOnThread;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -70,6 +71,7 @@ public interface FilterContext {
      * @param request The request to forward to the broker.
      * @return completed filter results.
      */
+    @CompletesOnThread("filter thread")
     CompletionStage<RequestFilterResult> forwardRequest(@NonNull RequestHeaderData header, @NonNull ApiMessage request);
 
     /**
@@ -104,8 +106,8 @@ public interface FilterContext {
      * @see io.kroxylicious.proxy.filter Thread Safety
      */
     @NonNull
-    <M extends ApiMessage> CompletionStage<M> sendRequest(@NonNull RequestHeaderData header,
-                                                          @NonNull ApiMessage request);
+    <M extends ApiMessage> @CompletesOnThread("filter thread") CompletionStage<M> sendRequest(@NonNull RequestHeaderData header,
+                                                                                              @NonNull ApiMessage request);
 
     /**
      * Generates a completed filter results containing the given header and response.  When
@@ -119,6 +121,7 @@ public interface FilterContext {
      * @param response The request to forward to the broker.
      * @return completed filter results.
      */
+    @CompletesOnThread("filter thread")
     CompletionStage<ResponseFilterResult> forwardResponse(@NonNull ResponseHeaderData header, @NonNull ApiMessage response);
 
     /**

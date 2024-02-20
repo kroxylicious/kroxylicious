@@ -29,6 +29,10 @@
             <artifactId>spotbugs-annotations</artifactId>
             <scope>provided</scope>
         </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-annotations</artifactId>
+        </dependency>
     </dependencies>
 
 </project>
