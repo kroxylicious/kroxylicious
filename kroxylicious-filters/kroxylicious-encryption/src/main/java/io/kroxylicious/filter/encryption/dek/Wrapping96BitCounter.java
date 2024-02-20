@@ -11,9 +11,9 @@ import java.security.SecureRandom;
 import javax.annotation.concurrent.NotThreadSafe;
 import javax.security.auth.Destroyable;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import io.kroxylicious.proxy.tag.VisibleForTesting;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
  * A 96-bit counter with a random initial state which wraps around when

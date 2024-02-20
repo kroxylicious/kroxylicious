@@ -11,8 +11,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.Set;
 import java.util.function.BiConsumer;
 
-import io.kroxylicious.proxy.tag.VisibleForTesting;
-
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.record.Record;
@@ -22,6 +20,7 @@ import org.apache.kafka.common.utils.Utils;
 import io.kroxylicious.filter.encryption.EncryptionException;
 import io.kroxylicious.filter.encryption.ParcelVersion;
 import io.kroxylicious.filter.encryption.RecordField;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;

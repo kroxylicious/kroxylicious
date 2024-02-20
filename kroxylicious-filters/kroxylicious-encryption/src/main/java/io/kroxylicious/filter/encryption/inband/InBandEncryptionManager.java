@@ -14,8 +14,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.function.IntFunction;
 
-import io.kroxylicious.proxy.tag.VisibleForTesting;
-
 import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.record.MutableRecordBatch;
 import org.apache.kafka.common.record.Record;
@@ -33,6 +31,7 @@ import io.kroxylicious.filter.encryption.dek.Dek;
 import io.kroxylicious.filter.encryption.dek.ExhaustedDekException;
 import io.kroxylicious.filter.encryption.records.RecordStream;
 import io.kroxylicious.kms.service.Serde;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
