@@ -15,6 +15,7 @@
     <module name="FileTabCharacter" />
 
     <module name="TreeWalker">
+        <module name="SuppressWarningsHolder" />
         <!-- Checks for imports -->
         <module name="AvoidStarImport" />
         <module name="RedundantImport" />
@@ -162,5 +163,5 @@
         <!--The system property is set via Maven-->
         <property name="file" value="${checkstyle.suppressions.file}"/>
     </module>
-
+    <module name="SuppressWarningsFilter" />
 </module>
