@@ -58,7 +58,7 @@ class BannerLoggerTest {
     @Test
     void shouldNotAppendLicenseHeader() {
         // Given
-        bannerStream = Stream.of("====", "Copyright Kroxylicious Authors.",
+        bannerStream = Stream.of("Copyright Kroxylicious Authors.",
                 "Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0", "banner_text");
         final BannerLogger.BannerSupplier bannerSupplier = new BannerLogger.BannerSupplier(() -> bannerStream, () -> Stream.of("====", "Copyright Kroxylicious Authors.",
                 "Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0"));

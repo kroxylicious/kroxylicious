@@ -19,27 +19,28 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.slf4j.event.Level;
 
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
+import static org.slf4j.LoggerFactory.getLogger;
+
 public class BannerLogger {
 
-    public static final String DEFAULT_BANNER_LOCATION = "banner.txt";
+    private static final String DEFAULT_BANNER_LOCATION = "banner.txt";
     private final Logger targetLogger;
     private final Supplier<Stream<String>> bannerReader;
     private final Level targetLevel;
 
     public BannerLogger() {
-        this(LoggerFactory.getLogger("io.kroxylicious.proxy.StartupShutdownLogger"),
+        this(getLogger("io.kroxylicious.proxy.StartupShutdownLogger"),
                 new BannerSupplier(DEFAULT_BANNER_LOCATION));
     }
 
     BannerLogger(Logger targetLogger, Supplier<Stream<String>> bannerReader) {
         this.targetLogger = targetLogger;
         this.bannerReader = bannerReader;
-        targetLevel = Level.INFO; // TODO should this be configurable?¡
+        targetLevel = Level.INFO;
     }
 
     public void log() {
@@ -49,16 +50,17 @@ public class BannerLogger {
     @VisibleForTesting
     static class BannerSupplier implements Supplier<Stream<String>> {
 
+        private static final String LICENSE_TXT = "license.txt";
         private final Supplier<Stream<String>> linesSupplier;
         private final Set<String> licenseLines;
 
         BannerSupplier(String resourceName) {
-            this(new FileLinesSupplier(resourceName), new FileLinesSupplier("etc/LICENSE.txt"));
+            this(new FileLinesSupplier(resourceName), new FileLinesSupplier(LICENSE_TXT));
         }
 
         BannerSupplier(Supplier<Stream<String>> bannerLinesSupplier, Supplier<Stream<String>> licenceStream) {
             linesSupplier = bannerLinesSupplier;
-            licenseLines = Stream.concat(Stream.of("===="), licenceStream.get()).collect(Collectors.toSet());
+            licenseLines = licenceStream.get().collect(Collectors.toSet());
         }
 
         @Override
