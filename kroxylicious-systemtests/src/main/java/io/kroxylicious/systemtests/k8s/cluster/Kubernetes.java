@@ -9,12 +9,11 @@ package io.kroxylicious.systemtests.k8s.cluster;
 import java.util.Arrays;
 import java.util.List;
 
-import io.kroxylicious.systemtests.executor.ExecResult;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.systemtests.executor.Exec;
+import io.kroxylicious.systemtests.executor.ExecResult;
 import io.kroxylicious.systemtests.k8s.cmd.KubeCmdClient;
 import io.kroxylicious.systemtests.k8s.cmd.Kubectl;
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
