@@ -44,16 +44,19 @@ public class Vault {
     private static final String VAULT_CMD = "vault";
     private final String deploymentNamespace;
     private final String vaultRootToken;
+    private final boolean isOpenshiftCluster;
 
     /**
      * Instantiates a new Vault.
      *
      * @param deploymentNamespace the deployment namespace
      * @param vaultRootToken root token to be used for the vault install
+     * @param isOpenshiftCluster the boolean for openshift cluster
      */
-    public Vault(String deploymentNamespace, String vaultRootToken) {
+    public Vault(String deploymentNamespace, String vaultRootToken, boolean isOpenshiftCluster) {
         this.deploymentNamespace = deploymentNamespace;
         this.vaultRootToken = vaultRootToken;
+        this.isOpenshiftCluster = isOpenshiftCluster;
     }
 
     /**
@@ -123,8 +126,8 @@ public class Vault {
      * Deploy.
      *
      */
-    public void deploy(boolean isOpenshiftCluster) {
-        LOGGER.info("Deploy HashiCorp Vault in {} namespace", deploymentNamespace);
+    public void deploy() {
+        LOGGER.info("Deploy HashiCorp Vault in {} namespace, openshift: {}", deploymentNamespace, isOpenshiftCluster);
         if (isDeployed()) {
             LOGGER.warn("Skipping Vault deployment. It is already deployed!");
             return;

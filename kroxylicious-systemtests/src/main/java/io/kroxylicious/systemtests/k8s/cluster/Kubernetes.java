@@ -9,6 +9,8 @@ package io.kroxylicious.systemtests.k8s.cluster;
 import java.util.Arrays;
 import java.util.List;
 
+import io.kroxylicious.systemtests.executor.ExecResult;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,12 +58,17 @@ public class Kubernetes implements KubeCluster {
     }
 
     public boolean isOpenshift() {
+        List<String> cmd = Arrays.asList(CMD, "api-versions");
         try {
-            return Exec.exec(CMD, "api-versions").out().contains("openshift.io");
+            ExecResult result = Exec.exec(cmd);
+            if (!result.isSuccess()) {
+                throw new KubeClusterException("Cannot detect if cluster is Openshift or not: " + result.err());
+            }
+            return result.out().contains("openshift.io");
         }
         catch (KubeClusterException e) {
-            LOGGER.debug(e.getMessage());
-            return false;
+            LOGGER.error("Failed whilst sniffing for OpenShift: {}", e.getMessage());
+            throw e;
         }
     }
 }

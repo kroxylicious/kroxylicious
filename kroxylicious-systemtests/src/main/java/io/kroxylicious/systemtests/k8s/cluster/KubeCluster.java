@@ -26,12 +26,12 @@ public interface KubeCluster {
      */
     Config CONFIG = Config.autoConfigure(null);
 
-    /** Return true if this kind of cluster installed on the local machine.
+    /** Return true iff this kind of cluster installed on the local machine.
      * @return the boolean
      */
     boolean isAvailable();
 
-    /** Return true if this kind of cluster is running on the local machine
+    /** Return true iff this kind of cluster is running on the local machine
      * @return the boolean
      */
     boolean isClusterUp();

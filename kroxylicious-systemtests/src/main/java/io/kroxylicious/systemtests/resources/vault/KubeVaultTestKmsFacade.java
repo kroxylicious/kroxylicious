@@ -49,7 +49,6 @@ public class KubeVaultTestKmsFacade extends AbstractVaultTestKmsFacade {
     private final String namespace;
     private final String podName;
     private final Vault vault;
-    private final boolean isOpenshiftCluster;
 
     /**
      * Instantiates a new Kube vault test kms facade.
@@ -61,8 +60,7 @@ public class KubeVaultTestKmsFacade extends AbstractVaultTestKmsFacade {
     public KubeVaultTestKmsFacade(String namespace, String podName, boolean isOpenshiftCluster) {
         this.namespace = namespace;
         this.podName = podName;
-        this.vault = new Vault(namespace, VAULT_ROOT_TOKEN);
-        this.isOpenshiftCluster = isOpenshiftCluster;
+        this.vault = new Vault(namespace, VAULT_ROOT_TOKEN, isOpenshiftCluster);
     }
 
     @Override
@@ -72,7 +70,7 @@ public class KubeVaultTestKmsFacade extends AbstractVaultTestKmsFacade {
 
     @Override
     public void startVault() {
-        vault.deploy(isOpenshiftCluster);
+        vault.deploy();
         if (!isCorrectVersionInstalled()) {
             throw new KubeClusterException("Vault version installed " + getVaultVersion() + " does not match with the expected: '"
                     + VaultTestKmsFacade.HASHICORP_VAULT + "'");
