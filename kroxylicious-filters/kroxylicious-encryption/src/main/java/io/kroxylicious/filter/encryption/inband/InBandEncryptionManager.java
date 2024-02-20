@@ -31,6 +31,7 @@ import io.kroxylicious.filter.encryption.dek.Dek;
 import io.kroxylicious.filter.encryption.dek.ExhaustedDekException;
 import io.kroxylicious.filter.encryption.records.RecordStream;
 import io.kroxylicious.kms.service.Serde;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -95,7 +96,7 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
 
     }
 
-    // @VisibleForTesting
+    @VisibleForTesting
     CompletionStage<Dek<E>> currentDek(@NonNull EncryptionScheme<K> encryptionScheme) {
         // todo should we add some scheduled timeout as well? or should we rely on the KMS to timeout appropriately.
         return dekCache.get(encryptionScheme, filterThreadExecutor);

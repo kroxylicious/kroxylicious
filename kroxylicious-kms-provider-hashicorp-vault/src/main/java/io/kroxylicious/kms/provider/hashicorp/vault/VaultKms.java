@@ -36,6 +36,7 @@ import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.kms.service.Serde;
 import io.kroxylicious.kms.service.UnknownAliasException;
 import io.kroxylicious.kms.service.UnknownKeyException;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -80,7 +81,8 @@ public class VaultKms implements Kms<String, VaultEdek> {
         return uri.resolve(uri.getPath() + "/").normalize();
     }
 
-    /* exposed for testing */ HttpClient createClient(SSLContext sslContext) {
+    @VisibleForTesting
+    HttpClient createClient(SSLContext sslContext) {
         HttpClient.Builder builder = HttpClient.newBuilder();
         if (sslContext != null) {
             builder.sslContext(sslContext);
@@ -179,7 +181,8 @@ public class VaultKms implements Kms<String, VaultEdek> {
         return new VaultEdekSerde();
     }
 
-    /* exposed for testing */ HttpRequest.Builder createVaultRequest() {
+    @VisibleForTesting
+    HttpRequest.Builder createVaultRequest() {
         return HttpRequest.newBuilder()
                 .timeout(timeout)
                 .header("X-Vault-Token", vaultToken)
@@ -198,7 +201,8 @@ public class VaultKms implements Kms<String, VaultEdek> {
         };
     }
 
-    /* testing */ URI getVaultTransitEngineUri() {
+    @VisibleForTesting
+    URI getVaultTransitEngineUri() {
         return vaultTransitEngineUrl;
     }
 }

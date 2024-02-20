@@ -11,6 +11,8 @@ import java.security.SecureRandom;
 import javax.annotation.concurrent.NotThreadSafe;
 import javax.security.auth.Destroyable;
 
+import io.kroxylicious.proxy.tag.VisibleForTesting;
+
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
@@ -40,6 +42,7 @@ class Wrapping96BitCounter implements Destroyable {
         hi = rng.nextInt();
     }
 
+    @VisibleForTesting
     int sizeBytes() {
         return 12;
     }

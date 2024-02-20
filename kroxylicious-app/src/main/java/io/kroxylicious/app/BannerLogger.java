@@ -22,6 +22,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.event.Level;
 
+import io.kroxylicious.proxy.tag.VisibleForTesting;
+
 public class BannerLogger {
 
     public static final String DEFAULT_BANNER_LOCATION = "banner.txt";
@@ -44,7 +46,8 @@ public class BannerLogger {
         bannerReader.get().forEach(line -> targetLogger.atLevel(targetLevel).log(line));
     }
 
-    /* test */ static class BannerSupplier implements Supplier<Stream<String>> {
+    @VisibleForTesting
+    static class BannerSupplier implements Supplier<Stream<String>> {
 
         private final Supplier<Stream<String>> linesSupplier;
         private final Set<String> licenseLines;
@@ -64,7 +67,8 @@ public class BannerLogger {
         }
     }
 
-    /* test */ static class FileLinesSupplier implements Supplier<Stream<String>> {
+    @VisibleForTesting
+    static class FileLinesSupplier implements Supplier<Stream<String>> {
 
         private final String resourceName;
 

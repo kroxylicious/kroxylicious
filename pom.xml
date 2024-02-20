@@ -381,6 +381,7 @@
     </dependencyManagement>
 
     <modules>
+        <module>kroxylicious-annotations</module>
         <module>kroxylicious-kms</module>
         <module>kroxylicious-kms-test-support</module>
         <module>kroxylicious-kms-provider-kroxylicious-inmemory</module>
@@ -765,6 +766,9 @@
                                         <ignoredUnusedDeclaredDependency>org.apache.logging.log4j:log4j-slf4j2-impl</ignoredUnusedDeclaredDependency>
                                         <!-- for some reason, the analyzer fails to detect netty-transport-native-unix-common use -->
                                         <ignoredUnusedDeclaredDependency>io.netty:netty-transport-native-unix-common</ignoredUnusedDeclaredDependency>
+                                        <!-- dependency analyzer seems not to grok that a dependency on a
+                                        @Retention(RetentionPolicy.SOURCE) annotation is still a dependency -->
+                                        <ignoredUnusedDeclaredDependency>io.kroxylicious:kroxylicious-annotations</ignoredUnusedDeclaredDependency>
                                     </ignoredUnusedDeclaredDependencies>
                                     <ignoredDependencies>
                                         <!-- Kroxylicious junit extension requires this to be on the classpath -->

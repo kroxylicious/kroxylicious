@@ -31,6 +31,7 @@ import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TrustProvider;
 import io.kroxylicious.proxy.config.tls.TrustProviderVisitor;
 import io.kroxylicious.proxy.config.tls.TrustStore;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -97,7 +98,7 @@ public record JdkTls(Tls tls) {
         }
     }
 
-    /* exposed for testing */
+    @VisibleForTesting
     static KeyManager[] getKeyManagers(KeyProvider key) {
         return key.accept(new KeyProviderVisitor<>() {
             @Override
@@ -149,7 +150,7 @@ public record JdkTls(Tls tls) {
         }
     }
 
-    /* exposed for testing */
+    @VisibleForTesting
     static TrustManager[] getTrustManagers(TrustProvider trust) {
 
         return trust.accept(new TrustProviderVisitor<>() {

@@ -11,6 +11,8 @@ import java.util.ServiceLoader;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
+import io.kroxylicious.proxy.tag.VisibleForTesting;
+
 /**
  * @deprecated We want to remove the generic Contributor type so this has to be rethought/reimplemented.
  */
@@ -26,7 +28,8 @@ public class ContributionManager {
         this(ServiceLoader::load);
     }
 
-    /* test */ ContributionManager(Function<Class, Iterable> loaderFunction) {
+    @VisibleForTesting
+    ContributionManager(Function<Class, Iterable> loaderFunction) {
         this.contributors = new ConcurrentHashMap<>();
         this.loaderFunction = loaderFunction;
     }
