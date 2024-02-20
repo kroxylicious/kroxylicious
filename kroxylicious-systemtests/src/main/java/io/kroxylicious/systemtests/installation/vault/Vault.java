@@ -123,7 +123,7 @@ public class Vault {
      * Deploy.
      *
      */
-    public void deploy() {
+    public void deploy(boolean isOpenshiftCluster) {
         LOGGER.info("Deploy HashiCorp Vault in {} namespace", deploymentNamespace);
         if (isDeployed()) {
             LOGGER.warn("Skipping Vault deployment. It is already deployed!");
@@ -134,7 +134,8 @@ public class Vault {
         ResourceManager.helmClient().namespace(deploymentNamespace).install(VAULT_HELM_CHART_NAME, VAULT_SERVICE_NAME,
                 Optional.of(Environment.VAULT_CHART_VERSION),
                 Optional.of(getHelmOverridePath()),
-                Optional.of(Map.of("server.dev.devRootToken", vaultRootToken)));
+                Optional.of(Map.of("server.dev.devRootToken", vaultRootToken,
+                        "global.openshift", String.valueOf(isOpenshiftCluster))));
 
         DeploymentUtils.waitForDeploymentRunning(deploymentNamespace, VAULT_POD_NAME, Duration.ofMinutes(1));
     }

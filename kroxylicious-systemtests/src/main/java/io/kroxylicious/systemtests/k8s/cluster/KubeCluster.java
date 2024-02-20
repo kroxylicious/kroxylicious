@@ -26,19 +26,26 @@ public interface KubeCluster {
      */
     Config CONFIG = Config.autoConfigure(null);
 
-    /** Return true iff this kind of cluster installed on the local machine.
-     *  @return the boolean
-     *  */
+    /** Return true if this kind of cluster installed on the local machine.
+     * @return the boolean
+     */
     boolean isAvailable();
 
-    /** Return true iff this kind of cluster is running on the local machine
+    /** Return true if this kind of cluster is running on the local machine
      * @return the boolean
-     * */
+     */
     boolean isClusterUp();
+
+    /**
+     * Return true if this kind of cluster is openshift
+     *
+     * @return the boolean
+     */
+    boolean isOpenshift();
 
     /** Return a default CMD cmdClient for this kind of cluster.
      * @return the kube cmd client
-     * */
+     */
     KubeCmdClient defaultCmdClient();
 
     /**

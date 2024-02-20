@@ -46,7 +46,7 @@ class EnvelopeEncryptionST extends AbstractST {
 
     @BeforeAll
     void setUp() {
-        kubeVaultTestKmsFacade = new KubeVaultTestKmsFacadeFactory().build(Vault.VAULT_DEFAULT_NAMESPACE, Vault.VAULT_POD_NAME);
+        kubeVaultTestKmsFacade = new KubeVaultTestKmsFacadeFactory().build(Vault.VAULT_DEFAULT_NAMESPACE, Vault.VAULT_POD_NAME, cluster.isOpenshift());
         List<Pod> vaultPods = kubeClient().listPodsByPrefixInName(Vault.VAULT_DEFAULT_NAMESPACE, Vault.VAULT_SERVICE_NAME);
         if (!vaultPods.isEmpty()) {
             LOGGER.warn("Skipping vault deployment. It is already deployed!");

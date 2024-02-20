@@ -54,4 +54,14 @@ public class Kubernetes implements KubeCluster {
     public String toString() {
         return CMD;
     }
+
+    public boolean isOpenshift() {
+        try {
+            return Exec.exec(CMD, "api-versions").out().contains("openshift.io");
+        }
+        catch (KubeClusterException e) {
+            LOGGER.debug(e.getMessage());
+            return false;
+        }
+    }
 }
