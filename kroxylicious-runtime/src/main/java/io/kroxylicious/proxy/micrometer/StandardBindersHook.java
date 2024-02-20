@@ -26,6 +26,8 @@ import io.micrometer.core.instrument.binder.system.FileDescriptorMetrics;
 import io.micrometer.core.instrument.binder.system.ProcessorMetrics;
 import io.micrometer.core.instrument.binder.system.UptimeMetrics;
 
+import io.kroxylicious.proxy.tag.VisibleForTesting;
+
 public class StandardBindersHook implements MicrometerConfigurationHook {
     private static final Logger log = LoggerFactory.getLogger(StandardBindersHook.class);
     private final StandardBindersHookConfig config;
@@ -72,7 +74,8 @@ public class StandardBindersHook implements MicrometerConfigurationHook {
         });
     }
 
-    /* testing */ protected MeterBinder getBinder(String binderName) {
+    @VisibleForTesting
+    protected MeterBinder getBinder(String binderName) {
         return switch (binderName) {
             case "UptimeMetrics" -> new UptimeMetrics();
             case "ProcessorMetrics" -> new ProcessorMetrics();

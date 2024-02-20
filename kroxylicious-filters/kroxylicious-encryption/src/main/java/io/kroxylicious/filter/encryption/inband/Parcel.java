@@ -20,6 +20,7 @@ import org.apache.kafka.common.utils.Utils;
 import io.kroxylicious.filter.encryption.EncryptionException;
 import io.kroxylicious.filter.encryption.ParcelVersion;
 import io.kroxylicious.filter.encryption.RecordField;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -32,6 +33,7 @@ public class Parcel {
     private static final Header[] ABSENT_HEADERS = new Header[0];
     private static final ByteBuffer ABSENT_VALUE = ByteBuffer.allocate(0);
 
+    @VisibleForTesting
     static int sizeOfParcel(ParcelVersion parcelVersion, Set<RecordField> recordFields, Record kafkaRecord) {
         switch (parcelVersion) {
             case V1:

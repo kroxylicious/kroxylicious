@@ -95,7 +95,7 @@ public final class Dek<E> {
      *     <tr><td colspan="3">«{@link #END}» // key gets destroyed </td>    </tr>
      * </table>
      */
-    final AtomicLong outstandingCryptors;
+    private final AtomicLong outstandingCryptors;
 
     private static final long START = combine(1, 1);
     private static final long END = combine(-1, -1);
