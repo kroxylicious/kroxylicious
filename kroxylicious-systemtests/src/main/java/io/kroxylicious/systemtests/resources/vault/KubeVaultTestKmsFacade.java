@@ -55,12 +55,12 @@ public class KubeVaultTestKmsFacade extends AbstractVaultTestKmsFacade {
      *
      * @param namespace the namespace
      * @param podName the pod name
-     * @param isOpenshiftCluster the boolean for openshift cluster
+     * @param openshiftCluster the boolean for openshift cluster
      */
-    public KubeVaultTestKmsFacade(String namespace, String podName, boolean isOpenshiftCluster) {
+    public KubeVaultTestKmsFacade(String namespace, String podName, boolean openshiftCluster) {
         this.namespace = namespace;
         this.podName = podName;
-        this.vault = new Vault(namespace, VAULT_ROOT_TOKEN, isOpenshiftCluster);
+        this.vault = new Vault(namespace, VAULT_ROOT_TOKEN, openshiftCluster);
     }
 
     @Override

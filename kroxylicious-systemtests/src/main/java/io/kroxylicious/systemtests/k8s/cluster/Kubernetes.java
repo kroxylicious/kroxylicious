@@ -66,7 +66,7 @@ public class Kubernetes implements KubeCluster {
             return result.out().contains("openshift.io");
         }
         catch (KubeClusterException e) {
-            LOGGER.error("Failed whilst sniffing for OpenShift: {}", e.getMessage());
+            LOGGER.error("Failed whilst sniffing for OpenShift: ", e);
             throw e;
         }
     }

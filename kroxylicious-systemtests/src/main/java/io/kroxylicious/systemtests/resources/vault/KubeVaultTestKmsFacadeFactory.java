@@ -19,11 +19,11 @@ public class KubeVaultTestKmsFacadeFactory extends AbstractVaultTestKmsFacadeFac
      *
      * @param namespace the namespace
      * @param podName the pod name
-     * @param isOpenshiftCluster the boolean for openshift cluster
+     * @param openshiftCluster the boolean for openshift cluster
      * @return the kube vault test kms facade
      */
-    public KubeVaultTestKmsFacade build(String namespace, String podName, boolean isOpenshiftCluster) {
-        return new KubeVaultTestKmsFacade(namespace, podName, isOpenshiftCluster);
+    public KubeVaultTestKmsFacade build(String namespace, String podName, boolean openshiftCluster) {
+        return new KubeVaultTestKmsFacade(namespace, podName, openshiftCluster);
     }
 
     /**
