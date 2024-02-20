@@ -4,6 +4,7 @@ Please enumerate **all user-facing** changes using format `<githib issue/pr numb
 
 ## 0.5.0
 
+* [#1020](https://github.com/kroxylicious/kroxylicious/pull/1020): KMS retry logic failing with Null Pointers
 * [#1019](https://github.com/kroxylicious/kroxylicious/pull/1019): Stop logging license header as part of the startup banner. 
 * [#1004](https://github.com/kroxylicious/kroxylicious/pull/1004): Publish images to Quay kroxylicious/kroxylicious rather than kroxylicious-developer
 * [#997](https://github.com/kroxylicious/kroxylicious/issues/997): Add hardcoded maximum frame size

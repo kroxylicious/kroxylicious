@@ -7,6 +7,7 @@
 package io.kroxylicious.filter.encryption;
 
 import java.time.Duration;
+import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 
 import org.junit.jupiter.api.Test;
@@ -56,5 +57,14 @@ class EnvelopeEncryptionTest {
         assertThat(config.resolvedAliasCacheSize()).isEqualTo(1000);
         assertThat(config.resolvedAliasExpireAfterWriteDuration()).isEqualTo(Duration.ofMinutes(10));
         assertThat(config.resolvedAliasRefreshAfterWriteDuration()).isEqualTo(Duration.ofMinutes(8));
+    }
+
+    @Test
+    void testRetryPool() {
+        Future<Thread> thread = EnvelopeEncryption.RETRY_POOL.submit(Thread::currentThread);
+        assertThat(thread).succeedsWithin(Duration.ofSeconds(5)).satisfies(thread1 -> {
+            assertThat(thread1.getName()).isEqualTo("kmsRetry");
+            assertThat(thread1.isDaemon()).isTrue();
+        });
     }
 }
