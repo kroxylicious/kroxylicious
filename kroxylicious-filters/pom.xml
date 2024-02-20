@@ -47,6 +47,7 @@
                                         <exclude>io.kroxylicious</exclude>
                                     </excludes>
                                     <includes>
+                                        <include>io.kroxylicious:kroxylicious-annotations</include>
                                         <include>io.kroxylicious:kroxylicious-api</include>
                                         <include>io.kroxylicious:kroxylicious-filter-test-support</include>
                                         <include>io.kroxylicious:kroxylicious-kms</include>

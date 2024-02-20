@@ -35,6 +35,10 @@
             <artifactId>kroxylicious-api</artifactId>
             <scope>runtime</scope>
         </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-annotations</artifactId>
+        </dependency>
 
         <!-- project dependencies - test -->
         <dependency>

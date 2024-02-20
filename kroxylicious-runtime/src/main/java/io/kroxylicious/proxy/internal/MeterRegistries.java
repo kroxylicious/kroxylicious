@@ -25,6 +25,7 @@ import io.kroxylicious.proxy.config.MicrometerDefinition;
 import io.kroxylicious.proxy.micrometer.MicrometerConfigurationHook;
 import io.kroxylicious.proxy.micrometer.MicrometerConfigurationHookContributor;
 import io.kroxylicious.proxy.service.ContributionManager;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import static io.kroxylicious.proxy.service.Context.wrap;
 
@@ -59,7 +60,7 @@ public class MeterRegistries implements AutoCloseable {
      *
      * @param registry registry
      */
-    /* test */
+    @VisibleForTesting
     static void preventDifferentTagNameRegistration(CompositeMeterRegistry registry) {
         registry.config().meterFilter(new MeterFilter() {
             @Override

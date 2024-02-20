@@ -32,6 +32,7 @@ import io.netty.util.AttributeKey;
 
 import io.kroxylicious.proxy.model.VirtualCluster;
 import io.kroxylicious.proxy.service.HostPort;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 /**
  * The endpoint registry is responsible for associating network endpoints with broker/bootstrap addresses of virtual clusters.
@@ -421,11 +422,13 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
         return creations;
     }
 
-    /* test */ boolean isRegistered(VirtualCluster virtualCluster) {
+    @VisibleForTesting
+    boolean isRegistered(VirtualCluster virtualCluster) {
         return registeredVirtualClusters.containsKey(virtualCluster);
     }
 
-    /* test */ int listeningChannelCount() {
+    @VisibleForTesting
+    int listeningChannelCount() {
         return listeningChannels.size();
     }
 
