@@ -11,6 +11,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.Set;
 import java.util.function.BiConsumer;
 
+import io.kroxylicious.proxy.tag.VisibleForTesting;
+
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.record.Record;
@@ -32,6 +34,7 @@ public class Parcel {
     private static final Header[] ABSENT_HEADERS = new Header[0];
     private static final ByteBuffer ABSENT_VALUE = ByteBuffer.allocate(0);
 
+    @VisibleForTesting
     static int sizeOfParcel(ParcelVersion parcelVersion, Set<RecordField> recordFields, Record kafkaRecord) {
         switch (parcelVersion) {
             case V1:

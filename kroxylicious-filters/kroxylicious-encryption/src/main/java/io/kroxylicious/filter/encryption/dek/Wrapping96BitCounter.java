@@ -13,6 +13,8 @@ import javax.security.auth.Destroyable;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+import io.kroxylicious.proxy.tag.VisibleForTesting;
+
 /**
  * A 96-bit counter with a random initial state which wraps around when
  * it overflows. The bits returned via {@link #generateIv(byte[])} will repeat after exactly
@@ -40,6 +42,7 @@ class Wrapping96BitCounter implements Destroyable {
         hi = rng.nextInt();
     }
 
+    @VisibleForTesting
     int sizeBytes() {
         return 12;
     }

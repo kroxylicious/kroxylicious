@@ -14,6 +14,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.function.IntFunction;
 
+import io.kroxylicious.proxy.tag.VisibleForTesting;
+
 import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.record.MutableRecordBatch;
 import org.apache.kafka.common.record.Record;
@@ -95,7 +97,7 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
 
     }
 
-    // @VisibleForTesting
+    @VisibleForTesting
     CompletionStage<Dek<E>> currentDek(@NonNull EncryptionScheme<K> encryptionScheme) {
         // todo should we add some scheduled timeout as well? or should we rely on the KMS to timeout appropriately.
         return dekCache.get(encryptionScheme, filterThreadExecutor);
