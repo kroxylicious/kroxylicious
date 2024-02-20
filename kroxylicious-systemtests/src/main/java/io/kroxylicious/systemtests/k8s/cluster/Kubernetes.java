@@ -61,7 +61,7 @@ public class Kubernetes implements KubeCluster {
         try {
             ExecResult result = Exec.exec(cmd);
             if (!result.isSuccess()) {
-                throw new KubeClusterException("Cannot detect if cluster is Openshift or not: " + result.err());
+                throw new KubeClusterException("Something went wrong when executing " + cmd + " command: " + result.err());
             }
             return result.out().contains("openshift.io");
         }
