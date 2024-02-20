@@ -29,6 +29,7 @@ import io.kroxylicious.kms.service.UnknownKeyException;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+import static java.util.Objects.requireNonNull;
 import static java.util.Optional.ofNullable;
 
 public class ResilientKms<K, E> implements Kms<K, E> {
@@ -39,19 +40,19 @@ public class ResilientKms<K, E> implements Kms<K, E> {
     private final BackoffStrategy strategy;
     private final int retries;
 
-    private ResilientKms(Kms<K, E> inner,
-                         ScheduledExecutorService executorService,
-                         BackoffStrategy backoffStrategy,
+    private ResilientKms(@NonNull Kms<K, E> inner,
+                         @NonNull ScheduledExecutorService executorService,
+                         @NonNull BackoffStrategy backoffStrategy,
                          int retries) {
-        this.inner = inner;
-        this.executorService = executorService;
-        strategy = backoffStrategy;
+        this.inner = requireNonNull(inner);
+        this.executorService = requireNonNull(executorService);
+        strategy = requireNonNull(backoffStrategy);
         this.retries = retries;
     }
 
-    public static <K, E> Kms<K, E> wrap(Kms<K, E> delegate,
-                                        ScheduledExecutorService executorService,
-                                        BackoffStrategy strategy,
+    public static <K, E> Kms<K, E> wrap(@NonNull Kms<K, E> delegate,
+                                        @NonNull ScheduledExecutorService executorService,
+                                        @NonNull BackoffStrategy strategy,
                                         int retries) {
         return new ResilientKms<>(delegate, executorService,
                 strategy, retries);
