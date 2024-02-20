@@ -164,3 +164,4 @@ The names used to identify micrometer configuration hooks in configuration have 
 - 
 #### CVE Fixes
 CVE-2023-44487 [#675](https://github.com/kroxylicious/kroxylicious/pull/675)
+
