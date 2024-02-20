@@ -14,8 +14,16 @@ import io.kroxylicious.kms.provider.hashicorp.vault.AbstractVaultTestKmsFacadeFa
  */
 public class KubeVaultTestKmsFacadeFactory extends AbstractVaultTestKmsFacadeFactory {
 
-    public KubeVaultTestKmsFacade build(String namespace, String podName) {
-        return new KubeVaultTestKmsFacade(namespace, podName);
+    /**
+     * Build kube vault test kms facade.
+     *
+     * @param namespace the namespace
+     * @param podName the pod name
+     * @param openshiftCluster the boolean for openshift cluster
+     * @return the kube vault test kms facade
+     */
+    public KubeVaultTestKmsFacade build(String namespace, String podName, boolean openshiftCluster) {
+        return new KubeVaultTestKmsFacade(namespace, podName, openshiftCluster);
     }
 
     /**

@@ -44,16 +44,19 @@ public class Vault {
     private static final String VAULT_CMD = "vault";
     private final String deploymentNamespace;
     private final String vaultRootToken;
+    private final boolean openshiftCluster;
 
     /**
      * Instantiates a new Vault.
      *
      * @param deploymentNamespace the deployment namespace
      * @param vaultRootToken root token to be used for the vault install
+     * @param openshiftCluster the boolean for openshift cluster
      */
-    public Vault(String deploymentNamespace, String vaultRootToken) {
+    public Vault(String deploymentNamespace, String vaultRootToken, boolean openshiftCluster) {
         this.deploymentNamespace = deploymentNamespace;
         this.vaultRootToken = vaultRootToken;
+        this.openshiftCluster = openshiftCluster;
     }
 
     /**
@@ -124,7 +127,7 @@ public class Vault {
      *
      */
     public void deploy() {
-        LOGGER.info("Deploy HashiCorp Vault in {} namespace", deploymentNamespace);
+        LOGGER.info("Deploy HashiCorp Vault in {} namespace, openshift: {}", deploymentNamespace, openshiftCluster);
         if (isDeployed()) {
             LOGGER.warn("Skipping Vault deployment. It is already deployed!");
             return;
@@ -134,7 +137,8 @@ public class Vault {
         ResourceManager.helmClient().namespace(deploymentNamespace).install(VAULT_HELM_CHART_NAME, VAULT_SERVICE_NAME,
                 Optional.of(Environment.VAULT_CHART_VERSION),
                 Optional.of(getHelmOverridePath()),
-                Optional.of(Map.of("server.dev.devRootToken", vaultRootToken)));
+                Optional.of(Map.of("server.dev.devRootToken", vaultRootToken,
+                        "global.openshift", String.valueOf(openshiftCluster))));
 
         DeploymentUtils.waitForDeploymentRunning(deploymentNamespace, VAULT_POD_NAME, Duration.ofMinutes(1));
     }
