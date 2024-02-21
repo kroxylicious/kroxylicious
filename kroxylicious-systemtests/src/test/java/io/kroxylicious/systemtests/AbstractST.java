@@ -42,10 +42,6 @@ public class AbstractST {
     protected static Strimzi strimziOperator;
 
     /**
-     * The constant certManager.
-     */
-    protected static CertManager certManager;
-    /**
      * The Resource manager.
      */
     protected final ResourceManager resourceManager = ResourceManager.getInstance();
@@ -74,12 +70,10 @@ public class AbstractST {
         LOGGER.info(String.join("", Collections.nCopies(76, "#")));
         LOGGER.info(String.format("%s Test Suite - STARTED", testInfo.getTestClass().get().getName()));
         cluster = KubeClusterResource.getInstance();
-        certManager = new CertManager();
         strimziOperator = new Strimzi(Constants.KAFKA_DEFAULT_NAMESPACE);
 
         NamespaceUtils.createNamespaceWithWait(Constants.KAFKA_DEFAULT_NAMESPACE);
         strimziOperator.deploy();
-        certManager.deploy();
     }
 
     /**
@@ -93,9 +87,6 @@ public class AbstractST {
         if (!Environment.SKIP_TEARDOWN) {
             if (strimziOperator != null) {
                 strimziOperator.delete();
-            }
-            if (certManager != null) {
-                certManager.delete();
             }
             NamespaceUtils.deleteNamespaceWithWait(Constants.KAFKA_DEFAULT_NAMESPACE);
         }
