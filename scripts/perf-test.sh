@@ -89,76 +89,84 @@ producerPerf() {
 
 doPerfKafkaDirect () {
   local TOPIC
+  local EP
   TOPIC=perf-test
+  EP=broker1:9092
 
   echo -e "${GREEN}Running Kafka Direct ${NOCOLOR}"
-  doCreateTopic broker1:9092 ${TOPIC}
-  warmUp broker1:9092 ${TOPIC}
+  doCreateTopic ${EP} ${TOPIC}
+  warmUp ${EP} ${TOPIC}
 
-  producerPerf broker1:9092 ${TOPIC} ${NUM_RECORDS}
-  doDeleteTopic broker1:9092 perf-test
+  producerPerf ${EP} ${TOPIC} ${NUM_RECORDS}
+  doDeleteTopic ${EP} ${TOPIC}
 }
 
 
-doPerfKroxyNoFilters () {
+doPerfKroxyliciousNoFilters () {
   local TOPIC
   local CFG
+  local EP
   TOPIC=perf-test
   CFG=no-filters.yaml
+  EP=kroxylicious:9092
   echo -e "${GREEN}Running Kroxylicious No Filter ${NOCOLOR}"
 
-  KROXY_CONFIG=${CFG} runDockerCompose up --detach --wait kroxy
+  KROXYLICIOUS_CONFIG=${CFG} runDockerCompose up --detach --wait kroxylicious
 
-  doCreateTopic kroxy:9092 ${TOPIC}
+  doCreateTopic ${EP} ${TOPIC}
 
-  warmUp kroxy:9092 ${TOPIC}
-  producerPerf kroxy:9092 ${TOPIC} ${NUM_RECORDS}
+  warmUp ${EP} ${TOPIC}
+  producerPerf ${EP} ${TOPIC} ${NUM_RECORDS}
 
-  doDeleteTopic kroxy:9092 ${TOPIC}
-  KROXY_CONFIG=${CFG} runDockerCompose rm -s -f kroxy
+  doDeleteTopic ${EP} ${TOPIC}
+  KROXYLICIOUS_CONFIG=${CFG} runDockerCompose rm -s -f kroxylicious
 }
 
-doPerfKroxyTransformFilter () {
+doPerfKroxyliciousTransformFilter () {
   local TOPIC
   local CFG
+  local EP
   TOPIC=perf-test
   CFG=transform-filter.yaml
+  EP=kroxylicious:9092
 
   echo -e "${GREEN}Running Kroxylicious Transform Filter ${NOCOLOR}"
 
-  KROXY_CONFIG=${CFG} runDockerCompose up --detach --wait kroxy
-  doCreateTopic kroxy:9092 ${TOPIC}
+  KROXYLICIOUS_CONFIG=${CFG} runDockerCompose up --detach --wait kroxylicious
+  doCreateTopic ${EP} ${TOPIC}
 
-  warmUp kroxy:9092 ${TOPIC}
-  producerPerf kroxy:9092 ${TOPIC} ${NUM_RECORDS}
+  warmUp ${EP} ${TOPIC}
+  producerPerf ${EP} ${TOPIC} ${NUM_RECORDS}
 
-  doDeleteTopic kroxy:9092 ${TOPIC}
-  KROXY_CONFIG=${CFG} runDockerCompose rm -s -f kroxy
+  doDeleteTopic ${EP} ${TOPIC}
+  KROXYLICIOUS_CONFIG=${CFG} runDockerCompose rm -s -f kroxylicious
 }
 
-doPerfKroxyEnvelopeEncryptionFilter () {
+doPerfKroxyliciousEnvelopeEncryptionFilter () {
   local CFG
   local TOPIC
+  local EP
   local ENCRYPT
   ENCRYPT=$1
   TOPIC=perf-test
   CFG=envelope-encryption-filter.yaml
+  EP=kroxylicious:9092
 
   echo -e "${GREEN}Running Kroxylicious Envelope Encryption Filter (encrypted topic: ${ENCRYPT}) ${NOCOLOR}"
 
-  KROXY_CONFIG=${CFG} runDockerCompose up --detach --wait kroxy vault
+  KROXYLICIOUS_CONFIG=${CFG} runDockerCompose up --detach --wait kroxylicious vault
 
   docker exec vault vault secrets enable transit 1>/dev/null
   if [[ ${ENCRYPT} = true ]]; then
     docker exec vault vault write -f transit/keys/KEK_${TOPIC} 1>/dev/null
   fi
-  doCreateTopic kroxy:9092 ${TOPIC}
+  doCreateTopic ${EP} ${TOPIC}
 
-  warmUp kroxy:9092 ${TOPIC}
-  producerPerf kroxy:9092 ${TOPIC} ${NUM_RECORDS}
+  warmUp ${EP} ${TOPIC}
+  producerPerf ${EP} ${TOPIC} ${NUM_RECORDS}
 
-  doDeleteTopic kroxy:9092 ${TOPIC}
-  KROXY_CONFIG=${CFG} runDockerCompose rm -s -f kroxy vault
+  doDeleteTopic ${EP} ${TOPIC}
+  KROXYLICIOUS_CONFIG=${CFG} runDockerCompose rm -s -f kroxylicious vault
 }
 
 onExit() {
@@ -174,14 +182,14 @@ trap onExit EXIT
 echo -e "${YELLOW}Kafka version is ${KAFKA_VERSION}, Strimzi version ${STRIMZI_VERSION}${NOCOLOR}"
 
 # Bring up Kafka
-ON_SHUTDOWN+=("KROXY_CONFIG=unused.yaml runDockerCompose down")
-KROXY_CONFIG=unused.yaml runDockerCompose up --detach --wait kafka
+ON_SHUTDOWN+=("runDockerCompose down")
+runDockerCompose up --detach --wait kafka
 
 echo -e "${GREEN}Running test cases, number of records = ${NUM_RECORDS}, record size ${RECORD_SIZE}${NOCOLOR}"
 
 doPerfKafkaDirect
-doPerfKroxyNoFilters
-doPerfKroxyTransformFilter
-doPerfKroxyEnvelopeEncryptionFilter true
-doPerfKroxyEnvelopeEncryptionFilter false
+doPerfKroxyliciousNoFilters
+doPerfKroxyliciousTransformFilter
+doPerfKroxyliciousEnvelopeEncryptionFilter true
+doPerfKroxyliciousEnvelopeEncryptionFilter false
 

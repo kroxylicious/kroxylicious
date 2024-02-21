@@ -15,7 +15,7 @@ virtualClusters:
     clusterNetworkAddressConfigProvider:
       type: PortPerBrokerClusterNetworkAddressConfigProvider
       config:
-        bootstrapAddress: kroxy:9092
+        bootstrapAddress: kroxylicious:9092
     logNetwork: false
     logFrames: false
 filters: []
