@@ -107,8 +107,9 @@ public class VaultKms implements Kms<String, VaultEdek> {
                 .POST(HttpRequest.BodyPublishers.noBody())
                 .build();
 
-        return vaultClient.sendAsync(request, statusHandler(kekRef, new JsonBodyHandler<VaultResponse<DataKeyData>>(new TypeReference<>() {
-        }), UnknownKeyException::new))
+        return vaultClient.sendAsync(request, statusHandler(new JsonBodyHandler<VaultResponse<DataKeyData>>(new TypeReference<>() {
+        })))
+                .thenApply(response -> checkResponseStatus(kekRef, response, UnknownKeyException::new))
                 .thenApply(HttpResponse::body)
                 .thenApply(Supplier::get)
                 .thenApply(VaultResponse::data)
@@ -117,6 +118,19 @@ public class VaultKms implements Kms<String, VaultEdek> {
                     return new DekPair<>(new VaultEdek(kekRef, data.ciphertext().getBytes(UTF_8)), secretKey);
                 });
 
+    }
+
+    @NonNull
+    private static <T> HttpResponse<Supplier<VaultResponse<T>>> checkResponseStatus(@NonNull String key,
+                                                                                    HttpResponse<Supplier<VaultResponse<T>>> response,
+                                                                                    Function<String, KmsException> notFound) {
+        if (response.statusCode() == 404 || response.statusCode() == 400) {
+            throw notFound.apply("key '%s' is not found.".formatted(key));
+        }
+        else if (response.statusCode() != 200) {
+            throw new KmsException("fail to retrieve key '%s', HTTP status code %d.".formatted(key, response.statusCode()));
+        }
+        return response;
     }
 
     /**
@@ -135,8 +149,10 @@ public class VaultKms implements Kms<String, VaultEdek> {
                 .POST(HttpRequest.BodyPublishers.ofString(body))
                 .build();
 
-        return vaultClient.sendAsync(request, statusHandler(edek.kekRef(), new JsonBodyHandler<VaultResponse<DecryptData>>(new TypeReference<>() {
-        }), UnknownKeyException::new)).thenApply(HttpResponse::body)
+        return vaultClient.sendAsync(request, statusHandler(new JsonBodyHandler<VaultResponse<DecryptData>>(new TypeReference<>() {
+        })))
+                .thenApply(response -> checkResponseStatus(edek.kekRef(), response, UnknownKeyException::new))
+                .thenApply(HttpResponse::body)
                 .thenApply(Supplier::get)
                 .thenApply(VaultResponse::data)
                 .thenApply(data -> new SecretKeySpec(Base64.getDecoder().decode(data.plaintext()), AES_KEY_ALGO));
@@ -166,8 +182,9 @@ public class VaultKms implements Kms<String, VaultEdek> {
                 .uri(vaultTransitEngineUrl.resolve("keys/%s".formatted(encode(alias, UTF_8))))
                 .build();
 
-        return vaultClient.sendAsync(request, statusHandler(alias, new JsonBodyHandler<VaultResponse<ReadKeyData>>(new TypeReference<>() {
-        }), UnknownAliasException::new))
+        return vaultClient.sendAsync(request, statusHandler(new JsonBodyHandler<VaultResponse<ReadKeyData>>(new TypeReference<>() {
+        })))
+                .thenApply(response -> checkResponseStatus(alias, response, UnknownAliasException::new))
                 .thenApply(HttpResponse::body)
                 .thenApply(Supplier::get)
                 .thenApply(VaultResponse::data)
@@ -189,13 +206,10 @@ public class VaultKms implements Kms<String, VaultEdek> {
                 .header("Accept", "application/json");
     }
 
-    private static <T> HttpResponse.BodyHandler<T> statusHandler(String keyRef, HttpResponse.BodyHandler<T> handler, Function<String, KmsException> notFound) {
+    private static <T> HttpResponse.BodyHandler<T> statusHandler(HttpResponse.BodyHandler<T> handler) {
         return r -> {
-            if (r.statusCode() == 404 || r.statusCode() == 400) {
-                throw notFound.apply("key '%s' is not found.".formatted(keyRef));
-            }
-            else if (r.statusCode() != 200) {
-                throw new KmsException("fail to retrieve key '%s', HTTP status code %d.".formatted(keyRef, r.statusCode()));
+            if (r.statusCode() != 200) {
+                return HttpResponse.BodySubscribers.mapping(HttpResponse.BodySubscribers.discarding(), unused -> null);
             }
             return handler.apply(r);
         };

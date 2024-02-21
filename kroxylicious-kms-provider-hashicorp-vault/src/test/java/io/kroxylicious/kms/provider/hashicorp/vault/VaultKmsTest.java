@@ -6,11 +6,18 @@
 
 package io.kroxylicious.kms.provider.hashicorp.vault;
 
+import java.io.IOException;
+import java.io.OutputStream;
+import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
+import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 import javax.net.ssl.SSLContext;
@@ -20,10 +27,43 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpHandler;
+import com.sun.net.httpserver.HttpServer;
+
+import io.kroxylicious.kms.provider.hashicorp.vault.config.Config;
+import io.kroxylicious.kms.service.UnknownAliasException;
+import io.kroxylicious.kms.service.UnknownKeyException;
+import io.kroxylicious.proxy.config.secret.InlinePassword;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class VaultKmsTest {
+
+    @Test
+    void resolveWithUnknownKeyReusesConnection() {
+        assertReusesConnectionsOn404(vaultKms -> {
+            assertThat(vaultKms.resolveAlias("alias")).failsWithin(Duration.ofSeconds(5)).withThrowableThat()
+                    .withCauseInstanceOf(UnknownAliasException.class);
+        });
+    }
+
+    @Test
+    void generatedDekPairWithUnknownKeyReusesConnection() {
+        assertReusesConnectionsOn404(vaultKms -> {
+            assertThat(vaultKms.generateDekPair("alias")).failsWithin(Duration.ofSeconds(5)).withThrowableThat()
+                    .withCauseInstanceOf(UnknownKeyException.class);
+        });
+    }
+
+    @Test
+    void decryptEdekWithUnknownKeyReusesConnection() {
+        assertReusesConnectionsOn404(vaultKms -> {
+            assertThat(vaultKms.decryptEdek(new VaultEdek("unknown", new byte[]{ 1 }))).failsWithin(Duration.ofSeconds(5)).withThrowableThat()
+                    .withCauseInstanceOf(UnknownKeyException.class);
+        });
+    }
 
     @Test
     void testConnectionTimeout() throws NoSuchAlgorithmException {
@@ -81,4 +121,51 @@ class VaultKmsTest {
                 .isInstanceOf(IllegalArgumentException.class);
 
     }
+
+    public static HttpServer mockVaultAlways404s(RemotePortTrackingHandler handler) {
+        try {
+            HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+            server.createContext("/", handler);
+            server.setExecutor(null); // creates a default executor
+            server.start();
+            return server;
+        }
+        catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private void assertReusesConnectionsOn404(Consumer<VaultKms> consumer) {
+        RemotePortTrackingHandler handler = new RemotePortTrackingHandler();
+        HttpServer httpServer = mockVaultAlways404s(handler);
+        try {
+            InetSocketAddress address = httpServer.getAddress();
+            String vaultAddress = "http://127.0.0.1:" + address.getPort() + "/v1/transit";
+            var config = new Config(URI.create(vaultAddress), new InlinePassword("token"), null);
+            VaultKms service = new VaultKmsService().buildKms(config);
+            for (int i = 0; i < 5; i++) {
+                consumer.accept(service);
+            }
+            assertThat(handler.remotePorts.size()).isLessThan(5);
+        }
+        finally {
+            httpServer.stop(0);
+        }
+    }
+
+    static class RemotePortTrackingHandler implements HttpHandler {
+
+        Set<Integer> remotePorts = new HashSet<>();
+
+        @Override
+        public void handle(HttpExchange t) throws IOException {
+            remotePorts.add(t.getRemoteAddress().getPort());
+            String response = "not-json 123";
+            t.sendResponseHeaders(404, response.length());
+            OutputStream os = t.getResponseBody();
+            os.write(response.getBytes(StandardCharsets.UTF_8));
+            os.close();
+        }
+    }
+
 }
