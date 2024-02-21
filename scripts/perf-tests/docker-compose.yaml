@@ -42,7 +42,7 @@ services:
       retries: 5
       timeout: 10s
   kroxy:
-    image: quay.io/kroxylicious/kroxylicious:0.5.0-SNAPSHOT
+    image: ${KROXYLICIOUS_IMAGE:-quay.io/kroxylicious/kroxylicious:0.5.0-SNAPSHOT}
     hostname: kroxy
     container_name: kroxy
     command:
