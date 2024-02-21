@@ -47,6 +47,7 @@ doDeleteTopic () {
 warmUp() {
   echo -e "${YELLOW}Running warm up${NOCOLOR}"
   producerPerf $1 $2 1000 > /dev/null
+  consumerPerf $1 $2 1000
 }
 
 # runs kafka-producer-perf-test.sh transforming the output to an array of objects
@@ -87,6 +88,56 @@ producerPerf() {
                                  [.[] | .captures | map( { (.name|tostring): ( .string | tonumber? ) } ) | add | del(..|nulls)]'
 }
 
+consumerPerf() {
+  local ENDPOINT
+  local TOPIC
+  local NUM_RECORDS
+  ENDPOINT=$1
+  TOPIC=$2
+  NUM_RECORDS=$3
+
+  echo -e "${YELLOW}Running consumer test${NOCOLOR}"
+
+  # Input:
+  # start.time, end.time, data.consumed.in.MB, MB.sec, data.consumed.in.nMsg, nMsg.sec, rebalance.time.ms, fetch.time.ms, fetch.MB.sec, fetch.nMsg.sec
+  # 2024-02-21 19:36:23:839, 2024-02-21 19:36:24:256, 0.9766, 2.3419, 1000, 2398.0815, 364, 53, 18.4257, 18867.9245  # Output:
+  # Output
+  # [
+  #  { "sent": 204796, "rate_rps": 40959.2, "rate_mips": 40.00, "avg_lat_ms": 627.9, "max_lat_ms": 759.0 },
+  #  { "sent": 300000, "rate_rps": 43184.108248, "rate_mips": 42.17, "avg_lat_ms": 627.62, "max_lat_ms": 759.00,
+  #    "percentile50": 644, "percentile95": 744, "percentile99": 753, "percentile999": 758 }
+  # ]
+
+  docker run --rm --network perf-tests_perf_network quay.io/strimzi/kafka:${STRIMZI_VERSION}-kafka-${KAFKA_VERSION}  \
+      bin/kafka-consumer-perf-test.sh --topic ${TOPIC} --messages ${NUM_RECORDS} --hide-header \
+      --bootstrap-server ${ENDPOINT} |
+       jq -R '[.,inputs] | [.[] | match("^(?<start_time>\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}:\\d{3}), " +
+                                        "(?<end_time>\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}:\\d{3}), " +
+                                        "(?<consumed_mi>\\d+[.]?\\d*), " +
+                                        "(?<consumed_mi_per_sec>\\d+[.]?\\d*), " +
+                                        "(?<consumed_rec>\\d+[.]?\\d*), " +
+                                        "(?<consumed_rec_per_sec>\\d+[.]?\\d*), " +
+                                        "(?<rebalance_time_ms>\\d+[.]?\\d*), " +
+                                        "(?<fetch_time_ms>\\d+[.]?\\d*), " +
+                                        "(?<fetch_mi_per_sec>\\d+[.]?\\d*), " +
+                                        "(?<fetch_rec_per_sec>\\d+[.]?\\d*)"; "g")] |
+                                 [.[] | .captures | map( { (.name|tostring): ( .string | tonumber? ) } ) | add | del(..|nulls)]'
+
+#      | \
+#      jq -R '[.,inputs] | [.[] | match("^(?<sent>\\d+) *records sent" +
+#                                    ", *(?<rate_rps>\\d+[.]?\\d*) records/sec [(](?<rate_mips>\\d+[.]?\\d*) MB/sec[)]" +
+#                                    ", *(?<avg_lat_ms>\\d+[.]?\\d*) ms avg latency" +
+#                                    ", *(?<max_lat_ms>\\d+[.]?\\d*) ms max latency" +
+#                                    "(?<inflight>" +
+#                                    ", *(?<percentile50>\\d+[.]?\\d*) ms 50th" +
+#                                    ", *(?<percentile95>\\d+[.]?\\d*) ms 95th" +
+#                                    ", *(?<percentile99>\\d+[.]?\\d*) ms 99th" +
+#                                    ", *(?<percentile999>\\d+[.]?\\d*) ms 99.9th" +
+#                                    ")?" +
+#                                    "[.]"; "g")]  |
+#                                 [.[] | .captures | map( { (.name|tostring): ( .string | tonumber? ) } ) | add | del(..|nulls)]'
+}
+
 doPerfKafkaDirect () {
   local TOPIC
   local EP
@@ -98,6 +149,7 @@ doPerfKafkaDirect () {
   warmUp ${EP} ${TOPIC}
 
   producerPerf ${EP} ${TOPIC} ${NUM_RECORDS}
+  consumerPerf ${EP} ${TOPIC} ${NUM_RECORDS}
   doDeleteTopic ${EP} ${TOPIC}
 }
 
@@ -188,8 +240,8 @@ runDockerCompose up --detach --wait kafka
 echo -e "${GREEN}Running test cases, number of records = ${NUM_RECORDS}, record size ${RECORD_SIZE}${NOCOLOR}"
 
 doPerfKafkaDirect
-doPerfKroxyliciousNoFilters
-doPerfKroxyliciousTransformFilter
-doPerfKroxyliciousEnvelopeEncryptionFilter true
-doPerfKroxyliciousEnvelopeEncryptionFilter false
+#doPerfKroxyliciousNoFilters
+#doPerfKroxyliciousTransformFilter
+#doPerfKroxyliciousEnvelopeEncryptionFilter true
+#doPerfKroxyliciousEnvelopeEncryptionFilter false
 
