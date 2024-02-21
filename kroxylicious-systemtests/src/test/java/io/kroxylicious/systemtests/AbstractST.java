@@ -19,7 +19,6 @@ import org.junit.jupiter.api.TestInstance;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.kroxylicious.systemtests.installation.kroxylicious.CertManager;
 import io.kroxylicious.systemtests.installation.strimzi.Strimzi;
 import io.kroxylicious.systemtests.k8s.KubeClusterResource;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
@@ -41,10 +40,6 @@ public class AbstractST {
      */
     protected static Strimzi strimziOperator;
 
-    /**
-     * The constant certManager.
-     */
-    protected static CertManager certManager;
     /**
      * The Resource manager.
      */
@@ -74,12 +69,10 @@ public class AbstractST {
         LOGGER.info(String.join("", Collections.nCopies(76, "#")));
         LOGGER.info(String.format("%s Test Suite - STARTED", testInfo.getTestClass().get().getName()));
         cluster = KubeClusterResource.getInstance();
-        certManager = new CertManager();
         strimziOperator = new Strimzi(Constants.KAFKA_DEFAULT_NAMESPACE);
 
         NamespaceUtils.createNamespaceWithWait(Constants.KAFKA_DEFAULT_NAMESPACE);
         strimziOperator.deploy();
-        certManager.deploy();
     }
 
     /**
@@ -93,9 +86,6 @@ public class AbstractST {
         if (!Environment.SKIP_TEARDOWN) {
             if (strimziOperator != null) {
                 strimziOperator.delete();
-            }
-            if (certManager != null) {
-                certManager.delete();
             }
             NamespaceUtils.deleteNamespaceWithWait(Constants.KAFKA_DEFAULT_NAMESPACE);
         }
