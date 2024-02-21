@@ -147,8 +147,8 @@ class FilterIT {
 
     static ByteBuffer encode(String topicName, ByteBuffer in) {
         var out = ByteBuffer.allocate(in.limit());
-        byte rot = (byte) (topicName.hashCode() % Byte.MAX_VALUE);
         for (int index = 0; index < in.limit(); index++) {
+            byte rot = getRot(topicName, index);
             byte b = in.get(index);
             byte rotated = (byte) (b + rot);
             out.put(index, rotated);
@@ -156,12 +156,18 @@ class FilterIT {
         return out;
     }
 
+    private static byte getRot(String topicName, int index) {
+        char c = topicName.charAt(index % topicName.length());
+        int i = topicName.hashCode() + c;
+        return (byte) (i % Byte.MAX_VALUE);
+    }
+
     static ByteBuffer decode(String topicName, ByteBuffer in) {
         var out = ByteBuffer.allocate(in.limit());
         out.limit(in.limit());
-        byte rot = (byte) -(topicName.hashCode() % Byte.MAX_VALUE);
         for (int index = 0; index < in.limit(); index++) {
             byte b = in.get(index);
+            byte rot = (byte) -getRot(topicName, index);
             byte rotated = (byte) (b + rot);
             out.put(index, rotated);
         }

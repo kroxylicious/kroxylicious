@@ -29,6 +29,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 import static java.util.concurrent.CompletableFuture.failedFuture;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -358,6 +359,34 @@ class ResilientKmsTest {
 
         // then
         assertThat(serde).isSameAs(mockSerde);
+    }
+
+    @Test
+    void testExecutorNotNullable() {
+        Kms<Long, Long> kms = Mockito.mock(Kms.class);
+        Serde mockSerde = mock(Serde.class);
+        when(kms.edekSerde()).thenReturn(mockSerde);
+        BackoffStrategy backoffStrategy = mock(BackoffStrategy.class);
+        assertThatThrownBy(() -> ResilientKms.wrap(kms, null, backoffStrategy, 3))
+                .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void testInnerKmsNotNullable() {
+        BackoffStrategy backoffStrategy = mock(BackoffStrategy.class);
+        ScheduledExecutorService executor = getMockExecutor();
+        assertThatThrownBy(() -> ResilientKms.wrap(null, executor, backoffStrategy, 3))
+                .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void testBackoffStrategyNotNullable() {
+        Kms<Long, Long> kms = Mockito.mock(Kms.class);
+        Serde mockSerde = mock(Serde.class);
+        when(kms.edekSerde()).thenReturn(mockSerde);
+        ScheduledExecutorService executor = getMockExecutor();
+        assertThatThrownBy(() -> ResilientKms.wrap(kms, executor, null, 3))
+                .isInstanceOf(NullPointerException.class);
     }
 
     @NonNull

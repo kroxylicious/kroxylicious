@@ -7,6 +7,7 @@
 package io.kroxylicious.filter.encryption;
 
 import java.time.Duration;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -38,6 +39,11 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 @Plugin(configType = EnvelopeEncryption.Config.class)
 public class EnvelopeEncryption<K, E> implements FilterFactory<EnvelopeEncryption.Config, SharedEncryptionContext<K, E>> {
 
+    static final ScheduledExecutorService RETRY_POOL = Executors.newSingleThreadScheduledExecutor(r -> {
+        Thread retryThread = new Thread(r, "kmsRetry");
+        retryThread.setDaemon(true);
+        return retryThread;
+    });
     private static KmsMetrics kmsMetrics = MicrometerKmsMetrics.create(Metrics.globalRegistry);
 
     record Config(
@@ -105,7 +111,7 @@ public class EnvelopeEncryption<K, E> implements FilterFactory<EnvelopeEncryptio
         kms = InstrumentedKms.wrap(kms, kmsMetrics);
         ExponentialJitterBackoffStrategy backoffStrategy = new ExponentialJitterBackoffStrategy(Duration.ofMillis(500), Duration.ofSeconds(5), 2d,
                 ThreadLocalRandom.current());
-        kms = ResilientKms.wrap(kms, context.eventLoop(), backoffStrategy, 3);
+        kms = ResilientKms.wrap(kms, RETRY_POOL, backoffStrategy, 3);
         return wrapWithCachingKms(configuration, kms);
     }
 
