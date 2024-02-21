@@ -1,0 +1,84 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+- apiMessageType: FETCH
+  description: Fetch v15 passed through without change
+  version: 15
+  response:
+    payload:
+      errorCode: 0
+      sessionId: 0
+      responses:
+        - topicId: AAAAAAAAAAAAAAAAAAAAAA
+          partitions:
+            - partitionIndex: 0
+              highWatermark: 0
+              lastStableOffset: 0
+              abortedTransactions: []
+              preferredReadReplica: 0
+              records: null
+              errorCode: 0
+              logStartOffset: 0
+      throttleTimeMs: 0
+    diff: []
+  disabled: false
+- apiMessageType: FETCH
+  description: Fetch v16 with nodeEndpoints
+  version: 16
+  response:
+    payload:
+      errorCode: 0
+      sessionId: 0
+      responses:
+        - topicId: AAAAAAAAAAAAAAAAAAAAAA
+          partitions:
+            - partitionIndex: 0
+              highWatermark: 0
+              lastStableOffset: 0
+              abortedTransactions: []
+              preferredReadReplica: 0
+              records: null
+              errorCode: 6 # NOT_LEADER_OR_FOLLOWER
+              logStartOffset: 0
+              currentLeader:
+                leaderId: 0
+                leaderEpoch: -2
+      nodeEndpoints:
+        - nodeId: 0
+          host: upstreamz
+          port: 9199
+          rack: a
+      throttleTimeMs: 0
+    diff:
+      - op: replace
+        path: "/nodeEndpoints/0/host"
+        value: downstream
+      - op: replace
+        path: "/nodeEndpoints/0/port"
+        value: 19199
+  disabled: false
+- apiMessageType: FETCH
+  description: Fetch v16 without nodeEndpoints
+  version: 16
+  response:
+    payload:
+      errorCode: 0
+      sessionId: 0
+      responses:
+        - topicId: AAAAAAAAAAAAAAAAAAAAAA
+          partitions:
+            - partitionIndex: 0
+              highWatermark: 0
+              lastStableOffset: 0
+              abortedTransactions: []
+              preferredReadReplica: 0
+              records: null
+              errorCode: 0
+              logStartOffset: 0
+      nodeEndpoints: []
+      throttleTimeMs: 0
+    diff: []
+  disabled: false
