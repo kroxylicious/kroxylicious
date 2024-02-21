@@ -16,7 +16,11 @@ YELLOW='\033[1;33m'
 NOCOLOR='\033[0m'
 
 . "${SCRIPT_DIR}/common.sh"
-cd "${SCRIPT_DIR}/.."
+KROXYLICIOUS_CHECKOUT=${KROXYLICIOUS_CHECKOUT:-${SCRIPT_DIR}/..}
+
+KAFKA_VERSION=${KAFKA_VERSION:-$(mvn -f ${KROXYLICIOUS_CHECKOUT}/pom.xml org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=kafka.version -q -DforceStdout)}
+STRIMZI_VERSION=${STRIMZI_VERSION:-$(mvn -f ${KROXYLICIOUS_CHECKOUT}/pom.xml org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=strimzi.version -q -DforceStdout)}
+export KAFKA_VERSION STRIMZI_VERSION
 
 runDockerCompose () {
   docker-compose -f ${PERF_TEST}/docker-compose.yaml "${@}"
@@ -169,9 +173,6 @@ onExit() {
   done
 }
 
-KAFKA_VERSION=$(mvn org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=kafka.version -q -DforceStdout)
-STRIMZI_VERSION=$(mvn org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=strimzi.version -q -DforceStdout)
-export KAFKA_VERSION STRIMZI_VERSION
 
 trap onExit EXIT
 
