@@ -126,7 +126,6 @@ class VaultKmsTest {
         try {
             HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
             server.createContext("/", handler);
-            server.setExecutor(null); // creates a default executor
             server.start();
             return server;
         }
@@ -146,7 +145,7 @@ class VaultKmsTest {
             for (int i = 0; i < 5; i++) {
                 consumer.accept(service);
             }
-            assertThat(handler.remotePorts.size()).isLessThan(5);
+            assertThat(handler.remotePorts.size()).isEqualTo(1);
         }
         finally {
             httpServer.stop(0);
@@ -155,7 +154,7 @@ class VaultKmsTest {
 
     static class RemotePortTrackingHandler implements HttpHandler {
 
-        Set<Integer> remotePorts = new HashSet<>();
+        final Set<Integer> remotePorts = new HashSet<>();
 
         @Override
         public void handle(HttpExchange t) throws IOException {
