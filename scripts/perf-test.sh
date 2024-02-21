@@ -31,7 +31,7 @@ doCreateTopic () {
   ENDPOINT=$1
   TOPIC=$2
   docker run --rm --network perf-tests_perf_network quay.io/strimzi/kafka:${STRIMZI_VERSION}-kafka-${KAFKA_VERSION}  \
-      bin/kafka-topics.sh --create --topic ${TOPIC} --bootstrap-server ${ENDPOINT}
+      bin/kafka-topics.sh --create --topic ${TOPIC} --bootstrap-server ${ENDPOINT} 1>/dev/null
 }
 
 doDeleteTopic () {
@@ -45,7 +45,8 @@ doDeleteTopic () {
 
 
 warmUp() {
-  producerPerf $1 $2 1
+  echo -e "${YELLOW}Running warm up${NOCOLOR}"
+  producerPerf $1 $2 1000 > /dev/null
 }
 
 # runs kafka-producer-perf-test.sh transforming the output to an array of objects
@@ -56,6 +57,8 @@ producerPerf() {
   ENDPOINT=$1
   TOPIC=$2
   NUM_RECORDS=$3
+
+  echo -e "${YELLOW}Running producer test${NOCOLOR}"
 
   # Input:
   # 250000 records sent, 41757.140471 records/sec (40.78 MB/sec), 639.48 ms avg latency, 782.00 ms max latency
@@ -89,11 +92,9 @@ doPerfKafkaDirect () {
   TOPIC=perf-test
 
   echo -e "${GREEN}Running Kafka Direct ${NOCOLOR}"
-  echo -e "${YELLOW}Running warm up${NOCOLOR}"
   doCreateTopic broker1:9092 ${TOPIC}
-  warmUp broker1:9092 ${TOPIC} > /dev/null
+  warmUp broker1:9092 ${TOPIC}
 
-  echo -e "${YELLOW}Running test${NOCOLOR}"
   producerPerf broker1:9092 ${TOPIC} ${NUM_RECORDS}
   doDeleteTopic broker1:9092 perf-test
 }
@@ -110,9 +111,7 @@ doPerfKroxyNoFilters () {
 
   doCreateTopic kroxy:9092 ${TOPIC}
 
-  echo -e "${YELLOW}Running warm up${NOCOLOR}"
-  warmUp kroxy:9092 ${TOPIC} > /dev/null
-  echo -e "${YELLOW}Running test${NOCOLOR}"
+  warmUp kroxy:9092 ${TOPIC}
   producerPerf kroxy:9092 ${TOPIC} ${NUM_RECORDS}
 
   doDeleteTopic kroxy:9092 ${TOPIC}
@@ -130,9 +129,7 @@ doPerfKroxyTransformFilter () {
   KROXY_CONFIG=${CFG} runDockerCompose up --detach --wait kroxy
   doCreateTopic kroxy:9092 ${TOPIC}
 
-  echo -e "${YELLOW}Running warm up${NOCOLOR}"
-  warmUp kroxy:9092 ${TOPIC} > /dev/null
-  echo -e "${YELLOW}Running test${NOCOLOR}"
+  warmUp kroxy:9092 ${TOPIC}
   producerPerf kroxy:9092 ${TOPIC} ${NUM_RECORDS}
 
   doDeleteTopic kroxy:9092 ${TOPIC}
@@ -147,19 +144,17 @@ doPerfKroxyEnvelopeEncryptionFilter () {
   TOPIC=perf-test
   CFG=envelope-encryption-filter.yaml
 
-  echo -e "${GREEN}Running Kroxylicious Envelope Encryption Filter (encrypted topic ${ENCRYPT}) ${NOCOLOR}"
+  echo -e "${GREEN}Running Kroxylicious Envelope Encryption Filter (encrypted topic: ${ENCRYPT}) ${NOCOLOR}"
 
   KROXY_CONFIG=${CFG} runDockerCompose up --detach --wait kroxy vault
 
-  docker exec vault vault secrets enable transit
+  docker exec vault vault secrets enable transit 1>/dev/null
   if [[ ${ENCRYPT} = true ]]; then
-    docker exec vault vault write -f transit/keys/KEK_${TOPIC}
+    docker exec vault vault write -f transit/keys/KEK_${TOPIC} 1>/dev/null
   fi
   doCreateTopic kroxy:9092 ${TOPIC}
 
-  echo -e "${YELLOW}Running warm up${NOCOLOR}"
-  warmUp kroxy:9092 ${TOPIC} > /dev/null
-  echo -e "${YELLOW}Running test${NOCOLOR}"
+  warmUp kroxy:9092 ${TOPIC}
   producerPerf kroxy:9092 ${TOPIC} ${NUM_RECORDS}
 
   doDeleteTopic kroxy:9092 ${TOPIC}
