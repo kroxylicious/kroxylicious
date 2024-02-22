@@ -17,7 +17,6 @@ import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse;
 import java.util.Objects;
 import java.util.Set;
-import java.util.function.Supplier;
 
 import org.testcontainers.DockerClientFactory;
 import org.testcontainers.utility.DockerImageName;
@@ -94,8 +93,17 @@ public class VaultTestKmsFacade extends AbstractVaultTestKmsFacade {
 
         var request = createVaultPost("v1/auth/token/create-orphan", BodyPublishers.ofString(body));
 
-        return sendRequest(request, new JsonBodyHandler<CreateTokenResponse>(new TypeReference<>() {
-        })).auth().clientToken();
+        return sendRequest("dummy", request, new TypeReference<CreateTokenResponse>() {
+        }).auth().clientToken();
+    }
+
+    private static <T> T decodeJson(TypeReference<T> valueTypeRef, byte[] bytes) {
+        try {
+            return OBJECT_MAPPER.readValue(bytes, valueTypeRef);
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     @Override
@@ -149,21 +157,21 @@ public class VaultTestKmsFacade extends AbstractVaultTestKmsFacade {
 
             var request = createVaultPost("v1/transit/keys/%s".formatted(encode(keyId, UTF_8)), BodyPublishers.noBody());
 
-            return sendRequest(request, statusHandler(keyId, request, new JsonBodyHandler<VaultResponse<VaultResponse.ReadKeyData>>(new TypeReference<>() {
-            }))).data();
+            return sendRequest(keyId, request, new TypeReference<VaultResponse<VaultResponse.ReadKeyData>>() {
+            }).data();
         }
 
         private VaultResponse.ReadKeyData read(String keyId) {
             var request = createVaultGet("v1/transit/keys/%s".formatted(encode(keyId, UTF_8)));
 
-            return sendRequest(request, statusHandler(keyId, request, new JsonBodyHandler<VaultResponse<VaultResponse.ReadKeyData>>(new TypeReference<>() {
-            }))).data();
+            return sendRequest(keyId, request, new TypeReference<VaultResponse<VaultResponse.ReadKeyData>>() {
+            }).data();
         }
 
         private VaultResponse.ReadKeyData rotate(String keyId) {
             var request = createVaultPost("v1/transit/keys/%s/rotate".formatted(encode(keyId, UTF_8)), BodyPublishers.noBody());
-            return sendRequest(request, statusHandler(keyId, request, new JsonBodyHandler<VaultResponse<VaultResponse.ReadKeyData>>(new TypeReference<>() {
-            }))).data();
+            return sendRequest(keyId, request, new TypeReference<VaultResponse<VaultResponse.ReadKeyData>>() {
+            }).data();
         }
 
     }
@@ -188,11 +196,18 @@ public class VaultTestKmsFacade extends AbstractVaultTestKmsFacade {
                 .header("Accept", "application/json");
     }
 
-    private <R> R sendRequest(HttpRequest request, HttpResponse.BodyHandler<Supplier<R>> responseBodyHandler) {
+    private <R> R sendRequest(String key, HttpRequest request, TypeReference<R> valueTypeRef) {
         try {
-            return vaultClient.send(request, responseBodyHandler)
-                    .body()
-                    .get();
+            HttpResponse<byte[]> response = vaultClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
+            if (response.statusCode() == 404) {
+                throw new UnknownAliasException(key);
+            }
+            else if (response.statusCode() != 200) {
+                throw new IllegalStateException("unexpected response %s for request: %s".formatted(response.statusCode(), request.uri()));
+            }
+            byte[] body = response
+                    .body();
+            return decodeJson(valueTypeRef, body);
         }
         catch (IOException e) {
             if (e.getCause() instanceof KmsException ke) {
@@ -229,18 +244,6 @@ public class VaultTestKmsFacade extends AbstractVaultTestKmsFacade {
         catch (JsonProcessingException e) {
             throw new UncheckedIOException("Failed to create request body", e);
         }
-    }
-
-    private static <T> HttpResponse.BodyHandler<T> statusHandler(String keyId, HttpRequest request, HttpResponse.BodyHandler<T> handler) {
-        return r -> {
-            if (r.statusCode() == 404) {
-                throw new UnknownAliasException(keyId);
-            }
-            else if (r.statusCode() != 200) {
-                throw new IllegalStateException("unexpected response %s for request: %s".formatted(r.statusCode(), request.uri()));
-            }
-            return handler.apply(r);
-        };
     }
 
 }
