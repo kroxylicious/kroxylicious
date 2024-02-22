@@ -8,6 +8,8 @@
 set -eo pipefail
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 NUM_RECORDS=${NUM_RECORDS:-10000000}
+POST_BROKER_START_WARM_UP_NUM_RECORDS=${POST_BROKER_START_WARM_UP_NUM_RECORDS:-1000}
+PRE_TEST_WARM_UP_NUM_RECORDS=${PRE_TEST_WARM_UP_NUM_RECORDS:-1000}
 RECORD_SIZE=${RECORD_SIZE:-1024}
 ON_SHUTDOWN=()
 PERF_TEST=${SCRIPT_DIR}/perf-tests
@@ -43,11 +45,10 @@ doDeleteTopic () {
       bin/kafka-topics.sh --delete --topic ${TOPIC} --bootstrap-server ${ENDPOINT}
 }
 
-
 warmUp() {
   echo -e "${YELLOW}Running warm up${NOCOLOR}"
-  producerPerf $1 $2 1000 > /dev/null
-  consumerPerf $1 $2 1000
+  producerPerf $1 $2 ${PRE_TEST_WARM_UP_NUM_RECORDS} > /dev/null
+  consumerPerf $1 $2 ${PRE_TEST_WARM_UP_NUM_RECORDS} > /dev/null
 }
 
 # runs kafka-producer-perf-test.sh transforming the output to an array of objects
@@ -122,29 +123,14 @@ consumerPerf() {
                                         "(?<fetch_mi_per_sec>\\d+[.]?\\d*), " +
                                         "(?<fetch_rec_per_sec>\\d+[.]?\\d*)"; "g")] |
                                  [.[] | .captures | map( { (.name|tostring): ( .string | tonumber? ) } ) | add | del(..|nulls)]'
-
-#      | \
-#      jq -R '[.,inputs] | [.[] | match("^(?<sent>\\d+) *records sent" +
-#                                    ", *(?<rate_rps>\\d+[.]?\\d*) records/sec [(](?<rate_mips>\\d+[.]?\\d*) MB/sec[)]" +
-#                                    ", *(?<avg_lat_ms>\\d+[.]?\\d*) ms avg latency" +
-#                                    ", *(?<max_lat_ms>\\d+[.]?\\d*) ms max latency" +
-#                                    "(?<inflight>" +
-#                                    ", *(?<percentile50>\\d+[.]?\\d*) ms 50th" +
-#                                    ", *(?<percentile95>\\d+[.]?\\d*) ms 95th" +
-#                                    ", *(?<percentile99>\\d+[.]?\\d*) ms 99th" +
-#                                    ", *(?<percentile999>\\d+[.]?\\d*) ms 99.9th" +
-#                                    ")?" +
-#                                    "[.]"; "g")]  |
-#                                 [.[] | .captures | map( { (.name|tostring): ( .string | tonumber? ) } ) | add | del(..|nulls)]'
 }
 
-doPerfKafkaDirect () {
+doPerfTest () {
   local TOPIC
   local EP
-  TOPIC=perf-test
-  EP=broker1:9092
+  EP=$1
+  TOPIC=${2:-perf-test-${RANDOM}}
 
-  echo -e "${GREEN}Running Kafka Direct ${NOCOLOR}"
   doCreateTopic ${EP} ${TOPIC}
   warmUp ${EP} ${TOPIC}
 
@@ -153,45 +139,43 @@ doPerfKafkaDirect () {
   doDeleteTopic ${EP} ${TOPIC}
 }
 
+doPerfKafkaDirect () {
+  local EP
+  EP=broker1:9092
+
+  echo -e "${GREEN}Running Kafka Direct ${NOCOLOR}"
+
+  doPerfTest ${EP}
+}
+
 
 doPerfKroxyliciousNoFilters () {
-  local TOPIC
   local CFG
   local EP
-  TOPIC=perf-test
   CFG=no-filters.yaml
   EP=kroxylicious:9092
   echo -e "${GREEN}Running Kroxylicious No Filter ${NOCOLOR}"
 
   KROXYLICIOUS_CONFIG=${CFG} runDockerCompose up --detach --wait kroxylicious
 
-  doCreateTopic ${EP} ${TOPIC}
+  doPerfTest ${EP}
 
-  warmUp ${EP} ${TOPIC}
-  producerPerf ${EP} ${TOPIC} ${NUM_RECORDS}
-
-  doDeleteTopic ${EP} ${TOPIC}
-  KROXYLICIOUS_CONFIG=${CFG} runDockerCompose rm -s -f kroxylicious
+  runDockerCompose rm -s -f kroxylicious
 }
 
 doPerfKroxyliciousTransformFilter () {
-  local TOPIC
   local CFG
   local EP
-  TOPIC=perf-test
   CFG=transform-filter.yaml
   EP=kroxylicious:9092
 
   echo -e "${GREEN}Running Kroxylicious Transform Filter ${NOCOLOR}"
 
   KROXYLICIOUS_CONFIG=${CFG} runDockerCompose up --detach --wait kroxylicious
-  doCreateTopic ${EP} ${TOPIC}
 
-  warmUp ${EP} ${TOPIC}
-  producerPerf ${EP} ${TOPIC} ${NUM_RECORDS}
+  doPerfTest ${EP}
 
-  doDeleteTopic ${EP} ${TOPIC}
-  KROXYLICIOUS_CONFIG=${CFG} runDockerCompose rm -s -f kroxylicious
+  runDockerCompose rm -s -f kroxylicious
 }
 
 doPerfKroxyliciousEnvelopeEncryptionFilter () {
@@ -200,7 +184,7 @@ doPerfKroxyliciousEnvelopeEncryptionFilter () {
   local EP
   local ENCRYPT
   ENCRYPT=$1
-  TOPIC=perf-test
+  TOPIC=perf-test-${RANDOM}
   CFG=envelope-encryption-filter.yaml
   EP=kroxylicious:9092
 
@@ -212,13 +196,10 @@ doPerfKroxyliciousEnvelopeEncryptionFilter () {
   if [[ ${ENCRYPT} = true ]]; then
     docker exec vault vault write -f transit/keys/KEK_${TOPIC} 1>/dev/null
   fi
-  doCreateTopic ${EP} ${TOPIC}
 
-  warmUp ${EP} ${TOPIC}
-  producerPerf ${EP} ${TOPIC} ${NUM_RECORDS}
+  doPerfTest ${EP} ${TOPIC}
 
-  doDeleteTopic ${EP} ${TOPIC}
-  KROXYLICIOUS_CONFIG=${CFG} runDockerCompose rm -s -f kroxylicious vault
+ runDockerCompose rm -s -f kroxylicious vault
 }
 
 onExit() {
@@ -228,7 +209,6 @@ onExit() {
   done
 }
 
-
 trap onExit EXIT
 
 echo -e "${YELLOW}Kafka version is ${KAFKA_VERSION}, Strimzi version ${STRIMZI_VERSION}${NOCOLOR}"
@@ -236,12 +216,14 @@ echo -e "${YELLOW}Kafka version is ${KAFKA_VERSION}, Strimzi version ${STRIMZI_V
 # Bring up Kafka
 ON_SHUTDOWN+=("runDockerCompose down")
 runDockerCompose up --detach --wait kafka
+# Warm up the broker we do this separately as we might want a longer warm-up period
+warmUp broker1:9092 ${POST_BROKER_START_WARM_UP_NUM_RECORDS}
 
 echo -e "${GREEN}Running test cases, number of records = ${NUM_RECORDS}, record size ${RECORD_SIZE}${NOCOLOR}"
 
 doPerfKafkaDirect
-#doPerfKroxyliciousNoFilters
-#doPerfKroxyliciousTransformFilter
-#doPerfKroxyliciousEnvelopeEncryptionFilter true
-#doPerfKroxyliciousEnvelopeEncryptionFilter false
+doPerfKroxyliciousNoFilters
+doPerfKroxyliciousTransformFilter
+doPerfKroxyliciousEnvelopeEncryptionFilter true
+doPerfKroxyliciousEnvelopeEncryptionFilter false
 
