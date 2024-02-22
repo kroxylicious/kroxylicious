@@ -119,7 +119,7 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
 
     @Override
     public CompletionStage<ResponseFilterResult> onFetchResponse(short apiVersion, ResponseHeaderData header, FetchResponseData response, FilterContext context) {
-        // KIP-951, Version 10
+        // KIP-951, Version 16
         if (response.nodeEndpoints() != null) {
             response.nodeEndpoints()
                     .forEach(ne -> apply(context, ne, FetchResponseData.NodeEndpoint::nodeId,
