@@ -17,7 +17,6 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NOCOLOR='\033[0m'
 
-. "${SCRIPT_DIR}/common.sh"
 KROXYLICIOUS_CHECKOUT=${KROXYLICIOUS_CHECKOUT:-${SCRIPT_DIR}/..}
 
 KAFKA_VERSION=${KAFKA_VERSION:-$(mvn -f ${KROXYLICIOUS_CHECKOUT}/pom.xml org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=kafka.version -q -DforceStdout)}
@@ -220,6 +219,7 @@ runDockerCompose up --detach --wait kafka
 warmUp broker1:9092 ${POST_BROKER_START_WARM_UP_NUM_RECORDS}
 
 echo -e "${GREEN}Running test cases, number of records = ${NUM_RECORDS}, record size ${RECORD_SIZE}${NOCOLOR}"
+
 
 doPerfKafkaDirect
 doPerfKroxyliciousNoFilters
