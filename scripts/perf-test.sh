@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Copyright Kroxylicious Authors.
 #
@@ -7,12 +7,14 @@
 
 set -eo pipefail
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
+RECORD_SIZE=${RECORD_SIZE:-1024}
 NUM_RECORDS=${NUM_RECORDS:-10000000}
 POST_BROKER_START_WARM_UP_NUM_RECORDS=${POST_BROKER_START_WARM_UP_NUM_RECORDS:-1000}
 PRE_TEST_WARM_UP_NUM_RECORDS=${PRE_TEST_WARM_UP_NUM_RECORDS:-1000}
-RECORD_SIZE=${RECORD_SIZE:-1024}
+
 ON_SHUTDOWN=()
-PERF_TEST=${SCRIPT_DIR}/perf-tests
+PERF_TESTS_DIR=${SCRIPT_DIR}/perf-tests
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NOCOLOR='\033[0m'
@@ -24,7 +26,7 @@ STRIMZI_VERSION=${STRIMZI_VERSION:-$(mvn -f ${KROXYLICIOUS_CHECKOUT}/pom.xml org
 export KAFKA_VERSION STRIMZI_VERSION
 
 runDockerCompose () {
-  docker-compose -f ${PERF_TEST}/docker-compose.yaml "${@}"
+  docker-compose -f ${PERF_TESTS_DIR}/docker-compose.yaml "${@}"
 }
 
 doCreateTopic () {
@@ -46,8 +48,8 @@ doDeleteTopic () {
 
 warmUp() {
   echo -e "${YELLOW}Running warm up${NOCOLOR}"
-  producerPerf $1 $2 ${PRE_TEST_WARM_UP_NUM_RECORDS} > /dev/null
-  consumerPerf $1 $2 ${PRE_TEST_WARM_UP_NUM_RECORDS} > /dev/null
+  producerPerf $1 $2 ${PRE_TEST_WARM_UP_NUM_RECORDS} /dev/null > /dev/null
+  consumerPerf $1 $2 ${PRE_TEST_WARM_UP_NUM_RECORDS} /dev/null > /dev/null
 }
 
 # runs kafka-producer-perf-test.sh transforming the output to an array of objects
@@ -55,9 +57,11 @@ producerPerf() {
   local ENDPOINT
   local TOPIC
   local NUM_RECORDS
+  local OUTPUT
   ENDPOINT=$1
   TOPIC=$2
   NUM_RECORDS=$3
+  OUTPUT=$4
 
   echo -e "${YELLOW}Running producer test${NOCOLOR}"
 
@@ -74,7 +78,7 @@ producerPerf() {
   docker run --rm --network perf-tests_perf_network quay.io/strimzi/kafka:${STRIMZI_VERSION}-kafka-${KAFKA_VERSION}  \
       bin/kafka-producer-perf-test.sh --topic ${TOPIC} --throughput -1 --num-records ${NUM_RECORDS} --record-size ${RECORD_SIZE} \
       --producer-props acks=all bootstrap.servers=${ENDPOINT} | \
-      jq -R '[.,inputs] | [.[] | match("^(?<sent>\\d+) *records sent" +
+      jq --raw-input --arg name "${TESTNAME}" '[.,inputs] | [.[] | match("^(?<sent>\\d+) *records sent" +
                                     ", *(?<rate_rps>\\d+[.]?\\d*) records/sec [(](?<rate_mips>\\d+[.]?\\d*) MB/sec[)]" +
                                     ", *(?<avg_lat_ms>\\d+[.]?\\d*) ms avg latency" +
                                     ", *(?<max_lat_ms>\\d+[.]?\\d*) ms max latency" +
@@ -85,16 +89,19 @@ producerPerf() {
                                     ", *(?<percentile999>\\d+[.]?\\d*) ms 99.9th" +
                                     ")?" +
                                     "[.]"; "g")]  |
-                                 [.[] | .captures | map( { (.name|tostring): ( .string | tonumber? ) } ) | add | del(..|nulls)]'
+                                 {name: $name, values: [.[] | .captures | map( { (.name|tostring): ( .string | tonumber? ) } ) | add | del(..|nulls)]}' > ${OUTPUT}
 }
 
 consumerPerf() {
   local ENDPOINT
   local TOPIC
   local NUM_RECORDS
+  local OUTPUT
+
   ENDPOINT=$1
   TOPIC=$2
   NUM_RECORDS=$3
+  OUTPUT=$4
 
   echo -e "${YELLOW}Running consumer test${NOCOLOR}"
 
@@ -111,7 +118,7 @@ consumerPerf() {
   docker run --rm --network perf-tests_perf_network quay.io/strimzi/kafka:${STRIMZI_VERSION}-kafka-${KAFKA_VERSION}  \
       bin/kafka-consumer-perf-test.sh --topic ${TOPIC} --messages ${NUM_RECORDS} --hide-header \
       --bootstrap-server ${ENDPOINT} |
-       jq -R '[.,inputs] | [.[] | match("^(?<start_time>\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}:\\d{3}), " +
+       jq --raw-input --arg name "${TESTNAME}" '[.,inputs] | [.[] | match("^(?<start_time>\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}:\\d{3}), " +
                                         "(?<end_time>\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}:\\d{3}), " +
                                         "(?<consumed_mi>\\d+[.]?\\d*), " +
                                         "(?<consumed_mi_per_sec>\\d+[.]?\\d*), " +
@@ -121,84 +128,18 @@ consumerPerf() {
                                         "(?<fetch_time_ms>\\d+[.]?\\d*), " +
                                         "(?<fetch_mi_per_sec>\\d+[.]?\\d*), " +
                                         "(?<fetch_rec_per_sec>\\d+[.]?\\d*)"; "g")] |
-                                 [.[] | .captures | map( { (.name|tostring): ( .string | tonumber? ) } ) | add | del(..|nulls)]'
+                                 { name: $name, values: [.[] | .captures | map( { (.name|tostring): ( .string | tonumber? ) } ) | add | del(..|nulls)]}' > ${OUTPUT}
 }
 
+# expects TEST_NAME, TOPIC, ENDPOINT, PRODUCER_RESULT and CONSUMER_RESULT to be set
 doPerfTest () {
-  local TOPIC
-  local EP
-  EP=$1
-  TOPIC=${2:-perf-test-${RANDOM}}
+  doCreateTopic ${ENDPOINT} ${TOPIC}
+  warmUp ${ENDPOINT} ${TOPIC}
 
-  doCreateTopic ${EP} ${TOPIC}
-  warmUp ${EP} ${TOPIC}
+  producerPerf ${ENDPOINT} ${TOPIC} ${NUM_RECORDS} ${PRODUCER_RESULT}
+  consumerPerf ${ENDPOINT} ${TOPIC} ${NUM_RECORDS} ${CONSUMER_RESULT}
 
-  producerPerf ${EP} ${TOPIC} ${NUM_RECORDS}
-  consumerPerf ${EP} ${TOPIC} ${NUM_RECORDS}
-  doDeleteTopic ${EP} ${TOPIC}
-}
-
-doPerfKafkaDirect () {
-  local EP
-  EP=broker1:9092
-
-  echo -e "${GREEN}Running Kafka Direct ${NOCOLOR}"
-
-  doPerfTest ${EP}
-}
-
-
-doPerfKroxyliciousNoFilters () {
-  local CFG
-  local EP
-  CFG=no-filters.yaml
-  EP=kroxylicious:9092
-  echo -e "${GREEN}Running Kroxylicious No Filter ${NOCOLOR}"
-
-  KROXYLICIOUS_CONFIG=${CFG} runDockerCompose up --detach --wait kroxylicious
-
-  doPerfTest ${EP}
-
-  runDockerCompose rm -s -f kroxylicious
-}
-
-doPerfKroxyliciousTransformFilter () {
-  local CFG
-  local EP
-  CFG=transform-filter.yaml
-  EP=kroxylicious:9092
-
-  echo -e "${GREEN}Running Kroxylicious Transform Filter ${NOCOLOR}"
-
-  KROXYLICIOUS_CONFIG=${CFG} runDockerCompose up --detach --wait kroxylicious
-
-  doPerfTest ${EP}
-
-  runDockerCompose rm -s -f kroxylicious
-}
-
-doPerfKroxyliciousEnvelopeEncryptionFilter () {
-  local CFG
-  local TOPIC
-  local EP
-  local ENCRYPT
-  ENCRYPT=$1
-  TOPIC=perf-test-${RANDOM}
-  CFG=envelope-encryption-filter.yaml
-  EP=kroxylicious:9092
-
-  echo -e "${GREEN}Running Kroxylicious Envelope Encryption Filter (encrypted topic: ${ENCRYPT}) ${NOCOLOR}"
-
-  KROXYLICIOUS_CONFIG=${CFG} runDockerCompose up --detach --wait kroxylicious vault
-
-  docker exec vault vault secrets enable transit 1>/dev/null
-  if [[ ${ENCRYPT} = true ]]; then
-    docker exec vault vault write -f transit/keys/KEK_${TOPIC} 1>/dev/null
-  fi
-
-  doPerfTest ${EP} ${TOPIC}
-
- runDockerCompose rm -s -f kroxylicious vault
+  doDeleteTopic ${ENDPOINT} ${TOPIC}
 }
 
 onExit() {
@@ -210,20 +151,52 @@ onExit() {
 
 trap onExit EXIT
 
+TMP=$(mktemp -d)
+ON_SHUTDOWN+=("rm -rf ${TMP}")
+
 echo -e "${YELLOW}Kafka version is ${KAFKA_VERSION}, Strimzi version ${STRIMZI_VERSION}${NOCOLOR}"
 
 # Bring up Kafka
 ON_SHUTDOWN+=("runDockerCompose down")
+runDockerCompose pull
 runDockerCompose up --detach --wait kafka
-# Warm up the broker we do this separately as we might want a longer warm-up period
-warmUp broker1:9092 ${POST_BROKER_START_WARM_UP_NUM_RECORDS}
+
+# Warm up the broker - we do this separately as we might want a longer warm-up period
+doCreateTopic broker1:9092 warmup-topic
+warmUp broker1:9092 warmup-topic ${POST_BROKER_START_WARM_UP_NUM_RECORDS}
+doDeleteTopic broker1:9092 warmup-topic
 
 echo -e "${GREEN}Running test cases, number of records = ${NUM_RECORDS}, record size ${RECORD_SIZE}${NOCOLOR}"
 
+PRODUCER_RESULTS=()
+CONSUMER_RESULTS=()
+for t in $(find ${PERF_TESTS_DIR} -type d -regex '.*/[0-9][0-9]-.*' | sort)
+do
+  TESTNAME=$(basename $t)
+  TEST_TMP=${TMP}/${TESTNAME}
+  mkdir -p ${TEST_TMP}
+  PRODUCER_RESULT=${TEST_TMP}/producer.json
+  CONSUMER_RESULT=${TEST_TMP}/consumer.json
+  TOPIC=perf-test-${RANDOM}
 
-doPerfKafkaDirect
-doPerfKroxyliciousNoFilters
-doPerfKroxyliciousTransformFilter
-doPerfKroxyliciousEnvelopeEncryptionFilter true
-doPerfKroxyliciousEnvelopeEncryptionFilter false
+  echo -e "${GREEN}Running ${TESTNAME} ${NOCOLOR}"
+
+  TESTNAME=${TESTNAME} TOPIC=${TOPIC} PRODUCER_RESULT=${PRODUCER_RESULT} CONSUMER_RESULT=${CONSUMER_RESULT} . ${t}/perftest.sh
+
+  PRODUCER_RESULTS+=(${PRODUCER_RESULT})
+  CONSUMER_RESULTS+=(${CONSUMER_RESULT})
+done
+
+# Summarise results
+
+echo -e "${GREEN}Producer Results ${NOCOLOR}"
+
+jq -r -s '(["Name","Sent","Rate rec/s", "Rate Mi/s", "Avg Lat ms", "Max Lat ms", "Percentile50", "Percentile95", "Percentile99", "Percentile999"] | (., map(length*"-"))),
+           (.[] | [ .name, (.values | last | .[]) ]) | @tsv' "${PRODUCER_RESULTS[@]}" | column -t -s $'\t'
+
+echo -e "${GREEN}Consumer Results ${NOCOLOR}"
+
+jq -r -s '(["Name","Consumed Mi","Consumed Mi/s", "Consumed recs", "Consumed rec/s", "Rebalance Time ms", "Fetch Time ms", "Fetch Mi/s", "Fetch rec/s"] | (., map(length*"-"))),
+           (.[] | [ .name, (.values  | last | .[]) ]) | @tsv' "${CONSUMER_RESULTS[@]}" | column -t -s $'\t'
+
 
