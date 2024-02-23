@@ -35,11 +35,11 @@ public class FetchResponseTransformationFilterFactory
                                                           Config configuration) {
         var factory = context.pluginInstance(ByteBufferTransformationFactory.class, configuration.transformation());
         Objects.requireNonNull(factory, "Violated contract of FilterCreationContext");
-        return new FetchResponseTransformationFilter(factory.createTransformation(configuration.config()));
+        return new FetchResponseTransformationFilter(factory.createTransformation(configuration.transformationConfig()));
     }
 
     public record Config(@JsonProperty(required = true) @PluginImplName(ByteBufferTransformationFactory.class) String transformation,
-                         @PluginImplConfig(implNameProperty = "transformation") Object config) {
+                         @PluginImplConfig(implNameProperty = "transformation") Object transformationConfig) {
 
     }
 
