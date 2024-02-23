@@ -120,16 +120,16 @@ consumerPerf() {
   docker run --rm --network perf-tests_perf_network ${KAFKA_TOOL_IMAGE}  \
       bin/kafka-consumer-perf-test.sh --topic ${TOPIC} --messages ${NUM_RECORDS} --hide-header \
       --bootstrap-server ${ENDPOINT} |
-       jq --raw-input --arg name "${TESTNAME}" '[.,inputs] | [.[] | match("^(?<start_time>\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}:\\d{3}), " +
-                                        "(?<end_time>\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}:\\d{3}), " +
-                                        "(?<consumed_mi>\\d+[.]?\\d*), " +
-                                        "(?<consumed_mi_per_sec>\\d+[.]?\\d*), " +
-                                        "(?<consumed_rec>\\d+[.]?\\d*), " +
-                                        "(?<consumed_rec_per_sec>\\d+[.]?\\d*), " +
-                                        "(?<rebalance_time_ms>\\d+[.]?\\d*), " +
-                                        "(?<fetch_time_ms>\\d+[.]?\\d*), " +
-                                        "(?<fetch_mi_per_sec>\\d+[.]?\\d*), " +
-                                        "(?<fetch_rec_per_sec>\\d+[.]?\\d*)"; "g")] |
+       jq --raw-input --arg name "${TESTNAME}" '[.,inputs] | [.[] | match("^(?<start.time>\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}:\\d{3}), " +
+                                        "(?<end.time>\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}:\\d{3}), " +
+                                        "(?<data.consumed.in.MB>\\d+[.]?\\d*), " +
+                                        "(?<MB.sec>\\d+[.]?\\d*), " +
+                                        "(?<data.consumed.in.nMsg>\\d+[.]?\\d*), " +
+                                        "(?<nMsg.sec>\\d+[.]?\\d*), " +
+                                        "(?<rebalance.time.ms>\\d+[.]?\\d*), " +
+                                        "(?<fetch.time.ms>\\d+[.]?\\d*), " +
+                                        "(?<fetch.MB.sec>\\d+[.]?\\d*), " +
+                                        "(?<fetch.nMsg.sec>\\d+[.]?\\d*)"; "g")] |
                                  { name: $name, values: [.[] | .captures | map( { (.name|tostring): ( .string | tonumber? ) } ) | add | del(..|nulls)]}' > ${OUTPUT}
 }
 
@@ -200,3 +200,21 @@ jq -r -s '(["Name","Consumed Mi","Consumed Mi/s", "Consumed recs", "Consumed rec
            (.[] | [ .name, (.values  | last | .[]) ]) | @tsv' "${CONSUMER_RESULTS[@]}" | column -t -s $'\t'
 
 
+# Write output for integration with Kibana in the CI pipeline
+# This maintains the existing interface
+if [[ ! -z "${KIBANA_OUTPUT_DIR}" && -d "${KIBANA_OUTPUT_DIR}" ]]; then
+  for PRODUCER_RESULT in ${PRODUCER_RESULTS[@]}
+  do
+    DIR=${KIBANA_OUTPUT_DIR}/$(jq -r '.name' ${PRODUCER_RESULT})
+    mkdir -p ${DIR}
+    jq '.values | last | [{name: "AVG Latency", unit: "ms", value: .avg_lat_ms},
+                          {name: "95th Latency", unit: "ms", value: .percentile95},
+                          {name: "99th Latency", unit: "ms", value: .percentile99}]' ${PRODUCER_RESULT} > ${DIR}/producer.json
+  done
+
+  for CONSUMER_RESULT in ${CONSUMER_RESULTS[@]}
+  do
+    DIR=${KIBANA_OUTPUT_DIR}/$(jq -r '.name' ${CONSUMER_RESULT})
+    jq '[.values | last | to_entries[] | { name: .key, value} ]' ${CONSUMER_RESULT} > ${DIR}/consumer.json
+  done
+fi

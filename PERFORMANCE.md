@@ -20,7 +20,7 @@ The tested scenarios are:
 * Kroxylicious + Kafka - no filters
 * Kroxylicious + Kafka - simple transform filter
 * Kroxylicious + Kafka - envelope encryption with encrypted topic
-* Kroxylicious + Kafka - envelope encryption withot encrypted topic
+* Kroxylicious + Kafka - envelope encryption without encrypted topic
 
 ## Prerequisites 
 
@@ -72,9 +72,6 @@ The script understands the following environment variables.
 | KAFKA_TOOL_IMAGE     | Kafka tooling image.  Defaults to use Kafka image published by the Strimzi project that      |
 |                      | `strimzi.version` property of the project.                                                   |
 | VAULT_IMAGE          | HashiCorp Vault image. Defaults to `docker.io/hashicorp/vault:1.15`                          |
-| STRIMZI_VERSION      | Version of Strimzi.  This governs the Kafka tooling used by the test.                        |
-
-
 
 # Jenkins pipeline for performance
 
