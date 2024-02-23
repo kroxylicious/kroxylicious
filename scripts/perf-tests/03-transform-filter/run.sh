@@ -5,7 +5,7 @@
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
 
-CFG=no-filters.yaml
+CFG=03-transform-filter/config.yaml
 ENDPOINT=kroxylicious:9092
 
 KROXYLICIOUS_CONFIG=${CFG} runDockerCompose up --detach --wait kroxylicious
@@ -13,5 +13,6 @@ KROXYLICIOUS_CONFIG=${CFG} runDockerCompose up --detach --wait kroxylicious
 ENDPOINT=${ENDPOINT} doPerfTest
 
 runDockerCompose rm -s -f kroxylicious
+
 
 

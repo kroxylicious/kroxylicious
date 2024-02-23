@@ -8,6 +8,7 @@
 set -eo pipefail
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
+TEST=${TEST:-'[0-9][0-9]-.*'}
 RECORD_SIZE=${RECORD_SIZE:-1024}
 NUM_RECORDS=${NUM_RECORDS:-10000000}
 POST_BROKER_START_WARM_UP_NUM_RECORDS=${POST_BROKER_START_WARM_UP_NUM_RECORDS:-1000}
@@ -23,7 +24,8 @@ KROXYLICIOUS_CHECKOUT=${KROXYLICIOUS_CHECKOUT:-${SCRIPT_DIR}/..}
 
 KAFKA_VERSION=${KAFKA_VERSION:-$(mvn -f ${KROXYLICIOUS_CHECKOUT}/pom.xml org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=kafka.version -q -DforceStdout)}
 STRIMZI_VERSION=${STRIMZI_VERSION:-$(mvn -f ${KROXYLICIOUS_CHECKOUT}/pom.xml org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=strimzi.version -q -DforceStdout)}
-export KAFKA_VERSION STRIMZI_VERSION
+KAFKA_TOOL_IMAGE=${KAFKA_TOOL_IMAGE:-quay.io/strimzi/kafka:${STRIMZI_VERSION}-kafka-${KAFKA_VERSION}}
+export KAFKA_VERSION KAFKA_TOOL_IMAGE
 
 runDockerCompose () {
   docker-compose -f ${PERF_TESTS_DIR}/docker-compose.yaml "${@}"
@@ -33,7 +35,7 @@ doCreateTopic () {
   local TOPIC
   ENDPOINT=$1
   TOPIC=$2
-  docker run --rm --network perf-tests_perf_network quay.io/strimzi/kafka:${STRIMZI_VERSION}-kafka-${KAFKA_VERSION}  \
+  docker run --rm --network perf-tests_perf_network ${KAFKA_TOOL_IMAGE}  \
       bin/kafka-topics.sh --create --topic ${TOPIC} --bootstrap-server ${ENDPOINT} 1>/dev/null
 }
 
@@ -42,7 +44,7 @@ doDeleteTopic () {
   local TOPIC
   ENDPOINT=$1
   TOPIC=$2
-  docker run --rm --network perf-tests_perf_network quay.io/strimzi/kafka:${STRIMZI_VERSION}-kafka-${KAFKA_VERSION}  \
+  docker run --rm --network perf-tests_perf_network ${KAFKA_TOOL_IMAGE}  \
       bin/kafka-topics.sh --delete --topic ${TOPIC} --bootstrap-server ${ENDPOINT}
 }
 
@@ -75,7 +77,7 @@ producerPerf() {
   #    "percentile50": 644, "percentile95": 744, "percentile99": 753, "percentile999": 758 }
   # ]
 
-  docker run --rm --network perf-tests_perf_network quay.io/strimzi/kafka:${STRIMZI_VERSION}-kafka-${KAFKA_VERSION}  \
+  docker run --rm --network perf-tests_perf_network ${KAFKA_TOOL_IMAGE}  \
       bin/kafka-producer-perf-test.sh --topic ${TOPIC} --throughput -1 --num-records ${NUM_RECORDS} --record-size ${RECORD_SIZE} \
       --producer-props acks=all bootstrap.servers=${ENDPOINT} | \
       jq --raw-input --arg name "${TESTNAME}" '[.,inputs] | [.[] | match("^(?<sent>\\d+) *records sent" +
@@ -115,7 +117,7 @@ consumerPerf() {
   #    "percentile50": 644, "percentile95": 744, "percentile99": 753, "percentile999": 758 }
   # ]
 
-  docker run --rm --network perf-tests_perf_network quay.io/strimzi/kafka:${STRIMZI_VERSION}-kafka-${KAFKA_VERSION}  \
+  docker run --rm --network perf-tests_perf_network ${KAFKA_TOOL_IMAGE}  \
       bin/kafka-consumer-perf-test.sh --topic ${TOPIC} --messages ${NUM_RECORDS} --hide-header \
       --bootstrap-server ${ENDPOINT} |
        jq --raw-input --arg name "${TESTNAME}" '[.,inputs] | [.[] | match("^(?<start_time>\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}:\\d{3}), " +
@@ -154,8 +156,6 @@ trap onExit EXIT
 TMP=$(mktemp -d)
 ON_SHUTDOWN+=("rm -rf ${TMP}")
 
-echo -e "${YELLOW}Kafka version is ${KAFKA_VERSION}, Strimzi version ${STRIMZI_VERSION}${NOCOLOR}"
-
 # Bring up Kafka
 ON_SHUTDOWN+=("runDockerCompose down")
 runDockerCompose pull
@@ -170,7 +170,7 @@ echo -e "${GREEN}Running test cases, number of records = ${NUM_RECORDS}, record 
 
 PRODUCER_RESULTS=()
 CONSUMER_RESULTS=()
-for t in $(find ${PERF_TESTS_DIR} -type d -regex '.*/[0-9][0-9]-.*' | sort)
+for t in $(find ${PERF_TESTS_DIR} -type d -regex '.*/'${TEST} | sort)
 do
   TESTNAME=$(basename $t)
   TEST_TMP=${TMP}/${TESTNAME}
@@ -181,7 +181,7 @@ do
 
   echo -e "${GREEN}Running ${TESTNAME} ${NOCOLOR}"
 
-  TESTNAME=${TESTNAME} TOPIC=${TOPIC} PRODUCER_RESULT=${PRODUCER_RESULT} CONSUMER_RESULT=${CONSUMER_RESULT} . ${t}/perftest.sh
+  TESTNAME=${TESTNAME} TOPIC=${TOPIC} PRODUCER_RESULT=${PRODUCER_RESULT} CONSUMER_RESULT=${CONSUMER_RESULT} . ${t}/run.sh
 
   PRODUCER_RESULTS+=(${PRODUCER_RESULT})
   CONSUMER_RESULTS+=(${CONSUMER_RESULT})
