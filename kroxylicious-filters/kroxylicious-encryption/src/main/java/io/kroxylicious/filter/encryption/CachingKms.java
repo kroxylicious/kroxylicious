@@ -7,16 +7,23 @@
 package io.kroxylicious.filter.encryption;
 
 import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 
 import javax.crypto.SecretKey;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
+import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 
 import io.kroxylicious.kms.service.DekPair;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.Serde;
+import io.kroxylicious.kms.service.UnknownAliasException;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -33,6 +40,9 @@ public class CachingKms<K, E> implements Kms<K, E> {
     private final Kms<K, E> delegate;
     private final AsyncLoadingCache<E, SecretKey> decryptDekCache;
     private final AsyncLoadingCache<String, K> resolveAliasCache;
+    private final Cache<String, Long> notFoundAliasCache;
+    private static final Duration CACHE_NOT_FOUND_ALIAS_DURATION = Duration.ofSeconds(30);
+    private static final Logger LOGGER = LoggerFactory.getLogger(CachingKms.class);
 
     private CachingKms(@NonNull Kms<K, E> delegate,
                        long decryptDekCacheMaxSize,
@@ -43,6 +53,7 @@ public class CachingKms<K, E> implements Kms<K, E> {
         this.delegate = delegate;
         decryptDekCache = buildDecryptedDekCache(delegate, decryptDekCacheMaxSize, decryptDekExpireAfterAccess);
         resolveAliasCache = buildResolveAliasCache(delegate, resolveAliasCacheMaxSize, resolveAliasExpireAfterWrite, resolveAliasRefreshAfterWrite);
+        notFoundAliasCache = Caffeine.newBuilder().expireAfterWrite(CACHE_NOT_FOUND_ALIAS_DURATION).build();
     }
 
     @NonNull
@@ -89,6 +100,17 @@ public class CachingKms<K, E> implements Kms<K, E> {
     @NonNull
     @Override
     public CompletionStage<K> resolveAlias(@NonNull String alias) {
-        return resolveAliasCache.get(alias);
+        Long notFoundSince = notFoundAliasCache.getIfPresent(alias);
+        if (notFoundSince != null) {
+            return CompletableFuture.failedFuture(new UnknownAliasException("alias " + alias + " not found, cached since " + notFoundSince));
+        }
+        CompletableFuture<K> resolved = resolveAliasCache.get(alias);
+        resolved.whenComplete((k, throwable) -> {
+            if (throwable instanceof UnknownAliasException || (throwable instanceof CompletionException && throwable.getCause() instanceof UnknownAliasException)) {
+                LOGGER.debug("caching unknown alias {} for {}", alias, CACHE_NOT_FOUND_ALIAS_DURATION);
+                notFoundAliasCache.put(alias, System.currentTimeMillis());
+            }
+        });
+        return resolved;
     }
 }

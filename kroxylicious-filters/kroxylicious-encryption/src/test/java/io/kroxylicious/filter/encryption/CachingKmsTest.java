@@ -8,7 +8,9 @@ package io.kroxylicious.filter.encryption;
 
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import javax.crypto.SecretKey;
@@ -19,6 +21,7 @@ import org.mockito.Mockito;
 import io.kroxylicious.kms.service.DekPair;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.Serde;
+import io.kroxylicious.kms.service.UnknownAliasException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -80,6 +83,30 @@ class CachingKmsTest {
         Kms<Long, Long> caching = CachingKms.wrap(kms, 1L, Duration.ZERO, 1L, Duration.ofHours(1), Duration.ofMinutes(8));
         assertThat(caching.resolveAlias("a")).succeedsWithin(5, TimeUnit.SECONDS).isEqualTo(kekId);
         assertThat(caching.resolveAlias("a")).succeedsWithin(5, TimeUnit.SECONDS).isEqualTo(kekId);
+        verify(kms, times(1)).resolveAlias("a");
+    }
+
+    @Test
+    void testResolveAliasNotFoundCached() {
+        Kms<Long, Long> kms = mock(Kms.class);
+        Mockito.when(kms.resolveAlias(any())).thenReturn(CompletableFuture.failedFuture(new UnknownAliasException("fail!")));
+        Kms<Long, Long> caching = CachingKms.wrap(kms, 1L, Duration.ZERO, 1L, Duration.ofHours(1), Duration.ofMinutes(8));
+        assertThat(caching.resolveAlias("a")).failsWithin(5, TimeUnit.SECONDS).withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(UnknownAliasException.class);
+        assertThat(caching.resolveAlias("a")).failsWithin(5, TimeUnit.SECONDS).withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(UnknownAliasException.class);
+        verify(kms, times(1)).resolveAlias("a");
+    }
+
+    @Test
+    void testResolveAliasNotFoundCompletionExceptionsCached() {
+        Kms<Long, Long> kms = mock(Kms.class);
+        Mockito.when(kms.resolveAlias(any())).thenReturn(CompletableFuture.failedFuture(new CompletionException(new UnknownAliasException("fail!"))));
+        Kms<Long, Long> caching = CachingKms.wrap(kms, 1L, Duration.ZERO, 1L, Duration.ofHours(1), Duration.ofMinutes(8));
+        assertThat(caching.resolveAlias("a")).failsWithin(5, TimeUnit.SECONDS).withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(UnknownAliasException.class);
+        assertThat(caching.resolveAlias("a")).failsWithin(5, TimeUnit.SECONDS).withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(UnknownAliasException.class);
         verify(kms, times(1)).resolveAlias("a");
     }
 
