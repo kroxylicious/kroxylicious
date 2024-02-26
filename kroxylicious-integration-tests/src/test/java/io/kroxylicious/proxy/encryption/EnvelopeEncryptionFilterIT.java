@@ -485,7 +485,9 @@ class EnvelopeEncryptionFilterIT {
                 .withConfig("kms", testKmsFacade.getKmsServiceClass().getSimpleName())
                 .withConfig("kmsConfig", testKmsFacade.getKmsServiceConfig())
                 .withConfig("selector", TemplateKekSelector.class.getSimpleName())
-                .withConfig("selectorConfig", Map.of("template", TEMPLATE_KEK_SELECTOR_PATTERN))
+                .withConfig("selectorConfig", Map.of("templates",
+                        List.of(Map.of("topicNamePrefix", "",
+                                "template", TEMPLATE_KEK_SELECTOR_PATTERN))))
                 .build();
     }
 

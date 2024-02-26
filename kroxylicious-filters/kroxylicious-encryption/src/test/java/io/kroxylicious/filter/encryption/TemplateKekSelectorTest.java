@@ -7,6 +7,9 @@
 package io.kroxylicious.filter.encryption;
 
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -48,6 +51,37 @@ class TemplateKekSelectorTest {
         assertThat(map)
                 .hasSize(1)
                 .containsEntry("my-topic", kek);
+    }
+
+    @Test
+    void shouldResolveWhenAliasExistsViaPrefix() {
+        var kms = UnitTestingKmsService.newInstance().buildKms(new UnitTestingKmsService.Config());
+        var selector = getSelector(kms, List.of(new TemplateKekSelector.TopicNameMatcher(null, "my-topic", "key-for-${topicName}")));
+
+        var kek1 = kms.generateKey();
+        kms.createAlias(kek1, "key-for-my-topic");
+        var kek2 = kms.generateKey();
+        kms.createAlias(kek2, "key-for-my-topic-foo");
+        kms.createAlias(kek2, "key-for-my-topic-bar");
+        kms.createAlias(kek2, "key-for-my-topic-");
+        kms.createAlias(kek2, "key-for-my-topic.");
+        kms.createAlias(kek2, "key-for-my-topic_");
+        kms.createAlias(kek2, "key-for-my-topic0");
+
+        Map<String, UUID> expect = new HashMap<>();
+        expect.put("my-topic", kek1); // exact match
+        expect.put("my-topic-foo", kek2); // prefixed by topic name matcher prefix
+        expect.put("my-topic-bar", kek2); // prefixed by topic name matcher prefix
+        expect.put("my-topic-", kek2); // prefixed by topic name matcher prefix
+        expect.put("my-topic.", kek2); // prefixed by topic name matcher prefix
+        expect.put("my-topic_", kek2); // prefixed by topic name matcher prefix
+        expect.put("my-topic0", kek2); // prefixed by topic name matcher prefix
+        expect.put("my-topib", null); // precedes topic name matcher prefix
+        expect.put("my-topibZZZZZZZZZZZZ", null); // precedes topic name matcher prefix
+        expect.put("my-topid", null); // succeeds topic name matcher prefix
+
+        assertThat(selector.selectKek(expect.keySet()).toCompletableFuture().join())
+                .isEqualTo(expect);
     }
 
     @Test
@@ -94,7 +128,13 @@ class TemplateKekSelectorTest {
 
     @NonNull
     private <K> TopicNameBasedKekSelector<K> getSelector(Kms<K, ?> kms, String template) {
-        var config = new TemplateKekSelector.Config(template);
+        List<TemplateKekSelector.TopicNameMatcher> templates = List.of(new TemplateKekSelector.TopicNameMatcher(null, "", template));
+        return getSelector(kms, templates);
+    }
+
+    @NonNull
+    private <K> TopicNameBasedKekSelector<K> getSelector(Kms<K, ?> kms, List<TemplateKekSelector.TopicNameMatcher> templates) {
+        var config = new TemplateKekSelector.Config(templates);
         return new TemplateKekSelector<K>().buildSelector(kms, config);
     }
 
