@@ -13,12 +13,10 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.regex.Pattern;
 
 import io.kroxylicious.kms.service.Kms;
-import io.kroxylicious.kms.service.UnknownAliasException;
 import io.kroxylicious.proxy.plugin.Plugin;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -106,13 +104,6 @@ public class TemplateKekSelector<K> implements KekSelectorService<TemplateKekSel
                                 }
                                 String alias = evaluateTemplate(template, topicName);
                                 return kms.resolveAlias(alias)
-                                        .exceptionallyCompose(e -> {
-                                            if (e instanceof UnknownAliasException
-                                                    || (e instanceof CompletionException ce && ce.getCause() instanceof UnknownAliasException)) {
-                                                return CompletableFuture.completedFuture(null);
-                                            }
-                                            return CompletableFuture.failedFuture(e);
-                                        })
                                         .thenApply(kekId -> new Pair<>(topicName, kekId));
                             })
                     .toList();

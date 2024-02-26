@@ -14,6 +14,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.Test;
 
@@ -85,14 +86,14 @@ class TemplateKekSelectorTest {
     }
 
     @Test
-    void shouldNotThrowWhenAliasDoesNotExist() {
+    void shouldThrowWhenAliasDoesNotExist() {
         var kms = UnitTestingKmsService.newInstance().buildKms(new UnitTestingKmsService.Config());
         var selector = getSelector(kms, "topic-${topicName}");
 
-        var map = selector.selectKek(Set.of("my-topic")).toCompletableFuture().join();
-        assertThat(map)
-                .hasSize(1)
-                .containsEntry("my-topic", null);
+        assertThat(selector.selectKek(Set.of("my-topic")))
+                .failsWithin(1, TimeUnit.MILLISECONDS)
+                .withThrowableThat()
+                .withCauseInstanceOf(UnknownAliasException.class);
     }
 
     @Test
@@ -105,10 +106,10 @@ class TemplateKekSelectorTest {
                 });
         when(kms.resolveAlias(anyString())).thenReturn(result);
         var selector = getSelector(kms, "topic-${topicName}");
-        var map = selector.selectKek(Set.of("my-topic")).toCompletableFuture().get();
-        assertThat(map)
-                .hasSize(1)
-                .containsEntry("my-topic", null);
+        assertThat(selector.selectKek(Set.of("my-topic")))
+                .failsWithin(1, TimeUnit.MILLISECONDS)
+                .withThrowableThat()
+                .withCauseInstanceOf(UnknownAliasException.class);
     }
 
     @Test
