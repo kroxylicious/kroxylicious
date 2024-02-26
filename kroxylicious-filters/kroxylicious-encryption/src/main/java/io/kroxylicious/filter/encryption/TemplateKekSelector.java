@@ -33,20 +33,6 @@ public class TemplateKekSelector<K> implements KekSelectorService<TemplateKekSel
                 throw new IllegalArgumentException("Either topicName or topicNamePrefix (but not both), must be specified");
             }
         }
-
-        // @JsonCreator
-        // public static TopicNameMatcher fromTopicName(
-        // @JsonProperty(value = "topicName", required = true) String topicName,
-        // @JsonProperty(value = "template", required = true) String template) {
-        // return new TopicNameMatcher(topicName, null, template);
-        // }
-
-        // @JsonCreator
-        // public static TopicNameMatcher fromTopicPrefix(
-        // @JsonProperty(value = "topicNamePrefix", required = true) String topicNamePrefix,
-        // @JsonProperty(value = "template", required = true) String template) {
-        // return new TopicNameMatcher(null, topicNamePrefix, template);
-        // }
     }
 
     public record Config(List<TopicNameMatcher> templates) {}
@@ -66,7 +52,7 @@ public class TemplateKekSelector<K> implements KekSelectorService<TemplateKekSel
         private final Kms<K, ?> kms;
 
         KekSelector(@NonNull Kms<K, ?> kms, @NonNull List<TopicNameMatcher> topicNameMatchers) {
-            var templates = new TreeMap<String, String>();
+            var validatedTemplates = new TreeMap<String, String>();
             for (var topicNameMatcher : topicNameMatchers) {
                 var template = topicNameMatcher.template();
                 var matcher = PATTERN.matcher(Objects.requireNonNull(template));
@@ -77,16 +63,16 @@ public class TemplateKekSelector<K> implements KekSelectorService<TemplateKekSel
                     throw new IllegalArgumentException("Unknown template parameter: " + matcher.group(1));
                 }
                 if (topicNameMatcher.topicName() != null && !topicNameMatcher.topicName().isEmpty()) {
-                    templates.put(topicNameMatcher.topicName(), template);
-                    templates.put(topicNameMatcher.topicName() + END_EXACT, null);
+                    validatedTemplates.put(topicNameMatcher.topicName(), template);
+                    validatedTemplates.put(topicNameMatcher.topicName() + END_EXACT, null);
                 }
                 else {
-                    templates.put(topicNameMatcher.topicNamePrefix(), template);
-                    templates.put(topicNameMatcher.topicNamePrefix() + END_PREFIX, null);
+                    validatedTemplates.put(topicNameMatcher.topicNamePrefix(), template);
+                    validatedTemplates.put(topicNameMatcher.topicNamePrefix() + END_PREFIX, null);
                 }
             }
 
-            this.templates = Objects.requireNonNull(templates);
+            this.templates = Objects.requireNonNull(validatedTemplates);
             this.kms = Objects.requireNonNull(kms);
         }
 
