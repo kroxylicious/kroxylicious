@@ -27,6 +27,6 @@ filters:
 - type: FetchResponseTransformationFilterFactory
   config:
     transformation: UpperCasing
-    config:
+    transformationConfig:
       charset: UTF-8
 
