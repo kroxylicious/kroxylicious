@@ -36,7 +36,7 @@ class TemplateKekSelectorTest {
 
     @Test
     void shouldRejectUnknownPlaceholders() {
-        assertThatThrownBy(() -> getSelector(null, "foo-${topicId}-bar"))
+        assertThatThrownBy(() -> getSelectorAny(null, "foo-${topicId}-bar"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Unknown template parameter: topicId");
     }
@@ -44,7 +44,7 @@ class TemplateKekSelectorTest {
     @Test
     void shouldResolveWhenAliasExists() {
         var kms = UnitTestingKmsService.newInstance().buildKms(new UnitTestingKmsService.Config());
-        var selector = getSelector(kms, "topic-${topicName}");
+        var selector = getSelectorExact(kms, "my-topic", "topic-${topicName}");
 
         var kek = kms.generateKey();
         kms.createAlias(kek, "topic-my-topic");
@@ -88,10 +88,10 @@ class TemplateKekSelectorTest {
     @Test
     void shouldThrowWhenAliasDoesNotExist() {
         var kms = UnitTestingKmsService.newInstance().buildKms(new UnitTestingKmsService.Config());
-        var selector = getSelector(kms, "topic-${topicName}");
+        var selector = getSelectorAny(kms, "topic-${topicName}");
 
         assertThat(selector.selectKek(Set.of("my-topic")))
-                .failsWithin(1, TimeUnit.MILLISECONDS)
+                .failsWithin(Duration.ZERO)
                 .withThrowableThat()
                 .withCauseInstanceOf(UnknownAliasException.class);
     }
@@ -105,9 +105,9 @@ class TemplateKekSelectorTest {
                     throw new UnknownAliasException("mock alias exception");
                 });
         when(kms.resolveAlias(anyString())).thenReturn(result);
-        var selector = getSelector(kms, "topic-${topicName}");
+        var selector = getSelectorAny(kms, "topic-${topicName}");
         assertThat(selector.selectKek(Set.of("my-topic")))
-                .failsWithin(1, TimeUnit.MILLISECONDS)
+                .failsWithin(Duration.ZERO)
                 .withThrowableThat()
                 .withCauseInstanceOf(UnknownAliasException.class);
     }
@@ -118,7 +118,7 @@ class TemplateKekSelectorTest {
         var result = CompletableFuture.<UUID> failedFuture(new KmsException("bang!"));
         when(kms.resolveAlias(anyString())).thenReturn(result);
 
-        var selector = getSelector(kms, "topic-${topicName}");
+        var selector = getSelectorAny(kms, "topic-${topicName}");
         var stage = selector.selectKek(Set.of("my-topic"));
         assertThat(stage)
                 .isCompletedExceptionally()
@@ -128,7 +128,13 @@ class TemplateKekSelectorTest {
     }
 
     @NonNull
-    private <K> TopicNameBasedKekSelector<K> getSelector(Kms<K, ?> kms, String template) {
+    private <K> TopicNameBasedKekSelector<K> getSelectorAny(Kms<K, ?> kms, String template) {
+        List<TemplateKekSelector.TopicNameMatcher> templates = List.of(new TemplateKekSelector.TopicNameMatcher(null, "", template));
+        return getSelector(kms, templates);
+    }
+
+    @NonNull
+    private <K> TopicNameBasedKekSelector<K> getSelectorExact(Kms<K, ?> kms, String topicName, String template) {
         List<TemplateKekSelector.TopicNameMatcher> templates = List.of(new TemplateKekSelector.TopicNameMatcher(null, "", template));
         return getSelector(kms, templates);
     }
